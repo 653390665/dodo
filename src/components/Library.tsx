@@ -5,7 +5,8 @@ import {
   MoreVertical, 
   Trash2, 
   BookMarked,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { 
   collection, 
@@ -16,10 +17,11 @@ import {
   deleteDoc, 
   doc, 
   updateDoc,
-  orderBy
+  orderBy,
+  getDocs
 } from 'firebase/firestore';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
-import { Novel } from '../types';
+import { Novel, Chapter } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LibraryProps {
@@ -81,6 +83,41 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
     }
   };
 
+  const handleExportNovel = async (e: React.MouseEvent, novel: Novel) => {
+    e.stopPropagation();
+    try {
+      const q = query(
+        collection(db, 'chapters'), 
+        where('novelId', '==', novel.id),
+        orderBy('order', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      const chapters = snapshot.docs.map(doc => doc.data() as Chapter);
+      
+      let exportText = `# ${novel.title}\n\n`;
+      if (novel.summary) exportText += `【简介】\n${novel.summary}\n\n`;
+      if (novel.globalOutline) exportText += `【大纲】\n${novel.globalOutline}\n\n`;
+      
+      exportText += `==============================\n\n`;
+      
+      chapters.forEach(ch => {
+         exportText += `## ${ch.title}\n\n`;
+         exportText += `${ch.content || ''}\n\n`;
+      });
+      
+      const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${novel.title}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert('导出失败');
+    }
+  };
+
   const filteredNovels = novels.filter(n => n.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -123,10 +160,18 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
               onClick={() => onSelectNovel(novel)}
               className="group relative h-[400px] natural-card p-6 overflow-hidden"
             >
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
+                <button 
+                  onClick={(e) => handleExportNovel(e, novel)}
+                  className="p-2 bg-white/90 backdrop-blur rounded-full text-sage-muted hover:text-sage-text hover:bg-sage-sidebar transition-all shadow-md"
+                  title="导出全本 (TXT)"
+                >
+                  <Download size={16} />
+                </button>
                 <button 
                   onClick={(e) => handleDeleteNovel(e, novel.id)}
                   className="p-2 bg-white/90 backdrop-blur rounded-full text-sage-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-md"
+                  title="删除作品"
                 >
                   <Trash2 size={16} />
                 </button>

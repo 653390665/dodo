@@ -3,7 +3,8 @@ import {
   BookOpen, 
   PenTool, 
   Users, 
-  Sparkles, 
+  Sparkles,
+  Wand2,
   Settings,
   LogOut,
   ChevronLeft,
@@ -27,7 +28,8 @@ export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
   const navItems = [
     { id: 'library' as ViewType, label: '我的书库', icon: BookOpen },
     { id: 'editor' as ViewType, label: '创作舞台', icon: PenTool },
-    { id: 'world' as ViewType, label: '人物设定', icon: Users },
+    { id: 'world' as ViewType, label: '设定记忆', icon: Users },
+    { id: 'skills' as ViewType, label: '拆书工厂', icon: Wand2 },
     { id: 'ai' as ViewType, label: '灵感助手', icon: Sparkles },
   ];
 

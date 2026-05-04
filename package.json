@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@langchain/core": "^1.1.44",
+    "@langchain/google-genai": "^2.1.30",
+    "@langchain/langgraph": "^1.2.9",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",

@@ -21,7 +21,10 @@ service cloud.firestore {
 
     // Novels collection
     match /novels/{novelId} {
-      allow read, write: if isSignedIn() && (request.resource == null || request.resource.data.authorId == request.auth.uid) && (resource == null || resource.data.authorId == request.auth.uid);
+      allow read: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.authorId == request.auth.uid && request.resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }
 
     // Chapters collection
@@ -30,10 +33,28 @@ service cloud.firestore {
       // For simplicity in this v1, we check if the user is signed in. 
       // In a production app, we'd use get() to check parent novel ownership.
       allow read, write: if isSignedIn();
+      
+      match /versions/{versionId} {
+        allow read, write: if isSignedIn();
+      }
     }
 
     // Characters collection
     match /characters/{characterId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Locations collection
+    match /locations/{locationId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Items collection
+    match /items/{itemId} {
+      allow read, write: if isSignedIn();
+    }
+    // Skills collection
+    match /skills/{skillId} {
       allow read, write: if isSignedIn();
     }
   }

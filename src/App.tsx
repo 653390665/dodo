@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Library } from './components/Library';
 import { EditorView } from './components/EditorView';
-import { CharacterHub } from './components/CharacterHub';
+import { WorldBibleView } from './components/WorldBibleView';
 import { AIAssistant } from './components/AIAssistant';
+import { SkillsStudioView } from './components/SkillsStudioView';
 import { ViewType, Novel } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User } from 'firebase/auth';
@@ -110,10 +111,13 @@ export default function App() {
               <EditorView novel={selectedNovel} onBack={() => setCurrentView('library')} />
             )}
             {currentView === 'world' && selectedNovel && (
-              <CharacterHub novelId={selectedNovel.id} />
+              <WorldBibleView novel={selectedNovel} />
             )}
             {currentView === 'ai' && (
               <AIAssistant />
+            )}
+            {currentView === 'skills' && (
+              <SkillsStudioView />
             )}
             {currentView === 'editor' && !selectedNovel && (
               <div className="h-full flex items-center justify-center p-12 text-gray-400">

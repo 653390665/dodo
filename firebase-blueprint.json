@@ -10,6 +10,8 @@
         "authorId": { "type": "string" },
         "summary": { "type": "string" },
         "status": { "type": "string", "enum": ["ongoing", "completed", "hiatus"] },
+        "worldRules": { "type": "string" },
+        "globalOutline": { "type": "string" },
         "createdAt": { "type": "number" },
         "updatedAt": { "type": "number" }
       },
@@ -26,6 +28,8 @@
         "content": { "type": "string" },
         "order": { "type": "number" },
         "wordCount": { "type": "number" },
+        "sceneBeats": { "type": "string" },
+        "critique": { "type": "string" },
         "updatedAt": { "type": "number" }
       },
       "required": ["novelId", "title", "content", "order", "wordCount", "updatedAt"]
@@ -41,9 +45,55 @@
         "role": { "type": "string", "enum": ["protagonist", "antagonist", "supporting", "extra"] },
         "summary": { "type": "string" },
         "traits": { "type": "array", "items": { "type": "string" } },
-        "bio": { "type": "string" }
+        "bio": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
       "required": ["novelId", "name", "role", "summary", "bio"]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "A setting or location in the novel.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "novelId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "region": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["novelId", "name", "createdAt", "updatedAt"]
+    },
+    "Item": {
+      "title": "Item",
+      "description": "A key item, prop, or artifact in the novel.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "novelId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["novelId", "name", "createdAt", "updatedAt"]
+    },
+    "ChapterVersion": {
+      "title": "ChapterVersion",
+      "description": "A snapshot of the chapter content.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "content": { "type": "string" },
+        "wordCount": { "type": "number" },
+        "author": { "type": "string", "enum": ["user", "writer-agent", "editor-agent", "auto"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["chapterId", "content", "wordCount", "author", "createdAt"]
     }
   },
   "firestore": {
@@ -58,6 +108,18 @@
     "/characters/{characterId}": {
       "schema": "Character",
       "description": "Characters collection (relates via novelId)."
+    },
+    "/locations/{locationId}": {
+      "schema": "Location",
+      "description": "Locations collection (relates via novelId)."
+    },
+    "/items/{itemId}": {
+      "schema": "Item",
+      "description": "Items collection (relates via novelId)."
+    },
+    "/chapters/{chapterId}/versions/{versionId}": {
+      "schema": "ChapterVersion",
+      "description": "Subcollection for chapter history versions."
     }
   }
 }
