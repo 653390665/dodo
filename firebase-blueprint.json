@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Novel": {
+      "title": "Novel",
+      "description": "Represents a book or novel being written.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "authorId": { "type": "string" },
+        "summary": { "type": "string" },
+        "status": { "type": "string", "enum": ["ongoing", "completed", "hiatus"] },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "authorId", "status", "createdAt", "updatedAt"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "A chapter within a novel.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "novelId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "order": { "type": "number" },
+        "wordCount": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["novelId", "title", "content", "order", "wordCount", "updatedAt"]
+    },
+    "Character": {
+      "title": "Character",
+      "description": "A character profile belonging to a novel.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "novelId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["protagonist", "antagonist", "supporting", "extra"] },
+        "summary": { "type": "string" },
+        "traits": { "type": "array", "items": { "type": "string" } },
+        "bio": { "type": "string" }
+      },
+      "required": ["novelId", "name", "role", "summary", "bio"]
+    }
+  },
+  "firestore": {
+    "/novels/{novelId}": {
+      "schema": "Novel",
+      "description": "Root collection for novels."
+    },
+    "/chapters/{chapterId}": {
+      "schema": "Chapter",
+      "description": "Chapters collection (relates via novelId)."
+    },
+    "/characters/{characterId}": {
+      "schema": "Character",
+      "description": "Characters collection (relates via novelId)."
+    }
+  }
+}

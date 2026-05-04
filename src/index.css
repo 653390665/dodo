@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "EB Garamond", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-sage-bg: #F5F5F0;
+  --color-sage-sidebar: #EBEBE4;
+  --color-sage-border: #D9D9CF;
+  --color-sage-text: #3E3D32;
+  --color-sage-muted: #8A8A78;
+  --color-sage-accent: #5A5A40;
+  --color-paper: #ffffff;
+  --color-parchment: #F5F5F0;
+}
+
+@layer base {
+  body {
+    @apply bg-sage-bg text-sage-text font-sans antialiased;
+  }
+}
+
+.writing-surface {
+  font-family: var(--font-serif);
+  line-height: 1.8;
+  font-size: 1.15rem;
+  color: #4A4940;
+}
+
+.natural-card {
+  @apply bg-white border border-sage-border rounded-xl shadow-sm hover:shadow-md transition-all;
+}
+
+.natural-btn-primary {
+  @apply px-4 py-2 bg-sage-accent text-white rounded-full text-sm font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+}
