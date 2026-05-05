@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import os from 'os';
-import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill } from '../types';
+import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing } from '../types';
 
 const DB_DIR = path.join(os.homedir(), '.inkflow');
 const DB_PATH = path.join(DB_DIR, 'data.db');
@@ -153,6 +153,33 @@ export function initDb(dbPath?: string): void {
       evaluation_feedback TEXT DEFAULT '',
       version INTEGER DEFAULT 1,
       created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS idea_fragments (
+      id TEXT PRIMARY KEY,
+      novel_id TEXT,
+      content TEXT NOT NULL DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'scene',
+      status TEXT NOT NULL DEFAULT 'raw',
+      ai_expansion TEXT,
+      target_chapter_id TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS foreshadowings (
+      id TEXT PRIMARY KEY,
+      novel_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'planted',
+      planted_chapter_id TEXT,
+      payoff_chapter_id TEXT,
+      related_character_ids TEXT DEFAULT '[]',
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
     );
   `);
 }
@@ -341,6 +368,59 @@ function skillToRow(s: Skill): any {
     evaluation_feedback: s.evaluationFeedback,
     version: s.version,
     created_at: s.createdAt,
+  };
+}
+
+function rowToIdeaFragment(row: any): IdeaFragment {
+  return {
+    ...row,
+    novelId: row.novel_id,
+    aiExpansion: row.ai_expansion,
+    targetChapterId: row.target_chapter_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function ideaFragmentToRow(f: IdeaFragment): any {
+  return {
+    id: f.id,
+    novel_id: f.novelId || null,
+    content: f.content,
+    type: f.type,
+    status: f.status,
+    ai_expansion: f.aiExpansion || null,
+    target_chapter_id: f.targetChapterId || null,
+    created_at: f.createdAt,
+    updated_at: f.updatedAt,
+  };
+}
+
+function rowToForeshadowing(row: any): Foreshadowing {
+  return {
+    ...row,
+    novelId: row.novel_id,
+    plantedChapterId: row.planted_chapter_id,
+    payoffChapterId: row.payoff_chapter_id,
+    relatedCharacterIds: JSON.parse(row.related_character_ids || '[]'),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function foreshadowingToRow(f: Foreshadowing): any {
+  return {
+    id: f.id,
+    novel_id: f.novelId,
+    title: f.title,
+    description: f.description,
+    status: f.status,
+    planted_chapter_id: f.plantedChapterId || null,
+    payoff_chapter_id: f.payoffChapterId || null,
+    related_character_ids: JSON.stringify(f.relatedCharacterIds || []),
+    notes: f.notes || null,
+    created_at: f.createdAt,
+    updated_at: f.updatedAt,
   };
 }
 
@@ -650,5 +730,71 @@ export function updateSkill(id: string, data: Partial<Skill>): void {
 
 export function deleteSkill(id: string): void {
   getDb().prepare('DELETE FROM skills WHERE id = ?').run(id);
+  notify();
+}
+
+// --- IdeaFragment CRUD ---
+
+export function listIdeaFragments(novelId?: string): IdeaFragment[] {
+  if (novelId) {
+    return getDb().prepare('SELECT * FROM idea_fragments WHERE novel_id = ? OR novel_id IS NULL ORDER BY created_at DESC').all(novelId).map(rowToIdeaFragment);
+  }
+  return getDb().prepare('SELECT * FROM idea_fragments ORDER BY created_at DESC').all().map(rowToIdeaFragment);
+}
+export function createIdeaFragment(f: IdeaFragment): void {
+  getDb().prepare(`
+    INSERT INTO idea_fragments (id, novel_id, content, type, status, ai_expansion, target_chapter_id, created_at, updated_at)
+    VALUES (@id, @novel_id, @content, @type, @status, @ai_expansion, @target_chapter_id, @created_at, @updated_at)
+  `).run(ideaFragmentToRow(f));
+  notify();
+}
+export function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): void {
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  if (data.content !== undefined) { setClauses.push('content = ?'); values.push(data.content); }
+  if (data.type !== undefined) { setClauses.push('type = ?'); values.push(data.type); }
+  if (data.status !== undefined) { setClauses.push('status = ?'); values.push(data.status); }
+  if (data.aiExpansion !== undefined) { setClauses.push('ai_expansion = ?'); values.push(data.aiExpansion); }
+  if (data.targetChapterId !== undefined) { setClauses.push('target_chapter_id = ?'); values.push(data.targetChapterId); }
+  if (data.novelId !== undefined) { setClauses.push('novel_id = ?'); values.push(data.novelId); }
+  setClauses.push('updated_at = ?'); values.push(Date.now());
+  values.push(id);
+  getDb().prepare(`UPDATE idea_fragments SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
+  notify();
+}
+export function deleteIdeaFragment(id: string): void {
+  getDb().prepare('DELETE FROM idea_fragments WHERE id = ?').run(id);
+  notify();
+}
+
+// --- Foreshadowing CRUD ---
+
+export function listForeshadowings(novelId: string): Foreshadowing[] {
+  return getDb().prepare('SELECT * FROM foreshadowings WHERE novel_id = ? ORDER BY created_at ASC').all(novelId).map(rowToForeshadowing);
+}
+export function createForeshadowing(f: Foreshadowing): void {
+  getDb().prepare(`
+    INSERT INTO foreshadowings (id, novel_id, title, description, status, planted_chapter_id, payoff_chapter_id, related_character_ids, notes, created_at, updated_at)
+    VALUES (@id, @novel_id, @title, @description, @status, @planted_chapter_id, @payoff_chapter_id, @related_character_ids, @notes, @created_at, @updated_at)
+  `).run(foreshadowingToRow(f));
+  notify();
+}
+export function updateForeshadowing(id: string, data: Partial<Foreshadowing>): void {
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  if (data.title !== undefined) { setClauses.push('title = ?'); values.push(data.title); }
+  if (data.description !== undefined) { setClauses.push('description = ?'); values.push(data.description); }
+  if (data.status !== undefined) { setClauses.push('status = ?'); values.push(data.status); }
+  if (data.plantedChapterId !== undefined) { setClauses.push('planted_chapter_id = ?'); values.push(data.plantedChapterId); }
+  if (data.payoffChapterId !== undefined) { setClauses.push('payoff_chapter_id = ?'); values.push(data.payoffChapterId); }
+  if (data.relatedCharacterIds !== undefined) { setClauses.push('related_character_ids = ?'); values.push(JSON.stringify(data.relatedCharacterIds)); }
+  if (data.notes !== undefined) { setClauses.push('notes = ?'); values.push(data.notes); }
+  setClauses.push('updated_at = ?'); values.push(Date.now());
+  values.push(id);
+  getDb().prepare(`UPDATE foreshadowings SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
+  notify();
+}
+export function deleteForeshadowing(id: string): void {
+  getDb().prepare('DELETE FROM foreshadowings WHERE id = ?').run(id);
   notify();
 }

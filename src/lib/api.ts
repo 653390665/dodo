@@ -1,4 +1,4 @@
-import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill } from '../types';
+import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing } from '../types';
 
 async function call(method: string, ...args: any[]): Promise<any> {
   const res = await fetch('/api/db', {
@@ -80,3 +80,15 @@ export async function listSkills(): Promise<Skill[]> { return call('listSkills')
 export async function getSkill(id: string): Promise<Skill | undefined> { return call('getSkill', id); }
 export async function createSkill(s: Skill): Promise<void> { return call('createSkill', s); }
 export async function deleteSkill(id: string): Promise<void> { return call('deleteSkill', id); }
+
+// IdeaFragment
+export async function listIdeaFragments(novelId?: string): Promise<IdeaFragment[]> { return call('listIdeaFragments', novelId); }
+export async function createIdeaFragment(f: IdeaFragment): Promise<void> { return call('createIdeaFragment', f); }
+export async function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): Promise<void> { return call('updateIdeaFragment', id, data); }
+export async function deleteIdeaFragment(id: string): Promise<void> { return call('deleteIdeaFragment', id); }
+
+// Foreshadowing
+export async function listForeshadowings(novelId: string): Promise<Foreshadowing[]> { return call('listForeshadowings', novelId); }
+export async function createForeshadowing(f: Foreshadowing): Promise<void> { return call('createForeshadowing', f); }
+export async function updateForeshadowing(id: string, data: Partial<Foreshadowing>): Promise<void> { return call('updateForeshadowing', id, data); }
+export async function deleteForeshadowing(id: string): Promise<void> { return call('deleteForeshadowing', id); }

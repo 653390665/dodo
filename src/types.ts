@@ -123,5 +123,42 @@ export interface Skill {
   version: number;
   createdAt: number;
 }
+export interface IdeaFragment {
+  id: string;
+  novelId?: string;
+  content: string;
+  type: 'scene' | 'dialogue' | 'character' | 'plot_hook' | 'world';
+  status: 'raw' | 'expanded' | 'converted';
+  aiExpansion?: string;
+  targetChapterId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Foreshadowing {
+  id: string;
+  novelId: string;
+  title: string;
+  description: string;
+  status: 'planted' | 'hinted' | 'payoff';
+  plantedChapterId?: string;
+  payoffChapterId?: string;
+  relatedCharacterIds: string[];
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PacingData {
+  chapterId: string;
+  chapterTitle: string;
+  order: number;
+  wordCount: number;
+  tensionScore: number;
+  payoffCount: number;
+  emotionLabel: string;
+  suggestion?: string;
+}
+
 export type ViewType = 'library' | 'editor' | 'world' | 'ai' | 'skills' | 'factory';
 
