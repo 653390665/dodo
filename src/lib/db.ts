@@ -1,18 +1,20 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import os from 'os';
 import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill } from '../types';
 
 const DB_DIR = path.join(os.homedir(), '.inkflow');
 const DB_PATH = path.join(DB_DIR, 'data.db');
 
-let db: Database.Database;
+let db: Database.Database | undefined;
 
 // --- Init ---
 
 export function initDb(dbPath?: string): void {
-  const fs = require('fs');
-  if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+  if (db) return;
+
+  if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
 
   db = new Database(dbPath || DB_PATH);
   db.pragma('journal_mode = WAL');
@@ -157,7 +159,14 @@ export function initDb(dbPath?: string): void {
 
 function getDb(): Database.Database {
   if (!db) initDb();
-  return db;
+  return db!;
+}
+
+export function closeDb(): void {
+  if (db) {
+    db.close();
+    db = undefined;
+  }
 }
 
 // --- Change Subscription ---
@@ -170,7 +179,13 @@ export function subscribe(fn: () => void): () => void {
 }
 
 function notify(): void {
-  listeners.forEach(fn => fn());
+  for (const fn of listeners) {
+    try {
+      fn();
+    } catch (e) {
+      console.error('db: listener error', e);
+    }
+  }
 }
 
 // --- Row mapping helpers ---
@@ -350,9 +365,9 @@ export function createNovel(novel: Novel): void {
 }
 
 export function updateNovel(id: string, data: Partial<Novel>): void {
-  const existing = getNovel(id);
+  const existing = getDb().prepare('SELECT * FROM novels WHERE id = ?').get(id);
   if (!existing) return;
-  const merged = { ...existing, ...data, id, updatedAt: Date.now() };
+  const merged = { ...rowToNovel(existing as any), ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
     UPDATE novels SET title=@title, author_id=@author_id, summary=@summary, cover_image=@cover_image, status=@status, world_rules=@world_rules, global_outline=@global_outline, mounted_skill_ids=@mounted_skill_ids, updated_at=@updated_at
     WHERE id=@id
@@ -386,9 +401,9 @@ export function createChapter(chapter: Chapter): void {
 }
 
 export function updateChapter(id: string, data: Partial<Chapter>): void {
-  const existing = getChapter(id);
+  const existing = getDb().prepare('SELECT * FROM chapters WHERE id = ?').get(id);
   if (!existing) return;
-  const merged = { ...existing, ...data, id, updatedAt: Date.now() };
+  const merged = { ...rowToChapter(existing as any), ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
     UPDATE chapters SET novel_id=@novel_id, volume_name=@volume_name, title=@title, content=@content, "order"=@order, word_count=@word_count, scene_beats=@scene_beats, critique=@critique, updated_at=@updated_at
     WHERE id=@id
@@ -618,6 +633,17 @@ export function createSkill(s: Skill): void {
   getDb().prepare(`
     INSERT INTO skills (id, name, description, style, pacing, vocabulary, sentence_structure, imagery, banned_words, few_shots, character_traits, world_building, foreshadowing, plot_pattern, core_patterns, banned_elements, stability_score, evaluation_feedback, version, created_at)
     VALUES (@id, @name, @description, @style, @pacing, @vocabulary, @sentence_structure, @imagery, @banned_words, @few_shots, @character_traits, @world_building, @foreshadowing, @plot_pattern, @core_patterns, @banned_elements, @stability_score, @evaluation_feedback, @version, @created_at)
+  `).run(skillToRow(s));
+  notify();
+}
+
+export function updateSkill(id: string, data: Partial<Skill>): void {
+  const existing = getDb().prepare('SELECT * FROM skills WHERE id = ?').get(id);
+  if (!existing) return;
+  const s = { ...rowToSkill(existing), ...data, id };
+  getDb().prepare(`
+    UPDATE skills SET name=@name, description=@description, style=@style, pacing=@pacing, vocabulary=@vocabulary, sentence_structure=@sentence_structure, imagery=@imagery, banned_words=@banned_words, few_shots=@few_shots, character_traits=@character_traits, world_building=@world_building, foreshadowing=@foreshadowing, plot_pattern=@plot_pattern, core_patterns=@core_patterns, banned_elements=@banned_elements, stability_score=@stability_score, evaluation_feedback=@evaluation_feedback, version=@version
+    WHERE id=@id
   `).run(skillToRow(s));
   notify();
 }
