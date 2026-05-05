@@ -31,20 +31,18 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { Novel, Chapter, Character, Item, Location, ChapterVersion, Skill, TimelineEvent, Faction, PowerLevel } from '../types';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  updateDoc,
-  setDoc,
-  orderBy,
-  getDocs
-} from 'firebase/firestore';
-import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import {
+  listChapters, createChapter, updateChapter, deleteChapter,
+  listCharacters, createCharacter,
+  listLocations, createLocation,
+  listItems, createItem,
+  listFactions,
+  listPowerLevels,
+  listTimelineEvents,
+  listChapterVersions, createChapterVersion,
+  listSkills, updateNovel, getNovel,
+  subscribe
+} from '../lib/db';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { editorAgentPhase, writerAgentPhase, criticAgentPhase, AgentContext, buildContextPrompt } from '../lib/agents';
@@ -99,7 +97,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       const now = Date.now();
       
       if (data.entityType === 'character') {
-         await setDoc(doc(collection(db, 'characters')), {
+         createCharacter({
+           id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
            role: data.role || 'supporting',
@@ -110,7 +109,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
            updatedAt: now
          });
       } else if (data.entityType === 'location') {
-         await setDoc(doc(collection(db, 'locations')), {
+         createLocation({
+           id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
            region: data.region || '',
@@ -119,7 +119,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
            updatedAt: now
          });
       } else if (data.entityType === 'item') {
-         await setDoc(doc(collection(db, 'items')), {
+         createItem({
+           id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
            type: data.type || '',
@@ -157,92 +158,40 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
   const titleSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'chapters'), 
-      where('novelId', '==', novel.id),
-      orderBy('order', 'asc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter));
-      setChapters(data);
+    if (!novel?.id) return;
+
+    const fetchAll = () => {
+      const freshChapters = listChapters(novel.id);
+      setChapters(freshChapters);
       setCurrentChapter(prev => {
-        if (!prev && data.length > 0) return data[0];
+        if (!prev && freshChapters.length > 0) return freshChapters[0];
         if (prev) {
-          const matched = data.find(c => c.id === prev.id);
+          const matched = freshChapters.find(c => c.id === prev.id);
           if (matched) {
-            // Fix text cursor jump by ignoring DB content if it hasn't functionally changed
-            // We preserve local content if it differs only by recent keystrokes, by just not updating `content` 
-            // unless the DB content is vastly different (meaning AI rewrote it or something, wait no, AI updating modifies DB then triggers snapshot anyway).
-            // Actually, best is NOT to let `onSnapshot` overwrite `prev.content` directly!
             return {
               ...matched,
-              content: prev.content, // Keep the UI's local state for content to prevent cursor jumping
+              content: prev.content,
             };
           }
           return prev;
         }
         return prev;
       });
-    });
-
-    return unsubscribe;
-  }, [novel.id]);
-
-  useEffect(() => {
-    const qChars = query(collection(db, 'characters'), where('novelId', '==', novel.id));
-    const unsubscribeChars = onSnapshot(qChars, (snapshot) => {
-      setCharacters(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Character)));
-    });
-
-    const qLocs = query(collection(db, 'locations'), where('novelId', '==', novel.id));
-    const unsubscribeLocs = onSnapshot(qLocs, (snapshot) => {
-      setLocations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Location)));
-    });
-
-    const qItems = query(collection(db, 'items'), where('novelId', '==', novel.id));
-    const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
-    });
-
-    const qTimeline = query(collection(db, 'timelineEvents'), where('novelId', '==', novel.id));
-    const unsubscribeTimeline = onSnapshot(qTimeline, (snapshot) => {
-      setTimelineEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TimelineEvent)));
-    });
-
-    const qFactions = query(collection(db, 'factions'), where('novelId', '==', novel.id));
-    const unsubscribeFactions = onSnapshot(qFactions, (snapshot) => {
-      setFactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Faction)));
-    });
-
-    const qPowerLevels = query(collection(db, 'powerLevels'), where('novelId', '==', novel.id));
-    const unsubscribePowerLevels = onSnapshot(qPowerLevels, (snapshot) => {
-      setPowerLevels(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PowerLevel)));
-    });
-
-    return () => {
-      unsubscribeChars();
-      unsubscribeLocs();
-      unsubscribeItems();
-      unsubscribeTimeline();
-      unsubscribeFactions();
-      unsubscribePowerLevels();
+      setCharacters(listCharacters(novel.id));
+      setLocations(listLocations(novel.id));
+      setItems(listItems(novel.id));
+      setFactions(listFactions(novel.id));
+      setPowerLevels(listPowerLevels(novel.id));
+      setTimelineEvents(listTimelineEvents(novel.id));
+      setLibrarySkills(listSkills());
+      const fresh = getNovel(novel.id);
+      if (fresh) setMountedSkillIds(fresh.mountedSkillIds || []);
     };
-  }, [novel.id]);
+    fetchAll();
+    return subscribe(fetchAll);
+  }, [novel?.id]);
 
-  useEffect(() => {
-    // Fetch all skills for mounting
-    const unsub = onSnapshot(collection(db, 'skills'), (snap) => {
-      setLibrarySkills(snap.docs.map(d => ({ id: d.id, ...d.data() } as Skill)));
-    });
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    setMountedSkillIds(novel.mountedSkillIds || []);
-  }, [novel.mountedSkillIds]);
-
-  const toggleSkillMount = async (skillId: string) => {
+  const toggleSkillMount = (skillId: string) => {
     const isMounted = mountedSkillIds.includes(skillId);
     let newIds: string[];
     if (isMounted) {
@@ -250,15 +199,9 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     } else {
       newIds = [...mountedSkillIds, skillId];
     }
-    
+
     setMountedSkillIds(newIds);
-    try {
-      await updateDoc(doc(db, 'novels', novel.id), {
-        mountedSkillIds: newIds
-      });
-    } catch (e) {
-      console.error("Failed to update mounted skills", e);
-    }
+    updateNovel(novel.id, { mountedSkillIds: newIds });
   };
 
   useEffect(() => {
@@ -266,30 +209,23 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       setVersions([]);
       return;
     }
-    const qVersions = query(
-      collection(db, `chapters/${currentChapter.id}/versions`),
-      orderBy('createdAt', 'desc')
-    );
-    const unsubscribeVers = onSnapshot(qVersions, (snapshot) => {
-      setVersions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChapterVersion)));
-    });
-    return unsubscribeVers;
+    const fetchVersions = () => {
+      setVersions(listChapterVersions(currentChapter.id));
+    };
+    fetchVersions();
+    return subscribe(fetchVersions);
   }, [currentChapter?.id]);
 
-  const handleSaveVersion = async (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
+  const handleSaveVersion = (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
     if (!currentChapter) return;
-    try {
-      const versionsRef = collection(db, `chapters/${currentChapter.id}/versions`);
-      await addDoc(versionsRef, {
-        chapterId: currentChapter.id,
-        content: currentChapter.content,
-        wordCount: currentChapter.wordCount,
-        author,
-        createdAt: Date.now()
-      });
-    } catch (e) {
-      console.error('Failed to save version snapshot', e);
-    }
+    createChapterVersion({
+      id: Date.now().toString(),
+      chapterId: currentChapter.id,
+      content: currentChapter.content,
+      wordCount: currentChapter.wordCount,
+      author,
+      createdAt: Date.now()
+    });
   };
 
   const handleRestoreVersion = (version: ChapterVersion) => {
@@ -349,9 +285,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       if (data.error) throw new Error(data.error);
 
       setCurrentChapter(prev => prev ? { ...prev, critique: data.feedback } : null);
-      await updateDoc(doc(db, 'chapters', currentChapter.id), {
-        critique: data.feedback
-      });
+      updateChapter(currentChapter.id, { critique: data.feedback });
     } catch (e) {
       console.error(e);
       alert('审计失败: ' + String(e));
@@ -369,7 +303,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       
       const updated = { ...currentChapter, sceneBeats: beats };
       setCurrentChapter(updated);
-      await updateDoc(doc(db, 'chapters', currentChapter.id), { sceneBeats: beats });
+      updateChapter(currentChapter.id, { sceneBeats: beats });
       setUserIntent('');
     } catch (error) {
       console.error(error);
@@ -395,7 +329,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       const data = await response.json();
       if (data.outline) {
         setGlobalOutline(data.outline);
-        await updateDoc(doc(db, 'novels', novel.id), { globalOutline: data.outline });
+        updateNovel(novel.id, { globalOutline: data.outline });
       } else if (data.error) {
         throw new Error(data.error);
       }
@@ -491,15 +425,15 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
         ...(lastCritique && { critique: lastCritique })
       } : null);
 
-      await updateDoc(doc(db, 'chapters', currentChapter.id), { 
+      updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
         ...(lastCritique && { critique: lastCritique })
       });
-      
+
       // Save AI result as version
-      const versionsRef = collection(db, `chapters/${currentChapter.id}/versions`);
-      await addDoc(versionsRef, {
+      createChapterVersion({
+        id: Date.now().toString(),
         chapterId: currentChapter.id,
         content: fullText,
         wordCount: finalWordCount,
@@ -540,26 +474,23 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
 
 
 
-  const handleAddChapter = async (targetVolumeName?: string) => {
+  const handleAddChapter = (targetVolumeName?: string) => {
     const newOrder = chapters.length + 1;
     const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
-    try {
-      const docRef = await addDoc(collection(db, 'chapters'), {
-        novelId: novel.id,
-        volumeName,
-        title: `第 ${newOrder} 章`,
-        content: '',
-        order: newOrder,
-        wordCount: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      // Optionally switch to new chapter immediately
-      if (!expandedVolumes.includes(volumeName)) {
-        setExpandedVolumes(prev => [...prev, volumeName]);
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'chapters');
+    const newId = Date.now().toString();
+    createChapter({
+      id: newId,
+      novelId: novel.id,
+      volumeName,
+      title: `第 ${newOrder} 章`,
+      content: '',
+      order: newOrder,
+      wordCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    if (!expandedVolumes.includes(volumeName)) {
+      setExpandedVolumes(prev => [...prev, volumeName]);
     }
   };
 
@@ -575,32 +506,23 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     
     setIsSyncing(true);
     setSyncSuccess(false);
-    syncTimeoutRef.current = setTimeout(async () => {
-      try {
-        await updateDoc(doc(db, 'chapters', currentChapter.id), {
-          content: newContent,
-          updatedAt: Date.now(),
-          wordCount: newContent.replace(/\s/g, '').length
-        });
-        setIsSyncing(false);
-        setSyncSuccess(true);
-        setTimeout(() => setSyncSuccess(false), 2000); // clear success msg after 2s
-      } catch (error) {
-        setIsSyncing(false);
-        handleFirestoreError(error, OperationType.UPDATE, `chapters/${currentChapter.id}`);
-      }
+    syncTimeoutRef.current = setTimeout(() => {
+      updateChapter(currentChapter.id, {
+        content: newContent,
+        updatedAt: Date.now(),
+        wordCount: newContent.replace(/\s/g, '').length
+      });
+      setIsSyncing(false);
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 2000);
     }, 1000);
   };
 
-  const handleDeleteChapter = async (id: string) => {
+  const handleDeleteChapter = (id: string) => {
     if (!confirm('确定要删除这一章吗？')) return;
-    try {
-      await deleteDoc(doc(db, 'chapters', id));
-      if (currentChapter?.id === id) {
-        setCurrentChapter(chapters.find(c => c.id !== id) || null);
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `chapters/${id}`);
+    deleteChapter(id);
+    if (currentChapter?.id === id) {
+      setCurrentChapter(chapters.find(c => c.id !== id) || null);
     }
   };
 
@@ -761,8 +683,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                   setCurrentChapter({ ...currentChapter, volumeName: newVol });
                   
                   if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-                  titleSyncTimeoutRef.current = setTimeout(async() => {
-                    await updateDoc(doc(db, 'chapters', currentChapter.id), { volumeName: newVol });
+                  titleSyncTimeoutRef.current = setTimeout(() => {
+                    updateChapter(currentChapter.id, { volumeName: newVol });
                   }, 1000);
                 }}
                 className="bg-transparent border-none outline-none font-sans text-[10px] text-theme-muted focus:ring-0 w-48 hover:bg-theme-border/30 rounded px-1 -ml-1 transition-colors"
@@ -777,8 +699,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                   setCurrentChapter({ ...currentChapter, title: newTitle });
                   
                   if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-                  titleSyncTimeoutRef.current = setTimeout(async() => {
-                    await updateDoc(doc(db, 'chapters', currentChapter.id), { title: newTitle });
+                  titleSyncTimeoutRef.current = setTimeout(() => {
+                    updateChapter(currentChapter.id, { title: newTitle });
                   }, 1000);
                 }}
                 className="bg-transparent border-none outline-none font-serif text-lg font-medium focus:ring-0 w-64 text-theme-text px-1 -ml-1 hover:bg-theme-border/30 rounded transition-colors"
@@ -904,18 +826,17 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                         };
                         setChapters(prev => [...prev, newChap]);
                         setCurrentChapter(newChap);
-                        
-                        setDoc(doc(db, 'chapters', newChapId), { 
-                          ...newChap, 
-                          createdAt: Date.now(), 
-                          updatedAt: Date.now() 
-                        }).then(() => {
-                          setTimeout(() => {
-                             if (contentRef.current) {
-                               contentRef.current.focus();
-                             }
-                          }, 200);
+
+                        createChapter({
+                          ...newChap,
+                          createdAt: Date.now(),
+                          updatedAt: Date.now()
                         });
+                        setTimeout(() => {
+                           if (contentRef.current) {
+                             contentRef.current.focus();
+                           }
+                        }, 200);
                       }}
                       className="px-8 py-4 bg-theme-accent text-white hover:bg-theme-accent/90 rounded-2xl flex items-center gap-3 transition-all hover:scale-105 font-bold shadow-lg text-lg"
                     >
@@ -1084,10 +1005,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                           const val = e.target.value;
                           setGlobalOutline(val);
                           if (outlineSyncTimeoutRef.current) clearTimeout(outlineSyncTimeoutRef.current);
-                          outlineSyncTimeoutRef.current = setTimeout(async () => {
-                             try {
-                               await updateDoc(doc(db, 'novels', novel.id), { globalOutline: val });
-                             } catch (err) { }
+                          outlineSyncTimeoutRef.current = setTimeout(() => {
+                             updateNovel(novel.id, { globalOutline: val });
                           }, 1000);
                         }}
                         placeholder="在此规划整本小说的核心冲突与路线图；也可以输入初始创意，点击“智能排盘”由 AI 为您生成卷轴级大纲..."
@@ -1204,11 +1123,11 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                                       handleUpdateContent(newText);
                                       
                                       // Save version after rewrite
-                                      const versionsRef = collection(db, `chapters/${currentChapter.id}/versions`);
-                                      await addDoc(versionsRef, {
+                                      createChapterVersion({
+                                        id: Date.now().toString(),
                                         chapterId: currentChapter.id,
                                         content: newText,
-                                        wordCount: newText.replace(/\\s/g, '').length,
+                                        wordCount: newText.replace(/\s/g, '').length,
                                         author: 'user',
                                         createdAt: Date.now()
                                       });
@@ -1234,14 +1153,10 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                                 setCurrentChapter(prev => prev ? { ...prev, sceneBeats: newBeats } : null);
                                 
                                 if (beatsSyncTimeoutRef.current) clearTimeout(beatsSyncTimeoutRef.current);
-                                beatsSyncTimeoutRef.current = setTimeout(async () => {
-                                  try {
-                                    await updateDoc(doc(db, 'chapters', currentChapter.id), {
-                                      sceneBeats: newBeats
-                                    });
-                                  } catch (err) {
-                                    console.error("Failed to update scene beats", err);
-                                  }
+                                beatsSyncTimeoutRef.current = setTimeout(() => {
+                                  updateChapter(currentChapter.id, {
+                                    sceneBeats: newBeats
+                                  });
                                 }, 1000);
                               }}
                               placeholder="点击上方按钮生成分镜，或在此手动规划情节重点..."
