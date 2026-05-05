@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, BookTemplate, Save, CheckCircle2, ChevronRight, Wand2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { createSkill } from '../lib/db';
 
 export function BookFactoryView() {
   const [fileContent, setFileContent] = useState("");
@@ -108,22 +107,16 @@ export function BookFactoryView() {
     }
   };
 
-  const handleSaveSkill = async () => {
+  const handleSaveSkill = () => {
     if (!skillConfig) return;
     setIsSaving(true);
-    try {
-      await addDoc(collection(db, 'skills'), {
-        ...skillConfig,
-        createdAt: Date.now()
-      });
-      setSkillConfig(null);
-      setFileContent("");
-      alert("✅ 技能卡牌保存成功");
-    } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, 'skills');
-    } finally {
-      setIsSaving(false);
-    }
+    createSkill({
+      ...skillConfig,
+      id: Date.now().toString(),
+      createdAt: Date.now()
+    });
+    setIsSaving(false);
+    alert('技能已保存至技能库！');
   };
 
   return (
