@@ -6,9 +6,10 @@ let _llm: ChatGoogleGenerativeAI | null = null;
 
 function getLlm(): ChatGoogleGenerativeAI {
   if (!_llm) {
+    const apiKey = process.env.API_KEY || '';
     _llm = new ChatGoogleGenerativeAI({
-      model: "gemini-2.5-pro",
-      apiKey: process.env.GEMINI_API_KEY,
+      model: process.env.API_MODEL || "gemini-2.5-pro",
+      apiKey,
     });
   }
   return _llm;

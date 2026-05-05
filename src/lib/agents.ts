@@ -1,8 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill } from "../types";
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from "../config/souls";
+import { getConfig } from "./config";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getAi() {
+  const config = getConfig();
+  return new GoogleGenAI({ apiKey: config.apiKey });
+}
 
 export interface AgentContext {
   novel: Novel;
@@ -152,8 +156,8 @@ ${documentText}
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+    const response = await getAi().models.generateContent({
+      model: getConfig().model,
       contents: prompt,
     });
     
@@ -183,8 +187,8 @@ ${userIntent}
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview", // 规划和逻辑使用 Pro 模型
+    const response = await getAi().models.generateContent({
+      model: getConfig().model, // 规划和逻辑使用 Pro 模型
       contents: prompt,
     });
     return response.text || '';
@@ -216,8 +220,8 @@ ${sceneBeats}
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // 文本生成使用 Flash 保障速度和丰富度
+    const response = await getAi().models.generateContent({
+      model: getConfig().model, // 文本生成使用 Flash 保障速度和丰富度
       contents: prompt,
     });
     return response.text || '';
@@ -253,8 +257,8 @@ ${draftContent || '未提供'}
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview", 
+    const response = await getAi().models.generateContent({
+      model: getConfig().model, 
       contents: prompt,
     });
     return response.text || '';

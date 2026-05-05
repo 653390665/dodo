@@ -172,7 +172,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
               <Sparkles className="text-theme-accent animate-pulse" size={32} />
             </div>
             <h1 className="text-4xl font-serif font-bold tracking-tight mb-2 text-theme-accent">灵感助手</h1>
-            <p className="text-theme-muted text-[10px] tracking-[0.2em] uppercase font-bold">由 Gemini 3 系列旗舰模型驱动</p>
+            <p className="text-theme-muted text-[10px] tracking-[0.2em] uppercase font-bold">由大语言模型驱动</p>
           </div>
 
           {/* Quick Suggestions */}

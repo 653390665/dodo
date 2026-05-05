@@ -1,6 +1,6 @@
 {
   "name": "InkFlow 墨影 - 智能小说创作平台",
-  "description": "专为小说家设计的沉浸式创作环境，集成智能大纲、角色管理与 Gemini AI 灵感辅助。",
+  "description": "专为小说家设计的沉浸式创作环境，集成智能大纲、角色管理与大模型 AI 灵感辅助。",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

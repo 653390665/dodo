@@ -2,19 +2,22 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# InkFlow 墨影 - 本地化小说创作平台
 
-This contains everything you need to run your app locally.
+专为小说家设计的沉浸式创作环境，集成智能大纲、角色管理与大模型 AI 灵感辅助。
 
-View your app in AI Studio: https://ai.studio/apps/55e993b5-d1e8-4d42-9621-02b7f601a285
+## 本地运行
 
-## Run Locally
+**环境要求:** Node.js
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
+1. 安装依赖:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. 在 [.env.local](.env.local) 中配置大模型 API:
+   ```
+   API_KEY=你的key
+   API_BASE_URL=https://api.deepseek.com
+   API_MODEL=deepseek-chat
+   ```
+   兼容 OpenAI 接口规范的任意大模型均可使用。
+3. 启动应用:
    `npm run dev`
