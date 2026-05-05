@@ -39,5 +39,8 @@ export default defineConfig(({mode}) => {
     server: {
       hmr: true,
     },
+    optimizeDeps: {
+      exclude: ['better-sqlite3']
+    },
   };
 });

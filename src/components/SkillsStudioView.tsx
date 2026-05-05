@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Wand2, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { listSkills, deleteSkill, subscribe } from '../lib/db';
+import { listSkills, deleteSkill, subscribeToChanges } from '../lib/api';
 import { Skill } from '../types';
 
 export function SkillsStudioView() {
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
 
   useEffect(() => {
-    setSavedSkills(listSkills());
-    return subscribe(() => setSavedSkills(listSkills()));
+    listSkills().then(setSavedSkills);
+    return subscribeToChanges(() => listSkills().then(setSavedSkills));
   }, []);
 
-  const handleDeleteSkill = (id: string) => {
+  const handleDeleteSkill = async (id: string) => {
     if(!confirm("确认删除这个技能？")) return;
-    deleteSkill(id);
+    await deleteSkill(id);
   };
 
   return (

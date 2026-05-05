@@ -18,7 +18,7 @@ import { extractWorldSetupPhase } from '../lib/agents';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { listNovels, createChapter, createCharacter, createLocation, createItem } from '../lib/db';
+import { listNovels, createChapter, createCharacter, createLocation, createItem } from '../lib/api';
 import { Novel } from '../types';
 
 interface Message {
@@ -47,7 +47,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
   const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
-    setUserNovels(listNovels());
+    listNovels().then(setUserNovels);
   }, []);
 
   const handleSubmit = async (e?: React.FormEvent, customPrompt?: string) => {
@@ -71,9 +71,9 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
     }
   };
 
-  const handleSaveToNovel = (novel: Novel, content: string) => {
+  const handleSaveToNovel = async (novel: Novel, content: string) => {
     const newChapId = Date.now().toString();
-    createChapter({
+    await createChapter({
       id: newChapId,
       title: '💡 灵感备忘录',
       content: content,
@@ -102,7 +102,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
       let count = 0;
       if (extracted.characters) {
         for (const char of extracted.characters) {
-           createCharacter({
+           await createCharacter({
              id: Date.now().toString(),
              novelId: novel.id,
              name: char.name,
@@ -118,7 +118,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
       }
       if (extracted.locations) {
         for (const loc of extracted.locations) {
-           createLocation({
+           await createLocation({
              id: Date.now().toString(),
              novelId: novel.id,
              name: loc.name,
@@ -132,7 +132,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
       }
       if (extracted.items) {
         for (const item of extracted.items) {
-           createItem({
+           await createItem({
              id: Date.now().toString(),
              novelId: novel.id,
              name: item.name,

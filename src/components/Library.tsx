@@ -8,7 +8,7 @@ import {
   Clock,
   Download
 } from 'lucide-react';
-import { listNovels, createNovel, deleteNovel, createChapter, listChapters, subscribe } from '../lib/db';
+import { listNovels, createNovel, deleteNovel, createChapter, listChapters, subscribeToChanges } from '../lib/api';
 import { Novel, Chapter } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -24,16 +24,16 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
   const [newNovelTitle, setNewNovelTitle] = useState('');
 
   useEffect(() => {
-    setNovels(listNovels());
-    return subscribe(() => setNovels(listNovels()));
+    listNovels().then(setNovels);
+    return subscribeToChanges(() => listNovels().then(setNovels));
   }, []);
 
-  const handleCreateNovel = (e: React.FormEvent) => {
+  const handleCreateNovel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNovelTitle.trim()) return;
 
     const novelId = Date.now().toString();
-    createNovel({
+    await createNovel({
       id: novelId,
       title: newNovelTitle,
       authorId: userId,
@@ -44,7 +44,7 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
     });
 
     const newChapId = Date.now().toString();
-    createChapter({
+    await createChapter({
       id: newChapId,
       title: '第一章',
       content: '',
@@ -69,17 +69,17 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
     });
   };
 
-  const handleDeleteNovel = (e: React.MouseEvent, id: string) => {
+  const handleDeleteNovel = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm('确定要删除这部作品吗？此操作不可逆。')) return;
 
-    deleteNovel(id);
+    await deleteNovel(id);
   };
 
   const handleExportNovel = async (e: React.MouseEvent, novel: Novel) => {
     e.stopPropagation();
     try {
-      const chapters = listChapters(novel.id);
+      const chapters = await listChapters(novel.id);
 
       let exportText = `# ${novel.title}\n\n`;
       if (novel.summary) exportText += `【简介】\n${novel.summary}\n\n`;

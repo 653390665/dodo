@@ -7,8 +7,8 @@ import {
   listFactions, createFaction, updateFaction, deleteFaction,
   listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
   listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
-  updateNovel, subscribe
-} from '../lib/db';
+  updateNovel, subscribeToChanges
+} from '../lib/api';
 import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Loader2, Sparkles, Clock, Shield, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,62 +32,70 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchAll = () => {
-      setCharacters(listCharacters(novel.id));
-      setLocations(listLocations(novel.id));
-      setItems(listItems(novel.id));
-      setTimelineEvents(listTimelineEvents(novel.id));
-      setFactions(listFactions(novel.id));
-      setPowerLevels(listPowerLevels(novel.id));
+    const fetchAll = async () => {
+      const [characters, locations, items, timelineEvents, factions, powerLevels] = await Promise.all([
+        listCharacters(novel.id),
+        listLocations(novel.id),
+        listItems(novel.id),
+        listTimelineEvents(novel.id),
+        listFactions(novel.id),
+        listPowerLevels(novel.id)
+      ]);
+      setCharacters(characters);
+      setLocations(locations);
+      setItems(items);
+      setTimelineEvents(timelineEvents);
+      setFactions(factions);
+      setPowerLevels(powerLevels);
       setGlobalOutline(novel.globalOutline || '');
       setWorldRules(novel.worldRules || '');
     };
     fetchAll();
-    return subscribe(fetchAll);
+    return subscribeToChanges(fetchAll);
   }, [novel]);
 
-  const saveGlobalInfo = () => {
+  const saveGlobalInfo = async () => {
     setIsSaving(true);
-    updateNovel(novel.id, { globalOutline, worldRules });
+    await updateNovel(novel.id, { globalOutline, worldRules });
     setIsSaving(false);
   };
 
-  const addEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel') => {
+  const addEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel') => {
     const now = Date.now();
     const id = now.toString();
     if (type === 'character') {
-      createCharacter({ id, novelId: novel.id, name: '新人物', role: 'supporting', summary: '', traits: [], bio: '', createdAt: now, updatedAt: now });
+      await createCharacter({ id, novelId: novel.id, name: '新人物', role: 'supporting', summary: '', traits: [], bio: '', createdAt: now, updatedAt: now });
     } else if (type === 'location') {
-      createLocation({ id, novelId: novel.id, name: '新地点', region: '未知区域', description: '', createdAt: now, updatedAt: now });
+      await createLocation({ id, novelId: novel.id, name: '新地点', region: '未知区域', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'item') {
-      createItem({ id, novelId: novel.id, name: '新道具', type: '普通道具', description: '', createdAt: now, updatedAt: now });
+      await createItem({ id, novelId: novel.id, name: '新道具', type: '普通道具', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'timeline') {
       const highestOrder = timelineEvents.length > 0 ? Math.max(...timelineEvents.map(e => e.order)) : 0;
-      createTimelineEvent({ id, novelId: novel.id, title: '新事件', description: '', timestamp: '未知时间', statusTag: '发生中', order: highestOrder + 1, createdAt: now, updatedAt: now });
+      await createTimelineEvent({ id, novelId: novel.id, title: '新事件', description: '', timestamp: '未知时间', statusTag: '发生中', order: highestOrder + 1, createdAt: now, updatedAt: now });
     } else if (type === 'faction') {
-      createFaction({ id, novelId: novel.id, name: '新势力', leader: '未知', territory: '未知', description: '', createdAt: now, updatedAt: now });
+      await createFaction({ id, novelId: novel.id, name: '新势力', leader: '未知', territory: '未知', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'powerLevel') {
       const highestTier = powerLevels.length > 0 ? Math.max(...powerLevels.map(e => e.tier)) : 0;
-      createPowerLevel({ id, novelId: novel.id, name: '新境界', tier: highestTier + 1, characteristics: '', description: '', createdAt: now, updatedAt: now });
+      await createPowerLevel({ id, novelId: novel.id, name: '新境界', tier: highestTier + 1, characteristics: '', description: '', createdAt: now, updatedAt: now });
     }
   };
 
-  const deleteEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
-    if (type === 'character') deleteCharacter(id);
-    else if (type === 'location') deleteLocation(id);
-    else if (type === 'item') deleteItem(id);
-    else if (type === 'timeline') deleteTimelineEvent(id);
-    else if (type === 'faction') deleteFaction(id);
-    else if (type === 'powerLevel') deletePowerLevel(id);
+  const deleteEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
+    if (type === 'character') await deleteCharacter(id);
+    else if (type === 'location') await deleteLocation(id);
+    else if (type === 'item') await deleteItem(id);
+    else if (type === 'timeline') await deleteTimelineEvent(id);
+    else if (type === 'faction') await deleteFaction(id);
+    else if (type === 'powerLevel') await deletePowerLevel(id);
   };
 
-  const updateEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
-    if (type === 'character') updateCharacter(id, data);
-    else if (type === 'location') updateLocation(id, data);
-    else if (type === 'item') updateItem(id, data);
-    else if (type === 'timeline') updateTimelineEvent(id, data);
-    else if (type === 'faction') updateFaction(id, data);
-    else if (type === 'powerLevel') updatePowerLevel(id, data);
+  const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
+    if (type === 'character') await updateCharacter(id, data);
+    else if (type === 'location') await updateLocation(id, data);
+    else if (type === 'item') await updateItem(id, data);
+    else if (type === 'timeline') await updateTimelineEvent(id, data);
+    else if (type === 'faction') await updateFaction(id, data);
+    else if (type === 'powerLevel') await updatePowerLevel(id, data);
   };
 
   const handleGenerateBio = async (char: Character) => {
@@ -142,7 +150,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
           const newGlobalOutline = extracted.globalOutline || globalOutline;
           const newWorldRules = extracted.worldRules || worldRules;
           
-          updateNovel(novel.id, {
+          await updateNovel(novel.id, {
             globalOutline: newGlobalOutline,
             worldRules: newWorldRules
           });
@@ -151,37 +159,37 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
 
           if (extracted.characters && Array.isArray(extracted.characters)) {
             for (const char of extracted.characters) {
-              createCharacter({ ...char, id: Date.now().toString(), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createCharacter({ ...char, id: Date.now().toString(), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.locations && Array.isArray(extracted.locations)) {
             for (const loc of extracted.locations) {
-              createLocation({ ...loc, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createLocation({ ...loc, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.items && Array.isArray(extracted.items)) {
             for (const item of extracted.items) {
-              createItem({ ...item, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createItem({ ...item, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.factions && Array.isArray(extracted.factions)) {
             for (const faction of extracted.factions) {
-              createFaction({ ...faction, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createFaction({ ...faction, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.powerLevels && Array.isArray(extracted.powerLevels)) {
             for (const pl of extracted.powerLevels) {
-              createPowerLevel({ ...pl, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createPowerLevel({ ...pl, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.timelineEvents && Array.isArray(extracted.timelineEvents)) {
             for (const evt of extracted.timelineEvents) {
-              createTimelineEvent({ ...evt, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createTimelineEvent({ ...evt, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
           

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, BookTemplate, Save, CheckCircle2, ChevronRight, Wand2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createSkill } from '../lib/db';
+import { createSkill } from '../lib/api';
 
 export function BookFactoryView() {
   const [fileContent, setFileContent] = useState("");
@@ -107,10 +107,10 @@ export function BookFactoryView() {
     }
   };
 
-  const handleSaveSkill = () => {
+  const handleSaveSkill = async () => {
     if (!skillConfig) return;
     setIsSaving(true);
-    createSkill({
+    await createSkill({
       ...skillConfig,
       id: Date.now().toString(),
       createdAt: Date.now()

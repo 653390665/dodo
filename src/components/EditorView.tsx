@@ -41,8 +41,8 @@ import {
   listTimelineEvents,
   listChapterVersions, createChapterVersion,
   listSkills, updateNovel, getNovel,
-  subscribe
-} from '../lib/db';
+  subscribeToChanges
+} from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { editorAgentPhase, writerAgentPhase, criticAgentPhase, AgentContext, buildContextPrompt } from '../lib/agents';
@@ -97,7 +97,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       const now = Date.now();
       
       if (data.entityType === 'character') {
-         createCharacter({
+         await createCharacter({
            id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
@@ -109,7 +109,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
            updatedAt: now
          });
       } else if (data.entityType === 'location') {
-         createLocation({
+         await createLocation({
            id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
@@ -119,7 +119,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
            updatedAt: now
          });
       } else if (data.entityType === 'item') {
-         createItem({
+         await createItem({
            id: Date.now().toString(),
            novelId: novel.id,
            name: data.name,
@@ -160,8 +160,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
   useEffect(() => {
     if (!novel?.id) return;
 
-    const fetchAll = () => {
-      const freshChapters = listChapters(novel.id);
+    const fetchAll = async () => {
+      const freshChapters = await listChapters(novel.id);
       setChapters(freshChapters);
       setCurrentChapter(prev => {
         if (!prev && freshChapters.length > 0) return freshChapters[0];
@@ -177,21 +177,30 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
         }
         return prev;
       });
-      setCharacters(listCharacters(novel.id));
-      setLocations(listLocations(novel.id));
-      setItems(listItems(novel.id));
-      setFactions(listFactions(novel.id));
-      setPowerLevels(listPowerLevels(novel.id));
-      setTimelineEvents(listTimelineEvents(novel.id));
-      setLibrarySkills(listSkills());
-      const fresh = getNovel(novel.id);
+      const [characters, locations, items, factions, powerLevels, timelineEvents, librarySkills] = await Promise.all([
+        listCharacters(novel.id),
+        listLocations(novel.id),
+        listItems(novel.id),
+        listFactions(novel.id),
+        listPowerLevels(novel.id),
+        listTimelineEvents(novel.id),
+        listSkills()
+      ]);
+      setCharacters(characters);
+      setLocations(locations);
+      setItems(items);
+      setFactions(factions);
+      setPowerLevels(powerLevels);
+      setTimelineEvents(timelineEvents);
+      setLibrarySkills(librarySkills);
+      const fresh = await getNovel(novel.id);
       if (fresh) setMountedSkillIds(fresh.mountedSkillIds || []);
     };
     fetchAll();
-    return subscribe(fetchAll);
+    return subscribeToChanges(fetchAll);
   }, [novel?.id]);
 
-  const toggleSkillMount = (skillId: string) => {
+  const toggleSkillMount = async (skillId: string) => {
     const isMounted = mountedSkillIds.includes(skillId);
     let newIds: string[];
     if (isMounted) {
@@ -201,7 +210,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     }
 
     setMountedSkillIds(newIds);
-    updateNovel(novel.id, { mountedSkillIds: newIds });
+    await updateNovel(novel.id, { mountedSkillIds: newIds });
   };
 
   useEffect(() => {
@@ -209,16 +218,16 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       setVersions([]);
       return;
     }
-    const fetchVersions = () => {
-      setVersions(listChapterVersions(currentChapter.id));
+    const fetchVersions = async () => {
+      setVersions(await listChapterVersions(currentChapter.id));
     };
     fetchVersions();
-    return subscribe(fetchVersions);
+    return subscribeToChanges(fetchVersions);
   }, [currentChapter?.id]);
 
-  const handleSaveVersion = (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
+  const handleSaveVersion = async (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
     if (!currentChapter) return;
-    createChapterVersion({
+    await createChapterVersion({
       id: Date.now().toString(),
       chapterId: currentChapter.id,
       content: currentChapter.content,
@@ -285,7 +294,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       if (data.error) throw new Error(data.error);
 
       setCurrentChapter(prev => prev ? { ...prev, critique: data.feedback } : null);
-      updateChapter(currentChapter.id, { critique: data.feedback });
+      await updateChapter(currentChapter.id, { critique: data.feedback });
     } catch (e) {
       console.error(e);
       alert('审计失败: ' + String(e));
@@ -303,7 +312,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       
       const updated = { ...currentChapter, sceneBeats: beats };
       setCurrentChapter(updated);
-      updateChapter(currentChapter.id, { sceneBeats: beats });
+      await updateChapter(currentChapter.id, { sceneBeats: beats });
       setUserIntent('');
     } catch (error) {
       console.error(error);
@@ -329,7 +338,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
       const data = await response.json();
       if (data.outline) {
         setGlobalOutline(data.outline);
-        updateNovel(novel.id, { globalOutline: data.outline });
+        await updateNovel(novel.id, { globalOutline: data.outline });
       } else if (data.error) {
         throw new Error(data.error);
       }
@@ -425,14 +434,14 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
         ...(lastCritique && { critique: lastCritique })
       } : null);
 
-      updateChapter(currentChapter.id, {
+      await updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
         ...(lastCritique && { critique: lastCritique })
       });
 
       // Save AI result as version
-      createChapterVersion({
+      await createChapterVersion({
         id: Date.now().toString(),
         chapterId: currentChapter.id,
         content: fullText,
@@ -474,11 +483,11 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
 
 
 
-  const handleAddChapter = (targetVolumeName?: string) => {
+  const handleAddChapter = async (targetVolumeName?: string) => {
     const newOrder = chapters.length + 1;
     const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
     const newId = Date.now().toString();
-    createChapter({
+    await createChapter({
       id: newId,
       novelId: novel.id,
       volumeName,
@@ -506,8 +515,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     
     setIsSyncing(true);
     setSyncSuccess(false);
-    syncTimeoutRef.current = setTimeout(() => {
-      updateChapter(currentChapter.id, {
+    syncTimeoutRef.current = setTimeout(async () => {
+      await updateChapter(currentChapter.id, {
         content: newContent,
         updatedAt: Date.now(),
         wordCount: newContent.replace(/\s/g, '').length
@@ -518,9 +527,9 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     }, 1000);
   };
 
-  const handleDeleteChapter = (id: string) => {
+  const handleDeleteChapter = async (id: string) => {
     if (!confirm('确定要删除这一章吗？')) return;
-    deleteChapter(id);
+    await deleteChapter(id);
     if (currentChapter?.id === id) {
       setCurrentChapter(chapters.find(c => c.id !== id) || null);
     }
@@ -683,8 +692,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                   setCurrentChapter({ ...currentChapter, volumeName: newVol });
                   
                   if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-                  titleSyncTimeoutRef.current = setTimeout(() => {
-                    updateChapter(currentChapter.id, { volumeName: newVol });
+                  titleSyncTimeoutRef.current = setTimeout(async () => {
+                    await updateChapter(currentChapter.id, { volumeName: newVol });
                   }, 1000);
                 }}
                 className="bg-transparent border-none outline-none font-sans text-[10px] text-theme-muted focus:ring-0 w-48 hover:bg-theme-border/30 rounded px-1 -ml-1 transition-colors"
@@ -699,8 +708,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                   setCurrentChapter({ ...currentChapter, title: newTitle });
                   
                   if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-                  titleSyncTimeoutRef.current = setTimeout(() => {
-                    updateChapter(currentChapter.id, { title: newTitle });
+                  titleSyncTimeoutRef.current = setTimeout(async () => {
+                    await updateChapter(currentChapter.id, { title: newTitle });
                   }, 1000);
                 }}
                 className="bg-transparent border-none outline-none font-serif text-lg font-medium focus:ring-0 w-64 text-theme-text px-1 -ml-1 hover:bg-theme-border/30 rounded transition-colors"
@@ -811,15 +820,15 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                   <p className="mb-10 font-sans text-base text-theme-muted max-w-md text-center leading-relaxed">当前作品还没有任何章节，请点击下方按钮一键开始您的第一章，或者唤起智能管家协助构思。</p>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const newChapId = Date.now().toString();
-                        const newChap: Chapter = { 
-                          id: newChapId, 
-                          title: '第一章', 
-                          content: '', 
-                          wordCount: 0, 
-                          order: chapters.length, 
-                          volumeName: '默认卷', 
+                        const newChap: Chapter = {
+                          id: newChapId,
+                          title: '第一章',
+                          content: '',
+                          wordCount: 0,
+                          order: chapters.length,
+                          volumeName: '默认卷',
                           novelId: novel.id,
                           createdAt: Date.now(),
                           updatedAt: Date.now(),
@@ -827,7 +836,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                         setChapters(prev => [...prev, newChap]);
                         setCurrentChapter(newChap);
 
-                        createChapter({
+                        await createChapter({
                           ...newChap,
                           createdAt: Date.now(),
                           updatedAt: Date.now()
@@ -1005,8 +1014,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                           const val = e.target.value;
                           setGlobalOutline(val);
                           if (outlineSyncTimeoutRef.current) clearTimeout(outlineSyncTimeoutRef.current);
-                          outlineSyncTimeoutRef.current = setTimeout(() => {
-                             updateNovel(novel.id, { globalOutline: val });
+                          outlineSyncTimeoutRef.current = setTimeout(async () => {
+                             await updateNovel(novel.id, { globalOutline: val });
                           }, 1000);
                         }}
                         placeholder="在此规划整本小说的核心冲突与路线图；也可以输入初始创意，点击“智能排盘”由 AI 为您生成卷轴级大纲..."
@@ -1123,7 +1132,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                                       handleUpdateContent(newText);
                                       
                                       // Save version after rewrite
-                                      createChapterVersion({
+                                      await createChapterVersion({
                                         id: Date.now().toString(),
                                         chapterId: currentChapter.id,
                                         content: newText,
@@ -1153,8 +1162,8 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                                 setCurrentChapter(prev => prev ? { ...prev, sceneBeats: newBeats } : null);
                                 
                                 if (beatsSyncTimeoutRef.current) clearTimeout(beatsSyncTimeoutRef.current);
-                                beatsSyncTimeoutRef.current = setTimeout(() => {
-                                  updateChapter(currentChapter.id, {
+                                beatsSyncTimeoutRef.current = setTimeout(async () => {
+                                  await updateChapter(currentChapter.id, {
                                     sceneBeats: newBeats
                                   });
                                 }, 1000);

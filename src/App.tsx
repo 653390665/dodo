@@ -13,11 +13,8 @@ import { SkillsStudioView } from './components/SkillsStudioView';
 import { BookFactoryView } from './components/BookFactoryView';
 import { ViewType, Novel } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { initDb, createNovel, createChapter } from './lib/db';
+import { createNovel, createChapter } from './lib/api';
 import { SettingsModal } from './components/SettingsModal';
-
-// Init local database
-initDb();
 
 const LOCAL_USER = { uid: 'local-user' };
 
@@ -39,7 +36,7 @@ export default function App() {
     setCurrentView('editor');
   };
 
-  const handleCreateNovelFromIdea = (idea: string) => {
+  const handleCreateNovelFromIdea = async (idea: string) => {
     const newNovelId = Date.now().toString();
     const now = Date.now();
     const newNovel: Novel = {
@@ -51,8 +48,8 @@ export default function App() {
       createdAt: now,
       updatedAt: now
     };
-    createNovel(newNovel);
-    createChapter({
+    await createNovel(newNovel);
+    await createChapter({
       id: Date.now().toString(),
       novelId: newNovelId,
       title: '第一章',
