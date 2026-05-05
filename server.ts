@@ -6,11 +6,15 @@ import { GoogleGenAI } from "@google/genai";
 import mammoth from 'mammoth';
 import { initDb } from './src/lib/db';
 import * as db from './src/lib/db';
+import { getConfig, reloadConfig, saveConfig } from './src/lib/config';
 
 // Initialize local database on startup
 initDb();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getAi() {
+  const config = getConfig();
+  return new GoogleGenAI({ apiKey: config.apiKey });
+}
 
 async function startServer() {
   const app = express();
@@ -47,6 +51,49 @@ async function startServer() {
     });
 
     req.on('close', () => unsub());
+  });
+
+  app.get('/api/config', (_req, res) => {
+    const config = getConfig();
+    res.json({ apiKey: config.apiKey, baseUrl: config.baseUrl, model: config.model });
+  });
+
+  app.post('/api/config', (req, res) => {
+    const { apiKey, baseUrl, model } = req.body;
+    saveConfig({ apiKey: apiKey || '', baseUrl: baseUrl || '', model: model || '' });
+    reloadConfig();
+    res.json({ ok: true });
+  });
+
+  app.post('/api/expand-fragment', async (req, res) => {
+    try {
+      const { content, type } = req.body;
+      if (!content || typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ error: 'Content is required' });
+      }
+      const config = getConfig();
+      const prompts: Record<string, string> = {
+        scene: `你是一个小说创意扩展助手。请将以下场景灵感扩展为一段 200-300 字的场景细纲，包含：环境氛围、关键动作、情绪基调。\n灵感：${content}`,
+        dialogue: `你是一个小说创意扩展助手。请将以下对话灵感扩展为一段 150-250 字的对话场景草案，包含：说话人、对话内容、对话中的潜台词。\n灵感：${content}`,
+        character: `你是一个小说创意扩展助手。请将以下角色灵感扩展为一份 200-300 字的角色小传草案，包含：外貌、性格、核心欲望、背景故事。\n灵感：${content}`,
+        plot_hook: `你是一个小说创意扩展助手。请将以下剧情创意扩展为一段 200-300 字的剧情展开方案，包含：起因、发展、高潮雏形、可能的转折。\n灵感：${content}`,
+        world: `你是一个小说创意扩展助手。请将以下世界观灵感扩展为一段 200-300 字的设定描述，包含：规则逻辑、视觉特征、对故事的影响。\n灵感：${content}`,
+      };
+      const prompt = prompts[type] || prompts.scene;
+
+      const response = await getAi().models.generateContent({
+        model: config.model,
+        contents: prompt,
+      });
+      const expansion = response.text || '';
+      if (!expansion) {
+        return res.status(500).json({ error: 'AI returned empty response' });
+      }
+      res.json({ expansion });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
   });
 
   app.post('/api/parse-doc', async (req, res) => {
@@ -97,8 +144,8 @@ ${text.substring(0, 30000)}
 }
 `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -153,8 +200,8 @@ ${draftContent}
 3. 修改建议（手术级修改方案）：给出具体的重写方向或段落级修改演示，呈现“白金大神”级的质感。
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -185,8 +232,8 @@ ${instruction ? `【用户的改写要求 / 改写方向】\n${instruction}` : '
 请结合以上【整体世界观与上下文背景】（尤其是其中挂载的技能插件、文风、红线等设定）以及用户的改写要求，直接输出改写后的文本。不要输出任何多余的客套话或前导词。字数应该与原段落大体相当（也可以稍作合理的增删以圆润文笔）。
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -279,8 +326,8 @@ ${instruction ? `【用户的改写要求 / 改写方向】\n${instruction}` : '
 ${text.substring(0, 30000)}
       `;
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -325,8 +372,8 @@ ${abilities ? `【独特能力】：${abilities}` : ''}
 5. 直接输出故事内容，不要包含任何前导词（如“好的，这是为您生成的...”）。
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -354,8 +401,8 @@ ${seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : ''}
 请直接输出 markdown 格式的全局大纲，排版要清晰、美观。不要输出多余的客套话。
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -394,8 +441,8 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
 }
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 
@@ -449,8 +496,8 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
 }
 `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+      const response = await getAi().models.generateContent({
+        model: getConfig().model,
         contents: prompt,
       });
 

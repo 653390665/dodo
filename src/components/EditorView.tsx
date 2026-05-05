@@ -28,7 +28,8 @@ import {
   ChevronDown,
   BookOpen,
   Folder,
-  FolderOpen
+  FolderOpen,
+  Lightbulb
 } from 'lucide-react';
 import { Novel, Chapter, Character, Item, Location, ChapterVersion, Skill, TimelineEvent, Faction, PowerLevel } from '../types';
 import {
@@ -47,6 +48,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { editorAgentPhase, writerAgentPhase, criticAgentPhase, AgentContext, buildContextPrompt } from '../lib/agents';
 import ReactMarkdown from 'react-markdown';
+import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 
 
 interface EditorViewProps {
@@ -64,7 +66,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedVolumes, setExpandedVolumes] = useState<string[]>(['正文卷']);
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
-  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions'>('outline');
+  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions' | 'ideas'>('outline');
   const [bibleSearch, setBibleSearch] = useState('');
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
@@ -782,12 +784,15 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
 
         {/* Writing Surface */}
         <div className="flex-1 overflow-y-auto px-4 md:px-12 py-16 scroll-smooth flex flex-col relative">
-          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col relative">
+          <div className={cn(
+            "w-full flex-1 flex flex-col relative transition-all duration-500",
+            isAgentSidebarOpen && "max-w-3xl mx-auto"
+          )}>
             {currentChapter ? (
               <>
                 {(!currentChapter.content || currentChapter.content.trim() === '') && (
-                  <div className="absolute top-1/4 left-0 right-0 flex flex-col items-center justify-center z-20 pointer-events-none">
-                    <div className="pointer-events-auto flex flex-col items-center justify-center opacity-90 hover:opacity-100 transition-opacity bg-white/80 p-6 rounded-3xl shadow-lg border border-theme-border/50 backdrop-blur-sm">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh]">
+                    <div className="flex flex-col items-center justify-center bg-white/80 p-8 rounded-3xl shadow-lg border border-theme-border/50 backdrop-blur-sm">
                       <button
                         onClick={() => setIsAgentSidebarOpen(true)}
                         className="px-8 py-5 bg-theme-accent text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all flex items-center gap-4 group"
@@ -795,10 +800,20 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                         <Bot size={32} className="text-white/90 group-hover:scale-110 transition-transform" />
                         <span className="text-xl">唤起 AI 智能管家</span>
                       </button>
-                      <p className="mt-6 text-sm text-theme-muted font-serif">或者直接在下方文本框点击开始书写第一章</p>
+                      <p className="mt-6 text-sm text-theme-muted font-serif">或者直接在下方文本框点击开始书写</p>
+                    </div>
+                    <div className="w-full flex-1 min-h-[30vh] relative z-10 p-2 md:p-8">
+                      <textarea
+                        ref={contentRef}
+                        value={currentChapter.content || ''}
+                        onChange={(e) => handleUpdateContent(e.target.value)}
+                        placeholder="在此起草你的灵感..."
+                        className="w-full h-full min-h-[30vh] bg-white rounded-2xl shadow-sm border border-theme-border/50 outline-none resize-none writing-surface text-theme-text placeholder:text-theme-muted/40 transition-all font-serif p-8 hover:border-theme-accent/30 focus:border-theme-accent/50 focus:shadow-md"
+                      />
                     </div>
                   </div>
                 )}
+                {currentChapter.content && currentChapter.content.trim() !== '' && (
                 <div className="w-full flex-1 h-full min-h-[70vh] relative z-10 p-2 md:p-8">
                   <textarea
                     ref={contentRef}
@@ -808,6 +823,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                     className="w-full h-full min-h-[70vh] bg-white rounded-2xl shadow-sm border border-theme-border/50 outline-none resize-none writing-surface text-theme-text placeholder:text-theme-muted/40 transition-all font-serif p-8 hover:border-theme-accent/30 focus:border-theme-accent/50 focus:shadow-md"
                   />
                 </div>
+                )}
               </>
             ) : (
               <div id="editor-empty-state" className="flex-1 flex flex-col items-center justify-center text-theme-muted opacity-100 min-h-[60vh] bg-white rounded-3xl shadow-sm border border-theme-border m-4 md:m-8 relative overflow-hidden">
@@ -874,7 +890,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-green-600 shadow-[0_0_5px_rgba(22,163,74,0.3)]" />
-            云同步已就绪
+            本地已保存
           </div>
         </div>
       </div>
@@ -890,12 +906,23 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
           >
             {/* Tabs */}
             <div className="flex overflow-x-auto no-scrollbar p-3 gap-1 border-b border-theme-border bg-transparent sticky top-0 z-10 shrink-0">
-              <button 
+              <button
+                onClick={() => setAgentTab('ideas')}
+                className={cn(
+                  "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
+                  agentTab === 'ideas'
+                    ? "bg-theme-text text-white"
+                    : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text"
+                )}
+              >
+                <Lightbulb size={12} /> 灵感
+              </button>
+              <button
                 onClick={() => setAgentTab('outline')}
                 className={cn(
                   "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
-                  agentTab === 'outline' 
-                    ? "bg-theme-text text-white" 
+                  agentTab === 'outline'
+                    ? "bg-theme-text text-white"
                     : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text"
                 )}
               >
@@ -972,6 +999,11 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
               <AnimatePresence mode="wait">
+                {agentTab === 'ideas' && (
+                  <motion.div key="ideas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <IdeaFragmentBoard novelId={novel.id} compact />
+                  </motion.div>
+                )}
                 {agentTab === 'outline' ? (
                   <motion.div 
                     key="outline"
@@ -1625,7 +1657,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
           </span>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>AI 核心已连接 (Gemini 3.1 Pro)</span>
+            <span>AI 核心已连接</span>
           </div>
         </div>
       </div>
