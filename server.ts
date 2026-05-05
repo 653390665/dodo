@@ -494,6 +494,49 @@ ${chapterContent.substring(0, 15000)}
     }
   });
 
+  app.post('/api/analyze-pacing', async (req, res) => {
+    try {
+      const { chapters } = req.body;
+      if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
+        return res.status(400).json({ error: 'Chapters array is required' });
+      }
+      const config = getConfig();
+      const MAX_CHAPTERS = 50;
+      const limited = chapters.slice(-MAX_CHAPTERS);
+      const chapterList = limited.map((c: any) =>
+        `第${c.order ?? '?'}章「${c.title ?? '无标题'}」(字数:${c.wordCount ?? 0})：${(c.content || '').substring(0, 500)}...`
+      ).join('\n---\n');
+
+      const prompt = `你是一个小说节奏分析专家。请对以下章节列表进行节奏诊断。
+
+${chapterList}
+
+请输出 JSON 数组，每个章节一个对象：
+[
+  {
+    "chapterId": "章节 ID",
+    "tensionScore": 0-100 的张力评分（冲突强度、悬念密度）,
+    "payoffCount": 爽点/爆点数量,
+    "emotionLabel": "情绪标签（如：紧张/温馨/压抑/燃/爽/悲）",
+    "suggestion": "一句话节奏建议"
+  }
+]
+
+严格只输出 JSON 数组，不要包含 markdown 标记。`;
+
+      const response = await getAi().models.generateContent({
+        model: config.model,
+        contents: prompt,
+      });
+      let raw = (response.text || '').trim();
+      raw = raw.replace(/```(json)?/g, '').trim();
+      res.json(JSON.parse(raw));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
   app.post('/api/generate-entity-details', async (req, res) => {
     try {
       const { name, type, context } = req.body;

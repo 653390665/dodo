@@ -30,7 +30,8 @@ import {
   Folder,
   FolderOpen,
   Lightbulb,
-  Eye
+  Eye,
+  Activity
 } from 'lucide-react';
 import { Novel, Chapter, Character, Item, Location, ChapterVersion, Skill, TimelineEvent, Faction, PowerLevel } from '../types';
 import {
@@ -51,6 +52,7 @@ import { editorAgentPhase, writerAgentPhase, criticAgentPhase, AgentContext, bui
 import ReactMarkdown from 'react-markdown';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
+import { PacingDashboard } from './PacingDashboard';
 
 
 interface EditorViewProps {
@@ -68,7 +70,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedVolumes, setExpandedVolumes] = useState<string[]>(['正文卷']);
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
-  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions' | 'ideas' | 'foreshadowing'>('outline');
+  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions' | 'ideas' | 'foreshadowing' | 'pacing'>('outline');
   const [bibleSearch, setBibleSearch] = useState('');
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
@@ -931,6 +933,17 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                 <Eye size={12} /> 伏笔
               </button>
               <button
+                onClick={() => setAgentTab('pacing')}
+                className={cn(
+                  "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
+                  agentTab === 'pacing'
+                    ? "bg-theme-text text-white"
+                    : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text"
+                )}
+              >
+                <Activity size={12} /> 节奏
+              </button>
+              <button
                 onClick={() => setAgentTab('outline')}
                 className={cn(
                   "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
@@ -1020,6 +1033,11 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                 {agentTab === 'foreshadowing' && (
                   <motion.div key="foreshadowing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <ForeshadowingPanel novelId={novel.id} />
+                  </motion.div>
+                )}
+                {agentTab === 'pacing' && (
+                  <motion.div key="pacing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <PacingDashboard novelId={novel.id} />
                   </motion.div>
                 )}
                 {agentTab === 'outline' ? (
