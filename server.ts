@@ -5,6 +5,7 @@ import { orchestrationApp } from './workflow';
 import { GoogleGenAI } from "@google/genai";
 import mammoth from 'mammoth';
 import { initDb } from './src/lib/db';
+import * as db from './src/lib/db';
 
 // Initialize local database on startup
 initDb();
@@ -17,6 +18,36 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // Generic DB proxy — frontend calls this instead of importing db.ts directly
+  app.post('/api/db', (req, res) => {
+    const { method, args = [] } = req.body;
+    const fn = (db as Record<string, Function>)[method];
+    if (typeof fn !== 'function') {
+      return res.status(400).json({ error: `Unknown method: ${method}` });
+    }
+    try {
+      const result = fn(...args);
+      res.json({ result });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // SSE endpoint for change notifications (replaces the subscribe() pattern)
+  app.get('/api/db/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const { subscribe } = db;
+    const unsub = subscribe(() => {
+      res.write('data: {}\n\n');
+    });
+
+    req.on('close', () => unsub());
+  });
 
   app.post('/api/parse-doc', async (req, res) => {
     try {
