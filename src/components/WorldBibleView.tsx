@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel } from '../types';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot,
-  addDoc,
-  deleteDoc,
-  doc,
-  updateDoc,
-  orderBy
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import {
+  listCharacters, createCharacter, updateCharacter, deleteCharacter,
+  listLocations, createLocation, updateLocation, deleteLocation,
+  listItems, createItem, updateItem, deleteItem,
+  listFactions, createFaction, updateFaction, deleteFaction,
+  listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
+  listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
+  updateNovel, subscribe
+} from '../lib/db';
 import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Loader2, Sparkles, Clock, Shield, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,79 +32,62 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const qChars = query(collection(db, 'characters'), where('novelId', '==', novel.id));
-    const u1 = onSnapshot(qChars, (snapshot) => {
-      setCharacters(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Character)));
-    });
-
-    const qLocs = query(collection(db, 'locations'), where('novelId', '==', novel.id));
-    const u2 = onSnapshot(qLocs, (snapshot) => {
-      setLocations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Location)));
-    });
-
-    const qItems = query(collection(db, 'items'), where('novelId', '==', novel.id));
-    const u3 = onSnapshot(qItems, (snapshot) => {
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
-    });
-
-    const qTimeline = query(collection(db, 'timelineEvents'), where('novelId', '==', novel.id), orderBy('order', 'asc'));
-    const u4 = onSnapshot(qTimeline, (snapshot) => {
-      setTimelineEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TimelineEvent)));
-    });
-
-    const qFactions = query(collection(db, 'factions'), where('novelId', '==', novel.id));
-    const u5 = onSnapshot(qFactions, (snapshot) => {
-      setFactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Faction)));
-    });
-
-    const qPowerLevels = query(collection(db, 'powerLevels'), where('novelId', '==', novel.id), orderBy('tier', 'asc'));
-    const u6 = onSnapshot(qPowerLevels, (snapshot) => {
-      setPowerLevels(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PowerLevel)));
-    });
-
-    setGlobalOutline(novel.globalOutline || '');
-    setWorldRules(novel.worldRules || '');
-
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
+    const fetchAll = () => {
+      setCharacters(listCharacters(novel.id));
+      setLocations(listLocations(novel.id));
+      setItems(listItems(novel.id));
+      setTimelineEvents(listTimelineEvents(novel.id));
+      setFactions(listFactions(novel.id));
+      setPowerLevels(listPowerLevels(novel.id));
+      setGlobalOutline(novel.globalOutline || '');
+      setWorldRules(novel.worldRules || '');
+    };
+    fetchAll();
+    return subscribe(fetchAll);
   }, [novel]);
 
-  const saveGlobalInfo = async () => {
+  const saveGlobalInfo = () => {
     setIsSaving(true);
-    await updateDoc(doc(db, 'novels', novel.id), {
-      globalOutline,
-      worldRules,
-      updatedAt: Date.now()
-    });
+    updateNovel(novel.id, { globalOutline, worldRules });
     setIsSaving(false);
   };
 
-  const addEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel') => {
-    const base = { novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() };
+  const addEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel') => {
+    const now = Date.now();
+    const id = now.toString();
     if (type === 'character') {
-      await addDoc(collection(db, 'characters'), { ...base, name: '新人物', role: 'supporting', summary: '', traits: [], bio: '' });
+      createCharacter({ id, novelId: novel.id, name: '新人物', role: 'supporting', summary: '', traits: [], bio: '', createdAt: now, updatedAt: now });
     } else if (type === 'location') {
-      await addDoc(collection(db, 'locations'), { ...base, name: '新地点', region: '未知区域', description: '' });
+      createLocation({ id, novelId: novel.id, name: '新地点', region: '未知区域', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'item') {
-      await addDoc(collection(db, 'items'), { ...base, name: '新道具', type: '普通道具', description: '' });
+      createItem({ id, novelId: novel.id, name: '新道具', type: '普通道具', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'timeline') {
       const highestOrder = timelineEvents.length > 0 ? Math.max(...timelineEvents.map(e => e.order)) : 0;
-      await addDoc(collection(db, 'timelineEvents'), { ...base, title: '新事件', description: '', timestamp: '未知时间', statusTag: '发生中', order: highestOrder + 1 });
+      createTimelineEvent({ id, novelId: novel.id, title: '新事件', description: '', timestamp: '未知时间', statusTag: '发生中', order: highestOrder + 1, createdAt: now, updatedAt: now });
     } else if (type === 'faction') {
-      await addDoc(collection(db, 'factions'), { ...base, name: '新势力', leader: '未知', territory: '未知', description: '' });
+      createFaction({ id, novelId: novel.id, name: '新势力', leader: '未知', territory: '未知', description: '', createdAt: now, updatedAt: now });
     } else if (type === 'powerLevel') {
       const highestTier = powerLevels.length > 0 ? Math.max(...powerLevels.map(e => e.tier)) : 0;
-      await addDoc(collection(db, 'powerLevels'), { ...base, name: '新境界', tier: highestTier + 1, characteristics: '', description: '' });
+      createPowerLevel({ id, novelId: novel.id, name: '新境界', tier: highestTier + 1, characteristics: '', description: '', createdAt: now, updatedAt: now });
     }
   };
 
-  const deleteEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
-    const colName = type === 'timeline' ? 'timelineEvents' : type + 's';
-    await deleteDoc(doc(db, colName, id));
+  const deleteEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
+    if (type === 'character') deleteCharacter(id);
+    else if (type === 'location') deleteLocation(id);
+    else if (type === 'item') deleteItem(id);
+    else if (type === 'timeline') deleteTimelineEvent(id);
+    else if (type === 'faction') deleteFaction(id);
+    else if (type === 'powerLevel') deletePowerLevel(id);
   };
 
-  const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
-    const colName = type === 'timeline' ? 'timelineEvents' : type + 's';
-    await updateDoc(doc(db, colName, id), { ...data, updatedAt: Date.now() });
+  const updateEntity = (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
+    if (type === 'character') updateCharacter(id, data);
+    else if (type === 'location') updateLocation(id, data);
+    else if (type === 'item') updateItem(id, data);
+    else if (type === 'timeline') updateTimelineEvent(id, data);
+    else if (type === 'faction') updateFaction(id, data);
+    else if (type === 'powerLevel') updatePowerLevel(id, data);
   };
 
   const handleGenerateBio = async (char: Character) => {
@@ -125,7 +105,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
       });
       const data = await response.json();
       if (data.bio) {
-        await updateEntity('character', char.id, { bio: data.bio });
+        updateEntity('character', char.id, { bio: data.bio });
       }
     } catch (err) {
       console.error(err);
@@ -162,47 +142,46 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
           const newGlobalOutline = extracted.globalOutline || globalOutline;
           const newWorldRules = extracted.worldRules || worldRules;
           
-          await updateDoc(doc(db, 'novels', novel.id), {
+          updateNovel(novel.id, {
             globalOutline: newGlobalOutline,
-            worldRules: newWorldRules,
-            updatedAt: Date.now()
+            worldRules: newWorldRules
           });
           setGlobalOutline(newGlobalOutline);
           setWorldRules(newWorldRules);
 
           if (extracted.characters && Array.isArray(extracted.characters)) {
             for (const char of extracted.characters) {
-              await addDoc(collection(db, 'characters'), { ...char, traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createCharacter({ ...char, id: Date.now().toString(), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.locations && Array.isArray(extracted.locations)) {
             for (const loc of extracted.locations) {
-              await addDoc(collection(db, 'locations'), { ...loc, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createLocation({ ...loc, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.items && Array.isArray(extracted.items)) {
             for (const item of extracted.items) {
-              await addDoc(collection(db, 'items'), { ...item, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createItem({ ...item, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.factions && Array.isArray(extracted.factions)) {
             for (const faction of extracted.factions) {
-              await addDoc(collection(db, 'factions'), { ...faction, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createFaction({ ...faction, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.powerLevels && Array.isArray(extracted.powerLevels)) {
             for (const pl of extracted.powerLevels) {
-              await addDoc(collection(db, 'powerLevels'), { ...pl, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createPowerLevel({ ...pl, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.timelineEvents && Array.isArray(extracted.timelineEvents)) {
             for (const evt of extracted.timelineEvents) {
-              await addDoc(collection(db, 'timelineEvents'), { ...evt, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              createTimelineEvent({ ...evt, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
           
