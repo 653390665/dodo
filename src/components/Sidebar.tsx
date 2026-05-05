@@ -13,14 +13,12 @@ import {
 } from 'lucide-react';
 import { ViewType } from '../types';
 import { cn } from '../lib/utils';
-import { auth } from '../lib/firebase';
-import { User } from 'firebase/auth';
 import { motion } from 'motion/react';
 
 interface SidebarProps {
   currentView: ViewType;
   onNavigate: (view: ViewType) => void;
-  user: User;
+  user: { uid: string };
 }
 
 export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {

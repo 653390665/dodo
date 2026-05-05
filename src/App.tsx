@@ -13,17 +13,19 @@ import { SkillsStudioView } from './components/SkillsStudioView';
 import { BookFactoryView } from './components/BookFactoryView';
 import { ViewType, Novel } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { onAuthStateChanged, signInAnonymously, User } from 'firebase/auth';
-import { setDoc, collection, doc } from 'firebase/firestore';
-import { auth, db } from './lib/firebase';
-
+import { initDb, createNovel, createChapter } from './lib/db';
 import { SettingsModal } from './components/SettingsModal';
+
+// Init local database
+initDb();
+
+const LOCAL_USER = { uid: 'local-user' };
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('library');
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user] = useState(LOCAL_USER);
+  const [loading, setLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -32,50 +34,39 @@ export default function App() {
     return () => window.removeEventListener('open-settings', handleOpenSettings);
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        setUser(u);
-        setLoading(false);
-      } else {
-        try {
-          await signInAnonymously(auth);
-        } catch (err) {
-          console.error("Anonymous auth failed", err);
-          setLoading(false);
-        }
-      }
-    });
-    return unsubscribe;
-  }, []);
-
   const navigateToEditor = (novel: Novel) => {
     setSelectedNovel(novel);
     setCurrentView('editor');
   };
 
-  const handleCreateNovelFromIdea = async (idea: string) => {
-    if (!user) return;
-    try {
-      const newNovelId = Date.now().toString();
-      const newNovel: Novel = {
-        id: newNovelId,
-        title: '灵感新作',
-        authorId: user?.uid || 'anonymous',
-        summary: idea,
-        status: 'ongoing',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      
-      await setDoc(doc(db, 'novels', newNovelId), { ...newNovel, authorId: user.uid });
-      navigateToEditor(newNovel);
-    } catch (err) {
-      console.error('Failed to create novel from idea:', err);
-    }
+  const handleCreateNovelFromIdea = (idea: string) => {
+    const newNovelId = Date.now().toString();
+    const now = Date.now();
+    const newNovel: Novel = {
+      id: newNovelId,
+      title: '灵感新作',
+      authorId: 'local-user',
+      summary: idea,
+      status: 'ongoing',
+      createdAt: now,
+      updatedAt: now
+    };
+    createNovel(newNovel);
+    createChapter({
+      id: Date.now().toString(),
+      novelId: newNovelId,
+      title: '第一章',
+      content: '',
+      order: 0,
+      wordCount: 0,
+      volumeName: '默认卷',
+      createdAt: now,
+      updatedAt: now
+    });
+    navigateToEditor(newNovel);
   };
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-paper">
         <motion.div
@@ -110,7 +101,7 @@ export default function App() {
             className="flex-1 overflow-hidden h-full"
           >
             {currentView === 'library' && (
-              <Library onSelectNovel={navigateToEditor} userId={user.uid} />
+              <Library onSelectNovel={navigateToEditor} userId={'local-user'} />
             )}
             {currentView === 'editor' && selectedNovel && (
               <EditorView novel={selectedNovel} onBack={() => setCurrentView('library')} />
