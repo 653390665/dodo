@@ -501,7 +501,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
     const updatedChapter = { ...currentChapter, content: newContent };
     setCurrentChapter(updatedChapter);
     
-    // Debounced sync to Firebase
+    // Debounced sync to local DB
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     setIsSyncing(true);
