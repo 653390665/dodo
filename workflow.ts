@@ -2,11 +2,17 @@ import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from "./src/config/souls.js";
 
-// Ensure Gemini API Key is available
-const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-pro",
-  apiKey: process.env.GEMINI_API_KEY,
-});
+let _llm: ChatGoogleGenerativeAI | null = null;
+
+function getLlm(): ChatGoogleGenerativeAI {
+  if (!_llm) {
+    _llm = new ChatGoogleGenerativeAI({
+      model: "gemini-2.5-pro",
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+  }
+  return _llm;
+}
 
 export const GraphState = Annotation.Root({
   contextStr: Annotation<string>(),
@@ -110,10 +116,10 @@ ${state.criticFeedback || "初稿阶段，请全力输出。"}
 
 请直接输出正文内容。`;
 
-  const res = await llm.invoke(prompt, config);
-  return { 
-    draftContent: res.content.toString(), 
-    iterationCount: state.iterationCount + 1 
+  const res = await getLlm().invoke(prompt, config);
+  return {
+    draftContent: res.content.toString(),
+    iterationCount: state.iterationCount + 1
   };
 }
 
@@ -143,7 +149,7 @@ ${state.draftContent}
 
 必须严格遵守 ${CRITIC_SOUL} 中要求的输出格式。`;
 
-  const res = await llm.invoke(prompt, config);
+  const res = await getLlm().invoke(prompt, config);
   const feedback = res.content.toString();
   const isValid = feedback.includes("PASS");
   
