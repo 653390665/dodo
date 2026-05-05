@@ -1,27 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Wand2, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { listSkills, deleteSkill, subscribe } from '../lib/db';
 import { Skill } from '../types';
 
 export function SkillsStudioView() {
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'skills'), (snap) => {
-      setSavedSkills(snap.docs.map(d => ({ id: d.id, ...d.data() } as Skill)));
-    });
-    return unsub;
+    setSavedSkills(listSkills());
+    return subscribe(() => setSavedSkills(listSkills()));
   }, []);
 
-  const handleDeleteSkill = async (id: string) => {
+  const handleDeleteSkill = (id: string) => {
     if(!confirm("确认删除这个技能？")) return;
-    try {
-      await deleteDoc(doc(db, 'skills', id));
-    } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, 'skills');
-    }
+    deleteSkill(id);
   };
 
   return (
