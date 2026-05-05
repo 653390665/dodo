@@ -1,49 +1,73 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "EB Garamond", serif;
+  --font-serif: "Merriweather", serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-sage-bg: #F5F5F0;
-  --color-sage-sidebar: #EBEBE4;
-  --color-sage-border: #D9D9CF;
-  --color-sage-text: #3E3D32;
-  --color-sage-muted: #8A8A78;
-  --color-sage-accent: #5A5A40;
+  /* Minimalist Premium Palette */
+  --color-theme-bg: #FAFAFA;
+  --color-theme-sidebar: #FFFFFF;
+  --color-theme-border: #EAEAEA;
+  --color-theme-text: #111111;
+  --color-theme-muted: #888888;
+  --color-theme-accent: #000000;
   --color-paper: #ffffff;
-  --color-parchment: #F5F5F0;
+  --color-parchment: #FFFFFF;
 }
 
 @layer base {
   body {
-    @apply bg-sage-bg text-sage-text font-sans antialiased;
+    @apply bg-theme-bg text-theme-text font-sans antialiased;
+    letter-spacing: -0.015em;
   }
 }
 
 .writing-surface {
   font-family: var(--font-serif);
-  line-height: 1.8;
+  line-height: 1.9;
   font-size: 1.15rem;
-  color: #4A4940;
+  color: #1E293B; /* Slate 800 */
+}
+
+.writing-surface::placeholder {
+  color: #94A3B8; /* Slate 400 */
+  opacity: 1;
 }
 
 .natural-card {
-  @apply bg-white border border-sage-border rounded-xl shadow-sm hover:shadow-md transition-all;
+  @apply bg-theme-sidebar border border-theme-border rounded-xl shadow-sm hover:shadow-md transition-all duration-300;
 }
 
 .natural-btn-primary {
-  @apply px-4 py-2 bg-sage-accent text-white rounded-full text-sm font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm;
+  @apply px-4 py-2 bg-theme-accent text-white rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+  background-color: #CBD5E1; /* Slate 300 */
+  border-radius: 10px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94A3B8; /* Slate 400 */
+}
+
+/* Hide scrollbar for tabs */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+

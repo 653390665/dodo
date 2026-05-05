@@ -53,6 +53,21 @@ service cloud.firestore {
     match /items/{itemId} {
       allow read, write: if isSignedIn();
     }
+    // TimelineEvents collection
+    match /timelineEvents/{eventId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Factions collection
+    match /factions/{factionId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // PowerLevels collection
+    match /powerLevels/{levelId} {
+      allow read, write: if isSignedIn();
+    }
+
     // Skills collection
     match /skills/{skillId} {
       allow read, write: if isSignedIn();

@@ -7,6 +7,7 @@ export interface Novel {
   status: 'ongoing' | 'completed' | 'hiatus';
   worldRules?: string; // 规划层：全局世界观设定
   globalOutline?: string; // 规划层：全局大纲
+  mountedSkillIds?: string[]; // 挂载的 Skill IDs
   createdAt: number;
   updatedAt: number;
 }
@@ -43,6 +44,40 @@ export interface Item {
   updatedAt: number;
 }
 
+export interface Faction {
+  id: string;
+  novelId: string;
+  name: string;
+  description: string;
+  leader: string;
+  territory: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PowerLevel {
+  id: string;
+  novelId: string;
+  name: string;
+  description: string;
+  tier: number;
+  characteristics: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TimelineEvent {
+  id: string;
+  novelId: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  statusTag?: string;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ChapterVersion {
   id: string;
   chapterId: string;
@@ -55,6 +90,7 @@ export interface ChapterVersion {
 export interface Chapter {
   id: string;
   novelId: string;
+  volumeName?: string; // 规划层：卷名
   title: string;
   content: string;
   order: number;
@@ -71,9 +107,21 @@ export interface Skill {
   description: string;
   style: string;
   pacing: string;
-  bannedWords: string[];
-  fewShots: string[];
+  vocabulary?: string[];
+  sentenceStructure?: string;
+  imagery?: string[];
+  bannedWords?: string[];
+  fewShots?: string[];
+  characterTraits?: string;
+  worldBuilding?: string;
+  foreshadowing?: string;
+  plotPattern?: string;
+  corePatterns?: string[];
+  bannedElements?: string[];
+  stabilityScore: number;
+  evaluationFeedback: string;
+  version: number;
   createdAt: number;
 }
-export type ViewType = 'library' | 'editor' | 'world' | 'ai' | 'skills';
+export type ViewType = 'library' | 'editor' | 'world' | 'ai' | 'skills' | 'factory';
 

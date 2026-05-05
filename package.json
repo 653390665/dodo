@@ -1,14 +1,16 @@
 {
-  "name": "react-example",
+  "name": "inkflow",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "main": "electron.cjs",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "electron:start": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on http-get://localhost:3000/ && electron .\""
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -22,6 +24,7 @@
     "express": "^4.21.2",
     "firebase": "^12.12.1",
     "lucide-react": "^0.546.0",
+    "mammoth": "^1.12.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
@@ -36,6 +39,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }

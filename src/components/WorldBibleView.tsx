@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Character, Location, Item, Novel } from '../types';
+import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel } from '../types';
 import { 
   collection, 
   query, 
@@ -8,25 +8,30 @@ import {
   addDoc,
   deleteDoc,
   doc,
-  updateDoc
+  updateDoc,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Loader2 } from 'lucide-react';
+import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Loader2, Sparkles, Clock, Shield, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractWorldSetupPhase } from '../lib/agents';
 
 export function WorldBibleView({ novel }: { novel: Novel }) {
-  const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'global'>('global');
+  const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('global');
   
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [factions, setFactions] = useState<Faction[]>([]);
+  const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
   
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [generatingBioIds, setGeneratingBioIds] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,10 +50,25 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
     });
 
+    const qTimeline = query(collection(db, 'timelineEvents'), where('novelId', '==', novel.id), orderBy('order', 'asc'));
+    const u4 = onSnapshot(qTimeline, (snapshot) => {
+      setTimelineEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TimelineEvent)));
+    });
+
+    const qFactions = query(collection(db, 'factions'), where('novelId', '==', novel.id));
+    const u5 = onSnapshot(qFactions, (snapshot) => {
+      setFactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Faction)));
+    });
+
+    const qPowerLevels = query(collection(db, 'powerLevels'), where('novelId', '==', novel.id), orderBy('tier', 'asc'));
+    const u6 = onSnapshot(qPowerLevels, (snapshot) => {
+      setPowerLevels(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PowerLevel)));
+    });
+
     setGlobalOutline(novel.globalOutline || '');
     setWorldRules(novel.worldRules || '');
 
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
   }, [novel]);
 
   const saveGlobalInfo = async () => {
@@ -61,23 +81,58 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
     setIsSaving(false);
   };
 
-  const addEntity = async (type: 'character' | 'location' | 'item') => {
+  const addEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel') => {
     const base = { novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() };
     if (type === 'character') {
       await addDoc(collection(db, 'characters'), { ...base, name: '新人物', role: 'supporting', summary: '', traits: [], bio: '' });
     } else if (type === 'location') {
       await addDoc(collection(db, 'locations'), { ...base, name: '新地点', region: '未知区域', description: '' });
-    } else {
+    } else if (type === 'item') {
       await addDoc(collection(db, 'items'), { ...base, name: '新道具', type: '普通道具', description: '' });
+    } else if (type === 'timeline') {
+      const highestOrder = timelineEvents.length > 0 ? Math.max(...timelineEvents.map(e => e.order)) : 0;
+      await addDoc(collection(db, 'timelineEvents'), { ...base, title: '新事件', description: '', timestamp: '未知时间', statusTag: '发生中', order: highestOrder + 1 });
+    } else if (type === 'faction') {
+      await addDoc(collection(db, 'factions'), { ...base, name: '新势力', leader: '未知', territory: '未知', description: '' });
+    } else if (type === 'powerLevel') {
+      const highestTier = powerLevels.length > 0 ? Math.max(...powerLevels.map(e => e.tier)) : 0;
+      await addDoc(collection(db, 'powerLevels'), { ...base, name: '新境界', tier: highestTier + 1, characteristics: '', description: '' });
     }
   };
 
-  const deleteEntity = async (type: 'character' | 'location' | 'item', id: string) => {
-    await deleteDoc(doc(db, type + 's', id));
+  const deleteEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
+    const colName = type === 'timeline' ? 'timelineEvents' : type + 's';
+    await deleteDoc(doc(db, colName, id));
   };
 
-  const updateEntity = async (type: 'character' | 'location' | 'item', id: string, data: any) => {
-    await updateDoc(doc(db, type + 's', id), { ...data, updatedAt: Date.now() });
+  const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
+    const colName = type === 'timeline' ? 'timelineEvents' : type + 's';
+    await updateDoc(doc(db, colName, id), { ...data, updatedAt: Date.now() });
+  };
+
+  const handleGenerateBio = async (char: Character) => {
+    if (!char.name || char.name === '新人物') {
+      alert("请先设置角色姓名");
+      return;
+    }
+
+    setGeneratingBioIds(prev => [...prev, char.id]);
+    try {
+      const response = await fetch('/api/generate-bio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...char, globalOutline, worldRules })
+      });
+      const data = await response.json();
+      if (data.bio) {
+        await updateEntity('character', char.id, { bio: data.bio });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("生物生成失败，请重试");
+    } finally {
+      setGeneratingBioIds(prev => prev.filter(id => id !== char.id));
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,64 +141,107 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
     
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const extracted = await extractWorldSetupPhase(text);
-      
-      const newGlobalOutline = extracted.globalOutline || globalOutline;
-      const newWorldRules = extracted.worldRules || worldRules;
-      
-      await updateDoc(doc(db, 'novels', novel.id), {
-        globalOutline: newGlobalOutline,
-        worldRules: newWorldRules,
-        updatedAt: Date.now()
-      });
-      setGlobalOutline(newGlobalOutline);
-      setWorldRules(newWorldRules);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const result = event.target?.result as string;
+          const base64Data = result.split(',')[1];
+          
+          const response = await fetch('/api/parse-doc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name,
+              filedata: base64Data
+            })
+          });
 
-      if (extracted.characters && Array.isArray(extracted.characters)) {
-        for (const char of extracted.characters) {
-          await addDoc(collection(db, 'characters'), { ...char, traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-        }
-      }
+          if (!response.ok) throw new Error("Upload failed.");
+          const extracted = await response.json();
+          
+          const newGlobalOutline = extracted.globalOutline || globalOutline;
+          const newWorldRules = extracted.worldRules || worldRules;
+          
+          await updateDoc(doc(db, 'novels', novel.id), {
+            globalOutline: newGlobalOutline,
+            worldRules: newWorldRules,
+            updatedAt: Date.now()
+          });
+          setGlobalOutline(newGlobalOutline);
+          setWorldRules(newWorldRules);
 
-      if (extracted.locations && Array.isArray(extracted.locations)) {
-        for (const loc of extracted.locations) {
-          await addDoc(collection(db, 'locations'), { ...loc, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-        }
-      }
+          if (extracted.characters && Array.isArray(extracted.characters)) {
+            for (const char of extracted.characters) {
+              await addDoc(collection(db, 'characters'), { ...char, traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
 
-      if (extracted.items && Array.isArray(extracted.items)) {
-        for (const item of extracted.items) {
-          await addDoc(collection(db, 'items'), { ...item, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+          if (extracted.locations && Array.isArray(extracted.locations)) {
+            for (const loc of extracted.locations) {
+              await addDoc(collection(db, 'locations'), { ...loc, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
+
+          if (extracted.items && Array.isArray(extracted.items)) {
+            for (const item of extracted.items) {
+              await addDoc(collection(db, 'items'), { ...item, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
+
+          if (extracted.factions && Array.isArray(extracted.factions)) {
+            for (const faction of extracted.factions) {
+              await addDoc(collection(db, 'factions'), { ...faction, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
+
+          if (extracted.powerLevels && Array.isArray(extracted.powerLevels)) {
+            for (const pl of extracted.powerLevels) {
+              await addDoc(collection(db, 'powerLevels'), { ...pl, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
+
+          if (extracted.timelineEvents && Array.isArray(extracted.timelineEvents)) {
+            for (const evt of extracted.timelineEvents) {
+              await addDoc(collection(db, 'timelineEvents'), { ...evt, novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+          }
+          
+          alert("设定文档导入解析成功！");
+        } catch (err) {
+          console.error(err);
+          alert("导入失败，文档格式不正确或解析出错");
+        } finally {
+          setIsImporting(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
         }
-      }
-      
-      alert("设定文档导入解析成功！");
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
       console.error(err);
       alert("导入失败，文档格式不正确或解析出错");
-    } finally {
       setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const tabs = [
     { id: 'global', icon: BookOpen, label: '全局设定' },
+    { id: 'timeline', icon: Clock, label: '纪元与时间线' },
     { id: 'characters', icon: Users, label: '人物档案' },
     { id: 'locations', icon: MapPin, label: '地点副本' },
     { id: 'items', icon: Package, label: '道具设定' },
+    { id: 'factions', icon: Shield, label: '网状势力' },
+    { id: 'powerLevels', icon: Zap, label: '境界与力量体系' },
   ] as const;
 
   return (
-    <div className="h-full flex flex-col bg-[#F9FAFB]">
-      <header className="px-8 py-6 border-b border-sage-border/50 bg-white shadow-sm shrink-0 flex items-center justify-between">
+    <div className="h-full flex flex-col bg-transparent">
+      <header className="px-8 py-6 border-b border-theme-border flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-sage-text flex items-center gap-3">
-            <Globe className="text-sage-accent" />
+          <h1 className="text-2xl font-serif font-bold text-theme-text flex items-center gap-3">
+            <Globe className="text-theme-accent" />
             世界设定集 (World Bible)
           </h1>
-          <p className="text-sm text-sage-muted mt-1">「你的AI 专属记忆库，防止小说设定偏离的主心骨」</p>
+          <p className="text-sm text-theme-muted mt-1">「你的AI 专属记忆库，防止小说设定偏离的主心骨」</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -157,7 +255,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="flex items-center gap-2 px-4 py-2 bg-sage-bg border border-sage-border/80 text-sage-text rounded-xl shadow-sm hover:bg-sage-sidebar transition-all font-medium text-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-theme-bg border border-theme-border/80 text-theme-text rounded-xl shadow-sm hover:bg-theme-sidebar transition-all font-medium text-sm disabled:opacity-50"
           >
             {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             {isImporting ? 'AI 解析中...' : '智能导入设定文档'}
@@ -167,7 +265,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar Tabs */}
-        <div className="w-56 border-r border-sage-border/50 bg-white flex flex-col py-4 px-3 shrink-0 gap-2">
+        <div className="w-56 border-r border-theme-border/50 bg-white flex flex-col py-4 px-3 shrink-0 gap-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -175,8 +273,8 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm",
                 activeTab === tab.id 
-                  ? "bg-sage-accent text-white shadow-md shadow-sage-accent/20" 
-                  : "text-sage-muted hover:bg-sage-sidebar/50 hover:text-sage-text hover:translate-x-1"
+                  ? "bg-theme-accent text-white shadow-md shadow-theme-accent/20" 
+                  : "text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text hover:translate-x-1"
               )}
             >
               <tab.icon size={18} />
@@ -185,6 +283,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
                 {tab.id === 'characters' && characters.length}
                 {tab.id === 'locations' && locations.length}
                 {tab.id === 'items' && items.length}
+                {tab.id === 'timeline' && timelineEvents.length}
               </span>
             </button>
           ))}
@@ -195,27 +294,108 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
           <AnimatePresence mode="wait">
             {activeTab === 'global' && (
               <motion.div key="global" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}} className="max-w-4xl mx-auto space-y-8">
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-sage-border/50">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-sage-text">故事大纲 (Global Outline)</h2>
-                    <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-sage-accent text-white rounded-lg text-sm transition-all hover:bg-sage-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
+                    <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
+                    <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
                   </div>
                   <textarea 
                     value={globalOutline} 
                     onChange={e => setGlobalOutline(e.target.value)} 
                     placeholder="描述小说的起承转合、主线任务、结局走向..."
-                    className="w-full h-64 p-4 rounded-xl border border-sage-border/50 focus:border-sage-accent outline-none font-serif resize-none"
+                    className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
                   />
                 </div>
                 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-sage-border/50">
-                  <h2 className="text-lg font-bold text-sage-text mb-4">世界观法则 (World Rules)</h2>
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
+                  <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
                   <textarea 
                     value={worldRules} 
                     onChange={e => setWorldRules(e.target.value)} 
                     placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
-                    className="w-full h-48 p-4 rounded-xl border border-sage-border/50 focus:border-sage-accent outline-none font-serif resize-none"
+                    className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
                   />
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'timeline' && (
+              <motion.div key="timeline" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-4xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-theme-text font-serif">纪元与时间线</h2>
+                  <button onClick={() => addEntity('timeline')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增时间节点</button>
+                </div>
+                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-theme-border before:to-transparent">
+                  {timelineEvents.map((evt, idx) => (
+                    <div key={evt.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group border-none">
+                      {/* Timeline Dot */}
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-theme-accent text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 mx-auto absolute left-0 md:left-1/2 transform -translate-x-0 cursor-move">
+                         <span className="text-xs font-bold">{idx + 1}</span>
+                      </div>
+                      
+                      {/* Event Card */}
+                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] ml-14 md:ml-0 bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md hover:border-theme-accent/50 z-10">
+                        <button onClick={()=>deleteEntity('timeline', evt.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
+                        
+                        <div className="flex flex-wrap items-center gap-2 pr-8">
+                          <input 
+                            value={evt.timestamp} 
+                            onChange={e=>updateEntity('timeline', evt.id, {timestamp: e.target.value})} 
+                            className="font-mono text-sm font-bold text-theme-accent bg-theme-accent/10 px-2 py-1 rounded w-32 outline-none focus:bg-theme-accent/20 transition-colors" 
+                            placeholder="如: 第一纪元" 
+                          />
+                          <input 
+                            value={evt.statusTag || ''} 
+                            onChange={e=>updateEntity('timeline', evt.id, {statusTag: e.target.value})} 
+                            className="font-bold text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded w-24 outline-none focus:ring-1 focus:ring-amber-300" 
+                            placeholder="状态:进行中" 
+                          />
+                        </div>
+                        
+                        <input 
+                          value={evt.title} 
+                          onChange={e=>updateEntity('timeline', evt.id, {title: e.target.value})} 
+                          className="font-bold text-lg outline-none w-full bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -ml-1 mt-1" 
+                          placeholder="大事件名称"
+                        />
+                        
+                        <textarea 
+                          value={evt.description} 
+                          onChange={e=>updateEntity('timeline', evt.id, {description: e.target.value})} 
+                          placeholder="事件详细描述、影响、关联人物..." 
+                          className="text-sm outline-none resize-none h-24 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-border leading-relaxed" 
+                        />
+
+                        {/* Fast Reorder Actions */}
+                        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex items-center bg-white shadow-sm border border-theme-border/50 rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                          <button 
+                            onClick={() => {
+                              if (idx > 0) {
+                                const prev = timelineEvents[idx - 1];
+                                updateEntity('timeline', evt.id, {order: prev.order});
+                                updateEntity('timeline', prev.id, {order: evt.order});
+                              }
+                            }}
+                            className="text-[10px] text-theme-text px-2 py-0.5 hover:bg-theme-sidebar rounded"
+                          >↑ 前移</button>
+                          <span className="text-theme-border">|</span>
+                          <button 
+                            onClick={() => {
+                              if (idx < timelineEvents.length - 1) {
+                                const next = timelineEvents[idx + 1];
+                                updateEntity('timeline', evt.id, {order: next.order});
+                                updateEntity('timeline', next.id, {order: evt.order});
+                              }
+                            }}
+                            className="text-[10px] text-theme-text px-2 py-0.5 hover:bg-theme-sidebar rounded"
+                          >↓ 后移</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {timelineEvents.length === 0 && (
+                     <div className="text-center py-12 text-theme-muted text-sm italic">暂无时间节点，点击“新增时间节点”开始记录。</div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -223,22 +403,33 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
             {activeTab === 'characters' && (
               <motion.div key="chars" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-sage-text font-serif">登场人物</h2>
-                  <button onClick={() => addEntity('character')} className="flex items-center gap-2 px-4 py-2 text-sm bg-sage-text text-white rounded-xl hover:bg-sage-text/90 shadow-md transition-all"><Plus size={16}/>新增角色</button>
+                  <h2 className="text-xl font-bold text-theme-text font-serif">登场人物</h2>
+                  <button onClick={() => addEntity('character')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增角色</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {characters.map(char => (
-                    <div key={char.id} className="bg-white p-5 rounded-2xl border border-sage-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={char.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('character', char.id)} className="absolute top-4 right-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
-                      <input value={char.name} onChange={e=>updateEntity('character', char.id, {name: e.target.value})} className="font-bold text-lg outline-none w-3/4 bg-transparent focus:bg-sage-sidebar/50 rounded px-1" />
-                      <select value={char.role} onChange={e=>updateEntity('character', char.id, {role: e.target.value})} className="w-1/2 p-1 text-sm border-b border-sage-border/50 outline-none -mt-2 bg-transparent">
+                      <input value={char.name} onChange={e=>updateEntity('character', char.id, {name: e.target.value})} className="font-bold text-lg outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
+                      <select value={char.role} onChange={e=>updateEntity('character', char.id, {role: e.target.value})} className="w-1/2 p-1 text-sm border-b border-theme-border/50 outline-none -mt-2 bg-transparent">
                         <option value="protagonist">主角</option>
                         <option value="antagonist">反派</option>
                         <option value="supporting">配角</option>
                         <option value="extra">龙套</option>
                       </select>
-                      <input value={char.summary} onChange={e=>updateEntity('character', char.id, {summary: e.target.value})} placeholder="一句话简介" className="text-sm outline-none bg-transparent focus:bg-sage-sidebar/50 rounded px-1 -mx-1" />
-                      <textarea value={char.bio} onChange={e=>updateEntity('character', char.id, {bio: e.target.value})} placeholder="详细背景设定、性格、习惯..." className="text-sm outline-none resize-none h-32 mt-2 bg-sage-sidebar/10 p-2 rounded-lg border border-sage-border/30 focus:border-sage-border" />
+                      <input value={char.summary} onChange={e=>updateEntity('character', char.id, {summary: e.target.value})} placeholder="一句话简介" className="text-sm outline-none bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -mx-1" />
+                      <div className="relative group/bio">
+                        <textarea value={char.bio} onChange={e=>updateEntity('character', char.id, {bio: e.target.value})} placeholder="详细背景设定、性格、习惯..." className="w-full text-sm outline-none resize-none h-40 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-accent transition-all font-serif leading-relaxed" />
+                        <button 
+                          onClick={() => handleGenerateBio(char)}
+                          disabled={generatingBioIds.includes(char.id)}
+                          className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-white transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
+                          title="AI 生成背景故事"
+                        >
+                          {generatingBioIds.includes(char.id) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                          AI 生成背景故事
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -248,19 +439,19 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
             {activeTab === 'locations' && (
               <motion.div key="locs" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-sage-text font-serif">地点与副本</h2>
-                  <button onClick={() => addEntity('location')} className="flex items-center gap-2 px-4 py-2 text-sm bg-sage-text text-white rounded-xl hover:bg-sage-text/90 shadow-md transition-all"><Plus size={16}/>新增地点</button>
+                  <h2 className="text-xl font-bold text-theme-text font-serif">地点与副本</h2>
+                  <button onClick={() => addEntity('location')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增地点</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {locations.map(loc => (
-                    <div key={loc.id} className="bg-white p-5 rounded-2xl border border-sage-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={loc.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('location', loc.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
                       <div className="flex items-center gap-3 pr-10">
-                        <input value={loc.name} onChange={e=>updateEntity('location', loc.id, {name: e.target.value})} className="font-bold text-lg outline-none w-1/2 bg-transparent focus:bg-sage-sidebar/50 rounded px-1" />
-                        <span className="text-sage-muted/50">—</span>
-                        <input value={loc.region} onChange={e=>updateEntity('location', loc.id, {region: e.target.value})} className="text-sm outline-none w-1/3 bg-transparent text-sage-accent focus:bg-sage-sidebar/50 rounded px-1" placeholder="所属区域" />
+                        <input value={loc.name} onChange={e=>updateEntity('location', loc.id, {name: e.target.value})} className="font-bold text-lg outline-none w-1/2 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
+                        <span className="text-theme-muted/50">—</span>
+                        <input value={loc.region} onChange={e=>updateEntity('location', loc.id, {region: e.target.value})} className="text-sm outline-none w-1/3 bg-transparent text-theme-accent focus:bg-theme-sidebar/50 rounded px-1" placeholder="所属区域" />
                       </div>
-                      <textarea value={loc.description} onChange={e=>updateEntity('location', loc.id, {description: e.target.value})} placeholder="环境描写、危险等级、掉落物品、隐藏线索..." className="text-sm outline-none resize-none h-32 bg-sage-sidebar/10 p-3 rounded-xl border border-sage-border/30 focus:border-sage-border mt-2" />
+                      <textarea value={loc.description} onChange={e=>updateEntity('location', loc.id, {description: e.target.value})} placeholder="环境描写、危险等级、掉落物品、隐藏线索..." className="text-sm outline-none resize-none h-32 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-border mt-2" />
                     </div>
                   ))}
                 </div>
@@ -270,16 +461,66 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
             {activeTab === 'items' && (
               <motion.div key="items" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-sage-text font-serif">道具与物品</h2>
-                  <button onClick={() => addEntity('item')} className="flex items-center gap-2 px-4 py-2 text-sm bg-sage-text text-white rounded-xl hover:bg-sage-text/90 shadow-md transition-all"><Plus size={16}/>新增道具</button>
+                  <h2 className="text-xl font-bold text-theme-text font-serif">道具与物品</h2>
+                  <button onClick={() => addEntity('item')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增道具</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {items.map(item => (
-                    <div key={item.id} className="bg-white p-5 rounded-2xl border border-sage-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={item.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('item', item.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
-                      <input value={item.name} onChange={e=>updateEntity('item', item.id, {name: e.target.value})} className="font-bold text-[17px] outline-none w-3/4 bg-transparent focus:bg-sage-sidebar/50 rounded px-1" />
-                      <input value={item.type} onChange={e=>updateEntity('item', item.id, {type: e.target.value})} className="text-xs text-sage-accent outline-none w-1/2 bg-sage-accent/10 px-2 py-1 rounded-full text-center focus:bg-sage-accent/20 transition-colors" placeholder="道具类型(例如: 法器)" />
-                      <textarea value={item.description} onChange={e=>updateEntity('item', item.id, {description: e.target.value})} placeholder="作用、来历、使用代价..." className="text-sm outline-none resize-none h-28 bg-sage-sidebar/10 p-2 rounded-lg border border-sage-border/30 focus:border-sage-border mt-2" />
+                      <input value={item.name} onChange={e=>updateEntity('item', item.id, {name: e.target.value})} className="font-bold text-[17px] outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
+                      <input value={item.type} onChange={e=>updateEntity('item', item.id, {type: e.target.value})} className="text-xs text-theme-accent outline-none w-1/2 bg-theme-accent/10 px-2 py-1 rounded-full text-center focus:bg-theme-accent/20 transition-colors" placeholder="道具类型(例如: 法器)" />
+                      <textarea value={item.description} onChange={e=>updateEntity('item', item.id, {description: e.target.value})} placeholder="作用、来历、使用代价..." className="text-sm outline-none resize-none h-28 bg-theme-sidebar/10 p-2 rounded-lg border border-theme-border/30 focus:border-theme-border mt-2" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'factions' && (
+              <motion.div key="factions" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-theme-text font-serif">势力设定</h2>
+                  <button onClick={() => addEntity('faction')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增势力</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {factions.map(faction => (
+                    <div key={faction.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
+                      <button onClick={()=>deleteEntity('faction', faction.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
+                      <input value={faction.name} onChange={e=>updateEntity('faction', faction.id, {name: e.target.value})} className="font-bold text-lg outline-none w-1/2 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
+                      <div className="flex gap-2">
+                        <input value={faction.leader} onChange={e=>updateEntity('faction', faction.id, {leader: e.target.value})} className="text-sm font-bold outline-none w-1/2 bg-theme-sidebar border-b border-theme-border focus:border-theme-accent px-2 py-1 rounded" placeholder="首领/重要成员" />
+                        <input value={faction.territory} onChange={e=>updateEntity('faction', faction.id, {territory: e.target.value})} className="text-sm outline-none w-1/2 bg-theme-sidebar border-b border-theme-border focus:border-theme-accent px-2 py-1 rounded" placeholder="据点/势力范围" />
+                      </div>
+                      <textarea value={faction.description} onChange={e=>updateEntity('faction', faction.id, {description: e.target.value})} placeholder="势力背景、组织架构、行事风格..." className="text-sm outline-none resize-none h-32 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-border mt-2" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'powerLevels' && (
+              <motion.div key="powerLevels" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-theme-text font-serif">境界/力量体系</h2>
+                  <button onClick={() => addEntity('powerLevel')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增境界</button>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {powerLevels.map((lvl, idx) => (
+                    <div key={lvl.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex items-start gap-4 group relative">
+                      <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
+                        <span className="w-8 h-8 flex items-center justify-center bg-theme-sidebar text-theme-accent font-bold rounded-full bg-theme-accent/10">{lvl.tier}</span>
+                        <div className="flex gap-1 text-[10px]">
+                          <button onClick={() => updateEntity('powerLevel', lvl.id, {tier: lvl.tier - 1})} className="text-theme-muted hover:text-theme-accent disabled:opacity-30">↑</button>
+                          <button onClick={() => updateEntity('powerLevel', lvl.id, {tier: lvl.tier + 1})} className="text-theme-muted hover:text-theme-accent disabled:opacity-30">↓</button>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex flex-col gap-2 relative">
+                        <button onClick={()=>deleteEntity('powerLevel', lvl.id)} className="absolute top-0 right-0 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
+                        <input value={lvl.name} onChange={e=>updateEntity('powerLevel', lvl.id, {name: e.target.value})} className="font-bold text-xl outline-none w-1/3 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" placeholder="境界名称 (例如: 筑基期)" />
+                        <input value={lvl.characteristics} onChange={e=>updateEntity('powerLevel', lvl.id, {characteristics: e.target.value})} className="text-sm font-medium text-theme-accent outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -mx-1" placeholder="阶段特征 (例如: 寿元三百，可御空飞行)" />
+                        <textarea value={lvl.description} onChange={e=>updateEntity('powerLevel', lvl.id, {description: e.target.value})} placeholder="详细说明该等级的力量表现、突破条件等..." className="text-sm outline-none resize-none h-20 bg-theme-sidebar/10 p-2 rounded-lg border border-theme-border/30 focus:border-theme-border" />
+                      </div>
                     </div>
                   ))}
                 </div>

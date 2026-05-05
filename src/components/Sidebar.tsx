@@ -8,7 +8,8 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BookTemplate
 } from 'lucide-react';
 import { ViewType } from '../types';
 import { cn } from '../lib/utils';
@@ -29,52 +30,53 @@ export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
     { id: 'library' as ViewType, label: '我的书库', icon: BookOpen },
     { id: 'editor' as ViewType, label: '创作舞台', icon: PenTool },
     { id: 'world' as ViewType, label: '设定记忆', icon: Users },
-    { id: 'skills' as ViewType, label: '拆书工厂', icon: Wand2 },
+    { id: 'factory' as ViewType, label: '拆书工厂', icon: BookTemplate },
+    { id: 'skills' as ViewType, label: '技能仓库', icon: Wand2 },
     { id: 'ai' as ViewType, label: '灵感助手', icon: Sparkles },
   ];
 
   return (
     <motion.div 
       initial={false}
-      animate={{ width: isCollapsed ? 80 : 260 }}
-      className="h-full bg-sage-sidebar border-r border-sage-border flex flex-col transition-all duration-300 z-50 shadow-sm"
+      animate={{ width: isCollapsed ? 64 : 240 }}
+      className="h-full bg-transparent flex flex-col transition-all duration-300 z-50 py-2"
     >
       {/* Header */}
-      <div className="p-6 mb-8 flex items-center justify-between">
+      <div className="px-4 mb-8 flex items-center justify-between">
         {!isCollapsed && (
-          <h2 className="text-2xl font-serif font-bold tracking-tight text-sage-accent">墨影</h2>
+          <h2 className="text-xl font-serif font-black tracking-tight text-theme-text">INK<span className="text-theme-muted font-light">FLOW</span></h2>
         )}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 hover:bg-sage-border rounded-lg text-sage-muted transition-colors"
+          className={cn("p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted transition-colors", isCollapsed && "mx-auto")}
         >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-2">
+      <nav className="flex-1 px-3 space-y-1">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative",
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all group relative",
               currentView === item.id 
-                ? "bg-sage-accent text-white shadow-md" 
-                : "text-sage-muted hover:bg-sage-border/50 hover:text-sage-text"
+                ? "bg-white shadow-sm border border-theme-border text-theme-text font-semibold" 
+                : "text-theme-muted hover:bg-theme-border/30 hover:text-theme-text"
             )}
           >
-            <item.icon size={20} className={cn(
+            <item.icon size={16} className={cn(
               "transition-colors",
-              currentView === item.id ? "text-white" : "text-sage-muted group-hover:text-sage-text"
+              currentView === item.id ? "text-theme-text" : "text-theme-muted group-hover:text-theme-text"
             )} />
             {!isCollapsed && (
-              <span className="font-medium text-sm">{item.label}</span>
+              <span className="text-sm">{item.label}</span>
             )}
             {/* Tooltip for collapsed mode */}
             {isCollapsed && (
-              <div className="absolute left-full ml-4 px-2 py-1 bg-sage-accent text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100]">
+              <div className="absolute left-full ml-4 px-2 py-1 bg-theme-text text-white text-[10px] uppercase tracking-wider font-bold rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100]">
                 {item.label}
               </div>
             )}
@@ -83,30 +85,16 @@ export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sage-border space-y-2">
-        {!isCollapsed && (
-          <div className="flex items-center gap-3 px-3 py-2">
-            <img 
-              src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-              alt="Avatar" 
-              className="w-10 h-10 rounded-full border border-sage-border shadow-sm"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate leading-tight">{user.displayName || '作者'}</p>
-              <p className="text-[10px] text-sage-muted truncate leading-none">创作中...</p>
-            </div>
-          </div>
-        )}
-        
+      <div className="px-3 pb-2 space-y-1">
         <button 
-          onClick={() => auth.signOut()}
+          onClick={() => window.dispatchEvent(new Event('open-settings'))}
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-2 text-sage-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all",
+            "w-full flex items-center gap-3 px-3 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-all",
             isCollapsed && "justify-center px-2"
           )}
         >
-          <LogOut size={18} />
-          {!isCollapsed && <span className="text-sm font-medium">登出</span>}
+          <Settings size={16} />
+          {!isCollapsed && <span className="text-xs font-semibold">设置 (Settings)</span>}
         </button>
       </div>
     </motion.div>
