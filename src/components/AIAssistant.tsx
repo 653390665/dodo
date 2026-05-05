@@ -18,7 +18,7 @@ import { extractWorldSetupPhase } from '../lib/agents';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { listNovels, createChapter } from '../lib/db';
+import { listNovels, createChapter, createCharacter, createLocation, createItem } from '../lib/db';
 import { Novel } from '../types';
 
 interface Message {
@@ -92,18 +92,18 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
     setShowExtractModal(null);
     setIsExtracting(true);
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
       let extractedStr = await extractWorldSetupPhase(content);
       // Clean up markdown block if present
       extractedStr = extractedStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+
       const extracted = JSON.parse(extractedStr);
       const now = Date.now();
-      
+
       let count = 0;
       if (extracted.characters) {
         for (const char of extracted.characters) {
-           await setDoc(doc(collection(db, 'characters')), {
+           createCharacter({
+             id: Date.now().toString(),
              novelId: novel.id,
              name: char.name,
              role: char.role || 'supporting',
@@ -118,7 +118,8 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
       }
       if (extracted.locations) {
         for (const loc of extracted.locations) {
-           await setDoc(doc(collection(db, 'locations')), {
+           createLocation({
+             id: Date.now().toString(),
              novelId: novel.id,
              name: loc.name,
              region: loc.region || '',
@@ -131,7 +132,8 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
       }
       if (extracted.items) {
         for (const item of extracted.items) {
-           await setDoc(doc(collection(db, 'items')), {
+           createItem({
+             id: Date.now().toString(),
              novelId: novel.id,
              name: item.name,
              type: item.type || '',
@@ -142,7 +144,7 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
            count++;
         }
       }
-      
+
       alert(`AI 已成功解析出 ${count} 个设定项，并存储至《${novel.title}》的设定记忆中！您可前往「设定记忆」界面查看。`);
     } catch (e) {
       console.error(e);
