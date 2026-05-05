@@ -18,8 +18,7 @@ import { extractWorldSetupPhase } from '../lib/agents';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { listNovels, createChapter } from '../lib/db';
 import { Novel } from '../types';
 
 interface Message {
@@ -48,17 +47,8 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
   const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
-    if (showSaveModal || showExtractModal) {
-      const fetchNovels = async () => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-        const q = query(collection(db, 'novels'), where('authorId', '==', uid));
-        const snap = await getDocs(q);
-        setUserNovels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Novel)));
-      };
-      fetchNovels();
-    }
-  }, [showSaveModal, showExtractModal]);
+    setUserNovels(listNovels());
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent, customPrompt?: string) => {
     e?.preventDefault();
@@ -81,27 +71,21 @@ export function AIAssistant({ onCreateNovel }: AIAssistantProps = {}) {
     }
   };
 
-  const handleSaveToNovel = async (novel: Novel, content: string) => {
-    try {
-      const newChapId = Date.now().toString();
-      const { doc, setDoc } = await import('firebase/firestore');
-      await setDoc(doc(db, 'chapters', newChapId), {
-        id: newChapId,
-        title: '💡 灵感备忘录',
-        content: content,
-        wordCount: content.replace(/\s/g, '').length,
-        order: 999, // push to end
-        volumeName: '灵感碎片库',
-        novelId: novel.id,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-      alert(`已成功保存至《${novel.title}》的灵感碎片卷！`);
-      setShowSaveModal(null);
-    } catch (e) {
-      console.error(e);
-      alert('保存失败，请稍后再试');
-    }
+  const handleSaveToNovel = (novel: Novel, content: string) => {
+    const newChapId = Date.now().toString();
+    createChapter({
+      id: newChapId,
+      title: '💡 灵感备忘录',
+      content: content,
+      wordCount: content.replace(/\s/g, '').length,
+      order: 999,
+      volumeName: '灵感碎片库',
+      novelId: novel.id,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    alert(`已成功保存至《${novel.title}》的灵感碎片卷！`);
+    setShowSaveModal(null);
   };
 
   const handleExtractToWorldBible = async (novel: Novel, content: string) => {
