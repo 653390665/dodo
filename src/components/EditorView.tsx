@@ -29,7 +29,8 @@ import {
   BookOpen,
   Folder,
   FolderOpen,
-  Lightbulb
+  Lightbulb,
+  Eye
 } from 'lucide-react';
 import { Novel, Chapter, Character, Item, Location, ChapterVersion, Skill, TimelineEvent, Faction, PowerLevel } from '../types';
 import {
@@ -49,6 +50,7 @@ import { cn } from '../lib/utils';
 import { editorAgentPhase, writerAgentPhase, criticAgentPhase, AgentContext, buildContextPrompt } from '../lib/agents';
 import ReactMarkdown from 'react-markdown';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
+import { ForeshadowingPanel } from './ForeshadowingPanel';
 
 
 interface EditorViewProps {
@@ -66,7 +68,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedVolumes, setExpandedVolumes] = useState<string[]>(['正文卷']);
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
-  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions' | 'ideas'>('outline');
+  const [agentTab, setAgentTab] = useState<'outline' | 'planning' | 'quality' | 'trace' | 'bible' | 'skills' | 'versions' | 'ideas' | 'foreshadowing'>('outline');
   const [bibleSearch, setBibleSearch] = useState('');
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
@@ -918,6 +920,17 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                 <Lightbulb size={12} /> 灵感
               </button>
               <button
+                onClick={() => setAgentTab('foreshadowing')}
+                className={cn(
+                  "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
+                  agentTab === 'foreshadowing'
+                    ? "bg-theme-text text-white"
+                    : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text"
+                )}
+              >
+                <Eye size={12} /> 伏笔
+              </button>
+              <button
                 onClick={() => setAgentTab('outline')}
                 className={cn(
                   "flex-none whitespace-nowrap py-1.5 px-3 rounded-full text-[11px] font-medium transition-all flex items-center justify-center gap-1.5",
@@ -1002,6 +1015,11 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                 {agentTab === 'ideas' && (
                   <motion.div key="ideas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <IdeaFragmentBoard novelId={novel.id} compact />
+                  </motion.div>
+                )}
+                {agentTab === 'foreshadowing' && (
+                  <motion.div key="foreshadowing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <ForeshadowingPanel novelId={novel.id} />
                   </motion.div>
                 )}
                 {agentTab === 'outline' ? (

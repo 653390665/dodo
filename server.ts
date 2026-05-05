@@ -457,6 +457,43 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
     }
   });
 
+  app.post('/api/detect-foreshadowing', async (req, res) => {
+    try {
+      const { chapterContent, chapterTitle, existingForeshadowings } = req.body;
+      if (!chapterContent || typeof chapterContent !== 'string' || !chapterContent.trim()) {
+        return res.status(400).json({ error: 'Chapter content is required' });
+      }
+      const config = getConfig();
+      const prompt = `你是一个小说伏笔分析专家。请阅读以下章节内容，找出其中可能的伏笔埋设点和伏笔回收点。
+
+【已有伏笔列表】：${existingForeshadowings ? JSON.stringify(existingForeshadowings) : '无'}
+
+【章节标题】：${chapterTitle}
+【章节内容】：
+${chapterContent.substring(0, 15000)}
+
+请分析并输出 JSON 数组，每个元素包含：
+- title: 伏笔标题（简短）
+- description: 伏笔描述
+- type: "planted"（新埋设）或 "payoff"（回收已有伏笔）
+- relatedTo: 如果 type 是 payoff，填写对应的已有伏笔标题（或留空）
+
+严格只输出 JSON 数组，不要包含 markdown 标记：
+[{"title": "...", "description": "...", "type": "planted", "relatedTo": ""}]`;
+
+      const response = await getAi().models.generateContent({
+        model: config.model,
+        contents: prompt,
+      });
+      let raw = (response.text || '').trim();
+      raw = raw.replace(/```(json)?/g, '').trim();
+      res.json(JSON.parse(raw));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
   app.post('/api/generate-entity-details', async (req, res) => {
     try {
       const { name, type, context } = req.body;
