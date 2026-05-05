@@ -537,6 +537,119 @@ ${chapterList}
     }
   });
 
+  function escapeXml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  app.post('/api/export', async (req, res) => {
+    try {
+      const { novelId, format } = req.body;
+      if (!novelId || !format) {
+        return res.status(400).json({ error: 'novelId and format are required' });
+      }
+      const novel = db.getNovel(novelId);
+      if (!novel) return res.status(404).json({ error: 'Novel not found' });
+      const chapters = db.listChapters(novelId).sort((a, b) => a.order - b.order);
+
+      if (format === 'txt') {
+        let txt = `${novel.title}\n\n`;
+        txt += `${novel.summary || ''}\n\n`;
+        txt += `${'='.repeat(40)}\n\n`;
+        for (const ch of chapters) {
+          txt += `第${ch.order}章 ${ch.title}\n\n`;
+          txt += `${ch.content || ''}\n\n`;
+          txt += `${'-'.repeat(30)}\n\n`;
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.txt"`);
+        res.send(txt);
+      } else if (format === 'epub') {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+
+        // mimetype (must be first, uncompressed)
+        zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+        // container.xml
+        zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+        const escTitle = escapeXml(novel.title);
+
+        // content.opf
+        const manifestItems = chapters.map((ch, i) =>
+          `<item id="ch${i}" href="ch${i}.xhtml" media-type="application/xhtml+xml"/>`
+        ).join('\n');
+        const spineItems = chapters.map((_, i) => `<itemref idref="ch${i}"/>`).join('\n');
+        const opf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${escTitle}</dc:title>
+    <dc:creator>InkFlow</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <dc:identifier id="book-id">urn:inkflow:${novelId}</dc:identifier>
+  </metadata>
+  <manifest>
+    ${manifestItems}
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+  </manifest>
+  <spine>
+    ${spineItems}
+  </spine>
+</package>`;
+        zip.file('OEBPS/content.opf', opf);
+
+        // Navigation
+        const navLinks = chapters.map((ch, i) =>
+          `<li><a href="ch${i}.xhtml">第${ch.order}章 ${escapeXml(ch.title)}</a></li>`
+        ).join('\n');
+        const nav = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>目录</title></head>
+<body><nav epub:type="toc"><h2>目录</h2><ol>${navLinks}</ol></nav></body>
+</html>`;
+        zip.file('OEBPS/nav.xhtml', nav);
+
+        // Chapter files
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
+          const escChapterTitle = escapeXml(ch.title);
+          const paragraphs = (ch.content || '').split('\n').map(line =>
+            `<p>${line ? escapeXml(line) : '&nbsp;'}</p>`
+          ).join('\n');
+          const html = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>第${ch.order}章 ${escChapterTitle}</title></head>
+<body><h2>第${ch.order}章 ${escChapterTitle}</h2>
+${paragraphs}
+</body>
+</html>`;
+          zip.file(`OEBPS/ch${i}.xhtml`, html);
+        }
+
+        const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+        res.setHeader('Content-Type', 'application/epub+zip');
+        res.setHeader('Content-Length', String(buf.length));
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.epub"`);
+        res.send(buf);
+      } else {
+        res.status(400).json({ error: 'Unsupported format' });
+      }
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
   app.post('/api/generate-entity-details', async (req, res) => {
     try {
       const { name, type, context } = req.body;

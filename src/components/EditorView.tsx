@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ChevronLeft, 
-  Settings, 
-  Save, 
-  Plus, 
+import {
+  ChevronLeft,
+  Settings,
+  Save,
+  Plus,
   Trash2,
   FileText,
   PanelRight,
@@ -31,7 +31,8 @@ import {
   FolderOpen,
   Lightbulb,
   Eye,
-  Activity
+  Activity,
+  Download
 } from 'lucide-react';
 import { Novel, Chapter, Character, Item, Location, ChapterVersion, Skill, TimelineEvent, Faction, PowerLevel } from '../types';
 import {
@@ -1695,6 +1696,37 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>AI 核心已连接</span>
           </div>
+          <div className="h-3 w-[1px] bg-theme-border/50" />
+          <button
+            onClick={async () => {
+              if (!novel?.id) return;
+              const format = confirm('导出为 EPUB？（确定=EPUB，取消=TXT）') ? 'epub' : 'txt';
+              try {
+                const res = await fetch('/api/export', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ novelId: novel.id, format }),
+                });
+                if (!res.ok) {
+                  const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+                  throw new Error(err.error || `HTTP ${res.status}`);
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${novel.title}.${format}`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                console.error(e);
+                alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
+              }
+            }}
+            className="flex items-center gap-1 text-[10px] font-bold text-theme-accent hover:opacity-80 transition-opacity"
+          >
+            <Download size={12} /> 导出
+          </button>
         </div>
       </div>
     </div>
