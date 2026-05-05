@@ -8,20 +8,7 @@ import {
   Clock,
   Download
 } from 'lucide-react';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  updateDoc,
-  orderBy,
-  getDocs,
-  setDoc
-} from 'firebase/firestore';
-import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import { listNovels, createNovel, deleteNovel, createChapter, listChapters, subscribe } from '../lib/db';
 import { Novel, Chapter } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -37,87 +24,63 @@ export function Library({ onSelectNovel, userId }: LibraryProps) {
   const [newNovelTitle, setNewNovelTitle] = useState('');
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'novels'), 
-      where('authorId', '==', userId),
-      orderBy('updatedAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel));
-      setNovels(data);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'novels');
-    });
+    setNovels(listNovels());
+    return subscribe(() => setNovels(listNovels()));
+  }, []);
 
-    return unsubscribe;
-  }, [userId]);
-
-  const handleCreateNovel = async (e: React.FormEvent) => {
+  const handleCreateNovel = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNovelTitle.trim()) return;
 
-    try {
-      const docRef = await addDoc(collection(db, 'novels'), {
-        title: newNovelTitle,
-        authorId: userId,
-        summary: '',
-        status: 'ongoing',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      
-      const newChapId = Date.now().toString();
-      await setDoc(doc(db, 'chapters', newChapId), {
-        id: newChapId,
-        title: '第一章',
-        content: '',
-        wordCount: 0,
-        order: 0,
-        volumeName: '默认卷',
-        novelId: docRef.id,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
+    const novelId = Date.now().toString();
+    createNovel({
+      id: novelId,
+      title: newNovelTitle,
+      authorId: userId,
+      summary: '',
+      status: 'ongoing',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
 
-      setNewNovelTitle('');
-      setIsAdding(false);
-      onSelectNovel({
-        id: docRef.id,
-        title: newNovelTitle,
-        authorId: userId,
-        summary: '',
-        status: 'ongoing',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'novels');
-    }
+    const newChapId = Date.now().toString();
+    createChapter({
+      id: newChapId,
+      title: '第一章',
+      content: '',
+      wordCount: 0,
+      order: 0,
+      volumeName: '默认卷',
+      novelId,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+
+    setNewNovelTitle('');
+    setIsAdding(false);
+    onSelectNovel({
+      id: novelId,
+      title: newNovelTitle,
+      authorId: userId,
+      summary: '',
+      status: 'ongoing',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
   };
 
-  const handleDeleteNovel = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteNovel = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm('确定要删除这部作品吗？此操作不可逆。')) return;
 
-    try {
-      await deleteDoc(doc(db, 'novels', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `novels/${id}`);
-    }
+    deleteNovel(id);
   };
 
   const handleExportNovel = async (e: React.MouseEvent, novel: Novel) => {
     e.stopPropagation();
     try {
-      const q = query(
-        collection(db, 'chapters'), 
-        where('novelId', '==', novel.id),
-        orderBy('order', 'asc')
-      );
-      const snapshot = await getDocs(q);
-      const chapters = snapshot.docs.map(doc => doc.data() as Chapter);
-      
+      const chapters = listChapters(novel.id);
+
       let exportText = `# ${novel.title}\n\n`;
       if (novel.summary) exportText += `【简介】\n${novel.summary}\n\n`;
       if (novel.globalOutline) exportText += `【大纲】\n${novel.globalOutline}\n\n`;
