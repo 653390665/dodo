@@ -4,6 +4,10 @@ import path from 'path';
 import { orchestrationApp } from './workflow';
 import { GoogleGenAI } from "@google/genai";
 import mammoth from 'mammoth';
+import { initDb } from './src/lib/db';
+
+// Initialize local database on startup
+initDb();
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
