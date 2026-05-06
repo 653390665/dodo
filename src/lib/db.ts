@@ -164,7 +164,8 @@ export function initDb(dbPath?: string): void {
       ai_expansion TEXT,
       target_chapter_id TEXT,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS foreshadowings (
@@ -749,17 +750,13 @@ export function createIdeaFragment(f: IdeaFragment): void {
   notify();
 }
 export function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): void {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  if (data.content !== undefined) { setClauses.push('content = ?'); values.push(data.content); }
-  if (data.type !== undefined) { setClauses.push('type = ?'); values.push(data.type); }
-  if (data.status !== undefined) { setClauses.push('status = ?'); values.push(data.status); }
-  if (data.aiExpansion !== undefined) { setClauses.push('ai_expansion = ?'); values.push(data.aiExpansion); }
-  if (data.targetChapterId !== undefined) { setClauses.push('target_chapter_id = ?'); values.push(data.targetChapterId); }
-  if (data.novelId !== undefined) { setClauses.push('novel_id = ?'); values.push(data.novelId); }
-  setClauses.push('updated_at = ?'); values.push(Date.now());
-  values.push(id);
-  getDb().prepare(`UPDATE idea_fragments SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
+  const existing = getDb().prepare('SELECT * FROM idea_fragments WHERE id = ?').get(id);
+  if (!existing) return;
+  const merged = { ...rowToIdeaFragment(existing as any), ...data, id, updatedAt: Date.now() };
+  getDb().prepare(`
+    UPDATE idea_fragments SET novel_id=@novel_id, content=@content, type=@type, status=@status, ai_expansion=@ai_expansion, target_chapter_id=@target_chapter_id, updated_at=@updated_at
+    WHERE id=@id
+  `).run(ideaFragmentToRow(merged));
   notify();
 }
 export function deleteIdeaFragment(id: string): void {
@@ -780,18 +777,13 @@ export function createForeshadowing(f: Foreshadowing): void {
   notify();
 }
 export function updateForeshadowing(id: string, data: Partial<Foreshadowing>): void {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  if (data.title !== undefined) { setClauses.push('title = ?'); values.push(data.title); }
-  if (data.description !== undefined) { setClauses.push('description = ?'); values.push(data.description); }
-  if (data.status !== undefined) { setClauses.push('status = ?'); values.push(data.status); }
-  if (data.plantedChapterId !== undefined) { setClauses.push('planted_chapter_id = ?'); values.push(data.plantedChapterId); }
-  if (data.payoffChapterId !== undefined) { setClauses.push('payoff_chapter_id = ?'); values.push(data.payoffChapterId); }
-  if (data.relatedCharacterIds !== undefined) { setClauses.push('related_character_ids = ?'); values.push(JSON.stringify(data.relatedCharacterIds)); }
-  if (data.notes !== undefined) { setClauses.push('notes = ?'); values.push(data.notes); }
-  setClauses.push('updated_at = ?'); values.push(Date.now());
-  values.push(id);
-  getDb().prepare(`UPDATE foreshadowings SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
+  const existing = getDb().prepare('SELECT * FROM foreshadowings WHERE id = ?').get(id);
+  if (!existing) return;
+  const merged = { ...rowToForeshadowing(existing as any), ...data, id, updatedAt: Date.now() };
+  getDb().prepare(`
+    UPDATE foreshadowings SET title=@title, description=@description, status=@status, planted_chapter_id=@planted_chapter_id, payoff_chapter_id=@payoff_chapter_id, related_character_ids=@related_character_ids, notes=@notes, updated_at=@updated_at
+    WHERE id=@id
+  `).run(foreshadowingToRow(merged));
   notify();
 }
 export function deleteForeshadowing(id: string): void {

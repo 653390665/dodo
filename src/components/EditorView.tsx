@@ -1033,7 +1033,7 @@ export function EditorView({ novel, onBack }: EditorViewProps) {
                 )}
                 {agentTab === 'foreshadowing' && (
                   <motion.div key="foreshadowing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                    <ForeshadowingPanel novelId={novel.id} />
+                    <ForeshadowingPanel novelId={novel.id} currentChapterId={currentChapter?.id} />
                   </motion.div>
                 )}
                 {agentTab === 'pacing' && (

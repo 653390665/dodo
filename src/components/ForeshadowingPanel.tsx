@@ -12,9 +12,10 @@ const STATUS_CONFIG = {
 
 interface Props {
   novelId: string;
+  currentChapterId?: string;
 }
 
-export function ForeshadowingPanel({ novelId }: Props) {
+export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const [items, setItems] = useState<Foreshadowing[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showAdd, setShowAdd] = useState(false);
@@ -57,8 +58,10 @@ export function ForeshadowingPanel({ novelId }: Props) {
   };
 
   const handleDetect = async () => {
-    const currentChapter = chapters.find(c => c.content && c.content.trim().length > 0);
-    if (!currentChapter) {
+    const targetChapter = currentChapterId
+      ? chapters.find(c => c.id === currentChapterId)
+      : chapters.find(c => c.content && c.content.trim().length > 0);
+    if (!targetChapter || !targetChapter.content?.trim()) {
       alert('没有可分析的章节内容');
       return;
     }
@@ -68,8 +71,8 @@ export function ForeshadowingPanel({ novelId }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chapterContent: currentChapter.content,
-          chapterTitle: currentChapter.title,
+          chapterContent: targetChapter.content,
+          chapterTitle: targetChapter.title,
           existingForeshadowings: items.map(i => ({ title: i.title, status: i.status })),
         }),
       });
@@ -86,8 +89,8 @@ export function ForeshadowingPanel({ novelId }: Props) {
             title: d.title,
             description: d.description,
             status: d.type === 'payoff' ? 'payoff' : 'planted',
-            plantedChapterId: currentChapter.id,
-            payoffChapterId: d.type === 'payoff' ? currentChapter.id : undefined,
+            plantedChapterId: targetChapter.id,
+            payoffChapterId: d.type === 'payoff' ? targetChapter.id : undefined,
             relatedCharacterIds: [],
             createdAt: Date.now(),
             updatedAt: Date.now(),
