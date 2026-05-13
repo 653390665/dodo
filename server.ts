@@ -27,7 +27,9 @@ import {
 } from './src/lib/continuity-critic';
 import {
   embedStructuredAudit,
+  parseAuditFiveDim,
   parseStructuredAuditResponse,
+  renderFiveDimMarkdown,
   renderStructuredAuditMarkdown,
 } from './src/lib/audit-structured';
 import { extractJsonPayload } from './src/lib/extract-skill-json';
@@ -611,7 +613,12 @@ async function startServer() {
         storyContext,
       });
       const text = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 2048 });
-      res.json({ text });
+      try {
+        const parsed = JSON.parse(text);
+        res.json({ text: parsed.result || text, changedFields: parsed.changedFields, reason: parsed.reason });
+      } catch {
+        res.json({ text });
+      }
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
@@ -830,6 +837,20 @@ ${text.substring(0, 30000)}
       });
 
       const rawFeedback = await generateText(getConfig(), { prompt });
+
+      // Try new 5-dimension format first, fall back to legacy format
+      const fiveDim = parseAuditFiveDim(rawFeedback);
+      if (fiveDim) {
+        const feedback = renderFiveDimMarkdown(fiveDim);
+        return res.json({
+          feedback,
+          score: fiveDim.totalScore,
+          pass: fiveDim.pass,
+          failReason: fiveDim.failReason || null,
+          scores: fiveDim.scores,
+        });
+      }
+
       const structured = parseStructuredAuditResponse(rawFeedback);
       if (!structured) {
         return res.json({ feedback: rawFeedback });

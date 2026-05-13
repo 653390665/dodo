@@ -256,6 +256,49 @@ export function parseStructuredAuditResponse(raw: string): StructuredAudit | nul
   }
 }
 
+export interface AuditScores {
+  scores: Record<string, { score: number; reason: string }>;
+  totalScore: number;
+  pass: boolean;
+  failReason?: string;
+}
+
+export function parseAuditFiveDim(raw: string): AuditScores | null {
+  const trimmed = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(trimmed.slice(start, end + 1));
+    if (!parsed.scores || !('totalScore' in parsed)) return null;
+    const totalScore = Number(parsed.totalScore);
+    if (!Number.isFinite(totalScore)) return null;
+    return {
+      scores: parsed.scores,
+      totalScore,
+      pass: parsed.pass ?? (totalScore >= 30),
+      failReason: parsed.failReason || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function renderFiveDimMarkdown(audit: AuditScores): string {
+  const lines: string[] = [];
+  lines.push(audit.pass ? '## PASS' : '## FAIL');
+  if (!audit.pass && audit.failReason) lines.push(`**失败原因**: ${audit.failReason}`);
+  lines.push('');
+  lines.push('| 维度 | 评分 | 原因 |');
+  lines.push('|------|------|------|');
+  for (const [dim, val] of Object.entries(audit.scores)) {
+    const v = val as { score: number; reason: string };
+    lines.push(`| ${dim} | ${v.score}/10 | ${v.reason || '-'} |`);
+  }
+  lines.push(`| **总分** | **${audit.totalScore}/50** | |`);
+  return lines.join('\n');
+}
+
 export function renderStructuredAuditMarkdown(audit: StructuredAudit): string {
   const issues = audit.fatalIssues.length > 0
     ? audit.fatalIssues

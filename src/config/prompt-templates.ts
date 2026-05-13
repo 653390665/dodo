@@ -93,7 +93,7 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
   "cards": [
     {
       "id": "card-1",
-      "hook": "一句话卖点",
+      "hook": "≤30字，必须包含输入原文中至少1个名词",
       "protagonist": "主角设定",
       "coreConflict": "核心冲突",
       "tone": "故事气质(如:冷峻悬疑/热血逆袭/慢热铺陈)",
@@ -110,24 +110,18 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 规则：方向必须不同，不写正文片段，每卡可直接映射到设定记忆页。
   `.trim(),
   setupTaskRefine: `
-你是一个小说设定协作助手。你的任务不是重写整部小说，而是围绕某一个设定项给出更稳、更清晰、更可继续创作的版本。
+小说设定协作助手。针对单个设定项给出更稳的改写。
 
-【当前设定项】
-{{taskTitle}}
+输入：{{taskTitle}} | 草稿：{{currentDraft}} | 上下文：{{storyContext}} | 方向：{{userRequest}}
 
-【当前草稿】
-{{currentDraft}}
+输出严格JSON：
+{
+  "result": "≤150字改写结果",
+  "changedFields": ["补足的维度名1", "补足的维度名2"],
+  "reason": "≤50字说明为什么这样改"
+}
 
-【故事上下文】
-{{storyContext}}
-
-【用户希望修改的方向】
-{{userRequest}}
-
-请输出一个 120-220 字的改写结果，要求：
-1. 保持可直接写入设定记忆页。
-2. 不要写成问答，不要写成大纲符号列表。
-3. 优先补足动机、限制、关系、后果。
+规则：不输出问答/大纲/符号列表，优先补动机+限制+后果。
   `.trim(),
   editorAgent: `
 {{PLANNER_SOUL}}
@@ -145,89 +139,52 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 
 ### 场景 N：场景名称（不超过 8 字）
 
-**出场人物**：列出本场景涉及的已知角色名（没有名字的用身份称谓）
-
-**入场钩子**：一句话说明场景从什么时刻/动作/画面开始
-
-**核心冲突**：谁和谁因为什么产生张力——是生存威胁、信息差、情感对抗还是利益博弈
-
-**关键动作链**：2-3 个必须在本场景发生的动作/事件（按时间顺序，每个动作用 1 句话）
-
-**关键道具/信息**：本场景必须出现或传递的物件、线索、信息碎片
-
-**情绪转折**：场景开始时的情绪基调 → 场景结束时的情绪基调（用 2-3 个词描述）
-
-**退场钩子**：场景由什么动作/画面/声音结束，给下一场景留下什么悬念
-
-**连接上一场景**：一句话说明本场景如何承接上一个场景的结果
+**出场人物**（≤20字）：列出本场景涉及的已知角色名
+**入场钩子**（≤30字）：一句话说明场景从什么时刻/动作/画面开始
+**核心冲突**（≤40字）：谁和谁因为什么产生张力
+**关键动作链**（≤60字）：2-3个必须在本场景发生的动作/事件
+**关键道具/信息**（≤30字）：本场景必须出现或传递的物件、线索
+**情绪转折**（≤20字）：开始情绪→结束情绪
+**退场钩子**（≤30字）：场景由什么动作/画面/声音结束
+**连接上一场景**（≤20字）：如何承接上一个场景的结果
 
 ---
 
 硬约束：
-1. 每个场景必须有清晰的入场和退场——读者能感觉到"一件事开始了"和"一件事暂告一段落"
-2. 关键动作链必须是可以被写出来的具体动作（"主角试探掌柜"不是动作，"主角故意点了一道不存在的菜名，观察掌柜拿筷子的手有没有发抖"才是）
-3. 退场钩子不能重复入场钩子——如果进入是"门被推开"，退出就不能是"门被关上"
-4. 每个场景的冲突类型不能全部相同——至少包含两种不同类型的冲突
-5. 道具必须和动作绑定——"出现玄铁令"没有意义，"某人的手在袖子里握紧了玄铁令，主角注意到了"才有意义
-`.trim(),
+1. 每个场景必须有清晰的入场和退场
+2. 关键动作链必须是可以被写出来的具体动作
+3. 退场钩子不能重复入场钩子
+4. 每个场景的冲突类型不能全部相同——至少包含两种不同类型
+5. 道具必须和动作绑定
+6. 每个场景必须覆盖分镜要求的至少2个关键动作，未覆盖视为FAIL
+  `.trim(),
   manualAudit: `
-你是一个极为挑剔、网文阅历 20 年的“金牌总编（Critic Agent）”。
-你的任务是快速判断这段正文是否“可读、执行了分镜、像一章正文”，并输出结构化审计结果。
+金牌总编·结构化审计。逐维评分，不输出笼统评价。
 
-【世界观架构】
-{{contextStr}}
+【世界观】{{contextStr}}
+【Skill约束】{{skillsInfo}}
+【分镜】{{sceneBeats}}
+【正文】{{draftContent}}
 
-【叙事 DNA 插件要求】
-{{skillsInfo}}
-
-【本节分镜蓝图 (Beats)】
-{{sceneBeats}}
-
-【待审计的正文草稿 (Draft)】
-{{draftContent}}
-
----
-
-优先检查这 5 项：
-1. 是否存在残句、病句、语义断裂、指代混乱。
-2. 是否真正按分镜推进，而不是只写成零散片段。
-3. 对话和动作是否互相支撑，是否存在干说信息。
-4. 场景气氛、冲突和悬念是否有递进。
-5. 是否保住了 Skill 规定的风格，而不是只贴几个词。
-
-请严格输出 JSON，不要输出 Markdown、解释、代码块围栏或客套话。结构如下：
+逐维评分（每维0-10分，必须写≤50字原因）：
 {
-  "score": 0,
-  "fatalIssues": [
-    {
-      "issueType": "duplicate | dialogue-logic | syntax | scene-execution | general",
-      "issueSubtype": "duplicate-rupture | dialogue-abrupt-info | dialogue-answer-gap | dialogue-general | syntax-invalid-phrase | scene-layer-missing | general",
-      "severity": "critical | major | moderate",
-      "snippet": "必须摘录原文中的精确坏句或坏段前缀",
-      "explanation": "一句话说明为什么这是问题",
-      "patchHint": "一句话说明怎么修"
-    }
+  “scores”: {
+    “可读性”: {“score”: 0-10, “reason”: “≤50字”},
+    “分镜执行度”: {“score”: 0-10, “reason”: “≤50字”},
+    “冲突推进度”: {“score”: 0-10, “reason”: “≤50字”},
+    “风格契合度”: {“score”: 0-10, “reason”: “≤50字”},
+    “网文章节感”: {“score”: 0-10, “reason”: “≤50字”}
+  },
+  “totalScore”: 0-50,
+  “pass”: true或false,
+  “failReason”: “totalScore<30或任一维度<4时必填，≤80字”,
+  “fatalIssues”: [
+    {“dimension”: “对应维度名”, “snippet”: “≤30字原文摘录”, “fix”: “≤30字修复建议”}
   ],
-  "sceneChecks": [
-    {
-      "scene": "场景名称",
-      "status": "ok | weak | missing",
-      "note": "一句话说明执行情况"
-    }
-  ],
-  "surgerySuggestions": [
-    "3-5 条可以直接指导重写的建议"
-  ]
+  “surgerySuggestions”: [“≤50字/条”, “≤50字/条”]
 }
 
-硬规则：
-1. fatalIssues 最多 5 条，必须优先覆盖最影响可读性的硬伤。
-2. 如果是重复导致的信息断裂，issueType 用 duplicate，issueSubtype 用 duplicate-rupture。
-3. 如果是像“三天”这种半截信息突然冒出、读者接不住的情况，issueType 用 dialogue-logic，issueSubtype 用 dialogue-abrupt-info。
-4. 如果是问答不闭环、前因后果没接上，issueSubtype 用 dialogue-answer-gap。
-5. 如果是明显病句、词不达意、语义错误，issueType 用 syntax，issueSubtype 用 syntax-invalid-phrase。
-6. 如果是分镜层次写弱、关键动作没落地，issueType 用 scene-execution，issueSubtype 用 scene-layer-missing。
-7. snippet 必须尽量精确，优先给能直接定位的原文坏句，不要给你自己编的范句。
+硬阻断规则：任一维度<4→pass=false，totalScore<30→pass=false，pass=false时必填failReason，fatalIssues最多3条。
   `.trim(),
   orchestrateWriter: `
 {{WRITER_SOUL}}
@@ -286,6 +243,14 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 8. 结尾用动作、声音或环境异变收束，让悬念自然落下。
 
 请直接输出正文，不要附加任何解释。
+
+输出正文前，逐条自检（必须全部满足，否则重写）：
+□ 首句含声音/动作/碰撞/异动（非天气播报）
+□ 正文未出现"主角"二字
+□ 分镜要求的道具已在正文出现至少1次
+□ 关键对话前有观察/停顿/试探作前因
+□ 场景结束时用动作/声音/环境异变收束
+□ 无残句、病句、主谓不明
   `.trim(),
   orchestrateCritic: `
 {{CRITIC_SOUL}}
@@ -357,7 +322,7 @@ PASS 或 FAIL
       “name”: “卡名（简洁有力，如：冷雨短句刀锋文风）”,
       “primaryDimension”: “style”,
       “description”: “一句话说明这张卡负责什么”,
-      “style”: “笔调倾向及句法特征”,
+      “style”: {“笔调”: “≤20字”, “句法”: “≤20字”, “意象”: “≤20字”},
       “pacing”: “节奏逻辑（如与本卡无关则填空字符串）”,
       “characterTraits”: “人物构建特征（如与本卡无关则填空字符串）”,
       “worldBuilding”: “世界观/力量体系特征（如与本卡无关则填空字符串）”,

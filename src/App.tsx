@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeView } from './components/WelcomeView';
 import { Library } from './components/Library';
@@ -58,6 +59,7 @@ export default function App() {
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [theme, setTheme] = useState<Theme>(getStoredTheme);
   const [assistantLaunchContext, setAssistantLaunchContext] = useState<AssistantLaunchContext | null>(null);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
 
   useEffect(() => {
     applyTheme(theme);
@@ -96,6 +98,10 @@ export default function App() {
         if (id in viewMap && matchesShortcut(e, shortcut)) {
           e.preventDefault();
           const target = viewMap[id];
+          if (target.view === 'ai') {
+             setIsAIAssistantOpen(true);
+             return;
+          }
           setWorkspaceFocus((prev) => deriveWorkspaceFocus(target.view, target.navKey, prev));
           setCurrentView(target.view);
           return;
@@ -113,13 +119,17 @@ export default function App() {
   };
 
   const handleNavigate = (view: ViewType, navKey?: WorkspaceNavKey) => {
+    if (view === 'ai') {
+      setIsAIAssistantOpen(true);
+      return;
+    }
     setWorkspaceFocus((prev) => deriveWorkspaceFocus(view, navKey, prev));
     setCurrentView(view);
   };
 
   const handleOpenAssistant = (context: AssistantLaunchContext) => {
     setAssistantLaunchContext(context);
-    setCurrentView('ai');
+    setIsAIAssistantOpen(true);
   };
 
   const handleApplyAssistantToContent = async (text: string) => {
@@ -477,35 +487,6 @@ export default function App() {
               />
               </ErrorBoundary>
             )}
-            {currentView === 'ai' && !onboardingDraft && (
-              <ErrorBoundary>
-                <AIAssistant
-                  launchContext={assistantLaunchContext}
-                  onApplyToContent={handleApplyAssistantToContent}
-                  onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
-                  onReplaceSelection={handleReplaceAssistantSelection}
-                />
-              </ErrorBoundary>
-            )}
-            {currentView === 'ai' && onboardingDraft && (
-              <ErrorBoundary>
-                <div className="h-full overflow-y-auto px-8 py-10 bg-theme-bg/30">
-                  <StoryCardDeck
-                  cards={onboardingDraft.cards}
-                  selectedCardId={onboardingDraft.selectedCardId}
-                  onSelectCard={handleSelectStoryCard}
-                  onMixCard={() => {}}
-                  onRefreshBatch={() =>
-                    handleCreateDraftFromIdea({
-                      ideaSeed: onboardingDraft.ideaSeed,
-                      chatContext: onboardingDraft.ideaSeed,
-                      planning: onboardingDraft.planning,
-                    })
-                  }
-                />
-                </div>
-              </ErrorBoundary>
-            )}
             {currentView === 'factory' && (
               <ErrorBoundary>
                 <BookFactoryView />
@@ -566,6 +547,65 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Global AIAssistant Drawer */}
+      <AnimatePresence>
+        {isAIAssistantOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAIAssistantOpen(false)}
+              className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
+            >
+              {onboardingDraft ? (
+                <div className="h-full flex flex-col">
+                  <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white">
+                    <h2 className="text-lg font-serif font-bold text-theme-text">灵感企划案</h2>
+                    <button onClick={() => setIsAIAssistantOpen(false)} className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-6 py-8 bg-theme-bg/30">
+                    <StoryCardDeck
+                      cards={onboardingDraft.cards}
+                      selectedCardId={onboardingDraft.selectedCardId}
+                      onSelectCard={handleSelectStoryCard}
+                      onMixCard={() => {}}
+                      onRefreshBatch={() =>
+                        handleCreateDraftFromIdea({
+                          ideaSeed: onboardingDraft.ideaSeed,
+                          chatContext: onboardingDraft.ideaSeed,
+                          planning: onboardingDraft.planning,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              ) : (
+                <ErrorBoundary>
+                  <AIAssistant
+                    launchContext={assistantLaunchContext}
+                    onApplyToContent={handleApplyAssistantToContent}
+                    onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
+                    onReplaceSelection={handleReplaceAssistantSelection}
+                    onClose={() => setIsAIAssistantOpen(false)}
+                  />
+                </ErrorBoundary>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
     </div>
   );
