@@ -621,3 +621,11 @@ export interface PromptAsset {
   riskNotes: string[];
   successSignal: string;
 }
+
+declare global {
+  interface Window {
+    inkflow?: {
+      setTitle: (title: string) => void;
+    };
+  }
+}

@@ -329,6 +329,10 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   }, [novel?.id]);
 
   useEffect(() => {
+    window.inkflow?.setTitle(novel?.title || '');
+  }, [novel?.title]);
+
+  useEffect(() => {
     if (!isAgentSidebarOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {

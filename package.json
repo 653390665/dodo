@@ -94,6 +94,8 @@
       "allowToChangeInstallationDirectory": true
     },
     "asarUnpack": [
+      "dist-electron/server.cjs",
+      "dist-electron/better-sqlite3-shim.cjs",
       "node_modules/better-sqlite3/**/*"
     ]
   }

@@ -6,9 +6,12 @@ import { createRequire } from 'module';
 import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, ChapterProductionRun } from '../types';
 import { calculateFeedbackScore, summarizeUsageStats } from './skill-model';
 
-const req = createRequire(
-  import.meta.url || `file://${typeof __filename !== 'undefined' ? __filename : process.cwd()}`,
-);
+declare var __CJS_BUNDLE__: boolean | undefined;
+
+const req = typeof __CJS_BUNDLE__ !== 'undefined'
+  // @ts-ignore - require is a CJS global, available when __CJS_BUNDLE__ is defined
+  ? require
+  : createRequire(import.meta.url);
 const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   Database: typeof BetterSqlite3;
   nativeBindingPath: string;

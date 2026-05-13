@@ -348,6 +348,7 @@ function buildFallbackSkillForSegment(excerpt: string, label: string) {
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
+  const allowPortRetry = !process.env.PORT || process.env.NODE_ENV === 'production';
 
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -1681,13 +1682,25 @@ ${paragraphs}
     serveStaticApp();
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    // In production (Electron), notify the main process of the port via stdout JSON
-    if (process.env.NODE_ENV === 'production') {
-      console.log(JSON.stringify({ port: PORT }));
-    }
-  });
+  const listen = (port: number) => {
+    const server = app.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${port}`);
+      // In production (Electron), notify the main process of the port via stdout JSON
+      if (process.env.NODE_ENV === 'production') {
+        console.log(JSON.stringify({ port }));
+      }
+    });
+
+    server.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE' && allowPortRetry && port < PORT + 50) {
+        listen(port + 1);
+        return;
+      }
+      throw error;
+    });
+  };
+
+  listen(PORT);
 }
 
 startServer();

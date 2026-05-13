@@ -1,5 +1,8 @@
 import * as esbuild from 'esbuild';
-import { copyFileSync } from 'node:fs';
+import { rmSync, mkdirSync, copyFileSync } from 'node:fs';
+
+rmSync('dist-electron', { recursive: true, force: true });
+mkdirSync('dist-electron', { recursive: true });
 
 await esbuild.build({
   entryPoints: ['server.ts'],
@@ -25,6 +28,7 @@ await esbuild.build({
   }],
   define: {
     'process.env.NODE_ENV': '"production"',
+    '__CJS_BUNDLE__': 'true',
   },
   minify: false,
   sourcemap: false,

@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild';
+import { copyFileSync } from 'node:fs';
 
 await esbuild.build({
   entryPoints: ['electron.cjs'],
@@ -30,5 +31,7 @@ await esbuild.build({
   minify: false,
   sourcemap: false,
 });
+
+copyFileSync('electron-preload.cjs', 'dist-electron/electron-preload.cjs');
 
 console.log('main.cjs built');
