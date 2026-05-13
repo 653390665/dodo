@@ -2,40 +2,153 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# InkFlow 墨影 - 本地化小说创作平台
+# InkFlow 墨影 — AI 协作小说写作工具
 
-专为小说家设计的沉浸式创作环境，集成智能大纲、角色管理与大模型 AI 灵感辅助。
+专为小说作者设计的本地化创作工具。集成 AI 灵感助手、自动章节生产、文风拆书工厂、技能卡牌装备系统，所有数据存储在本地，无需联网即可写作。
 
-## 本地运行
+---
 
-**环境要求:** Node.js
+## 下载与安装
 
-1. 安装依赖:
-   `npm install`
-2. 在 [.env.local](.env.local) 中配置大模型 API:
-   ```
-   API_KEY=你的key
-   API_BASE_URL=https://api.deepseek.com
-   API_MODEL=deepseek-chat
-   ```
-   兼容 OpenAI 接口规范的任意大模型均可使用。
-3. 启动应用:
-   `npm run dev`
+### macOS
 
-## 运行时自检（可选）
+1. 从 [Releases](https://github.com/653390665/dodo/releases) 或 [Actions](https://github.com/653390665/dodo/actions) 下载 `InkFlow-*-mac-arm64.dmg`
+2. 双击 `.dmg` 文件挂载
+3. 将 `InkFlow.app` 拖入 `Applications` 文件夹
+4. **重要**：首次打开时，macOS 会提示"无法验证开发者"
+   - 打开 **系统设置 → 隐私与安全性**
+   - 找到 "InkFlow" 并点击 **"仍要打开"**
+   - 或右键点击 `InkFlow.app` → 选 **"打开"** → 再点 **"打开"**
+5. 之后正常双击即可启动
 
-`npm run dev` 后，**首次冷启动**时 Vite 可能要接近一分钟才会出现 `Server running` 并真正监听端口。
+### Windows
 
-另开终端，在项目根目录执行：
+1. 从 [Releases](https://github.com/653390665/dodo/releases) 或 [Actions](https://github.com/653390665/dodo/actions) 下载 `InkFlow-*-win-x64.exe`
+2. 双击运行安装程序
+3. 选择安装路径（默认或自定义均可）
+4. 勾选"创建桌面快捷方式"
+5. 安装完成后从桌面或开始菜单启动
+
+> **Windows 注意**：杀毒软件可能误报拦截，选择"仍要运行"即可。本项目代码完全开源，可自行审查。
+
+---
+
+## 首次配置（必读）
+
+InkFlow 本身不内置 AI Key，你需要配置自己的大模型 API。
+
+### 1. 获取 API Key
+
+支持所有兼容 OpenAI 接口规范的大模型服务，例如：
+
+| 服务商 | 获取地址 |
+|--------|----------|
+| DeepSeek | https://platform.deepseek.com/api_keys |
+| MiniMax | https://platform.minimaxi.com |
+| OpenAI | https://platform.openai.com/api-keys |
+| 其他兼容接口 | 各服务商官网 |
+
+### 2. 在 InkFlow 中配置
+
+1. 启动 InkFlow
+2. 点击左侧边栏底部的 **齿轮图标**（设置）
+3. 填入：
+   - **API Key**：你的密钥
+   - **Base URL**：API 地址（如 `https://api.deepseek.com/v1`）
+   - **Model**：模型名称（如 `deepseek-chat`、`MiniMax-M2.7`）
+4. 点击保存，配置会存储在本地 `~/.inkflow/config.json`
+
+> 配置好之后，"开始创作"页面才能正常调用 AI 生成故事方案卡。
+
+---
+
+## 快速上手
+
+### 第一步：开始创作
+
+打开 InkFlow 后默认进入 **"开始创作"** 页面。输入你的灵感——一句话、一个场景、甚至一个模糊的念头都可以。点击生成，AI 会返回 3 张不同方向的故事方案卡供你选择。
+
+### 第二步：世界搭建
+
+选择一张故事卡后进入 **"世界搭建"** ——系统会自动生成设定任务（角色、世界观、大纲等），逐项确认或让 AI 帮你完善。
+
+### 第三步：进入创作舞台
+
+设定完成后进入 **"创作舞台"**：
+- **左侧**：章节列表，可以增删改章节
+- **中间**：写作面板，直接码字
+- **右侧**：AI 管家面板，可以自动生产章节、审计文风、查设定、装备技能卡
+
+### 核心功能一览
+
+| 功能 | 入口 | 说明 |
+|------|------|------|
+| 开始创作 | 侧边栏 → 开始创作 | AI 生成故事方案卡 |
+| 我的书库 | 侧边栏 → 我的书库 | 管理所有作品 |
+| 创作舞台 | 打开作品后 | 写作面板 + AI 管家 |
+| 拆书工厂 | 侧边栏 → 拆书工厂 | 上传范文，AI 拆解文风技能卡 |
+| 技能仓库 | 侧边栏 → 技能仓库 | 查看和管理已拆技能卡 |
+| 灵感助手 | 侧边栏 → 灵感助手 | AI 辅助构思 |
+
+### 拆书工厂怎么用？
+
+1. 打开拆书工厂
+2. 粘贴你喜欢的小说的章节文本（或上传 TXT 文件）
+3. 点击"开始拆书与萃取 Skill"
+4. AI 会分析文风、人物、剧情套路，生成 **主笔卡 + 副卡组**
+5. 点击"保存整组 Deck"存储到技能仓库
+6. 在创作舞台中装备这套卡组，AI 生成时会模仿这个文风
+
+### 章节生产怎么用？
+
+1. 在创作舞台中，点右上角 AI 面板按钮
+2. 切换到 **"自动生产"** 标签
+3. 输入创作意图（如"这一章要写主角在雨夜酒馆试探掌柜"）
+4. 点击"开始生产一章"
+5. AI 会自动生成分镜 → 正文 → 文风审计 → 连续性报告
+6. 审阅后点击"接受并写入"完成到章节列表
+
+---
+
+## 常见问题
+
+**Q: 生成卡住不动？**
+A: AI 模型响应可能较慢（尤其是 MiniMax M2.7 等推理模型），最长等待约 2 分钟。如果超时报错，缩短输入文本后重试。
+
+**Q: 数据存在哪里？**
+A: 所有数据存在本地 `~/.inkflow/` 目录下，包括数据库和配置文件。换个设备需要重新配置 API Key。
+
+**Q: 能换模型吗？**
+A: 可以。设置页面随时修改 Base URL 和 Model，只要是 OpenAI 兼容接口就行。
+
+**Q: 能导出小说吗？**
+A: 能。创作舞台底部状态栏有导出按钮，支持 TXT 和 EPUB 格式。
+
+**Q: macOS 提示"无法验证开发者"？**
+A: 应用未签名（需 Apple Developer 账号，$99/年）。右键点击 App → 打开 → 确认即可。
+
+**Q: Windows 杀毒软件拦截？**
+A: 选择"仍要运行"。代码开源可自行审查。如需彻底消除误报，需购买代码签名证书。
+
+---
+
+## 开发者
+
+### 本地运行
 
 ```bash
-npm run smoke:runtime
+# 环境要求 Node.js 22+
+npm install
+cp .env.example .env.local   # 编辑填入 API Key
+npm run dev                    # 启动开发服务器，打开 http://localhost:3000
 ```
 
-若 dev 使用的不是 `http://localhost:3000`，请指定基址：
+### 打包桌面应用
 
 ```bash
-INKFLOW_BASE_URL=http://127.0.0.1:<端口> npm run smoke:runtime
+npm run package    # 打包当前平台（macOS → DMG，Windows → EXE）
 ```
 
-期望依次输出三条 `ok ...`。若失败，终端会打印 `cause`（例如 `ECONNREFUSED`）与简短提示，便于确认服务是否已启动、端口是否正确。
+### CI 自动构建
+
+push 到 main 分支后，GitHub Actions 自动构建 macOS + Windows 安装包。产物在 [Actions](https://github.com/653390665/dodo/actions) 页面下载。

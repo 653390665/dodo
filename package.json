@@ -2,6 +2,8 @@
   "name": "inkflow",
   "private": true,
   "version": "1.0.0",
+  "description": "InkFlow — AI 协作小说写作工具",
+  "author": "InkFlow",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -12,7 +14,7 @@
     "lint": "tsc --noEmit",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
     "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs",
-    "package": "npm run build:electron && electron-builder",
+    "package": "npm run build:electron && node scripts/package-electron.mjs",
     "electron:dev": "node scripts/dev-electron.mjs"
   },
   "dependencies": {
@@ -81,21 +83,33 @@
       "node_modules/ini/**/*",
       "node_modules/strip-json-comments/**/*"
     ],
+    "extraMetadata": {
+      "main": "dist-electron/main.cjs"
+    },
     "mac": {
       "target": "dmg",
       "category": "public.app-category.productivity",
+      "artifactName": "InkFlow-${version}-mac-${arch}.${ext}",
       "identity": null
     },
     "win": {
-      "target": "nsis"
+      "target": {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      "artifactName": "InkFlow-${version}-win-x64.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "asarUnpack": [
       "dist-electron/server.cjs",
       "dist-electron/better-sqlite3-shim.cjs",
+      "dist-electron/electron-preload.cjs",
       "node_modules/better-sqlite3/**/*"
     ]
   }
