@@ -1,13 +1,31 @@
-import Database from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import path from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import os from 'os';
-import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing } from '../types';
+import { createRequire } from 'module';
+import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, ChapterProductionRun } from '../types';
+import { calculateFeedbackScore, summarizeUsageStats } from './skill-model';
+
+const req = createRequire(
+  import.meta.url || `file://${typeof __filename !== 'undefined' ? __filename : process.cwd()}`,
+);
+const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
+  Database: typeof BetterSqlite3;
+  nativeBindingPath: string;
+};
 
 const DB_DIR = path.join(os.homedir(), '.inkflow');
 const DB_PATH = path.join(DB_DIR, 'data.db');
 
-let db: Database.Database | undefined;
+let db: BetterSqlite3.Database | undefined;
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const database = getDb();
+  const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((entry) => entry.name === column)) {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
 
 // --- Init ---
 
@@ -16,7 +34,7 @@ export function initDb(dbPath?: string): void {
 
   if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
 
-  db = new Database(dbPath || DB_PATH);
+  db = new Database(dbPath || DB_PATH, { nativeBinding: nativeBindingPath });
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
@@ -152,7 +170,22 @@ export function initDb(dbPath?: string): void {
       stability_score REAL DEFAULT 0,
       evaluation_feedback TEXT DEFAULT '',
       version INTEGER DEFAULT 1,
+      fusion_meta TEXT DEFAULT NULL,
       created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS skill_usage_records (
+      id TEXT PRIMARY KEY,
+      novel_id TEXT NOT NULL,
+      chapter_id TEXT,
+      mounted_skill_ids TEXT NOT NULL DEFAULT '[]',
+      fit_score REAL DEFAULT 0,
+      audit_score REAL,
+      user_action TEXT NOT NULL DEFAULT 'accepted',
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE,
+      FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS idea_fragments (
@@ -182,10 +215,55 @@ export function initDb(dbPath?: string): void {
       updated_at INTEGER NOT NULL,
       FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS chapter_production_runs (
+      id TEXT PRIMARY KEY,
+      novel_id TEXT NOT NULL,
+      target_chapter_id TEXT,
+      status TEXT NOT NULL DEFAULT 'running',
+      user_intent TEXT DEFAULT '',
+      scene_beats TEXT DEFAULT '',
+      draft_content TEXT DEFAULT '',
+      style_audit TEXT DEFAULT '',
+      continuity_report TEXT DEFAULT '{}',
+      error_message TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
+    );
+  `);
+
+  ensureColumn('novels', 'mounted_skill_loadout', "TEXT DEFAULT '[]'");
+  ensureColumn('novels', 'project_preference_profile', "TEXT DEFAULT '{}'");
+  ensureColumn('skills', 'parent_skill_id', 'TEXT');
+  ensureColumn('skills', 'lineage_root_id', 'TEXT');
+  ensureColumn('skills', 'primary_dimension', 'TEXT');
+  ensureColumn('skills', 'dimension_tags', "TEXT DEFAULT '[]'");
+  ensureColumn('skills', 'composition_profile', "TEXT DEFAULT '{}'");
+  ensureColumn('skills', 'usage_stats', "TEXT DEFAULT '{}'");
+  ensureColumn('skills', 'feedback_score', 'REAL DEFAULT 0');
+  ensureColumn('skills', 'updated_at', 'INTEGER');
+  ensureColumn('skills', 'fusion_meta', 'TEXT DEFAULT NULL');
+
+  // Indexes for foreign-key columns to avoid full table scans
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_characters_novel ON characters(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_locations_novel ON locations(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_items_novel ON items(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_factions_novel ON factions(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_power_levels_novel ON power_levels(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_timeline_events_novel ON timeline_events(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_chapters_novel ON chapters(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_chapter_versions_chapter ON chapter_versions(chapter_id);
+    CREATE INDEX IF NOT EXISTS idx_idea_fragments_novel ON idea_fragments(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_foreshadowings_novel ON foreshadowings(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_chapter_production_runs_novel ON chapter_production_runs(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_skill_usage_records_novel ON skill_usage_records(novel_id);
   `);
 }
 
-function getDb(): Database.Database {
+function getDb(): BetterSqlite3.Database {
   if (!db) initDb();
   return db!;
 }
@@ -226,6 +304,8 @@ function rowToNovel(row: any): Novel {
     worldRules: row.world_rules,
     globalOutline: row.global_outline,
     mountedSkillIds: JSON.parse(row.mounted_skill_ids || '[]'),
+    mountedSkillLoadout: JSON.parse(row.mounted_skill_loadout || '[]'),
+    projectPreferenceProfile: JSON.parse(row.project_preference_profile || '{}'),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -242,6 +322,8 @@ function novelToRow(novel: Novel): any {
     world_rules: novel.worldRules,
     global_outline: novel.globalOutline,
     mounted_skill_ids: JSON.stringify(novel.mountedSkillIds || []),
+    mounted_skill_loadout: JSON.stringify(novel.mountedSkillLoadout || []),
+    project_preference_profile: JSON.stringify(novel.projectPreferenceProfile || {}),
     created_at: novel.createdAt,
     updated_at: novel.updatedAt,
   };
@@ -343,7 +425,16 @@ function rowToSkill(row: any): Skill {
     bannedElements: JSON.parse(row.banned_elements || '[]'),
     stabilityScore: row.stability_score,
     evaluationFeedback: row.evaluation_feedback,
+    parentSkillId: row.parent_skill_id || undefined,
+    lineageRootId: row.lineage_root_id || undefined,
+    primaryDimension: row.primary_dimension || undefined,
+    dimensionTags: JSON.parse(row.dimension_tags || '[]'),
+    compositionProfile: JSON.parse(row.composition_profile || '{}'),
+    usageStats: JSON.parse(row.usage_stats || '{}'),
+    feedbackScore: row.feedback_score ?? undefined,
+    fusionMeta: row.fusion_meta ? JSON.parse(row.fusion_meta) : undefined,
     createdAt: row.created_at,
+    updatedAt: row.updated_at || undefined,
   };
 }
 
@@ -368,7 +459,43 @@ function skillToRow(s: Skill): any {
     stability_score: s.stabilityScore,
     evaluation_feedback: s.evaluationFeedback,
     version: s.version,
+    parent_skill_id: s.parentSkillId || null,
+    lineage_root_id: s.lineageRootId || null,
+    primary_dimension: s.primaryDimension || null,
+    dimension_tags: JSON.stringify(s.dimensionTags || []),
+    composition_profile: JSON.stringify(s.compositionProfile || {}),
+    usage_stats: JSON.stringify(s.usageStats || {}),
+    feedback_score: s.feedbackScore ?? 0,
+    fusion_meta: s.fusionMeta ? JSON.stringify(s.fusionMeta) : null,
     created_at: s.createdAt,
+    updated_at: s.updatedAt || null,
+  };
+}
+
+function rowToSkillUsageRecord(row: any): SkillUsageRecord {
+  return {
+    ...row,
+    novelId: row.novel_id,
+    chapterId: row.chapter_id || undefined,
+    mountedSkillIds: JSON.parse(row.mounted_skill_ids || '[]'),
+    fitScore: row.fit_score,
+    auditScore: row.audit_score ?? undefined,
+    userAction: row.user_action,
+    createdAt: row.created_at,
+  };
+}
+
+function skillUsageRecordToRow(record: SkillUsageRecord): any {
+  return {
+    id: record.id,
+    novel_id: record.novelId,
+    chapter_id: record.chapterId || null,
+    mounted_skill_ids: JSON.stringify(record.mountedSkillIds || []),
+    fit_score: record.fitScore,
+    audit_score: record.auditScore ?? null,
+    user_action: record.userAction,
+    notes: record.notes || null,
+    created_at: record.createdAt,
   };
 }
 
@@ -425,6 +552,40 @@ function foreshadowingToRow(f: Foreshadowing): any {
   };
 }
 
+function rowToChapterProductionRun(row: any): ChapterProductionRun {
+  return {
+    id: row.id,
+    novelId: row.novel_id,
+    targetChapterId: row.target_chapter_id || undefined,
+    status: row.status,
+    userIntent: row.user_intent || '',
+    sceneBeats: row.scene_beats || '',
+    draftContent: row.draft_content || '',
+    styleAudit: row.style_audit || '',
+    continuityReport: JSON.parse(row.continuity_report || '{}'),
+    errorMessage: row.error_message || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function chapterProductionRunToRow(run: ChapterProductionRun): any {
+  return {
+    id: run.id,
+    novel_id: run.novelId,
+    target_chapter_id: run.targetChapterId || null,
+    status: run.status,
+    user_intent: run.userIntent,
+    scene_beats: run.sceneBeats,
+    draft_content: run.draftContent,
+    style_audit: run.styleAudit,
+    continuity_report: JSON.stringify(run.continuityReport),
+    error_message: run.errorMessage || null,
+    created_at: run.createdAt,
+    updated_at: run.updatedAt,
+  };
+}
+
 // --- Novel CRUD ---
 
 export function listNovels(): Novel[] {
@@ -439,8 +600,8 @@ export function getNovel(id: string): Novel | undefined {
 
 export function createNovel(novel: Novel): void {
   getDb().prepare(`
-    INSERT INTO novels (id, title, author_id, summary, cover_image, status, world_rules, global_outline, mounted_skill_ids, created_at, updated_at)
-    VALUES (@id, @title, @author_id, @summary, @cover_image, @status, @world_rules, @global_outline, @mounted_skill_ids, @created_at, @updated_at)
+    INSERT INTO novels (id, title, author_id, summary, cover_image, status, world_rules, global_outline, mounted_skill_ids, mounted_skill_loadout, project_preference_profile, created_at, updated_at)
+    VALUES (@id, @title, @author_id, @summary, @cover_image, @status, @world_rules, @global_outline, @mounted_skill_ids, @mounted_skill_loadout, @project_preference_profile, @created_at, @updated_at)
   `).run(novelToRow(novel));
   notify();
 }
@@ -450,7 +611,7 @@ export function updateNovel(id: string, data: Partial<Novel>): void {
   if (!existing) return;
   const merged = { ...rowToNovel(existing as any), ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
-    UPDATE novels SET title=@title, author_id=@author_id, summary=@summary, cover_image=@cover_image, status=@status, world_rules=@world_rules, global_outline=@global_outline, mounted_skill_ids=@mounted_skill_ids, updated_at=@updated_at
+    UPDATE novels SET title=@title, author_id=@author_id, summary=@summary, cover_image=@cover_image, status=@status, world_rules=@world_rules, global_outline=@global_outline, mounted_skill_ids=@mounted_skill_ids, mounted_skill_loadout=@mounted_skill_loadout, project_preference_profile=@project_preference_profile, updated_at=@updated_at
     WHERE id=@id
   `).run(novelToRow(merged));
   notify();
@@ -712,8 +873,8 @@ export function getSkill(id: string): Skill | undefined {
 
 export function createSkill(s: Skill): void {
   getDb().prepare(`
-    INSERT INTO skills (id, name, description, style, pacing, vocabulary, sentence_structure, imagery, banned_words, few_shots, character_traits, world_building, foreshadowing, plot_pattern, core_patterns, banned_elements, stability_score, evaluation_feedback, version, created_at)
-    VALUES (@id, @name, @description, @style, @pacing, @vocabulary, @sentence_structure, @imagery, @banned_words, @few_shots, @character_traits, @world_building, @foreshadowing, @plot_pattern, @core_patterns, @banned_elements, @stability_score, @evaluation_feedback, @version, @created_at)
+    INSERT INTO skills (id, name, description, style, pacing, vocabulary, sentence_structure, imagery, banned_words, few_shots, character_traits, world_building, foreshadowing, plot_pattern, core_patterns, banned_elements, stability_score, evaluation_feedback, version, parent_skill_id, lineage_root_id, primary_dimension, dimension_tags, composition_profile, usage_stats, feedback_score, fusion_meta, created_at, updated_at)
+    VALUES (@id, @name, @description, @style, @pacing, @vocabulary, @sentence_structure, @imagery, @banned_words, @few_shots, @character_traits, @world_building, @foreshadowing, @plot_pattern, @core_patterns, @banned_elements, @stability_score, @evaluation_feedback, @version, @parent_skill_id, @lineage_root_id, @primary_dimension, @dimension_tags, @composition_profile, @usage_stats, @feedback_score, @fusion_meta, @created_at, @updated_at)
   `).run(skillToRow(s));
   notify();
 }
@@ -721,16 +882,108 @@ export function createSkill(s: Skill): void {
 export function updateSkill(id: string, data: Partial<Skill>): void {
   const existing = getDb().prepare('SELECT * FROM skills WHERE id = ?').get(id);
   if (!existing) return;
-  const s = { ...rowToSkill(existing), ...data, id };
+  const s = { ...rowToSkill(existing), ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
-    UPDATE skills SET name=@name, description=@description, style=@style, pacing=@pacing, vocabulary=@vocabulary, sentence_structure=@sentence_structure, imagery=@imagery, banned_words=@banned_words, few_shots=@few_shots, character_traits=@character_traits, world_building=@world_building, foreshadowing=@foreshadowing, plot_pattern=@plot_pattern, core_patterns=@core_patterns, banned_elements=@banned_elements, stability_score=@stability_score, evaluation_feedback=@evaluation_feedback, version=@version
+    UPDATE skills SET name=@name, description=@description, style=@style, pacing=@pacing, vocabulary=@vocabulary, sentence_structure=@sentence_structure, imagery=@imagery, banned_words=@banned_words, few_shots=@few_shots, character_traits=@character_traits, world_building=@world_building, foreshadowing=@foreshadowing, plot_pattern=@plot_pattern, core_patterns=@core_patterns, banned_elements=@banned_elements, stability_score=@stability_score, evaluation_feedback=@evaluation_feedback, version=@version, parent_skill_id=@parent_skill_id, lineage_root_id=@lineage_root_id, primary_dimension=@primary_dimension, dimension_tags=@dimension_tags, composition_profile=@composition_profile, usage_stats=@usage_stats, feedback_score=@feedback_score, fusion_meta=@fusion_meta, updated_at=@updated_at
     WHERE id=@id
   `).run(skillToRow(s));
   notify();
 }
 
+export function listSkillVersions(skillId: string): Skill[] {
+  const skill = getSkill(skillId);
+  if (!skill) return [];
+  const rootId = skill.lineageRootId || skill.id;
+  const rows = getDb()
+    .prepare('SELECT * FROM skills WHERE lineage_root_id = ? OR id = ? ORDER BY version ASC, created_at ASC')
+    .all(rootId, rootId);
+  return rows.map(rowToSkill);
+}
+
 export function deleteSkill(id: string): void {
   getDb().prepare('DELETE FROM skills WHERE id = ?').run(id);
+  notify();
+}
+
+export function listSkillUsageRecords(skillId?: string): SkillUsageRecord[] {
+  if (!skillId) {
+    return getDb()
+      .prepare('SELECT * FROM skill_usage_records ORDER BY created_at DESC')
+      .all()
+      .map(rowToSkillUsageRecord);
+  }
+
+  const rows = getDb()
+    .prepare(`
+      SELECT sur.*
+      FROM skill_usage_records sur
+      WHERE EXISTS (
+        SELECT 1
+        FROM json_each(sur.mounted_skill_ids)
+        WHERE value = ?
+      )
+      ORDER BY sur.created_at DESC
+    `)
+    .all(skillId);
+  return rows.map(rowToSkillUsageRecord);
+}
+
+export function syncSkillFeedbackScores(): Skill[] {
+  const skills = listSkills();
+  const usageRecords = listSkillUsageRecords();
+  const updates = skills
+    .map((skill) => {
+      const relatedRecords = usageRecords.filter((record) => record.mountedSkillIds.includes(skill.id));
+      const usageStats = summarizeUsageStats(relatedRecords);
+      const feedbackScore = calculateFeedbackScore(usageStats);
+      const usageStatsJson = JSON.stringify(usageStats);
+      const existingStatsJson = JSON.stringify(skill.usageStats || {});
+      return {
+        skill,
+        usageStats,
+        feedbackScore,
+        needsUpdate:
+          existingStatsJson !== usageStatsJson ||
+          (skill.feedbackScore ?? 50) !== feedbackScore,
+      };
+    });
+
+  const dirtyUpdates = updates.filter((entry) => entry.needsUpdate);
+  if (dirtyUpdates.length > 0) {
+    const now = Date.now();
+    const statement = getDb().prepare(`
+      UPDATE skills
+      SET usage_stats = @usage_stats, feedback_score = @feedback_score, updated_at = @updated_at
+      WHERE id = @id
+    `);
+
+    const transaction = getDb().transaction((entries: typeof dirtyUpdates) => {
+      for (const entry of entries) {
+        statement.run({
+          id: entry.skill.id,
+          usage_stats: JSON.stringify(entry.usageStats),
+          feedback_score: entry.feedbackScore,
+          updated_at: now,
+        });
+      }
+    });
+
+    transaction(dirtyUpdates);
+    notify();
+  }
+
+  return updates.map(({ skill, usageStats, feedbackScore }) => ({
+    ...skill,
+    usageStats,
+    feedbackScore,
+  }));
+}
+
+export function createSkillUsageRecord(record: SkillUsageRecord): void {
+  getDb().prepare(`
+    INSERT INTO skill_usage_records (id, novel_id, chapter_id, mounted_skill_ids, fit_score, audit_score, user_action, notes, created_at)
+    VALUES (@id, @novel_id, @chapter_id, @mounted_skill_ids, @fit_score, @audit_score, @user_action, @notes, @created_at)
+  `).run(skillUsageRecordToRow(record));
   notify();
 }
 
@@ -788,5 +1041,54 @@ export function updateForeshadowing(id: string, data: Partial<Foreshadowing>): v
 }
 export function deleteForeshadowing(id: string): void {
   getDb().prepare('DELETE FROM foreshadowings WHERE id = ?').run(id);
+  notify();
+}
+
+// --- ChapterProductionRun CRUD ---
+
+export function listChapterProductionRuns(novelId: string): ChapterProductionRun[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM chapter_production_runs WHERE novel_id = ? ORDER BY created_at DESC')
+    .all(novelId);
+  return rows.map(rowToChapterProductionRun);
+}
+
+export function getChapterProductionRun(id: string): ChapterProductionRun | undefined {
+  const row = getDb().prepare('SELECT * FROM chapter_production_runs WHERE id = ?').get(id);
+  return row ? rowToChapterProductionRun(row) : undefined;
+}
+
+export function createChapterProductionRun(run: ChapterProductionRun): void {
+  getDb().prepare(`
+    INSERT INTO chapter_production_runs (
+      id, novel_id, target_chapter_id, status, user_intent, scene_beats, draft_content,
+      style_audit, continuity_report, error_message, created_at, updated_at
+    )
+    VALUES (
+      @id, @novel_id, @target_chapter_id, @status, @user_intent, @scene_beats, @draft_content,
+      @style_audit, @continuity_report, @error_message, @created_at, @updated_at
+    )
+  `).run(chapterProductionRunToRow(run));
+  notify();
+}
+
+export function updateChapterProductionRun(id: string, data: Partial<ChapterProductionRun>): void {
+  const existing = getDb().prepare('SELECT * FROM chapter_production_runs WHERE id = ?').get(id);
+  if (!existing) return;
+  const merged = { ...rowToChapterProductionRun(existing as any), ...data, id, updatedAt: Date.now() };
+  getDb().prepare(`
+    UPDATE chapter_production_runs
+    SET novel_id=@novel_id,
+        target_chapter_id=@target_chapter_id,
+        status=@status,
+        user_intent=@user_intent,
+        scene_beats=@scene_beats,
+        draft_content=@draft_content,
+        style_audit=@style_audit,
+        continuity_report=@continuity_report,
+        error_message=@error_message,
+        updated_at=@updated_at
+    WHERE id=@id
+  `).run(chapterProductionRunToRow(merged));
   notify();
 }

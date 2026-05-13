@@ -1,4 +1,5 @@
-import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing } from '../types';
+import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, StoryIdeaCard, StoryPlanningInput, ChapterProductionRun, AggregatedSkillDeck, BookEvidenceSegment } from '../types';
+import type { PromptSurface } from './prompt-stage-routing';
 
 async function call(method: string, ...args: any[]): Promise<any> {
   const res = await fetch('/api/db', {
@@ -14,11 +15,57 @@ async function call(method: string, ...args: any[]): Promise<any> {
   return data.result;
 }
 
-// Subscribe to DB changes via SSE
-export function subscribeToChanges(onChange: () => void): () => void {
+// Shared SSE connection — single EventSource for all subscribers
+let globalEventSource: EventSource | null = null;
+let globalListeners = new Set<() => void>();
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 3000;
+
+function connectEventSource() {
+  if (globalEventSource && globalEventSource.readyState === EventSource.OPEN) return;
+  if (globalEventSource) {
+    globalEventSource.close();
+    globalEventSource = null;
+  }
+
   const es = new EventSource('/api/db/events');
-  es.onmessage = () => onChange();
-  return () => es.close();
+
+  es.onmessage = () => {
+    reconnectDelay = 3000;
+    globalListeners.forEach((fn) => {
+      try { fn(); } catch (e) { console.error('SSE listener error:', e); }
+    });
+  };
+
+  es.onerror = () => {
+    if (es.readyState === EventSource.CLOSED) {
+      es.close();
+      globalEventSource = null;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectEventSource();
+        reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
+      }, reconnectDelay);
+    }
+  };
+
+  es.onopen = () => { reconnectDelay = 3000; };
+  globalEventSource = es;
+}
+
+// Subscribe to DB changes via SSE (shared connection with auto-reconnect)
+export function subscribeToChanges(onChange: () => void): () => void {
+  globalListeners.add(onChange);
+  connectEventSource();
+  return () => {
+    globalListeners.delete(onChange);
+    if (globalListeners.size === 0 && globalEventSource) {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      globalEventSource.close();
+      globalEventSource = null;
+    }
+  };
 }
 
 // Novel
@@ -79,7 +126,27 @@ export async function deleteTimelineEvent(id: string): Promise<void> { return ca
 export async function listSkills(): Promise<Skill[]> { return call('listSkills'); }
 export async function getSkill(id: string): Promise<Skill | undefined> { return call('getSkill', id); }
 export async function createSkill(s: Skill): Promise<void> { return call('createSkill', s); }
+export async function updateSkill(id: string, data: Partial<Skill>): Promise<void> { return call('updateSkill', id, data); }
+export async function listSkillVersions(skillId: string): Promise<Skill[]> { return call('listSkillVersions', skillId); }
 export async function deleteSkill(id: string): Promise<void> { return call('deleteSkill', id); }
+export async function listSkillUsageRecords(skillId?: string): Promise<SkillUsageRecord[]> { return call('listSkillUsageRecords', skillId); }
+export async function syncSkillFeedbackScores(): Promise<Skill[]> { return call('syncSkillFeedbackScores'); }
+export async function createSkillUsageRecord(record: SkillUsageRecord): Promise<void> { return call('createSkillUsageRecord', record); }
+
+export async function extractSkill(text: string): Promise<{
+  skills: Skill[];
+  deck: AggregatedSkillDeck;
+  segments: BookEvidenceSegment[];
+}> {
+  const res = await fetch('/api/extract-skill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to extract skill');
+  return { skills: data.skills, deck: data.deck, segments: data.segments };
+}
 
 // IdeaFragment
 export async function listIdeaFragments(novelId?: string): Promise<IdeaFragment[]> { return call('listIdeaFragments', novelId); }
@@ -87,8 +154,83 @@ export async function createIdeaFragment(f: IdeaFragment): Promise<void> { retur
 export async function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): Promise<void> { return call('updateIdeaFragment', id, data); }
 export async function deleteIdeaFragment(id: string): Promise<void> { return call('deleteIdeaFragment', id); }
 
+export async function generateStoryCards(payload: {
+  ideaSeed: string;
+  chatContext: string;
+  planning: StoryPlanningInput;
+  surface?: PromptSurface;
+}): Promise<StoryIdeaCard[]> {
+  const res = await fetch('/api/story-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate story cards');
+  return data.cards;
+}
+
+export async function refineSetupTask(payload: {
+  taskTitle: string;
+  currentDraft: string;
+  userRequest: string;
+  storyContext: string;
+  surface?: PromptSurface;
+}): Promise<string> {
+  const res = await fetch('/api/setup-task-refine', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to refine setup task');
+  return data.text;
+}
+
 // Foreshadowing
 export async function listForeshadowings(novelId: string): Promise<Foreshadowing[]> { return call('listForeshadowings', novelId); }
 export async function createForeshadowing(f: Foreshadowing): Promise<void> { return call('createForeshadowing', f); }
 export async function updateForeshadowing(id: string, data: Partial<Foreshadowing>): Promise<void> { return call('updateForeshadowing', id, data); }
 export async function deleteForeshadowing(id: string): Promise<void> { return call('deleteForeshadowing', id); }
+
+// ChapterProductionRun
+export async function listChapterProductionRuns(novelId: string): Promise<ChapterProductionRun[]> { return call('listChapterProductionRuns', novelId); }
+export async function getChapterProductionRun(id: string): Promise<ChapterProductionRun | undefined> { return call('getChapterProductionRun', id); }
+export async function createChapterProductionRun(run: ChapterProductionRun): Promise<void> { return call('createChapterProductionRun', run); }
+export async function updateChapterProductionRun(id: string, data: Partial<ChapterProductionRun>): Promise<void> { return call('updateChapterProductionRun', id, data); }
+export async function startChapterProductionRun(payload: {
+  novelId: string;
+  targetChapterId?: string;
+  userIntent: string;
+  surface?: PromptSurface;
+}): Promise<ChapterProductionRun> {
+  const res = await fetch('/api/chapter-production-runs/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to start chapter production run');
+  return data.run;
+}
+
+export async function applyChapterProductionRun(runId: string): Promise<{ chapterId: string }> {
+  const res = await fetch(`/api/chapter-production-runs/${runId}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to apply chapter production run');
+  return { chapterId: data.chapterId };
+}
+
+export async function generateInspiration(prompt: string, surface: PromptSurface = 'workspace-draft'): Promise<string> {
+  const res = await fetch('/api/inspiration', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, surface }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate inspiration');
+  return data.text;
+}

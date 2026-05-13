@@ -21,3 +21,21 @@
    兼容 OpenAI 接口规范的任意大模型均可使用。
 3. 启动应用:
    `npm run dev`
+
+## 运行时自检（可选）
+
+`npm run dev` 后，**首次冷启动**时 Vite 可能要接近一分钟才会出现 `Server running` 并真正监听端口。
+
+另开终端，在项目根目录执行：
+
+```bash
+npm run smoke:runtime
+```
+
+若 dev 使用的不是 `http://localhost:3000`，请指定基址：
+
+```bash
+INKFLOW_BASE_URL=http://127.0.0.1:<端口> npm run smoke:runtime
+```
+
+期望依次输出三条 `ok ...`。若失败，终端会打印 `cause`（例如 `ECONNREFUSED`）与简短提示，便于确认服务是否已启动、端口是否正确。

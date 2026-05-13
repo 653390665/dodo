@@ -1,34 +1,384 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
-import { orchestrationApp } from './workflow';
-import { GoogleGenAI } from "@google/genai";
-import mammoth from 'mammoth';
 import { initDb } from './src/lib/db';
 import * as db from './src/lib/db';
-import { getConfig, reloadConfig, saveConfig } from './src/lib/config';
+import { getConfig, getLastConfigError, reloadConfig, saveConfig } from './src/lib/config';
+import { generateText } from './src/lib/server-llm';
+import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from './src/config/souls.js';
+import { mergePromptTemplates, type PromptTemplateKey } from './src/config/prompt-templates';
+import { buildRewritePrompt } from './src/lib/rewrite-prompt';
+import { resolvePromptAssetForSurface } from './src/lib/prompt-runtime';
+import {
+  buildChapterProductionTitle,
+  buildProductionPlannerContext,
+  buildProductionWriterContext,
+  getNextChapterOrder,
+  normalizeProductionIntent,
+} from './src/lib/chapter-production';
+import {
+  buildStoryStateLedger,
+  summarizeStoryStateLedger,
+} from './src/lib/story-state-ledger';
+import {
+  buildContinuityCriticPrompt,
+  extractContinuityReportJson,
+  normalizeContinuityReport,
+} from './src/lib/continuity-critic';
+import {
+  embedStructuredAudit,
+  parseStructuredAuditResponse,
+  renderStructuredAuditMarkdown,
+} from './src/lib/audit-structured';
+import { extractJsonPayload } from './src/lib/extract-skill-json';
+import { buildBookEvidenceSegments } from './src/lib/book-skill-segmentation';
+import { buildSkillDeckFromEvidence } from './src/lib/book-skill-aggregation';
+import { collectSegmentEvidence } from './src/lib/book-skill-evidence';
+import type { SegmentSkillEvidence } from './src/types';
 
 // Initialize local database on startup
 initDb();
 
-function getAi() {
-  const config = getConfig();
-  return new GoogleGenAI({ apiKey: config.apiKey });
+function buildSkillsPrompt(skills: any[]) {
+  if (!skills || skills.length === 0) return "";
+
+  const allBannedElements = Array.from(new Set(skills.flatMap(s => [...(s.bannedWords || []), ...(s.bannedElements || [])])));
+  const allImagery = Array.from(new Set(skills.flatMap(s => s.imagery || [])));
+  const allVocabulary = Array.from(new Set(skills.flatMap(s => s.vocabulary || [])));
+  const allCorePatterns = Array.from(new Set(skills.flatMap(s => s.corePatterns || [])));
+
+  const primarySkill = skills[0];
+  const secondarySkills = skills.slice(1);
+
+  let prompt = `\n【当前挂载的复合叙事 DNA (Composite Narrative Signature)】\n`;
+  prompt += `你现在的文字灵魂由以下 ${skills.length} 个维度交织而成，请进行深度化学反应式的融合：\n\n`;
+
+  prompt += `核心描述基调 (Primary Voice)：\n`;
+  prompt += `- 基于《${primarySkill.name}》：${primarySkill.style}\n`;
+  if (primarySkill.sentenceStructure) prompt += `  句法要求：“${primarySkill.sentenceStructure}”\n`;
+  prompt += `  节奏推进遵循：“${primarySkill.pacing}”\n`;
+  if (primarySkill.characterTraits) prompt += `  核心人物特征模版：“${primarySkill.characterTraits}”\n`;
+  if (primarySkill.worldBuilding) prompt += `  世界观/力量体系感：“${primarySkill.worldBuilding}”\n`;
+  if (primarySkill.plotPattern) prompt += `  剧情/爽点套路结构：“${primarySkill.plotPattern}”\n`;
+  if (primarySkill.foreshadowing) prompt += `  悬念及伏笔手法：“${primarySkill.foreshadowing}”\n`;
+  prompt += `\n`;
+
+  if (secondarySkills.length > 0) {
+    prompt += `质感滤镜与大纲补强 (Flavor Overlays)：\n`;
+    secondarySkills.forEach(s => {
+      prompt += `- 融合《${s.name}》：在描写层引入其“${s.style}”的色彩。`;
+      if (s.characterTraits) prompt += `引入人物特征：${s.characterTraits}。`;
+      if (s.plotPattern) prompt += `借鉴剧情节奏：${s.plotPattern}。`;
+      prompt += `\n`;
+    });
+    prompt += `\n`;
+  }
+
+  prompt += `全局语法规约 (Global Constraints)：\n`;
+  if (allImagery.length > 0) prompt += `- 【核心意象群】：${allImagery.join("、")} (在描写中高频出现这些符号)\n`;
+  if (allVocabulary.length > 0) prompt += `- 【标志性词汇】：${allVocabulary.join("、")} (优先使用这些具有辨识度的词汇)\n`;
+  if (allCorePatterns.length > 0) prompt += `- 【核心行文套路】：${allCorePatterns.join("、")} (在构建桥段时，请采纳这些模式)\n`;
+  if (allBannedElements.length > 0) prompt += `- 【绝对禁忌红线】：${allBannedElements.join("、")} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
+
+  prompt += `风格对标样例 (Composite Few-Shots)：\n`;
+  skills.forEach(s => {
+    (s.fewShots || []).slice(0, 2).forEach((fs: string) => {
+      prompt += `  * "${fs}" (来自 ${s.name})\n`;
+    });
+  });
+
+  prompt += `\n指令：不要生硬堆砌，要把上面提到的《人物特征》、《世界观》、《剧情》、《设定》和写作方式有机相融，打造独属于你的复合风格。`;
+  return prompt;
+}
+
+function getPromptTemplate(key: PromptTemplateKey): string {
+  return mergePromptTemplates(getConfig().promptTemplates)[key];
+}
+
+function renderPromptTemplate(template: string, values: Record<string, string | number | undefined>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_match, rawKey) => {
+    const key = rawKey as keyof typeof values;
+    const value = values[key];
+    return value == null ? '' : String(value);
+  });
+}
+
+function truncateForAudit(text: string | undefined, maxChars: number) {
+  if (!text) return '';
+  const normalized = String(text).trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars)}\n……（审计输入已截断）`;
+}
+
+function buildPromptTemplateTest(key: PromptTemplateKey, template: string): { prompt?: string; systemInstruction?: string } {
+  const sampleValues = {
+    PLANNER_SOUL,
+    WRITER_SOUL,
+    CRITIC_SOUL,
+    contextStr: '【世界观】雨夜江湖，玄铁令搅动各方势力。\n【人物】林砚寡言、克制、擅长后发制人。',
+    userIntent: '这一章要写林砚在雨夜酒馆试探掌柜，最后听见门外靴声逼近。',
+    skillsInfo: '【技能】雨夜刀锋式氛围悬疑武侠：冷峻短句、雨夜意象、以静制动。',
+    sceneBeats: '1. 林砚入酒馆试探掌柜。2. 掌柜吐露玄铁令线索。3. 门外靴声逼近，危机压顶。',
+    draftContent: '夜雨拍窗，林砚把断潮刀压在膝上，看着掌柜把灯芯拨得更亮了一点。',
+    criticFeedback: '初稿阶段，请全力输出。',
+    currentDraft: '夜雨拍窗，林砚把断潮刀压在膝上，看着掌柜把灯芯拨得更亮了一点。',
+    text: '夜雨拍窗，林砚把断潮刀压在膝上，掌柜用最轻的声音提到玄铁令。门外靴声逼近，酒馆像被无形的手攥紧。',
+    expectedWordCount: 120000,
+    title: '小说名称：雨夜玄令',
+    worldRules: '世界观及设定：江湖势力围绕玄铁令争斗，刀法讲究出手时机。',
+    seedOutline: '用户的初始构思/种子创意：一个沉默刀客卷入关于玄铁令的连环危机。',
+  };
+
+  if (key === 'inspirationSystem') {
+    return {
+      systemInstruction: template,
+      prompt: '请为“雨夜武侠 + 悬疑酒馆”构思三个不同气质的开篇灵感。',
+    };
+  }
+
+  return {
+    prompt: renderPromptTemplate(template, sampleValues),
+  };
+}
+
+const CHAPTER_PRODUCTION_LLM_OPTIONS = {
+  timeoutMs: 90_000,
+  maxAttempts: 1,
+} as const;
+
+const SKILL_EXTRACTION_LLM_OPTIONS = {
+  timeoutMs: 35_000,
+  maxAttempts: 1,
+  maxTokens: 2048,
+} as const;
+
+const ORCHESTRATE_WRITER_LLM_OPTIONS = {
+  timeoutMs: 45_000,
+  maxAttempts: 1,
+  maxTokens: 1800,
+} as const;
+
+const ORCHESTRATE_CRITIC_LLM_OPTIONS = {
+  timeoutMs: 35_000,
+  maxAttempts: 1,
+  maxTokens: 1200,
+} as const;
+
+const MAX_SKILL_LLM_SEGMENTS = 2;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function emitTextAsTokens(res: express.Response, text: string) {
+  const chunks = text.match(/.{1,24}/gs) || [];
+  for (const chunk of chunks) {
+    res.write(`data: ${JSON.stringify({ type: 'token', content: chunk })}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 8));
+  }
+}
+
+function buildFallbackDraft(sceneBeats: string, contextStr: string) {
+  const normalizedBeats = String(sceneBeats || '').trim();
+  const intentHint = normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim()
+    || '一场试探正在逼近真正的危险';
+  const sceneBlocks = normalizedBeats
+    .split(/\n\s*---\s*\n|(?=###\s*场景)/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const beats = sceneBlocks.length > 0
+    ? sceneBlocks.map((block, index) => {
+        const title = block.match(/###\s*场景\s*\d+[：:]\s*([^\n（(]+)/)?.[1]?.trim() || `第 ${index + 1} 个转折`;
+        const conflict = block.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+        const actions = block.match(/\*\*关键动作链\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+        const exitHook = block.match(/\*\*退场钩子\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+        return [title, conflict, actions, exitHook].filter(Boolean).join('。');
+      })
+    : normalizedBeats
+        .split(/\n+/)
+        .map((line) => line.replace(/^[-*\d.、\s]+/, '').replace(/\*\*/g, '').trim())
+        .filter(Boolean)
+        .slice(0, 4);
+  if (beats.length === 0) {
+    return '门轴轻轻一响，屋里的声音同时低了下去。\n\n他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻。空气里压着未说出口的消息，也压着即将逼近的危险。';
+  }
+
+  const firstBeat = beats[0] || intentHint;
+  const secondBeat = beats[1] || '试探被接住，旧线索浮出水面';
+  const thirdBeat = beats[2] || '危险逼近，角色必须做出选择';
+
+  return [
+    `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。${firstBeat}没有被摊开讲明，它先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
+    `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。${secondBeat}，局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
+    `${thirdBeat}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
+  ].join('\n\n');
+}
+
+function buildFallbackSceneBeats(userIntent: string) {
+  const intent = String(userIntent || '').trim() || '主角面对新的局势变化，被迫做出选择';
+  return [
+    `### 场景 1：异动入场\n\n**入场钩子**：一个异常声音或突发消息打断原本平静的局面。\n\n**核心冲突**：${intent}，但信息并不完整，角色只能先试探。\n\n**关键动作链**：角色观察异常；对方给出含糊回应；一个细节暴露真正风险。\n\n**退场钩子**：新的脚步声、信物或消息把局势推向下一场。`,
+    `### 场景 2：试探加深\n\n**入场钩子**：角色主动抛出一个问题或动作诱饵。\n\n**核心冲突**：双方围绕真实目的互相遮掩。\n\n**关键动作链**：试探被接住；旧线索浮出；角色意识到眼前不是偶然。\n\n**退场钩子**：关键人物或危险信号正式出现。`,
+    `### 场景 3：悬念收束\n\n**入场钩子**：危险逼近，角色必须决定留下还是行动。\n\n**核心冲突**：保全自身与追查真相发生冲突。\n\n**关键动作链**：角色做出选择；关键道具或信息被确认；局势留下更大的疑问。\n\n**退场钩子**：以一个未解释的动作或声音结束本章。`,
+  ].join('\n\n---\n\n');
+}
+
+function buildFallbackStoryCards(
+  ideaSeed: string,
+  planning: Partial<{
+    expectedWordCount: number;
+    pacingPreference: 'tight' | 'balanced' | 'slow-burn';
+    storyFocus: 'plot' | 'character' | 'world';
+  }>,
+) {
+  const seed = String(ideaSeed || '').trim() || '一个尚未成形的新故事';
+  const expectedWordCount = Number(planning.expectedWordCount || 180000);
+  const pacing = planning.pacingPreference || 'tight';
+  const focus = planning.storyFocus || 'plot';
+  const pacingText = pacing === 'slow-burn' ? '慢热铺陈' : pacing === 'balanced' ? '均衡推进' : '紧推进';
+  const focusText = focus === 'character' ? '人物关系' : focus === 'world' ? '世界设定' : '剧情推进';
+  const lengthText = expectedWordCount >= 500000 ? '长篇连载' : expectedWordCount >= 180000 ? '中长篇' : '中短篇';
+
+  const base = [
+    {
+      id: 'fallback-card-1',
+      hook: '雨夜旧账被重新翻开',
+      protagonist: '一个沉默、克制、习惯先观察再出手的主角。',
+      coreConflict: '主角被旧仇线索引到危险现场，却发现复仇对象和追杀者并不是同一拨人。',
+      tone: '冷峻悬疑，动作克制，信息逐层揭露。',
+      whyItWorks: `它能直接承接“${seed}”里的复仇、酒馆和沉默刀客信号，开局冲突清楚，第一章容易落地。`,
+      riskNote: '最容易写崩的是只写气氛不写动作，导致复仇线没有实质推进。',
+      mixTags: ['雨夜', '复仇', '试探', '悬疑'],
+      signals: { tone: 'sharp', conflictType: '旧仇追索', worldWeight: 0.45, characterWeight: 0.7, pacingPreference: pacing },
+    },
+    {
+      id: 'fallback-card-2',
+      hook: '刀客其实是被栽赃的活证据',
+      protagonist: '被江湖误认为凶手的刀客，沉默不是冷酷，而是在隐藏不能说的真相。',
+      coreConflict: '所有人都想抓他换取赏金，他必须在追杀中找出真正凶手。',
+      tone: '压迫感强，偏逃亡与反转。',
+      whyItWorks: '身份误判能持续制造章节钩子，也能让主角的沉默有内在理由。',
+      riskNote: '需要控制反转密度，不能每章都靠误会硬拖。',
+      mixTags: ['栽赃', '逃亡', '反转', '江湖追杀'],
+      signals: { tone: 'grim', conflictType: '身份误判', worldWeight: 0.55, characterWeight: 0.65, pacingPreference: pacing },
+    },
+    {
+      id: 'fallback-card-3',
+      hook: '酒馆掌柜才是第一枚钩子',
+      protagonist: '沉默刀客与看似圆滑的酒馆掌柜形成临时同盟。',
+      coreConflict: '刀客要复仇，掌柜要保命，两人的目标暂时一致但互不信任。',
+      tone: '对手戏强，悬疑里带一点江湖人情。',
+      whyItWorks: '把单人复仇改成双人互相试探，能增强人物关系和长期连载弹性。',
+      riskNote: '搭档关系不能太快变亲密，必须保留利益差和隐瞒。',
+      mixTags: ['临时同盟', '酒馆掌柜', '互相试探', '江湖人情'],
+      signals: { tone: 'sharp', conflictType: '互信博弈', worldWeight: 0.5, characterWeight: 0.8, pacingPreference: pacing },
+    },
+  ];
+
+  return base.map((card) => ({
+    ...card,
+    starterSeeds: {
+      worldSeed: '雨夜酒馆是江湖消息流通的暗点，旧案、追兵和信物在这里交汇。',
+      relationshipSeed: card.id === 'fallback-card-3'
+        ? '刀客和掌柜互相利用，一边合作一边试探底牌。'
+        : '主角与线索提供者之间保持不信任的合作关系。',
+      chapterOneSeed: '第一章从酒馆异响开场，主角察觉掌柜异常，门外追兵逼近时抛出第一枚旧案线索。',
+    },
+    planningFit: {
+      recommendedLength: `${lengthText}，约 ${expectedWordCount.toLocaleString('zh-CN')} 字`,
+      recommendedFocus: focusText,
+      recommendedPacing: pacingText,
+      reason: `该方向适合${pacingText}，并能把当前重点放在${focusText}上。`,
+    },
+  }));
+}
+
+function buildFallbackSkillForSegment(excerpt: string, label: string) {
+  const normalized = String(excerpt || '').replace(/\s+/g, ' ').trim();
+  const sample = normalized.slice(0, 120);
+  const hasDialogue = /[“”"']|说|问|答|喊|低声/.test(normalized);
+  const hasAction = /推|走|看|握|拔|冲|落|响|停|转|退|杀|打/.test(normalized);
+  const hasWorld = /城|门|宗|派|令|法|阵|灵|江湖|王朝|学院|系统|异能/.test(normalized);
+
+  return {
+    name: `${label}保底拆书卡`,
+    description: '模型响应不稳定时由本地文本信号生成的保底技能卡，用于保证拆书流程可继续。',
+    style: `文本呈现出${hasAction ? '动作驱动' : '叙述驱动'}的段落推进方式，画面通常围绕具体物件、声音或人物反应展开。证据：${sample}`,
+    pacing: hasAction
+      ? '节奏偏紧，依靠动作、异响和场面变化推动读者继续阅读。'
+      : '节奏偏稳，更多依靠铺垫、说明和氛围递进形成阅读惯性。',
+    characterTraits: hasDialogue
+      ? '人物关系通过对话、停顿和反应显影，适合提炼成试探式互动模板。'
+      : '人物塑造更依赖动作选择和环境反应，适合做沉默型角色行动模板。',
+    worldBuilding: hasWorld
+      ? '文本中存在较强设定词和世界规则信号，需要在生成时保留名词、势力和规则边界。'
+      : '世界观信号较弱，生成时应优先补足地点、规则和冲突背景。',
+    plotPattern: '常见推进模式是先给异常信号，再通过人物动作或信息差放大冲突，最后留下下一步悬念。',
+    foreshadowing: '适合使用物件、声音、眼神和未解释的异常作为伏笔锚点。',
+    corePatterns: ['异常入场', '动作试探', '信息差推进', '悬念收束'],
+    bannedElements: ['空泛解释', '直接喊出主角目的', '只写氛围不兑现动作'],
+    vocabulary: Array.from(new Set((normalized.match(/[\u4e00-\u9fa5]{2,4}/g) || []).slice(0, 12))),
+    fewShots: [normalized.slice(0, 120)].filter(Boolean),
+    stabilityScore: 62,
+    evaluationFeedback: '这是保底萃取结果，建议后续在模型稳定时重新拆书以获得更精确的风格卡。',
+    compositionProfile: {
+      styleWeight: 0.72,
+      characterWeight: hasDialogue ? 0.7 : 0.45,
+      worldWeight: hasWorld ? 0.72 : 0.4,
+      powerWeight: hasWorld ? 0.55 : 0.35,
+      plotWeight: 0.68,
+      pacingWeight: hasAction ? 0.76 : 0.5,
+      conflictTags: [],
+      blendHints: [],
+    },
+  };
 }
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // Generic DB proxy — frontend calls this instead of importing db.ts directly
+  // DB method whitelist — only methods used by the frontend are allowed
+  const DB_WHITELIST = new Set([
+    'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
+    'listChapters', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter',
+    'listChapterVersions', 'createChapterVersion',
+    'listCharacters', 'createCharacter', 'updateCharacter', 'deleteCharacter',
+    'listLocations', 'createLocation', 'updateLocation', 'deleteLocation',
+    'listItems', 'createItem', 'updateItem', 'deleteItem',
+    'listFactions', 'createFaction', 'updateFaction', 'deleteFaction',
+    'listPowerLevels', 'createPowerLevel', 'updatePowerLevel', 'deletePowerLevel',
+    'listTimelineEvents', 'createTimelineEvent', 'updateTimelineEvent', 'deleteTimelineEvent',
+    'listSkills', 'getSkill', 'createSkill', 'updateSkill', 'deleteSkill', 'listSkillVersions',
+    'listSkillUsageRecords', 'syncSkillFeedbackScores', 'createSkillUsageRecord',
+    'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
+    'listForeshadowings', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
+    'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun',
+  ]);
+
+  // DB proxy — only exposes whitelisted methods
   app.post('/api/db', (req, res) => {
     const { method, args = [] } = req.body;
+    if (!DB_WHITELIST.has(method)) {
+      return res.status(400).json({ error: `Unknown method: ${method}` });
+    }
     const fn = (db as Record<string, Function>)[method];
     if (typeof fn !== 'function') {
-      return res.status(400).json({ error: `Unknown method: ${method}` });
+      return res.status(500).json({ error: `Method not a function: ${method}` });
     }
     try {
       const result = fn(...args);
@@ -43,26 +393,275 @@ async function startServer() {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
+
+    res.write('retry: 3000\n\n');
+    req.socket.setTimeout(0);
 
     const { subscribe } = db;
     const unsub = subscribe(() => {
       res.write('data: {}\n\n');
     });
 
-    req.on('close', () => unsub());
+    const heartbeat = setInterval(() => {
+      res.write(':ping\n\n');
+    }, 30_000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsub();
+    });
   });
 
   app.get('/api/config', (_req, res) => {
     const config = getConfig();
-    res.json({ apiKey: config.apiKey, baseUrl: config.baseUrl, model: config.model });
+    const configError = getLastConfigError();
+    res.json({
+      hasApiKey: !!config.apiKey,
+      baseUrl: config.baseUrl,
+      model: config.model,
+      promptTemplates: config.promptTemplates,
+      ...(configError ? { configError } : {}),
+    });
   });
 
   app.post('/api/config', (req, res) => {
-    const { apiKey, baseUrl, model } = req.body;
-    saveConfig({ apiKey: apiKey || '', baseUrl: baseUrl || '', model: model || '' });
+    const { apiKey, baseUrl, model, promptTemplates } = req.body;
+    const existing = getConfig();
+    saveConfig({
+      apiKey: apiKey || existing.apiKey,
+      baseUrl: baseUrl || existing.baseUrl,
+      model: model || existing.model,
+      promptTemplates: mergePromptTemplates(promptTemplates),
+    });
     reloadConfig();
     res.json({ ok: true });
+  });
+
+  app.post('/api/prompt-template-test', async (req, res) => {
+    let promptPreview = '';
+    try {
+      const { key, template } = req.body as { key?: PromptTemplateKey; template?: string };
+      if (!key || typeof key !== 'string') {
+        return res.status(400).json({ error: 'Template key is required' });
+      }
+      const baseTemplate = getPromptTemplate(key);
+      const effectiveTemplate = typeof template === 'string' && template.trim() ? template : baseTemplate;
+      const payload = buildPromptTemplateTest(key, effectiveTemplate);
+      if (!payload.prompt?.trim()) {
+        return res.status(400).json({ error: 'Template rendered to empty prompt' });
+      }
+      promptPreview = payload.prompt.slice(0, 4000);
+      const text = await withTimeout(
+        generateText(getConfig(), payload as { prompt: string; systemInstruction?: string }),
+        25000,
+        '模板试跑超时：上游模型响应过慢，请稍后重试或先用渲染预览检查模板结构。',
+      );
+      res.json({
+        text,
+        promptPreview,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e), promptPreview });
+    }
+  });
+
+  app.post('/api/inspiration', async (req, res) => {
+    try {
+      const { prompt = '', surface = 'workspace-draft' } = req.body;
+      if (!prompt.trim()) {
+        return res.status(400).json({ error: 'Prompt is required' });
+      }
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'inspirationSystem',
+      });
+      const text = await generateText(getConfig(), {
+        prompt,
+        systemInstruction: promptAsset.template,
+        timeoutMs: 90_000,
+        maxAttempts: 2,
+        maxTokens: 2048,
+      });
+      res.json({ text });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post('/api/story-cards', async (req, res) => {
+    try {
+      const { ideaSeed = '', chatContext = '', planning = {}, surface = 'welcome' } = req.body;
+      if (!ideaSeed.trim()) {
+        return res.status(400).json({ error: 'ideaSeed is required' });
+      }
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'storyCards',
+      });
+      const prompt = renderPromptTemplate(promptAsset.template, {
+        ideaSeed,
+        chatContext,
+        expectedWordCount: planning.expectedWordCount || 180000,
+        storyFocus:
+          planning.storyFocus === 'character'
+            ? '人物关系'
+            : planning.storyFocus === 'world'
+              ? '世界设定'
+              : '剧情推进',
+        pacingPreference:
+          planning.pacingPreference === 'slow-burn'
+            ? '慢热铺陈'
+            : planning.pacingPreference === 'balanced'
+              ? '均衡推进'
+              : '紧推进',
+      });
+      try {
+        const raw = await generateText(getConfig(), { prompt, timeoutMs: 8_000, maxAttempts: 1, maxTokens: 1800 });
+        const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];
+        if (cards.length > 0) {
+          return res.json({ cards });
+        }
+      } catch (e) {
+        console.warn('Story cards fell back:', e);
+      }
+
+      res.json({
+        cards: buildFallbackStoryCards(ideaSeed, planning),
+        warnings: ['模型响应较慢，已先生成本地保底开坑方向。'],
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post('/api/setup-task-refine', async (req, res) => {
+    try {
+      const { taskTitle = '', currentDraft = '', userRequest = '', storyContext = '', surface = 'world-onboarding' } = req.body;
+      if (!taskTitle.trim()) {
+        return res.status(400).json({ error: 'taskTitle is required' });
+      }
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'setupTaskRefine',
+      });
+      const prompt = renderPromptTemplate(promptAsset.template, {
+        taskTitle,
+        currentDraft,
+        userRequest,
+        storyContext,
+      });
+      const text = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 2048 });
+      res.json({ text });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post('/api/extract-world-setup', async (req, res) => {
+    try {
+      const { documentText = '' } = req.body;
+      if (!documentText.trim()) {
+        return res.status(400).json({ error: 'documentText is required' });
+      }
+      const prompt = `
+你是一个世界观与设定提取分析师。
+请阅读下面用户上传的小说设定文档/大纲，并提取出标准化的结构数据。
+必须输出为合法的 JSON 格式，不要包含任何 json 代码块标记（如 \`\`\`json ），直接输出纯 JSON 字符串。
+
+期望的 JSON 结构如下：
+{
+  "globalOutline": "提取的整体故事大纲（如果没有，则根据已有线索总结，如果完全没有则为空字符串）",
+  "worldRules": "提取的世界观法则、力量体系等（如果没有则为空字符串）",
+  "characters": [
+    {
+      "name": "角色名",
+      "role": "protagonist" | "antagonist" | "supporting" | "extra",
+      "summary": "一句话简介",
+      "bio": "详细背景设定、性格",
+      "traits": ["词条1", "词条2"]
+    }
+  ],
+  "locations": [
+    {
+      "name": "地点名",
+      "region": "所属势力/区域",
+      "description": "详细描述"
+    }
+  ],
+  "items": [
+    {
+      "name": "道具/物品名",
+      "type": "类型(如法宝、科技造物等)",
+      "description": "功能与外貌描述"
+    }
+  ],
+  "timelineEvents": [
+    {
+      "title": "事件名称",
+      "timestamp": "发生时间",
+      "description": "事件详情",
+      "statusTag": "已发生",
+      "order": 1
+    }
+  ]
+}
+
+【设定文档内容】：
+${documentText}
+      `;
+      const raw = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 4096 });
+      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+      res.json(JSON.parse(cleaned));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post('/api/editor-agent', async (req, res) => {
+    try {
+      const { userIntent = '', contextStr = '', surface = 'workspace-beats' } = req.body;
+      if (!userIntent.trim()) {
+        return res.status(400).json({ error: 'userIntent is required' });
+      }
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'editorAgent',
+      });
+      const prompt = renderPromptTemplate(promptAsset.template, {
+        PLANNER_SOUL,
+        contextStr,
+        userIntent,
+      });
+      let text = '';
+      try {
+        text = await generateText(getConfig(), {
+          prompt,
+          timeoutMs: 8_000,
+          maxAttempts: 1,
+          maxTokens: 1600,
+        });
+      } catch (error) {
+        console.warn('Editor agent fell back:', error);
+        text = buildFallbackSceneBeats(userIntent);
+      }
+      res.json({ text });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
   });
 
   app.post('/api/expand-fragment', async (req, res) => {
@@ -81,11 +680,7 @@ async function startServer() {
       };
       const prompt = prompts[type] || prompts.scene;
 
-      const response = await getAi().models.generateContent({
-        model: config.model,
-        contents: prompt,
-      });
-      const expansion = response.text || '';
+      const expansion = await generateText(config, { prompt });
       if (!expansion) {
         return res.status(500).json({ error: 'AI returned empty response' });
       }
@@ -100,10 +695,11 @@ async function startServer() {
     try {
       const { filename, filedata } = req.body;
       let text = '';
-      
+
       if (filename.endsWith('.txt')) {
         text = Buffer.from(filedata, 'base64').toString('utf8');
       } else if (filename.endsWith('.docx')) {
+        const mammoth = await import('mammoth');
         const buffer = Buffer.from(filedata, 'base64');
         const result = await mammoth.extractRawText({ buffer });
         text = result.value;
@@ -144,12 +740,7 @@ ${text.substring(0, 30000)}
 }
 `;
 
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
-      });
-
-      let rawText = response.text || "{}";
+      let rawText = await generateText(getConfig(), { prompt });
       rawText = rawText.replace(/```(json)?/g, '').trim();
 
       res.json(JSON.parse(rawText));
@@ -161,51 +752,41 @@ ${text.substring(0, 30000)}
 
   app.post('/api/audit', async (req, res) => {
     try {
-      const { draftContent, sceneBeats, contextStr, skills = [] } = req.body;
-      const skillsInfo = skills.length > 0 
+      const { draftContent, sceneBeats, contextStr, skills = [], surface = 'chapter-polish' } = req.body;
+      const skillsInfo = skills.length > 0
         ? `\n【当前挂载的叙事 DNA 插件】\n${skills.map((s: any) => `
 - 技能名：${s.name}
 - 核心笔调：${s.style}
 - 句式特征：${s.sentenceStructure}
-- 禁用红线：${s.bannedWords.join('、')}
+- 禁用红线：${(s.bannedWords || []).join('、')}
 - 意象/符号：${s.imagery?.join('、')}
         `).join('\n')}\n` : "";
-      
-      const prompt = `
-你是一个极为挑剔、网文阅历 20 年的“金牌总编（Critic Agent）”。
-你的任务是扫除文字中的平庸、逻辑漏洞以及由于 AI 写作产生的机械感。
 
-【世界观架构】
-${contextStr}
+      const trimmedContextStr = truncateForAudit(contextStr, 1200);
+      const trimmedSceneBeats = truncateForAudit(sceneBeats, 1400);
+      const trimmedDraftContent = truncateForAudit(draftContent, 2600);
+      const trimmedSkillsInfo = truncateForAudit(skillsInfo, 900);
 
-【叙事 DNA 插件要求】
-${skillsInfo}
-
-【本节分镜蓝图 (Beats)】
-${sceneBeats}
-
-【待审计的正文草稿 (Draft)】
-${draftContent}
-
----
-
-请执行“分子级”深度审计，重点寻找以下败笔：
-1. **机械性倾向**：是否连续使用“他/她 + 动作”？是否段落起首极其呆板？
-2. **对话僵硬度**：对白是否缺乏潜台词？是否只是干瘪的输出信息而没有环境交互？
-3. **DNA 损耗**：文字是否丢失了 Skill 插件定义的笔调和意象？
-
-请严格按以下要求（Markdown格式）输出反馈，不要使用多余的开场白：
-1. 评分 (Score)：给出 0-100 的评分，并附带简短的毒舌评语。
-2. 具体问题点（病毒点扫描）：逐一扫描文中的问题（逻辑漏洞、人物OOC、节奏拖沓、违背所挂载的 Skill 设定的地方等）。
-3. 修改建议（手术级修改方案）：给出具体的重写方向或段落级修改演示，呈现“白金大神”级的质感。
-      `;
-
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'manualAudit',
+      });
+      const prompt = renderPromptTemplate(promptAsset.template, {
+        contextStr: trimmedContextStr,
+        skillsInfo: trimmedSkillsInfo,
+        sceneBeats: trimmedSceneBeats,
+        draftContent: trimmedDraftContent,
       });
 
-      res.json({ feedback: response.text });
+      const rawFeedback = await generateText(getConfig(), { prompt });
+      const structured = parseStructuredAuditResponse(rawFeedback);
+      if (!structured) {
+        return res.json({ feedback: rawFeedback });
+      }
+
+      const feedback = embedStructuredAudit(renderStructuredAuditMarkdown(structured), structured);
+      res.json({ feedback, score: structured.score, structured });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
@@ -215,137 +796,539 @@ ${draftContent}
   // API Route setup
   app.post('/api/rewrite', async (req, res) => {
     try {
-      const { text, instruction, contextStr } = req.body;
-      const prompt = `
-你是一个顶级的网文主编及文学润色大师。用户正在创作一部长篇小说，并希望你改写或润色下面提供的一段文字。
-
-【整体世界观与上下文背景】
-${contextStr}
-
-【需要改写的原段落】
-"""
-${text}
-"""
-
-${instruction ? `【用户的改写要求 / 改写方向】\n${instruction}` : '【润色要求】：请在保持原意和主线剧情不变的前提下，优化词境、修整重复词汇，使文字更加流畅、富有画面感和情绪张力。'}
-
-请结合以上【整体世界观与上下文背景】（尤其是其中挂载的技能插件、文风、红线等设定）以及用户的改写要求，直接输出改写后的文本。不要输出任何多余的客套话或前导词。字数应该与原段落大体相当（也可以稍作合理的增删以圆润文笔）。
-      `;
-
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
+      const {
+        text,
+        instruction,
+        contextStr,
+        auditFeedback = '',
+        sceneBeats = '',
+        mode = 'selection',
+        beforeContext = '',
+        afterContext = '',
+        auditIssue = '',
+      } = req.body;
+      const prompt = buildRewritePrompt({
+        text,
+        instruction,
+        contextStr,
+        auditFeedback,
+        sceneBeats,
+        mode,
+        beforeContext,
+        afterContext,
+        auditIssue,
       });
 
-      res.json({ text: response.text });
+      const rewritten = await generateText(getConfig(), { prompt });
+      res.json({ text: rewritten });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
     }
   });
 
+  function buildEmptyContinuityReport() {
+    return {
+      score: 70,
+      issues: [],
+      proposedPatch: {
+        characterUpdates: [],
+        itemUpdates: [],
+        foreshadowingUpdates: [],
+        timelineEventsToCreate: [],
+        foreshadowingsToCreate: [],
+      },
+    };
+  }
+
+function parseJsonOrEmptyReport(raw: string) {
+  try {
+    return extractContinuityReportJson(raw);
+  } catch {
+    return normalizeContinuityReport(buildEmptyContinuityReport());
+  }
+}
+
   app.post('/api/orchestrate', async (req, res) => {
-    const { contextStr, sceneBeats, maxIterations = 2, draftContent = "", skills = [] } = req.body;
+    const {
+      contextStr,
+      sceneBeats,
+      maxIterations = 2,
+      draftContent = "",
+      skills = [],
+      includeCritic = true,
+      draftingSurface = 'workspace-draft',
+      reviewSurface = 'chapter-review',
+    } = req.body;
+    let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
     try {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      const stream = await orchestrationApp.streamEvents(
-        {
-          contextStr,
-          sceneBeats,
-          draftContent,
-          criticFeedback: "",
-          isValid: false,
-          iterationCount: 0,
-          maxIterations,
-          skills
-        },
-        { version: "v2" }
-      );
+      req.socket.setTimeout(0);
+      orchestrateHeartbeat = setInterval(() => {
+        res.write(':ping\n\n');
+      }, 30_000);
 
-      for await (const event of stream) {
-        if (event.event === "on_chat_model_stream") {
-          // Send AI token stream
-          const token = event.data?.chunk?.content;
-          if (token) {
-            res.write(`data: ${JSON.stringify({ type: 'token', content: token })}\n\n`);
-          }
-        } else if (event.event === "on_chain_end" && event.name === "writer") {
-           res.write(`data: ${JSON.stringify({ type: 'writer_done' })}\n\n`);
-        } else if (event.event === "on_chain_end" && event.name === "critic") {
-           const state = event.data?.output;
-           if (state) {
-             res.write(`data: ${JSON.stringify({ type: 'critic_done', feedback: state.criticFeedback, isValid: state.isValid })}\n\n`);
-           }
+      const skillsInfo = buildSkillsPrompt(skills || []);
+      let currentDraft = draftContent || "";
+      let criticFeedback = "";
+      let isValid = false;
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        const writerAsset = resolvePromptAssetForSurface({
+          surface: draftingSurface,
+          promptTemplates: getConfig().promptTemplates,
+          preferredTemplateKey: 'orchestrateWriter',
+        });
+        const writerPrompt = renderPromptTemplate(writerAsset.template, {
+          WRITER_SOUL,
+          contextStr,
+          skillsInfo,
+          sceneBeats,
+          criticFeedback: criticFeedback || '初稿阶段，请全力输出。',
+        });
+
+        res.write(`data: ${JSON.stringify({ type: 'status', message: 'Writer Agent 正在生成正文…' })}\n\n`);
+        try {
+          currentDraft = await generateText(getConfig(), {
+            prompt: writerPrompt,
+            ...ORCHESTRATE_WRITER_LLM_OPTIONS,
+          });
+        } catch (error) {
+          console.warn('Writer generation fell back to local draft:', error);
+          currentDraft = buildFallbackDraft(sceneBeats, contextStr);
+          res.write(`data: ${JSON.stringify({
+            type: 'status',
+            message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+          })}\n\n`);
         }
+        await emitTextAsTokens(res, currentDraft);
+        res.write(`data: ${JSON.stringify({ type: 'writer_done' })}\n\n`);
+
+        if (!includeCritic) {
+          break;
+        }
+
+        const criticAsset = resolvePromptAssetForSurface({
+          surface: reviewSurface,
+          promptTemplates: getConfig().promptTemplates,
+          preferredTemplateKey: 'orchestrateCritic',
+        });
+        const criticPrompt = renderPromptTemplate(criticAsset.template, {
+          CRITIC_SOUL,
+          contextStr,
+          skillsInfo,
+          sceneBeats,
+          currentDraft,
+        });
+
+        criticFeedback = await generateText(getConfig(), {
+          prompt: criticPrompt,
+          ...ORCHESTRATE_CRITIC_LLM_OPTIONS,
+        });
+        isValid = criticFeedback.includes("PASS");
+        res.write(`data: ${JSON.stringify({ type: 'critic_done', feedback: criticFeedback, isValid })}\n\n`);
+
+        if (isValid) break;
       }
+      clearInterval(orchestrateHeartbeat);
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       res.end();
     } catch (err) {
+      clearInterval(orchestrateHeartbeat);
       console.error(err);
       res.write(`data: ${JSON.stringify({ type: 'error', message: String(err) })}\n\n`);
       res.end();
     }
   });
 
-  app.post('/api/extract-skill', async (req, res) => {
+  app.post('/api/chapter-production-runs/start', async (req, res) => {
+    let runId: string | null = null;
     try {
-      const { text = '' } = req.body;
-      const prompt = `
-你是一个顶级的网文“架构级”拆书专家。你的任务是分析一段范例文本，并生成一张高精准度的 "Skill Card" (包含写作方式、剧情、伏笔、世界观、设定、角色特征等多维度的叙事 DNA 插件)。
+      const { novelId = '', targetChapterId = '', userIntent = '', surface = 'workspace-draft' } = req.body;
+      if (!novelId.trim()) {
+        return res.status(400).json({ error: 'novelId is required' });
+      }
 
-请对文本进行语料库级别的分析，重点观察：
-- **写作风格**（用词偏好、句法特征、意象系统等）
-- **人物特征**（角色性格模板、交互模式、行为动机特征）
-- **世界观与设定**（力量体系、背景规则、社会结构）
-- **剧情与爽点**（情节推进套路、矛盾冲突模式、高潮节奏感）
-- **伏笔与草蛇灰线**（铺垫手法、悬念机制）
+      const novel = db.getNovel(novelId);
+      if (!novel) {
+        return res.status(404).json({ error: 'Novel not found' });
+      }
 
-请严格按以下 JSON 格式输出，不要包含 Markdown 代码块标记：
-{
-  "name": "该写作流派/设定的命名（如：诡秘式疯狂侧写、凡人流极致谨慎）",
-  "description": "一句话总结该设定的核心维度",
-  "style": "详细描述其笔调傾向及句法特征",
-  "pacing": "分析其整体剧情推进与高低潮转换节奏",
-  "characterTraits": "提炼出的人物特征、性格塑造模板、对白风格",
-  "worldBuilding": "推导出的世界观架构规则、力量体系及独特设定",
-  "plotPattern": "剧情推进节奏、矛盾设计及爽点套路结构",
-  "foreshadowing": "伏笔埋设手法与悬念解谜结构",
-  "corePatterns": ["萃取出的3-5个核心模式/剧情要素"],
-  "bannedElements": ["在该体系下严禁出现的、会破坏基调的俗套设定或词汇"],
-  "vocabulary": ["萃取出的核心特色词汇"],
-  "fewShots": ["原样摘录最有代表性的片段"],
-  "stabilityScore": 90, 
-  "evaluationFeedback": "对该插件在 AI 生成时的稳定性预测：例如'角色特征鲜明，设定自恰，AI极易复刻'"
-}
+      const chapters = db.listChapters(novelId);
+      const characters = db.listCharacters(novelId);
+      const locations = db.listLocations(novelId);
+      const items = db.listItems(novelId);
+      const factions = db.listFactions(novelId);
+      const powerLevels = db.listPowerLevels(novelId);
+      const timelineEvents = db.listTimelineEvents(novelId);
+      const foreshadowings = db.listForeshadowings(novelId);
+      const mountedSkillIds = novel.mountedSkillIds || [];
+      const skills = db.listSkills().filter((skill: any) => mountedSkillIds.includes(skill.id));
 
-以下为分析素材：
-${text.substring(0, 30000)}
-      `;
-      
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
+      const ledger = buildStoryStateLedger({
+        novel,
+        chapters,
+        characters,
+        locations,
+        items,
+        factions,
+        powerLevels,
+        timelineEvents,
+        foreshadowings,
+      });
+      const ledgerSummary = summarizeStoryStateLedger(ledger);
+      const plannerContext = buildProductionPlannerContext(ledger);
+      const writerContext = buildProductionWriterContext(ledger);
+      const intent = normalizeProductionIntent(userIntent);
+      runId = Date.now().toString();
+      const now = Date.now();
+      const baseRun = {
+        id: runId,
+        novelId,
+        targetChapterId: targetChapterId || undefined,
+        status: 'running' as const,
+        userIntent: intent,
+        sceneBeats: '',
+        draftContent: '',
+        styleAudit: '',
+        continuityReport: buildEmptyContinuityReport(),
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      db.createChapterProductionRun(baseRun);
+
+      const plannerAsset = resolvePromptAssetForSurface({
+        surface: 'workspace-beats',
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'editorAgent',
+      });
+      const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
+        PLANNER_SOUL,
+        contextStr: plannerContext,
+        userIntent: intent,
+      });
+      let sceneBeats = '';
+      try {
+        sceneBeats = await generateText(getConfig(), {
+          prompt: plannerPrompt,
+          timeoutMs: 8_000,
+          maxAttempts: 1,
+          maxTokens: 1600,
+        });
+      } catch (error) {
+        console.warn('Chapter production planner fell back:', error);
+        sceneBeats = buildFallbackSceneBeats(intent);
+      }
+      db.updateChapterProductionRun(runId, {
+        sceneBeats,
       });
 
-      let responseText = response.text || "{}";
-      responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(responseText);
-      parsed.version = 1;
-      res.json(parsed);
+      const writerAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'orchestrateWriter',
+      });
+      const writerPrompt = renderPromptTemplate(writerAsset.template, {
+        WRITER_SOUL,
+        contextStr: writerContext,
+        skillsInfo: buildSkillsPrompt(skills),
+        sceneBeats,
+        criticFeedback: '初稿阶段，请全力输出。',
+      });
+      let draftContent = '';
+      try {
+        draftContent = await generateText(getConfig(), {
+          prompt: writerPrompt,
+          timeoutMs: 12_000,
+          maxAttempts: 1,
+          maxTokens: 1600,
+        });
+      } catch (error) {
+        console.warn('Chapter production writer fell back:', error);
+        draftContent = buildFallbackDraft(sceneBeats, writerContext);
+      }
+      db.updateChapterProductionRun(runId, {
+        sceneBeats,
+        draftContent,
+      });
+
+      const styleAuditAsset = resolvePromptAssetForSurface({
+        surface: 'chapter-polish',
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'manualAudit',
+      });
+      const styleAuditPrompt = renderPromptTemplate(styleAuditAsset.template, {
+        contextStr: ledgerSummary.slice(0, 1200),
+        skillsInfo: buildSkillsPrompt(skills).slice(0, 900),
+        sceneBeats: sceneBeats.slice(0, 1400),
+        draftContent: draftContent.slice(0, 2600),
+      });
+      let styleAudit = '';
+      try {
+        styleAudit = await generateText(getConfig(), {
+          prompt: styleAuditPrompt,
+          timeoutMs: 4_000,
+          maxAttempts: 1,
+          maxTokens: 800,
+        });
+      } catch (error) {
+        console.warn('Chapter production style audit fell back:', error);
+        styleAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
+      }
+      db.updateChapterProductionRun(runId, {
+        sceneBeats,
+        draftContent,
+        styleAudit,
+      });
+
+      const continuityPrompt = buildContinuityCriticPrompt({
+        ledger,
+        sceneBeats,
+        draftContent,
+      });
+      let continuityReport = buildEmptyContinuityReport();
+      try {
+        const rawContinuity = await generateText(getConfig(), {
+          prompt: continuityPrompt,
+          timeoutMs: 3_000,
+          maxAttempts: 1,
+          maxTokens: 1200,
+        });
+        continuityReport = parseJsonOrEmptyReport(rawContinuity);
+      } catch (error) {
+        console.warn('Chapter production continuity critic fell back:', error);
+      }
+
+      const run = {
+        status: 'review_required' as const,
+        sceneBeats,
+        draftContent,
+        styleAudit,
+        continuityReport,
+      };
+
+      db.updateChapterProductionRun(runId, run);
+      res.json({ run: db.getChapterProductionRun(runId) });
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (runId) {
+        db.updateChapterProductionRun(runId, {
+          status: 'failed',
+          errorMessage: message,
+        });
+      }
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post('/api/chapter-production-runs/:runId/apply', async (req, res) => {
+    try {
+      const run = db.getChapterProductionRun(req.params.runId);
+      if (!run) {
+        return res.status(404).json({ error: 'Production run not found' });
+      }
+      if (run.status !== 'review_required') {
+        return res.status(400).json({ error: `Production run is not reviewable: ${run.status}` });
+      }
+
+      const chapters = db.listChapters(run.novelId);
+      const now = Date.now();
+      let chapterId = run.targetChapterId;
+      const wordCount = run.draftContent.replace(/\s/g, '').length;
+
+      if (chapterId && db.getChapter(chapterId)) {
+        db.updateChapter(chapterId, {
+          sceneBeats: run.sceneBeats,
+          content: run.draftContent,
+          critique: run.styleAudit,
+          wordCount,
+        });
+      } else {
+        const nextOrder = getNextChapterOrder(chapters);
+        chapterId = `${now}`;
+        db.createChapter({
+          id: chapterId,
+          novelId: run.novelId,
+          title: buildChapterProductionTitle(nextOrder),
+          volumeName: chapters.at(-1)?.volumeName || '正文卷',
+          content: run.draftContent,
+          order: nextOrder,
+          wordCount,
+          sceneBeats: run.sceneBeats,
+          critique: run.styleAudit,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      db.createChapterVersion({
+        id: `${now + 1}`,
+        chapterId,
+        content: run.draftContent,
+        wordCount,
+        author: 'auto',
+        createdAt: now,
+      });
+
+      const existingTimeline = db.listTimelineEvents(run.novelId);
+      run.continuityReport.proposedPatch.timelineEventsToCreate.forEach((event, index) => {
+        db.createTimelineEvent({
+          id: `${now + 10 + index}`,
+          novelId: run.novelId,
+          title: event.title,
+          timestamp: event.timestamp,
+          description: event.description,
+          statusTag: event.statusTag,
+          order: existingTimeline.length + index + 1,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      run.continuityReport.proposedPatch.foreshadowingsToCreate.forEach((entry, index) => {
+        db.createForeshadowing({
+          id: `${now + 100 + index}`,
+          novelId: run.novelId,
+          title: entry.title,
+          description: entry.description,
+          status: entry.status,
+          plantedChapterId: entry.plantedChapterId || chapterId,
+          relatedCharacterIds: [],
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      db.updateChapterProductionRun(run.id, {
+        status: 'applied',
+        targetChapterId: chapterId,
+      });
+
+      res.json({ chapterId });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
     }
   });
 
+  app.post('/api/extract-skill', async (req, res) => {
+    try {
+      const { text = '' } = req.body;
+      if (!text.trim()) {
+        return res.status(400).json({ error: 'text is required' });
+      }
+      const segments = buildBookEvidenceSegments(text.substring(0, 120000));
+      if (segments.length === 0) {
+        return res.status(400).json({ error: 'text is too short to analyze' });
+      }
+
+      const segmentEvidence: SegmentSkillEvidence[] = [];
+      const failedSegments: string[] = [];
+
+      const modelSegments = segments.slice(0, MAX_SKILL_LLM_SEGMENTS);
+      const fallbackSegments = segments.slice(MAX_SKILL_LLM_SEGMENTS);
+
+      for (const segment of modelSegments) {
+        try {
+          const prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
+            text: segment.excerpt.substring(0, 12000),
+          });
+
+          const responseText = await withTimeout(
+            generateText(getConfig(), {
+              prompt,
+              ...SKILL_EXTRACTION_LLM_OPTIONS,
+            }),
+            SKILL_EXTRACTION_LLM_OPTIONS.timeoutMs + 2_000,
+            '拆书超时：当前模型响应过慢。建议先缩短样本文本，或稍后重试。',
+          );
+          const parsed = extractJsonPayload(responseText);
+          const rawSkills = Array.isArray(parsed?.skills)
+            ? parsed.skills
+            : Array.isArray(parsed)
+              ? parsed
+              : [parsed];
+
+          const mergedSegmentEvidence = collectSegmentEvidence(rawSkills, segment.stage);
+          if (mergedSegmentEvidence) {
+            segmentEvidence.push(mergedSegmentEvidence);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const fallbackEvidence = collectSegmentEvidence(
+            [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
+            segment.stage,
+          );
+          if (fallbackEvidence) {
+            segmentEvidence.push(fallbackEvidence);
+          }
+          failedSegments.push(`${segment.label}(${/timed out|拆书超时/i.test(message) ? '超时保底' : '解析保底'})`);
+        }
+      }
+
+      for (const segment of fallbackSegments) {
+        const fallbackEvidence = collectSegmentEvidence(
+          [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
+          segment.stage,
+        );
+        if (fallbackEvidence) {
+          segmentEvidence.push(fallbackEvidence);
+          failedSegments.push(`${segment.label}(快速保底)`);
+        }
+      }
+
+      if (segmentEvidence.length === 0 && failedSegments.length > 0) {
+        return res.status(502).json({
+          error: `拆书失败：${failedSegments.join('、')} 的模型输出未能解析，请缩短文本或稍后重试。`,
+        });
+      }
+
+      const deck = buildSkillDeckFromEvidence(segmentEvidence);
+      const skills = [deck.mainCard, ...deck.supportCards].map((skill, index) => ({
+        ...skill,
+        id: skill.id || `deck-skill-${index + 1}`,
+        version: skill.version || 1,
+      }));
+
+      res.json({
+        skills,
+        deck,
+        segments: segments.map((segment) => ({
+          id: segment.id,
+          stage: segment.stage,
+          label: segment.label,
+        })),
+        warnings: failedSegments.length > 0
+          ? [`部分段落使用保底萃取：${failedSegments.join('、')}`]
+          : [],
+      });
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (/timed out|拆书超时/i.test(message)) {
+        return res.status(504).json({
+          error: '拆书超时：当前模型响应过慢。建议先缩短样本文本，或稍后重试。',
+        });
+      }
+      if (/JSON|可解析的 JSON|不完整的 JSON/.test(message)) {
+        return res.status(502).json({
+          error: '拆书失败：模型返回格式不稳定，暂时未能解析为技能卡。',
+        });
+      }
+      res.status(500).json({ error: message });
+    }
+  });
+
   app.post('/api/generate-bio', async (req, res) => {
     try {
       const { name, role, summary, traits = [], background, features, habits, personality, inventory, abilities, globalOutline, worldRules } = req.body;
-      
+
       const prompt = `
 你是一个专业的创作协助 AI，擅长深度刻画小说角色。
 请根据以下碎片的角色信息以及世界观设定，撰写一段富有深度、细节丰富且具有文学色彩的角色背景故事（Biography / 详细背景设定）。
@@ -372,12 +1355,8 @@ ${abilities ? `【独特能力】：${abilities}` : ''}
 5. 直接输出故事内容，不要包含任何前导词（如“好的，这是为您生成的...”）。
       `;
 
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
-      });
-
-      res.json({ bio: response.text });
+      const bio = await generateText(getConfig(), { prompt });
+      res.json({ bio });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
@@ -386,27 +1365,22 @@ ${abilities ? `【独特能力】：${abilities}` : ''}
 
   app.post('/api/generate-outline', async (req, res) => {
     try {
-      const { title, worldRules, seedOutline, expectedWordCount } = req.body;
-      
-      const prompt = `
-你是一个顶级的网文主编及架构师。用户正在进行长篇小说的架构规划。
-小说的预计总字数是：${expectedWordCount}字。
-${title ? `小说名称：${title}` : ''}
-${worldRules ? `世界观及设定：${worldRules}` : ''}
-${seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : ''}
+      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats' } = req.body;
 
-请根据预计总字数，将整部小说合理地划分为几个大卷（或大情节弧线），明确规划出每卷的内容梗概、字数分配以及章回数量预测。
-规划必须结构清晰、节奏合理，符合网文商业大纲的标准（如：起承转合、核心矛盾、高潮爆发等）。如果字数极大（如超越 100 万字），请重点细化前中期，后期做宏观走向即可。
-
-请直接输出 markdown 格式的全局大纲，排版要清晰、美观。不要输出多余的客套话。
-      `;
-
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
+      const promptAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'generateOutline',
+      });
+      const prompt = renderPromptTemplate(promptAsset.template, {
+        expectedWordCount,
+        title: title ? `小说名称：${title}` : '',
+        worldRules: worldRules ? `世界观及设定：${worldRules}` : '',
+        seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
       });
 
-      res.json({ outline: response.text });
+      const outline = await generateText(getConfig(), { prompt });
+      res.json({ outline });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
@@ -416,7 +1390,7 @@ ${seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : ''}
   app.post('/api/extract-entities', async (req, res) => {
     try {
       const { text = '', existingNames = [] } = req.body;
-      
+
       const prompt = `
 你是一个极为敏锐的设定集萃取 AI。请阅读下方的网文片段，从中提取所有的专有名词（包括：人物姓名、地点/据点/组织名称、特殊功法/道具/武器名称）。
 
@@ -441,13 +1415,7 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
 }
       `;
 
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
-      });
-
-      // Attempt to clean markdown if present
-      let rawText = response.text.trim();
+      let rawText = await generateText(getConfig(), { prompt });
       rawText = rawText.replace(/```(json)?/g, '').trim();
 
       res.json(JSON.parse(rawText));
@@ -481,11 +1449,7 @@ ${chapterContent.substring(0, 15000)}
 严格只输出 JSON 数组，不要包含 markdown 标记：
 [{"title": "...", "description": "...", "type": "planted", "relatedTo": ""}]`;
 
-      const response = await getAi().models.generateContent({
-        model: config.model,
-        contents: prompt,
-      });
-      let raw = (response.text || '').trim();
+      let raw = (await generateText(config, { prompt })).trim();
       raw = raw.replace(/```(json)?/g, '').trim();
       res.json(JSON.parse(raw));
     } catch (e) {
@@ -524,11 +1488,7 @@ ${chapterList}
 
 严格只输出 JSON 数组，不要包含 markdown 标记。`;
 
-      const response = await getAi().models.generateContent({
-        model: config.model,
-        contents: prompt,
-      });
-      let raw = (response.text || '').trim();
+      let raw = (await generateText(config, { prompt })).trim();
       raw = raw.replace(/```(json)?/g, '').trim();
       res.json(JSON.parse(raw));
     } catch (e) {
@@ -653,7 +1613,7 @@ ${paragraphs}
   app.post('/api/generate-entity-details', async (req, res) => {
     try {
       const { name, type, context } = req.body;
-      
+
       const prompt = `你是一个网文世界观架构师。系统在一个新章节中扫描到了一个新设定实体，请根据上下文为其生成一份初始的万物词典（World Bible）条目。
 
 实体名称：${name}
@@ -666,7 +1626,7 @@ ${paragraphs}
 {
   "entityType": "character",
   "name": "${name}",
-  "role": "supporting", 
+  "role": "supporting",
   "summary": "一句话简介",
   "traits": ["特性1", "特性2"],
   "bio": "根据上下文生成的背景设定补全（100字左右）"
@@ -689,12 +1649,7 @@ ${paragraphs}
 }
 `;
 
-      const response = await getAi().models.generateContent({
-        model: getConfig().model,
-        contents: prompt,
-      });
-
-      let rawText = response.text || "{}";
+      let rawText = await generateText(getConfig(), { prompt });
       rawText = rawText.replace(/```(json)?/g, '').trim();
 
       res.json(JSON.parse(rawText));
@@ -704,23 +1659,34 @@ ${paragraphs}
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
+  const serveStaticApp = () => {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  };
+
+  const disableDevViteMiddleware = process.env.DISABLE_VITE_DEV_MIDDLEWARE === '1';
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production" && !disableDevViteMiddleware) {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+    console.log('Vite dev middleware enabled');
+  } else {
+    serveStaticApp();
   }
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    // In production (Electron), notify the main process of the port via stdout JSON
+    if (process.env.NODE_ENV === 'production') {
+      console.log(JSON.stringify({ port: PORT }));
+    }
   });
 }
 

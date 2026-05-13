@@ -5,25 +5,71 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
+import { WelcomeView } from './components/WelcomeView';
 import { Library } from './components/Library';
+import { SplitWorkspace } from './components/SplitWorkspace';
 import { EditorView } from './components/EditorView';
 import { WorldBibleView } from './components/WorldBibleView';
 import { AIAssistant } from './components/AIAssistant';
+import { StoryCardDeck } from './components/onboarding/StoryCardDeck';
 import { SkillsStudioView } from './components/SkillsStudioView';
 import { BookFactoryView } from './components/BookFactoryView';
-import { ViewType, Novel } from './types';
+import { AssistantLaunchContext, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { createNovel, createChapter } from './lib/api';
+import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
+import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from './lib/onboarding-model';
+import { coerceMountedSkillLoadout } from './lib/skill-model';
 import { SettingsModal } from './components/SettingsModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { matchesShortcut, SHORTCUTS } from './lib/keyboard-shortcuts';
+import { deriveWorkspaceFocus } from './lib/workspace-nav';
+import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from './lib/assistant-apply';
 
 const LOCAL_USER = { uid: 'local-user' };
 
+const THEME_KEY = 'inkflow-theme';
+type Theme = 'light' | 'dark' | 'system';
+
+function applyTheme(theme: Theme) {
+  const resolved = theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : theme;
+  document.documentElement.dataset.theme = resolved;
+}
+
+function getStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark' || stored === 'light' || stored === 'system') return stored;
+  } catch {}
+  return 'system';
+}
+
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewType>('library');
+  const [currentView, setCurrentView] = useState<ViewType>('welcome');
+  const [workspaceFocus, setWorkspaceFocus] = useState<WorkspaceFocus>('editor');
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [user] = useState(LOCAL_USER);
   const [loading, setLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraftState | null>(null);
+  const [activeSetupTaskKey, setActiveSetupTaskKey] = useState<SetupTaskKey | null>(null);
+  const [assistantInput, setAssistantInput] = useState('');
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [theme, setTheme] = useState<Theme>(getStoredTheme);
+  const [assistantLaunchContext, setAssistantLaunchContext] = useState<AssistantLaunchContext | null>(null);
+
+  useEffect(() => {
+    applyTheme(theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  }, [theme]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => { if (theme === 'system') applyTheme('system'); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [theme]);
 
   useEffect(() => {
     const handleOpenSettings = () => setIsSettingsOpen(true);
@@ -31,36 +77,286 @@ export default function App() {
     return () => window.removeEventListener('open-settings', handleOpenSettings);
   }, []);
 
+  useEffect(() => {
+    if (currentView === 'editor') setWorkspaceFocus('editor');
+    if (currentView === 'world') setWorkspaceFocus('world');
+  }, [currentView]);
+
+  useEffect(() => {
+    const viewMap: Record<string, { view: ViewType; navKey?: WorkspaceNavKey }> = {
+      view1: { view: 'welcome' },
+      view2: { view: 'library' },
+      view3: { view: 'workspace', navKey: 'workspace-editor' },
+      view4: { view: 'workspace', navKey: 'workspace-world' },
+      view5: { view: 'ai' },
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      for (const [id, shortcut] of Object.entries(SHORTCUTS)) {
+        if (id in viewMap && matchesShortcut(e, shortcut)) {
+          e.preventDefault();
+          const target = viewMap[id];
+          setWorkspaceFocus((prev) => deriveWorkspaceFocus(target.view, target.navKey, prev));
+          setCurrentView(target.view);
+          return;
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const navigateToEditor = (novel: Novel) => {
     setSelectedNovel(novel);
+    setWorkspaceFocus('editor');
     setCurrentView('editor');
   };
 
-  const handleCreateNovelFromIdea = async (idea: string) => {
+  const handleNavigate = (view: ViewType, navKey?: WorkspaceNavKey) => {
+    setWorkspaceFocus((prev) => deriveWorkspaceFocus(view, navKey, prev));
+    setCurrentView(view);
+  };
+
+  const handleOpenAssistant = (context: AssistantLaunchContext) => {
+    setAssistantLaunchContext(context);
+    setCurrentView('ai');
+  };
+
+  const handleApplyAssistantToContent = async (text: string) => {
+    if (!assistantLaunchContext?.chapterId) return;
+    const chapters = await listChapters(assistantLaunchContext.novelId);
+    const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);
+    if (!target) return;
+
+    const nextContent = appendAssistantTextToChapterContent(target.content || '', text);
+    await updateChapter(target.id, {
+      content: nextContent,
+      wordCount: nextContent.replace(/\s/g, '').length,
+      updatedAt: Date.now(),
+    });
+    setCurrentView('workspace');
+    setWorkspaceFocus('editor');
+  };
+
+  const handleApplyAssistantToSceneBeats = async (text: string) => {
+    if (!assistantLaunchContext?.chapterId) return;
+    const chapters = await listChapters(assistantLaunchContext.novelId);
+    const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);
+    if (!target) return;
+
+    const nextBeats = appendAssistantTextToSceneBeats(target.sceneBeats || '', text);
+    await updateChapter(target.id, {
+      sceneBeats: nextBeats,
+      updatedAt: Date.now(),
+    });
+    setCurrentView('workspace');
+    setWorkspaceFocus('editor');
+  };
+
+  const handleReplaceAssistantSelection = async (text: string) => {
+    if (
+      !assistantLaunchContext?.chapterId ||
+      assistantLaunchContext.selectionStart === undefined ||
+      assistantLaunchContext.selectionEnd === undefined ||
+      !assistantLaunchContext.selectedText
+    ) {
+      return;
+    }
+
+    const chapters = await listChapters(assistantLaunchContext.novelId);
+    const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);
+    if (!target) return;
+
+    const nextContent = replaceAssistantTextInSelection(
+      target.content || '',
+      {
+        start: assistantLaunchContext.selectionStart,
+        end: assistantLaunchContext.selectionEnd,
+        selectedText: assistantLaunchContext.selectedText,
+      },
+      text,
+    );
+
+    await updateChapter(target.id, {
+      content: nextContent,
+      wordCount: nextContent.replace(/\s/g, '').length,
+      updatedAt: Date.now(),
+    });
+    setCurrentView('workspace');
+    setWorkspaceFocus('editor');
+  };
+
+  const handleCreateDraftFromIdea = async ({
+    ideaSeed,
+    chatContext,
+    planning,
+  }: {
+    ideaSeed: string;
+    chatContext: string;
+    planning: StoryPlanningInput;
+  }) => {
+    setLoading(true);
+    try {
+      const cards = await generateStoryCards({ ideaSeed, chatContext, planning, surface: 'welcome' });
+      setOnboardingDraft({
+        ideaSeed,
+        planning,
+        cards,
+        setupTasks: [],
+        acceptedSkillIds: [],
+        recommendedSkills: [],
+        acceptedRecommendedSkills: false,
+      });
+      setCurrentView('ai');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectStoryCard = async (card: StoryIdeaCard, planning?: StoryPlanningInput) => {
+    const activePlanning = planning || onboardingDraft?.planning;
+    if (!activePlanning) {
+      throw new Error('缺少创作规划，无法创建作品。');
+    }
     const newNovelId = Date.now().toString();
     const now = Date.now();
     const newNovel: Novel = {
       id: newNovelId,
-      title: '灵感新作',
+      title: card.hook.slice(0, 18) || '新作品',
       authorId: 'local-user',
-      summary: idea,
+      summary: `${card.hook}\n\n${card.whyItWorks}`,
+      globalOutline: `${card.coreConflict}\n\n${card.starterSeeds.chapterOneSeed}`,
+      worldRules: card.starterSeeds.worldSeed,
+      mountedSkillIds: [],
+      mountedSkillLoadout: [],
+      projectPreferenceProfile: buildProjectPreferenceProfileFromPlanning(activePlanning),
       status: 'ongoing',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     await createNovel(newNovel);
     await createChapter({
-      id: Date.now().toString(),
+      id: (now + 1).toString(),
       novelId: newNovelId,
       title: '第一章',
       content: '',
       order: 0,
       wordCount: 0,
+      sceneBeats: card.starterSeeds.chapterOneSeed,
       volumeName: '默认卷',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     });
-    navigateToEditor(newNovel);
+    if (card.protagonist.trim()) {
+      await createCharacter({
+        id: (now + 2).toString(),
+        novelId: newNovelId,
+        name: '待命名主角',
+        role: 'protagonist',
+        summary: card.protagonist,
+        traits: [],
+        bio: '',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const setupTasks = buildSetupTasksFromStoryCard(card, activePlanning);
+    const skills = await listSkills();
+    const recommended = recommendSkillsForStoryCard(card, skills);
+    const recommendedSkills = recommended.map((entry) => ({
+      ...entry,
+      skillName: skills.find((skill) => skill.id === entry.skillId)?.name || '未命名 Skill',
+    }));
+    setSelectedNovel(newNovel);
+      setOnboardingDraft({
+      ideaSeed: onboardingDraft?.ideaSeed || card.hook,
+      planning: activePlanning,
+      cards: onboardingDraft?.cards || [card],
+      selectedCardId: card.id,
+      setupTasks,
+      acceptedSkillIds: recommended.map((entry) => entry.skillId),
+      recommendedSkills,
+      acceptedRecommendedSkills: false,
+    });
+    setActiveSetupTaskKey(setupTasks[0]?.key ?? null);
+    setAssistantInput('');
+    setCurrentView('world');
+  };
+
+  const handleConfirmSetupTask = (taskKey: SetupTaskKey) => {
+    setOnboardingDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        setupTasks: prev.setupTasks.map((task) =>
+          task.key === taskKey ? { ...task, status: 'confirmed', source: 'user-edit' } : task,
+        ),
+      };
+    });
+  };
+
+  const handleRefineSetupTask = async () => {
+    if (!onboardingDraft || !selectedNovel || !activeSetupTaskKey) return;
+    const task = onboardingDraft.setupTasks.find((entry) => entry.key === activeSetupTaskKey);
+    if (!task || !assistantInput.trim()) return;
+
+    const selectedCard = onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId);
+    setAssistantLoading(true);
+    try {
+      const text = await refineSetupTask({
+        taskTitle: task.title,
+        currentDraft: task.summary,
+        userRequest: assistantInput,
+        surface: 'world-onboarding',
+        storyContext: [
+          `故事方案：${selectedCard?.hook || selectedNovel.title}`,
+          `故事梗概：${selectedNovel.summary || ''}`,
+          `核心冲突：${selectedNovel.globalOutline || ''}`,
+          `世界规则：${selectedNovel.worldRules || ''}`,
+        ].join('\n'),
+      });
+
+      setOnboardingDraft((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          setupTasks: prev.setupTasks.map((entry) =>
+            entry.key === activeSetupTaskKey
+              ? { ...entry, summary: text, status: 'drafted', source: 'ai-refine' }
+              : entry,
+          ),
+        };
+      });
+      setAssistantInput('');
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
+
+  const handleAcceptRecommendedSkills = async () => {
+    if (!selectedNovel || !onboardingDraft.recommendedSkills.length) return;
+    const mountedSkillIds = onboardingDraft.recommendedSkills.map((entry) => entry.skillId).slice(0, 3);
+    const mountedSkillLoadout = coerceMountedSkillLoadout(mountedSkillIds);
+    await updateNovel(selectedNovel.id, { mountedSkillIds, mountedSkillLoadout });
+    setSelectedNovel((prev) =>
+      prev
+        ? {
+            ...prev,
+            mountedSkillIds,
+            mountedSkillLoadout,
+          }
+        : prev,
+    );
+    setOnboardingDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            acceptedSkillIds: mountedSkillIds,
+            acceptedRecommendedSkills: true,
+          }
+        : prev,
+    );
   };
 
   if (loading) {
@@ -80,15 +376,15 @@ export default function App() {
   return (
     <div className="h-screen w-full flex bg-theme-bg text-theme-text overflow-hidden p-3 gap-3">
       <div className="shrink-0">
-        <Sidebar 
-          currentView={currentView} 
-          onNavigate={setCurrentView} 
+        <Sidebar
+          currentView={currentView}
+          onNavigate={handleNavigate}
           user={user}
         />
       </div>
-      
-      <main className="flex-1 relative overflow-hidden bg-white rounded-2xl border border-theme-border shadow-sm flex flex-col">
-        <AnimatePresence mode="wait">
+
+      <main className="flex-1 relative overflow-hidden bg-paper rounded-2xl border border-theme-border shadow-sm flex flex-col">
+        <AnimatePresence mode="sync">
           <motion.div
             key={currentView}
             initial={{ opacity: 0, y: 10 }}
@@ -97,23 +393,127 @@ export default function App() {
             transition={{ duration: 0.2 }}
             className="flex-1 overflow-hidden h-full"
           >
+            {currentView === 'welcome' && (
+              <ErrorBoundary>
+                <WelcomeView
+                  onSelectStoryCard={handleSelectStoryCard}
+                  onJumpToLibrary={() => setCurrentView('library')}
+                  onSelectNovel={navigateToEditor}
+                />
+              </ErrorBoundary>
+            )}
             {currentView === 'library' && (
-              <Library onSelectNovel={navigateToEditor} userId={'local-user'} />
+              <ErrorBoundary>
+                <Library onSelectNovel={navigateToEditor} onNavigate={setCurrentView} userId={'local-user'} />
+              </ErrorBoundary>
+            )}
+            {currentView === 'workspace' && selectedNovel && (
+              <ErrorBoundary>
+                <SplitWorkspace
+                novel={selectedNovel}
+                focus={workspaceFocus}
+                onFocusChange={setWorkspaceFocus}
+                onOpenAssistant={handleOpenAssistant}
+                onboarding={
+                  onboardingDraft?.setupTasks.length
+                    ? {
+                        card: onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId),
+                        tasks: onboardingDraft.setupTasks,
+                        activeTask: onboardingDraft.setupTasks.find((task) => task.key === activeSetupTaskKey),
+                        onSelectTask: (key: SetupTaskKey) => setActiveSetupTaskKey(key),
+                        onConfirmTask: handleConfirmSetupTask,
+                        assistantInput,
+                        onAssistantInputChange: setAssistantInput,
+                        onAssistantSubmit: handleRefineSetupTask,
+                        assistantLoading,
+                        completedCount: countCompletedSetupTasks(onboardingDraft.setupTasks),
+                        canEnterEditor: countCompletedSetupTasks(onboardingDraft.setupTasks) >= 3,
+                        onEnterEditor: () => setCurrentView('editor'),
+                        recommendedSkills: onboardingDraft.recommendedSkills,
+                        acceptedRecommendedSkills: onboardingDraft.acceptedRecommendedSkills,
+                        onAcceptRecommendedSkills: handleAcceptRecommendedSkills,
+                      }
+                    : undefined
+                }
+                onBack={() => setCurrentView('library')}
+              />
+              </ErrorBoundary>
             )}
             {currentView === 'editor' && selectedNovel && (
-              <EditorView novel={selectedNovel} onBack={() => setCurrentView('library')} />
+              <ErrorBoundary>
+                <EditorView
+                novel={selectedNovel}
+                onBack={() => setCurrentView('library')}
+                onOpenAssistant={handleOpenAssistant}
+              />
+              </ErrorBoundary>
             )}
             {currentView === 'world' && selectedNovel && (
-              <WorldBibleView novel={selectedNovel} />
+              <ErrorBoundary>
+                <WorldBibleView
+                novel={selectedNovel}
+                onboarding={
+                  onboardingDraft?.setupTasks.length
+                    ? {
+                        card: onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId),
+                        tasks: onboardingDraft.setupTasks,
+                        activeTask: onboardingDraft.setupTasks.find((task) => task.key === activeSetupTaskKey),
+                        onSelectTask: (key) => setActiveSetupTaskKey(key),
+                        onConfirmTask: handleConfirmSetupTask,
+                        assistantInput,
+                        onAssistantInputChange: setAssistantInput,
+                        onAssistantSubmit: handleRefineSetupTask,
+                        assistantLoading,
+                        completedCount: countCompletedSetupTasks(onboardingDraft.setupTasks),
+                        canEnterEditor: countCompletedSetupTasks(onboardingDraft.setupTasks) >= 3,
+                        onEnterEditor: () => setCurrentView('editor'),
+                        recommendedSkills: onboardingDraft.recommendedSkills,
+                        acceptedRecommendedSkills: onboardingDraft.acceptedRecommendedSkills,
+                        onAcceptRecommendedSkills: handleAcceptRecommendedSkills,
+                      }
+                    : undefined
+                }
+              />
+              </ErrorBoundary>
             )}
-            {currentView === 'ai' && (
-              <AIAssistant onCreateNovel={handleCreateNovelFromIdea} />
+            {currentView === 'ai' && !onboardingDraft && (
+              <ErrorBoundary>
+                <AIAssistant
+                  launchContext={assistantLaunchContext}
+                  onApplyToContent={handleApplyAssistantToContent}
+                  onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
+                  onReplaceSelection={handleReplaceAssistantSelection}
+                />
+              </ErrorBoundary>
+            )}
+            {currentView === 'ai' && onboardingDraft && (
+              <ErrorBoundary>
+                <div className="h-full overflow-y-auto px-8 py-10 bg-theme-bg/30">
+                  <StoryCardDeck
+                  cards={onboardingDraft.cards}
+                  selectedCardId={onboardingDraft.selectedCardId}
+                  onSelectCard={handleSelectStoryCard}
+                  onMixCard={() => {}}
+                  onRefreshBatch={() =>
+                    handleCreateDraftFromIdea({
+                      ideaSeed: onboardingDraft.ideaSeed,
+                      chatContext: onboardingDraft.ideaSeed,
+                      planning: onboardingDraft.planning,
+                    })
+                  }
+                />
+                </div>
+              </ErrorBoundary>
             )}
             {currentView === 'factory' && (
-              <BookFactoryView />
+              <ErrorBoundary>
+                <BookFactoryView />
+              </ErrorBoundary>
             )}
             {currentView === 'skills' && (
-              <SkillsStudioView />
+              <ErrorBoundary>
+                <SkillsStudioView />
+              </ErrorBoundary>
             )}
             {currentView === 'editor' && !selectedNovel && (
               <div className="h-full flex flex-col items-center justify-center p-12 text-gray-400 bg-theme-bg/30 relative">
@@ -122,9 +522,25 @@ export default function App() {
                 </div>
                 <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">创作舞台暂未开启</h2>
                 <p className="text-theme-muted mb-8 text-center max-w-md">您似乎还没有选择要编辑的作品。<br/>不同的作品对应独立的写作空间，请先前往「书库」创建或加载您的灵感结晶。</p>
-                <button 
+                <button
                   onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-theme-accent text-white font-bold rounded-2xl hover:bg-theme-accent/90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-2"
+                  className="px-8 py-4 bg-theme-accent text-white font-bold rounded-2xl hover:bg-theme-accent/90 transition-[transform,background-color,box-shadow] duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  前往书库
+                </button>
+              </div>
+            )}
+            {currentView === 'workspace' && !selectedNovel && (
+              <div className="h-full flex flex-col items-center justify-center p-12 text-gray-400 bg-theme-bg/30 relative">
+                <div className="w-32 h-32 bg-theme-sidebar/50 rounded-full flex items-center justify-center mb-6 border border-theme-border shadow-inner">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-theme-muted"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                </div>
+                <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">创作工作台暂未开启</h2>
+                <p className="text-theme-muted mb-8 text-center max-w-md">您似乎还没有选择要进入的作品。<br/>请先前往「书库」创建或加载作品，再回到工作台进行写作与设定联动。</p>
+                <button
+                  onClick={() => setCurrentView('library')}
+                  className="px-8 py-4 bg-theme-accent text-white font-bold rounded-2xl hover:bg-theme-accent/90 transition-[transform,background-color,box-shadow] duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                   前往书库
@@ -138,9 +554,9 @@ export default function App() {
                 </div>
                 <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">设定集未关联</h2>
                 <p className="text-theme-muted mb-8 max-w-md text-center">人物与设定集是与作品深度绑定的「数据库」。<br/>请先在书库中选择并进入一部作品，以开启其专属的世界圣经。</p>
-                <button 
+                <button
                   onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-white border-2 border-theme-border text-theme-text font-bold rounded-2xl hover:border-theme-accent transition-all shadow-sm hover:shadow active:scale-95"
+                  className="px-8 py-4 bg-white border-2 border-theme-border text-theme-text font-bold rounded-2xl hover:border-theme-accent transition-[transform,border-color,box-shadow] duration-200 shadow-sm hover:shadow active:scale-95"
                 >
                   返回书库选择作品
                 </button>
@@ -149,7 +565,7 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
     </div>
   );
 }

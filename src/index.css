@@ -1,12 +1,11 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Merriweather", serif;
   --font-mono: "JetBrains Mono", monospace;
-  
-  /* Minimalist Premium Palette */
+
+  /* Minimalist Premium Palette — light (default) */
   --color-theme-bg: #FAFAFA;
   --color-theme-sidebar: #FFFFFF;
   --color-theme-border: #EAEAEA;
@@ -15,6 +14,17 @@
   --color-theme-accent: #000000;
   --color-paper: #ffffff;
   --color-parchment: #FFFFFF;
+}
+
+[data-theme="dark"] {
+  --color-theme-bg: #0f0f0f;
+  --color-theme-sidebar: #1a1a1a;
+  --color-theme-border: #2a2a2a;
+  --color-theme-text: #e5e5e5;
+  --color-theme-muted: #777777;
+  --color-theme-accent: #ffffff;
+  --color-paper: #1a1a1a;
+  --color-parchment: #1a1a1a;
 }
 
 @layer base {
@@ -28,12 +38,20 @@
   font-family: var(--font-serif);
   line-height: 1.9;
   font-size: 1.15rem;
-  color: #1E293B; /* Slate 800 */
+  color: #1E293B;
 }
 
 .writing-surface::placeholder {
-  color: #94A3B8; /* Slate 400 */
+  color: #94A3B8;
   opacity: 1;
+}
+
+[data-theme="dark"] .writing-surface {
+  color: #d1d5db;
+}
+
+[data-theme="dark"] .writing-surface::placeholder {
+  color: #6b7280;
 }
 
 .natural-card {
@@ -53,11 +71,18 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #CBD5E1; /* Slate 300 */
+  background-color: #CBD5E1;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #94A3B8; /* Slate 400 */
+  background-color: #94A3B8;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background-color: #555555;
 }
 
 /* Hide scrollbar for tabs */
@@ -70,4 +95,3 @@
     scrollbar-width: none; /* Firefox */
   }
 }
-

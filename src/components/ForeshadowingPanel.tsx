@@ -133,6 +133,9 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
         {detecting ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
         {detecting ? '扫描中...' : 'AI 扫描当前章节伏笔'}
       </button>
+      <p className="text-[10px] text-theme-muted/50 text-center mt-1">
+        扫描当前章节中可能存在的伏笔线索，自动识别并归类
+      </p>
 
       {/* Add button */}
       {!showAdd && (
@@ -166,8 +169,9 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-bold text-theme-text truncate">{f.title}</span>
                   <button onClick={() => handleStatusCycle(f)}
-                    className={`text-[9px] px-1.5 py-0.5 rounded-full border font-medium ${STATUS_CONFIG[f.status].color}`}>
-                    {STATUS_CONFIG[f.status].label}
+                    className={`text-[9px] px-1.5 py-0.5 rounded-full border font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_CONFIG[f.status].color}`}
+                    title="点击切换状态">
+                    {STATUS_CONFIG[f.status].label} ↻
                   </button>
                 </div>
                 {f.description && <p className="text-[10px] text-theme-muted line-clamp-2 leading-relaxed">{f.description}</p>}

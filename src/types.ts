@@ -8,8 +8,44 @@ export interface Novel {
   worldRules?: string; // 规划层：全局世界观设定
   globalOutline?: string; // 规划层：全局大纲
   mountedSkillIds?: string[]; // 挂载的 Skill IDs
+  mountedSkillLoadout?: MountedSkillLoadoutItem[];
+  projectPreferenceProfile?: ProjectPreferenceProfile;
   createdAt: number;
   updatedAt: number;
+}
+
+export type SkillDimension =
+  | 'style'
+  | 'character'
+  | 'world'
+  | 'power'
+  | 'plot'
+  | 'pacing';
+
+export interface SkillCompositionProfile {
+  styleWeight: number;
+  characterWeight: number;
+  worldWeight: number;
+  powerWeight: number;
+  plotWeight: number;
+  pacingWeight: number;
+  conflictTags: string[];
+  blendHints: string[];
+}
+
+export interface SkillUsageStats {
+  mountedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  revisedCount: number;
+  averageFitScore: number;
+}
+
+export interface MountedSkillLoadoutItem {
+  slot: number;
+  skillId: string;
+  weight: number;
+  lockedDimensions: SkillDimension[];
 }
 
 export interface Character {
@@ -121,6 +157,83 @@ export interface Skill {
   stabilityScore: number;
   evaluationFeedback: string;
   version: number;
+  parentSkillId?: string;
+  lineageRootId?: string;
+  primaryDimension?: SkillDimension;
+  dimensionTags?: SkillDimension[];
+  compositionProfile?: SkillCompositionProfile;
+  fusionMeta?: SkillFusionMeta;
+  usageStats?: SkillUsageStats;
+  feedbackScore?: number;
+  deckGroupId?: string;
+  evidenceCoverage?: SkillEvidenceCoverage;
+  evidenceMoments?: BookEvidenceStage[];
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export type BookEvidenceStage = 'opening' | 'early-mid' | 'mid' | 'late-mid' | 'climax';
+
+export type SkillEvidenceCoverage =
+  | 'full-book-stable'
+  | 'opening-heavy'
+  | 'mid-book-heavy'
+  | 'climax-heavy'
+  | 'weak-evidence';
+
+export interface BookEvidenceSegment {
+  id: string;
+  stage: BookEvidenceStage;
+  label: string;
+  excerpt: string;
+  startRatio: number;
+  endRatio: number;
+}
+
+export interface SkillSignalEvidence {
+  dimension: SkillDimension;
+  weight: number;
+  evidence: string;
+}
+
+export interface SegmentSkillEvidence {
+  stage: BookEvidenceStage;
+  skillSignals: SkillSignalEvidence[];
+}
+
+export interface SkillDeckCard extends Skill {
+  evidenceCoverage: SkillEvidenceCoverage;
+  evidenceMoments: BookEvidenceStage[];
+}
+
+export interface AggregatedSkillDeck {
+  mainCard: SkillDeckCard;
+  supportCards: SkillDeckCard[];
+}
+
+export interface SkillFusionMeta {
+  mainSkillId: string;
+  supportSkillId: string;
+  retainedTraits: string[];
+  absorbedTraits: string[];
+  risks: string[];
+}
+
+export interface SkillFusionExplanation {
+  retained: string[];
+  absorbed: string[];
+  risks: string[];
+}
+
+export interface SkillUsageRecord {
+  id: string;
+  novelId: string;
+  chapterId?: string;
+  mountedSkillIds: string[];
+  fitScore: number;
+  auditScore?: number;
+  userAction: 'accepted' | 'revised' | 'rejected';
+  notes?: string;
   createdAt: number;
 }
 export interface IdeaFragment {
@@ -149,6 +262,128 @@ export interface Foreshadowing {
   updatedAt: number;
 }
 
+export interface StoryEntitySnapshot {
+  id: string;
+  name: string;
+  kind: 'character' | 'location' | 'item' | 'faction' | 'powerLevel';
+  summary: string;
+  statusNote: string;
+  updatedAt?: number;
+}
+
+export interface StoryStateLedger {
+  novelId: string;
+  title: string;
+  summary: string;
+  worldRules: string;
+  globalOutline: string;
+  recentChapters: Array<{
+    id: string;
+    title: string;
+    order: number;
+    sceneBeats: string;
+    summary: string;
+  }>;
+  entityStates: {
+    characters: StoryEntitySnapshot[];
+    locations: StoryEntitySnapshot[];
+    items: StoryEntitySnapshot[];
+    factions: StoryEntitySnapshot[];
+    powerLevels: StoryEntitySnapshot[];
+  };
+  timeline: Array<{
+    id: string;
+    title: string;
+    timestamp: string;
+    description: string;
+    statusTag?: string;
+    order: number;
+  }>;
+  openForeshadowings: Array<{
+    id: string;
+    title: string;
+    description: string;
+    status: Foreshadowing['status'];
+    plantedChapterId?: string;
+    payoffChapterId?: string;
+    notes?: string;
+  }>;
+}
+
+export type ContinuityIssueSeverity = 'low' | 'medium' | 'high';
+export type ContinuityIssueCategory =
+  | 'character'
+  | 'item'
+  | 'location'
+  | 'power'
+  | 'logic'
+  | 'timeline'
+  | 'foreshadowing';
+
+export interface ContinuityIssue {
+  severity: ContinuityIssueSeverity;
+  category: ContinuityIssueCategory;
+  message: string;
+  evidence?: string;
+  suggestedFix?: string;
+}
+
+export interface ProposedLedgerPatch {
+  characterUpdates: Array<{
+    characterId: string;
+    summaryAppend: string;
+  }>;
+  itemUpdates: Array<{
+    itemId: string;
+    descriptionAppend: string;
+  }>;
+  foreshadowingUpdates: Array<{
+    foreshadowingId: string;
+    status: Foreshadowing['status'];
+    notesAppend: string;
+  }>;
+  timelineEventsToCreate: Array<{
+    title: string;
+    timestamp: string;
+    description: string;
+    statusTag: string;
+  }>;
+  foreshadowingsToCreate: Array<{
+    title: string;
+    description: string;
+    status: Foreshadowing['status'];
+    plantedChapterId?: string;
+  }>;
+}
+
+export interface ContinuityReport {
+  score: number;
+  issues: ContinuityIssue[];
+  proposedPatch: ProposedLedgerPatch;
+}
+
+export type ChapterProductionRunStatus =
+  | 'running'
+  | 'review_required'
+  | 'applied'
+  | 'rejected'
+  | 'failed';
+
+export interface ChapterProductionRun {
+  id: string;
+  novelId: string;
+  targetChapterId?: string;
+  status: ChapterProductionRunStatus;
+  userIntent: string;
+  sceneBeats: string;
+  draftContent: string;
+  styleAudit: string;
+  continuityReport: ContinuityReport;
+  errorMessage?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface PacingData {
   chapterId: string;
   chapterTitle: string;
@@ -160,5 +395,229 @@ export interface PacingData {
   suggestion?: string;
 }
 
-export type ViewType = 'library' | 'editor' | 'world' | 'ai' | 'skills' | 'factory';
+export interface StoryCardStarterSeeds {
+  worldSeed: string;
+  relationshipSeed: string;
+  chapterOneSeed: string;
+}
 
+export interface StoryCardSkillSignal {
+  tone: string;
+  conflictType: string;
+  worldWeight: number;
+  characterWeight: number;
+  pacingPreference: 'tight' | 'balanced' | 'slow-burn';
+}
+
+export interface StoryPlanningInput {
+  expectedWordCount: number;
+  pacingPreference: 'tight' | 'balanced' | 'slow-burn';
+  storyFocus: 'plot' | 'character' | 'world';
+}
+
+export interface StoryPlanningFit {
+  recommendedLength: string;
+  recommendedFocus: string;
+  recommendedPacing: string;
+  reason: string;
+}
+
+export interface StoryIdeaCard {
+  id: string;
+  hook: string;
+  protagonist: string;
+  coreConflict: string;
+  tone: string;
+  whyItWorks: string;
+  starterSeeds: StoryCardStarterSeeds;
+  planningFit: StoryPlanningFit;
+  riskNote: string;
+  mixTags: string[];
+  signals: StoryCardSkillSignal;
+}
+
+export type SetupTaskKey =
+  | 'protagonist'
+  | 'core-conflict'
+  | 'world-rules'
+  | 'relationship'
+  | 'chapter-one'
+  | 'tone'
+  | 'story-scale';
+
+export type SetupTaskStatus = 'empty' | 'drafted' | 'confirmed' | 'needs-work';
+
+export interface SetupTaskDraft {
+  key: SetupTaskKey;
+  title: string;
+  summary: string;
+  status: SetupTaskStatus;
+  source: 'story-card' | 'ai-refine' | 'user-edit';
+}
+
+export interface StorySkillRecommendation {
+  skillId: string;
+  skillName: string;
+  score: number;
+  reason: string;
+}
+
+export interface OnboardingDraftState {
+  ideaSeed: string;
+  planning: StoryPlanningInput;
+  cards: StoryIdeaCard[];
+  selectedCardId?: string;
+  setupTasks: SetupTaskDraft[];
+  acceptedSkillIds: string[];
+  recommendedSkills: StorySkillRecommendation[];
+  acceptedRecommendedSkills: boolean;
+}
+
+export interface AssistantLaunchContext {
+  source: 'workspace' | 'editor' | 'world';
+  novelId: string;
+  novelTitle: string;
+  novelSummary?: string;
+  chapterId?: string;
+  chapterTitle?: string;
+  sceneBeats?: string;
+  currentExcerpt?: string;
+  selectedText?: string;
+  selectionStart?: number;
+  selectionEnd?: number;
+  intent?: string;
+}
+
+export type AssistantSuggestionKind = 'prose' | 'scene-beat' | 'setting' | 'fragment';
+export type AssistantPrimaryAction =
+  | 'replace-selection'
+  | 'append-content'
+  | 'append-scene-beat'
+  | 'extract-setting'
+  | 'save-fragment';
+
+export type AgentTab =
+  | 'bible'
+  | 'planning'
+  | 'quality'
+  | 'trace'
+  | 'skills'
+  | 'versions'
+  | 'copilot-home'
+  | 'production'
+  | 'outline'
+  | 'pacing'
+  | 'foreshadowing'
+  | 'ideas';
+
+export interface SniffedEntities {
+  activeExisting: string[];
+  newEntities: Array<{
+    name: string;
+    type: string;
+    context: string;
+  }>;
+}
+
+export type ViewType = 'welcome' | 'library' | 'editor' | 'world' | 'workspace' | 'ai' | 'skills' | 'factory';
+export type WorkspaceFocus = 'editor' | 'world';
+export type WorkspaceNavKey = 'workspace-editor' | 'workspace-world';
+
+export type CopilotStage =
+  | 'missing-setup'
+  | 'missing-beats'
+  | 'ready-to-draft'
+  | 'pending-audit'
+  | 'pending-polish'
+  | 'needs-memory-sync';
+
+export type CopilotActionKey =
+  | 'fill-setup'
+  | 'generate-beats'
+  | 'generate-draft'
+  | 'run-audit'
+  | 'run-polish'
+  | 'sync-memory'
+  | 'open-skills'
+  | 'open-bible'
+  | 'open-quality'
+  | 'open-planning';
+
+export interface CopilotAction {
+  key: CopilotActionKey;
+  label: string;
+}
+
+export interface CopilotReasons {
+  ready: string[];
+  missing: string[];
+  risks: string[];
+}
+
+export interface CopilotSuggestion {
+  stage: CopilotStage;
+  stageLabel: string;
+  title: string;
+  summary: string;
+  primaryAction: CopilotAction;
+  secondaryActions: CopilotAction[];
+  reasons: CopilotReasons;
+}
+
+export interface ProjectPreferenceWeights {
+  styleWeight: number;
+  characterWeight: number;
+  worldWeight: number;
+  plotWeight: number;
+  pacingWeight: number;
+}
+
+export interface ProjectPreferenceProfile {
+  tags: string[];
+  weights: ProjectPreferenceWeights;
+  acceptedDimensions: SkillDimension[];
+  rejectedDimensions: SkillDimension[];
+  notes: string[];
+  evidenceCount: number;
+}
+
+export interface FitScoreExplanation {
+  summary: string;
+  highlights: string[];
+  risks: string[];
+}
+
+export type PreferenceFeedbackAction = 'more-like-me' | 'not-for-me' | 'project-only';
+
+export type PromptTemplateKey =
+  | 'inspirationSystem'
+  | 'storyCards'
+  | 'setupTaskRefine'
+  | 'editorAgent'
+  | 'manualAudit'
+  | 'orchestrateWriter'
+  | 'orchestrateCritic'
+  | 'extractSkill'
+  | 'generateOutline';
+
+export type PromptStage =
+  | 'discovery'
+  | 'foundation'
+  | 'planning'
+  | 'drafting'
+  | 'polish'
+  | 'review';
+
+export type PromptOutputShape = 'json' | 'markdown' | 'plain-text';
+
+export interface PromptAsset {
+  id: PromptTemplateKey;
+  title: string;
+  stage: PromptStage;
+  goal: string;
+  inputs: string[];
+  template: string;
+  outputShape: PromptOutputShape;
+  riskNotes: string[];
+  successSignal: string;
+}

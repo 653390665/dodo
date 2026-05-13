@@ -1,48 +1,34 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import {defineConfig} from 'vite';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        manifest: {
-          name: 'InkFlow - 本地写作应用',
-          short_name: 'InkFlow',
-          description: '基于大模型的离线/本地化长篇小说创作工作台',
-          display: 'standalone',
-          theme_color: '#faf9f6',
-          icons: [
-            {
-              src: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTEgNGgyYTIgMiAwIDAgMSA2LjU2IDIuNDVMMTQgMjBsLTYtMWwtMi02IDQuNS00LjUiLz48cGF0aCBkPSJNOS4xIDE2LjlsLTQuNiA0LjZBMiAyIDAgMCAxIDIgMjB2LTEuNGEyIDIgMCAwIDEgLjU5LTEuNDJMODcgMTNMMTQgMTciLz48L3N2Zz4=',
-              sizes: '192x192',
-              type: 'image/svg+xml'
-            }
-          ]
-        }
-      })
-    ],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      'process.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL),
-      'process.env.API_MODEL': JSON.stringify(env.API_MODEL),
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+  base: './',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
     },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
+  },
+  server: {
+    hmr: true,
+    proxy: {
+      '/api': 'http://localhost:3000',
     },
-    server: {
-      hmr: true,
+  },
+  optimizeDeps: {
+    exclude: ['better-sqlite3']
+  },
+  build: {
+    rollupOptions: {
+      external: [
+        'better-sqlite3',
+        /^better-sqlite3\//,
+      ],
     },
-    optimizeDeps: {
-      exclude: ['better-sqlite3']
-    },
-  };
+  },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel } from '../types';
+import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard } from '../types';
 import {
   listCharacters, createCharacter, updateCharacter, deleteCharacter,
   listLocations, createLocation, updateLocation, deleteLocation,
@@ -13,17 +13,45 @@ import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Lo
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractWorldSetupPhase } from '../lib/agents';
+import { SetupTaskCard } from './onboarding/SetupTaskCard';
+import { SetupAssistantPanel } from './onboarding/SetupAssistantPanel';
 
-export function WorldBibleView({ novel }: { novel: Novel }) {
+export function WorldBibleView({
+  novel,
+  onboarding,
+}: {
+  novel: Novel;
+  onboarding?: {
+    card?: StoryIdeaCard;
+    tasks: SetupTaskDraft[];
+    activeTask?: SetupTaskDraft;
+    onSelectTask: (key: SetupTaskDraft['key']) => void;
+    onConfirmTask: (key: SetupTaskDraft['key']) => void;
+    assistantInput: string;
+    onAssistantInputChange: (value: string) => void;
+    onAssistantSubmit: () => void;
+    assistantLoading: boolean;
+    completedCount: number;
+    canEnterEditor: boolean;
+    onEnterEditor: () => void;
+    recommendedSkills: Array<{
+      skillId: string;
+      skillName: string;
+      reason: string;
+    }>;
+    acceptedRecommendedSkills: boolean;
+    onAcceptRecommendedSkills: () => void;
+  };
+}) {
   const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('global');
-  
+
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [factions, setFactions] = useState<Faction[]>([]);
   const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
-  
+
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -126,7 +154,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setIsImporting(true);
     try {
       const reader = new FileReader();
@@ -134,7 +162,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
         try {
           const result = event.target?.result as string;
           const base64Data = result.split(',')[1];
-          
+
           const response = await fetch('/api/parse-doc', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -146,10 +174,10 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
 
           if (!response.ok) throw new Error("Upload failed.");
           const extracted = await response.json();
-          
+
           const newGlobalOutline = extracted.globalOutline || globalOutline;
           const newWorldRules = extracted.worldRules || worldRules;
-          
+
           await updateNovel(novel.id, {
             globalOutline: newGlobalOutline,
             worldRules: newWorldRules
@@ -192,7 +220,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
               await createTimelineEvent({ ...evt, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
-          
+
           alert("设定文档导入解析成功！");
         } catch (err) {
           console.error(err);
@@ -220,6 +248,117 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
     { id: 'powerLevels', icon: Zap, label: '境界与力量体系' },
   ] as const;
 
+  if (onboarding) {
+    return (
+      <div className="h-full flex flex-col bg-transparent">
+        <header className="px-8 py-6 border-b border-theme-border flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-theme-text flex items-center gap-3">
+              <Globe className="text-theme-accent" />
+              设定记忆引导
+            </h1>
+            <p className="text-sm text-theme-muted mt-1">先把这部作品的骨架立住，再进入正式创作舞台。</p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-bold text-theme-text">{onboarding.completedCount} / 3 项核心设定已确认</div>
+            <p className="mt-1 text-xs text-theme-muted">
+              至少确认 3 项后即可进入正文写作
+            </p>
+          </div>
+        </header>
+
+        <div className="px-8 py-5 border-b border-theme-border/60 bg-theme-bg/40">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="font-bold text-theme-text">当前阶段：故事方案已选，正在补全设定骨架</span>
+            <span className="text-theme-muted">{Math.min(onboarding.completedCount, 3)} / 3</span>
+          </div>
+          <div className="h-2 rounded-full bg-theme-sidebar">
+            <div
+              className="h-2 rounded-full bg-theme-accent transition-all"
+              style={{ width: `${Math.min((onboarding.completedCount / 3) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden px-8 py-8">
+          <div className="grid h-full gap-6 xl:grid-cols-[minmax(0,1.35fr)_420px]">
+            <section className="min-h-0 overflow-y-auto pr-1">
+              <div className="mb-5">
+                <h2 className="text-2xl font-serif font-bold text-theme-text">关键设定任务</h2>
+                <p className="mt-1 text-sm text-theme-muted">左侧确认故事骨架，右侧随时插话干预设定走向。</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {onboarding.tasks.map((task) => (
+                  <SetupTaskCard
+                    key={task.key}
+                    task={task}
+                    active={task.key === onboarding.activeTask?.key}
+                    onSelect={() => onboarding.onSelectTask(task.key)}
+                    onConfirm={() => onboarding.onConfirmTask(task.key)}
+                  />
+                ))}
+              </div>
+              <div className="mt-6 rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+                {onboarding.recommendedSkills.length > 0 && (
+                  <div className="mb-5 rounded-2xl border border-theme-border bg-theme-bg/40 p-4">
+                    <div className="mb-3">
+                      <h3 className="text-base font-serif font-bold text-theme-text">推荐 Skill 装配</h3>
+                      <p className="mt-1 text-sm text-theme-muted">基于你选中的故事方案，先给这部作品挂上最顺手的 3 张卡。</p>
+                    </div>
+                    <div className="space-y-3">
+                      {onboarding.recommendedSkills.slice(0, 3).map((skill) => (
+                        <div key={skill.skillId} className="rounded-2xl border border-theme-border/70 bg-white px-4 py-3">
+                          <div className="text-sm font-bold text-theme-text">{skill.skillName}</div>
+                          <p className="mt-1 text-xs leading-5 text-theme-muted">{skill.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={onboarding.onAcceptRecommendedSkills}
+                      disabled={onboarding.acceptedRecommendedSkills}
+                      className="mt-4 w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+                    >
+                      {onboarding.acceptedRecommendedSkills ? '已装配推荐 Skill' : '一键接受推荐 Skill'}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-serif font-bold text-theme-text">放行到创作舞台</h3>
+                    <p className="mt-1 text-sm text-theme-muted">
+                      {onboarding.canEnterEditor
+                        ? '骨架已经够稳，可以带着这套设定进入正文。'
+                        : `还差 ${Math.max(3 - onboarding.completedCount, 0)} 项核心设定确认。`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={onboarding.onEnterEditor}
+                    disabled={!onboarding.canEnterEditor}
+                    className="rounded-full bg-theme-accent px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    进入创作舞台
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div className="min-h-0 overflow-y-auto">
+              <SetupAssistantPanel
+                selectedTask={onboarding.activeTask}
+                summaryCard={onboarding.card}
+                textareaValue={onboarding.assistantInput}
+                onTextareaChange={onboarding.onAssistantInputChange}
+                onSubmit={onboarding.onAssistantSubmit}
+                submitting={onboarding.assistantLoading}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-transparent">
       <header className="px-8 py-6 border-b border-theme-border flex items-center justify-between">
@@ -230,16 +369,16 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
           </h1>
           <p className="text-sm text-theme-muted mt-1">「你的AI 专属记忆库，防止小说设定偏离的主心骨」</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
-          <input 
-            type="file" 
-            accept=".txt,.md,.json" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            onChange={handleFileUpload} 
+          <input
+            type="file"
+            accept=".txt,.md,.json,.docx"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
           />
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
             className="flex items-center gap-2 px-4 py-2 bg-theme-bg border border-theme-border/80 text-theme-text rounded-xl shadow-sm hover:bg-theme-sidebar transition-all font-medium text-sm disabled:opacity-50"
@@ -259,8 +398,8 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm",
-                activeTab === tab.id 
-                  ? "bg-theme-accent text-white shadow-md shadow-theme-accent/20" 
+                activeTab === tab.id
+                  ? "bg-theme-accent text-white shadow-md shadow-theme-accent/20"
                   : "text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text hover:translate-x-1"
               )}
             >
@@ -286,19 +425,19 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
                     <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
                     <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
                   </div>
-                  <textarea 
-                    value={globalOutline} 
-                    onChange={e => setGlobalOutline(e.target.value)} 
+                  <textarea
+                    value={globalOutline}
+                    onChange={e => setGlobalOutline(e.target.value)}
                     placeholder="描述小说的起承转合、主线任务、结局走向..."
                     className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
                   />
                 </div>
-                
+
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
                   <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
-                  <textarea 
-                    value={worldRules} 
-                    onChange={e => setWorldRules(e.target.value)} 
+                  <textarea
+                    value={worldRules}
+                    onChange={e => setWorldRules(e.target.value)}
                     placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
                     className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
                   />
@@ -319,43 +458,43 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
                       <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-theme-accent text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 mx-auto absolute left-0 md:left-1/2 transform -translate-x-0 cursor-move">
                          <span className="text-xs font-bold">{idx + 1}</span>
                       </div>
-                      
+
                       {/* Event Card */}
                       <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] ml-14 md:ml-0 bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md hover:border-theme-accent/50 z-10">
                         <button onClick={()=>deleteEntity('timeline', evt.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
-                        
+
                         <div className="flex flex-wrap items-center gap-2 pr-8">
-                          <input 
-                            value={evt.timestamp} 
-                            onChange={e=>updateEntity('timeline', evt.id, {timestamp: e.target.value})} 
-                            className="font-mono text-sm font-bold text-theme-accent bg-theme-accent/10 px-2 py-1 rounded w-32 outline-none focus:bg-theme-accent/20 transition-colors" 
-                            placeholder="如: 第一纪元" 
+                          <input
+                            value={evt.timestamp}
+                            onChange={e=>updateEntity('timeline', evt.id, {timestamp: e.target.value})}
+                            className="font-mono text-sm font-bold text-theme-accent bg-theme-accent/10 px-2 py-1 rounded w-32 outline-none focus:bg-theme-accent/20 transition-colors"
+                            placeholder="如: 第一纪元"
                           />
-                          <input 
-                            value={evt.statusTag || ''} 
-                            onChange={e=>updateEntity('timeline', evt.id, {statusTag: e.target.value})} 
-                            className="font-bold text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded w-24 outline-none focus:ring-1 focus:ring-amber-300" 
-                            placeholder="状态:进行中" 
+                          <input
+                            value={evt.statusTag || ''}
+                            onChange={e=>updateEntity('timeline', evt.id, {statusTag: e.target.value})}
+                            className="font-bold text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded w-24 outline-none focus:ring-1 focus:ring-amber-300"
+                            placeholder="状态:进行中"
                           />
                         </div>
-                        
-                        <input 
-                          value={evt.title} 
-                          onChange={e=>updateEntity('timeline', evt.id, {title: e.target.value})} 
-                          className="font-bold text-lg outline-none w-full bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -ml-1 mt-1" 
+
+                        <input
+                          value={evt.title}
+                          onChange={e=>updateEntity('timeline', evt.id, {title: e.target.value})}
+                          className="font-bold text-lg outline-none w-full bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -ml-1 mt-1"
                           placeholder="大事件名称"
                         />
-                        
-                        <textarea 
-                          value={evt.description} 
-                          onChange={e=>updateEntity('timeline', evt.id, {description: e.target.value})} 
-                          placeholder="事件详细描述、影响、关联人物..." 
-                          className="text-sm outline-none resize-none h-24 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-border leading-relaxed" 
+
+                        <textarea
+                          value={evt.description}
+                          onChange={e=>updateEntity('timeline', evt.id, {description: e.target.value})}
+                          placeholder="事件详细描述、影响、关联人物..."
+                          className="text-sm outline-none resize-none h-24 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-border leading-relaxed"
                         />
 
                         {/* Fast Reorder Actions */}
                         <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex items-center bg-white shadow-sm border border-theme-border/50 rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                          <button 
+                          <button
                             onClick={() => {
                               if (idx > 0) {
                                 const prev = timelineEvents[idx - 1];
@@ -366,7 +505,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
                             className="text-[10px] text-theme-text px-2 py-0.5 hover:bg-theme-sidebar rounded"
                           >↑ 前移</button>
                           <span className="text-theme-border">|</span>
-                          <button 
+                          <button
                             onClick={() => {
                               if (idx < timelineEvents.length - 1) {
                                 const next = timelineEvents[idx + 1];
@@ -407,7 +546,7 @@ export function WorldBibleView({ novel }: { novel: Novel }) {
                       <input value={char.summary} onChange={e=>updateEntity('character', char.id, {summary: e.target.value})} placeholder="一句话简介" className="text-sm outline-none bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -mx-1" />
                       <div className="relative group/bio">
                         <textarea value={char.bio} onChange={e=>updateEntity('character', char.id, {bio: e.target.value})} placeholder="详细背景设定、性格、习惯..." className="w-full text-sm outline-none resize-none h-40 bg-theme-sidebar/10 p-3 rounded-xl border border-theme-border/30 focus:border-theme-accent transition-all font-serif leading-relaxed" />
-                        <button 
+                        <button
                           onClick={() => handleGenerateBio(char)}
                           disabled={generatingBioIds.includes(char.id)}
                           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-white transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
