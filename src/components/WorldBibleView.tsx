@@ -281,9 +281,9 @@ export function WorldBibleView({
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden px-8 py-8">
-          <div className="grid h-full gap-6 xl:grid-cols-[minmax(0,1.35fr)_420px]">
-            <section className="min-h-0 overflow-y-auto pr-1">
+        <div className="flex-1 overflow-hidden px-8 py-8 relative">
+          <div className="h-full">
+            <section className="h-full overflow-y-auto pr-1">
               <div className="mb-5">
                 <h2 className="text-2xl font-serif font-bold text-theme-text">关键设定任务</h2>
                 <p className="mt-1 text-sm text-theme-muted">左侧确认故事骨架，右侧随时插话干预设定走向。</p>
@@ -343,18 +343,50 @@ export function WorldBibleView({
                 </div>
               </div>
             </section>
-
-            <div className="min-h-0 overflow-y-auto">
-              <SetupAssistantPanel
-                selectedTask={onboarding.activeTask}
-                summaryCard={onboarding.card}
-                textareaValue={onboarding.assistantInput}
-                onTextareaChange={onboarding.onAssistantInputChange}
-                onSubmit={onboarding.onAssistantSubmit}
-                submitting={onboarding.assistantLoading}
-              />
-            </div>
           </div>
+
+          {/* Floating entry for Setup Assistant */}
+          {!isAssistantOpen && (
+            <button
+              onClick={() => setIsAssistantOpen(true)}
+              className="fixed bottom-8 right-8 z-40 flex items-center gap-2 rounded-full bg-theme-accent px-6 py-3 font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 group"
+            >
+              <Sparkles size={18} className="group-hover:animate-pulse" />
+              设定助手
+            </button>
+          )}
+
+          {/* Setup Assistant Drawer */}
+          <AnimatePresence>
+            {isAssistantOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsAssistantOpen(false)}
+                  className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
+                />
+                <motion.div
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
+                >
+                  <SetupAssistantPanel
+                    selectedTask={onboarding.activeTask}
+                    summaryCard={onboarding.card}
+                    textareaValue={onboarding.assistantInput}
+                    onTextareaChange={onboarding.onAssistantInputChange}
+                    onSubmit={onboarding.onAssistantSubmit}
+                    submitting={onboarding.assistantLoading}
+                    onClose={() => setIsAssistantOpen(false)}
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     );

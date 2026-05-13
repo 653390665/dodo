@@ -83,58 +83,31 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 6. 记住对话历史中的关键偏好（用户选择了什么方向、否定了什么），在后续建议中体现出来。
 `.trim(),
   storyCards: `
-你是一个资深网文策划编辑。请根据用户的灵感种子和上下文，生成 3 张差异明确、可继续写的故事方案卡。
+网文策划：根据用户输入生成3张方向不同的故事方案卡。
 
-【灵感种子】
-{{ideaSeed}}
+输入：{{ideaSeed}}
+字数：{{expectedWordCount}}字 侧重：{{storyFocus}} 节奏：{{pacingPreference}}
 
-【对话上下文】
-{{chatContext}}
-
-【创作规划】
-- 预计总字数：{{expectedWordCount}} 字
-- 当前更重：{{storyFocus}}
-- 推进节奏：{{pacingPreference}}
-
-请严格输出 JSON：
+字段约束（每字段≤50字，mixTags≤4个）：
 {
   "cards": [
     {
       "id": "card-1",
       "hook": "一句话卖点",
-      "protagonist": "主角设定摘要",
+      "protagonist": "主角设定",
       "coreConflict": "核心冲突",
-      "tone": "故事气质 / 文风",
+      "tone": "故事气质(如:冷峻悬疑/热血逆袭/慢热铺陈)",
       "whyItWorks": "为什么值得写",
-      "starterSeeds": {
-        "worldSeed": "世界观或背景种子",
-        "relationshipSeed": "关键关系种子",
-        "chapterOneSeed": "第一章起点种子"
-      },
-      "planningFit": {
-        "recommendedLength": "推荐篇幅区间",
-        "recommendedFocus": "更适合当前规划的重心表达",
-        "recommendedPacing": "更适合当前规划的节奏表达",
-        "reason": "为什么这张卡能支撑这类篇幅与推进方式"
-      },
+      "starterSeeds": {"worldSeed":"","relationshipSeed":"","chapterOneSeed":""},
+      "planningFit": {"recommendedLength":"","recommendedFocus":"","recommendedPacing":"","reason":""},
       "riskNote": "最容易写崩的点",
-      "mixTags": ["标签1", "标签2"],
-      "signals": {
-        "tone": "grim | bright | lyrical | sharp",
-        "conflictType": "冲突类型短语",
-        "worldWeight": 0.7,
-        "characterWeight": 0.6,
-        "pacingPreference": "tight | balanced | slow-burn"
-      }
+      "mixTags": ["标签"],
+      "signals": {"tone":"","conflictType":"","worldWeight":0.5,"characterWeight":0.5,"pacingPreference":"tight|balanced|slow-burn"}
     }
   ]
 }
 
-要求：
-1. 三张卡必须方向不同，不能只是换同义词。
-2. 不要输出正文片段，不要写成大段散文。
-3. 每张卡都必须能直接映射到设定记忆页。
-4. 必须显式考虑用户给出的篇幅、节奏、重心，不要只给灵感点子，要给能支撑骨架的方向。
+规则：方向必须不同，不写正文片段，每卡可直接映射到设定记忆页。
   `.trim(),
   setupTaskRefine: `
 你是一个小说设定协作助手。你的任务不是重写整部小说，而是围绕某一个设定项给出更稳、更清晰、更可继续创作的版本。
