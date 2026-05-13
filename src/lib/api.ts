@@ -159,7 +159,7 @@ export async function generateStoryCards(payload: {
   chatContext: string;
   planning: StoryPlanningInput;
   surface?: PromptSurface;
-}): Promise<StoryIdeaCard[]> {
+}): Promise<{ cards: StoryIdeaCard[]; warnings?: string[] }> {
   const res = await fetch('/api/story-cards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -167,7 +167,7 @@ export async function generateStoryCards(payload: {
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate story cards');
-  return data.cards;
+  return { cards: data.cards, warnings: data.warnings };
 }
 
 export async function refineSetupTask(payload: {

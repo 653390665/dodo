@@ -20,6 +20,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [cards, setCards] = useState<StoryIdeaCard[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [chatContext, setChatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [planning, setPlanning] = useState<StoryPlanningInput>({
@@ -35,8 +36,9 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   const doSubmit = async (prompt: string, context: string) => {
     setIsLoading(true);
     try {
-      const result = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
-      setCards(result);
+      const { cards: newCards, warnings: w } = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
+      setCards(newCards);
+      setWarnings(w || []);
       setChatContext(context + '\n' + prompt);
     } finally {
       setIsLoading(false);
@@ -191,6 +193,11 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
             <p className="text-xs text-theme-muted text-center -mt-2">
               会结合你的篇幅与推进规划，自动创建作品、第一章骨架和主角设定
             </p>
+            {warnings.length > 0 && (
+              <div className="mt-4 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 text-center">
+                {warnings.map((w, i) => <div key={i}>{w}</div>)}
+              </div>
+            )}
             <div className="grid gap-4 xl:grid-cols-3 mt-6">
               {cards.map((card) => (
                 <button

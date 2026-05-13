@@ -234,6 +234,30 @@ function buildFallbackSceneBeats(userIntent: string) {
   ].join('\n\n---\n\n');
 }
 
+function extractKeywords(seed: string): string[] {
+  // Extract meaningful 2-4 char Chinese substrings, skip common stop words
+  const stop = new Set(['一个', '这个', '那个', '什么', '怎么', '为什么', '可以', '还是', '或者', '但是', '因为', '所以', '如果', '虽然', '已经', '而且', '我的', '你的', '他的', '我们', '他们', '你们', '关于', '自己', '没有', '不是', '就是', '的话', '来说', '这样', '那样', '如何']);
+  const cleaned = seed.replace(/[，,。！？、；：””''（）\s]+/g, ' ').trim();
+  const segments = cleaned.split(' ').filter(s => s.length >= 2 && !stop.has(s));
+  // Also split longer segments into bigrams for better coverage
+  const bigrams: string[] = [];
+  for (const seg of segments) {
+    for (let i = 0; i < seg.length - 1; i++) {
+      bigrams.push(seg.slice(i, i + 2));
+    }
+  }
+  // Deduplicate, prefer original segments first, then bigrams
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const s of [...segments, ...bigrams]) {
+    if (!seen.has(s) && s.length >= 2) {
+      seen.add(s);
+      result.push(s);
+    }
+  }
+  return result.slice(0, 6);
+}
+
 function buildFallbackStoryCards(
   ideaSeed: string,
   planning: Partial<{
@@ -243,6 +267,11 @@ function buildFallbackStoryCards(
   }>,
 ) {
   const seed = String(ideaSeed || '').trim() || '一个尚未成形的新故事';
+  const keywords = extractKeywords(seed);
+  const mainTerm = keywords[0] || '故事核心';
+  const secondTerm = keywords[1] || mainTerm;
+  const thirdTerm = keywords[2] || secondTerm;
+
   const expectedWordCount = Number(planning.expectedWordCount || 180000);
   const pacing = planning.pacingPreference || 'tight';
   const focus = planning.storyFocus || 'plot';
@@ -250,56 +279,77 @@ function buildFallbackStoryCards(
   const focusText = focus === 'character' ? '人物关系' : focus === 'world' ? '世界设定' : '剧情推进';
   const lengthText = expectedWordCount >= 500000 ? '长篇连载' : expectedWordCount >= 180000 ? '中长篇' : '中短篇';
 
-  const base = [
+  // Direction templates — each maps to a different narrative angle
+  const directions: Array<{
+    label: string;
+    hookTemplate: (main: string, second: string) => string;
+    protagonistTemplate: (main: string) => string;
+    conflictTemplate: (main: string, second: string) => string;
+    tone: string;
+    whyTemplate: (seed: string) => string;
+    risk: string;
+  }> = [
     {
-      id: 'fallback-card-1',
-      hook: '雨夜旧账被重新翻开',
-      protagonist: '一个沉默、克制、习惯先观察再出手的主角。',
-      coreConflict: '主角被旧仇线索引到危险现场，却发现复仇对象和追杀者并不是同一拨人。',
-      tone: '冷峻悬疑，动作克制，信息逐层揭露。',
-      whyItWorks: `它能直接承接“${seed}”里的复仇、酒馆和沉默刀客信号，开局冲突清楚，第一章容易落地。`,
-      riskNote: '最容易写崩的是只写气氛不写动作，导致复仇线没有实质推进。',
-      mixTags: ['雨夜', '复仇', '试探', '悬疑'],
-      signals: { tone: 'sharp', conflictType: '旧仇追索', worldWeight: 0.45, characterWeight: 0.7, pacingPreference: pacing },
+      label: '冲突驱动',
+      hookTemplate: (m) => `当${m}成为不可回避的导火索`,
+      protagonistTemplate: (m) => `一个被${m}卷入漩涡的主角，不得不直面这场危机。`,
+      conflictTemplate: (m, s) => `围绕${m}展开的核心冲突${s ? `，与${s}产生连锁反应` : ''}。`,
+      tone: '紧张、高节奏、冲突密集。',
+      whyTemplate: (s) => `直接围绕”${s}”打造高冲突开局，第一章冲突明确，读者容易代入。`,
+      risk: '冲突密度过高可能导致疲劳，需要在关键节点留喘息空间。',
     },
     {
-      id: 'fallback-card-2',
-      hook: '刀客其实是被栽赃的活证据',
-      protagonist: '被江湖误认为凶手的刀客，沉默不是冷酷，而是在隐藏不能说的真相。',
-      coreConflict: '所有人都想抓他换取赏金，他必须在追杀中找出真正凶手。',
-      tone: '压迫感强，偏逃亡与反转。',
-      whyItWorks: '身份误判能持续制造章节钩子，也能让主角的沉默有内在理由。',
-      riskNote: '需要控制反转密度，不能每章都靠误会硬拖。',
-      mixTags: ['栽赃', '逃亡', '反转', '江湖追杀'],
-      signals: { tone: 'grim', conflictType: '身份误判', worldWeight: 0.55, characterWeight: 0.65, pacingPreference: pacing },
+      label: '悬疑揭秘',
+      hookTemplate: (m) => `${m}背后隐藏的真相`,
+      protagonistTemplate: (m) => `一个察觉到${m}不对劲的观察者，一步步接近被掩盖的真相。`,
+      conflictTemplate: (m, s) => `${m}只是冰山一角，真正的秘密${s ? `与${s}纠缠在一起` : '尚未浮出水面'}。`,
+      tone: '层层揭露、信息差博弈、悬念递进。',
+      whyTemplate: (s) => `”${s}”天然适合做谜面，悬疑结构能持续制造章节钩子和读者粘性。`,
+      risk: '需要控制揭示节奏，不能太快泄底也不能太慢让读者失去耐心。',
     },
     {
-      id: 'fallback-card-3',
-      hook: '酒馆掌柜才是第一枚钩子',
-      protagonist: '沉默刀客与看似圆滑的酒馆掌柜形成临时同盟。',
-      coreConflict: '刀客要复仇，掌柜要保命，两人的目标暂时一致但互不信任。',
-      tone: '对手戏强，悬疑里带一点江湖人情。',
-      whyItWorks: '把单人复仇改成双人互相试探，能增强人物关系和长期连载弹性。',
-      riskNote: '搭档关系不能太快变亲密，必须保留利益差和隐瞒。',
-      mixTags: ['临时同盟', '酒馆掌柜', '互相试探', '江湖人情'],
-      signals: { tone: 'sharp', conflictType: '互信博弈', worldWeight: 0.5, characterWeight: 0.8, pacingPreference: pacing },
+      label: '人物关系',
+      hookTemplate: (m) => `因为${m}，两个不该相遇的人走到了一起`,
+      protagonistTemplate: () => `一个带着秘密的主角，一个不请自来的同伴，谁都不愿先亮底牌。`,
+      conflictTemplate: (m) => `人物的目标与${m}产生冲突，必须在信任与怀疑之间寻找平衡。`,
+      tone: '对手戏强、情感张力、人物驱动。',
+      whyTemplate: (s) => `把”${s}”从外部事件转为人际博弈，能增强人物关系和长期连载弹性。`,
+      risk: '人物关系不能太快变亲密，必须保留利益差和隐瞒。',
     },
   ];
 
-  return base.map((card) => ({
+  const base = directions.map((dir, i) => ({
+    id: `fallback-card-${i + 1}`,
+    hook: dir.hookTemplate(mainTerm, secondTerm),
+    protagonist: dir.protagonistTemplate(mainTerm),
+    coreConflict: dir.conflictTemplate(mainTerm, secondTerm),
+    tone: dir.tone,
+    whyItWorks: dir.whyTemplate(seed),
+    riskNote: dir.risk,
+    mixTags: keywords.slice(0, 4),
+    signals: {
+      tone: (['sharp', 'grim', 'lyrical'] as const)[i],
+      conflictType: dir.label,
+      worldWeight: 0.45 + i * 0.1,
+      characterWeight: 0.6 + i * 0.1,
+      pacingPreference: pacing,
+    },
+  }));
+
+  return base.map((card, i) => ({
     ...card,
     starterSeeds: {
-      worldSeed: '雨夜酒馆是江湖消息流通的暗点，旧案、追兵和信物在这里交汇。',
-      relationshipSeed: card.id === 'fallback-card-3'
-        ? '刀客和掌柜互相利用，一边合作一边试探底牌。'
-        : '主角与线索提供者之间保持不信任的合作关系。',
-      chapterOneSeed: '第一章从酒馆异响开场，主角察觉掌柜异常，门外追兵逼近时抛出第一枚旧案线索。',
+      worldSeed: `以${mainTerm}为核心构建的世界背景，${secondTerm ? `与${secondTerm}交织` : ''}。`,
+      relationshipSeed: i === 2
+        ? '主角与同伴之间保持不信任的合作关系，一边共事一边试探。'
+        : '主角与关键人物之间既有利益交集也有信息差。',
+      chapterOneSeed: `第一章从${mainTerm}的异常信号开场，迅速建立${card.signals.conflictType}冲突，留下第一枚悬念钩子。`,
     },
     planningFit: {
       recommendedLength: `${lengthText}，约 ${expectedWordCount.toLocaleString('zh-CN')} 字`,
       recommendedFocus: focusText,
       recommendedPacing: pacingText,
-      reason: `该方向适合${pacingText}，并能把当前重点放在${focusText}上。`,
+      reason: `该方向适合${pacingText}节奏，能把叙事重心放在${focusText}上，与”${seed}”自然衔接。`,
     },
   }));
 }
@@ -523,7 +573,7 @@ async function startServer() {
               : '紧推进',
       });
       try {
-        const raw = await generateText(getConfig(), { prompt, timeoutMs: 8_000, maxAttempts: 1, maxTokens: 1800 });
+        const raw = await generateText(getConfig(), { prompt, timeoutMs: 60_000, maxAttempts: 2, maxTokens: 4096 });
         const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];

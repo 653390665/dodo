@@ -197,7 +197,7 @@ export default function App() {
   }) => {
     setLoading(true);
     try {
-      const cards = await generateStoryCards({ ideaSeed, chatContext, planning, surface: 'welcome' });
+      const { cards, warnings } = await generateStoryCards({ ideaSeed, chatContext, planning, surface: 'welcome' });
       setOnboardingDraft({
         ideaSeed,
         planning,
@@ -206,6 +206,7 @@ export default function App() {
         acceptedSkillIds: [],
         recommendedSkills: [],
         acceptedRecommendedSkills: false,
+        warnings,
       });
       setCurrentView('ai');
     } finally {
