@@ -10,7 +10,12 @@ process.env.ELECTRON_BUILDER_NO_UPDATE_NOTIFIER = 'true';
 process.env.ELECTRON_BUILDER_UPDATE_NOTIFIER = 'false';
 process.env.NO_UPDATE_NOTIFIER = 'true';
 
-const builderBin = resolve(root, 'node_modules/.bin/electron-builder');
+const builderBin = resolve(
+  root,
+  process.platform === 'win32'
+    ? 'node_modules/.bin/electron-builder.cmd'
+    : 'node_modules/.bin/electron-builder',
+);
 
 const PLATFORM_MAP = { darwin: 'mac', win32: 'win', linux: 'linux' };
 
@@ -25,6 +30,7 @@ const child = spawn(builderBin, args, {
   stdio: 'inherit',
   env: process.env,
   cwd: root,
+  shell: process.platform === 'win32',
 });
 
 child.on('close', (code) => {
