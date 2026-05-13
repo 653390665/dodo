@@ -44,6 +44,7 @@ export function WorldBibleView({
   };
 }) {
   const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('global');
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);

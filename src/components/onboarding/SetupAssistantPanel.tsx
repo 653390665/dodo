@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import type { SetupTaskDraft, StoryIdeaCard } from '../../types';
 
 interface SetupAssistantPanelProps {
@@ -7,6 +8,7 @@ interface SetupAssistantPanelProps {
   onTextareaChange: (value: string) => void;
   onSubmit: () => void;
   submitting?: boolean;
+  onClose?: () => void;
 }
 
 export function SetupAssistantPanel({
@@ -16,12 +18,23 @@ export function SetupAssistantPanel({
   onTextareaChange,
   onSubmit,
   submitting = false,
+  onClose,
 }: SetupAssistantPanelProps) {
   return (
-    <aside className="rounded-3xl border border-theme-border bg-white p-6 shadow-sm">
-      <div className="mb-5">
-        <h3 className="text-xl font-serif font-bold text-theme-text">设定助手</h3>
-        <p className="mt-1 text-sm text-theme-muted">一次只补当前这一项。先把骨架立住，再决定要不要扩写。</p>
+    <aside className="h-full overflow-y-auto rounded-3xl border border-theme-border bg-white p-6 shadow-sm">
+      <div className="mb-5 flex items-start justify-between">
+        <div>
+          <h3 className="text-xl font-serif font-bold text-theme-text">设定助手</h3>
+          <p className="mt-1 text-sm text-theme-muted">一次只补当前这一项。先把骨架立住，再决定要不要扩写。</p>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text transition-all"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {selectedTask ? (

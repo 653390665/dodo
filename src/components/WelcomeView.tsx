@@ -23,6 +23,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   const [warnings, setWarnings] = useState<string[]>([]);
   const [chatContext, setChatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
+  const [loadingTicks, setLoadingTicks] = useState(0);
   const [planning, setPlanning] = useState<StoryPlanningInput>({
     expectedWordCount: 180000,
     pacingPreference: 'tight',
@@ -32,6 +33,12 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   useEffect(() => {
     listNovels().then((novels) => setRecentNovels(novels.slice(0, 3)));
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) { setLoadingTicks(0); return; }
+    const timer = setInterval(() => setLoadingTicks((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, [isLoading]);
 
   const doSubmit = async (prompt: string, context: string) => {
     setIsLoading(true);
@@ -177,9 +184,13 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
         {isLoading && (
           <div className="mt-8 rounded-2xl border border-theme-accent/20 bg-theme-accent/5 p-6 text-center">
             <div className="w-10 h-10 border-2 border-theme-accent/30 border-t-theme-accent rounded-full animate-spin mx-auto mb-3" />
-            <div className="text-sm font-bold text-theme-text">正在生成开坑方向</div>
+            <div className="text-sm font-bold text-theme-text">
+              {loadingTicks < 5 ? 'AI 正在分析你的想法' : '模型响应较慢，正在准备快速草案'}
+            </div>
             <div className="text-xs text-theme-muted mt-1">
-              AI 正在分析你的想法，生成 3 个可用于创建新作品的故事框架...
+              {loadingTicks < 5
+                ? '生成 3 个不同方向的故事框架...'
+                : '基于你的输入先生成保底方向，不会让你白等'}
             </div>
           </div>
         )}

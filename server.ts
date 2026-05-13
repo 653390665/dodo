@@ -573,7 +573,7 @@ async function startServer() {
               : '紧推进',
       });
       try {
-        const raw = await generateText(getConfig(), { prompt, timeoutMs: 60_000, maxAttempts: 2, maxTokens: 4096 });
+        const raw = await generateText(getConfig(), { prompt, timeoutMs: 8_000, maxAttempts: 1, maxTokens: 1800 });
         const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];
