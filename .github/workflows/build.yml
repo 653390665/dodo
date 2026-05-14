@@ -44,6 +44,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsx --test tests/electron-startup-contract.test.ts
+      - run: npx electron-builder install-app-deps
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,6 +97,29 @@ jobs:
           Write-Host "EXE verification OK"
           $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
           if ($zip) { Write-Host "ZIP: $zip ($((Get-Item $zip).Length) bytes)" }
+      - name: Real startup smoke with Electron runtime
+        shell: pwsh
+        run: |
+          $unpacked = Get-ChildItem release/win-unpacked -Directory | Select-Object -First 1
+          if (-not $unpacked) { Write-Error "release/win-unpacked not found"; exit 1 }
+          $serverJs = Join-Path $unpacked.FullName "resources/app.asar.unpacked/dist-electron/server.cjs"
+          $env:ELECTRON_RUN_AS_NODE = "1"
+          $env:NODE_ENV = "production"
+          $env:PORT = "3099"
+          $proc = Start-Process -NoNewWindow -PassThru -FilePath "$($unpacked.FullName)/InkFlow.exe" -ArgumentList $serverJs -RedirectStandardOutput "release/smoke-stdout.txt" -RedirectStandardError "release/smoke-stderr.txt"
+          Start-Sleep -Seconds 10
+          if ($proc.HasExited) {
+            Write-Error "Server crashed on startup. stderr:"
+            Get-Content release/smoke-stderr.txt -ErrorAction SilentlyContinue | Write-Host
+            exit 1
+          }
+          try {
+            $config = Invoke-RestMethod -Uri "http://localhost:3099/api/config" -TimeoutSec 5
+            if (-not $config.hasApiKey) { throw "hasApiKey missing" }
+            Write-Host "SMOKE PASSED: hasApiKey=$($config.hasApiKey) model=$($config.model)"
+          } finally {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-win-x64
