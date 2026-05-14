@@ -20,6 +20,30 @@ let serverPort = 3000;
 let watchdogTimer = null;
 let isQuitting = false;
 
+// ── Startup Diagnostics ──────────────────────────────────────────────
+
+const startupLogPath = path.join(app.getPath('userData'), 'startup.log');
+
+function writeStartupLog(message) {
+  try {
+    fs.mkdirSync(path.dirname(startupLogPath), { recursive: true });
+    fs.appendFileSync(startupLogPath, `[${new Date().toISOString()}] ${message}\n`);
+  } catch {}
+}
+
+process.on('uncaughtException', (err) => {
+  writeStartupLog(`uncaughtException: ${err.stack || err.message}`);
+  dialog.showErrorBox('InkFlow 启动失败', err.stack || err.message);
+  app.quit();
+});
+
+process.on('unhandledRejection', (reason) => {
+  const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  writeStartupLog(`unhandledRejection: ${message}`);
+  dialog.showErrorBox('InkFlow 启动失败', message);
+  app.quit();
+});
+
 // ── Window State Persistence ────────────────────────────────────────
 
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
@@ -160,15 +184,25 @@ function startServer() {
     const serverPath = isDev
       ? path.join(__dirname, 'server.ts')
       : path.join(process.resourcesPath, 'app.asar.unpacked', 'dist-electron', 'server.cjs');
+    const staticDir = isDev
+      ? path.join(__dirname, 'dist')
+      : path.join(process.resourcesPath, 'app.asar', 'dist');
 
     const cmd = isDev ? 'npx' : process.execPath;
     const args = isDev
       ? ['tsx', serverPath]
       : [serverPath];
 
+    writeStartupLog(`starting server: cmd=${cmd} script=${serverPath} staticDir=${staticDir}`);
+
     serverProcess = spawn(cmd, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: isDev ? 'development' : 'production' },
+      env: {
+        ...process.env,
+        NODE_ENV: isDev ? 'development' : 'production',
+        INKFLOW_STATIC_DIR: staticDir,
+        ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
+      },
     });
     const child = serverProcess;
 
@@ -177,6 +211,7 @@ function startServer() {
     serverProcess.stdout.on('data', (data) => {
       const lines = data.toString().split('\n').filter(Boolean);
       for (const line of lines) {
+        writeStartupLog(`[server stdout] ${line}`);
         try {
           const msg = JSON.parse(line);
           if (msg.port && !resolved) {
@@ -188,10 +223,13 @@ function startServer() {
     });
 
     serverProcess.stderr.on('data', (data) => {
-      console.error('[server]', data.toString().trim());
+      const message = data.toString().trim();
+      writeStartupLog(`[server stderr] ${message}`);
+      console.error('[server]', message);
     });
 
     serverProcess.on('exit', (code) => {
+      writeStartupLog(`server exited: code=${code} resolved=${resolved}`);
       const wasCurrentProcess = serverProcess === child;
       if (wasCurrentProcess) {
         serverProcess = null;
@@ -267,20 +305,26 @@ async function createWindow() {
   let port;
   const isDev = process.env.NODE_ENV === 'development';
 
-  if (isDev) {
-    port = 3000;
-    try {
+  try {
+    if (isDev) {
+      port = 3000;
       await waitForServer(port);
-    } catch {
-      console.error('Dev server not running on port 3000. Run "npm run dev" first.');
-      app.quit();
-      return;
+    } else {
+      port = await startServer();
+      serverPort = port;
+      await waitForServer(port);
+      startWatchdog(port);
     }
-  } else {
-    port = await startServer();
-    serverPort = port;
-    await waitForServer(port);
-    startWatchdog(port);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const detail = isDev
+      ? 'Dev server not running on port 3000. Run "npm run dev" first.'
+      : `InkFlow could not start its local server.\n\n${message}`;
+    writeStartupLog(`createWindow failed: ${detail}`);
+    console.error(detail);
+    dialog.showErrorBox('InkFlow 启动失败', detail);
+    app.quit();
+    return;
   }
 
   const windowState = loadWindowState();
@@ -310,9 +354,19 @@ async function createWindow() {
     mainWindow.show();
   });
 
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  }, 5000);
+
   mainWindow.on('close', () => { saveWindowState(); });
   mainWindow.on('resize', () => { saveWindowState(); });
   mainWindow.on('move', () => { saveWindowState(); });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[window] Failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
+  });
 
   mainWindow.loadURL(`http://localhost:${port}`);
 

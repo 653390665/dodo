@@ -109,49 +109,56 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const abortTimeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // Double safety net: Promise.race with a hard timeout in case AbortController
+    // fails to terminate the connection (observed with some API providers).
+    let raceTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const raceTimeoutPromise = new Promise<never>((_, reject) => {
+      raceTimeoutId = setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`)), timeoutMs + 2000);
+    });
+
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const result = await Promise.race([
+        (async () => {
+          const response = await fetch(joinUrl(config.baseUrl, "/chat/completions"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+              model: config.model,
+              messages: [
+                ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+                { role: "user", content: prompt }
+              ],
+              stream: false,
+              ...(maxTokens ? { max_tokens: maxTokens } : {}),
+            }),
+            signal: controller.signal
+          });
 
-      try {
-        const response = await fetch(joinUrl(config.baseUrl, "/chat/completions"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${config.apiKey}`
-          },
-          body: JSON.stringify({
-            model: config.model,
-            messages: [
-              ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
-              { role: "user", content: prompt }
-            ],
-            stream: false,
-            ...(maxTokens ? { max_tokens: maxTokens } : {}),
-          }),
-          signal: controller.signal
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          const error = new Error(`LLM request failed (${response.status}): ${errorText}`);
-          if (attempt < maxAttempts && isRetryableStatus(response.status)) {
-            lastError = error;
-            await sleep(400 * attempt);
-            continue;
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`LLM request failed (${response.status}): ${errorText}`);
           }
-          throw error;
-        }
 
-        const data = await response.json();
-        const text = extractOpenAIText(data);
-        if (!text) {
-          throw new Error("LLM returned empty response");
-        }
-        return sanitizeModelText(text);
-      } finally {
-        clearTimeout(timeout);
-      }
+          const data = await response.json();
+          const text = extractOpenAIText(data);
+          if (!text) {
+            throw new Error("LLM returned empty response");
+          }
+          const sanitized = sanitizeModelText(text);
+          if (!sanitized) {
+            throw new Error("LLM response contained only thinking/reasoning content — increase max_tokens or use a non-thinking model");
+          }
+          return sanitized;
+        })(),
+        raceTimeoutPromise,
+      ]);
+      return result;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
       if (isAbort) {
@@ -160,12 +167,19 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
         lastError = error;
       }
 
-      if (attempt < maxAttempts && (isAbort || isRetryableNetworkError(error))) {
+      const isRetryable = isAbort || isRetryableStatus(
+        error instanceof Error ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0') : 0
+      ) || isRetryableNetworkError(error);
+
+      if (attempt < maxAttempts && isRetryable) {
         await sleep(400 * attempt);
         continue;
       }
 
       throw lastError;
+    } finally {
+      clearTimeout(abortTimeoutId);
+      if (raceTimeoutId !== null) clearTimeout(raceTimeoutId);
     }
   }
 

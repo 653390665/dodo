@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { initDb } from './src/lib/db';
 import * as db from './src/lib/db';
@@ -196,6 +195,20 @@ function buildFallbackDraft(sceneBeats: string, contextStr: string) {
   const normalizedBeats = String(sceneBeats || '').trim();
   const intentHint = normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim()
     || '一场试探正在逼近真正的危险';
+
+  // Detect fallback template markers — if the scene beats are AI-generated templates
+  // rather than real content, use natural prose fallback instead
+  const isFallbackTemplate = /异动入场|试探加深|悬念收束/.test(normalizedBeats);
+  if (isFallbackTemplate) {
+    const userIntent = normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。，]+)/)?.[1]?.trim() || '';
+    const hintText = userIntent ? ` —— ${userIntent}` : '';
+    return [
+      `门轴轻轻一响，屋里的声音同时低了下去。`,
+      ``,
+      `他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻${hintText}。`,
+      `空气里压着未说出口的消息，也压着即将逼近的危险。`,
+    ].join('\n');
+  }
   const sceneBlocks = normalizedBeats
     .split(/\n\s*---\s*\n|(?=###\s*场景)/)
     .map((block) => block.trim())
@@ -407,6 +420,19 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+  // Global request timeout safety net — prevents hung requests from blocking the server
+  app.use((_req, res, next) => {
+    const timeoutMs = 120_000; // 2 minutes max for any request
+    const timer = setTimeout(() => {
+      if (!res.headersSent) {
+        res.status(504).json({ error: 'Request timed out — server took too long to respond' });
+      }
+    }, timeoutMs);
+    res.on('finish', () => clearTimeout(timer));
+    res.on('close', () => clearTimeout(timer));
+    next();
+  });
+
   // DB method whitelist — only methods used by the frontend are allowed
   const DB_WHITELIST = new Set([
     'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
@@ -577,7 +603,7 @@ async function startServer() {
               : '紧推进',
       });
       try {
-        const raw = await generateText(getConfig(), { prompt, timeoutMs: 8_000, maxAttempts: 1, maxTokens: 4096 });
+        const raw = await generateText(getConfig(), { prompt, timeoutMs: 12_000, maxAttempts: 1, maxTokens: 2048 });
         const parsed = extractJsonPayload(raw);
         const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [parsed];
         if (cards.length > 0) {
@@ -1100,7 +1126,7 @@ function parseJsonOrEmptyReport(raw: string) {
       try {
         sceneBeats = await generateText(getConfig(), {
           prompt: plannerPrompt,
-          timeoutMs: 8_000,
+          timeoutMs: 30_000,
           maxAttempts: 1,
           maxTokens: 1600,
         });
@@ -1128,7 +1154,7 @@ function parseJsonOrEmptyReport(raw: string) {
       try {
         draftContent = await generateText(getConfig(), {
           prompt: writerPrompt,
-          timeoutMs: 12_000,
+          timeoutMs: 60_000,
           maxAttempts: 1,
           maxTokens: 1600,
         });
@@ -1156,7 +1182,7 @@ function parseJsonOrEmptyReport(raw: string) {
       try {
         styleAudit = await generateText(getConfig(), {
           prompt: styleAuditPrompt,
-          timeoutMs: 4_000,
+          timeoutMs: 20_000,
           maxAttempts: 1,
           maxTokens: 800,
         });
@@ -1179,7 +1205,7 @@ function parseJsonOrEmptyReport(raw: string) {
       try {
         const rawContinuity = await generateText(getConfig(), {
           prompt: continuityPrompt,
-          timeoutMs: 3_000,
+          timeoutMs: 20_000,
           maxAttempts: 1,
           maxTokens: 1200,
         });
@@ -1744,7 +1770,7 @@ ${paragraphs}
   });
 
   const serveStaticApp = () => {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = process.env.INKFLOW_STATIC_DIR || path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -1755,6 +1781,7 @@ ${paragraphs}
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && !disableDevViteMiddleware) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

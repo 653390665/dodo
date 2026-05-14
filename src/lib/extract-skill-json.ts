@@ -1,5 +1,15 @@
+function normalizeQuotes(raw: string): string {
+  return raw
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/＂/g, '"');
+}
+
 export function extractJsonPayload(raw: string) {
-  const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const cleaned = normalizeQuotes(raw)
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
   const start =

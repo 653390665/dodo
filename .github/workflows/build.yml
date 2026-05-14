@@ -43,9 +43,30 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npx tsx --test tests/electron-startup-contract.test.ts
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify packaged server does not require dev-only Vite
+        shell: pwsh
+        run: |
+          $server = Get-Content dist-electron/server.cjs -Raw
+          if ($server.Contains('require("vite")')) {
+            Write-Error "dist-electron/server.cjs still requires vite in production bundle"
+            exit 1
+          }
+          $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
+          Expand-Archive -Path $zip.FullName -DestinationPath release/verify-win-zip -Force
+          $packagedServer = Get-Content release/verify-win-zip/resources/app.asar.unpacked/dist-electron/server.cjs -Raw
+          if ($packagedServer.Contains('require("vite")')) {
+            Write-Error "packaged server.cjs still requires vite"
+            exit 1
+          }
+          if (-not (Test-Path release/verify-win-zip/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node)) {
+            Write-Error "better-sqlite3 native binding is missing from Windows package"
+            exit 1
+          }
+          Write-Host "Packaged server verification OK"
       - name: Verify EXE
         shell: pwsh
         run: |
