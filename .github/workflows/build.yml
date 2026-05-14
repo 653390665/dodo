@@ -51,10 +51,14 @@ jobs:
         shell: pwsh
         run: |
           $server = Get-Content dist-electron/server.cjs -Raw
-          if ($server -match 'require\("vite"\)') {
-            Write-Error "dist-electron/server.cjs still requires vite"
+          # Check for unbundled runtime dependencies
+          $extReqs = [regex]::Matches($server, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $bad = @($extReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
+          if ($bad.Count -gt 0) {
+            Write-Error "server.cjs has bare external requires: $($bad -join ', ')"
             exit 1
           }
+          Write-Host "No bad external requires found (total unique requires: $($extReqs.Count))"
           # Verify server boots and responds
           $env:NODE_ENV = "production"
           $env:PORT = "3099"
@@ -76,8 +80,10 @@ jobs:
           $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
           Expand-Archive -Path $zip.FullName -DestinationPath release/verify-win-zip -Force
           $packagedServer = Get-Content release/verify-win-zip/resources/app.asar.unpacked/dist-electron/server.cjs -Raw
-          if ($packagedServer -match 'require\("vite"\)') {
-            Write-Error "packaged server.cjs still requires vite"
+          $pkgReqs = [regex]::Matches($packagedServer, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $pkgBad = @($pkgReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
+          if ($pkgBad.Count -gt 0) {
+            Write-Error "packaged server.cjs has bare external requires: $($pkgBad -join ', ')"
             exit 1
           }
           if (-not (Test-Path release/verify-win-zip/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node)) {
