@@ -472,6 +472,7 @@ export interface OnboardingDraftState {
   recommendedSkills: StorySkillRecommendation[];
   acceptedRecommendedSkills: boolean;
   warnings?: string[];
+  source?: 'model' | 'fallback';
 }
 
 export interface AssistantLaunchContext {

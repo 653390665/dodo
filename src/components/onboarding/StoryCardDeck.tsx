@@ -7,19 +7,23 @@ export function StoryCardDeck({
   onSelectCard,
   onMixCard,
   onRefreshBatch,
+  source,
 }: {
   cards: StoryIdeaCard[];
   selectedCardId?: string;
   onSelectCard: (card: StoryIdeaCard) => void;
   onMixCard: (card: StoryIdeaCard) => void;
   onRefreshBatch: () => void;
+  source?: 'model' | 'fallback';
 }) {
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-serif font-bold text-theme-text">故事方案卡</h2>
-          <p className="text-sm text-theme-muted">先选方向，再进入设定记忆立骨架。</p>
+          <p className="text-sm text-theme-muted">
+            {source === 'fallback' ? '模型较慢，当前显示本地保底草案。可刷新重试。' : '先选方向，再进入设定记忆立骨架。'}
+          </p>
         </div>
         <button onClick={onRefreshBatch} className="rounded-full border border-theme-border px-4 py-2 text-xs font-bold text-theme-text">
           继续刷一批

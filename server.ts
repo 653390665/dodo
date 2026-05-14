@@ -312,8 +312,8 @@ function buildFallbackStoryCards(
   const focusText = focus === 'character' ? '人物关系' : focus === 'world' ? '世界设定' : '剧情推进';
   const lengthText = expectedWordCount >= 500000 ? '长篇连载' : expectedWordCount >= 180000 ? '中长篇' : '中短篇';
 
-  // Direction templates — each maps to a different narrative angle
-  const directions: Array<{
+  // Direction pools — selected based on storyFocus
+  const directionPools: Record<string, Array<{
     label: string;
     hookTemplate: (main: string, second: string) => string;
     protagonistTemplate: (main: string) => string;
@@ -321,35 +321,97 @@ function buildFallbackStoryCards(
     tone: string;
     whyTemplate: (seed: string) => string;
     risk: string;
-  }> = [
-    {
-      label: '冲突驱动',
-      hookTemplate: (m) => `当${m}成为不可回避的导火索`,
-      protagonistTemplate: (m) => `一个被${m}卷入漩涡的主角，不得不直面这场危机。`,
-      conflictTemplate: (m, s) => `围绕${m}展开的核心冲突${s ? `，与${s}产生连锁反应` : ''}。`,
-      tone: '紧张、高节奏、冲突密集。',
-      whyTemplate: (s) => `直接围绕”${s}”打造高冲突开局，第一章冲突明确，读者容易代入。`,
-      risk: '冲突密度过高可能导致疲劳，需要在关键节点留喘息空间。',
-    },
-    {
-      label: '悬疑揭秘',
-      hookTemplate: (m) => `${m}背后隐藏的真相`,
-      protagonistTemplate: (m) => `一个察觉到${m}不对劲的观察者，一步步接近被掩盖的真相。`,
-      conflictTemplate: (m, s) => `${m}只是冰山一角，真正的秘密${s ? `与${s}纠缠在一起` : '尚未浮出水面'}。`,
-      tone: '层层揭露、信息差博弈、悬念递进。',
-      whyTemplate: (s) => `”${s}”天然适合做谜面，悬疑结构能持续制造章节钩子和读者粘性。`,
-      risk: '需要控制揭示节奏，不能太快泄底也不能太慢让读者失去耐心。',
-    },
-    {
-      label: '人物关系',
-      hookTemplate: (m) => `因为${m}，两个不该相遇的人走到了一起`,
-      protagonistTemplate: () => `一个带着秘密的主角，一个不请自来的同伴，谁都不愿先亮底牌。`,
-      conflictTemplate: (m) => `人物的目标与${m}产生冲突，必须在信任与怀疑之间寻找平衡。`,
-      tone: '对手戏强、情感张力、人物驱动。',
-      whyTemplate: (s) => `把”${s}”从外部事件转为人际博弈，能增强人物关系和长期连载弹性。`,
-      risk: '人物关系不能太快变亲密，必须保留利益差和隐瞒。',
-    },
-  ];
+  }>> = {
+    character: [
+      {
+        label: '双人对峙',
+        hookTemplate: (m) => `${m}让两个本不该有交集的人绑在一起`,
+        protagonistTemplate: () => '一个习惯沉默观察的主角，一个话多但每次都说到痛处的对照角色。',
+        conflictTemplate: (m) => `两人围绕${m}各怀目的，合作中藏着试探。`,
+        tone: '对手戏强、对白驱动、关系递进。',
+        whyTemplate: (s) => `把”${s}”从事件转为人际张力，每章人物关系都有新裂痕或新理解。`,
+        risk: '不能太快信任——每次合作都要留一道新疤。',
+      },
+      {
+        label: '秘密羁绊',
+        hookTemplate: (m) => `${m}揭开了一段无人知晓的过往`,
+        protagonistTemplate: () => '一个被迫隐藏身份的主角，一个意外知晓秘密的闯入者。',
+        conflictTemplate: (m) => `关于${m}的秘密一旦泄露，双方的关系会立刻翻转。`,
+        tone: '情感层次丰富、秘密逐层剥开。',
+        whyTemplate: (s) => `”${s}”天然有秘密属性，适合构建”只有你知道”的羁绊张力。`,
+        risk: '秘密不能拖太久——到中段必须有代价显现。',
+      },
+      {
+        label: '利益博弈',
+        hookTemplate: (m) => `${m}让所有人的利益重新洗牌`,
+        protagonistTemplate: () => '一个站在利益交叉点的主角，身边每个人都在押注。',
+        conflictTemplate: (m) => `${m}改变了原有的利益格局，盟友和敌人开始重新站位。`,
+        tone: '理智博弈、利益交换、人情与算计交织。',
+        whyTemplate: (s) => `”${s}”能制造持续的利益张力，每章都有人在押新的赌注。`,
+        risk: '利益冲突要具体——不能只写”他们各怀鬼胎”，要写出谁想要什么。',
+      },
+    ],
+    world: [
+      {
+        label: '规则异变',
+        hookTemplate: (m) => `${m}正在改写这个世界的规则`,
+        protagonistTemplate: () => '一个在旧规则下成长的主角，突然发现世界运作的方式变了。',
+        conflictTemplate: (m) => `${m}揭示的力量/规则与原有体系产生根本冲突。`,
+        tone: '宏大设定、规则驱动、层层展开。',
+        whyTemplate: (s) => `”${s}”可以作为世界规则的突破口，第一章就建立独特设定感。`,
+        risk: '设定不能全在第一章倾倒——让主角逐步发现规则，读者同步理解。',
+      },
+      {
+        label: '势力交错',
+        hookTemplate: (m) => `${m}打破了旧势力的平衡`,
+        protagonistTemplate: () => '一个夹在多股势力之间的棋子，被迫学会在夹缝中求生。',
+        conflictTemplate: (m) => `${m}成为各方势力争夺的关键，主角必须在站位中做选择。`,
+        tone: '格局宏大、多线交织、派系博弈。',
+        whyTemplate: (s) => `以”${s}”为锚点展开势力图，每卷都能引入新的派系和冲突。`,
+        risk: '派系太多会让读者记不住——每卷聚焦2-3个主要势力。',
+      },
+      {
+        label: '未知领域',
+        hookTemplate: (m) => `${m}指向了一个从未被探索的领域`,
+        protagonistTemplate: () => '一个被好奇心或生存压力逼入未知世界的主角，每步都在发现新规则。',
+        conflictTemplate: (m) => `探索${m}的过程中，主角不断遇到违背原有认知的存在。`,
+        tone: '探索感强、未知与惊奇、世界逐步展开。',
+        whyTemplate: (s) => `”${s}”自带未知属性，适合让读者随主角一起探索新世界。`,
+        risk: '不能只写”主角震惊了”——每次探索要有一个可被记住的新规则或新存在。',
+      },
+    ],
+    plot: [
+      {
+        label: '事件引爆',
+        hookTemplate: (m) => `当${m}成为不可回避的导火索`,
+        protagonistTemplate: (m) => `一个被${m}卷入漩涡的主角，不得不直面这场危机。`,
+        conflictTemplate: (m) => `围绕${m}展开的核心冲突，每章局势都在升级。`,
+        tone: '紧张、高节奏、冲突密集。',
+        whyTemplate: (s) => `直接围绕”${s}”打造高冲突开局，第一章冲突明确，读者容易代入。`,
+        risk: '冲突密度过高可能导致疲劳，需要在关键节点留喘息空间。',
+      },
+      {
+        label: '多米诺链',
+        hookTemplate: (m) => `${m}引发的连锁反应刚刚开始`,
+        protagonistTemplate: (m) => `一个以为解决了${m}就能脱身的主角，发现每解决一件事又引出两件。`,
+        conflictTemplate: (m) => `${m}不是终点而是起点，每步处理都牵出新危机。`,
+        tone: '快节奏、一环扣一环、爆点密集。',
+        whyTemplate: (s) => `让”${s}”像多米诺骨牌一样推倒后续事件，适合紧凑连载。`,
+        risk: '需要控制链的长度——3-5个节点后要有一个阶段性收束。',
+      },
+      {
+        label: '时间紧迫',
+        hookTemplate: (m) => `${m}设下了一个倒计时的局`,
+        protagonistTemplate: (m) => `一个必须在时限内解决${m}的主角，每一步都面对倒计时压力。`,
+        conflictTemplate: (m) => `${m}的时限越来越近，主角必须在资源不足的情况下做选择。`,
+        tone: '紧迫感强、节奏紧凑、每一步都是赌注。',
+        whyTemplate: (s) => `给”${s}”加上时间压力，天然制造章节钩子和紧张感。`,
+        risk: '倒计时不能一直延——到高潮时必须真的有人付出代价。',
+      },
+    ],
+  };
+
+  const directions = directionPools[focus] || directionPools.plot;
 
   // Rotate directions per batch for variation
   const rotated = [...directions];
@@ -616,6 +678,19 @@ async function startServer() {
     try {
       const { ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
       const ideaSeed = sanitizeIdeaSeed(rawSeed) || rawSeed.trim();
+
+      // Input quality gate: reject pinyin, single chars, noise
+      const chineseChars = ideaSeed.replace(/[^一-鿿]/g, '');
+      if (chineseChars.length < 3) {
+        return res.status(400).json({
+          error: '输入太短，看不出故事方向。请补一个场景、人物或冲突，例如"一个乞丐捡到玉玺"。',
+        });
+      }
+      if (/^[a-zA-Z0-9\s]+$/.test(ideaSeed) && ideaSeed.length < 20) {
+        return res.status(400).json({
+          error: '输入看起来像拼音或英文片段。请用中文写一句话，比如"雨夜酒馆里的复仇故事"。',
+        });
+      }
       if (!ideaSeed.trim()) {
         return res.status(400).json({ error: 'ideaSeed is required' });
       }
@@ -646,7 +721,7 @@ async function startServer() {
         const parsed = extractJsonPayload(raw);
         const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [parsed];
         if (cards.length > 0) {
-          return res.json({ cards });
+          return res.json({ cards, source: 'model' });
         }
       } catch (e) {
         console.warn('Story cards fell back:', e);
@@ -654,6 +729,7 @@ async function startServer() {
 
       res.json({
         cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
+        source: 'fallback',
         warnings: ['模型响应较慢，已先生成本地保底开坑方向。'],
       });
     } catch (e) {
