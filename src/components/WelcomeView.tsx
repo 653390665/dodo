@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, BookOpen, ArrowRight } from 'lucide-react';
-import { generateStoryCards, listNovels } from '../lib/api';
+import { checkStoryCardJob, generateStoryCards, listNovels } from '../lib/api';
 import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../types';
 
 interface WelcomeViewProps {
@@ -21,6 +21,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   const [isLoading, setIsLoading] = useState(false);
   const [cards, setCards] = useState<StoryIdeaCard[]>([]);
   const [cardSource, setCardSource] = useState<'model' | 'fallback' | null>(null);
+  const [pendingModelJobId, setPendingModelJobId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [chatContext, setChatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
@@ -42,27 +43,44 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
     return () => clearInterval(timer);
   }, [isLoading]);
 
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
   const doSubmit = async (prompt: string, context: string) => {
     setIsLoading(true);
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    setPendingModelJobId(null);
     try {
-      const { cards: newCards, source, warnings: w } = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
+      const { cards: newCards, source, jobId, warnings: w } = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
       setCards(newCards);
       setCardSource(source || null);
       setWarnings(w || []);
       setChatContext(context + '\n' + prompt);
-      // If fallback, start polling for late model result
-      if (source === 'fallback') {
+
+      if (source === 'fallback' && jobId) {
+        setPendingModelJobId(jobId);
         pollRef.current = setInterval(async () => {
           try {
-            const retry = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning, batchIndex: 99 });
-            if (retry.source === 'model') {
-              setCards(retry.cards);
+            const job = await checkStoryCardJob(jobId);
+            if (job.status === 'completed' && job.cards?.length) {
+              setCards(job.cards);
               setCardSource('model');
-              setWarnings([]);
+              setPendingModelJobId(null);
+              setWarnings(['模型版已返回，已自动替换本地保底草案。']);
               if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
             }
-          } catch {}
+            if (job.status === 'failed') {
+              setPendingModelJobId(null);
+              setWarnings([`模型版生成失败：${job.error || '未知错误'}`]);
+              if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            }
+          } catch {
+            setPendingModelJobId(null);
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          }
         }, 5000);
       }
     } finally {
@@ -225,7 +243,9 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
             {cardSource === 'fallback' && (
               <div className="mt-4 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 text-center">
                 <div>模型响应较慢，当前为本地保底草案。</div>
-                <div className="mt-1 text-amber-500">后台仍在等待模型，若有结果将自动替换。</div>
+                <div className="mt-1 text-amber-500">
+                  {pendingModelJobId ? '后台仍在等待模型，每 5 秒检查一次，返回后会自动替换。' : '后台模型已结束，当前保留本地草案。'}
+                </div>
               </div>
             )}
             {cardSource === 'model' && warnings.length > 0 && (

@@ -213,7 +213,7 @@ export default function App() {
     const batch = isRefresh ? batchCounter + 1 : 0;
     const prevHooks = isRefresh ? (onboardingDraft?.cards || []).map(c => c.hook) : [];
     try {
-      const { cards, source, warnings } = await generateStoryCards({
+      const { cards, source, jobId, warnings } = await generateStoryCards({
         ideaSeed, chatContext, planning, surface: 'welcome',
         batchIndex: batch,
         previousHookTexts: prevHooks,
@@ -224,6 +224,7 @@ export default function App() {
         planning,
         cards,
         source,
+        storyCardJobId: jobId,
         setupTasks: [],
         acceptedSkillIds: [],
         recommendedSkills: [],

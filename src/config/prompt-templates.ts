@@ -83,44 +83,50 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 6. 记住对话历史中的关键偏好（用户选择了什么方向、否定了什么），在后续建议中体现出来。
 `.trim(),
   storyCards: `
-你是网文策划编辑。根据用户输入生成3张方向截然不同的故事方案卡。
+你是网文策划编辑。根据用户输入判断是否能生成故事方案卡。
 
 【用户输入】
 {{ideaSeed}}
 
 【写作约束】
-目标字数：{{expectedWordCount}}字
-叙事侧重：{{storyFocus}}
-叙事节奏：{{pacingPreference}}
+目标字数：{{expectedWordCount}}字 | 侧重：{{storyFocus}} | 节奏：{{pacingPreference}}
 
-【硬性规则 —— 违反任一即视为不合格】
-1. hook必须逐字复现用户输入中的核心名词（如角色身份"乞丐"、关键物件"玉玺"）。禁止将核心名词泛化为"命运""传奇""旅程""冒险"等抽象词。
-2. 三张卡方向必须互斥：一张侧重外部事件（冲突爆发/危机驱动），一张侧重悬疑揭秘（信息差博弈/真相层层揭露），一张侧重人物关系（对手戏/立场转化/信任试炼）。禁止三张卡气质雷同。
-3. 禁止输出正文片段、大纲、章节规划或示例段落。
-4. 输出必须是可以被 JSON.parse 直接解析的合法 JSON 对象。禁止 markdown 代码块、禁止前后解释文字、禁止<think>标签。
+【判断规则】
+如果用户输入包含可识别的故事元素（角色、场景、冲突、情绪、世界观信号之一），输出 status:"ok" + 3张卡。
+如果用户输入只是无意义字符、拼音、乱码、单个词、不含任何故事信号，输出 status:"needs_clarification" + 2-3个引导问题。
 
-【字段约束】
-每字段≤50字，mixTags≤4个，输出结构如下：
+两种输出格式：
+
+格式1 — 输入可用：
 {
+  "status": "ok",
   "cards": [
     {
       "id": "card-1",
-      "hook": "≤30字。必须逐字复现输入文本中的核心名词。例如输入'乞丐捡到玉玺'，hook必须出现'乞丐'和/或'玉玺'",
-      "protagonist": "主角人设（身份+性格+动机，不要只写名字）",
-      "coreConflict": "核心冲突（谁vs谁，因为什么，赌注是什么）",
-      "tone": "故事气质（从以下选一：冷峻悬疑/热血逆袭/慢热铺陈/黑色幽默/史诗悲歌/轻快日常）",
+      "hook": "≤30字。用故事语言重述输入核心元素，禁止出现作者口吻如'我想写'",
+      "protagonist": "主角人设（身份+性格+动机）",
+      "coreConflict": "核心冲突（谁vs谁，因为什么）",
+      "tone": "故事气质（冷峻悬疑/热血逆袭/慢热铺陈/黑色幽默/史诗悲歌/轻快日常）",
       "whyItWorks": "为什么值得写（必须引用输入中的具体元素）",
-      "starterSeeds": {"worldSeed":"≤30字世界观种子","relationshipSeed":"≤30字人物关系种子","chapterOneSeed":"≤30字第一章开篇种子"},
-      "planningFit": {"recommendedLength":"建议篇幅","recommendedFocus":"建议侧重","recommendedPacing":"建议节奏","reason":"为什么这样匹配（≤40字）"},
-      "riskNote": "最可能写崩的点（≤30字）",
-      "mixTags": ["≤4个标签"],
-      "signals": {"tone":"sharp|grim|lyrical|warm|cold","conflictType":"external|mystery|relationship","worldWeight":0.5,"characterWeight":0.5,"pacingPreference":"tight|balanced|slow-burn"}
+      "starterSeeds": {"worldSeed":"≤30字","relationshipSeed":"≤30字","chapterOneSeed":"≤30字"},
+      "planningFit": {"recommendedLength":"建议篇幅","recommendedFocus":"建议侧重","recommendedPacing":"建议节奏","reason":"≤40字"},
+      "riskNote": "最容易写崩的点",
+      "mixTags": ["2-4字标签"],
+      "signals": {"tone":"","conflictType":"","worldWeight":0.5,"characterWeight":0.5,"pacingPreference":"tight"}
     }
+    // ...共3张
   ]
 }
 
-【输出格式】
-只输出上面的 JSON 对象。第一字符必须是 {，最后一字符必须是 }。不要任何额外内容。
+格式2 — 输入不可用：
+{
+  "status": "needs_clarification",
+  "questions": ["引导问题1", "引导问题2"]
+}
+
+硬性规则：
+1. 禁止输出正文片段、禁止markdown、禁止think标签
+2. 只输出合法JSON，不要前后缀
   `.trim(),
   setupTaskRefine: `
 小说设定协作助手。针对单个设定项给出更稳的改写。

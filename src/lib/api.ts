@@ -161,7 +161,7 @@ export async function generateStoryCards(payload: {
   surface?: PromptSurface;
   previousHookTexts?: string[];
   batchIndex?: number;
-}): Promise<{ cards: StoryIdeaCard[]; source?: 'model' | 'fallback'; warnings?: string[] }> {
+}): Promise<{ cards: StoryIdeaCard[]; source?: 'model' | 'fallback'; jobId?: string; warnings?: string[] }> {
   const res = await fetch('/api/story-cards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -169,7 +169,18 @@ export async function generateStoryCards(payload: {
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate story cards');
-  return { cards: data.cards, source: data.source, warnings: data.warnings };
+  return { cards: data.cards, source: data.source, jobId: data.jobId, warnings: data.warnings };
+}
+
+export async function checkStoryCardJob(jobId: string): Promise<{
+  status: 'pending' | 'completed' | 'failed';
+  cards?: StoryIdeaCard[];
+  error?: string;
+}> {
+  const res = await fetch(`/api/story-cards/jobs/${encodeURIComponent(jobId)}`);
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Failed to check story card job');
+  return data;
 }
 
 export async function refineSetupTask(payload: {

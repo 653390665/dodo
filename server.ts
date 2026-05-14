@@ -37,10 +37,42 @@ import { extractJsonPayload } from './src/lib/extract-skill-json';
 import { buildBookEvidenceSegments } from './src/lib/book-skill-segmentation';
 import { buildSkillDeckFromEvidence } from './src/lib/book-skill-aggregation';
 import { collectSegmentEvidence } from './src/lib/book-skill-evidence';
-import type { SegmentSkillEvidence } from './src/types';
+import type { SegmentSkillEvidence, StoryIdeaCard } from './src/types';
 
 // Initialize local database on startup
 initDb();
+
+type StoryCardJob = {
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: number;
+  cards?: StoryIdeaCard[];
+  error?: string;
+};
+
+const STORY_CARD_FALLBACK_MS = 12_000;
+const STORY_CARD_MODEL_TIMEOUT_MS = 90_000;
+const STORY_CARD_JOB_TTL_MS = 10 * 60_000;
+const storyCardJobs = new Map<string, StoryCardJob>();
+
+function createStoryCardJob(task: Promise<StoryIdeaCard[]>): string {
+  const jobId = `story-cards-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  storyCardJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+
+  task
+    .then((cards) => {
+      storyCardJobs.set(jobId, { status: 'completed', createdAt: Date.now(), cards });
+    })
+    .catch((error) => {
+      storyCardJobs.set(jobId, {
+        status: 'failed',
+        createdAt: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+  setTimeout(() => storyCardJobs.delete(jobId), STORY_CARD_JOB_TTL_MS);
+  return jobId;
+}
 
 function buildSkillsPrompt(skills: any[]) {
   if (!skills || skills.length === 0) return "";
@@ -263,6 +295,34 @@ function sanitizeIdeaSeed(raw: string): string {
     .replace(/[「」『』""''【】]/g, '')
     .replace(/^[，,。！？、；：\s]+/g, '')
     .trim();
+}
+
+function parseStoryCardsFromModel(raw: string): StoryIdeaCard[] {
+  const parsed = extractJsonPayload(raw);
+  // Model returned needs_clarification — user input not usable as story seed
+  if (parsed?.status === 'needs_clarification') {
+    throw new Error(JSON.stringify({
+      type: 'needs_clarification',
+      questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+    }));
+  }
+  const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [parsed];
+  const validCards = cards.filter((card: any) => card && typeof card.hook === 'string' && typeof card.whyItWorks === 'string');
+  if (validCards.length === 0) {
+    throw new Error('Model returned no valid story cards');
+  }
+  // Post-model quality gate: reject noise/hallucination
+  const hooks = validCards.map((c: any) => c.hook || '');
+  const uniqueHooks = new Set(hooks.map((h: string) => h.slice(0, 10)));
+  if (uniqueHooks.size < 2 && validCards.length >= 3) {
+    throw new Error('Post-model quality gate: cards too similar');
+  }
+  // Reject cards where hook is just repeating gibberish
+  const gibberish = /^[a-zA-Z0-9]{1,4}$|^[啊嗯哦哎哈嘿啧]{1,3}$|^不补|啵$/;
+  if (hooks.some((h: string) => gibberish.test(h.trim()))) {
+    throw new Error('Post-model quality gate: hook contains noise/gibberish');
+  }
+  return validCards;
 }
 
 function extractKeywords(seed: string): string[] {
@@ -716,26 +776,62 @@ async function startServer() {
               ? '均衡推进'
               : '紧推进',
       });
+      const modelTask = generateText(getConfig(), {
+        prompt,
+        timeoutMs: STORY_CARD_MODEL_TIMEOUT_MS,
+        maxAttempts: 2,
+        maxTokens: 2048,
+      }).then(parseStoryCardsFromModel);
+
       try {
-        const raw = await generateText(getConfig(), { prompt, timeoutMs: 12_000, maxAttempts: 1, maxTokens: 2048 });
-        const parsed = extractJsonPayload(raw);
-        const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [parsed];
-        if (cards.length > 0) {
+        const cards = await Promise.race([
+          modelTask,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), STORY_CARD_FALLBACK_MS)),
+        ]);
+        if (cards && cards.length > 0) {
           return res.json({ cards, source: 'model' });
         }
       } catch (e) {
-        console.warn('Story cards fell back:', e);
+        console.warn('Story cards fell back after model failure:', e);
+        // Check if model returned needs_clarification
+        try {
+          const info = JSON.parse(e instanceof Error ? e.message : String(e));
+          if (info?.type === 'needs_clarification') {
+            return res.json({
+              status: 'needs_clarification',
+              questions: info.questions || [],
+              source: 'model',
+              warnings: ['输入还不像故事种子，需要补充信息。'],
+            });
+          }
+        } catch {}
+        return res.json({
+          cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
+          source: 'fallback',
+          warnings: ['模型请求失败，已先生成本地保底开坑方向。'],
+        });
       }
+
+      const jobId = createStoryCardJob(modelTask);
 
       res.json({
         cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
         source: 'fallback',
-        warnings: ['模型响应较慢，已先生成本地保底开坑方向。'],
+        jobId,
+        warnings: ['模型响应较慢，已先生成本地保底开坑方向，后台仍在等待模型版。'],
       });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
     }
+  });
+
+  app.get('/api/story-cards/jobs/:jobId', (req, res) => {
+    const job = storyCardJobs.get(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Story card job not found' });
+    }
+    res.json(job);
   });
 
   app.post('/api/setup-task-refine', async (req, res) => {
