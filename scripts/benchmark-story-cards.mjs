@@ -2,6 +2,7 @@ import { getConfig } from '../src/lib/config';
 import { mergePromptTemplates } from '../src/config/prompt-templates';
 import { generateText } from '../src/lib/server-llm';
 import { extractJsonPayload } from '../src/lib/extract-skill-json';
+import { classifyLatency, scoreInputAnchoring, evaluateFieldCompleteness, gradeOutput } from '../src/lib/prompt-quality';
 
 const cases = [
   '一个乞丐捡到玉玺的故事',
@@ -15,8 +16,10 @@ function render(template, values) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(values[key] ?? ''));
 }
 
+const REQUIRED_FIELDS = ['hook', 'protagonist', 'coreConflict', 'tone', 'whyItWorks', 'riskNote', 'mixTags'];
 const config = getConfig();
 const template = mergePromptTemplates(config.promptTemplates).storyCards;
+const results = [];
 
 for (const ideaSeed of cases) {
   for (const timeoutMs of [8000, 15000, 30000, 60000]) {
@@ -26,18 +29,33 @@ for (const ideaSeed of cases) {
     });
 
     const started = performance.now();
+    let report;
     try {
       const raw = await generateText(config, { prompt, timeoutMs, maxAttempts: 1, maxTokens: 4096 });
       const elapsedMs = Math.round(performance.now() - started);
-      let cards = 0; let parse = 'ok';
+      let parseSuccess = false, cards = 0, anchoringScore = 0;
+      const fieldCompleteness = {};
+
       try {
         const parsed = extractJsonPayload(raw);
+        parseSuccess = true;
         cards = Array.isArray(parsed?.cards) ? parsed.cards.length : 0;
-        if (cards !== 3) parse = `cards=${cards}`;
-      } catch (e) { parse = e.message; }
-      console.log(JSON.stringify({ ideaSeed, timeoutMs, elapsedMs, rawChars: raw.length, parse, cards }));
+        if (cards > 0) {
+          anchoringScore = scoreInputAnchoring(JSON.stringify(parsed.cards[0]), ideaSeed);
+          Object.assign(fieldCompleteness, evaluateFieldCompleteness(parsed.cards[0], REQUIRED_FIELDS));
+        }
+      } catch {}
+
+      report = {
+        latencyBucket: classifyLatency(elapsedMs),
+        parseSuccess, jsonComplete: cards === 3,
+        inputAnchoringScore: anchoringScore,
+        fieldCompleteness,
+      };
+      report.overallGrade = gradeOutput(report);
+      console.log(JSON.stringify({ ideaSeed, timeoutMs, elapsedMs, rawChars: raw.length, cards, ...report }));
     } catch (e) {
-      console.log(JSON.stringify({ ideaSeed, timeoutMs, elapsedMs: Math.round(performance.now() - started), error: e.message }));
+      console.log(JSON.stringify({ ideaSeed, timeoutMs, elapsedMs: Math.round(performance.now() - started), error: e.message, parseSuccess: false }));
     }
   }
 }

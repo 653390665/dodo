@@ -17,6 +17,7 @@ import {
   normalizeProductionIntent,
 } from './src/lib/chapter-production';
 import {
+  buildLayeredLedgerSummary,
   buildStoryStateLedger,
   summarizeStoryStateLedger,
 } from './src/lib/story-state-ledger';
@@ -1058,6 +1059,7 @@ function parseJsonOrEmptyReport(raw: string) {
         foreshadowings,
       });
       const ledgerSummary = summarizeStoryStateLedger(ledger);
+      const layered = buildLayeredLedgerSummary(ledger, chapters.length);
       const plannerContext = buildProductionPlannerContext(ledger);
       const writerContext = buildProductionWriterContext(ledger);
       const intent = normalizeProductionIntent(userIntent);
@@ -1084,9 +1086,14 @@ function parseJsonOrEmptyReport(raw: string) {
         promptTemplates: getConfig().promptTemplates,
         preferredTemplateKey: 'editorAgent',
       });
+      const layeredContext = [
+        `【世界观(L1)】${layered.world}`,
+        `【当前卷(L2)】${layered.currentArc}`,
+        `【最近章节(L3)】${layered.recentChapters}`,
+      ].join('\n\n');
       const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
         PLANNER_SOUL,
-        contextStr: plannerContext,
+        contextStr: `${layeredContext}\n\n${plannerContext}`,
         userIntent: intent,
       });
       let sceneBeats = '';
