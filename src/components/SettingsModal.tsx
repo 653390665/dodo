@@ -156,7 +156,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
         <div className="relative z-10 flex-1 overflow-y-auto pr-1">
           <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6">
             <div className="space-y-4">
-            <div className="rounded-2xl border border-theme-border bg-white/80 p-5 space-y-4">
+            <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
               <div className="space-y-1">
                 <div className="text-sm font-bold text-theme-text">模型配置</div>
                 <p className="text-[11px] text-theme-muted leading-relaxed">
@@ -171,7 +171,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     type="password"
                     value={config.apiKey}
                     onChange={e => setConfig({...config, apiKey: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-theme-border rounded-lg text-sm outline-none focus:border-theme-accent transition-colors font-mono"
+                    className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                     placeholder={hasExistingKey ? '已配置（输入新 Key 替换）' : 'sk-...'}
                   />
                   {hasExistingKey && !config.apiKey && (
@@ -187,7 +187,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   type="text"
                   value={config.baseUrl}
                   onChange={e => setConfig({...config, baseUrl: e.target.value})}
-                  className="w-full px-3 py-2 bg-white border border-theme-border rounded-lg text-sm outline-none focus:border-theme-accent transition-colors font-mono"
+                  className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                   placeholder="https://api.deepseek.com"
                 />
                 <p className="text-[10px] text-theme-muted mt-1">兼容 OpenAI 接口规范的 API 地址，如 https://api.deepseek.com</p>
@@ -198,7 +198,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   type="text"
                   value={config.model}
                   onChange={e => setConfig({...config, model: e.target.value})}
-                  className="w-full px-3 py-2 bg-white border border-theme-border rounded-lg text-sm outline-none focus:border-theme-accent transition-colors"
+                  className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors"
                   placeholder="deepseek-chat"
                 />
                 <p className="text-[10px] text-theme-muted mt-1">模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro</p>
@@ -206,7 +206,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
             </div>
 
             {onThemeChange && (
-              <div className="rounded-2xl border border-theme-border bg-white/80 p-5 space-y-3">
+              <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-3">
                 <div>
                   <div className="text-sm font-bold text-theme-text">主题外观</div>
                   <p className="text-[11px] text-theme-muted mt-1">选择亮色、暗色或跟随系统。</p>
@@ -225,7 +225,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         onClick={() => onThemeChange(opt.value)}
                         className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
                           isActive
-                            ? 'border-theme-accent bg-theme-accent text-white'
+                            ? 'border-theme-accent bg-theme-accent text-theme-bg'
                             : 'border-theme-border text-theme-muted hover:border-theme-accent/40'
                         }`}
                       >
@@ -248,7 +248,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
             </div>
           </div>
 
-            <div className="rounded-2xl border border-theme-border bg-white/70 p-4 space-y-4 min-w-0">
+            <div className="rounded-2xl border border-theme-border bg-theme-sidebar/40 p-4 space-y-4 min-w-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-theme-text">提示词调试</h3>
@@ -286,7 +286,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
                       selectedTemplateKey === item.key
                         ? 'border-theme-accent bg-theme-accent/5 text-theme-accent'
-                        : 'border-theme-border bg-white text-theme-text hover:bg-theme-sidebar/30'
+                        : 'border-theme-border bg-theme-bg text-theme-text hover:bg-theme-sidebar/30'
                     }`}
                   >
                     <div className="text-xs font-bold">{item.label}</div>
@@ -296,7 +296,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
               </div>
 
                 <div className="space-y-3 min-w-0">
-                  <div className="rounded-2xl border border-theme-border bg-white p-4 space-y-3">
+                  <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-bold text-theme-text">{selectedTemplate.label}</div>
@@ -315,7 +315,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         {selectedTemplate.variables.map((variable) => (
                           <span
                             key={variable}
-                            className="px-2 py-1 rounded-full border border-theme-border bg-white text-[10px] text-theme-muted font-mono"
+                            className="px-2 py-1 rounded-full border border-theme-border bg-theme-bg text-[10px] text-theme-muted font-mono"
                           >
                             {`{{${variable}}}`}
                           </span>
@@ -378,7 +378,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         type="button"
                         onClick={handleTestTemplate}
                         disabled={isTesting}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-text text-white text-xs font-bold hover:bg-theme-text/90 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-text text-theme-bg text-xs font-bold hover:bg-theme-text/90 transition-colors disabled:opacity-50"
                       >
                         <Sparkles size={14} />
                         {isTesting ? '试跑中...' : '试跑当前模板'}
@@ -386,7 +386,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-theme-border bg-white p-4 space-y-2 min-h-[180px]">
+                      <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
                         <div className="text-xs font-bold text-theme-text">模板试跑输出</div>
                         {testError ? (
                           <div className="text-[11px] text-red-600 leading-relaxed">{testError}</div>
@@ -399,7 +399,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         )}
                       </div>
 
-                      <div className="rounded-2xl border border-theme-border bg-white p-4 space-y-2 min-h-[180px]">
+                      <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
                         <div className="text-xs font-bold text-theme-text">送模前预览</div>
                         <div className="text-[11px] text-theme-muted leading-relaxed">
                           这里展示变量渲染后的最终提示词样本，便于检查结构、占位符和上下文拼接。
@@ -431,7 +431,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-6 py-2 bg-theme-accent text-white rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
           >
             <Save size={16} /> {saving ? '保存中...' : '保存配置'}
           </button>
