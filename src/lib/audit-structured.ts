@@ -346,3 +346,44 @@ export function extractStructuredAudit(critique: string): StructuredAudit | null
     return null;
   }
 }
+
+// ── Audit Gate (Novel-OS inspired) ──────────────────────────────────
+
+export interface AuditGateResult {
+  pass: boolean;
+  blockReason: string | null;
+  criticalFails: string[];
+}
+
+export function evaluateAuditGate(
+  scores: Record<string, number>,
+  fatalIssues: Array<{ dimension?: string; severity?: string }>,
+): AuditGateResult {
+  const GATE_MIN_TOTAL = 30;
+  const GATE_MIN_DIMENSION = 4;
+  const GATE_MAX_CRITICAL = 0;
+
+  const criticalFails: string[] = [];
+
+  const total = Object.values(scores).reduce((a, b) => a + b, 0);
+  if (total < GATE_MIN_TOTAL) {
+    criticalFails.push(`总分 ${total} < 阈值 ${GATE_MIN_TOTAL}`);
+  }
+
+  for (const [dim, score] of Object.entries(scores)) {
+    if (score < GATE_MIN_DIMENSION) {
+      criticalFails.push(`${dim} ${score} < 阈值 ${GATE_MIN_DIMENSION}`);
+    }
+  }
+
+  const criticalIssues = fatalIssues.filter(i => i.severity === 'critical');
+  if (criticalIssues.length > GATE_MAX_CRITICAL) {
+    criticalFails.push(`${criticalIssues.length} 个严重问题未解决`);
+  }
+
+  return {
+    pass: criticalFails.length === 0,
+    blockReason: criticalFails.length > 0 ? criticalFails.join('；') : null,
+    criticalFails,
+  };
+}

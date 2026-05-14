@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cn } from '../lib/utils';
 import {
   Plus,
   Search,
@@ -180,7 +181,19 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       {novels.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         <AnimatePresence mode="popLayout">
-          {filteredNovels.map((novel) => (
+          {filteredNovels.map((novel) => {
+            // Generate a deterministic gradient based on novel id
+            const hues = [
+              'from-rose-100 to-teal-50',
+              'from-amber-100 to-indigo-50',
+              'from-emerald-100 to-fuchsia-50',
+              'from-sky-100 to-orange-50',
+              'from-violet-100 to-lime-50'
+            ];
+            const hueIndex = (parseInt(novel.id.slice(-3)) || 0) % hues.length;
+            const gradientClass = hues[hueIndex];
+
+            return (
             <motion.div
               layout
               key={novel.id}
@@ -188,76 +201,103 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={() => onSelectNovel(novel)}
-              className="group relative h-[400px] natural-card p-6 overflow-hidden"
+              className="group relative h-[420px] bg-white rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
             >
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
+              <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex gap-2 translate-y-2 group-hover:translate-y-0">
                 <button
                   onClick={(e) => handleExportNovel(e, novel)}
-                  className="p-2 bg-white/90 backdrop-blur rounded-full text-theme-muted hover:text-theme-text hover:bg-theme-sidebar transition-all shadow-md"
+                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-white transition-all shadow-lg border border-theme-border/50"
                   title="导出全本 (TXT)"
                 >
                   <Download size={16} />
                 </button>
                 <button
                   onClick={(e) => handleDeleteNovel(e, novel.id)}
-                  className="p-2 bg-white/90 backdrop-blur rounded-full text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-md"
+                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
                   title="删除作品"
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
 
-              {/* Cover Placeholder */}
-              <div className="w-full h-48 bg-theme-bg rounded-xl mb-6 flex items-center justify-center relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
-                <BookMarked size={48} className="text-theme-border" />
-                <div className="absolute inset-0 bg-gradient-to-t from-theme-accent/5 to-transparent" />
+              {/* Enhanced Cover */}
+              <div className={cn(
+                "w-full h-52 rounded-3xl mb-6 flex flex-col items-center justify-center relative overflow-hidden group-hover:scale-[1.03] transition-transform duration-700 bg-gradient-to-br shadow-inner",
+                gradientClass
+              )}>
+                <BookMarked size={56} className="text-theme-text/10 mb-2" />
+                <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">Inspiration Vault</div>
+                <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
+                
+                {/* Visual texture */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
               </div>
 
-              <div className="flex flex-col h-[calc(100%-12rem)]">
-                <h3 className="text-xl font-serif font-bold mb-2 group-hover:text-theme-accent transition-colors">{novel.title}</h3>
+              <div className="flex flex-col h-[calc(100%-14.5rem)]">
+                <h3 className="text-2xl font-serif font-bold text-theme-text line-clamp-2 leading-tight group-hover:text-theme-accent transition-colors">
+                  {novel.title}
+                </h3>
 
-                <div className="flex items-center gap-3 mt-auto pt-4 border-t border-theme-border/30">
-                  <div className="flex items-center gap-1.5 text-[10px] text-theme-muted uppercase tracking-wider font-bold">
-                    <Clock size={12} />
+                <div className="flex items-center gap-3 mt-auto pt-5 border-t border-theme-border/30">
+                  <div className="flex items-center gap-1.5 text-[10px] text-theme-muted uppercase tracking-widest font-bold">
+                    <Clock size={12} className="opacity-50" />
                     <span>{new Date(novel.updatedAt).toLocaleDateString()}</span>
                   </div>
-                  <span className="ml-auto px-2 py-0.5 bg-theme-sidebar/60 text-theme-muted rounded text-[10px] font-bold uppercase tracking-widest border border-theme-border/30">
-                    {novel.status === 'ongoing' ? '连载中' : novel.status === 'completed' ? '已完结' : '断更'}
-                  </span>
+                  
+                  {(() => {
+                    const statusConfig = {
+                      ongoing: { label: '连载中', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                      completed: { label: '已完结', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                      hiatus: { label: '断更', color: 'bg-amber-50 text-amber-700 border-amber-100' }
+                    }[novel.status as keyof typeof statusConfig || 'ongoing'];
+                    
+                    return (
+                      <span className={cn(
+                        "ml-auto px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border shadow-sm",
+                        statusConfig.color
+                      )}>
+                        {statusConfig.label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </AnimatePresence>
 
         {isAdding && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="h-[400px] border-2 border-dashed border-theme-border rounded-2xl p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10"
+            className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors"
           >
             <form onSubmit={handleCreateNovel} className="w-full px-4">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
+                <Plus size={32} className="text-theme-accent" />
+              </div>
               <input
                 autoFocus
                 type="text"
-                placeholder="作品标题"
+                placeholder="在此输入新书名..."
                 value={newNovelTitle}
                 onChange={(e) => setNewNovelTitle(e.target.value)}
-                className="w-full text-center bg-transparent border-b-2 border-theme-accent py-2 text-xl font-serif mb-6 outline-none text-theme-text placeholder:text-theme-muted"
+                className="w-full text-center bg-transparent border-b-2 border-theme-accent/30 focus:border-theme-accent py-2 text-2xl font-serif mb-8 outline-none text-theme-text placeholder:text-theme-muted/50 transition-colors"
               />
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-4 justify-center">
                 <button
                   type="button"
                   onClick={() => setIsAdding(false)}
-                  className="px-4 py-2 text-sm text-theme-muted hover:text-theme-accent font-medium font-serif"
+                  className="px-5 py-2 text-sm text-theme-muted hover:text-theme-text font-bold transition-colors"
                 >
-                  取消
+                  放弃
                 </button>
                 <button
                   type="submit"
-                  className="natural-btn-primary px-6"
+                  className="bg-theme-text text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all"
                 >
-                  创建作品
+                  立即创建
                 </button>
               </div>
             </form>

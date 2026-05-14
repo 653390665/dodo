@@ -221,3 +221,42 @@ export function summarizeStoryStateLedger(ledger: StoryStateLedger): string {
     facts.foreshadowings,
   ].join('\n\n');
 }
+
+// ── Layered Ledger (Morpheus L1/L2/L3 inspired) ─────────────────────
+
+export interface LayeredLedger {
+  world: string;
+  currentArc: string;
+  recentChapters: string;
+}
+
+export function buildLayeredLedgerSummary(
+  ledger: StoryStateLedger,
+  currentChapterOrder: number,
+): LayeredLedger {
+  const world = [
+    ledger.worldRules || '',
+    ledger.globalOutline || '',
+  ].filter(Boolean).join('\n');
+
+  const arcChapters = ledger.recentChapters
+    ?.filter(ch => Math.abs(ch.order - currentChapterOrder) < 20)
+    .sort((a, b) => a.order - b.order) || [];
+  const currentArc = arcChapters
+    .map(ch => `第${ch.order}章: ${ch.title}`)
+    .join('\n');
+
+  const recent = ledger.recentChapters
+    .filter(ch => ch.order <= currentChapterOrder && ch.order > currentChapterOrder - 5)
+    .sort((a, b) => a.order - b.order);
+  const recentChapters = recent
+    .map(ch => {
+      const chars = ledger.entityStates.characters
+        .filter(c => ch.summary?.includes(c.name))
+        .map(c => c.name)
+        .slice(0, 5);
+      return `第${ch.order}章「${ch.title}」${chars.length ? '出场: ' + chars.join('、') : ''}`;
+    }).join('\n');
+
+  return { world, currentArc, recentChapters };
+}

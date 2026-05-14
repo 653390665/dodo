@@ -391,6 +391,7 @@ export default function App() {
           currentView={currentView}
           onNavigate={handleNavigate}
           user={user}
+          isAIAssistantOpen={isAIAssistantOpen}
         />
       </div>
 

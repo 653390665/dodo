@@ -19,6 +19,7 @@ interface SidebarProps {
   currentView: ViewType;
   onNavigate: (view: ViewType, navKey?: WorkspaceNavKey) => void;
   user: { uid: string };
+  isAIAssistantOpen?: boolean;
 }
 
 interface NavItem {
@@ -28,7 +29,7 @@ interface NavItem {
   navKey?: WorkspaceNavKey;
 }
 
-export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
+export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const iconMap: Record<ViewType, NavItem['icon']> = {
@@ -53,9 +54,11 @@ export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
   ];
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = item.id === 'workspace'
-      ? isWorkspaceFamilyView(currentView)
-      : currentView === item.id;
+    const isActive = item.id === 'ai' 
+      ? isAIAssistantOpen 
+      : item.id === 'workspace'
+        ? isWorkspaceFamilyView(currentView)
+        : currentView === item.id;
     const key = item.navKey || item.id;
     return (
       <button

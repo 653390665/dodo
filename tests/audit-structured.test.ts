@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   embedStructuredAudit,
+  evaluateAuditGate,
   extractStructuredAudit,
   parseStructuredAuditResponse,
   renderStructuredAuditMarkdown,
@@ -99,4 +100,41 @@ test('structured audit parser repairs unescaped inner quotes in snippets', () =>
   assert.ok(structured);
   assert.equal(structured?.fatalIssues[0]?.issueType, 'duplicate');
   assert.match(structured?.fatalIssues[0]?.snippet || '', /那您腰间那串钥匙/);
+});
+
+// ── Audit Gate tests ────────────────────────────────────────────────
+
+test('evaluateAuditGate passes clean audit', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 7, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [],
+  );
+  assert.equal(result.pass, true);
+  assert.equal(result.blockReason, null);
+});
+
+test('evaluateAuditGate fails on low dimension', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 3, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [],
+  );
+  assert.equal(result.pass, false);
+  assert.match(result.blockReason || '', /分镜执行度/);
+});
+
+test('evaluateAuditGate fails on low total', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 4, '分镜执行度': 4, '冲突推进度': 4, '风格契合度': 4, '网文章节感': 4 },
+    [],
+  );
+  assert.equal(result.pass, false);
+  assert.match(result.blockReason || '', /总分/);
+});
+
+test('evaluateAuditGate fails on critical issues', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 7, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [{ dimension: '可读性', severity: 'critical' }],
+  );
+  assert.equal(result.pass, false);
 });
