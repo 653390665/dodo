@@ -6,11 +6,11 @@ const http = require('http');
 
 // Windows GUI has no console; prevent EPIPE from crashing the app
 process.stdout.on('error', (err) => {
-  if (err.code === 'EPIPE') return;
+  if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') return;
   throw err;
 });
 process.stderr.on('error', (err) => {
-  if (err.code === 'EPIPE') return;
+  if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') return;
   throw err;
 });
 
