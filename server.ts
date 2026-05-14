@@ -27,6 +27,7 @@ import {
 } from './src/lib/continuity-critic';
 import {
   embedStructuredAudit,
+  evaluateAuditGate,
   parseAuditFiveDim,
   parseStructuredAuditResponse,
   renderFiveDimMarkdown,
@@ -841,13 +842,18 @@ ${text.substring(0, 30000)}
       // Try new 5-dimension format first, fall back to legacy format
       const fiveDim = parseAuditFiveDim(rawFeedback);
       if (fiveDim) {
+        const gate = evaluateAuditGate(
+          Object.fromEntries(Object.entries(fiveDim.scores).map(([k, v]) => [k, (v as { score: number }).score])),
+          (fiveDim as any).fatalIssues || [],
+        );
         const feedback = renderFiveDimMarkdown(fiveDim);
         return res.json({
           feedback,
           score: fiveDim.totalScore,
-          pass: fiveDim.pass,
-          failReason: fiveDim.failReason || null,
+          pass: gate.pass,
+          failReason: gate.blockReason || fiveDim.failReason || null,
           scores: fiveDim.scores,
+          gate,
         });
       }
 

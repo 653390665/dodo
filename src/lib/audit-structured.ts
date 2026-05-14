@@ -1,3 +1,5 @@
+import { extractJsonPayload } from './extract-skill-json';
+
 export type StructuredAuditIssueType =
   | 'duplicate'
   | 'dialogue-logic'
@@ -264,13 +266,9 @@ export interface AuditScores {
 }
 
 export function parseAuditFiveDim(raw: string): AuditScores | null {
-  const trimmed = raw.replace(/```json/g, '').replace(/```/g, '').trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
   try {
-    const parsed = JSON.parse(trimmed.slice(start, end + 1));
-    if (!parsed.scores || !('totalScore' in parsed)) return null;
+    const parsed = extractJsonPayload(raw);
+    if (!parsed || !parsed.scores || !('totalScore' in parsed)) return null;
     const totalScore = Number(parsed.totalScore);
     if (!Number.isFinite(totalScore)) return null;
     return {
