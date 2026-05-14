@@ -195,6 +195,8 @@ function startServer() {
 
     writeStartupLog(`starting server: cmd=${cmd} script=${serverPath} staticDir=${staticDir}`);
 
+    const serverStderrLines = [];
+
     serverProcess = spawn(cmd, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
@@ -224,6 +226,8 @@ function startServer() {
 
     serverProcess.stderr.on('data', (data) => {
       const message = data.toString().trim();
+      serverStderrLines.push(message);
+      if (serverStderrLines.length > 50) serverStderrLines.shift();
       writeStartupLog(`[server stderr] ${message}`);
       console.error('[server]', message);
     });
@@ -235,7 +239,10 @@ function startServer() {
         serverProcess = null;
       }
       if (!resolved) {
-        reject(new Error(`Server exited with code ${code} before reporting port`));
+        const stderrTail = serverStderrLines.slice(-5).join('\n');
+        const reason = stderrTail || `Exit code ${code}`;
+        writeStartupLog(`server start failed: ${reason}`);
+        reject(new Error(reason));
       } else if (isQuitting || !wasCurrentProcess) {
         return;
       } else {
