@@ -25,7 +25,7 @@ export function StoryCardDeck({
           继续刷一批
         </button>
       </div>
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {cards.map((card) => (
           <StoryCardPreview
             key={card.id}

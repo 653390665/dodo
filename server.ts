@@ -282,6 +282,8 @@ function buildFallbackStoryCards(
     pacingPreference: 'tight' | 'balanced' | 'slow-burn';
     storyFocus: 'plot' | 'character' | 'world';
   }>,
+  batchIndex = 0,
+  previousHookTexts: string[] = [],
 ) {
   const seed = String(ideaSeed || '').trim() || '一个尚未成形的新故事';
   const keywords = extractKeywords(seed);
@@ -335,9 +337,15 @@ function buildFallbackStoryCards(
     },
   ];
 
-  const base = directions.map((dir, i) => ({
-    id: `fallback-card-${i + 1}`,
-    hook: dir.hookTemplate(mainTerm, secondTerm),
+  // Rotate directions per batch for variation
+  const rotated = [...directions];
+  for (let r = 0; r < batchIndex % directions.length; r++) rotated.push(rotated.shift()!);
+
+  const batchSuffix = batchIndex > 0 ? ['', '（变体）', '（另辟蹊径）'][Math.min(batchIndex, 2)] : '';
+
+  const base = rotated.map((dir, i) => ({
+    id: `fallback-card-${batchIndex}-${i + 1}`,
+    hook: dir.hookTemplate(mainTerm, secondTerm) + batchSuffix,
     protagonist: dir.protagonistTemplate(mainTerm),
     coreConflict: dir.conflictTemplate(mainTerm, secondTerm),
     tone: dir.tone,
@@ -576,7 +584,7 @@ async function startServer() {
 
   app.post('/api/story-cards', async (req, res) => {
     try {
-      const { ideaSeed = '', chatContext = '', planning = {}, surface = 'welcome' } = req.body;
+      const { ideaSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
       if (!ideaSeed.trim()) {
         return res.status(400).json({ error: 'ideaSeed is required' });
       }
@@ -614,7 +622,7 @@ async function startServer() {
       }
 
       res.json({
-        cards: buildFallbackStoryCards(ideaSeed, planning),
+        cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
         warnings: ['模型响应较慢，已先生成本地保底开坑方向。'],
       });
     } catch (e) {

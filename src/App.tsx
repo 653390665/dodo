@@ -52,6 +52,7 @@ export default function App() {
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [user] = useState(LOCAL_USER);
   const [loading, setLoading] = useState(false);
+  const [batchCounter, setBatchCounter] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraftState | null>(null);
   const [activeSetupTaskKey, setActiveSetupTaskKey] = useState<SetupTaskKey | null>(null);
@@ -60,6 +61,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getStoredTheme);
   const [assistantLaunchContext, setAssistantLaunchContext] = useState<AssistantLaunchContext | null>(null);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const [aiDrawerTab, setAiDrawerTab] = useState<'cards' | 'chat'>('cards');
 
   useEffect(() => {
     applyTheme(theme);
@@ -200,14 +202,23 @@ export default function App() {
     ideaSeed,
     chatContext,
     planning,
+    isRefresh,
   }: {
     ideaSeed: string;
     chatContext: string;
     planning: StoryPlanningInput;
+    isRefresh?: boolean;
   }) => {
     setLoading(true);
+    const batch = isRefresh ? batchCounter + 1 : 0;
+    const prevHooks = isRefresh ? (onboardingDraft?.cards || []).map(c => c.hook) : [];
     try {
-      const { cards, warnings } = await generateStoryCards({ ideaSeed, chatContext, planning, surface: 'welcome' });
+      const { cards, warnings } = await generateStoryCards({
+        ideaSeed, chatContext, planning, surface: 'welcome',
+        batchIndex: batch,
+        previousHookTexts: prevHooks,
+      });
+      if (isRefresh) setBatchCounter(batch);
       setOnboardingDraft({
         ideaSeed,
         planning,
@@ -570,26 +581,55 @@ export default function App() {
               {onboardingDraft ? (
                 <div className="h-full flex flex-col">
                   <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white">
-                    <h2 className="text-lg font-serif font-bold text-theme-text">灵感企划案</h2>
+                    <div className="flex gap-2">
+                      <button onClick={() => setAiDrawerTab('cards')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>方案卡</button>
+                      <button onClick={() => setAiDrawerTab('chat')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>灵感对话</button>
+                    </div>
                     <button onClick={() => setIsAIAssistantOpen(false)} className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all">
                       <X size={20} />
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto px-6 py-8 bg-theme-bg/30">
-                    <StoryCardDeck
-                      cards={onboardingDraft.cards}
-                      selectedCardId={onboardingDraft.selectedCardId}
-                      onSelectCard={handleSelectStoryCard}
-                      onMixCard={() => {}}
-                      onRefreshBatch={() =>
-                        handleCreateDraftFromIdea({
-                          ideaSeed: onboardingDraft.ideaSeed,
-                          chatContext: onboardingDraft.ideaSeed,
-                          planning: onboardingDraft.planning,
-                        })
-                      }
-                    />
-                  </div>
+                  {aiDrawerTab === 'cards' ? (
+                    <div className="flex-1 overflow-y-auto px-6 py-8 bg-theme-bg/30">
+                      <StoryCardDeck
+                        cards={onboardingDraft.cards}
+                        selectedCardId={onboardingDraft.selectedCardId}
+                        onSelectCard={handleSelectStoryCard}
+                        onMixCard={() => {
+                          if (onboardingDraft.cards.length >= 2) {
+                            const other = onboardingDraft.cards.find(c => c.id !== onboardingDraft.selectedCardId);
+                            if (other) {
+                              handleCreateDraftFromIdea({
+                                ideaSeed: `${onboardingDraft.cards[0].hook} + ${other.hook}`,
+                                chatContext: onboardingDraft.ideaSeed,
+                                planning: onboardingDraft.planning,
+                              });
+                            }
+                          }
+                        }}
+                        onRefreshBatch={() =>
+                          handleCreateDraftFromIdea({
+                            ideaSeed: onboardingDraft.ideaSeed,
+                            chatContext: onboardingDraft.ideaSeed,
+                            planning: onboardingDraft.planning,
+                            isRefresh: true,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto">
+                      <ErrorBoundary>
+                        <AIAssistant
+                          launchContext={assistantLaunchContext}
+                          onApplyToContent={handleApplyAssistantToContent}
+                          onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
+                          onReplaceSelection={handleReplaceAssistantSelection}
+                          onClose={() => setIsAIAssistantOpen(false)}
+                        />
+                      </ErrorBoundary>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <ErrorBoundary>

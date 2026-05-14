@@ -19,17 +19,17 @@ export function StoryCardPreview({
     >
       <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">故事方案</div>
       <h3 className="mb-3 text-lg font-serif font-bold text-theme-text">{card.hook}</h3>
-      <div className="space-y-3 text-sm text-theme-text">
-        <p>
+      <div className="space-y-2 text-sm text-theme-text">
+        <p className="line-clamp-2">
           <span className="font-bold">主角</span> {card.protagonist}
         </p>
-        <p>
+        <p className="line-clamp-2">
           <span className="font-bold">冲突</span> {card.coreConflict}
         </p>
-        <p>
+        <p className="line-clamp-1">
           <span className="font-bold">气质</span> {card.tone}
         </p>
-        <p className="text-theme-muted">{card.whyItWorks}</p>
+        <p className="text-theme-muted line-clamp-2 text-xs">{card.whyItWorks}</p>
         <div className="rounded-2xl bg-theme-sidebar/20 px-3 py-3 text-xs text-theme-muted">
           <div>{card.planningFit.recommendedLength}</div>
           <div className="mt-1">{card.planningFit.recommendedFocus} · {card.planningFit.recommendedPacing}</div>

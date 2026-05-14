@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   X, Bot, Sparkles, Globe, Wand2, ListOrdered, Brain,
   MessageSquareWarning, Activity, Eye, History, Lightbulb,
@@ -140,6 +140,7 @@ export function AgentWorkspace({
   const planningPromptSurface = 'workspace-beats';
   const polishPromptSurface = 'chapter-polish';
   const reviewPromptSurface = 'chapter-review';
+  const tabBarRef = useRef<HTMLDivElement>(null);
 
   return (
     <motion.div
@@ -166,7 +167,17 @@ export function AgentWorkspace({
       </div>
 
       {/* Tabs — grouped by writing phase */}
-      <div className="flex overflow-x-auto no-scrollbar p-3 gap-1 border-b border-theme-border bg-transparent sticky top-0 z-10 shrink-0 items-center">
+      <div
+        ref={tabBarRef}
+        onWheel={(e) => {
+          if (!tabBarRef.current) return;
+          const el = tabBarRef.current;
+          const canScroll = el.scrollWidth > el.clientWidth;
+          if (!canScroll) return;
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }}
+        className="flex overflow-x-auto no-scrollbar p-3 gap-1 border-b border-theme-border bg-transparent sticky top-0 z-10 shrink-0 items-center">
         <span className="text-[9px] font-bold text-theme-muted/40 uppercase tracking-wider px-2 shrink-0">当前</span>
         <button onClick={() => setAgentTab('copilot-home')} className={cn("flex-none whitespace-nowrap py-1.5 px-2.5 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1", agentTab === 'copilot-home' ? "bg-theme-text text-white" : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text")}>
           <Bot size={11} /> 智能建议

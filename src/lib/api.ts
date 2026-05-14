@@ -159,6 +159,8 @@ export async function generateStoryCards(payload: {
   chatContext: string;
   planning: StoryPlanningInput;
   surface?: PromptSurface;
+  previousHookTexts?: string[];
+  batchIndex?: number;
 }): Promise<{ cards: StoryIdeaCard[]; warnings?: string[] }> {
   const res = await fetch('/api/story-cards', {
     method: 'POST',
