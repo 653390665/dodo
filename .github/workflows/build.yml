@@ -18,6 +18,17 @@ jobs:
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify DMG
+        run: |
+          DMG=$(ls release/InkFlow-*-mac-arm64.dmg)
+          SIZE=$(stat -f%z "$DMG")
+          echo "DMG: $DMG ($SIZE bytes)"
+          if [ "$SIZE" -lt 50000000 ]; then echo "DMG too small, build likely failed"; exit 1; fi
+          # Mount and verify contents
+          hdiutil attach "$DMG" -mountpoint /tmp/inkflow-mnt -nobrowse -quiet
+          ls -la /tmp/inkflow-mnt/
+          hdiutil detach /tmp/inkflow-mnt -quiet
+          echo "DMG verification OK"
       - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-mac-arm64
@@ -35,6 +46,14 @@ jobs:
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/InkFlow-*-win-x64.exe | Select-Object -First 1
+          $size = (Get-Item $exe).Length
+          Write-Host "EXE: $exe ($size bytes)"
+          if ($size -lt 50000000) { Write-Error "EXE too small, build likely failed"; exit 1 }
+          Write-Host "EXE verification OK"
       - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-win-x64
