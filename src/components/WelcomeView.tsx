@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, BookOpen, ArrowRight } from 'lucide-react';
 import { generateStoryCards, listNovels } from '../lib/api';
 import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../types';
@@ -20,10 +20,12 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [cards, setCards] = useState<StoryIdeaCard[]>([]);
+  const [cardSource, setCardSource] = useState<'model' | 'fallback' | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [chatContext, setChatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [loadingTicks, setLoadingTicks] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [planning, setPlanning] = useState<StoryPlanningInput>({
     expectedWordCount: 180000,
     pacingPreference: 'tight',
@@ -42,11 +44,27 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
 
   const doSubmit = async (prompt: string, context: string) => {
     setIsLoading(true);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     try {
-      const { cards: newCards, warnings: w } = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
+      const { cards: newCards, source, warnings: w } = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning });
       setCards(newCards);
+      setCardSource(source || null);
       setWarnings(w || []);
       setChatContext(context + '\n' + prompt);
+      // If fallback, start polling for late model result
+      if (source === 'fallback') {
+        pollRef.current = setInterval(async () => {
+          try {
+            const retry = await generateStoryCards({ ideaSeed: prompt, chatContext: context, planning, batchIndex: 99 });
+            if (retry.source === 'model') {
+              setCards(retry.cards);
+              setCardSource('model');
+              setWarnings([]);
+              if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            }
+          } catch {}
+        }, 5000);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -204,7 +222,13 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
             <p className="text-xs text-theme-muted text-center -mt-2">
               会结合你的篇幅与推进规划，自动创建作品、第一章骨架和主角设定
             </p>
-            {warnings.length > 0 && (
+            {cardSource === 'fallback' && (
+              <div className="mt-4 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 text-center">
+                <div>模型响应较慢，当前为本地保底草案。</div>
+                <div className="mt-1 text-amber-500">后台仍在等待模型，若有结果将自动替换。</div>
+              </div>
+            )}
+            {cardSource === 'model' && warnings.length > 0 && (
               <div className="mt-4 mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 text-center">
                 {warnings.map((w, i) => <div key={i}>{w}</div>)}
               </div>
