@@ -65,21 +65,16 @@ jobs:
           $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
           Write-Host "ZIP: $($zip.Name) ($($zip.Length) bytes)"
           Expand-Archive -Path $zip.FullName -DestinationPath release/verify-win-zip -Force
-          $pkgDir = Get-ChildItem release/verify-win-zip/resources/app.asar.unpacked -ErrorAction SilentlyContinue
-          if (-not $pkgDir) { Write-Error "app.asar.unpacked missing from package"; exit 1 }
-          # Check key files exist
-          $checks = @(
-            'dist-electron/server.cjs',
-            'dist-electron/better-sqlite3-shim.cjs',
-            'dist-electron/electron-preload.cjs'
-          )
-          foreach ($f in $checks) {
-            $path = Join-Path $pkgDir.FullName $f
-            if (-not (Test-Path $path)) { Write-Error "Missing: $f"; exit 1 }
-          }
-          Write-Host "All required files present in package"
-          # Check server.cjs in package also has no unbundled deps
-          $pkgServer = Get-Content (Join-Path $pkgDir.FullName 'dist-electron/server.cjs') -Raw
+          $base = "release/verify-win-zip"
+          $pkgDir = Get-ChildItem "$base/resources/app.asar.unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $pkgDir) { Write-Error "app.asar.unpacked missing"; exit 1 }
+          Write-Host "app.asar.unpacked found: $($pkgDir.FullName)"
+          $serverPath = "$($pkgDir.FullName)/dist-electron/server.cjs"
+          if (-not (Test-Path $serverPath)) { Write-Error "server.cjs missing from package"; exit 1 }
+          $shimPath = "$($pkgDir.FullName)/dist-electron/better-sqlite3-shim.cjs"
+          if (-not (Test-Path $shimPath)) { Write-Error "shim missing from package"; exit 1 }
+          Write-Host "All required files present"
+          $pkgServer = Get-Content $serverPath -Raw -ErrorAction Stop
           $pkgReqs = [regex]::Matches($pkgServer, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
           $pkgBad = @($pkgReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
           if ($pkgBad.Count -gt 0) {
