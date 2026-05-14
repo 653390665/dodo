@@ -93,10 +93,10 @@
       "identity": null
     },
     "win": {
-      "target": {
-        "target": "nsis",
-        "arch": ["x64"]
-      },
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip", "arch": ["x64"] }
+      ],
       "artifactName": "InkFlow-${version}-win-x64.${ext}"
     },
     "nsis": {

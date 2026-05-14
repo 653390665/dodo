@@ -54,7 +54,11 @@ jobs:
           Write-Host "EXE: $exe ($size bytes)"
           if ($size -lt 50000000) { Write-Error "EXE too small, build likely failed"; exit 1 }
           Write-Host "EXE verification OK"
+          $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
+          if ($zip) { Write-Host "ZIP: $zip ($((Get-Item $zip).Length) bytes)" }
       - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-win-x64
-          path: release/InkFlow-*-win-*.exe
+          path: |
+            release/InkFlow-*-win-*.exe
+            release/InkFlow-*-win-*.zip
