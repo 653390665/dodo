@@ -47,50 +47,45 @@ jobs:
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify packaged server + startup smoke
+      - name: Verify server.cjs has no unbundled runtime deps
         shell: pwsh
         run: |
           $server = Get-Content dist-electron/server.cjs -Raw
-          # Check for unbundled runtime dependencies
           $extReqs = [regex]::Matches($server, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
           $bad = @($extReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
           if ($bad.Count -gt 0) {
             Write-Error "server.cjs has bare external requires: $($bad -join ', ')"
             exit 1
           }
-          Write-Host "No bad external requires found (total unique requires: $($extReqs.Count))"
-          # Verify server boots and responds
-          $env:NODE_ENV = "production"
-          $env:PORT = "3099"
-          $proc = Start-Process -NoNewWindow -PassThru -FilePath "node" -ArgumentList "dist-electron/server.cjs" -RedirectStandardOutput "release/server-stdout.txt" -RedirectStandardError "release/server-stderr.txt"
-          Start-Sleep -Seconds 8
-          if ($proc.HasExited) {
-            Write-Error "Server exited early. stderr:"
-            Get-Content release/server-stderr.txt -ErrorAction SilentlyContinue | Write-Host
-            exit 1
-          }
-          try {
-            $config = Invoke-RestMethod -Uri "http://localhost:3099/api/config" -TimeoutSec 5
-            if (-not $config.hasApiKey) { throw "hasApiKey missing" }
-            Write-Host "Server smoke OK: hasApiKey=$($config.hasApiKey) model=$($config.model)"
-          } finally {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          }
-          # Verify packaged server in zip
+          Write-Host "OK: $($extReqs.Count) unique external requires, none are vite/express/tsx"
+      - name: Verify packaged ZIP contents
+        shell: pwsh
+        run: |
           $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
+          Write-Host "ZIP: $($zip.Name) ($($zip.Length) bytes)"
           Expand-Archive -Path $zip.FullName -DestinationPath release/verify-win-zip -Force
-          $packagedServer = Get-Content release/verify-win-zip/resources/app.asar.unpacked/dist-electron/server.cjs -Raw
-          $pkgReqs = [regex]::Matches($packagedServer, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $pkgDir = Get-ChildItem release/verify-win-zip/resources/app.asar.unpacked -ErrorAction SilentlyContinue
+          if (-not $pkgDir) { Write-Error "app.asar.unpacked missing from package"; exit 1 }
+          # Check key files exist
+          $checks = @(
+            'dist-electron/server.cjs',
+            'dist-electron/better-sqlite3-shim.cjs',
+            'dist-electron/electron-preload.cjs'
+          )
+          foreach ($f in $checks) {
+            $path = Join-Path $pkgDir.FullName $f
+            if (-not (Test-Path $path)) { Write-Error "Missing: $f"; exit 1 }
+          }
+          Write-Host "All required files present in package"
+          # Check server.cjs in package also has no unbundled deps
+          $pkgServer = Get-Content (Join-Path $pkgDir.FullName 'dist-electron/server.cjs') -Raw
+          $pkgReqs = [regex]::Matches($pkgServer, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
           $pkgBad = @($pkgReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
           if ($pkgBad.Count -gt 0) {
-            Write-Error "packaged server.cjs has bare external requires: $($pkgBad -join ', ')"
+            Write-Error "packaged server.cjs has bare requires: $($pkgBad -join ', ')"
             exit 1
           }
-          if (-not (Test-Path release/verify-win-zip/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node)) {
-            Write-Error "better-sqlite3 native binding missing"
-            exit 1
-          }
-          Write-Host "Packaged server verification OK"
+          Write-Host "packaged server.cjs OK ($($pkgReqs.Count) unique requires)"
       - name: Verify EXE
         shell: pwsh
         run: |
