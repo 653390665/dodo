@@ -4,6 +4,16 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 
+// Windows GUI has no console; prevent EPIPE from crashing the app
+process.stdout.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+process.stderr.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+
 let mainWindow = null;
 let serverProcess = null;
 let serverPort = 3000;
