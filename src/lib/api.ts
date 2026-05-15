@@ -280,6 +280,7 @@ export async function startChapterProductionRun(payload: {
   novelId: string;
   targetChapterId?: string;
   userIntent: string;
+  continuationPackId?: string;
   surface?: PromptSurface;
 }): Promise<ChapterProductionRun> {
   const res = await fetch('/api/chapter-production-runs/start', {

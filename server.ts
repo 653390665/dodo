@@ -42,7 +42,7 @@ import {
 import { buildBookEvidenceSegments } from './src/lib/book-skill-segmentation';
 import { buildSkillDeckFromEvidence } from './src/lib/book-skill-aggregation';
 import { collectSegmentEvidence } from './src/lib/book-skill-evidence';
-import { classifyContinuationSource } from './src/lib/continuation-pack';
+import { buildContinuationContext, classifyContinuationSource } from './src/lib/continuation-pack';
 import type { SegmentSkillEvidence, StoryIdeaCard } from './src/types';
 
 // Initialize local database on startup
@@ -1654,7 +1654,7 @@ function parseJsonOrEmptyReport(raw: string) {
   app.post('/api/chapter-production-runs/start', async (req, res) => {
     let runId: string | null = null;
     try {
-      const { novelId = '', targetChapterId = '', userIntent = '', surface = 'workspace-draft' } = req.body;
+      const { novelId = '', targetChapterId = '', userIntent = '', continuationPackId = '', surface = 'workspace-draft' } = req.body;
       if (!novelId.trim()) {
         return res.status(400).json({ error: 'novelId is required' });
       }
@@ -1662,6 +1662,15 @@ function parseJsonOrEmptyReport(raw: string) {
       const novel = db.getNovel(novelId);
       if (!novel) {
         return res.status(404).json({ error: 'Novel not found' });
+      }
+
+      // Load approved continuation pack context if provided
+      let packContext = '';
+      if (continuationPackId) {
+        const pack = db.getContinuationPack(continuationPackId);
+        if (pack && pack.status === 'approved') {
+          packContext = buildContinuationContext(pack);
+        }
       }
 
       const chapters = db.listChapters(novelId);
@@ -1721,7 +1730,7 @@ function parseJsonOrEmptyReport(raw: string) {
       ].join('\n\n');
       const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
         PLANNER_SOUL,
-        contextStr: `${layeredContext}\n\n${plannerContext}`,
+        contextStr: [layeredContext, packContext, plannerContext].filter(Boolean).join('\n\n'),
         userIntent: intent,
       });
       let sceneBeats = '';
