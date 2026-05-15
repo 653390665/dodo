@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, BookTemplate, Save, CheckCircle2, ChevronRight, Wand2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createSkill, extractSkill, listNovels, updateNovel } from '../lib/api';
+import { createSkill, extractSkill, listNovels, updateNovel, checkSkillExtractionJob } from '../lib/api';
 import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import type { Skill, SkillDimension, SkillDeckCard, AggregatedSkillDeck, Novel, BookEvidenceStage, SkillEvidenceCoverage } from '../types';
 
@@ -115,6 +115,12 @@ export function BookFactoryView() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editableJson, setEditableJson] = useState("");
+  // Fallback-first extraction state (Skill A pattern)
+  const [extractionSource, setExtractionSource] = useState<'fallback' | 'model' | null>(null);
+  const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
+  const [isModelPending, setIsModelPending] = useState(false);
+  const [extractionWarnings, setExtractionWarnings] = useState<string[]>([]);
+  const [extractionStatusNote, setExtractionStatusNote] = useState<string | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,6 +149,11 @@ export function BookFactoryView() {
   const handleAnalyze = async () => {
     if (!fileContent) return;
     setIsAnalyzing(true);
+    setExtractionSource(null);
+    setExtractionJobId(null);
+    setIsModelPending(false);
+    setExtractionWarnings([]);
+    setExtractionStatusNote(null);
 
     try {
       const data = await extractSkill(fileContent);
@@ -160,6 +171,17 @@ export function BookFactoryView() {
       setSegmentLabels(Array.isArray(data.segments) ? data.segments : []);
       setIsEditing(false);
       setEditableJson(JSON.stringify(normalized[0] || {}, null, 2));
+
+      // Set source tracking for fallback-first pattern
+      setExtractionSource(data.source || 'fallback');
+      setExtractionWarnings(data.warnings || []);
+      setExtractionStatusNote(data.statusNote || null);
+
+      // If fallback-only, kick off background polling for model upgrade
+      if (data.source === 'fallback' && data.jobId) {
+        setExtractionJobId(data.jobId);
+        setIsModelPending(true);
+      }
     } catch (e) {
       console.error(e);
       alert('拆书失败: ' + String(e));
@@ -182,6 +204,75 @@ export function BookFactoryView() {
       listNovels().then(setUserNovels);
     }
   }, [showEquipPanel]);
+
+  // Poll for model extraction upgrade (Skill A pattern: replace fallback when model arrives)
+  useEffect(() => {
+    if (!extractionJobId || !isModelPending) return;
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_POLL_ATTEMPTS = 60; // ~2 minutes at 2s intervals
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        attempts++;
+        const job = await checkSkillExtractionJob(extractionJobId);
+
+        if (job.status === 'completed' && job.skills) {
+          if (!cancelled) {
+            const normalized = normalizeSkillConfigs({ skills: job.skills });
+            setSkillCards(normalized);
+            if (job.deck) setDeck(job.deck);
+            if (job.segments) setSegmentLabels(job.segments);
+            setExtractionSource('model');
+            setExtractionWarnings(job.warnings || []);
+            setIsModelPending(false);
+            if (normalized[0]) {
+              setEditableJson(JSON.stringify(normalized[0], null, 2));
+            }
+          }
+          return;
+        }
+
+        if (job.status === 'failed') {
+          if (!cancelled) {
+            setExtractionWarnings((prev) => [
+              ...prev,
+              `AI 深度分析未完成：${job.error || '模型响应失败'}。当前显示的是本地保底萃取结果。`,
+            ]);
+            setIsModelPending(false);
+          }
+          return;
+        }
+
+        // Still pending — keep polling
+        if (!cancelled && attempts < MAX_POLL_ATTEMPTS) {
+          setTimeout(poll, 2000);
+        } else if (!cancelled) {
+          setExtractionWarnings((prev) => [
+            ...prev,
+            'AI 深度分析超时，当前显示的是本地保底萃取结果。',
+          ]);
+          setIsModelPending(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setExtractionWarnings((prev) => [
+            ...prev,
+            `AI 深度分析轮询出错：${String(e)}。当前显示的是本地保底萃取结果。`,
+          ]);
+          setIsModelPending(false);
+        }
+      }
+    };
+
+    // Start polling after a short initial delay
+    const timer = setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [extractionJobId, isModelPending]);
   const selectedSkill = skillCards[selectedSkillIndex] || null;
   const updateSelectedSkill = (updater: (skill: Skill) => Skill) => {
     setSkillCards((current) =>

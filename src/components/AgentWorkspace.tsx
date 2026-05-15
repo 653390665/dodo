@@ -38,6 +38,10 @@ interface AgentWorkspaceProps {
   isProductionRunning: boolean;
   isApplyingProductionRun: boolean;
   productionError: string | null;
+  productionBeatsSource?: 'fallback' | 'model' | null;
+  productionDraftSource?: 'fallback' | 'model' | null;
+  productionAuditSource?: 'fallback' | 'model' | null;
+  productionStatusMessage?: string | null;
   onStartProductionRun: () => Promise<void>;
   onApplyProductionRun: () => Promise<void>;
   expectedWordCount: number | '';
@@ -96,6 +100,10 @@ export function AgentWorkspace({
   isProductionRunning,
   isApplyingProductionRun,
   productionError,
+  productionBeatsSource,
+  productionDraftSource,
+  productionAuditSource,
+  productionStatusMessage,
   onStartProductionRun,
   onApplyProductionRun,
   expectedWordCount,
@@ -253,6 +261,10 @@ export function AgentWorkspace({
                 applying={isApplyingProductionRun}
                 error={productionError}
                 novelId={novel.id}
+                beatsSource={productionBeatsSource}
+                draftSource={productionDraftSource}
+                auditSource={productionAuditSource}
+                statusMessage={productionStatusMessage}
                 onIntentChange={setProductionIntent}
                 onStart={() => void onStartProductionRun()}
                 onApply={() => void onApplyProductionRun()}

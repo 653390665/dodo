@@ -235,6 +235,22 @@ export function initDb(dbPath?: string): void {
       FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE,
       FOREIGN KEY (target_chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS continuation_packs (
+      id TEXT PRIMARY KEY,
+      novel_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      source_documents TEXT NOT NULL,
+      canon_facts TEXT NOT NULL,
+      character_states TEXT NOT NULL,
+      plot_state TEXT NOT NULL,
+      style_profile TEXT NOT NULL,
+      contradictions TEXT NOT NULL,
+      continuation_task TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
 
   ensureColumn('novels', 'mounted_skill_loadout', "TEXT DEFAULT '[]'");
@@ -1093,5 +1109,82 @@ export function updateChapterProductionRun(id: string, data: Partial<ChapterProd
         updated_at=@updated_at
     WHERE id=@id
   `).run(chapterProductionRunToRow(merged));
+  notify();
+}
+
+// ── Continuation Packs ──────────────────────────────────────────────
+
+function mapContinuationPackRow(row: any): import('../types').ContinuationPack {
+  return {
+    id: row.id,
+    novelId: row.novel_id,
+    title: row.title,
+    status: row.status,
+    sourceDocuments: JSON.parse(row.source_documents || '[]'),
+    canonFacts: JSON.parse(row.canon_facts || '[]'),
+    characterStates: JSON.parse(row.character_states || '[]'),
+    plotState: JSON.parse(row.plot_state || '{}'),
+    styleProfile: JSON.parse(row.style_profile || '{}'),
+    contradictions: JSON.parse(row.contradictions || '[]'),
+    continuationTask: row.continuation_task,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function continuationPackToRow(pack: import('../types').ContinuationPack) {
+  return {
+    id: pack.id,
+    novel_id: pack.novelId,
+    title: pack.title,
+    status: pack.status,
+    source_documents: JSON.stringify(pack.sourceDocuments),
+    canon_facts: JSON.stringify(pack.canonFacts),
+    character_states: JSON.stringify(pack.characterStates),
+    plot_state: JSON.stringify(pack.plotState),
+    style_profile: JSON.stringify(pack.styleProfile),
+    contradictions: JSON.stringify(pack.contradictions),
+    continuation_task: pack.continuationTask,
+    created_at: pack.createdAt,
+    updated_at: pack.updatedAt,
+  };
+}
+
+export function listContinuationPacks(novelId: string): Array<import('../types').ContinuationPack> {
+  return getDb().prepare('SELECT * FROM continuation_packs WHERE novel_id = ? ORDER BY updated_at DESC')
+    .all(novelId)
+    .map(mapContinuationPackRow);
+}
+
+export function getContinuationPack(id: string): import('../types').ContinuationPack | undefined {
+  const row = getDb().prepare('SELECT * FROM continuation_packs WHERE id = ?').get(id);
+  return row ? mapContinuationPackRow(row) : undefined;
+}
+
+export function createContinuationPack(pack: import('../types').ContinuationPack): void {
+  getDb().prepare(`
+    INSERT INTO continuation_packs (
+      id, novel_id, title, status, source_documents, canon_facts, character_states,
+      plot_state, style_profile, contradictions, continuation_task, created_at, updated_at
+    ) VALUES (@id, @novel_id, @title, @status, @source_documents, @canon_facts,
+      @character_states, @plot_state, @style_profile, @contradictions,
+      @continuation_task, @created_at, @updated_at)
+  `).run(continuationPackToRow(pack));
+  notify();
+}
+
+export function updateContinuationPack(id: string, data: Partial<import('../types').ContinuationPack>): void {
+  const existing = getContinuationPack(id);
+  if (!existing) return;
+  const merged = { ...existing, ...data, id, updatedAt: Date.now() };
+  getDb().prepare(`
+    UPDATE continuation_packs SET
+      title=@title, status=@status, source_documents=@source_documents,
+      canon_facts=@canon_facts, character_states=@character_states,
+      plot_state=@plot_state, style_profile=@style_profile,
+      contradictions=@contradictions, continuation_task=@continuation_task,
+      updated_at=@updated_at
+    WHERE id=@id
+  `).run(continuationPackToRow(merged));
   notify();
 }

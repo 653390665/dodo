@@ -34,9 +34,15 @@ import {
   renderStructuredAuditMarkdown,
 } from './src/lib/audit-structured';
 import { extractJsonPayload } from './src/lib/extract-skill-json';
+import {
+  validateExtractSkillInput,
+  parseModelRefusal,
+  evaluateSkillOutputQuality,
+} from './src/lib/quality-gates';
 import { buildBookEvidenceSegments } from './src/lib/book-skill-segmentation';
 import { buildSkillDeckFromEvidence } from './src/lib/book-skill-aggregation';
 import { collectSegmentEvidence } from './src/lib/book-skill-evidence';
+import { classifyContinuationSource } from './src/lib/continuation-pack';
 import type { SegmentSkillEvidence, StoryIdeaCard } from './src/types';
 
 // Initialize local database on startup
@@ -49,7 +55,7 @@ type StoryCardJob = {
   error?: string;
 };
 
-const STORY_CARD_FALLBACK_MS = 12_000;
+const STORY_CARD_FALLBACK_MS = 2_000;
 const STORY_CARD_MODEL_TIMEOUT_MS = 90_000;
 const STORY_CARD_JOB_TTL_MS = 10 * 60_000;
 const storyCardJobs = new Map<string, StoryCardJob>();
@@ -71,6 +77,49 @@ function createStoryCardJob(task: Promise<StoryIdeaCard[]>): string {
     });
 
   setTimeout(() => storyCardJobs.delete(jobId), STORY_CARD_JOB_TTL_MS);
+  return jobId;
+}
+
+// ---- Skill extraction async job store ----
+type SkillExtractionJob = {
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: number;
+  result?: {
+    skills: any[];
+    deck: any;
+    segments: any[];
+    warnings: string[];
+    quality: any;
+  };
+  error?: string;
+};
+
+const SKILL_EXTRACTION_JOB_TTL_MS = 10 * 60_000;
+const skillExtractionJobs = new Map<string, SkillExtractionJob>();
+
+function createSkillExtractionJob(task: Promise<{
+  skills: any[];
+  deck: any;
+  segments: any[];
+  warnings: string[];
+  quality: any;
+}>): string {
+  const jobId = `skill-extract-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  skillExtractionJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+
+  task
+    .then((result) => {
+      skillExtractionJobs.set(jobId, { status: 'completed', createdAt: Date.now(), result });
+    })
+    .catch((error) => {
+      skillExtractionJobs.set(jobId, {
+        status: 'failed',
+        createdAt: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+  setTimeout(() => skillExtractionJobs.delete(jobId), SKILL_EXTRACTION_JOB_TTL_MS);
   return jobId;
 }
 
@@ -283,6 +332,41 @@ function buildFallbackSceneBeats(userIntent: string) {
   ].join('\n\n---\n\n');
 }
 
+// ---- Input quality gate helpers ----
+
+function calcCharDiversity(text: string): number {
+  const chars = text.replace(/[^一-鿿]/g, '');
+  if (chars.length === 0) return 0;
+  const unique = new Set(chars);
+  return unique.size / chars.length;
+}
+
+/** True when a single character occupies > 60% of all Chinese characters. */
+function detectCharRepetition(text: string): boolean {
+  const chineseOnly = text.replace(/[^一-鿿]/g, '');
+  if (chineseOnly.length < 3) return false;
+  const freq = new Map<string, number>();
+  for (const ch of chineseOnly) freq.set(ch, (freq.get(ch) || 0) + 1);
+  const maxFreq = Math.max(...freq.values());
+  return maxFreq / chineseOnly.length > 0.6;
+}
+
+/** True when input is purely digits with no Chinese content. */
+function detectDigitNoise(text: string): boolean {
+  const chineseChars = text.replace(/[^一-鿿]/g, '');
+  const digits = text.replace(/[^0-9]/g, '');
+  return chineseChars.length === 0 && digits.length >= 4;
+}
+
+/** True when Chinese portion is mostly function words, lacking concrete nouns/verbs. */
+function hasConcreteElements(text: string): boolean {
+  const chineseOnly = text.replace(/[^一-鿿]/g, '');
+  if (chineseOnly.length === 0) return false;
+  const functionWords = /[的了在是我不人他这个上下看着来去也就那要会可以还能没说过道得地里和自着之它们一个后大小多少怎么如果因为所以但是然而已经]/g;
+  const funcCount = (chineseOnly.match(functionWords) || []).length;
+  return funcCount / chineseOnly.length < 0.7;
+}
+
 function sanitizeIdeaSeed(raw: string): string {
   return raw
     .replace(/^我想写一个?\s*/g, '')
@@ -290,6 +374,7 @@ function sanitizeIdeaSeed(raw: string): string {
     .replace(/^想写一个?\s*/g, '')
     .replace(/^想写\s*/g, '')
     .replace(/^写一个?\s*/g, '')
+    .replace(/^写\s*/g, '')
     .replace(/^关于\s*/g, '')
     .replace(/^一个?\s*/g, '')
     .replace(/[「」『』""''【】]/g, '')
@@ -297,7 +382,143 @@ function sanitizeIdeaSeed(raw: string): string {
     .trim();
 }
 
-function parseStoryCardsFromModel(raw: string): StoryIdeaCard[] {
+type StorySeedQuality =
+  | { status: 'ok' }
+  | { status: 'needs_clarification'; error: string; questions: string[] };
+
+function assessStorySeedQuality(seed: string): StorySeedQuality {
+  const normalized = String(seed || '').trim();
+  const chineseChars = normalized.replace(/[^\u4e00-\u9fff]/g, '');
+
+  if (chineseChars.length < 3) {
+    return {
+      status: 'needs_clarification',
+      error: '输入太短，看不出故事方向。请补一个场景、人物或冲突。',
+      questions: ['故事发生在哪里？', '谁遇到了麻烦？', '他/她想得到或逃开什么？'],
+    };
+  }
+
+  // Digit-only noise e.g. "1111111111111111"
+  if (detectDigitNoise(normalized)) {
+    return {
+      status: 'needs_clarification',
+      error: '输入全部是数字，看起来不像故事种子。请用中文描述你的故事念头。',
+      questions: ['故事发生在哪里？', '主角是谁？', '第一件麻烦事是什么？'],
+    };
+  }
+
+  if (/^[a-zA-Z0-9\s]+$/.test(normalized) && normalized.length < 20) {
+    return {
+      status: 'needs_clarification',
+      error: '输入看起来像拼音或英文片段。请用中文写一句故事种子。',
+      questions: ['故事发生在哪里？', '主角是谁？', '第一件麻烦事是什么？'],
+    };
+  }
+
+  // Single-character spam e.g. "嘻嘻嘻嘻嘻嘻" "啊啊啊啊啊"
+  if (detectCharRepetition(normalized)) {
+    return {
+      status: 'needs_clarification',
+      error: '输入中同一个字重复太多次，不像完整的故事描述。请写一个具体的场景或冲突。',
+      questions: ['故事发生在哪里？', '主角遇到了什么麻烦？', '他/她想得到什么？'],
+    };
+  }
+
+  // Extremely low character diversity (random mono-char scatter, not natural language)
+  const diversity = calcCharDiversity(normalized);
+  if (chineseChars.length >= 6 && diversity < 0.35) {
+    return {
+      status: 'needs_clarification',
+      error: '输入字符太单一，看不出故事轮廓。请用完整中文句子描述你的念头。',
+      questions: ['故事发生在哪里？', '谁遇到了麻烦？', '他/她想得到或逃开什么？'],
+    };
+  }
+
+  // Mostly function words, no concrete nouns/verbs
+  if (chineseChars.length >= 4 && !hasConcreteElements(normalized)) {
+    return {
+      status: 'needs_clarification',
+      error: '输入几乎全是虚词，缺少具体的人物、场景或事件。请补一个具体的故事元素。',
+      questions: ['这个故事里有谁？', '发生在哪里？', '最开始的冲突是什么？'],
+    };
+  }
+
+  // Story signal — expanded keyword list for broader coverage
+  const storySignal =
+    /(酒馆|客栈|便利店|雨夜|深夜|城市|王朝|江湖|学校|医院|公司|废墟|战场|世界|主角|少年|少女|刀客|乞丐|皇帝|杀手|医生|老师|陌生人|复仇|追杀|背叛|失踪|死亡|秘密|阴谋|危机|冲突|逃亡|相遇|救下|寻找|觉醒|穿越|重生|系统|记忆|契约|诅咒|灵气|异能|悬疑|恐惧|愤怒|孤独|爱恨|后悔|仙侠|玄幻|武侠|都市|科幻|末日|推理|恐怖|恋爱|青春|历史|权谋|商战|电竞|盗墓|探案|宫斗|种田|升级|打脸|逆袭|扮猪|吃虎|玉玺|古墓|门派|宗门|功法|修炼|考验|试炼|封印|结界|时空|平行|宇宙|星舰|机甲|丧尸|变异|进化|超能力|魔法|剑与|骑士|领主|贵族|奴隶|起义)/.test(normalized);
+  const phraseLike = /[，,。！？、；：]/.test(normalized) || chineseChars.length >= 8;
+  const obviousNoise = /^(不补|补哦|哦啵|哈哈|啊啊|嗯嗯|随便|测试|不知道|无所谓|没有想法|不造|母鸡|阿巴|阿吧|嘤嘤|呜呜|嘿嘿|嘻嘻|呵呵|emm|hhh|666|111|1234|abcd)/i.test(normalized);
+
+  if (!storySignal || obviousNoise || !phraseLike) {
+    return {
+      status: 'needs_clarification',
+      error: '这还不像故事种子。请补一个场景、人物、冲突或情绪后再生成。',
+      questions: ['这个念头里的人物是谁？', '故事发生在什么地方？', '第一章最先爆发的冲突是什么？'],
+    };
+  }
+
+  return { status: 'ok' };
+}
+
+// ---- Output quality gate ----
+
+/** Extract key bigrams/trigrams from ideaSeed for relevance matching. */
+function extractSeedKeywords(seed: string): string[] {
+  const cleaned = seed.replace(/[，,。！？、；：\s]+/g, '').trim();
+  if (cleaned.length < 2) return [];
+  const result: string[] = [];
+  // bigrams
+  for (let i = 0; i < cleaned.length - 1; i++) {
+    result.push(cleaned.slice(i, i + 2));
+  }
+  // trigrams
+  for (let i = 0; i < cleaned.length - 2; i++) {
+    result.push(cleaned.slice(i, i + 3));
+  }
+  // Deduplicate, favoring longer forms
+  const seen = new Set<string>();
+  return result.filter((k) => {
+    if (seen.has(k) || k.length < 2) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+/** Generic/boilerplate hook patterns the model must not produce. */
+const GENERIC_HOOK_PATTERNS = [
+  /^一个关于.{1,10}的(传奇|故事|传说|篇章|史诗)/,
+  /^这是一个.{1,10}的(传奇|故事|传说)/,
+  /^命运的.{1,8}(故事|传奇|篇章|交响)/,
+  /^一段.{1,8}的(旅程|冒险|传说|故事|史诗)/,
+  /^.{1,5}的(传奇|故事|传说)由此(展开|开始|拉开)/,
+  /^当.{1,10}遇上.{1,10}会(怎样|如何|发生什么)/,
+  /^.{1,3}(和|与).{1,3}的.{1,5}(故事|传奇)/,
+  /^.{1,8}之(路|旅|谜|歌|光|影|殇)/,
+];
+
+function hookIsGeneric(hook: string): boolean {
+  const trimmed = hook.trim();
+  return GENERIC_HOOK_PATTERNS.some((p) => p.test(trimmed));
+}
+
+/** Check if hook contains at least one keyword from the seed. */
+function hookMatchesSeed(hook: string, keywords: string[]): boolean {
+  if (keywords.length === 0) return true; // can't check, pass
+  const cleaned = hook.replace(/[，,。！？、；：\s]+/g, '');
+  return keywords.some((kw) => cleaned.includes(kw));
+}
+
+/** True when hook is too short or just repeats the seed verbatim with no expansion. */
+function hookIsTrivial(hook: string, seed: string): boolean {
+  const cleanedHook = hook.replace(/[，,。！？、；：\s]+/g, '').trim();
+  const cleanedSeed = seed.replace(/[，,。！？、；：\s]+/g, '').trim();
+  if (cleanedHook.length < 5) return true;
+  // Hook is just the seed + trash suffix
+  if (cleanedHook.startsWith(cleanedSeed) && cleanedHook.length <= cleanedSeed.length + 6) return true;
+  return false;
+}
+
+function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryIdeaCard[] {
   const parsed = extractJsonPayload(raw);
   // Model returned needs_clarification — user input not usable as story seed
   if (parsed?.status === 'needs_clarification') {
@@ -322,7 +543,77 @@ function parseStoryCardsFromModel(raw: string): StoryIdeaCard[] {
   if (hooks.some((h: string) => gibberish.test(h.trim()))) {
     throw new Error('Post-model quality gate: hook contains noise/gibberish');
   }
-  return validCards;
+
+  // --- New output quality gates ---
+
+  const seedKeywords = extractSeedKeywords(ideaSeed.trim());
+  const seedNormalized = ideaSeed.replace(/[，,。！？、；：\s]+/g, '').trim();
+
+  // Gate 1: reject generic/boilerplate hooks
+  const genericHooks = hooks.filter((h) => hookIsGeneric(h));
+  if (genericHooks.length >= hooks.length) {
+    throw new Error('Post-model quality gate: all hooks are boilerplate/generic patterns');
+  }
+
+  // Gate 2: reject hooks that don't reference any keyword from the input seed
+  if (seedKeywords.length > 0) {
+    const matchingHooks = hooks.filter((h) => hookMatchesSeed(h, seedKeywords));
+    if (matchingHooks.length === 0 && seedNormalized.length >= 4) {
+      throw new Error('Post-model quality gate: no hook references input seed keywords');
+    }
+  }
+
+  // Gate 3: reject trivial hooks (too short, or just repeat the seed)
+  const trivialHooks = hooks.filter((h) => hookIsTrivial(h, seedNormalized));
+  if (trivialHooks.length >= hooks.length) {
+    throw new Error('Post-model quality gate: all hooks are too trivial / just repeat the seed');
+  }
+
+  // Gate 4: if majority of hooks are generic, downgrade to fallback
+  if (genericHooks.length >= 2 && validCards.length === 3) {
+    throw new Error('Post-model quality gate: majority of hooks are generic boilerplate');
+  }
+
+  // Auto-populate structural fields the model no longer outputs (reduced output schema)
+  const seedKeyTerms = extractKeywords(ideaSeed);
+  const mainTerm = seedKeyTerms[0] || ideaSeed.slice(0, 4);
+  const secondTerm = seedKeyTerms[1] || mainTerm;
+  const tones = ['冷峻悬疑', '热血逆袭', '慢热铺陈'];
+
+  return validCards.map((card: any, i: number) => ({
+    id: `model-card-${Date.now()}-${i + 1}`,
+    hook: card.hook || '',
+    protagonist: card.protagonist || '',
+    coreConflict: card.coreConflict || '',
+    tone: card.tone || tones[i % tones.length],
+    whyItWorks: card.whyItWorks || '',
+    riskNote: card.riskNote || '开局冲突不够尖锐，需要第一章迅速建立具体威胁。',
+    mixTags: Array.isArray(card.mixTags) ? card.mixTags : [],
+    starterSeeds: {
+      worldSeed: card.coreConflict
+        ? `以${mainTerm}为核心的世界设定，${card.coreConflict.slice(0, 20)}`
+        : `以${mainTerm}为核心背景`,
+      relationshipSeed: i === 0
+        ? '主角与他人之间既有利益交集也有信息差，合作中藏着试探。'
+        : i === 1
+          ? '主角被迫与对立角色周旋，每次对白都是双向刺探。'
+          : '关键人物关系充满不信任，所有交谈都是博弈。',
+      chapterOneSeed: `第一章从${card.hook ? card.hook.slice(0, 20) : mainTerm}的信号开场，快速建立冲突，留下悬念钩子。`,
+    },
+    planningFit: {
+      recommendedLength: '中长篇',
+      recommendedFocus: '剧情推进',
+      recommendedPacing: '紧推进',
+      reason: `该方向能围绕核心冲突展开，与输入意自然衔接。`,
+    },
+    signals: {
+      tone: card.tone || '冷峻悬疑',
+      conflictType: i === 0 ? '事件引爆' : i === 1 ? '利益博弈' : '秘密羁绊',
+      worldWeight: 0.5,
+      characterWeight: 0.5,
+      pacingPreference: 'tight' as const,
+    },
+  }));
 }
 
 function extractKeywords(seed: string): string[] {
@@ -609,6 +900,7 @@ async function startServer() {
     'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
     'listForeshadowings', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
     'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun',
+    'listContinuationPacks', 'getContinuationPack', 'createContinuationPack', 'updateContinuationPack',
   ]);
 
   // DB proxy — only exposes whitelisted methods
@@ -739,20 +1031,16 @@ async function startServer() {
       const { ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
       const ideaSeed = sanitizeIdeaSeed(rawSeed) || rawSeed.trim();
 
-      // Input quality gate: reject pinyin, single chars, noise
-      const chineseChars = ideaSeed.replace(/[^一-鿿]/g, '');
-      if (chineseChars.length < 3) {
-        return res.status(400).json({
-          error: '输入太短，看不出故事方向。请补一个场景、人物或冲突，例如"一个乞丐捡到玉玺"。',
-        });
-      }
-      if (/^[a-zA-Z0-9\s]+$/.test(ideaSeed) && ideaSeed.length < 20) {
-        return res.status(400).json({
-          error: '输入看起来像拼音或英文片段。请用中文写一句话，比如"雨夜酒馆里的复仇故事"。',
-        });
-      }
       if (!ideaSeed.trim()) {
         return res.status(400).json({ error: 'ideaSeed is required' });
+      }
+      const seedQuality = assessStorySeedQuality(ideaSeed);
+      if (seedQuality.status === 'needs_clarification') {
+        return res.status(400).json({
+          status: 'needs_clarification',
+          error: seedQuality.error,
+          questions: seedQuality.questions,
+        });
       }
       const promptAsset = resolvePromptAssetForSurface({
         surface,
@@ -781,7 +1069,7 @@ async function startServer() {
         timeoutMs: STORY_CARD_MODEL_TIMEOUT_MS,
         maxAttempts: 2,
         maxTokens: 2048,
-      }).then(parseStoryCardsFromModel);
+      }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed));
 
       try {
         const cards = await Promise.race([
@@ -1040,6 +1328,116 @@ ${text.substring(0, 30000)}
       rawText = rawText.replace(/```(json)?/g, '').trim();
 
       res.json(JSON.parse(rawText));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  async function extractUploadedText(filename: string, filedata: string): Promise<string> {
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.json')) {
+      return Buffer.from(filedata, 'base64').toString('utf8');
+    }
+    if (lower.endsWith('.docx')) {
+      const mammoth = await import('mammoth');
+      const buffer = Buffer.from(filedata, 'base64');
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    }
+    throw new Error('Unsupported file type.');
+  }
+
+  app.post('/api/continuation-packs/parse', async (req, res) => {
+    try {
+      const { novelId = '', title = '', documents = [] } = req.body;
+      if (!novelId.trim()) return res.status(400).json({ error: 'novelId is required' });
+      if (!documents.length) return res.status(400).json({ error: 'At least one document is required' });
+
+      const parsedDocs = await Promise.all(documents.map(async (doc: any) => {
+        const text = await extractUploadedText(doc.filename, doc.filedata);
+        return { filename: doc.filename, text: text.slice(0, 60000) };
+      }));
+
+      const documentsForPrompt = parsedDocs.map((d: any) =>
+        `【${d.filename}】\n${d.text.slice(0, 15000)}\n`
+      ).join('\n---\n');
+
+      const prompt = `
+你是小说项目接管编辑。用户上传了一个资料包，需要你整理成可续写的结构化上下文。
+
+硬规则：
+1. 不要续写正文。
+2. 不要补造未在资料中出现的硬设定。
+3. 每条 hard canon 必须带 evidence，evidence 必须来自原文短摘。
+4. 如果资料冲突，写入 contradictions，不要自行吞掉冲突。
+5. 输出严格 JSON，不要 Markdown。
+
+输出结构：
+{
+  "canonFacts": [
+    {"priority":"hard","category":"world","text":"...","evidence":"..."}
+  ],
+  "characterStates": [
+    {"name":"...","role":"...","currentGoal":"...","emotionalState":"...","secrets":[],"relationshipNotes":[],"evidence":"..."}
+  ],
+  "plotState": {
+    "currentTimeline":"...",
+    "latestScene":"...",
+    "unresolvedHooks":[],
+    "immediateConflict":"...",
+    "nextLikelyMove":"..."
+  },
+  "styleProfile": {
+    "pov":"...",
+    "tense":"...",
+    "pacing":"...",
+    "dialogueDensity":"...",
+    "proseTraits":[],
+    "avoidTraits":[],
+    "sampleEvidence":"..."
+  },
+  "contradictions": [
+    {"severity":"medium","summary":"...","conflictingEvidence":[],"suggestedResolution":"..."}
+  ],
+  "continuationTask":"..."
+}
+
+资料包：
+${documentsForPrompt}
+`;
+
+      const raw = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 4096 });
+      const parsed = JSON.parse(raw.replace(/```(json)?/g, '').trim());
+
+      const now = Date.now();
+      const packId = `cont-pack-${now}`;
+      const pack = {
+        id: packId,
+        novelId,
+        title: title || '续写资料包',
+        status: 'draft' as const,
+        sourceDocuments: parsedDocs.map((d: any, i: number) => ({
+          id: `${packId}-doc-${i}`,
+          packId,
+          filename: d.filename,
+          kind: classifyContinuationSource(d.filename, d.text),
+          text: d.text,
+          excerpt: d.text.slice(0, 500),
+          createdAt: now,
+        })),
+        canonFacts: (parsed.canonFacts || []).map((f: any, i: number) => ({ id: `${packId}-fact-${i}`, ...f })),
+        characterStates: parsed.characterStates || [],
+        plotState: parsed.plotState || { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
+        styleProfile: parsed.styleProfile || { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
+        contradictions: (parsed.contradictions || []).map((c: any, i: number) => ({ id: `${packId}-contra-${i}`, ...c })),
+        continuationTask: parsed.continuationTask || '',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      db.createContinuationPack(pack);
+      res.json({ pack });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: String(e) });
@@ -1448,6 +1846,278 @@ function parseJsonOrEmptyReport(raw: string) {
     }
   });
 
+  // SSE helper for production run streaming
+  function sseWrite(res: express.Response, payload: Record<string, unknown>) {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  }
+
+  async function emitTextAsTokensWithType(res: express.Response, text: string, eventType: string) {
+    const chunks = text.match(/.{1,24}/gs) || [];
+    for (const chunk of chunks) {
+      sseWrite(res, { type: eventType, content: chunk });
+      await new Promise((resolve) => setTimeout(resolve, 8));
+    }
+  }
+
+  app.post('/api/chapter-production-runs/start-stream', async (req, res) => {
+    let runId: string | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+    try {
+      const { novelId = '', targetChapterId = '', userIntent = '', surface = 'workspace-draft' } = req.body;
+      if (!novelId.trim()) {
+        res.status(400).json({ error: 'novelId is required' });
+        return;
+      }
+
+      const novel = db.getNovel(novelId);
+      if (!novel) {
+        res.status(404).json({ error: 'Novel not found' });
+        return;
+      }
+
+      // SSE setup
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+      req.socket.setTimeout(0);
+
+      heartbeat = setInterval(() => res.write(':ping\n\n'), 30_000);
+
+      // --- Data loading (same as non-streaming endpoint) ---
+      const chapters = db.listChapters(novelId);
+      const characters = db.listCharacters(novelId);
+      const locations = db.listLocations(novelId);
+      const items = db.listItems(novelId);
+      const factions = db.listFactions(novelId);
+      const powerLevels = db.listPowerLevels(novelId);
+      const timelineEvents = db.listTimelineEvents(novelId);
+      const foreshadowings = db.listForeshadowings(novelId);
+      const mountedSkillIds = novel.mountedSkillIds || [];
+      const skills = db.listSkills().filter((skill: any) => mountedSkillIds.includes(skill.id));
+
+      const ledger = buildStoryStateLedger({
+        novel,
+        chapters,
+        characters,
+        locations,
+        items,
+        factions,
+        powerLevels,
+        timelineEvents,
+        foreshadowings,
+      });
+      const ledgerSummary = summarizeStoryStateLedger(ledger);
+      const layered = buildLayeredLedgerSummary(ledger, chapters.length);
+      const plannerContext = buildProductionPlannerContext(ledger);
+      const writerContext = buildProductionWriterContext(ledger);
+      const intent = normalizeProductionIntent(userIntent);
+      runId = Date.now().toString();
+      const now = Date.now();
+
+      const baseRun = {
+        id: runId,
+        novelId,
+        targetChapterId: targetChapterId || undefined,
+        status: 'running' as const,
+        userIntent: intent,
+        sceneBeats: '',
+        draftContent: '',
+        styleAudit: '',
+        continuityReport: buildEmptyContinuityReport(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.createChapterProductionRun(baseRun);
+
+      sseWrite(res, { type: 'run_created', runId });
+
+      // ============================================================
+      // Phase 1: Immediate fallback (synchronous, no model calls)
+      // ============================================================
+      sseWrite(res, { type: 'status', message: '正在准备保底草稿...' });
+
+      const fallbackBeats = buildFallbackSceneBeats(intent);
+      sseWrite(res, { type: 'fallback_beats', content: fallbackBeats });
+
+      const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext);
+      await emitTextAsTokensWithType(res, fallbackDraft, 'fallback_draft_token');
+      sseWrite(res, { type: 'fallback_draft_done' });
+
+      const fallbackAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
+      sseWrite(res, { type: 'fallback_audit', content: fallbackAudit });
+
+      const fallbackContinuity = buildEmptyContinuityReport();
+      sseWrite(res, { type: 'fallback_continuity', report: fallbackContinuity });
+
+      db.updateChapterProductionRun(runId, {
+        sceneBeats: fallbackBeats,
+        draftContent: fallbackDraft,
+        styleAudit: fallbackAudit,
+        continuityReport: fallbackContinuity,
+      });
+
+      sseWrite(res, { type: 'status', message: '保底草稿已就绪，AI 正在后台生成更优版本...' });
+
+      // ============================================================
+      // Phase 2: Model calls (stream results as they arrive)
+      // ============================================================
+
+      // --- Planner ---
+      const plannerAsset = resolvePromptAssetForSurface({
+        surface: 'workspace-beats',
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'editorAgent',
+      });
+      const layeredContext = [
+        `【世界观(L1)】${layered.world}`,
+        `【当前卷(L2)】${layered.currentArc}`,
+        `【最近章节(L3)】${layered.recentChapters}`,
+      ].join('\n\n');
+      const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
+        PLANNER_SOUL,
+        contextStr: `${layeredContext}\n\n${plannerContext}`,
+        userIntent: intent,
+      });
+
+      let modelBeats = fallbackBeats;
+      try {
+        sseWrite(res, { type: 'status', message: 'AI 正在规划分镜...' });
+        modelBeats = await generateText(getConfig(), {
+          prompt: plannerPrompt,
+          timeoutMs: 30_000,
+          maxAttempts: 1,
+          maxTokens: 1600,
+        });
+        sseWrite(res, { type: 'model_beats', content: modelBeats });
+        db.updateChapterProductionRun(runId, { sceneBeats: modelBeats });
+      } catch (error) {
+        console.warn('Chapter production stream planner fell back:', error);
+        sseWrite(res, { type: 'status', message: '分镜模型响应过慢，继续使用保底分镜。' });
+      }
+
+      // --- Writer ---
+      const writerAsset = resolvePromptAssetForSurface({
+        surface,
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'orchestrateWriter',
+      });
+      const writerPrompt = renderPromptTemplate(writerAsset.template, {
+        WRITER_SOUL,
+        contextStr: writerContext,
+        skillsInfo: buildSkillsPrompt(skills),
+        sceneBeats: modelBeats,
+        criticFeedback: '初稿阶段，请全力输出。',
+      });
+
+      let modelDraft = fallbackDraft;
+      try {
+        sseWrite(res, { type: 'status', message: 'AI 正在撰写正文...' });
+        modelDraft = await generateText(getConfig(), {
+          prompt: writerPrompt,
+          timeoutMs: 60_000,
+          maxAttempts: 1,
+          maxTokens: 1600,
+        });
+        await emitTextAsTokensWithType(res, modelDraft, 'model_draft_token');
+        sseWrite(res, { type: 'model_draft_done' });
+        db.updateChapterProductionRun(runId, {
+          sceneBeats: modelBeats,
+          draftContent: modelDraft,
+        });
+      } catch (error) {
+        console.warn('Chapter production stream writer fell back:', error);
+        sseWrite(res, { type: 'status', message: '正文模型响应过慢，继续使用保底草稿。' });
+      }
+
+      // --- Style Audit ---
+      const styleAuditAsset = resolvePromptAssetForSurface({
+        surface: 'chapter-polish',
+        promptTemplates: getConfig().promptTemplates,
+        preferredTemplateKey: 'manualAudit',
+      });
+      const styleAuditPrompt = renderPromptTemplate(styleAuditAsset.template, {
+        contextStr: ledgerSummary.slice(0, 1200),
+        skillsInfo: buildSkillsPrompt(skills).slice(0, 900),
+        sceneBeats: modelBeats.slice(0, 1400),
+        draftContent: modelDraft.slice(0, 2600),
+      });
+
+      let modelAudit = fallbackAudit;
+      try {
+        sseWrite(res, { type: 'status', message: 'AI 正在审计文风...' });
+        modelAudit = await generateText(getConfig(), {
+          prompt: styleAuditPrompt,
+          timeoutMs: 20_000,
+          maxAttempts: 1,
+          maxTokens: 800,
+        });
+        sseWrite(res, { type: 'model_audit', content: modelAudit });
+        db.updateChapterProductionRun(runId, {
+          sceneBeats: modelBeats,
+          draftContent: modelDraft,
+          styleAudit: modelAudit,
+        });
+      } catch (error) {
+        console.warn('Chapter production stream style audit fell back:', error);
+      }
+
+      // --- Continuity ---
+      const continuityPrompt = buildContinuityCriticPrompt({
+        ledger,
+        sceneBeats: modelBeats,
+        draftContent: modelDraft,
+      });
+
+      let continuityReport = fallbackContinuity;
+      try {
+        sseWrite(res, { type: 'status', message: 'AI 正在检查连续性...' });
+        const rawContinuity = await generateText(getConfig(), {
+          prompt: continuityPrompt,
+          timeoutMs: 20_000,
+          maxAttempts: 1,
+          maxTokens: 1200,
+        });
+        continuityReport = parseJsonOrEmptyReport(rawContinuity);
+        sseWrite(res, { type: 'model_continuity', report: continuityReport });
+      } catch (error) {
+        console.warn('Chapter production stream continuity critic fell back:', error);
+      }
+
+      // --- Finalize ---
+      const finalRun = {
+        status: 'review_required' as const,
+        sceneBeats: modelBeats,
+        draftContent: modelDraft,
+        styleAudit: modelAudit,
+        continuityReport,
+      };
+      db.updateChapterProductionRun(runId, finalRun);
+
+      sseWrite(res, { type: 'done', run: db.getChapterProductionRun(runId) });
+      clearInterval(heartbeat);
+      res.end();
+    } catch (e) {
+      clearInterval(heartbeat);
+      console.error('Chapter production stream fatal error:', e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (runId) {
+        try {
+          db.updateChapterProductionRun(runId, {
+            status: 'failed',
+            errorMessage: message,
+          });
+        } catch {}
+      }
+      if (res.headersSent && !res.writableEnded) {
+        sseWrite(res, { type: 'error', message });
+        res.end();
+      }
+    }
+  });
+
   app.post('/api/chapter-production-runs/:runId/apply', async (req, res) => {
     try {
       const run = db.getChapterProductionRun(req.params.runId);
@@ -1538,96 +2208,220 @@ function parseJsonOrEmptyReport(raw: string) {
     }
   });
 
-  app.post('/api/extract-skill', async (req, res) => {
-    try {
-      const { text = '' } = req.body;
-      if (!text.trim()) {
-        return res.status(400).json({ error: 'text is required' });
+  // ---- Helper: build a full fallback skill deck from all segments (no model calls) ----
+  function buildFullFallbackSkillResult(text: string) {
+    const segments = buildBookEvidenceSegments(text.substring(0, 120000));
+    if (segments.length === 0) {
+      throw new Error('text is too short to analyze');
+    }
+
+    const segmentEvidence: SegmentSkillEvidence[] = [];
+    const failedSegments: string[] = [];
+
+    for (const segment of segments) {
+      const fallbackEvidence = collectSegmentEvidence(
+        [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
+        segment.stage,
+      );
+      if (fallbackEvidence) {
+        segmentEvidence.push(fallbackEvidence);
+        failedSegments.push(`${segment.label}(保底萃取)`);
       }
-      const segments = buildBookEvidenceSegments(text.substring(0, 120000));
-      if (segments.length === 0) {
-        return res.status(400).json({ error: 'text is too short to analyze' });
-      }
+    }
 
-      const segmentEvidence: SegmentSkillEvidence[] = [];
-      const failedSegments: string[] = [];
+    if (segmentEvidence.length === 0) {
+      throw new Error('所有段落保底萃取均未产出有效证据，请上传更长或更有风格辨识度的文本。');
+    }
 
-      const modelSegments = segments.slice(0, MAX_SKILL_LLM_SEGMENTS);
-      const fallbackSegments = segments.slice(MAX_SKILL_LLM_SEGMENTS);
+    const deck = buildSkillDeckFromEvidence(segmentEvidence);
+    const skills = [deck.mainCard, ...deck.supportCards].map((skill, index) => ({
+      ...skill,
+      id: skill.id || `deck-skill-${index + 1}`,
+      version: skill.version || 1,
+    }));
 
-      for (const segment of modelSegments) {
-        try {
-          const prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
-            text: segment.excerpt.substring(0, 12000),
-          });
+    const qualityReport = evaluateSkillOutputQuality(
+      skills as Array<Record<string, unknown>>,
+      text.substring(0, 8000),
+    );
 
-          const responseText = await withTimeout(
-            generateText(getConfig(), {
-              prompt,
-              ...SKILL_EXTRACTION_LLM_OPTIONS,
-            }),
-            SKILL_EXTRACTION_LLM_OPTIONS.timeoutMs + 2_000,
-            '拆书超时：当前模型响应过慢。建议先缩短样本文本，或稍后重试。',
-          );
-          const parsed = extractJsonPayload(responseText);
-          const rawSkills = Array.isArray(parsed?.skills)
-            ? parsed.skills
-            : Array.isArray(parsed)
-              ? parsed
-              : [parsed];
+    const warnings: string[] = [
+      `全部段落使用本地保底萃取：${failedSegments.join('、')}`,
+    ];
+    if (!qualityReport.passed) {
+      warnings.push(
+        `输出质量门禁未通过：${qualityReport.issue}。AI 深度分析完成后可能会改善。`,
+      );
+    }
 
-          const mergedSegmentEvidence = collectSegmentEvidence(rawSkills, segment.stage);
-          if (mergedSegmentEvidence) {
-            segmentEvidence.push(mergedSegmentEvidence);
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+    return {
+      skills,
+      deck,
+      segments: segments.map((s) => ({ id: s.id, stage: s.stage, label: s.label })),
+      warnings,
+      quality: {
+        passed: qualityReport.passed,
+        anchoringScore: qualityReport.anchoringScore,
+        genericSkillCount: qualityReport.genericSkillCount,
+        totalSkillCount: qualityReport.totalSkillCount,
+        genericDetails: qualityReport.genericDetails,
+        fieldCompleteness: qualityReport.fieldCompleteness,
+        issue: qualityReport.issue,
+      },
+    };
+  }
+
+  // ---- Helper: process model segments and merge with fallback segments ----
+  async function processModelSkillExtraction(
+    text: string,
+    segments: ReturnType<typeof buildBookEvidenceSegments>,
+  ) {
+    const modelSegments = segments.slice(0, MAX_SKILL_LLM_SEGMENTS);
+    const fallbackSegments = segments.slice(MAX_SKILL_LLM_SEGMENTS);
+
+    const segmentEvidence: SegmentSkillEvidence[] = [];
+    const failedSegments: string[] = [];
+    const modelRefusals: string[] = [];
+
+    for (const segment of modelSegments) {
+      try {
+        const prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
+          text: segment.excerpt.substring(0, 12000),
+        });
+
+        const responseText = await withTimeout(
+          generateText(getConfig(), {
+            prompt,
+            ...SKILL_EXTRACTION_LLM_OPTIONS,
+          }),
+          SKILL_EXTRACTION_LLM_OPTIONS.timeoutMs + 2_000,
+          '拆书超时：当前模型响应过慢。建议先缩短样本文本，或稍后重试。',
+        );
+
+        const parsed = extractJsonPayload(responseText);
+        const refusal = parseModelRefusal(parsed);
+        if (refusal) {
+          modelRefusals.push(`${segment.label}: ${refusal.reason}`);
           const fallbackEvidence = collectSegmentEvidence(
             [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
             segment.stage,
           );
-          if (fallbackEvidence) {
-            segmentEvidence.push(fallbackEvidence);
-          }
-          failedSegments.push(`${segment.label}(${/timed out|拆书超时/i.test(message) ? '超时保底' : '解析保底'})`);
+          if (fallbackEvidence) segmentEvidence.push(fallbackEvidence);
+          failedSegments.push(`${segment.label}(模型拒绝-保底萃取)`);
+          continue;
         }
-      }
 
-      for (const segment of fallbackSegments) {
+        const rawSkills = Array.isArray(parsed?.skills)
+          ? parsed.skills
+          : Array.isArray(parsed)
+            ? parsed
+            : [parsed];
+
+        const mergedSegmentEvidence = collectSegmentEvidence(rawSkills, segment.stage);
+        if (mergedSegmentEvidence) {
+          segmentEvidence.push(mergedSegmentEvidence);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         const fallbackEvidence = collectSegmentEvidence(
           [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
           segment.stage,
         );
-        if (fallbackEvidence) {
-          segmentEvidence.push(fallbackEvidence);
-          failedSegments.push(`${segment.label}(快速保底)`);
-        }
+        if (fallbackEvidence) segmentEvidence.push(fallbackEvidence);
+        failedSegments.push(`${segment.label}(${/timed out|拆书超时/i.test(message) ? '超时保底' : '解析保底'})`);
       }
+    }
 
-      if (segmentEvidence.length === 0 && failedSegments.length > 0) {
-        return res.status(502).json({
-          error: `拆书失败：${failedSegments.join('、')} 的模型输出未能解析，请缩短文本或稍后重试。`,
+    // Add fallback segments
+    for (const segment of fallbackSegments) {
+      const fallbackEvidence = collectSegmentEvidence(
+        [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
+        segment.stage,
+      );
+      if (fallbackEvidence) {
+        segmentEvidence.push(fallbackEvidence);
+        failedSegments.push(`${segment.label}(快速保底)`);
+      }
+    }
+
+    const deck = buildSkillDeckFromEvidence(segmentEvidence);
+    const skills = [deck.mainCard, ...deck.supportCards].map((skill, index) => ({
+      ...skill,
+      id: skill.id || `deck-skill-${index + 1}`,
+      version: skill.version || 1,
+    }));
+
+    const qualityReport = evaluateSkillOutputQuality(
+      skills as Array<Record<string, unknown>>,
+      text.substring(0, 8000),
+    );
+
+    const warnings: string[] = [];
+    if (failedSegments.length > 0) {
+      warnings.push(`部分段落未使用 AI 深度分析：${failedSegments.join('、')}`);
+    }
+    if (modelRefusals.length > 0) {
+      warnings.push(`模型拒绝析段落：${modelRefusals.join('；')}`);
+    }
+    if (!qualityReport.passed) {
+      warnings.push(
+        `输出质量门禁未通过：${qualityReport.issue}。建议上传更长或更有风格辨识度的文本重新拆书。`,
+      );
+    }
+
+    return {
+      skills,
+      deck,
+      segments: segments.map((s) => ({ id: s.id, stage: s.stage, label: s.label })),
+      warnings,
+      quality: {
+        passed: qualityReport.passed,
+        anchoringScore: qualityReport.anchoringScore,
+        genericSkillCount: qualityReport.genericSkillCount,
+        totalSkillCount: qualityReport.totalSkillCount,
+        genericDetails: qualityReport.genericDetails,
+        fieldCompleteness: qualityReport.fieldCompleteness,
+        issue: qualityReport.issue,
+      },
+    };
+  }
+
+  app.post('/api/extract-skill', async (req, res) => {
+    try {
+      const { text = '' } = req.body;
+
+      // ================================================================
+      // Layer 1: Input Gate — reject garbage before calling the model
+      // ================================================================
+      const inputGate = validateExtractSkillInput(text);
+      if (!inputGate.accepted) {
+        return res.status(400).json({
+          rejected: true,
+          reason: inputGate.rejectedReason,
         });
       }
 
-      const deck = buildSkillDeckFromEvidence(segmentEvidence);
-      const skills = [deck.mainCard, ...deck.supportCards].map((skill, index) => ({
-        ...skill,
-        id: skill.id || `deck-skill-${index + 1}`,
-        version: skill.version || 1,
-      }));
+      // ================================================================
+      // Phase 1 (fast): Build full fallback deck and return immediately.
+      // This guarantees the user sees results within ~50ms, never a
+      // blank screen. The source badge tells them it's local extraction.
+      // ================================================================
+      const fallbackResult = buildFullFallbackSkillResult(text);
+
+      // ================================================================
+      // Phase 2 (background): Fire model extraction as an async job.
+      // When the model finishes, the client polls and replaces fallback
+      // cards with AI-deep-analyzed versions.
+      // ================================================================
+      const segments = buildBookEvidenceSegments(text.substring(0, 120000));
+      const modelTask = processModelSkillExtraction(text, segments);
+      const jobId = createSkillExtractionJob(modelTask);
 
       res.json({
-        skills,
-        deck,
-        segments: segments.map((segment) => ({
-          id: segment.id,
-          stage: segment.stage,
-          label: segment.label,
-        })),
-        warnings: failedSegments.length > 0
-          ? [`部分段落使用保底萃取：${failedSegments.join('、')}`]
-          : [],
+        ...fallbackResult,
+        source: 'fallback',
+        jobId,
+        statusNote: '本地保底萃取已就绪，AI 正在后台深度分析——结果就绪后会自动更新。',
       });
     } catch (e) {
       console.error(e);
@@ -1644,6 +2438,22 @@ function parseJsonOrEmptyReport(raw: string) {
       }
       res.status(500).json({ error: message });
     }
+  });
+
+  // Poll endpoint for skill extraction background jobs
+  app.get('/api/extract-skill/jobs/:jobId', (req, res) => {
+    const job = skillExtractionJobs.get(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Skill extraction job not found' });
+    }
+    if (job.status === 'completed') {
+      return res.json({
+        status: 'completed',
+        source: 'model',
+        ...job.result,
+      });
+    }
+    res.json({ status: job.status, error: job.error });
   });
 
   app.post('/api/generate-bio', async (req, res) => {

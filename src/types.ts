@@ -625,6 +625,53 @@ export interface PromptAsset {
   successSignal: string;
 }
 
+export type ContinuationSourceKind =
+  | 'world' | 'outline' | 'characters' | 'manuscript' | 'style_sample' | 'other';
+
+export type ContinuationFactPriority = 'hard' | 'soft';
+
+export interface ContinuationSourceDocument {
+  id: string; packId: string; filename: string;
+  kind: ContinuationSourceKind; text: string; excerpt: string; createdAt: number;
+}
+
+export interface ContinuationCanonFact {
+  id: string; priority: ContinuationFactPriority;
+  category: 'world' | 'character' | 'plot' | 'timeline' | 'relationship' | 'style';
+  text: string; sourceDocumentId?: string; evidence: string;
+}
+
+export interface ContinuationCharacterState {
+  name: string; role: string; currentGoal: string; emotionalState: string;
+  secrets: string[]; relationshipNotes: string[]; evidence: string;
+}
+
+export interface ContinuationPlotState {
+  currentTimeline: string; latestScene: string; unresolvedHooks: string[];
+  immediateConflict: string; nextLikelyMove: string;
+}
+
+export interface ContinuationStyleProfile {
+  pov: string; tense: string; pacing: string; dialogueDensity: string;
+  proseTraits: string[]; avoidTraits: string[]; sampleEvidence: string;
+}
+
+export interface ContinuationContradiction {
+  id: string; severity: 'low' | 'medium' | 'high';
+  summary: string; conflictingEvidence: string[]; suggestedResolution: string;
+}
+
+export interface ContinuationPack {
+  id: string; novelId: string; title: string; status: 'draft' | 'approved';
+  sourceDocuments: ContinuationSourceDocument[];
+  canonFacts: ContinuationCanonFact[];
+  characterStates: ContinuationCharacterState[];
+  plotState: ContinuationPlotState;
+  styleProfile: ContinuationStyleProfile;
+  contradictions: ContinuationContradiction[];
+  continuationTask: string; createdAt: number; updatedAt: number;
+}
+
 declare global {
   interface Window {
     inkflow?: {

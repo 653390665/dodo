@@ -9,6 +9,7 @@ function sanitizeIdeaSeed(raw: string): string {
     .replace(/^想写一个?\s*/g, '')
     .replace(/^想写\s*/g, '')
     .replace(/^写一个?\s*/g, '')
+    .replace(/^写\s*/g, '')
     .replace(/^关于\s*/g, '')
     .replace(/^一个?\s*/g, '')
     .replace(/[「」『』""''【】]/g, '')
@@ -30,5 +31,5 @@ test('sanitizeIdeaSeed preserves clean input', () => {
 });
 
 test('sanitizeIdeaSeed removes brackets', () => {
-  assert.equal(sanitizeIdeaSeed('「雨夜酒馆」复仇故事'), '雨夜酒馆」复仇故事');
+  assert.equal(sanitizeIdeaSeed('「雨夜酒馆」复仇故事'), '雨夜酒馆复仇故事');
 });

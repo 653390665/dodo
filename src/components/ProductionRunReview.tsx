@@ -10,6 +10,10 @@ interface ProductionRunReviewProps {
   applying: boolean;
   error?: string | null;
   novelId?: string;
+  beatsSource?: 'fallback' | 'model' | null;
+  draftSource?: 'fallback' | 'model' | null;
+  auditSource?: 'fallback' | 'model' | null;
+  statusMessage?: string | null;
   onIntentChange: (value: string) => void;
   onStart: () => void;
   onApply: () => void;
@@ -29,6 +33,10 @@ export function ProductionRunReview({
   applying,
   error,
   novelId,
+  beatsSource,
+  draftSource,
+  auditSource,
+  statusMessage,
   onIntentChange,
   onStart,
   onApply,
@@ -76,6 +84,12 @@ export function ProductionRunReview({
           aria-label="生产意图"
           className="mt-3 h-24 w-full resize-none rounded-xl border border-theme-border bg-theme-sidebar/20 p-3 text-sm outline-none focus:border-theme-accent"
         />
+        {statusMessage && running ? (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            <Loader2 size={14} className="animate-spin" />
+            {statusMessage}
+          </div>
+        ) : null}
         {error ? (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             <XCircle size={14} />
@@ -122,13 +136,35 @@ export function ProductionRunReview({
               </div>
             ) : null}
             <section>
-              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">分镜</div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
+                分镜
+                {beatsSource === 'fallback' && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">保底分镜</span>
+                )}
+                {beatsSource === 'model' && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 分镜</span>
+                )}
+              </div>
               <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 text-xs leading-5 text-theme-text">
                 {run.sceneBeats}
               </pre>
             </section>
             <section>
-              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">正文预览</div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
+                正文预览
+                {draftSource === 'fallback' && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">保底草稿</span>
+                )}
+                {draftSource === 'model' && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 正文</span>
+                )}
+                {running && draftSource && (
+                  <span className="inline-flex items-center gap-1 text-[9px] text-theme-muted">
+                    <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
+                    接收中...
+                  </span>
+                )}
+              </div>
               <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 font-serif text-sm leading-7 text-theme-text">
                 {run.draftContent}
               </pre>

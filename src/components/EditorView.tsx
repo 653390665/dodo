@@ -46,7 +46,8 @@ import {
   listTimelineEvents,
   listChapterVersions, createChapterVersion,
   syncSkillFeedbackScores, updateNovel, getNovel, createSkillUsageRecord, listSkillUsageRecords,
-  subscribeToChanges, startChapterProductionRun, applyChapterProductionRun
+  subscribeToChanges, startChapterProductionRun, applyChapterProductionRun,
+  startChapterProductionRunStream, type ProductionRunSSEEvent,
 } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -150,6 +151,10 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   const [isProductionRunning, setIsProductionRunning] = useState(false);
   const [isApplyingProductionRun, setIsApplyingProductionRun] = useState(false);
   const [productionError, setProductionError] = useState<string | null>(null);
+  const [productionBeatsSource, setProductionBeatsSource] = useState<'fallback' | 'model' | null>(null);
+  const [productionDraftSource, setProductionDraftSource] = useState<'fallback' | 'model' | null>(null);
+  const [productionAuditSource, setProductionAuditSource] = useState<'fallback' | 'model' | null>(null);
+  const [productionStatusMessage, setProductionStatusMessage] = useState<string | null>(null);
 
   // Entity Sniffing
   const [isSniffing, setIsSniffing] = useState(false);
@@ -287,6 +292,8 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   const titleSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestChapterIdRef = useRef<string | null>(currentChapter?.id || null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const productionAbortRef = useRef<AbortController | null>(null);
+  const productionDraftSourceRef = useRef<'fallback' | 'model' | null>(null);
   const requestSeqRef = useRef<number>(0);
 
   const stopGeneration = useCallback(() => {
@@ -294,11 +301,17 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    if (productionAbortRef.current) {
+      productionAbortRef.current.abort();
+      productionAbortRef.current = null;
+    }
     setIsGeneratingContent(false);
     setIsGeneratingBeats(false);
     setIsGeneratingCritique(false);
+    setIsProductionRunning(false);
     setGenerationStatus(null);
     setAuditStatus(null);
+    setProductionStatusMessage(null);
   }, []);
 
   useEffect(() => {
@@ -446,21 +459,132 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   };
 
   const handleStartProductionRun = async () => {
+    // Abort any previous production stream
+    if (productionAbortRef.current) {
+      productionAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    productionAbortRef.current = controller;
+
     setIsProductionRunning(true);
     setProductionError(null);
+    setProductionBeatsSource(null);
+    setProductionDraftSource(null);
+    productionDraftSourceRef.current = null;
+    setProductionAuditSource(null);
+    setProductionStatusMessage('正在连接...');
+    setAgentTab('production');
+    setIsAgentSidebarOpen(true);
+
+    // Initialize an empty run so the review panel renders immediately
+    setActiveProductionRun({
+      id: '',
+      novelId: novel.id,
+      status: 'running',
+      userIntent: productionIntent,
+      sceneBeats: '',
+      draftContent: '',
+      styleAudit: '',
+      continuityReport: { score: 70, issues: [], proposedPatch: { characterUpdates: [], itemUpdates: [], foreshadowingUpdates: [], timelineEventsToCreate: [], foreshadowingsToCreate: [] } },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
     try {
-      const run = await startChapterProductionRun({
-        novelId: novel.id,
-        targetChapterId: currentChapter?.id,
-        userIntent: productionIntent,
-      });
-      setActiveProductionRun(run);
-      setAgentTab('production');
-      setIsAgentSidebarOpen(true);
+      await startChapterProductionRunStream(
+        {
+          novelId: novel.id,
+          targetChapterId: currentChapter?.id,
+          userIntent: productionIntent,
+        },
+        (event: ProductionRunSSEEvent) => {
+          switch (event.type) {
+            case 'run_created': {
+              setActiveProductionRun((prev) => prev ? { ...prev, id: event.runId } : null);
+              break;
+            }
+            case 'status': {
+              setProductionStatusMessage(event.message);
+              break;
+            }
+            case 'fallback_beats': {
+              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : null);
+              setProductionBeatsSource('fallback');
+              break;
+            }
+            case 'fallback_draft_token': {
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: (prev.draftContent || '') + event.content } : null);
+              setProductionDraftSource('fallback');
+              productionDraftSourceRef.current = 'fallback';
+              break;
+            }
+            case 'fallback_draft_done': {
+              break;
+            }
+            case 'fallback_audit': {
+              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : null);
+              setProductionAuditSource('fallback');
+              break;
+            }
+            case 'fallback_continuity': {
+              setActiveProductionRun((prev) => prev ? { ...prev, continuityReport: event.report } : null);
+              break;
+            }
+            case 'model_beats': {
+              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : null);
+              setProductionBeatsSource('model');
+              break;
+            }
+            case 'model_draft_token': {
+              setActiveProductionRun((prev) => {
+                if (!prev) return null;
+                const isFirstModelToken = productionDraftSourceRef.current !== 'model';
+                return {
+                  ...prev,
+                  draftContent: isFirstModelToken ? event.content : (prev.draftContent || '') + event.content,
+                };
+              });
+              setProductionDraftSource('model');
+              productionDraftSourceRef.current = 'model';
+              break;
+            }
+            case 'model_draft_done': {
+              break;
+            }
+            case 'model_audit': {
+              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : null);
+              setProductionAuditSource('model');
+              break;
+            }
+            case 'model_continuity': {
+              setActiveProductionRun((prev) => prev ? { ...prev, continuityReport: event.report } : null);
+              break;
+            }
+            case 'done': {
+              setActiveProductionRun(event.run);
+              setProductionStatusMessage(null);
+              setIsProductionRunning(false);
+              break;
+            }
+            case 'error': {
+              setProductionError(event.message);
+              setIsProductionRunning(false);
+              break;
+            }
+          }
+        },
+        controller.signal,
+      );
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsProductionRunning(false);
+      setProductionStatusMessage(null);
+      productionDraftSourceRef.current = null;
+      if (productionAbortRef.current === controller) {
+        productionAbortRef.current = null;
+      }
     }
   };
 
@@ -1457,6 +1581,10 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
               isProductionRunning={isProductionRunning}
               isApplyingProductionRun={isApplyingProductionRun}
               productionError={productionError}
+              productionBeatsSource={productionBeatsSource}
+              productionDraftSource={productionDraftSource}
+              productionAuditSource={productionAuditSource}
+              productionStatusMessage={productionStatusMessage}
               onStartProductionRun={handleStartProductionRun}
               onApplyProductionRun={handleApplyProductionRun}
               expectedWordCount={expectedWordCount}
