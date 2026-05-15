@@ -168,6 +168,9 @@ export interface Skill {
   deckGroupId?: string;
   evidenceCoverage?: SkillEvidenceCoverage;
   evidenceMoments?: BookEvidenceStage[];
+  methodChain?: SkillMethodChain;
+  whyThisSkillWorks?: string;
+  sourceBadge?: CardSourceKind;
   createdAt: number;
   updatedAt?: number;
 }
@@ -209,6 +212,20 @@ export interface SkillDeckCard extends Skill {
 export interface AggregatedSkillDeck {
   mainCard: SkillDeckCard;
   supportCards: SkillDeckCard[];
+  methodChain?: SkillMethodChain;
+}
+
+export interface SkillMethodQA {
+  question: string;
+  answer: string;
+  formalization: string;
+  steps: string[];
+  boundary: string;
+}
+
+export interface SkillMethodChain {
+  items: SkillMethodQA[];
+  summary: string;
 }
 
 export interface SkillFusionMeta {
@@ -422,6 +439,13 @@ export interface StoryPlanningFit {
   reason: string;
 }
 
+export type CardSourceKind =
+  | 'ai-generated'
+  | 'book-extracted'
+  | 'user-uploaded'
+  | 'manual'
+  | 'fused';
+
 export interface StoryIdeaCard {
   id: string;
   hook: string;
@@ -434,6 +458,7 @@ export interface StoryIdeaCard {
   riskNote: string;
   mixTags: string[];
   signals: StoryCardSkillSignal;
+  sourceBadge?: CardSourceKind;
 }
 
 export type SetupTaskKey =
@@ -670,6 +695,34 @@ export interface ContinuationPack {
   styleProfile: ContinuationStyleProfile;
   contradictions: ContinuationContradiction[];
   continuationTask: string; createdAt: number; updatedAt: number;
+  sourceMap?: ContinuationSourceMap;
+  readingQuestions?: ContinuationReadingQuestion[];
+  continuationGaps?: ContinuationGap[];
+  sourceBadge?: CardSourceKind;
+}
+
+export interface ContinuationSourceMap {
+  sections: Array<{
+    title: string;
+    summary: string;
+    sourceIds: string[];
+  }>;
+  keyConflicts: string[];
+}
+
+export interface ContinuationReadingQuestion {
+  id: string;
+  question: string;
+  context: string;
+  category: 'world' | 'character' | 'plot' | 'style' | 'continuity';
+}
+
+export interface ContinuationGap {
+  id: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  suggestedDirection: string;
+  relatedFacts: string[];
 }
 
 declare global {

@@ -127,6 +127,57 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
             </div>
           )}
 
+          {activePack.sourceMap && (
+            <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-2">
+              <div className="text-xs font-bold text-theme-text">资料结构地图</div>
+              {activePack.sourceMap.sections.slice(0, 6).map((s, i) => (
+                <div key={i} className="text-xs text-theme-muted">
+                  <span className="font-bold text-theme-text">{s.title}</span>：{s.summary}
+                </div>
+              ))}
+              {activePack.sourceMap.keyConflicts.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-theme-border">
+                  <div className="text-[10px] font-bold text-amber-600 mb-1">资料间冲突</div>
+                  {activePack.sourceMap.keyConflicts.map((c, i) => (
+                    <div key={i} className="text-[10px] text-amber-700">- {c}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activePack.readingQuestions && activePack.readingQuestions.length > 0 && (
+            <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-2">
+              <div className="text-xs font-bold text-theme-text">资料审读问题</div>
+              {activePack.readingQuestions.slice(0, 6).map((q, i) => (
+                <div key={q.id || i} className="text-xs">
+                  <span className="text-theme-accent font-bold">Q{i + 1}.</span>
+                  <span className="text-theme-text ml-1">{q.question}</span>
+                  <div className="text-[10px] text-theme-muted mt-0.5 ml-4">上下文：{q.context}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activePack.continuationGaps && activePack.continuationGaps.length > 0 && (
+            <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-2">
+              <div className="text-xs font-bold text-theme-text">续写缺口</div>
+              {activePack.continuationGaps.slice(0, 5).map((g, i) => (
+                <div key={g.id || i} className="rounded-lg border border-theme-border bg-white p-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      g.severity === 'high' ? 'bg-red-100 text-red-700' :
+                      g.severity === 'medium' ? 'bg-amber-100 text-amber-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>{g.severity}</span>
+                    <span className="text-theme-text font-bold">{g.description}</span>
+                  </div>
+                  <div className="text-[10px] text-theme-muted mt-1.5">建议方向：{g.suggestedDirection}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <details className="text-xs text-theme-muted">
             <summary className="cursor-pointer font-bold">展开结构化上下文</summary>
             <div className="mt-2 space-y-3 ml-4">

@@ -34,6 +34,39 @@ export function buildContinuationSourceDocument(input: {
   };
 }
 
+export function buildSourceMapContext(pack: ContinuationPack): string {
+  const map = pack.sourceMap;
+  if (!map) return '';
+  const sections = map.sections
+    .slice(0, 8)
+    .map((s) => `- ${s.title}：${s.summary}`)
+    .join('\n');
+  const conflicts = map.keyConflicts.slice(0, 5).map((c) => `- ${c}`).join('\n');
+  return [
+    '【资料结构地图】',
+    sections || '- 暂无',
+    conflicts.length ? `\n【资料间冲突】\n${conflicts}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+export function buildReadingQuestionsContext(pack: ContinuationPack): string {
+  const questions = pack.readingQuestions;
+  if (!questions || questions.length === 0) return '';
+  return [
+    '【资料审读问题】',
+    ...questions.slice(0, 8).map((q, i) => `${i + 1}. [${q.category}] ${q.question}\n   上下文：${q.context}`),
+  ].join('\n');
+}
+
+export function buildContinuationGapsContext(pack: ContinuationPack): string {
+  const gaps = pack.continuationGaps;
+  if (!gaps || gaps.length === 0) return '';
+  return [
+    '【续写缺口】',
+    ...gaps.slice(0, 6).map((g, i) => `${i + 1}. [${g.severity}] ${g.description}\n   建议方向：${g.suggestedDirection}`),
+  ].join('\n');
+}
+
 export function buildContinuationContext(pack: ContinuationPack): string {
   const hardFacts = pack.canonFacts
     .filter((fact) => fact.priority === 'hard')
@@ -53,6 +86,10 @@ export function buildContinuationContext(pack: ContinuationPack): string {
     `避免：${pack.styleProfile.avoidTraits.join('、')}`,
   ].join('\n');
 
+  const sourceMap = buildSourceMapContext(pack);
+  const readingQuestions = buildReadingQuestionsContext(pack);
+  const continuationGaps = buildContinuationGapsContext(pack);
+
   return [
     `【资料包续写任务】${pack.continuationTask}`,
     `【硬设定，不可违背】\n${hardFacts || '- 暂无'}`,
@@ -60,5 +97,8 @@ export function buildContinuationContext(pack: ContinuationPack): string {
     `【未解决伏笔】\n${hooks || '- 暂无'}`,
     `【人物当前状态】\n${characters || '- 暂无'}`,
     `【风格约束】\n${style}`,
-  ].join('\n\n');
+    sourceMap,
+    readingQuestions,
+    continuationGaps,
+  ].filter(Boolean).join('\n\n');
 }

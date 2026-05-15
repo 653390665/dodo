@@ -3,7 +3,7 @@ import { Upload, BookTemplate, Save, CheckCircle2, ChevronRight, Wand2, Loader2 
 import { motion } from 'motion/react';
 import { createSkill, extractSkill, listNovels, updateNovel, checkSkillExtractionJob } from '../lib/api';
 import { coerceMountedSkillLoadout } from '../lib/skill-model';
-import type { Skill, SkillDimension, SkillDeckCard, AggregatedSkillDeck, Novel, BookEvidenceStage, SkillEvidenceCoverage } from '../types';
+import type { Skill, SkillDimension, SkillDeckCard, AggregatedSkillDeck, Novel, BookEvidenceStage, SkillEvidenceCoverage, SkillMethodChain } from '../types';
 
 const SKILL_DIMENSIONS: Array<{ value: SkillDimension; label: string }> = [
   { value: 'style', label: '文笔文风' },
@@ -843,6 +843,44 @@ export function BookFactoryView() {
                          {selectedSkill.evaluationFeedback}
                        </p>
                     </div>
+
+                    {deck?.methodChain && (
+                      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+                        <h4 className="text-[10px] font-bold text-theme-accent uppercase mb-3">方法问答链 (Method Q&A)</h4>
+                        <p className="text-[10px] text-theme-muted mb-3 leading-relaxed">{deck.methodChain.summary}</p>
+                        <div className="space-y-3">
+                          {deck.methodChain.items.map((qa, idx) => (
+                            <div key={idx} className="rounded-lg border border-theme-border bg-theme-sidebar/10 p-3">
+                              <div className="text-xs font-bold text-theme-text">
+                                Q{idx + 1}: {qa.question}
+                              </div>
+                              <div className="text-xs text-theme-muted mt-1.5 leading-relaxed">{qa.answer}</div>
+                              <div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px]">
+                                <div className="flex gap-2">
+                                  <span className="font-bold text-theme-accent shrink-0">形式化:</span>
+                                  <span className="text-theme-muted font-mono">{qa.formalization}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="font-bold text-theme-accent shrink-0">步骤:</span>
+                                  <span className="text-theme-muted">{qa.steps.join(' → ')}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="font-bold text-theme-accent shrink-0">边界:</span>
+                                  <span className="text-theme-muted">{qa.boundary}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSkill.whyThisSkillWorks && (
+                      <div className="bg-theme-sidebar/20 p-4 rounded-xl border border-theme-border/50">
+                        <h4 className="text-[10px] font-bold text-theme-text uppercase mb-1">为什么这张 Skill 成立</h4>
+                        <p className="text-xs text-theme-text leading-relaxed">{selectedSkill.whyThisSkillWorks}</p>
+                      </div>
+                    )}
 
                     <div className="bg-theme-sidebar/20 p-4 rounded-xl border border-theme-border/50 border-dashed">
                        <h4 className="text-[10px] font-bold text-theme-text uppercase mb-2">功能模拟验证 (Test Drive)</h4>

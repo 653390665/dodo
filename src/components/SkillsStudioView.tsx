@@ -5,6 +5,7 @@ import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { Skill, Novel } from '../types';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
+import { SkillMapPanel } from './skills/SkillMapPanel';
 
 export function SkillsStudioView() {
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
@@ -71,6 +72,10 @@ export function SkillsStudioView() {
             技能仓库 (Skills Library)
           </h1>
           <p className="text-theme-muted mt-2">在这里管理您的 AI 专属技能卡牌。打开详情、编辑字段、维护版本谱系。</p>
+        </div>
+
+        <div className="max-w-6xl mx-auto mb-8">
+          <SkillMapPanel skills={savedSkills} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 max-w-6xl mx-auto">

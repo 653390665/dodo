@@ -54,4 +54,8 @@ test('style-led deck card carries pacing and plot context for direct writing use
   assert.equal(Boolean(deck.mainCard.style), true);
   assert.equal(Boolean(deck.mainCard.pacing), true);
   assert.equal(Boolean(deck.mainCard.plotPattern), true);
+  assert.equal(deck.mainCard.sourceBadge, 'book-extracted');
+  assert.equal(Boolean(deck.mainCard.methodChain?.items.length), true);
+  assert.match(deck.mainCard.whyThisSkillWorks || '', /主笔文风卡/);
+  assert.equal(Boolean(deck.methodChain?.summary), true);
 });

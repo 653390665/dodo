@@ -248,6 +248,10 @@ export function initDb(dbPath?: string): void {
       style_profile TEXT NOT NULL,
       contradictions TEXT NOT NULL,
       continuation_task TEXT NOT NULL,
+      source_map TEXT DEFAULT '{}',
+      reading_questions TEXT DEFAULT '[]',
+      continuation_gaps TEXT DEFAULT '[]',
+      source_badge TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -264,6 +268,13 @@ export function initDb(dbPath?: string): void {
   ensureColumn('skills', 'feedback_score', 'REAL DEFAULT 0');
   ensureColumn('skills', 'updated_at', 'INTEGER');
   ensureColumn('skills', 'fusion_meta', 'TEXT DEFAULT NULL');
+  ensureColumn('skills', 'method_chain', "TEXT DEFAULT NULL");
+  ensureColumn('skills', 'why_this_skill_works', 'TEXT');
+  ensureColumn('skills', 'source_badge', 'TEXT');
+  ensureColumn('continuation_packs', 'source_map', "TEXT DEFAULT '{}'");
+  ensureColumn('continuation_packs', 'reading_questions', "TEXT DEFAULT '[]'");
+  ensureColumn('continuation_packs', 'continuation_gaps', "TEXT DEFAULT '[]'");
+  ensureColumn('continuation_packs', 'source_badge', 'TEXT');
 
   // Indexes for foreign-key columns to avoid full table scans
   db.exec(`
@@ -453,6 +464,9 @@ function rowToSkill(row: any): Skill {
     usageStats: JSON.parse(row.usage_stats || '{}'),
     feedbackScore: row.feedback_score ?? undefined,
     fusionMeta: row.fusion_meta ? JSON.parse(row.fusion_meta) : undefined,
+    methodChain: row.method_chain ? JSON.parse(row.method_chain) : undefined,
+    whyThisSkillWorks: row.why_this_skill_works || undefined,
+    sourceBadge: row.source_badge || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at || undefined,
   };
@@ -487,6 +501,9 @@ function skillToRow(s: Skill): any {
     usage_stats: JSON.stringify(s.usageStats || {}),
     feedback_score: s.feedbackScore ?? 0,
     fusion_meta: s.fusionMeta ? JSON.stringify(s.fusionMeta) : null,
+    method_chain: s.methodChain ? JSON.stringify(s.methodChain) : null,
+    why_this_skill_works: s.whyThisSkillWorks || null,
+    source_badge: s.sourceBadge || null,
     created_at: s.createdAt,
     updated_at: s.updatedAt || null,
   };
@@ -893,8 +910,8 @@ export function getSkill(id: string): Skill | undefined {
 
 export function createSkill(s: Skill): void {
   getDb().prepare(`
-    INSERT INTO skills (id, name, description, style, pacing, vocabulary, sentence_structure, imagery, banned_words, few_shots, character_traits, world_building, foreshadowing, plot_pattern, core_patterns, banned_elements, stability_score, evaluation_feedback, version, parent_skill_id, lineage_root_id, primary_dimension, dimension_tags, composition_profile, usage_stats, feedback_score, fusion_meta, created_at, updated_at)
-    VALUES (@id, @name, @description, @style, @pacing, @vocabulary, @sentence_structure, @imagery, @banned_words, @few_shots, @character_traits, @world_building, @foreshadowing, @plot_pattern, @core_patterns, @banned_elements, @stability_score, @evaluation_feedback, @version, @parent_skill_id, @lineage_root_id, @primary_dimension, @dimension_tags, @composition_profile, @usage_stats, @feedback_score, @fusion_meta, @created_at, @updated_at)
+    INSERT INTO skills (id, name, description, style, pacing, vocabulary, sentence_structure, imagery, banned_words, few_shots, character_traits, world_building, foreshadowing, plot_pattern, core_patterns, banned_elements, stability_score, evaluation_feedback, version, parent_skill_id, lineage_root_id, primary_dimension, dimension_tags, composition_profile, usage_stats, feedback_score, fusion_meta, method_chain, why_this_skill_works, source_badge, created_at, updated_at)
+    VALUES (@id, @name, @description, @style, @pacing, @vocabulary, @sentence_structure, @imagery, @banned_words, @few_shots, @character_traits, @world_building, @foreshadowing, @plot_pattern, @core_patterns, @banned_elements, @stability_score, @evaluation_feedback, @version, @parent_skill_id, @lineage_root_id, @primary_dimension, @dimension_tags, @composition_profile, @usage_stats, @feedback_score, @fusion_meta, @method_chain, @why_this_skill_works, @source_badge, @created_at, @updated_at)
   `).run(skillToRow(s));
   notify();
 }
@@ -904,7 +921,7 @@ export function updateSkill(id: string, data: Partial<Skill>): void {
   if (!existing) return;
   const s = { ...rowToSkill(existing), ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
-    UPDATE skills SET name=@name, description=@description, style=@style, pacing=@pacing, vocabulary=@vocabulary, sentence_structure=@sentence_structure, imagery=@imagery, banned_words=@banned_words, few_shots=@few_shots, character_traits=@character_traits, world_building=@world_building, foreshadowing=@foreshadowing, plot_pattern=@plot_pattern, core_patterns=@core_patterns, banned_elements=@banned_elements, stability_score=@stability_score, evaluation_feedback=@evaluation_feedback, version=@version, parent_skill_id=@parent_skill_id, lineage_root_id=@lineage_root_id, primary_dimension=@primary_dimension, dimension_tags=@dimension_tags, composition_profile=@composition_profile, usage_stats=@usage_stats, feedback_score=@feedback_score, fusion_meta=@fusion_meta, updated_at=@updated_at
+    UPDATE skills SET name=@name, description=@description, style=@style, pacing=@pacing, vocabulary=@vocabulary, sentence_structure=@sentence_structure, imagery=@imagery, banned_words=@banned_words, few_shots=@few_shots, character_traits=@character_traits, world_building=@world_building, foreshadowing=@foreshadowing, plot_pattern=@plot_pattern, core_patterns=@core_patterns, banned_elements=@banned_elements, stability_score=@stability_score, evaluation_feedback=@evaluation_feedback, version=@version, parent_skill_id=@parent_skill_id, lineage_root_id=@lineage_root_id, primary_dimension=@primary_dimension, dimension_tags=@dimension_tags, composition_profile=@composition_profile, usage_stats=@usage_stats, feedback_score=@feedback_score, fusion_meta=@fusion_meta, method_chain=@method_chain, why_this_skill_works=@why_this_skill_works, source_badge=@source_badge, updated_at=@updated_at
     WHERE id=@id
   `).run(skillToRow(s));
   notify();
@@ -1128,6 +1145,10 @@ function mapContinuationPackRow(row: any): import('../types').ContinuationPack {
     styleProfile: JSON.parse(row.style_profile || '{}'),
     contradictions: JSON.parse(row.contradictions || '[]'),
     continuationTask: row.continuation_task,
+    sourceMap: JSON.parse(row.source_map || '{}'),
+    readingQuestions: JSON.parse(row.reading_questions || '[]'),
+    continuationGaps: JSON.parse(row.continuation_gaps || '[]'),
+    sourceBadge: row.source_badge || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1146,6 +1167,10 @@ function continuationPackToRow(pack: import('../types').ContinuationPack) {
     style_profile: JSON.stringify(pack.styleProfile),
     contradictions: JSON.stringify(pack.contradictions),
     continuation_task: pack.continuationTask,
+    source_map: JSON.stringify(pack.sourceMap || {}),
+    reading_questions: JSON.stringify(pack.readingQuestions || []),
+    continuation_gaps: JSON.stringify(pack.continuationGaps || []),
+    source_badge: pack.sourceBadge || null,
     created_at: pack.createdAt,
     updated_at: pack.updatedAt,
   };
@@ -1166,10 +1191,12 @@ export function createContinuationPack(pack: import('../types').ContinuationPack
   getDb().prepare(`
     INSERT INTO continuation_packs (
       id, novel_id, title, status, source_documents, canon_facts, character_states,
-      plot_state, style_profile, contradictions, continuation_task, created_at, updated_at
+      plot_state, style_profile, contradictions, continuation_task, source_map,
+      reading_questions, continuation_gaps, source_badge, created_at, updated_at
     ) VALUES (@id, @novel_id, @title, @status, @source_documents, @canon_facts,
       @character_states, @plot_state, @style_profile, @contradictions,
-      @continuation_task, @created_at, @updated_at)
+      @continuation_task, @source_map, @reading_questions, @continuation_gaps,
+      @source_badge, @created_at, @updated_at)
   `).run(continuationPackToRow(pack));
   notify();
 }
@@ -1184,6 +1211,8 @@ export function updateContinuationPack(id: string, data: Partial<import('../type
       canon_facts=@canon_facts, character_states=@character_states,
       plot_state=@plot_state, style_profile=@style_profile,
       contradictions=@contradictions, continuation_task=@continuation_task,
+      source_map=@source_map, reading_questions=@reading_questions,
+      continuation_gaps=@continuation_gaps, source_badge=@source_badge,
       updated_at=@updated_at
     WHERE id=@id
   `).run(continuationPackToRow(merged));

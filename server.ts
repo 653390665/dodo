@@ -1071,37 +1071,9 @@ async function startServer() {
         maxTokens: 2048,
       }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed));
 
-      try {
-        const cards = await Promise.race([
-          modelTask,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), STORY_CARD_FALLBACK_MS)),
-        ]);
-        if (cards && cards.length > 0) {
-          return res.json({ cards, source: 'model' });
-        }
-      } catch (e) {
-        console.warn('Story cards fell back after model failure:', e);
-        // Check if model returned needs_clarification
-        try {
-          const info = JSON.parse(e instanceof Error ? e.message : String(e));
-          if (info?.type === 'needs_clarification') {
-            return res.json({
-              status: 'needs_clarification',
-              questions: info.questions || [],
-              source: 'model',
-              warnings: ['输入还不像故事种子，需要补充信息。'],
-            });
-          }
-        } catch {}
-        return res.json({
-          cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
-          source: 'fallback',
-          warnings: ['模型请求失败，已先生成本地保底开坑方向。'],
-        });
-      }
-
       const jobId = createStoryCardJob(modelTask);
 
+      // Return fallback immediately; model result arrives via job polling
       res.json({
         cards: buildFallbackStoryCards(ideaSeed, planning, batchIndex, previousHookTexts),
         source: 'fallback',
@@ -1405,6 +1377,18 @@ ${text.substring(0, 30000)}
   "contradictions": [
     {"severity":"medium","summary":"...","conflictingEvidence":[],"suggestedResolution":"..."}
   ],
+  "sourceMap": {
+    "sections": [
+      {"title":"...","summary":"...","sourceIds":[]}
+    ],
+    "keyConflicts": []
+  },
+  "readingQuestions": [
+    {"question":"...","context":"...","category":"world|character|plot|style|continuity"}
+  ],
+  "continuationGaps": [
+    {"description":"...","severity":"low|medium|high","suggestedDirection":"...","relatedFacts":[]}
+  ],
   "continuationTask":"..."
 }
 
@@ -1436,7 +1420,11 @@ ${documentsForPrompt}
         plotState: parsed.plotState || { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
         styleProfile: parsed.styleProfile || { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
         contradictions: (parsed.contradictions || []).map((c: any, i: number) => ({ id: `${packId}-contra-${i}`, ...c })),
+        sourceMap: parsed.sourceMap || { sections: [], keyConflicts: [] },
+        readingQuestions: (parsed.readingQuestions || []).map((q: any, i: number) => ({ id: `${packId}-question-${i}`, ...q })),
+        continuationGaps: (parsed.continuationGaps || []).map((g: any, i: number) => ({ id: `${packId}-gap-${i}`, ...g })),
         continuationTask: parsed.continuationTask || '',
+        sourceBadge: 'user-uploaded' as const,
         createdAt: now,
         updatedAt: now,
       };

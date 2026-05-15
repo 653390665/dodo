@@ -27,6 +27,10 @@ test('create and list continuation packs', () => {
     plotState: { currentTimeline: '第2章后', latestScene: '酒馆', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
     styleProfile: { pov: '第三人称', tense: '过去', pacing: '紧', dialogueDensity: '中', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
     contradictions: [], continuationTask: '续写下一章',
+    sourceMap: { sections: [{ title: '世界规则', summary: '灵气复苏但死者不能复生', sourceIds: ['d1'] }], keyConflicts: ['复生规则存在冲突'] },
+    readingQuestions: [{ id: 'q1', question: '主角知道复生禁忌吗？', context: '影响下一章行动', category: 'plot' }],
+    continuationGaps: [{ id: 'g1', description: '下一章缺少明确行动目标', severity: 'medium', suggestedDirection: '从酒馆账本切入', relatedFacts: ['f1'] }],
+    sourceBadge: 'user-uploaded',
     createdAt: 1, updatedAt: 1,
   };
   createContinuationPack(pack);
@@ -35,6 +39,10 @@ test('create and list continuation packs', () => {
   assert.equal(list.length, 1);
   assert.equal(list[0].title, '续写资料包');
   assert.equal(list[0].status, 'draft');
+  assert.equal(list[0].sourceMap?.sections[0].title, '世界规则');
+  assert.equal(list[0].readingQuestions?.[0].question, '主角知道复生禁忌吗？');
+  assert.equal(list[0].continuationGaps?.[0].suggestedDirection, '从酒馆账本切入');
+  assert.equal(list[0].sourceBadge, 'user-uploaded');
 });
 
 test('update continuation pack status', () => {
