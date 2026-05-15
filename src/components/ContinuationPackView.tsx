@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import type { Novel, ContinuationPack } from '../types';
-import { parseContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/api';
+import { deleteContinuationPack, parseContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/api';
 
 interface ContinuationPackViewProps {
   novel: Novel;
@@ -50,6 +50,12 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
     await updateContinuationPack(pack.id, { status: 'approved' });
     setActivePack({ ...pack, status: 'approved', updatedAt: Date.now() });
     setPacks(prev => prev.map(p => p.id === pack.id ? { ...p, status: 'approved' } : p));
+  };
+
+  const handleDeletePack = async (packId: string) => {
+    await deleteContinuationPack(packId);
+    setActivePack(prev => prev?.id === packId ? null : prev);
+    setPacks(prev => prev.filter(p => p.id !== packId));
   };
 
   const canApprove = activePack && activePack.canonFacts.length > 0 && activePack.contradictions.length === 0;
@@ -204,15 +210,23 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold">{pack.title}</span>
-                <span className={pack.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'}>
-                  {pack.status === 'approved' ? '已确认' : '待审核'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={pack.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'}>
+                    {pack.status === 'approved' ? '已确认' : '待审核'}
+                  </span>
+                  <span
+                    onClick={e => { e.stopPropagation(); handleDeletePack(pack.id); }}
+                    className="p-1 rounded hover:bg-red-50 text-theme-muted hover:text-red-500 transition-colors"
+                    title="删除资料包"
+                  ><Trash2 size={12} /></span>
+                </div>
               </div>
               <div className="text-theme-muted mt-1">
                 {pack.canonFacts.length} 条设定 · {pack.characterStates.length} 个人物 · {new Date(pack.createdAt).toLocaleDateString('zh-CN')}
               </div>
             </button>
           ))}
+          {packs.length === 0 && <div className="text-xs text-theme-muted">暂无资料包，上传文件后点击"解析资料包"。</div>}
         </div>
       )}
     </div>

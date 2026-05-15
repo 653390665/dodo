@@ -248,6 +248,10 @@ export async function updateContinuationPack(id: string, data: Partial<Continuat
   return call('updateContinuationPack', id, data);
 }
 
+export async function deleteContinuationPack(id: string): Promise<void> {
+  return call('deleteContinuationPack', id);
+}
+
 export async function refineSetupTask(payload: {
   taskTitle: string;
   currentDraft: string;
