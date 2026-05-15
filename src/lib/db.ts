@@ -279,6 +279,7 @@ export function initDb(dbPath?: string): void {
     CREATE INDEX IF NOT EXISTS idx_foreshadowings_novel ON foreshadowings(novel_id);
     CREATE INDEX IF NOT EXISTS idx_chapter_production_runs_novel ON chapter_production_runs(novel_id);
     CREATE INDEX IF NOT EXISTS idx_skill_usage_records_novel ON skill_usage_records(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_continuation_packs_novel ON continuation_packs(novel_id);
   `);
 }
 
@@ -1186,5 +1187,10 @@ export function updateContinuationPack(id: string, data: Partial<import('../type
       updated_at=@updated_at
     WHERE id=@id
   `).run(continuationPackToRow(merged));
+  notify();
+}
+
+export function deleteContinuationPack(id: string): void {
+  getDb().prepare('DELETE FROM continuation_packs WHERE id = ?').run(id);
   notify();
 }

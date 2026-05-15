@@ -485,6 +485,22 @@ export function BookFactoryView() {
               <div className="flex items-center gap-2">
                 <Wand2 size={18} className="text-theme-accent" />
                 <h3 className="font-bold text-theme-text">萃取结果 (Skill Deck)</h3>
+                {extractionSource === 'fallback' && !isModelPending && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-[10px] font-bold text-amber-700">
+                    保底萃取
+                  </span>
+                )}
+                {extractionSource === 'fallback' && isModelPending && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 border border-blue-200 text-[10px] font-bold text-blue-700 flex items-center gap-1">
+                    <Loader2 size={10} className="animate-spin" />
+                    保底萃取
+                  </span>
+                )}
+                {extractionSource === 'model' && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-200 text-[10px] font-bold text-emerald-700">
+                    AI 深度萃取
+                  </span>
+                )}
               </div>
               {selectedSkill && (
                 <button
@@ -508,11 +524,32 @@ export function BookFactoryView() {
                 </button>
               )}
             </div>
+            {/* Status banner for model-pending and warnings */}
+            {(isModelPending || extractionWarnings.length > 0) && (
+              <div className="px-4 pb-1">
+                {isModelPending && (
+                  <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5 mb-2 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-blue-600" />
+                    <div className="text-[11px] text-blue-700 font-medium">
+                      AI 正在后台深度分析文本风格...结果就绪后自动替换当前卡片。
+                    </div>
+                  </div>
+                )}
+                {extractionWarnings.map((warning, idx) => (
+                  <div key={idx} className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2 mb-1.5 text-[11px] text-amber-700 leading-relaxed">
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex-1 p-6 overflow-y-auto bg-white/50 backdrop-blur-sm">
               {!selectedSkill ? (
                 <div className="h-full flex flex-col items-center justify-center text-theme-muted/50">
                   <Wand2 size={48} className="mb-4 opacity-50" />
-                  <p>等待拆书结果...</p>
+                  <p>{isAnalyzing ? '正在拆书...' : '等待拆书结果...'}</p>
+                  {extractionStatusNote && (
+                    <p className="text-[11px] text-theme-muted/60 mt-2 max-w-xs text-center">{extractionStatusNote}</p>
+                  )}
                 </div>
               ) : isEditing ? (
                 <textarea

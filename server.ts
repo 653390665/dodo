@@ -900,7 +900,7 @@ async function startServer() {
     'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
     'listForeshadowings', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
     'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun',
-    'listContinuationPacks', 'getContinuationPack', 'createContinuationPack', 'updateContinuationPack',
+    'listContinuationPacks', 'getContinuationPack', 'createContinuationPack', 'updateContinuationPack', 'deleteContinuationPack',
   ]);
 
   // DB proxy — only exposes whitelisted methods
@@ -1356,7 +1356,12 @@ ${text.substring(0, 30000)}
 
       const parsedDocs = await Promise.all(documents.map(async (doc: any) => {
         const text = await extractUploadedText(doc.filename, doc.filedata);
-        return { filename: doc.filename, text: text.slice(0, 60000) };
+        const trimmed = text.slice(0, 60000);
+        const chineseChars = trimmed.replace(/[^一-鿿]/g, '');
+        if (chineseChars.length < 20) {
+          throw new Error(`"${doc.filename}" 内容过短或无可识别中文文本，请检查文件。`);
+        }
+        return { filename: doc.filename, text: trimmed };
       }));
 
       const documentsForPrompt = parsedDocs.map((d: any) =>
