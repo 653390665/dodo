@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Trash2, Zap } from 'lucide-react';
-import { motion } from 'motion/react';
+import { useState } from 'react';import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import { motion } from '../../lib/motion';
 import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { cn } from '../../lib/utils';
 import type { Skill, Novel } from '../../types';

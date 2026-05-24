@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Loader2, Play, XCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
+import Clock from 'lucide-react/dist/esm/icons/clock.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Play from 'lucide-react/dist/esm/icons/play.js';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle.js';
 import type { ChapterProductionRun } from '../types';
-import { listChapterProductionRuns } from '../lib/api';
+import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
 
 interface ProductionRunReviewProps {
   run: ChapterProductionRun | null;

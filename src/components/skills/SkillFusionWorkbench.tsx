@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { GitMerge, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';import GitMerge from 'lucide-react/dist/esm/icons/git-merge.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
 import { buildFusionDraft, explainSkillFusion } from '../../lib/skill-fusion';
 import type { Skill, SkillFusionExplanation } from '../../types';
 

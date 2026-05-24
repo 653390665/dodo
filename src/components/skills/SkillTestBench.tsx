@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Loader2, Wand2 } from 'lucide-react';
+import { useMemo, useState } from 'react';import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
 import type { Skill } from '../../types';
 
 interface SkillTestBenchProps {

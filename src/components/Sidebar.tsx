@@ -1,18 +1,15 @@
-import React from 'react';
-import {
-  BookOpen,
-  PenTool,
-  Sparkles,
-  Lightbulb,
-  Wand2,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  BookTemplate
-} from 'lucide-react';
+import React from 'react';import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import PenTool from 'lucide-react/dist/esm/icons/pen-tool.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
+import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
+import Settings from 'lucide-react/dist/esm/icons/settings.js';
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import BookTemplate from 'lucide-react/dist/esm/icons/book-template.js';
 import { ViewType, WorkspaceNavKey } from '../types';
 import { cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion';
 import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
 
 interface SidebarProps {

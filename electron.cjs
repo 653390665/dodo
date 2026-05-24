@@ -3,6 +3,12 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const {
+  createJsonLineChunkParser,
+  getDevSpawnCommand,
+  getServerRestartDelay,
+  getWatchdogRetryDelay,
+} = require('./electron-startup-utils.cjs');
 
 // Windows GUI has no console; prevent EPIPE from crashing the app
 process.stdout.on('error', (err) => {
@@ -19,6 +25,7 @@ let serverProcess = null;
 let serverPort = 3000;
 let watchdogTimer = null;
 let isQuitting = false;
+let restartAttemptCount = 0;
 
 // ── Startup Diagnostics ──────────────────────────────────────────────
 
@@ -188,7 +195,7 @@ function startServer() {
       ? path.join(__dirname, 'dist')
       : path.join(process.resourcesPath, 'app.asar', 'dist');
 
-    const cmd = isDev ? 'npx' : process.execPath;
+    const cmd = isDev ? getDevSpawnCommand(process.platform) : process.execPath;
     const args = isDev
       ? ['tsx', serverPath]
       : [serverPath];
@@ -209,20 +216,24 @@ function startServer() {
     const child = serverProcess;
 
     let resolved = false;
-
-    serverProcess.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(Boolean);
-      for (const line of lines) {
-        writeStartupLog(`[server stdout] ${line}`);
-        try {
-          const msg = JSON.parse(line);
-          if (msg.port && !resolved) {
-            resolved = true;
-            resolve(msg.port);
+    let startTimeout = null;
+    const handleStdoutChunk = createJsonLineChunkParser(
+      (msg) => {
+        if (msg.port && !resolved) {
+          resolved = true;
+          if (startTimeout) {
+            clearTimeout(startTimeout);
+            startTimeout = null;
           }
-        } catch {}
-      }
-    });
+          resolve(msg.port);
+        }
+      },
+      (line) => {
+        writeStartupLog(`[server stdout] ${line}`);
+      },
+    );
+
+    serverProcess.stdout.on('data', handleStdoutChunk);
 
     serverProcess.stderr.on('data', (data) => {
       const message = data.toString().trim();
@@ -238,6 +249,10 @@ function startServer() {
       if (wasCurrentProcess) {
         serverProcess = null;
       }
+      if (startTimeout) {
+        clearTimeout(startTimeout);
+        startTimeout = null;
+      }
       if (!resolved) {
         const stderrTail = serverStderrLines.slice(-5).join('\n');
         const reason = stderrTail || `Exit code ${code}`;
@@ -246,13 +261,21 @@ function startServer() {
       } else if (isQuitting || !wasCurrentProcess) {
         return;
       } else {
-        console.error(`[server] Process exited (code ${code}), restarting immediately`);
-        setImmediate(() => restartServer());
+        const restartDelay = getServerRestartDelay(restartAttemptCount);
+        console.error(`[server] Process exited (code ${code}), restarting in ${restartDelay}ms`);
+        setTimeout(() => restartServer(), restartDelay);
       }
     });
 
-    setTimeout(() => {
-      if (!resolved) reject(new Error('Server start timeout (30s)'));
+    startTimeout = setTimeout(() => {
+      if (resolved) return;
+      if (serverProcess === child) {
+        serverProcess = null;
+      }
+      try {
+        child.kill();
+      } catch {}
+      reject(new Error('Server start timeout (30s)'));
     }, 30000);
   });
 }
@@ -286,10 +309,12 @@ function stopServer() {
 
 async function restartServer() {
   if (isQuitting) return;
+  restartAttemptCount += 1;
   stopWatchdog();
   stopServer();
   try {
     const port = await startServer();
+    restartAttemptCount = 0;
     serverPort = port;
     await waitForServer(port);
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -299,7 +324,8 @@ async function restartServer() {
   } catch (err) {
     console.error('[watchdog] Failed to restart server:', err.message);
     if (!isQuitting) {
-      setTimeout(() => restartServer(), 5000);
+      const retryDelay = getWatchdogRetryDelay(restartAttemptCount);
+      setTimeout(() => restartServer(), retryDelay);
     }
   }
 }

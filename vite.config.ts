@@ -20,15 +20,4 @@ export default defineConfig({
       '/api': 'http://localhost:3000',
     },
   },
-  optimizeDeps: {
-    exclude: ['better-sqlite3']
-  },
-  build: {
-    rollupOptions: {
-      external: [
-        'better-sqlite3',
-        /^better-sqlite3\//,
-      ],
-    },
-  },
 });

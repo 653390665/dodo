@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, Grip, Sparkles, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import Grip from 'lucide-react/dist/esm/icons/grip.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
 import { deriveSkillFitNeeds } from '../../lib/skill-fit-language';
 import { getSkillRoleLabel, getSkillRoleLongLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { calculateSkillFitScore } from '../../lib/skill-model';

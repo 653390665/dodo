@@ -1,12 +1,9 @@
-import React from 'react';
-import {
-  ChevronLeft,
-  Plus,
-  Folder,
-  FolderOpen,
-  Trash2
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React from 'react';import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import Folder from 'lucide-react/dist/esm/icons/folder.js';
+import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import { motion, AnimatePresence } from '../lib/motion';
 import { Chapter, Novel } from '../types';
 import { cn } from '../lib/utils';
 

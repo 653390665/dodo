@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
-import { Compass, TrendingUp, Zap, AlertCircle } from 'lucide-react';
+import { useMemo } from 'react';import Compass from 'lucide-react/dist/esm/icons/compass.js';
+import TrendingUp from 'lucide-react/dist/esm/icons/trending-up.js';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
 import type { Skill, SkillDimension, CardSourceKind } from '../../types';
 
 const DIMENSION_LABELS: Record<SkillDimension, string> = {

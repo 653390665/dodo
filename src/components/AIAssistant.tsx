@@ -1,24 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Send,
-  Sparkles,
-  BrainCircuit,
-  Lightbulb,
-  Eraser,
-  Copy,
-  Terminal,
-  ArrowRight,
-  FolderOpen,
-  Globe,
-  Loader2,
-  X,
-  MoreVertical
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';import Send from 'lucide-react/dist/esm/icons/send.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import BrainCircuit from 'lucide-react/dist/esm/icons/brain-circuit.js';
+import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
+import Eraser from 'lucide-react/dist/esm/icons/eraser.js';
+import Copy from 'lucide-react/dist/esm/icons/copy.js';
+import Terminal from 'lucide-react/dist/esm/icons/terminal.js';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
+import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
+import Globe from 'lucide-react/dist/esm/icons/globe.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
+import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
 import { extractWorldSetupPhase } from '../lib/agents';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../lib/motion';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { listNovels, createChapter, createCharacter, createLocation, createItem, createIdeaFragment, subscribeToChanges, generateInspiration } from '../lib/api';
+import { listNovels } from '../lib/novel-client';
+import { createChapter } from '../lib/chapter-client';
+import { createCharacter, createLocation, createItem } from '../lib/world-client';
+import { createIdeaFragment } from '../lib/idea-client';
+import { subscribeToChanges } from '../lib/db-transport';
+import { generateInspiration } from '../lib/prompt-client';
 import { AssistantLaunchContext, AssistantPrimaryAction, AssistantSuggestionKind, Novel } from '../types';
 import { buildAssistantSeedPrompt } from '../lib/assistant-context';
 import { buildAssistantIdeaFragment } from '../lib/assistant-fragment';

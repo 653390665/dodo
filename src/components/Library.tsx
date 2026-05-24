@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '../lib/utils';
-import {
-  Plus,
-  Search,
-  MoreVertical,
-  Trash2,
-  BookMarked,
-  Clock,
-  Download
-} from 'lucide-react';
-import { listNovels, createNovel, deleteNovel, createChapter, listChapters, subscribeToChanges } from '../lib/api';
+import { cn } from '../lib/utils';import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
+import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import BookMarked from 'lucide-react/dist/esm/icons/book-marked.js';
+import Clock from 'lucide-react/dist/esm/icons/clock.js';
+import Download from 'lucide-react/dist/esm/icons/download.js';
+import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
+import { createChapter, listChapters } from '../lib/chapter-client';
+import { subscribeToChanges } from '../lib/db-transport';
 import { Novel, Chapter, ViewType } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../lib/motion';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;

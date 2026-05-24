@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Eye, Loader2, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import Eye from 'lucide-react/dist/esm/icons/eye.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
 import { Foreshadowing, Chapter } from '../types';
-import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing, listChapters, subscribeToChanges } from '../lib/api';
-import { motion } from 'motion/react';
+import { listChapters } from '../lib/chapter-client';
+import { subscribeToChanges } from '../lib/db-transport';
+import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
+import { motion } from '../lib/motion';
 
 const STATUS_CONFIG = {
   planted: { label: '已埋设', color: 'bg-amber-50 text-amber-700 border-amber-200' },

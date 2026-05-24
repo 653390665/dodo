@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Lightbulb, MessageSquare, User, Crosshair, Sparkles, Globe, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square.js';
+import User from 'lucide-react/dist/esm/icons/user.js';
+import Crosshair from 'lucide-react/dist/esm/icons/crosshair.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Globe from 'lucide-react/dist/esm/icons/globe.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { IdeaFragment } from '../types';
-import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment, subscribeToChanges } from '../lib/api';
-import { motion } from 'motion/react';
+import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
+import { subscribeToChanges } from '../lib/db-transport';
+import { motion } from '../lib/motion';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scene: <Crosshair size={14} />,

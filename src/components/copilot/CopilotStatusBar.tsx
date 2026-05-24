@@ -1,4 +1,5 @@
-import { ChevronRight, Sparkles } from 'lucide-react';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
 import type { CopilotActionKey, CopilotSuggestion } from '../../types';
 
 interface CopilotStatusBarProps {

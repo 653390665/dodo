@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeView } from './components/WelcomeView';
 import { Library } from './components/Library';
@@ -16,7 +16,7 @@ import { StoryCardDeck } from './components/onboarding/StoryCardDeck';
 import { SkillsStudioView } from './components/SkillsStudioView';
 import { BookFactoryView } from './components/BookFactoryView';
 import { AssistantLaunchContext, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from './lib/motion';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
 import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from './lib/onboarding-model';
 import { coerceMountedSkillLoadout } from './lib/skill-model';

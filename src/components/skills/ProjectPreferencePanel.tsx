@@ -1,4 +1,5 @@
-import { Target, TrendingUp } from 'lucide-react';
+import Target from 'lucide-react/dist/esm/icons/target.js';
+import TrendingUp from 'lucide-react/dist/esm/icons/trending-up.js';
 import { getSkillRoleLabel } from '../../lib/skill-language';
 import type { ProjectPreferenceProfile, SkillDimension } from '../../types';
 

@@ -1,8 +1,14 @@
-import React from 'react';
-import {
-  Feather, Radar, Loader2, Bot, Lightbulb, MessageSquareWarning,
-  Globe, AlertCircle, Activity, FileText, Plus
-} from 'lucide-react';
+import React from 'react';import Feather from 'lucide-react/dist/esm/icons/feather.js';
+import Radar from 'lucide-react/dist/esm/icons/radar.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Bot from 'lucide-react/dist/esm/icons/bot.js';
+import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
+import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
+import Globe from 'lucide-react/dist/esm/icons/globe.js';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
+import Activity from 'lucide-react/dist/esm/icons/activity.js';
+import FileText from 'lucide-react/dist/esm/icons/file-text.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import {
   Novel, Chapter, AssistantLaunchContext, CopilotSuggestion,
   CopilotActionKey, AgentTab

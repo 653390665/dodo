@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStoryCards, checkStoryCardJob } from '../lib/api';
+import { generateStoryCards, checkStoryCardJob } from '../lib/prompt-client';
 import type { StoryIdeaCard, StoryPlanningInput } from '../types';
 import type { ContentSource } from '../components/SourceBadge';
 
@@ -115,6 +115,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
             }
           }, 5000);
         }
+        return true;
       } catch (err) {
         setState((prev) => ({
           ...prev,
@@ -122,6 +123,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
           isModelPending: false,
           warnings: [err instanceof Error ? err.message : '生成故事卡失败'],
         }));
+        return false;
       }
     },
     [planning, clearPoller],

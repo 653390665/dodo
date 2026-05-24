@@ -32,6 +32,11 @@ function calcChineseDiversity(text: string): number {
   return new Set(chinese).size / chinese.length;
 }
 
+function countUniqueChineseChars(text: string): number {
+  const chinese = text.replace(/[^一-鿿]/g, '');
+  return chinese.length === 0 ? 0 : new Set(chinese).size;
+}
+
 /** True when a single character occupies > 55% of all Chinese characters — spam signal. */
 function detectCharSpam(text: string): boolean {
   const chinese = text.replace(/[^一-鿿]/g, '');
@@ -49,6 +54,12 @@ function hasConcreteTerms(text: string): boolean {
   const functionWordRe = /[的了得地是我不人在有这个他她它来去上下中着就和那也要会可以还能没说过与自之们一个后大小多少怎么如因为所以但是然而却已经只]/g;
   const funcCount = (chinese.match(functionWordRe) || []).length;
   return funcCount / chinese.length < 0.65;
+}
+
+function looksLikeNarrativeExcerpt(text: string, chineseCharCount: number): boolean {
+  if (chineseCharCount < 30) return false;
+  if (!hasConcreteTerms(text)) return false;
+  return /[，。！？；：]/.test(text);
 }
 
 /**
@@ -83,7 +94,7 @@ export function validateExtractSkillInput(text: string): InputGateResult {
     };
   }
 
-  if (chineseCharCount < 50) {
+  if (chineseCharCount < 50 && !looksLikeNarrativeExcerpt(trimmed, chineseCharCount)) {
     return {
       accepted: false,
       rejectedReason: `中文内容仅 ${chineseCharCount} 字，不足以提炼写作风格。请上传至少 200 字的小说正文片段。`,
@@ -92,7 +103,17 @@ export function validateExtractSkillInput(text: string): InputGateResult {
   }
 
   const diversity = calcChineseDiversity(trimmed);
-  if (chineseCharCount >= 80 && diversity < 0.2) {
+  const uniqueChineseChars = countUniqueChineseChars(trimmed);
+  if (chineseCharCount >= 80 && chineseCharCount <= 2000 && diversity < 0.2) {
+    return {
+      accepted: false,
+      rejectedReason: '文本中文用字过于单一，可能不是自然叙事文本。请上传正常的小说正文。',
+      chineseCharCount,
+      chineseDiversity: diversity,
+    };
+  }
+
+  if (chineseCharCount > 2000 && uniqueChineseChars < 120) {
     return {
       accepted: false,
       rejectedReason: '文本中文用字过于单一，可能不是自然叙事文本。请上传正常的小说正文。',

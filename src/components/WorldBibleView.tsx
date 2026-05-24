@@ -7,14 +7,29 @@ import {
   listFactions, createFaction, updateFaction, deleteFaction,
   listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
   listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
-  updateNovel, subscribeToChanges
-} from '../lib/api';
-import { Users, MapPin, Package, BookOpen, Plus, Trash2, Save, Globe, Upload, Loader2, Sparkles, Clock, Shield, Zap } from 'lucide-react';
+} from '../lib/world-client';
+import { updateNovel } from '../lib/novel-client';
+import { subscribeToChanges } from '../lib/db-transport';import Users from 'lucide-react/dist/esm/icons/users.js';
+import MapPin from 'lucide-react/dist/esm/icons/map-pin.js';
+import Package from 'lucide-react/dist/esm/icons/package.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import Save from 'lucide-react/dist/esm/icons/save.js';
+import Globe from 'lucide-react/dist/esm/icons/globe.js';
+import Upload from 'lucide-react/dist/esm/icons/upload.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Clock from 'lucide-react/dist/esm/icons/clock.js';
+import Shield from 'lucide-react/dist/esm/icons/shield.js';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import FileText from 'lucide-react/dist/esm/icons/file-text.js';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../lib/motion';
 import { extractWorldSetupPhase } from '../lib/agents';
 import { SetupTaskCard } from './onboarding/SetupTaskCard';
 import { SetupAssistantPanel } from './onboarding/SetupAssistantPanel';
+import { ContinuationPackView } from './ContinuationPackView';
 
 export function WorldBibleView({
   novel,
@@ -43,7 +58,7 @@ export function WorldBibleView({
     onAcceptRecommendedSkills: () => void;
   };
 }) {
-  const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('global');
+  const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline' | 'continuation'>('global');
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -247,6 +262,7 @@ export function WorldBibleView({
     { id: 'items', icon: Package, label: '道具设定' },
     { id: 'factions', icon: Shield, label: '网状势力' },
     { id: 'powerLevels', icon: Zap, label: '境界与力量体系' },
+    { id: 'continuation', icon: FileText, label: '资料续写' },
   ] as const;
 
   if (onboarding) {
@@ -683,6 +699,12 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'continuation' && (
+              <motion.div key="continuation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ContinuationPackView novel={novel} />
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { RotateCcw, Save, Sparkles, X, Sun, Moon, Monitor } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
+import Save from 'lucide-react/dist/esm/icons/save.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
+import Sun from 'lucide-react/dist/esm/icons/sun.js';
+import Moon from 'lucide-react/dist/esm/icons/moon.js';
+import Monitor from 'lucide-react/dist/esm/icons/monitor.js';
+import { motion } from '../lib/motion';
 import {
   DEFAULT_PROMPT_TEMPLATES,
   PROMPT_TEMPLATE_DEFINITIONS,

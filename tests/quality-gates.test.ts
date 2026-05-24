@@ -83,6 +83,26 @@ test('validateExtractSkillInput accepts moderately short but valid text', () => 
   assert.equal(result.accepted, true);
 });
 
+test('validateExtractSkillInput accepts short narrative excerpt with concrete scene', () => {
+  const result = validateExtractSkillInput(
+    '他再怎么努力，依旧忍不住思维发散，杂念浮现。好端端的，大半夜的，怎么会突然头痛？还痛得这么厉害！',
+  );
+  assert.equal(result.accepted, true);
+});
+
+test('validateExtractSkillInput accepts long-form novel text with low unique ratio', () => {
+  const paragraphs = [
+    '蒸汽与机械的浪潮中，谁能触及非凡？历史和黑暗的迷雾里，又是谁在耳语？我从诡秘中醒来，睁眼看见这个世界。',
+    '枪械、大炮、巨舰与飞空艇轰鸣而过，煤气灯在夜色里晕出昏黄，街角的占卜师正翻动塔罗牌，试图窥见命运裂开的缝隙。',
+    '他按住太阳穴，努力让思绪收束，可脑海里的低语一浪高过一浪，仿佛有看不见的目光隔着迷雾注视着自己。',
+    '老旧公寓的木地板发出轻响，窗外马车滚过积水，楼下酒馆传来笑声与碰杯声，危险却像潮水一样从阴影中慢慢漫上来。',
+    '她把那枚古铜徽章藏进袖口，抬眼时神情平静，只有指尖细微的颤抖泄露出紧绷的情绪，仿佛下一秒就会有审判降临。',
+  ];
+  const longText = Array.from({ length: 120 }, (_, index) => paragraphs[index % paragraphs.length]).join('\n');
+  const result = validateExtractSkillInput(longText);
+  assert.equal(result.accepted, true);
+});
+
 // ============================================================================
 // Layer 2: Model Self-Check tests
 // ============================================================================

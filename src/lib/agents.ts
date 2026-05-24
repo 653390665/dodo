@@ -18,6 +18,19 @@ export interface AgentContext {
   sceneType?: SceneType;
 }
 
+type NamedEntity = Pick<Character | Location | Item | Faction, 'name'>;
+
+export interface ExtractedWorldSetup {
+  globalOutline?: string;
+  worldRules?: string;
+  characters?: Array<Partial<Character>>;
+  locations?: Array<Partial<Location>>;
+  items?: Array<Partial<Item>>;
+  factions?: Array<Partial<Faction>>;
+  powerLevels?: Array<Partial<PowerLevel>>;
+  timelineEvents?: Array<Partial<TimelineEvent>>;
+}
+
 const MAX_WORLD_RULES_CHARS = 1200;
 const MAX_GLOBAL_OUTLINE_CHARS = 1800;
 const MAX_PREVIOUS_CHAPTERS_CHARS = 2200;
@@ -50,7 +63,7 @@ export function buildContextPrompt(context: AgentContext): string {
     return [...protagonists, ...activeChars];
   };
 
-  const filterEntities = (entities: any[] | undefined) => {
+  const filterEntities = <T extends NamedEntity>(entities: T[] | undefined) => {
     if (!entities) return [];
     if (!context.activeEntityNames) return entities;
     return entities.filter(e => context.activeEntityNames!.includes(e.name));
@@ -139,7 +152,7 @@ ${(() => {
  * 规划层 (Planning Layer): Editor Agent
  * 负责将用户的模糊意图转化为结构化的场景大纲 (Scene Beats)
  */
-export async function extractWorldSetupPhase(documentText: string): Promise<any> {
+export async function extractWorldSetupPhase(documentText: string): Promise<ExtractedWorldSetup> {
   try {
     const response = await fetch('/api/extract-world-setup', {
       method: 'POST',
@@ -150,7 +163,7 @@ export async function extractWorldSetupPhase(documentText: string): Promise<any>
     if (!response.ok || data.error) {
       throw new Error(data.error || 'Failed to extract world setup');
     }
-    return data;
+    return data as ExtractedWorldSetup;
   } catch (error) {
     console.error("Extract World Setup Error:", error);
     throw error;
@@ -175,25 +188,4 @@ export async function editorAgentPhase(userIntent: string, context: AgentContext
     console.error("Editor Agent Error:", error);
     throw error;
   }
-}
-
-/**
- * 执行层 (Execution Layer): Writer Agent
- * 根据 Editor生成的大纲，执笔写出富有文采的正文正文
- */
-export async function writerAgentPhase(sceneBeats: string, context: AgentContext): Promise<string> {
-  void context;
-  void sceneBeats;
-  throw new Error('writerAgentPhase 已迁移到服务端编排流，请使用 /api/orchestrate');
-}
-
-/**
- * 质量层 (Quality Layer): Critic / Reader Agent
- * 毒舌批评家，审查文本逻辑和人设
- */
-export async function criticAgentPhase(draftContent: string, sceneBeats: string, context: AgentContext): Promise<string> {
-  void context;
-  void sceneBeats;
-  void draftContent;
-  throw new Error('criticAgentPhase 已迁移到服务端审计流，请直接调用 /api/audit');
 }

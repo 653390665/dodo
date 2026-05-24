@@ -1,9 +1,9 @@
-import { useReducer, useRef, useCallback, useEffect } from 'react';
+import { useReducer, useRef, useCallback, useEffect, type RefObject } from 'react';
 import { UndoState, createUndoState, pushToHistory, undo, redo } from '../undo-history';
 
 interface UseChapterUndoOptions {
   currentContent: string;
-  isGeneratingContent: boolean;
+  isContentLockedRef: RefObject<boolean>;
   onUndoRedo: (content: string) => void;
 }
 
@@ -25,7 +25,7 @@ const undoReducer = (
   }
 };
 
-export function useChapterUndo({ currentContent, isGeneratingContent, onUndoRedo }: UseChapterUndoOptions) {
+export function useChapterUndo({ currentContent, isContentLockedRef, onUndoRedo }: UseChapterUndoOptions) {
   const [undoState, dispatchUndo] = useReducer(undoReducer, currentContent, (initial) =>
     createUndoState(initial)
   );
@@ -40,21 +40,21 @@ export function useChapterUndo({ currentContent, isGeneratingContent, onUndoRedo
   }, []);
 
   const handleUndo = useCallback(() => {
-    if (isGeneratingContent) return;
+    if (isContentLockedRef.current) return;
     dispatchUndo({ type: 'undo' });
-  }, [isGeneratingContent]);
+  }, [isContentLockedRef]);
 
   const handleRedo = useCallback(() => {
-    if (isGeneratingContent) return;
+    if (isContentLockedRef.current) return;
     dispatchUndo({ type: 'redo' });
-  }, [isGeneratingContent]);
+  }, [isContentLockedRef]);
 
   // Sync undo present back to the caller
   useEffect(() => {
-    if (isGeneratingContent) return;
+    if (isContentLockedRef.current) return;
     if (undoState.present === currentContent) return;
     onUndoRedo(undoState.present);
-  }, [undoState.present, isGeneratingContent, currentContent, onUndoRedo]);
+  }, [undoState.present, isContentLockedRef, currentContent, onUndoRedo]);
 
   // Keyboard shortcuts
   useEffect(() => {

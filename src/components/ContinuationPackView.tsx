@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle2, AlertTriangle, Loader2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';import Upload from 'lucide-react/dist/esm/icons/upload.js';
+import FileText from 'lucide-react/dist/esm/icons/file-text.js';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
 import type { Novel, ContinuationPack } from '../types';
-import { deleteContinuationPack, parseContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/api';
+import { deleteContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/continuation-client';
+import { parseContinuationPack } from '../lib/prompt-client';
 
 interface ContinuationPackViewProps {
   novel: Novel;

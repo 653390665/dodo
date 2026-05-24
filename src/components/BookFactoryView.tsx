@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, BookTemplate, Save, CheckCircle2, ChevronRight, Wand2, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { createSkill, extractSkill, listNovels, updateNovel, checkSkillExtractionJob } from '../lib/api';
+import React, { useState, useEffect, useRef } from 'react';import Upload from 'lucide-react/dist/esm/icons/upload.js';
+import BookTemplate from 'lucide-react/dist/esm/icons/book-template.js';
+import Save from 'lucide-react/dist/esm/icons/save.js';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import { motion } from '../lib/motion';
+import { listNovels, updateNovel } from '../lib/novel-client';
+import { createSkill } from '../lib/skill-client';
+import { extractSkill, checkSkillExtractionJob } from '../lib/prompt-client';
 import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import type { Skill, SkillDimension, SkillDeckCard, AggregatedSkillDeck, Novel, BookEvidenceStage, SkillEvidenceCoverage, SkillMethodChain } from '../types';
 
@@ -104,6 +111,34 @@ const EVIDENCE_STAGE_LABELS: Record<BookEvidenceStage, string> = {
   climax: '高潮/收束',
 };
 
+function scoreDecodedText(text: string): number {
+  const replacementCount = (text.match(/�/g) || []).length;
+  const chineseCount = (text.match(/[一-鿿]/g) || []).length;
+  const punctuationCount = (text.match(/[，。！？；：、“”‘’]/g) || []).length;
+  return chineseCount * 2 + punctuationCount - replacementCount * 20;
+}
+
+function decodeTextArrayBuffer(buffer: ArrayBuffer): string {
+  const attempts: string[] = ['utf-8', 'gb18030', 'gbk'];
+  const decodedCandidates: string[] = [];
+
+  for (const encoding of attempts) {
+    try {
+      const useFatal = encoding === 'utf-8';
+      const text = new TextDecoder(encoding, useFatal ? { fatal: true } : undefined).decode(buffer);
+      decodedCandidates.push(text);
+    } catch {
+      // Try the next encoding.
+    }
+  }
+
+  if (decodedCandidates.length === 0) {
+    return new TextDecoder('utf-8').decode(buffer);
+  }
+
+  return decodedCandidates.sort((a, b) => scoreDecodedText(b) - scoreDecodedText(a))[0];
+}
+
 export function BookFactoryView() {
   const [fileContent, setFileContent] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -121,6 +156,7 @@ export function BookFactoryView() {
   const [isModelPending, setIsModelPending] = useState(false);
   const [extractionWarnings, setExtractionWarnings] = useState<string[]>([]);
   const [extractionStatusNote, setExtractionStatusNote] = useState<string | null>(null);
+  const lastSeenInputRef = useRef(fileContent);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -130,16 +166,7 @@ export function BookFactoryView() {
     reader.onload = (event) => {
       const buffer = event.target?.result as ArrayBuffer;
       if (buffer) {
-        let text = "";
-        try {
-          text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
-        } catch (e) {
-          try {
-            text = new TextDecoder('gbk').decode(buffer);
-          } catch (err) {
-            text = new TextDecoder('utf-8').decode(buffer);
-          }
-        }
+        const text = decodeTextArrayBuffer(buffer);
         setFileContent(text);
       }
     };
@@ -149,15 +176,25 @@ export function BookFactoryView() {
   const handleAnalyze = async () => {
     if (!fileContent) return;
     setIsAnalyzing(true);
+    setSkillCards([]);
+    setSelectedSkillIndex(0);
+    setDeck(null);
+    setDeckMeta(null);
+    setSegmentLabels([]);
+    setIsEditing(false);
+    setEditableJson("");
     setExtractionSource(null);
     setExtractionJobId(null);
     setIsModelPending(false);
     setExtractionWarnings([]);
-    setExtractionStatusNote(null);
+    setExtractionStatusNote('正在拆书与提炼本地保底卡……');
 
     try {
       const data = await extractSkill(fileContent);
       const normalized = normalizeSkillConfigs(data);
+      if (normalized.length === 0) {
+        throw new Error('拆书接口返回成功，但没有可展示的技能卡。');
+      }
       setSkillCards(normalized);
       setSelectedSkillIndex(0);
       setDeck(data.deck);
@@ -184,7 +221,15 @@ export function BookFactoryView() {
       }
     } catch (e) {
       console.error(e);
-      alert('拆书失败: ' + String(e));
+      setSkillCards([]);
+      setDeck(null);
+      setDeckMeta(null);
+      setSegmentLabels([]);
+      setExtractionSource(null);
+      setExtractionJobId(null);
+      setIsModelPending(false);
+      setExtractionStatusNote('拆书未开始：当前文本还不足以进入萃取流程。');
+      setExtractionWarnings([e instanceof Error ? e.message : String(e)]);
     } finally {
       setIsAnalyzing(false);
     }
@@ -204,6 +249,16 @@ export function BookFactoryView() {
       listNovels().then(setUserNovels);
     }
   }, [showEquipPanel]);
+
+  useEffect(() => {
+    if (fileContent === lastSeenInputRef.current) return;
+    lastSeenInputRef.current = fileContent;
+    if (isAnalyzing) return;
+    setExtractionWarnings([]);
+    if (skillCards.length === 0) {
+      setExtractionStatusNote(null);
+    }
+  }, [fileContent, isAnalyzing, skillCards.length]);
 
   // Poll for model extraction upgrade (Skill A pattern: replace fallback when model arrives)
   useEffect(() => {

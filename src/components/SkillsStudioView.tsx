@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Wand2 } from 'lucide-react';
-import { deleteSkill, subscribeToChanges, syncSkillFeedbackScores, listNovels, updateNovel } from '../lib/api';
+import React, { useState, useEffect, useMemo } from 'react';import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
+import { subscribeToChanges } from '../lib/db-transport';
+import { listNovels, updateNovel } from '../lib/novel-client';
+import { deleteSkill, syncSkillFeedbackScores } from '../lib/skill-client';
 import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { Skill, Novel } from '../types';
 import { SkillCard } from './skills/SkillCard';

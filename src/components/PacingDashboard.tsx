@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';import Activity from 'lucide-react/dist/esm/icons/activity.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { Chapter, PacingData } from '../types';
-import { listChapters, subscribeToChanges } from '../lib/api';
-import { motion } from 'motion/react';
+import { listChapters } from '../lib/chapter-client';
+import { subscribeToChanges } from '../lib/db-transport';
+import { motion } from '../lib/motion';
 
 interface Props {
   novelId: string;

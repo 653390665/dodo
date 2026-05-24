@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Save, Sparkles, X } from 'lucide-react';
-import { createSkill, listSkillUsageRecords, listSkillVersions, subscribeToChanges, updateSkill } from '../../lib/api';
+import { useEffect, useMemo, useState } from 'react';import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Save from 'lucide-react/dist/esm/icons/save.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
+import { subscribeToChanges } from '../../lib/db-transport';
+import { createSkill, listSkillUsageRecords, listSkillVersions, updateSkill } from '../../lib/skill-client';
 import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { summarizeUsageStats } from '../../lib/skill-model';
 import { cn } from '../../lib/utils';

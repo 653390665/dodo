@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import type { SetupTaskDraft, StoryIdeaCard } from '../../types';
 
 interface SetupAssistantPanelProps {

@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Send, Sparkles, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
-import { listNovels } from '../lib/api';
+import { useState, useEffect } from 'react';import Send from 'lucide-react/dist/esm/icons/send.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
 import { SourceBadge } from './SourceBadge';
 import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../types';
@@ -38,14 +41,21 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
 
   const handleSubmit = async () => {
     if (!input.trim() || isWaiting) return;
-    submit(input);
-    setInput('');
+    const submitted = await submit(input);
+    if (submitted) {
+      setInput('');
+    }
   };
 
   const handleSeedClick = (prompt: string) => {
     setInput(prompt);
     // Small delay so the user sees the textarea fill before submission
-    setTimeout(() => submit(prompt), 300);
+    setTimeout(async () => {
+      const submitted = await submit(prompt);
+      if (submitted) {
+        setInput('');
+      }
+    }, 300);
   };
 
   const hasContent = cards.length > 0;

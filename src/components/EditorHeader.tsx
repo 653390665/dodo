@@ -1,17 +1,14 @@
-import React from 'react';
-import {
-  PanelRight,
-  Cloud,
-  CheckCircle2,
-  Bot,
-  Minimize2,
-  Maximize2,
-  Settings,
-  Sparkles,
-  Loader2,
-  BookOpen
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React from 'react';import PanelRight from 'lucide-react/dist/esm/icons/panel-right.js';
+import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
+import Bot from 'lucide-react/dist/esm/icons/bot.js';
+import Minimize2 from 'lucide-react/dist/esm/icons/minimize-2.js';
+import Maximize2 from 'lucide-react/dist/esm/icons/maximize-2.js';
+import Settings from 'lucide-react/dist/esm/icons/settings.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import { motion, AnimatePresence } from '../lib/motion';
 import { Chapter, Skill } from '../types';
 import { cn } from '../lib/utils';
 
