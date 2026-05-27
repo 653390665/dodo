@@ -313,6 +313,16 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     hasConsumedContinuationLaunchUiRef.current = true;
     setIsAgentSidebarOpen(true);
     setAgentTab('production');
+
+    // Pre-fill creation intent from continuation task
+    if (launchState.prefillIntent) {
+      setUserIntent(launchState.prefillIntent);
+    }
+
+    // Auto-create first chapter if none exists
+    if (chapters.length === 0) {
+      handleAddFirstChapter();
+    }
   }, [launchState?.approvedPackId, launchState?.launchToken]);
 
   const {
@@ -443,6 +453,8 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
 
   const isAnyGenerating =
     isGeneratingContent || isGeneratingBeats || isGeneratingCritique || isSniffing || isGeneratingOutline;
+
+  const handleCreateChapter = () => handleAddFirstChapter();
 
   useEffect(() => {
     return () => {
@@ -641,6 +653,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
               onRunAudit={handleRunAudit}
               isGeneratingCritique={isGeneratingCritique}
               onPolishChapterFromAudit={handlePolishChapterFromAudit}
+              onCreateChapter={handleCreateChapter}
               bibleSearch={bibleSearch}
               setBibleSearch={setBibleSearch}
               characters={characters}

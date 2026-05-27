@@ -1,8 +1,11 @@
 import type { Character, ContinuationPack, Item, Location } from '../types';
 
+export type KnowledgeEntrySource = 'entity' | 'continuation-pack';
+
 export interface KnowledgeSearchEntry {
   id: string;
   kind: 'character' | 'location' | 'item' | 'canon-fact' | 'pack-character' | 'continuation-task' | 'reading-question' | 'continuation-gap' | 'source-section';
+  source: KnowledgeEntrySource;
   title: string;
   summary: string;
   detail: string;
@@ -48,6 +51,7 @@ export function buildKnowledgeSearchEntries({
     ...characters.map((character) => ({
       id: character.id,
       kind: 'character' as const,
+      source: 'entity' as const,
       title: character.name,
       summary: character.summary,
       detail: character.bio || character.traits.join(' / '),
@@ -57,6 +61,7 @@ export function buildKnowledgeSearchEntries({
     ...locations.map((location) => ({
       id: location.id,
       kind: 'location' as const,
+      source: 'entity' as const,
       title: location.name,
       summary: location.region,
       detail: location.description,
@@ -66,6 +71,7 @@ export function buildKnowledgeSearchEntries({
     ...items.map((item) => ({
       id: item.id,
       kind: 'item' as const,
+      source: 'entity' as const,
       title: item.name,
       summary: item.type,
       detail: item.description,
@@ -79,6 +85,7 @@ export function buildKnowledgeSearchEntries({
         {
           id: `${selectedPack.id}-task`,
           kind: 'continuation-task',
+          source: 'continuation-pack',
           title: selectedPack.continuationTask || `${selectedPack.title} 续写任务`,
           summary: selectedPack.plotState.latestScene || '资料包续写任务',
           detail: [
@@ -91,6 +98,7 @@ export function buildKnowledgeSearchEntries({
         ...selectedPack.canonFacts.map((fact) => ({
           id: fact.id,
           kind: 'canon-fact' as const,
+          source: 'continuation-pack' as const,
           title: fact.text,
           summary: `${fact.priority} · ${fact.category}`,
           detail: fact.evidence,
@@ -100,6 +108,7 @@ export function buildKnowledgeSearchEntries({
         ...selectedPack.characterStates.map((character, index) => ({
           id: `${selectedPack.id}-character-${index}`,
           kind: 'pack-character' as const,
+          source: 'continuation-pack' as const,
           title: character.name,
           summary: `${character.role} · ${character.currentGoal}`,
           detail: [
@@ -114,6 +123,7 @@ export function buildKnowledgeSearchEntries({
         ...(selectedPack.readingQuestions || []).map((question) => ({
           id: question.id,
           kind: 'reading-question' as const,
+          source: 'continuation-pack' as const,
           title: question.question,
           summary: question.category,
           detail: question.context,
@@ -123,6 +133,7 @@ export function buildKnowledgeSearchEntries({
         ...(selectedPack.continuationGaps || []).map((gap) => ({
           id: gap.id,
           kind: 'continuation-gap' as const,
+          source: 'continuation-pack' as const,
           title: gap.description,
           summary: `${gap.severity} · ${gap.suggestedDirection}`,
           detail: gap.relatedFacts.join(' / '),
@@ -132,6 +143,7 @@ export function buildKnowledgeSearchEntries({
         ...(selectedPack.sourceMap?.sections || []).map((section, index) => ({
           id: `${selectedPack.id}-section-${index}`,
           kind: 'source-section' as const,
+          source: 'continuation-pack' as const,
           title: section.title,
           summary: section.summary,
           detail: section.sourceIds.join(' / '),

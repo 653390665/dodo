@@ -78,6 +78,7 @@ interface AgentWorkspaceProps {
   onRunAudit: () => Promise<void>;
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
+  onCreateChapter?: () => Promise<void>;
   bibleSearch: string;
   setBibleSearch: (search: string) => void;
   characters: Character[];
@@ -144,6 +145,7 @@ export function AgentWorkspace({
   onRunAudit,
   isGeneratingCritique,
   onPolishChapterFromAudit,
+  onCreateChapter,
   bibleSearch,
   setBibleSearch,
   characters,
@@ -310,6 +312,7 @@ export function AgentWorkspace({
                 onRunAudit={onRunAudit}
                 isGeneratingCritique={isGeneratingCritique}
                 onPolishChapterFromAudit={onPolishChapterFromAudit}
+                onCreateChapter={onCreateChapter}
               />
             </motion.div>
           )}

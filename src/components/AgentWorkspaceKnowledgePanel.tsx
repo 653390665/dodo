@@ -89,6 +89,11 @@ export function AgentWorkspaceKnowledgePanel({
                 <div className="text-[10px] bg-theme-sidebar px-1.5 py-0.5 rounded text-theme-muted font-medium tracking-wide">
                   {entry.tag}
                 </div>
+                {entry.source === 'continuation-pack' ? (
+                  <div className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-medium tracking-wide border border-violet-200/60">
+                    资料包
+                  </div>
+                ) : null}
                 <div className="text-[10px] text-theme-muted">{entry.sourceLabel}</div>
               </div>
               {entry.summary ? <div className="text-xs font-semibold text-theme-accent mb-2">{entry.summary}</div> : null}

@@ -11,6 +11,7 @@ interface ContinuationOverviewPanelProps {
   onReviewDraft: (packId: string) => void;
   onOpenPackManagement: () => void;
   onStartWriting: (packId: string) => void;
+  onStartStoryboard?: (packId: string) => void;
   onOpenWorldSetup: () => void;
 }
 
@@ -20,6 +21,7 @@ export function ContinuationOverviewPanel({
   onReviewDraft,
   onOpenPackManagement,
   onStartWriting,
+  onStartStoryboard,
   onOpenWorldSetup,
 }: ContinuationOverviewPanelProps) {
   const primaryPack = state.primaryPack;
@@ -145,6 +147,12 @@ export function ContinuationOverviewPanel({
         </div>
       </section>
 
+      {primaryPack && (
+        <p className="text-xs text-theme-muted leading-5 max-w-3xl">
+          续写任务描述这次创作要推进的方向；分镜准备用于整理场景大纲和关键节点，结构确定后再进入正文。
+        </p>
+      )}
+
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
           <div className="text-xs font-bold text-theme-muted">本次续写任务</div>
@@ -237,6 +245,26 @@ export function ContinuationOverviewPanel({
           </div>
         ) : null}
       </section>
+
+      {primaryPack && (
+        <section className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+          <div className="text-xs font-bold text-theme-muted">快捷操作</div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button
+              onClick={() => onOpenPackManagement()}
+              className="px-3 py-1.5 rounded-lg bg-theme-sidebar text-theme-text text-[10px] font-bold border border-theme-border hover:bg-theme-border/50 transition-colors"
+            >
+              编辑续写任务
+            </button>
+            <button
+              onClick={() => onStartStoryboard?.(primaryPack.id)}
+              className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold hover:opacity-90 transition-opacity"
+            >
+              进入分镜准备
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -1,50 +1,75 @@
-import test from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-
-import { getPreferredContinuationPackId } from '../src/lib/continuation-pack-selection';
+import { getPreferredContinuationPackId, getPreferredContinuationPack } from '../src/lib/continuation-pack-selection';
 import type { ContinuationPack } from '../src/types';
 
-function buildPack(id: string, updatedAt: number): ContinuationPack {
+function makePack(overrides: Partial<ContinuationPack>): ContinuationPack {
   return {
-    id,
+    id: 'pack-1',
     novelId: 'novel-1',
-    title: id,
-    status: 'approved',
+    title: 'Test Pack',
+    status: 'draft',
     sourceDocuments: [],
     canonFacts: [],
     characterStates: [],
-    plotState: {
-      currentTimeline: '第一卷',
-      latestScene: '城门夜雨',
-      unresolvedHooks: [],
-      immediateConflict: '追兵逼近',
-      nextLikelyMove: '潜入内城',
-    },
-    styleProfile: {
-      pov: '第三人称',
-      tense: '过去时',
-      pacing: '紧推进',
-      dialogueDensity: '中等',
-      proseTraits: [],
-      avoidTraits: [],
-      sampleEvidence: '',
-    },
+    plotState: { currentTimeline: '', latestScene: '', immediateConflict: '', nextLikelyMove: '', unresolvedHooks: [] },
+    styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
     contradictions: [],
-    continuationTask: '继续推进剧情',
-    createdAt: updatedAt - 1_000,
-    updatedAt,
+    continuationTask: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
   };
 }
 
-test('getPreferredContinuationPackId keeps current selection when it is still available', () => {
-  const packs = [buildPack('pack-old', 100), buildPack('pack-new', 200)];
+describe('getPreferredContinuationPackId', () => {
+  it('returns empty string for empty list', () => {
+    assert.equal(getPreferredContinuationPackId([]), '');
+  });
 
-  assert.equal(getPreferredContinuationPackId(packs, 'pack-old'), 'pack-old');
+  it('keeps explicit currentPackId if it exists in list', () => {
+    const packs = [
+      makePack({ id: 'a', status: 'approved', updatedAt: 200 }),
+      makePack({ id: 'b', status: 'draft', updatedAt: 300 }),
+    ];
+    assert.equal(getPreferredContinuationPackId(packs, 'b'), 'b');
+  });
+
+  it('ignores explicit currentPackId if not in list, picks approved', () => {
+    const packs = [
+      makePack({ id: 'a', status: 'approved', updatedAt: 200 }),
+      makePack({ id: 'b', status: 'draft', updatedAt: 300 }),
+    ];
+    assert.equal(getPreferredContinuationPackId(packs, 'nonexistent'), 'a');
+  });
+
+  it('prefers approved over draft even if draft is newer', () => {
+    const packs = [
+      makePack({ id: 'draft-new', status: 'draft', updatedAt: 500 }),
+      makePack({ id: 'approved-old', status: 'approved', updatedAt: 100 }),
+    ];
+    assert.equal(getPreferredContinuationPackId(packs), 'approved-old');
+  });
+
+  it('falls back to draft when no approved exists', () => {
+    const packs = [
+      makePack({ id: 'd1', status: 'draft', updatedAt: 100 }),
+      makePack({ id: 'd2', status: 'draft', updatedAt: 200 }),
+    ];
+    assert.equal(getPreferredContinuationPackId(packs), 'd2');
+  });
 });
 
-test('getPreferredContinuationPackId falls back to the most recently updated approved pack', () => {
-  const packs = [buildPack('pack-old', 100), buildPack('pack-new', 200), buildPack('pack-mid', 150)];
+describe('getPreferredContinuationPack', () => {
+  it('returns null for empty list', () => {
+    assert.equal(getPreferredContinuationPack([]), null);
+  });
 
-  assert.equal(getPreferredContinuationPackId(packs, 'missing-pack'), 'pack-new');
-  assert.equal(getPreferredContinuationPackId(packs), 'pack-new');
+  it('returns the pack object matching the selected id', () => {
+    const packs = [
+      makePack({ id: 'a', status: 'approved', title: 'Approved Pack' }),
+    ];
+    const result = getPreferredContinuationPack(packs);
+    assert.equal(result?.title, 'Approved Pack');
+  });
 });

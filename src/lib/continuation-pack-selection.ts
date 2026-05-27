@@ -17,5 +17,17 @@ export function getPreferredContinuationPackId(
     return currentPackId;
   }
 
-  return sortContinuationPacksByRecency(packs)[0]?.id || '';
+  const sorted = sortContinuationPacksByRecency(packs);
+  const approved = sorted.find((p) => p.status === 'approved');
+  if (approved) return approved.id;
+
+  return sorted[0]?.id || '';
+}
+
+export function getPreferredContinuationPack(
+  packs: ContinuationPack[],
+  currentPackId?: string,
+): ContinuationPack | null {
+  const id = getPreferredContinuationPackId(packs, currentPackId);
+  return packs.find((p) => p.id === id) || null;
 }

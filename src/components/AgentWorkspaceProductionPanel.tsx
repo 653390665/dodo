@@ -5,6 +5,7 @@ import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
 import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
 import FileText from 'lucide-react/dist/esm/icons/file-text.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import Feather from 'lucide-react/dist/esm/icons/feather.js';
 import ReactMarkdown from 'react-markdown';
 import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel } from '../types';
@@ -52,6 +53,7 @@ interface AgentWorkspaceProductionPanelProps {
   onRunAudit: () => Promise<void>;
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
+  onCreateChapter?: () => Promise<void>;
 }
 
 const DRAFT_PROMPT_SURFACE = 'workspace-draft';
@@ -98,6 +100,7 @@ export function AgentWorkspaceProductionPanel({
   onRunAudit,
   isGeneratingCritique,
   onPolishChapterFromAudit,
+  onCreateChapter,
 }: AgentWorkspaceProductionPanelProps) {
   const selectedContinuationPack = continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -229,6 +232,32 @@ export function AgentWorkspaceProductionPanel({
           )}
         </div>
 
+        {selectedContinuationPack && (
+          <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-3 text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-theme-text">当前资料包：</span>
+              <span className="text-theme-muted">{selectedContinuationPack.title}</span>
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                selectedContinuationPack.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {selectedContinuationPack.status === 'approved' ? '已确认' : '待审核'}
+              </span>
+            </div>
+            {selectedContinuationPack.continuationTask && (
+              <div className="text-theme-muted">
+                <span className="font-bold text-theme-text">续写任务：</span>
+                {selectedContinuationPack.continuationTask}
+              </div>
+            )}
+            {selectedContinuationPack.plotState.immediateConflict && (
+              <div className="text-theme-muted">
+                <span className="font-bold text-theme-text">即时冲突：</span>
+                {selectedContinuationPack.plotState.immediateConflict}
+              </div>
+            )}
+          </div>
+        )}
+
         <ProductionRunReview
           run={activeProductionRun}
           userIntent={productionIntent}
@@ -337,14 +366,28 @@ export function AgentWorkspaceProductionPanel({
               placeholder="描述这一章你想写什么，比如：主角在酒馆偶遇了女二..."
               className="w-full h-24 bg-white border border-theme-border rounded-xl p-3 text-sm text-theme-text placeholder:text-theme-muted/60 resize-none shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
             />
-            <button
-              onClick={onGenerateBeats}
-              disabled={isGeneratingBeats || !currentChapter}
-              className="w-full mt-3 py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isGeneratingBeats ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              {isGeneratingBeats ? '规划中...' : '生成场景分镜'}
-            </button>
+            {!currentChapter ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-theme-muted">
+                  当前还没有章节上下文。创建第一章后即可开始生成分镜。
+                </p>
+                <button
+                  onClick={onCreateChapter}
+                  className="w-full py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} /> 创建第一章并开始分镜
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onGenerateBeats}
+                disabled={isGeneratingBeats}
+                className="w-full mt-3 py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isGeneratingBeats ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {isGeneratingBeats ? '规划中...' : '生成场景分镜'}
+              </button>
+            )}
           </div>
 
           {currentChapter ? (

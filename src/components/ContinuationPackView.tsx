@@ -19,6 +19,8 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   const [packs, setPacks] = useState<ContinuationPack[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [error, setError] = useState('');
+  const [editingTask, setEditingTask] = useState(false);
+  const [taskDraft, setTaskDraft] = useState('');
 
   useEffect(() => {
     listContinuationPacks(novel.id).then(setPacks);
@@ -70,6 +72,21 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
     await deleteContinuationPack(packId);
     setActivePack(prev => prev?.id === packId ? null : prev);
     setPacks(prev => prev.filter(p => p.id !== packId));
+  };
+
+  const handleStartEditTask = () => {
+    if (!activePack) return;
+    setTaskDraft(activePack.continuationTask || '');
+    setEditingTask(true);
+  };
+
+  const handleSaveTask = async () => {
+    if (!activePack) return;
+    await updateContinuationPack(activePack.id, { continuationTask: taskDraft });
+    const updated = { ...activePack, continuationTask: taskDraft, updatedAt: Date.now() };
+    setActivePack(updated);
+    setPacks(prev => prev.map(p => p.id === activePack.id ? updated : p));
+    setEditingTask(false);
   };
 
   const canApprove = activePack && activePack.canonFacts.length > 0 && activePack.contradictions.length === 0;
@@ -198,13 +215,52 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
             </div>
           )}
 
+          {/* Continuation Task - always visible and editable */}
+          <div className="rounded-xl border border-theme-border bg-white p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-theme-text">续写主任务</div>
+              {!editingTask && (
+                <button
+                  onClick={handleStartEditTask}
+                  className="text-[10px] text-theme-accent hover:underline"
+                >
+                  编辑
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-theme-muted">
+              这批资料导入后，你希望系统续写的主任务方向。将用于分镜预填和自动生产摘要。
+            </p>
+            {editingTask ? (
+              <div className="space-y-2">
+                <textarea
+                  value={taskDraft}
+                  onChange={(e) => setTaskDraft(e.target.value)}
+                  placeholder="例如：从第三卷高潮处续写，主角团进入秘境后遭遇反派伏击..."
+                  className="w-full h-20 bg-white border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/50 resize-none shadow-sm focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleSaveTask} className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold">
+                    保存
+                  </button>
+                  <button onClick={() => setEditingTask(false)} className="px-3 py-1.5 rounded-lg bg-theme-sidebar text-theme-text text-[10px] font-bold border border-theme-border">
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-theme-text">
+                {activePack?.continuationTask || <span className="text-theme-muted italic">未指定 — 点击编辑添加续写方向</span>}
+              </div>
+            )}
+          </div>
+
           <details className="text-xs text-theme-muted">
             <summary className="cursor-pointer font-bold">展开结构化上下文</summary>
             <div className="mt-2 space-y-3 ml-4">
               <div><span className="font-bold">硬设定：</span>{activePack.canonFacts.map(f => f.text).join('；') || '无'}</div>
               <div><span className="font-bold">人物状态：</span>{activePack.characterStates.map(c => `${c.name}(${c.currentGoal})`).join('；') || '无'}</div>
               <div><span className="font-bold">剧情位置：</span>{activePack.plotState.currentTimeline} | {activePack.plotState.latestScene}</div>
-              <div><span className="font-bold">续写任务：</span>{activePack.continuationTask || '未指定'}</div>
             </div>
           </details>
         </div>

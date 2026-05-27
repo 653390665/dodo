@@ -127,11 +127,13 @@ export default function App() {
     novel: Novel,
     approvedPackId: string,
     source: ContinuationEditorLaunchState['source'],
+    prefillIntent?: string,
   ) => {
     setContinuationLaunchState({
       approvedPackId,
       launchToken: Date.now(),
       shouldOpenProductionPanel: true,
+      prefillIntent,
       source,
     });
     setSelectedNovel(novel);
@@ -461,8 +463,8 @@ export default function App() {
               <ErrorBoundary>
                 <ContinuationImportView
                   onBack={() => setCurrentView('welcome')}
-                  onEnterEditor={(novel, approvedPackId) =>
-                    navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import')
+                  onEnterEditor={(novel, approvedPackId, prefillIntent) =>
+                    navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import', prefillIntent)
                   }
                 />
               </ErrorBoundary>

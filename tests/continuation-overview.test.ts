@@ -40,13 +40,13 @@ function buildPack(overrides: Partial<ContinuationPack> = {}): ContinuationPack 
   };
 }
 
-test('overview prefers draft pack over approved packs', () => {
+test('overview prefers approved pack over draft packs', () => {
   const draftPack = buildPack({ id: 'draft-1', status: 'draft', updatedAt: 30 });
   const approvedPack = buildPack({ id: 'approved-1', status: 'approved', updatedAt: 20 });
-  const state = buildContinuationOverviewState([approvedPack, draftPack]);
+  const state = buildContinuationOverviewState([draftPack, approvedPack]);
 
-  assert.equal(state.kind, 'draft');
-  assert.equal(state.primaryPack?.id, 'draft-1');
+  assert.equal(state.kind, 'ready');
+  assert.equal(state.primaryPack?.id, 'approved-1');
   assert.equal(state.draftPack?.id, 'draft-1');
   assert.equal(state.approvedPack?.id, 'approved-1');
 });
@@ -73,6 +73,14 @@ test('overview enters risk state for approved pack with severe contradictions an
   assert.equal(state.kind, 'risk');
   assert.equal(state.highlightWarnings[0], '时间线冲突');
   assert.equal(state.highlightWarnings[1], '暗道终点未定');
+});
+
+test('overview returns draft kind when only draft exists', () => {
+  const pack = buildPack({ id: 'draft-1', status: 'draft' });
+  const state = buildContinuationOverviewState([pack]);
+
+  assert.equal(state.kind, 'draft');
+  assert.equal(state.primaryPack?.id, 'draft-1');
 });
 
 test('overview is empty when there are no packs', () => {

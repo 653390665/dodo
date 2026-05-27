@@ -32,40 +32,31 @@ export function buildContinuationOverviewState(packs: ContinuationPack[]): Conti
   const draftPack = sortByRecency(packs.filter((pack) => pack.status === 'draft'))[0] || null;
   const approvedPack = sortByRecency(packs.filter((pack) => pack.status === 'approved'))[0] || null;
 
-  if (draftPack) {
+  const primaryPack = approvedPack || draftPack;
+
+  if (!primaryPack) {
     return {
-      kind: 'draft',
-      primaryPack: draftPack,
-      draftPack,
-      approvedPack,
-      contradictionCount: draftPack.contradictions.length,
-      readingQuestionCount: draftPack.readingQuestions?.length || 0,
-      continuationGapCount: draftPack.continuationGaps?.length || 0,
-      highlightWarnings: buildWarnings(draftPack),
+      kind: 'empty',
+      primaryPack: null,
+      draftPack: null,
+      approvedPack: null,
+      contradictionCount: 0,
+      readingQuestionCount: 0,
+      continuationGapCount: 0,
+      highlightWarnings: [],
     };
   }
 
-  if (approvedPack) {
-    return {
-      kind: hasHighRisk(approvedPack) ? 'risk' : 'ready',
-      primaryPack: approvedPack,
-      draftPack: null,
-      approvedPack,
-      contradictionCount: approvedPack.contradictions.length,
-      readingQuestionCount: approvedPack.readingQuestions?.length || 0,
-      continuationGapCount: approvedPack.continuationGaps?.length || 0,
-      highlightWarnings: buildWarnings(approvedPack),
-    };
-  }
+  const isDraftOnly = !approvedPack && primaryPack === draftPack;
 
   return {
-    kind: 'empty',
-    primaryPack: null,
-    draftPack: null,
-    approvedPack: null,
-    contradictionCount: 0,
-    readingQuestionCount: 0,
-    continuationGapCount: 0,
-    highlightWarnings: [],
+    kind: isDraftOnly ? 'draft' : hasHighRisk(primaryPack) ? 'risk' : 'ready',
+    primaryPack,
+    draftPack,
+    approvedPack,
+    contradictionCount: primaryPack.contradictions.length,
+    readingQuestionCount: primaryPack.readingQuestions?.length || 0,
+    continuationGapCount: primaryPack.continuationGaps?.length || 0,
+    highlightWarnings: buildWarnings(primaryPack),
   };
 }

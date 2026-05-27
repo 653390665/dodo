@@ -491,6 +491,7 @@ export function WorldBibleView({
                   onOpenPackManagement={() => setActiveTab('pack-management')}
                   onOpenWorldSetup={() => setActiveTab('global')}
                   onStartWriting={(packId) => onStartContinuationWriting?.(packId)}
+                  onStartStoryboard={(packId) => onStartContinuationWriting?.(packId)}
                 />
               </motion.div>
             )}

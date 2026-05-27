@@ -556,6 +556,7 @@ export interface ContinuationEditorLaunchState {
   approvedPackId: string;
   launchToken: number;
   shouldOpenProductionPanel: true;
+  prefillIntent?: string;
   source: 'continuation-import' | 'world-overview';
 }
 

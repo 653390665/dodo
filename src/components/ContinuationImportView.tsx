@@ -20,7 +20,7 @@ import {
 
 interface ContinuationImportViewProps {
   onBack: () => void;
-  onEnterEditor: (novel: Novel, approvedPackId: string) => void;
+  onEnterEditor: (novel: Novel, approvedPackId: string, prefillIntent?: string) => void;
 }
 
 type Stage = 'upload' | 'confirm';
@@ -180,7 +180,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         status: 'approved',
       });
 
-      onEnterEditor(targetNovel, parsedPack.id);
+      onEnterEditor(targetNovel, parsedPack.id, parsedState?.pack.continuationTask || undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
