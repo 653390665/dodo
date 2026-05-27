@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { EditorView } from './EditorView';
 import { WorldBibleView } from './WorldBibleView';
 import { cn } from '../lib/utils';
-import type { AssistantLaunchContext, Novel, WorkspaceFocus } from '../types';
+import type { AssistantLaunchContext, ContinuationEditorLaunchState, Novel, WorkspaceFocus } from '../types';
 
 interface SplitWorkspaceProps {
   novel: Novel;
@@ -11,6 +11,8 @@ interface SplitWorkspaceProps {
   focus: WorkspaceFocus;
   onFocusChange: (focus: WorkspaceFocus) => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
+  continuationLaunchState?: ContinuationEditorLaunchState | null;
+  onStartContinuationWriting?: (approvedPackId: string) => void;
 }
 
 const FOCUS_SPLIT_RATIOS: Record<WorkspaceFocus, number> = {
@@ -18,7 +20,16 @@ const FOCUS_SPLIT_RATIOS: Record<WorkspaceFocus, number> = {
   world: 0.42,
 };
 
-export function SplitWorkspace({ novel, onboarding, onBack, focus, onFocusChange, onOpenAssistant }: SplitWorkspaceProps) {
+export function SplitWorkspace({
+  novel,
+  onboarding,
+  onBack,
+  focus,
+  onFocusChange,
+  onOpenAssistant,
+  continuationLaunchState = null,
+  onStartContinuationWriting,
+}: SplitWorkspaceProps) {
   const [splitRatio, setSplitRatio] = useState(FOCUS_SPLIT_RATIOS[focus]);
   const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +90,7 @@ export function SplitWorkspace({ novel, onboarding, onBack, focus, onFocusChange
       </div>
       <div ref={containerRef} className="flex-1 flex min-h-0">
         <div style={{ width: `${splitRatio * 100}%` }} className="h-full overflow-hidden">
-          <EditorView novel={novel} onBack={onBack} onOpenAssistant={onOpenAssistant} />
+          <EditorView novel={novel} launchState={continuationLaunchState} onBack={onBack} onOpenAssistant={onOpenAssistant} />
         </div>
         <div
           onMouseDown={onMouseDown}
@@ -88,7 +99,7 @@ export function SplitWorkspace({ novel, onboarding, onBack, focus, onFocusChange
           }`}
         />
         <div style={{ width: `${(1 - splitRatio) * 100}%` }} className="h-full overflow-hidden">
-          <WorldBibleView novel={novel} onboarding={onboarding} />
+          <WorldBibleView novel={novel} onboarding={onboarding} onStartContinuationWriting={onStartContinuationWriting} />
         </div>
       </div>
     </div>

@@ -30,6 +30,7 @@ export function useChapterProductionFlow({
 
   const productionAbortRef = useRef<AbortController | null>(null);
   const productionDraftSourceRef = useRef<'fallback' | 'model' | null>(null);
+  const productionCompletedRef = useRef(false);
 
   const stopProductionFlow = () => {
     if (productionAbortRef.current) {
@@ -54,6 +55,7 @@ export function useChapterProductionFlow({
     productionDraftSourceRef.current = null;
     setProductionAuditSource(null);
     setProductionStatusMessage('正在连接...');
+    productionCompletedRef.current = false;
 
     setActiveProductionRun({
       id: '',
@@ -134,12 +136,23 @@ export function useChapterProductionFlow({
               setActiveProductionRun((prev) => (prev ? { ...prev, continuityReport: event.report } : null));
               break;
             case 'done':
+              productionCompletedRef.current = true;
               setActiveProductionRun(event.run);
               setProductionStatusMessage(null);
               setIsProductionRunning(false);
               break;
             case 'error':
+              productionCompletedRef.current = true;
               setProductionError(event.message);
+              setActiveProductionRun((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      status: 'failed',
+                      errorMessage: event.message,
+                    }
+                  : prev,
+              );
               setIsProductionRunning(false);
               break;
             default:
@@ -152,9 +165,23 @@ export function useChapterProductionFlow({
       if (error instanceof Error && error.name === 'AbortError') return;
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {
+      if (!productionCompletedRef.current) {
+        const message = '生产连接已中断，请直接再次点击“开始生产一章”重试。';
+        setProductionError((current) => current || message);
+        setActiveProductionRun((prev) =>
+          prev && prev.status === 'running'
+            ? {
+                ...prev,
+                status: 'failed',
+                errorMessage: prev.errorMessage || message,
+              }
+            : prev,
+        );
+      }
       setIsProductionRunning(false);
       setProductionStatusMessage(null);
       productionDraftSourceRef.current = null;
+      productionCompletedRef.current = false;
       if (productionAbortRef.current === controller) {
         productionAbortRef.current = null;
       }

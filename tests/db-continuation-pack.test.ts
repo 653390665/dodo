@@ -59,3 +59,20 @@ test('update continuation pack status', () => {
   const updated = getContinuationPack('pack-2');
   assert.equal(updated?.status, 'approved');
 });
+
+test('update continuation pack novel id persists relinked target novel', () => {
+  createNovel({ id: 'novel-2', title: '导入续写资料包 2026/5/27', authorId: 'user', summary: '', status: 'ongoing', createdAt: 2, updatedAt: 2 });
+  const pack: ContinuationPack = {
+    id: 'pack-3', novelId: 'continuation-import-draft-1', title: '导入续写资料包 2026/5/27', status: 'draft',
+    sourceDocuments: [], canonFacts: [], characterStates: [],
+    plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
+    styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
+    contradictions: [], continuationTask: '', createdAt: 1, updatedAt: 1,
+  };
+  createContinuationPack(pack);
+
+  updateContinuationPack('pack-3', { novelId: 'novel-2', status: 'approved' });
+
+  assert.equal(getContinuationPack('pack-3')?.novelId, 'novel-2');
+  assert.equal(listContinuationPacks('novel-2').some((entry) => entry.id === 'pack-3'), true);
+});

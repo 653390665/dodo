@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import type {
   AgentTab,
@@ -129,14 +129,17 @@ export function useEditorIntelligenceContext({
     ],
   );
 
-  const getCurrentFitScore = (skillsOverride = mountedSkills) => {
-    const needs = deriveSkillFitNeeds(novel, currentChapter);
-    return calculateSkillFitScore({
-      requiredDimensions: needs.requiredDimensions,
-      chapterSignals: needs.chapterSignals,
-      loadout: skillsOverride,
-    }).totalScore;
-  };
+  const getCurrentFitScore = useCallback(
+    (skillsOverride = mountedSkills) => {
+      const needs = deriveSkillFitNeeds(novel, currentChapter);
+      return calculateSkillFitScore({
+        requiredDimensions: needs.requiredDimensions,
+        chapterSignals: needs.chapterSignals,
+        loadout: skillsOverride,
+      }).totalScore;
+    },
+    [novel, currentChapter, mountedSkills],
+  );
 
   const copilotSuggestion = useMemo<CopilotSuggestion>(
     () =>

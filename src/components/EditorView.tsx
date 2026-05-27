@@ -32,7 +32,7 @@ import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
 import Eye from 'lucide-react/dist/esm/icons/eye.js';
 import Activity from 'lucide-react/dist/esm/icons/activity.js';
 import Download from 'lucide-react/dist/esm/icons/download.js';
-import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack } from '../types';
+import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../types';
 import {
   listCharacters,
   listLocations,
@@ -45,6 +45,7 @@ import { listSkillUsageRecords } from '../lib/skill-client';
 import { motion, AnimatePresence } from '../lib/motion';
 import { cn } from '../lib/utils';
 import { listContinuationPacks } from '../lib/continuation-client';
+import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '../lib/continuation-pack-selection';
 import { subscribeToChanges } from '../lib/db-transport';
 import type { AgentContext } from '../lib/agents';
 import ReactMarkdown from 'react-markdown';
@@ -74,11 +75,12 @@ import { useChapterUndo } from '../lib/hooks/useChapterUndo';
 
 interface EditorViewProps {
   novel: Novel;
+  launchState?: ContinuationEditorLaunchState | null;
   onBack: () => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
 }
 
-export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) {
+export function EditorView({ novel, launchState = null, onBack, onOpenAssistant }: EditorViewProps) {
   const {
     chapters, setChapters,
     currentChapter, setCurrentChapter,
@@ -120,6 +122,7 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedVolumes, setExpandedVolumes] = useState<string[]>(['正文卷']);
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
+  const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
   const [approvedContinuationPacks, setApprovedContinuationPacks] = useState<ContinuationPack[]>([]);
   const [selectedContinuationPackId, setSelectedContinuationPackId] = useState('');
   const [agentTab, setAgentTab] = useState<AgentTab>('copilot-home');
@@ -127,6 +130,8 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
   const [userIntent, setUserIntent] = useState('');
+  const hasConsumedContinuationPackSelectionRef = useRef(false);
+  const hasConsumedContinuationLaunchUiRef = useRef(false);
 
   const buildAssistantLaunchContext = (): AssistantLaunchContext => {
     const selectionStart = contentRef.current?.selectionStart ?? 0;
@@ -274,12 +279,26 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
   });
 
   useEffect(() => {
+    hasConsumedContinuationPackSelectionRef.current = false;
+    hasConsumedContinuationLaunchUiRef.current = false;
+  }, [launchState?.launchToken, novel.id]);
+
+  useEffect(() => {
     const refreshContinuationPacks = async () => {
-      const packs = (await listContinuationPacks(novel.id)).filter((pack) => pack.status === 'approved');
-      setApprovedContinuationPacks(packs);
+      const packs = sortContinuationPacksByRecency(await listContinuationPacks(novel.id));
+      const approvedPacks = packs.filter((pack) => pack.status === 'approved');
+      setContinuationPacks(packs);
+      setApprovedContinuationPacks(approvedPacks);
       setSelectedContinuationPackId((current) => {
-        if (current && packs.some((pack) => pack.id === current)) return current;
-        return packs[0]?.id || '';
+        if (
+          !hasConsumedContinuationPackSelectionRef.current &&
+          launchState?.approvedPackId &&
+          approvedPacks.some((pack) => pack.id === launchState.approvedPackId)
+        ) {
+          hasConsumedContinuationPackSelectionRef.current = true;
+          return launchState.approvedPackId;
+        }
+        return getPreferredContinuationPackId(approvedPacks.length > 0 ? approvedPacks : packs, current);
       });
     };
 
@@ -287,7 +306,14 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
     return subscribeToChanges(() => {
       void refreshContinuationPacks();
     });
-  }, [novel.id]);
+  }, [launchState?.approvedPackId, launchState?.launchToken, novel.id]);
+
+  useEffect(() => {
+    if (!launchState?.approvedPackId || hasConsumedContinuationLaunchUiRef.current) return;
+    hasConsumedContinuationLaunchUiRef.current = true;
+    setIsAgentSidebarOpen(true);
+    setAgentTab('production');
+  }, [launchState?.approvedPackId, launchState?.launchToken]);
 
   const {
     mountedSkills,
@@ -507,6 +533,11 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
 
         <div className="h-9 bg-white border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
           <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+            {launchState?.approvedPackId && (
+              <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">
+                当前模式：资料包续写
+              </span>
+            )}
             <span className="font-medium tabular-nums">字数 {currentChapter?.wordCount || 0}</span>
             <span className="hidden sm:inline tabular-nums">更新 {currentChapter ? statusTimeFormatter.format(new Date(currentChapter.updatedAt)) : '-'}</span>
             <span className="hidden lg:inline">预计 token <span className="text-theme-text font-semibold tabular-nums">~2.4k</span></span>
@@ -587,6 +618,7 @@ export function EditorView({ novel, onBack, onOpenAssistant }: EditorViewProps) 
               productionDraftSource={productionDraftSource}
               productionAuditSource={productionAuditSource}
               productionStatusMessage={productionStatusMessage}
+              continuationPacks={continuationPacks}
               approvedContinuationPacks={approvedContinuationPacks}
               selectedContinuationPackId={selectedContinuationPackId}
               setSelectedContinuationPackId={setSelectedContinuationPackId}

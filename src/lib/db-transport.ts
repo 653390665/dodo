@@ -38,16 +38,14 @@ function connectEventSource() {
   };
 
   es.onerror = () => {
-    if (es.readyState === EventSource.CLOSED) {
-      es.close();
-      globalEventSource = null;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        connectEventSource();
-        reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
-      }, reconnectDelay);
-    }
+    es.close();
+    globalEventSource = null;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connectEventSource();
+      reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
+    }, reconnectDelay);
   };
 
   es.onopen = () => {

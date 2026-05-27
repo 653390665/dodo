@@ -14,6 +14,19 @@ export function normalizeProductionIntent(intent: string): string {
   return normalized || '延续上一章剧情，生成下一章分镜、正文和连续性审计。';
 }
 
+export function buildProductionPromptContexts(args: {
+  layeredContext: string;
+  plannerContext: string;
+  writerContext: string;
+  continuationPackContext?: string;
+}): { planner: string; writer: string } {
+  const { layeredContext, plannerContext, writerContext, continuationPackContext } = args;
+  return {
+    planner: [layeredContext, continuationPackContext, plannerContext].filter(Boolean).join('\n\n'),
+    writer: [writerContext, continuationPackContext].filter(Boolean).join('\n\n'),
+  };
+}
+
 function compact(text: string | undefined, max: number): string {
   const normalized = (text || '').replace(/\s+/g, ' ').trim();
   if (!normalized) return '无';

@@ -11,11 +11,12 @@ import { Library } from './components/Library';
 import { SplitWorkspace } from './components/SplitWorkspace';
 import { EditorView } from './components/EditorView';
 import { WorldBibleView } from './components/WorldBibleView';
+import { ContinuationImportView } from './components/ContinuationImportView';
 import { AIAssistant } from './components/AIAssistant';
 import { StoryCardDeck } from './components/onboarding/StoryCardDeck';
 import { SkillsStudioView } from './components/SkillsStudioView';
 import { BookFactoryView } from './components/BookFactoryView';
-import { AssistantLaunchContext, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
+import { AssistantLaunchContext, ContinuationEditorLaunchState, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
 import { motion, AnimatePresence } from './lib/motion';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
 import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from './lib/onboarding-model';
@@ -62,6 +63,7 @@ export default function App() {
   const [assistantLaunchContext, setAssistantLaunchContext] = useState<AssistantLaunchContext | null>(null);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [aiDrawerTab, setAiDrawerTab] = useState<'cards' | 'chat'>('cards');
+  const [continuationLaunchState, setContinuationLaunchState] = useState<ContinuationEditorLaunchState | null>(null);
 
   useEffect(() => {
     applyTheme(theme);
@@ -115,9 +117,30 @@ export default function App() {
   }, []);
 
   const navigateToEditor = (novel: Novel) => {
+    setContinuationLaunchState(null);
     setSelectedNovel(novel);
     setWorkspaceFocus('editor');
     setCurrentView('editor');
+  };
+
+  const navigateToEditorWithContinuation = (
+    novel: Novel,
+    approvedPackId: string,
+    source: ContinuationEditorLaunchState['source'],
+  ) => {
+    setContinuationLaunchState({
+      approvedPackId,
+      launchToken: Date.now(),
+      shouldOpenProductionPanel: true,
+      source,
+    });
+    setSelectedNovel(novel);
+    setWorkspaceFocus('editor');
+    setCurrentView('editor');
+  };
+
+  const handleStartContinuationImport = () => {
+    setCurrentView('continuation-import');
   };
 
   const handleNavigate = (view: ViewType, navKey?: WorkspaceNavKey) => {
@@ -128,6 +151,12 @@ export default function App() {
     setWorkspaceFocus((prev) => deriveWorkspaceFocus(view, navKey, prev));
     setCurrentView(view);
   };
+
+  useEffect(() => {
+    if (currentView !== 'editor' && currentView !== 'workspace' && continuationLaunchState) {
+      setContinuationLaunchState(null);
+    }
+  }, [currentView, continuationLaunchState]);
 
   const handleOpenAssistant = (context: AssistantLaunchContext) => {
     setAssistantLaunchContext(context);
@@ -424,6 +453,17 @@ export default function App() {
                   onSelectStoryCard={handleSelectStoryCard}
                   onJumpToLibrary={() => setCurrentView('library')}
                   onSelectNovel={navigateToEditor}
+                  onStartContinuationImport={handleStartContinuationImport}
+                />
+              </ErrorBoundary>
+            )}
+            {currentView === 'continuation-import' && (
+              <ErrorBoundary>
+                <ContinuationImportView
+                  onBack={() => setCurrentView('welcome')}
+                  onEnterEditor={(novel, approvedPackId) =>
+                    navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import')
+                  }
                 />
               </ErrorBoundary>
             )}
@@ -438,6 +478,16 @@ export default function App() {
                 novel={selectedNovel}
                 focus={workspaceFocus}
                 onFocusChange={setWorkspaceFocus}
+                continuationLaunchState={continuationLaunchState}
+                onStartContinuationWriting={(packId) => {
+                  setContinuationLaunchState({
+                    approvedPackId: packId,
+                    launchToken: Date.now(),
+                    shouldOpenProductionPanel: true,
+                    source: 'world-overview',
+                  });
+                  setWorkspaceFocus('editor');
+                }}
                 onOpenAssistant={handleOpenAssistant}
                 onboarding={
                   onboardingDraft?.setupTasks.length
@@ -467,7 +517,9 @@ export default function App() {
             {currentView === 'editor' && selectedNovel && (
               <ErrorBoundary>
                 <EditorView
+                key={`${selectedNovel.id}:${continuationLaunchState?.approvedPackId || 'default'}`}
                 novel={selectedNovel}
+                launchState={continuationLaunchState}
                 onBack={() => setCurrentView('library')}
                 onOpenAssistant={handleOpenAssistant}
               />
@@ -477,6 +529,9 @@ export default function App() {
               <ErrorBoundary>
                 <WorldBibleView
                 novel={selectedNovel}
+                onStartContinuationWriting={(packId) =>
+                  navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview')
+                }
                 onboarding={
                   onboardingDraft?.setupTasks.length
                     ? {

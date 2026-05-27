@@ -10,6 +10,7 @@ import { buildRewritePrompt } from './src/lib/rewrite-prompt';
 import { resolvePromptAssetForSurface } from './src/lib/prompt-runtime';
 import {
   buildChapterProductionTitle,
+  buildProductionPromptContexts,
   buildProductionPlannerContext,
   buildProductionWriterContext,
   getNextChapterOrder,
@@ -34,6 +35,11 @@ import {
   renderStructuredAuditMarkdown,
 } from './src/lib/audit-structured';
 import { extractJsonPayload } from './src/lib/extract-skill-json';
+import { parseModelJsonPayload } from './src/lib/model-json';
+import {
+  buildContinuationPackParseAttempts,
+  buildContinuationPackPrompt,
+} from './src/lib/continuation-pack-parse';
 import {
   validateExtractSkillInput,
   parseModelRefusal,
@@ -1051,7 +1057,14 @@ async function startServer() {
 【设定文档内容】：
 ${documentText}
       `;
-      const raw = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 4096 });
+      const raw = await generateText(getConfig(), {
+        prompt,
+        timeoutMs: 90_000,
+        maxAttempts: 2,
+        maxTokens: 4096,
+        responseMimeType: 'application/json',
+        disableThinking: true,
+      });
       const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
       res.json(JSON.parse(cleaned));
     } catch (e) {
@@ -1211,68 +1224,44 @@ ${text.substring(0, 30000)}
         return { filename: doc.filename, text: trimmed };
       }));
 
-      const documentsForPrompt = parsedDocs.map((d: any) =>
-        `【${d.filename}】\n${d.text.slice(0, 15000)}\n`
-      ).join('\n---\n');
+      const llmConfig = getConfig();
+      const buildDocumentsForPrompt = (maxCharsPerDocument: number) =>
+        parsedDocs.map((d: any) =>
+          `【${d.filename}】\n${d.text.slice(0, maxCharsPerDocument)}\n`
+        ).join('\n---\n');
 
-      const prompt = `
-你是小说项目接管编辑。用户上传了一个资料包，需要你整理成可续写的结构化上下文。
+      const shouldRetryWithShorterPrompt = (message: string) =>
+        /only thinking\/reasoning content|empty response|可解析的 JSON|不完整的 JSON|LLM returned empty response/i.test(message);
+      const promptAttempts = buildContinuationPackParseAttempts(llmConfig.baseUrl);
 
-硬规则：
-1. 不要续写正文。
-2. 不要补造未在资料中出现的硬设定。
-3. 每条 hard canon 必须带 evidence，evidence 必须来自原文短摘。
-4. 如果资料冲突，写入 contradictions，不要自行吞掉冲突。
-5. 输出严格 JSON，不要 Markdown。
-
-输出结构：
-{
-  "canonFacts": [
-    {"priority":"hard","category":"world","text":"...","evidence":"..."}
-  ],
-  "characterStates": [
-    {"name":"...","role":"...","currentGoal":"...","emotionalState":"...","secrets":[],"relationshipNotes":[],"evidence":"..."}
-  ],
-  "plotState": {
-    "currentTimeline":"...",
-    "latestScene":"...",
-    "unresolvedHooks":[],
-    "immediateConflict":"...",
-    "nextLikelyMove":"..."
-  },
-  "styleProfile": {
-    "pov":"...",
-    "tense":"...",
-    "pacing":"...",
-    "dialogueDensity":"...",
-    "proseTraits":[],
-    "avoidTraits":[],
-    "sampleEvidence":"..."
-  },
-  "contradictions": [
-    {"severity":"medium","summary":"...","conflictingEvidence":[],"suggestedResolution":"..."}
-  ],
-  "sourceMap": {
-    "sections": [
-      {"title":"...","summary":"...","sourceIds":[]}
-    ],
-    "keyConflicts": []
-  },
-  "readingQuestions": [
-    {"question":"...","context":"...","category":"world|character|plot|style|continuity"}
-  ],
-  "continuationGaps": [
-    {"description":"...","severity":"low|medium|high","suggestedDirection":"...","relatedFacts":[]}
-  ],
-  "continuationTask":"..."
-}
-
-资料包：
-${documentsForPrompt}
-`;
-
-      const raw = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 4096 });
-      const parsed = JSON.parse(raw.replace(/```(json)?/g, '').trim());
+      let parsed: any = null;
+      let lastParseError: unknown = null;
+      for (const attempt of promptAttempts) {
+        try {
+          const raw = await generateText(llmConfig, {
+            prompt: buildContinuationPackPrompt(
+              buildDocumentsForPrompt(attempt.maxCharsPerDocument),
+              attempt.compactMode,
+            ),
+            timeoutMs: 90_000,
+            maxAttempts: 3,
+            maxTokens: attempt.maxTokens,
+            responseMimeType: 'application/json',
+            disableThinking: true,
+          });
+          parsed = parseModelJsonPayload<any>(raw);
+          break;
+        } catch (error) {
+          lastParseError = error;
+          const message = error instanceof Error ? error.message : String(error);
+          if (!shouldRetryWithShorterPrompt(message) || attempt === promptAttempts[promptAttempts.length - 1]) {
+            throw error;
+          }
+        }
+      }
+      if (!parsed) {
+        throw lastParseError instanceof Error ? lastParseError : new Error(String(lastParseError || '模型未返回可用 JSON，请重试。'));
+      }
 
       const now = Date.now();
       const packId = `cont-pack-${now}`;
@@ -1308,6 +1297,12 @@ ${documentsForPrompt}
       res.json({ pack });
     } catch (e) {
       console.error(e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (/only thinking\/reasoning content|empty response|可解析的 JSON|不完整的 JSON|LLM returned empty response/i.test(message)) {
+        return res.status(502).json({
+          error: '模型未返回可用 JSON，请重试。',
+        });
+      }
       res.status(500).json({ error: String(e) });
     }
   });
@@ -1442,6 +1437,8 @@ function parseJsonOrEmptyReport(raw: string) {
       reviewSurface = 'chapter-review',
     } = req.body;
     let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
+    const clientAbortController = new AbortController();
+
     try {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -1450,8 +1447,18 @@ function parseJsonOrEmptyReport(raw: string) {
 
       req.socket.setTimeout(0);
       orchestrateHeartbeat = setInterval(() => {
-        res.write(':ping\n\n');
+        if (!res.writableEnded) {
+          res.write(':ping\n\n');
+        }
       }, 30_000);
+
+      req.on('close', () => {
+        clientAbortController.abort();
+        if (orchestrateHeartbeat) {
+          clearInterval(orchestrateHeartbeat);
+          orchestrateHeartbeat = null;
+        }
+      });
 
       const skillsInfo = buildSkillsPrompt(skills || []);
       let currentDraft = draftContent || "";
@@ -1477,6 +1484,7 @@ function parseJsonOrEmptyReport(raw: string) {
           currentDraft = await generateText(getConfig(), {
             prompt: writerPrompt,
             ...ORCHESTRATE_WRITER_LLM_OPTIONS,
+            signal: clientAbortController.signal,
           });
         } catch (error) {
           console.warn('Writer generation fell back to local draft:', error);
@@ -1509,6 +1517,7 @@ function parseJsonOrEmptyReport(raw: string) {
         criticFeedback = await generateText(getConfig(), {
           prompt: criticPrompt,
           ...ORCHESTRATE_CRITIC_LLM_OPTIONS,
+          signal: clientAbortController.signal,
         });
         isValid = criticFeedback.includes("PASS");
         res.write(`data: ${JSON.stringify({ type: 'critic_done', feedback: criticFeedback, isValid })}\n\n`);
@@ -1539,11 +1548,11 @@ function parseJsonOrEmptyReport(raw: string) {
         return res.status(404).json({ error: 'Novel not found' });
       }
 
-      // Load approved continuation pack context if provided
+      // Load continuation pack context if provided
       let packContext = '';
       if (continuationPackId) {
         const pack = db.getContinuationPack(continuationPackId);
-        if (pack && pack.status === 'approved') {
+        if (pack) {
           packContext = buildContinuationContext(pack);
         }
       }
@@ -1603,9 +1612,15 @@ function parseJsonOrEmptyReport(raw: string) {
         `【当前卷(L2)】${layered.currentArc}`,
         `【最近章节(L3)】${layered.recentChapters}`,
       ].join('\n\n');
+      const productionPromptContexts = buildProductionPromptContexts({
+        layeredContext,
+        plannerContext,
+        writerContext,
+        continuationPackContext: packContext,
+      });
       const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
         PLANNER_SOUL,
-        contextStr: [layeredContext, packContext, plannerContext].filter(Boolean).join('\n\n'),
+        contextStr: productionPromptContexts.planner,
         userIntent: intent,
       });
       let sceneBeats = '';
@@ -1631,7 +1646,7 @@ function parseJsonOrEmptyReport(raw: string) {
       });
       const writerPrompt = renderPromptTemplate(writerAsset.template, {
         WRITER_SOUL,
-        contextStr: writerContext,
+        contextStr: productionPromptContexts.writer,
         skillsInfo: buildSkillsPrompt(skills),
         sceneBeats,
         criticFeedback: '初稿阶段，请全力输出。',
@@ -1739,9 +1754,16 @@ function parseJsonOrEmptyReport(raw: string) {
   app.post('/api/chapter-production-runs/start-stream', async (req, res) => {
     let runId: string | null = null;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
+    const clientAbortController = new AbortController();
 
     try {
-      const { novelId = '', targetChapterId = '', userIntent = '', surface = 'workspace-draft' } = req.body;
+      const {
+        novelId = '',
+        targetChapterId = '',
+        userIntent = '',
+        continuationPackId = '',
+        surface = 'workspace-draft',
+      } = req.body;
       if (!novelId.trim()) {
         res.status(400).json({ error: 'novelId is required' });
         return;
@@ -1753,6 +1775,14 @@ function parseJsonOrEmptyReport(raw: string) {
         return;
       }
 
+      let packContext = '';
+      if (continuationPackId) {
+        const pack = db.getContinuationPack(continuationPackId);
+        if (pack) {
+          packContext = buildContinuationContext(pack);
+        }
+      }
+
       // SSE setup
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -1761,7 +1791,19 @@ function parseJsonOrEmptyReport(raw: string) {
       res.flushHeaders();
       req.socket.setTimeout(0);
 
-      heartbeat = setInterval(() => res.write(':ping\n\n'), 30_000);
+      heartbeat = setInterval(() => {
+        if (!res.writableEnded) {
+          res.write(':ping\n\n');
+        }
+      }, 30_000);
+
+      req.on('close', () => {
+        clientAbortController.abort();
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
+      });
 
       // --- Data loading (same as non-streaming endpoint) ---
       const chapters = db.listChapters(novelId);
@@ -1853,9 +1895,15 @@ function parseJsonOrEmptyReport(raw: string) {
         `【当前卷(L2)】${layered.currentArc}`,
         `【最近章节(L3)】${layered.recentChapters}`,
       ].join('\n\n');
+      const productionPromptContexts = buildProductionPromptContexts({
+        layeredContext,
+        plannerContext,
+        writerContext,
+        continuationPackContext: packContext,
+      });
       const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
         PLANNER_SOUL,
-        contextStr: `${layeredContext}\n\n${plannerContext}`,
+        contextStr: productionPromptContexts.planner,
         userIntent: intent,
       });
 
@@ -1867,6 +1915,7 @@ function parseJsonOrEmptyReport(raw: string) {
           timeoutMs: 30_000,
           maxAttempts: 1,
           maxTokens: 1600,
+          signal: clientAbortController.signal,
         });
         sseWrite(res, { type: 'model_beats', content: modelBeats });
         db.updateChapterProductionRun(runId, { sceneBeats: modelBeats });
@@ -1883,7 +1932,7 @@ function parseJsonOrEmptyReport(raw: string) {
       });
       const writerPrompt = renderPromptTemplate(writerAsset.template, {
         WRITER_SOUL,
-        contextStr: writerContext,
+        contextStr: productionPromptContexts.writer,
         skillsInfo: buildSkillsPrompt(skills),
         sceneBeats: modelBeats,
         criticFeedback: '初稿阶段，请全力输出。',
@@ -1897,6 +1946,7 @@ function parseJsonOrEmptyReport(raw: string) {
           timeoutMs: 60_000,
           maxAttempts: 1,
           maxTokens: 1600,
+          signal: clientAbortController.signal,
         });
         await emitTextAsTokensWithType(res, modelDraft, 'model_draft_token');
         sseWrite(res, { type: 'model_draft_done' });
@@ -1930,6 +1980,7 @@ function parseJsonOrEmptyReport(raw: string) {
           timeoutMs: 20_000,
           maxAttempts: 1,
           maxTokens: 800,
+          signal: clientAbortController.signal,
         });
         sseWrite(res, { type: 'model_audit', content: modelAudit });
         db.updateChapterProductionRun(runId, {
@@ -1956,6 +2007,7 @@ function parseJsonOrEmptyReport(raw: string) {
           timeoutMs: 20_000,
           maxAttempts: 1,
           maxTokens: 1200,
+          signal: clientAbortController.signal,
         });
         continuityReport = parseJsonOrEmptyReport(rawContinuity);
         sseWrite(res, { type: 'model_continuity', report: continuityReport });

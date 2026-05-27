@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard } from '../types';
+import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack } from '../types';
 import {
   listCharacters, createCharacter, updateCharacter, deleteCharacter,
   listLocations, createLocation, updateLocation, deleteLocation,
@@ -8,6 +8,7 @@ import {
   listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
   listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
 } from '../lib/world-client';
+import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
 import { subscribeToChanges } from '../lib/db-transport';import Users from 'lucide-react/dist/esm/icons/users.js';
 import MapPin from 'lucide-react/dist/esm/icons/map-pin.js';
@@ -27,13 +28,16 @@ import FileText from 'lucide-react/dist/esm/icons/file-text.js';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from '../lib/motion';
 import { extractWorldSetupPhase } from '../lib/agents';
+import { buildContinuationOverviewState } from '../lib/continuation-overview';
 import { SetupTaskCard } from './onboarding/SetupTaskCard';
 import { SetupAssistantPanel } from './onboarding/SetupAssistantPanel';
+import { ContinuationOverviewPanel } from './ContinuationOverviewPanel';
 import { ContinuationPackView } from './ContinuationPackView';
 
 export function WorldBibleView({
   novel,
   onboarding,
+  onStartContinuationWriting,
 }: {
   novel: Novel;
   onboarding?: {
@@ -57,9 +61,11 @@ export function WorldBibleView({
     acceptedRecommendedSkills: boolean;
     onAcceptRecommendedSkills: () => void;
   };
+  onStartContinuationWriting?: (approvedPackId: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline' | 'continuation'>('global');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [requestedReviewPackId, setRequestedReviewPackId] = useState<string | null>(null);
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -67,6 +73,7 @@ export function WorldBibleView({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [factions, setFactions] = useState<Faction[]>([]);
   const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
+  const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
 
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
@@ -77,13 +84,14 @@ export function WorldBibleView({
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [characters, locations, items, timelineEvents, factions, powerLevels] = await Promise.all([
+      const [characters, locations, items, timelineEvents, factions, powerLevels, packs] = await Promise.all([
         listCharacters(novel.id),
         listLocations(novel.id),
         listItems(novel.id),
         listTimelineEvents(novel.id),
         listFactions(novel.id),
-        listPowerLevels(novel.id)
+        listPowerLevels(novel.id),
+        listContinuationPacks(novel.id),
       ]);
       setCharacters(characters);
       setLocations(locations);
@@ -91,6 +99,7 @@ export function WorldBibleView({
       setTimelineEvents(timelineEvents);
       setFactions(factions);
       setPowerLevels(powerLevels);
+      setContinuationPacks(packs);
       setGlobalOutline(novel.globalOutline || '');
       setWorldRules(novel.worldRules || '');
     };
@@ -254,15 +263,17 @@ export function WorldBibleView({
     }
   };
 
+  const overviewState = buildContinuationOverviewState(continuationPacks);
   const tabs = [
-    { id: 'global', icon: BookOpen, label: '全局设定' },
-    { id: 'timeline', icon: Clock, label: '纪元与时间线' },
+    { id: 'overview', icon: FileText, label: '总览' },
+    { id: 'pack-management', icon: Upload, label: '资料包管理' },
+    { id: 'global', icon: BookOpen, label: '世界设定' },
     { id: 'characters', icon: Users, label: '人物档案' },
     { id: 'locations', icon: MapPin, label: '地点副本' },
     { id: 'items', icon: Package, label: '道具设定' },
-    { id: 'factions', icon: Shield, label: '网状势力' },
-    { id: 'powerLevels', icon: Zap, label: '境界与力量体系' },
-    { id: 'continuation', icon: FileText, label: '资料续写' },
+    { id: 'factions', icon: Shield, label: '势力设定' },
+    { id: 'powerLevels', icon: Zap, label: '力量体系' },
+    { id: 'timeline', icon: Clock, label: '纪元与时间线' },
   ] as const;
 
   if (onboarding) {
@@ -414,9 +425,9 @@ export function WorldBibleView({
         <div>
           <h1 className="text-2xl font-serif font-bold text-theme-text flex items-center gap-3">
             <Globe className="text-theme-accent" />
-            世界设定集 (World Bible)
+            设定与续写
           </h1>
-          <p className="text-sm text-theme-muted mt-1">「你的AI 专属记忆库，防止小说设定偏离的主心骨」</p>
+          <p className="text-sm text-theme-muted mt-1">先看当前续写状态，再进入资料包管理或设定资产维护。</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -451,13 +462,14 @@ export function WorldBibleView({
                   ? "bg-theme-accent text-white shadow-md shadow-theme-accent/20"
                   : "text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text hover:translate-x-1"
               )}
-            >
-              <tab.icon size={18} />
-              {tab.label}
-              <span className="ml-auto text-xs opacity-60">
-                {tab.id === 'characters' && characters.length}
-                {tab.id === 'locations' && locations.length}
-                {tab.id === 'items' && items.length}
+              >
+                <tab.icon size={18} />
+                {tab.label}
+                <span className="ml-auto text-xs opacity-60">
+                  {tab.id === 'pack-management' && continuationPacks.length}
+                  {tab.id === 'characters' && characters.length}
+                  {tab.id === 'locations' && locations.length}
+                  {tab.id === 'items' && items.length}
                 {tab.id === 'timeline' && timelineEvents.length}
               </span>
             </button>
@@ -467,6 +479,22 @@ export function WorldBibleView({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 relative">
           <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div key="overview" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+                <ContinuationOverviewPanel
+                  state={overviewState}
+                  onImport={() => setActiveTab('pack-management')}
+                  onReviewDraft={(packId) => {
+                    setRequestedReviewPackId(packId);
+                    setActiveTab('pack-management');
+                  }}
+                  onOpenPackManagement={() => setActiveTab('pack-management')}
+                  onOpenWorldSetup={() => setActiveTab('global')}
+                  onStartWriting={(packId) => onStartContinuationWriting?.(packId)}
+                />
+              </motion.div>
+            )}
+
             {activeTab === 'global' && (
               <motion.div key="global" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}} className="max-w-4xl mx-auto space-y-8">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
@@ -581,7 +609,7 @@ export function WorldBibleView({
                   <h2 className="text-xl font-bold text-theme-text font-serif">登场人物</h2>
                   <button onClick={() => addEntity('character')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增角色</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
                   {characters.map(char => (
                     <div key={char.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('character', char.id)} className="absolute top-4 right-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
@@ -617,7 +645,7 @@ export function WorldBibleView({
                   <h2 className="text-xl font-bold text-theme-text font-serif">地点与副本</h2>
                   <button onClick={() => addEntity('location')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增地点</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
                   {locations.map(loc => (
                     <div key={loc.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('location', loc.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
@@ -639,7 +667,7 @@ export function WorldBibleView({
                   <h2 className="text-xl font-bold text-theme-text font-serif">道具与物品</h2>
                   <button onClick={() => addEntity('item')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增道具</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6">
                   {items.map(item => (
                     <div key={item.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('item', item.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
@@ -658,7 +686,7 @@ export function WorldBibleView({
                   <h2 className="text-xl font-bold text-theme-text font-serif">势力设定</h2>
                   <button onClick={() => addEntity('faction')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增势力</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
                   {factions.map(faction => (
                     <div key={faction.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('faction', faction.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
@@ -671,6 +699,12 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'pack-management' && (
+              <motion.div key="pack-management" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} />
               </motion.div>
             )}
 
@@ -699,12 +733,6 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'continuation' && (
-              <motion.div key="continuation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <ContinuationPackView novel={novel} />
               </motion.div>
             )}
           </AnimatePresence>

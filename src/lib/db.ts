@@ -5,6 +5,7 @@ import os from 'os';
 import { createRequire } from 'module';
 import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, ChapterProductionRun } from '../types';
 import { calculateFeedbackScore, summarizeUsageStats } from './skill-model';
+import { buildImportedNovelDraft } from './continuation-import-flow';
 
 declare var __CJS_BUNDLE__: boolean | undefined;
 
@@ -275,6 +276,7 @@ export function initDb(dbPath?: string): void {
   ensureColumn('continuation_packs', 'reading_questions', "TEXT DEFAULT '[]'");
   ensureColumn('continuation_packs', 'continuation_gaps', "TEXT DEFAULT '[]'");
   ensureColumn('continuation_packs', 'source_badge', 'TEXT');
+  repairImportedContinuationPackNovelLinks();
 
   // Indexes for foreign-key columns to avoid full table scans
   db.exec(`
@@ -292,6 +294,32 @@ export function initDb(dbPath?: string): void {
     CREATE INDEX IF NOT EXISTS idx_skill_usage_records_novel ON skill_usage_records(novel_id);
     CREATE INDEX IF NOT EXISTS idx_continuation_packs_novel ON continuation_packs(novel_id);
   `);
+}
+
+function repairImportedContinuationPackNovelLinks() {
+  const database = getDb();
+  const orphanRows = database
+    .prepare("SELECT * FROM continuation_packs WHERE novel_id LIKE 'continuation-import-draft-%'")
+    .all() as Array<Record<string, unknown>>;
+
+  if (orphanRows.length === 0) return;
+
+  const selectNovelByTitle = database.prepare(`
+    SELECT id
+    FROM novels
+    WHERE title = ?
+    ORDER BY ABS(updated_at - ?) ASC, updated_at DESC
+    LIMIT 1
+  `);
+  const updateNovelLink = database.prepare('UPDATE continuation_packs SET novel_id = ? WHERE id = ?');
+
+  for (const row of orphanRows) {
+    const pack = mapContinuationPackRow(row);
+    const targetTitle = buildImportedNovelDraft(pack.title).title;
+    const targetNovel = selectNovelByTitle.get(targetTitle, pack.updatedAt) as { id: string } | undefined;
+    if (!targetNovel) continue;
+    updateNovelLink.run(targetNovel.id, pack.id);
+  }
 }
 
 function getDb(): BetterSqlite3.Database {
@@ -1207,7 +1235,7 @@ export function updateContinuationPack(id: string, data: Partial<import('../type
   const merged = { ...existing, ...data, id, updatedAt: Date.now() };
   getDb().prepare(`
     UPDATE continuation_packs SET
-      title=@title, status=@status, source_documents=@source_documents,
+      novel_id=@novel_id, title=@title, status=@status, source_documents=@source_documents,
       canon_facts=@canon_facts, character_states=@character_states,
       plot_state=@plot_state, style_profile=@style_profile,
       contradictions=@contradictions, continuation_task=@continuation_task,

@@ -55,6 +55,7 @@ interface AgentWorkspaceProps {
   productionDraftSource?: 'fallback' | 'model' | null;
   productionAuditSource?: 'fallback' | 'model' | null;
   productionStatusMessage?: string | null;
+  continuationPacks: ContinuationPack[];
   approvedContinuationPacks: ContinuationPack[];
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
@@ -120,6 +121,7 @@ export function AgentWorkspace({
   productionDraftSource,
   productionAuditSource,
   productionStatusMessage,
+  continuationPacks,
   approvedContinuationPacks,
   selectedContinuationPackId,
   setSelectedContinuationPackId,
@@ -285,6 +287,7 @@ export function AgentWorkspace({
                 productionDraftSource={productionDraftSource}
                 productionAuditSource={productionAuditSource}
                 productionStatusMessage={productionStatusMessage}
+                continuationPacks={continuationPacks}
                 approvedContinuationPacks={approvedContinuationPacks}
                 selectedContinuationPackId={selectedContinuationPackId}
                 setSelectedContinuationPackId={setSelectedContinuationPackId}
@@ -341,6 +344,8 @@ export function AgentWorkspace({
                 characters={characters}
                 locations={locations}
                 items={items}
+                continuationPacks={continuationPacks}
+                selectedContinuationPackId={selectedContinuationPackId}
                 librarySkills={librarySkills}
                 skillUsageRecords={skillUsageRecords}
                 mountedSkillLoadout={mountedSkillLoadout}

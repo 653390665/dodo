@@ -38,6 +38,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
     world: PenTool,
     skills: Wand2,
     factory: BookTemplate,
+    'continuation-import': Sparkles,
   };
 
   const mainItems: NavItem[] = getSidebarMainItems().map((item) => ({

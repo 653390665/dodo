@@ -547,9 +547,19 @@ export interface SniffedEntities {
   }>;
 }
 
-export type ViewType = 'welcome' | 'library' | 'editor' | 'world' | 'workspace' | 'ai' | 'skills' | 'factory';
+export type ViewType = 'welcome' | 'library' | 'editor' | 'world' | 'workspace' | 'ai' | 'skills' | 'factory' | 'continuation-import';
 export type WorkspaceFocus = 'editor' | 'world';
 export type WorkspaceNavKey = 'workspace-editor' | 'workspace-world';
+export type ContinuationImportTargetMode = 'existing' | 'new';
+
+export interface ContinuationEditorLaunchState {
+  approvedPackId: string;
+  launchToken: number;
+  shouldOpenProductionPanel: true;
+  source: 'continuation-import' | 'world-overview';
+}
+
+export type ContinuationImportLaunchState = ContinuationEditorLaunchState;
 
 export type CopilotStage =
   | 'missing-setup'
@@ -723,6 +733,19 @@ export interface ContinuationGap {
   severity: 'low' | 'medium' | 'high';
   suggestedDirection: string;
   relatedFacts: string[];
+}
+
+export type ContinuationOverviewStateKind = 'empty' | 'draft' | 'ready' | 'risk';
+
+export interface ContinuationOverviewState {
+  kind: ContinuationOverviewStateKind;
+  primaryPack: ContinuationPack | null;
+  draftPack: ContinuationPack | null;
+  approvedPack: ContinuationPack | null;
+  contradictionCount: number;
+  readingQuestionCount: number;
+  continuationGapCount: number;
+  highlightWarnings: string[];
 }
 
 declare global {

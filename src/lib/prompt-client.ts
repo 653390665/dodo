@@ -113,7 +113,13 @@ export async function parseContinuationPack(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
+  const raw = await res.text();
+  let data: any = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(raw || 'Failed to parse continuation pack');
+  }
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to parse continuation pack');
   return data.pack;
 }

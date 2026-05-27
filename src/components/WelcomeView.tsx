@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';import Send from 'lucide-react/dist/
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
 import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
+import Upload from 'lucide-react/dist/esm/icons/upload.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
@@ -12,6 +13,7 @@ interface WelcomeViewProps {
   onSelectStoryCard: (card: StoryIdeaCard, planning: StoryPlanningInput) => void;
   onJumpToLibrary: () => void;
   onSelectNovel: (novel: Novel) => void;
+  onStartContinuationImport: () => void;
 }
 
 const SEED_CARDS = [
@@ -20,7 +22,7 @@ const SEED_CARDS = [
   { label: '架空幻想', prompt: '一个靠记忆为货币运转的世界，有人开始造假记忆' },
 ];
 
-export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel }: WelcomeViewProps) {
+export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel, onStartContinuationImport }: WelcomeViewProps) {
   const [input, setInput] = useState('');
   const [chatContext, setChatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
@@ -73,6 +75,28 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel 
             输入一个场景、角色、情绪或设定缺口。
             AI 会先给你 3 个开坑方向，再把选定方向落成新项目。
           </p>
+        </div>
+
+        <div className="mb-8">
+          <button
+            onClick={onStartContinuationImport}
+            className="w-full rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-5 py-4 text-left hover:border-theme-accent/40 hover:shadow-sm transition-all group"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 rounded-xl bg-white p-2 text-theme-accent border border-theme-accent/10">
+                <Upload size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-sm font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                  导入资料续写
+                  <ArrowRight size={14} className="text-theme-accent" />
+                </div>
+                <p className="mt-1 text-xs text-theme-muted leading-5">
+                  上传世界观、大纲、任务或已有正文，整理后直接进入续写。
+                </p>
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* 快捷种子——单击直接发送 */}

@@ -7,8 +7,12 @@ coverage/
 .DS_Store
 *.log
 .claude/
+.codex/
+.vscode/
 *.code-workspace
 .env*
 !.env.example
 ~/.inkflow/
+dist-electron-test/
+tmp-server.cjs
 docs/prompt-research/vendor/

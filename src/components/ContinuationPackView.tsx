@@ -10,9 +10,10 @@ import { parseContinuationPack } from '../lib/prompt-client';
 
 interface ContinuationPackViewProps {
   novel: Novel;
+  initialActivePackId?: string | null;
 }
 
-export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
+export function ContinuationPackView({ novel, initialActivePackId = null }: ContinuationPackViewProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [activePack, setActivePack] = useState<ContinuationPack | null>(null);
   const [packs, setPacks] = useState<ContinuationPack[]>([]);
@@ -22,6 +23,14 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
   useEffect(() => {
     listContinuationPacks(novel.id).then(setPacks);
   }, [novel.id]);
+
+  useEffect(() => {
+    if (!initialActivePackId) return;
+    const matchedPack = packs.find((pack) => pack.id === initialActivePackId);
+    if (matchedPack) {
+      setActivePack(matchedPack);
+    }
+  }, [initialActivePackId, packs]);
 
   async function fileToBase64(file: File): Promise<string> {
     const buffer = await file.arrayBuffer();
@@ -68,9 +77,9 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
   return (
     <div className="h-full overflow-y-auto p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-serif font-bold text-theme-text">资料续写</h1>
+        <h1 className="text-2xl font-serif font-bold text-theme-text">资料包管理</h1>
         <p className="text-sm text-theme-muted mt-1">
-          上传世界观、大纲、人物设定、已有正文等资料，AI 整理成结构化上下文后接入章节生产线。
+          上传世界观、大纲、人物设定、已有正文等资料，整理、审核并切换用于续写的资料包。
         </p>
       </div>
 
@@ -231,7 +240,7 @@ export function ContinuationPackView({ novel }: ContinuationPackViewProps) {
               </div>
             </button>
           ))}
-          {packs.length === 0 && <div className="text-xs text-theme-muted">暂无资料包，上传文件后点击"解析资料包"。</div>}
+          {packs.length === 0 && <div className="text-xs text-theme-muted">暂无资料包，先上传文件并解析，再回来审核或启用。</div>}
         </div>
       )}
     </div>
