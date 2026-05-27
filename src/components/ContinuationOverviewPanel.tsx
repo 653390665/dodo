@@ -11,7 +11,7 @@ interface ContinuationOverviewPanelProps {
   onReviewDraft: (packId: string) => void;
   onOpenPackManagement: () => void;
   onStartWriting: (packId: string) => void;
-  onStartStoryboard?: (packId: string) => void;
+  onStartStoryboard?: (packId: string, continuationTask?: string) => void;
   onOpenWorldSetup: () => void;
 }
 
@@ -257,7 +257,7 @@ export function ContinuationOverviewPanel({
               编辑续写任务
             </button>
             <button
-              onClick={() => onStartStoryboard?.(primaryPack.id)}
+              onClick={() => onStartStoryboard?.(primaryPack.id, primaryPack.continuationTask)}
               className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold hover:opacity-90 transition-opacity"
             >
               进入分镜准备

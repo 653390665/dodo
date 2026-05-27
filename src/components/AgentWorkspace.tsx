@@ -56,7 +56,6 @@ interface AgentWorkspaceProps {
   productionAuditSource?: 'fallback' | 'model' | null;
   productionStatusMessage?: string | null;
   continuationPacks: ContinuationPack[];
-  approvedContinuationPacks: ContinuationPack[];
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
@@ -123,7 +122,6 @@ export function AgentWorkspace({
   productionAuditSource,
   productionStatusMessage,
   continuationPacks,
-  approvedContinuationPacks,
   selectedContinuationPackId,
   setSelectedContinuationPackId,
   onStartProductionRun,
@@ -290,7 +288,6 @@ export function AgentWorkspace({
                 productionAuditSource={productionAuditSource}
                 productionStatusMessage={productionStatusMessage}
                 continuationPacks={continuationPacks}
-                approvedContinuationPacks={approvedContinuationPacks}
                 selectedContinuationPackId={selectedContinuationPackId}
                 setSelectedContinuationPackId={setSelectedContinuationPackId}
                 onStartProductionRun={onStartProductionRun}

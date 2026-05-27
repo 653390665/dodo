@@ -38,6 +38,7 @@ export function WorldBibleView({
   novel,
   onboarding,
   onStartContinuationWriting,
+  onEnterStoryboard,
 }: {
   novel: Novel;
   onboarding?: {
@@ -61,7 +62,8 @@ export function WorldBibleView({
     acceptedRecommendedSkills: boolean;
     onAcceptRecommendedSkills: () => void;
   };
-  onStartContinuationWriting?: (approvedPackId: string) => void;
+  onStartContinuationWriting?: (approvedPackId: string, prefillIntent?: string) => void;
+  onEnterStoryboard?: (approvedPackId: string, continuationTask?: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
@@ -491,7 +493,9 @@ export function WorldBibleView({
                   onOpenPackManagement={() => setActiveTab('pack-management')}
                   onOpenWorldSetup={() => setActiveTab('global')}
                   onStartWriting={(packId) => onStartContinuationWriting?.(packId)}
-                  onStartStoryboard={(packId) => onStartContinuationWriting?.(packId)}
+                  onStartStoryboard={(packId, continuationTask) => {
+                    onEnterStoryboard?.(packId, continuationTask || continuationPacks.find((p) => p.id === packId)?.continuationTask || undefined);
+                  }}
                 />
               </motion.div>
             )}

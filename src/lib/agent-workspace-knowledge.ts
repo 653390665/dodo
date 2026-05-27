@@ -1,4 +1,5 @@
 import type { Character, ContinuationPack, Item, Location } from '../types';
+import { getPreferredContinuationPack } from './continuation-pack-selection';
 
 export type KnowledgeEntrySource = 'entity' | 'continuation-pack';
 
@@ -41,11 +42,7 @@ export function buildKnowledgeSearchEntries({
   selectedContinuationPackId,
 }: BuildKnowledgeSearchEntriesArgs): KnowledgeSearchEntry[] {
   const normalizedSearch = normalizeSearch(bibleSearch);
-  const selectedPack =
-    continuationPacks.find((pack) => pack.id === selectedContinuationPackId)
-    || continuationPacks.find((pack) => pack.status === 'approved')
-    || continuationPacks[0]
-    || null;
+  const selectedPack = getPreferredContinuationPack(continuationPacks, selectedContinuationPackId);
 
   const entityEntries: KnowledgeSearchEntry[] = [
     ...characters.map((character) => ({

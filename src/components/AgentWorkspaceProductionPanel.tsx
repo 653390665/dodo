@@ -31,7 +31,6 @@ interface AgentWorkspaceProductionPanelProps {
   productionAuditSource?: 'fallback' | 'model' | null;
   productionStatusMessage?: string | null;
   continuationPacks: ContinuationPack[];
-  approvedContinuationPacks: ContinuationPack[];
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
@@ -78,7 +77,6 @@ export function AgentWorkspaceProductionPanel({
   productionAuditSource,
   productionStatusMessage,
   continuationPacks,
-  approvedContinuationPacks,
   selectedContinuationPackId,
   setSelectedContinuationPackId,
   onStartProductionRun,
@@ -232,32 +230,6 @@ export function AgentWorkspaceProductionPanel({
           )}
         </div>
 
-        {selectedContinuationPack && (
-          <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-3 text-xs space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-theme-text">当前资料包：</span>
-              <span className="text-theme-muted">{selectedContinuationPack.title}</span>
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                selectedContinuationPack.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                {selectedContinuationPack.status === 'approved' ? '已确认' : '待审核'}
-              </span>
-            </div>
-            {selectedContinuationPack.continuationTask && (
-              <div className="text-theme-muted">
-                <span className="font-bold text-theme-text">续写任务：</span>
-                {selectedContinuationPack.continuationTask}
-              </div>
-            )}
-            {selectedContinuationPack.plotState.immediateConflict && (
-              <div className="text-theme-muted">
-                <span className="font-bold text-theme-text">即时冲突：</span>
-                {selectedContinuationPack.plotState.immediateConflict}
-              </div>
-            )}
-          </div>
-        )}
-
         <ProductionRunReview
           run={activeProductionRun}
           userIntent={productionIntent}
@@ -363,7 +335,7 @@ export function AgentWorkspaceProductionPanel({
               data-prompt-surface={PLANNING_PROMPT_SURFACE}
               value={userIntent}
               onChange={(e) => setUserIntent(e.target.value)}
-              placeholder="描述这一章你想写什么，比如：主角在酒馆偶遇了女二..."
+              placeholder="请描述本章创作意图，例如：从当前剧情位置续写，推进XX冲突，或主角在酒馆偶遇了女二..."
               className="w-full h-24 bg-white border border-theme-border rounded-xl p-3 text-sm text-theme-text placeholder:text-theme-muted/60 resize-none shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
             />
             {!currentChapter ? (

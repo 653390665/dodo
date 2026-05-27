@@ -67,6 +67,42 @@ export function buildContinuationGapsContext(pack: ContinuationPack): string {
   ].join('\n');
 }
 
+/**
+ * Compose a creation intent draft from pack sources.
+ * Priority: continuationTask > plotState > gaps.
+ * All non-empty sources are included.
+ */
+export function buildCreationIntentDraft(pack: ContinuationPack | null): string {
+  if (!pack) return '';
+
+  const parts: string[] = [];
+
+  if (pack.continuationTask) {
+    parts.push(pack.continuationTask);
+  }
+
+  if (pack.plotState.latestScene) {
+    parts.push(`当前场景：${pack.plotState.latestScene}`);
+  }
+
+  if (pack.plotState.immediateConflict) {
+    parts.push(`即时冲突：${pack.plotState.immediateConflict}`);
+  }
+
+  if (pack.plotState.nextLikelyMove) {
+    parts.push(`下一步：${pack.plotState.nextLikelyMove}`);
+  }
+
+  const gaps = (pack.continuationGaps || [])
+    .filter(g => g.severity === 'high' || g.severity === 'medium')
+    .slice(0, 2);
+  if (gaps.length > 0) {
+    parts.push('续写方向：' + gaps.map(g => g.suggestedDirection).join('；'));
+  }
+
+  return parts.join('\n');
+}
+
 export function buildContinuationContext(pack: ContinuationPack): string {
   const hardFacts = pack.canonFacts
     .filter((fact) => fact.priority === 'hard')

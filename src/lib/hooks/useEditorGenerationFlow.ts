@@ -21,6 +21,7 @@ interface UseEditorGenerationFlowArgs {
   globalOutline: string;
   expectedWordCount: number | '';
   contentRef: RefObject<HTMLTextAreaElement | null>;
+  selectedContinuationPackId: string;
   buildAgentContext: () => AgentContext;
   handleUpdateContent: (newContent: string, isProgrammatic?: boolean) => void;
   pushToUndoHistory: (content: string) => void;
@@ -48,6 +49,7 @@ export function useEditorGenerationFlow({
   globalOutline,
   expectedWordCount,
   contentRef,
+  selectedContinuationPackId,
   buildAgentContext,
   handleUpdateContent,
   pushToUndoHistory,
@@ -164,6 +166,7 @@ export function useEditorGenerationFlow({
       const beats = await editorAgentPhase(
         userIntent || `关于章节「${currentChapter.title}」的大纲`,
         buildAgentContext(),
+        selectedContinuationPackId || undefined,
       );
 
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
@@ -268,6 +271,7 @@ export function useEditorGenerationFlow({
           worldRules: novel.worldRules,
           seedOutline: globalOutline,
           expectedWordCount,
+          ...(selectedContinuationPackId ? { continuationPackId: selectedContinuationPackId } : {}),
         }),
         signal: controller.signal,
       });

@@ -481,14 +481,11 @@ export default function App() {
                 focus={workspaceFocus}
                 onFocusChange={setWorkspaceFocus}
                 continuationLaunchState={continuationLaunchState}
-                onStartContinuationWriting={(packId) => {
-                  setContinuationLaunchState({
-                    approvedPackId: packId,
-                    launchToken: Date.now(),
-                    shouldOpenProductionPanel: true,
-                    source: 'world-overview',
-                  });
-                  setWorkspaceFocus('editor');
+                onStartContinuationWriting={(packId, prefillIntent) => {
+                  navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview', prefillIntent);
+                }}
+                onEnterStoryboard={(packId, continuationTask) => {
+                  navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard', continuationTask);
                 }}
                 onOpenAssistant={handleOpenAssistant}
                 onboarding={
@@ -531,8 +528,11 @@ export default function App() {
               <ErrorBoundary>
                 <WorldBibleView
                 novel={selectedNovel}
-                onStartContinuationWriting={(packId) =>
-                  navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview')
+                onStartContinuationWriting={(packId, prefillIntent) =>
+                  navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview', prefillIntent)
+                }
+                onEnterStoryboard={(packId, continuationTask) =>
+                  navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard', continuationTask)
                 }
                 onboarding={
                   onboardingDraft?.setupTasks.length

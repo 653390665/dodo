@@ -17,6 +17,7 @@ import {
   canApproveContinuationImportPack,
   resolveContinuationImportTargetMode,
 } from '../lib/continuation-import-flow';
+import { buildCreationIntentDraft } from '../lib/continuation-pack';
 
 interface ContinuationImportViewProps {
   onBack: () => void;
@@ -180,7 +181,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         status: 'approved',
       });
 
-      onEnterEditor(targetNovel, parsedPack.id, parsedState?.pack.continuationTask || undefined);
+      onEnterEditor(targetNovel, parsedPack.id, buildCreationIntentDraft(parsedPack) || undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

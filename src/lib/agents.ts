@@ -170,14 +170,14 @@ export async function extractWorldSetupPhase(documentText: string): Promise<Extr
   }
 }
 
-export async function editorAgentPhase(userIntent: string, context: AgentContext): Promise<string> {
+export async function editorAgentPhase(userIntent: string, context: AgentContext, continuationPackId?: string): Promise<string> {
   const contextStr = buildContextPrompt(context);
 
   try {
     const response = await fetch('/api/editor-agent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIntent, contextStr, surface: 'workspace-beats' satisfies PromptSurface })
+      body: JSON.stringify({ userIntent, contextStr, surface: 'workspace-beats' satisfies PromptSurface, ...(continuationPackId ? { continuationPackId } : {}) })
     });
     const data = await response.json();
     if (!response.ok || data.error) {

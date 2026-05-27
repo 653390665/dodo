@@ -12,7 +12,8 @@ interface SplitWorkspaceProps {
   onFocusChange: (focus: WorkspaceFocus) => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
   continuationLaunchState?: ContinuationEditorLaunchState | null;
-  onStartContinuationWriting?: (approvedPackId: string) => void;
+  onStartContinuationWriting?: (approvedPackId: string, prefillIntent?: string) => void;
+  onEnterStoryboard?: (approvedPackId: string, continuationTask?: string) => void;
 }
 
 const FOCUS_SPLIT_RATIOS: Record<WorkspaceFocus, number> = {
@@ -29,6 +30,7 @@ export function SplitWorkspace({
   onOpenAssistant,
   continuationLaunchState = null,
   onStartContinuationWriting,
+  onEnterStoryboard,
 }: SplitWorkspaceProps) {
   const [splitRatio, setSplitRatio] = useState(FOCUS_SPLIT_RATIOS[focus]);
   const [dragging, setDragging] = useState(false);
@@ -99,7 +101,7 @@ export function SplitWorkspace({
           }`}
         />
         <div style={{ width: `${(1 - splitRatio) * 100}%` }} className="h-full overflow-hidden">
-          <WorldBibleView novel={novel} onboarding={onboarding} onStartContinuationWriting={onStartContinuationWriting} />
+          <WorldBibleView novel={novel} onboarding={onboarding} onStartContinuationWriting={onStartContinuationWriting} onEnterStoryboard={onEnterStoryboard} />
         </div>
       </div>
     </div>

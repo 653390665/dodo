@@ -557,7 +557,7 @@ export interface ContinuationEditorLaunchState {
   launchToken: number;
   shouldOpenProductionPanel: true;
   prefillIntent?: string;
-  source: 'continuation-import' | 'world-overview';
+  source: 'continuation-import' | 'world-overview' | 'storyboard';
 }
 
 export type ContinuationImportLaunchState = ContinuationEditorLaunchState;

@@ -1075,10 +1075,24 @@ ${documentText}
 
   app.post('/api/editor-agent', async (req, res) => {
     try {
-      const { userIntent = '', contextStr = '', surface = 'workspace-beats' } = req.body;
+      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId } = req.body;
       if (!userIntent.trim()) {
         return res.status(400).json({ error: 'userIntent is required' });
       }
+
+      // Load continuation pack context if provided
+      let packContext = '';
+      if (continuationPackId) {
+        const pack = db.getContinuationPack(continuationPackId);
+        if (pack) {
+          packContext = buildContinuationContext(pack);
+        }
+      }
+
+      const effectiveContextStr = packContext
+        ? `${contextStr}\n\n${packContext}`
+        : contextStr;
+
       const promptAsset = resolvePromptAssetForSurface({
         surface,
         promptTemplates: getConfig().promptTemplates,
@@ -1086,7 +1100,7 @@ ${documentText}
       });
       const prompt = renderPromptTemplate(promptAsset.template, {
         PLANNER_SOUL,
-        contextStr,
+        contextStr: effectiveContextStr,
         userIntent,
       });
       let text = '';
@@ -2425,7 +2439,16 @@ ${abilities ? `【独特能力】：${abilities}` : ''}
 
   app.post('/api/generate-outline', async (req, res) => {
     try {
-      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats' } = req.body;
+      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId } = req.body;
+
+      // Load continuation pack context if provided
+      let packContext = '';
+      if (continuationPackId) {
+        const pack = db.getContinuationPack(continuationPackId);
+        if (pack) {
+          packContext = buildContinuationContext(pack);
+        }
+      }
 
       const promptAsset = resolvePromptAssetForSurface({
         surface,
@@ -2435,7 +2458,10 @@ ${abilities ? `【独特能力】：${abilities}` : ''}
       const prompt = renderPromptTemplate(promptAsset.template, {
         expectedWordCount,
         title: title ? `小说名称：${title}` : '',
-        worldRules: worldRules ? `世界观及设定：${worldRules}` : '',
+        worldRules: [
+          worldRules ? `世界观及设定：${worldRules}` : '',
+          packContext,
+        ].filter(Boolean).join('\n\n'),
         seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
       });
 

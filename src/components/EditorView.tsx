@@ -123,7 +123,6 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   const [expandedVolumes, setExpandedVolumes] = useState<string[]>(['正文卷']);
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
   const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
-  const [approvedContinuationPacks, setApprovedContinuationPacks] = useState<ContinuationPack[]>([]);
   const [selectedContinuationPackId, setSelectedContinuationPackId] = useState('');
   const [agentTab, setAgentTab] = useState<AgentTab>('copilot-home');
   const [bibleSearch, setBibleSearch] = useState('');
@@ -286,19 +285,17 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   useEffect(() => {
     const refreshContinuationPacks = async () => {
       const packs = sortContinuationPacksByRecency(await listContinuationPacks(novel.id));
-      const approvedPacks = packs.filter((pack) => pack.status === 'approved');
       setContinuationPacks(packs);
-      setApprovedContinuationPacks(approvedPacks);
       setSelectedContinuationPackId((current) => {
         if (
           !hasConsumedContinuationPackSelectionRef.current &&
           launchState?.approvedPackId &&
-          approvedPacks.some((pack) => pack.id === launchState.approvedPackId)
+          packs.some((pack) => pack.id === launchState.approvedPackId)
         ) {
           hasConsumedContinuationPackSelectionRef.current = true;
           return launchState.approvedPackId;
         }
-        return getPreferredContinuationPackId(approvedPacks.length > 0 ? approvedPacks : packs, current);
+        return getPreferredContinuationPackId(packs, current);
       });
     };
 
@@ -310,9 +307,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
 
   useEffect(() => {
     if (!launchState?.approvedPackId || hasConsumedContinuationLaunchUiRef.current) return;
+    if (isEditorDataLoading) return;
     hasConsumedContinuationLaunchUiRef.current = true;
     setIsAgentSidebarOpen(true);
-    setAgentTab('production');
+    setAgentTab(launchState.source === 'storyboard' ? 'planning' : 'production');
 
     // Pre-fill creation intent from continuation task
     if (launchState.prefillIntent) {
@@ -321,9 +319,9 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
 
     // Auto-create first chapter if none exists
     if (chapters.length === 0) {
-      handleAddFirstChapter();
+      void handleAddFirstChapter();
     }
-  }, [launchState?.approvedPackId, launchState?.launchToken]);
+  }, [chapters.length, isEditorDataLoading, launchState?.approvedPackId, launchState?.launchToken]);
 
   const {
     mountedSkills,
@@ -439,6 +437,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     globalOutline,
     expectedWordCount,
     contentRef,
+    selectedContinuationPackId,
     buildAgentContext,
     handleUpdateContent,
     pushToUndoHistory,
@@ -631,7 +630,6 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
               productionAuditSource={productionAuditSource}
               productionStatusMessage={productionStatusMessage}
               continuationPacks={continuationPacks}
-              approvedContinuationPacks={approvedContinuationPacks}
               selectedContinuationPackId={selectedContinuationPackId}
               setSelectedContinuationPackId={setSelectedContinuationPackId}
               onStartProductionRun={handleStartProductionRun}
