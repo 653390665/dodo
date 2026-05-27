@@ -29,6 +29,7 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from '../lib/motion';
 import { extractWorldSetupPhase } from '../lib/agents';
 import { buildContinuationOverviewState } from '../lib/continuation-overview';
+import { buildCreationIntentDraft } from '../lib/continuation-pack';
 import { SetupTaskCard } from './onboarding/SetupTaskCard';
 import { SetupAssistantPanel } from './onboarding/SetupAssistantPanel';
 import { ContinuationOverviewPanel } from './ContinuationOverviewPanel';
@@ -493,8 +494,9 @@ export function WorldBibleView({
                   onOpenPackManagement={() => setActiveTab('pack-management')}
                   onOpenWorldSetup={() => setActiveTab('global')}
                   onStartWriting={(packId) => onStartContinuationWriting?.(packId)}
-                  onStartStoryboard={(packId, continuationTask) => {
-                    onEnterStoryboard?.(packId, continuationTask || continuationPacks.find((p) => p.id === packId)?.continuationTask || undefined);
+                  onStartStoryboard={(packId, prefillIntent) => {
+                    const pack = continuationPacks.find((p) => p.id === packId);
+                    onEnterStoryboard?.(packId, prefillIntent || (pack ? buildCreationIntentDraft(pack) : undefined));
                   }}
                 />
               </motion.div>

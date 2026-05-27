@@ -310,7 +310,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (isEditorDataLoading) return;
     hasConsumedContinuationLaunchUiRef.current = true;
     setIsAgentSidebarOpen(true);
-    setAgentTab(launchState.source === 'storyboard' ? 'planning' : 'production');
+    setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
 
     // Pre-fill creation intent from continuation task
     if (launchState.prefillIntent) {

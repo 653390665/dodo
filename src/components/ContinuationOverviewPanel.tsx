@@ -1,4 +1,5 @@
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import { buildCreationIntentDraft } from '../lib/continuation-pack';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
 import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
 import FileWarning from 'lucide-react/dist/esm/icons/file-warning.js';
@@ -257,7 +258,7 @@ export function ContinuationOverviewPanel({
               编辑续写任务
             </button>
             <button
-              onClick={() => onStartStoryboard?.(primaryPack.id, primaryPack.continuationTask)}
+              onClick={() => onStartStoryboard?.(primaryPack.id, buildCreationIntentDraft(primaryPack))}
               className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold hover:opacity-90 transition-opacity"
             >
               进入分镜准备

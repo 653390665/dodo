@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildContinuationContext,
+  buildCreationIntentDraft,
   classifyContinuationSource,
 } from '../src/lib/continuation-pack';
 import type { ContinuationPack } from '../src/types';
@@ -45,4 +46,76 @@ test('buildContinuationContext prioritizes hard canon and current plot state', (
   assert.match(context, /林照发现酒馆密室/);
   assert.match(context, /第三人称有限视角/);
   assert.doesNotMatch(context, /可以慢热/);
+});
+
+test('buildCreationIntentDraft returns empty for null pack', () => {
+  assert.equal(buildCreationIntentDraft(null), '');
+});
+
+test('buildCreationIntentDraft composes from continuationTask + plotState', () => {
+  const pack: ContinuationPack = {
+    id: 'p1', novelId: 'n1', title: 'T', status: 'draft',
+    sourceDocuments: [], canonFacts: [], characterStates: [],
+    plotState: {
+      currentTimeline: '', latestScene: '酒馆密室',
+      immediateConflict: '掌柜销毁账本', nextLikelyMove: '逼问掌柜',
+      unresolvedHooks: [],
+    },
+    styleProfile: { pov: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], tense: '', sampleEvidence: '' },
+    contradictions: [], continuationTask: '续写下一章',
+    createdAt: 1, updatedAt: 1,
+  };
+  const draft = buildCreationIntentDraft(pack);
+  assert.match(draft, /续写下一章/);
+  assert.match(draft, /酒馆密室/);
+  assert.match(draft, /掌柜销毁账本/);
+  assert.match(draft, /逼问掌柜/);
+});
+
+test('buildCreationIntentDraft falls back to plotState when task is empty', () => {
+  const pack: ContinuationPack = {
+    id: 'p1', novelId: 'n1', title: 'T', status: 'draft',
+    sourceDocuments: [], canonFacts: [], characterStates: [],
+    plotState: {
+      currentTimeline: '', latestScene: '城门',
+      immediateConflict: '守卫盘查', nextLikelyMove: '', unresolvedHooks: [],
+    },
+    styleProfile: { pov: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], tense: '', sampleEvidence: '' },
+    contradictions: [], continuationTask: '',
+    createdAt: 1, updatedAt: 1,
+  };
+  const draft = buildCreationIntentDraft(pack);
+  assert.match(draft, /城门/);
+  assert.match(draft, /守卫盘查/);
+  assert.equal(draft.includes('续写'), false);
+});
+
+test('buildCreationIntentDraft includes high-severity gaps', () => {
+  const pack: ContinuationPack = {
+    id: 'p1', novelId: 'n1', title: 'T', status: 'draft',
+    sourceDocuments: [], canonFacts: [], characterStates: [],
+    plotState: { currentTimeline: '', latestScene: '', immediateConflict: '', nextLikelyMove: '', unresolvedHooks: [] },
+    styleProfile: { pov: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], tense: '', sampleEvidence: '' },
+    contradictions: [], continuationTask: '',
+    continuationGaps: [
+      { id: 'g1', severity: 'high', description: '缺少结局', suggestedDirection: '安排反派伏笔揭晓', relatedFacts: [] },
+      { id: 'g2', severity: 'low', description: '次要角色', suggestedDirection: '可选', relatedFacts: [] },
+    ],
+    createdAt: 1, updatedAt: 1,
+  };
+  const draft = buildCreationIntentDraft(pack);
+  assert.match(draft, /安排反派伏笔揭晓/);
+  assert.equal(draft.includes('可选'), false);
+});
+
+test('buildCreationIntentDraft returns empty when all sources absent', () => {
+  const pack: ContinuationPack = {
+    id: 'p1', novelId: 'n1', title: 'T', status: 'draft',
+    sourceDocuments: [], canonFacts: [], characterStates: [],
+    plotState: { currentTimeline: '', latestScene: '', immediateConflict: '', nextLikelyMove: '', unresolvedHooks: [] },
+    styleProfile: { pov: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], tense: '', sampleEvidence: '' },
+    contradictions: [], continuationTask: '',
+    createdAt: 1, updatedAt: 1,
+  };
+  assert.equal(buildCreationIntentDraft(pack), '');
 });
