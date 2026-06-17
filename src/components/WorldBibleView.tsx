@@ -493,7 +493,7 @@ export function WorldBibleView({
                   }}
                   onOpenPackManagement={() => setActiveTab('pack-management')}
                   onOpenWorldSetup={() => setActiveTab('global')}
-                  onStartWriting={(packId) => onStartContinuationWriting?.(packId)}
+                  onStartWriting={(packId, prefillIntent) => onStartContinuationWriting?.(packId, prefillIntent)}
                   onStartStoryboard={(packId, prefillIntent) => {
                     const pack = continuationPacks.find((p) => p.id === packId);
                     onEnterStoryboard?.(packId, prefillIntent || (pack ? buildCreationIntentDraft(pack) : undefined));

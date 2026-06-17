@@ -65,6 +65,14 @@ export function useEditorPersistence({
     successTimeoutRef.current = setTimeout(() => setSyncSuccess(false), 2000);
   };
 
+  const cancelPendingContentSync = () => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+    }
+    setIsSyncing(false);
+  };
+
   const persistSkillLoadout = async (nextLoadout: MountedSkillLoadoutItem[]) => {
     const nextIds = nextLoadout.slice().sort((a, b) => a.slot - b.slot).map((entry) => entry.skillId);
     setMountedSkillLoadout(nextLoadout);
@@ -224,6 +232,7 @@ export function useEditorPersistence({
   return {
     isSyncing,
     syncSuccess,
+    cancelPendingContentSync,
     persistSkillLoadout,
     persistProjectPreferenceProfile,
     handleSaveVersion,

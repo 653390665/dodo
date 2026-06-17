@@ -81,15 +81,15 @@ export function buildCreationIntentDraft(pack: ContinuationPack | null): string 
     parts.push(pack.continuationTask);
   }
 
-  if (pack.plotState.latestScene) {
+  if (pack.plotState?.latestScene) {
     parts.push(`当前场景：${pack.plotState.latestScene}`);
   }
 
-  if (pack.plotState.immediateConflict) {
+  if (pack.plotState?.immediateConflict) {
     parts.push(`即时冲突：${pack.plotState.immediateConflict}`);
   }
 
-  if (pack.plotState.nextLikelyMove) {
+  if (pack.plotState?.nextLikelyMove) {
     parts.push(`下一步：${pack.plotState.nextLikelyMove}`);
   }
 
@@ -104,22 +104,23 @@ export function buildCreationIntentDraft(pack: ContinuationPack | null): string 
 }
 
 export function buildContinuationContext(pack: ContinuationPack): string {
-  const hardFacts = pack.canonFacts
+  const hardFacts = (pack.canonFacts || [])
     .filter((fact) => fact.priority === 'hard')
     .slice(0, 20)
     .map((fact) => `- [${fact.category}] ${fact.text}`)
     .join('\n');
-  const characters = pack.characterStates
+  const characters = (pack.characterStates || [])
     .slice(0, 8)
-    .map((item) => `- ${item.name}：目标=${item.currentGoal}；情绪=${item.emotionalState}；关系=${item.relationshipNotes.join('、')}`)
+    .map((item) => `- ${item.name}：目标=${item.currentGoal}；情绪=${item.emotionalState}；关系=${(item.relationshipNotes || []).join('、')}`)
     .join('\n');
-  const hooks = pack.plotState.unresolvedHooks.slice(0, 10).map((hook) => `- ${hook}`).join('\n');
+  const hooks = (pack.plotState?.unresolvedHooks || []).slice(0, 10).map((hook) => `- ${hook}`).join('\n');
+  const sp = pack.styleProfile;
   const style = [
-    `视角：${pack.styleProfile.pov}`,
-    `节奏：${pack.styleProfile.pacing}`,
-    `对白密度：${pack.styleProfile.dialogueDensity}`,
-    `文风特征：${pack.styleProfile.proseTraits.join('、')}`,
-    `避免：${pack.styleProfile.avoidTraits.join('、')}`,
+    `视角：${sp?.pov || '未设定'}`,
+    `节奏：${sp?.pacing || '未设定'}`,
+    `对白密度：${sp?.dialogueDensity || '未设定'}`,
+    `文风特征：${(sp?.proseTraits || []).join('、') || '未设定'}`,
+    `避免：${(sp?.avoidTraits || []).join('、') || '未设定'}`,
   ].join('\n');
 
   const sourceMap = buildSourceMapContext(pack);
@@ -129,7 +130,7 @@ export function buildContinuationContext(pack: ContinuationPack): string {
   return [
     `【资料包续写任务】${pack.continuationTask}`,
     `【硬设定，不可违背】\n${hardFacts || '- 暂无'}`,
-    `【当前剧情状态】\n时间线：${pack.plotState.currentTimeline}\n最近场景：${pack.plotState.latestScene}\n即时冲突：${pack.plotState.immediateConflict}\n下一步：${pack.plotState.nextLikelyMove}`,
+    `【当前剧情状态】\n时间线：${pack.plotState?.currentTimeline || '未设定'}\n最近场景：${pack.plotState?.latestScene || '未设定'}\n即时冲突：${pack.plotState?.immediateConflict || '未设定'}\n下一步：${pack.plotState?.nextLikelyMove || '未设定'}`,
     `【未解决伏笔】\n${hooks || '- 暂无'}`,
     `【人物当前状态】\n${characters || '- 暂无'}`,
     `【风格约束】\n${style}`,

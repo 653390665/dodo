@@ -34,7 +34,7 @@ interface AgentWorkspaceProductionPanelProps {
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
-  onApplyProductionRun: () => Promise<void>;
+  onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   expectedWordCount: number | '';
   setExpectedWordCount: (count: number | '') => void;
   onGenerateOutline: () => Promise<void>;
@@ -46,6 +46,7 @@ interface AgentWorkspaceProductionPanelProps {
   userIntent: string;
   setUserIntent: (intent: string) => void;
   isGeneratingContent: boolean;
+  generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
@@ -92,6 +93,7 @@ export function AgentWorkspaceProductionPanel({
   userIntent,
   setUserIntent,
   isGeneratingContent,
+  generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
@@ -243,7 +245,7 @@ export function AgentWorkspaceProductionPanel({
           statusMessage={productionStatusMessage}
           onIntentChange={setProductionIntent}
           onStart={() => void onStartProductionRun()}
-          onApply={() => void onApplyProductionRun()}
+          onApply={(runOverride) => void onApplyProductionRun(runOverride)}
         />
       </div>
     );
@@ -379,7 +381,7 @@ export function AgentWorkspaceProductionPanel({
                       className="flex items-center gap-1.5 px-3 py-1 bg-theme-accent text-white rounded-lg text-[10px] font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200"
                     >
                       {isGeneratingContent ? <Loader2 size={10} className="animate-spin" /> : <Feather size={10} />}
-                      AI 扩写正文
+                      {isGeneratingContent ? '扩写中…' : 'AI 扩写正文'}
                     </button>
                     <button
                       onClick={onRewriteSelectedText}
@@ -403,6 +405,11 @@ export function AgentWorkspaceProductionPanel({
               {isGeneratingContent ? (
                 <div className="flex items-center justify-center p-4 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 text-xs text-theme-muted gap-2">
                   <Loader2 size={14} className="animate-spin" /> Writer Agent 正在执笔中...
+                </div>
+              ) : null}
+              {generationStatus ? (
+                <div className="rounded-xl border border-theme-border/40 bg-theme-sidebar/20 px-3 py-2 text-xs text-theme-muted">
+                  {generationStatus}
                 </div>
               ) : null}
             </div>

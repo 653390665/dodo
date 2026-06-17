@@ -239,6 +239,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     handleDeleteChapter,
     handleVolumeNameChange,
     handleTitleChange,
+    cancelPendingContentSync,
     refreshChapters,
   } = useEditorPersistence({
     novel,
@@ -273,6 +274,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     novelId: novel.id,
     currentChapterId: currentChapter?.id,
     continuationPackId: selectedContinuationPackId || undefined,
+    cancelPendingContentSync,
     refreshChapters,
     setCurrentChapter,
   });
@@ -340,6 +342,8 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     timelineEvents,
     librarySkills,
     mountedSkillLoadout,
+    continuationPacks,
+    selectedContinuationPackId,
     sniffedEntities,
     userIntent,
     agentTab,
@@ -645,6 +649,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
               userIntent={userIntent}
               setUserIntent={setUserIntent}
               isGeneratingContent={isGeneratingContent}
+              generationStatus={generationStatus}
               onGenerateContent={handleGenerateContent}
               onRewriteSelectedText={handleRewriteSelectedText}
               onUpdateChapterBeats={handleUpdateChapterBeats}

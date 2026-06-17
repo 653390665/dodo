@@ -125,7 +125,11 @@ export function WritingSurface({
                     直接开始写
                   </button>
                   <button
-                    onClick={onGenerateBeats}
+                    onClick={() => {
+                      setAgentTab('planning');
+                      setIsAgentSidebarOpen(true);
+                      void onGenerateBeats();
+                    }}
                     disabled={isGeneratingBeats}
                     className="px-3.5 py-2 rounded-xl border border-theme-border bg-white hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
                   >
@@ -172,6 +176,12 @@ export function WritingSurface({
                     <div className="min-w-0">
                       <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">正文草稿</p>
                       <p className="text-sm text-theme-text/75 mt-1">这里是主写作区，当前布局不再预留右侧常驻侧栏，整行宽度优先给正文。</p>
+                      {generationStatus ? (
+                        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-theme-accent/10 px-3 py-1 text-xs font-bold text-theme-accent">
+                          <Loader2 size={12} className={isGeneratingContent ? 'animate-spin' : ''} />
+                          {generationStatus}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-theme-muted shrink-0">
                       <span className="px-2 py-1 rounded-full bg-theme-sidebar/60 border border-theme-border">自动保存</span>

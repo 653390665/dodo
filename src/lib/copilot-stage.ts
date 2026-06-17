@@ -5,6 +5,7 @@ export interface CopilotInput {
   hasSummary: boolean;
   hasGlobalOutline: boolean;
   hasWorldRules: boolean;
+  hasContinuationPackContext: boolean;
   hasSceneBeats: boolean;
   hasChapterContent: boolean;
   hasCritique: boolean;
@@ -27,7 +28,12 @@ export interface CopilotInput {
 }
 
 export function deriveCopilotStage(input: CopilotInput): CopilotStage {
-  if (!input.hasSummary || !input.hasGlobalOutline || !input.hasWorldRules) {
+  const hasStoryFrame = input.hasContinuationPackContext || (
+    input.hasSummary &&
+    input.hasGlobalOutline &&
+    input.hasWorldRules
+  );
+  if (!hasStoryFrame) {
     return 'missing-setup';
   }
   if (input.hasSniffedNewEntities) {
@@ -50,12 +56,13 @@ function buildReasons(input: CopilotInput): CopilotReasons {
   const missing: string[] = [];
   const risks: string[] = [];
 
+  if (input.hasContinuationPackContext) ready.push('continuation pack');
   if (input.hasSummary) ready.push('summary');
-  else missing.push('summary');
+  else if (!input.hasContinuationPackContext) missing.push('summary');
   if (input.hasGlobalOutline) ready.push('global outline');
-  else missing.push('global outline');
+  else if (!input.hasContinuationPackContext) missing.push('global outline');
   if (input.hasWorldRules) ready.push('world rules');
-  else missing.push('world rules');
+  else if (!input.hasContinuationPackContext) missing.push('world rules');
   if (input.hasCurrentChapter) ready.push('current chapter');
   else missing.push('current chapter');
   if (input.hasSceneBeats) ready.push('scene beats');

@@ -1161,6 +1161,21 @@ export function updateChapterProductionRun(id: string, data: Partial<ChapterProd
 // ── Continuation Packs ──────────────────────────────────────────────
 
 function mapContinuationPackRow(row: any): import('../types').ContinuationPack {
+  const styleProfile = JSON.parse(row.style_profile || '{}');
+  styleProfile.proseTraits = styleProfile.proseTraits || [];
+  styleProfile.avoidTraits = styleProfile.avoidTraits || [];
+  styleProfile.pov = styleProfile.pov || '';
+  styleProfile.pacing = styleProfile.pacing || '';
+  styleProfile.dialogueDensity = styleProfile.dialogueDensity || '';
+
+  const characterStates = JSON.parse(row.character_states || '[]');
+  for (const cs of characterStates) {
+    cs.relationshipNotes = cs.relationshipNotes || [];
+  }
+
+  const plotState = JSON.parse(row.plot_state || '{}');
+  plotState.unresolvedHooks = plotState.unresolvedHooks || [];
+
   return {
     id: row.id,
     novelId: row.novel_id,
@@ -1168,9 +1183,9 @@ function mapContinuationPackRow(row: any): import('../types').ContinuationPack {
     status: row.status,
     sourceDocuments: JSON.parse(row.source_documents || '[]'),
     canonFacts: JSON.parse(row.canon_facts || '[]'),
-    characterStates: JSON.parse(row.character_states || '[]'),
-    plotState: JSON.parse(row.plot_state || '{}'),
-    styleProfile: JSON.parse(row.style_profile || '{}'),
+    characterStates,
+    plotState,
+    styleProfile,
     contradictions: JSON.parse(row.contradictions || '[]'),
     continuationTask: row.continuation_task,
     sourceMap: JSON.parse(row.source_map || '{}'),

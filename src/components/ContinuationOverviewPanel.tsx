@@ -11,7 +11,7 @@ interface ContinuationOverviewPanelProps {
   onImport: () => void;
   onReviewDraft: (packId: string) => void;
   onOpenPackManagement: () => void;
-  onStartWriting: (packId: string) => void;
+  onStartWriting: (packId: string, prefillIntent?: string) => void;
   onStartStoryboard?: (packId: string, continuationTask?: string) => void;
   onOpenWorldSetup: () => void;
 }
@@ -79,7 +79,7 @@ export function ContinuationOverviewPanel({
               primary: {
                 label: '开始按资料续写',
                 icon: ArrowRight,
-                onClick: () => onStartWriting(state.approvedPack!.id),
+                onClick: () => onStartWriting(state.approvedPack!.id, buildCreationIntentDraft(state.approvedPack!)),
               },
               secondary: {
                 label: '更换资料包',
@@ -100,7 +100,7 @@ export function ContinuationOverviewPanel({
                 },
                 secondary: {
                   label: '仍然开始续写',
-                  onClick: () => onStartWriting(state.approvedPack!.id),
+                  onClick: () => onStartWriting(state.approvedPack!.id, buildCreationIntentDraft(state.approvedPack!)),
                   tone: 'warning' as const,
                 },
               }

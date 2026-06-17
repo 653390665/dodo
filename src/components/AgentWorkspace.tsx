@@ -59,7 +59,7 @@ interface AgentWorkspaceProps {
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
-  onApplyProductionRun: () => Promise<void>;
+  onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   expectedWordCount: number | '';
   setExpectedWordCount: (count: number | '') => void;
   onGenerateOutline: () => Promise<void>;
@@ -71,6 +71,7 @@ interface AgentWorkspaceProps {
   userIntent: string;
   setUserIntent: (intent: string) => void;
   isGeneratingContent: boolean;
+  generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
@@ -137,6 +138,7 @@ export function AgentWorkspace({
   userIntent,
   setUserIntent,
   isGeneratingContent,
+  generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
@@ -303,7 +305,14 @@ export function AgentWorkspace({
                 userIntent={userIntent}
                 setUserIntent={setUserIntent}
                 isGeneratingContent={isGeneratingContent}
-                onGenerateContent={onGenerateContent}
+                generationStatus={generationStatus}
+                onGenerateContent={async () => {
+                  setIsAgentSidebarOpen(false);
+                  requestAnimationFrame(() => {
+                    document.querySelector<HTMLTextAreaElement>('.writing-surface')?.focus();
+                  });
+                  await onGenerateContent();
+                }}
                 onRewriteSelectedText={onRewriteSelectedText}
                 onUpdateChapterBeats={onUpdateChapterBeats}
                 onRunAudit={onRunAudit}

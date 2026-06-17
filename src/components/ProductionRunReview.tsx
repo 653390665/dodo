@@ -20,7 +20,7 @@ interface ProductionRunReviewProps {
   statusMessage?: string | null;
   onIntentChange: (value: string) => void;
   onStart: () => void;
-  onApply: () => void;
+  onApply: (runOverride?: ChapterProductionRun) => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -45,11 +45,20 @@ export function ProductionRunReview({
   onStart,
   onApply,
 }: ProductionRunReviewProps) {
-  const issues = run?.continuityReport.issues || [];
-  const timelineEvents = run?.continuityReport.proposedPatch.timelineEventsToCreate || [];
-  const foreshadowings = run?.continuityReport.proposedPatch.foreshadowingsToCreate || [];
   const [history, setHistory] = useState<ChapterProductionRun[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const recoveredRun = run?.status === 'running' && !run.draftContent.trim()
+    ? history.find((item) => item.status === 'review_required' && Boolean(item.draftContent.trim()))
+    : undefined;
+  const displayRun = recoveredRun || run;
+  const displayRunning = running && !recoveredRun;
+  const issues = displayRun?.continuityReport.issues || [];
+  const timelineEvents = displayRun?.continuityReport.proposedPatch.timelineEventsToCreate || [];
+  const foreshadowings = displayRun?.continuityReport.proposedPatch.foreshadowingsToCreate || [];
+  const hasReviewableDraft = Boolean(displayRun?.draftContent?.trim());
+  const effectiveStatus = displayRun?.status === 'failed' && hasReviewableDraft ? 'review_required' : displayRun?.status;
+  const visibleError = hasReviewableDraft ? null : error;
+  const visibleRunError = hasReviewableDraft ? null : displayRun?.errorMessage;
 
   const loadHistory = async () => {
     if (!novelId) return;
@@ -68,12 +77,20 @@ export function ProductionRunReview({
     loadHistory();
   }, [novelId]);
 
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => {
+      void loadHistory();
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [running, novelId]);
+
   // Reload history when run status changes to 'applied'
   useEffect(() => {
-    if (run?.status === 'applied') {
+    if (displayRun?.status === 'applied') {
       loadHistory();
     }
-  }, [run?.status]);
+  }, [displayRun?.status]);
 
   return (
     <div className="space-y-4">
@@ -88,19 +105,25 @@ export function ProductionRunReview({
           aria-label="生产意图"
           className="mt-3 h-24 w-full resize-none rounded-xl border border-theme-border bg-theme-sidebar/20 p-3 text-sm outline-none focus:border-theme-accent"
         />
-        {statusMessage && running ? (
+        {statusMessage && displayRunning ? (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             <Loader2 size={14} className="animate-spin" />
             {statusMessage}
           </div>
         ) : null}
-        {error ? (
+        {visibleError ? (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             <XCircle size={14} />
-            {error}
+            {visibleError}
           </div>
         ) : null}
-        {run?.status === 'applied' && !error ? (
+        {hasReviewableDraft && displayRun?.status === 'failed' ? (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <CheckCircle2 size={14} />
+            已生成可用草稿，后续增强连接中断不影响接受写入。
+          </div>
+        ) : null}
+        {displayRun?.status === 'applied' && !visibleError ? (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
             <CheckCircle2 size={14} />
             章节已成功写入，状态账本已更新。可在章节列表中查看新章节。
@@ -108,24 +131,24 @@ export function ProductionRunReview({
         ) : null}
         <button
           onClick={onStart}
-          disabled={running}
+          disabled={displayRunning}
           className="mt-3 inline-flex items-center gap-2 rounded-xl bg-theme-text px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
         >
-          {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-          {running ? '生产中...' : '开始生产一章'}
+          {displayRunning ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+          {displayRunning ? '生产中...' : '开始生产一章'}
         </button>
       </div>
 
-      {run ? (
+      {displayRun ? (
         <div className="rounded-2xl border border-theme-border bg-white p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-bold text-theme-text">生产报告</div>
-              <div className="mt-1 text-xs text-theme-muted">状态 {run.status} · 连续性评分 {run.continuityReport.score}/100</div>
+              <div className="mt-1 text-xs text-theme-muted">状态 {effectiveStatus} · 连续性评分 {displayRun.continuityReport.score}/100</div>
             </div>
             <button
-              onClick={onApply}
-              disabled={applying || run.status !== 'review_required'}
+              onClick={() => onApply(displayRun)}
+              disabled={applying || effectiveStatus !== 'review_required'}
               className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
             >
               {applying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
@@ -134,9 +157,9 @@ export function ProductionRunReview({
           </div>
 
           <div className="mt-4 space-y-3">
-            {run.errorMessage ? (
+            {visibleRunError ? (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                失败原因：{run.errorMessage}
+                失败原因：{visibleRunError}
               </div>
             ) : null}
             <section>
@@ -150,7 +173,7 @@ export function ProductionRunReview({
                 )}
               </div>
               <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 text-xs leading-5 text-theme-text">
-                {run.sceneBeats}
+                {displayRun.sceneBeats}
               </pre>
             </section>
             <section>
@@ -162,7 +185,7 @@ export function ProductionRunReview({
                 {draftSource === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 正文</span>
                 )}
-                {running && draftSource && (
+                {displayRunning && draftSource && (
                   <span className="inline-flex items-center gap-1 text-[9px] text-theme-muted">
                     <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
                     接收中...
@@ -170,7 +193,7 @@ export function ProductionRunReview({
                 )}
               </div>
               <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 font-serif text-sm leading-7 text-theme-text">
-                {run.draftContent}
+                {displayRun.draftContent}
               </pre>
             </section>
             <section>

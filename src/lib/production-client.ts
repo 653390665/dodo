@@ -7,11 +7,12 @@ export async function startChapterProductionRun(payload: {
   userIntent: string;
   continuationPackId?: string;
   surface?: PromptSurface;
-}): Promise<ChapterProductionRun> {
+}, signal?: AbortSignal): Promise<ChapterProductionRun> {
   const res = await fetch('/api/chapter-production-runs/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to start chapter production run');

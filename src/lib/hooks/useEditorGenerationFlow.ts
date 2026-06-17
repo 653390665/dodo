@@ -39,7 +39,6 @@ interface UseEditorGenerationFlowArgs {
 const draftPromptSurface = 'workspace-draft';
 const planningPromptSurface = 'workspace-beats';
 const polishPromptSurface = 'chapter-polish';
-const reviewPromptSurface = 'chapter-review';
 
 export function useEditorGenerationFlow({
   novel,
@@ -160,6 +159,7 @@ export function useEditorGenerationFlow({
     abortControllerRef.current?.abort();
     abortControllerRef.current = controller;
 
+    let usedFallback = false;
     setIsGeneratingBeats(true);
     setGenerationStatus('正在根据创作意图和世界观拆解本章分镜…');
     try {
@@ -182,11 +182,16 @@ export function useEditorGenerationFlow({
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
       await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats });
+      usedFallback = true;
       setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
     } finally {
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingBeats(false);
-        setGenerationStatus(null);
+        if (!usedFallback) {
+          setGenerationStatus(null);
+        } else {
+          setTimeout(() => setGenerationStatus(null), 8000);
+        }
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }
@@ -311,25 +316,20 @@ export function useEditorGenerationFlow({
     setGenerationStatus('正在整理世界观、人物与分镜…');
 
     const baseContent = currentChapter.content ? `${currentChapter.content}\n\n` : '';
-    let currentStreamedText = '';
-    let lastCritique = '';
-    let hasReceivedFirstToken = false;
-    let sseBuffer = '';
+    let completedContent = false;
 
     try {
       const contextStr = buildContextPrompt(buildAgentContext());
-      const response = await fetch('/api/orchestrate', {
+      setGenerationStatus('Writer Agent 正在生成 4000 字以上正文…');
+      const response = await fetch('/api/orchestrate-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           draftingSurface: draftPromptSurface,
-          reviewSurface: reviewPromptSurface,
           contextStr,
           sceneBeats: currentChapter.sceneBeats,
           skills: mountedSkills,
-          maxIterations: 1,
-          draftContent: '',
-          includeCritic: false,
+          draftContent: currentChapter.content || '',
         }),
         signal: controller.signal,
       });
@@ -337,87 +337,12 @@ export function useEditorGenerationFlow({
         const errorPayload = await response.json().catch(async () => ({ error: await response.text() }));
         throw new Error(errorPayload.error || `HTTP ${response.status}`);
       }
-      setGenerationStatus('Writer Agent 已接管，正在起草正文…');
-
-      if (!response.body) throw new Error('No response body');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const messages = sseBuffer.split('\n\n');
-        sseBuffer = messages.pop() || '';
-
-        for (const msg of messages) {
-          if (!msg.startsWith('data: ')) continue;
-          const dataStr = msg.replace('data: ', '');
-          let data: any;
-          try {
-            data = JSON.parse(dataStr);
-          } catch {
-            continue;
-          }
-
-          if (data.type === 'token') {
-            if (!hasReceivedFirstToken) {
-              hasReceivedFirstToken = true;
-              setGenerationStatus('正在扩写正文并实时回填到编辑器…');
-            }
-            currentStreamedText += data.content;
-            const fullText = baseContent + currentStreamedText;
-
-            if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-            setCurrentChapter((prev) => (
-              prev
-                ? {
-                    ...prev,
-                    content: fullText,
-                    wordCount: fullText.replace(/\s/g, '').length,
-                  }
-                : null
-            ));
-
-            if (contentRef.current) {
-              contentRef.current.scrollTop = contentRef.current.scrollHeight;
-            }
-          } else if (data.type === 'critic_done') {
-            lastCritique = data.feedback;
-            setGenerationStatus('初稿完成，已附带一轮总编审读意见。');
-            if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-            setCurrentChapter((prev) => (prev ? { ...prev, critique: data.feedback } : null));
-          } else if (data.type === 'writer_done') {
-            setGenerationStatus('正文初稿完成。若要做质量扫描，请单独点击“AI 审计”。');
-          } else if (data.type === 'status') {
-            setGenerationStatus(String(data.message || 'AI 正在处理…'));
-          } else if (data.type === 'error') {
-            throw new Error(data.message || '生成链路中断');
-          }
-        }
-      }
-
-      const tailMessage = sseBuffer.trim();
-      if (tailMessage.startsWith('data: ')) {
-        const dataStr = tailMessage.replace('data: ', '');
-        try {
-          const data = JSON.parse(dataStr);
-          if (data.type === 'token') {
-            currentStreamedText += data.content;
-          } else if (data.type === 'critic_done') {
-            lastCritique = data.feedback;
-          } else if (data.type === 'error') {
-            throw new Error(data.message || '生成链路中断');
-          }
-        } catch {
-          // Ignore trailing partial payloads.
-        }
-      }
-
-      const fullText = baseContent + currentStreamedText;
-      if (!currentStreamedText.trim()) {
+      const data = await response.json();
+      const generatedText = String(data.text || '').trim();
+      if (!generatedText) {
         throw new Error('AI 没有返回正文内容，请稍后重试或缩短分镜。');
       }
+      const fullText = baseContent + generatedText;
       const finalWordCount = fullText.replace(/\s/g, '').length;
 
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
@@ -427,7 +352,6 @@ export function useEditorGenerationFlow({
               ...prev,
               content: fullText,
               wordCount: finalWordCount,
-              ...(lastCritique && { critique: lastCritique }),
             }
           : null
       ));
@@ -435,7 +359,6 @@ export function useEditorGenerationFlow({
       await updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
-        ...(lastCritique && { critique: lastCritique }),
       });
 
       pushToUndoHistory(fullText);
@@ -452,6 +375,8 @@ export function useEditorGenerationFlow({
         fitScore: getCurrentFitScore(),
         notes: 'writer-generated',
       });
+      completedContent = true;
+      setGenerationStatus('正文已生成到主编辑器。');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error(error);
@@ -459,7 +384,11 @@ export function useEditorGenerationFlow({
     } finally {
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingContent(false);
-        setGenerationStatus(null);
+        if (completedContent) {
+          setTimeout(() => setGenerationStatus(null), 8000);
+        } else {
+          setGenerationStatus(null);
+        }
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }

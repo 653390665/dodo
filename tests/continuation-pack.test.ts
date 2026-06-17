@@ -119,3 +119,63 @@ test('buildCreationIntentDraft returns empty when all sources absent', () => {
   };
   assert.equal(buildCreationIntentDraft(pack), '');
 });
+
+test('buildContinuationContext handles pack with missing styleProfile and plotState fields', () => {
+  const pack = {
+    id: 'pack-old',
+    novelId: 'novel-1',
+    title: '旧资料包',
+    status: 'approved',
+    sourceDocuments: [],
+    canonFacts: [{ id: 'f1', priority: 'hard', category: 'world', text: '旧设定', evidence: '' }],
+    characterStates: [{
+      name: '主角',
+      role: '主角',
+      currentGoal: '活下来',
+      emotionalState: '紧张',
+      secrets: [],
+    }],
+    plotState: {
+      currentTimeline: '第一章后',
+      latestScene: '城门',
+      immediateConflict: '守卫盘查',
+      nextLikelyMove: '',
+    },
+    styleProfile: {
+      pov: '第三人称',
+      pacing: '',
+      dialogueDensity: '',
+    },
+    contradictions: [],
+    continuationTask: '继续写。',
+    createdAt: 1,
+    updatedAt: 1,
+  } as any;
+
+  const context = buildContinuationContext(pack);
+  assert.match(context, /旧设定/);
+  assert.match(context, /第三人称/);
+  assert.match(context, /城门/);
+  assert.match(context, /未设定/);
+});
+
+test('buildCreationIntentDraft handles missing plotState fields gracefully', () => {
+  const pack = {
+    id: 'p1',
+    novelId: 'n1',
+    title: 'T',
+    status: 'draft',
+    sourceDocuments: [],
+    canonFacts: [],
+    characterStates: [],
+    plotState: {},
+    styleProfile: {},
+    contradictions: [],
+    continuationTask: '续写任务',
+    createdAt: 1,
+    updatedAt: 1,
+  } as any;
+
+  const draft = buildCreationIntentDraft(pack);
+  assert.match(draft, /续写任务/);
+});
