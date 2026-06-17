@@ -3,26 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import X from 'lucide-react/dist/esm/icons/x.js';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeView } from './components/WelcomeView';
-import { Library } from './components/Library';
-import { SplitWorkspace } from './components/SplitWorkspace';
-import { EditorView } from './components/EditorView';
-import { WorldBibleView } from './components/WorldBibleView';
-import { ContinuationImportView } from './components/ContinuationImportView';
 import { AIAssistant } from './components/AIAssistant';
 import { StoryCardDeck } from './components/onboarding/StoryCardDeck';
-import { SkillsStudioView } from './components/SkillsStudioView';
-import { BookFactoryView } from './components/BookFactoryView';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// 按需加载：仅在用户切换到对应视图时才下载
+const Library = lazy(() => import('./components/Library').then(m => ({ default: m.Library })));
+const SplitWorkspace = lazy(() => import('./components/SplitWorkspace').then(m => ({ default: m.SplitWorkspace })));
+const EditorView = lazy(() => import('./components/EditorView').then(m => ({ default: m.EditorView })));
+const WorldBibleView = lazy(() => import('./components/WorldBibleView').then(m => ({ default: m.WorldBibleView })));
+const ContinuationImportView = lazy(() => import('./components/ContinuationImportView').then(m => ({ default: m.ContinuationImportView })));
+const SkillsStudioView = lazy(() => import('./components/SkillsStudioView').then(m => ({ default: m.SkillsStudioView })));
+const BookFactoryView = lazy(() => import('./components/BookFactoryView').then(m => ({ default: m.BookFactoryView })));
 import { AssistantLaunchContext, ContinuationEditorLaunchState, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
 import { motion, AnimatePresence } from './lib/motion';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
 import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from './lib/onboarding-model';
 import { coerceMountedSkillLoadout } from './lib/skill-model';
 import { SettingsModal } from './components/SettingsModal';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import { matchesShortcut, SHORTCUTS } from './lib/keyboard-shortcuts';
 import { deriveWorkspaceFocus } from './lib/workspace-nav';
 import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from './lib/assistant-apply';
@@ -449,6 +451,7 @@ export default function App() {
             transition={{ duration: 0.2 }}
             className="flex-1 overflow-hidden h-full"
           >
+            <Suspense fallback={<div className="flex items-center justify-center h-full text-sm opacity-50">加载中...</div>}>
             {currentView === 'welcome' && (
               <ErrorBoundary>
                 <WelcomeView
@@ -615,6 +618,7 @@ export default function App() {
                 </button>
               </div>
             )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
