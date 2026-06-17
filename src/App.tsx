@@ -21,6 +21,8 @@ const SkillsStudioView = lazy(() => import('./components/SkillsStudioView').then
 const BookFactoryView = lazy(() => import('./components/BookFactoryView').then(m => ({ default: m.BookFactoryView })));
 import { AssistantLaunchContext, ContinuationEditorLaunchState, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
 import { motion, AnimatePresence } from './lib/motion';
+import { useAppStore } from './stores/app-store';
+import { useNovelStore } from './stores/novel-store';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
 import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from './lib/onboarding-model';
 import { coerceMountedSkillLoadout } from './lib/skill-model';
@@ -31,56 +33,37 @@ import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, r
 
 const LOCAL_USER = { uid: 'local-user' };
 
-const THEME_KEY = 'inkflow-theme';
-type Theme = 'light' | 'dark' | 'system';
-
-function applyTheme(theme: Theme) {
-  const resolved = theme === 'system'
-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : theme;
-  document.documentElement.dataset.theme = resolved;
-}
-
-function getStoredTheme(): Theme {
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored === 'dark' || stored === 'light' || stored === 'system') return stored;
-  } catch {}
-  return 'system';
-}
-
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewType>('welcome');
-  const [workspaceFocus, setWorkspaceFocus] = useState<WorkspaceFocus>('editor');
-  const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
+  const {
+    currentView, setCurrentView,
+    workspaceFocus, setWorkspaceFocus,
+    theme, setTheme,
+    isSettingsOpen, setSettingsOpen,
+    isAIAssistantOpen, setAIAssistantOpen,
+    aiDrawerTab, setAIDrawerTab,
+  } = useAppStore();
+  const {
+    selectedNovel, setSelectedNovel,
+    onboardingDraft, setOnboardingDraft,
+    activeSetupTaskKey, setActiveSetupTaskKey,
+    batchCounter, incrementBatchCounter,
+    assistantLaunchContext, setAssistantLaunchContext,
+    continuationLaunchState, setContinuationLaunchState,
+  } = useNovelStore();
   const [user] = useState(LOCAL_USER);
   const [loading, setLoading] = useState(false);
-  const [batchCounter, setBatchCounter] = useState(0);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraftState | null>(null);
-  const [activeSetupTaskKey, setActiveSetupTaskKey] = useState<SetupTaskKey | null>(null);
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
-  const [theme, setTheme] = useState<Theme>(getStoredTheme);
-  const [assistantLaunchContext, setAssistantLaunchContext] = useState<AssistantLaunchContext | null>(null);
-  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
-  const [aiDrawerTab, setAiDrawerTab] = useState<'cards' | 'chat'>('cards');
-  const [continuationLaunchState, setContinuationLaunchState] = useState<ContinuationEditorLaunchState | null>(null);
-
-  useEffect(() => {
-    applyTheme(theme);
-    try { localStorage.setItem(THEME_KEY, theme); } catch {}
-  }, [theme]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => { if (theme === 'system') applyTheme('system'); };
+    const onChange = () => { if (theme === 'system') setTheme('system'); };
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, [theme]);
+  }, [theme, setTheme]);
 
   useEffect(() => {
-    const handleOpenSettings = () => setIsSettingsOpen(true);
+    const handleOpenSettings = () => setSettingsOpen(true);
     window.addEventListener('open-settings', handleOpenSettings);
     return () => window.removeEventListener('open-settings', handleOpenSettings);
   }, []);
@@ -105,10 +88,10 @@ export default function App() {
           e.preventDefault();
           const target = viewMap[id];
           if (target.view === 'ai') {
-             setIsAIAssistantOpen(true);
+             setAIAssistantOpen(true);
              return;
           }
-          setWorkspaceFocus((prev) => deriveWorkspaceFocus(target.view, target.navKey, prev));
+          setWorkspaceFocus(deriveWorkspaceFocus(target.view, target.navKey, useAppStore.getState().workspaceFocus));
           setCurrentView(target.view);
           return;
         }
@@ -149,10 +132,10 @@ export default function App() {
 
   const handleNavigate = (view: ViewType, navKey?: WorkspaceNavKey) => {
     if (view === 'ai') {
-      setIsAIAssistantOpen(true);
+      setAIAssistantOpen(true);
       return;
     }
-    setWorkspaceFocus((prev) => deriveWorkspaceFocus(view, navKey, prev));
+    setWorkspaceFocus(deriveWorkspaceFocus(view, navKey, useAppStore.getState().workspaceFocus));
     setCurrentView(view);
   };
 
@@ -164,7 +147,7 @@ export default function App() {
 
   const handleOpenAssistant = (context: AssistantLaunchContext) => {
     setAssistantLaunchContext(context);
-    setIsAIAssistantOpen(true);
+    setAIAssistantOpen(true);
   };
 
   const handleApplyAssistantToContent = async (text: string) => {
@@ -251,7 +234,7 @@ export default function App() {
         batchIndex: batch,
         previousHookTexts: prevHooks,
       });
-      if (isRefresh) setBatchCounter(batch);
+      if (isRefresh) incrementBatchCounter();
       setOnboardingDraft({
         ideaSeed,
         planning,
@@ -631,7 +614,7 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsAIAssistantOpen(false)}
+              onClick={() => setAIAssistantOpen(false)}
               className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
             />
             <motion.div
@@ -645,10 +628,10 @@ export default function App() {
                 <div className="h-full flex flex-col">
                   <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white">
                     <div className="flex gap-2">
-                      <button onClick={() => setAiDrawerTab('cards')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>方案卡</button>
-                      <button onClick={() => setAiDrawerTab('chat')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>灵感对话</button>
+                      <button onClick={() => setAIDrawerTab('cards')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>方案卡</button>
+                      <button onClick={() => setAIDrawerTab('chat')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>灵感对话</button>
                     </div>
-                    <button onClick={() => setIsAIAssistantOpen(false)} className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all">
+                    <button onClick={() => setAIAssistantOpen(false)} className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all">
                       <X size={20} />
                     </button>
                   </div>
@@ -689,7 +672,7 @@ export default function App() {
                           onApplyToContent={handleApplyAssistantToContent}
                           onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
                           onReplaceSelection={handleReplaceAssistantSelection}
-                          onClose={() => setIsAIAssistantOpen(false)}
+                          onClose={() => setAIAssistantOpen(false)}
                         />
                       </ErrorBoundary>
                     </div>
@@ -702,7 +685,7 @@ export default function App() {
                     onApplyToContent={handleApplyAssistantToContent}
                     onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
                     onReplaceSelection={handleReplaceAssistantSelection}
-                    onClose={() => setIsAIAssistantOpen(false)}
+                    onClose={() => setAIAssistantOpen(false)}
                   />
                 </ErrorBoundary>
               )}
@@ -711,7 +694,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
     </div>
   );
 }
