@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import React, { useState, useEffect, useCallback } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
 import Eye from 'lucide-react/dist/esm/icons/eye.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
@@ -28,11 +28,11 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const [filter, setFilter] = useState<'all' | 'planted' | 'hinted' | 'payoff'>('all');
   const [detecting, setDetecting] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setItems(await listForeshadowings(novelId));
     setChapters(await listChapters(novelId));
-  };
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId]);
+  }, [novelId]);
+  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAdd = async () => {
     if (!newTitle.trim()) return;

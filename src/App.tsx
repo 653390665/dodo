@@ -65,12 +65,12 @@ export default function App() {
     const handleOpenSettings = () => setSettingsOpen(true);
     window.addEventListener('open-settings', handleOpenSettings);
     return () => window.removeEventListener('open-settings', handleOpenSettings);
-  }, []);
+  }, [setSettingsOpen]);
 
   useEffect(() => {
     if (currentView === 'editor') setWorkspaceFocus('editor');
     if (currentView === 'world') setWorkspaceFocus('world');
-  }, [currentView]);
+  }, [currentView, setWorkspaceFocus]);
 
   useEffect(() => {
     const viewMap: Record<string, { view: ViewType; navKey?: WorkspaceNavKey }> = {
@@ -98,7 +98,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [setAIAssistantOpen, setCurrentView, setWorkspaceFocus]);
 
   const navigateToEditor = (novel: Novel) => {
     setContinuationLaunchState(null);
@@ -142,7 +142,7 @@ export default function App() {
     if (currentView !== 'editor' && currentView !== 'workspace' && continuationLaunchState) {
       setContinuationLaunchState(null);
     }
-  }, [currentView, continuationLaunchState]);
+  }, [currentView, continuationLaunchState, setContinuationLaunchState]);
 
   const handleOpenAssistant = (context: AssistantLaunchContext) => {
     setAssistantLaunchContext(context);

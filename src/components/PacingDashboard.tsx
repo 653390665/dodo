@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';import Activity from 'lucide-react/dist/esm/icons/activity.js';
+import React, { useState, useEffect, useCallback } from 'react';import Activity from 'lucide-react/dist/esm/icons/activity.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { Chapter, PacingData } from '../types';
 import { listChapters } from '../lib/chapter-client';
@@ -13,8 +13,8 @@ export function PacingDashboard({ novelId }: Props) {
   const [pacing, setPacing] = useState<PacingData[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = async () => setChapters(await listChapters(novelId));
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId]);
+  const refresh = useCallback(async () => setChapters(await listChapters(novelId)), [novelId]);
+  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAnalyze = async () => {
     const withContent = chapters.filter(c => c.content && c.content.trim().length > 0);

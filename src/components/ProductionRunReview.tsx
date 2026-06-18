@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import React, { useEffect, useState, useCallback } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
 import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
 import Clock from 'lucide-react/dist/esm/icons/clock.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
@@ -60,7 +60,7 @@ export function ProductionRunReview({
   const visibleError = hasReviewableDraft ? null : error;
   const visibleRunError = hasReviewableDraft ? null : displayRun?.errorMessage;
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!novelId) return;
     setLoadingHistory(true);
     try {
@@ -71,11 +71,11 @@ export function ProductionRunReview({
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, [novelId]);
 
   useEffect(() => {
     loadHistory();
-  }, [novelId]);
+  }, [novelId, loadHistory]);
 
   useEffect(() => {
     if (!running) return;
@@ -83,14 +83,14 @@ export function ProductionRunReview({
       void loadHistory();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [running, novelId]);
+  }, [running, novelId, loadHistory]);
 
   // Reload history when run status changes to 'applied'
   useEffect(() => {
     if (displayRun?.status === 'applied') {
       loadHistory();
     }
-  }, [displayRun?.status]);
+  }, [displayRun?.status, loadHistory]);
 
   return (
     <div className="space-y-4">

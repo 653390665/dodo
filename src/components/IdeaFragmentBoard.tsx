@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import React, { useState, useEffect, useCallback } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
 import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square.js';
@@ -38,11 +38,11 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   const [newType, setNewType] = useState<IdeaFragment['type']>('scene');
   const [expandingId, setExpandingId] = useState<string | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setFragments(await listIdeaFragments(novelId));
-  };
+  }, [novelId]);
 
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId]);
+  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAdd = async () => {
     if (!newContent.trim()) return;

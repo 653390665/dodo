@@ -200,7 +200,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (currentChapter) {
       resetUndoHistory(currentChapter.content);
     }
-  }, [currentChapter?.id, resetUndoHistory]);
+  }, [currentChapter, currentChapter?.id, resetUndoHistory]);
 
   useEffect(() => {
     setIsAgentSidebarOpen(false);
@@ -322,7 +322,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, isEditorDataLoading, launchState?.approvedPackId, launchState?.launchToken]);
+  }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab]);
 
   const {
     mountedSkills,
