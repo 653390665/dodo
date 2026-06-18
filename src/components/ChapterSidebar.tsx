@@ -3,7 +3,6 @@ import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import Folder from 'lucide-react/dist/esm/icons/folder.js';
 import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import { motion, AnimatePresence } from '../lib/motion';
 import { Chapter, Novel } from '../types';
 import { cn } from '../lib/utils';
 
@@ -51,12 +50,9 @@ export function ChapterSidebar({
   }, [chapters]);
 
   return (
-    <AnimatePresence initial={false}>
+    <>
       {!isFullscreen && isSidebarOpen && (
-        <motion.div
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 280, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
+        <div
           className="flex flex-col border-r border-theme-border bg-transparent overflow-hidden"
         >
           <div className="p-4 border-b border-theme-border bg-transparent sticky top-0 z-10 flex items-center justify-between">
@@ -147,8 +143,8 @@ export function ChapterSidebar({
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

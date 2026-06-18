@@ -20,7 +20,6 @@ const ContinuationImportView = lazy(() => import('./components/ContinuationImpor
 const SkillsStudioView = lazy(() => import('./components/SkillsStudioView').then(m => ({ default: m.SkillsStudioView })));
 const BookFactoryView = lazy(() => import('./components/BookFactoryView').then(m => ({ default: m.BookFactoryView })));
 import { AssistantLaunchContext, ContinuationEditorLaunchState, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
-import { motion, AnimatePresence } from './lib/motion';
 import { useAppStore } from './stores/app-store';
 import { useNovelStore } from './stores/novel-store';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
@@ -402,13 +401,11 @@ export default function App() {
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-paper">
-        <motion.div
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+        <div
           className="text-xl font-serif italic text-gray-400"
         >
           InkFlow Starting...
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -425,13 +422,8 @@ export default function App() {
       </div>
 
       <main className="flex-1 relative overflow-hidden bg-paper rounded-2xl border border-theme-border shadow-sm flex flex-col">
-        <AnimatePresence mode="sync">
-          <motion.div
+        <div
             key={currentView}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
             className="flex-1 overflow-hidden h-full"
           >
             <Suspense fallback={<div className="flex items-center justify-center h-full text-sm opacity-50">加载中...</div>}>
@@ -602,26 +594,17 @@ export default function App() {
               </div>
             )}
             </Suspense>
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </main>
 
       {/* Global AIAssistant Drawer */}
-      <AnimatePresence>
-        {isAIAssistantOpen && (
+      {isAIAssistantOpen && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setAIAssistantOpen(false)}
               className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
             />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            <div
               className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
             >
               {onboardingDraft ? (
@@ -689,10 +672,9 @@ export default function App() {
                   />
                 </ErrorBoundary>
               )}
-            </motion.div>
+            </div>
           </>
         )}
-      </AnimatePresence>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
     </div>

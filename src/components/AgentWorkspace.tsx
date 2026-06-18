@@ -10,7 +10,6 @@ import Activity from 'lucide-react/dist/esm/icons/activity.js';
 import Eye from 'lucide-react/dist/esm/icons/eye.js';
 import History from 'lucide-react/dist/esm/icons/history.js';
 import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import { motion, AnimatePresence } from '../lib/motion';
 import {
   Novel, Chapter, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
@@ -170,11 +169,7 @@ export function AgentWorkspace({
   const tabBarRef = useRef<HTMLDivElement>(null);
 
   return (
-    <motion.div
-      initial={{ x: 420, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 420, opacity: 0 }}
-      transition={{ type: "tween", duration: 0.24 }}
+    <div
       className="absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border border-theme-border bg-white/95 overflow-hidden z-30 backdrop-blur-sm shadow-2xl flex flex-col"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-white/90 shrink-0">
@@ -252,26 +247,19 @@ export function AgentWorkspace({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
-        <AnimatePresence mode="sync">
-          {agentTab === 'copilot-home' && (
-            <motion.div
+        {agentTab === 'copilot-home' && (
+            <div
               key="copilot-home"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <CopilotHomePanel
                 suggestion={copilotSuggestion}
                 onAction={(key) => void runCopilotAction(key)}
               />
-            </motion.div>
+            </div>
           )}
           {isProductionAgentTab(agentTab) && (
-            <motion.div
+            <div
               key={agentTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceProductionPanel
                 agentTab={agentTab}
@@ -320,29 +308,26 @@ export function AgentWorkspace({
                 onPolishChapterFromAudit={onPolishChapterFromAudit}
                 onCreateChapter={onCreateChapter}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'ideas' && (
-            <motion.div key="ideas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="ideas">
               <IdeaFragmentBoard novelId={novel.id} compact />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'foreshadowing' && (
-            <motion.div key="foreshadowing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="foreshadowing">
               <ForeshadowingPanel novelId={novel.id} currentChapterId={currentChapter?.id} />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'pacing' && (
-            <motion.div key="pacing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="pacing">
               <PacingDashboard novelId={novel.id} />
-            </motion.div>
+            </div>
           )}
           {isKnowledgeAgentTab(agentTab) && (
-            <motion.div
+            <div
               key={agentTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceKnowledgePanel
                 agentTab={agentTab}
@@ -363,14 +348,11 @@ export function AgentWorkspace({
                 projectPreferenceProfile={projectPreferenceProfile}
                 onPreferenceProfileChange={onPreferenceProfileChange}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'versions' && (
-            <motion.div
+            <div
               key="versions"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceVersionsPanel
                 currentChapter={currentChapter}
@@ -378,14 +360,11 @@ export function AgentWorkspace({
                 onSaveVersion={onSaveVersion}
                 onRestoreVersion={onRestoreVersion}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'trace' && (
-            <motion.div
+            <div
               key="trace"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceTracePanel
                 currentChapter={currentChapter}
@@ -395,10 +374,9 @@ export function AgentWorkspace({
                 onAddSniffedEntity={onAddSniffedEntity}
                 addingEntityNames={addingEntityNames}
               />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }

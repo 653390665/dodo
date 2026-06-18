@@ -9,7 +9,6 @@ import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import BookTemplate from 'lucide-react/dist/esm/icons/book-template.js';
 import { ViewType, WorkspaceNavKey } from '../types';
 import { cn } from '../lib/utils';
-import { motion } from '../lib/motion';
 import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
 
 interface SidebarProps {
@@ -86,9 +85,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
   };
 
   return (
-    <motion.div
-      initial={false}
-      animate={{ width: isCollapsed ? 64 : 240 }}
+    <div
       className="h-full bg-transparent flex flex-col transition-[width] duration-300 z-50 py-2"
     >
       {/* Header */}
@@ -131,6 +128,6 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
           {!isCollapsed && <span className="text-xs font-semibold">设置 (Settings)</span>}
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }

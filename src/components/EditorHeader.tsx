@@ -8,7 +8,6 @@ import Settings from 'lucide-react/dist/esm/icons/settings.js';
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import { motion, AnimatePresence } from '../lib/motion';
 import { Chapter, Skill } from '../types';
 import { cn } from '../lib/utils';
 
@@ -104,42 +103,31 @@ export function EditorHeader({
             <span>AI 核心已连接</span>
           </div>
         </div>
-        <AnimatePresence mode="sync">
-          {isAnyGenerating ? (
-            <motion.div
+        {isAnyGenerating ? (
+            <div
                key="generating"
-               initial={{ opacity: 0, scale: 0.9 }}
-               animate={{ opacity: 1, scale: 1 }}
-               exit={{ opacity: 0, scale: 0.9 }}
                className="flex items-center gap-2 text-xs font-bold text-theme-accent mr-2 px-3 py-1.5 bg-theme-accent/10 rounded-full"
              >
                <Loader2 size={14} className="animate-spin" />
                AI 响应中…
-             </motion.div>
+             </div>
           ) : isSyncing ? (
-            <motion.div
+            <div
               key="syncing"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
               className="flex items-center gap-2 text-xs text-theme-muted mr-2 font-mono"
             >
               <Cloud size={14} className="animate-pulse" />
               保存中…
-            </motion.div>
+            </div>
           ) : syncSuccess ? (
-            <motion.div
+            <div
               key="success"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
               className="flex items-center gap-2 text-xs text-emerald-500 mr-2 font-mono"
             >
               <CheckCircle2 size={14} />
               保存成功
-            </motion.div>
+            </div>
           ) : null}
-        </AnimatePresence>
         <button
           onClick={onToggleAgentSidebar}
           aria-label={isAgentSidebarOpen ? "收起智能管家" : "展开智能管家"}

@@ -10,7 +10,6 @@ import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { Novel, Chapter, ViewType } from '../types';
-import { motion, AnimatePresence } from '../lib/motion';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
@@ -179,8 +178,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       {/* Grid of Novels */}
       {novels.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        <AnimatePresence mode="popLayout">
-          {filteredNovels.map((novel) => {
+        {filteredNovels.map((novel) => {
             // Generate a deterministic gradient based on novel id
             const hues = [
               'from-rose-100 to-teal-50',
@@ -193,12 +191,8 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             const gradientClass = hues[hueIndex];
 
             return (
-            <motion.div
-              layout
+            <div
               key={novel.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
               onClick={() => onSelectNovel(novel)}
               className="group relative h-[420px] bg-white rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
             >
@@ -261,15 +255,12 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   })()}
                 </div>
               </div>
-            </motion.div>
+            </div>
             );
           })}
-        </AnimatePresence>
 
         {isAdding && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors"
           >
             <form onSubmit={handleCreateNovel} className="w-full px-4">
@@ -300,7 +291,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 </button>
               </div>
             </form>
-          </motion.div>
+          </div>
         )}
       </div>
       )}

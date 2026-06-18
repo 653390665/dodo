@@ -42,7 +42,6 @@ import {
   listTimelineEvents,
 } from '../lib/world-client';
 import { listSkillUsageRecords } from '../lib/skill-client';
-import { motion, AnimatePresence } from '../lib/motion';
 import { cn } from '../lib/utils';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '../lib/continuation-pack-selection';
@@ -599,16 +598,11 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
       </div>
 
       {/* Agent Sidebar */}
-      <AnimatePresence initial={false}>
-        {!isFullscreen && isAgentSidebarOpen && (
+      {!isFullscreen && isAgentSidebarOpen && (
           <>
-            <motion.button
+            <button
               type="button"
               aria-label="关闭智能管家"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
               onClick={() => setIsAgentSidebarOpen(false)}
               className="absolute inset-0 z-20 bg-black/10 backdrop-blur-[1px]"
             />
@@ -680,7 +674,6 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
             />
           </>
         )}
-      </AnimatePresence>
     </div>
   );
 }

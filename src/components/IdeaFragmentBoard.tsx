@@ -10,7 +10,6 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { IdeaFragment } from '../types';
 import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { motion } from '../lib/motion';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scene: <Crosshair size={14} />,
@@ -120,10 +119,8 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       {/* Fragment list */}
       <div className="space-y-3">
         {fragments.map(f => (
-          <motion.div
+          <div
             key={f.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
             className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
               f.status === 'expanded' ? 'border-theme-accent/30' : 'border-theme-border/40'
             }`}
@@ -165,7 +162,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
                 <Trash2 size={12} /> 删除
               </button>
             </div>
-          </motion.div>
+          </div>
         ))}
         {fragments.length === 0 && (
           <div className="text-center py-12 text-xs text-theme-muted opacity-50">

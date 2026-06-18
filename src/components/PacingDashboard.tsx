@@ -3,7 +3,6 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { Chapter, PacingData } from '../types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { motion } from '../lib/motion';
 
 interface Props {
   novelId: string;
@@ -110,10 +109,7 @@ export function PacingDashboard({ novelId }: Props) {
                     {chapter?.title || '?'}
                   </span>
                   <div className="flex-1 h-5 bg-theme-sidebar/30 rounded-full overflow-hidden relative">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${p.tensionScore}%` }}
-                      transition={{ duration: 0.6, delay: 0.1 }}
+                    <div
                       className={`h-full rounded-full ${
                         p.tensionScore >= 70 ? 'bg-red-400' :
                         p.tensionScore >= 40 ? 'bg-amber-400' :

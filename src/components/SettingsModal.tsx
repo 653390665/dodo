@@ -5,7 +5,6 @@ import X from 'lucide-react/dist/esm/icons/x.js';
 import Sun from 'lucide-react/dist/esm/icons/sun.js';
 import Moon from 'lucide-react/dist/esm/icons/moon.js';
 import Monitor from 'lucide-react/dist/esm/icons/monitor.js';
-import { motion } from '../lib/motion';
 import {
   DEFAULT_PROMPT_TEMPLATES,
   PROMPT_TEMPLATE_DEFINITIONS,
@@ -140,10 +139,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 backdrop-blur-sm p-4 sm:p-6">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+      <div
         className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl"
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
@@ -441,7 +437,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
             <Save size={16} /> {saving ? '保存中...' : '保存配置'}
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

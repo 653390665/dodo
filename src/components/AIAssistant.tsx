@@ -12,7 +12,6 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
 import X from 'lucide-react/dist/esm/icons/x.js';
 import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
 import { extractWorldSetupPhase } from '../lib/agents';
-import { motion, AnimatePresence } from '../lib/motion';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { listNovels } from '../lib/novel-client';
@@ -311,9 +310,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
         {/* Chat Messages */}
         <div className="space-y-4 pb-4">
           {messages.map((msg) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+            <div
               key={msg.id}
               className={cn(
                 "flex flex-col gap-2 p-4 rounded-2xl",
@@ -415,18 +412,16 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                   <p className="text-white m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
                 )}
               </div>
-            </motion.div>
+            </div>
           ))}
 
           {isLoading && (
             <div className="flex gap-3 p-4 bg-theme-sidebar/10 border border-theme-border/20 rounded-2xl items-center">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              <div
                 className="text-theme-accent"
               >
                 <Sparkles size={16} />
-              </motion.div>
+              </div>
               <span className="text-[11px] font-serif italic text-theme-muted">正在编织灵感...</span>
             </div>
           )}
@@ -457,19 +452,12 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       </div>
 
       {/* Save Modal */}
-      <AnimatePresence>
-        {showSaveModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {showSaveModal && (
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
             onClick={() => setShowSaveModal(null)}
           >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+            <div
               onClick={e => e.stopPropagation()}
               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             >
@@ -512,24 +500,16 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
               >
                 取消
               </button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
       {/* Extract Modal */}
-      <AnimatePresence>
-        {showExtractModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {showExtractModal && (
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
             onClick={() => !isExtracting && setShowExtractModal(null)}
           >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+            <div
               onClick={e => e.stopPropagation()}
               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
             >
@@ -574,10 +554,9 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
               >
                 取消
               </button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

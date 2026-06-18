@@ -1,6 +1,5 @@
 import { useState } from 'react';import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
 import Zap from 'lucide-react/dist/esm/icons/zap.js';
-import { motion } from '../../lib/motion';
 import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { cn } from '../../lib/utils';
 import type { Skill, Novel } from '../../types';
@@ -18,9 +17,8 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
   const [showEquipMenu, setShowEquipMenu] = useState(false);
 
   return (
-    <motion.button
+    <button
       type="button"
-      whileHover={{ y: -4 }}
       onClick={onOpen}
       className={cn(
         'group bg-white rounded-2xl p-6 border shadow-sm flex flex-col text-left relative overflow-hidden',
@@ -99,6 +97,6 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
           </span>
         )}
       </div>
-    </motion.button>
+    </button>
   );
 }

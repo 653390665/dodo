@@ -26,7 +26,6 @@ import Shield from 'lucide-react/dist/esm/icons/shield.js';
 import Zap from 'lucide-react/dist/esm/icons/zap.js';
 import FileText from 'lucide-react/dist/esm/icons/file-text.js';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from '../lib/motion';
 import { extractWorldSetupPhase } from '../lib/agents';
 import { buildContinuationOverviewState } from '../lib/continuation-overview';
 import { buildCreationIntentDraft } from '../lib/continuation-pack';
@@ -387,21 +386,13 @@ export function WorldBibleView({
           )}
 
           {/* Setup Assistant Drawer */}
-          <AnimatePresence>
-            {isAssistantOpen && (
+          {isAssistantOpen && (
               <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                <div
                   onClick={() => setIsAssistantOpen(false)}
                   className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
                 />
-                <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                <div
                   className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
                 >
                   <SetupAssistantPanel
@@ -413,10 +404,9 @@ export function WorldBibleView({
                     submitting={onboarding.assistantLoading}
                     onClose={() => setIsAssistantOpen(false)}
                   />
-                </motion.div>
+                </div>
               </>
             )}
-          </AnimatePresence>
         </div>
       </div>
     );
@@ -481,9 +471,8 @@ export function WorldBibleView({
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 relative">
-          <AnimatePresence mode="wait">
-            {activeTab === 'overview' && (
-              <motion.div key="overview" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+          {activeTab === 'overview' && (
+              <div key="overview">
                 <ContinuationOverviewPanel
                   state={overviewState}
                   onImport={() => setActiveTab('pack-management')}
@@ -499,11 +488,11 @@ export function WorldBibleView({
                     onEnterStoryboard?.(packId, prefillIntent || (pack ? buildCreationIntentDraft(pack) : undefined));
                   }}
                 />
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'global' && (
-              <motion.div key="global" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}} className="max-w-4xl mx-auto space-y-8">
+              <div key="global" className="max-w-4xl mx-auto space-y-8">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
@@ -526,11 +515,11 @@ export function WorldBibleView({
                     className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
                   />
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'timeline' && (
-              <motion.div key="timeline" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-4xl mx-auto space-y-6">
+              <div key="timeline" className="max-w-4xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">纪元与时间线</h2>
                   <button onClick={() => addEntity('timeline')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增时间节点</button>
@@ -607,11 +596,11 @@ export function WorldBibleView({
                      <div className="text-center py-12 text-theme-muted text-sm italic">暂无时间节点，点击“新增时间节点”开始记录。</div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'characters' && (
-              <motion.div key="chars" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+              <div key="chars" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">登场人物</h2>
                   <button onClick={() => addEntity('character')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增角色</button>
@@ -643,11 +632,11 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'locations' && (
-              <motion.div key="locs" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+              <div key="locs" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">地点与副本</h2>
                   <button onClick={() => addEntity('location')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增地点</button>
@@ -665,11 +654,11 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'items' && (
-              <motion.div key="items" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+              <div key="items" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">道具与物品</h2>
                   <button onClick={() => addEntity('item')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增道具</button>
@@ -684,11 +673,11 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'factions' && (
-              <motion.div key="factions" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+              <div key="factions" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">势力设定</h2>
                   <button onClick={() => addEntity('faction')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增势力</button>
@@ -706,17 +695,17 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'pack-management' && (
-              <motion.div key="pack-management" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div key="pack-management">
                 <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} />
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'powerLevels' && (
-              <motion.div key="powerLevels" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="max-w-6xl mx-auto space-y-6">
+              <div key="powerLevels" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-theme-text font-serif">境界/力量体系</h2>
                   <button onClick={() => addEntity('powerLevel')} className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"><Plus size={16}/>新增境界</button>
@@ -740,9 +729,8 @@ export function WorldBibleView({
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
       </div>
     </div>

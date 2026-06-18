@@ -7,7 +7,6 @@ import { Foreshadowing, Chapter } from '../types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
-import { motion } from '../lib/motion';
 
 const STATUS_CONFIG = {
   planted: { label: '已埋设', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -167,7 +166,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       {/* Foreshadowing list */}
       <div className="space-y-2">
         {filtered.map(f => (
-          <motion.div key={f.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <div key={f.id}
             className="bg-white rounded-xl border border-theme-border/40 shadow-sm p-3 group">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
@@ -186,7 +185,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
                 <Trash2 size={12} />
               </button>
             </div>
-          </motion.div>
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 text-xs text-theme-muted opacity-50">

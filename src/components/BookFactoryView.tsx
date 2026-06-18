@@ -5,7 +5,6 @@ import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import { motion } from '../lib/motion';
 import { listNovels, updateNovel } from '../lib/novel-client';
 import { createSkill } from '../lib/skill-client';
 import { extractSkill, checkSkillExtractionJob } from '../lib/prompt-client';
@@ -614,9 +613,7 @@ export function BookFactoryView() {
                   spellCheck={false}
                 />
               ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                <div
                   className="space-y-6"
                 >
                   <div className="bg-theme-sidebar/20 p-4 rounded-xl border border-theme-border/50">
@@ -1014,7 +1011,7 @@ export function BookFactoryView() {
                       </div>
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
