@@ -114,7 +114,7 @@ export async function parseContinuationPack(payload: {
     body: JSON.stringify(payload),
   });
   const raw = await res.text();
-  let data: any = {};
+  let data: any;
   try {
     data = raw ? JSON.parse(raw) : {};
   } catch {

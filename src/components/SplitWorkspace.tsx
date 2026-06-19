@@ -37,6 +37,7 @@ export function SplitWorkspace({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing derived state from props
     setSplitRatio(FOCUS_SPLIT_RATIOS[focus]);
   }, [focus]);
 

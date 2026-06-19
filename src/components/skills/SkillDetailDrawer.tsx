@@ -62,6 +62,7 @@ export function SkillDetailDrawer({
   const [fusionPreview, setFusionPreview] = useState<Skill | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing state from props
     setDraft(buildDraft(skill));
     setUsageStats(skill?.usageStats || null);
     setFusionPreview(null);
@@ -69,6 +70,7 @@ export function SkillDetailDrawer({
 
   useEffect(() => {
     if (!skill) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on skill clear
       setVersions([]);
       setUsageStats(null);
       return;

@@ -13,7 +13,7 @@ async function call(method: string, ...args: any[]): Promise<any> {
 }
 
 let globalEventSource: EventSource | null = null;
-let globalListeners = new Set<() => void>();
+const globalListeners = new Set<() => void>();
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectDelay = 3000;
 

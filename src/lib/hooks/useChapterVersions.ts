@@ -9,6 +9,7 @@ export function useChapterVersions(currentChapterId?: string) {
 
   useEffect(() => {
     if (!currentChapterId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state when chapter cleared
       setVersions([]);
       return;
     }

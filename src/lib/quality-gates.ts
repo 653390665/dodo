@@ -257,7 +257,7 @@ export function skillCardIsGeneric(skill: Record<string, unknown>): { isGeneric:
  * Skips common stop characters and function words.
  */
 export function extractAnchoringKeywords(text: string, maxKeywords: number = 12): string[] {
-  const cleaned = text.replace(/[，,。！？、；：""''（）\(\)\s\n\r]+/g, '');
+  const cleaned = text.replace(/[，,。！？、；：""''（）()\s\n\r]+/g, '');
   if (cleaned.length < 4) return [];
 
   // Extract bigrams and trigrams, skip pure function-word combinations

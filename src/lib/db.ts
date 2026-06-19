@@ -7,10 +7,10 @@ import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEve
 import { calculateFeedbackScore, summarizeUsageStats } from './skill-model';
 import { buildImportedNovelDraft } from './continuation-import-flow';
 
-declare var __CJS_BUNDLE__: boolean | undefined;
+declare const __CJS_BUNDLE__: boolean | undefined;
 
 const req = typeof __CJS_BUNDLE__ !== 'undefined'
-  // @ts-ignore - require is a CJS global, available when __CJS_BUNDLE__ is defined
+  // eslint-disable-next-line no-undef
   ? require
   : createRequire(import.meta.url);
 const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {

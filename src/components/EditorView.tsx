@@ -203,6 +203,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   }, [currentChapter, currentChapter?.id, resetUndoHistory]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sidebar on novel change
     setIsAgentSidebarOpen(false);
   }, [novel?.id]);
 
@@ -310,6 +311,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (!launchState?.approvedPackId || hasConsumedContinuationLaunchUiRef.current) return;
     if (isEditorDataLoading) return;
     hasConsumedContinuationLaunchUiRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time state sync on launch
     setIsAgentSidebarOpen(true);
     setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
 
@@ -451,6 +453,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     recordSkillUsage,
     formatAiFailure,
   });
+  // eslint-disable-next-line react-hooks/refs -- syncing value to ref for use in callbacks
   isGeneratingContentRef.current = isGeneratingContent;
 
   const isAnyGenerating =

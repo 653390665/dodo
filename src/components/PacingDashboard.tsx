@@ -14,6 +14,7 @@ export function PacingDashboard({ novelId }: Props) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => setChapters(await listChapters(novelId)), [novelId]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAnalyze = async () => {

@@ -6,7 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@1d24214f2cd4e8b4137158ca9cf941a3693f2f58 # v4.2.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
   mac:
+    needs: [check]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -35,6 +48,7 @@ jobs:
           path: release/InkFlow-*-mac-*.dmg
 
   win:
+    needs: [check]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

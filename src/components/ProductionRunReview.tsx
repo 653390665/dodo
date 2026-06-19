@@ -74,6 +74,7 @@ export function ProductionRunReview({
   }, [novelId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount
     loadHistory();
   }, [novelId, loadHistory]);
 
@@ -88,6 +89,7 @@ export function ProductionRunReview({
   // Reload history when run status changes to 'applied'
   useEffect(() => {
     if (displayRun?.status === 'applied') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on status change
       loadHistory();
     }
   }, [displayRun?.status, loadHistory]);

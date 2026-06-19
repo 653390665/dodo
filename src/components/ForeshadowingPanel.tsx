@@ -32,6 +32,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
     setItems(await listForeshadowings(novelId));
     setChapters(await listChapters(novelId));
   }, [novelId]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAdd = async () => {

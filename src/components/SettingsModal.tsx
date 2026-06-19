@@ -60,6 +60,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   }, [isOpen]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on template change
     setTestOutput('');
     setTestError(null);
     setPromptPreview('');

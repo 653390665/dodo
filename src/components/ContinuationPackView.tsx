@@ -30,6 +30,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
     if (!initialActivePackId) return;
     const matchedPack = packs.find((pack) => pack.id === initialActivePackId);
     if (matchedPack) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing derived state from props
       setActivePack(matchedPack);
     }
   }, [initialActivePackId, packs]);

@@ -257,7 +257,7 @@ export default function App() {
     if (!activePlanning) {
       throw new Error('缺少创作规划，无法创建作品。');
     }
-    const newNovelId = Date.now().toString();
+    const newNovelId = crypto.randomUUID();
     const now = Date.now();
     const newNovel: Novel = {
       id: newNovelId,

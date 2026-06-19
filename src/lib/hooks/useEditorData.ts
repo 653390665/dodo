@@ -97,6 +97,7 @@ export function useEditorData(novelId: string) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- set loading state before fetch
     setIsLoading(true);
     fetchAll();
     const unsubscribe = subscribeToChanges(fetchAll);

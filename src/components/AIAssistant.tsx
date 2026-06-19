@@ -66,6 +66,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
   useEffect(() => {
     if (!launchContext) return;
     const seededPrompt = buildAssistantSeedPrompt(launchContext);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing props to state on context change
     setMessages((prev) => {
       const withoutSeed = prev.filter((message) => message.id !== 'workspace-seed');
       return [
@@ -90,6 +91,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     const prompt = customPrompt || input;
     if (!prompt.trim() || isLoading) return;
 
+    // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: prompt };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -97,6 +99,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
 
     try {
       const result = await generateInspiration(prompt, promptSurface);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result || '未能生成灵感，请重试。' };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
@@ -115,6 +118,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
 
     setIsSavingToNovel(true);
     try {
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const now = Date.now();
       await createChapter({
         id: now.toString(),
@@ -142,12 +146,14 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     setIsExtracting(true);
     try {
       const extracted = await extractWorldSetupPhase(content);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const now = Date.now();
 
       let count = 0;
       if (extracted.characters) {
         for (const char of extracted.characters) {
            await createCharacter({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
              name: char.name,
@@ -164,6 +170,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       if (extracted.locations) {
         for (const loc of extracted.locations) {
            await createLocation({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
              name: loc.name,
@@ -178,6 +185,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       if (extracted.items) {
         for (const item of extracted.items) {
            await createItem({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
              name: item.name,

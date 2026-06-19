@@ -4,6 +4,7 @@ import { initDb } from './src/lib/db';
 import * as db from './src/lib/db';
 import { getConfig, getLastConfigError, reloadConfig, saveConfig } from './src/lib/config';
 import { generateText } from './src/lib/server-llm';
+import { generateId } from './server/id.ts';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from './src/config/souls.js';
 import { mergePromptTemplates, type PromptTemplateKey } from './src/config/prompt-templates';
 import { buildRewritePrompt } from './src/lib/rewrite-prompt';
@@ -51,6 +52,8 @@ import { collectSegmentEvidence } from './src/lib/book-skill-evidence';
 import { buildContinuationContext, classifyContinuationSource } from './src/lib/continuation-pack';
 import { assessStorySeedQuality, sanitizeIdeaSeed } from './src/lib/story-seed';
 import type { SegmentSkillEvidence, StoryIdeaCard } from './src/types';
+import { authMiddleware } from './server/middleware/auth';
+import { validate, dbSchema, configSchema, extractSkillSchema, storyCardsSchema, chapterProductionSchema } from './server/validation';
 
 // Initialize local database on startup
 initDb();
@@ -68,7 +71,7 @@ const STORY_CARD_JOB_TTL_MS = 10 * 60_000;
 const storyCardJobs = new Map<string, StoryCardJob>();
 
 function createStoryCardJob(task: Promise<StoryIdeaCard[]>): string {
-  const jobId = `story-cards-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const jobId = `story-cards-${generateId()}`;
   storyCardJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
 
   task
@@ -111,7 +114,7 @@ function createSkillExtractionJob(task: Promise<{
   warnings: string[];
   quality: any;
 }>): string {
-  const jobId = `skill-extract-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const jobId = `skill-extract-${generateId()}`;
   skillExtractionJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
 
   task
@@ -515,7 +518,7 @@ function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryIdeaCard[
   const tones = ['冷峻悬疑', '热血逆袭', '慢热铺陈'];
 
   return validCards.map((card: any, i: number) => ({
-    id: `model-card-${Date.now()}-${i + 1}`,
+    id: `model-card-${generateId()}`,
     hook: card.hook || '',
     protagonist: card.protagonist || '',
     coreConflict: card.coreConflict || '',
@@ -818,6 +821,9 @@ async function startServer() {
     next();
   });
 
+  // Auth middleware for API routes
+  app.use('/api', authMiddleware);
+
   // DB method whitelist — only methods used by the frontend are allowed
   const DB_WHITELIST = new Set([
     'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
@@ -838,7 +844,7 @@ async function startServer() {
   ]);
 
   // DB proxy — only exposes whitelisted methods
-  app.post('/api/db', (req, res) => {
+  app.post('/api/db', validate(dbSchema), (req, res) => {
     const { method, args = [] } = req.body;
     if (!DB_WHITELIST.has(method)) {
       return res.status(400).json({ error: `Unknown method: ${method}` });
@@ -893,7 +899,7 @@ async function startServer() {
     });
   });
 
-  app.post('/api/config', (req, res) => {
+  app.post('/api/config', validate(configSchema), (req, res) => {
     const { apiKey, baseUrl, model, promptTemplates } = req.body;
     const existing = getConfig();
     saveConfig({
@@ -960,7 +966,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/story-cards', async (req, res) => {
+  app.post('/api/story-cards', validate(storyCardsSchema), async (req, res) => {
     try {
       const { ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
       const ideaSeed = sanitizeIdeaSeed(rawSeed) || rawSeed.trim();
@@ -1331,7 +1337,7 @@ ${text.substring(0, 30000)}
       }
 
       const now = Date.now();
-      const packId = `cont-pack-${now}`;
+      const packId = `cont-pack-${generateId()}`;
       const pack = {
         id: packId,
         novelId,
@@ -1483,14 +1489,6 @@ ${text.substring(0, 30000)}
       },
     };
   }
-
-function parseJsonOrEmptyReport(raw: string) {
-  try {
-    return extractContinuityReportJson(raw);
-  } catch {
-    return normalizeContinuityReport(buildEmptyContinuityReport());
-  }
-}
 
   app.post('/api/orchestrate', async (req, res) => {
     const {
@@ -1650,7 +1648,7 @@ function parseJsonOrEmptyReport(raw: string) {
     }
   });
 
-  app.post('/api/chapter-production-runs/start', async (req, res) => {
+  app.post('/api/chapter-production-runs/start', validate(chapterProductionSchema), async (req, res) => {
     let runId: string | null = null;
     try {
       const { novelId = '', targetChapterId = '', userIntent = '', continuationPackId = '', surface = 'workspace-draft' } = req.body;
@@ -1699,7 +1697,7 @@ function parseJsonOrEmptyReport(raw: string) {
       const plannerContext = buildProductionPlannerContext(ledger);
       const writerContext = buildProductionWriterContext(ledger);
       const intent = normalizeProductionIntent(userIntent);
-      runId = Date.now().toString();
+      runId = generateId();
       const now = Date.now();
       const baseRun = {
         id: runId,
@@ -1731,131 +1729,6 @@ function parseJsonOrEmptyReport(raw: string) {
       });
 
       return res.json({ run: db.getChapterProductionRun(runId) });
-
-      const plannerAsset = resolvePromptAssetForSurface({
-        surface: 'workspace-beats',
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'editorAgent',
-      });
-      const layeredContext = [
-        `【世界观(L1)】${layered.world}`,
-        `【当前卷(L2)】${layered.currentArc}`,
-        `【最近章节(L3)】${layered.recentChapters}`,
-      ].join('\n\n');
-      const productionPromptContexts = buildProductionPromptContexts({
-        layeredContext,
-        plannerContext,
-        writerContext,
-        continuationPackContext: packContext,
-      });
-      const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
-        PLANNER_SOUL,
-        contextStr: productionPromptContexts.planner,
-        userIntent: intent,
-      });
-      let sceneBeats = '';
-      try {
-        sceneBeats = await generateText(getConfig(), {
-          prompt: plannerPrompt,
-          timeoutMs: 30_000,
-          maxAttempts: 1,
-          maxTokens: 1600,
-        });
-      } catch (error) {
-        console.warn('Chapter production planner fell back:', error);
-        sceneBeats = buildFallbackSceneBeats(intent);
-      }
-      db.updateChapterProductionRun(runId, {
-        sceneBeats,
-      });
-
-      const writerAsset = resolvePromptAssetForSurface({
-        surface,
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'orchestrateWriter',
-      });
-      const writerPrompt = renderPromptTemplate(writerAsset.template, {
-        WRITER_SOUL,
-        contextStr: productionPromptContexts.writer,
-        skillsInfo: buildSkillsPrompt(skills),
-        sceneBeats,
-        criticFeedback: '初稿阶段，请全力输出。',
-      });
-      let draftContent = '';
-      try {
-        draftContent = await generateText(getConfig(), {
-          prompt: writerPrompt,
-          timeoutMs: 60_000,
-          maxAttempts: 1,
-          maxTokens: 8192,
-        });
-        draftContent = ensureMinimumDraftLength(draftContent, sceneBeats, writerContext);
-      } catch (error) {
-        console.warn('Chapter production writer fell back:', error);
-        draftContent = buildFallbackDraft(sceneBeats, writerContext);
-      }
-      db.updateChapterProductionRun(runId, {
-        sceneBeats,
-        draftContent,
-      });
-
-      const styleAuditAsset = resolvePromptAssetForSurface({
-        surface: 'chapter-polish',
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'manualAudit',
-      });
-      const styleAuditPrompt = renderPromptTemplate(styleAuditAsset.template, {
-        contextStr: ledgerSummary.slice(0, 1200),
-        skillsInfo: buildSkillsPrompt(skills).slice(0, 900),
-        sceneBeats: sceneBeats.slice(0, 1400),
-        draftContent: draftContent.slice(0, 2600),
-      });
-      let styleAudit = '';
-      try {
-        styleAudit = await generateText(getConfig(), {
-          prompt: styleAuditPrompt,
-          timeoutMs: 20_000,
-          maxAttempts: 1,
-          maxTokens: 800,
-        });
-      } catch (error) {
-        console.warn('Chapter production style audit fell back:', error);
-        styleAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
-      }
-      db.updateChapterProductionRun(runId, {
-        sceneBeats,
-        draftContent,
-        styleAudit,
-      });
-
-      const continuityPrompt = buildContinuityCriticPrompt({
-        ledger,
-        sceneBeats,
-        draftContent,
-      });
-      let continuityReport = buildEmptyContinuityReport();
-      try {
-        const rawContinuity = await generateText(getConfig(), {
-          prompt: continuityPrompt,
-          timeoutMs: 20_000,
-          maxAttempts: 1,
-          maxTokens: 1200,
-        });
-        continuityReport = parseJsonOrEmptyReport(rawContinuity);
-      } catch (error) {
-        console.warn('Chapter production continuity critic fell back:', error);
-      }
-
-      const run = {
-        status: 'review_required' as const,
-        sceneBeats,
-        draftContent,
-        styleAudit,
-        continuityReport,
-      };
-
-      db.updateChapterProductionRun(runId, run);
-      res.json({ run: db.getChapterProductionRun(runId) });
     } catch (e) {
       console.error(e);
       const message = e instanceof Error ? e.message : String(e);
@@ -1966,7 +1839,7 @@ function parseJsonOrEmptyReport(raw: string) {
       const plannerContext = buildProductionPlannerContext(ledger);
       const writerContext = buildProductionWriterContext(ledger);
       const intent = normalizeProductionIntent(userIntent);
-      runId = Date.now().toString();
+      runId = generateId();
       const now = Date.now();
 
       const baseRun = {
@@ -2017,156 +1890,6 @@ function parseJsonOrEmptyReport(raw: string) {
       clearInterval(heartbeat);
       res.end();
       return;
-
-      // ============================================================
-      // Phase 2: Model calls (stream results as they arrive)
-      // ============================================================
-
-      // --- Planner ---
-      const plannerAsset = resolvePromptAssetForSurface({
-        surface: 'workspace-beats',
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'editorAgent',
-      });
-      const layeredContext = [
-        `【世界观(L1)】${layered.world}`,
-        `【当前卷(L2)】${layered.currentArc}`,
-        `【最近章节(L3)】${layered.recentChapters}`,
-      ].join('\n\n');
-      const productionPromptContexts = buildProductionPromptContexts({
-        layeredContext,
-        plannerContext,
-        writerContext,
-        continuationPackContext: packContext,
-      });
-      const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
-        PLANNER_SOUL,
-        contextStr: productionPromptContexts.planner,
-        userIntent: intent,
-      });
-
-      let modelBeats = fallbackBeats;
-      try {
-        sseWrite(res, { type: 'status', message: 'AI 正在规划分镜...' });
-        modelBeats = await generateText(getConfig(), {
-          prompt: plannerPrompt,
-          timeoutMs: 30_000,
-          maxAttempts: 1,
-          maxTokens: 1600,
-          signal: clientAbortController.signal,
-        });
-        sseWrite(res, { type: 'model_beats', content: modelBeats });
-        db.updateChapterProductionRun(runId, { sceneBeats: modelBeats });
-      } catch (error) {
-        console.warn('Chapter production stream planner fell back:', error);
-        sseWrite(res, { type: 'status', message: '分镜模型响应过慢，继续使用保底分镜。' });
-      }
-
-      // --- Writer ---
-      const writerAsset = resolvePromptAssetForSurface({
-        surface,
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'orchestrateWriter',
-      });
-      const writerPrompt = renderPromptTemplate(writerAsset.template, {
-        WRITER_SOUL,
-        contextStr: productionPromptContexts.writer,
-        skillsInfo: buildSkillsPrompt(skills),
-        sceneBeats: modelBeats,
-        criticFeedback: '初稿阶段，请全力输出。',
-      });
-
-      let modelDraft = fallbackDraft;
-      try {
-        sseWrite(res, { type: 'status', message: 'AI 正在撰写正文...' });
-        modelDraft = await generateText(getConfig(), {
-          prompt: writerPrompt,
-          timeoutMs: 60_000,
-          maxAttempts: 1,
-          maxTokens: 8192,
-          signal: clientAbortController.signal,
-        });
-        modelDraft = ensureMinimumDraftLength(modelDraft, modelBeats, writerContext);
-        await emitTextAsTokensWithType(res, modelDraft, 'model_draft_token');
-        sseWrite(res, { type: 'model_draft_done' });
-        db.updateChapterProductionRun(runId, {
-          sceneBeats: modelBeats,
-          draftContent: modelDraft,
-        });
-      } catch (error) {
-        console.warn('Chapter production stream writer fell back:', error);
-        sseWrite(res, { type: 'status', message: '正文模型响应过慢，继续使用保底草稿。' });
-      }
-
-      // --- Style Audit ---
-      const styleAuditAsset = resolvePromptAssetForSurface({
-        surface: 'chapter-polish',
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'manualAudit',
-      });
-      const styleAuditPrompt = renderPromptTemplate(styleAuditAsset.template, {
-        contextStr: ledgerSummary.slice(0, 1200),
-        skillsInfo: buildSkillsPrompt(skills).slice(0, 900),
-        sceneBeats: modelBeats.slice(0, 1400),
-        draftContent: modelDraft.slice(0, 2600),
-      });
-
-      let modelAudit = fallbackAudit;
-      try {
-        sseWrite(res, { type: 'status', message: 'AI 正在审计文风...' });
-        modelAudit = await generateText(getConfig(), {
-          prompt: styleAuditPrompt,
-          timeoutMs: 20_000,
-          maxAttempts: 1,
-          maxTokens: 800,
-          signal: clientAbortController.signal,
-        });
-        sseWrite(res, { type: 'model_audit', content: modelAudit });
-        db.updateChapterProductionRun(runId, {
-          sceneBeats: modelBeats,
-          draftContent: modelDraft,
-          styleAudit: modelAudit,
-        });
-      } catch (error) {
-        console.warn('Chapter production stream style audit fell back:', error);
-      }
-
-      // --- Continuity ---
-      const continuityPrompt = buildContinuityCriticPrompt({
-        ledger,
-        sceneBeats: modelBeats,
-        draftContent: modelDraft,
-      });
-
-      let continuityReport = fallbackContinuity;
-      try {
-        sseWrite(res, { type: 'status', message: 'AI 正在检查连续性...' });
-        const rawContinuity = await generateText(getConfig(), {
-          prompt: continuityPrompt,
-          timeoutMs: 20_000,
-          maxAttempts: 1,
-          maxTokens: 1200,
-          signal: clientAbortController.signal,
-        });
-        continuityReport = parseJsonOrEmptyReport(rawContinuity);
-        sseWrite(res, { type: 'model_continuity', report: continuityReport });
-      } catch (error) {
-        console.warn('Chapter production stream continuity critic fell back:', error);
-      }
-
-      // --- Finalize ---
-      const finalRun = {
-        status: 'review_required' as const,
-        sceneBeats: modelBeats,
-        draftContent: modelDraft,
-        styleAudit: modelAudit,
-        continuityReport,
-      };
-      db.updateChapterProductionRun(runId, finalRun);
-
-      sseWrite(res, { type: 'done', run: db.getChapterProductionRun(runId) });
-      clearInterval(heartbeat);
-      res.end();
     } catch (e) {
       clearInterval(heartbeat);
       console.error('Chapter production stream fatal error:', e);
@@ -2240,7 +1963,7 @@ function parseJsonOrEmptyReport(raw: string) {
       const existingTimeline = db.listTimelineEvents(run.novelId);
       run.continuityReport.proposedPatch.timelineEventsToCreate.forEach((event, index) => {
         db.createTimelineEvent({
-          id: `${now + 10 + index}`,
+          id: generateId(),
           novelId: run.novelId,
           title: event.title,
           timestamp: event.timestamp,
@@ -2254,7 +1977,7 @@ function parseJsonOrEmptyReport(raw: string) {
 
       run.continuityReport.proposedPatch.foreshadowingsToCreate.forEach((entry, index) => {
         db.createForeshadowing({
-          id: `${now + 100 + index}`,
+          id: generateId(),
           novelId: run.novelId,
           title: entry.title,
           description: entry.description,
@@ -2456,7 +2179,7 @@ function parseJsonOrEmptyReport(raw: string) {
     };
   }
 
-  app.post('/api/extract-skill', async (req, res) => {
+  app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     try {
       const { text = '' } = req.body;
 
@@ -2896,7 +2619,7 @@ ${paragraphs}
   }
 
   const listen = (port: number) => {
-    const server = app.listen(port, "0.0.0.0", () => {
+    const server = app.listen(port, "127.0.0.1", () => {
       console.log(`Server running on http://localhost:${port}`);
       // In production (Electron), notify the main process of the port via stdout JSON
       if (process.env.NODE_ENV === 'production') {

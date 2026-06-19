@@ -154,41 +154,38 @@ export function useChapterProductionFlow({
       if (error instanceof Error && error.name === 'AbortError') return;
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {
-      if (productionAbortRef.current !== controller) {
-        return;
-      }
-      if (!productionCompletedRef.current) {
-        if (productionHasUsableDraftRef.current) {
-          setActiveProductionRun((prev) =>
-            prev && prev.status === 'running'
-              ? {
-                  ...prev,
-                  status: 'review_required',
-                  errorMessage: undefined,
-                }
-              : prev,
-          );
-          setProductionError(null);
-        } else {
-          const message = '生产连接已中断，请直接再次点击“开始生产一章”重试。';
-          setProductionError((current) => current || message);
-          setActiveProductionRun((prev) =>
-            prev && prev.status === 'running'
-              ? {
-                  ...prev,
-                  status: 'failed',
-                  errorMessage: prev.errorMessage || message,
-                }
-              : prev,
-          );
-        }
-      }
-      setIsProductionRunning(false);
-      setProductionStatusMessage(null);
-      productionDraftSourceRef.current = null;
-      productionCompletedRef.current = false;
-      productionHasUsableDraftRef.current = false;
       if (productionAbortRef.current === controller) {
+        if (!productionCompletedRef.current) {
+          if (productionHasUsableDraftRef.current) {
+            setActiveProductionRun((prev) =>
+              prev && prev.status === 'running'
+                ? {
+                    ...prev,
+                    status: 'review_required',
+                    errorMessage: undefined,
+                  }
+                : prev,
+            );
+            setProductionError(null);
+          } else {
+            const message = '生产连接已中断，请直接再次点击"开始生产一章"重试。';
+            setProductionError((current) => current || message);
+            setActiveProductionRun((prev) =>
+              prev && prev.status === 'running'
+                ? {
+                    ...prev,
+                    status: 'failed',
+                    errorMessage: prev.errorMessage || message,
+                  }
+                : prev,
+            );
+          }
+        }
+        setIsProductionRunning(false);
+        setProductionStatusMessage(null);
+        productionDraftSourceRef.current = null;
+        productionCompletedRef.current = false;
+        productionHasUsableDraftRef.current = false;
         productionAbortRef.current = null;
       }
     }

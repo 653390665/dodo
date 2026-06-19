@@ -94,7 +94,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
       if ('showDirectoryPicker' in window) {
         try {
-          // @ts-ignore
+          // @ts-expect-error showDirectoryPicker may not be in all TS lib types
           const dirHandle = await window.showDirectoryPicker();
           const fileHandle = await dirHandle.getFileHandle(`${novel.title}.txt`, { create: true });
           const writable = await fileHandle.createWritable();

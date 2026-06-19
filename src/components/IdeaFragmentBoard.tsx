@@ -42,6 +42,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
     setFragments(await listIdeaFragments(novelId));
   }, [novelId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAdd = async () => {
