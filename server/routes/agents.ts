@@ -101,7 +101,7 @@ export function registerAgentsRoutes(app: Express) {
             });
             results.push({ module, pass: text.includes('PASS'), text });
           } catch (chainErr) {
-            console.warn(`Chain module ${module} failed:`, chainErr);
+            logger.warn(`Chain module ${module} failed`, chainErr);
             results.push({ module, pass: false, text: '' });
           }
         }
@@ -127,7 +127,7 @@ export function registerAgentsRoutes(app: Express) {
           maxTokens: 1600,
         });
       } catch (error) {
-        console.warn('Editor agent fell back:', error);
+        logger.warn('Editor agent fell back', error);
         text = buildFallbackSceneBeats(userIntent);
       }
       res.json({ text });
@@ -202,7 +202,7 @@ export function registerAgentsRoutes(app: Express) {
           });
           currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
         } catch (error) {
-          console.warn('Writer generation fell back to local draft:', error);
+          logger.warn('Writer generation fell back to local draft', error);
           currentDraft = buildFallbackDraft(sceneBeats, contextStr);
           res.write(`data: ${JSON.stringify({
             type: 'status',
@@ -289,7 +289,7 @@ export function registerAgentsRoutes(app: Express) {
         });
         text = ensureMinimumDraftLength(text, sceneBeats, contextStr);
       } catch (error) {
-        console.warn('Writer generation fell back to local draft:', error);
+        logger.warn('Writer generation fell back to local draft', error);
         text = buildFallbackDraft(sceneBeats, contextStr);
       }
 

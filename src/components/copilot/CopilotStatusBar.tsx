@@ -1,4 +1,3 @@
-import { ChevronRight, Sparkles } from 'lucide-react';
 
 
 import type { CopilotActionKey, CopilotSuggestion } from '../../../shared/types';

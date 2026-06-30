@@ -1,5 +1,6 @@
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
+import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
 import { renderPromptTemplate, buildSkillsPrompt } from './prompt-helpers';
 import {
@@ -95,7 +96,7 @@ export async function runProductionPipeline(params: {
       signal: progress.signal,
     });
   } catch (err) {
-    console.warn('Planner fell back to deterministic beats:', err);
+    logger.warn('Planner fell back to deterministic beats', err);
     sceneBeats = buildFallbackSceneBeats(userIntent);
   }
 
@@ -139,7 +140,7 @@ export async function runProductionPipeline(params: {
       });
       currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
     } catch (err) {
-      console.warn('Writer fell back to deterministic draft:', err);
+      logger.warn('Writer fell back to deterministic draft', err);
       currentDraft = buildFallbackDraft(sceneBeats, contextStr);
       // Emit tokens for fallback draft
       const chunks = currentDraft.match(/.{1,24}/gs) || [];
@@ -174,7 +175,7 @@ export async function runProductionPipeline(params: {
         signal: progress.signal,
       });
     } catch (err) {
-      console.warn('Critic fell back — accepting draft:', err);
+      logger.warn('Critic fell back — accepting draft', err);
       criticFeedback = 'PASS (critic unavailable — accepting draft)';
     }
 

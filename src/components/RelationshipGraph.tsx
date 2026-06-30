@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { EntityRelationship } from '../../shared/types';
 import type { Character, Location, Item, Faction } from '../../shared/types';
 
@@ -45,60 +45,64 @@ function getEntityName(type: string, id: string, characters: Character[], locati
 
 export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity }: RelationshipGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
-  useEffect(() => {
+  const { nodes, edges } = useMemo(() => {
     // Build node set from relationships
     const nodeMap = new Map<string, GraphNode>();
     for (const rel of relationships) {
       const sKey = `${rel.sourceType}:${rel.sourceId}`;
       if (!nodeMap.has(sKey)) {
+        const index = nodeMap.size;
         nodeMap.set(sKey, {
           id: sKey,
           label: getEntityName(rel.sourceType, rel.sourceId, characters, locations, items, factions),
           type: rel.sourceType,
-          x: Math.random() * 400 + 50,
-          y: Math.random() * 300 + 50,
+          x: 50 + (index * 77) % 400,
+          y: 50 + (index * 53) % 300,
           vx: 0, vy: 0,
         });
       }
       const tKey = `${rel.targetType}:${rel.targetId}`;
       if (!nodeMap.has(tKey)) {
+        const index = nodeMap.size;
         nodeMap.set(tKey, {
           id: tKey,
           label: getEntityName(rel.targetType, rel.targetId, characters, locations, items, factions),
           type: rel.targetType,
-          x: Math.random() * 400 + 50,
-          y: Math.random() * 300 + 50,
+          x: 50 + (index * 77) % 400,
+          y: 50 + (index * 53) % 300,
           vx: 0, vy: 0,
         });
       }
     }
 
     const nodeList = Array.from(nodeMap.values());
-    const edgeList: GraphEdge[] = relationships.map((r) => ({
-      source: `${r.sourceType}:${r.sourceId}`,
-      target: `${r.targetType}:${r.targetId}`,
-      type: r.relationshipType,
-      description: r.description || '',
+    const edgeList: GraphEdge[] = relationships.map((rel) => ({
+      source: `${rel.sourceType}:${rel.sourceId}`,
+      target: `${rel.targetType}:${rel.targetId}`,
+      type: rel.relationshipType,
+      description: rel.description || '',
     }));
 
-    // Simple force simulation
+    // Simple Force Directed Simulation (50 iterations)
     const simNodes = nodeList.map((n) => ({ ...n }));
-    for (let iter = 0; iter < 100; iter++) {
-      // Repulsion between all pairs
+    for (let iter = 0; iter < 50; iter++) {
+      // Repulsion between all nodes
       for (let i = 0; i < simNodes.length; i++) {
         for (let j = i + 1; j < simNodes.length; j++) {
           const dx = simNodes[j].x - simNodes[i].x;
           const dy = simNodes[j].y - simNodes[i].y;
           const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-          const f = 500 / (d * d);
-          simNodes[i].vx -= (dx / d) * f;
-          simNodes[i].vy -= (dy / d) * f;
-          simNodes[j].vx += (dx / d) * f;
-          simNodes[j].vy += (dy / d) * f;
+          if (d < 150) {
+            const force = (150 - d) * 0.05;
+            const fx = (dx / d) * force;
+            const fy = (dy / d) * force;
+            simNodes[i].vx -= fx;
+            simNodes[i].vy -= fy;
+            simNodes[j].vx += fx;
+            simNodes[j].vy += fy;
+          }
         }
       }
       // Attraction along edges
@@ -109,11 +113,13 @@ export function RelationshipGraph({ relationships, characters, locations, items,
         const dx = simNodes[ti].x - simNodes[si].x;
         const dy = simNodes[ti].y - simNodes[si].y;
         const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-        const f = d * 0.01;
-        simNodes[si].vx += (dx / d) * f;
-        simNodes[si].vy += (dy / d) * f;
-        simNodes[ti].vx -= (dx / d) * f;
-        simNodes[ti].vy -= (dy / d) * f;
+        const force = d * 0.01;
+        const fx = (dx / d) * force;
+        const fy = (dy / d) * force;
+        simNodes[si].vx += fx;
+        simNodes[si].vy += fy;
+        simNodes[ti].vx -= fx;
+        simNodes[ti].vy -= fy;
       }
       // Center gravity + damping
       for (const n of simNodes) {
@@ -124,8 +130,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
       }
     }
 
-    setNodes(simNodes);
-    setEdges(edgeList);
+    return { nodes: simNodes, edges: edgeList };
   }, [relationships, characters, locations, items, factions]);
 
   if (relationships.length === 0) {

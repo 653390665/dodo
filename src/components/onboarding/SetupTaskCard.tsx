@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { SetupTaskDraft } from '../../../shared/types';
 
 interface SetupTaskCardProps {
@@ -21,7 +22,7 @@ const STATUS_CLASS: Record<SetupTaskDraft['status'], string> = {
   'needs-work': 'bg-amber-50 text-amber-700',
 };
 
-export function SetupTaskCard({ task, active, onSelect, onConfirm }: SetupTaskCardProps) {
+export const SetupTaskCard = memo(function SetupTaskCard({ task, active, onSelect, onConfirm }: SetupTaskCardProps) {
   return (
     <article
       className={`rounded-3xl border p-5 shadow-sm transition-colors ${
@@ -52,4 +53,4 @@ export function SetupTaskCard({ task, active, onSelect, onConfirm }: SetupTaskCa
       </div>
     </article>
   );
-}
+});

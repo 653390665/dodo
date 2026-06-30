@@ -6,6 +6,7 @@
 import { pipeline } from '@xenova/transformers';
 import { generateText, generateEmbedding } from './lib/server-llm';
 import { getConfig } from './lib/config';
+import { logger } from './logger';
 
 let embedPipeline: any = null;
 let initPromise: Promise<void> | null = null;
@@ -17,9 +18,9 @@ async function ensurePipeline(): Promise<void> {
   initPromise = (async () => {
     try {
       embedPipeline = await pipeline('feature-extraction', 'Xenova/bge-small-zh-v1.5');
-      console.log('Embedding pipeline ready (local WASM)');
+      logger.info('Embedding pipeline ready (local WASM)');
     } catch (e) {
-      console.warn('Local embedding pipeline failed, will use LLM fallback:', e);
+      logger.warn('Local embedding pipeline failed, will use LLM fallback', e);
       embedPipeline = null;
     }
   })();
@@ -40,7 +41,7 @@ export async function embed(text: string): Promise<number[]> {
   try {
     return await generateEmbedding(config, text);
   } catch (e) {
-    console.error('LLM embedding fallback failed:', e);
+    logger.error('LLM embedding fallback failed', e);
     throw new Error('Failed to generate embedding from LLM fallback');
   }
 }

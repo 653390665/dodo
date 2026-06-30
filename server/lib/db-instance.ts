@@ -5,6 +5,7 @@
  * between initDb (which creates the instance) and CRUD functions (which use it).
  */
 import type BetterSqlite3 from 'better-sqlite3';
+import { logger } from '../logger';
 
 /** The SQLite database singleton. Undefined until initDb() is called. */
 let db: BetterSqlite3.Database | undefined;
@@ -71,7 +72,7 @@ export function notify(): void {
     try {
       fn(initiator);
     } catch (e) {
-      console.error('db: listener error', e);
+      logger.error('db: listener error', e);
     }
   }
 }

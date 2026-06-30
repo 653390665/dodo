@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { AlertCircle, Compass, TrendingUp, Zap } from 'lucide-react';
 
-import type { Skill, SkillDimension, CardSourceKind } from '../../../shared/types';
+import type { Skill, SkillDimension } from '../../../shared/types';
 
 const DIMENSION_LABELS: Record<SkillDimension, string> = {
   style: '文风',

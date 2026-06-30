@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { logger } from '../logger';
 import crypto from 'crypto';
 import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
 import type { PromptTemplateKey } from '../../shared/types';
@@ -170,7 +171,7 @@ export function loadConfig(): AppConfig {
     }
   } catch (e) {
     lastConfigError = e instanceof Error ? e.message : String(e);
-    console.error('Config file corrupt, using defaults:', lastConfigError);
+    logger.error('Config file corrupt, using defaults', lastConfigError);
   }
   return { ...defaults };
 }

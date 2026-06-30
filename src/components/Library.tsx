@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { BookMarked, Clock, Download, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { BookMarked, Clock, Download, Plus, Search, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { Novel, Chapter, ViewType } from '../../shared/types';
+import { Novel, ViewType } from '../../shared/types';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
