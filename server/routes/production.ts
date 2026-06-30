@@ -17,9 +17,7 @@ import {
 import { buildFallbackSceneBeats, buildFallbackDraft } from '../helpers/fallback-draft';
 import { buildEmptyContinuityReport, buildContractPrompt } from '../helpers/production-helpers';
 import { recordChapterDecision } from '../../src/lib/preference-flywheel';
-import { addChunk, searchSimilar } from '../vector-store';
-import { embed } from '../embedding';
-import { buildEventConstraints, updateEventState, defaultEventState } from '../../src/lib/event-cooldown';
+import { addChunk } from '../vector-store';
 import { summarizeChapterDecisions } from '../../src/lib/preference-flywheel';
 import { runProductionPipeline } from '../helpers/ai-production-pipeline';
 import { buildContinuationContext } from '../../src/lib/continuation-pack';
@@ -45,7 +43,7 @@ export function registerProductionRoutes(app: Express) {
     }
     let runId: string | null = null;
     try {
-      const { novelId = '', targetChapterId = '', userIntent = '', continuationPackId = '', surface = 'workspace-draft', activeEntityNames } = req.body;
+      const { novelId = '', targetChapterId = '', userIntent = '', activeEntityNames } = req.body;
       if (!novelId.trim()) {
         return res.status(400).json({ error: 'novelId is required' });
       }
@@ -58,15 +56,6 @@ export function registerProductionRoutes(app: Express) {
         return res.status(404).json({ error: 'Novel not found' });
       }
 
-      // Load continuation pack context if provided
-      let packContext = '';
-      if (continuationPackId) {
-        const pack = db.getContinuationPack(continuationPackId);
-        if (pack) {
-          packContext = buildContinuationContext(pack);
-        }
-      }
-
       const chapters = db.listChapters(novelId);
       const characters = db.listCharacters(novelId).filter((c: any) => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
       const locations = db.listLocations(novelId).filter((l: any) => !activeEntityNames || activeEntityNames.includes(l.name));
@@ -75,8 +64,6 @@ export function registerProductionRoutes(app: Express) {
       const powerLevels = db.listPowerLevels(novelId).filter((p: any) => !activeEntityNames || activeEntityNames.includes(p.name));
       const timelineEvents = db.listTimelineEvents(novelId);
       const foreshadowings = db.listForeshadowings(novelId);
-      const mountedSkillIds = novel.mountedSkillIds || [];
-      const skills = db.listSkills().filter((skill: any) => mountedSkillIds.includes(skill.id));
 
       const ledger = buildStoryStateLedger({
         novel,
@@ -89,7 +76,6 @@ export function registerProductionRoutes(app: Express) {
         timelineEvents,
         foreshadowings,
       });
-      const plannerContext = buildProductionPlannerContext(ledger);
       const writerContext = buildProductionWriterContext(ledger);
       const intent = normalizeProductionIntent(userIntent);
       runId = generateId();
@@ -148,7 +134,6 @@ export function registerProductionRoutes(app: Express) {
         targetChapterId = '',
         userIntent = '',
         continuationPackId = '',
-        surface = 'workspace-draft',
         activeEntityNames,
       } = req.body;
       if (!novelId.trim()) {
@@ -444,7 +429,7 @@ export function registerProductionRoutes(app: Express) {
           });
         });
 
-        run.continuityReport.proposedPatch.foreshadowingsToCreate.forEach((entry, index) => {
+        run.continuityReport.proposedPatch.foreshadowingsToCreate.forEach((entry, _index) => {
           db.createForeshadowing({
             id: generateId(),
             novelId: run.novelId,

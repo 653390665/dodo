@@ -21,7 +21,7 @@ const SEED_CARDS = [
 
 export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel, onStartContinuationImport }: WelcomeViewProps) {
   const [input, setInput] = useState('');
-  const [chatContext, setChatContext] = useState('');
+  const [chatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [planning, setPlanning] = useState<StoryPlanningInput>({
     expectedWordCount: 180000,

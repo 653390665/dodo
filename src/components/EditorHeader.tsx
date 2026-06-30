@@ -29,7 +29,7 @@ export function EditorHeader({
   onToggleFullscreen,
   isAgentSidebarOpen,
   onToggleAgentSidebar,
-  isEditorDataLoading,
+  isEditorDataLoading: _isEditorDataLoading,
   isAnyGenerating,
   isSyncing,
   syncSuccess,

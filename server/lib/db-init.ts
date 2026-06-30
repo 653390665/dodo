@@ -9,10 +9,17 @@ import { buildImportedNovelDraft } from '../../src/lib/continuation-import-flow.
 
 declare const __CJS_BUNDLE__: boolean | undefined;
 
+const indirectEval = eval;
+let metaUrl: string;
+try {
+  metaUrl = indirectEval('import.meta.url');
+} catch {
+  metaUrl = typeof __filename !== 'undefined' ? __filename : path.join(process.cwd(), 'server/lib/db-init.ts');
+}
+
 const req = typeof __CJS_BUNDLE__ !== 'undefined'
-  // eslint-disable-next-line no-undef
   ? require
-  : createRequire(import.meta.url);
+  : createRequire(metaUrl);
 const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   Database: typeof BetterSqlite3;
   nativeBindingPath: string;

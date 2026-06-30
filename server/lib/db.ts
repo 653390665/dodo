@@ -1,7 +1,6 @@
 import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, ChapterProductionRun, EntityRelationship } from '../../shared/types';
 import { calculateFeedbackScore, summarizeUsageStats } from '../../src/lib/skill-model';
-import { buildImportedNovelDraft } from '../../src/lib/continuation-import-flow';
-import { getDb, setDb, closeDb, subscribe, notify } from './db-instance.js';
+import { getDb, notify } from './db-instance.js';
 import { rowToNovel, rowToCharacter, rowToLocation, rowToItem, rowToFaction, rowToPowerLevel, rowToTimelineEvent, rowToChapter, rowToChapterVersion, rowToSkill, rowToSkillUsageRecord, rowToIdeaFragment, rowToForeshadowing, rowToChapterProductionRun, novelToRow, characterToRow, locationToRow, itemToRow, factionToRow, powerLevelToRow, timelineEventToRow, chapterToRow, chapterVersionToRow, skillToRow, skillUsageRecordToRow, ideaFragmentToRow, foreshadowingToRow, chapterProductionRunToRow, mapContinuationPackRow, continuationPackToRow } from './db-mappers.js';
 import { createCrudHelpers } from './db-crud.js';
 
@@ -563,7 +562,6 @@ export function listEntityRelationships(novelId: string): EntityRelationship[] {
   return getDb().prepare('SELECT * FROM entity_relationships WHERE novelId = ?').all(novelId) as EntityRelationship[];
 }
 export function createEntityRelationship(rel: any): void {
-  const db = getDb();
   getDb().prepare('INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(rel.id, rel.novelId, rel.sourceType, rel.sourceId, rel.targetType, rel.targetId, rel.relationshipType, rel.description || '', Date.now());
   notify();
 }
@@ -572,7 +570,6 @@ const ENTITY_RELATIONSHIP_COLUMNS = new Set([
 ]);
 
 export function updateEntityRelationship(id: string, data: any): void {
-  const db = getDb();
   const sets: string[] = []; const vals: any[] = [];
   for (const [k, v] of Object.entries(data)) {
     if (!ENTITY_RELATIONSHIP_COLUMNS.has(k)) {

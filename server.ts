@@ -1,10 +1,7 @@
 import express from 'express';
-import helmet from 'helmet';
 import path from 'path';
 import { initDb } from './server/lib/db.js';
-import * as db from './server/lib/db.js';
 import { authMiddleware, getAuthToken } from './server/middleware/auth';
-import { validate, dbSchema } from './server/validation';
 import { registerRoutes } from './server/routes/index.js';
 
 // Initialize local database on startup

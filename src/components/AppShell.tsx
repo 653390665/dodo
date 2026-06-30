@@ -1,9 +1,7 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
-import { X } from 'lucide-react';
+import { useState, Suspense, lazy } from 'react';
 import { Sidebar } from './Sidebar';
 import { WelcomeView } from './WelcomeView';
-import { AIAssistant } from './AIAssistant';
-import { StoryCardDeck } from './onboarding/StoryCardDeck';
+import { AIAssistantDrawer } from './AIAssistantDrawer';
 import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from '../lib/toast';
 
@@ -270,8 +268,7 @@ export function AppShell() {
       setActiveSetupTaskKey(setupTasks[0]?.key ?? null);
       setAssistantInput('');
       setCurrentView('workspace');
-    } catch (e) {
-      console.error('Story card selection failed:', e);
+    } catch {
       toast('创建作品失败，请稍后重试', 'error');
     }
   };
@@ -546,81 +543,19 @@ export function AppShell() {
       </main>
 
       {/* Global AIAssistant Drawer */}
-      {isAIAssistantOpen && (
-        <>
-          <div
-            onClick={() => setAIAssistantOpen(false)}
-            className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
-          />
-          <div className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl">
-            {onboardingDraft ? (
-              <div className="h-full flex flex-col">
-                <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar">
-                  <div className="flex gap-2">
-                    <button onClick={() => setAIDrawerTab('cards')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>方案卡</button>
-                    <button onClick={() => setAIDrawerTab('chat')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>灵感对话</button>
-                  </div>
-                  <button onClick={() => setAIAssistantOpen(false)} className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all">
-                    <X size={20} />
-                  </button>
-                </div>
-                {aiDrawerTab === 'cards' ? (
-                  <div className="flex-1 overflow-y-auto px-6 py-8 bg-theme-bg/30">
-                    <StoryCardDeck
-                      cards={onboardingDraft.cards}
-                      selectedCardId={onboardingDraft.selectedCardId}
-                      source={onboardingDraft.source}
-                      onSelectCard={handleSelectStoryCard}
-                      onMixCard={() => {
-                        if (onboardingDraft.cards.length >= 2) {
-                          const other = onboardingDraft.cards.find(c => c.id !== onboardingDraft.selectedCardId);
-                          if (other) {
-                            handleCreateDraftFromIdea({
-                              ideaSeed: `${onboardingDraft.cards[0].hook} + ${other.hook}`,
-                              chatContext: onboardingDraft.ideaSeed,
-                              planning: onboardingDraft.planning,
-                            });
-                          }
-                        }
-                      }}
-                      onRefreshBatch={() =>
-                        handleCreateDraftFromIdea({
-                          ideaSeed: onboardingDraft.ideaSeed,
-                          chatContext: onboardingDraft.ideaSeed,
-                          planning: onboardingDraft.planning,
-                          isRefresh: true,
-                        })
-                      }
-                    />
-                  </div>
-                ) : (
-                  <div className="flex-1 overflow-y-auto">
-                    <ErrorBoundary>
-                      <AIAssistant
-                        launchContext={assistantLaunchContext}
-                        onApplyToContent={handleApplyAssistantToContent}
-                        onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
-                        onReplaceSelection={handleReplaceAssistantSelection}
-                        onClose={() => setAIAssistantOpen(false)}
-                      />
-                    </ErrorBoundary>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <ErrorBoundary>
-                <AIAssistant
-                  launchContext={assistantLaunchContext}
-                  onApplyToContent={handleApplyAssistantToContent}
-                  onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
-                  onReplaceSelection={handleReplaceAssistantSelection}
-                  onClose={() => setAIAssistantOpen(false)}
-                />
-              </ErrorBoundary>
-            )}
-          </div>
-        </>
-      )}
+      <AIAssistantDrawer
+        isOpen={isAIAssistantOpen}
+        onClose={() => setAIAssistantOpen(false)}
+        onboardingDraft={onboardingDraft}
+        aiDrawerTab={aiDrawerTab}
+        setAIDrawerTab={setAIDrawerTab}
+        handleSelectStoryCard={handleSelectStoryCard}
+        handleCreateDraftFromIdea={handleCreateDraftFromIdea}
+        assistantLaunchContext={assistantLaunchContext}
+        handleApplyAssistantToContent={handleApplyAssistantToContent}
+        handleApplyAssistantToSceneBeats={handleApplyAssistantToSceneBeats}
+        handleReplaceAssistantSelection={handleReplaceAssistantSelection}
+      />
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
     </div>

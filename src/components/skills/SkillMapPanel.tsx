@@ -30,7 +30,7 @@ interface FusionSuggestion {
 
 function deriveFusionSuggestions(
   populated: SkillDimension[],
-  missing: SkillDimension[],
+  _missing: SkillDimension[],
 ): FusionSuggestion[] {
   const suggestions: FusionSuggestion[] = [];
   const complementary: Array<[SkillDimension, SkillDimension, string]> = [

@@ -25,12 +25,6 @@ const DB_WHITELIST = new Set([
 
 import { subscribe, setCurrentInitiator } from '../lib/db-instance';
 
-/** Log real error, return generic message to client */
-function serverError(res: any, e: unknown, context: string): void {
-  logger.error(`${context}:`, e);
-  res.status(500).json({ error: 'Internal server error' });
-}
-
 export function registerDbRoutes(app: Express) {
   app.post('/api/db', validate(dbSchema), (req, res) => {
     const { method, args = [] } = req.body;

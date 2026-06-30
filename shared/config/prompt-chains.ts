@@ -7,7 +7,6 @@
  * targeting one aspect at a time, producing higher-quality output
  * than monolithic prompts.
  */
-import type { PromptTemplateKey } from './prompt-templates';
 
 export const PROMPT_CHAINS = {
   /** Chain 1: Pre-planning — concept → opening → volume outline */

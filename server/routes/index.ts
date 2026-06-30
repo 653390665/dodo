@@ -1,5 +1,4 @@
 import type { Express } from 'express';
-import { logger } from '../logger';
 import { registerDbRoutes } from './db';
 import { registerConfigRoutes } from './config';
 import { registerSimpleLlmRoutes } from './simple-llm';

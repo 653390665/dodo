@@ -1,33 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../../shared/types';
-import {
-  listCharacters,
-  listLocations,
-  listItems,
-  listFactions,
-  listPowerLevels,
-  listTimelineEvents,
-} from '../lib/world-client';
-import { listSkillUsageRecords } from '../lib/skill-client';
+import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '../lib/continuation-pack-selection';
 import { subscribeToChanges } from '../lib/db-transport';
 import type { AgentContext } from '../lib/agents';
-import ReactMarkdown from 'react-markdown';
-import { Activity, AlertCircle, BookOpen, Bot, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Cloud, Download, Eye, Feather, FileText, Folder, FolderOpen, Globe, History, Lightbulb, ListOrdered, Loader2, Maximize2, MessageSquareWarning, Minimize2, PanelRight, Plus, Radar, Save, Search, Settings, Sparkles, Trash2, Wand2, X } from 'lucide-react';
-import { IdeaFragmentBoard } from './IdeaFragmentBoard';
-import { ForeshadowingPanel } from './ForeshadowingPanel';
-import { PacingDashboard } from './PacingDashboard';
-import { ProductionRunReview } from './ProductionRunReview';
+import { Download, Loader2 } from 'lucide-react';
 import { ChapterSidebar } from './ChapterSidebar';
 import { EditorHeader } from './EditorHeader';
 import { AgentWorkspace } from './AgentWorkspace';
 import { WritingSurface } from './WritingSurface';
-import { SkillLoadoutBoard } from './skills/SkillLoadoutBoard';
-import { ProjectPreferencePanel } from './skills/ProjectPreferencePanel';
-import { CopilotStatusBar } from './copilot/CopilotStatusBar';
 import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';

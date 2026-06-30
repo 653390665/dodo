@@ -1,5 +1,4 @@
 import type { Express } from 'express';
-import { logger } from '../logger';
 import * as db from '../lib/db';
 
 function escXml(s: string): string {
@@ -115,7 +114,7 @@ export function registerExportRoutes(app: Express) {
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.txt"`);
         res.send(content);
       }
-    } catch (e: any) {
+    } catch {
       res.status(500).json({ error: "Internal server error" });
     }
   });

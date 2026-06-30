@@ -4,9 +4,7 @@ import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
 import { renderPromptTemplate, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
 import * as db from '../lib/db';
-import { computeTrend } from '../../src/lib/audit-structured';
 import { buildContinuationContext } from '../../src/lib/continuation-pack';
-import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 
 export function registerWorldRoutes(app: Express) {
@@ -15,7 +13,7 @@ export function registerWorldRoutes(app: Express) {
       const { name, role, summary, traits = [], background, features, habits, personality, inventory, abilities, globalOutline, worldRules, concealGender = false } = req.body;
 
       const genderConstraint = concealGender
-        ? `\n【极其重要的约束：该角色性别为谜，严禁使用"他""她""他的""她的""他本人""她本人"等任何性别指示代词。一律以角色名"${name}"或"此人""该角色"指代。违反此规则将导致角色设定失败。】\n`
+        ? `\n【极其重要的约束：该角色性别为谜，严禁使用"他""她""他的""原她的""他本人""她本人"等任何性别指示代词。一律以角色名"${name}"或"此人""该角色"指代。违反此规则将导致角色设定失败。】\n`
         : '';
 
       const prompt = `
@@ -36,6 +34,7 @@ ${personality ? `【人格魅力】：${wrapUserInput(personality)}` : ''}
 ${inventory ? `【随身道具】：${wrapUserInput(inventory)}` : ''}
 ${abilities ? `【独特能力】：${wrapUserInput(abilities)}` : ''}
 
+${genderConstraint}
 要求：
 1. 语言精炼且富有张力，适合放在小说设定集中。
 2. 不要只是简单罗列信息，要结合"世界观法则"和"主线大纲"通过描述勾勒出一个有血有肉的人物形象，或者为其补充符合世界观的过去经历片段。

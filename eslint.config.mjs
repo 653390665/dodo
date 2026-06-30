@@ -68,7 +68,7 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/exhaustive-deps': 'error', // 提升为 error，保障 React 副作用正确性
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }], // 保持为 warn，保障本地调试体验
       'no-constant-condition': 'off',
       'no-unused-expressions': 'warn',

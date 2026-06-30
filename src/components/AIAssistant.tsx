@@ -3,14 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { extractWorldSetupPhase } from '../lib/agents';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { ArrowRight, BrainCircuit, Copy, Eraser, FolderOpen, Globe, Lightbulb, Loader2, MoreVertical, Send, Sparkles, Terminal, X } from 'lucide-react';
+import { ArrowRight, BrainCircuit, Copy, FolderOpen, Globe, Lightbulb, Loader2, MoreVertical, Send, Sparkles, Terminal, X } from 'lucide-react';
 import { listNovels } from '../lib/novel-client';
 import { createChapter } from '../lib/chapter-client';
 import { createCharacter, createLocation, createItem } from '../lib/world-client';
 import { createIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { generateInspiration } from '../lib/prompt-client';
-import { AssistantLaunchContext, AssistantPrimaryAction, AssistantSuggestionKind, Novel } from '../../shared/types';
+import { AssistantLaunchContext, AssistantSuggestionKind, Novel } from '../../shared/types';
 import { buildAssistantSeedPrompt } from '../lib/assistant-context';
 import { buildAssistantIdeaFragment } from '../lib/assistant-fragment';
 import { classifyAssistantSuggestion, getPrimaryAssistantAction } from '../lib/assistant-suggestion';
@@ -45,7 +45,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSavingToNovel, setIsSavingToNovel] = useState(false);
-  const [savingFragmentId, setSavingFragmentId] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshNovels = () => listNovels().then(setUserNovels);
@@ -205,15 +204,12 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     const trimmed = content.trim();
     if (!trimmed) return;
 
-    setSavingFragmentId(content);
     try {
       await createIdeaFragment(buildAssistantIdeaFragment(trimmed, launchContext));
       alert(`已保存到《${launchContext.novelTitle}》的灵感碎片库。`);
     } catch (error) {
       console.error(error);
       alert('保存灵感碎片失败，请稍后重试。');
-    } finally {
-      setSavingFragmentId(null);
     }
   };
 
@@ -242,14 +238,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     'scene-beat': '分镜候选',
     setting: '设定候选',
     fragment: '碎片候选',
-  };
-
-  const PRIMARY_ACTION_LABELS: Record<AssistantPrimaryAction, string> = {
-    'replace-selection': '主动作：替换当前选区',
-    'append-content': '主动作：插入正文末尾',
-    'append-scene-beat': '主动作：追加到场景分镜',
-    'extract-setting': '主动作：提取到当前作品设定',
-    'save-fragment': '主动作：保存为灵感碎片',
   };
 
   return (
@@ -321,7 +309,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                   <div className="flex flex-col gap-3">
                     {msg.id !== 'welcome' && launchContext ? (() => {
                       const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
-                      const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
                       return (
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-0.5 text-[9px] font-bold text-theme-accent border border-theme-accent/20">

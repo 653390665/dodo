@@ -1,7 +1,6 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { generateId } from '../id';
 import {

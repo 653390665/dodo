@@ -5,7 +5,6 @@ import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
 import { renderPromptTemplate, buildSkillsPrompt, resolveChainPrompt } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
-import { buildEventConstraints, defaultEventState } from '../../src/lib/event-cooldown';
 import {
   buildFallbackDraft,
   buildFallbackSceneBeats,

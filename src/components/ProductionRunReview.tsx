@@ -36,7 +36,7 @@ export function ProductionRunReview({
   novelId,
   beatsSource,
   draftSource,
-  auditSource,
+  auditSource: _auditSource,
   statusMessage,
   onIntentChange,
   onStart,

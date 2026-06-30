@@ -19,7 +19,7 @@ interface NavItem {
   navKey?: WorkspaceNavKey;
 }
 
-export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: SidebarProps) {
+export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const iconMap: Record<ViewType, NavItem['icon']> = {

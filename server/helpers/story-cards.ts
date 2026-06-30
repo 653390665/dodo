@@ -153,7 +153,6 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
   // Auto-populate structural fields the model no longer outputs (reduced output schema)
   const seedKeyTerms = extractKeywords(ideaSeed);
   const mainTerm = seedKeyTerms[0] || ideaSeed.slice(0, 4);
-  const secondTerm = seedKeyTerms[1] || mainTerm;
   const tones = ['冷峻悬疑', '热血逆袭', '慢热铺陈'];
 
   return validCards.map((card: any, i: number) => ({
@@ -224,13 +223,12 @@ export function buildFallbackStoryCards(
     storyFocus: 'plot' | 'character' | 'world';
   }>,
   batchIndex = 0,
-  previousHookTexts: string[] = [],
+  _previousHookTexts: string[] = [],
 ) {
   const seed = String(ideaSeed || '').trim() || '一个尚未成形的新故事';
   const keywords = extractKeywords(seed);
   const mainTerm = keywords[0] || '故事核心';
   const secondTerm = keywords[1] || mainTerm;
-  const thirdTerm = keywords[2] || secondTerm;
 
   const expectedWordCount = Number(planning.expectedWordCount || 180000);
   const pacing = planning.pacingPreference || 'tight';

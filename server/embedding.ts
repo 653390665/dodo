@@ -4,7 +4,7 @@
  * the configured LLM's embedding endpoint if WASM is unavailable.
  */
 import { pipeline } from '@xenova/transformers';
-import { generateText, generateEmbedding } from './lib/server-llm';
+import { generateEmbedding } from './lib/server-llm';
 import { getConfig } from './lib/config';
 import { logger } from './logger';
 

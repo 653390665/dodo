@@ -28,7 +28,7 @@ export function PowerLevelsTab({
         </button>
       </div>
       <div className="flex flex-col gap-4">
-        {powerLevels.map((lvl, idx) => (
+        {powerLevels.map((lvl) => (
           <div
             key={lvl.id}
             className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex items-start gap-4 group relative"

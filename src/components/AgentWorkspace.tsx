@@ -96,7 +96,7 @@ export function AgentWorkspace({
   chapters,
   currentChapter,
   setCurrentChapter,
-  isAgentSidebarOpen,
+  isAgentSidebarOpen: _isAgentSidebarOpen,
   setIsAgentSidebarOpen,
   agentTab,
   setAgentTab,

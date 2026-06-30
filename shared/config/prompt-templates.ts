@@ -1,4 +1,3 @@
-import { CRITIC_SOUL, PLANNER_SOUL, WRITER_SOUL } from './souls';
 import type { PromptTemplateKey } from '../types';
 
 export type { PromptTemplateKey } from '../types';
