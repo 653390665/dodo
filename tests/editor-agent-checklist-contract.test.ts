@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePromptTemplates } from '../src/config/prompt-templates';
+import { mergePromptTemplates } from '../shared/config/prompt-templates';
 
 test('editorAgent prompt enforces field length caps per scene', () => {
   const prompt = mergePromptTemplates().editorAgent;

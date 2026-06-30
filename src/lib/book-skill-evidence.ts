@@ -1,4 +1,4 @@
-import type { SegmentSkillEvidence, SkillDimension, SkillSignalEvidence } from '../types';
+import type { SegmentSkillEvidence, SkillDimension, SkillSignalEvidence } from '../../shared/types';
 
 export function collectSignalEvidenceFromSkill(skill: any): SkillSignalEvidence[] {
   const signals: SkillSignalEvidence[] = [];

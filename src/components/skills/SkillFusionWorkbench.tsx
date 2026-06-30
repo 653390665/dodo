@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';import GitMerge from 'lucide-react/dist/esm/icons/git-merge.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import { useMemo, useState } from 'react';
+import { GitMerge, Sparkles } from 'lucide-react';
+
 import { buildFusionDraft, explainSkillFusion } from '../../lib/skill-fusion';
-import type { Skill, SkillFusionExplanation } from '../../types';
+import type { Skill, SkillFusionExplanation } from '../../../shared/types';
 
 interface SkillFusionWorkbenchProps {
   baseSkill: Skill;
@@ -47,7 +48,7 @@ export function SkillFusionWorkbench({
           const nextSupportSkill = candidates.find((skill) => skill.id === nextSupportSkillId);
           onPreview(nextSupportSkill ? buildFusionDraft(baseSkill, nextSupportSkill) : null);
         }}
-        className="w-full rounded-xl border border-theme-border px-3 py-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+        className="w-full rounded-xl border border-theme-border px-3 py-3 text-sm bg-theme-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
       >
         <option value="">选择辅卡</option>
         {candidates

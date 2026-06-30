@@ -1,4 +1,4 @@
-import type { Skill, SkillUsageRecord } from '../types';
+import type { Skill, SkillUsageRecord } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listSkills(): Promise<Skill[]> { return call('listSkills'); }

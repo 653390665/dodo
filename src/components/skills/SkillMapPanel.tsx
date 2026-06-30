@@ -1,8 +1,7 @@
-import { useMemo } from 'react';import Compass from 'lucide-react/dist/esm/icons/compass.js';
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up.js';
-import Zap from 'lucide-react/dist/esm/icons/zap.js';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import type { Skill, SkillDimension, CardSourceKind } from '../../types';
+import { useMemo } from 'react';
+import { AlertCircle, Compass, TrendingUp, Zap } from 'lucide-react';
+
+import type { Skill, SkillDimension, CardSourceKind } from '../../../shared/types';
 
 const DIMENSION_LABELS: Record<SkillDimension, string> = {
   style: '文风',
@@ -109,7 +108,7 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
   if (skills.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-theme-border bg-white p-5 space-y-4">
+    <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Compass size={18} className="text-theme-accent" />
         <span className="font-bold text-theme-text text-sm">Skill 地图</span>

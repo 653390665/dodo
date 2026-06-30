@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Save from 'lucide-react/dist/esm/icons/save.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
+import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Save, Sparkles, X } from 'lucide-react';
+
 import { subscribeToChanges } from '../../lib/db-transport';
 import { createSkill, listSkillUsageRecords, listSkillVersions, updateSkill } from '../../lib/skill-client';
 import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { summarizeUsageStats } from '../../lib/skill-model';
 import { cn } from '../../lib/utils';
-import type { Skill, SkillDimension, SkillUsageStats } from '../../types';
+import type { Skill, SkillDimension, SkillUsageStats } from '../../../shared/types';
 import { SkillFusionWorkbench } from './SkillFusionWorkbench';
 import { SkillTestBench } from './SkillTestBench';
 import { SkillVersionTimeline } from './SkillVersionTimeline';
@@ -119,7 +118,7 @@ export function SkillDetailDrawer({
 
   if (!skill || !draft) {
     return (
-      <div className="hidden xl:flex w-[380px] shrink-0 border-l border-theme-border bg-white/80 backdrop-blur-sm items-center justify-center p-8">
+      <div className="hidden xl:flex w-[380px] shrink-0 border-l border-theme-border bg-theme-sidebar/80 backdrop-blur-sm items-center justify-center p-8">
         <div className="text-center text-theme-muted/60">
           <Sparkles size={32} className="mx-auto mb-3 opacity-30" />
           <div className="text-sm font-bold">选择一张技能卡</div>
@@ -130,23 +129,33 @@ export function SkillDetailDrawer({
   }
 
   async function handleSave(mode: 'update' | 'fork') {
+    if (!skill) return;
     setSavingMode(mode);
     const now = Date.now();
     try {
       if (mode === 'update') {
-        await updateSkill(skill.id, {
-          ...draft,
-          updatedAt: now,
-        });
+        if (draft) {
+          await updateSkill(skill.id, {
+            ...draft,
+            updatedAt: now,
+          });
+        }
         return;
       }
 
       const source = fusionPreview || draft;
+      if (!source) return;
       const nextVersion = (skill.version || 1) + 1;
       const nextId = `${skill.lineageRootId || skill.id}-${nextVersion}-${now}`;
       await createSkill({
         ...source,
         id: nextId,
+        name: source.name || '',
+        description: source.description || '',
+        style: source.style || '',
+        pacing: source.pacing || '',
+        stabilityScore: source.stabilityScore ?? 80,
+        evaluationFeedback: source.evaluationFeedback || '',
         version: nextVersion,
         parentSkillId: skill.id,
         lineageRootId: skill.lineageRootId || skill.id,
@@ -160,6 +169,7 @@ export function SkillDetailDrawer({
   }
 
   function toggleDimension(tag: SkillDimension) {
+    if (!draft) return;
     const next = new Set(draft.dimensionTags || []);
     if (next.has(tag)) {
       next.delete(tag);
@@ -183,7 +193,7 @@ export function SkillDetailDrawer({
       />
       <aside
         className={cn(
-          'fixed xl:static inset-y-0 right-0 z-30 w-full max-w-[460px] shrink-0 border-l border-theme-border bg-white/95 backdrop-blur-sm transition-transform duration-300',
+          'fixed xl:static inset-y-0 right-0 z-30 w-full max-w-[460px] shrink-0 border-l border-theme-border bg-theme-sidebar/95 backdrop-blur-sm transition-transform duration-300',
           open ? 'translate-x-0' : 'translate-x-full xl:translate-x-0',
         )}
       >
@@ -210,13 +220,13 @@ export function SkillDetailDrawer({
             <input
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm bg-theme-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="技能名称"
             />
             <textarea
               value={draft.description}
               onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[96px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[96px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="技能描述"
             />
             <div className="grid grid-cols-2 gap-3">
@@ -230,7 +240,7 @@ export function SkillDetailDrawer({
                       primaryDimension: event.target.value as SkillDimension,
                     })
                   }
-                  className="w-full rounded-xl border border-theme-border px-3 py-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+                  className="w-full rounded-xl border border-theme-border px-3 py-3 text-sm bg-theme-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
                 >
                   {SKILL_DIMENSIONS.map((dimension) => (
                     <option key={dimension.value} value={dimension.value}>
@@ -252,7 +262,7 @@ export function SkillDetailDrawer({
                       stabilityScore: Number(event.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+                  className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm bg-theme-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
                 />
               </label>
             </div>
@@ -270,7 +280,7 @@ export function SkillDetailDrawer({
                     'px-3 py-1.5 rounded-full border text-xs font-bold transition-colors',
                     selectedDimensionSet.has(dimension.value)
                       ? 'border-theme-accent bg-theme-accent/10 text-theme-accent'
-                      : 'border-theme-border bg-white text-theme-muted hover:bg-theme-sidebar/20',
+                      : 'border-theme-border bg-theme-sidebar text-theme-muted hover:bg-theme-sidebar/20',
                   )}
                 >
                   {dimension.label}
@@ -290,25 +300,25 @@ export function SkillDetailDrawer({
             <textarea
               value={draft.style}
               onChange={(event) => setDraft({ ...draft, style: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[96px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[96px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="文风设定"
             />
             <textarea
               value={draft.pacing}
               onChange={(event) => setDraft({ ...draft, pacing: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="节奏逻辑"
             />
             <textarea
               value={draft.characterTraits || ''}
               onChange={(event) => setDraft({ ...draft, characterTraits: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="人物构建特征"
             />
             <textarea
               value={draft.worldBuilding || ''}
               onChange={(event) => setDraft({ ...draft, worldBuilding: event.target.value })}
-              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+              className="w-full rounded-xl border border-theme-border px-4 py-3 text-sm min-h-[80px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
               placeholder="世界观与战力设定"
             />
           </section>

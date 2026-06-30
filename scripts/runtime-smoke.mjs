@@ -1,6 +1,19 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
 const baseUrl = process.env.INKFLOW_BASE_URL || 'http://localhost:3000';
+
+// 获取本地认证 Token 以便在冒烟测试中通过安全门禁
+const tokenPath = path.join(os.homedir(), '.inkflow', '.auth-token');
+let authToken = '';
+try {
+  if (fs.existsSync(tokenPath)) {
+    authToken = fs.readFileSync(tokenPath, 'utf-8').trim();
+  }
+} catch {
+  // 忽略读取错误
+}
 
 /** Sync lines so `npm run smoke:runtime` does not look stuck when stdout is fully buffered. */
 function out(line) {
@@ -53,7 +66,9 @@ async function check(name, fn) {
 out(`-- runtime-smoke baseUrl=${baseUrl}`);
 
 await check('config does not expose apiKey', async () => {
-  const response = await fetch(`${baseUrl}/api/config`);
+  const headers = {};
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const response = await fetch(`${baseUrl}/api/config`, { headers });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const json = await response.json();
   if ('apiKey' in json) throw new Error('apiKey leaked from /api/config');
@@ -61,9 +76,11 @@ await check('config does not expose apiKey', async () => {
 });
 
 await check('db listSkills responds', async () => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   const response = await fetch(`${baseUrl}/api/db`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ method: 'listSkills', args: [] }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);

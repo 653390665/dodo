@@ -4,7 +4,7 @@ import test from 'node:test';
 import { buildContinuationOverviewState } from '../src/lib/continuation-overview';
 import { buildCreationIntentDraft } from '../src/lib/continuation-pack';
 import { ContinuationOverviewPanel } from '../src/components/ContinuationOverviewPanel';
-import type { ContinuationPack } from '../src/types';
+import type { ContinuationPack } from '../shared/types';
 
 function buildPack(overrides: Partial<ContinuationPack> = {}): ContinuationPack {
   return {
@@ -96,7 +96,7 @@ function findButtonByText(node: any, label: string): any {
   const props = node.props || {};
   const children = Array.isArray(props.children) ? props.children : [props.children];
   const text = children
-    .filter((child) => typeof child === 'string')
+    .filter((child: any) => typeof child === 'string')
     .join('');
 
   if (node.type === 'button' && text.includes(label)) return node;

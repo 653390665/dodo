@@ -1,4 +1,4 @@
-import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../types';
+import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
 
 const IMPORTED_NOVEL_FALLBACK_TITLE = '导入续写作品';
 const CONTINUATION_PACK_SUFFIX = '资料包';

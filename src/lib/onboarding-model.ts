@@ -5,7 +5,7 @@ import type {
   StoryIdeaCard,
   StoryPlanningInput,
   StorySkillRecommendation,
-} from '../types';
+} from '../../shared/types';
 
 const TASK_META: Array<{
   key: SetupTaskDraft['key'];

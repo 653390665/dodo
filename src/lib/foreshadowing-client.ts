@@ -1,4 +1,4 @@
-import type { Foreshadowing } from '../types';
+import type { Foreshadowing } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listForeshadowings(novelId: string): Promise<Foreshadowing[]> { return call('listForeshadowings', novelId); }

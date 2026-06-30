@@ -1,4 +1,4 @@
-import type { SetupTaskDraft } from '../../types';
+import type { SetupTaskDraft } from '../../../shared/types';
 
 interface SetupTaskCardProps {
   task: SetupTaskDraft;
@@ -25,7 +25,7 @@ export function SetupTaskCard({ task, active, onSelect, onConfirm }: SetupTaskCa
   return (
     <article
       className={`rounded-3xl border p-5 shadow-sm transition-colors ${
-        active ? 'border-theme-accent bg-theme-sidebar/20' : 'border-theme-border bg-white'
+        active ? 'border-theme-accent bg-theme-sidebar/20' : 'border-theme-border bg-theme-sidebar'
       }`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">

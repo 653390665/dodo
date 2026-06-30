@@ -7,7 +7,7 @@ import {
   detectSkillConflicts,
   summarizeUsageStats,
 } from '../src/lib/skill-model';
-import type { SkillUsageRecord } from '../src/types';
+import type { SkillUsageRecord } from '../shared/types';
 
 test('coerceMountedSkillLoadout migrates legacy mountedSkillIds', () => {
   const loadout = coerceMountedSkillLoadout(['skill-a', 'skill-b']);

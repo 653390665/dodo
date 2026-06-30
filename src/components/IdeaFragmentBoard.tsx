@@ -1,13 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import MessageSquare from 'lucide-react/dist/esm/icons/message-square.js';
-import User from 'lucide-react/dist/esm/icons/user.js';
-import Crosshair from 'lucide-react/dist/esm/icons/crosshair.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import { IdeaFragment } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Trash2, User } from 'lucide-react';
+
+import { IdeaFragment } from '../../shared/types';
 import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
 
@@ -89,7 +83,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   return (
     <div className="space-y-4">
       {/* Input area */}
-      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
+      <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
         <div className="flex gap-2">
           {(['scene', 'dialogue', 'character', 'plot_hook', 'world'] as const).map(t => (
             <button
@@ -122,7 +116,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
         {fragments.map(f => (
           <div
             key={f.id}
-            className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+            className={`bg-theme-sidebar rounded-xl border shadow-sm overflow-hidden ${
               f.status === 'expanded' ? 'border-theme-accent/30' : 'border-theme-border/40'
             }`}
           >

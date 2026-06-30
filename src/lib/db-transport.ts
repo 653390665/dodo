@@ -1,7 +1,12 @@
+const CLIENT_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
 async function call(method: string, ...args: any[]): Promise<any> {
   const res = await fetch('/api/db', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-client-id': CLIENT_ID,
+    },
     body: JSON.stringify({ method, args }),
   });
   if (!res.ok) {
@@ -26,8 +31,18 @@ function connectEventSource() {
 
   const es = new EventSource('/api/db/events');
 
-  es.onmessage = () => {
+  es.onmessage = (event) => {
     reconnectDelay = 3000;
+    if (event.data) {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.initiator === CLIENT_ID) {
+          return;
+        }
+      } catch {
+        // Fall back to notifying if parsing fails
+      }
+    }
     globalListeners.forEach((fn) => {
       try {
         fn();
@@ -54,7 +69,7 @@ function connectEventSource() {
   globalEventSource = es;
 }
 
-export function subscribeToChanges(onChange: () => void): () => void {
+export function subscribeToChanges(onChange: () => void, _entityType?: string): () => void {
   globalListeners.add(onChange);
   connectEventSource();
   return () => {

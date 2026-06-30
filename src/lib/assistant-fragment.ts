@@ -1,4 +1,4 @@
-import type { AssistantLaunchContext, IdeaFragment } from '../types';
+import type { AssistantLaunchContext, IdeaFragment } from '../../shared/types';
 
 export function buildAssistantIdeaFragment(content: string, context: AssistantLaunchContext): IdeaFragment {
   const hasChapterContext = Boolean(context.chapterId || context.chapterTitle || context.sceneBeats || context.currentExcerpt);

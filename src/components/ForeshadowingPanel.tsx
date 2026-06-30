@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import Eye from 'lucide-react/dist/esm/icons/eye.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
-import { Foreshadowing, Chapter } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
+
+import { Foreshadowing, Chapter } from '../../shared/types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
@@ -125,7 +123,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
         {(['all', 'planted', 'hinted', 'payoff'] as const).map(s => (
           <button key={s} onClick={() => setFilter(s)}
             className={`text-[10px] px-2.5 py-1 rounded-full font-bold transition-all ${
-              filter === s ? 'bg-theme-text text-white' : 'bg-white border border-theme-border text-theme-muted hover:bg-theme-sidebar'
+              filter === s ? 'bg-theme-text text-white' : 'bg-theme-sidebar border border-theme-border text-theme-muted hover:bg-theme-sidebar'
             }`}>
             {s === 'all' ? `全部 ${items.length}` : `${STATUS_CONFIG[s].label} ${stats[s]}`}
           </button>
@@ -152,7 +150,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
 
       {/* Add form */}
       {showAdd && (
-        <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
+        <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
           <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="伏笔标题（如：主角身世之谜）"
             className="w-full text-sm px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent" />
           <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="伏笔描述..."
@@ -168,7 +166,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       <div className="space-y-2">
         {filtered.map(f => (
           <div key={f.id}
-            className="bg-white rounded-xl border border-theme-border/40 shadow-sm p-3 group">
+            className="bg-theme-sidebar rounded-xl border border-theme-border/40 shadow-sm p-3 group">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

@@ -68,18 +68,6 @@ function uniqueInOrder(values: string[]): string[] {
   return result;
 }
 
-function countOccurrences(haystack: string, needle: string): number {
-  if (!needle) return 0;
-  let index = 0;
-  let count = 0;
-  while (true) {
-    const next = haystack.indexOf(needle, index);
-    if (next === -1) return count;
-    count += 1;
-    index = next + needle.length;
-  }
-}
-
 function splitParagraphs(text: string): string[] {
   return text
     .split(/\n{2,}/)

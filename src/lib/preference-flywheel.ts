@@ -4,7 +4,7 @@ import type {
   ProjectPreferenceProfile,
   Skill,
   SkillDimension,
-} from '../types';
+} from '../../shared/types';
 import { collectSkillRoleKeys, normalizeRoleKey, type SkillRoleKey } from './skill-language';
 
 const DEFAULT_WEIGHTS = {
@@ -153,4 +153,92 @@ export function applyPreferenceFeedback(
   }
 
   return next;
+}
+
+// ================================================================
+// Chapter-level decision tracking (Writer's Loop pattern)
+// ================================================================
+
+export interface ChapterDecision {
+  chapterId: string;
+  timestamp: number;
+  action: 'accept_draft' | 'reject_draft' | 'manual_rewrite' | 'edit_then_accept';
+  instruction?: string;
+  acceptedPortions?: string[];
+  rejectedReason?: string;
+}
+
+export interface LearnedPreference {
+  pattern: string;
+  confidence: number;
+  source: string;
+}
+
+/**
+ * Record a user's chapter-level decision for future learning.
+ * Appends to novel.projectPreferenceProfile.decisions.
+ */
+export function recordChapterDecision(
+  profile: ProjectPreferenceProfile,
+  decision: ChapterDecision,
+): ProjectPreferenceProfile {
+  const decisions = [...((profile as any).decisions || []), decision];
+  // Keep last 20 decisions only (sliding window)
+  const trimmed = decisions.length > 20 ? decisions.slice(-20) : decisions;
+  return {
+    ...profile,
+    evidenceCount: profile.evidenceCount + 1,
+    notes: [...profile.notes, `[ChapterDecision] ${decision.action} on chapter ${decision.chapterId}`],
+    ...({ decisions: trimmed } as any),
+  };
+}
+
+/**
+ * Analyze recent chapter decisions for patterns.
+ * Returns learned preferences that can be injected into generation.
+ */
+export function summarizeChapterDecisions(
+  profile: ProjectPreferenceProfile,
+): LearnedPreference[] {
+  const decisions: ChapterDecision[] = (profile as any).decisions || [];
+  if (decisions.length < 3) return []; // Not enough data
+
+  const preferences: LearnedPreference[] = [];
+
+  // Pattern 1: Frequent rewrites → user is picky about drafts
+  const rewriteCount = decisions.filter((d) => d.action === 'manual_rewrite' || d.action === 'edit_then_accept').length;
+  if (rewriteCount >= 3) {
+    preferences.push({
+      pattern: '你倾向于在 AI 草稿基础上进行修改，而非直接接受。后续生成将提供更简练的初稿以便编辑。',
+      confidence: Math.min(rewriteCount / decisions.length, 1),
+      source: 'chapter_decisions',
+    });
+  }
+
+  // Pattern 2: Common rejection reasons
+  const rejectReasons = decisions
+    .filter((d) => d.rejectedReason)
+    .map((d) => d.rejectedReason!);
+  if (rejectReasons.length >= 2) {
+    const reasonText = rejectReasons.slice(-3).join('；');
+    preferences.push({
+      pattern: `你近期拒绝草稿的原因包括：${reasonText}。生成时将注意避免这些问题。`,
+      confidence: 0.7,
+      source: 'rejection_reasons',
+    });
+  }
+
+  // Pattern 3: Consistent rewrites with instructions
+  const instructions = decisions
+    .filter((d) => d.instruction)
+    .map((d) => d.instruction!);
+  if (instructions.length >= 2) {
+    preferences.push({
+      pattern: `你近期的改写指令：${instructions.slice(-2).join('；')}`,
+      confidence: 0.6,
+      source: 'rewrite_instructions',
+    });
+  }
+
+  return preferences;
 }

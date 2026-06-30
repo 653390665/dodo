@@ -284,8 +284,8 @@ function startWatchdog(port) {
   serverPort = port;
   if (watchdogTimer) clearInterval(watchdogTimer);
   watchdogTimer = setInterval(() => {
-    http.get(`http://localhost:${serverPort}/api/config`, (res) => {
-      if (res.statusCode !== 200) restartServer();
+    http.get(`http://localhost:${serverPort}`, (res) => {
+      if (res.statusCode >= 500) restartServer();
     }).on('error', () => {
       restartServer();
     });
@@ -393,9 +393,15 @@ async function createWindow() {
     }
   }, 5000);
 
-  mainWindow.on('close', () => { saveWindowState(); });
-  mainWindow.on('resize', () => { saveWindowState(); });
-  mainWindow.on('move', () => { saveWindowState(); });
+  let saveTimer = null;
+  const debouncedSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveWindowState, 500);
+  };
+
+  mainWindow.on('close', () => { if (saveTimer) clearTimeout(saveTimer); saveWindowState(); });
+  mainWindow.on('resize', debouncedSave);
+  mainWindow.on('move', debouncedSave);
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`[window] Failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
@@ -432,4 +438,20 @@ app.on('before-quit', () => {
   isQuitting = true;
   stopWatchdog();
   stopServer();
+});
+
+// ── IPC Handlers ─────────────────────────────────────────────────────
+
+const TOKEN_PATH = path.join(process.env.HOME || require('os').homedir(), '.inkflow', '.auth-token');
+function getLocalAuthToken() {
+  try {
+    if (fs.existsSync(TOKEN_PATH)) {
+      return fs.readFileSync(TOKEN_PATH, 'utf-8').trim();
+    }
+  } catch {}
+  return '';
+}
+
+ipcMain.handle('get-auth-token', () => {
+  return getLocalAuthToken();
 });

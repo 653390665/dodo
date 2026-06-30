@@ -1,6 +1,85 @@
 import type { Express } from 'express';
-import * as db from '../../src/lib/db';
-import { buildChapterProductionTitle } from '../../src/lib/chapter-production';
+import { logger } from '../logger';
+import * as db from '../lib/db';
+
+function escXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+async function buildEpub(novel: any, chapters: any[]): Promise<Buffer> {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  const escTitle = escXml(novel.title);
+
+  // mimetype (must be first, uncompressed)
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+  // container.xml
+  zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  const sorted = [...chapters].sort((a, b) => a.order - b.order);
+
+  // content.opf
+  const manifestItems = sorted.map((_, i) =>
+    `<item id="ch${i}" href="ch${i}.xhtml" media-type="application/xhtml+xml"/>`
+  ).join('\n');
+  const spineItems = sorted.map((_, i) => `<itemref idref="ch${i}"/>`).join('\n');
+  const opf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${escTitle}</dc:title>
+    <dc:creator>InkFlow</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <dc:identifier id="book-id">urn:inkflow:${novel.id}</dc:identifier>
+  </metadata>
+  <manifest>
+    ${manifestItems}
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+  </manifest>
+  <spine>${spineItems}</spine>
+</package>`;
+  zip.file('OEBPS/content.opf', opf);
+
+  // Navigation
+  const navLinks = sorted.map((ch, i) =>
+    `<li><a href="ch${i}.xhtml">第${ch.order ?? '?'}章 ${escXml(ch.title)}</a></li>`
+  ).join('\n');
+  const nav = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>目录</title></head>
+<body><nav epub:type="toc"><h2>目录</h2><ol>${navLinks}</ol></nav></body>
+</html>`;
+  zip.file('OEBPS/nav.xhtml', nav);
+
+  // Chapter files
+  for (let i = 0; i < sorted.length; i++) {
+    const ch = sorted[i];
+    const escChapterTitle = escXml(ch.title);
+    const paragraphs = (ch.content || '').split('\n').map((line: string) =>
+      `<p>${line ? escXml(line) : '&nbsp;'}</p>`
+    ).join('\n');
+    const html = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>第${ch.order ?? '?'}章 ${escChapterTitle}</title></head>
+<body><h2>第${ch.order ?? '?'}章 ${escChapterTitle}</h2>
+${paragraphs}
+</body>
+</html>`;
+    zip.file(`OEBPS/ch${i}.xhtml`, html);
+  }
+
+  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
 
 export function registerExportRoutes(app: Express) {
   app.post('/api/export', async (req, res) => {
@@ -13,14 +92,12 @@ export function registerExportRoutes(app: Express) {
 
       const chapters = db.listChapters(novelId);
       if (format === 'epub') {
-        // EPUB export logic stays here for now
-        const JSZip = (await import('jszip')).default;
-        const zip = new JSZip();
-        // ... (preserve existing EPUB logic from server.ts lines 2722-2824)
-        // For now, delegate to the existing implementation
-        res.status(501).json({ error: 'EPUB export not yet migrated' });
+        const buf = await buildEpub(novel, chapters);
+        res.setHeader('Content-Type', 'application/epub+zip');
+        res.setHeader('Content-Length', String(buf.length));
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.epub"`);
+        res.send(buf);
       } else {
-        // TXT export
         const lines: string[] = [];
         lines.push(`${novel.title}`);
         lines.push(`作者: ${novel.authorId}`);
@@ -39,7 +116,7 @@ export function registerExportRoutes(app: Express) {
         res.send(content);
       }
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 }

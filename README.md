@@ -39,20 +39,25 @@ InkFlow 本身不内置 AI Key，你需要配置自己的大模型 API。
 
 ### 1. 获取 API Key
 
-支持所有兼容 OpenAI 接口规范的大模型服务，例如：
-
-| 服务商 | 获取地址 |
-|--------|----------|
-| DeepSeek | https://platform.deepseek.com/api_keys |
-| MiniMax | https://platform.minimaxi.com |
-| OpenAI | https://platform.openai.com/api-keys |
-| 其他兼容接口 | 各服务商官网 |
+| 服务商 | 获取地址 | 备注 |
+|--------|----------|------|
+| Google Gemini | https://aistudio.google.com | 推荐，支持 Thinking 深度推理 |
+| DeepSeek | https://platform.deepseek.com/api_keys | |
+| MiniMax | https://platform.minimaxi.com | |
+| OpenAI | https://platform.openai.com/api-keys | |
+| 其他兼容接口 | 各服务商官网 | |
 
 ### 2. 在 InkFlow 中配置
 
-1. 启动 InkFlow
-2. 点击左侧边栏底部的 **齿轮图标**（设置）
-3. 填入：
+#### 方案 A：使用 Google Gemini 原生渠道（推荐）
+1. 启动 InkFlow，点击设置。
+2. 填入你的 **Gemini API Key**。
+3. **Base URL** 留空，或者填入 Google 官方地址 `https://generativelanguage.googleapis.com`。
+4. **Model** 填入 `gemini-2.5-pro` 或 `gemini-2.5-flash`。系统会自动识别并开启 Thinking Mode（深度思考模式）。
+
+#### 方案 B：使用 OpenAI 兼容接口规范的大模型服务
+1. 启动 InkFlow，点击设置。
+2. 填入：
    - **API Key**：你的密钥
    - **Base URL**：API 地址（如 `https://api.deepseek.com/v1`）
    - **Model**：模型名称（如 `deepseek-chat`、`MiniMax-M2.7`）
@@ -167,7 +172,12 @@ A: 选择"仍要运行"。代码开源可自行审查。如需彻底消除误报
 # 环境要求 Node.js 22+
 npm install
 cp .env.example .env.local   # 编辑填入 API Key
-npm run dev                    # 启动开发服务器，打开 http://localhost:3000
+
+# 1. 仅启动 Web 端服务（在浏览器中调试）
+npm run dev                  # 启动开发服务器，打开 http://localhost:3000
+
+# 2. 启动 Electron 桌面开发端（调试桌面程序，含主进程与渲染进程）
+npm run electron:dev         # 启动桌面窗口并自动挂载 DevTools 调试面板
 ```
 
 ### 打包桌面应用

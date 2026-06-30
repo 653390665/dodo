@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DEFAULT_PROMPT_TEMPLATES } from '../src/config/prompt-templates';
-import { migrateLegacyPromptTemplates } from '../src/lib/config';
+import { DEFAULT_PROMPT_TEMPLATES } from '../shared/config/prompt-templates';
+import { migrateLegacyPromptTemplates } from '../server/lib/config';
 
 const LEGACY_INSPIRATION_SYSTEM =
   '你是一个资深小说编辑和文学创作助手。你的回答应该具有文学性、逻辑性，并能激发作者的灵感。';

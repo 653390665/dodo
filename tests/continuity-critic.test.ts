@@ -5,7 +5,7 @@ import {
   extractContinuityReportJson,
   normalizeContinuityReport,
 } from '../src/lib/continuity-critic';
-import type { StoryStateLedger } from '../src/types';
+import type { StoryStateLedger } from '../shared/types';
 
 const ledger: StoryStateLedger = {
   novelId: 'novel-1',

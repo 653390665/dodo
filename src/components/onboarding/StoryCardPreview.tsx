@@ -1,4 +1,4 @@
-import type { StoryIdeaCard } from '../../types';
+import type { StoryIdeaCard } from '../../../shared/types';
 
 export function StoryCardPreview({
   card,
@@ -14,7 +14,7 @@ export function StoryCardPreview({
   return (
     <article
       className={`rounded-3xl border p-5 shadow-sm ${
-        selected ? 'border-theme-accent bg-theme-sidebar/20' : 'border-theme-border bg-white'
+        selected ? 'border-theme-accent bg-theme-sidebar/20' : 'border-theme-border bg-theme-sidebar'
       }`}
     >
       <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">故事方案</div>

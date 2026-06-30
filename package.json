@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron release",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --import tsx tests/*.test.ts",
+    "test:watch": "node --test --watch --import tsx tests/*.test.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server.ts\"",
@@ -24,10 +26,12 @@
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.2.4",
     "@vitejs/plugin-react": "^5.2.0",
+    "@xenova/transformers": "^2.17.2",
     "better-sqlite3": "^12.9.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.22.1",
+    "helmet": "^8.2.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "mammoth": "^1.12.0",
@@ -43,8 +47,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
-    "electron": "^42.4.1",
+    "electron": "^42.5.0",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
     "eslint": "^10.5.0",
@@ -56,7 +61,17 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.61.1",
-    "vite": "^6.4.2"
+    "vite": "^6.4.3",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "tar": "^7.5.19",
+    "protobufjs": "^7.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
   },
   "build": {
     "appId": "com.inkflow.app",

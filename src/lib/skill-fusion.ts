@@ -3,7 +3,7 @@ import type {
   Skill,
   SkillFusionExplanation,
   SkillUsageRecord,
-} from '../types';
+} from '../../shared/types';
 import { getAcceptedPreferenceRoles, getRejectedPreferenceRoles } from './preference-flywheel';
 import { collectSkillRoleKeys } from './skill-language';
 

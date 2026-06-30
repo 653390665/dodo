@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Novel, Chapter, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile } from '../../types';
+import { Chapter, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile } from '../../../shared/types';
 import {
   listChapters, listCharacters, listLocations, listItems, listFactions,
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
@@ -104,6 +104,7 @@ export function useEditorData(novelId: string) {
     return () => {
       unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [novelId]);
 
   return {

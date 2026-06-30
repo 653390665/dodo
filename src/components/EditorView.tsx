@@ -1,38 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
-import Settings from 'lucide-react/dist/esm/icons/settings.js';
-import Save from 'lucide-react/dist/esm/icons/save.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import PanelRight from 'lucide-react/dist/esm/icons/panel-right.js';
-import Maximize2 from 'lucide-react/dist/esm/icons/maximize-2.js';
-import Minimize2 from 'lucide-react/dist/esm/icons/minimize-2.js';
-import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Brain from 'lucide-react/dist/esm/icons/brain.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
-import Feather from 'lucide-react/dist/esm/icons/feather.js';
-import History from 'lucide-react/dist/esm/icons/history.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Radar from 'lucide-react/dist/esm/icons/radar.js';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import Folder from 'lucide-react/dist/esm/icons/folder.js';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import Eye from 'lucide-react/dist/esm/icons/eye.js';
-import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import Download from 'lucide-react/dist/esm/icons/download.js';
-import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+
+import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../../shared/types';
 import {
   listCharacters,
   listLocations,
@@ -48,6 +16,7 @@ import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '
 import { subscribeToChanges } from '../lib/db-transport';
 import type { AgentContext } from '../lib/agents';
 import ReactMarkdown from 'react-markdown';
+import { Activity, AlertCircle, BookOpen, Bot, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Cloud, Download, Eye, Feather, FileText, Folder, FolderOpen, Globe, History, Lightbulb, ListOrdered, Loader2, Maximize2, MessageSquareWarning, Minimize2, PanelRight, Plus, Radar, Save, Search, Settings, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
 import { PacingDashboard } from './PacingDashboard';
@@ -59,8 +28,6 @@ import { WritingSurface } from './WritingSurface';
 import { SkillLoadoutBoard } from './skills/SkillLoadoutBoard';
 import { ProjectPreferencePanel } from './skills/ProjectPreferencePanel';
 import { CopilotStatusBar } from './copilot/CopilotStatusBar';
-import { CopilotHomePanel } from './copilot/CopilotHomePanel';
-import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
@@ -70,7 +37,6 @@ import { useChapterVersions } from '../lib/hooks/useChapterVersions';
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 import { useSkillLoadoutManager } from '../lib/hooks/useSkillLoadoutManager';
 import { useChapterUndo } from '../lib/hooks/useChapterUndo';
-
 
 interface EditorViewProps {
   novel: Novel;
@@ -83,14 +49,14 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   const {
     chapters, setChapters,
     currentChapter, setCurrentChapter,
-    characters, setCharacters,
-    locations, setLocations,
-    items, setItems,
-    factions, setFactions,
-    powerLevels, setPowerLevels,
-    timelineEvents, setTimelineEvents,
-    librarySkills, setLibrarySkills,
-    skillUsageRecords, setSkillUsageRecords,
+    characters,
+    locations,
+    items,
+    factions,
+    powerLevels,
+    timelineEvents,
+    librarySkills,
+    skillUsageRecords,
     mountedSkillLoadout, setMountedSkillLoadout,
     projectPreferenceProfile, setProjectPreferenceProfile,
     isLoading: isEditorDataLoading,
@@ -277,6 +243,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     cancelPendingContentSync,
     refreshChapters,
     setCurrentChapter,
+    activeEntityNames: sniffedEntities?.activeExisting || undefined,
   });
 
   useEffect(() => {
@@ -474,12 +441,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     );
   };
 
-
-
   return (
     <div className={cn(
       "h-full flex overflow-hidden transition-all duration-700 relative",
-      isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-white"
+      isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-theme-sidebar"
     )}>
       {isEditorDataLoading && (
         <div className="absolute top-4 right-4 z-50">
@@ -548,7 +513,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
           setIsAgentSidebarOpen={setIsAgentSidebarOpen}
         />
 
-        <div className="h-9 bg-white border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
+        <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
           <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             {launchState?.approvedPackId && (
               <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">
@@ -664,7 +629,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
               mountedSkillLoadout={mountedSkillLoadout}
               onAssignSkill={assignSkillToSlot}
               onRemoveSkill={removeSkillFromSlot}
-              projectPreferenceProfile={projectPreferenceProfile}
+              projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
               onPreferenceProfileChange={persistProjectPreferenceProfile}
               versions={versions}
               onSaveVersion={handleSaveVersion}

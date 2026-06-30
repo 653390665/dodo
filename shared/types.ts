@@ -56,6 +56,8 @@ export interface Character {
   summary: string;
   traits: string[];
   bio: string;
+  current_state?: string;
+  concealGender?: boolean;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -618,6 +620,7 @@ export interface ProjectPreferenceProfile {
   rejectedDimensions: SkillDimension[];
   notes: string[];
   evidenceCount: number;
+  contract?: StoryContract;
 }
 
 export interface FitScoreExplanation {
@@ -753,6 +756,57 @@ declare global {
   interface Window {
     inkflow?: {
       setTitle: (title: string) => void;
+      getAuthToken?: () => Promise<string>;
     };
   }
+}
+
+export interface EntityRelationship {
+  id: string;
+  novelId: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  relationshipType: string;
+  description?: string;
+  createdAt: number;
+}
+
+export interface StoryContract {
+  genreRules?: string[];
+  characterConstraints?: string[];
+  plotTaboos?: string[];
+  styleAnchors?: string[];
+  pacingRules?: string;
+  worldBuildingNotes?: string[];
+  powerCeiling?: string;
+  noResurrection?: boolean;
+  characterConsistency?: 'strict' | 'loose';
+  customConstraints?: string[];
+  foreshadowingDebt?: { open: number; resolved: number; planted: number; overdue: number };
+}
+
+export interface GenreProfile {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+  constraints: Record<string, any>;
+  promptAugmentation: string;
+}
+
+export interface Scene {
+  id: string;
+  novelId: string;
+  chapterId: string;
+  title: string;
+  content: string;
+  order: number;
+  wordCount: number;
+  pov?: string;
+  status: 'draft' | 'revision' | 'done';
+  timelinePosition?: string;
+  createdAt: number;
+  updatedAt: number;
 }

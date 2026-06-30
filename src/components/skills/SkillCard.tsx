@@ -1,8 +1,9 @@
-import { useState } from 'react';import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import { useState } from 'react';
+import { Trash2, Zap } from 'lucide-react';
+
 import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { cn } from '../../lib/utils';
-import type { Skill, Novel } from '../../types';
+import type { Skill, Novel } from '../../../shared/types';
 
 interface SkillCardProps {
   skill: Skill;
@@ -21,7 +22,7 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
       type="button"
       onClick={onOpen}
       className={cn(
-        'group bg-white rounded-2xl p-6 border shadow-sm flex flex-col text-left relative overflow-hidden',
+        'group bg-theme-sidebar rounded-2xl p-6 border shadow-sm flex flex-col text-left relative overflow-hidden',
         selected ? 'border-theme-accent ring-1 ring-theme-accent/20' : 'border-theme-border',
       )}
     >
@@ -47,7 +48,7 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
                 <Zap size={16} />
               </button>
               {showEquipMenu && (
-                <div className="absolute top-full right-0 mt-1 bg-white rounded-xl border border-theme-border shadow-lg p-2 z-20 min-w-[160px]">
+                <div className="absolute top-full right-0 mt-1 bg-theme-sidebar rounded-xl border border-theme-border shadow-lg p-2 z-20 min-w-[160px]">
                   {userNovels.map((novel) => (
                     <button
                       key={novel.id}

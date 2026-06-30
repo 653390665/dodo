@@ -10,8 +10,8 @@ import {
   initDb,
   listNovels,
   updateNovel,
-} from '../src/lib/db';
-import type { Novel, ProjectPreferenceProfile } from '../src/types';
+} from '../server/lib/db';
+import type { Novel, ProjectPreferenceProfile } from '../shared/types';
 
 function baseProfile(): ProjectPreferenceProfile {
   return {

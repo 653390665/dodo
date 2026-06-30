@@ -1,5 +1,5 @@
 import { cn } from '../../lib/utils';
-import type { Skill } from '../../types';
+import type { Skill } from '../../../shared/types';
 
 interface SkillVersionTimelineProps {
   versions: Skill[];
@@ -31,7 +31,7 @@ export function SkillVersionTimeline({
             'w-full rounded-xl border p-3 text-left transition-colors',
             version.id === activeId
               ? 'border-theme-accent bg-theme-accent/5'
-              : 'border-theme-border bg-white hover:bg-theme-sidebar/20',
+              : 'border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/20',
           )}
         >
           <div className="flex items-center justify-between gap-3">

@@ -6,12 +6,10 @@ import {
   pickFusionSuggestionPair,
   shouldSuggestFusion,
 } from '../src/lib/skill-fusion';
-import type { Skill, SkillUsageRecord } from '../src/types';
+import type { Skill, SkillUsageRecord } from '../shared/types';
 
 function makeSkill(partial: Partial<Skill> & Pick<Skill, 'id' | 'name'>): Skill {
   return {
-    id: partial.id,
-    name: partial.name,
     description: '',
     style: '',
     pacing: '',

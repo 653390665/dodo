@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getPreferredContinuationPackId, getPreferredContinuationPack } from '../src/lib/continuation-pack-selection';
-import type { ContinuationPack } from '../src/types';
+import type { ContinuationPack } from '../shared/types';
 
 function makePack(overrides: Partial<ContinuationPack>): ContinuationPack {
   return {

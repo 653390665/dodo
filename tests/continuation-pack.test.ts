@@ -5,7 +5,7 @@ import {
   buildCreationIntentDraft,
   classifyContinuationSource,
 } from '../src/lib/continuation-pack';
-import type { ContinuationPack } from '../src/types';
+import type { ContinuationPack } from '../shared/types';
 
 test('classifyContinuationSource detects common project document kinds', () => {
   assert.equal(classifyContinuationSource('世界观设定.docx', '灵气复苏，宗门割据'), 'world');

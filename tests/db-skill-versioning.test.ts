@@ -14,8 +14,8 @@ import {
   listSkillUsageRecords,
   listSkillVersions,
   updateSkill,
-} from '../src/lib/db';
-import type { Chapter, Novel, Skill, SkillFusionMeta } from '../src/types';
+} from '../server/lib/db';
+import type { Chapter, Novel, Skill, SkillFusionMeta } from '../shared/types';
 
 function baseSkill(overrides: Partial<Skill> = {}): Skill {
   const now = Date.now();

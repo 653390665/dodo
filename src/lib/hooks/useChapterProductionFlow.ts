@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 
-import type { Chapter, ChapterProductionRun } from '../../types';
-import { listChapterProductionRuns } from '../chapter-production-db-client';
-import { applyChapterProductionRun, startChapterProductionRun } from '../production-client';
+import type { Chapter, ChapterProductionRun } from '../../../shared/types';
+import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent } from '../production-client';
 
 interface UseChapterProductionFlowArgs {
   novelId: string;
@@ -11,37 +10,7 @@ interface UseChapterProductionFlowArgs {
   cancelPendingContentSync?: () => void;
   refreshChapters: () => Promise<Chapter[]>;
   setCurrentChapter: React.Dispatch<React.SetStateAction<Chapter | null>>;
-}
-
-async function waitForReviewableProductionRun({
-  novelId,
-  targetChapterId,
-  startedAt,
-  signal,
-}: {
-  novelId: string;
-  targetChapterId?: string;
-  startedAt: number;
-  signal: AbortSignal;
-}): Promise<ChapterProductionRun> {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    if (signal.aborted) {
-      throw new DOMException('Production run aborted', 'AbortError');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    const runs = await listChapterProductionRuns(novelId);
-    const latest = runs
-      .filter((run) => run.createdAt >= startedAt - 1000)
-      .filter((run) => !targetChapterId || run.targetChapterId === targetChapterId)
-      .filter((run) => run.status === 'review_required' || Boolean(run.draftContent.trim()))
-      .sort((a, b) => b.createdAt - a.createdAt)[0];
-    if (latest) {
-      return latest.status === 'review_required'
-        ? latest
-        : { ...latest, status: 'review_required', errorMessage: undefined };
-    }
-  }
-  throw new Error('Production run did not become reviewable in time');
+  activeEntityNames?: string[];
 }
 
 export function useChapterProductionFlow({
@@ -51,6 +20,7 @@ export function useChapterProductionFlow({
   cancelPendingContentSync,
   refreshChapters,
   setCurrentChapter,
+  activeEntityNames,
 }: UseChapterProductionFlowArgs) {
   const [productionIntent, setProductionIntent] = useState('');
   const [activeProductionRun, setActiveProductionRun] = useState<ChapterProductionRun | null>(null);
@@ -92,7 +62,6 @@ export function useChapterProductionFlow({
     setProductionStatusMessage('正在连接...');
     productionCompletedRef.current = false;
     productionHasUsableDraftRef.current = false;
-    const startedAt = Date.now();
 
     setActiveProductionRun({
       id: '',
@@ -124,29 +93,65 @@ export function useChapterProductionFlow({
         targetChapterId: currentChapterId,
         userIntent: productionIntent,
         continuationPackId: continuationPackId || undefined,
+        activeEntityNames,
       };
-      const run = await Promise.race([
-        startChapterProductionRun(payload, controller.signal),
-        waitForReviewableProductionRun({
-          novelId,
-          targetChapterId: currentChapterId,
-          startedAt,
-          signal: controller.signal,
-        }),
-      ]);
-      if (productionAbortRef.current !== controller) {
-        return;
-      }
-      productionCompletedRef.current = true;
-      productionHasUsableDraftRef.current = Boolean(run.draftContent.trim());
-      setActiveProductionRun(run);
-      setProductionBeatsSource('fallback');
-      setProductionDraftSource('fallback');
-      productionDraftSourceRef.current = 'fallback';
-      setProductionAuditSource('fallback');
-      setProductionError(null);
-      setProductionStatusMessage(null);
-      setIsProductionRunning(false);
+      await startChapterProductionRunStream(
+        payload,
+        (event: ProductionRunSSEEvent) => {
+          if (productionAbortRef.current !== controller) return;
+          switch (event.type) {
+            case 'run_created':
+              break;
+            case 'status':
+              setProductionStatusMessage(event.message);
+              break;
+            case 'fallback_beats':
+              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : prev);
+              setProductionBeatsSource('fallback');
+              break;
+            case 'fallback_draft_token':
+              productionHasUsableDraftRef.current = true;
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: (prev.draftContent || '') + event.content } : prev);
+              break;
+            case 'fallback_draft_done':
+              setProductionDraftSource('fallback');
+              productionDraftSourceRef.current = 'fallback';
+              break;
+            case 'fallback_audit':
+              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : prev);
+              setProductionAuditSource('fallback');
+              break;
+            case 'model_beats':
+              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : prev);
+              setProductionBeatsSource('model');
+              break;
+            case 'model_draft_token':
+              setProductionDraftSource('model');
+              productionDraftSourceRef.current = 'model';
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: (prev.draftContent || '') + event.content } : prev);
+              break;
+            case 'model_draft_done':
+              break;
+            case 'model_audit':
+              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : prev);
+              setProductionAuditSource('model');
+              break;
+            case 'model_score':
+              break;
+            case 'done':
+              productionCompletedRef.current = true;
+              setActiveProductionRun(event.run);
+              setProductionError(null);
+              setProductionStatusMessage(null);
+              setIsProductionRunning(false);
+              break;
+            case 'error':
+              setProductionError(event.message);
+              break;
+          }
+        },
+        controller.signal,
+      );
     } catch (error) {
       if (productionAbortRef.current !== controller) {
         return;

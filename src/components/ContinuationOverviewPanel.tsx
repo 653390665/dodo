@@ -1,10 +1,8 @@
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
+import { AlertTriangle, ArrowRight, CheckCircle2, FileWarning, Upload } from 'lucide-react';
+
 import { buildCreationIntentDraft } from '../lib/continuation-pack';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import FileWarning from 'lucide-react/dist/esm/icons/file-warning.js';
-import Upload from 'lucide-react/dist/esm/icons/upload.js';
-import type { ContinuationOverviewState } from '../types';
+
+import type { ContinuationOverviewState } from '../../shared/types';
 
 interface ContinuationOverviewPanelProps {
   state: ContinuationOverviewState;
@@ -109,27 +107,27 @@ export function ContinuationOverviewPanel({
     actionConfig?.accent === 'warning'
       ? {
           shell: 'border-amber-300 bg-amber-50/80',
-          badge: 'border-amber-300 bg-white text-amber-800',
+          badge: 'border-amber-300 bg-theme-sidebar text-amber-800',
           accent: 'bg-amber-500/10 text-amber-800',
-          outcome: 'border-amber-200 bg-white/80 text-amber-800',
+          outcome: 'border-amber-200 bg-theme-sidebar/80 text-amber-800',
         }
       : actionConfig?.accent === 'ready'
         ? {
             shell: 'border-emerald-200 bg-emerald-50/80',
-            badge: 'border-emerald-200 bg-white text-emerald-800',
+            badge: 'border-emerald-200 bg-theme-sidebar text-emerald-800',
             accent: 'bg-emerald-500/10 text-emerald-800',
-            outcome: 'border-emerald-200 bg-white/80 text-emerald-800',
+            outcome: 'border-emerald-200 bg-theme-sidebar/80 text-emerald-800',
           }
         : {
             shell: 'border-theme-border bg-theme-sidebar/18',
-            badge: 'border-theme-border bg-white text-theme-text',
+            badge: 'border-theme-border bg-theme-sidebar text-theme-text',
             accent: 'bg-theme-text/5 text-theme-text',
-            outcome: 'border-theme-border bg-white/90 text-theme-muted',
+            outcome: 'border-theme-border bg-theme-sidebar/90 text-theme-muted',
           };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <section className="rounded-3xl border border-theme-border bg-white p-6 shadow-sm">
+      <section className="rounded-3xl border border-theme-border bg-theme-sidebar p-6 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-bold text-theme-muted">资料续写总览</div>
@@ -155,7 +153,7 @@ export function ContinuationOverviewPanel({
       )}
 
       <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+        <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
           <div className="text-xs font-bold text-theme-muted">本次续写任务</div>
           <div className="mt-3 text-sm font-bold text-theme-text leading-6">
             {primaryPack?.continuationTask || '还没有续写任务摘要'}
@@ -176,7 +174,7 @@ export function ContinuationOverviewPanel({
           </div>
         </div>
 
-        <div className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+        <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
           <div className="text-xs font-bold text-theme-muted">风险与缺口</div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-theme-border px-2.5 py-1">冲突 {state.contradictionCount}</span>
@@ -199,7 +197,7 @@ export function ContinuationOverviewPanel({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
         <div className="text-xs font-bold text-theme-muted">下一步动作</div>
         {actionConfig ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_280px]">
@@ -224,7 +222,7 @@ export function ContinuationOverviewPanel({
               </button>
             </div>
 
-            <div className="rounded-3xl border border-theme-border bg-white p-4">
+            <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-4">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-theme-muted/80">备选动作</div>
               <p className="mt-2 text-sm leading-6 text-theme-muted">
                 {actionConfig.accent === 'warning'
@@ -248,7 +246,7 @@ export function ContinuationOverviewPanel({
       </section>
 
       {primaryPack && (
-        <section className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+        <section className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
           <div className="text-xs font-bold text-theme-muted">快捷操作</div>
           <div className="flex flex-wrap gap-2 mt-4">
             <button

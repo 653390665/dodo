@@ -14,5 +14,6 @@ coverage/
 !.env.example
 ~/.inkflow/
 dist-electron-test/
-tmp-server.cjs
+# Build artifacts
+/tmp-*.cjs
 docs/prompt-research/vendor/

@@ -5,7 +5,7 @@ import type {
   SkillDimension,
   SkillUsageRecord,
   SkillUsageStats,
-} from '../types';
+} from '../../shared/types';
 import { collectSkillRoleKeys, normalizeRoleKey, type SkillRoleKey } from './skill-language';
 
 const DEFAULT_PROFILE: SkillCompositionProfile = {

@@ -1,4 +1,4 @@
-import type { ContinuationOverviewState, ContinuationPack } from '../types';
+import type { ContinuationOverviewState, ContinuationPack } from '../../shared/types';
 
 function sortByRecency(packs: ContinuationPack[]): ContinuationPack[] {
   return [...packs].sort((a, b) => b.updatedAt - a.updatedAt);

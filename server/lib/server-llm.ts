@@ -9,6 +9,7 @@ interface GenerateTextOptions {
   responseMimeType?: string;
   disableThinking?: boolean;
   signal?: AbortSignal;
+  onToken?: (token: string) => void;
 }
 
 const OPENAI_TIMEOUT_MS = 75_000;
@@ -59,16 +60,16 @@ export function buildGoogleGenerateContentRequest(options: Pick<GenerateTextOpti
 
 export function buildOpenAICompatibleChatRequest(
   config: Pick<AppConfig, "baseUrl" | "model">,
-  options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking">,
+  options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking" | "onToken">,
 ) {
-  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking } = options;
+  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, onToken } = options;
   const request: Record<string, unknown> = {
     model: config.model,
     messages: [
       ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
       { role: "user", content: prompt },
     ],
-    stream: false,
+    stream: !!onToken,
   };
 
   if (isMiniMaxProvider(config.baseUrl)) {
@@ -128,6 +129,7 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
     maxTokens,
     responseMimeType,
     disableThinking,
+    onToken,
   } = options;
 
   if (!config.apiKey) {
@@ -150,28 +152,43 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
             disableThinking,
           });
           request.model = config.model || request.model;
-          const response = await ai.models.generateContent(request);
-          return sanitizeModelText(response.text || "");
+          if (onToken) {
+            const responseStream = await ai.models.generateContentStream(request);
+            let fullText = '';
+            for await (const chunk of responseStream) {
+              const text = chunk.text || '';
+              fullText += text;
+              onToken(text);
+            }
+            return sanitizeModelText(fullText);
+          } else {
+            const response = await ai.models.generateContent(request);
+            return sanitizeModelText(response.text || "");
+          }
         })();
 
+        let onAbort: (() => void) | undefined;
         const abortPromise = new Promise<never>((_, reject) => {
-          if (options.signal) {
-            if (options.signal.aborted) {
-              return reject(options.signal.reason || new Error("AbortError"));
+          const signal = options.signal;
+          if (signal) {
+            if (signal.aborted) {
+              return reject(signal.reason || new Error("AbortError"));
             }
-            options.signal.addEventListener("abort", () => {
-              reject(options.signal.reason || new Error("AbortError"));
-            });
+            onAbort = () => reject(signal.reason || new Error("AbortError"));
+            signal.addEventListener("abort", onAbort);
           }
         });
 
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const result = await Promise.race([
           callPromise,
           abortPromise,
           new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`)), timeoutMs),
+            timeoutId = setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`)), timeoutMs),
           ),
         ]);
+        if (onAbort && options.signal) options.signal.removeEventListener("abort", onAbort);
+        if (timeoutId) clearTimeout(timeoutId);
         return result;
       } catch (error) {
         lastError = error;
@@ -223,7 +240,7 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
             body: JSON.stringify(
               buildOpenAICompatibleChatRequest(
                 { baseUrl: config.baseUrl, model: config.model },
-                { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking },
+                { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, onToken },
               ),
             ),
             signal: controller.signal
@@ -234,16 +251,51 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
             throw new Error(`LLM request failed (${response.status}): ${errorText}`);
           }
 
-          const data = await response.json();
-          const text = extractOpenAIText(data);
-          if (!text) {
-            throw new Error("LLM returned empty response");
+          if (onToken) {
+            const body = response.body;
+            if (!body) throw new Error("Response body is empty");
+            const reader = body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let fullText = '';
+            let buffer = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                const cleaned = line.trim();
+                if (!cleaned) continue;
+                if (cleaned === 'data: [DONE]') continue;
+                if (cleaned.startsWith('data: ')) {
+                  try {
+                    const parsed = JSON.parse(cleaned.substring(6));
+                    const token = parsed?.choices?.[0]?.delta?.content || '';
+                    if (token) {
+                      fullText += token;
+                      onToken(token);
+                    }
+                  } catch {}
+                }
+              }
+            }
+            return sanitizeModelText(fullText);
+          } else {
+            const data = await response.json();
+            const text = extractOpenAIText(data);
+            if (!text) {
+              throw new Error("LLM returned empty response");
+            }
+            const sanitized = sanitizeModelText(text);
+            if (!sanitized) {
+              throw new Error("LLM response contained only thinking/reasoning content — increase max_tokens or use a non-thinking model");
+            }
+            return sanitized;
           }
-          const sanitized = sanitizeModelText(text);
-          if (!sanitized) {
-            throw new Error("LLM response contained only thinking/reasoning content — increase max_tokens or use a non-thinking model");
-          }
-          return sanitized;
         })(),
         raceTimeoutPromise,
       ]);
@@ -273,4 +325,57 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
   }
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+export async function generateEmbedding(config: AppConfig, text: string): Promise<number[]> {
+  if (!config.apiKey) {
+    throw new Error("API key not configured");
+  }
+
+  if (isGoogleProvider(config.baseUrl)) {
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: config.apiKey });
+    const modelName = config.model && config.model.includes("embedding") ? config.model : "text-embedding-004";
+    const response = await ai.models.embedContent({
+      model: modelName,
+      contents: text,
+    });
+    const values = (response as any).embedding?.values || (response as any).embeddings?.[0]?.values;
+    if (!values) {
+      throw new Error("Google GenAI returned empty embedding");
+    }
+    return values;
+  }
+
+  const isChatModel = config.model && (
+    config.model.includes("chat") ||
+    config.model.includes("gpt-") ||
+    config.model.includes("claude-") ||
+    config.model.includes("deepseek-")
+  );
+  const model = isChatModel ? "text-embedding-3-small" : (config.model || "text-embedding-3-small");
+
+  const response = await fetch(joinUrl(config.baseUrl, "/embeddings"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify({
+      input: text,
+      model: model,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Embedding request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const embedding = data?.data?.[0]?.embedding;
+  if (!Array.isArray(embedding)) {
+    throw new Error("OpenAI returned invalid embedding format");
+  }
+  return embedding;
 }

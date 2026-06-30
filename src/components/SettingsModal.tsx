@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
-import Save from 'lucide-react/dist/esm/icons/save.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
-import Sun from 'lucide-react/dist/esm/icons/sun.js';
-import Moon from 'lucide-react/dist/esm/icons/moon.js';
-import Monitor from 'lucide-react/dist/esm/icons/monitor.js';
+import React, { useState, useEffect } from 'react';
+import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X } from 'lucide-react';
+
 import {
   DEFAULT_PROMPT_TEMPLATES,
   PROMPT_TEMPLATE_DEFINITIONS,
   type PromptTemplateKey,
   type PromptTemplates,
-} from '../config/prompt-templates';
+} from '../../shared/config/prompt-templates';
 
 export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void }) {
   const [config, setConfig] = useState({
@@ -65,6 +61,53 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     setTestError(null);
     setPromptPreview('');
   }, [selectedTemplateKey]);
+
+  // Focus trap and Escape key handler for dialog a11y
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusableElements = document.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+        );
+        const modalElement = document.getElementById('settings-dialog-container');
+        if (!modalElement) return;
+        const modalFocusables = Array.from(focusableElements).filter(el =>
+          modalElement.contains(el)
+        ) as HTMLElement[];
+
+        if (modalFocusables.length === 0) return;
+        const first = modalFocusables[0];
+        const last = modalFocusables[modalFocusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Auto focus first interactive element
+    const modalElement = document.getElementById('settings-dialog-container');
+    if (modalElement) {
+      const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+      if (firstInput) firstInput.focus();
+    }
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -141,11 +184,15 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 backdrop-blur-sm p-4 sm:p-6">
       <div
+        id="settings-dialog-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
         className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl"
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
           <div className="space-y-1">
-            <h2 className="text-2xl font-serif text-theme-text">模型与提示词设置</h2>
+            <h2 id="settings-dialog-title" className="text-2xl font-serif text-theme-text">模型与提示词设置</h2>
             <p className="text-sm text-theme-muted">
               模型接入和核心提示词分开管理。模板保存后会立即影响后续 AI 请求，不需要重启服务。
             </p>
@@ -366,7 +413,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                           },
                         })
                       }
-                      className="w-full min-h-[360px] rounded-2xl border border-theme-border px-4 py-3 text-xs bg-white resize-y outline-none focus:border-theme-accent transition-colors font-mono leading-6"
+                      className="w-full min-h-[360px] rounded-2xl border border-theme-border px-4 py-3 text-xs bg-theme-sidebar resize-y outline-none focus:border-theme-accent transition-colors font-mono leading-6"
                     />
                   </div>
 

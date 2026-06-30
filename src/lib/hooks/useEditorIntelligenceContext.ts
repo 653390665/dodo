@@ -14,7 +14,7 @@ import type {
   Skill,
   SniffedEntities,
   TimelineEvent,
-} from '../../types';
+} from '../../../shared/types';
 import type { AgentContext, SceneType } from '../agents';
 import { buildCopilotSuggestion } from '../copilot-stage';
 import { getPreferredContinuationPack } from '../continuation-pack-selection';
@@ -179,6 +179,7 @@ export function useEditorIntelligenceContext({
         lastFocusArea: agentTab === 'copilot-home' ? 'editor' : agentTab,
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       agentTab,
       continuationPacks,

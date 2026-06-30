@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '../lib/utils';import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
-import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import BookMarked from 'lucide-react/dist/esm/icons/book-marked.js';
-import Clock from 'lucide-react/dist/esm/icons/clock.js';
-import Download from 'lucide-react/dist/esm/icons/download.js';
+import { BookMarked, Clock, Download, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { cn } from '../lib/utils';
+
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { Novel, Chapter, ViewType } from '../types';
+import { Novel, Chapter, ViewType } from '../../shared/types';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
@@ -137,7 +133,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
               placeholder="搜索作品..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-theme-sidebar border border-theme-border focus:bg-white focus:border-theme-accent rounded-lg text-sm outline-none transition-all w-64 shadow-sm text-theme-text placeholder:text-theme-muted"
+              className="pl-10 pr-4 py-2 bg-theme-sidebar border border-theme-border focus:bg-theme-sidebar focus:border-theme-accent rounded-lg text-sm outline-none transition-all w-64 shadow-sm text-theme-text placeholder:text-theme-muted"
             />
           </div>
           <button
@@ -194,19 +190,19 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             <div
               key={novel.id}
               onClick={() => onSelectNovel(novel)}
-              className="group relative h-[420px] bg-white rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
+              className="group relative h-[420px] bg-theme-sidebar rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
             >
               <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex gap-2 translate-y-2 group-hover:translate-y-0">
                 <button
                   onClick={(e) => handleExportNovel(e, novel)}
-                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-white transition-all shadow-lg border border-theme-border/50"
+                  className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-theme-sidebar transition-all shadow-lg border border-theme-border/50"
                   title="导出全本 (TXT)"
                 >
                   <Download size={16} />
                 </button>
                 <button
                   onClick={(e) => handleDeleteNovel(e, novel.id)}
-                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
+                  className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
                   title="删除作品"
                 >
                   <Trash2 size={16} />
@@ -238,11 +234,12 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   </div>
                   
                   {(() => {
-                    const statusConfig = {
+                    const configMap = {
                       ongoing: { label: '连载中', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
                       completed: { label: '已完结', color: 'bg-blue-50 text-blue-700 border-blue-100' },
                       hiatus: { label: '断更', color: 'bg-amber-50 text-amber-700 border-amber-100' }
-                    }[novel.status as keyof typeof statusConfig || 'ongoing'];
+                    };
+                    const statusConfig = configMap[(novel.status as keyof typeof configMap) || 'ongoing'];
                     
                     return (
                       <span className={cn(
@@ -264,7 +261,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors"
           >
             <form onSubmit={handleCreateNovel} className="w-full px-4">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
+              <div className="w-20 h-20 bg-theme-sidebar rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
                 <Plus size={32} className="text-theme-accent" />
               </div>
               <input

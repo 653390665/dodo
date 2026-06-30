@@ -1,4 +1,4 @@
-import type { Chapter, StoryStateLedger } from '../types';
+import type { Chapter, StoryStateLedger } from '../../shared/types';
 
 export function getNextChapterOrder(chapters: Pick<Chapter, 'order'>[]): number {
   if (!chapters.length) return 1;

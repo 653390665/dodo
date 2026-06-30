@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 
 import type { AgentContext } from '../agents';
-import type { Chapter, Novel, Skill } from '../../types';
+import type { Chapter, Novel, Skill } from '../../../shared/types';
 import { editorAgentPhase, buildContextPrompt } from '../agents';
 import { createChapterVersion, updateChapter } from '../chapter-client';
 import { updateNovel } from '../novel-client';

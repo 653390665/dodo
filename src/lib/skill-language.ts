@@ -1,4 +1,4 @@
-import type { Skill, SkillDimension } from '../types';
+import type { Skill, SkillDimension } from '../../shared/types';
 
 export type SkillRoleKey =
   | 'lead-style'

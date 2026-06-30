@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initDb, closeDb, createNovel, createContinuationPack, listContinuationPacks, getContinuationPack, updateContinuationPack } from '../src/lib/db';
-import type { ContinuationPack } from '../src/types';
+import { initDb, closeDb, createNovel, createContinuationPack, listContinuationPacks, getContinuationPack, updateContinuationPack } from '../server/lib/db';
+import type { ContinuationPack } from '../shared/types';
 
 const DB_PATH = '/tmp/test-continuation-pack.db';
 

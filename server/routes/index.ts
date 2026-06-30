@@ -1,34 +1,35 @@
 import type { Express } from 'express';
+import { logger } from '../logger';
 import { registerDbRoutes } from './db';
 import { registerConfigRoutes } from './config';
 import { registerSimpleLlmRoutes } from './simple-llm';
 import { registerExportRoutes } from './export';
+import { registerOnboardingRoutes } from './onboarding';
+import { registerAgentsRoutes } from './agents';
+import { registerProductionRoutes } from './production';
+import { registerAuditRoutes } from './audit';
+import { registerSkillsRoutes } from './skills';
+import { registerContinuationRoutes } from './continuation';
+import { registerWorldRoutes } from './world';
+import { registerPromptTestRoutes } from './prompt-test';
 
 /**
  * 注册所有已提取的 API 路由。
  *
- * 以下路由仍在 server.ts 中（尚未提取）：
- * - POST /api/prompt-template-test — 依赖多个本地辅助函数
- * - POST /api/story-cards (+ GET /api/story-cards/jobs/:jobId) — 依赖异步 Job 模式 + 多个本地辅助函数
- * - POST /api/setup-task-refine
- * - POST /api/extract-world-setup
- * - POST /api/editor-agent
- * - POST /api/parse-doc
- * - POST /api/continuation-packs/parse
- * - POST /api/audit
- * - POST /api/rewrite
- * - POST /api/orchestrate / orchestrate-draft
- * - POST /api/chapter-production-runs/start / start-stream / :runId/apply
- * - POST /api/extract-skill (+ GET /api/extract-skill/jobs/:jobId)
- * - POST /api/generate-outline
- *
- * 这些路由依赖大量 startServer() 内的本地辅助函数（buildSkillsPrompt, renderPromptTemplate,
- * buildFallbackStoryCards, buildFallbackDraft 等），需要先将这些辅助函数提取到
- * server/helpers/ 目录后才能拆分。
+ * 所有路由均已从 server.ts 提取到 server/routes/ 目录。
+ * server.ts 仅保留 initApp() 入口 + 中间件注册 + 路由挂载。
  */
 export function registerRoutes(app: Express) {
   registerDbRoutes(app);
   registerConfigRoutes(app);
   registerSimpleLlmRoutes(app);
   registerExportRoutes(app);
+  registerOnboardingRoutes(app);
+  registerAgentsRoutes(app);
+  registerProductionRoutes(app);
+  registerAuditRoutes(app);
+  registerSkillsRoutes(app);
+  registerContinuationRoutes(app);
+  registerWorldRoutes(app);
+  registerPromptTestRoutes(app);
 }

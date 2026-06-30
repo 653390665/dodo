@@ -1,8 +1,8 @@
 import {
   DEFAULT_PROMPT_TEMPLATES,
   PROMPT_TEMPLATE_DEFINITIONS,
-} from '../config/prompt-templates';
-import type { PromptAsset, PromptOutputShape, PromptStage, PromptTemplateKey } from '../types';
+} from '../../shared/config/prompt-templates';
+import type { PromptAsset, PromptOutputShape, PromptStage, PromptTemplateKey } from '../../shared/types';
 
 export const PROMPT_STAGE_ORDER: PromptStage[] = [
   'discovery',

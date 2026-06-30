@@ -6,7 +6,7 @@ import {
   getNextChapterOrder,
   normalizeProductionIntent,
 } from '../src/lib/chapter-production';
-import type { Chapter } from '../src/types';
+import type { Chapter } from '../shared/types';
 
 test('getNextChapterOrder returns one more than highest existing order', () => {
   const chapters = [

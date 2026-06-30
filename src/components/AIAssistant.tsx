@@ -1,26 +1,16 @@
-import React, { useState, useEffect } from 'react';import Send from 'lucide-react/dist/esm/icons/send.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import BrainCircuit from 'lucide-react/dist/esm/icons/brain-circuit.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import Eraser from 'lucide-react/dist/esm/icons/eraser.js';
-import Copy from 'lucide-react/dist/esm/icons/copy.js';
-import Terminal from 'lucide-react/dist/esm/icons/terminal.js';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
-import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
+import React, { useState, useEffect } from 'react';
+
 import { extractWorldSetupPhase } from '../lib/agents';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { ArrowRight, BrainCircuit, Copy, Eraser, FolderOpen, Globe, Lightbulb, Loader2, MoreVertical, Send, Sparkles, Terminal, X } from 'lucide-react';
 import { listNovels } from '../lib/novel-client';
 import { createChapter } from '../lib/chapter-client';
 import { createCharacter, createLocation, createItem } from '../lib/world-client';
 import { createIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { generateInspiration } from '../lib/prompt-client';
-import { AssistantLaunchContext, AssistantPrimaryAction, AssistantSuggestionKind, Novel } from '../types';
+import { AssistantLaunchContext, AssistantPrimaryAction, AssistantSuggestionKind, Novel } from '../../shared/types';
 import { buildAssistantSeedPrompt } from '../lib/assistant-context';
 import { buildAssistantIdeaFragment } from '../lib/assistant-fragment';
 import { classifyAssistantSuggestion, getPrimaryAssistantAction } from '../lib/assistant-suggestion';
@@ -156,7 +146,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
              // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: char.name,
+             name: char.name || '',
              role: char.role || 'supporting',
              summary: char.summary || '',
              traits: char.traits || [],
@@ -173,7 +163,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
              // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: loc.name,
+             name: loc.name || '',
              region: loc.region || '',
              description: loc.description || '',
              createdAt: now,
@@ -188,7 +178,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
              // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: item.name,
+             name: item.name || '',
              type: item.type || '',
              description: item.description || '',
              createdAt: now,
@@ -240,7 +230,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     await handleExtractToWorldBible(novel, content);
   };
 
-
   const suggestions = [
     { label: '先补正文', prompt: '基于当前章节，给我一段可以直接接上的正文候选。', icon: Sparkles },
     { label: '先补分镜', prompt: '基于当前章节目标，给我 3 条下一步场景分镜。', icon: BrainCircuit },
@@ -264,9 +253,9 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-theme-sidebar">
       {/* Sticky Header */}
-      <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white sticky top-0 z-20">
+      <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar sticky top-0 z-20">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-theme-sidebar/40 rounded-xl text-theme-accent">
             <Sparkles size={20} />
@@ -286,14 +275,14 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6">
         {launchContext && (
           <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
             <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
               <Lightbulb size={14} className="text-theme-accent" />
               当前创作上下文
             </div>
-            <div className="mt-2 text-[11px] text-theme-muted space-y-1">
+            <div className="mt-2 text-[11px] text-theme-muted flex flex-col gap-1">
               <p className="truncate">作品：{launchContext.novelTitle}</p>
               {launchContext.chapterTitle ? <p className="truncate">章节：{launchContext.chapterTitle}</p> : null}
               {launchContext.intent ? <p className="line-clamp-1">目标：{launchContext.intent}</p> : null}
@@ -307,7 +296,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
             <button
               key={idx}
               onClick={() => handleSubmit(undefined, s.prompt)}
-              className="flex items-center gap-2 p-3 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 hover:border-theme-accent hover:bg-white transition-all group text-left shadow-sm active:scale-95"
+              className="flex items-center gap-2 p-3 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 hover:border-theme-accent hover:bg-theme-sidebar transition-all group text-left shadow-sm active:scale-95"
             >
               <s.icon size={14} className="text-theme-muted group-hover:text-theme-accent shrink-0" />
               <span className="text-[11px] font-bold text-theme-muted group-hover:text-theme-text truncate">{s.label}</span>
@@ -316,7 +305,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
         </div>
 
         {/* Chat Messages */}
-        <div className="space-y-4 pb-4">
+        <div className="flex flex-col gap-4 pb-4">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -329,7 +318,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
             >
               <div className="flex-1 min-w-0 overflow-hidden">
                 {msg.role === 'assistant' ? (
-                  <div className="space-y-3">
+                  <div className="flex flex-col gap-3">
                     {msg.id !== 'welcome' && launchContext ? (() => {
                       const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
                       const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
@@ -347,7 +336,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                     <div className="flex flex-wrap items-center gap-1.5 border-t border-theme-border/20 pt-2">
                       <button
                         onClick={() => navigator.clipboard.writeText(msg.content)}
-                        className="p-1.5 rounded-lg border border-theme-border/40 bg-white text-theme-muted transition-colors hover:text-theme-accent"
+                        className="p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
                         title="复制"
                       >
                         <Copy size={12} />
@@ -365,7 +354,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                                 "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all",
                                 primary 
                                   ? "bg-theme-accent text-white shadow-sm hover:opacity-90" 
-                                  : "border border-theme-border/60 bg-white text-theme-muted hover:border-theme-accent hover:text-theme-accent"
+                                  : "border border-theme-border/60 bg-theme-sidebar text-theme-muted hover:border-theme-accent hover:text-theme-accent"
                               )}
                               title={label}
                             >
@@ -393,10 +382,10 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                               )}
 
                               <details className="group relative">
-                                <summary className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-white text-theme-muted transition-colors hover:text-theme-accent">
+                                <summary className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent">
                                   <MoreVertical size={12} />
                                 </summary>
-                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
+                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-theme-sidebar rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
                                   <button onClick={() => setShowSaveModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
                                     <FolderOpen size={12} /> 保存到其他作品
                                   </button>
@@ -440,7 +429,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       <div className="shrink-0 p-4 border-t border-theme-border bg-theme-sidebar/5 sticky bottom-0 z-20">
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-2 p-1.5 bg-white rounded-2xl border border-theme-border focus-within:border-theme-accent transition-all shadow-sm"
+          className="flex items-center gap-2 p-1.5 bg-theme-sidebar rounded-2xl border border-theme-border focus-within:border-theme-accent transition-all shadow-sm"
         >
           <input
             type="text"
@@ -467,7 +456,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
           >
             <div
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+              className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             >
               <h3 className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
                 <FolderOpen size={20} className="text-theme-accent" />
@@ -519,10 +508,10 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
           >
             <div
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
+              className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
             >
               {isExtracting && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                <div className="absolute inset-0 bg-theme-sidebar/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mb-4">
                     <Loader2 size={32} className="text-theme-accent animate-spin" />
                   </div>

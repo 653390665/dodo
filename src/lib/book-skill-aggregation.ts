@@ -7,7 +7,7 @@ import type {
   SkillEvidenceCoverage,
   SkillMethodChain,
   SkillMethodQA,
-} from '../types';
+} from '../../shared/types';
 
 type EvidenceBucket = {
   total: number;
@@ -62,7 +62,6 @@ export function buildMethodChain(dimension: SkillDimension, evidence: string[]):
   const generateScale = `${uniqueEvidence.join(' + ')}`.length > 60 ? 2 : 3;
 
   const items: SkillMethodQA[] = uniqueEvidence.slice(0, generateScale).map((item, index) => {
-    const isLast = index === Math.min(uniqueEvidence.length, generateScale) - 1;
     return {
       question: index === 0
         ? `为什么这个写法在${role.name}中有效？`

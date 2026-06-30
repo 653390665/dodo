@@ -1,20 +1,11 @@
-import React, { useRef } from 'react';import X from 'lucide-react/dist/esm/icons/x.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
-import Brain from 'lucide-react/dist/esm/icons/brain.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import Eye from 'lucide-react/dist/esm/icons/eye.js';
-import History from 'lucide-react/dist/esm/icons/history.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
+import React, { useRef } from 'react';
+import { Activity, Bot, Brain, Eye, Globe, History, Lightbulb, ListOrdered, MessageSquareWarning, Sparkles, Wand2, X } from 'lucide-react';
+
 import {
   Novel, Chapter, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
   ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities
-} from '../types';
+} from '../../shared/types';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
@@ -170,9 +161,9 @@ export function AgentWorkspace({
 
   return (
     <div
-      className="absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border border-theme-border bg-white/95 overflow-hidden z-30 backdrop-blur-sm shadow-2xl flex flex-col"
+      className="absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border border-theme-border bg-theme-sidebar/95 overflow-hidden z-30 backdrop-blur-sm shadow-2xl flex flex-col"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-white/90 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-theme-sidebar/90 shrink-0">
         <div>
           <div className="text-xs font-bold text-theme-text">智能管家工作台</div>
           <div className="text-[10px] text-theme-muted mt-1">需要时展开，用完即可随手收回。</div>
@@ -181,7 +172,7 @@ export function AgentWorkspace({
           type="button"
           onClick={() => setIsAgentSidebarOpen(false)}
           aria-label="收起智能管家"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-theme-border bg-white text-theme-text text-[11px] font-bold hover:bg-theme-sidebar/40 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-theme-border bg-theme-sidebar text-theme-text text-[11px] font-bold hover:bg-theme-sidebar/40 transition-colors"
         >
           <X size={12} />
           收起
@@ -251,10 +242,16 @@ export function AgentWorkspace({
             <div
               key="copilot-home"
             >
-              <CopilotHomePanel
-                suggestion={copilotSuggestion}
-                onAction={(key) => void runCopilotAction(key)}
-              />
+              {copilotSuggestion ? (
+                <CopilotHomePanel
+                  suggestion={copilotSuggestion}
+                  onAction={(key) => void runCopilotAction(key)}
+                />
+              ) : (
+                <div className="text-center py-12 text-theme-muted text-xs">
+                  暂无智能建议
+                </div>
+              )}
             </div>
           )}
           {isProductionAgentTab(agentTab) && (

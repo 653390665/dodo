@@ -1,4 +1,4 @@
-import type { BookEvidenceSegment, BookEvidenceStage } from '../types';
+import type { BookEvidenceSegment, BookEvidenceStage } from '../../shared/types';
 
 const STAGE_WINDOWS: Array<{ stage: BookEvidenceStage; label: string; startRatio: number; endRatio: number }> = [
   { stage: 'opening', label: '开篇信号', startRatio: 0, endRatio: 0.18 },

@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
-import Grip from 'lucide-react/dist/esm/icons/grip.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, Grip, Sparkles, Trash2 } from 'lucide-react';
+
 import { deriveSkillFitNeeds } from '../../lib/skill-fit-language';
 import { getSkillRoleLabel, getSkillRoleLongLabel, getSkillRoleTags } from '../../lib/skill-language';
 import { calculateSkillFitScore } from '../../lib/skill-model';
@@ -20,7 +19,7 @@ import type {
   ProjectPreferenceProfile,
   SkillUsageRecord,
   Skill,
-} from '../../types';
+} from '../../../shared/types';
 
 interface SkillLoadoutBoardProps {
   novel: Novel;
@@ -223,16 +222,16 @@ export function SkillLoadoutBoard({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-            <div className="rounded-xl bg-white/10 px-3 py-2">
+            <div className="rounded-xl bg-theme-sidebar/10 px-3 py-2">
               覆盖 {fit.breakdown.coverageScore}%
             </div>
-            <div className="rounded-xl bg-white/10 px-3 py-2">
+            <div className="rounded-xl bg-theme-sidebar/10 px-3 py-2">
               上下文 {fit.breakdown.contextScore}%
             </div>
-            <div className="rounded-xl bg-white/10 px-3 py-2">
+            <div className="rounded-xl bg-theme-sidebar/10 px-3 py-2">
               稳定性 {fit.breakdown.stabilityScore}%
             </div>
-            <div className="rounded-xl bg-white/10 px-3 py-2">
+            <div className="rounded-xl bg-theme-sidebar/10 px-3 py-2">
               惩罚 {fit.breakdown.conflictPenalty}%
             </div>
           </div>
@@ -259,7 +258,7 @@ export function SkillLoadoutBoard({
       )}
 
       {fitExplanation && (
-        <div className="shrink-0 rounded-3xl border border-theme-border bg-white p-5 shadow-sm space-y-4">
+        <div className="shrink-0 rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-widest text-theme-muted">即时反馈</h3>
@@ -305,19 +304,19 @@ export function SkillLoadoutBoard({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => handlePreferenceAction('more-like-me')}
-              className="rounded-full border border-theme-border bg-white px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
+              className="rounded-full border border-theme-border bg-theme-sidebar px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
             >
               这更像我
             </button>
             <button
               onClick={() => handlePreferenceAction('not-for-me')}
-              className="rounded-full border border-theme-border bg-white px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
+              className="rounded-full border border-theme-border bg-theme-sidebar px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
             >
               这不是我想要的
             </button>
             <button
               onClick={() => handlePreferenceAction('project-only')}
-              className="rounded-full border border-theme-border bg-white px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
+              className="rounded-full border border-theme-border bg-theme-sidebar px-3 py-2 text-xs font-bold text-theme-text hover:bg-theme-sidebar/45 transition-colors"
             >
               仅限本项目
             </button>
@@ -353,7 +352,7 @@ export function SkillLoadoutBoard({
                   'rounded-2xl border p-4 min-h-[152px] transition-colors',
                   selectedSlot === slot
                     ? 'border-theme-accent bg-theme-accent/5'
-                    : 'border-theme-border bg-white',
+                    : 'border-theme-border bg-theme-sidebar',
                 )}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -418,7 +417,7 @@ export function SkillLoadoutBoard({
                 }}
                 onClick={() => onAssignSkill(selectedSlot, skill.id)}
                 className={cn(
-                  'p-5 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden bg-white',
+                  'p-5 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden bg-theme-sidebar',
                   isMounted
                     ? 'border-theme-accent shadow-lg shadow-theme-accent/5 ring-1 ring-theme-accent/20'
                     : 'border-theme-border/40 hover:border-theme-accent/30 hover:shadow-md',

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-import type { Chapter, Character, Item, Location, SniffedEntities } from '../../types';
+import type { Chapter, Character, Item, Location, SniffedEntities } from '../../../shared/types';
 import { createCharacter, createItem, createLocation } from '../world-client';
 
 interface UseEntitySniffingArgs {

@@ -1,4 +1,4 @@
-import type { Novel } from '../types';
+import type { Novel } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listNovels(): Promise<Novel[]> { return call('listNovels'); }

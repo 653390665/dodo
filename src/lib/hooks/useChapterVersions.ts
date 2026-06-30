@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { ChapterVersion } from '../../types';
+import type { ChapterVersion } from '../../../shared/types';
 import { listChapterVersions } from '../chapter-client';
 import { subscribeToChanges } from '../db-transport';
 

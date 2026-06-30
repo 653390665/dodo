@@ -10,6 +10,8 @@ const NATIVE_EXTERNALS = new Set([
   'better-sqlite3',
   'electron',
   'fsevents',
+  'sharp',
+  'onnxruntime-node',
 ]);
 
 await esbuild.build({
@@ -28,6 +30,6 @@ await esbuild.build({
   sourcemap: false,
 });
 
-copyFileSync('src/lib/better-sqlite3-shim.cjs', 'dist-electron/better-sqlite3-shim.cjs');
+copyFileSync('server/lib/better-sqlite3-shim.cjs', 'dist-electron/better-sqlite3-shim.cjs');
 
 console.log('server.cjs built');

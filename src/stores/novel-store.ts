@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Novel, OnboardingDraftState, SetupTaskKey, AssistantLaunchContext, ContinuationEditorLaunchState } from '../types';
+import type { Novel, OnboardingDraftState, SetupTaskKey, AssistantLaunchContext, ContinuationEditorLaunchState } from '../../shared/types';
 
 type Updater<T> = T | ((prev: T) => T);
 

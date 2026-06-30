@@ -10,7 +10,7 @@ import type {
   StoryEntitySnapshot,
   StoryStateLedger,
   TimelineEvent,
-} from '../types';
+} from '../../shared/types';
 
 interface BuildStoryStateLedgerInput {
   novel: Novel;

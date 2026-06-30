@@ -1,4 +1,4 @@
-import type { ChapterProductionRun } from '../types';
+import type { ChapterProductionRun } from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
 
 export async function startChapterProductionRun(payload: {
@@ -30,8 +30,9 @@ export type ProductionRunSSEEvent =
   | { type: 'model_beats'; content: string }
   | { type: 'model_draft_token'; content: string }
   | { type: 'model_draft_done' }
-  | { type: 'model_audit'; content: string }
+  | { type: 'model_audit'; content: string; isValid?: boolean }
   | { type: 'model_continuity'; report: ChapterProductionRun['continuityReport'] }
+  | { type: 'model_score'; score: number; attempts: number }
   | { type: 'done'; run: ChapterProductionRun }
   | { type: 'error'; message: string };
 
@@ -42,6 +43,7 @@ export async function startChapterProductionRunStream(
     userIntent: string;
     continuationPackId?: string;
     surface?: PromptSurface;
+    activeEntityNames?: string[];
   },
   onEvent: (event: ProductionRunSSEEvent) => void,
   signal?: AbortSignal,

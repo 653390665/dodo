@@ -1,4 +1,4 @@
-import type { CopilotReasons, CopilotStage, CopilotSuggestion } from '../types';
+import type { CopilotReasons, CopilotStage, CopilotSuggestion } from '../../shared/types';
 
 export interface CopilotInput {
   hasCurrentChapter: boolean;

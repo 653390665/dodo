@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
-import X from 'lucide-react/dist/esm/icons/x.js';
+import { useState, useEffect, Suspense, lazy } from 'react';
+import { X } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeView } from './components/WelcomeView';
 import { AIAssistant } from './components/AIAssistant';
@@ -12,6 +12,8 @@ import { StoryCardDeck } from './components/onboarding/StoryCardDeck';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // 按需加载：仅在用户切换到对应视图时才下载
+import { toast } from './lib/toast';
+
 const Library = lazy(() => import('./components/Library').then(m => ({ default: m.Library })));
 const SplitWorkspace = lazy(() => import('./components/SplitWorkspace').then(m => ({ default: m.SplitWorkspace })));
 const EditorView = lazy(() => import('./components/EditorView').then(m => ({ default: m.EditorView })));
@@ -19,7 +21,7 @@ const WorldBibleView = lazy(() => import('./components/WorldBibleView').then(m =
 const ContinuationImportView = lazy(() => import('./components/ContinuationImportView').then(m => ({ default: m.ContinuationImportView })));
 const SkillsStudioView = lazy(() => import('./components/SkillsStudioView').then(m => ({ default: m.SkillsStudioView })));
 const BookFactoryView = lazy(() => import('./components/BookFactoryView').then(m => ({ default: m.BookFactoryView })));
-import { AssistantLaunchContext, ContinuationEditorLaunchState, OnboardingDraftState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceFocus, WorkspaceNavKey } from './types';
+import type { AssistantLaunchContext, ContinuationEditorLaunchState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceNavKey } from '../shared/types';
 import { useAppStore } from './stores/app-store';
 import { useNovelStore } from './stores/novel-store';
 import { createChapter, createCharacter, createNovel, generateStoryCards, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel } from './lib/api';
@@ -246,13 +248,14 @@ export default function App() {
         acceptedRecommendedSkills: false,
         warnings,
       });
-      setCurrentView('ai');
+      setAIAssistantOpen(true);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSelectStoryCard = async (card: StoryIdeaCard, planning?: StoryPlanningInput) => {
+    try {
     const activePlanning = planning || onboardingDraft?.planning;
     if (!activePlanning) {
       throw new Error('缺少创作规划，无法创建作品。');
@@ -320,7 +323,11 @@ export default function App() {
     });
     setActiveSetupTaskKey(setupTasks[0]?.key ?? null);
     setAssistantInput('');
-    setCurrentView('world');
+    setCurrentView('workspace');
+    } catch (e) {
+      console.error('Story card selection failed:', e);
+      toast('创建作品失败，请稍后重试', 'error');
+    }
   };
 
   const handleConfirmSetupTask = (taskKey: SetupTaskKey) => {
@@ -374,7 +381,7 @@ export default function App() {
   };
 
   const handleAcceptRecommendedSkills = async () => {
-    if (!selectedNovel || !onboardingDraft.recommendedSkills.length) return;
+    if (!selectedNovel || !onboardingDraft || !onboardingDraft.recommendedSkills.length) return;
     const mountedSkillIds = onboardingDraft.recommendedSkills.map((entry) => entry.skillId).slice(0, 3);
     const mountedSkillLoadout = coerceMountedSkillLoadout(mountedSkillIds);
     await updateNovel(selectedNovel.id, { mountedSkillIds, mountedSkillLoadout });
@@ -587,7 +594,7 @@ export default function App() {
                 <p className="text-theme-muted mb-8 max-w-md text-center">人物与设定集是与作品深度绑定的「数据库」。<br/>请先在书库中选择并进入一部作品，以开启其专属的世界圣经。</p>
                 <button
                   onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-white border-2 border-theme-border text-theme-text font-bold rounded-2xl hover:border-theme-accent transition-[transform,border-color,box-shadow] duration-200 shadow-sm hover:shadow active:scale-95"
+                  className="px-8 py-4 bg-theme-sidebar border-2 border-theme-border text-theme-text font-bold rounded-2xl hover:border-theme-accent transition-[transform,border-color,box-shadow] duration-200 shadow-sm hover:shadow active:scale-95"
                 >
                   返回书库选择作品
                 </button>
@@ -605,11 +612,11 @@ export default function App() {
               className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
             />
             <div
-              className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
+              className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl"
             >
               {onboardingDraft ? (
                 <div className="h-full flex flex-col">
-                  <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white">
+                  <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar">
                     <div className="flex gap-2">
                       <button onClick={() => setAIDrawerTab('cards')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>方案卡</button>
                       <button onClick={() => setAIDrawerTab('chat')} className={`px-3 py-1.5 rounded-full text-xs font-bold ${aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'}`}>灵感对话</button>

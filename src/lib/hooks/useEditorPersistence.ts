@@ -6,7 +6,7 @@ import type {
   MountedSkillLoadoutItem,
   Novel,
   ProjectPreferenceProfile,
-} from '../../types';
+} from '../../../shared/types';
 import { createChapter, createChapterVersion, deleteChapter, listChapters, updateChapter } from '../chapter-client';
 import { updateNovel } from '../novel-client';
 
@@ -48,21 +48,57 @@ export function useEditorPersistence({
   const titleSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isMountedRef = useRef(true);
+  const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const prevChapterIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
       if (beatsSyncTimeoutRef.current) clearTimeout(beatsSyncTimeoutRef.current);
       if (outlineSyncTimeoutRef.current) clearTimeout(outlineSyncTimeoutRef.current);
       if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+
+      // Flush pending save on unmount
+      if (pendingSaveRef.current) {
+        const save = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        save().catch((e) => console.error('[useEditorPersistence] Failed to flush pending save on unmount:', e));
+      }
     };
   }, []);
 
+  // Flush pending save on chapter switch
+  useEffect(() => {
+    const prevId = prevChapterIdRef.current;
+    const currentId = currentChapter?.id || null;
+
+    if (prevId && prevId !== currentId) {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+      if (pendingSaveRef.current) {
+        const save = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        save().catch((e) => console.error('[useEditorPersistence] Failed to flush pending save on chapter switch:', e));
+      }
+    }
+
+    prevChapterIdRef.current = currentId;
+  }, [currentChapter?.id]);
+
   const markSyncComplete = () => {
+    if (!isMountedRef.current) return;
     setIsSyncing(false);
     setSyncSuccess(true);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = setTimeout(() => setSyncSuccess(false), 2000);
+    successTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) setSyncSuccess(false);
+    }, 2000);
   };
 
   const cancelPendingContentSync = () => {
@@ -114,14 +150,19 @@ export function useEditorPersistence({
     setIsSyncing(true);
     setSyncSuccess(false);
     const chapterId = currentChapter.id;
-    syncTimeoutRef.current = setTimeout(async () => {
+
+    const saveFn = async () => {
       await updateChapter(chapterId, {
         content: newContent,
         updatedAt: Date.now(),
         wordCount: newContent.replace(/\s/g, '').length,
       });
+      pendingSaveRef.current = null;
       markSyncComplete();
-    }, 1000);
+    };
+
+    pendingSaveRef.current = saveFn;
+    syncTimeoutRef.current = setTimeout(saveFn, 1000);
   }, [currentChapter, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
 
   const handleRestoreVersion = (version: ChapterVersion) => {

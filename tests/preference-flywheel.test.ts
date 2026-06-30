@@ -7,7 +7,7 @@ import {
   getAcceptedPreferenceRoles,
   getRejectedPreferenceRoles,
 } from '../src/lib/preference-flywheel';
-import type { Skill, ProjectPreferenceProfile } from '../src/types';
+import type { Skill, ProjectPreferenceProfile } from '../shared/types';
 
 function makeSkill(id: string, name: string, primaryDimension: Skill['primaryDimension']): Skill {
   return {

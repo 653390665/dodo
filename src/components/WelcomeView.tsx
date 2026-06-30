@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react';import Send from 'lucide-react/dist/esm/icons/send.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
-import Upload from 'lucide-react/dist/esm/icons/upload.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
+import { useState, useEffect } from 'react';
+import { ArrowRight, BookOpen, Loader2, Send, Sparkles, Upload } from 'lucide-react';
+
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
 import { SourceBadge } from './SourceBadge';
-import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../types';
+import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../../shared/types';
 
 interface WelcomeViewProps {
   onSelectStoryCard: (card: StoryIdeaCard, planning: StoryPlanningInput) => void;
@@ -83,7 +80,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
             className="w-full rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-5 py-4 text-left hover:border-theme-accent/40 hover:shadow-sm transition-all group"
           >
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-xl bg-white p-2 text-theme-accent border border-theme-accent/10">
+              <div className="mt-0.5 rounded-xl bg-theme-sidebar p-2 text-theme-accent border border-theme-accent/10">
                 <Upload size={16} />
               </div>
               <div className="min-w-0 flex-1">
@@ -106,7 +103,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
               <button
                 key={item.label}
                 onClick={() => handleSeedClick(item.prompt)}
-                className="p-4 rounded-xl border border-theme-border bg-white hover:border-theme-accent/40 hover:shadow-sm transition-all text-left group"
+                className="p-4 rounded-xl border border-theme-border bg-theme-sidebar hover:border-theme-accent/40 hover:shadow-sm transition-all text-left group"
               >
                 <div className="text-xs font-bold text-theme-accent mb-1">{item.label}</div>
                 <div className="text-xs text-theme-muted line-clamp-2">{item.prompt}</div>
@@ -118,7 +115,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
         {/* 输入区 */}
         <div className="relative">
           <div className="mb-4 grid gap-3 md:grid-cols-3">
-            <label className="rounded-2xl border border-theme-border bg-white px-4 py-3 text-left">
+            <label className="rounded-2xl border border-theme-border bg-theme-sidebar px-4 py-3 text-left">
               <div className="text-[11px] font-bold text-theme-muted mb-2">预计总字数</div>
               <div className="flex items-center gap-2">
                 <input
@@ -137,7 +134,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                 <span className="text-xs text-theme-muted shrink-0">字</span>
               </div>
             </label>
-            <label className="rounded-2xl border border-theme-border bg-white px-4 py-3 text-left">
+            <label className="rounded-2xl border border-theme-border bg-theme-sidebar px-4 py-3 text-left">
               <div className="text-[11px] font-bold text-theme-muted mb-2">推进节奏</div>
               <select
                 value={planning.pacingPreference}
@@ -154,7 +151,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                 <option value="slow-burn">慢热铺陈</option>
               </select>
             </label>
-            <label className="rounded-2xl border border-theme-border bg-white px-4 py-3 text-left">
+            <label className="rounded-2xl border border-theme-border bg-theme-sidebar px-4 py-3 text-left">
               <div className="text-[11px] font-bold text-theme-muted mb-2">当前更重</div>
               <select
                 value={planning.storyFocus}
@@ -182,7 +179,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
               }
             }}
             placeholder="随便说说你的想法，模糊的也行..."
-            className="w-full rounded-2xl border border-theme-border px-5 py-4 text-sm min-h-[80px] bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+            className="w-full rounded-2xl border border-theme-border px-5 py-4 text-sm min-h-[80px] bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
             disabled={isWaiting}
           />
           <button
@@ -191,7 +188,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
             className="absolute bottom-3 right-3 p-2.5 rounded-xl bg-theme-text text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {isWaiting ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <Send size={16} />
             )}
@@ -261,7 +258,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                 <button
                   key={card.id}
                   onClick={() => onSelectStoryCard(card, planning)}
-                  className="text-left p-5 rounded-2xl border border-theme-border bg-white hover:border-theme-accent hover:shadow-md transition-all group"
+                  className="text-left p-5 rounded-2xl border border-theme-border bg-theme-sidebar hover:border-theme-accent hover:shadow-md transition-all group"
                 >
                   <div className="text-sm font-bold text-theme-text mb-2 group-hover:text-theme-accent transition-colors">
                     {card.hook}
@@ -299,7 +296,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                 <button
                   key={novel.id}
                   onClick={() => onSelectNovel(novel)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-border bg-white hover:border-theme-accent/40 hover:shadow-sm transition-all text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-theme-border bg-theme-sidebar hover:border-theme-accent/40 hover:shadow-sm transition-all text-left"
                 >
                   <BookOpen size={16} className="text-theme-muted shrink-0" />
                   <div className="min-w-0">

@@ -1,10 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Clock from 'lucide-react/dist/esm/icons/clock.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Play from 'lucide-react/dist/esm/icons/play.js';
-import XCircle from 'lucide-react/dist/esm/icons/x-circle.js';
-import type { ChapterProductionRun } from '../types';
+import React, { useEffect, useState, useCallback } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Play, XCircle } from 'lucide-react';
+
+import type { ChapterProductionRun } from '../../shared/types';
 import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
 
 interface ProductionRunReviewProps {
@@ -96,7 +93,7 @@ export function ProductionRunReview({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-theme-border bg-white p-4">
+      <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
         <div className="text-sm font-bold text-theme-text">单章自动生产</div>
         <p className="mt-1 text-xs leading-5 text-theme-muted">
           生成下一章分镜、正文、文风审计和连续性报告。结果只会进入预览，点击接受后才写入章节和状态账本。
@@ -142,7 +139,7 @@ export function ProductionRunReview({
       </div>
 
       {displayRun ? (
-        <div className="rounded-2xl border border-theme-border bg-white p-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-bold text-theme-text">生产报告</div>
@@ -243,7 +240,7 @@ export function ProductionRunReview({
 
       {/* Production history */}
       {novelId ? (
-        <div className="rounded-2xl border border-theme-border bg-white p-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs font-bold text-theme-text uppercase tracking-wider">生产历史</div>
             <button

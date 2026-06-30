@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack } from '../types';
+import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Plus, Save, Scroll, Shield, Sparkles, Trash2, Upload, Users, Zap } from 'lucide-react';
+import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile } from '../../shared/types';
+import { StoryContractPanel } from './StoryContractPanel';
 import {
   listCharacters, createCharacter, updateCharacter, deleteCharacter,
   listLocations, createLocation, updateLocation, deleteLocation,
@@ -10,21 +12,8 @@ import {
 } from '../lib/world-client';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
-import { subscribeToChanges } from '../lib/db-transport';import Users from 'lucide-react/dist/esm/icons/users.js';
-import MapPin from 'lucide-react/dist/esm/icons/map-pin.js';
-import Package from 'lucide-react/dist/esm/icons/package.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import Save from 'lucide-react/dist/esm/icons/save.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Upload from 'lucide-react/dist/esm/icons/upload.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Clock from 'lucide-react/dist/esm/icons/clock.js';
-import Shield from 'lucide-react/dist/esm/icons/shield.js';
-import Zap from 'lucide-react/dist/esm/icons/zap.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
+import { subscribeToChanges } from '../lib/db-transport';
+
 import { cn } from '../lib/utils';
 import { extractWorldSetupPhase } from '../lib/agents';
 import { buildContinuationOverviewState } from '../lib/continuation-overview';
@@ -65,7 +54,7 @@ export function WorldBibleView({
   onStartContinuationWriting?: (approvedPackId: string, prefillIntent?: string) => void;
   onEnterStoryboard?: (approvedPackId: string, continuationTask?: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [requestedReviewPackId, setRequestedReviewPackId] = useState<string | null>(null);
 
@@ -269,6 +258,7 @@ export function WorldBibleView({
   const tabs = [
     { id: 'overview', icon: FileText, label: '总览' },
     { id: 'pack-management', icon: Upload, label: '资料包管理' },
+    { id: 'contract', icon: Scroll, label: '写作合同' },
     { id: 'global', icon: BookOpen, label: '世界设定' },
     { id: 'characters', icon: Users, label: '人物档案' },
     { id: 'locations', icon: MapPin, label: '地点副本' },
@@ -328,7 +318,7 @@ export function WorldBibleView({
                   />
                 ))}
               </div>
-              <div className="mt-6 rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+              <div className="mt-6 rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
                 {onboarding.recommendedSkills.length > 0 && (
                   <div className="mb-5 rounded-2xl border border-theme-border bg-theme-bg/40 p-4">
                     <div className="mb-3">
@@ -337,7 +327,7 @@ export function WorldBibleView({
                     </div>
                     <div className="space-y-3">
                       {onboarding.recommendedSkills.slice(0, 3).map((skill) => (
-                        <div key={skill.skillId} className="rounded-2xl border border-theme-border/70 bg-white px-4 py-3">
+                        <div key={skill.skillId} className="rounded-2xl border border-theme-border/70 bg-theme-sidebar px-4 py-3">
                           <div className="text-sm font-bold text-theme-text">{skill.skillName}</div>
                           <p className="mt-1 text-xs leading-5 text-theme-muted">{skill.reason}</p>
                         </div>
@@ -393,7 +383,7 @@ export function WorldBibleView({
                   className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
                 />
                 <div
-                  className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-white shadow-2xl"
+                  className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl"
                 >
                   <SetupAssistantPanel
                     selectedTask={onboarding.activeTask}
@@ -444,7 +434,7 @@ export function WorldBibleView({
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar Tabs */}
-        <div className="w-56 border-r border-theme-border/50 bg-white flex flex-col py-4 px-3 shrink-0 gap-2">
+        <div className="w-56 border-r border-theme-border/50 bg-theme-sidebar flex flex-col py-4 px-3 shrink-0 gap-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -493,7 +483,7 @@ export function WorldBibleView({
 
             {activeTab === 'global' && (
               <div key="global" className="max-w-4xl mx-auto space-y-8">
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
+                <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
                     <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
@@ -506,7 +496,7 @@ export function WorldBibleView({
                   />
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-theme-border/50">
+                <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
                   <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
                   <textarea
                     value={worldRules}
@@ -533,7 +523,7 @@ export function WorldBibleView({
                       </div>
 
                       {/* Event Card */}
-                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] ml-14 md:ml-0 bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md hover:border-theme-accent/50 z-10">
+                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] ml-14 md:ml-0 bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md hover:border-theme-accent/50 z-10">
                         <button onClick={()=>deleteEntity('timeline', evt.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
 
                         <div className="flex flex-wrap items-center gap-2 pr-8">
@@ -566,7 +556,7 @@ export function WorldBibleView({
                         />
 
                         {/* Fast Reorder Actions */}
-                        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex items-center bg-white shadow-sm border border-theme-border/50 rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex items-center bg-theme-sidebar shadow-sm border border-theme-border/50 rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity gap-1">
                           <button
                             onClick={() => {
                               if (idx > 0) {
@@ -607,7 +597,7 @@ export function WorldBibleView({
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
                   {characters.map(char => (
-                    <div key={char.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={char.id} className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('character', char.id)} className="absolute top-4 right-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
                       <input value={char.name} onChange={e=>updateEntity('character', char.id, {name: e.target.value})} className="font-bold text-lg outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
                       <select value={char.role} onChange={e=>updateEntity('character', char.id, {role: e.target.value})} className="w-1/2 p-1 text-sm border-b border-theme-border/50 outline-none -mt-2 bg-transparent">
@@ -622,7 +612,7 @@ export function WorldBibleView({
                         <button
                           onClick={() => handleGenerateBio(char)}
                           disabled={generatingBioIds.includes(char.id)}
-                          className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-white transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
+                          className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-theme-sidebar border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-white transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
                           title="AI 生成背景故事"
                         >
                           {generatingBioIds.includes(char.id) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -643,7 +633,7 @@ export function WorldBibleView({
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
                   {locations.map(loc => (
-                    <div key={loc.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={loc.id} className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('location', loc.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
                       <div className="flex items-center gap-3 pr-10">
                         <input value={loc.name} onChange={e=>updateEntity('location', loc.id, {name: e.target.value})} className="font-bold text-lg outline-none w-1/2 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
@@ -665,7 +655,7 @@ export function WorldBibleView({
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6">
                   {items.map(item => (
-                    <div key={item.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={item.id} className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('item', item.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
                       <input value={item.name} onChange={e=>updateEntity('item', item.id, {name: e.target.value})} className="font-bold text-[17px] outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
                       <input value={item.type} onChange={e=>updateEntity('item', item.id, {type: e.target.value})} className="text-xs text-theme-accent outline-none w-1/2 bg-theme-accent/10 px-2 py-1 rounded-full text-center focus:bg-theme-accent/20 transition-colors" placeholder="道具类型(例如: 法器)" />
@@ -684,7 +674,7 @@ export function WorldBibleView({
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
                   {factions.map(faction => (
-                    <div key={faction.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
+                    <div key={faction.id} className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex flex-col gap-3 group relative">
                       <button onClick={()=>deleteEntity('faction', faction.id)} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
                       <input value={faction.name} onChange={e=>updateEntity('faction', faction.id, {name: e.target.value})} className="font-bold text-lg outline-none w-1/2 bg-transparent focus:bg-theme-sidebar/50 rounded px-1" />
                       <div className="flex gap-2">
@@ -704,6 +694,35 @@ export function WorldBibleView({
               </div>
             )}
 
+            {activeTab === 'contract' && (
+              <div key="contract" className="max-w-3xl mx-auto bg-theme-sidebar rounded-2xl border border-theme-border/50 shadow-md">
+                <StoryContractPanel
+                  contract={novel.projectPreferenceProfile?.contract || null}
+                  onSave={async (newContract) => {
+                    const updatedProfile: ProjectPreferenceProfile = {
+                      contract: newContract,
+                      tags: novel.projectPreferenceProfile?.tags || [],
+                      weights: novel.projectPreferenceProfile?.weights || {
+                        styleWeight: 1,
+                        characterWeight: 1,
+                        worldWeight: 1,
+                        plotWeight: 1,
+                        pacingWeight: 1,
+                      },
+                      acceptedDimensions: novel.projectPreferenceProfile?.acceptedDimensions || [],
+                      rejectedDimensions: novel.projectPreferenceProfile?.rejectedDimensions || [],
+                      notes: novel.projectPreferenceProfile?.notes || [],
+                      evidenceCount: novel.projectPreferenceProfile?.evidenceCount || 0,
+                    };
+                    await updateNovel(novel.id, {
+                      projectPreferenceProfile: updatedProfile,
+                    });
+                  }}
+                  onClose={() => setActiveTab('overview')}
+                />
+              </div>
+            )}
+
             {activeTab === 'powerLevels' && (
               <div key="powerLevels" className="max-w-6xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
@@ -712,7 +731,7 @@ export function WorldBibleView({
                 </div>
                 <div className="flex flex-col gap-4">
                   {powerLevels.map((lvl, idx) => (
-                    <div key={lvl.id} className="bg-white p-5 rounded-2xl border border-theme-border/50 shadow-sm flex items-start gap-4 group relative">
+                    <div key={lvl.id} className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex items-start gap-4 group relative">
                       <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
                         <span className="w-8 h-8 flex items-center justify-center bg-theme-sidebar text-theme-accent font-bold rounded-full bg-theme-accent/10">{lvl.tier}</span>
                         <div className="flex gap-1 text-[10px]">

@@ -2,7 +2,7 @@ import type {
   ContinuationPack,
   ContinuationSourceDocument,
   ContinuationSourceKind,
-} from '../types';
+} from '../../shared/types';
 
 export function classifyContinuationSource(filename: string, text: string): ContinuationSourceKind {
   const name = filename.toLowerCase();

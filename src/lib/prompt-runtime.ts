@@ -1,8 +1,8 @@
-import { mergePromptTemplates, type PromptTemplates } from '../config/prompt-templates';
+import { mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
 import type { PromptSurface, PromptStage } from './prompt-stage-routing';
 import { selectPromptStageForSurface } from './prompt-stage-routing';
 import { buildPromptAssetMap, getPromptAssetsByStage } from './prompt-assets';
-import type { PromptAsset, PromptTemplateKey } from '../types';
+import type { PromptAsset, PromptTemplateKey } from '../../shared/types';
 
 const DEFAULT_TEMPLATE_BY_STAGE_AND_SURFACE: Partial<
   Record<PromptSurface, Partial<Record<PromptStage, PromptTemplateKey>>>

@@ -1,9 +1,7 @@
-import React from 'react';import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Folder from 'lucide-react/dist/esm/icons/folder.js';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import { Chapter, Novel } from '../types';
+import React from 'react';
+import { ChevronLeft, Folder, FolderOpen, Plus, Trash2 } from 'lucide-react';
+
+import { Chapter, Novel } from '../../shared/types';
 import { cn } from '../lib/utils';
 
 interface ChapterSidebarProps {
@@ -108,7 +106,7 @@ export function ChapterSidebar({
                           className={cn(
                             "group px-3 py-2.5 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow,color] duration-200 flex items-center justify-between ml-2",
                             currentChapter?.id === chapter.id
-                              ? "bg-white shadow-sm border border-theme-border text-theme-text relative before:absolute before:-left-3.5 before:top-1/2 before:-mt-px before:w-3 before:h-0.5 before:bg-theme-accent z-10"
+                              ? "bg-theme-sidebar shadow-sm border border-theme-border text-theme-text relative before:absolute before:-left-3.5 before:top-1/2 before:-mt-px before:w-3 before:h-0.5 before:bg-theme-accent z-10"
                               : "text-theme-muted hover:bg-theme-border/40 z-10"
                           )}
                         >

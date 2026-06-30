@@ -1,6 +1,7 @@
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import type { CopilotActionKey, CopilotSuggestion } from '../../types';
+import { ChevronRight, Sparkles } from 'lucide-react';
+
+
+import type { CopilotActionKey, CopilotSuggestion } from '../../../shared/types';
 
 interface CopilotStatusBarProps {
   suggestion: CopilotSuggestion;
@@ -10,7 +11,7 @@ interface CopilotStatusBarProps {
 
 export function CopilotStatusBar({ suggestion, onPrimaryAction, onOpen }: CopilotStatusBarProps) {
   return (
-    <div className="border-b border-theme-border/70 bg-white/75 px-5 py-3">
+    <div className="border-b border-theme-border/70 bg-theme-sidebar/75 px-5 py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-[0.18em] text-theme-muted font-bold">
@@ -27,7 +28,7 @@ export function CopilotStatusBar({ suggestion, onPrimaryAction, onOpen }: Copilo
           </button>
           <button
             onClick={onOpen}
-            className="rounded-xl border border-theme-border bg-white px-3.5 py-2 text-sm font-medium text-theme-text hover:bg-theme-sidebar/45 transition-colors"
+            className="rounded-xl border border-theme-border bg-theme-sidebar px-3.5 py-2 text-sm font-medium text-theme-text hover:bg-theme-sidebar/45 transition-colors"
           >
             查看副驾
           </button>

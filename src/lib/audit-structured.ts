@@ -174,7 +174,7 @@ export function parseStructuredAuditResponse(raw: string): StructuredAudit | nul
               patchHint,
             };
           })
-          .filter((issue): issue is StructuredAuditIssue => Boolean(issue))
+          .filter((issue: StructuredAuditIssue | null): issue is StructuredAuditIssue => Boolean(issue))
       : [];
 
     const sceneChecks = Array.isArray(parsed?.sceneChecks)
@@ -189,7 +189,7 @@ export function parseStructuredAuditResponse(raw: string): StructuredAudit | nul
               note,
             };
           })
-          .filter((check): check is StructuredAuditSceneCheck => Boolean(check))
+          .filter((check: StructuredAuditSceneCheck | null): check is StructuredAuditSceneCheck => Boolean(check))
       : [];
 
     const surgerySuggestions = Array.isArray(parsed?.surgerySuggestions)
@@ -224,7 +224,7 @@ export function parseStructuredAuditResponse(raw: string): StructuredAudit | nul
                 patchHint,
               };
             })
-            .filter((issue): issue is StructuredAuditIssue => Boolean(issue))
+            .filter((issue: StructuredAuditIssue | null): issue is StructuredAuditIssue => Boolean(issue))
         : [];
 
       const sceneChecks = Array.isArray(repaired?.sceneChecks)
@@ -239,7 +239,7 @@ export function parseStructuredAuditResponse(raw: string): StructuredAudit | nul
                 note,
               };
             })
-            .filter((check): check is StructuredAuditSceneCheck => Boolean(check))
+            .filter((check: StructuredAuditSceneCheck | null): check is StructuredAuditSceneCheck => Boolean(check))
         : [];
 
       const surgerySuggestions = Array.isArray(repaired?.surgerySuggestions)
@@ -274,13 +274,23 @@ export function parseAuditFiveDim(raw: string): AuditScores | null {
     return {
       scores: parsed.scores,
       totalScore,
-      pass: parsed.pass ?? (totalScore >= 30),
+      pass: parsed.pass ?? (totalScore >= 36),
       failReason: parsed.failReason || '',
     };
   } catch {
     return null;
   }
 }
+
+const DIMENSION_LABELS: Record<string, string> = {
+  prose: '文笔',
+  narrative: '叙事',
+  character: '角色',
+  setting: '设定',
+  pacing: '节奏',
+  readerPull: '追读力',
+  platformFit: '番茄适配',
+};
 
 export function renderFiveDimMarkdown(audit: AuditScores): string {
   const lines: string[] = [];
@@ -291,9 +301,11 @@ export function renderFiveDimMarkdown(audit: AuditScores): string {
   lines.push('|------|------|------|');
   for (const [dim, val] of Object.entries(audit.scores)) {
     const v = val as { score: number; reason: string };
-    lines.push(`| ${dim} | ${v.score}/10 | ${v.reason || '-'} |`);
+    const label = DIMENSION_LABELS[dim] || dim;
+    lines.push(`| ${label} | ${v.score}/10 | ${v.reason || '-'} |`);
   }
-  lines.push(`| **总分** | **${audit.totalScore}/50** | |`);
+  const maxTotal = Object.keys(audit.scores).length * 10;
+  lines.push(`| **总分** | **${audit.totalScore}/${maxTotal}** | |`);
   return lines.join('\n');
 }
 
@@ -351,6 +363,16 @@ export interface AuditGateResult {
   pass: boolean;
   blockReason: string | null;
   criticalFails: string[];
+}
+
+export function computeTrend(scores: number[]): 'rising' | 'falling' | 'flat' {
+  if (scores.length < 2) return 'flat';
+  const recent = scores.slice(-3);
+  const first = recent[0];
+  const last = recent[recent.length - 1];
+  if (last > first + 0.5) return 'rising';
+  if (last < first - 0.5) return 'falling';
+  return 'flat';
 }
 
 export function evaluateAuditGate(

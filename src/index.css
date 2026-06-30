@@ -6,25 +6,25 @@
   --font-mono: "JetBrains Mono", monospace;
 
   /* Minimalist Premium Palette — light (default) */
-  --color-theme-bg: #FAFAFA;
-  --color-theme-sidebar: #FFFFFF;
-  --color-theme-border: #EAEAEA;
-  --color-theme-text: #111111;
-  --color-theme-muted: #888888;
-  --color-theme-accent: #000000;
-  --color-paper: #ffffff;
-  --color-parchment: #FFFFFF;
+  --color-theme-bg: oklch(0.98 0.005 60);
+  --color-theme-sidebar: oklch(0.99 0.003 60);
+  --color-theme-border: oklch(0.93 0.005 60);
+  --color-theme-text: oklch(0.20 0.010 60);
+  --color-theme-muted: oklch(0.55 0.010 60);
+  --color-theme-accent: oklch(0.40 0.12 35);
+  --color-paper: oklch(0.99 0.003 60);
+  --color-parchment: oklch(0.99 0.003 60);
 }
 
 [data-theme="dark"] {
-  --color-theme-bg: #0f0f0f;
-  --color-theme-sidebar: #1a1a1a;
-  --color-theme-border: #2a2a2a;
-  --color-theme-text: #e5e5e5;
-  --color-theme-muted: #777777;
-  --color-theme-accent: #ffffff;
-  --color-paper: #1a1a1a;
-  --color-parchment: #1a1a1a;
+  --color-theme-bg: oklch(0.14 0.008 60);
+  --color-theme-sidebar: oklch(0.17 0.008 60);
+  --color-theme-border: oklch(0.24 0.008 60);
+  --color-theme-text: oklch(0.88 0.005 60);
+  --color-theme-muted: oklch(0.52 0.005 60);
+  --color-theme-accent: oklch(0.78 0.08 45);
+  --color-paper: oklch(0.17 0.008 60);
+  --color-parchment: oklch(0.17 0.008 60);
 }
 
 @layer base {
@@ -36,30 +36,32 @@
 
 .writing-surface {
   font-family: var(--font-serif);
-  line-height: 1.9;
-  font-size: 1.15rem;
-  color: #1E293B;
+  line-height: 1.95;
+  font-size: 1.18rem;
+  color: oklch(0.25 0.010 60);
 }
 
 .writing-surface::placeholder {
-  color: #94A3B8;
-  opacity: 1;
+  color: oklch(0.60 0.010 60);
+  opacity: 0.8;
 }
 
 [data-theme="dark"] .writing-surface {
-  color: #d1d5db;
+  color: oklch(0.88 0.005 60);
 }
 
 [data-theme="dark"] .writing-surface::placeholder {
-  color: #6b7280;
+  color: oklch(0.45 0.005 60);
 }
 
 .natural-card {
   @apply bg-theme-sidebar border border-theme-border rounded-xl shadow-sm hover:shadow-md transition-all duration-300;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .natural-btn-primary {
   @apply px-4 py-2 bg-theme-accent text-white rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Custom Scrollbar */

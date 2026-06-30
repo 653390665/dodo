@@ -1,14 +1,8 @@
-import React from 'react';import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Feather from 'lucide-react/dist/esm/icons/feather.js';
+import React from 'react';
+
 import ReactMarkdown from 'react-markdown';
-import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel } from '../types';
+import { Bot, Feather, FileText, ListOrdered, Loader2, MessageSquareWarning, Plus, Sparkles, Wand2 } from 'lucide-react';
+import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel } from '../../shared/types';
 import { ProductionRunReview } from './ProductionRunReview';
 import { cn } from '../lib/utils';
 
@@ -118,7 +112,7 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'production') {
     return (
       <div className="space-y-4">
-        <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
+        <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
           <div className="flex items-center gap-2">
             <FileText size={14} className="text-theme-accent" />
             <h3 className="text-xs font-bold text-theme-text">续写资料包</h3>
@@ -128,7 +122,7 @@ export function AgentWorkspaceProductionPanel({
               <select
                 value={selectedContinuationPackId}
                 onChange={(e) => setSelectedContinuationPackId(e.target.value)}
-                className="w-full rounded-xl border border-theme-border bg-white px-3 py-2 text-sm text-theme-text outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+                className="w-full rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2 text-sm text-theme-text outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
               >
                 <option value="">不使用资料包，仅按当前作品上下文续写</option>
                 {continuationPacks.map((pack) => (
@@ -148,7 +142,7 @@ export function AgentWorkspaceProductionPanel({
                           : '当前接入的是待审核资料包，也会进入自动生产上下文，但内容还没有经过最终确认。'}
                       </div>
                     </div>
-                    <div className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-theme-muted border border-theme-border">
+                    <div className="rounded-full bg-theme-sidebar px-2 py-1 text-[10px] font-medium text-theme-muted border border-theme-border">
                       更新于 {packTimeFormatter.format(new Date(selectedContinuationPack.updatedAt))}
                     </div>
                   </div>
@@ -165,13 +159,13 @@ export function AgentWorkspaceProductionPanel({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-theme-border bg-white px-3 py-2">
+                    <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] text-theme-muted">续写任务</div>
                       <div className="mt-1 text-theme-text font-bold leading-relaxed">
                         {selectedContinuationPack.continuationTask || '未指定'}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-theme-border bg-white px-3 py-2">
+                    <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] text-theme-muted">当前剧情锚点</div>
                       <div className="mt-1 text-theme-text font-bold leading-relaxed">
                         {selectedContinuationPack.plotState.latestScene || '未提供最近场景'}
@@ -180,28 +174,28 @@ export function AgentWorkspaceProductionPanel({
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
+                    <span className="rounded-full bg-theme-sidebar px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
                       硬设定 {selectedContinuationPack.canonFacts.length}
                     </span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
+                    <span className="rounded-full bg-theme-sidebar px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
                       人物状态 {selectedContinuationPack.characterStates.length}
                     </span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
+                    <span className="rounded-full bg-theme-sidebar px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
                       审读问题 {selectedContinuationPack.readingQuestions?.length || 0}
                     </span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
+                    <span className="rounded-full bg-theme-sidebar px-2.5 py-1 text-[10px] font-medium text-theme-text border border-theme-border">
                       续写缺口 {selectedContinuationPack.continuationGaps?.length || 0}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2">
-                    <div className="rounded-xl border border-theme-border bg-white px-3 py-2">
+                    <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] text-theme-muted">即时冲突</div>
                       <div className="mt-1 text-theme-text leading-relaxed">
                         {selectedContinuationPack.plotState.immediateConflict || '未指定'}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-theme-border bg-white px-3 py-2">
+                    <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] text-theme-muted">下一步建议</div>
                       <div className="mt-1 text-theme-text leading-relaxed">
                         {selectedContinuationPack.plotState.nextLikelyMove || '未指定'}
@@ -210,7 +204,7 @@ export function AgentWorkspaceProductionPanel({
                   </div>
 
                   {selectedContinuationPack.continuationGaps?.length ? (
-                    <div className="rounded-xl border border-dashed border-theme-border bg-white/70 px-3 py-2">
+                    <div className="rounded-xl border border-dashed border-theme-border bg-theme-sidebar/70 px-3 py-2">
                       <div className="text-[10px] font-bold text-theme-text">最值得先补的资料缺口</div>
                       <div className="mt-1.5 space-y-1">
                         {selectedContinuationPack.continuationGaps.slice(0, 2).map((gap) => (
@@ -254,7 +248,7 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'outline') {
     return (
       <div className="space-y-6">
-        <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+        <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-xs font-bold text-theme-text flex items-center gap-2">
               <FileText size={14} className="text-theme-accent" />
@@ -269,7 +263,7 @@ export function AgentWorkspaceProductionPanel({
                 placeholder="预计总字数 (如: 1000000)"
                 value={expectedWordCount}
                 onChange={(e) => setExpectedWordCount(parseInt(e.target.value) || '')}
-                className="w-full text-[10px] p-2 bg-white border border-theme-border rounded-lg pl-2 pr-6 transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+                className="w-full text-[10px] p-2 bg-theme-sidebar border border-theme-border rounded-lg pl-2 pr-6 transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
               />
               <span className="absolute right-2 top-[7px] text-[10px] text-theme-muted">字</span>
             </div>
@@ -287,7 +281,7 @@ export function AgentWorkspaceProductionPanel({
             value={globalOutline}
             onChange={(e) => onGlobalOutlineChange(e.target.value)}
             placeholder="在此规划整本小说的核心冲突与路线图；也可以输入初始创意，点击“智能排盘”由 AI 为您生成卷轴级大纲..."
-            className="w-full h-40 bg-white border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/40 resize-none shadow-sm font-serif leading-relaxed transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+            className="w-full h-40 bg-theme-sidebar border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/40 resize-none shadow-sm font-serif leading-relaxed transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
           />
         </div>
 
@@ -302,7 +296,7 @@ export function AgentWorkspaceProductionPanel({
                   'w-full text-left p-3 rounded-xl border transition-[background-color,border-color,box-shadow,color] duration-200 flex flex-col gap-1',
                   currentChapter?.id === chapter.id
                     ? 'bg-theme-accent/5 border-theme-accent shadow-sm'
-                    : 'bg-white border-theme-border/40 hover:border-theme-accent/20',
+                    : 'bg-theme-sidebar border-theme-border/40 hover:border-theme-accent/20',
                 )}
               >
                 <div className="flex justify-between items-center">
@@ -328,7 +322,7 @@ export function AgentWorkspaceProductionPanel({
     return (
       <div className="space-y-6">
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+          <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
             <h3 className="text-xs font-bold text-theme-text mb-2 flex items-center gap-2">
               <ListOrdered size={14} className="text-theme-accent" />
               创作意图
@@ -338,7 +332,7 @@ export function AgentWorkspaceProductionPanel({
               value={userIntent}
               onChange={(e) => setUserIntent(e.target.value)}
               placeholder="请描述本章创作意图，例如：从当前剧情位置续写，推进XX冲突，或主角在酒馆偶遇了女二..."
-              className="w-full h-24 bg-white border border-theme-border rounded-xl p-3 text-sm text-theme-text placeholder:text-theme-muted/60 resize-none shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+              className="w-full h-24 bg-theme-sidebar border border-theme-border rounded-xl p-3 text-sm text-theme-text placeholder:text-theme-muted/60 resize-none shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
             />
             {!currentChapter ? (
               <div className="mt-3 space-y-2">
@@ -368,7 +362,7 @@ export function AgentWorkspaceProductionPanel({
             <div className="space-y-3">
               <div
                 className={cn(
-                  'bg-white p-5 rounded-2xl border border-theme-border/40 shadow-sm relative overflow-hidden group',
+                  'bg-theme-sidebar p-5 rounded-2xl border border-theme-border/40 shadow-sm relative overflow-hidden group',
                   !currentChapter.sceneBeats && 'opacity-50',
                 )}
               >
@@ -421,7 +415,7 @@ export function AgentWorkspaceProductionPanel({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm flex flex-col items-center justify-center text-center">
+      <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm flex flex-col items-center justify-center text-center">
         <Bot size={32} className="text-theme-accent mb-3 opacity-80" />
         <h3 className="text-sm font-bold text-theme-text mb-1">AI 批判性阅读</h3>
         <p className="text-xs text-theme-muted mb-4 max-w-[200px]">审查当前章节的逻辑漏洞、人物OOC及节奏问题。</p>

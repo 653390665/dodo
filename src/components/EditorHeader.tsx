@@ -1,14 +1,7 @@
-import React from 'react';import PanelRight from 'lucide-react/dist/esm/icons/panel-right.js';
-import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Minimize2 from 'lucide-react/dist/esm/icons/minimize-2.js';
-import Maximize2 from 'lucide-react/dist/esm/icons/maximize-2.js';
-import Settings from 'lucide-react/dist/esm/icons/settings.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import { Chapter, Skill } from '../types';
+import React from 'react';
+import { BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, PanelRight, Settings, Sparkles } from 'lucide-react';
+
+import { Chapter, Skill } from '../../shared/types';
 import { cn } from '../lib/utils';
 
 interface EditorHeaderProps {
@@ -87,19 +80,19 @@ export function EditorHeader({
 
       <div className="flex items-center gap-2 min-w-0 shrink-0">
         <div className="hidden xl:flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted">
             <BookOpen size={11} className="text-theme-accent" />
             <span className="font-bold text-theme-text">世界观已就位</span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted max-w-[240px] min-w-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted max-w-[240px] min-w-0">
             <Sparkles size={11} className="text-theme-accent" />
             <span className="shrink-0">挂载技能</span>
             <span className="truncate">
               {mountedSkills.length > 0 ? mountedSkills.map(s => s.name).join(' / ') : '未挂载'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted">
+            <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>AI 核心已连接</span>
           </div>
         </div>

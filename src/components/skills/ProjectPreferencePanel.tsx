@@ -1,7 +1,8 @@
-import Target from 'lucide-react/dist/esm/icons/target.js';
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up.js';
+import { Target, TrendingUp } from 'lucide-react';
+
+
 import { getSkillRoleLabel } from '../../lib/skill-language';
-import type { ProjectPreferenceProfile, SkillDimension } from '../../types';
+import type { ProjectPreferenceProfile, SkillDimension } from '../../../shared/types';
 
 function WeightBar({ value, label }: { value: number; label: string }) {
   const pct = Math.round(value * 100);
@@ -26,7 +27,7 @@ interface ProjectPreferencePanelProps {
 export function ProjectPreferencePanel({ profile }: ProjectPreferencePanelProps) {
   if (!profile || profile.evidenceCount < 2) {
     return (
-      <div className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <Target size={14} className="text-theme-muted" />
           <span className="text-xs font-bold uppercase tracking-widest text-theme-muted">项目写法画像</span>
@@ -43,7 +44,7 @@ export function ProjectPreferencePanel({ profile }: ProjectPreferencePanelProps)
     .sort(([, a], [, b]) => b - a);
 
   return (
-    <div className="rounded-3xl border border-theme-border bg-white p-5 shadow-sm space-y-4">
+    <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target size={14} className="text-theme-accent" />

@@ -1,9 +1,10 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import type { Request, Response, NextFunction } from 'express';
 
-const TOKEN_PATH = path.join(process.env.HOME || '~', '.inkflow', '.auth-token');
+const TOKEN_PATH = path.join(os.homedir(), '.inkflow', '.auth-token');
 
 function getOrCreateToken(): string {
   try {
@@ -21,12 +22,13 @@ function getOrCreateToken(): string {
 
 const AUTH_TOKEN = getOrCreateToken();
 
-// Print token to console on startup
-console.log(`🔑 Auth token: ${AUTH_TOKEN}`);
+// Auth token is stored at ~/.inkflow/.auth-token (0600 permissions).
+// Do NOT log the token — it would leak to startup logs in production.
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // SSE endpoint is read-only and only sends {} notifications — exempt from auth
-  if (req.path === '/api/db/events') {
+  // In Express, when mounted under /api, req.path is relative to the router (e.g. /db/events)
+  if (req.path === '/db/events') {
     return next();
   }
   

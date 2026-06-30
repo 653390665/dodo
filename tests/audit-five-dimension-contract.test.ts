@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePromptTemplates } from '../src/config/prompt-templates';
+import { mergePromptTemplates } from '../shared/config/prompt-templates';
 
 test('manualAudit prompt requires 5-dimension scoring', () => {
   const prompt = mergePromptTemplates().manualAudit;

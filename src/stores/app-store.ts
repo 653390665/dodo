@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ViewType, WorkspaceFocus } from '../types';
+import type { ViewType, WorkspaceFocus } from '../../shared/types';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -40,14 +40,24 @@ export const useAppStore = create<AppState>((set) => {
   const initialTheme = getStoredTheme();
   applyTheme(initialTheme);
 
+  // Restore session: where did the user leave off?
+  let restoredView: ViewType = 'welcome';
+  try {
+    const savedView = localStorage.getItem('inkflow-last-view');
+    if (savedView) restoredView = savedView as ViewType;
+  } catch {}
+
   return {
-    currentView: 'welcome',
+    currentView: restoredView,
     workspaceFocus: 'editor',
     theme: initialTheme,
     isSettingsOpen: false,
     isAIAssistantOpen: false,
     aiDrawerTab: 'cards',
-    setCurrentView: (currentView) => set({ currentView }),
+    setCurrentView: (currentView) => {
+      try { localStorage.setItem('inkflow-last-view', currentView); } catch {}
+      set({ currentView });
+    },
     setWorkspaceFocus: (workspaceFocus) => set({ workspaceFocus }),
     setTheme: (theme) => {
       applyTheme(theme);

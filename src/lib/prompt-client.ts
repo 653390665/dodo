@@ -5,7 +5,7 @@ import type {
   ContinuationPack,
   AggregatedSkillDeck,
   BookEvidenceSegment,
-} from '../types';
+} from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
 
 export type ExtractSkillResponse = {

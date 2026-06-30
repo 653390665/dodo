@@ -1,4 +1,4 @@
-import type { Chapter, Novel, SkillDimension } from '../types';
+import type { Chapter, Novel, SkillDimension } from '../../shared/types';
 import { getSkillRoleLabel } from './skill-language';
 
 export interface SkillFitNeeds {

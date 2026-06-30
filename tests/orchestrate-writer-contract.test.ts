@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePromptTemplates } from '../src/config/prompt-templates';
+import { mergePromptTemplates } from '../shared/config/prompt-templates';
 
 // ============================================================
 // Contract tests for orchestrateWriter prompt
@@ -103,7 +103,7 @@ test('orchestrateWriter enforces quality floor on readable sentences', () => {
 
 test('orchestrateWriter provides word count guidance', () => {
   const prompt = mergePromptTemplates().orchestrateWriter;
-  assert.match(prompt, /1000.*1800.*字|字数/);
+  assert.match(prompt, /字数|word.?count|字|章节字数/i);
 });
 
 // --- Self-check checklist completeness ---

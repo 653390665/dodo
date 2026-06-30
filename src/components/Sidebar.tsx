@@ -1,13 +1,7 @@
-import React from 'react';import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import PenTool from 'lucide-react/dist/esm/icons/pen-tool.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import Settings from 'lucide-react/dist/esm/icons/settings.js';
-import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
-import BookTemplate from 'lucide-react/dist/esm/icons/book-template.js';
-import { ViewType, WorkspaceNavKey } from '../types';
+import React from 'react';
+import { BookOpen, BookTemplate, ChevronLeft, ChevronRight, Lightbulb, PenTool, Settings, Sparkles, Upload, Wand2 } from 'lucide-react';
+
+import { ViewType, WorkspaceNavKey } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
 
@@ -48,6 +42,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
   const exploreItems: NavItem[] = [
     { id: 'factory', label: '拆书工厂', icon: BookTemplate },
     { id: 'skills', label: '技能仓库', icon: Wand2 },
+    { id: 'continuation-import', label: '资料续写', icon: Upload },
   ];
 
   const renderNavItem = (item: NavItem) => {
@@ -64,7 +59,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-[background-color,border-color,box-shadow,color] duration-200 group relative",
           isActive
-            ? "bg-white shadow-sm border border-theme-border text-theme-text font-semibold"
+            ? "bg-theme-sidebar shadow-sm border border-theme-border text-theme-text font-semibold"
             : "text-theme-muted hover:bg-theme-border/30 hover:text-theme-text"
         )}
       >
@@ -102,7 +97,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
         {mainItems.map(renderNavItem)}
 
         <div className="pt-3 mt-3 border-t border-theme-border/50">
@@ -116,7 +111,7 @@ export function Sidebar({ currentView, onNavigate, user, isAIAssistantOpen }: Si
       </nav>
 
       {/* Footer */}
-      <div className="px-3 pb-2 space-y-1">
+      <div className="px-3 pb-2 flex flex-col gap-1">
         <button
           onClick={() => window.dispatchEvent(new Event('open-settings'))}
           className={cn(

@@ -1,4 +1,4 @@
-import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill } from "../types";
+import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill } from "../../shared/types";
 import { getSkillRoleLabel, getSkillRoleTags } from './skill-language';
 import type { PromptSurface } from './prompt-stage-routing';
 

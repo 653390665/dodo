@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildKnowledgeSearchEntries } from '../src/lib/agent-workspace-knowledge';
-import type { ContinuationPack } from '../src/types';
+import type { ContinuationPack } from '../shared/types';
 
 function buildPack(overrides: Partial<ContinuationPack> = {}): ContinuationPack {
   return {

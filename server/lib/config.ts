@@ -1,11 +1,43 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../config/prompt-templates';
-import type { PromptTemplateKey } from '../types';
+import crypto from 'crypto';
+import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
+import type { PromptTemplateKey } from '../../shared/types';
 
 const CONFIG_DIR = path.join(os.homedir(), '.inkflow');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
+
+// Machine-derived key for API key encryption at rest.
+// Not as secure as OS keychain, but prevents casual inspection.
+function deriveKey(): Buffer {
+  const seed = `${os.hostname()}:${os.userInfo().username}:inkflow-v1`;
+  return crypto.createHash('sha256').update(seed).digest();
+}
+
+function encryptApiKey(plain: string): string {
+  if (!plain) return '';
+  const key = deriveKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+function decryptApiKey(encoded: string): string {
+  if (!encoded) return '';
+  if (!encoded.startsWith('enc:')) return encoded; // legacy plaintext — migrate on next save
+  const parts = encoded.split(':');
+  if (parts.length !== 4) return '';
+  const key = deriveKey();
+  const iv = Buffer.from(parts[1], 'hex');
+  const tag = Buffer.from(parts[2], 'hex');
+  const encrypted = Buffer.from(parts[3], 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return decipher.update(encrypted).toString('utf8') + decipher.final('utf8');
+}
 
 export interface AppConfig {
   apiKey: string;
@@ -125,6 +157,10 @@ export function loadConfig(): AppConfig {
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
       const parsed = JSON.parse(raw);
+      // Decrypt API key at load time
+      if (parsed.apiKey) {
+        parsed.apiKey = decryptApiKey(parsed.apiKey);
+      }
       const migratedPromptTemplates = migrateLegacyPromptTemplates(parsed.promptTemplates);
       return {
         ...defaults,
@@ -141,17 +177,12 @@ export function loadConfig(): AppConfig {
 
 export function saveConfig(config: AppConfig): void {
   ensureDir();
-  fs.writeFileSync(
-    CONFIG_PATH,
-    JSON.stringify(
-      {
-        ...config,
-        promptTemplates: mergePromptTemplates(config.promptTemplates),
-      },
-      null,
-      2,
-    ),
-  );
+  const safeConfig = {
+    ...config,
+    apiKey: encryptApiKey(config.apiKey),
+    promptTemplates: mergePromptTemplates(config.promptTemplates),
+  };
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(safeConfig, null, 2));
 }
 
 let cached: AppConfig | null = null;
