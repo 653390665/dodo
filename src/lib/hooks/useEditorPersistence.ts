@@ -166,7 +166,6 @@ export function useEditorPersistence({
   }, [currentChapter, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
 
   const handleRestoreVersion = (version: ChapterVersion) => {
-    if (!confirm('确定要回滚到此版本吗？这将覆盖当前正文内容！')) return;
     handleUpdateContent(version.content, true);
   };
 
@@ -237,7 +236,6 @@ export function useEditorPersistence({
   };
 
   const handleDeleteChapter = async (id: string) => {
-    if (!confirm('确定要删除这一章吗？')) return;
     await deleteChapter(id);
     if (currentChapter?.id === id) {
       setCurrentChapter(chapters.find((chapter) => chapter.id !== id) || null);

@@ -10,6 +10,7 @@ import { matchesShortcut, SHORTCUTS } from './lib/keyboard-shortcuts';
 import { deriveWorkspaceFocus } from './lib/workspace-nav';
 import type { ViewType, WorkspaceNavKey } from '../shared/types';
 import { AppShell } from './components/AppShell';
+import { TooltipProvider } from './components/ui/Tooltip';
 
 export default function App() {
   const {
@@ -77,5 +78,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [setAIAssistantOpen, setCurrentView, setWorkspaceFocus]);
 
-  return <AppShell />;
+  return (
+    <TooltipProvider>
+      <AppShell />
+    </TooltipProvider>
+  );
 }

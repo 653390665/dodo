@@ -3,6 +3,7 @@ import { BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, Pane
 
 import { Chapter, Skill } from '../../shared/types';
 import { cn } from '../lib/utils';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip';
 
 interface EditorHeaderProps {
   currentChapter: Chapter | null;
@@ -135,17 +136,34 @@ export function EditorHeader({
           <Bot size={14} />
           {isAgentSidebarOpen ? '收起助手' : 'AI 助手'}
         </button>
-        <button
-          onClick={onToggleFullscreen}
-          aria-label={isFullscreen ? "退出全屏模式" : "进入全屏模式"}
-          className="p-1.5 rounded-lg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/40 transition-colors"
-          title={isFullscreen ? '退出全屏' : '全屏模式'}
-        >
-          {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-        </button>
-        <button aria-label="打开设置" className="hidden sm:inline-flex p-2 hover:bg-theme-border/50 rounded-lg text-theme-muted">
-          <Settings size={18} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "退出全屏模式" : "进入全屏模式"}
+              className="p-1.5 rounded-lg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/40 transition-colors cursor-pointer"
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isFullscreen ? '退出全屏' : '全屏写作模式'}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => window.dispatchEvent(new Event('open-settings'))}
+              aria-label="打开设置"
+              className="hidden sm:inline-flex p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted cursor-pointer"
+            >
+              <Settings size={16} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            模型与系统设置
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

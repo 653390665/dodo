@@ -65,7 +65,7 @@ function WorkspacePreviewEmptyState({
                 <div className="mt-1 text-lg font-serif font-bold text-theme-text">选择作品后，这里会成为创作驾驶舱</div>
               </div>
               <span className="rounded-full border border-theme-accent/20 bg-theme-accent/5 px-3 py-1 text-[11px] font-bold text-theme-accent">
-                Demo
+                预览
               </span>
             </div>
             <div className="grid gap-3 md:grid-cols-2">

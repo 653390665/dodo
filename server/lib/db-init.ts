@@ -271,6 +271,19 @@ export function initDb(dbPath?: string): void {
       text TEXT NOT NULL,
       embedding TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS entity_relationships (
+      id TEXT PRIMARY KEY,
+      novelId TEXT NOT NULL,
+      sourceType TEXT NOT NULL,
+      sourceId TEXT NOT NULL,
+      targetType TEXT NOT NULL,
+      targetId TEXT NOT NULL,
+      relationshipType TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY (novelId) REFERENCES novels(id) ON DELETE CASCADE
+    );
   `);
 
   ensureColumn('novels', 'mounted_skill_loadout', "TEXT DEFAULT '[]'");

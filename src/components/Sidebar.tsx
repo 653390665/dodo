@@ -4,6 +4,8 @@ import { BookOpen, BookTemplate, ChevronLeft, ChevronRight, Lightbulb, PenTool, 
 import { ViewType, WorkspaceNavKey } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip';
+import { ScrollArea } from './ui/ScrollArea';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -61,9 +63,8 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
         ? isWorkspaceFamilyView(currentView)
         : currentView === item.id;
     const key = item.navKey || item.id;
-    return (
+    const button = (
       <button
-        key={key}
         onClick={() => onNavigate(item.id, item.navKey)}
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-[background-color,border-color,box-shadow,color] duration-200 group relative",
@@ -79,13 +80,23 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
         {!isCollapsed && (
           <span className="text-sm">{item.label}</span>
         )}
-        {isCollapsed && (
-          <div className="absolute left-full ml-4 px-2 py-1 bg-theme-text text-white text-[10px] uppercase tracking-wider font-bold rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100]">
-            {item.label}
-          </div>
-        )}
       </button>
     );
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={key}>
+          <TooltipTrigger asChild>
+            {button}
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return <React.Fragment key={key}>{button}</React.Fragment>;
   };
 
   return (
@@ -106,31 +117,46 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
-        {mainItems.map(renderNavItem)}
+      <ScrollArea className="flex-1 px-3 min-h-0 relative">
+        <div className="flex flex-col gap-1 pr-1.5 pb-4">
+          {mainItems.map(renderNavItem)}
 
-        <div className="pt-3 mt-3 border-t border-theme-border/50">
-          {!isCollapsed && (
-            <div className="px-3 py-1 text-[10px] font-bold text-theme-muted/50 uppercase tracking-wider">
-              探索工具
-            </div>
-          )}
-          {exploreItems.map(renderNavItem)}
+          <div className="pt-3 mt-3 border-t border-theme-border/50">
+            {!isCollapsed && (
+              <div className="px-3 py-1 text-[10px] font-bold text-theme-muted/50 uppercase tracking-wider">
+                探索工具
+              </div>
+            )}
+            {exploreItems.map(renderNavItem)}
+          </div>
         </div>
-      </nav>
+      </ScrollArea>
 
       {/* Footer */}
       <div className="px-3 pb-2 flex flex-col gap-1">
-        <button
-          onClick={() => window.dispatchEvent(new Event('open-settings'))}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200",
-            isCollapsed && "justify-center px-2"
-          )}
-        >
-          <Settings size={16} />
-          {!isCollapsed && <span className="text-xs font-semibold">设置 (Settings)</span>}
-        </button>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => window.dispatchEvent(new Event('open-settings'))}
+                className="w-full flex items-center justify-center gap-3 px-2 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200"
+              >
+                <Settings size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              系统设置
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={() => window.dispatchEvent(new Event('open-settings'))}
+            className="w-full flex items-center gap-3 px-3 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200"
+          >
+            <Settings size={16} />
+            <span className="text-xs font-semibold">设置 (Settings)</span>
+          </button>
+        )}
       </div>
     </div>
   );

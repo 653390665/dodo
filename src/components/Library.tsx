@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookMarked, CheckCircle2, Clock, Download, FileText, Globe2, PenLine, Plus, Search, Trash2, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
@@ -15,6 +16,7 @@ interface LibraryProps {
 
 export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   const [novels, setNovels] = useState<Novel[]>([]);
+  const [novelToDeleteId, setNovelToDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newNovelTitle, setNewNovelTitle] = useState('');
@@ -67,9 +69,14 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
   const handleDeleteNovel = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('确定要删除这部作品吗？此操作不可逆。')) return;
+    setNovelToDeleteId(id);
+  };
 
-    await deleteNovel(id);
+  const executeDeleteNovel = async () => {
+    if (novelToDeleteId) {
+      await deleteNovel(novelToDeleteId);
+      setNovelToDeleteId(null);
+    }
   };
 
   const handleExportNovel = async (e: React.MouseEvent, novel: Novel) => {
@@ -334,6 +341,20 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
         )}
       </div>
       )}
+      <AlertDialog open={Boolean(novelToDeleteId)} onOpenChange={(open) => !open && setNovelToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除这部作品吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作不可逆！将会删除该作品的全部卷章正文、大纲、世界观条目与创作记录。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteNovel} className="bg-red-600 hover:bg-red-700 text-white font-bold">确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

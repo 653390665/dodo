@@ -8,6 +8,7 @@ import { Skill, Novel, ViewType } from '../../shared/types';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 
 export function SkillsStudioView({
   selectedNovel,
@@ -18,6 +19,7 @@ export function SkillsStudioView({
 }) {
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [skillToDeleteId, setSkillToDeleteId] = useState<string | null>(null);
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
 
   useEffect(() => {
@@ -37,10 +39,16 @@ export function SkillsStudioView({
   );
 
   const handleDeleteSkill = async (id: string) => {
-    if(!confirm("确认删除这个技能？")) return;
-    await deleteSkill(id);
-    if (selectedSkillId === id) {
-      setSelectedSkillId(null);
+    setSkillToDeleteId(id);
+  };
+
+  const executeDeleteSkill = async () => {
+    if (skillToDeleteId) {
+      await deleteSkill(skillToDeleteId);
+      if (selectedSkillId === skillToDeleteId) {
+        setSelectedSkillId(null);
+      }
+      setSkillToDeleteId(null);
     }
   };
 
@@ -173,6 +181,20 @@ export function SkillsStudioView({
         onClose={() => setSelectedSkillId(null)}
         onSelectSkill={(id) => setSelectedSkillId(id)}
       />
+      <AlertDialog open={Boolean(skillToDeleteId)} onOpenChange={(open) => !open && setSkillToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除这个技能？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将从技能库中删除该写作技能卡，并从所有已装配的作品中解绑。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteSkill} className="bg-red-600 hover:bg-red-700 text-white font-bold">确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../../shared/types';
 import { cn } from '../lib/utils';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '../lib/continuation-pack-selection';
 import { subscribeToChanges } from '../lib/db-transport';
@@ -254,6 +255,9 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     pushToUndoHistory,
   });
 
+  const [chapterToDeleteId, setChapterToDeleteId] = React.useState<string | null>(null);
+  const [versionToRestore, setVersionToRestore] = React.useState<any | null>(null);
+
   const {
     productionIntent,
     setProductionIntent,
@@ -490,7 +494,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
         currentChapter={currentChapter}
         onSelectChapter={setCurrentChapter}
         onAddChapter={handleAddChapter}
-        onDeleteChapter={handleDeleteChapter}
+        onDeleteChapter={setChapterToDeleteId}
         isSidebarOpen={isSidebarOpen}
         isFullscreen={isFullscreen}
         onBack={onBack}
@@ -665,7 +669,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
             onPreferenceProfileChange={persistProjectPreferenceProfile}
             versions={versions}
             onSaveVersion={handleSaveVersion}
-            onRestoreVersion={handleRestoreVersion}
+            onRestoreVersion={setVersionToRestore}
             isSniffing={isSniffing}
             sniffedEntities={sniffedEntities}
             onSniffEntities={handleSniffEntities}
@@ -677,6 +681,55 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
           />
         </>
       )}
+      <AlertDialog open={Boolean(chapterToDeleteId)} onOpenChange={(open) => !open && setChapterToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除这一章吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除本章的所有正文、分镜 beats 和历史版本，且不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (chapterToDeleteId) {
+                  handleDeleteChapter(chapterToDeleteId);
+                  setChapterToDeleteId(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(versionToRestore)} onOpenChange={(open) => !open && setVersionToRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要回滚到此版本吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              这将覆盖您当前编辑器的正文内容。建议您在回滚前确保已保存好当前草稿。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (versionToRestore) {
+                  handleRestoreVersion(versionToRestore);
+                  setVersionToRestore(null);
+                }
+              }}
+              className="bg-theme-accent text-theme-bg font-bold hover:bg-theme-accent/90"
+            >
+              确认回滚
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
