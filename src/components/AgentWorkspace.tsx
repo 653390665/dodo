@@ -4,7 +4,7 @@ import { Activity, Bot, Brain, Eye, Globe, History, Lightbulb, ListOrdered, Mess
 import {
   Novel, Chapter, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
-  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities, EntityRelationship
+  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities, EntityRelationship, Faction
 } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
@@ -75,6 +75,7 @@ interface AgentWorkspaceProps {
   characters: Character[];
   locations: Location[];
   items: Item[];
+  factions: Faction[];
   librarySkills: Skill[];
   skillUsageRecords: SkillUsageRecord[];
   mountedSkillLoadout: MountedSkillLoadoutItem[];
@@ -163,6 +164,7 @@ export function AgentWorkspace({
   relationships,
   isDocked = false,
   activeEntityNames = [],
+  factions,
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
 
@@ -172,21 +174,24 @@ export function AgentWorkspace({
     const activeCharIds = characters.filter(c => activeEntityNames.includes(c.name)).map(c => c.id);
     const activeLocIds = locations.filter(l => activeEntityNames.includes(l.name)).map(l => l.id);
     const activeItemIds = items.filter(i => activeEntityNames.includes(i.name)).map(i => i.id);
+    const activeFactionIds = factions.filter(f => activeEntityNames.includes(f.name)).map(f => f.id);
 
     return relationships.filter((rel) => {
       const isSourceActive =
         (rel.sourceType === 'character' && activeCharIds.includes(rel.sourceId)) ||
         (rel.sourceType === 'location' && activeLocIds.includes(rel.sourceId)) ||
-        (rel.sourceType === 'item' && activeItemIds.includes(rel.sourceId));
+        (rel.sourceType === 'item' && activeItemIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'faction' && activeFactionIds.includes(rel.sourceId));
 
       const isTargetActive =
         (rel.targetType === 'character' && activeCharIds.includes(rel.targetId)) ||
         (rel.targetType === 'location' && activeLocIds.includes(rel.targetId)) ||
-        (rel.targetType === 'item' && activeItemIds.includes(rel.targetId));
+        (rel.targetType === 'item' && activeItemIds.includes(rel.targetId)) ||
+        (rel.targetType === 'faction' && activeFactionIds.includes(rel.targetId));
 
       return isSourceActive || isTargetActive;
     });
-  }, [relationships, activeEntityNames, characters, locations, items]);
+  }, [relationships, activeEntityNames, characters, locations, items, factions]);
 
   const matchedEntities = React.useMemo(() => {
     if (!activeEntityNames || activeEntityNames.length === 0) return [];
@@ -207,16 +212,21 @@ export function AgentWorkspace({
         list.push({ id: i.id, name: i.name, typeLabel: '道具', description: i.description || '' });
       }
     });
+    factions.forEach(f => {
+      if (activeEntityNames.includes(f.name)) {
+        list.push({ id: f.id, name: f.name, typeLabel: '势力', description: f.description || '' });
+      }
+    });
 
     return list;
-  }, [activeEntityNames, characters, locations, items]);
+  }, [activeEntityNames, characters, locations, items, factions]);
 
   return (
     <div
       className={cn(
         "flex flex-col border-theme-border bg-theme-sidebar shrink-0 overflow-hidden relative",
         isDocked
-          ? "w-[360px] h-full border-l"
+          ? "md:w-[360px] md:h-full md:border-l md:relative max-md:absolute max-md:inset-y-3 max-md:right-3 max-md:w-[min(360px,calc(100%-1.5rem))] max-md:rounded-3xl max-md:border max-md:z-30 max-md:bg-theme-sidebar/95 max-md:shadow-2xl max-md:backdrop-blur-sm"
           : "absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border bg-theme-sidebar/95 z-30 backdrop-blur-sm shadow-2xl"
       )}
     >
@@ -334,8 +344,9 @@ export function AgentWorkspace({
                    characters={characters}
                    locations={locations}
                    items={items}
-                   factions={[]}
+                   factions={factions}
                    onSelectEntity={() => {}}
+                   activeEntityNames={activeEntityNames}
                 />
              </div>
 
@@ -389,12 +400,12 @@ export function AgentWorkspace({
                 </div>
 
                 <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
-                   <div className="text-[10px] font-bold text-theme-text mb-1.5">篇幅节奏提示</div>
+                   <div className="text-[10px] font-bold text-theme-text mb-1.5">字数篇幅提示</div>
                    <div className="text-[10px] text-theme-muted leading-relaxed">
                       {currentChapter && currentChapter.content && currentChapter.content.length > 2000 ? (
-                         <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾。</span>
+                         <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾并开启新章。</span>
                       ) : (
-                         <span className="text-green-600 font-medium">✅ 篇幅适中，节奏平稳。</span>
+                         <span className="text-green-600 font-medium">✅ 本章篇幅适中，适合继续创作。</span>
                       )}
                    </div>
                 </div>
