@@ -43,7 +43,7 @@ export function AIAssistantDrawer({
     <>
       <div
         onClick={onClose}
-        className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
+        className="fixed inset-0 sm:left-[76px] z-[60] bg-black/10 backdrop-blur-[2px]"
       />
       <div className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl">
         {onboardingDraft ? (

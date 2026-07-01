@@ -194,6 +194,7 @@ export function AppShell() {
       setAIAssistantOpen(true);
       return;
     }
+    setAIAssistantOpen(false);
     setWorkspaceFocus(deriveWorkspaceFocus(view, navKey, useAppStore.getState().workspaceFocus));
     setCurrentView(view);
   };

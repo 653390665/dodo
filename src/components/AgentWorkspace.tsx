@@ -309,108 +309,151 @@ export function AgentWorkspace({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
         {agentTab === 'context' && (
-          <div key="context" className="space-y-4 pb-8 text-left">
-             {/* 1. 当前分镜 Beats */}
-             <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm text-left">
-                <div className="text-xs font-bold text-theme-text mb-2 flex items-center gap-1.5 justify-start">
-                   <Activity size={12} className="text-theme-accent" />
-                   当前章分镜 Beats
-                </div>
-                {currentChapter?.sceneBeats ? (
-                   <div className="text-[11px] text-theme-muted/90 leading-relaxed whitespace-pre-wrap font-serif">
-                      {currentChapter.sceneBeats}
-                   </div>
-                ) : (
-                   <div className="text-[11px] text-theme-muted/50 italic">
-                      暂无本章分镜。可前往「大纲」或「分镜」生成。
-                   </div>
-                )}
-             </div>
-
-             {/* 2. 当前场景图谱 */}
-             <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm space-y-2 text-left">
-                <div className="text-xs font-bold text-theme-text flex items-center justify-between">
-                   <div className="flex items-center gap-1.5 justify-start">
-                      <Globe size={12} className="text-theme-accent" />
-                      当前场景上下文图谱
-                   </div>
-                   <div className="text-[9px] bg-theme-border/30 text-theme-muted px-1.5 py-0.5 rounded font-mono">
-                      匹配实体: {activeEntityNames?.length || 0}
-                   </div>
-                </div>
-
-                <RelationshipGraph
-                   relationships={filteredRelationships}
-                   characters={characters}
-                   locations={locations}
-                   items={items}
-                   factions={factions}
-                   onSelectEntity={() => {}}
-                   activeEntityNames={activeEntityNames}
-                />
-             </div>
-
-             {/* 3. 出场实体卡片 */}
-             <div className="space-y-2 text-left">
+          !currentChapter ? (
+             <div className="bg-theme-sidebar/40 p-5 rounded-xl border border-theme-border/40 shadow-sm text-left space-y-4">
                 <div className="text-xs font-bold text-theme-text flex items-center gap-1.5 justify-start">
-                   <Bot size={12} className="text-theme-accent" />
-                   出场设定详情
+                   <Activity size={12} className="text-theme-accent" />
+                   创作启动 Checklist
                 </div>
-                <div className="grid grid-cols-1 gap-2">
-                   {matchedEntities.map(ent => (
-                      <div key={ent.id} className="bg-theme-sidebar p-3 rounded-xl border border-theme-border/30 text-left">
-                         <div className="flex items-center gap-2 mb-1 justify-start">
-                            <span className="text-xs font-bold text-theme-text">{ent.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.2 bg-theme-border/40 text-theme-muted rounded">
-                               {ent.typeLabel}
-                            </span>
-                         </div>
-                         {ent.description && (
-                            <p className="text-[11px] text-theme-muted leading-relaxed line-clamp-3">
-                               {ent.description}
-                            </p>
-                         )}
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                   您目前没有打开任何章节。请按照以下步骤启动本章创作：
+                </p>
+                <div className="space-y-4 pt-2">
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">1</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">新建章节</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">在左侧目录栏点击「新建章节」按钮，建立当前写作条目。</span>
                       </div>
-                   ))}
-                   {matchedEntities.length === 0 && (
-                      <div className="text-center py-4 text-[11px] text-theme-muted/50 border border-dashed border-theme-border/50 rounded-xl">
-                         正文中未检测到已登记的设定实体。在左侧键入人名/地名即可自动识别。
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">2</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">生成分镜 Beats</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">前往「大纲」或「分镜」模块生成本章的分镜动作与目标，提供大纲牵引。</span>
+                      </div>
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">3</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">补充设定与角色</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">在「设定集」录入即将登场的主角与场景背景，让关系网图谱在写作时能自动提取高亮。</span>
+                      </div>
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">4</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">装配技能卡</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">进入「技能卡」为小说装配文风或节奏模型（如：画面描写、高潮打斗、心理悬疑等）。</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          ) : (
+             <div key="context" className="space-y-4 pb-8 text-left">
+                {/* 1. 当前分镜 Beats */}
+                <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                   <div className="text-xs font-bold text-theme-text mb-2 flex items-center gap-1.5 justify-start">
+                      <Activity size={12} className="text-theme-accent" />
+                      当前章分镜 Beats
+                   </div>
+                   {currentChapter?.sceneBeats ? (
+                      <div className="text-[11px] text-theme-muted/90 leading-relaxed whitespace-pre-wrap font-serif">
+                         {currentChapter.sceneBeats}
+                      </div>
+                   ) : (
+                      <div className="text-[11px] text-theme-muted/50 italic">
+                         暂无本章分镜。可前往「大纲」或「分镜」生成。
                       </div>
                    )}
                 </div>
-             </div>
 
-             {/* 4. 技能与伏笔参考 */}
-             <div className="grid grid-cols-2 gap-2 text-left">
-                <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
-                   <div className="text-[10px] font-bold text-theme-text mb-1.5">已挂载技能 ({mountedSkillLoadout.length})</div>
-                   <div className="space-y-1">
-                      {mountedSkillLoadout.map((item, idx) => {
-                         const skillName = librarySkills.find(s => s.id === item.skillId)?.name || item.skillId;
-                         return (
-                            <div key={idx} className="text-[10px] text-theme-muted truncate">
-                               • {skillName}
+                {/* 2. 当前场景图谱 */}
+                <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm space-y-2 text-left">
+                   <div className="text-xs font-bold text-theme-text flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 justify-start">
+                         <Globe size={12} className="text-theme-accent" />
+                         当前场景上下文图谱
+                      </div>
+                      <div className="text-[9px] bg-theme-border/30 text-theme-muted px-1.5 py-0.5 rounded font-mono">
+                         匹配实体: {activeEntityNames?.length || 0}
+                      </div>
+                   </div>
+
+                   <RelationshipGraph
+                      relationships={filteredRelationships}
+                      characters={characters}
+                      locations={locations}
+                      items={items}
+                      factions={factions}
+                      onSelectEntity={() => {}}
+                      activeEntityNames={activeEntityNames}
+                      onGoToWorldBible={() => setAgentTab('bible')}
+                   />
+                </div>
+
+                {/* 3. 出场实体卡片 */}
+                <div className="space-y-2 text-left">
+                   <div className="text-xs font-bold text-theme-text flex items-center gap-1.5 justify-start">
+                      <Bot size={12} className="text-theme-accent" />
+                      出场设定详情
+                   </div>
+                   <div className="grid grid-cols-1 gap-2">
+                      {matchedEntities.map(ent => (
+                         <div key={ent.id} className="bg-theme-sidebar p-3 rounded-xl border border-theme-border/30 text-left">
+                            <div className="flex items-center gap-2 mb-1 justify-start">
+                               <span className="text-xs font-bold text-theme-text">{ent.name}</span>
+                               <span className="text-[9px] px-1.5 py-0.2 bg-theme-border/40 text-theme-muted rounded">
+                                  {ent.typeLabel}
+                               </span>
                             </div>
-                         );
-                      })}
-                      {mountedSkillLoadout.length === 0 && (
-                         <div className="text-[10px] text-theme-muted/40 italic">未装备技能</div>
+                            {ent.description && (
+                               <p className="text-[11px] text-theme-muted leading-relaxed line-clamp-3">
+                                  {ent.description}
+                               </p>
+                            )}
+                         </div>
+                      ))}
+                      {matchedEntities.length === 0 && (
+                         <div className="text-center py-4 text-[11px] text-theme-muted/50 border border-dashed border-theme-border/50 rounded-xl">
+                            正文中未检测到已登记的设定实体。在左侧键入人名/地名即可自动识别。
+                         </div>
                       )}
                    </div>
                 </div>
 
-                <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
-                   <div className="text-[10px] font-bold text-theme-text mb-1.5">字数篇幅提示</div>
-                   <div className="text-[10px] text-theme-muted leading-relaxed">
-                      {currentChapter && currentChapter.content && currentChapter.content.length > 2000 ? (
-                         <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾并开启新章。</span>
-                      ) : (
-                         <span className="text-green-600 font-medium">✅ 本章篇幅适中，适合继续创作。</span>
-                      )}
+                {/* 4. 技能与伏笔参考 */}
+                <div className="grid grid-cols-2 gap-2 text-left">
+                   <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                      <div className="text-[10px] font-bold text-theme-text mb-1.5">已挂载技能 ({mountedSkillLoadout.length})</div>
+                      <div className="space-y-1">
+                         {mountedSkillLoadout.map((item, idx) => {
+                            const skillName = librarySkills.find(s => s.id === item.skillId)?.name || item.skillId;
+                            return (
+                               <div key={idx} className="text-[10px] text-theme-muted truncate">
+                                  • {skillName}
+                               </div>
+                            );
+                         })}
+                         {mountedSkillLoadout.length === 0 && (
+                            <div className="text-[10px] text-theme-muted/40 italic">未装备技能</div>
+                         )}
+                      </div>
+                   </div>
+
+                   <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                      <div className="text-[10px] font-bold text-theme-text mb-1.5">字数篇幅提示</div>
+                      <div className="text-[10px] text-theme-muted leading-relaxed">
+                         {currentChapter && currentChapter.content && currentChapter.content.length > 2000 ? (
+                            <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾并开启新章。</span>
+                         ) : (
+                            <span className="text-green-600 font-medium">✅ 本章篇幅适中，适合继续创作。</span>
+                         )}
+                      </div>
                    </div>
                 </div>
              </div>
-          </div>
+          )
         )}
         {agentTab === 'copilot-home' && (
             <div

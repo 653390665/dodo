@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Save, Sparkles, X } from 'lucide-react';
+import { BookOpen, Cpu, GitBranch, Layers, Loader2, Save, Sparkles, X } from 'lucide-react';
 
 import { subscribeToChanges } from '../../lib/db-transport';
 import { createSkill, listSkillUsageRecords, listSkillVersions, updateSkill } from '../../lib/skill-client';
@@ -118,11 +118,63 @@ export function SkillDetailDrawer({
 
   if (!skill || !draft) {
     return (
-      <div className="hidden xl:flex w-[380px] shrink-0 border-l border-theme-border bg-theme-sidebar/80 backdrop-blur-sm items-center justify-center p-8">
-        <div className="text-center text-theme-muted/60">
-          <Sparkles size={32} className="mx-auto mb-3 opacity-30" />
-          <div className="text-sm font-bold">选择一张技能卡</div>
-          <div className="text-xs mt-1">打开详情、编辑字段并管理版本谱系</div>
+      <div className="hidden xl:flex w-[380px] shrink-0 border-l border-theme-border bg-theme-sidebar/80 backdrop-blur-sm flex-col p-6 overflow-y-auto">
+        <div className="text-center py-6 border-b border-theme-border/50 shrink-0">
+          <Sparkles size={32} className="mx-auto mb-3 text-theme-accent animate-pulse" />
+          <h3 className="text-sm font-bold text-theme-text">选择一张技能卡</h3>
+          <p className="text-xs text-theme-muted mt-1">查看详细内容、进行版本比对并配置写作装配链路</p>
+        </div>
+
+        <div className="flex-1 py-6 space-y-5 text-left">
+          <div className="text-xs font-bold text-theme-text uppercase tracking-wider text-theme-muted/80">技能卡牌有哪些能力：</div>
+          
+          <div className="flex gap-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+              <BookOpen size={14} />
+            </span>
+            <div>
+              <h4 className="text-xs font-bold text-theme-text">核心写作用途 (Purpose)</h4>
+              <p className="text-[11px] text-theme-muted leading-relaxed mt-1">
+                限制 AI 写作的叙事边界、字数节奏及描写密度，在不同场景（如打斗、悬疑）下使用对应技能。
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+              <Cpu size={14} />
+            </span>
+            <div>
+              <h4 className="text-xs font-bold text-theme-text">影响维度 (Dimensions)</h4>
+              <p className="text-[11px] text-theme-muted leading-relaxed mt-1">
+                设定文风、剧情、战力、人物等主次维度，指导 AI 严格贯彻当前段落的核心设定。
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+              <GitBranch size={14} />
+            </span>
+            <div>
+              <h4 className="text-xs font-bold text-theme-text">版本谱系 (Lineage)</h4>
+              <p className="text-[11px] text-theme-muted leading-relaxed mt-1">
+                保存历次修改的演进记录，防丢防崩；支持通过“技能融合”合成多种技能高级文风卡。
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+              <Layers size={14} />
+            </span>
+            <div>
+              <h4 className="text-xs font-bold text-theme-text">装配路径 (Equipping Path)</h4>
+              <p className="text-[11px] text-theme-muted leading-relaxed mt-1">
+                将卡片绑定到特定作品，在进入写作工作台时即插即用，提升段落控制力。
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );

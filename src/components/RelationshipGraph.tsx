@@ -27,6 +27,7 @@ interface RelationshipGraphProps {
   factions: Faction[];
   onSelectEntity?: (type: string, id: string) => void;
   activeEntityNames?: string[];
+  onGoToWorldBible?: () => void;
 }
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -44,7 +45,7 @@ function getEntityName(type: string, id: string, characters: Character[], locati
   return id.slice(0, 8);
 }
 
-export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [] }: RelationshipGraphProps) {
+export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [], onGoToWorldBible }: RelationshipGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
@@ -59,9 +60,10 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           id: sKey,
           label: getEntityName(rel.sourceType, rel.sourceId, characters, locations, items, factions),
           type: rel.sourceType,
-          x: 50 + (index * 77) % 400,
-          y: 50 + (index * 53) % 300,
-          vx: 0, vy: 0,
+          x: 100 + (index * 77) % 300,
+          y: 80 + (index * 53) % 240,
+          vx: 0,
+          vy: 0,
         });
       }
       const tKey = `${rel.targetType}:${rel.targetId}`;
@@ -71,14 +73,15 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           id: tKey,
           label: getEntityName(rel.targetType, rel.targetId, characters, locations, items, factions),
           type: rel.targetType,
-          x: 50 + (index * 77) % 400,
-          y: 50 + (index * 53) % 300,
-          vx: 0, vy: 0,
+          x: 100 + (index * 77) % 300,
+          y: 80 + (index * 53) % 240,
+          vx: 0,
+          vy: 0,
         });
       }
     }
 
-    const nodeList = Array.from(nodeMap.values());
+    const simNodes = Array.from(nodeMap.values());
     const edgeList: GraphEdge[] = relationships.map((rel) => ({
       source: `${rel.sourceType}:${rel.sourceId}`,
       target: `${rel.targetType}:${rel.targetId}`,
@@ -86,42 +89,48 @@ export function RelationshipGraph({ relationships, characters, locations, items,
       description: rel.description || '',
     }));
 
-    // Simple Force Directed Simulation (50 iterations)
-    const simNodes = nodeList.map((n) => ({ ...n }));
-    for (let iter = 0; iter < 50; iter++) {
-      // Repulsion between all nodes
+    // Simple spring layout simulation (10 iterations)
+    for (let iter = 0; iter < 10; iter++) {
+      // Repulsion between nodes
       for (let i = 0; i < simNodes.length; i++) {
         for (let j = i + 1; j < simNodes.length; j++) {
-          const dx = simNodes[j].x - simNodes[i].x;
-          const dy = simNodes[j].y - simNodes[i].y;
-          const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-          if (d < 150) {
-            const force = (150 - d) * 0.05;
-            const fx = (dx / d) * force;
-            const fy = (dy / d) * force;
-            simNodes[i].vx -= fx;
-            simNodes[i].vy -= fy;
-            simNodes[j].vx += fx;
-            simNodes[j].vy += fy;
+          const n1 = simNodes[i];
+          const n2 = simNodes[j];
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          if (dist < 100) {
+            const force = (100 - dist) * 0.05;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            n1.vx -= fx;
+            n1.vy -= fy;
+            n2.vx += fx;
+            n2.vy += fy;
           }
         }
       }
+
       // Attraction along edges
-      for (const edge of edgeList) {
-        const si = simNodes.findIndex((n) => n.id === edge.source);
-        const ti = simNodes.findIndex((n) => n.id === edge.target);
-        if (si === -1 || ti === -1) continue;
-        const dx = simNodes[ti].x - simNodes[si].x;
-        const dy = simNodes[ti].y - simNodes[si].y;
-        const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-        const force = d * 0.01;
-        const fx = (dx / d) * force;
-        const fy = (dy / d) * force;
-        simNodes[si].vx += fx;
-        simNodes[si].vy += fy;
-        simNodes[ti].vx -= fx;
-        simNodes[ti].vy -= fy;
+      for (const e of edgeList) {
+        const sNode = simNodes.find((n) => n.id === e.source);
+        const tNode = simNodes.find((n) => n.id === e.target);
+        if (sNode && tNode) {
+          const dx = tNode.x - sNode.x;
+          const dy = tNode.y - sNode.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          if (dist > 80) {
+            const force = (dist - 80) * 0.02;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            sNode.vx += fx;
+            sNode.vy += fy;
+            tNode.vx -= fx;
+            tNode.vy -= fy;
+          }
+        }
       }
+
       // Center gravity + damping
       for (const n of simNodes) {
         n.x += n.vx * 0.3 + (250 - n.x) * 0.01;
@@ -136,8 +145,18 @@ export function RelationshipGraph({ relationships, characters, locations, items,
 
   if (relationships.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-xs text-theme-muted">
-        暂无实体关系数据。点击"添加关系"开始构建知识图谱。
+      <div className="flex flex-col items-center justify-center h-64 text-center p-5 border border-dashed border-theme-border/40 rounded-xl space-y-3 bg-theme-sidebar/10">
+        <span className="text-[11px] text-theme-muted/80 leading-relaxed max-w-[220px]">
+          当前写作上下文匹配的实体暂无关系数据，或正文中未提及实体设定。
+        </span>
+        {onGoToWorldBible && (
+          <button
+            onClick={onGoToWorldBible}
+            className="px-3 py-1.5 rounded-xl bg-theme-accent text-white text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity active:scale-[0.98]"
+          >
+            去世界观补充关系
+          </button>
+        )}
       </div>
     );
   }

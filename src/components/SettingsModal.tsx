@@ -188,7 +188,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
-        className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl"
+        className={`relative my-4 flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl transition-all duration-300 ${
+          settingsTab === 'quick' ? 'max-w-xl' : 'max-w-6xl'
+        }`}
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
           <div className="space-y-1">
