@@ -78,6 +78,9 @@
 
 ## 状态表
 
+> [!NOTE]
+> **执行摘要**：077-080 已完成；V4 报告中的 TODO 状态为旧报告残留。
+
 | Plan | Title | Status | Depends on |
 |------|-------|--------|------------|
 | 001 | CI 质量门禁 | DONE | 已独立完成：build.yml 含 check job + needs |
@@ -138,10 +141,10 @@
 | 074 | 落地进程级异常容错与崩溃守护 | DONE | process-level error handlers added to server.ts |
 | 075 | 前端样式、暗色模式与无障碍清理 | DONE | app.tsx/Sidebar/AIAssistant 样式与 SettingsModal a11y 清理 |
 | 076 | TypeScript 严格模式 | DONE | tsconfig strict:true 启用与 14 文件类型清理 |
-| 077 | 修复 API 运行期 401 鉴权 | TODO | 075, 076 |
-| 078 | 将单元测试与运行期冒烟测试纳入 CI | TODO | 077 |
-| 079 | 收紧 ESLint 门禁与警告清理 | TODO | 078 |
-| 080 | 补全与收紧 API 输入验证防线 | TODO | 077 |
+| 077 | 修复 API 运行期 401 鉴权 | DONE | 075, 076 |
+| 078 | 将单元测试与运行期冒烟测试纳入 CI | DONE | 077 |
+| 079 | 收紧 ESLint 门禁与警告清理 | DONE | 078 |
+| 080 | 补全与收紧 API 输入验证防线 | DONE | 077 |
 
 ## 考虑后排除的发现
 
