@@ -311,12 +311,23 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   }, [launchState?.approvedPackId, launchState?.launchToken, novel.id]);
 
   useEffect(() => {
-    if (!launchState?.approvedPackId || hasConsumedContinuationLaunchUiRef.current) return;
+    if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
     if (isEditorDataLoading) return;
+
+    const isCockpitAction = launchState.source === 'cockpit-planning' || launchState.source === 'cockpit-production';
+    if (!launchState.approvedPackId && !isCockpitAction) return;
+
     hasConsumedContinuationLaunchUiRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time state sync on launch
     setIsAgentSidebarOpen(true);
-    setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
+    
+    if (launchState.source === 'cockpit-production') {
+      setAgentTab('production');
+    } else if (launchState.source === 'cockpit-planning') {
+      setAgentTab('planning');
+    } else {
+      setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
+    }
 
     // Pre-fill creation intent from continuation task
     if (launchState.prefillIntent) {

@@ -560,7 +560,7 @@ export interface ContinuationEditorLaunchState {
   launchToken: number;
   shouldOpenProductionPanel: true;
   prefillIntent?: string;
-  source: 'continuation-import' | 'world-overview' | 'storyboard';
+  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production';
 }
 
 export type ContinuationImportLaunchState = ContinuationEditorLaunchState;

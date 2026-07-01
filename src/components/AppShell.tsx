@@ -6,12 +6,12 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from '../lib/toast';
 
 const Library = lazy(() => import('./Library').then(m => ({ default: m.Library })));
-const SplitWorkspace = lazy(() => import('./SplitWorkspace').then(m => ({ default: m.SplitWorkspace })));
 const EditorView = lazy(() => import('./EditorView').then(m => ({ default: m.EditorView })));
 const WorldBibleView = lazy(() => import('./WorldBibleView').then(m => ({ default: m.WorldBibleView })));
 const ContinuationImportView = lazy(() => import('./ContinuationImportView').then(m => ({ default: m.ContinuationImportView })));
 const SkillsStudioView = lazy(() => import('./SkillsStudioView').then(m => ({ default: m.SkillsStudioView })));
 const BookFactoryView = lazy(() => import('./BookFactoryView').then(m => ({ default: m.BookFactoryView })));
+import { ProjectCockpitView } from './ProjectCockpitView';
 
 import type { AssistantLaunchContext, ContinuationEditorLaunchState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceNavKey } from '../../shared/types';
 import { useAppStore } from '../stores/app-store';
@@ -139,7 +139,7 @@ function WorkspacePreviewEmptyState({
 export function AppShell() {
   const {
     currentView, setCurrentView,
-    workspaceFocus, setWorkspaceFocus,
+    setWorkspaceFocus,
     theme, setTheme,
     isSettingsOpen, setSettingsOpen,
     isAIAssistantOpen, setAIAssistantOpen,
@@ -162,6 +162,27 @@ export function AppShell() {
 
   const navigateToEditor = (novel: Novel) => {
     setContinuationLaunchState(null);
+    setSelectedNovel(novel);
+    setWorkspaceFocus('editor');
+    setCurrentView('editor');
+  };
+
+  const navigateToCockpit = (novel: Novel) => {
+    setContinuationLaunchState(null);
+    setSelectedNovel(novel);
+    setCurrentView('workspace');
+  };
+
+  const navigateToEditorWithCockpitAction = (
+    novel: Novel,
+    action: 'planning' | 'production'
+  ) => {
+    setContinuationLaunchState({
+      approvedPackId: '',
+      launchToken: Date.now(),
+      shouldOpenProductionPanel: true,
+      source: action === 'planning' ? 'cockpit-planning' : 'cockpit-production',
+    });
     setSelectedNovel(novel);
     setWorkspaceFocus('editor');
     setCurrentView('editor');
@@ -216,7 +237,7 @@ export function AppShell() {
       wordCount: nextContent.replace(/\s/g, '').length,
       updatedAt: Date.now(),
     });
-    setCurrentView('workspace');
+    setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
 
@@ -231,7 +252,7 @@ export function AppShell() {
       sceneBeats: nextBeats,
       updatedAt: Date.now(),
     });
-    setCurrentView('workspace');
+    setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
 
@@ -264,7 +285,7 @@ export function AppShell() {
       wordCount: nextContent.replace(/\s/g, '').length,
       updatedAt: Date.now(),
     });
-    setCurrentView('workspace');
+    setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
 
@@ -489,7 +510,7 @@ export function AppShell() {
                 <WelcomeView
                   onSelectStoryCard={handleSelectStoryCard}
                   onJumpToLibrary={() => setCurrentView('library')}
-                  onSelectNovel={navigateToEditor}
+                  onSelectNovel={navigateToCockpit}
                   onStartContinuationImport={handleStartContinuationImport}
                 />
               </ErrorBoundary>
@@ -506,45 +527,21 @@ export function AppShell() {
             )}
             {currentView === 'library' && (
               <ErrorBoundary>
-                <Library onSelectNovel={navigateToEditor} onNavigate={setCurrentView} userId={'local-user'} />
+                <Library onSelectNovel={navigateToCockpit} onNavigate={setCurrentView} userId={'local-user'} />
               </ErrorBoundary>
             )}
             {currentView === 'workspace' && selectedNovel && (
               <ErrorBoundary>
-                <SplitWorkspace
+                <ProjectCockpitView
                   novel={selectedNovel}
-                  focus={workspaceFocus}
-                  onFocusChange={setWorkspaceFocus}
-                  continuationLaunchState={continuationLaunchState}
-                  onStartContinuationWriting={(packId, prefillIntent) => {
-                    navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview', prefillIntent);
+                  onNavigate={(view) => {
+                    if (view === 'editor') {
+                      navigateToEditor(selectedNovel);
+                    } else {
+                      setCurrentView(view);
+                    }
                   }}
-                  onEnterStoryboard={(packId, continuationTask) => {
-                    navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard', continuationTask);
-                  }}
-                  onOpenAssistant={handleOpenAssistant}
-                  onboarding={
-                    onboardingDraft?.setupTasks.length
-                      ? {
-                          card: onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId),
-                          tasks: onboardingDraft.setupTasks,
-                          activeTask: onboardingDraft.setupTasks.find((task) => task.key === activeSetupTaskKey),
-                          onSelectTask: (key: SetupTaskKey) => setActiveSetupTaskKey(key),
-                          onConfirmTask: handleConfirmSetupTask,
-                          assistantInput,
-                          onAssistantInputChange: setAssistantInput,
-                          onAssistantSubmit: handleRefineSetupTask,
-                          assistantLoading,
-                          completedCount: countCompletedSetupTasks(onboardingDraft.setupTasks),
-                          canEnterEditor: countCompletedSetupTasks(onboardingDraft.setupTasks) >= 3,
-                          onEnterEditor: () => setCurrentView('editor'),
-                          recommendedSkills: onboardingDraft.recommendedSkills,
-                          acceptedRecommendedSkills: onboardingDraft.acceptedRecommendedSkills,
-                          onAcceptRecommendedSkills: handleAcceptRecommendedSkills,
-                        }
-                      : undefined
-                  }
-                  onBack={() => setCurrentView('library')}
+                  onStartCockpitAction={(action) => navigateToEditorWithCockpitAction(selectedNovel, action)}
                 />
               </ErrorBoundary>
             )}
