@@ -125,7 +125,6 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
       setBaselineConfig(config);
       setSaveMessage('已写入本地配置，后续 AI 请求会直接读取这套模板。');
     } catch (e) {
-      console.error('Save config failed', e);
       setSaveError(e instanceof Error ? e.message : '保存配置失败');
     } finally {
       setSaving(false);

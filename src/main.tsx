@@ -25,7 +25,7 @@ window.fetch = async (input, init) => {
             cachedDevToken = data.token;
           }
         } catch (err) {
-          console.error('Failed to bootstrap dev auth token:', err);
+          console.warn('Failed to bootstrap dev auth token:', err);
         }
       }
       token = cachedDevToken;

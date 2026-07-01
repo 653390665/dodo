@@ -47,7 +47,7 @@ function connectEventSource() {
       try {
         fn();
       } catch (e) {
-        console.error('SSE listener error:', e);
+        console.warn('SSE listener error:', e);
       }
     });
   };

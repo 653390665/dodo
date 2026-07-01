@@ -66,7 +66,7 @@ export function useEditorPersistence({
       if (pendingSaveRef.current) {
         const save = pendingSaveRef.current;
         pendingSaveRef.current = null;
-        save().catch((e) => console.error('[useEditorPersistence] Failed to flush pending save on unmount:', e));
+        save().catch((e) => console.warn('[useEditorPersistence] Failed to flush pending save on unmount:', e));
       }
     };
   }, []);
@@ -84,7 +84,7 @@ export function useEditorPersistence({
       if (pendingSaveRef.current) {
         const save = pendingSaveRef.current;
         pendingSaveRef.current = null;
-        save().catch((e) => console.error('[useEditorPersistence] Failed to flush pending save on chapter switch:', e));
+        save().catch((e) => console.warn('[useEditorPersistence] Failed to flush pending save on chapter switch:', e));
       }
     }
 

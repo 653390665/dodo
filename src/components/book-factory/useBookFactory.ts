@@ -225,7 +225,6 @@ export function useBookFactory() {
         setIsModelPending(true);
       }
     } catch (e) {
-      console.error(e);
       setExtractionStatusNote('拆书未开始：当前文本还不足以进入萃取流程。');
       setExtractionWarnings([e instanceof Error ? e.message : String(e)]);
     } finally {
@@ -272,8 +271,7 @@ export function useBookFactory() {
           }
         }
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert('模拟失败');
     } finally {
       setIsTesting(false);

@@ -153,39 +153,29 @@ ${(() => {
  * 负责将用户的模糊意图转化为结构化的场景大纲 (Scene Beats)
  */
 export async function extractWorldSetupPhase(documentText: string): Promise<ExtractedWorldSetup> {
-  try {
-    const response = await fetch('/api/extract-world-setup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentText })
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error || 'Failed to extract world setup');
-    }
-    return data as ExtractedWorldSetup;
-  } catch (error) {
-    console.error("Extract World Setup Error:", error);
-    throw error;
+  const response = await fetch('/api/extract-world-setup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documentText })
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error || 'Failed to extract world setup');
   }
+  return data as ExtractedWorldSetup;
 }
 
 export async function editorAgentPhase(userIntent: string, context: AgentContext, continuationPackId?: string): Promise<string> {
   const contextStr = buildContextPrompt(context);
 
-  try {
-    const response = await fetch('/api/editor-agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIntent, contextStr, surface: 'workspace-beats' satisfies PromptSurface, ...(continuationPackId ? { continuationPackId } : {}) })
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error || 'Failed to generate scene beats');
-    }
-    return data.text || '';
-  } catch (error) {
-    console.error("Editor Agent Error:", error);
-    throw error;
+  const response = await fetch('/api/editor-agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIntent, contextStr, surface: 'workspace-beats' satisfies PromptSurface, ...(continuationPackId ? { continuationPackId } : {}) })
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error || 'Failed to generate scene beats');
   }
+  return data.text || '';
 }

@@ -89,7 +89,7 @@ export function useEditorData(novelId: string) {
 
       setIsLoading(false);
     } catch (error) {
-      console.error('Failed to fetch editor data:', error);
+      console.warn('Failed to fetch editor data:', error);
       if (currentSeq === requestSeqRef.current) {
         setIsLoading(false);
       }

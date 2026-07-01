@@ -18,7 +18,7 @@ export function SkillsStudioView() {
     const refreshSkills = () => {
       syncSkillFeedbackScores()
         .then(setSavedSkills)
-        .catch((err) => console.error('Failed to load skills:', err));
+        .catch((err) => console.warn('Failed to load skills:', err));
     };
     refreshSkills();
     listNovels().then(setUserNovels);

@@ -535,7 +535,6 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
                   a.click();
                   URL.revokeObjectURL(url);
                 } catch (e) {
-                  console.error(e);
                   alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
                 }
               }}

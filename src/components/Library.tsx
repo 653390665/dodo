@@ -111,8 +111,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       a.download = `${novel.title}.txt`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('导出失败');
     }
   };

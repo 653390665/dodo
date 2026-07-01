@@ -91,7 +91,6 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
         setCandidateOutput(secondary);
       }
     } catch (error) {
-      console.error(error);
       alert(`试驾失败: ${String(error)}`);
     } finally {
       setRunningMode(null);

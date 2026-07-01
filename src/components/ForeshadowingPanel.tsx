@@ -102,7 +102,6 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       }
       refresh();
     } catch (e) {
-      console.error(e);
       alert('AI 扫描失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setDetecting(false);

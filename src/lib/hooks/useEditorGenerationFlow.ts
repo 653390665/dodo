@@ -137,7 +137,6 @@ export function useEditorGenerationFlow({
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       alert(formatAiFailure(error, 'AI 审计'));
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -175,7 +174,6 @@ export function useEditorGenerationFlow({
       setUserIntent('');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       const fallbackBeats = buildClientFallbackSceneBeats(
         userIntent || `关于章节「${currentChapter.title}」的大纲`,
       );
@@ -247,7 +245,6 @@ export function useEditorGenerationFlow({
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       alert('改写失败，请稍后重试。');
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -291,7 +288,6 @@ export function useEditorGenerationFlow({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       alert('大纲生成失败');
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -379,7 +375,6 @@ export function useEditorGenerationFlow({
       setGenerationStatus('正文已生成到主编辑器。');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       alert(formatAiFailure(error, '连续写作'));
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -500,7 +495,6 @@ export function useEditorGenerationFlow({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      console.error(error);
       alert('精修失败，请重试');
     } finally {
       if (requestSeqRef.current === currentSeq) {

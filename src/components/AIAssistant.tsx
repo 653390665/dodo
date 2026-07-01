@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../lib/toast';
 
 import { extractWorldSetupPhase } from '../lib/agents';
 import { cn } from '../lib/utils';
@@ -91,8 +92,8 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result || '未能生成灵感，请重试。' };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast('生成灵感失败，请稍后重试', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -122,8 +123,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       });
       alert(`已成功保存至《${novel.title}》的灵感碎片库！`);
       setShowSaveModal(null);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('保存失败，请稍后重试。');
     } finally {
       setIsSavingToNovel(false);
@@ -188,8 +188,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       }
 
       alert(`AI 已成功解析出 ${count} 个设定项，并存储至《${novel.title}》的设定集库中！您可前往「设定记忆」界面查看。`);
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert('提取设定失败，可能是内容不包含明确的角色/地点/物品设定格式，或者大语言模型返回了异常。');
     } finally {
       setIsExtracting(false);
@@ -207,8 +206,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     try {
       await createIdeaFragment(buildAssistantIdeaFragment(trimmed, launchContext));
       alert(`已保存到《${launchContext.novelTitle}》的灵感碎片库。`);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('保存灵感碎片失败，请稍后重试。');
     }
   };

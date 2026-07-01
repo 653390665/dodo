@@ -53,7 +53,6 @@ export function PacingDashboard({ novelId }: Props) {
       });
       setPacing(enriched);
     } catch (e) {
-      console.error(e);
       alert('AI 分析失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);

@@ -68,7 +68,6 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       await updateIdeaFragment(f.id, { aiExpansion: data.expansion, status: 'expanded' });
       setFragments(prev => prev.map(x => x.id === f.id ? { ...x, aiExpansion: data.expansion, status: 'expanded' as const } : x));
     } catch (e) {
-      console.error('Expand failed', e);
       alert('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setExpandingId(null);
