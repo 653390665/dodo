@@ -22,8 +22,119 @@ import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { SettingsModal } from './SettingsModal';
 import { deriveWorkspaceFocus } from '../lib/workspace-nav';
 import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from '../lib/assistant-apply';
+import { BookOpen, BrainCircuit, Globe2, Layers3, PenLine, Sparkles, Wand2 } from 'lucide-react';
 
 const LOCAL_USER = { uid: 'local-user' };
+
+function WorkspacePreviewEmptyState({
+  title,
+  description,
+  onGoLibrary,
+  onCreateNovel,
+  onImport,
+}: {
+  title: string;
+  description: string;
+  onGoLibrary: () => void;
+  onCreateNovel: () => void;
+  onImport: () => void;
+}) {
+  const previewItems = [
+    { label: '章节写作', detail: '分镜、正文、审查反馈在同一条链路里推进。', icon: PenLine },
+    { label: '世界观记忆', detail: '人物、地点、物品和规则跟作品绑定。', icon: Globe2 },
+    { label: '技能卡', detail: '文风、节奏、人物滤镜会影响下一章生成。', icon: Wand2 },
+    { label: 'AI 协作', detail: '助手会读取当前作品与章节上下文。', icon: BrainCircuit },
+  ];
+
+  return (
+    <div className="h-full overflow-y-auto bg-theme-bg/30 p-8">
+      <div className="mx-auto flex min-h-full max-w-6xl flex-col justify-center gap-8">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-theme-border bg-theme-sidebar text-theme-accent shadow-sm">
+            <Layers3 size={24} />
+          </div>
+          <h2 className="text-3xl font-serif font-bold text-theme-text">{title}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-theme-muted">{description}</p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+          <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-theme-muted">工作台预览</div>
+                <div className="mt-1 text-lg font-serif font-bold text-theme-text">选择作品后，这里会成为创作驾驶舱</div>
+              </div>
+              <span className="rounded-full border border-theme-accent/20 bg-theme-accent/5 px-3 py-1 text-[11px] font-bold text-theme-accent">
+                Demo
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {previewItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+                        <Icon size={15} />
+                      </span>
+                      <div className="text-sm font-bold text-theme-text">{item.label}</div>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-theme-muted">{item.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles size={18} className="text-theme-accent" />
+              <div className="text-sm font-bold text-theme-text">下一步</div>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={onGoLibrary}
+                className="w-full rounded-2xl bg-theme-text px-4 py-3 text-left text-sm font-bold text-theme-bg shadow-sm transition-opacity hover:opacity-90"
+              >
+                选择已有作品
+                <span className="mt-1 block text-[11px] font-normal opacity-80">进入作品后可直接写作、设定和挂载技能。</span>
+              </button>
+              <button
+                onClick={onCreateNovel}
+                className="w-full rounded-2xl border border-theme-border px-4 py-3 text-left text-sm font-bold text-theme-text transition-colors hover:border-theme-accent"
+              >
+                创建新作品
+                <span className="mt-1 block text-[11px] font-normal text-theme-muted">先建项目，再补世界观和第一章。</span>
+              </button>
+              <button
+                onClick={onImport}
+                className="w-full rounded-2xl border border-theme-accent/30 bg-theme-accent/5 px-4 py-3 text-left text-sm font-bold text-theme-accent transition-colors hover:border-theme-accent"
+              >
+                导入资料续写
+                <span className="mt-1 block text-[11px] font-normal text-theme-muted">把已有设定、大纲、正文整理成可写上下文。</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 text-xs text-theme-muted md:grid-cols-3">
+          <div className="rounded-2xl border border-theme-border bg-theme-sidebar/60 p-4">
+            <BookOpen size={16} className="mb-2 text-theme-accent" />
+            作品是所有写作上下文的容器。
+          </div>
+          <div className="rounded-2xl border border-theme-border bg-theme-sidebar/60 p-4">
+            <Globe2 size={16} className="mb-2 text-theme-accent" />
+            设定集会帮助 AI 记住人物与规则。
+          </div>
+          <div className="rounded-2xl border border-theme-border bg-theme-sidebar/60 p-4">
+            <Wand2 size={16} className="mb-2 text-theme-accent" />
+            技能卡会影响章节生成和审查。
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AppShell() {
   const {
@@ -359,7 +470,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="h-screen w-full flex bg-theme-bg text-theme-text overflow-hidden p-3 gap-3">
+    <div className="h-screen w-full flex bg-theme-bg text-theme-text overflow-hidden p-2 gap-2 sm:p-3 sm:gap-3">
       <div className="shrink-0">
         <Sidebar
           currentView={currentView}
@@ -369,7 +480,7 @@ export function AppShell() {
         />
       </div>
 
-      <main className="flex-1 relative overflow-hidden bg-paper rounded-2xl border border-theme-border shadow-sm flex flex-col">
+      <main className="min-w-0 flex-1 relative overflow-hidden bg-paper rounded-2xl border border-theme-border shadow-sm flex flex-col">
         <div key={currentView} className="flex-1 overflow-hidden h-full">
           <Suspense fallback={<div className="flex items-center justify-center h-full text-sm opacity-50">加载中...</div>}>
             {currentView === 'welcome' && (
@@ -488,55 +599,35 @@ export function AppShell() {
             )}
             {currentView === 'skills' && (
               <ErrorBoundary>
-                <SkillsStudioView />
+                <SkillsStudioView selectedNovel={selectedNovel} onNavigate={setCurrentView} />
               </ErrorBoundary>
             )}
             {currentView === 'editor' && !selectedNovel && (
-              <div className="h-full flex flex-col items-center justify-center p-12 text-gray-400 bg-theme-bg/30 relative">
-                <div className="w-32 h-32 bg-theme-sidebar/50 rounded-full flex items-center justify-center mb-6 border border-theme-border shadow-inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-theme-muted"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-                </div>
-                <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">创作舞台暂未开启</h2>
-                <p className="text-theme-muted mb-8 text-center max-w-md">您似乎还没有选择要编辑的作品。<br/>不同的作品对应独立的写作空间，请先前往「书库」创建或加载您的灵感结晶。</p>
-                <button
-                  onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-theme-accent text-white font-bold rounded-2xl hover:bg-theme-accent/90 transition-[transform,background-color,box-shadow] duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                  前往书库
-                </button>
-              </div>
+              <WorkspacePreviewEmptyState
+                title="创作舞台等待作品"
+                description="选中作品后，编辑器会读取章节、分镜、世界观和技能卡，让正文生成、审查和打磨连成一条线。"
+                onGoLibrary={() => setCurrentView('library')}
+                onCreateNovel={() => setCurrentView('library')}
+                onImport={handleStartContinuationImport}
+              />
             )}
             {currentView === 'workspace' && !selectedNovel && (
-              <div className="h-full flex flex-col items-center justify-center p-12 text-gray-400 bg-theme-bg/30 relative">
-                <div className="w-32 h-32 bg-theme-sidebar/50 rounded-full flex items-center justify-center mb-6 border border-theme-border shadow-inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-theme-muted"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-                </div>
-                <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">创作工作台暂未开启</h2>
-                <p className="text-theme-muted mb-8 text-center max-w-md">您似乎还没有选择要进入的作品。<br/>请先前往「书库」创建或加载作品，再回到工作台进行写作与设定联动。</p>
-                <button
-                  onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-theme-accent text-white font-bold rounded-2xl hover:bg-theme-accent/90 transition-[transform,background-color,box-shadow] duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                  前往书库
-                </button>
-              </div>
+              <WorkspacePreviewEmptyState
+                title="创作工作台暂未开启"
+                description="工作台会把章节写作、设定记忆、技能卡和 AI 助手组织在一起。先选择或创建作品，就能开始协作。"
+                onGoLibrary={() => setCurrentView('library')}
+                onCreateNovel={() => setCurrentView('library')}
+                onImport={handleStartContinuationImport}
+              />
             )}
             {currentView === 'world' && !selectedNovel && (
-              <div className="h-full flex flex-col items-center justify-center p-12 text-gray-400 bg-theme-bg/30 relative text-center">
-                <div className="w-32 h-32 bg-theme-sidebar/50 rounded-full flex items-center justify-center mb-6 border border-theme-border shadow-inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-theme-muted"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                </div>
-                <h2 className="text-3xl font-serif font-bold text-theme-text mb-4">设定集未关联</h2>
-                <p className="text-theme-muted mb-8 max-w-md text-center">人物与设定集是与作品深度绑定的「数据库」。<br/>请先在书库中选择并进入一部作品，以开启其专属的世界圣经。</p>
-                <button
-                  onClick={() => setCurrentView('library')}
-                  className="px-8 py-4 bg-theme-sidebar border-2 border-theme-border text-theme-text font-bold rounded-2xl hover:border-theme-accent transition-[transform,border-color,box-shadow] duration-200 shadow-sm hover:shadow active:scale-95"
-                >
-                  返回书库选择作品
-                </button>
-              </div>
+              <WorkspacePreviewEmptyState
+                title="设定集需要绑定作品"
+                description="人物、地点、道具和世界规则都跟作品绑定。选中作品后，设定会成为后续写作和审查的上下文。"
+                onGoLibrary={() => setCurrentView('library')}
+                onCreateNovel={() => setCurrentView('library')}
+                onImport={handleStartContinuationImport}
+              />
             )}
           </Suspense>
         </div>
@@ -555,6 +646,7 @@ export function AppShell() {
         handleApplyAssistantToContent={handleApplyAssistantToContent}
         handleApplyAssistantToSceneBeats={handleApplyAssistantToSceneBeats}
         handleReplaceAssistantSelection={handleReplaceAssistantSelection}
+        selectedNovel={selectedNovel}
       />
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />

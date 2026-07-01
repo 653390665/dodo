@@ -41,6 +41,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     librarySkills,
     skillUsageRecords,
     mountedSkillLoadout, setMountedSkillLoadout,
+    relationships,
     projectPreferenceProfile, setProjectPreferenceProfile,
     isLoading: isEditorDataLoading,
   } = useEditorData(novel.id);
@@ -72,7 +73,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
   const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
   const [selectedContinuationPackId, setSelectedContinuationPackId] = useState('');
-  const [agentTab, setAgentTab] = useState<AgentTab>('copilot-home');
+  const [agentTab, setAgentTab] = useState<AgentTab>('context');
   const [bibleSearch, setBibleSearch] = useState('');
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
@@ -142,6 +143,39 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     locations,
     items,
   });
+
+  const [activeEntityNames, setActiveEntityNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!currentChapter || !currentChapter.content) {
+        setActiveEntityNames([]);
+        return;
+      }
+      const text = currentChapter.content;
+      const matched: string[] = [];
+
+      characters.forEach((c) => {
+        if (c.name && text.includes(c.name)) {
+          matched.push(c.name);
+        }
+      });
+      locations.forEach((l) => {
+        if (l.name && text.includes(l.name)) {
+          matched.push(l.name);
+        }
+      });
+      items.forEach((i) => {
+        if (i.name && text.includes(i.name)) {
+          matched.push(i.name);
+        }
+      });
+
+      setActiveEntityNames(matched);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentChapter, characters, locations, items]);
   const { versions } = useChapterVersions(currentChapter?.id);
 
   // Reset undo history when chapter changes
@@ -547,83 +581,78 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
 
       </div>
 
-      {/* Agent Sidebar */}
+      {/* Agent Sidebar - Docked (WritingContextRail) */}
       {!isFullscreen && isAgentSidebarOpen && (
-          <>
-            <button
-              type="button"
-              aria-label="关闭智能管家"
-              onClick={() => setIsAgentSidebarOpen(false)}
-              className="absolute inset-0 z-20 bg-black/10 backdrop-blur-[1px]"
-            />
-            <AgentWorkspace
-              novel={novel}
-              chapters={chapters}
-              currentChapter={currentChapter}
-              setCurrentChapter={setCurrentChapter}
-              isAgentSidebarOpen={isAgentSidebarOpen}
-              setIsAgentSidebarOpen={setIsAgentSidebarOpen}
-              agentTab={agentTab}
-              setAgentTab={setAgentTab}
-              copilotSuggestion={copilotSuggestion}
-              runCopilotAction={runCopilotAction}
-              activeProductionRun={activeProductionRun}
-              productionIntent={productionIntent}
-              setProductionIntent={setProductionIntent}
-              isProductionRunning={isProductionRunning}
-              isApplyingProductionRun={isApplyingProductionRun}
-              productionError={productionError}
-              productionBeatsSource={productionBeatsSource}
-              productionDraftSource={productionDraftSource}
-              productionAuditSource={productionAuditSource}
-              productionStatusMessage={productionStatusMessage}
-              continuationPacks={continuationPacks}
-              selectedContinuationPackId={selectedContinuationPackId}
-              setSelectedContinuationPackId={setSelectedContinuationPackId}
-              onStartProductionRun={handleStartProductionRun}
-              onApplyProductionRun={handleApplyProductionRun}
-              expectedWordCount={expectedWordCount}
-              setExpectedWordCount={setExpectedWordCount}
-              onGenerateOutline={handleGenerateOutline}
-              isGeneratingOutline={isGeneratingOutline}
-              globalOutline={globalOutline}
-              onGlobalOutlineChange={handleUpdateGlobalOutline}
-              onGenerateBeats={handleGenerateBeats}
-              isGeneratingBeats={isGeneratingBeats}
-              userIntent={userIntent}
-              setUserIntent={setUserIntent}
-              isGeneratingContent={isGeneratingContent}
-              generationStatus={generationStatus}
-              onGenerateContent={handleGenerateContent}
-              onRewriteSelectedText={handleRewriteSelectedText}
-              onUpdateChapterBeats={handleUpdateChapterBeats}
-              onRunAudit={handleRunAudit}
-              isGeneratingCritique={isGeneratingCritique}
-              onPolishChapterFromAudit={handlePolishChapterFromAudit}
-              onCreateChapter={handleCreateChapter}
-              bibleSearch={bibleSearch}
-              setBibleSearch={setBibleSearch}
-              characters={characters}
-              locations={locations}
-              items={items}
-              librarySkills={librarySkills}
-              skillUsageRecords={skillUsageRecords}
-              mountedSkillLoadout={mountedSkillLoadout}
-              onAssignSkill={assignSkillToSlot}
-              onRemoveSkill={removeSkillFromSlot}
-              projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
-              onPreferenceProfileChange={persistProjectPreferenceProfile}
-              versions={versions}
-              onSaveVersion={handleSaveVersion}
-              onRestoreVersion={handleRestoreVersion}
-              isSniffing={isSniffing}
-              sniffedEntities={sniffedEntities}
-              onSniffEntities={handleSniffEntities}
-              onAddSniffedEntity={handleAddSniffedEntity}
-              addingEntityNames={addingEntityNames}
-            />
-          </>
-        )}
+        <AgentWorkspace
+          novel={novel}
+          chapters={chapters}
+          currentChapter={currentChapter}
+          setCurrentChapter={setCurrentChapter}
+          isAgentSidebarOpen={isAgentSidebarOpen}
+          setIsAgentSidebarOpen={setIsAgentSidebarOpen}
+          agentTab={agentTab}
+          setAgentTab={setAgentTab}
+          copilotSuggestion={copilotSuggestion}
+          runCopilotAction={runCopilotAction}
+          activeProductionRun={activeProductionRun}
+          productionIntent={productionIntent}
+          setProductionIntent={setProductionIntent}
+          isProductionRunning={isProductionRunning}
+          isApplyingProductionRun={isApplyingProductionRun}
+          productionError={productionError}
+          productionBeatsSource={productionBeatsSource}
+          productionDraftSource={productionDraftSource}
+          productionAuditSource={productionAuditSource}
+          productionStatusMessage={productionStatusMessage}
+          continuationPacks={continuationPacks}
+          selectedContinuationPackId={selectedContinuationPackId}
+          setSelectedContinuationPackId={setSelectedContinuationPackId}
+          onStartProductionRun={handleStartProductionRun}
+          onApplyProductionRun={handleApplyProductionRun}
+          expectedWordCount={expectedWordCount}
+          setExpectedWordCount={setExpectedWordCount}
+          onGenerateOutline={handleGenerateOutline}
+          isGeneratingOutline={isGeneratingOutline}
+          globalOutline={globalOutline}
+          onGlobalOutlineChange={handleUpdateGlobalOutline}
+          onGenerateBeats={handleGenerateBeats}
+          isGeneratingBeats={isGeneratingBeats}
+          userIntent={userIntent}
+          setUserIntent={setUserIntent}
+          isGeneratingContent={isGeneratingContent}
+          generationStatus={generationStatus}
+          onGenerateContent={handleGenerateContent}
+          onRewriteSelectedText={handleRewriteSelectedText}
+          onUpdateChapterBeats={handleUpdateChapterBeats}
+          onRunAudit={handleRunAudit}
+          isGeneratingCritique={isGeneratingCritique}
+          onPolishChapterFromAudit={handlePolishChapterFromAudit}
+          onCreateChapter={handleCreateChapter}
+          bibleSearch={bibleSearch}
+          setBibleSearch={setBibleSearch}
+          characters={characters}
+          locations={locations}
+          items={items}
+          librarySkills={librarySkills}
+          skillUsageRecords={skillUsageRecords}
+          mountedSkillLoadout={mountedSkillLoadout}
+          onAssignSkill={assignSkillToSlot}
+          onRemoveSkill={removeSkillFromSlot}
+          projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
+          onPreferenceProfileChange={persistProjectPreferenceProfile}
+          versions={versions}
+          onSaveVersion={handleSaveVersion}
+          onRestoreVersion={handleRestoreVersion}
+          isSniffing={isSniffing}
+          sniffedEntities={sniffedEntities}
+          onSniffEntities={handleSniffEntities}
+          onAddSniffedEntity={handleAddSniffedEntity}
+          addingEntityNames={addingEntityNames}
+          relationships={relationships}
+          isDocked={true}
+          activeEntityNames={activeEntityNames}
+        />
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { Activity, Bot, Brain, Eye, Globe, History, Lightbulb, ListOrdered, Mess
 import {
   Novel, Chapter, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
-  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities
+  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities, EntityRelationship
 } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
@@ -15,6 +15,7 @@ import { AgentWorkspaceKnowledgePanel } from './AgentWorkspaceKnowledgePanel';
 import { AgentWorkspaceTracePanel } from './AgentWorkspaceTracePanel';
 import { AgentWorkspaceVersionsPanel } from './AgentWorkspaceVersionsPanel';
 import { CopilotHomePanel } from './copilot/CopilotHomePanel';
+import { RelationshipGraph } from './RelationshipGraph';
 
 function isProductionAgentTab(tab: AgentTab): tab is Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'> {
   return tab === 'production' || tab === 'outline' || tab === 'planning' || tab === 'quality';
@@ -89,6 +90,9 @@ interface AgentWorkspaceProps {
   onSniffEntities: () => Promise<void>;
   onAddSniffedEntity: (ent: { name: string, type: string, context: string }) => Promise<void>;
   addingEntityNames: string[];
+  relationships: EntityRelationship[];
+  isDocked?: boolean;
+  activeEntityNames?: string[];
 }
 
 export function AgentWorkspace({
@@ -156,12 +160,65 @@ export function AgentWorkspace({
   onSniffEntities,
   onAddSniffedEntity,
   addingEntityNames,
+  relationships,
+  isDocked = false,
+  activeEntityNames = [],
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
 
+  const filteredRelationships = React.useMemo(() => {
+    if (!relationships || !activeEntityNames || activeEntityNames.length === 0) return [];
+
+    const activeCharIds = characters.filter(c => activeEntityNames.includes(c.name)).map(c => c.id);
+    const activeLocIds = locations.filter(l => activeEntityNames.includes(l.name)).map(l => l.id);
+    const activeItemIds = items.filter(i => activeEntityNames.includes(i.name)).map(i => i.id);
+
+    return relationships.filter((rel) => {
+      const isSourceActive =
+        (rel.sourceType === 'character' && activeCharIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'location' && activeLocIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'item' && activeItemIds.includes(rel.sourceId));
+
+      const isTargetActive =
+        (rel.targetType === 'character' && activeCharIds.includes(rel.targetId)) ||
+        (rel.targetType === 'location' && activeLocIds.includes(rel.targetId)) ||
+        (rel.targetType === 'item' && activeItemIds.includes(rel.targetId));
+
+      return isSourceActive || isTargetActive;
+    });
+  }, [relationships, activeEntityNames, characters, locations, items]);
+
+  const matchedEntities = React.useMemo(() => {
+    if (!activeEntityNames || activeEntityNames.length === 0) return [];
+    const list: Array<{ id: string; name: string; typeLabel: string; description: string }> = [];
+
+    characters.forEach(c => {
+      if (activeEntityNames.includes(c.name)) {
+        list.push({ id: c.id, name: c.name, typeLabel: '角色', description: c.summary || c.bio || '' });
+      }
+    });
+    locations.forEach(l => {
+      if (activeEntityNames.includes(l.name)) {
+        list.push({ id: l.id, name: l.name, typeLabel: '地点', description: l.description || '' });
+      }
+    });
+    items.forEach(i => {
+      if (activeEntityNames.includes(i.name)) {
+        list.push({ id: i.id, name: i.name, typeLabel: '道具', description: i.description || '' });
+      }
+    });
+
+    return list;
+  }, [activeEntityNames, characters, locations, items]);
+
   return (
     <div
-      className="absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border border-theme-border bg-theme-sidebar/95 overflow-hidden z-30 backdrop-blur-sm shadow-2xl flex flex-col"
+      className={cn(
+        "flex flex-col border-theme-border bg-theme-sidebar shrink-0 overflow-hidden relative",
+        isDocked
+          ? "w-[360px] h-full border-l"
+          : "absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border bg-theme-sidebar/95 z-30 backdrop-blur-sm shadow-2xl"
+      )}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-theme-sidebar/90 shrink-0">
         <div>
@@ -192,6 +249,9 @@ export function AgentWorkspace({
         }}
         className="flex overflow-x-auto no-scrollbar p-3 gap-1 border-b border-theme-border bg-transparent sticky top-0 z-10 shrink-0 items-center">
         <span className="text-[9px] font-bold text-theme-muted/40 uppercase tracking-wider px-2 shrink-0">当前</span>
+        <button onClick={() => setAgentTab('context')} className={cn("flex-none whitespace-nowrap py-1.5 px-2.5 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1", agentTab === 'context' ? "bg-theme-text text-white" : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text")}>
+          <Brain size={11} /> 创作情报
+        </button>
         <button onClick={() => setAgentTab('copilot-home')} className={cn("flex-none whitespace-nowrap py-1.5 px-2.5 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1", agentTab === 'copilot-home' ? "bg-theme-text text-white" : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text")}>
           <Bot size={11} /> 智能建议
         </button>
@@ -238,6 +298,109 @@ export function AgentWorkspace({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
+        {agentTab === 'context' && (
+          <div key="context" className="space-y-4 pb-8 text-left">
+             {/* 1. 当前分镜 Beats */}
+             <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                <div className="text-xs font-bold text-theme-text mb-2 flex items-center gap-1.5 justify-start">
+                   <Activity size={12} className="text-theme-accent" />
+                   当前章分镜 Beats
+                </div>
+                {currentChapter?.sceneBeats ? (
+                   <div className="text-[11px] text-theme-muted/90 leading-relaxed whitespace-pre-wrap font-serif">
+                      {currentChapter.sceneBeats}
+                   </div>
+                ) : (
+                   <div className="text-[11px] text-theme-muted/50 italic">
+                      暂无本章分镜。可前往「大纲」或「分镜」生成。
+                   </div>
+                )}
+             </div>
+
+             {/* 2. 当前场景图谱 */}
+             <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm space-y-2 text-left">
+                <div className="text-xs font-bold text-theme-text flex items-center justify-between">
+                   <div className="flex items-center gap-1.5 justify-start">
+                      <Globe size={12} className="text-theme-accent" />
+                      当前场景上下文图谱
+                   </div>
+                   <div className="text-[9px] bg-theme-border/30 text-theme-muted px-1.5 py-0.5 rounded font-mono">
+                      匹配实体: {activeEntityNames?.length || 0}
+                   </div>
+                </div>
+
+                <RelationshipGraph
+                   relationships={filteredRelationships}
+                   characters={characters}
+                   locations={locations}
+                   items={items}
+                   factions={[]}
+                   onSelectEntity={() => {}}
+                />
+             </div>
+
+             {/* 3. 出场实体卡片 */}
+             <div className="space-y-2 text-left">
+                <div className="text-xs font-bold text-theme-text flex items-center gap-1.5 justify-start">
+                   <Bot size={12} className="text-theme-accent" />
+                   出场设定详情
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                   {matchedEntities.map(ent => (
+                      <div key={ent.id} className="bg-theme-sidebar p-3 rounded-xl border border-theme-border/30 text-left">
+                         <div className="flex items-center gap-2 mb-1 justify-start">
+                            <span className="text-xs font-bold text-theme-text">{ent.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 bg-theme-border/40 text-theme-muted rounded">
+                               {ent.typeLabel}
+                            </span>
+                         </div>
+                         {ent.description && (
+                            <p className="text-[11px] text-theme-muted leading-relaxed line-clamp-3">
+                               {ent.description}
+                            </p>
+                         )}
+                      </div>
+                   ))}
+                   {matchedEntities.length === 0 && (
+                      <div className="text-center py-4 text-[11px] text-theme-muted/50 border border-dashed border-theme-border/50 rounded-xl">
+                         正文中未检测到已登记的设定实体。在左侧键入人名/地名即可自动识别。
+                      </div>
+                   )}
+                </div>
+             </div>
+
+             {/* 4. 技能与伏笔参考 */}
+             <div className="grid grid-cols-2 gap-2 text-left">
+                <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                   <div className="text-[10px] font-bold text-theme-text mb-1.5">已挂载技能 ({mountedSkillLoadout.length})</div>
+                   <div className="space-y-1">
+                      {mountedSkillLoadout.map((item, idx) => {
+                         const skillName = librarySkills.find(s => s.id === item.skillId)?.name || item.skillId;
+                         return (
+                            <div key={idx} className="text-[10px] text-theme-muted truncate">
+                               • {skillName}
+                            </div>
+                         );
+                      })}
+                      {mountedSkillLoadout.length === 0 && (
+                         <div className="text-[10px] text-theme-muted/40 italic">未装备技能</div>
+                      )}
+                   </div>
+                </div>
+
+                <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                   <div className="text-[10px] font-bold text-theme-text mb-1.5">篇幅节奏提示</div>
+                   <div className="text-[10px] text-theme-muted leading-relaxed">
+                      {currentChapter && currentChapter.content && currentChapter.content.length > 2000 ? (
+                         <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾。</span>
+                      ) : (
+                         <span className="text-green-600 font-medium">✅ 篇幅适中，节奏平稳。</span>
+                      )}
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
         {agentTab === 'copilot-home' && (
             <div
               key="copilot-home"

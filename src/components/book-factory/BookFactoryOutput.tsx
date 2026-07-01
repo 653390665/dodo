@@ -177,11 +177,37 @@ export function BookFactoryOutput({
 
       <div className="flex-1 p-6 overflow-y-auto bg-theme-sidebar/50 backdrop-blur-sm">
         {!selectedSkill ? (
-          <div className="h-full flex flex-col items-center justify-center text-theme-muted/50">
-            <Wand2 size={48} className="mb-4 opacity-50" />
-            <p>{isAnalyzing ? '正在拆书...' : '等待拆书结果...'}</p>
+          <div className="h-full flex flex-col items-center justify-center text-theme-muted/70">
+            <Wand2 size={44} className="mb-4 opacity-50" />
+            <p className="text-sm font-bold text-theme-text">{isAnalyzing ? '正在拆书...' : '等待拆书结果...'}</p>
             {extractionStatusNote && (
               <p className="text-[11px] text-theme-muted/60 mt-2 max-w-xs text-center">{extractionStatusNote}</p>
+            )}
+            {!isAnalyzing && (
+              <div className="mt-6 w-full max-w-sm rounded-3xl border border-theme-border bg-theme-sidebar p-5 text-left shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">样例 Skill 卡</div>
+                    <div className="mt-1 text-lg font-serif font-bold text-theme-text">冷峻短句推进</div>
+                  </div>
+                  <span className="rounded-full border border-theme-accent/20 bg-theme-accent/5 px-2 py-1 text-[10px] font-bold text-theme-accent">
+                    文风
+                  </span>
+                </div>
+                <p className="text-xs leading-5 text-theme-muted">
+                  从样本文本中萃取叙事口吻、节奏密度和冲突触发方式，保存后可装配到作品，影响分镜、正文生成和审查。
+                </p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+                  {['句法', '爽点', '审查'].map((item) => (
+                    <div key={item} className="rounded-xl border border-theme-border bg-theme-bg/50 px-2 py-2 text-center font-bold text-theme-muted">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl border border-theme-border bg-theme-bg/50 px-3 py-3 text-[11px] leading-5 text-theme-muted">
+                  建议上传 1-3 章高质量样本文本，越接近你想复用的风格，卡片越稳定。
+                </div>
+              </div>
             )}
           </div>
         ) : isEditing ? (

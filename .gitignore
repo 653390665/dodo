@@ -27,3 +27,4 @@ plans/0[1-6][0-9]-*.md
 plans/07[0-6]-*.md
 project-audit-report*.html
 reasonix*.toml
+design-audit/

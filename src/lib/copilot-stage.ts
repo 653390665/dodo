@@ -24,7 +24,8 @@ export interface CopilotInput {
     | 'versions'
     | 'ideas'
     | 'foreshadowing'
-    | 'pacing';
+    | 'pacing'
+    | 'context';
 }
 
 export function deriveCopilotStage(input: CopilotInput): CopilotStage {

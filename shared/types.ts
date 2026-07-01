@@ -527,6 +527,7 @@ export type AssistantPrimaryAction =
   | 'save-fragment';
 
 export type AgentTab =
+  | 'context'
   | 'bible'
   | 'planning'
   | 'quality'

@@ -30,6 +30,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab'>('quick');
 
   useEffect(() => {
     if (isOpen) {
@@ -193,22 +194,47 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
           <div className="space-y-1">
             <h2 id="settings-dialog-title" className="text-2xl font-serif text-theme-text">模型与提示词设置</h2>
             <p className="text-sm text-theme-muted">
-              模型接入和核心提示词分开管理。模板保存后会立即影响后续 AI 请求，不需要重启服务。
+              默认只处理模型接入；提示词实验室适合需要精修 AI 行为时再进入。
             </p>
           </div>
-          <button onClick={onClose} className="p-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/50 rounded-full transition-colors">
+          <button
+            onClick={onClose}
+            aria-label="关闭设置"
+            className="p-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/50 rounded-full transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
 
+        <div className="mb-5 flex w-full max-w-md rounded-2xl border border-theme-border bg-theme-sidebar/40 p-1 relative z-10">
+          {([
+            { key: 'quick' as const, label: '快速模型设置' },
+            { key: 'promptLab' as const, label: '提示词实验室' },
+          ]).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setSettingsTab(item.key)}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                settingsTab === item.key
+                  ? 'bg-theme-text text-theme-bg shadow-sm'
+                  : 'text-theme-muted hover:text-theme-text'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
         <div className="relative z-10 flex-1 overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6">
+          <div className={settingsTab === 'quick' ? 'max-w-xl space-y-4' : 'space-y-4'}>
+            {settingsTab === 'quick' && (
             <div className="space-y-4">
             <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
               <div className="space-y-1">
-                <div className="text-sm font-bold text-theme-text">模型配置</div>
+                <div className="text-sm font-bold text-theme-text">快速模型配置</div>
                 <p className="text-[11px] text-theme-muted leading-relaxed">
-                  配置兼容 OpenAI 接口规范的大模型 API。这里只处理模型接入，不混入提示词编辑。
+                  配置兼容 OpenAI 接口规范的大模型 API。普通用户只需要完成这里。
                 </p>
               </div>
 
@@ -289,19 +315,21 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
             <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
               <div className="text-sm font-bold text-theme-text">生效验证链</div>
               <div className="space-y-2 text-[11px] text-theme-muted leading-relaxed">
-                <div><span className="font-bold text-theme-text">1.</span> 先点“试跑当前模板”，检查变量和输出，不依赖保存。</div>
-                <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后，模板会写入本地配置文件并同步到当前服务端内存。</div>
-                <div><span className="font-bold text-theme-text">3.</span> 后续从灵感、拆书、分镜、正文生成、审计发出的 AI 请求，都会读取这套新模板。</div>
+                <div><span className="font-bold text-theme-text">1.</span> 填写 API Key、Base URL 和模型名。</div>
+                <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后写入本地配置，并同步到当前服务端内存。</div>
+                <div><span className="font-bold text-theme-text">3.</span> 后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。</div>
               </div>
             </div>
           </div>
+            )}
 
+            {settingsTab === 'promptLab' && (
             <div className="rounded-2xl border border-theme-border bg-theme-sidebar/40 p-4 space-y-4 min-w-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-theme-text">提示词调试</h3>
+                <h3 className="text-sm font-bold text-theme-text">提示词实验室</h3>
                 <p className="text-[11px] text-theme-muted mt-1 leading-relaxed max-w-2xl">
-                  这里只开放核心写作链路：灵感、拆书、分镜、正文生成、AI 审计与全局大纲。模板变量统一使用 <code>{'{{变量名}}'}</code>。
+                  高级区域。这里会影响核心写作链路：灵感、拆书、分镜、正文生成、AI 审计与全局大纲。模板变量统一使用 <code>{'{{变量名}}'}</code>。
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -462,11 +490,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 border-t border-theme-border/70 pt-4 relative z-10">
-          <div className="mr-auto space-y-1">
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-theme-border/70 pt-4 relative z-10">
+          <div className="mr-auto max-w-full space-y-1">
             {saveError ? (
               <div className="text-[11px] text-red-600">{saveError}</div>
             ) : saveMessage ? (
@@ -475,11 +504,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
               <div className="text-[11px] text-theme-muted">保存后会立即写入本地配置，并被后续 AI 请求读取。</div>
             )}
           </div>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
+          <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
+            className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
           >
             <Save size={16} /> {saving ? '保存中...' : '保存配置'}
           </button>

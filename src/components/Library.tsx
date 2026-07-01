@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookMarked, Clock, Download, Plus, Search, Trash2 } from 'lucide-react';
+import { BookMarked, CheckCircle2, Clock, Download, FileText, Globe2, PenLine, Plus, Search, Trash2, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
@@ -117,6 +117,12 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   };
 
   const filteredNovels = novels.filter(n => n.title.toLowerCase().includes(search.toLowerCase()));
+  const getReadinessItems = (novel: Novel) => [
+    { label: '简介', ready: Boolean(novel.summary?.trim()), icon: FileText },
+    { label: '大纲', ready: Boolean(novel.globalOutline?.trim()), icon: CheckCircle2 },
+    { label: '世界观', ready: Boolean(novel.worldRules?.trim()), icon: Globe2 },
+    { label: `技能 ${novel.mountedSkillIds?.length || 0}/3`, ready: Boolean(novel.mountedSkillIds?.length), icon: Wand2 },
+  ];
 
   return (
     <div className="h-full flex flex-col p-8 lg:p-12 overflow-y-auto bg-transparent">
@@ -189,13 +195,14 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             <div
               key={novel.id}
               onClick={() => onSelectNovel(novel)}
-              className="group relative h-[420px] bg-theme-sidebar rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
+              className="group relative min-h-[440px] bg-theme-sidebar rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
             >
               <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex gap-2 translate-y-2 group-hover:translate-y-0">
                 <button
                   onClick={(e) => handleExportNovel(e, novel)}
                   className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-theme-sidebar transition-all shadow-lg border border-theme-border/50"
                   title="导出全本 (TXT)"
+                  aria-label={`导出《${novel.title}》`}
                 >
                   <Download size={16} />
                 </button>
@@ -203,6 +210,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   onClick={(e) => handleDeleteNovel(e, novel.id)}
                   className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
                   title="删除作品"
+                  aria-label={`删除《${novel.title}》`}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -221,10 +229,33 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
               </div>
 
-              <div className="flex flex-col h-[calc(100%-14.5rem)]">
+              <div className="flex flex-col min-h-[160px]">
                 <h3 className="text-2xl font-serif font-bold text-theme-text line-clamp-2 leading-tight group-hover:text-theme-accent transition-colors">
                   {novel.title}
                 </h3>
+                <p className="mt-2 min-h-[40px] text-xs leading-5 text-theme-muted line-clamp-2">
+                  {novel.summary?.trim() || '还没有简介。继续写作时可以补全故事方向和角色动机。'}
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {getReadinessItems(novel).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div
+                        key={item.label}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[10px] font-bold',
+                          item.ready
+                            ? 'border-theme-accent/20 bg-theme-accent/5 text-theme-accent'
+                            : 'border-theme-border bg-theme-bg/40 text-theme-muted',
+                        )}
+                      >
+                        <Icon size={12} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
 
                 <div className="flex items-center gap-3 mt-auto pt-5 border-t border-theme-border/30">
                   <div className="flex items-center gap-1.5 text-[10px] text-theme-muted uppercase tracking-widest font-bold">
@@ -250,6 +281,18 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                     );
                   })()}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectNovel(novel);
+                  }}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-theme-text px-4 py-3 text-sm font-bold text-theme-bg shadow-sm transition-opacity hover:opacity-90"
+                >
+                  <PenLine size={15} />
+                  继续写
+                </button>
               </div>
             </div>
             );

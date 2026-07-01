@@ -20,7 +20,16 @@ interface NavItem {
 }
 
 export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpen }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false,
+  );
+
+  React.useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const handleChange = () => setIsCollapsed(media.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
 
   const iconMap: Record<ViewType, NavItem['icon']> = {
     welcome: Sparkles,

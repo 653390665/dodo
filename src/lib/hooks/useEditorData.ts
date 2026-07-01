@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Chapter, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile } from '../../../shared/types';
+import { Chapter, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship } from '../../../shared/types';
 import {
   listChapters, listCharacters, listLocations, listItems, listFactions,
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
-  getNovel, subscribeToChanges
+  getNovel, subscribeToChanges, listEntityRelationshipsClient
 } from '../api';
 import { coerceMountedSkillLoadout } from '../skill-model';
 
@@ -19,6 +19,7 @@ export function useEditorData(novelId: string) {
   const [librarySkills, setLibrarySkills] = useState<Skill[]>([]);
   const [skillUsageRecords, setSkillUsageRecords] = useState<SkillUsageRecord[]>([]);
   const [mountedSkillLoadout, setMountedSkillLoadout] = useState<MountedSkillLoadoutItem[]>([]);
+  const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
   const [projectPreferenceProfile, setProjectPreferenceProfile] = useState<ProjectPreferenceProfile | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,7 +39,8 @@ export function useEditorData(novelId: string) {
         freshTimelineEvents,
         freshLibrarySkills,
         freshUsageRecords,
-        freshNovel
+        freshNovel,
+        freshRelationships
       ] = await Promise.all([
         listChapters(novelId),
         listCharacters(novelId),
@@ -49,7 +51,8 @@ export function useEditorData(novelId: string) {
         listTimelineEvents(novelId),
         syncSkillFeedbackScores(),
         listSkillUsageRecords(),
-        getNovel(novelId)
+        getNovel(novelId),
+        listEntityRelationshipsClient(novelId)
       ]);
 
       if (currentSeq !== requestSeqRef.current) return;
@@ -63,6 +66,7 @@ export function useEditorData(novelId: string) {
       setTimelineEvents(freshTimelineEvents);
       setLibrarySkills(freshLibrarySkills);
       setSkillUsageRecords(freshUsageRecords);
+      setRelationships(freshRelationships);
 
       if (freshNovel) {
         setMountedSkillLoadout(
@@ -130,6 +134,8 @@ export function useEditorData(novelId: string) {
     setSkillUsageRecords,
     mountedSkillLoadout,
     setMountedSkillLoadout,
+    relationships,
+    setRelationships,
     projectPreferenceProfile,
     setProjectPreferenceProfile,
     isLoading,

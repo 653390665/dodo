@@ -26,6 +26,7 @@ interface RelationshipGraphProps {
   items: Item[];
   factions: Faction[];
   onSelectEntity?: (type: string, id: string) => void;
+  activeEntityNames?: string[];
 }
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -43,7 +44,7 @@ function getEntityName(type: string, id: string, characters: Character[], locati
   return id.slice(0, 8);
 }
 
-export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity }: RelationshipGraphProps) {
+export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [] }: RelationshipGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
@@ -160,34 +161,38 @@ export function RelationshipGraph({ relationships, characters, locations, items,
         </line>
       ))}
       {/* Nodes */}
-      {nodes.map((node) => (
-        <g
-          key={node.id}
-          transform={`translate(${node.x},${node.y})`}
-          onClick={() => {
-            setSelectedNode(node.id);
-            const [type, id] = node.id.split(':');
-            onSelectEntity?.(type, id);
-          }}
-          className="cursor-pointer"
-        >
-          <circle
-            r={selectedNode === node.id ? 14 : 11}
-            fill={ENTITY_COLORS[node.type] || '#94a3b8'}
-            stroke={selectedNode === node.id ? '#fff' : 'none'}
-            strokeWidth={2}
-            opacity={selectedNode === node.id ? 1 : 0.85}
-          />
-          <text
-            textAnchor="middle"
-            dy={20}
-            className="fill-theme-text"
-            style={{ fontSize: '9px', fontFamily: 'sans-serif' }}
+      {nodes.map((node) => {
+        const isActiveNode = activeEntityNames.includes(node.label);
+        return (
+          <g
+            key={node.id}
+            transform={`translate(${node.x},${node.y})`}
+            onClick={() => {
+              setSelectedNode(node.id);
+              const [type, id] = node.id.split(':');
+              onSelectEntity?.(type, id);
+            }}
+            className="cursor-pointer"
           >
-            {node.label}
-          </text>
-        </g>
-      ))}
+            <circle
+              r={selectedNode === node.id ? 14 : 11}
+              fill={ENTITY_COLORS[node.type] || '#94a3b8'}
+              stroke={isActiveNode ? '#38bdf8' : (selectedNode === node.id ? '#fff' : 'none')}
+              strokeWidth={isActiveNode ? 3 : (selectedNode === node.id ? 2 : 0)}
+              opacity={selectedNode === node.id || isActiveNode ? 1 : 0.8}
+              className={isActiveNode ? "animate-pulse" : ""}
+            />
+            <text
+              textAnchor="middle"
+              dy={20}
+              className="fill-theme-text font-semibold"
+              style={{ fontSize: '10px', fontFamily: 'sans-serif' }}
+            >
+              {node.label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Loader2, Send, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, Globe2, Layers3, Loader2, PenLine, Send, Sparkles, Upload, Wand2 } from 'lucide-react';
 
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
@@ -19,6 +19,15 @@ const SEED_CARDS = [
   { label: '架空幻想', prompt: '一个靠记忆为货币运转的世界，有人开始造假记忆' },
 ];
 
+const CREATION_FLOW = [
+  { label: '灵感', detail: '一句话起点', icon: Sparkles },
+  { label: '立项', detail: '作品与第一章', icon: BookOpen },
+  { label: '世界观', detail: '设定与人物', icon: Globe2 },
+  { label: '技能', detail: '文风与节奏', icon: Wand2 },
+  { label: '写作', detail: '分镜到正文', icon: PenLine },
+  { label: '审查', detail: '反馈与打磨', icon: CheckCircle2 },
+];
+
 export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel, onStartContinuationImport }: WelcomeViewProps) {
   const [input, setInput] = useState('');
   const [chatContext] = useState('');
@@ -35,7 +44,9 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
   });
 
   useEffect(() => {
-    listNovels().then((novels) => setRecentNovels(novels.slice(0, 3)));
+    listNovels().then((novels) =>
+      setRecentNovels(novels.slice().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3)),
+    );
   }, []);
 
   const handleSubmit = async () => {
@@ -58,23 +69,62 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
   };
 
   const hasContent = cards.length > 0;
+  const latestNovel = recentNovels[0];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-8 py-16">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
+      <div className="max-w-5xl mx-auto px-5 py-10 sm:px-8 sm:py-12">
         {/* 欢迎区 */}
         <div className="text-center mb-12">
           <Sparkles size={40} className="mx-auto mb-4 text-theme-accent" />
           <h1 className="text-3xl font-serif font-bold text-theme-text mb-3">
-            开始一部新作品
+            InkFlow 小说创作工作台
           </h1>
           <p className="text-theme-muted text-sm max-w-md mx-auto">
-            输入一个场景、角色、情绪或设定缺口。
-            AI 会先给你 3 个开坑方向，再把选定方向落成新项目。
+            从一个模糊灵感开始，落成作品、设定、技能卡和可继续打磨的章节。
           </p>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          {CREATION_FLOW.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.label} className="rounded-2xl border border-theme-border bg-theme-sidebar px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
+                    <Icon size={14} />
+                  </span>
+                  <span className="text-[10px] font-bold text-theme-muted">0{index + 1}</span>
+                </div>
+                <div className="mt-3 text-sm font-bold text-theme-text">{step.label}</div>
+                <div className="mt-1 text-[11px] text-theme-muted">{step.detail}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mb-8 grid gap-3 md:grid-cols-3">
+          {latestNovel && (
+            <button
+              onClick={() => onSelectNovel(latestNovel)}
+              className="rounded-2xl border border-theme-accent/30 bg-theme-accent/5 px-5 py-4 text-left hover:border-theme-accent/60 hover:shadow-sm transition-all group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-xl bg-theme-sidebar p-2 text-theme-accent border border-theme-accent/10">
+                  <PenLine size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-sm font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    继续最近作品
+                    <ArrowRight size={14} className="text-theme-accent" />
+                  </div>
+                  <p className="mt-1 truncate text-xs text-theme-muted">
+                    《{latestNovel.title}》 · {new Date(latestNovel.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </button>
+          )}
           <button
             onClick={onStartContinuationImport}
             className="w-full rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-5 py-4 text-left hover:border-theme-accent/40 hover:shadow-sm transition-all group"
@@ -90,6 +140,25 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                 </div>
                 <p className="mt-1 text-xs text-theme-muted leading-5">
                   上传世界观、大纲、任务或已有正文，整理后直接进入续写。
+                </p>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={() => document.getElementById('story-seed-input')?.focus()}
+            className="w-full rounded-2xl border border-theme-border bg-theme-sidebar px-5 py-4 text-left hover:border-theme-accent/40 hover:shadow-sm transition-all group"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 rounded-xl bg-theme-bg p-2 text-theme-accent border border-theme-border">
+                <Layers3 size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-sm font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                  从灵感创建
+                  <ArrowRight size={14} className="text-theme-accent" />
+                </div>
+                <p className="mt-1 text-xs text-theme-muted leading-5">
+                  输入一个场景，生成 3 个可立项方向。
                 </p>
               </div>
             </div>
@@ -170,6 +239,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
             </label>
           </div>
           <textarea
+            id="story-seed-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

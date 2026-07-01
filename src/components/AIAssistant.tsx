@@ -24,19 +24,23 @@ interface Message {
 
 interface AIAssistantProps {
   launchContext?: AssistantLaunchContext | null;
+  activeNovel?: Novel | null;
   onApplyToContent?: (text: string) => Promise<void> | void;
   onApplyToSceneBeats?: (text: string) => Promise<void> | void;
   onReplaceSelection?: (text: string) => Promise<void> | void;
   onClose?: () => void;
 }
 
-export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onClose }: AIAssistantProps) {
+export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onClose }: AIAssistantProps) {
   const promptSurface = 'workspace-draft';
+  const hasProjectContext = Boolean(launchContext || activeNovel);
+  const assistantTitle = hasProjectContext ? '作品协作助手' : '灵感启动助手';
+  const assistantSubtitle = hasProjectContext ? 'PROJECT COPILOT' : 'IDEA STARTER';
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: '这里是灵感助手。它服务于你正在写的作品：补桥段、扩场景、润台词、提设定，而不是替代新建作品入口。'
+      content: '这里是灵感启动助手。你可以先描述故事、角色或卡点；进入作品后，我会切换为读取当前章节上下文的协作助手。'
     }
   ]);
   const [input, setInput] = useState('');
@@ -247,13 +251,14 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-serif font-bold text-theme-text leading-none">灵感助手</h2>
-            <p className="text-[10px] text-theme-muted mt-1 uppercase tracking-widest font-bold">AI Inspiration Assistant</p>
+            <h2 className="text-lg font-serif font-bold text-theme-text leading-none">{assistantTitle}</h2>
+            <p className="text-[10px] text-theme-muted mt-1 uppercase tracking-widest font-bold">{assistantSubtitle}</p>
           </div>
         </div>
         {onClose && (
           <button
             onClick={onClose}
+            aria-label="关闭 AI 助手"
             className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text transition-all"
           >
             <X size={20} />
@@ -262,19 +267,31 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6">
-        {launchContext && (
-          <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
-              <Lightbulb size={14} className="text-theme-accent" />
-              当前创作上下文
-            </div>
-            <div className="mt-2 text-[11px] text-theme-muted flex flex-col gap-1">
-              <p className="truncate">作品：{launchContext.novelTitle}</p>
-              {launchContext.chapterTitle ? <p className="truncate">章节：{launchContext.chapterTitle}</p> : null}
-              {launchContext.intent ? <p className="line-clamp-1">目标：{launchContext.intent}</p> : null}
-            </div>
+        <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
+            <Lightbulb size={14} className="text-theme-accent" />
+            当前 AI 上下文
           </div>
-        )}
+          <div className="mt-2 text-[11px] text-theme-muted flex flex-col gap-1">
+            {launchContext ? (
+              <>
+                <p className="truncate">作品：{launchContext.novelTitle}</p>
+                {launchContext.chapterTitle ? <p className="truncate">章节：{launchContext.chapterTitle}</p> : null}
+                {launchContext.intent ? <p className="line-clamp-1">目标：{launchContext.intent}</p> : null}
+              </>
+            ) : activeNovel ? (
+              <>
+                <p className="truncate">作品：{activeNovel.title}</p>
+                <p>还没有绑定具体章节，会按作品层面协作。</p>
+              </>
+            ) : (
+              <>
+                <p>未选择作品。当前适合做灵感发散、故事方向和设定草稿。</p>
+                <p>进入作品后，可把建议应用到正文、分镜或设定。</p>
+              </>
+            )}
+          </div>
+        </div>
 
         {/* Quick Suggestions - Compact for Drawer */}
         <div className="grid grid-cols-2 gap-2">

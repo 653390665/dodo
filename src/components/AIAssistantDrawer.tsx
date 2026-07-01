@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { StoryCardDeck } from './onboarding/StoryCardDeck';
 import { AIAssistant } from './AIAssistant';
 import { ErrorBoundary } from './ErrorBoundary';
-import type { AssistantLaunchContext, StoryIdeaCard, StoryPlanningInput } from '../../shared/types';
+import type { AssistantLaunchContext, Novel, StoryIdeaCard, StoryPlanningInput } from '../../shared/types';
 
 export function AIAssistantDrawer({
   isOpen,
@@ -17,6 +17,7 @@ export function AIAssistantDrawer({
   handleApplyAssistantToContent,
   handleApplyAssistantToSceneBeats,
   handleReplaceAssistantSelection,
+  selectedNovel,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -34,6 +35,7 @@ export function AIAssistantDrawer({
   handleApplyAssistantToContent: (text: string) => void;
   handleApplyAssistantToSceneBeats: (text: string) => void;
   handleReplaceAssistantSelection: (text: string) => void;
+  selectedNovel?: Novel | null;
 }) {
   if (!isOpen) return null;
 
@@ -67,6 +69,7 @@ export function AIAssistantDrawer({
               </div>
               <button
                 onClick={onClose}
+                aria-label="关闭 AI 助手"
                 className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all"
               >
                 <X size={20} />
@@ -106,6 +109,7 @@ export function AIAssistantDrawer({
                 <ErrorBoundary>
                   <AIAssistant
                     launchContext={assistantLaunchContext}
+                    activeNovel={selectedNovel}
                     onApplyToContent={handleApplyAssistantToContent}
                     onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
                     onReplaceSelection={handleReplaceAssistantSelection}
@@ -119,6 +123,7 @@ export function AIAssistantDrawer({
           <ErrorBoundary>
             <AIAssistant
               launchContext={assistantLaunchContext}
+              activeNovel={selectedNovel}
               onApplyToContent={handleApplyAssistantToContent}
               onApplyToSceneBeats={handleApplyAssistantToSceneBeats}
               onReplaceSelection={handleReplaceAssistantSelection}
