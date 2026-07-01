@@ -66,6 +66,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
     const button = (
       <button
         onClick={() => onNavigate(item.id, item.navKey)}
+        aria-label={item.label}
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-[background-color,border-color,box-shadow,color] duration-200 group relative",
           isActive
@@ -110,6 +111,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? "展开侧边栏" : "折叠侧边栏"}
           className={cn("p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted transition-colors", isCollapsed && "mx-auto")}
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -139,6 +141,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
             <TooltipTrigger asChild>
               <button
                 onClick={() => window.dispatchEvent(new Event('open-settings'))}
+                aria-label="系统设置"
                 className="w-full flex items-center justify-center gap-3 px-2 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200"
               >
                 <Settings size={16} />
@@ -151,6 +154,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
         ) : (
           <button
             onClick={() => window.dispatchEvent(new Event('open-settings'))}
+            aria-label="系统设置"
             className="w-full flex items-center gap-3 px-3 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200"
           >
             <Settings size={16} />

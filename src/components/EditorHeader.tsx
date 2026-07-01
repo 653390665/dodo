@@ -122,20 +122,26 @@ export function EditorHeader({
               保存成功
             </div>
           ) : null}
-        <button
-          onClick={onToggleAgentSidebar}
-          aria-label={isAgentSidebarOpen ? "收起智能管家" : "展开智能管家"}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-            isAgentSidebarOpen
-              ? "bg-theme-accent/10 border border-theme-accent/30 text-theme-accent"
-              : "bg-theme-accent/5 border border-theme-accent/20 text-theme-accent hover:bg-theme-accent/10"
-          )}
-          title="智能管家"
-        >
-          <Bot size={14} />
-          {isAgentSidebarOpen ? '收起助手' : 'AI 助手'}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleAgentSidebar}
+              aria-label={isAgentSidebarOpen ? "收起智能管家" : "展开智能管家"}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer",
+                isAgentSidebarOpen
+                  ? "bg-theme-accent/10 border border-theme-accent/30 text-theme-accent"
+                  : "bg-theme-accent/5 border border-theme-accent/20 text-theme-accent hover:bg-theme-accent/10"
+              )}
+            >
+              <Bot size={14} />
+              {isAgentSidebarOpen ? '收起助手' : 'AI 助手'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            智能管家
+          </TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
