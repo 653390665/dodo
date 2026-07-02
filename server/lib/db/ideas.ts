@@ -3,7 +3,7 @@ import { getDb } from '../db-instance.js';
 import { rowToIdeaFragment, ideaFragmentToRow, rowToForeshadowing, foreshadowingToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
-const ideaFragmentCrud = createCrudHelpers<IdeaFragment, any>({
+const ideaFragmentCrud = createCrudHelpers<IdeaFragment, ReturnType<typeof ideaFragmentToRow>>({
   tableName: 'idea_fragments',
   rowToEntity: rowToIdeaFragment,
   entityToRow: ideaFragmentToRow,
@@ -32,7 +32,7 @@ export function deleteIdeaFragment(id: string): void {
   ideaFragmentCrud.delete(id);
 }
 
-const foreshadowingCrud = createCrudHelpers<Foreshadowing, any>({
+const foreshadowingCrud = createCrudHelpers<Foreshadowing, ReturnType<typeof foreshadowingToRow>>({
   tableName: 'foreshadowings',
   rowToEntity: rowToForeshadowing,
   entityToRow: foreshadowingToRow,

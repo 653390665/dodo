@@ -2,7 +2,7 @@ import type { Chapter, ChapterVersion } from '../../../shared/types';
 import { rowToChapter, chapterToRow, rowToChapterVersion, chapterVersionToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
-const chapterCrud = createCrudHelpers<Chapter, any>({
+const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>({
   tableName: 'chapters',
   rowToEntity: rowToChapter,
   entityToRow: chapterToRow,
@@ -32,7 +32,7 @@ export function deleteChapter(id: string): void {
   chapterCrud.delete(id);
 }
 
-const chapterVersionCrud = createCrudHelpers<ChapterVersion, any>({
+const chapterVersionCrud = createCrudHelpers<ChapterVersion, ReturnType<typeof chapterVersionToRow>>({
   tableName: 'chapter_versions',
   rowToEntity: rowToChapterVersion,
   entityToRow: chapterVersionToRow,

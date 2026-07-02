@@ -4,7 +4,7 @@ import { rowToSkill, skillToRow, rowToSkillUsageRecord, skillUsageRecordToRow } 
 import { createCrudHelpers } from '../db-crud.js';
 import { calculateFeedbackScore, summarizeUsageStats } from '../../../shared/lib/skill-model.js';
 
-const skillCrud = createCrudHelpers<Skill, any>({
+const skillCrud = createCrudHelpers<Skill, ReturnType<typeof skillToRow>>({
   tableName: 'skills',
   rowToEntity: rowToSkill,
   entityToRow: skillToRow,

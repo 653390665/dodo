@@ -2,7 +2,7 @@ import type { ContinuationPack } from '../../../shared/types';
 import { mapContinuationPackRow, continuationPackToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
-const continuationPackCrud = createCrudHelpers<ContinuationPack, any>({
+const continuationPackCrud = createCrudHelpers<ContinuationPack, ReturnType<typeof continuationPackToRow>>({
   tableName: 'continuation_packs',
   rowToEntity: mapContinuationPackRow,
   entityToRow: continuationPackToRow,

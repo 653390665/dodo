@@ -4,7 +4,7 @@ import { rowToCharacter, characterToRow, rowToLocation, locationToRow, rowToItem
 import { createCrudHelpers } from '../db-crud.js';
 
 // --- Character CRUD ---
-const characterCrud = createCrudHelpers<Character, any>({
+const characterCrud = createCrudHelpers<Character, ReturnType<typeof characterToRow>>({
   tableName: 'characters',
   rowToEntity: rowToCharacter,
   entityToRow: characterToRow,
@@ -34,7 +34,7 @@ export function deleteCharacter(id: string): void {
 }
 
 // --- Location CRUD ---
-const locationCrud = createCrudHelpers<Location, any>({
+const locationCrud = createCrudHelpers<Location, ReturnType<typeof locationToRow>>({
   tableName: 'locations',
   rowToEntity: rowToLocation,
   entityToRow: locationToRow,
@@ -60,7 +60,7 @@ export function deleteLocation(id: string): void {
 }
 
 // --- Item CRUD ---
-const itemCrud = createCrudHelpers<Item, any>({
+const itemCrud = createCrudHelpers<Item, ReturnType<typeof itemToRow>>({
   tableName: 'items',
   rowToEntity: rowToItem,
   entityToRow: itemToRow,
@@ -90,7 +90,7 @@ export function deleteItem(id: string): void {
 }
 
 // --- Faction CRUD ---
-const factionCrud = createCrudHelpers<Faction, any>({
+const factionCrud = createCrudHelpers<Faction, ReturnType<typeof factionToRow>>({
   tableName: 'factions',
   rowToEntity: rowToFaction,
   entityToRow: factionToRow,
@@ -116,7 +116,7 @@ export function deleteFaction(id: string): void {
 }
 
 // --- PowerLevel CRUD ---
-const powerLevelCrud = createCrudHelpers<PowerLevel, any>({
+const powerLevelCrud = createCrudHelpers<PowerLevel, ReturnType<typeof powerLevelToRow>>({
   tableName: 'power_levels',
   rowToEntity: rowToPowerLevel,
   entityToRow: powerLevelToRow,
@@ -143,7 +143,7 @@ export function deletePowerLevel(id: string): void {
 }
 
 // --- TimelineEvent CRUD ---
-const timelineEventCrud = createCrudHelpers<TimelineEvent, any>({
+const timelineEventCrud = createCrudHelpers<TimelineEvent, ReturnType<typeof timelineEventToRow>>({
   tableName: 'timeline_events',
   rowToEntity: rowToTimelineEvent,
   entityToRow: timelineEventToRow,

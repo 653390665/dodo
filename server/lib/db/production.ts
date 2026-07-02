@@ -2,7 +2,7 @@ import type { ChapterProductionRun } from '../../../shared/types';
 import { rowToChapterProductionRun, chapterProductionRunToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
-const chapterProductionRunCrud = createCrudHelpers<ChapterProductionRun, any>({
+const chapterProductionRunCrud = createCrudHelpers<ChapterProductionRun, ReturnType<typeof chapterProductionRunToRow>>({
   tableName: 'chapter_production_runs',
   rowToEntity: rowToChapterProductionRun,
   entityToRow: chapterProductionRunToRow,

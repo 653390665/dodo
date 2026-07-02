@@ -2,7 +2,7 @@ import type { Novel } from '../../../shared/types';
 import { rowToNovel, novelToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
-const novelCrud = createCrudHelpers<Novel, any>({
+const novelCrud = createCrudHelpers<Novel, ReturnType<typeof novelToRow>>({
   tableName: 'novels',
   rowToEntity: rowToNovel,
   entityToRow: novelToRow,
