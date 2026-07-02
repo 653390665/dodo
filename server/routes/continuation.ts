@@ -11,6 +11,142 @@ import { parseModelJsonPayload } from '../../shared/lib/model-json';
 import * as db from '../lib/db';
 import { classifyContinuationSource } from '../../shared/lib/continuation-pack';
 import { validate, parseDocSchema, continuationParseSchema } from '../validation';
+import type {
+  ContinuationCanonFact,
+  ContinuationCharacterState,
+  ContinuationPlotState,
+  ContinuationStyleProfile,
+  ContinuationContradiction,
+  ContinuationSourceMap,
+  ContinuationReadingQuestion,
+  ContinuationGap,
+} from '../../shared/types';
+
+interface UploadedDocument {
+  filename: string;
+  filedata: string;
+}
+
+interface ParsedUploadedDocument {
+  filename: string;
+  text: string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : value != null ? String(value) : '';
+}
+
+export function mapCanonFact(f: unknown, packId: string, i: number): ContinuationCanonFact {
+  const r = asRecord(f);
+  const priority = r.priority === 'hard' || r.priority === 'soft' ? r.priority : 'soft';
+  const category = ['world', 'character', 'plot', 'timeline', 'relationship', 'style'].includes(r.category as string)
+    ? (r.category as ContinuationCanonFact['category'])
+    : 'world';
+  return {
+    id: `${packId}-fact-${i}`,
+    priority,
+    category,
+    text: stringValue(r.text),
+    sourceDocumentId: r.sourceDocumentId ? stringValue(r.sourceDocumentId) : undefined,
+    evidence: stringValue(r.evidence),
+  };
+}
+
+export function mapCharacterState(c: unknown): ContinuationCharacterState {
+  const r = asRecord(c);
+  return {
+    name: stringValue(r.name),
+    role: stringValue(r.role),
+    currentGoal: stringValue(r.currentGoal),
+    emotionalState: stringValue(r.emotionalState),
+    secrets: asArray(r.secrets).map(stringValue),
+    relationshipNotes: asArray(r.relationshipNotes).map(stringValue),
+    evidence: stringValue(r.evidence),
+  };
+}
+
+export function mapPlotState(p: unknown): ContinuationPlotState {
+  const r = asRecord(p);
+  return {
+    currentTimeline: stringValue(r.currentTimeline),
+    latestScene: stringValue(r.latestScene),
+    unresolvedHooks: asArray(r.unresolvedHooks).map(stringValue),
+    immediateConflict: stringValue(r.immediateConflict),
+    nextLikelyMove: stringValue(r.nextLikelyMove),
+  };
+}
+
+export function mapStyleProfile(s: unknown): ContinuationStyleProfile {
+  const r = asRecord(s);
+  return {
+    pov: stringValue(r.pov),
+    tense: stringValue(r.tense),
+    pacing: stringValue(r.pacing),
+    dialogueDensity: stringValue(r.dialogueDensity),
+    proseTraits: asArray(r.proseTraits).map(stringValue),
+    avoidTraits: asArray(r.avoidTraits).map(stringValue),
+    sampleEvidence: stringValue(r.sampleEvidence),
+  };
+}
+
+export function mapContradiction(c: unknown, packId: string, i: number): ContinuationContradiction {
+  const r = asRecord(c);
+  const severity = r.severity === 'low' || r.severity === 'medium' || r.severity === 'high' ? r.severity : 'medium';
+  return {
+    id: `${packId}-contra-${i}`,
+    severity,
+    summary: stringValue(r.summary),
+    conflictingEvidence: asArray(r.conflictingEvidence).map(stringValue),
+    suggestedResolution: stringValue(r.suggestedResolution),
+  };
+}
+
+export function mapSourceMap(s: unknown): ContinuationSourceMap {
+  const r = asRecord(s);
+  const sections = asArray(r.sections).map((sec) => {
+    const sr = asRecord(sec);
+    return {
+      title: stringValue(sr.title),
+      summary: stringValue(sr.summary),
+      sourceIds: asArray(sr.sourceIds).map(stringValue),
+    };
+  });
+  const keyConflicts = asArray(r.keyConflicts).map(stringValue);
+  return { sections, keyConflicts };
+}
+
+export function mapReadingQuestion(q: unknown, packId: string, i: number): ContinuationReadingQuestion {
+  const r = asRecord(q);
+  const category = ['world', 'character', 'plot', 'style', 'continuity'].includes(r.category as string)
+    ? (r.category as ContinuationReadingQuestion['category'])
+    : 'continuity';
+  return {
+    id: `${packId}-question-${i}`,
+    question: stringValue(r.question),
+    context: stringValue(r.context),
+    category,
+  };
+}
+
+export function mapContinuationGap(g: unknown, packId: string, i: number): ContinuationGap {
+  const r = asRecord(g);
+  const severity = r.severity === 'low' || r.severity === 'medium' || r.severity === 'high' ? r.severity : 'medium';
+  return {
+    id: `${packId}-gap-${i}`,
+    description: stringValue(r.description),
+    severity,
+    suggestedDirection: stringValue(r.suggestedDirection),
+    relatedFacts: asArray(r.relatedFacts).map(stringValue),
+  };
+}
 
 async function extractUploadedText(filename: string, filedata: string): Promise<string> {
   const lower = filename.toLowerCase();
@@ -88,23 +224,27 @@ ${text.substring(0, 30000)}
 
   app.post('/api/continuation-packs/parse', validate(continuationParseSchema), async (req, res) => {
     try {
-      const { novelId = '', title = '', documents = [] } = req.body;
+      const novelId = stringValue(req.body.novelId);
+      const title = stringValue(req.body.title);
+      const documents = asArray(req.body.documents) as UploadedDocument[];
       if (!novelId.trim()) return res.status(400).json({ error: 'novelId is required' });
       if (!documents.length) return res.status(400).json({ error: 'At least one document is required' });
 
-      const parsedDocs = await Promise.all(documents.map(async (doc: any) => {
-        const text = await extractUploadedText(doc.filename, doc.filedata);
-        const trimmed = text.slice(0, 60000);
-        const chineseChars = trimmed.replace(/[^一-鿿]/g, '');
-        if (chineseChars.length < 20) {
-          throw new Error(`"${doc.filename}" 内容过短或无可识别中文文本，请检查文件。`);
-        }
-        return { filename: doc.filename, text: trimmed };
-      }));
+      const parsedDocs: ParsedUploadedDocument[] = await Promise.all(
+        documents.map(async (doc) => {
+          const text = await extractUploadedText(doc.filename, doc.filedata);
+          const trimmed = text.slice(0, 60000);
+          const chineseChars = trimmed.replace(/[^一-鿿]/g, '');
+          if (chineseChars.length < 20) {
+            throw new Error(`"${doc.filename}" 内容过短或无可识别中文文本，请检查文件。`);
+          }
+          return { filename: doc.filename, text: trimmed };
+        })
+      );
 
       const llmConfig = getConfig();
       const buildDocumentsForPrompt = (maxCharsPerDocument: number) =>
-        parsedDocs.map((d: any) =>
+        parsedDocs.map((d) =>
           `【${d.filename}】\n${d.text.slice(0, maxCharsPerDocument)}\n`
         ).join('\n---\n');
 
@@ -112,7 +252,7 @@ ${text.substring(0, 30000)}
         /only thinking\/reasoning content|empty response|可解析的 JSON|不完整的 JSON|LLM returned empty response/i.test(message);
       const promptAttempts = buildContinuationPackParseAttempts(llmConfig.baseUrl);
 
-      let parsed: any = null;
+      let parsed: unknown = null;
       let lastParseError: unknown = null;
       for (const attempt of promptAttempts) {
         try {
@@ -127,7 +267,7 @@ ${text.substring(0, 30000)}
             responseMimeType: 'application/json',
             disableThinking: true,
           });
-          parsed = parseModelJsonPayload<any>(raw);
+          parsed = parseModelJsonPayload<unknown>(raw);
           break;
         } catch (error) {
           lastParseError = error;
@@ -141,6 +281,7 @@ ${text.substring(0, 30000)}
         throw lastParseError instanceof Error ? lastParseError : new Error(String(lastParseError || '模型未返回可用 JSON，请重试。'));
       }
 
+      const parsedRecord = asRecord(parsed);
       const now = Date.now();
       const packId = `cont-pack-${generateId()}`;
       const pack = {
@@ -148,7 +289,7 @@ ${text.substring(0, 30000)}
         novelId,
         title: title || '续写资料包',
         status: 'draft' as const,
-        sourceDocuments: parsedDocs.map((d: any, i: number) => ({
+        sourceDocuments: parsedDocs.map((d, i: number) => ({
           id: `${packId}-doc-${i}`,
           packId,
           filename: d.filename,
@@ -157,15 +298,15 @@ ${text.substring(0, 30000)}
           excerpt: d.text.slice(0, 500),
           createdAt: now,
         })),
-        canonFacts: (parsed.canonFacts || []).map((f: any, i: number) => ({ id: `${packId}-fact-${i}`, ...f })),
-        characterStates: parsed.characterStates || [],
-        plotState: parsed.plotState || { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
-        styleProfile: parsed.styleProfile || { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
-        contradictions: (parsed.contradictions || []).map((c: any, i: number) => ({ id: `${packId}-contra-${i}`, ...c })),
-        sourceMap: parsed.sourceMap || { sections: [], keyConflicts: [] },
-        readingQuestions: (parsed.readingQuestions || []).map((q: any, i: number) => ({ id: `${packId}-question-${i}`, ...q })),
-        continuationGaps: (parsed.continuationGaps || []).map((g: any, i: number) => ({ id: `${packId}-gap-${i}`, ...g })),
-        continuationTask: parsed.continuationTask || '',
+        canonFacts: asArray(parsedRecord.canonFacts).map((f, i: number) => mapCanonFact(f, packId, i)),
+        characterStates: asArray(parsedRecord.characterStates).map(mapCharacterState),
+        plotState: mapPlotState(parsedRecord.plotState ?? { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' }),
+        styleProfile: mapStyleProfile(parsedRecord.styleProfile ?? { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' }),
+        contradictions: asArray(parsedRecord.contradictions).map((c, i: number) => mapContradiction(c, packId, i)),
+        sourceMap: mapSourceMap(parsedRecord.sourceMap ?? { sections: [], keyConflicts: [] }),
+        readingQuestions: asArray(parsedRecord.readingQuestions).map((q, i: number) => mapReadingQuestion(q, packId, i)),
+        continuationGaps: asArray(parsedRecord.continuationGaps).map((g, i: number) => mapContinuationGap(g, packId, i)),
+        continuationTask: stringValue(parsedRecord.continuationTask) || '',
         sourceBadge: 'user-uploaded' as const,
         createdAt: now,
         updatedAt: now,
