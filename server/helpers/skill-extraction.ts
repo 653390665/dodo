@@ -1,4 +1,4 @@
-import type { SegmentSkillEvidence } from '../../shared/types';
+import type { SegmentSkillEvidence, Skill } from '../../shared/types';
 import { generateId } from '../id.ts';
 import { buildBookEvidenceSegments } from '../../shared/lib/book-skill-segmentation';
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
@@ -7,29 +7,19 @@ import { evaluateSkillOutputQuality } from '../../shared/lib/quality-gates';
 
 // ---- Skill extraction async job store ----
 
+export type SkillExtractionResult = ReturnType<typeof buildFullFallbackSkillResult>;
+
 export type SkillExtractionJob = {
   status: 'pending' | 'completed' | 'failed';
   createdAt: number;
-  result?: {
-    skills: any[];
-    deck: any;
-    segments: any[];
-    warnings: string[];
-    quality: any;
-  };
+  result?: SkillExtractionResult;
   error?: string;
 };
 
 export const SKILL_EXTRACTION_JOB_TTL_MS = 10 * 60_000;
 export const skillExtractionJobs = new Map<string, SkillExtractionJob>();
 
-export function createSkillExtractionJob(task: Promise<{
-  skills: any[];
-  deck: any;
-  segments: any[];
-  warnings: string[];
-  quality: any;
-}>): string {
+export function createSkillExtractionJob(task: Promise<SkillExtractionResult>): string {
   const jobId = `skill-extract-${generateId()}`;
   skillExtractionJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
 
@@ -45,13 +35,19 @@ export function createSkillExtractionJob(task: Promise<{
       });
     });
 
-  setTimeout(() => skillExtractionJobs.delete(jobId), SKILL_EXTRACTION_JOB_TTL_MS);
+  const timer = setTimeout(() => skillExtractionJobs.delete(jobId), SKILL_EXTRACTION_JOB_TTL_MS);
+  if (typeof timer.unref === 'function') {
+    timer.unref();
+  }
   return jobId;
 }
 
 // ---- Fallback skill extraction helper ----
 
-export function buildFallbackSkillForSegment(excerpt: string, label: string) {
+export function buildFallbackSkillForSegment(
+  excerpt: string,
+  label: string
+): Omit<Skill, 'id' | 'createdAt' | 'version'> {
   const normalized = String(excerpt || '').replace(/\s+/g, ' ').trim();
   const sample = normalized.slice(0, 120);
   const hasDialogue = /["""']|说|问|答|喊|低声/.test(normalized);
@@ -66,7 +62,7 @@ export function buildFallbackSkillForSegment(excerpt: string, label: string) {
       ? '节奏偏紧，依靠动作、异响和场面变化推动读者继续阅读。'
       : '节奏偏稳，更多依靠铺垫、说明和氛围递进形成阅读惯性。',
     characterTraits: hasDialogue
-      ? '人物关系通过对话、停顿和反应显影，适合提炼成试探式互动模板。'
+      ? '人物关系通过对话、停顿 and 反应显影，适合提炼成试探式互动模板。'
       : '人物塑造更依赖动作选择和环境反应，适合做沉默型角色行动模板。',
     worldBuilding: hasWorld
       ? '文本中存在较强设定词和世界规则信号，需要在生成时保留名词、势力和规则边界。'
