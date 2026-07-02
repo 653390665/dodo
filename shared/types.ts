@@ -615,6 +615,15 @@ export interface ProjectPreferenceWeights {
   pacingWeight: number;
 }
 
+export interface ChapterDecision {
+  chapterId: string;
+  timestamp: number;
+  action: 'accept_draft' | 'reject_draft' | 'manual_rewrite' | 'edit_then_accept';
+  instruction?: string;
+  acceptedPortions?: string[];
+  rejectedReason?: string;
+}
+
 export interface ProjectPreferenceProfile {
   tags: string[];
   weights: ProjectPreferenceWeights;
@@ -623,6 +632,7 @@ export interface ProjectPreferenceProfile {
   notes: string[];
   evidenceCount: number;
   contract?: StoryContract;
+  decisions?: ChapterDecision[];
 }
 
 export interface FitScoreExplanation {

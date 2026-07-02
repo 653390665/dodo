@@ -15,6 +15,7 @@
     "test": "node --test --import tsx tests/*.test.ts",
     "test:watch": "node --test --watch --import tsx tests/*.test.ts",
     "lint": "eslint . --max-warnings=0",
+    "lint:any": "node scripts/lint-any.mjs",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server.ts\"",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",

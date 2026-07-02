@@ -174,7 +174,7 @@ export function listEntityRelationships(novelId: string): EntityRelationship[] {
   return getDb().prepare('SELECT * FROM entity_relationships WHERE novelId = ?').all(novelId) as EntityRelationship[];
 }
 
-export function createEntityRelationship(rel: any): void {
+export function createEntityRelationship(rel: EntityRelationship): void {
   getDb().prepare('INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(rel.id, rel.novelId, rel.sourceType, rel.sourceId, rel.targetType, rel.targetId, rel.relationshipType, rel.description || '', Date.now());
   notify();
 }
@@ -183,8 +183,8 @@ const ENTITY_RELATIONSHIP_COLUMNS = new Set([
   'sourceType', 'sourceId', 'targetType', 'targetId', 'relationshipType', 'description'
 ]);
 
-export function updateEntityRelationship(id: string, data: any): void {
-  const sets: string[] = []; const vals: any[] = [];
+export function updateEntityRelationship(id: string, data: Partial<EntityRelationship>): void {
+  const sets: string[] = []; const vals: unknown[] = [];
   for (const [k, v] of Object.entries(data)) {
     if (!ENTITY_RELATIONSHIP_COLUMNS.has(k)) {
       throw new Error(`Invalid column name: ${k}`);

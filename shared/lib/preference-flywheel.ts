@@ -182,14 +182,14 @@ export function recordChapterDecision(
   profile: ProjectPreferenceProfile,
   decision: ChapterDecision,
 ): ProjectPreferenceProfile {
-  const decisions = [...((profile as any).decisions || []), decision];
+  const decisions = [...(profile.decisions || []), decision];
   // Keep last 20 decisions only (sliding window)
   const trimmed = decisions.length > 20 ? decisions.slice(-20) : decisions;
   return {
     ...profile,
     evidenceCount: profile.evidenceCount + 1,
     notes: [...profile.notes, `[ChapterDecision] ${decision.action} on chapter ${decision.chapterId}`],
-    ...({ decisions: trimmed } as any),
+    decisions: trimmed,
   };
 }
 
@@ -200,7 +200,7 @@ export function recordChapterDecision(
 export function summarizeChapterDecisions(
   profile: ProjectPreferenceProfile,
 ): LearnedPreference[] {
-  const decisions: ChapterDecision[] = (profile as any).decisions || [];
+  const decisions: ChapterDecision[] = profile.decisions || [];
   if (decisions.length < 3) return []; // Not enough data
 
   const preferences: LearnedPreference[] = [];

@@ -57,11 +57,11 @@ export function registerProductionRoutes(app: Express) {
       }
 
       const chapters = db.listChapters(novelId);
-      const characters = db.listCharacters(novelId).filter((c: any) => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
-      const locations = db.listLocations(novelId).filter((l: any) => !activeEntityNames || activeEntityNames.includes(l.name));
-      const items = db.listItems(novelId).filter((i: any) => !activeEntityNames || activeEntityNames.includes(i.name));
-      const factions = db.listFactions(novelId).filter((f: any) => !activeEntityNames || activeEntityNames.includes(f.name));
-      const powerLevels = db.listPowerLevels(novelId).filter((p: any) => !activeEntityNames || activeEntityNames.includes(p.name));
+      const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
+      const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
+      const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
+      const factions = db.listFactions(novelId).filter(f => !activeEntityNames || activeEntityNames.includes(f.name));
+      const powerLevels = db.listPowerLevels(novelId).filter(p => !activeEntityNames || activeEntityNames.includes(p.name));
       const timelineEvents = db.listTimelineEvents(novelId);
       const foreshadowings = db.listForeshadowings(novelId);
 
@@ -184,15 +184,15 @@ export function registerProductionRoutes(app: Express) {
 
       // --- Data loading (same as non-streaming endpoint) ---
       const chapters = db.listChapters(novelId);
-      const characters = db.listCharacters(novelId).filter((c: any) => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
-      const locations = db.listLocations(novelId).filter((l: any) => !activeEntityNames || activeEntityNames.includes(l.name));
-      const items = db.listItems(novelId).filter((i: any) => !activeEntityNames || activeEntityNames.includes(i.name));
-      const factions = db.listFactions(novelId).filter((f: any) => !activeEntityNames || activeEntityNames.includes(f.name));
-      const powerLevels = db.listPowerLevels(novelId).filter((p: any) => !activeEntityNames || activeEntityNames.includes(p.name));
+      const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
+      const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
+      const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
+      const factions = db.listFactions(novelId).filter(f => !activeEntityNames || activeEntityNames.includes(f.name));
+      const powerLevels = db.listPowerLevels(novelId).filter(p => !activeEntityNames || activeEntityNames.includes(p.name));
       const timelineEvents = db.listTimelineEvents(novelId);
       const foreshadowings = db.listForeshadowings(novelId);
       const mountedSkillIds = novel.mountedSkillIds || [];
-      const skills = db.listSkills().filter((skill: any) => mountedSkillIds.includes(skill.id));
+      const skills = db.listSkills().filter(skill => mountedSkillIds.includes(skill.id));
 
       const ledger = buildStoryStateLedger({
         novel,
@@ -266,13 +266,13 @@ export function registerProductionRoutes(app: Express) {
       ].filter(Boolean).join('\n\n');
 
       // Load story contract
-      const contract = (novel.projectPreferenceProfile as any)?.contract;
+      const contract = novel.projectPreferenceProfile?.contract;
       const contractStr = contract ? buildContractPrompt(contract) : '';
 
       // Build character state summary from current_state
       const characterStates = characters
-        .filter((c: any) => c.current_state)
-        .map((c: any) => `- ${c.name}：${c.current_state}`)
+        .filter(c => c.current_state)
+        .map(c => `- ${c.name}：${c.current_state}`)
         .join('\n');
       const characterStateStr = characterStates
         ? `\n【角色当前状态】\n${characterStates}`
@@ -280,7 +280,14 @@ export function registerProductionRoutes(app: Express) {
 
       // Extract learned preferences from past decisions
       const learnedPreferences = summarizeChapterDecisions(
-        (novel.projectPreferenceProfile || {}) as any,
+        novel.projectPreferenceProfile || {
+          tags: [],
+          weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+          acceptedDimensions: [],
+          rejectedDimensions: [],
+          notes: [],
+          evidenceCount: 0
+        },
       );
 
       runProductionPipeline({
@@ -501,15 +508,22 @@ export function registerProductionRoutes(app: Express) {
         if (decisionAction) {
           const novel = db.getNovel(run.novelId);
           if (novel) {
-            const profile = novel.projectPreferenceProfile || {};
-            const updated = recordChapterDecision(profile as any, {
+            const profile = novel.projectPreferenceProfile || {
+              tags: [],
+              weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+              acceptedDimensions: [],
+              rejectedDimensions: [],
+              notes: [],
+              evidenceCount: 0
+            };
+            const updated = recordChapterDecision(profile, {
               chapterId: chapterId!,
               timestamp: Date.now(),
               action: decisionAction,
               instruction: decisionInstruction,
               rejectedReason: decisionReason,
             });
-            db.updateNovel(run.novelId, { projectPreferenceProfile: updated as any });
+            db.updateNovel(run.novelId, { projectPreferenceProfile: updated });
           }
         }
       });
