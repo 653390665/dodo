@@ -111,3 +111,38 @@ test('normalizeContinuityReport clamps score and fills missing arrays', () => {
   assert.deepEqual(report.proposedPatch.foreshadowingUpdates, []);
   assert.deepEqual(report.proposedPatch.foreshadowingsToCreate, []);
 });
+
+test('continuity critic - normalize dirty input', () => {
+  const report = normalizeContinuityReport({
+    score: 85,
+    issues: [
+      {
+        severity: 'low',
+        category: 'character',
+        message: '人物称呼微调',
+        suggestion: '建议改成师父',
+      }
+    ],
+    proposedPatch: {
+      characterUpdates: 'invalid_string_instead_of_array',
+      itemUpdates: [
+        { itemId: 'item-1', descriptionAppend: '' },
+        { itemId: 'item-2', descriptionAppend: ' 新的道具设定 ' },
+      ],
+      foreshadowingUpdates: [
+        { foreshadowingId: 'fore-1', status: 'invalid_status', notesAppend: ' 伏笔提示 ' }
+      ]
+    }
+  });
+
+  assert.equal(report.score, 85);
+  assert.equal(report.issues[0].suggestedFix, '建议改成师父');
+  assert.deepEqual(report.proposedPatch.characterUpdates, []);
+  assert.equal(report.proposedPatch.itemUpdates.length, 1);
+  assert.equal(report.proposedPatch.itemUpdates[0].itemId, 'item-2');
+  assert.equal(report.proposedPatch.itemUpdates[0].descriptionAppend, '新的道具设定');
+  assert.equal(report.proposedPatch.foreshadowingUpdates.length, 1);
+  assert.equal(report.proposedPatch.foreshadowingUpdates[0].foreshadowingId, 'fore-1');
+  assert.equal(report.proposedPatch.foreshadowingUpdates[0].status, 'planted');
+  assert.equal(report.proposedPatch.foreshadowingUpdates[0].notesAppend, '伏笔提示');
+});
