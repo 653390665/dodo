@@ -175,13 +175,20 @@ export function AppShell() {
 
   const navigateToEditorWithCockpitAction = (
     novel: Novel,
-    action: 'planning' | 'production'
+    action: 'planning' | 'production' | 'resume',
+    targetChapterId?: string
   ) => {
     setContinuationLaunchState({
       approvedPackId: '',
       launchToken: Date.now(),
       shouldOpenProductionPanel: true,
-      source: action === 'planning' ? 'cockpit-planning' : 'cockpit-production',
+      source:
+        action === 'planning'
+          ? 'cockpit-planning'
+          : action === 'production'
+            ? 'cockpit-production'
+            : 'cockpit-resume',
+      targetChapterId,
     });
     setSelectedNovel(novel);
     setWorkspaceFocus('editor');
@@ -541,7 +548,9 @@ export function AppShell() {
                       setCurrentView(view);
                     }
                   }}
-                  onStartCockpitAction={(action) => navigateToEditorWithCockpitAction(selectedNovel, action)}
+                  onStartCockpitAction={(action, chapterId) => navigateToEditorWithCockpitAction(selectedNovel, action, chapterId)}
+                  onStartContinuationWriting={(packId) => navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview')}
+                  onEnterStoryboard={(packId) => navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard')}
                 />
               </ErrorBoundary>
             )}

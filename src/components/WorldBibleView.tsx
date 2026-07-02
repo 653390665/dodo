@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Save, Scroll, Shield, Upload, Users, Zap } from 'lucide-react';
-import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile } from '../../shared/types';
+import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Save, Scroll, Shield, Upload, Users, Zap, GitBranch } from 'lucide-react';
+import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile, EntityRelationship } from '../../shared/types';
 import { StoryContractPanel } from './StoryContractPanel';
 import {
   listCharacters, createCharacter, updateCharacter, deleteCharacter,
@@ -9,6 +9,7 @@ import {
   listFactions, createFaction, updateFaction, deleteFaction,
   listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
   listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
+  listEntityRelationshipsClient,
 } from '../lib/world-client';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
@@ -26,6 +27,7 @@ import { ItemsTab } from './world-bible/ItemsTab';
 import { FactionsTab } from './world-bible/FactionsTab';
 import { PowerLevelsTab } from './world-bible/PowerLevelsTab';
 import { TimelineTab } from './world-bible/TimelineTab';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/AlertDialog';
 
 export function WorldBibleView({
   novel,
@@ -60,6 +62,7 @@ export function WorldBibleView({
 }) {
   const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
   const [requestedReviewPackId, setRequestedReviewPackId] = useState<string | null>(null);
+  const [showRelationshipAlert, setShowRelationshipAlert] = useState(false);
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -68,6 +71,7 @@ export function WorldBibleView({
   const [factions, setFactions] = useState<Faction[]>([]);
   const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
   const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
+  const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
 
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
@@ -78,7 +82,7 @@ export function WorldBibleView({
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [characters, locations, items, timelineEvents, factions, powerLevels, packs] = await Promise.all([
+      const [characters, locations, items, timelineEvents, factions, powerLevels, packs, relationships] = await Promise.all([
         listCharacters(novel.id),
         listLocations(novel.id),
         listItems(novel.id),
@@ -86,6 +90,7 @@ export function WorldBibleView({
         listFactions(novel.id),
         listPowerLevels(novel.id),
         listContinuationPacks(novel.id),
+        listEntityRelationshipsClient(novel.id),
       ]);
       setCharacters(characters);
       setLocations(locations);
@@ -94,6 +99,7 @@ export function WorldBibleView({
       setFactions(factions);
       setPowerLevels(powerLevels);
       setContinuationPacks(packs);
+      setRelationships(relationships);
       setGlobalOutline(novel.globalOutline || '');
       setWorldRules(novel.worldRules || '');
     };
@@ -255,6 +261,83 @@ export function WorldBibleView({
   };
 
   const overviewState = buildContinuationOverviewState(continuationPacks);
+
+  const isWorldBibleEmpty =
+    characters.length === 0 &&
+    locations.length === 0 &&
+    items.length === 0 &&
+    factions.length === 0 &&
+    powerLevels.length === 0 &&
+    timelineEvents.length === 0 &&
+    relationships.length === 0;
+
+  const renderColdStart = () => {
+    return (
+      <div className="max-w-3xl mx-auto py-16 px-6 flex flex-col items-center justify-center text-center space-y-8 bg-transparent">
+        <div className="w-16 h-16 bg-theme-accent/10 text-theme-accent rounded-full flex items-center justify-center animate-pulse">
+          <Globe size={32} />
+        </div>
+        <div className="space-y-3">
+          <h2 className="text-3xl font-serif font-black text-theme-text">初始化您的《{novel.title}》设定集</h2>
+          <p className="text-sm text-theme-muted max-w-lg leading-relaxed mx-auto">
+            当前设定集内空空如也。AI 无法在此嗅探到您笔下世界的人物和规则。推荐通过以下动作快速冷启动，让您的作品拥有丰满的底蕴：
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full pt-4">
+          <button
+            onClick={async () => {
+              await addEntity('character');
+              setActiveTab('characters');
+            }}
+            className="flex flex-col items-center p-6 bg-theme-sidebar/60 rounded-3xl border border-theme-border hover:border-theme-accent hover:bg-theme-sidebar transition-all text-center group cursor-pointer"
+          >
+            <div className="size-12 rounded-2xl bg-theme-accent/10 text-theme-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Users size={22} />
+            </div>
+            <span className="text-sm font-bold text-theme-text mb-1">添加第一个人物</span>
+            <span className="text-[11px] text-theme-muted leading-relaxed">设定主角姓名、身份和背景小传</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              await addEntity('location');
+              setActiveTab('locations');
+            }}
+            className="flex flex-col items-center p-6 bg-theme-sidebar/60 rounded-3xl border border-theme-border hover:border-theme-accent hover:bg-theme-sidebar transition-all text-center group cursor-pointer"
+          >
+            <div className="size-12 rounded-2xl bg-theme-accent/10 text-theme-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <MapPin size={22} />
+            </div>
+            <span className="text-sm font-bold text-theme-text mb-1">添加第一个地点</span>
+            <span className="text-[11px] text-theme-muted leading-relaxed">勾勒故事发生的新手村或世界地理</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const totalEntities = characters.length + locations.length + items.length + factions.length;
+              if (totalEntities < 2) {
+                setShowRelationshipAlert(true);
+              } else {
+                setActiveTab('characters');
+              }
+            }}
+            className="flex flex-col items-center p-6 bg-theme-sidebar/60 rounded-3xl border border-theme-border hover:border-theme-accent hover:bg-theme-sidebar transition-all text-center group cursor-pointer"
+          >
+            <div className="size-12 rounded-2xl bg-theme-accent/10 text-theme-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <GitBranch size={22} />
+            </div>
+            <span className="text-sm font-bold text-theme-text mb-1">建立第一条关系</span>
+            <span className="text-[11px] text-theme-muted leading-relaxed">关联主角与配角的爱恨情仇或阵营归属</span>
+          </button>
+        </div>
+
+        <div className="pt-6 text-xs text-theme-muted">
+          或者您也可以点击右上角的 <strong className="text-theme-text font-bold">“智能导入设定文档”</strong>，由 AI 为您一键完成大纲与设定的多层析拆解。
+        </div>
+      </div>
+    );
+  };
   const tabs = [
     { id: 'overview', icon: FileText, label: '总览' },
     { id: 'pack-management', icon: Upload, label: '资料包管理' },
@@ -331,145 +414,170 @@ export function WorldBibleView({
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 relative">
-          {activeTab === 'overview' && (
-              <div key="overview">
-                <ContinuationOverviewPanel
-                  state={overviewState}
-                  onImport={() => setActiveTab('pack-management')}
-                  onReviewDraft={(packId) => {
-                    setRequestedReviewPackId(packId);
-                    setActiveTab('pack-management');
-                  }}
-                  onOpenPackManagement={() => setActiveTab('pack-management')}
-                  onOpenWorldSetup={() => setActiveTab('global')}
-                  onStartWriting={(packId, prefillIntent) => onStartContinuationWriting?.(packId, prefillIntent)}
-                  onStartStoryboard={(packId, prefillIntent) => {
-                    const pack = continuationPacks.find((p) => p.id === packId);
-                    onEnterStoryboard?.(packId, prefillIntent || (pack ? buildCreationIntentDraft(pack) : undefined));
-                  }}
-                />
-              </div>
-            )}
+          {isWorldBibleEmpty &&
+          activeTab !== 'pack-management' &&
+          activeTab !== 'contract' &&
+          activeTab !== 'global' ? (
+            renderColdStart()
+          ) : (
+            <>
+              {activeTab === 'overview' && (
+                <div key="overview">
+                  <ContinuationOverviewPanel
+                    state={overviewState}
+                    onImport={() => setActiveTab('pack-management')}
+                    onReviewDraft={(packId) => {
+                      setRequestedReviewPackId(packId);
+                      setActiveTab('pack-management');
+                    }}
+                    onOpenPackManagement={() => setActiveTab('pack-management')}
+                    onOpenWorldSetup={() => setActiveTab('global')}
+                    onStartWriting={(packId, prefillIntent) => onStartContinuationWriting?.(packId, prefillIntent)}
+                    onStartStoryboard={(packId, prefillIntent) => {
+                      const pack = continuationPacks.find((p) => p.id === packId);
+                      onEnterStoryboard?.(packId, prefillIntent || (pack ? buildCreationIntentDraft(pack) : undefined));
+                    }}
+                  />
+                </div>
+              )}
 
-            {activeTab === 'global' && (
-              <div key="global" className="max-w-4xl mx-auto space-y-8">
-                <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
-                    <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
+              {activeTab === 'global' && (
+                <div key="global" className="max-w-4xl mx-auto space-y-8">
+                  <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
+                      <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
+                    </div>
+                    <textarea
+                      value={globalOutline}
+                      onChange={e => setGlobalOutline(e.target.value)}
+                      placeholder="描述小说的起承转合、主线任务、结局走向..."
+                      className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
+                    />
                   </div>
-                  <textarea
-                    value={globalOutline}
-                    onChange={e => setGlobalOutline(e.target.value)}
-                    placeholder="描述小说的起承转合、主线任务、结局走向..."
-                    className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
-                  />
+
+                  <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
+                    <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
+                    <textarea
+                      value={worldRules}
+                      onChange={e => setWorldRules(e.target.value)}
+                      placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
+                      className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
-                  <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
-                  <textarea
-                    value={worldRules}
-                    onChange={e => setWorldRules(e.target.value)}
-                    placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
-                    className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'timeline' && (
-              <TimelineTab
-                timelineEvents={timelineEvents}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-              />
-            )}
-
-            {activeTab === 'characters' && (
-              <CharactersTab
-                characters={characters}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-                handleGenerateBio={handleGenerateBio}
-                generatingBioIds={generatingBioIds}
-              />
-            )}
-
-            {activeTab === 'locations' && (
-              <LocationsTab
-                locations={locations}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-              />
-            )}
-
-            {activeTab === 'items' && (
-              <ItemsTab
-                items={items}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-              />
-            )}
-
-            {activeTab === 'factions' && (
-              <FactionsTab
-                factions={factions}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-              />
-            )}
-
-            {activeTab === 'pack-management' && (
-              <div key="pack-management">
-                <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} />
-              </div>
-            )}
-
-            {activeTab === 'contract' && (
-              <div key="contract" className="max-w-3xl mx-auto bg-theme-sidebar rounded-2xl border border-theme-border/50 shadow-md">
-                <StoryContractPanel
-                  contract={novel.projectPreferenceProfile?.contract || null}
-                  onSave={async (newContract) => {
-                    const updatedProfile: ProjectPreferenceProfile = {
-                      contract: newContract,
-                      tags: novel.projectPreferenceProfile?.tags || [],
-                      weights: novel.projectPreferenceProfile?.weights || {
-                        styleWeight: 1,
-                        characterWeight: 1,
-                        worldWeight: 1,
-                        plotWeight: 1,
-                        pacingWeight: 1,
-                      },
-                      acceptedDimensions: novel.projectPreferenceProfile?.acceptedDimensions || [],
-                      rejectedDimensions: novel.projectPreferenceProfile?.rejectedDimensions || [],
-                      notes: novel.projectPreferenceProfile?.notes || [],
-                      evidenceCount: novel.projectPreferenceProfile?.evidenceCount || 0,
-                    };
-                    await updateNovel(novel.id, {
-                      projectPreferenceProfile: updatedProfile,
-                    });
-                  }}
-                  onClose={() => setActiveTab('overview')}
+              {activeTab === 'timeline' && (
+                <TimelineTab
+                  timelineEvents={timelineEvents}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
                 />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'powerLevels' && (
-              <PowerLevelsTab
-                powerLevels={powerLevels}
-                addEntity={addEntity}
-                deleteEntity={deleteEntity}
-                updateEntity={updateEntity}
-              />
-            )}
+              {activeTab === 'characters' && (
+                <CharactersTab
+                  characters={characters}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
+                  handleGenerateBio={handleGenerateBio}
+                  generatingBioIds={generatingBioIds}
+                />
+              )}
+
+              {activeTab === 'locations' && (
+                <LocationsTab
+                  locations={locations}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
+                />
+              )}
+
+              {activeTab === 'items' && (
+                <ItemsTab
+                  items={items}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
+                />
+              )}
+
+              {activeTab === 'factions' && (
+                <FactionsTab
+                  factions={factions}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
+                />
+              )}
+
+              {activeTab === 'pack-management' && (
+                <div key="pack-management">
+                  <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} />
+                </div>
+              )}
+
+              {activeTab === 'contract' && (
+                <div key="contract" className="max-w-3xl mx-auto bg-theme-sidebar rounded-2xl border border-theme-border/50 shadow-md">
+                  <StoryContractPanel
+                    contract={novel.projectPreferenceProfile?.contract || null}
+                    onSave={async (newContract) => {
+                      const updatedProfile: ProjectPreferenceProfile = {
+                        contract: newContract,
+                        tags: novel.projectPreferenceProfile?.tags || [],
+                        weights: novel.projectPreferenceProfile?.weights || {
+                          styleWeight: 1,
+                          characterWeight: 1,
+                          worldWeight: 1,
+                          plotWeight: 1,
+                          pacingWeight: 1,
+                        },
+                        acceptedDimensions: novel.projectPreferenceProfile?.acceptedDimensions || [],
+                        rejectedDimensions: novel.projectPreferenceProfile?.rejectedDimensions || [],
+                        notes: novel.projectPreferenceProfile?.notes || [],
+                        evidenceCount: novel.projectPreferenceProfile?.evidenceCount || 0,
+                      };
+                      await updateNovel(novel.id, {
+                        projectPreferenceProfile: updatedProfile,
+                      });
+                    }}
+                    onClose={() => setActiveTab('overview')}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'powerLevels' && (
+                <PowerLevelsTab
+                  powerLevels={powerLevels}
+                  addEntity={addEntity}
+                  deleteEntity={deleteEntity}
+                  updateEntity={updateEntity}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
+      <AlertDialog open={showRelationshipAlert} onOpenChange={setShowRelationshipAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>无法建立关系</AlertDialogTitle>
+            <AlertDialogDescription>
+              请先添加至少两个设定实体（如人物或地点），然后才能在对应档案中建立它们之间的关系。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              setShowRelationshipAlert(false);
+              setActiveTab('characters');
+            }}>去添加人物</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

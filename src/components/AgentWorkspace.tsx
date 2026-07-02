@@ -521,6 +521,13 @@ export function AgentWorkspace({
                 isGeneratingCritique={isGeneratingCritique}
                 onPolishChapterFromAudit={onPolishChapterFromAudit}
                 onCreateChapter={onCreateChapter}
+                mountedSkillLoadout={mountedSkillLoadout}
+                librarySkills={librarySkills}
+                relationships={relationships}
+                characters={characters}
+                locations={locations}
+                items={items}
+                factions={factions}
               />
             </div>
           )}

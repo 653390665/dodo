@@ -2,7 +2,7 @@ import React from 'react';
 
 import ReactMarkdown from 'react-markdown';
 import { Bot, Feather, FileText, ListOrdered, Loader2, MessageSquareWarning, Plus, Sparkles, Wand2 } from 'lucide-react';
-import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel } from '../../shared/types';
+import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel, Skill, MountedSkillLoadoutItem, EntityRelationship, Character, Location, Item, Faction } from '../../shared/types';
 import { ProductionRunReview } from './ProductionRunReview';
 import { cn } from '../lib/utils';
 
@@ -48,6 +48,13 @@ interface AgentWorkspaceProductionPanelProps {
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
   onCreateChapter?: () => Promise<void>;
+  mountedSkillLoadout?: MountedSkillLoadoutItem[];
+  librarySkills?: Skill[];
+  relationships?: EntityRelationship[];
+  characters?: Character[];
+  locations?: Location[];
+  items?: Item[];
+  factions?: Faction[];
 }
 
 const DRAFT_PROMPT_SURFACE = 'workspace-draft';
@@ -95,6 +102,13 @@ export function AgentWorkspaceProductionPanel({
   isGeneratingCritique,
   onPolishChapterFromAudit,
   onCreateChapter,
+  mountedSkillLoadout,
+  librarySkills: _librarySkills,
+  relationships,
+  characters,
+  locations,
+  items,
+  factions,
 }: AgentWorkspaceProductionPanelProps) {
   const selectedContinuationPack = continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -109,9 +123,72 @@ export function AgentWorkspaceProductionPanel({
     [],
   );
 
+  const activeSkillsCount = React.useMemo(() => {
+    if (mountedSkillLoadout) {
+      return mountedSkillLoadout.filter(slot => slot.skillId).length;
+    }
+    return novel.mountedSkillIds?.length || 0;
+  }, [mountedSkillLoadout, novel.mountedSkillIds]);
+
+  const bibleEntitiesCount = React.useMemo(() => {
+    return (
+      (characters?.length || 0) +
+      (locations?.length || 0) +
+      (items?.length || 0) +
+      (factions?.length || 0) +
+      (relationships?.length || 0)
+    );
+  }, [characters, locations, items, factions, relationships]);
+
+  const renderContextReceipt = () => {
+    return (
+      <div className="bg-theme-sidebar/40 rounded-xl border border-theme-border/60 p-3.5 space-y-2 mb-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">
+            生成上下文凭证 (Context Receipt)
+          </span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold scale-90 origin-right">
+            已就绪
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-theme-muted">
+            <div className="w-1.5 h-1.5 rounded-full bg-theme-accent" />
+            <span className="truncate">
+              目标章节: <strong className="text-theme-text">{currentChapter?.title || '未选择'}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-theme-muted">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span className="truncate">
+              资料包: <strong className="text-theme-text">{selectedContinuationPack?.title || '未绑定'}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-theme-muted">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="truncate">
+              装配技能: <strong className="text-theme-text">{activeSkillsCount}/3 个</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-theme-muted">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+            <span className="truncate">
+              世界观条目: <strong className="text-theme-text">{bibleEntitiesCount} 条</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (agentTab === 'production') {
     return (
       <div className="space-y-4">
+        {renderContextReceipt()}
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
           <div className="flex items-center gap-2">
             <FileText size={14} className="text-theme-accent" />
@@ -321,6 +398,7 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'planning') {
     return (
       <div className="space-y-6">
+        {renderContextReceipt()}
         <div className="space-y-4">
           <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
             <h3 className="text-xs font-bold text-theme-text mb-2 flex items-center gap-2">

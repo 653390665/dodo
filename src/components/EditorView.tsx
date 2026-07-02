@@ -314,20 +314,27 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
     if (isEditorDataLoading) return;
 
-    const isCockpitAction = launchState.source === 'cockpit-planning' || launchState.source === 'cockpit-production';
+    const isCockpitAction =
+      launchState.source === 'cockpit-planning' ||
+      launchState.source === 'cockpit-production' ||
+      launchState.source === 'cockpit-resume';
     if (!launchState.approvedPackId && !isCockpitAction) return;
 
     hasConsumedContinuationLaunchUiRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time state sync on launch
-    setIsAgentSidebarOpen(true);
-    
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    // Only open assistant sidebar for planning, production or legacy launch events
     if (launchState.source === 'cockpit-production') {
+      setIsAgentSidebarOpen(true);
       setAgentTab('production');
     } else if (launchState.source === 'cockpit-planning') {
+      setIsAgentSidebarOpen(true);
       setAgentTab('planning');
-    } else {
+    } else if (launchState.source !== 'cockpit-resume') {
+      setIsAgentSidebarOpen(true);
       setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Pre-fill creation intent from continuation task
     if (launchState.prefillIntent) {
@@ -339,6 +346,16 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
       void handleAddFirstChapter();
     }
   }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab]);
+
+  // Synchronize target chapter ID from cockpit / launch state
+  useEffect(() => {
+    if (launchState?.targetChapterId && chapters.length > 0) {
+      const matched = chapters.find(c => c.id === launchState.targetChapterId);
+      if (matched) {
+        setCurrentChapter(matched);
+      }
+    }
+  }, [launchState?.targetChapterId, chapters, setCurrentChapter]);
 
   const {
     mountedSkills,

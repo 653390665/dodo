@@ -127,7 +127,7 @@ export function SkillDetailDrawer({
 
         <div className="flex-1 py-6 space-y-5 text-left">
           <div className="text-xs font-bold text-theme-text uppercase tracking-wider text-theme-muted/80">技能卡牌有哪些能力：</div>
-          
+
           <div className="flex gap-3 items-start">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
               <BookOpen size={14} />
@@ -382,6 +382,42 @@ export function SkillDetailDrawer({
               activeId={skill.id}
               onSelect={(version) => onSelectSkill(version.id)}
             />
+          </section>
+
+          <section className="space-y-3">
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">价值证明 (Before / After 效果对比)</div>
+            <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-3">
+              <div className="flex items-center justify-between text-xs border-b border-theme-border/50 pb-2">
+                <span className="font-bold text-theme-text">影响维度对比</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">静态预览</span>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="text-[10px] font-bold text-red-600 mb-1">● 通用模型语气 (未挂载)</div>
+                  <p className="text-[11px] text-theme-muted leading-relaxed pl-3 border-l border-red-200 bg-red-50/5 py-1.5 rounded-r">
+                    平铺直叙，词风倾向大众套路；缺少当前角色情感滤镜；AI 倾向于快速收尾剧情，没有文风专项审计约束。
+                  </p>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-bold text-emerald-600 mb-1">● 挂载当前技能 (已装配)</div>
+                  <div className="text-[11px] text-theme-text leading-relaxed pl-3 border-l-2 border-emerald-500 bg-emerald-500/5 py-1.5 rounded-r space-y-2">
+                    <p className="font-bold text-[10px] text-emerald-700">分镜/正文将深度影响：</p>
+                    <div className="space-y-1">
+                      <p className="text-theme-muted">
+                        <strong className="text-theme-text font-semibold">文风渲染：</strong>
+                        {draft.style ? (draft.style.length > 70 ? draft.style.slice(0, 70) + '...' : draft.style) : '严格按卡牌文风生成，深度定制字词张力。'}
+                      </p>
+                      <p className="text-theme-muted">
+                        <strong className="text-theme-text font-semibold">节奏大纲：</strong>
+                        {draft.pacing ? (draft.pacing.length > 70 ? draft.pacing.slice(0, 70) + '...' : draft.pacing) : '场景冲突按卡牌节奏规则陡峭推进或舒缓。'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section className="space-y-3">

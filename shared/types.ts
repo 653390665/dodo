@@ -560,7 +560,8 @@ export interface ContinuationEditorLaunchState {
   launchToken: number;
   shouldOpenProductionPanel: true;
   prefillIntent?: string;
-  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production';
+  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production' | 'cockpit-resume';
+  targetChapterId?: string;
 }
 
 export type ContinuationImportLaunchState = ContinuationEditorLaunchState;
@@ -758,6 +759,7 @@ declare global {
     inkflow?: {
       setTitle: (title: string) => void;
       getAuthToken?: () => Promise<string>;
+      saveConfig?: (config: any) => Promise<{ success: boolean; error?: string }>;
     };
   }
 }

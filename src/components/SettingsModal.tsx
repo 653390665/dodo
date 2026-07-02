@@ -116,14 +116,21 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     setSaving(true);
     setSaveError(null);
     try {
-      const response = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.error) {
-        throw new Error(data.error || '保存配置失败');
+      if (window.inkflow?.saveConfig) {
+        const res = await window.inkflow.saveConfig(config);
+        if (!res.success) {
+          throw new Error(res.error || '保存配置失败');
+        }
+      } else {
+        const response = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) {
+          throw new Error(data.error || '保存配置失败');
+        }
       }
       setBaselineConfig(config);
       setSaveMessage('已写入本地配置，后续 AI 请求会直接读取这套模板。');
@@ -235,7 +242,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         value={config.apiKey}
                         onChange={e => setConfig({...config, apiKey: e.target.value})}
                         className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
-                        placeholder={hasExistingKey ? '已配置（输入新 Key 替换）' : 'sk-...'}
+                        placeholder={hasExistingKey ? '已配置；留空保留，输入新 Key 替换' : 'sk-...'}
                       />
                       {hasExistingKey && !config.apiKey && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-emerald-600 font-medium pointer-events-none">

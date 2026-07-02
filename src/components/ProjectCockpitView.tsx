@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BookOpen, Sparkles, BrainCircuit, Plus, ArrowRight, 
+import {
+  BookOpen, Sparkles, BrainCircuit, Plus, ArrowRight,
   User, Compass, FileText,
-  AlertCircle, ShieldCheck, Database, Layers, Layout, RefreshCw
+  AlertCircle, ShieldCheck, Database, Layers, RefreshCw
 } from 'lucide-react';
 import { Novel, Chapter, Character, Location, Item, Faction, Skill, ContinuationPack } from '../../shared/types';
 import { cn } from '../lib/utils';
-import { 
-  listChapters, listCharacters, listLocations, listItems, 
-  listFactions, listContinuationPacks, listSkills, getNovel, createChapter 
+import {
+  listChapters, listCharacters, listLocations, listItems,
+  listFactions, listContinuationPacks, listSkills, getNovel, createChapter
 } from '../lib/api';
 import { ScrollArea } from './ui/ScrollArea';
+import { toast } from '../lib/toast';
 
 interface ProjectCockpitViewProps {
   novel: Novel;
   onNavigate: (view: 'welcome' | 'library' | 'editor' | 'world' | 'skills' | 'factory' | 'continuation-import') => void;
-  onStartCockpitAction?: (action: 'planning' | 'production') => void;
+  onStartCockpitAction?: (action: 'planning' | 'production' | 'resume', targetChapterId?: string) => void;
   onSelectChapter?: (chapter: Chapter | null) => void;
-  onStartContinuationWriting?: (packId: string, prefillIntent?: string) => void;
+  onStartContinuationWriting?: (packId: string) => void;
+  onEnterStoryboard?: (packId: string) => void;
 }
 
 export function ProjectCockpitView({
@@ -25,7 +27,8 @@ export function ProjectCockpitView({
   onNavigate,
   onStartCockpitAction,
   onSelectChapter,
-  _onStartContinuationWriting,
+  onStartContinuationWriting,
+  onEnterStoryboard,
 }: ProjectCockpitViewProps) {
   const [novel, setNovel] = useState<Novel>(initialNovel);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -80,15 +83,29 @@ export function ProjectCockpitView({
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetching
+    /* eslint-disable react-hooks/set-state-in-effect */
     fetchProjectData();
+    /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount or initialNovel change
   }, [initialNovel.id]);
 
   // Compute stats
   const totalWords = chapters.reduce((sum, c) => sum + (c.wordCount || 0), 0);
-  const mountedSkillIds = novel.mountedSkillIds || [];
-  const mountedSkills = allSkills.filter(s => mountedSkillIds.includes(s.id));
+
+  const getMountedSkillIds = (): string[] => {
+    const idsFromLoadout = (novel.mountedSkillLoadout || [])
+      .map(item => item.skillId)
+      .filter((id): id is string => !!id);
+
+    if (idsFromLoadout.length > 0) {
+      return idsFromLoadout;
+    }
+
+    return novel.mountedSkillIds || [];
+  };
+
+  const activeMountedSkillIds = getMountedSkillIds();
+  const mountedSkills = allSkills.filter(s => activeMountedSkillIds.includes(s.id));
   const worldEntitiesCount = characters.length + locations.length + items.length + factions.length;
 
   const latestChapter = [...chapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
@@ -113,8 +130,8 @@ export function ProjectCockpitView({
         onSelectChapter(newCh);
       }
       onNavigate('editor');
-    } catch (err) {
-      console.error('Failed to create first chapter:', err);
+    } catch {
+      toast('创建作品第一章失败，请稍后重试', 'error');
     }
   };
 
@@ -183,7 +200,7 @@ export function ProjectCockpitView({
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full px-6 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 pb-6 items-start">
-            
+
             {/* Left Column: Stats & Operations */}
             <div className="space-y-6">
               {/* Stats Grid */}
@@ -238,7 +255,11 @@ export function ProjectCockpitView({
                           if (onSelectChapter && latestChapter) {
                             onSelectChapter(latestChapter);
                           }
-                          onNavigate('editor');
+                          if (onStartCockpitAction && latestChapter) {
+                            onStartCockpitAction('resume', latestChapter.id);
+                          } else {
+                            onNavigate('editor');
+                          }
                         }}
                         className="flex items-center justify-between p-4 rounded-2xl border border-theme-border bg-paper hover:bg-theme-sidebar/40 hover:scale-[1.01] active:scale-95 transition-all text-left group cursor-pointer"
                       >
@@ -258,8 +279,8 @@ export function ProjectCockpitView({
                           if (onSelectChapter && latestChapter) {
                             onSelectChapter(latestChapter);
                           }
-                          if (onStartCockpitAction) {
-                            onStartCockpitAction('planning');
+                          if (onStartCockpitAction && latestChapter) {
+                            onStartCockpitAction('planning', latestChapter.id);
                           } else {
                             onNavigate('editor');
                           }
@@ -280,8 +301,8 @@ export function ProjectCockpitView({
                           if (onSelectChapter && latestChapter) {
                             onSelectChapter(latestChapter);
                           }
-                          if (onStartCockpitAction) {
-                            onStartCockpitAction('production');
+                          if (onStartCockpitAction && latestChapter) {
+                            onStartCockpitAction('production', latestChapter.id);
                           } else {
                             onNavigate('editor');
                           }
@@ -392,75 +413,101 @@ export function ProjectCockpitView({
                   </h3>
                   <span className="text-[9px] font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">数据已同步</span>
                 </div>
-                
-                <p className="text-[10px] text-theme-muted leading-relaxed">
-                  在您点击核心生成按钮时，AI 大模型将会被注入以下上下文，确保生成内容既满足您的设定又符合文风约束：
-                </p>
 
-                <div className="space-y-3">
-                  {/* Global Outline & Rules */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-paper border border-theme-border/60 text-xs">
-                    <span className="text-theme-text font-medium flex items-center gap-2">
-                      <Layout size={14} className="text-theme-muted" /> 全局梗概与规则
-                    </span>
-                    <span className={cn(
-                      "font-bold text-[10px]",
-                      novel.globalOutline ? "text-emerald-700" : "text-amber-700"
-                    )}>
-                      {novel.globalOutline ? "已就绪" : "未录入"}
-                    </span>
+                {/* Section 1: Available Assets */}
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">1. 可用上下文资产 (库缓存)</div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-theme-text">
+                    <div className="p-2 rounded-xl bg-paper border border-theme-border/50 flex justify-between">
+                      <span className="text-theme-muted">技能卡牌：</span>
+                      <span className="font-bold">{mountedSkills.length} 张可用</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-paper border border-theme-border/50 flex justify-between">
+                      <span className="text-theme-muted">参考前文：</span>
+                      <span className="font-bold">{packs.length} 个资料包</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-paper border border-theme-border/50 flex justify-between">
+                      <span className="text-theme-muted">设定条目：</span>
+                      <span className="font-bold">{worldEntitiesCount} 个条目</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-paper border border-theme-border/50 flex justify-between">
+                      <span className="text-theme-muted">全局主线：</span>
+                      <span className={cn("font-bold", novel.globalOutline ? "text-emerald-700" : "text-theme-muted")}>
+                        {novel.globalOutline ? "已就绪" : "未录入"}
+                      </span>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Writing Skills card rules */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-paper border border-theme-border/60 text-xs">
-                    <span className="text-theme-text font-medium flex items-center gap-2">
-                      <BrainCircuit size={14} className="text-theme-muted" /> 写作卡牌约束 (Mounted Skills)
-                    </span>
-                    <span className={cn(
-                      "font-bold text-[10px]",
-                      mountedSkills.length > 0 ? "text-emerald-700" : "text-amber-700"
-                    )}>
-                      {mountedSkills.length > 0 ? `${mountedSkills.length} 张激活` : "默认通用模型"}
-                    </span>
-                  </div>
+                {/* Section 2: Actually Used */}
+                <div className="space-y-2 pt-2 border-t border-theme-border/50">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">2. 本次写作生成实际使用</div>
 
-                  {/* Character/Location Memory */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-paper border border-theme-border/60 text-xs">
-                    <span className="text-theme-text font-medium flex items-center gap-2">
-                      <User size={14} className="text-theme-muted" /> 世界记忆卡 (World Memory)
-                    </span>
-                    <span className={cn(
-                      "font-bold text-[10px]",
-                      worldEntitiesCount > 0 ? "text-emerald-700" : "text-amber-700"
-                    )}>
-                      {worldEntitiesCount > 0 ? `${worldEntitiesCount} 个活跃条目` : "无绑定设定"}
-                    </span>
-                  </div>
+                  <div className="space-y-2">
+                    {/* Continuation Pack injection status */}
+                    <div className="p-2.5 rounded-xl bg-paper border border-theme-border/60 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-theme-text font-bold flex items-center gap-1.5">
+                          <Database size={12} className="text-theme-muted" /> 参考前文资料
+                        </span>
+                        <span className={cn("font-bold text-[9px] px-1.5 py-0.5 rounded", packs.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                          {packs.length > 0 ? "默认绑定" : "未绑定"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-theme-muted leading-relaxed">
+                        {packs.length > 0
+                          ? `将默认使用最新资料包「${packs[0].title}」内所有导入的前文。`
+                          : '资料包可用但未绑定。生成时仅参考编辑器内最近的章节前文。'}
+                      </p>
+                    </div>
 
-                  {/* Continuation Pack Context */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-paper border border-theme-border/60 text-xs">
-                    <span className="text-theme-text font-medium flex items-center gap-2">
-                      <Database size={14} className="text-theme-muted" /> 参考续写记忆 (Reference Pack)
-                    </span>
-                    <span className={cn(
-                      "font-bold text-[10px]",
-                      packs.length > 0 ? "text-emerald-700" : "text-amber-700"
-                    )}>
-                      {packs.length > 0 ? `${packs.length} 个资料包可用` : "无前文上下文"}
-                    </span>
-                  </div>
+                    {/* Skills injection status */}
+                    <div className="p-2.5 rounded-xl bg-paper border border-theme-border/60 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-theme-text font-bold flex items-center gap-1.5">
+                          <BrainCircuit size={12} className="text-theme-muted" /> 写作风骨约束
+                        </span>
+                        <span className={cn("font-bold text-[9px] px-1.5 py-0.5 rounded", mountedSkills.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                          {mountedSkills.length > 0 ? "已挂载" : "未挂载"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-theme-muted leading-relaxed">
+                        {mountedSkills.length > 0
+                          ? `已加载 ${mountedSkills.length} 张技能卡规则，AI 将严格遵循对应词风、叙事结构。`
+                          : '使用系统通用模型默认语气生成正文。'}
+                      </p>
+                    </div>
 
-                  {/* Scene Beats Outline */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-paper border border-theme-border/60 text-xs">
-                    <span className="text-theme-text font-medium flex items-center gap-2">
-                      <Layers size={14} className="text-theme-muted" /> 当前章节分镜 (Scene Beats)
-                    </span>
-                    <span className={cn(
-                      "font-bold text-[10px]",
-                      latestChapter?.sceneBeats ? "text-emerald-700" : "text-amber-700"
-                    )}>
-                      {latestChapter?.sceneBeats ? "分镜结构就绪" : "缺少本章分镜"}
-                    </span>
+                    {/* World bible matching status */}
+                    <div className="p-2.5 rounded-xl bg-paper border border-theme-border/60 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-theme-text font-bold flex items-center gap-1.5">
+                          <User size={12} className="text-theme-muted" /> 设定记忆载入
+                        </span>
+                        <span className="font-bold text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">自动嗅探</span>
+                      </div>
+                      <p className="text-[10px] text-theme-muted leading-relaxed">
+                        写作生成时，AI 将自动嗅探分镜或正文中出现的人物、地点名词，智能唤醒对应设定记忆。
+                      </p>
+                    </div>
+
+                    {/* Beats injection status */}
+                    <div className="p-2.5 rounded-xl bg-paper border border-theme-border/60 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-theme-text font-bold flex items-center gap-1.5">
+                          <Layers size={12} className="text-theme-muted" /> 章节分镜规划
+                        </span>
+                        <span className={cn("font-bold text-[9px] px-1.5 py-0.5 rounded", latestChapter?.sceneBeats ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                          {latestChapter?.sceneBeats ? "分镜锁定" : "无分镜规划"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-theme-muted leading-relaxed">
+                        {latestChapter?.sceneBeats
+                          ? '已锁定本章分镜 Beats 进行定向内容扩写。'
+                          : '没有录入本章分镜大纲。大模型生成正文时将进行自由推演。'}
+                      </p>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -475,7 +522,7 @@ export function ProjectCockpitView({
                     <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">已装配写作卡</div>
                     <div className="flex flex-wrap gap-1.5">
                       {mountedSkills.map(s => (
-                        <span 
+                        <span
                           key={s.id}
                           className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-theme-border bg-paper text-theme-text flex items-center gap-1 shadow-sm"
                         >
@@ -494,12 +541,35 @@ export function ProjectCockpitView({
                     <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">活跃前文资料包</div>
                     <div className="space-y-1.5">
                       {packs.map(p => (
-                        <div 
+                        <div
                           key={p.id}
-                          className="flex items-center justify-between p-2 rounded-xl border border-theme-border/50 bg-paper text-xs"
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-theme-border/50 bg-paper text-xs gap-3 group"
                         >
-                          <span className="truncate max-w-[220px] font-medium text-theme-text">{p.title}</span>
-                          <span className="text-[9px] text-theme-muted shrink-0">{(p.sourceDocuments || []).length} 篇文档</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate font-medium text-theme-text">{p.title}</span>
+                            <span className="text-[9px] text-theme-muted mt-0.5">{(p.sourceDocuments || []).length} 篇文档</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                            {onEnterStoryboard && (
+                              <button
+                                onClick={() => onEnterStoryboard(p.id)}
+                                className="px-2 py-1 rounded text-[10px] font-bold border border-theme-border bg-theme-sidebar hover:bg-theme-border/40 text-theme-text flex items-center gap-1 cursor-pointer transition-colors"
+                                title="用此资料包进行章节分镜大纲规划"
+                              >
+                                分镜规划
+                              </button>
+                            )}
+                            {onStartContinuationWriting && (
+                              <button
+                                onClick={() => onStartContinuationWriting(p.id)}
+                                className="px-2 py-1 rounded text-[10px] font-bold text-theme-bg bg-theme-text hover:bg-theme-text/90 flex items-center gap-1 cursor-pointer transition-colors"
+                                title="用此资料包做前文参考带入正文续写"
+                              >
+                                带入生产
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {packs.length === 0 && (

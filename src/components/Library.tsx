@@ -5,8 +5,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, 
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
+import { listContinuationPacks } from '../lib/continuation-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { Novel, ViewType } from '../../shared/types';
+import { Novel, ViewType, Chapter, ContinuationPack } from '../../shared/types';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
@@ -21,9 +22,44 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newNovelTitle, setNewNovelTitle] = useState('');
 
+  const [chaptersMap, setChaptersMap] = useState<Record<string, Chapter[]>>({});
+  const [packsMap, setPacksMap] = useState<Record<string, ContinuationPack[]>>({});
+
+  const loadMetadata = async (novelList: Novel[]) => {
+    const chaps: Record<string, Chapter[]> = {};
+    const pks: Record<string, ContinuationPack[]> = {};
+
+    await Promise.all(
+      novelList.map(async (novel) => {
+        try {
+          const [c, p] = await Promise.all([
+            listChapters(novel.id),
+            listContinuationPacks(novel.id),
+          ]);
+          chaps[novel.id] = c;
+          pks[novel.id] = p;
+        } catch {
+          chaps[novel.id] = [];
+          pks[novel.id] = [];
+        }
+      })
+    );
+
+    setChaptersMap(chaps);
+    setPacksMap(pks);
+  };
+
   useEffect(() => {
-    listNovels().then(setNovels);
-    return subscribeToChanges(() => listNovels().then(setNovels));
+    listNovels().then((list) => {
+      setNovels(list);
+      loadMetadata(list);
+    });
+    return subscribeToChanges(() => {
+      listNovels().then((list) => {
+        setNovels(list);
+        loadMetadata(list);
+      });
+    });
   }, []);
 
   const handleCreateNovel = async (e: React.FormEvent) => {
@@ -198,6 +234,12 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             const hueIndex = (parseInt(novel.id.slice(-3)) || 0) % hues.length;
             const gradientClass = hues[hueIndex];
 
+            const novelChapters = chaptersMap[novel.id] || [];
+            const latestCh = [...novelChapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+            const chaptersCount = novelChapters.length;
+            const novelPacks = packsMap[novel.id] || [];
+            const firstPack = novelPacks[0] || null;
+
             return (
             <div
               key={novel.id}
@@ -231,7 +273,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 <BookMarked size={56} className="text-theme-text/10 mb-2" />
                 <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">Inspiration Vault</div>
                 <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
-                
+
                 {/* Visual texture */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
               </div>
@@ -240,9 +282,32 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 <h3 className="text-2xl font-serif font-bold text-theme-text line-clamp-2 leading-tight group-hover:text-theme-accent transition-colors">
                   {novel.title}
                 </h3>
+                {firstPack && (
+                  <div className="text-[10px] text-theme-muted mt-1 bg-theme-accent/5 border border-theme-accent/10 px-2 py-1 rounded-lg flex flex-wrap items-center gap-1 leading-4">
+                    <span className="font-bold text-theme-accent truncate max-w-[150px]">包: {firstPack.title}</span>
+                    <span>•</span>
+                    <span>{new Date(firstPack.createdAt).toLocaleDateString()}</span>
+                    <span>•</span>
+                    <span>{(firstPack.sourceDocuments || []).length} 篇文档</span>
+                  </div>
+                )}
                 <p className="mt-2 min-h-[40px] text-xs leading-5 text-theme-muted line-clamp-2">
                   {novel.summary?.trim() || '还没有简介。继续写作时可以补全故事方向和角色动机。'}
                 </p>
+
+                {/* Chapter details box */}
+                <div className="mt-3 p-3 rounded-2xl bg-theme-bg/30 border border-theme-border/40 text-xs space-y-1">
+                  <div className="flex justify-between text-theme-muted text-[11px] font-bold">
+                    <span>章节总数:</span>
+                    <span className="text-theme-text font-semibold">{chaptersCount} 章</span>
+                  </div>
+                  <div className="flex justify-between text-theme-muted text-[11px] font-bold truncate gap-2">
+                    <span>最近章节:</span>
+                    <span className="text-theme-text font-semibold truncate" title={latestCh?.title || '无'}>
+                      {latestCh?.title || '暂无章节'}
+                    </span>
+                  </div>
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {getReadinessItems(novel).map((item) => {
@@ -269,7 +334,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                     <Clock size={12} className="opacity-50" />
                     <span>{new Date(novel.updatedAt).toLocaleDateString()}</span>
                   </div>
-                  
+
                   {(() => {
                     const configMap = {
                       ongoing: { label: '连载中', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
@@ -277,7 +342,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                       hiatus: { label: '断更', color: 'bg-amber-50 text-amber-700 border-amber-100' }
                     };
                     const statusConfig = configMap[(novel.status as keyof typeof configMap) || 'ongoing'];
-                    
+
                     return (
                       <span className={cn(
                         "ml-auto px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border shadow-sm",

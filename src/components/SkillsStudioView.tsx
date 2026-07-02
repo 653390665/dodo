@@ -121,7 +121,11 @@ export function SkillsStudioView({
             {selectedNovel ? (
               <>
                 <p className="mt-2 text-xs leading-5 text-theme-muted">
-                  《{selectedNovel.title}》已装配 {selectedNovel.mountedSkillIds?.length || 0}/3 张技能卡。
+                  《{selectedNovel.title}》已装配 {
+                    selectedNovel.mountedSkillLoadout
+                      ? selectedNovel.mountedSkillLoadout.filter(slot => slot.skillId).length
+                      : (selectedNovel.mountedSkillIds?.length || 0)
+                  }/3 张技能卡。
                 </p>
                 <button
                   type="button"

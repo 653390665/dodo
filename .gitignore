@@ -28,3 +28,7 @@ plans/07[0-6]-*.md
 project-audit-report*.html
 reasonix*.toml
 design-audit/
+
+# Developer reports
+product-evaluation-report.html
+market-readiness-report.html

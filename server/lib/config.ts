@@ -6,8 +6,13 @@ import crypto from 'crypto';
 import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
 import type { PromptTemplateKey } from '../../shared/types';
 
-const CONFIG_DIR = path.join(os.homedir(), '.inkflow');
-const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
+function getConfigDir(): string {
+  return process.env.INKFLOW_CONFIG_DIR || path.join(os.homedir(), '.inkflow');
+}
+
+function getConfigPath(): string {
+  return path.join(getConfigDir(), 'config.json');
+}
 
 // Machine-derived key for API key encryption at rest.
 // Not as secure as OS keychain, but prevents casual inspection.
@@ -140,8 +145,8 @@ export function migrateLegacyPromptTemplates(partial?: Partial<PromptTemplates>)
 }
 
 function ensureDir() {
-  if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  if (!fs.existsSync(getConfigDir())) {
+    fs.mkdirSync(getConfigDir(), { recursive: true });
   }
 }
 
@@ -154,12 +159,17 @@ export function getLastConfigError(): string | null {
 export function loadConfig(): AppConfig {
   ensureDir();
   lastConfigError = null;
+  const isElectronMode = process.env.INKFLOW_ELECTRON_MODE === 'true';
+  const secureKey = process.env.INKFLOW_SECURE_API_KEY || '';
+
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    if (fs.existsSync(getConfigPath())) {
+      const raw = fs.readFileSync(getConfigPath(), 'utf-8');
       const parsed = JSON.parse(raw);
-      // Decrypt API key at load time
-      if (parsed.apiKey) {
+      // Decrypt API key or read from secure environment variable
+      if (isElectronMode) {
+        parsed.apiKey = secureKey;
+      } else if (parsed.apiKey) {
         parsed.apiKey = decryptApiKey(parsed.apiKey);
       }
       const migratedPromptTemplates = migrateLegacyPromptTemplates(parsed.promptTemplates);
@@ -173,17 +183,58 @@ export function loadConfig(): AppConfig {
     lastConfigError = e instanceof Error ? e.message : String(e);
     logger.error('Config file corrupt, using defaults', lastConfigError);
   }
-  return { ...defaults };
+  const base = { ...defaults };
+  if (isElectronMode) {
+    base.apiKey = secureKey;
+  }
+  return base;
 }
 
 export function saveConfig(config: AppConfig): void {
   ensureDir();
-  const safeConfig = {
-    ...config,
-    apiKey: encryptApiKey(config.apiKey),
-    promptTemplates: mergePromptTemplates(config.promptTemplates),
-  };
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(safeConfig, null, 2));
+  const isElectronMode = process.env.INKFLOW_ELECTRON_MODE === 'true';
+
+  if (isElectronMode) {
+    const finalApiKey = config.apiKey || process.env.INKFLOW_SECURE_API_KEY || '';
+    process.env.INKFLOW_SECURE_API_KEY = finalApiKey;
+    if (cached) {
+      cached.apiKey = finalApiKey;
+    }
+    const safeConfig = {
+      ...config,
+      apiKey: '',
+      hasApiKey: !!finalApiKey,
+      promptTemplates: mergePromptTemplates(config.promptTemplates),
+    };
+    fs.writeFileSync(getConfigPath(), JSON.stringify(safeConfig, null, 2));
+  } else {
+    let finalApiKey = config.apiKey;
+    if (!finalApiKey) {
+      try {
+        if (fs.existsSync(getConfigPath())) {
+          const raw = fs.readFileSync(getConfigPath(), 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed.apiKey) {
+            finalApiKey = decryptApiKey(parsed.apiKey);
+          }
+        }
+      } catch {}
+    }
+
+    const safeConfig = {
+      ...config,
+      apiKey: encryptApiKey(finalApiKey),
+      promptTemplates: mergePromptTemplates(config.promptTemplates),
+    };
+    fs.writeFileSync(getConfigPath(), JSON.stringify(safeConfig, null, 2));
+  }
+}
+
+export function updateCachedApiKey(key: string): void {
+  process.env.INKFLOW_SECURE_API_KEY = key;
+  if (cached) {
+    cached.apiKey = key;
+  }
 }
 
 let cached: AppConfig | null = null;

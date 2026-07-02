@@ -122,7 +122,7 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
         </div>
         <div className="rounded-xl bg-theme-sidebar/20 px-3 py-2.5 text-center">
           <div className="text-lg font-bold text-theme-text">{stats.mountedCount}</div>
-          <div className="text-[10px] text-theme-muted">已装配</div>
+          <div className="text-[10px] text-theme-muted">全库被装配过的 Skill</div>
         </div>
         <div className="rounded-xl bg-theme-sidebar/20 px-3 py-2.5 text-center">
           <div className="text-lg font-bold text-theme-text">{stats.avgFeedback}</div>
