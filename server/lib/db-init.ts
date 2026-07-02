@@ -5,7 +5,7 @@ import os from 'os';
 import { createRequire } from 'module';
 import { getDb, setDb, isDbInitialized } from './db-instance.js';
 import { mapContinuationPackRow } from './db-mappers.js';
-import { buildImportedNovelDraft } from '../../src/lib/continuation-import-flow.js';
+import { buildImportedNovelDraft } from '../../shared/lib/continuation-import-flow.js';
 
 declare const __CJS_BUNDLE__: boolean | undefined;
 

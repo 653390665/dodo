@@ -1,7 +1,7 @@
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
-import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, buildSkillsPrompt } from './prompt-helpers';
 import {
   buildFallbackDraft,
@@ -9,7 +9,7 @@ import {
   ensureMinimumDraftLength,
 } from './fallback-draft';
 import type { Skill } from '../../shared/types';
-import type { LearnedPreference } from '../../src/lib/preference-flywheel';
+import type { LearnedPreference } from '../../shared/lib/preference-flywheel';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
 
 /** Maximum retries when critic rejects the draft */

@@ -1,11 +1,11 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, truncateForAudit } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
-import { scoreSlop, slopSummary } from '../../src/lib/slop-scorer';
+import { scoreSlop, slopSummary } from '../../shared/lib/slop-scorer';
 import {
   embedStructuredAudit,
   evaluateAuditGate,
@@ -13,8 +13,8 @@ import {
   parseStructuredAuditResponse,
   renderFiveDimMarkdown,
   renderStructuredAuditMarkdown,
-} from '../../src/lib/audit-structured';
-import { buildRewritePrompt } from '../../src/lib/rewrite-prompt';
+} from '../../shared/lib/audit-structured';
+import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 
 export function registerAuditRoutes(app: Express) {
   app.post('/api/audit', async (req, res) => {

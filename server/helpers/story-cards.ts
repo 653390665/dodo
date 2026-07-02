@@ -1,6 +1,6 @@
 import type { StoryIdeaCard } from '../../shared/types';
 import { generateId } from '../id.ts';
-import { extractJsonPayload } from '../../src/lib/extract-skill-json';
+import { extractJsonPayload } from '../../shared/lib/extract-skill-json';
 
 // ---- Story card async job types and store ----
 

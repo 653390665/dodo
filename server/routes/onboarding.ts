@@ -1,11 +1,11 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
-import { assessStorySeedQuality, sanitizeIdeaSeed } from '../../src/lib/story-seed';
+import { assessStorySeedQuality, sanitizeIdeaSeed } from '../../shared/lib/story-seed';
 import {
   STORY_CARD_MODEL_TIMEOUT_MS,
   storyCardJobs,

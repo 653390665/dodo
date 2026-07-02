@@ -10,17 +10,17 @@ import {
   buildProductionWriterContext,
   getNextChapterOrder,
   normalizeProductionIntent,
-} from '../../src/lib/chapter-production';
+} from '../../shared/lib/chapter-production';
 import {
   buildStoryStateLedger,
-} from '../../src/lib/story-state-ledger';
+} from '../../shared/lib/story-state-ledger';
 import { buildFallbackSceneBeats, buildFallbackDraft } from '../helpers/fallback-draft';
 import { buildEmptyContinuityReport, buildContractPrompt } from '../helpers/production-helpers';
-import { recordChapterDecision } from '../../src/lib/preference-flywheel';
+import { recordChapterDecision } from '../../shared/lib/preference-flywheel';
 import { addChunk } from '../vector-store';
-import { summarizeChapterDecisions } from '../../src/lib/preference-flywheel';
+import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel';
 import { runProductionPipeline } from '../helpers/ai-production-pipeline';
-import { buildContinuationContext } from '../../src/lib/continuation-pack';
+import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import * as db from '../lib/db';
 import { validate, chapterProductionSchema } from '../validation';
 

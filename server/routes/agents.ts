@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, buildSkillsPrompt, resolveChainPrompt } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
@@ -14,7 +14,7 @@ import {
 import { emitTextAsTokens } from '../helpers/async-utils';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
 import * as db from '../lib/db';
-import { buildContinuationContext } from '../../src/lib/continuation-pack';
+import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {

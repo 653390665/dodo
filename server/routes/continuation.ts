@@ -6,10 +6,10 @@ import { generateId } from '../id';
 import {
   buildContinuationPackParseAttempts,
   buildContinuationPackPrompt,
-} from '../../src/lib/continuation-pack-parse';
-import { parseModelJsonPayload } from '../../src/lib/model-json';
+} from '../../shared/lib/continuation-pack-parse';
+import { parseModelJsonPayload } from '../../shared/lib/model-json';
 import * as db from '../lib/db';
-import { classifyContinuationSource } from '../../src/lib/continuation-pack';
+import { classifyContinuationSource } from '../../shared/lib/continuation-pack';
 import { validate, parseDocSchema, continuationParseSchema } from '../validation';
 
 async function extractUploadedText(filename: string, filedata: string): Promise<string> {

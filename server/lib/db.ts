@@ -1,5 +1,5 @@
 import type { Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Chapter, ChapterVersion, Skill, IdeaFragment, Foreshadowing, SkillUsageRecord, ChapterProductionRun, EntityRelationship } from '../../shared/types';
-import { calculateFeedbackScore, summarizeUsageStats } from '../../src/lib/skill-model';
+import { calculateFeedbackScore, summarizeUsageStats } from '../../shared/lib/skill-model';
 import { getDb, notify } from './db-instance.js';
 import { rowToNovel, rowToCharacter, rowToLocation, rowToItem, rowToFaction, rowToPowerLevel, rowToTimelineEvent, rowToChapter, rowToChapterVersion, rowToSkill, rowToSkillUsageRecord, rowToIdeaFragment, rowToForeshadowing, rowToChapterProductionRun, novelToRow, characterToRow, locationToRow, itemToRow, factionToRow, powerLevelToRow, timelineEventToRow, chapterToRow, chapterVersionToRow, skillToRow, skillUsageRecordToRow, ideaFragmentToRow, foreshadowingToRow, chapterProductionRunToRow, mapContinuationPackRow, continuationPackToRow } from './db-mappers.js';
 import { createCrudHelpers } from './db-crud.js';

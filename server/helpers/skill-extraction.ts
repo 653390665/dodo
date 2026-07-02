@@ -1,9 +1,9 @@
 import type { SegmentSkillEvidence } from '../../shared/types';
 import { generateId } from '../id.ts';
-import { buildBookEvidenceSegments } from '../../src/lib/book-skill-segmentation';
-import { collectSegmentEvidence } from '../../src/lib/book-skill-evidence';
-import { buildSkillDeckFromEvidence } from '../../src/lib/book-skill-aggregation';
-import { evaluateSkillOutputQuality } from '../../src/lib/quality-gates';
+import { buildBookEvidenceSegments } from '../../shared/lib/book-skill-segmentation';
+import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
+import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregation';
+import { evaluateSkillOutputQuality } from '../../shared/lib/quality-gates';
 
 // ---- Skill extraction async job store ----
 

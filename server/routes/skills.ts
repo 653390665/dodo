@@ -11,15 +11,15 @@ import {
   buildFallbackSkillForSegment,
   buildFullFallbackSkillResult,
 } from '../helpers/skill-extraction';
-import { extractJsonPayload } from '../../src/lib/extract-skill-json';
+import { extractJsonPayload } from '../../shared/lib/extract-skill-json';
 import {
   validateExtractSkillInput,
   parseModelRefusal,
   evaluateSkillOutputQuality,
-} from '../../src/lib/quality-gates';
-import { buildBookEvidenceSegments } from '../../src/lib/book-skill-segmentation';
-import { buildSkillDeckFromEvidence } from '../../src/lib/book-skill-aggregation';
-import { collectSegmentEvidence } from '../../src/lib/book-skill-evidence';
+} from '../../shared/lib/quality-gates';
+import { buildBookEvidenceSegments } from '../../shared/lib/book-skill-segmentation';
+import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregation';
+import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence } from '../../shared/types';
 import { validate, extractSkillSchema } from '../validation';
 

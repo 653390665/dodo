@@ -1,10 +1,10 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { resolvePromptAssetForSurface } from '../../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
 import * as db from '../lib/db';
-import { buildContinuationContext } from '../../src/lib/continuation-pack';
+import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
 
 export function registerWorldRoutes(app: Express) {
