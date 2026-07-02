@@ -2,6 +2,20 @@ import type { StoryIdeaCard } from '../../shared/types';
 import { generateId } from '../id.ts';
 import { extractJsonPayload } from '../../shared/lib/extract-skill-json';
 
+type ModelStoryCard = Record<string, unknown>;
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : value != null ? String(value) : '';
+}
+
 // ---- Story card async job types and store ----
 
 export type StoryCardJob = {
@@ -95,21 +109,32 @@ export function hookIsTrivial(hook: string, seed: string): boolean {
 }
 
 export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryIdeaCard[] {
-  const parsed = extractJsonPayload(raw);
+  const parsed = asRecord(extractJsonPayload(raw));
   // Model returned needs_clarification — user input not usable as story seed
-  if (parsed?.status === 'needs_clarification') {
+  if (stringValue(parsed.status) === 'needs_clarification') {
     throw new Error(JSON.stringify({
       type: 'needs_clarification',
-      questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+      questions: asArray(parsed.questions),
     }));
   }
-  const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [parsed];
-  const validCards = cards.filter((card: any) => card && typeof card.hook === 'string' && typeof card.whyItWorks === 'string');
+
+  const payload = extractJsonPayload(raw);
+  const cards: unknown[] = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === 'object' && Array.isArray((payload as Record<string, unknown>).cards)
+      ? ((payload as Record<string, unknown>).cards as unknown[])
+      : payload
+        ? [payload]
+        : [];
+
+  const validCards = (cards as ModelStoryCard[]).filter(
+    (card) => card && typeof card.hook === 'string' && typeof card.whyItWorks === 'string'
+  );
   if (validCards.length === 0) {
     throw new Error('Model returned no valid story cards');
   }
   // Post-model quality gate: reject noise/hallucination
-  const hooks = validCards.map((c: any) => c.hook || '');
+  const hooks = validCards.map((c) => stringValue(c.hook) || '');
   const uniqueHooks = new Set(hooks.map((h: string) => h.slice(0, 10)));
   if (uniqueHooks.size < 2 && validCards.length >= 3) {
     throw new Error('Post-model quality gate: cards too similar');
@@ -131,7 +156,7 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
     throw new Error('Post-model quality gate: all hooks are boilerplate/generic patterns');
   }
 
-  // Gate 2: reject hooks that don't reference any keyword from the input seed
+  // Gate 2: reject hooks that do not reference keywords from the input seed
   if (seedKeywords.length > 0) {
     const matchingHooks = hooks.filter((h: string) => hookMatchesSeed(h, seedKeywords));
     if (matchingHooks.length === 0 && seedNormalized.length >= 4) {
@@ -155,25 +180,25 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
   const mainTerm = seedKeyTerms[0] || ideaSeed.slice(0, 4);
   const tones = ['冷峻悬疑', '热血逆袭', '慢热铺陈'];
 
-  return validCards.map((card: any, i: number) => ({
+  return validCards.map((card, i: number) => ({
     id: `model-card-${generateId()}`,
-    hook: card.hook || '',
-    protagonist: card.protagonist || '',
-    coreConflict: card.coreConflict || '',
-    tone: card.tone || tones[i % tones.length],
-    whyItWorks: card.whyItWorks || '',
-    riskNote: card.riskNote || '开局冲突不够尖锐，需要第一章迅速建立具体威胁。',
+    hook: stringValue(card.hook) || '',
+    protagonist: stringValue(card.protagonist) || '',
+    coreConflict: stringValue(card.coreConflict) || '',
+    tone: stringValue(card.tone) || tones[i % tones.length],
+    whyItWorks: stringValue(card.whyItWorks) || '',
+    riskNote: stringValue(card.riskNote) || '开局冲突不够尖锐，需要第一章迅速建立具体威胁。',
     mixTags: Array.isArray(card.mixTags) ? card.mixTags : [],
     starterSeeds: {
       worldSeed: card.coreConflict
-        ? `以${mainTerm}为核心的世界设定，${card.coreConflict.slice(0, 20)}`
+        ? `以${mainTerm}为核心的世界设定，${stringValue(card.coreConflict).slice(0, 20)}`
         : `以${mainTerm}为核心背景`,
       relationshipSeed: i === 0
         ? '主角与他人之间既有利益交集也有信息差，合作中藏着试探。'
         : i === 1
           ? '主角被迫与对立角色周旋，每次对白都是双向刺探。'
           : '关键人物关系充满不信任，所有交谈都是博弈。',
-      chapterOneSeed: `第一章从${card.hook ? card.hook.slice(0, 20) : mainTerm}的信号开场，快速建立冲突，留下悬念钩子。`,
+      chapterOneSeed: `第一章从${card.hook ? stringValue(card.hook).slice(0, 20) : mainTerm}的信号开场，快速建立冲突，留下悬念钩子。`,
     },
     planningFit: {
       recommendedLength: '中长篇',
@@ -182,7 +207,7 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
       reason: `该方向能围绕核心冲突展开，与输入意自然衔接。`,
     },
     signals: {
-      tone: card.tone || '冷峻悬疑',
+      tone: stringValue(card.tone) || '冷峻悬疑',
       conflictType: i === 0 ? '事件引爆' : i === 1 ? '利益博弈' : '秘密羁绊',
       worldWeight: 0.5,
       characterWeight: 0.5,
