@@ -58,7 +58,7 @@ for (const detail of details) {
 console.log('----------------------------------------------------');
 console.log(`Total explicit 'any' count: ${totalAnyCount}`);
 
-const MAX_ANY_LIMIT = 65;
+const MAX_ANY_LIMIT = 55;
 if (totalAnyCount > MAX_ANY_LIMIT) {
   console.error(`\n❌ Type safety audit failed! Total 'any' count (${totalAnyCount}) exceeds maximum allowed limit (${MAX_ANY_LIMIT}).`);
   process.exit(1);

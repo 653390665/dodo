@@ -7,6 +7,25 @@ import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
 
+interface PacingInputChapter {
+  order?: number;
+  title?: string;
+  wordCount?: number;
+  content?: string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : value != null ? String(value) : '';
+}
+
 export function registerWorldRoutes(app: Express) {
   app.post('/api/generate-bio', async (req, res) => {
     try {
@@ -166,8 +185,8 @@ ${chapterContent.substring(0, 15000)}
       }
       const config = getConfig();
       const MAX_CHAPTERS = 50;
-      const limited = chapters.slice(-MAX_CHAPTERS);
-      const chapterList = limited.map((c: any) =>
+      const limited = (chapters as PacingInputChapter[]).slice(-MAX_CHAPTERS);
+      const chapterList = limited.map((c) =>
         `第${c.order ?? '?'}章「${c.title ?? '无标题'}」(字数:${c.wordCount ?? 0})：${(c.content || '').substring(0, 500)}...`
       ).join('\n---\n');
 
@@ -190,7 +209,12 @@ ${chapterList}
 
       let raw = (await generateText(config, { prompt })).trim();
       raw = raw.replace(/```(json)?/g, '').trim();
-      let chapterResults: any; try { chapterResults = JSON.parse(raw); } catch { return res.status(422).json({ error: "AI returned invalid JSON", raw: raw.substring(0, 500) }); }
+      let chapterResults: unknown;
+      try {
+        chapterResults = JSON.parse(raw);
+      } catch {
+        return res.status(422).json({ error: "AI returned invalid JSON", raw: raw.substring(0, 500) });
+      }
 
       // Strand Weave heuristic analysis
       const strandWeave = computeStrandWeave(limited);
@@ -201,64 +225,6 @@ ${chapterList}
       res.status(500).json({ error: "Internal server error" });
     }
   });
-
-  // ---- Strand Weave heuristic ----
-  function computeStrandWeave(chapters: Array<{ content?: string; wordCount?: number }>) {
-    let questChapters = 0;
-    let fireChapters = 0;
-    let constellationChapters = 0;
-    const breakWarnings: string[] = [];
-
-    for (let i = 0; i < chapters.length; i++) {
-      const content = (chapters[i].content || '').toLowerCase();
-      // Heuristic: keyword-based strand classification
-      const hasQuest = /战斗|敌人|追杀|突破|修炼|击败|决斗|秘境/.test(content);
-      const hasFire = /感情|拥抱|亲吻|心疼|温柔|微笑|眼神|牵手/.test(content);
-      const hasConstellation = /世界|法则|势力|宗门|历史|传说|上古/.test(content);
-
-      if (hasQuest) questChapters++;
-      if (hasFire) fireChapters++;
-      if (hasConstellation) constellationChapters++;
-    }
-
-    const total = chapters.length || 1;
-    const questRatio = Math.round((questChapters / total) * 100);
-    const fireRatio = Math.round((fireChapters / total) * 100);
-    const constellationRatio = Math.round((constellationChapters / total) * 100);
-
-    // Break warnings
-    let questStreak = 0;
-    let lastFireChapter = -1;
-    let lastConstellationChapter = -1;
-    for (let i = 0; i < chapters.length; i++) {
-      const content = (chapters[i].content || '').toLowerCase();
-      const hasQuest = /战斗|敌人|追杀|突破/.test(content);
-      const hasFire = /感情|拥抱|亲吻|心疼/.test(content);
-      const hasConstellation = /世界|法则|势力|历史/.test(content);
-
-      questStreak = hasQuest ? questStreak + 1 : 0;
-      if (questStreak === 6) breakWarnings.push(`主线连续 ${questStreak} 章，建议插入感情/世界观线`);
-
-      if (hasFire) lastFireChapter = i;
-      if (hasConstellation) lastConstellationChapter = i;
-
-      if (i - lastFireChapter > 10 && lastFireChapter >= 0) {
-        breakWarnings.push(`感情线断档超过 10 章（上次出现在第 ${lastFireChapter + 1} 章）`);
-        lastFireChapter = i; // reset to avoid repeated warnings
-      }
-      if (i - lastConstellationChapter > 15 && lastConstellationChapter >= 0) {
-        breakWarnings.push(`世界观线断档超过 15 章（上次出现在第 ${lastConstellationChapter + 1} 章）`);
-        lastConstellationChapter = i;
-      }
-    }
-
-    return {
-      questRatio,
-      fireRatio,
-      constellationRatio,
-      breakWarnings: [...new Set(breakWarnings)].slice(0, 3),
-    };
-  }
 
   app.post('/api/generate-entity-details', async (req, res) => {
     try {
@@ -318,7 +284,7 @@ ${chapterList}
       }
       const characters = db.listCharacters(novelId);
       const currentState = characters
-        .map((c: any) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
+        .map((c) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
         .join('\n');
 
       const { prompt } = resolveChainPrompt('chainCharacterState', {
@@ -328,22 +294,91 @@ ${chapterList}
 
       const raw = await generateText(getConfig(), { prompt, maxTokens: 1024 });
       const cleaned = raw.replace(/```(json)?/g, '').trim();
-      let result: any; try { result = JSON.parse(cleaned); } catch { return res.status(422).json({ error: "AI returned invalid JSON", raw: cleaned.substring(0, 500) }); }
+      let result: unknown;
+      try {
+        result = JSON.parse(cleaned);
+      } catch {
+        return res.status(422).json({ error: "AI returned invalid JSON", raw: cleaned.substring(0, 500) });
+      }
 
-      if (result.characters && Array.isArray(result.characters)) {
-        for (const update of result.characters) {
-          const char = characters.find((c: any) => c.name === update.name);
-          if (char) {
-            db.updateCharacter(char.id, {
-              current_state: JSON.stringify(update.changes),
-            });
-          }
+      const resultRecord = asRecord(result);
+      const resultCharacters = asArray(resultRecord.characters);
+
+      let updatedCount = 0;
+      for (const updateVal of resultCharacters) {
+        const update = asRecord(updateVal);
+        const name = stringValue(update.name);
+        if (!name) continue;
+        const char = characters.find((c) => c.name === name);
+        if (char) {
+          db.updateCharacter(char.id, {
+            current_state: JSON.stringify(update.changes),
+          });
+          updatedCount++;
         }
       }
-      res.json({ updated: result.characters?.length || 0 });
+      res.json({ updated: updatedCount });
     } catch (e) {
       logger.error('Update character state error:', e);
       res.status(500).json({ error: "Internal server error" });
     }
   });
+}
+
+// ---- Strand Weave heuristic ----
+export function computeStrandWeave(chapters: PacingInputChapter[]) {
+  let questChapters = 0;
+  let fireChapters = 0;
+  let constellationChapters = 0;
+  const breakWarnings: string[] = [];
+
+  for (let i = 0; i < chapters.length; i++) {
+    const content = stringValue(chapters[i].content).toLowerCase();
+    // Heuristic: keyword-based strand classification
+    const hasQuest = /战斗|敌人|追杀|突破|修炼|击败|决斗|秘境/.test(content);
+    const hasFire = /感情|拥抱|亲吻|心疼|温柔|微笑|眼神|牵手/.test(content);
+    const hasConstellation = /世界|法则|势力|宗门|历史|传说|上古/.test(content);
+
+    if (hasQuest) questChapters++;
+    if (hasFire) fireChapters++;
+    if (hasConstellation) constellationChapters++;
+  }
+
+  const total = chapters.length || 1;
+  const questRatio = Math.round((questChapters / total) * 100);
+  const fireRatio = Math.round((fireChapters / total) * 100);
+  const constellationRatio = Math.round((constellationChapters / total) * 100);
+
+  // Break warnings
+  let questStreak = 0;
+  let lastFireChapter = -1;
+  let lastConstellationChapter = -1;
+  for (let i = 0; i < chapters.length; i++) {
+    const content = stringValue(chapters[i].content).toLowerCase();
+    const hasQuest = /战斗|敌人|追杀|突破/.test(content);
+    const hasFire = /感情|拥抱|亲吻|心疼/.test(content);
+    const hasConstellation = /世界|法则|势力|历史/.test(content);
+
+    questStreak = hasQuest ? questStreak + 1 : 0;
+    if (questStreak === 6) breakWarnings.push(`主线连续 ${questStreak} 章，建议插入感情/世界观线`);
+
+    if (hasFire) lastFireChapter = i;
+    if (hasConstellation) lastConstellationChapter = i;
+
+    if (i - lastFireChapter > 10 && lastFireChapter >= 0) {
+      breakWarnings.push(`感情线断档超过 10 章（上次出现在第 ${lastFireChapter + 1} 章）`);
+      lastFireChapter = i; // reset to avoid repeated warnings
+    }
+    if (i - lastConstellationChapter > 15 && lastConstellationChapter >= 0) {
+      breakWarnings.push(`世界观线断档超过 15 章（上次出现在第 ${lastConstellationChapter + 1} 章）`);
+      lastConstellationChapter = i;
+    }
+  }
+
+  return {
+    questRatio,
+    fireRatio,
+    constellationRatio,
+    breakWarnings: [...new Set(breakWarnings)].slice(0, 3),
+  };
 }
