@@ -3,7 +3,15 @@ import { listNovels, updateNovel } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
 import { extractSkill, checkSkillExtractionJob } from '../../lib/prompt-client';
 import { coerceMountedSkillLoadout } from '../../lib/skill-model';
-import type { Skill, AggregatedSkillDeck, Novel, BookEvidenceStage } from '../../../shared/types';
+import type { Skill, AggregatedSkillDeck, Novel, BookEvidenceStage, MountedSkillLoadoutItem, SkillDimension } from '../../../shared/types';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((v) => (typeof v === 'string' ? v : String(v))) : [];
+}
 
 // 编码自动打分辅助函数
 function scoreDecodedText(text: string): number {
@@ -31,27 +39,45 @@ function decodeTextArrayBuffer(buffer: ArrayBuffer): string {
 }
 
 // 标准化技能配置
-export function normalizeSkillConfig(data: any): Skill {
+export function normalizeSkillConfig(data: Partial<Skill> | Record<string, unknown>): Skill {
+  const rec = asRecord(data);
+  const primaryDimension = (typeof rec.primaryDimension === 'string' && ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(rec.primaryDimension))
+    ? (rec.primaryDimension as SkillDimension)
+    : 'style';
+  const dimensionTags = Array.isArray(rec.dimensionTags) && rec.dimensionTags.length > 0
+    ? (asStringArray(rec.dimensionTags).filter((t) => ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(t)) as SkillDimension[])
+    : ['style' as const];
+
+  const comp = asRecord(rec.compositionProfile);
+  const compositionProfile = {
+    styleWeight: typeof comp.styleWeight === 'number' ? comp.styleWeight : 0.8,
+    characterWeight: typeof comp.characterWeight === 'number' ? comp.characterWeight : 0.4,
+    worldWeight: typeof comp.worldWeight === 'number' ? comp.worldWeight : 0.4,
+    powerWeight: typeof comp.powerWeight === 'number' ? comp.powerWeight : 0.3,
+    plotWeight: typeof comp.plotWeight === 'number' ? comp.plotWeight : 0.5,
+    pacingWeight: typeof comp.pacingWeight === 'number' ? comp.pacingWeight : 0.6,
+    conflictTags: Array.isArray(comp.conflictTags) ? asStringArray(comp.conflictTags) : [],
+    blendHints: Array.isArray(comp.blendHints) ? asStringArray(comp.blendHints) : [],
+  };
+
   return {
-    ...data,
-    primaryDimension: data.primaryDimension || 'style',
-    dimensionTags: data.dimensionTags?.length ? data.dimensionTags : ['style'],
-    compositionProfile: data.compositionProfile || {
-      styleWeight: 0.8,
-      characterWeight: 0.4,
-      worldWeight: 0.4,
-      powerWeight: 0.3,
-      plotWeight: 0.5,
-      pacingWeight: 0.6,
-      conflictTags: [],
-      blendHints: [],
-    },
+    ...(data as Skill),
+    primaryDimension,
+    dimensionTags,
+    compositionProfile,
   };
 }
 
-export function normalizeSkillConfigs(data: any): Skill[] {
-  const rawSkills = Array.isArray(data?.skills) ? data.skills : Array.isArray(data) ? data : data ? [data] : [];
-  return rawSkills.map(normalizeSkillConfig);
+export function normalizeSkillConfigs(data: unknown): Skill[] {
+  const rec = asRecord(data);
+  const rawSkills = Array.isArray(rec.skills)
+    ? rec.skills
+    : Array.isArray(data)
+      ? data
+      : data
+        ? [data]
+        : [];
+  return (rawSkills as Array<Partial<Skill> | Record<string, unknown>>).map(normalizeSkillConfig);
 }
 
 export function useBookFactory() {
@@ -367,7 +393,7 @@ export function useBookFactory() {
     const mountedIds = (savedDeckIds.length > 0 ? savedDeckIds : await handleSaveDeck())
       .slice(0, Math.min(allCards.length, 3));
     if (mountedIds.length === 0) return;
-    const loadout = mountedIds.map((skillId, index) => ({
+    const loadout: MountedSkillLoadoutItem[] = mountedIds.map((skillId, index) => ({
       slot: index + 1,
       skillId,
       weight: index === 0 ? 1 : 0.7,
@@ -375,7 +401,7 @@ export function useBookFactory() {
     }));
     await updateNovel(equipNovelId, {
       mountedSkillIds: mountedIds,
-      mountedSkillLoadout: loadout as any,
+      mountedSkillLoadout: loadout,
     });
     setShowEquipPanel(false);
     alert(`Deck「${deck.mainCard.name}」已装备到作品。`);
