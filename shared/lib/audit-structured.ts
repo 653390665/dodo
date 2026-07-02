@@ -151,107 +151,82 @@ function normalizeSceneStatus(value: string): StructuredAuditSceneCheck['status'
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : value != null ? String(value) : '';
+}
+
+function normalizeStructuredAuditIssue(item: unknown): StructuredAuditIssue | null {
+  const r = asRecord(item);
+  const snippet = stringValue(r.snippet).trim();
+  const explanation = stringValue(r.planation || r.explanation).trim();
+  const patchHint = stringValue(r.patchHint).trim();
+  if (!snippet || !explanation || !patchHint) return null;
+
+  return {
+    issueType: normalizeIssueType(stringValue(r.issueType || 'general')),
+    issueSubtype: normalizeIssueSubtype(stringValue(r.issueSubtype || 'general')),
+    severity: normalizeSeverity(stringValue(r.severity || 'major')),
+    snippet,
+    explanation,
+    patchHint,
+  };
+}
+
+function normalizeSceneCheck(item: unknown): StructuredAuditSceneCheck | null {
+  const r = asRecord(item);
+  const scene = stringValue(r.scene).trim();
+  const note = stringValue(r.note).trim();
+  if (!scene || !note) return null;
+
+  return {
+    scene,
+    status: normalizeSceneStatus(stringValue(r.status || 'weak')),
+    note,
+  };
+}
+
+function normalizeStructuredAuditPayload(parsed: unknown): StructuredAudit | null {
+  const r = asRecord(parsed);
+  const score = Number(r.score);
+  if (!Number.isFinite(score)) return null;
+
+  const fatalIssues = asArray(r.fatalIssues)
+    .map(normalizeStructuredAuditIssue)
+    .filter((issue): issue is StructuredAuditIssue => Boolean(issue));
+
+  const sceneChecks = asArray(r.sceneChecks)
+    .map(normalizeSceneCheck)
+    .filter((check): check is StructuredAuditSceneCheck => Boolean(check));
+
+  const surgerySuggestions = asArray(r.surgerySuggestions)
+    .map((item) => stringValue(item).trim())
+    .filter(Boolean);
+
+  return {
+    score,
+    fatalIssues,
+    sceneChecks,
+    surgerySuggestions,
+  };
+}
+
 export function parseStructuredAuditResponse(raw: string): StructuredAudit | null {
   const candidate = findJsonObject(raw);
   try {
     const parsed = JSON.parse(candidate);
-    const score = Number(parsed?.score);
-    if (!Number.isFinite(score)) return null;
-
-    const fatalIssues = Array.isArray(parsed?.fatalIssues)
-      ? parsed.fatalIssues
-          .map((issue: any): StructuredAuditIssue | null => {
-            const snippet = String(issue?.snippet || '').trim();
-            const explanation = String(issue?.planation || issue?.explanation || '').trim();
-            const patchHint = String(issue?.patchHint || '').trim();
-            if (!snippet || !explanation || !patchHint) return null;
-            return {
-              issueType: normalizeIssueType(String(issue?.issueType || 'general')),
-              issueSubtype: normalizeIssueSubtype(String(issue?.issueSubtype || 'general')),
-              severity: normalizeSeverity(String(issue?.severity || 'major')),
-              snippet,
-              explanation,
-              patchHint,
-            };
-          })
-          .filter((issue: StructuredAuditIssue | null): issue is StructuredAuditIssue => Boolean(issue))
-      : [];
-
-    const sceneChecks = Array.isArray(parsed?.sceneChecks)
-      ? parsed.sceneChecks
-          .map((check: any): StructuredAuditSceneCheck | null => {
-            const scene = String(check?.scene || '').trim();
-            const note = String(check?.note || '').trim();
-            if (!scene || !note) return null;
-            return {
-              scene,
-              status: normalizeSceneStatus(String(check?.status || 'weak')),
-              note,
-            };
-          })
-          .filter((check: StructuredAuditSceneCheck | null): check is StructuredAuditSceneCheck => Boolean(check))
-      : [];
-
-    const surgerySuggestions = Array.isArray(parsed?.surgerySuggestions)
-      ? parsed.surgerySuggestions.map((item: any) => String(item || '').trim()).filter(Boolean)
-      : [];
-
-    return {
-      score,
-      fatalIssues,
-      sceneChecks,
-      surgerySuggestions,
-    };
+    return normalizeStructuredAuditPayload(parsed);
   } catch {
     try {
       const repaired = JSON.parse(repairUnescapedQuotesInJson(candidate));
-      const score = Number(repaired?.score);
-      if (!Number.isFinite(score)) return null;
-
-      const fatalIssues = Array.isArray(repaired?.fatalIssues)
-        ? repaired.fatalIssues
-            .map((issue: any): StructuredAuditIssue | null => {
-              const snippet = String(issue?.snippet || '').trim();
-              const explanation = String(issue?.planation || issue?.explanation || '').trim();
-              const patchHint = String(issue?.patchHint || '').trim();
-              if (!snippet || !explanation || !patchHint) return null;
-              return {
-                issueType: normalizeIssueType(String(issue?.issueType || 'general')),
-                issueSubtype: normalizeIssueSubtype(String(issue?.issueSubtype || 'general')),
-                severity: normalizeSeverity(String(issue?.severity || 'major')),
-                snippet,
-                explanation,
-                patchHint,
-              };
-            })
-            .filter((issue: StructuredAuditIssue | null): issue is StructuredAuditIssue => Boolean(issue))
-        : [];
-
-      const sceneChecks = Array.isArray(repaired?.sceneChecks)
-        ? repaired.sceneChecks
-            .map((check: any): StructuredAuditSceneCheck | null => {
-              const scene = String(check?.scene || '').trim();
-              const note = String(check?.note || '').trim();
-              if (!scene || !note) return null;
-              return {
-                scene,
-                status: normalizeSceneStatus(String(check?.status || 'weak')),
-                note,
-              };
-            })
-            .filter((check: StructuredAuditSceneCheck | null): check is StructuredAuditSceneCheck => Boolean(check))
-        : [];
-
-      const surgerySuggestions = Array.isArray(repaired?.surgerySuggestions)
-        ? repaired.surgerySuggestions.map((item: any) => String(item || '').trim()).filter(Boolean)
-        : [];
-
-      return {
-        score,
-        fatalIssues,
-        sceneChecks,
-        surgerySuggestions,
-      };
+      return normalizeStructuredAuditPayload(repaired);
     } catch {
       return null;
     }

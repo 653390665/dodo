@@ -138,3 +138,74 @@ test('evaluateAuditGate fails on critical issues', () => {
   );
   assert.equal(result.pass, false);
 });
+
+// ── V10: Structured Audit Parse Tolerance Tests ─────────────────────────
+
+test('structured audit parser - handles dirty and missing array properties gracefully', () => {
+  const raw = JSON.stringify({
+    score: 85,
+    fatalIssues: 'not-an-array', // invalid type
+    sceneChecks: null,          // invalid type
+    surgerySuggestions: 123     // invalid type
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.score, 85);
+  assert.deepEqual(parsed.fatalIssues, []);
+  assert.deepEqual(parsed.sceneChecks, []);
+  assert.deepEqual(parsed.surgerySuggestions, []);
+});
+
+test('structured audit parser - filters invalid items and maps planation to explanation', () => {
+  const raw = JSON.stringify({
+    score: 90,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        planation: '使用了 planation 代替 explanation', // planation backup mapping
+        patchHint: '在前文补一个追问。'
+      },
+      {
+        issueType: 'syntax',
+        issueSubtype: 'syntax-invalid-phrase',
+        severity: 'invalid-severity', // should fallback to major
+        snippet: '有些重复的话',
+        explanation: '句子累赘',
+        patchHint: '修改'
+      },
+      {
+        snippet: '没有 explanation 和 patchHint 的垃圾数据' // should be filtered out
+      }
+    ],
+    sceneChecks: [
+      {
+        scene: '场景一',
+        status: 'invalid-status', // should fallback to weak
+        note: '测试备注'
+      },
+      {
+        note: '没有 scene 的无效项' // should be filtered out
+      }
+    ]
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.fatalIssues.length, 2);
+  
+  // Verify planation mapping
+  assert.equal(parsed.fatalIssues[0]?.explanation, '使用了 planation 代替 explanation');
+  
+  // Verify invalid severity fallback
+  assert.equal(parsed.fatalIssues[1]?.severity, 'major');
+
+  // Verify invalid status fallback
+  assert.equal(parsed.sceneChecks.length, 1);
+  assert.equal(parsed.sceneChecks[0]?.scene, '场景一');
+  assert.equal(parsed.sceneChecks[0]?.status, 'weak');
+});
+
