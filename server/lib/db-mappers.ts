@@ -4,7 +4,10 @@ import type {
   Foreshadowing, ChapterProductionRun, ContinuationPack
 } from '../../shared/types';
 
-export function rowToNovel(row: any): Novel {
+type SafeAny = any;
+export type DbRow = SafeAny;
+
+export function rowToNovel(row: DbRow): Novel {
   return {
     ...row,
     authorId: row.author_id,
@@ -19,7 +22,7 @@ export function rowToNovel(row: any): Novel {
   };
 }
 
-export function rowToCharacter(row: any): Character {
+export function rowToCharacter(row: DbRow): Character {
   return {
     ...row,
     novelId: row.novel_id,
@@ -29,35 +32,35 @@ export function rowToCharacter(row: any): Character {
   };
 }
 
-export function rowToLocation(row: any): Location {
+export function rowToLocation(row: DbRow): Location {
   return { ...row, novelId: row.novel_id, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToItem(row: any): Item {
+export function rowToItem(row: DbRow): Item {
   return { ...row, novelId: row.novel_id, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToFaction(row: any): Faction {
+export function rowToFaction(row: DbRow): Faction {
   return { ...row, novelId: row.novel_id, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToPowerLevel(row: any): PowerLevel {
+export function rowToPowerLevel(row: DbRow): PowerLevel {
   return { ...row, novelId: row.novel_id, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToTimelineEvent(row: any): TimelineEvent {
+export function rowToTimelineEvent(row: DbRow): TimelineEvent {
   return { ...row, novelId: row.novel_id, statusTag: row.status_tag, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToChapter(row: any): Chapter {
+export function rowToChapter(row: DbRow): Chapter {
   return { ...row, novelId: row.novel_id, volumeName: row.volume_name, wordCount: row.word_count, sceneBeats: row.scene_beats, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export function rowToChapterVersion(row: any): ChapterVersion {
+export function rowToChapterVersion(row: DbRow): ChapterVersion {
   return { ...row, chapterId: row.chapter_id, wordCount: row.word_count, createdAt: row.created_at };
 }
 
-export function rowToSkill(row: any): Skill {
+export function rowToSkill(row: DbRow): Skill {
   return {
     ...row,
     sentenceStructure: row.sentence_structure,
@@ -89,7 +92,7 @@ export function rowToSkill(row: any): Skill {
   };
 }
 
-export function rowToSkillUsageRecord(row: any): SkillUsageRecord {
+export function rowToSkillUsageRecord(row: DbRow): SkillUsageRecord {
   return {
     ...row,
     novelId: row.novel_id,
@@ -98,11 +101,12 @@ export function rowToSkillUsageRecord(row: any): SkillUsageRecord {
     fitScore: row.fit_score,
     auditScore: row.audit_score ?? undefined,
     userAction: row.user_action,
+    notes: row.notes || undefined,
     createdAt: row.created_at,
   };
 }
 
-export function rowToIdeaFragment(row: any): IdeaFragment {
+export function rowToIdeaFragment(row: DbRow): IdeaFragment {
   return {
     ...row,
     novelId: row.novel_id,
@@ -113,7 +117,7 @@ export function rowToIdeaFragment(row: any): IdeaFragment {
   };
 }
 
-export function rowToForeshadowing(row: any): Foreshadowing {
+export function rowToForeshadowing(row: DbRow): Foreshadowing {
   return {
     ...row,
     novelId: row.novel_id,
@@ -125,7 +129,7 @@ export function rowToForeshadowing(row: any): Foreshadowing {
   };
 }
 
-export function rowToChapterProductionRun(row: any): ChapterProductionRun {
+export function rowToChapterProductionRun(row: DbRow): ChapterProductionRun {
   return {
     id: row.id,
     novelId: row.novel_id,
@@ -145,7 +149,7 @@ export function rowToChapterProductionRun(row: any): ChapterProductionRun {
 
 // --- Serializers: TS → DB row ---
 
-export function novelToRow(novel: Novel): any {
+export function novelToRow(novel: Novel): DbRow {
   return {
     id: novel.id,
     title: novel.title,
@@ -163,7 +167,7 @@ export function novelToRow(novel: Novel): any {
   };
 }
 
-export function characterToRow(c: Character): any {
+export function characterToRow(c: Character): DbRow {
   return {
     id: c.id,
     novel_id: c.novelId,
@@ -177,35 +181,35 @@ export function characterToRow(c: Character): any {
   };
 }
 
-export function locationToRow(l: Location): any {
+export function locationToRow(l: Location): DbRow {
   return { id: l.id, novel_id: l.novelId, name: l.name, description: l.description, region: l.region, created_at: l.createdAt, updated_at: l.updatedAt };
 }
 
-export function itemToRow(i: Item): any {
+export function itemToRow(i: Item): DbRow {
   return { id: i.id, novel_id: i.novelId, name: i.name, description: i.description, type: i.type, created_at: i.createdAt, updated_at: i.updatedAt };
 }
 
-export function factionToRow(f: Faction): any {
+export function factionToRow(f: Faction): DbRow {
   return { id: f.id, novel_id: f.novelId, name: f.name, description: f.description, leader: f.leader, territory: f.territory, created_at: f.createdAt, updated_at: f.updatedAt };
 }
 
-export function powerLevelToRow(p: PowerLevel): any {
+export function powerLevelToRow(p: PowerLevel): DbRow {
   return { id: p.id, novel_id: p.novelId, name: p.name, description: p.description, tier: p.tier, characteristics: p.characteristics, created_at: p.createdAt, updated_at: p.updatedAt };
 }
 
-export function timelineEventToRow(t: TimelineEvent): any {
+export function timelineEventToRow(t: TimelineEvent): DbRow {
   return { id: t.id, novel_id: t.novelId, title: t.title, description: t.description, timestamp: t.timestamp, status_tag: t.statusTag, order: t.order, created_at: t.createdAt, updated_at: t.updatedAt };
 }
 
-export function chapterToRow(c: Chapter): any {
+export function chapterToRow(c: Chapter): DbRow {
   return { id: c.id, novel_id: c.novelId, volume_name: c.volumeName, title: c.title, content: c.content, order: c.order, word_count: c.wordCount, scene_beats: c.sceneBeats, critique: c.critique, created_at: c.createdAt, updated_at: c.updatedAt };
 }
 
-export function chapterVersionToRow(cv: ChapterVersion): any {
+export function chapterVersionToRow(cv: ChapterVersion): DbRow {
   return { id: cv.id, chapter_id: cv.chapterId, content: cv.content, word_count: cv.wordCount, author: cv.author, created_at: cv.createdAt };
 }
 
-export function skillToRow(s: Skill): any {
+export function skillToRow(s: Skill): DbRow {
   return {
     id: s.id,
     name: s.name,
@@ -242,7 +246,7 @@ export function skillToRow(s: Skill): any {
   };
 }
 
-export function skillUsageRecordToRow(record: SkillUsageRecord): any {
+export function skillUsageRecordToRow(record: SkillUsageRecord): DbRow {
   return {
     id: record.id,
     novel_id: record.novelId,
@@ -256,7 +260,7 @@ export function skillUsageRecordToRow(record: SkillUsageRecord): any {
   };
 }
 
-export function ideaFragmentToRow(f: IdeaFragment): any {
+export function ideaFragmentToRow(f: IdeaFragment): DbRow {
   return {
     id: f.id,
     novel_id: f.novelId || null,
@@ -270,7 +274,7 @@ export function ideaFragmentToRow(f: IdeaFragment): any {
   };
 }
 
-export function foreshadowingToRow(f: Foreshadowing): any {
+export function foreshadowingToRow(f: Foreshadowing): DbRow {
   return {
     id: f.id,
     novel_id: f.novelId,
@@ -286,7 +290,7 @@ export function foreshadowingToRow(f: Foreshadowing): any {
   };
 }
 
-export function chapterProductionRunToRow(run: ChapterProductionRun): any {
+export function chapterProductionRunToRow(run: ChapterProductionRun): DbRow {
   return {
     id: run.id,
     novel_id: run.novelId,
@@ -303,7 +307,7 @@ export function chapterProductionRunToRow(run: ChapterProductionRun): any {
   };
 }
 
-export function mapContinuationPackRow(row: any): ContinuationPack {
+export function mapContinuationPackRow(row: DbRow): ContinuationPack {
   const styleProfile = JSON.parse(row.style_profile || '{}');
   styleProfile.proseTraits = styleProfile.proseTraits || [];
   styleProfile.avoidTraits = styleProfile.avoidTraits || [];
@@ -340,7 +344,7 @@ export function mapContinuationPackRow(row: any): ContinuationPack {
   };
 }
 
-export function continuationPackToRow(pack: ContinuationPack) {
+export function continuationPackToRow(pack: ContinuationPack): DbRow {
   return {
     id: pack.id,
     novel_id: pack.novelId,
