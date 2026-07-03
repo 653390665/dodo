@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildFusionDraft,
@@ -6,12 +6,10 @@ import {
   pickFusionSuggestionPair,
   shouldSuggestFusion,
 } from '../src/lib/skill-fusion';
-import type { Skill, SkillUsageRecord } from '../src/types';
+import type { Skill, SkillUsageRecord } from '../shared/types';
 
 function makeSkill(partial: Partial<Skill> & Pick<Skill, 'id' | 'name'>): Skill {
   return {
-    id: partial.id,
-    name: partial.name,
     description: '',
     style: '',
     pacing: '',
@@ -35,6 +33,7 @@ function makeSkill(partial: Partial<Skill> & Pick<Skill, 'id' | 'name'>): Skill 
   };
 }
 
+describe("skill-extraction", () => {
 test('buildFusionDraft keeps primary dimension from main skill', () => {
   const mainSkill = makeSkill({
     id: 'style-1',
@@ -288,4 +287,5 @@ test('pickFusionSuggestionPair uses role-aware preference boost beyond explicit 
 
   assert.ok(result);
   assert.equal(result?.supportSkill.id, 'hybrid-plot');
+});
 });

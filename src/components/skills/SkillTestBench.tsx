@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import type { Skill } from '../../types';
+import { useMemo, useState } from 'react';
+import { Loader2, Wand2 } from 'lucide-react';
+
+import type { Skill } from '../../../shared/types';
 
 interface SkillTestBenchProps {
   baseSkill: Skill;
@@ -90,7 +91,6 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
         setCandidateOutput(secondary);
       }
     } catch (error) {
-      console.error(error);
       alert(`试驾失败: ${String(error)}`);
     } finally {
       setRunningMode(null);
@@ -104,7 +104,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
         value={input}
         onChange={(event) => setInput(event.target.value)}
         placeholder="输入一段细纲、对白或普通文本，测试当前技能版本的涂抹效果..."
-        className="w-full min-h-[92px] rounded-xl border border-theme-border px-4 py-3 text-sm bg-white resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+        className="w-full min-h-[92px] rounded-xl border border-theme-border px-4 py-3 text-sm bg-theme-sidebar resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
       />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px]">
@@ -131,7 +131,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
         <select
           value={candidateId}
           onChange={(event) => setCandidateId(event.target.value)}
-          className="rounded-xl border border-theme-border px-3 py-2.5 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
+          className="rounded-xl border border-theme-border px-3 py-2.5 text-sm bg-theme-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/40"
         >
           <option value="">选择对比版本</option>
           {candidates
@@ -153,7 +153,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
           className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
             compareMode === 'single-skill'
               ? 'border-theme-accent bg-theme-accent/10 text-theme-accent'
-              : 'border-theme-border bg-white text-theme-muted hover:bg-theme-sidebar/20'
+              : 'border-theme-border bg-theme-sidebar text-theme-muted hover:bg-theme-sidebar/20'
           }`}
         >
           单卡对比
@@ -164,7 +164,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
           className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
             compareMode === 'combo'
               ? 'border-theme-accent bg-theme-accent/10 text-theme-accent'
-              : 'border-theme-border bg-white text-theme-muted hover:bg-theme-sidebar/20'
+              : 'border-theme-border bg-theme-sidebar text-theme-muted hover:bg-theme-sidebar/20'
           }`}
         >
           组合试驾
@@ -177,13 +177,13 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <div className="rounded-2xl border border-theme-border bg-white p-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="text-[11px] font-bold text-theme-muted mb-2">原始输入</div>
           <div className="text-sm text-theme-text/80 leading-relaxed whitespace-pre-wrap min-h-[120px]">
             {input || '等待输入测试片段'}
           </div>
         </div>
-        <div className="rounded-2xl border border-theme-border bg-white p-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="text-[11px] font-bold text-theme-muted mb-2">
             {baseSkill.fusionMeta
               ? `${baseSkill.name} · 融合候选`
@@ -193,7 +193,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
             {baseOutput || '等待运行当前版本'}
           </div>
         </div>
-        <div className="rounded-2xl border border-theme-border bg-white p-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="text-[11px] font-bold text-theme-muted mb-2">
             {candidateSkill
               ? compareMode === 'combo'

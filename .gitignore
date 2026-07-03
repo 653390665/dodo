@@ -14,5 +14,22 @@ coverage/
 !.env.example
 ~/.inkflow/
 dist-electron-test/
-tmp-server.cjs
+# Build artifacts
+/tmp-*.cjs
 docs/prompt-research/vendor/
+
+# InkFlow developer workspace noise
+.agents/
+.reasonix/
+.workbuddy/
+plans/00[6-9]-*.md
+plans/0[1-6][0-9]-*.md
+plans/07[0-6]-*.md
+project-audit-report*.html
+reasonix*.toml
+design-audit/
+
+# Developer reports
+product-evaluation-report.html
+market-readiness-report.html
+code-health-report.html

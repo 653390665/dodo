@@ -1,4 +1,4 @@
-import type { Character, ContinuationPack, Item, Location } from '../types';
+import type { Character, ContinuationPack, Item, Location } from '../../shared/types';
 import { getPreferredContinuationPack } from './continuation-pack-selection';
 
 export type KnowledgeEntrySource = 'entity' | 'continuation-pack';

@@ -6,6 +6,9 @@ import {
   extractStructuredAudit,
   parseStructuredAuditResponse,
   renderStructuredAuditMarkdown,
+  stripEmbeddedStructuredAudit,
+  convertFiveDimToStructured,
+  AuditScores,
 } from '../src/lib/audit-structured';
 import { extractPolishTargetsFromCritique, selectRewriteTargetsForPatch } from '../src/lib/chapter-polish';
 
@@ -138,3 +141,126 @@ test('evaluateAuditGate fails on critical issues', () => {
   );
   assert.equal(result.pass, false);
 });
+
+// ── V10: Structured Audit Parse Tolerance Tests ─────────────────────────
+
+test('structured audit parser - handles dirty and missing array properties gracefully', () => {
+  const raw = JSON.stringify({
+    score: 85,
+    fatalIssues: 'not-an-array', // invalid type
+    sceneChecks: null,          // invalid type
+    surgerySuggestions: 123     // invalid type
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.score, 85);
+  assert.deepEqual(parsed.fatalIssues, []);
+  assert.deepEqual(parsed.sceneChecks, []);
+  assert.deepEqual(parsed.surgerySuggestions, []);
+});
+
+test('structured audit parser - filters invalid items and maps planation to explanation', () => {
+  const raw = JSON.stringify({
+    score: 90,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        planation: '使用了 planation 代替 explanation', // planation backup mapping
+        patchHint: '在前文补一个追问。'
+      },
+      {
+        issueType: 'syntax',
+        issueSubtype: 'syntax-invalid-phrase',
+        severity: 'invalid-severity', // should fallback to major
+        snippet: '有些重复的话',
+        explanation: '句子累赘',
+        patchHint: '修改'
+      },
+      {
+        snippet: '没有 explanation 和 patchHint 的垃圾数据' // should be filtered out
+      }
+    ],
+    sceneChecks: [
+      {
+        scene: '场景一',
+        status: 'invalid-status', // should fallback to weak
+        note: '测试备注'
+      },
+      {
+        note: '没有 scene 的无效项' // should be filtered out
+      }
+    ]
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.fatalIssues.length, 2);
+
+  // Verify planation mapping
+  assert.equal(parsed.fatalIssues[0]?.explanation, '使用了 planation 代替 explanation');
+
+  // Verify invalid severity fallback
+  assert.equal(parsed.fatalIssues[1]?.severity, 'major');
+
+  // Verify invalid status fallback
+  assert.equal(parsed.sceneChecks.length, 1);
+  assert.equal(parsed.sceneChecks[0]?.scene, '场景一');
+  assert.equal(parsed.sceneChecks[0]?.status, 'weak');
+});
+
+test('stripEmbeddedStructuredAudit removes embedded audit comment and preserves raw markdown', () => {
+  const markdown = '## Original Title\nThis is the critique content.';
+  const audit = {
+    score: 85,
+    fatalIssues: [],
+    sceneChecks: [],
+    surgerySuggestions: []
+  };
+  const embedded = embedStructuredAudit(markdown, audit);
+
+  // Verify comment exists
+  assert.match(embedded, /<!--\s*audit-structured:[A-Za-z0-9+/=]+\s*-->/);
+
+  // Strip comment
+  const stripped = stripEmbeddedStructuredAudit(embedded);
+  assert.equal(stripped, markdown);
+});
+
+test('convertFiveDimToStructured deep boundary conversion correctly scales score and preserves issues', () => {
+  const fiveDim: AuditScores = {
+    scores: {
+      prose: { score: 8, reason: 'Good prose' },
+      narrative: { score: 7, reason: 'Nice flow' },
+      character: { score: 9, reason: 'Deep characters' },
+      setting: { score: 6, reason: 'Basic setting' },
+      pacing: { score: 5, reason: 'A bit slow' }
+    },
+    totalScore: 35, // 35 out of 50 possible points (5 dimensions * 10) -> should scale to 70 out of 100
+    pass: true,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        explanation: '突兀信息',
+        patchHint: '前文补追问'
+      }
+    ],
+    surgerySuggestions: ['让掌柜多一些小动作']
+  };
+
+  const converted = convertFiveDimToStructured(fiveDim);
+  assert.ok(converted);
+  assert.equal(converted.score, 70); // 35 / 50 * 100 = 70
+  assert.equal(converted.fatalIssues.length, 1);
+  assert.equal(converted.fatalIssues[0]?.issueType, 'dialogue-logic');
+  assert.equal(converted.fatalIssues[0]?.snippet, '“三……三天。”');
+  assert.deepEqual(converted.surgerySuggestions, ['让掌柜多一些小动作']);
+  assert.deepEqual(converted.sceneChecks, []);
+});
+

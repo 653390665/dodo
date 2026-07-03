@@ -1,4 +1,4 @@
-import type { IdeaFragment } from '../types';
+import type { IdeaFragment } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listIdeaFragments(novelId?: string): Promise<IdeaFragment[]> { return call('listIdeaFragments', novelId); }

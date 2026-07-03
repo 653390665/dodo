@@ -1,4 +1,5 @@
-import React from 'react';import Search from 'lucide-react/dist/esm/icons/search.js';
+import React from 'react';
+import { Search } from 'lucide-react';
 import type {
   AgentTab,
   Chapter,
@@ -11,7 +12,7 @@ import type {
   ProjectPreferenceProfile,
   Skill,
   SkillUsageRecord,
-} from '../types';
+} from '../../shared/types';
 import { buildKnowledgeSearchEntries } from '../lib/agent-workspace-knowledge';
 import { SkillLoadoutBoard } from './skills/SkillLoadoutBoard';
 import { ProjectPreferencePanel } from './skills/ProjectPreferencePanel';
@@ -69,7 +70,7 @@ export function AgentWorkspaceKnowledgePanel({
 
     return (
       <div className="space-y-4">
-        <div className="sticky top-0 bg-white/50 backdrop-blur z-10 pb-2">
+        <div className="sticky top-0 bg-theme-sidebar/50 backdrop-blur z-10 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" size={14} />
             <input
@@ -77,13 +78,13 @@ export function AgentWorkspaceKnowledgePanel({
               placeholder="检索资料包、角色、地点、道具..."
               value={bibleSearch}
               onChange={(e) => setBibleSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-theme-border rounded-xl text-sm placeholder:text-theme-muted/50 shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+              className="w-full pl-9 pr-4 py-2 bg-theme-sidebar border border-theme-border rounded-xl text-sm placeholder:text-theme-muted/50 shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
             />
           </div>
         </div>
         <div className="space-y-3 pb-8">
           {knowledgeEntries.map((entry) => (
-            <div key={entry.id} className="bg-white p-4 rounded-xl border border-theme-border/40 shadow-sm transition-hover hover:border-theme-accent/50">
+            <div key={entry.id} className="bg-theme-sidebar p-4 rounded-xl border border-theme-border/40 shadow-sm transition-hover hover:border-theme-accent/50">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <div className="text-sm font-bold text-theme-text">{entry.title}</div>
                 <div className="text-[10px] bg-theme-sidebar px-1.5 py-0.5 rounded text-theme-muted font-medium tracking-wide">

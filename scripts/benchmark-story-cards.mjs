@@ -19,7 +19,6 @@ function render(template, values) {
 const REQUIRED_FIELDS = ['hook', 'protagonist', 'coreConflict', 'tone', 'whyItWorks', 'riskNote', 'mixTags'];
 const config = getConfig();
 const template = mergePromptTemplates(config.promptTemplates).storyCards;
-const results = [];
 
 for (const ideaSeed of cases) {
   for (const timeoutMs of [8000, 15000, 30000, 60000]) {

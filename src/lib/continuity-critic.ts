@@ -5,7 +5,7 @@ import type {
   ContinuityReport,
   ProposedLedgerPatch,
   StoryStateLedger,
-} from '../types';
+} from '../../shared/types';
 import { summarizeStoryStateLedger } from './story-state-ledger';
 
 const VALID_SEVERITIES: ContinuityIssueSeverity[] = ['low', 'medium', 'high'];
@@ -18,6 +18,18 @@ const VALID_CATEGORIES: ContinuityIssueCategory[] = [
   'foreshadowing',
   'logic',
 ];
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : value != null ? String(value) : '';
+}
 
 function clampScore(score: unknown): number {
   const value = typeof score === 'number' && Number.isFinite(score) ? score : 0;
@@ -36,17 +48,18 @@ function normalizeCategory(value: unknown): ContinuityIssueCategory {
     : 'logic';
 }
 
-function normalizeIssue(raw: any): ContinuityIssue {
+function normalizeIssue(raw: unknown): ContinuityIssue {
+  const obj = asRecord(raw);
   return {
-    severity: normalizeSeverity(raw?.severity),
-    category: normalizeCategory(raw?.category),
-    message: String(raw?.message || '').trim() || '未提供问题描述',
-    evidence: raw?.evidence ? String(raw.evidence) : undefined,
+    severity: normalizeSeverity(obj.severity),
+    category: normalizeCategory(obj.category),
+    message: stringValue(obj.message).trim() || '未提供问题描述',
+    evidence: obj.evidence != null ? stringValue(obj.evidence) : undefined,
     suggestedFix:
-      raw?.suggestedFix
-        ? String(raw.suggestedFix)
-        : raw?.suggestion
-          ? String(raw.suggestion)
+      obj.suggestedFix
+        ? stringValue(obj.suggestedFix)
+        : obj.suggestion
+          ? stringValue(obj.suggestion)
           : undefined,
   };
 }
@@ -61,59 +74,72 @@ function emptyPatch(): ProposedLedgerPatch {
   };
 }
 
-export function normalizeContinuityReport(raw: any): ContinuityReport {
-  const patch = raw?.proposedPatch || {};
+export function normalizeContinuityReport(raw: unknown): ContinuityReport {
+  const root = asRecord(raw);
+  const patch = asRecord(root.proposedPatch);
   const normalizedPatch = emptyPatch();
-  normalizedPatch.characterUpdates = Array.isArray(patch.characterUpdates)
-    ? patch.characterUpdates
-        .map((entry: any) => ({
-          characterId: String(entry?.characterId || '').trim(),
-          summaryAppend: String(entry?.summaryAppend || '').trim(),
-        }))
-        .filter((entry: any) => entry.characterId && entry.summaryAppend)
-    : [];
-  normalizedPatch.itemUpdates = Array.isArray(patch.itemUpdates)
-    ? patch.itemUpdates
-        .map((entry: any) => ({
-          itemId: String(entry?.itemId || '').trim(),
-          descriptionAppend: String(entry?.descriptionAppend || '').trim(),
-        }))
-        .filter((entry: any) => entry.itemId && entry.descriptionAppend)
-    : [];
-  normalizedPatch.foreshadowingUpdates = Array.isArray(patch.foreshadowingUpdates)
-    ? patch.foreshadowingUpdates
-        .map((entry: any) => ({
-          foreshadowingId: String(entry?.foreshadowingId || entry?.id || '').trim(),
-          status:
-            entry?.status === 'hinted' || entry?.status === 'payoff' ? entry.status : 'planted',
-          notesAppend: String(entry?.notesAppend || entry?.notes || '').trim(),
-        }))
-        .filter((entry: any) => entry.foreshadowingId && entry.notesAppend)
-    : [];
-  normalizedPatch.timelineEventsToCreate = Array.isArray(patch.timelineEventsToCreate)
-    ? patch.timelineEventsToCreate
-        .map((event: any) => ({
-          title: String(event?.title || '').trim(),
-          timestamp: String(event?.timestamp || '').trim(),
-          description: String(event?.description || '').trim(),
-          statusTag: String(event?.statusTag || '已发生').trim() || '已发生',
-        }))
-        .filter((event: any) => event.title && event.description)
-    : [];
-  normalizedPatch.foreshadowingsToCreate = Array.isArray(patch.foreshadowingsToCreate)
-    ? patch.foreshadowingsToCreate
-        .map((entry: any) => ({
-          title: String(entry?.title || '').trim(),
-          description: String(entry?.description || '').trim(),
-          status:
-            entry?.status === 'hinted' || entry?.status === 'payoff' ? entry.status : 'planted',
-          plantedChapterId: entry?.plantedChapterId ? String(entry.plantedChapterId).trim() : undefined,
-        }))
-        .filter((entry: any) => entry.title && entry.description)
-    : [];
+
+  normalizedPatch.characterUpdates = asArray(patch.characterUpdates)
+    .map((item) => {
+      const entry = asRecord(item);
+      return {
+        characterId: stringValue(entry.characterId).trim(),
+        summaryAppend: stringValue(entry.summaryAppend).trim(),
+      };
+    })
+    .filter((entry) => entry.characterId && entry.summaryAppend);
+
+  normalizedPatch.itemUpdates = asArray(patch.itemUpdates)
+    .map((item) => {
+      const entry = asRecord(item);
+      return {
+        itemId: stringValue(entry.itemId).trim(),
+        descriptionAppend: stringValue(entry.descriptionAppend).trim(),
+      };
+    })
+    .filter((entry) => entry.itemId && entry.descriptionAppend);
+
+  normalizedPatch.foreshadowingUpdates = asArray(patch.foreshadowingUpdates)
+    .map((item) => {
+      const entry = asRecord(item);
+      const notesAppend = stringValue(entry.notesAppend || entry.notes).trim();
+      const status = (entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted') as 'planted' | 'hinted' | 'payoff';
+      return {
+        foreshadowingId: stringValue(entry.foreshadowingId || entry.id).trim(),
+        status,
+        notesAppend,
+      };
+    })
+    .filter((entry) => entry.foreshadowingId && entry.notesAppend);
+
+  normalizedPatch.timelineEventsToCreate = asArray(patch.timelineEventsToCreate)
+    .map((item) => {
+      const event = asRecord(item);
+      return {
+        title: stringValue(event.title).trim(),
+        timestamp: stringValue(event.timestamp).trim(),
+        description: stringValue(event.description).trim(),
+        statusTag: stringValue(event.statusTag || '已发生').trim() || '已发生',
+      };
+    })
+    .filter((event) => event.title && event.description);
+
+  normalizedPatch.foreshadowingsToCreate = asArray(patch.foreshadowingsToCreate)
+    .map((item) => {
+      const entry = asRecord(item);
+      const status = (entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted') as 'planted' | 'hinted' | 'payoff';
+      return {
+        title: stringValue(entry.title).trim(),
+        description: stringValue(entry.description).trim(),
+        status,
+        plantedChapterId: entry.plantedChapterId ? stringValue(entry.plantedChapterId).trim() : undefined,
+      };
+    })
+    .filter((entry) => entry.title && entry.description);
+
   return {
-    score: clampScore(raw?.score),
-    issues: Array.isArray(raw?.issues) ? raw.issues.map(normalizeIssue) : [],
+    score: clampScore(root.score),
+    issues: asArray(root.issues).map(normalizeIssue),
     proposedPatch: normalizedPatch,
   };
 }

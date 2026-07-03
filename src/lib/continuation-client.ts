@@ -1,4 +1,4 @@
-import type { ContinuationPack } from '../types';
+import type { ContinuationPack } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listContinuationPacks(novelId: string): Promise<ContinuationPack[]> {

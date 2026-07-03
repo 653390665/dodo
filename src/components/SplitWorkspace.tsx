@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { EditorView } from './EditorView';
 import { WorldBibleView } from './WorldBibleView';
 import { cn } from '../lib/utils';
-import type { AssistantLaunchContext, ContinuationEditorLaunchState, Novel, WorkspaceFocus } from '../types';
+import type { AssistantLaunchContext, ContinuationEditorLaunchState, Novel, WorkspaceFocus } from '../../shared/types';
 
 interface SplitWorkspaceProps {
   novel: Novel;
-  onboarding?: any;
+  onboarding?: React.ComponentProps<typeof WorldBibleView>['onboarding'];
   onBack: () => void;
   focus: WorkspaceFocus;
   onFocusChange: (focus: WorkspaceFocus) => void;
@@ -37,6 +37,7 @@ export function SplitWorkspace({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing derived state from props
     setSplitRatio(FOCUS_SPLIT_RATIOS[focus]);
   }, [focus]);
 
@@ -71,7 +72,7 @@ export function SplitWorkspace({
           className={cn(
             'px-3 py-1.5 rounded-lg text-sm transition-colors',
             focus === 'editor'
-              ? 'bg-white border border-theme-border text-theme-text font-semibold shadow-sm'
+              ? 'bg-theme-sidebar border border-theme-border text-theme-text font-semibold shadow-sm'
               : 'text-theme-muted hover:text-theme-text hover:bg-theme-border/30'
           )}
         >
@@ -83,7 +84,7 @@ export function SplitWorkspace({
           className={cn(
             'px-3 py-1.5 rounded-lg text-sm transition-colors',
             focus === 'world'
-              ? 'bg-white border border-theme-border text-theme-text font-semibold shadow-sm'
+              ? 'bg-theme-sidebar border border-theme-border text-theme-text font-semibold shadow-sm'
               : 'text-theme-muted hover:text-theme-text hover:bg-theme-border/30'
           )}
         >

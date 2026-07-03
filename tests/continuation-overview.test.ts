@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildContinuationOverviewState } from '../src/lib/continuation-overview';
-import type { ContinuationPack } from '../src/types';
+import { buildCreationIntentDraft } from '../src/lib/continuation-pack';
+import { ContinuationOverviewPanel } from '../src/components/ContinuationOverviewPanel';
+import type { ContinuationPack } from '../shared/types';
 
 function buildPack(overrides: Partial<ContinuationPack> = {}): ContinuationPack {
   return {
@@ -87,4 +89,46 @@ test('overview is empty when there are no packs', () => {
   const state = buildContinuationOverviewState([]);
   assert.equal(state.kind, 'empty');
   assert.equal(state.primaryPack, null);
+});
+
+function findButtonByText(node: any, label: string): any {
+  if (!node || typeof node !== 'object') return null;
+  const props = node.props || {};
+  const children = Array.isArray(props.children) ? props.children : [props.children];
+  const text = children
+    .filter((child: any) => typeof child === 'string')
+    .join('');
+
+  if (node.type === 'button' && text.includes(label)) return node;
+
+  for (const child of children) {
+    const found = findButtonByText(child, label);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+test('ready overview CTA passes full creation intent draft into writing launch', () => {
+  const pack = buildPack({ id: 'approved-cta', status: 'approved' });
+  const state = buildContinuationOverviewState([pack]);
+  let received: { packId: string; prefillIntent?: string } | null = null;
+
+  const tree = ContinuationOverviewPanel({
+    state,
+    onImport: () => {},
+    onReviewDraft: () => {},
+    onOpenPackManagement: () => {},
+    onStartWriting: (packId, prefillIntent) => {
+      received = { packId, prefillIntent };
+    },
+    onOpenWorldSetup: () => {},
+  });
+
+  findButtonByText(tree, '开始按资料续写').props.onClick();
+
+  assert.deepEqual(received, {
+    packId: 'approved-cta',
+    prefillIntent: buildCreationIntentDraft(pack),
+  });
 });

@@ -6,7 +6,43 @@ on:
   workflow_dispatch:
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@1d24214f2cd4e8b4137158ca9cf941a3693f2f58 # v4.2.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Run Unit Tests
+        run: npm run test
+      - name: Run Runtime Smoke Tests
+        run: |
+          PORT=3000 npm run dev &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          echo "Waiting for InkFlow server to start on port 3000..."
+          READY=0
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/config || true)
+            if [ "$STATUS" = "401" ]; then
+              echo "Server is ready (returned 401 as expected without token)."
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Server did not become ready for runtime smoke tests."
+            exit 1
+          fi
+          INKFLOW_BASE_URL=http://127.0.0.1:3000 npm run smoke:runtime
+
   mac:
+    needs: [check]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -35,6 +71,7 @@ jobs:
           path: release/InkFlow-*-mac-*.dmg
 
   win:
+    needs: [check]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

@@ -1,4 +1,4 @@
-import type { Chapter, ChapterVersion } from '../types';
+import type { Chapter, ChapterVersion } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listChapters(novelId: string): Promise<Chapter[]> { return call('listChapters', novelId); }

@@ -1,67 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
-import Settings from 'lucide-react/dist/esm/icons/settings.js';
-import Save from 'lucide-react/dist/esm/icons/save.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import PanelRight from 'lucide-react/dist/esm/icons/panel-right.js';
-import Maximize2 from 'lucide-react/dist/esm/icons/maximize-2.js';
-import Minimize2 from 'lucide-react/dist/esm/icons/minimize-2.js';
-import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Brain from 'lucide-react/dist/esm/icons/brain.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
-import Feather from 'lucide-react/dist/esm/icons/feather.js';
-import History from 'lucide-react/dist/esm/icons/history.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Radar from 'lucide-react/dist/esm/icons/radar.js';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import Folder from 'lucide-react/dist/esm/icons/folder.js';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import Eye from 'lucide-react/dist/esm/icons/eye.js';
-import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import Download from 'lucide-react/dist/esm/icons/download.js';
-import { Novel, Chapter, ChapterVersion, TimelineEvent, Faction, PowerLevel, CopilotActionKey, SkillUsageRecord, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../types';
-import {
-  listCharacters,
-  listLocations,
-  listItems,
-  listFactions,
-  listPowerLevels,
-  listTimelineEvents,
-} from '../lib/world-client';
-import { listSkillUsageRecords } from '../lib/skill-client';
-import { motion, AnimatePresence } from '../lib/motion';
+import React, { useState, useEffect, useRef } from 'react';
+
+import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState, ChapterVersion } from '../../shared/types';
 import { cn } from '../lib/utils';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { getPreferredContinuationPackId, sortContinuationPacksByRecency } from '../lib/continuation-pack-selection';
 import { subscribeToChanges } from '../lib/db-transport';
 import type { AgentContext } from '../lib/agents';
-import ReactMarkdown from 'react-markdown';
-import { IdeaFragmentBoard } from './IdeaFragmentBoard';
-import { ForeshadowingPanel } from './ForeshadowingPanel';
-import { PacingDashboard } from './PacingDashboard';
-import { ProductionRunReview } from './ProductionRunReview';
+import { Download, Loader2 } from 'lucide-react';
 import { ChapterSidebar } from './ChapterSidebar';
 import { EditorHeader } from './EditorHeader';
 import { AgentWorkspace } from './AgentWorkspace';
 import { WritingSurface } from './WritingSurface';
-import { SkillLoadoutBoard } from './skills/SkillLoadoutBoard';
-import { ProjectPreferencePanel } from './skills/ProjectPreferencePanel';
-import { CopilotStatusBar } from './copilot/CopilotStatusBar';
-import { CopilotHomePanel } from './copilot/CopilotHomePanel';
-import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
@@ -71,7 +21,6 @@ import { useChapterVersions } from '../lib/hooks/useChapterVersions';
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 import { useSkillLoadoutManager } from '../lib/hooks/useSkillLoadoutManager';
 import { useChapterUndo } from '../lib/hooks/useChapterUndo';
-
 
 interface EditorViewProps {
   novel: Novel;
@@ -84,15 +33,16 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   const {
     chapters, setChapters,
     currentChapter, setCurrentChapter,
-    characters, setCharacters,
-    locations, setLocations,
-    items, setItems,
-    factions, setFactions,
-    powerLevels, setPowerLevels,
-    timelineEvents, setTimelineEvents,
-    librarySkills, setLibrarySkills,
-    skillUsageRecords, setSkillUsageRecords,
+    characters,
+    locations,
+    items,
+    factions,
+    powerLevels,
+    timelineEvents,
+    librarySkills,
+    skillUsageRecords,
     mountedSkillLoadout, setMountedSkillLoadout,
+    relationships,
     projectPreferenceProfile, setProjectPreferenceProfile,
     isLoading: isEditorDataLoading,
   } = useEditorData(novel.id);
@@ -124,7 +74,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   const [isAgentSidebarOpen, setIsAgentSidebarOpen] = useState(false);
   const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
   const [selectedContinuationPackId, setSelectedContinuationPackId] = useState('');
-  const [agentTab, setAgentTab] = useState<AgentTab>('copilot-home');
+  const [agentTab, setAgentTab] = useState<AgentTab>('context');
   const [bibleSearch, setBibleSearch] = useState('');
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
@@ -194,6 +144,54 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     locations,
     items,
   });
+
+  const [activeEntityNames, setActiveEntityNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!currentChapter || !currentChapter.content) {
+        setActiveEntityNames([]);
+        return;
+      }
+
+      const fullText = currentChapter.content;
+      let textToScan = fullText;
+      const textarea = contentRef.current;
+      if (textarea) {
+        const cursor = textarea.selectionStart || 0;
+        const minIdx = Math.max(0, cursor - 1500);
+        const maxIdx = Math.min(fullText.length, cursor + 500);
+        textToScan = fullText.substring(minIdx, maxIdx);
+      }
+
+      const matched: string[] = [];
+
+      characters.forEach((c) => {
+        if (c.name && textToScan.includes(c.name)) {
+          matched.push(c.name);
+        }
+      });
+      locations.forEach((l) => {
+        if (l.name && textToScan.includes(l.name)) {
+          matched.push(l.name);
+        }
+      });
+      items.forEach((i) => {
+        if (i.name && textToScan.includes(i.name)) {
+          matched.push(i.name);
+        }
+      });
+      factions.forEach((f) => {
+        if (f.name && textToScan.includes(f.name)) {
+          matched.push(f.name);
+        }
+      });
+
+      setActiveEntityNames(matched);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentChapter, characters, locations, items, factions]);
   const { versions } = useChapterVersions(currentChapter?.id);
 
   // Reset undo history when chapter changes
@@ -201,9 +199,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (currentChapter) {
       resetUndoHistory(currentChapter.content);
     }
-  }, [currentChapter?.id, resetUndoHistory]);
+  }, [currentChapter, currentChapter?.id, resetUndoHistory]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sidebar on novel change
     setIsAgentSidebarOpen(false);
   }, [novel?.id]);
 
@@ -239,6 +238,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     handleDeleteChapter,
     handleVolumeNameChange,
     handleTitleChange,
+    cancelPendingContentSync,
     refreshChapters,
   } = useEditorPersistence({
     novel,
@@ -254,6 +254,9 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     setExpandedVolumes,
     pushToUndoHistory,
   });
+
+  const [chapterToDeleteId, setChapterToDeleteId] = React.useState<string | null>(null);
+  const [versionToRestore, setVersionToRestore] = React.useState<ChapterVersion | null>(null);
 
   const {
     productionIntent,
@@ -273,8 +276,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     novelId: novel.id,
     currentChapterId: currentChapter?.id,
     continuationPackId: selectedContinuationPackId || undefined,
+    cancelPendingContentSync,
     refreshChapters,
     setCurrentChapter,
+    activeEntityNames: sniffedEntities?.activeExisting || undefined,
   });
 
   useEffect(() => {
@@ -306,11 +311,30 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   }, [launchState?.approvedPackId, launchState?.launchToken, novel.id]);
 
   useEffect(() => {
-    if (!launchState?.approvedPackId || hasConsumedContinuationLaunchUiRef.current) return;
+    if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
     if (isEditorDataLoading) return;
+
+    const isCockpitAction =
+      launchState.source === 'cockpit-planning' ||
+      launchState.source === 'cockpit-production' ||
+      launchState.source === 'cockpit-resume';
+    if (!launchState.approvedPackId && !isCockpitAction) return;
+
     hasConsumedContinuationLaunchUiRef.current = true;
-    setIsAgentSidebarOpen(true);
-    setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    // Only open assistant sidebar for planning, production or legacy launch events
+    if (launchState.source === 'cockpit-production') {
+      setIsAgentSidebarOpen(true);
+      setAgentTab('production');
+    } else if (launchState.source === 'cockpit-planning') {
+      setIsAgentSidebarOpen(true);
+      setAgentTab('planning');
+    } else if (launchState.source !== 'cockpit-resume') {
+      setIsAgentSidebarOpen(true);
+      setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Pre-fill creation intent from continuation task
     if (launchState.prefillIntent) {
@@ -321,7 +345,17 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, isEditorDataLoading, launchState?.approvedPackId, launchState?.launchToken]);
+  }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab]);
+
+  // Synchronize target chapter ID from cockpit / launch state
+  useEffect(() => {
+    if (launchState?.targetChapterId && chapters.length > 0) {
+      const matched = chapters.find(c => c.id === launchState.targetChapterId);
+      if (matched) {
+        setCurrentChapter(matched);
+      }
+    }
+  }, [launchState?.targetChapterId, chapters, setCurrentChapter]);
 
   const {
     mountedSkills,
@@ -340,6 +374,8 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     timelineEvents,
     librarySkills,
     mountedSkillLoadout,
+    continuationPacks,
+    selectedContinuationPackId,
     sniffedEntities,
     userIntent,
     agentTab,
@@ -448,6 +484,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     recordSkillUsage,
     formatAiFailure,
   });
+  // eslint-disable-next-line react-hooks/refs -- syncing value to ref for use in callbacks
   isGeneratingContentRef.current = isGeneratingContent;
 
   const isAnyGenerating =
@@ -468,12 +505,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     );
   };
 
-
-
   return (
     <div className={cn(
       "h-full flex overflow-hidden transition-all duration-700 relative",
-      isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-white"
+      isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-theme-sidebar"
     )}>
       {isEditorDataLoading && (
         <div className="absolute top-4 right-4 z-50">
@@ -487,7 +522,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
         currentChapter={currentChapter}
         onSelectChapter={setCurrentChapter}
         onAddChapter={handleAddChapter}
-        onDeleteChapter={handleDeleteChapter}
+        onDeleteChapter={setChapterToDeleteId}
         isSidebarOpen={isSidebarOpen}
         isFullscreen={isFullscreen}
         onBack={onBack}
@@ -542,7 +577,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
           setIsAgentSidebarOpen={setIsAgentSidebarOpen}
         />
 
-        <div className="h-9 bg-white border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
+        <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
           <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             {launchState?.approvedPackId && (
               <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">
@@ -581,7 +616,6 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
                   a.click();
                   URL.revokeObjectURL(url);
                 } catch (e) {
-                  console.error(e);
                   alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
                 }
               }}
@@ -594,88 +628,136 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
 
       </div>
 
-      {/* Agent Sidebar */}
-      <AnimatePresence initial={false}>
-        {!isFullscreen && isAgentSidebarOpen && (
-          <>
-            <motion.button
-              type="button"
-              aria-label="关闭智能管家"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setIsAgentSidebarOpen(false)}
-              className="absolute inset-0 z-20 bg-black/10 backdrop-blur-[1px]"
-            />
-            <AgentWorkspace
-              novel={novel}
-              chapters={chapters}
-              currentChapter={currentChapter}
-              setCurrentChapter={setCurrentChapter}
-              isAgentSidebarOpen={isAgentSidebarOpen}
-              setIsAgentSidebarOpen={setIsAgentSidebarOpen}
-              agentTab={agentTab}
-              setAgentTab={setAgentTab}
-              copilotSuggestion={copilotSuggestion}
-              runCopilotAction={runCopilotAction}
-              activeProductionRun={activeProductionRun}
-              productionIntent={productionIntent}
-              setProductionIntent={setProductionIntent}
-              isProductionRunning={isProductionRunning}
-              isApplyingProductionRun={isApplyingProductionRun}
-              productionError={productionError}
-              productionBeatsSource={productionBeatsSource}
-              productionDraftSource={productionDraftSource}
-              productionAuditSource={productionAuditSource}
-              productionStatusMessage={productionStatusMessage}
-              continuationPacks={continuationPacks}
-              selectedContinuationPackId={selectedContinuationPackId}
-              setSelectedContinuationPackId={setSelectedContinuationPackId}
-              onStartProductionRun={handleStartProductionRun}
-              onApplyProductionRun={handleApplyProductionRun}
-              expectedWordCount={expectedWordCount}
-              setExpectedWordCount={setExpectedWordCount}
-              onGenerateOutline={handleGenerateOutline}
-              isGeneratingOutline={isGeneratingOutline}
-              globalOutline={globalOutline}
-              onGlobalOutlineChange={handleUpdateGlobalOutline}
-              onGenerateBeats={handleGenerateBeats}
-              isGeneratingBeats={isGeneratingBeats}
-              userIntent={userIntent}
-              setUserIntent={setUserIntent}
-              isGeneratingContent={isGeneratingContent}
-              onGenerateContent={handleGenerateContent}
-              onRewriteSelectedText={handleRewriteSelectedText}
-              onUpdateChapterBeats={handleUpdateChapterBeats}
-              onRunAudit={handleRunAudit}
-              isGeneratingCritique={isGeneratingCritique}
-              onPolishChapterFromAudit={handlePolishChapterFromAudit}
-              onCreateChapter={handleCreateChapter}
-              bibleSearch={bibleSearch}
-              setBibleSearch={setBibleSearch}
-              characters={characters}
-              locations={locations}
-              items={items}
-              librarySkills={librarySkills}
-              skillUsageRecords={skillUsageRecords}
-              mountedSkillLoadout={mountedSkillLoadout}
-              onAssignSkill={assignSkillToSlot}
-              onRemoveSkill={removeSkillFromSlot}
-              projectPreferenceProfile={projectPreferenceProfile}
-              onPreferenceProfileChange={persistProjectPreferenceProfile}
-              versions={versions}
-              onSaveVersion={handleSaveVersion}
-              onRestoreVersion={handleRestoreVersion}
-              isSniffing={isSniffing}
-              sniffedEntities={sniffedEntities}
-              onSniffEntities={handleSniffEntities}
-              onAddSniffedEntity={handleAddSniffedEntity}
-              addingEntityNames={addingEntityNames}
-            />
-          </>
-        )}
-      </AnimatePresence>
+      {/* Agent Sidebar - Docked (WritingContextRail) */}
+      {!isFullscreen && isAgentSidebarOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="关闭智能管家"
+            onClick={() => setIsAgentSidebarOpen(false)}
+            className="absolute inset-0 z-20 bg-black/10 backdrop-blur-[1px] md:hidden"
+          />
+          <AgentWorkspace
+            novel={novel}
+            chapters={chapters}
+            currentChapter={currentChapter}
+            setCurrentChapter={setCurrentChapter}
+            isAgentSidebarOpen={isAgentSidebarOpen}
+            setIsAgentSidebarOpen={setIsAgentSidebarOpen}
+            agentTab={agentTab}
+            setAgentTab={setAgentTab}
+            copilotSuggestion={copilotSuggestion}
+            runCopilotAction={runCopilotAction}
+            activeProductionRun={activeProductionRun}
+            productionIntent={productionIntent}
+            setProductionIntent={setProductionIntent}
+            isProductionRunning={isProductionRunning}
+            isApplyingProductionRun={isApplyingProductionRun}
+            productionError={productionError}
+            productionBeatsSource={productionBeatsSource}
+            productionDraftSource={productionDraftSource}
+            productionAuditSource={productionAuditSource}
+            productionStatusMessage={productionStatusMessage}
+            continuationPacks={continuationPacks}
+            selectedContinuationPackId={selectedContinuationPackId}
+            setSelectedContinuationPackId={setSelectedContinuationPackId}
+            onStartProductionRun={handleStartProductionRun}
+            onApplyProductionRun={handleApplyProductionRun}
+            expectedWordCount={expectedWordCount}
+            setExpectedWordCount={setExpectedWordCount}
+            onGenerateOutline={handleGenerateOutline}
+            isGeneratingOutline={isGeneratingOutline}
+            globalOutline={globalOutline}
+            onGlobalOutlineChange={handleUpdateGlobalOutline}
+            onGenerateBeats={handleGenerateBeats}
+            isGeneratingBeats={isGeneratingBeats}
+            userIntent={userIntent}
+            setUserIntent={setUserIntent}
+            isGeneratingContent={isGeneratingContent}
+            generationStatus={generationStatus}
+            onGenerateContent={handleGenerateContent}
+            onRewriteSelectedText={handleRewriteSelectedText}
+            onUpdateChapterBeats={handleUpdateChapterBeats}
+            onRunAudit={handleRunAudit}
+            isGeneratingCritique={isGeneratingCritique}
+            onPolishChapterFromAudit={handlePolishChapterFromAudit}
+            onCreateChapter={handleCreateChapter}
+            bibleSearch={bibleSearch}
+            setBibleSearch={setBibleSearch}
+            characters={characters}
+            locations={locations}
+            items={items}
+            factions={factions}
+            librarySkills={librarySkills}
+            skillUsageRecords={skillUsageRecords}
+            mountedSkillLoadout={mountedSkillLoadout}
+            onAssignSkill={assignSkillToSlot}
+            onRemoveSkill={removeSkillFromSlot}
+            projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
+            onPreferenceProfileChange={persistProjectPreferenceProfile}
+            versions={versions}
+            onSaveVersion={handleSaveVersion}
+            onRestoreVersion={setVersionToRestore}
+            isSniffing={isSniffing}
+            sniffedEntities={sniffedEntities}
+            onSniffEntities={handleSniffEntities}
+            onAddSniffedEntity={handleAddSniffedEntity}
+            addingEntityNames={addingEntityNames}
+            relationships={relationships}
+            isDocked={true}
+            activeEntityNames={activeEntityNames}
+          />
+        </>
+      )}
+      <AlertDialog open={Boolean(chapterToDeleteId)} onOpenChange={(open) => !open && setChapterToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除这一章吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除本章的所有正文、分镜 beats 和历史版本，且不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (chapterToDeleteId) {
+                  handleDeleteChapter(chapterToDeleteId);
+                  setChapterToDeleteId(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(versionToRestore)} onOpenChange={(open) => !open && setVersionToRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要回滚到此版本吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              这将覆盖您当前编辑器的正文内容。建议您在回滚前确保已保存好当前草稿。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (versionToRestore) {
+                  handleRestoreVersion(versionToRestore);
+                  setVersionToRestore(null);
+                }
+              }}
+              className="bg-theme-accent text-theme-bg font-bold hover:bg-theme-accent/90"
+            >
+              确认回滚
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

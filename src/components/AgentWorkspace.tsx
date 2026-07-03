@@ -1,21 +1,11 @@
-import React, { useRef } from 'react';import X from 'lucide-react/dist/esm/icons/x.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
-import ListOrdered from 'lucide-react/dist/esm/icons/list-ordered.js';
-import Brain from 'lucide-react/dist/esm/icons/brain.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import Eye from 'lucide-react/dist/esm/icons/eye.js';
-import History from 'lucide-react/dist/esm/icons/history.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import { motion, AnimatePresence } from '../lib/motion';
+import React, { useRef } from 'react';
+import { Activity, Bot, Brain, Eye, Globe, History, Lightbulb, ListOrdered, MessageSquareWarning, Sparkles, Wand2, X } from 'lucide-react';
+
 import {
   Novel, Chapter, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
-  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities
-} from '../types';
+  ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities, EntityRelationship, Faction
+} from '../../shared/types';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
@@ -25,6 +15,7 @@ import { AgentWorkspaceKnowledgePanel } from './AgentWorkspaceKnowledgePanel';
 import { AgentWorkspaceTracePanel } from './AgentWorkspaceTracePanel';
 import { AgentWorkspaceVersionsPanel } from './AgentWorkspaceVersionsPanel';
 import { CopilotHomePanel } from './copilot/CopilotHomePanel';
+import { RelationshipGraph } from './RelationshipGraph';
 
 function isProductionAgentTab(tab: AgentTab): tab is Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'> {
   return tab === 'production' || tab === 'outline' || tab === 'planning' || tab === 'quality';
@@ -59,7 +50,7 @@ interface AgentWorkspaceProps {
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
-  onApplyProductionRun: () => Promise<void>;
+  onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   expectedWordCount: number | '';
   setExpectedWordCount: (count: number | '') => void;
   onGenerateOutline: () => Promise<void>;
@@ -71,6 +62,7 @@ interface AgentWorkspaceProps {
   userIntent: string;
   setUserIntent: (intent: string) => void;
   isGeneratingContent: boolean;
+  generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
@@ -83,6 +75,7 @@ interface AgentWorkspaceProps {
   characters: Character[];
   locations: Location[];
   items: Item[];
+  factions: Faction[];
   librarySkills: Skill[];
   skillUsageRecords: SkillUsageRecord[];
   mountedSkillLoadout: MountedSkillLoadoutItem[];
@@ -98,6 +91,9 @@ interface AgentWorkspaceProps {
   onSniffEntities: () => Promise<void>;
   onAddSniffedEntity: (ent: { name: string, type: string, context: string }) => Promise<void>;
   addingEntityNames: string[];
+  relationships: EntityRelationship[];
+  isDocked?: boolean;
+  activeEntityNames?: string[];
 }
 
 export function AgentWorkspace({
@@ -105,7 +101,7 @@ export function AgentWorkspace({
   chapters,
   currentChapter,
   setCurrentChapter,
-  isAgentSidebarOpen,
+  isAgentSidebarOpen: _isAgentSidebarOpen,
   setIsAgentSidebarOpen,
   agentTab,
   setAgentTab,
@@ -137,6 +133,7 @@ export function AgentWorkspace({
   userIntent,
   setUserIntent,
   isGeneratingContent,
+  generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
@@ -164,18 +161,76 @@ export function AgentWorkspace({
   onSniffEntities,
   onAddSniffedEntity,
   addingEntityNames,
+  relationships,
+  isDocked = false,
+  activeEntityNames = [],
+  factions,
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
 
+  const filteredRelationships = React.useMemo(() => {
+    if (!relationships || !activeEntityNames || activeEntityNames.length === 0) return [];
+
+    const activeCharIds = characters.filter(c => activeEntityNames.includes(c.name)).map(c => c.id);
+    const activeLocIds = locations.filter(l => activeEntityNames.includes(l.name)).map(l => l.id);
+    const activeItemIds = items.filter(i => activeEntityNames.includes(i.name)).map(i => i.id);
+    const activeFactionIds = factions.filter(f => activeEntityNames.includes(f.name)).map(f => f.id);
+
+    return relationships.filter((rel) => {
+      const isSourceActive =
+        (rel.sourceType === 'character' && activeCharIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'location' && activeLocIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'item' && activeItemIds.includes(rel.sourceId)) ||
+        (rel.sourceType === 'faction' && activeFactionIds.includes(rel.sourceId));
+
+      const isTargetActive =
+        (rel.targetType === 'character' && activeCharIds.includes(rel.targetId)) ||
+        (rel.targetType === 'location' && activeLocIds.includes(rel.targetId)) ||
+        (rel.targetType === 'item' && activeItemIds.includes(rel.targetId)) ||
+        (rel.targetType === 'faction' && activeFactionIds.includes(rel.targetId));
+
+      return isSourceActive || isTargetActive;
+    });
+  }, [relationships, activeEntityNames, characters, locations, items, factions]);
+
+  const matchedEntities = React.useMemo(() => {
+    if (!activeEntityNames || activeEntityNames.length === 0) return [];
+    const list: Array<{ id: string; name: string; typeLabel: string; description: string }> = [];
+
+    characters.forEach(c => {
+      if (activeEntityNames.includes(c.name)) {
+        list.push({ id: c.id, name: c.name, typeLabel: '角色', description: c.summary || c.bio || '' });
+      }
+    });
+    locations.forEach(l => {
+      if (activeEntityNames.includes(l.name)) {
+        list.push({ id: l.id, name: l.name, typeLabel: '地点', description: l.description || '' });
+      }
+    });
+    items.forEach(i => {
+      if (activeEntityNames.includes(i.name)) {
+        list.push({ id: i.id, name: i.name, typeLabel: '道具', description: i.description || '' });
+      }
+    });
+    factions.forEach(f => {
+      if (activeEntityNames.includes(f.name)) {
+        list.push({ id: f.id, name: f.name, typeLabel: '势力', description: f.description || '' });
+      }
+    });
+
+    return list;
+  }, [activeEntityNames, characters, locations, items, factions]);
+
   return (
-    <motion.div
-      initial={{ x: 420, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 420, opacity: 0 }}
-      transition={{ type: "tween", duration: 0.24 }}
-      className="absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border border-theme-border bg-white/95 overflow-hidden z-30 backdrop-blur-sm shadow-2xl flex flex-col"
+    <div
+      className={cn(
+        "flex flex-col border-theme-border bg-theme-sidebar shrink-0 overflow-hidden relative",
+        isDocked
+          ? "md:w-[360px] md:h-full md:border-l md:relative max-md:absolute max-md:inset-y-3 max-md:right-3 max-md:w-[min(360px,calc(100%-1.5rem))] max-md:rounded-3xl max-md:border max-md:z-30 max-md:bg-theme-sidebar/95 max-md:shadow-2xl max-md:backdrop-blur-sm"
+          : "absolute inset-y-3 right-3 w-[min(400px,calc(100%-1.5rem))] rounded-3xl border bg-theme-sidebar/95 z-30 backdrop-blur-sm shadow-2xl"
+      )}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-white/90 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border bg-theme-sidebar/90 shrink-0">
         <div>
           <div className="text-xs font-bold text-theme-text">智能管家工作台</div>
           <div className="text-[10px] text-theme-muted mt-1">需要时展开，用完即可随手收回。</div>
@@ -184,7 +239,7 @@ export function AgentWorkspace({
           type="button"
           onClick={() => setIsAgentSidebarOpen(false)}
           aria-label="收起智能管家"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-theme-border bg-white text-theme-text text-[11px] font-bold hover:bg-theme-sidebar/40 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-theme-border bg-theme-sidebar text-theme-text text-[11px] font-bold hover:bg-theme-sidebar/40 transition-colors"
         >
           <X size={12} />
           收起
@@ -204,6 +259,9 @@ export function AgentWorkspace({
         }}
         className="flex overflow-x-auto no-scrollbar p-3 gap-1 border-b border-theme-border bg-transparent sticky top-0 z-10 shrink-0 items-center">
         <span className="text-[9px] font-bold text-theme-muted/40 uppercase tracking-wider px-2 shrink-0">当前</span>
+        <button onClick={() => setAgentTab('context')} className={cn("flex-none whitespace-nowrap py-1.5 px-2.5 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1", agentTab === 'context' ? "bg-theme-text text-white" : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text")}>
+          <Brain size={11} /> 创作情报
+        </button>
         <button onClick={() => setAgentTab('copilot-home')} className={cn("flex-none whitespace-nowrap py-1.5 px-2.5 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1", agentTab === 'copilot-home' ? "bg-theme-text text-white" : "text-theme-muted hover:bg-theme-sidebar hover:text-theme-text")}>
           <Bot size={11} /> 智能建议
         </button>
@@ -250,26 +308,172 @@ export function AgentWorkspace({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
-        <AnimatePresence mode="sync">
-          {agentTab === 'copilot-home' && (
-            <motion.div
+        {agentTab === 'context' && (
+          !currentChapter ? (
+             <div className="bg-theme-sidebar/40 p-5 rounded-xl border border-theme-border/40 shadow-sm text-left space-y-4">
+                <div className="text-xs font-bold text-theme-text flex items-center gap-1.5 justify-start">
+                   <Activity size={12} className="text-theme-accent" />
+                   创作启动 Checklist
+                </div>
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                   您目前没有打开任何章节。请按照以下步骤启动本章创作：
+                </p>
+                <div className="space-y-4 pt-2">
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">1</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">新建章节</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">在左侧目录栏点击「新建章节」按钮，建立当前写作条目。</span>
+                      </div>
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">2</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">生成分镜 Beats</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">前往「大纲」或「分镜」模块生成本章的分镜动作与目标，提供大纲牵引。</span>
+                      </div>
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">3</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">补充设定与角色</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">在「设定集」录入即将登场的主角与场景背景，让关系网图谱在写作时能自动提取高亮。</span>
+                      </div>
+                   </div>
+                   <div className="flex items-start gap-2 text-[11px]">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-theme-accent/10 text-theme-accent font-bold text-[9px] mt-0.5">4</span>
+                      <div>
+                         <span className="font-bold text-theme-text block">装配技能卡</span>
+                         <span className="text-theme-muted text-[10px] block mt-0.5">进入「技能卡」为小说装配文风或节奏模型（如：画面描写、高潮打斗、心理悬疑等）。</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          ) : (
+             <div key="context" className="space-y-4 pb-8 text-left">
+                {/* 1. 当前分镜 Beats */}
+                <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                   <div className="text-xs font-bold text-theme-text mb-2 flex items-center gap-1.5 justify-start">
+                      <Activity size={12} className="text-theme-accent" />
+                      当前章分镜 Beats
+                   </div>
+                   {currentChapter?.sceneBeats ? (
+                      <div className="text-[11px] text-theme-muted/90 leading-relaxed whitespace-pre-wrap font-serif">
+                         {currentChapter.sceneBeats}
+                      </div>
+                   ) : (
+                      <div className="text-[11px] text-theme-muted/50 italic">
+                         暂无本章分镜。可前往「大纲」或「分镜」生成。
+                      </div>
+                   )}
+                </div>
+
+                {/* 2. 当前场景图谱 */}
+                <div className="bg-theme-sidebar/40 p-4 rounded-xl border border-theme-border/40 shadow-sm space-y-2 text-left">
+                   <div className="text-xs font-bold text-theme-text flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 justify-start">
+                         <Globe size={12} className="text-theme-accent" />
+                         当前场景上下文图谱
+                      </div>
+                      <div className="text-[9px] bg-theme-border/30 text-theme-muted px-1.5 py-0.5 rounded font-mono">
+                         匹配实体: {activeEntityNames?.length || 0}
+                      </div>
+                   </div>
+
+                   <RelationshipGraph
+                      relationships={filteredRelationships}
+                      characters={characters}
+                      locations={locations}
+                      items={items}
+                      factions={factions}
+                      onSelectEntity={() => {}}
+                      activeEntityNames={activeEntityNames}
+                      onGoToWorldBible={() => setAgentTab('bible')}
+                   />
+                </div>
+
+                {/* 3. 出场实体卡片 */}
+                <div className="space-y-2 text-left">
+                   <div className="text-xs font-bold text-theme-text flex items-center gap-1.5 justify-start">
+                      <Bot size={12} className="text-theme-accent" />
+                      出场设定详情
+                   </div>
+                   <div className="grid grid-cols-1 gap-2">
+                      {matchedEntities.map(ent => (
+                         <div key={ent.id} className="bg-theme-sidebar p-3 rounded-xl border border-theme-border/30 text-left">
+                            <div className="flex items-center gap-2 mb-1 justify-start">
+                               <span className="text-xs font-bold text-theme-text">{ent.name}</span>
+                               <span className="text-[9px] px-1.5 py-0.2 bg-theme-border/40 text-theme-muted rounded">
+                                  {ent.typeLabel}
+                               </span>
+                            </div>
+                            {ent.description && (
+                               <p className="text-[11px] text-theme-muted leading-relaxed line-clamp-3">
+                                  {ent.description}
+                               </p>
+                            )}
+                         </div>
+                      ))}
+                      {matchedEntities.length === 0 && (
+                         <div className="text-center py-4 text-[11px] text-theme-muted/50 border border-dashed border-theme-border/50 rounded-xl">
+                            正文中未检测到已登记的设定实体。在左侧键入人名/地名即可自动识别。
+                         </div>
+                      )}
+                   </div>
+                </div>
+
+                {/* 4. 技能与伏笔参考 */}
+                <div className="grid grid-cols-2 gap-2 text-left">
+                   <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                      <div className="text-[10px] font-bold text-theme-text mb-1.5">已挂载技能 ({mountedSkillLoadout.length})</div>
+                      <div className="space-y-1">
+                         {mountedSkillLoadout.map((item, idx) => {
+                            const skillName = librarySkills.find(s => s.id === item.skillId)?.name || item.skillId;
+                            return (
+                               <div key={idx} className="text-[10px] text-theme-muted truncate">
+                                  • {skillName}
+                               </div>
+                            );
+                         })}
+                         {mountedSkillLoadout.length === 0 && (
+                            <div className="text-[10px] text-theme-muted/40 italic">未装备技能</div>
+                         )}
+                      </div>
+                   </div>
+
+                   <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
+                      <div className="text-[10px] font-bold text-theme-text mb-1.5">字数篇幅提示</div>
+                      <div className="text-[10px] text-theme-muted leading-relaxed">
+                         {currentChapter && currentChapter.content && currentChapter.content.length > 2000 ? (
+                            <span className="text-yellow-600 font-medium">⚠️ 本章篇幅较长，建议适时收尾并开启新章。</span>
+                         ) : (
+                            <span className="text-green-600 font-medium">✅ 本章篇幅适中，适合继续创作。</span>
+                         )}
+                      </div>
+                   </div>
+                </div>
+             </div>
+          )
+        )}
+        {agentTab === 'copilot-home' && (
+            <div
               key="copilot-home"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
-              <CopilotHomePanel
-                suggestion={copilotSuggestion}
-                onAction={(key) => void runCopilotAction(key)}
-              />
-            </motion.div>
+              {copilotSuggestion ? (
+                <CopilotHomePanel
+                  suggestion={copilotSuggestion}
+                  onAction={(key) => void runCopilotAction(key)}
+                />
+              ) : (
+                <div className="text-center py-12 text-theme-muted text-xs">
+                  暂无智能建议
+                </div>
+              )}
+            </div>
           )}
           {isProductionAgentTab(agentTab) && (
-            <motion.div
+            <div
               key={agentTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceProductionPanel
                 agentTab={agentTab}
@@ -303,37 +507,49 @@ export function AgentWorkspace({
                 userIntent={userIntent}
                 setUserIntent={setUserIntent}
                 isGeneratingContent={isGeneratingContent}
-                onGenerateContent={onGenerateContent}
+                generationStatus={generationStatus}
+                onGenerateContent={async () => {
+                  setIsAgentSidebarOpen(false);
+                  requestAnimationFrame(() => {
+                    document.querySelector<HTMLTextAreaElement>('.writing-surface')?.focus();
+                  });
+                  await onGenerateContent();
+                }}
                 onRewriteSelectedText={onRewriteSelectedText}
                 onUpdateChapterBeats={onUpdateChapterBeats}
                 onRunAudit={onRunAudit}
                 isGeneratingCritique={isGeneratingCritique}
                 onPolishChapterFromAudit={onPolishChapterFromAudit}
                 onCreateChapter={onCreateChapter}
+                mountedSkillLoadout={mountedSkillLoadout}
+                librarySkills={librarySkills}
+                relationships={relationships}
+                characters={characters}
+                locations={locations}
+                items={items}
+                factions={factions}
+                onSwitchTab={setAgentTab}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'ideas' && (
-            <motion.div key="ideas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="ideas">
               <IdeaFragmentBoard novelId={novel.id} compact />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'foreshadowing' && (
-            <motion.div key="foreshadowing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="foreshadowing">
               <ForeshadowingPanel novelId={novel.id} currentChapterId={currentChapter?.id} />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'pacing' && (
-            <motion.div key="pacing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div key="pacing">
               <PacingDashboard novelId={novel.id} />
-            </motion.div>
+            </div>
           )}
           {isKnowledgeAgentTab(agentTab) && (
-            <motion.div
+            <div
               key={agentTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceKnowledgePanel
                 agentTab={agentTab}
@@ -354,14 +570,11 @@ export function AgentWorkspace({
                 projectPreferenceProfile={projectPreferenceProfile}
                 onPreferenceProfileChange={onPreferenceProfileChange}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'versions' && (
-            <motion.div
+            <div
               key="versions"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceVersionsPanel
                 currentChapter={currentChapter}
@@ -369,14 +582,11 @@ export function AgentWorkspace({
                 onSaveVersion={onSaveVersion}
                 onRestoreVersion={onRestoreVersion}
               />
-            </motion.div>
+            </div>
           )}
           {agentTab === 'trace' && (
-            <motion.div
+            <div
               key="trace"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
             >
               <AgentWorkspaceTracePanel
                 currentChapter={currentChapter}
@@ -386,10 +596,9 @@ export function AgentWorkspace({
                 onAddSniffedEntity={onAddSniffedEntity}
                 addingEntityNames={addingEntityNames}
               />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }

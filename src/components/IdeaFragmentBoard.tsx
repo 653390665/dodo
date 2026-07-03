@@ -1,16 +1,9 @@
-import React, { useState, useEffect } from 'react';import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import MessageSquare from 'lucide-react/dist/esm/icons/message-square.js';
-import User from 'lucide-react/dist/esm/icons/user.js';
-import Crosshair from 'lucide-react/dist/esm/icons/crosshair.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import { IdeaFragment } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Trash2, User } from 'lucide-react';
+
+import { IdeaFragment } from '../../shared/types';
 import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { motion } from '../lib/motion';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scene: <Crosshair size={14} />,
@@ -39,11 +32,12 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   const [newType, setNewType] = useState<IdeaFragment['type']>('scene');
   const [expandingId, setExpandingId] = useState<string | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setFragments(await listIdeaFragments(novelId));
-  };
+  }, [novelId]);
 
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
+  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAdd = async () => {
     if (!newContent.trim()) return;
@@ -74,7 +68,6 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       await updateIdeaFragment(f.id, { aiExpansion: data.expansion, status: 'expanded' });
       setFragments(prev => prev.map(x => x.id === f.id ? { ...x, aiExpansion: data.expansion, status: 'expanded' as const } : x));
     } catch (e) {
-      console.error('Expand failed', e);
       alert('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setExpandingId(null);
@@ -89,7 +82,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   return (
     <div className="space-y-4">
       {/* Input area */}
-      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
+      <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
         <div className="flex gap-2">
           {(['scene', 'dialogue', 'character', 'plot_hook', 'world'] as const).map(t => (
             <button
@@ -120,11 +113,9 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       {/* Fragment list */}
       <div className="space-y-3">
         {fragments.map(f => (
-          <motion.div
+          <div
             key={f.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+            className={`bg-theme-sidebar rounded-xl border shadow-sm overflow-hidden ${
               f.status === 'expanded' ? 'border-theme-accent/30' : 'border-theme-border/40'
             }`}
           >
@@ -165,7 +156,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
                 <Trash2 size={12} /> 删除
               </button>
             </div>
-          </motion.div>
+          </div>
         ))}
         {fragments.length === 0 && (
           <div className="text-center py-12 text-xs text-theme-muted opacity-50">

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 
 import {
   buildContinuationPackParseAttempts,
   buildContinuationPackPrompt,
 } from '../src/lib/continuation-pack-parse';
 
+describe("continuation", () => {
 test('buildContinuationPackParseAttempts uses an aggressive shrinking ladder for MiniMax', () => {
   const attempts = buildContinuationPackParseAttempts('https://api.minimaxi.com/v1');
 
@@ -30,4 +31,5 @@ test('buildContinuationPackPrompt keeps the fuller budget rules by default', () 
 
   assert.match(prompt, /canonFacts 最多 8 条/);
   assert.doesNotMatch(prompt, /压缩重试模式/);
+});
 });

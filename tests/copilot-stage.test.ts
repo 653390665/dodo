@@ -12,6 +12,7 @@ function baseInput(overrides: Partial<CopilotInput> = {}): CopilotInput {
     hasSummary: true,
     hasGlobalOutline: true,
     hasWorldRules: true,
+    hasContinuationPackContext: false,
     hasSceneBeats: true,
     hasChapterContent: false,
     hasCritique: false,
@@ -32,6 +33,20 @@ test('deriveCopilotStage returns missing-setup when core story frame is absent',
     }),
   );
   assert.equal(stage, 'missing-setup');
+});
+
+test('deriveCopilotStage treats approved continuation pack as story frame', () => {
+  const stage = deriveCopilotStage(
+    baseInput({
+      hasSummary: false,
+      hasGlobalOutline: false,
+      hasWorldRules: false,
+      hasContinuationPackContext: true,
+      hasSceneBeats: true,
+      hasChapterContent: false,
+    }),
+  );
+  assert.equal(stage, 'ready-to-draft');
 });
 
 test('deriveCopilotStage returns missing-beats when chapter exists but has no scene beats', () => {

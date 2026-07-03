@@ -2,7 +2,7 @@ import type {
   AssistantLaunchContext,
   AssistantPrimaryAction,
   AssistantSuggestionKind,
-} from '../types';
+} from '../../shared/types';
 
 export function classifyAssistantSuggestion(
   content: string,

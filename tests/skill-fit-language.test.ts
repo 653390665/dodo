@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 
 import { deriveSkillFitNeeds } from '../src/lib/skill-fit-language';
 
+describe("skill-extraction", () => {
 test('deriveSkillFitNeeds returns dimension inputs plus readable role labels', () => {
   const result = deriveSkillFitNeeds(
     {
@@ -33,4 +34,5 @@ test('deriveSkillFitNeeds returns dimension inputs plus readable role labels', (
   assert.deepEqual(result.chapterSignals, ['plot', 'pacing', 'world', 'power']);
   assert.deepEqual(result.requiredRoleLabels, ['主笔文风', '剧情推进', '节奏调速', '世界约束']);
   assert.deepEqual(result.chapterRoleLabels, ['剧情推进', '节奏调速', '世界约束', '体系爆点']);
+});
 });

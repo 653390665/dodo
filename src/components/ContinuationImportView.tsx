@@ -1,14 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Upload from 'lucide-react/dist/esm/icons/upload.js';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
-import PlusCircle from 'lucide-react/dist/esm/icons/circle-plus.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../types';
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, FileText, Loader2, PlusCircle, Upload } from 'lucide-react';
+
+import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
 import { listNovels, createNovel } from '../lib/novel-client';
 import { parseContinuationPack } from '../lib/prompt-client';
 import { updateContinuationPack } from '../lib/continuation-client';
@@ -201,7 +194,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         </div>
         <button
           onClick={onBack}
-          className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-theme-border bg-white px-4 py-2 text-sm font-bold text-theme-text hover:border-theme-accent/40"
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-theme-border bg-theme-sidebar px-4 py-2 text-sm font-bold text-theme-text hover:border-theme-accent/40"
         >
           <ArrowLeft size={16} />
           返回首页
@@ -210,7 +203,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
 
       <div className="grid gap-3 md:grid-cols-4">
         {FLOW_STEPS.map((step, index) => (
-          <div key={step.title} className="rounded-2xl border border-theme-border bg-white p-4">
+          <div key={step.title} className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
             <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-theme-accent/70">STEP {index + 1}</div>
             <div className="mt-2 text-sm font-bold text-theme-text">{step.title}</div>
             <p className="mt-1 text-xs leading-5 text-theme-muted">{step.description}</p>
@@ -218,7 +211,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         ))}
       </div>
 
-      <div className="rounded-3xl border border-theme-border bg-white p-6 space-y-6">
+      <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="rounded-2xl bg-theme-accent/10 p-3 text-theme-accent">
             <Upload size={18} />
@@ -247,13 +240,13 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             <div className="mt-4 space-y-2">
               {files.length > 0 ? (
                 files.map((file) => (
-                  <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 rounded-xl border border-theme-border bg-white px-3 py-2 text-xs text-theme-text">
+                  <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2 text-xs text-theme-text">
                     <FileText size={13} className="text-theme-muted shrink-0" />
                     <span className="truncate">{file.name}</span>
                   </div>
                 ))
               ) : (
-                <div className="rounded-xl border border-theme-border bg-white px-3 py-4 text-xs text-theme-muted">
+                <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-4 text-xs text-theme-muted">
                   还没选择文件。至少上传一个资料文件后才能开始解析。
                 </div>
               )}
@@ -273,7 +266,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
                   className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                     targetMode === 'existing'
                       ? 'border-theme-accent bg-theme-accent/5'
-                      : 'border-theme-border bg-white'
+                      : 'border-theme-border bg-theme-sidebar'
                   } ${novels.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-theme-accent/40'}`}
                 >
                   <div className="text-sm font-bold text-theme-text">导入到现有作品</div>
@@ -284,7 +277,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
                   className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                     targetMode === 'new'
                       ? 'border-theme-accent bg-theme-accent/5'
-                      : 'border-theme-border bg-white hover:border-theme-accent/40'
+                      : 'border-theme-border bg-theme-sidebar hover:border-theme-accent/40'
                   }`}
                 >
                   <div className="flex items-center gap-2 text-sm font-bold text-theme-text">
@@ -297,13 +290,13 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             </div>
 
             {targetMode === 'existing' ? (
-              <div className="rounded-2xl border border-theme-border bg-white p-4">
+              <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
                 <div className="text-xs font-bold uppercase tracking-[0.18em] text-theme-muted">Target Novel</div>
                 {novels.length > 0 ? (
                   <select
                     value={selectedNovelId}
                     onChange={(e) => setSelectedNovelId(e.target.value)}
-                    className="mt-3 w-full rounded-xl border border-theme-border bg-white px-3 py-3 text-sm text-theme-text outline-none"
+                    className="mt-3 w-full rounded-xl border border-theme-border bg-theme-sidebar px-3 py-3 text-sm text-theme-text outline-none"
                   >
                     {novels.map((novel) => (
                       <option key={novel.id} value={novel.id}>{novel.title}</option>
@@ -316,7 +309,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
                 )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-theme-border bg-white p-4">
+              <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
                 <div className="text-xs font-bold uppercase tracking-[0.18em] text-theme-muted">New Novel Preview</div>
                 <div className="mt-3 text-sm font-bold text-theme-text">
                   {suggestedDraft?.title || '解析后会自动生成默认作品名'}
@@ -370,7 +363,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
               这里只展示本次续写必需的任务摘要。确认后会将资料包标记为已启用，并直接把你送进编辑器。
             </p>
           </div>
-          <div className="rounded-2xl border border-theme-border bg-white px-4 py-3 text-right">
+          <div className="rounded-2xl border border-theme-border bg-theme-sidebar px-4 py-3 text-right">
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-theme-muted">导入目标</div>
             <div className="mt-1 text-sm font-bold text-theme-text">{targetNovelLabel}</div>
             <div className="mt-1 text-xs text-theme-muted">
@@ -403,14 +396,14 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-2xl border border-theme-border bg-white p-5">
+          <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
             <div className="text-sm font-bold text-theme-text">续写任务</div>
             <p className="mt-3 text-sm leading-6 text-theme-muted">
               {parsedPack.continuationTask || '未识别到明确任务，请返回补充任务说明或正文上下文。'}
             </p>
           </section>
 
-          <section className="rounded-2xl border border-theme-border bg-white p-5">
+          <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
             <div className="text-sm font-bold text-theme-text">剧情锚点 / 即时冲突</div>
             <div className="mt-3 space-y-2 text-xs leading-5 text-theme-muted">
               <div><span className="font-bold text-theme-text">时间位置：</span>{parsedPack.plotState.currentTimeline || '未识别'}</div>
@@ -420,7 +413,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             </div>
           </section>
 
-          <section className="rounded-2xl border border-theme-border bg-white p-5">
+          <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
             <div className="text-sm font-bold text-theme-text">关键硬设定</div>
             <div className="mt-3 space-y-2">
               {parsedPack.canonFacts.slice(0, 6).map((fact) => (
@@ -434,7 +427,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             </div>
           </section>
 
-          <section className="rounded-2xl border border-theme-border bg-white p-5">
+          <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
             <div className="text-sm font-bold text-theme-text">人物状态</div>
             <div className="mt-3 space-y-2">
               {parsedPack.characterStates.slice(0, 5).map((character) => (
@@ -451,7 +444,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
           </section>
         </div>
 
-        <section className="rounded-2xl border border-theme-border bg-white p-5">
+        <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
           <div className="text-sm font-bold text-theme-text">资料缺口 / 风险</div>
           <div className="mt-3 space-y-2">
             {parsedPack.continuationGaps && parsedPack.continuationGaps.length > 0 ? (
@@ -495,7 +488,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
               setError('');
             }}
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 rounded-xl border border-theme-border bg-white px-4 py-3 text-sm font-bold text-theme-text hover:border-theme-accent/40"
+            className="inline-flex items-center gap-2 rounded-xl border border-theme-border bg-theme-sidebar px-4 py-3 text-sm font-bold text-theme-text hover:border-theme-accent/40"
           >
             <ArrowLeft size={16} />
             返回上一步
@@ -516,7 +509,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   if (isBootstrapping) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl border border-theme-border bg-white px-5 py-4 text-sm text-theme-muted">
+        <div className="flex items-center gap-3 rounded-2xl border border-theme-border bg-theme-sidebar px-5 py-4 text-sm text-theme-muted">
           <Loader2 size={16} className="animate-spin" />
           正在加载作品列表...
         </div>

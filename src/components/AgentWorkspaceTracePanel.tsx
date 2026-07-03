@@ -1,11 +1,7 @@
-import React from 'react';import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Radar from 'lucide-react/dist/esm/icons/radar.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
+import React from 'react';
+import { AlertCircle, CheckCircle2, Loader2, Plus, Radar, Search } from 'lucide-react';
 
-import type { Chapter, SniffedEntities } from '../types';
+import type { Chapter, SniffedEntities } from '../../shared/types';
 
 interface AgentWorkspaceTracePanelProps {
   currentChapter: Chapter | null;
@@ -26,7 +22,7 @@ export function AgentWorkspaceTracePanel({
 }: AgentWorkspaceTracePanelProps) {
   return (
     <div className="space-y-6">
-      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+      <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-xs font-bold text-theme-text flex items-center gap-2">
             <Search size={14} className="text-theme-accent" />
@@ -49,7 +45,7 @@ export function AgentWorkspaceTracePanel({
 
       {sniffedEntities && (
         <div className="space-y-4 pb-8">
-          <div className="bg-white rounded-xl border border-theme-border p-4 shadow-sm">
+          <div className="bg-theme-sidebar rounded-xl border border-theme-border p-4 shadow-sm">
             <h4 className="text-[10px] font-bold text-theme-text flex items-center gap-1.5 mb-3">
               <CheckCircle2 size={12} className="text-emerald-500" />
               已入库活跃实体 ({sniffedEntities.activeExisting.length})
@@ -70,7 +66,7 @@ export function AgentWorkspaceTracePanel({
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-theme-border p-4 shadow-sm">
+          <div className="bg-theme-sidebar rounded-xl border border-theme-border p-4 shadow-sm">
             <h4 className="text-[10px] font-bold text-theme-text flex items-center gap-1.5 mb-3">
               <AlertCircle size={12} className="text-amber-500" />
               未记录野生实体 ({sniffedEntities.newEntities.length})
@@ -94,7 +90,7 @@ export function AgentWorkspaceTracePanel({
                       <button
                         onClick={() => onAddSniffedEntity(ent)}
                         disabled={addingEntityNames.includes(ent.name)}
-                        className="text-[10px] flex items-center gap-1 px-2 py-1 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded shadow-sm font-bold disabled:opacity-50 transition-colors"
+                        className="text-[10px] flex items-center gap-1 px-2 py-1 bg-theme-sidebar border border-amber-200 text-amber-700 hover:bg-amber-100 rounded shadow-sm font-bold disabled:opacity-50 transition-colors"
                       >
                         {addingEntityNames.includes(ent.name) ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
                         {addingEntityNames.includes(ent.name) ? '正在生成词条...' : '添加到 World Bible'}

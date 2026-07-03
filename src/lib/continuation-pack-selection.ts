@@ -1,4 +1,4 @@
-import type { ContinuationPack } from '../types';
+import type { ContinuationPack } from '../../shared/types';
 
 function compareByRecency(a: ContinuationPack, b: ContinuationPack): number {
   if (b.updatedAt !== a.updatedAt) return b.updatedAt - a.updatedAt;

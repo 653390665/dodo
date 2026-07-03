@@ -1,4 +1,6 @@
-import type { Character, Location, Item, Faction, PowerLevel, TimelineEvent } from '../types';
+import type { Character, Location, Item, Faction, PowerLevel, TimelineEvent } from '../../shared/types';
+import type { EntityRelationship } from '../../shared/types';
+export type { EntityRelationship };
 import { call } from './db-transport';
 
 export async function listCharacters(novelId: string): Promise<Character[]> { return call('listCharacters', novelId); }
@@ -30,3 +32,17 @@ export async function listTimelineEvents(novelId: string): Promise<TimelineEvent
 export async function createTimelineEvent(t: TimelineEvent): Promise<void> { return call('createTimelineEvent', t); }
 export async function updateTimelineEvent(id: string, data: Partial<TimelineEvent>): Promise<void> { return call('updateTimelineEvent', id, data); }
 export async function deleteTimelineEvent(id: string): Promise<void> { return call('deleteTimelineEvent', id); }
+
+// Entity relationships (knowledge graph)
+export async function listEntityRelationshipsClient(novelId: string): Promise<EntityRelationship[]> {
+  return call('listEntityRelationships', novelId);
+}
+export async function createEntityRelationshipClient(rel: EntityRelationship): Promise<void> {
+  return call('createEntityRelationship', rel);
+}
+export async function updateEntityRelationshipClient(id: string, data: Partial<EntityRelationship>): Promise<void> {
+  return call('updateEntityRelationship', id, data);
+}
+export async function deleteEntityRelationshipClient(id: string): Promise<void> {
+  return call('deleteEntityRelationship', id);
+}

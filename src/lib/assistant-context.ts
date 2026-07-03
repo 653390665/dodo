@@ -1,4 +1,4 @@
-import type { AssistantLaunchContext } from '../types';
+import type { AssistantLaunchContext } from '../../shared/types';
 
 function compactLine(label: string, value?: string): string | null {
   const trimmed = value?.trim();

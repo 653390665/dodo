@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildGoogleGenerateContentRequest, buildOpenAICompatibleChatRequest } from '../src/lib/server-llm';
+import { buildGoogleGenerateContentRequest, buildOpenAICompatibleChatRequest, generateEmbedding } from '../server/lib/server-llm';
+import { DEFAULT_PROMPT_TEMPLATES } from '../shared/config/prompt-templates';
 
 test('buildGoogleGenerateContentRequest forwards system instruction and max output tokens', () => {
   const request = buildGoogleGenerateContentRequest({
@@ -77,4 +78,35 @@ test('buildOpenAICompatibleChatRequest uses generic OpenAI json response format'
   assert.equal(request.max_tokens, 512);
   assert.deepEqual(request.response_format, { type: 'json_object' });
   assert.equal('reasoning_split' in request, false);
+});
+
+test('generateEmbedding sends correct POST request to OpenAI /embeddings endpoint', async () => {
+  const originalFetch = globalThis.fetch;
+  let calledUrl = '';
+  let calledInit: RequestInit | undefined;
+
+  globalThis.fetch = async (url, init) => {
+    calledUrl = String(url);
+    calledInit = init;
+    return new Response(JSON.stringify({
+      data: [{ embedding: [0.1, 0.2, 0.3] }]
+    }));
+  };
+
+  try {
+    const embedding = await generateEmbedding(
+      { apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'text-embedding-3-small', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      'hello world'
+    );
+
+    assert.deepEqual(embedding, [0.1, 0.2, 0.3]);
+    assert.equal(calledUrl, 'https://api.openai.com/v1/embeddings');
+    assert.equal(calledInit?.method, 'POST');
+
+    const body = JSON.parse(calledInit?.body as string);
+    assert.equal(body.input, 'hello world');
+    assert.equal(body.model, 'text-embedding-3-small');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

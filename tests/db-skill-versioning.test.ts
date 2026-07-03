@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -14,8 +14,8 @@ import {
   listSkillUsageRecords,
   listSkillVersions,
   updateSkill,
-} from '../src/lib/db';
-import type { Chapter, Novel, Skill, SkillFusionMeta } from '../src/types';
+} from '../server/lib/db';
+import type { Chapter, Novel, Skill, SkillFusionMeta } from '../shared/types';
 
 function baseSkill(overrides: Partial<Skill> = {}): Skill {
   const now = Date.now();
@@ -41,6 +41,7 @@ function baseSkill(overrides: Partial<Skill> = {}): Skill {
   };
 }
 
+describe("db-compat", () => {
 test('save-as-new-version preserves lineage and records usage', () => {
   closeDb();
   const dbPath = path.join(os.tmpdir(), `inkflow-skill-${Date.now()}.db`);
@@ -178,4 +179,5 @@ test('fusionMeta round-trip through create and read', () => {
     closeDb();
     fs.rmSync(dbPath, { force: true });
   }
+});
 });

@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';import Upload from 'lucide-react/dist/esm/icons/upload.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import type { Novel, ContinuationPack } from '../types';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, CheckCircle2, FileText, Loader2, Trash2, Upload } from 'lucide-react';
+
+import type { Novel, ContinuationPack } from '../../shared/types';
 import { deleteContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/continuation-client';
 import { parseContinuationPack } from '../lib/prompt-client';
 
@@ -30,6 +27,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
     if (!initialActivePackId) return;
     const matchedPack = packs.find((pack) => pack.id === initialActivePackId);
     if (matchedPack) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing derived state from props
       setActivePack(matchedPack);
     }
   }, [initialActivePackId, packs]);
@@ -101,7 +99,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
       </div>
 
       {/* Upload */}
-      <div className="rounded-2xl border border-theme-border bg-white p-6 space-y-4">
+      <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-6 space-y-4">
         <div className="flex items-center gap-2"><Upload size={18} /><span className="font-bold text-theme-text">上传资料文件</span></div>
         <p className="text-xs text-theme-muted">支持 .txt / .md / .json / .docx，可一次选多个文件。</p>
         <input
@@ -129,7 +127,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
 
       {/* Active pack review */}
       {activePack && (
-        <div className="rounded-2xl border border-theme-border bg-white p-6 space-y-4">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="font-bold text-theme-text">{activePack.title}</div>
@@ -200,7 +198,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
             <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-2">
               <div className="text-xs font-bold text-theme-text">续写缺口</div>
               {activePack.continuationGaps.slice(0, 5).map((g, i) => (
-                <div key={g.id || i} className="rounded-lg border border-theme-border bg-white p-3 text-xs">
+                <div key={g.id || i} className="rounded-lg border border-theme-border bg-theme-sidebar p-3 text-xs">
                   <div className="flex items-center gap-2">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                       g.severity === 'high' ? 'bg-red-100 text-red-700' :
@@ -216,7 +214,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
           )}
 
           {/* Continuation Task - always visible and editable */}
-          <div className="rounded-xl border border-theme-border bg-white p-4 space-y-2">
+          <div className="rounded-xl border border-theme-border bg-theme-sidebar p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold text-theme-text">续写主任务</div>
               {!editingTask && (
@@ -237,7 +235,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
                   value={taskDraft}
                   onChange={(e) => setTaskDraft(e.target.value)}
                   placeholder="例如：从第三卷高潮处续写，主角团进入秘境后遭遇反派伏击..."
-                  className="w-full h-20 bg-white border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/50 resize-none shadow-sm focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
+                  className="w-full h-20 bg-theme-sidebar border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/50 resize-none shadow-sm focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
                 />
                 <div className="flex gap-2">
                   <button onClick={handleSaveTask} className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold">
@@ -268,7 +266,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
 
       {/* Pack history */}
       {packs.length > 0 && (
-        <div className="rounded-2xl border border-theme-border bg-white p-6 space-y-3">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-6 space-y-3">
           <div className="font-bold text-theme-text text-sm">已上传资料包</div>
           {packs.map(pack => (
             <button

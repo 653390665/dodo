@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { generateStoryCards, checkStoryCardJob } from '../lib/prompt-client';
-import type { StoryIdeaCard, StoryPlanningInput } from '../types';
+import type { StoryIdeaCard, StoryPlanningInput } from '../../shared/types';
 import type { ContentSource } from '../components/SourceBadge';
 
 export interface StoryCardsState {

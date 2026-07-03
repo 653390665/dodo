@@ -1,4 +1,4 @@
-import type { ViewType, WorkspaceFocus, WorkspaceNavKey } from '../types';
+import type { ViewType, WorkspaceFocus, WorkspaceNavKey } from '../../shared/types';
 
 export interface SidebarNavItem {
   id: ViewType;
@@ -13,8 +13,16 @@ const SIDEBAR_MAIN_ITEMS: SidebarNavItem[] = [
   { id: 'ai', label: '灵感助手' },
 ];
 
+const SIDEBAR_SECONDARY_ITEMS: SidebarNavItem[] = [
+  { id: 'continuation-import', label: '资料续写' },
+];
+
 export function getSidebarMainItems(): SidebarNavItem[] {
   return SIDEBAR_MAIN_ITEMS;
+}
+
+export function getSidebarSecondaryItems(): SidebarNavItem[] {
+  return SIDEBAR_SECONDARY_ITEMS;
 }
 
 export function isWorkspaceFamilyView(view: ViewType): boolean {

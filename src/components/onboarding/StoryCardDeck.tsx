@@ -1,4 +1,4 @@
-import type { StoryIdeaCard } from '../../types';
+import type { StoryIdeaCard } from '../../../shared/types';
 import { StoryCardPreview } from './StoryCardPreview';
 
 export function StoryCardDeck({

@@ -4,6 +4,7 @@ import type {
   AgentTab,
   Chapter,
   Character,
+  ContinuationPack,
   CopilotSuggestion,
   Faction,
   Item,
@@ -13,9 +14,10 @@ import type {
   Skill,
   SniffedEntities,
   TimelineEvent,
-} from '../../types';
+} from '../../../shared/types';
 import type { AgentContext, SceneType } from '../agents';
 import { buildCopilotSuggestion } from '../copilot-stage';
+import { getPreferredContinuationPack } from '../continuation-pack-selection';
 import { calculateSkillFitScore } from '../skill-model';
 import { deriveSkillFitNeeds } from '../skill-fit-language';
 
@@ -31,6 +33,8 @@ interface UseEditorIntelligenceContextArgs {
   timelineEvents: TimelineEvent[];
   librarySkills: Skill[];
   mountedSkillLoadout: Array<{ slot: number; skillId: string }>;
+  continuationPacks: ContinuationPack[];
+  selectedContinuationPackId: string;
   sniffedEntities: SniffedEntities | null;
   userIntent: string;
   agentTab: AgentTab;
@@ -48,6 +52,8 @@ export function useEditorIntelligenceContext({
   timelineEvents,
   librarySkills,
   mountedSkillLoadout,
+  continuationPacks,
+  selectedContinuationPackId,
   sniffedEntities,
   userIntent,
   agentTab,
@@ -142,12 +148,28 @@ export function useEditorIntelligenceContext({
   );
 
   const copilotSuggestion = useMemo<CopilotSuggestion>(
-    () =>
-      buildCopilotSuggestion({
+    () => {
+      const selectedContinuationPack = getPreferredContinuationPack(
+        continuationPacks,
+        selectedContinuationPackId,
+      );
+      const hasContinuationPackContext = Boolean(
+        selectedContinuationPack?.status === 'approved' &&
+        (
+          selectedContinuationPack.continuationTask?.trim() ||
+          selectedContinuationPack.canonFacts.length > 0 ||
+          selectedContinuationPack.characterStates.length > 0 ||
+          selectedContinuationPack.sourceMap?.sections?.length ||
+          selectedContinuationPack.plotState?.latestScene?.trim()
+        ),
+      );
+
+      return buildCopilotSuggestion({
         hasCurrentChapter: Boolean(currentChapter),
         hasSummary: Boolean(novel.summary?.trim()),
         hasGlobalOutline: Boolean(novel.globalOutline?.trim()),
         hasWorldRules: Boolean(novel.worldRules?.trim()),
+        hasContinuationPackContext,
         hasSceneBeats: Boolean(currentChapter?.sceneBeats?.trim()),
         hasChapterContent: Boolean(currentChapter?.content?.trim()),
         hasCritique: Boolean(currentChapter?.critique?.trim()),
@@ -155,14 +177,18 @@ export function useEditorIntelligenceContext({
         mountedSkillCount: mountedSkillLoadout.length,
         fitScore: getCurrentFitScore(),
         lastFocusArea: agentTab === 'copilot-home' ? 'editor' : agentTab,
-      }),
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       agentTab,
+      continuationPacks,
       currentChapter,
       mountedSkillLoadout.length,
       novel.globalOutline,
       novel.summary,
       novel.worldRules,
+      selectedContinuationPackId,
       sniffedEntities?.newEntities?.length,
       mountedSkills,
     ],

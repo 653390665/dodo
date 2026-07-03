@@ -12,7 +12,7 @@ import type {
   Item,
   Novel,
   TimelineEvent,
-} from '../src/types';
+} from '../shared/types';
 
 const now = 1_778_000_000_000;
 

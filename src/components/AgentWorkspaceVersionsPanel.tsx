@@ -1,6 +1,7 @@
-import React from 'react';import Save from 'lucide-react/dist/esm/icons/save.js';
+import React from 'react';
+import { Save } from 'lucide-react';
 
-import type { Chapter, ChapterVersion } from '../types';
+import type { Chapter, ChapterVersion } from '../../shared/types';
 
 interface AgentWorkspaceVersionsPanelProps {
   currentChapter: Chapter | null;
@@ -17,7 +18,7 @@ export function AgentWorkspaceVersionsPanel({
 }: AgentWorkspaceVersionsPanelProps) {
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+      <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
         <div className="flex justify-between items-center mb-1">
           <h3 className="text-xs font-bold text-theme-text">章节时光机 (Time Machine)</h3>
           <button
@@ -35,7 +36,7 @@ export function AgentWorkspaceVersionsPanel({
         {versions.slice().sort((a, b) => b.createdAt - a.createdAt).map((version) => (
           <div
             key={version.id}
-            className="bg-white p-4 rounded-xl border border-theme-border/40 shadow-sm relative group overflow-hidden"
+            className="bg-theme-sidebar p-4 rounded-xl border border-theme-border/40 shadow-sm relative group overflow-hidden"
           >
             <div className="flex justify-between items-start mb-2">
               <div>

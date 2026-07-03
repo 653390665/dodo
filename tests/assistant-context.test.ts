@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssistantSeedPrompt } from '../src/lib/assistant-context';
-import type { AssistantLaunchContext } from '../src/types';
+import type { AssistantLaunchContext } from '../shared/types';
 
 function makeContext(overrides: Partial<AssistantLaunchContext> = {}): AssistantLaunchContext {
   return {

@@ -1,14 +1,101 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, safeStorage } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const crypto = require('crypto');
+const os = require('os');
 const {
   createJsonLineChunkParser,
   getDevSpawnCommand,
   getServerRestartDelay,
   getWatchdogRetryDelay,
 } = require('./electron-startup-utils.cjs');
+
+// Legacy API Key decryption helper
+function deriveKey() {
+  const seed = `${os.hostname()}:${os.userInfo().username}:inkflow-v1`;
+  return crypto.createHash('sha256').update(seed).digest();
+}
+
+function decryptApiKey(encoded) {
+  if (!encoded) return '';
+  if (!encoded.startsWith('enc:')) return encoded;
+  const parts = encoded.split(':');
+  if (parts.length !== 4) return '';
+  const key = deriveKey();
+  const iv = Buffer.from(parts[1], 'hex');
+  const tag = Buffer.from(parts[2], 'hex');
+  const encrypted = Buffer.from(parts[3], 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return decipher.update(encrypted).toString('utf8') + decipher.final('utf8');
+}
+
+// Startup migration logic for API Key
+function migrateAndGetApiKey() {
+  const configDir = path.join(app.getPath('home'), '.inkflow');
+  const configPath = path.join(configDir, 'config.json');
+  const secureKeyPath = path.join(configDir, 'secure-key.bin');
+
+  let activeApiKey = '';
+
+  // 1. Try to read from config.json first (migration case or fallback dev case)
+  try {
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+
+      if (parsed.apiKey) {
+        // We found an apiKey in config.json! Try to migrate it
+        const decryptedKey = decryptApiKey(parsed.apiKey);
+        if (decryptedKey) {
+          if (safeStorage.isEncryptionAvailable()) {
+            try {
+              const encrypted = safeStorage.encryptString(decryptedKey);
+              fs.mkdirSync(configDir, { recursive: true });
+              fs.writeFileSync(secureKeyPath, encrypted);
+
+              // Clear apiKey from config.json and save it back
+              parsed.apiKey = '';
+              parsed.hasApiKey = true;
+              fs.writeFileSync(configPath, JSON.stringify(parsed, null, 2));
+              writeStartupLog('API Key migrated successfully to safeStorage.');
+              activeApiKey = decryptedKey;
+            } catch (err) {
+              writeStartupLog(`密钥迁移失败，仍使用旧配置: ${err.message}`);
+              activeApiKey = decryptedKey; // fallback to decrypted legacy key
+            }
+          } else {
+            writeStartupLog('safeStorage encryption not available during migration, using legacy key.');
+            activeApiKey = decryptedKey;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    writeStartupLog(`Error parsing config.json during migration: ${err.message}`);
+  }
+
+  // 2. If config.json didn't have apiKey, try to read from secure-key.bin
+  if (!activeApiKey) {
+    try {
+      if (fs.existsSync(secureKeyPath)) {
+        if (safeStorage.isEncryptionAvailable()) {
+          const encryptedData = fs.readFileSync(secureKeyPath);
+          activeApiKey = safeStorage.decryptString(encryptedData);
+          writeStartupLog('API Key loaded from safeStorage successfully.');
+        } else {
+          writeStartupLog('safeStorage encryption not available, cannot decrypt secure-key.bin.');
+        }
+      }
+    } catch (err) {
+      writeStartupLog(`Error reading secure-key.bin: ${err.message}`);
+    }
+  }
+
+  return activeApiKey;
+}
 
 // Windows GUI has no console; prevent EPIPE from crashing the app
 process.stdout.on('error', (err) => {
@@ -204,12 +291,15 @@ function startServer() {
 
     const serverStderrLines = [];
 
+    const activeApiKey = migrateAndGetApiKey();
     serverProcess = spawn(cmd, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         NODE_ENV: isDev ? 'development' : 'production',
         INKFLOW_STATIC_DIR: staticDir,
+        INKFLOW_ELECTRON_MODE: 'true',
+        INKFLOW_SECURE_API_KEY: activeApiKey,
         ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
       },
     });
@@ -284,8 +374,8 @@ function startWatchdog(port) {
   serverPort = port;
   if (watchdogTimer) clearInterval(watchdogTimer);
   watchdogTimer = setInterval(() => {
-    http.get(`http://localhost:${serverPort}/api/config`, (res) => {
-      if (res.statusCode !== 200) restartServer();
+    http.get(`http://localhost:${serverPort}`, (res) => {
+      if (res.statusCode >= 500) restartServer();
     }).on('error', () => {
       restartServer();
     });
@@ -393,9 +483,15 @@ async function createWindow() {
     }
   }, 5000);
 
-  mainWindow.on('close', () => { saveWindowState(); });
-  mainWindow.on('resize', () => { saveWindowState(); });
-  mainWindow.on('move', () => { saveWindowState(); });
+  let saveTimer = null;
+  const debouncedSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveWindowState, 500);
+  };
+
+  mainWindow.on('close', () => { if (saveTimer) clearTimeout(saveTimer); saveWindowState(); });
+  mainWindow.on('resize', debouncedSave);
+  mainWindow.on('move', debouncedSave);
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`[window] Failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
@@ -432,4 +528,131 @@ app.on('before-quit', () => {
   isQuitting = true;
   stopWatchdog();
   stopServer();
+});
+
+// ── IPC Handlers ─────────────────────────────────────────────────────
+
+const TOKEN_PATH = path.join(process.env.HOME || require('os').homedir(), '.inkflow', '.auth-token');
+function getLocalAuthToken() {
+  try {
+    if (fs.existsSync(TOKEN_PATH)) {
+      return fs.readFileSync(TOKEN_PATH, 'utf-8').trim();
+    }
+  } catch {}
+  return '';
+}
+
+ipcMain.handle('get-auth-token', () => {
+  return getLocalAuthToken();
+});
+
+ipcMain.handle('save-config', async (_event, config) => {
+  const apiKey = config.apiKey || '';
+  let migrationError = null;
+
+  const configDir = path.join(app.getPath('home'), '.inkflow');
+  const configPath = path.join(configDir, 'config.json');
+  const secureKeyPath = path.join(configDir, 'secure-key.bin');
+
+  const secureKeyExists = fs.existsSync(secureKeyPath);
+
+  // 1. Save apiKey securely if present
+  if (apiKey) {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const encrypted = safeStorage.encryptString(apiKey);
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(secureKeyPath, encrypted);
+      } else {
+        throw new Error('safeStorage encryption not available');
+      }
+    } catch (e) {
+      migrationError = e.message;
+    }
+  }
+
+  // 2. Save the rest of the configuration parameters to config.json
+  try {
+    const keyIsPresent = !!apiKey || secureKeyExists;
+    const safeConfig = {
+      ...config,
+      apiKey: '', // DO NOT write key to config.json
+      hasApiKey: keyIsPresent
+    };
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2));
+  } catch (e) {
+    migrationError = migrationError || e.message;
+  }
+
+  // 3. Resolve key to sync with backend server
+  let keyToSync = apiKey;
+  if (!apiKey && secureKeyExists) {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const encryptedData = fs.readFileSync(secureKeyPath);
+        keyToSync = safeStorage.decryptString(encryptedData);
+      }
+    } catch {}
+  }
+
+  // 4. Sync hot configuration state to backend server in memory
+  if (serverPort) {
+    try {
+      await new Promise((resolve, reject) => {
+        const token = getLocalAuthToken();
+        const req = http.request(
+          {
+            hostname: 'localhost',
+            port: serverPort,
+            path: '/api/config/sync',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            timeout: 3000
+          },
+          (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+              data += chunk;
+            });
+            res.on('end', () => {
+              if (res.statusCode === 200) {
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.ok) {
+                    resolve({ success: true });
+                  } else {
+                    reject(new Error(parsed.error || 'Server returned failure'));
+                  }
+                } catch {
+                  resolve({ success: true }); // Fallback if 200 OK but not JSON
+                }
+              } else {
+                reject(new Error(`Server responded with status code ${res.statusCode}`));
+              }
+            });
+          }
+        );
+        req.on('error', (err) => {
+          reject(err);
+        });
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timed out'));
+        });
+        req.write(JSON.stringify({ apiKey: keyToSync }));
+        req.end();
+      });
+    } catch (e) {
+      migrationError = migrationError || `同步配置到后端失败: ${e.message}`;
+    }
+  }
+
+  if (migrationError) {
+    return { success: false, error: `密钥保存失败: ${migrationError}` };
+  }
+  return { success: true };
 });

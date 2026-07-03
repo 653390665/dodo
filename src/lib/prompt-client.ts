@@ -5,7 +5,7 @@ import type {
   ContinuationPack,
   AggregatedSkillDeck,
   BookEvidenceSegment,
-} from '../types';
+} from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
 
 export type ExtractSkillResponse = {
@@ -38,10 +38,15 @@ export type SkillExtractionJobStatus = {
   error?: string;
 };
 
-function extractApiErrorMessage(data: any, fallback: string): string {
-  if (typeof data?.error === 'string' && data.error.trim()) return data.error;
-  if (typeof data?.reason === 'string' && data.reason.trim()) return data.reason;
-  if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function extractApiErrorMessage(data: unknown, fallback: string): string {
+  const rec = asRecord(data);
+  if (typeof rec.error === 'string' && rec.error.trim()) return rec.error;
+  if (typeof rec.reason === 'string' && rec.reason.trim()) return rec.reason;
+  if (typeof rec.message === 'string' && rec.message.trim()) return rec.message;
   return fallback;
 }
 
@@ -114,14 +119,15 @@ export async function parseContinuationPack(payload: {
     body: JSON.stringify(payload),
   });
   const raw = await res.text();
-  let data: any = {};
+  let data: unknown;
   try {
     data = raw ? JSON.parse(raw) : {};
   } catch {
     throw new Error(raw || 'Failed to parse continuation pack');
   }
-  if (!res.ok || data.error) throw new Error(data.error || 'Failed to parse continuation pack');
-  return data.pack;
+  const rec = asRecord(data);
+  if (!res.ok || rec.error) throw new Error(String(rec.error || 'Failed to parse continuation pack'));
+  return rec.pack as ContinuationPack;
 }
 
 export async function refineSetupTask(payload: {

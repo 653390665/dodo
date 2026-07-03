@@ -1,16 +1,9 @@
-import React from 'react';import PanelRight from 'lucide-react/dist/esm/icons/panel-right.js';
-import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/circle-check.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Minimize2 from 'lucide-react/dist/esm/icons/minimize-2.js';
-import Maximize2 from 'lucide-react/dist/esm/icons/maximize-2.js';
-import Settings from 'lucide-react/dist/esm/icons/settings.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
-import { motion, AnimatePresence } from '../lib/motion';
-import { Chapter, Skill } from '../types';
+import React from 'react';
+import { BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, PanelRight, Settings, Sparkles } from 'lucide-react';
+
+import { Chapter, Skill } from '../../shared/types';
 import { cn } from '../lib/utils';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip';
 
 interface EditorHeaderProps {
   currentChapter: Chapter | null;
@@ -37,7 +30,7 @@ export function EditorHeader({
   onToggleFullscreen,
   isAgentSidebarOpen,
   onToggleAgentSidebar,
-  isEditorDataLoading,
+  isEditorDataLoading: _isEditorDataLoading,
   isAnyGenerating,
   isSyncing,
   syncSuccess,
@@ -88,83 +81,95 @@ export function EditorHeader({
 
       <div className="flex items-center gap-2 min-w-0 shrink-0">
         <div className="hidden xl:flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted">
             <BookOpen size={11} className="text-theme-accent" />
             <span className="font-bold text-theme-text">世界观已就位</span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted max-w-[240px] min-w-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted max-w-[240px] min-w-0">
             <Sparkles size={11} className="text-theme-accent" />
             <span className="shrink-0">挂载技能</span>
             <span className="truncate">
               {mountedSkills.length > 0 ? mountedSkills.map(s => s.name).join(' / ') : '未挂载'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 border border-theme-border text-[10px] text-theme-muted">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-theme-sidebar/70 border border-theme-border text-[10px] text-theme-muted">
+            <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>AI 核心已连接</span>
           </div>
         </div>
-        <AnimatePresence mode="sync">
-          {isAnyGenerating ? (
-            <motion.div
+        {isAnyGenerating ? (
+            <div
                key="generating"
-               initial={{ opacity: 0, scale: 0.9 }}
-               animate={{ opacity: 1, scale: 1 }}
-               exit={{ opacity: 0, scale: 0.9 }}
                className="flex items-center gap-2 text-xs font-bold text-theme-accent mr-2 px-3 py-1.5 bg-theme-accent/10 rounded-full"
              >
                <Loader2 size={14} className="animate-spin" />
                AI 响应中…
-             </motion.div>
+             </div>
           ) : isSyncing ? (
-            <motion.div
+            <div
               key="syncing"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
               className="flex items-center gap-2 text-xs text-theme-muted mr-2 font-mono"
             >
               <Cloud size={14} className="animate-pulse" />
               保存中…
-            </motion.div>
+            </div>
           ) : syncSuccess ? (
-            <motion.div
+            <div
               key="success"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
               className="flex items-center gap-2 text-xs text-emerald-500 mr-2 font-mono"
             >
               <CheckCircle2 size={14} />
               保存成功
-            </motion.div>
+            </div>
           ) : null}
-        </AnimatePresence>
-        <button
-          onClick={onToggleAgentSidebar}
-          aria-label={isAgentSidebarOpen ? "收起智能管家" : "展开智能管家"}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-            isAgentSidebarOpen
-              ? "bg-theme-accent/10 border border-theme-accent/30 text-theme-accent"
-              : "bg-theme-accent/5 border border-theme-accent/20 text-theme-accent hover:bg-theme-accent/10"
-          )}
-          title="智能管家"
-        >
-          <Bot size={14} />
-          {isAgentSidebarOpen ? '收起助手' : 'AI 助手'}
-        </button>
-        <button
-          onClick={onToggleFullscreen}
-          aria-label={isFullscreen ? "退出全屏模式" : "进入全屏模式"}
-          className="p-1.5 rounded-lg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/40 transition-colors"
-          title={isFullscreen ? '退出全屏' : '全屏模式'}
-        >
-          {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-        </button>
-        <button aria-label="打开设置" className="hidden sm:inline-flex p-2 hover:bg-theme-border/50 rounded-lg text-theme-muted">
-          <Settings size={18} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleAgentSidebar}
+              aria-label={isAgentSidebarOpen ? "收起智能管家" : "展开智能管家"}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer",
+                isAgentSidebarOpen
+                  ? "bg-theme-accent/10 border border-theme-accent/30 text-theme-accent"
+                  : "bg-theme-accent/5 border border-theme-accent/20 text-theme-accent hover:bg-theme-accent/10"
+              )}
+            >
+              <Bot size={14} />
+              {isAgentSidebarOpen ? '收起助手' : 'AI 助手'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            智能管家
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "退出全屏模式" : "进入全屏模式"}
+              className="p-1.5 rounded-lg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/40 transition-colors cursor-pointer"
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isFullscreen ? '退出全屏' : '全屏写作模式'}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => window.dispatchEvent(new Event('open-settings'))}
+              aria-label="打开设置"
+              className="hidden sm:inline-flex p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted cursor-pointer"
+            >
+              <Settings size={16} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            模型与系统设置
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

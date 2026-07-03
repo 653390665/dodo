@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,8 +10,8 @@ import {
   initDb,
   listNovels,
   updateNovel,
-} from '../src/lib/db';
-import type { Novel, ProjectPreferenceProfile } from '../src/types';
+} from '../server/lib/db';
+import type { Novel, ProjectPreferenceProfile } from '../shared/types';
 
 function baseProfile(): ProjectPreferenceProfile {
   return {
@@ -46,6 +46,7 @@ function baseNovel(profile: ProjectPreferenceProfile): Novel {
   };
 }
 
+describe("db-compat", () => {
 test('projectPreferenceProfile persists through createNovel getNovel updateNovel listNovels', () => {
   closeDb();
   const dbPath = path.join(os.tmpdir(), `inkflow-pref-${Date.now()}.db`);
@@ -96,4 +97,5 @@ test('projectPreferenceProfile persists through createNovel getNovel updateNovel
     closeDb();
     fs.rmSync(dbPath, { force: true });
   }
+});
 });

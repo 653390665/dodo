@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import { Chapter, PacingData } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Activity, Loader2 } from 'lucide-react';
+
+import { Chapter, PacingData } from '../../shared/types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { motion } from '../lib/motion';
 
 interface Props {
   novelId: string;
@@ -14,8 +14,9 @@ export function PacingDashboard({ novelId }: Props) {
   const [pacing, setPacing] = useState<PacingData[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = async () => setChapters(await listChapters(novelId));
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId]);
+  const refresh = useCallback(async () => setChapters(await listChapters(novelId)), [novelId]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
+  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
 
   const handleAnalyze = async () => {
     const withContent = chapters.filter(c => c.content && c.content.trim().length > 0);
@@ -52,7 +53,6 @@ export function PacingDashboard({ novelId }: Props) {
       });
       setPacing(enriched);
     } catch (e) {
-      console.error(e);
       alert('AI 分析失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
@@ -76,12 +76,12 @@ export function PacingDashboard({ novelId }: Props) {
               <div className="text-2xl font-black text-theme-accent">{avgTension}</div>
               <div className="text-[9px] opacity-50 uppercase">平均张力</div>
             </div>
-            <div className="w-px bg-white/10" />
+            <div className="w-px bg-theme-sidebar/10" />
             <div>
               <div className="text-2xl font-black text-emerald-400">{totalPayoffs}</div>
               <div className="text-[9px] opacity-50 uppercase">总爽点数</div>
             </div>
-            <div className="w-px bg-white/10" />
+            <div className="w-px bg-theme-sidebar/10" />
             <div>
               <div className="text-2xl font-black text-blue-400">{pacing.length}</div>
               <div className="text-[9px] opacity-50 uppercase">已诊断章</div>
@@ -99,7 +99,7 @@ export function PacingDashboard({ novelId }: Props) {
 
       {/* Tension bar chart */}
       {pacing.length > 0 && (
-        <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+        <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
           <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-4">张力曲线</h3>
           <div className="space-y-2">
             {pacing.map(p => {
@@ -110,10 +110,7 @@ export function PacingDashboard({ novelId }: Props) {
                     {chapter?.title || '?'}
                   </span>
                   <div className="flex-1 h-5 bg-theme-sidebar/30 rounded-full overflow-hidden relative">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${p.tensionScore}%` }}
-                      transition={{ duration: 0.6, delay: 0.1 }}
+                    <div
                       className={`h-full rounded-full ${
                         p.tensionScore >= 70 ? 'bg-red-400' :
                         p.tensionScore >= 40 ? 'bg-amber-400' :
@@ -131,7 +128,7 @@ export function PacingDashboard({ novelId }: Props) {
 
       {/* Emotion labels */}
       {pacing.length > 0 && (
-        <div className="bg-white p-4 rounded-xl border border-theme-border shadow-sm">
+        <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
           <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-3">情绪分布</h3>
           <div className="flex flex-wrap gap-1.5">
             {pacing.map(p => (

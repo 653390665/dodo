@@ -1,10 +1,11 @@
-import type { CopilotReasons, CopilotStage, CopilotSuggestion } from '../types';
+import type { CopilotReasons, CopilotStage, CopilotSuggestion } from '../../shared/types';
 
 export interface CopilotInput {
   hasCurrentChapter: boolean;
   hasSummary: boolean;
   hasGlobalOutline: boolean;
   hasWorldRules: boolean;
+  hasContinuationPackContext: boolean;
   hasSceneBeats: boolean;
   hasChapterContent: boolean;
   hasCritique: boolean;
@@ -23,11 +24,17 @@ export interface CopilotInput {
     | 'versions'
     | 'ideas'
     | 'foreshadowing'
-    | 'pacing';
+    | 'pacing'
+    | 'context';
 }
 
 export function deriveCopilotStage(input: CopilotInput): CopilotStage {
-  if (!input.hasSummary || !input.hasGlobalOutline || !input.hasWorldRules) {
+  const hasStoryFrame = input.hasContinuationPackContext || (
+    input.hasSummary &&
+    input.hasGlobalOutline &&
+    input.hasWorldRules
+  );
+  if (!hasStoryFrame) {
     return 'missing-setup';
   }
   if (input.hasSniffedNewEntities) {
@@ -50,12 +57,13 @@ function buildReasons(input: CopilotInput): CopilotReasons {
   const missing: string[] = [];
   const risks: string[] = [];
 
+  if (input.hasContinuationPackContext) ready.push('continuation pack');
   if (input.hasSummary) ready.push('summary');
-  else missing.push('summary');
+  else if (!input.hasContinuationPackContext) missing.push('summary');
   if (input.hasGlobalOutline) ready.push('global outline');
-  else missing.push('global outline');
+  else if (!input.hasContinuationPackContext) missing.push('global outline');
   if (input.hasWorldRules) ready.push('world rules');
-  else missing.push('world rules');
+  else if (!input.hasContinuationPackContext) missing.push('world rules');
   if (input.hasCurrentChapter) ready.push('current chapter');
   else missing.push('current chapter');
   if (input.hasSceneBeats) ready.push('scene beats');
@@ -145,9 +153,9 @@ export function buildCopilotSuggestion(input: CopilotInput): CopilotSuggestion {
       return {
         stage: 'pending-polish',
         stageLabel: '待精修',
-        title: '按审计结果精修',
-        summary: '这一章已经有审计结果，先处理高价值问题再继续写。',
-        primaryAction: { key: 'run-polish', label: '按审计精修' },
+        title: '按审计一键精修',
+        summary: '审计发现去AI味、动作链缺失、对白突兀等高价值问题，推荐一键执行局部手术式精修。',
+        primaryAction: { key: 'run-polish', label: '局部手术精修' },
         secondaryActions: [
           { key: 'open-quality', label: '查看审计问题' },
           { key: 'open-planning', label: '回看分镜' },

@@ -1,23 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';import Wand2 from 'lucide-react/dist/esm/icons/wand-sparkles.js';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BrainCircuit, CheckCircle2, PenLine, Sparkles, Wand2 } from 'lucide-react';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listNovels, updateNovel } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores } from '../lib/skill-client';
 import { coerceMountedSkillLoadout } from '../lib/skill-model';
-import { Skill, Novel } from '../types';
+import { Skill, Novel, ViewType } from '../../shared/types';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 
-export function SkillsStudioView() {
+export function SkillsStudioView({
+  selectedNovel,
+  onNavigate,
+}: {
+  selectedNovel?: Novel | null;
+  onNavigate?: (view: ViewType) => void;
+}) {
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [skillToDeleteId, setSkillToDeleteId] = useState<string | null>(null);
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
 
   useEffect(() => {
     const refreshSkills = () => {
       syncSkillFeedbackScores()
         .then(setSavedSkills)
-        .catch((err) => console.error('Failed to load skills:', err));
+        .catch((err) => console.warn('Failed to load skills:', err));
     };
     refreshSkills();
     listNovels().then(setUserNovels);
@@ -30,10 +39,16 @@ export function SkillsStudioView() {
   );
 
   const handleDeleteSkill = async (id: string) => {
-    if(!confirm("确认删除这个技能？")) return;
-    await deleteSkill(id);
-    if (selectedSkillId === id) {
-      setSelectedSkillId(null);
+    setSkillToDeleteId(id);
+  };
+
+  const executeDeleteSkill = async () => {
+    if (skillToDeleteId) {
+      await deleteSkill(skillToDeleteId);
+      if (selectedSkillId === skillToDeleteId) {
+        setSelectedSkillId(null);
+      }
+      setSkillToDeleteId(null);
     }
   };
 
@@ -75,6 +90,68 @@ export function SkillsStudioView() {
           <p className="text-theme-muted mt-2">在这里管理您的 AI 专属技能卡牌。打开详情、编辑字段、维护版本谱系。</p>
         </div>
 
+        <div className="max-w-6xl mx-auto mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+          <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-bold text-theme-text">
+              <Sparkles size={18} className="text-theme-accent" />
+              技能如何影响写作
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {[
+                { label: '分镜', detail: '影响下一章的场景选择、冲突推进和节奏密度。', icon: BrainCircuit },
+                { label: '正文', detail: '约束文风、句法、人物口吻和叙事颗粒度。', icon: PenLine },
+                { label: '审查', detail: '帮助 AI 用同一套标准检查跑偏、重复和节奏问题。', icon: CheckCircle2 },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4">
+                    <div className="flex items-center gap-2 text-sm font-bold text-theme-text">
+                      <Icon size={15} className="text-theme-accent" />
+                      {item.label}
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-theme-muted">{item.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
+            <div className="text-sm font-bold text-theme-text">当前作品装配</div>
+            {selectedNovel ? (
+              <>
+                <p className="mt-2 text-xs leading-5 text-theme-muted">
+                  《{selectedNovel.title}》已装配 {
+                    selectedNovel.mountedSkillLoadout
+                      ? selectedNovel.mountedSkillLoadout.filter(slot => slot.skillId).length
+                      : (selectedNovel.mountedSkillIds?.length || 0)
+                  }/3 张技能卡。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.('workspace')}
+                  className="mt-4 w-full rounded-2xl bg-theme-text px-4 py-3 text-sm font-bold text-theme-bg transition-opacity hover:opacity-90"
+                >
+                  回到当前作品工作台
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-xs leading-5 text-theme-muted">
+                  先在书库选择作品，再把技能装配到下一章生成链路中。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.('library')}
+                  className="mt-4 w-full rounded-2xl border border-theme-border px-4 py-3 text-sm font-bold text-theme-text transition-colors hover:border-theme-accent"
+                >
+                  去书库选择作品
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="max-w-6xl mx-auto mb-8">
           <SkillMapPanel skills={savedSkills} />
         </div>
@@ -108,6 +185,20 @@ export function SkillsStudioView() {
         onClose={() => setSelectedSkillId(null)}
         onSelectSkill={(id) => setSelectedSkillId(id)}
       />
+      <AlertDialog open={Boolean(skillToDeleteId)} onOpenChange={(open) => !open && setSkillToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除这个技能？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将从技能库中删除该写作技能卡，并从所有已装配的作品中解绑。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteSkill} className="bg-red-600 hover:bg-red-700 text-white font-bold">确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

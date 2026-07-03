@@ -6,7 +6,7 @@ import {
   countCompletedSetupTasks,
   recommendSkillsForStoryCard,
 } from '../src/lib/onboarding-model';
-import type { Skill, StoryIdeaCard, StoryPlanningInput } from '../src/types';
+import type { Skill, StoryIdeaCard, StoryPlanningInput } from '../shared/types';
 
 function makePlanning(overrides: Partial<StoryPlanningInput> = {}): StoryPlanningInput {
   return {
@@ -51,8 +51,6 @@ function makeCard(overrides: Partial<StoryIdeaCard> = {}): StoryIdeaCard {
 
 function makeSkill(partial: Partial<Skill> & Pick<Skill, 'id' | 'name'>): Skill {
   return {
-    id: partial.id,
-    name: partial.name,
     description: '',
     style: '',
     pacing: '',

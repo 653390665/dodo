@@ -1,6 +1,7 @@
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import { Sparkles } from 'lucide-react';
+
 import { getSkillRoleLabel } from '../../lib/skill-language';
-import type { Skill } from '../../types';
+import type { Skill } from '../../../shared/types';
 import type { SkillFitResult } from '../../lib/skill-model';
 
 interface FusionSuggestionBannerProps {

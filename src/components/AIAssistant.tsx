@@ -1,27 +1,17 @@
-import React, { useState, useEffect } from 'react';import Send from 'lucide-react/dist/esm/icons/send.js';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
-import BrainCircuit from 'lucide-react/dist/esm/icons/brain-circuit.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import Eraser from 'lucide-react/dist/esm/icons/eraser.js';
-import Copy from 'lucide-react/dist/esm/icons/copy.js';
-import Terminal from 'lucide-react/dist/esm/icons/terminal.js';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import X from 'lucide-react/dist/esm/icons/x.js';
-import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
+import React, { useState, useEffect } from 'react';
+import { toast } from '../lib/toast';
+
 import { extractWorldSetupPhase } from '../lib/agents';
-import { motion, AnimatePresence } from '../lib/motion';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { ArrowRight, BrainCircuit, Copy, FolderOpen, Globe, Lightbulb, Loader2, MoreVertical, Send, Sparkles, Terminal, X } from 'lucide-react';
 import { listNovels } from '../lib/novel-client';
 import { createChapter } from '../lib/chapter-client';
 import { createCharacter, createLocation, createItem } from '../lib/world-client';
 import { createIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { generateInspiration } from '../lib/prompt-client';
-import { AssistantLaunchContext, AssistantPrimaryAction, AssistantSuggestionKind, Novel } from '../types';
+import { AssistantLaunchContext, AssistantSuggestionKind, Novel } from '../../shared/types';
 import { buildAssistantSeedPrompt } from '../lib/assistant-context';
 import { buildAssistantIdeaFragment } from '../lib/assistant-fragment';
 import { classifyAssistantSuggestion, getPrimaryAssistantAction } from '../lib/assistant-suggestion';
@@ -34,19 +24,23 @@ interface Message {
 
 interface AIAssistantProps {
   launchContext?: AssistantLaunchContext | null;
+  activeNovel?: Novel | null;
   onApplyToContent?: (text: string) => Promise<void> | void;
   onApplyToSceneBeats?: (text: string) => Promise<void> | void;
   onReplaceSelection?: (text: string) => Promise<void> | void;
   onClose?: () => void;
 }
 
-export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onClose }: AIAssistantProps) {
+export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onClose }: AIAssistantProps) {
   const promptSurface = 'workspace-draft';
+  const hasProjectContext = Boolean(launchContext || activeNovel);
+  const assistantTitle = hasProjectContext ? '作品协作助手' : '灵感启动助手';
+  const assistantSubtitle = hasProjectContext ? 'PROJECT COPILOT' : 'IDEA STARTER';
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: '这里是灵感助手。它服务于你正在写的作品：补桥段、扩场景、润台词、提设定，而不是替代新建作品入口。'
+      content: '这里是灵感启动助手。你可以先描述故事、角色或卡点；进入作品后，我会切换为读取当前章节上下文的协作助手。'
     }
   ]);
   const [input, setInput] = useState('');
@@ -56,7 +50,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSavingToNovel, setIsSavingToNovel] = useState(false);
-  const [savingFragmentId, setSavingFragmentId] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshNovels = () => listNovels().then(setUserNovels);
@@ -67,6 +60,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
   useEffect(() => {
     if (!launchContext) return;
     const seededPrompt = buildAssistantSeedPrompt(launchContext);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing props to state on context change
     setMessages((prev) => {
       const withoutSeed = prev.filter((message) => message.id !== 'workspace-seed');
       return [
@@ -91,6 +85,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     const prompt = customPrompt || input;
     if (!prompt.trim() || isLoading) return;
 
+    // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: prompt };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -98,10 +93,11 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
 
     try {
       const result = await generateInspiration(prompt, promptSurface);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result || '未能生成灵感，请重试。' };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast('生成灵感失败，请稍后重试', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -116,6 +112,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
 
     setIsSavingToNovel(true);
     try {
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const now = Date.now();
       await createChapter({
         id: now.toString(),
@@ -130,8 +127,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       });
       alert(`已成功保存至《${novel.title}》的灵感碎片库！`);
       setShowSaveModal(null);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('保存失败，请稍后重试。');
     } finally {
       setIsSavingToNovel(false);
@@ -143,15 +139,17 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     setIsExtracting(true);
     try {
       const extracted = await extractWorldSetupPhase(content);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const now = Date.now();
 
       let count = 0;
       if (extracted.characters) {
         for (const char of extracted.characters) {
            await createCharacter({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: char.name,
+             name: char.name || '',
              role: char.role || 'supporting',
              summary: char.summary || '',
              traits: char.traits || [],
@@ -165,9 +163,10 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       if (extracted.locations) {
         for (const loc of extracted.locations) {
            await createLocation({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: loc.name,
+             name: loc.name || '',
              region: loc.region || '',
              description: loc.description || '',
              createdAt: now,
@@ -179,9 +178,10 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       if (extracted.items) {
         for (const item of extracted.items) {
            await createItem({
+             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
              id: Date.now().toString(),
              novelId: novel.id,
-             name: item.name,
+             name: item.name || '',
              type: item.type || '',
              description: item.description || '',
              createdAt: now,
@@ -192,8 +192,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       }
 
       alert(`AI 已成功解析出 ${count} 个设定项，并存储至《${novel.title}》的设定集库中！您可前往「设定记忆」界面查看。`);
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert('提取设定失败，可能是内容不包含明确的角色/地点/物品设定格式，或者大语言模型返回了异常。');
     } finally {
       setIsExtracting(false);
@@ -208,15 +207,11 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     const trimmed = content.trim();
     if (!trimmed) return;
 
-    setSavingFragmentId(content);
     try {
       await createIdeaFragment(buildAssistantIdeaFragment(trimmed, launchContext));
       alert(`已保存到《${launchContext.novelTitle}》的灵感碎片库。`);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('保存灵感碎片失败，请稍后重试。');
-    } finally {
-      setSavingFragmentId(null);
     }
   };
 
@@ -233,7 +228,6 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     await handleExtractToWorldBible(novel, content);
   };
 
-
   const suggestions = [
     { label: '先补正文', prompt: '基于当前章节，给我一段可以直接接上的正文候选。', icon: Sparkles },
     { label: '先补分镜', prompt: '基于当前章节目标，给我 3 条下一步场景分镜。', icon: BrainCircuit },
@@ -248,30 +242,23 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
     fragment: '碎片候选',
   };
 
-  const PRIMARY_ACTION_LABELS: Record<AssistantPrimaryAction, string> = {
-    'replace-selection': '主动作：替换当前选区',
-    'append-content': '主动作：插入正文末尾',
-    'append-scene-beat': '主动作：追加到场景分镜',
-    'extract-setting': '主动作：提取到当前作品设定',
-    'save-fragment': '主动作：保存为灵感碎片',
-  };
-
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-theme-sidebar">
       {/* Sticky Header */}
-      <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-white sticky top-0 z-20">
+      <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar sticky top-0 z-20">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-theme-sidebar/40 rounded-xl text-theme-accent">
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-serif font-bold text-theme-text leading-none">灵感助手</h2>
-            <p className="text-[10px] text-theme-muted mt-1 uppercase tracking-widest font-bold">AI Inspiration Assistant</p>
+            <h2 className="text-lg font-serif font-bold text-theme-text leading-none">{assistantTitle}</h2>
+            <p className="text-[10px] text-theme-muted mt-1 uppercase tracking-widest font-bold">{assistantSubtitle}</p>
           </div>
         </div>
         {onClose && (
           <button
             onClick={onClose}
+            aria-label="关闭 AI 助手"
             className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text transition-all"
           >
             <X size={20} />
@@ -279,20 +266,32 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-        {launchContext && (
-          <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
-              <Lightbulb size={14} className="text-theme-accent" />
-              当前创作上下文
-            </div>
-            <div className="mt-2 text-[11px] text-theme-muted space-y-1">
-              <p className="truncate">作品：{launchContext.novelTitle}</p>
-              {launchContext.chapterTitle ? <p className="truncate">章节：{launchContext.chapterTitle}</p> : null}
-              {launchContext.intent ? <p className="line-clamp-1">目标：{launchContext.intent}</p> : null}
-            </div>
+      <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6">
+        <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
+            <Lightbulb size={14} className="text-theme-accent" />
+            当前 AI 上下文
           </div>
-        )}
+          <div className="mt-2 text-[11px] text-theme-muted flex flex-col gap-1">
+            {launchContext ? (
+              <>
+                <p className="truncate">作品：{launchContext.novelTitle}</p>
+                {launchContext.chapterTitle ? <p className="truncate">章节：{launchContext.chapterTitle}</p> : null}
+                {launchContext.intent ? <p className="line-clamp-1">目标：{launchContext.intent}</p> : null}
+              </>
+            ) : activeNovel ? (
+              <>
+                <p className="truncate">作品：{activeNovel.title}</p>
+                <p>还没有绑定具体章节，会按作品层面协作。</p>
+              </>
+            ) : (
+              <>
+                <p>未选择作品。当前适合做灵感发散、故事方向和设定草稿。</p>
+                <p>进入作品后，可把建议应用到正文、分镜或设定。</p>
+              </>
+            )}
+          </div>
+        </div>
 
         {/* Quick Suggestions - Compact for Drawer */}
         <div className="grid grid-cols-2 gap-2">
@@ -300,7 +299,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
             <button
               key={idx}
               onClick={() => handleSubmit(undefined, s.prompt)}
-              className="flex items-center gap-2 p-3 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 hover:border-theme-accent hover:bg-white transition-all group text-left shadow-sm active:scale-95"
+              className="flex items-center gap-2 p-3 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 hover:border-theme-accent hover:bg-theme-sidebar transition-all group text-left shadow-sm active:scale-95"
             >
               <s.icon size={14} className="text-theme-muted group-hover:text-theme-accent shrink-0" />
               <span className="text-[11px] font-bold text-theme-muted group-hover:text-theme-text truncate">{s.label}</span>
@@ -309,11 +308,9 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
         </div>
 
         {/* Chat Messages */}
-        <div className="space-y-4 pb-4">
+        <div className="flex flex-col gap-4 pb-4">
           {messages.map((msg) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+            <div
               key={msg.id}
               className={cn(
                 "flex flex-col gap-2 p-4 rounded-2xl",
@@ -324,10 +321,9 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
             >
               <div className="flex-1 min-w-0 overflow-hidden">
                 {msg.role === 'assistant' ? (
-                  <div className="space-y-3">
+                  <div className="flex flex-col gap-3">
                     {msg.id !== 'welcome' && launchContext ? (() => {
                       const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
-                      const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
                       return (
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-0.5 text-[9px] font-bold text-theme-accent border border-theme-accent/20">
@@ -342,7 +338,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                     <div className="flex flex-wrap items-center gap-1.5 border-t border-theme-border/20 pt-2">
                       <button
                         onClick={() => navigator.clipboard.writeText(msg.content)}
-                        className="p-1.5 rounded-lg border border-theme-border/40 bg-white text-theme-muted transition-colors hover:text-theme-accent"
+                        className="p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
                         title="复制"
                       >
                         <Copy size={12} />
@@ -353,14 +349,14 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                           const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
                           const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
 
-                          const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: any, primary?: boolean }) => (
+                          const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: React.ComponentType<{size?: number, className?: string}>, primary?: boolean }) => (
                             <button
                               onClick={action}
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all",
                                 primary 
                                   ? "bg-theme-accent text-white shadow-sm hover:opacity-90" 
-                                  : "border border-theme-border/60 bg-white text-theme-muted hover:border-theme-accent hover:text-theme-accent"
+                                  : "border border-theme-border/60 bg-theme-sidebar text-theme-muted hover:border-theme-accent hover:text-theme-accent"
                               )}
                               title={label}
                             >
@@ -388,10 +384,10 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                               )}
 
                               <details className="group relative">
-                                <summary className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-white text-theme-muted transition-colors hover:text-theme-accent">
+                                <summary className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent">
                                   <MoreVertical size={12} />
                                 </summary>
-                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
+                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-theme-sidebar rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
                                   <button onClick={() => setShowSaveModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
                                     <FolderOpen size={12} /> 保存到其他作品
                                   </button>
@@ -415,18 +411,16 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
                   <p className="text-white m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
                 )}
               </div>
-            </motion.div>
+            </div>
           ))}
 
           {isLoading && (
             <div className="flex gap-3 p-4 bg-theme-sidebar/10 border border-theme-border/20 rounded-2xl items-center">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              <div
                 className="text-theme-accent"
               >
                 <Sparkles size={16} />
-              </motion.div>
+              </div>
               <span className="text-[11px] font-serif italic text-theme-muted">正在编织灵感...</span>
             </div>
           )}
@@ -437,7 +431,7 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       <div className="shrink-0 p-4 border-t border-theme-border bg-theme-sidebar/5 sticky bottom-0 z-20">
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-2 p-1.5 bg-white rounded-2xl border border-theme-border focus-within:border-theme-accent transition-all shadow-sm"
+          className="flex items-center gap-2 p-1.5 bg-theme-sidebar rounded-2xl border border-theme-border focus-within:border-theme-accent transition-all shadow-sm"
         >
           <input
             type="text"
@@ -457,21 +451,14 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
       </div>
 
       {/* Save Modal */}
-      <AnimatePresence>
-        {showSaveModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {showSaveModal && (
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
             onClick={() => setShowSaveModal(null)}
           >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+            <div
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+              className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             >
               <h3 className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
                 <FolderOpen size={20} className="text-theme-accent" />
@@ -512,29 +499,21 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
               >
                 取消
               </button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
       {/* Extract Modal */}
-      <AnimatePresence>
-        {showExtractModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {showExtractModal && (
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
             onClick={() => !isExtracting && setShowExtractModal(null)}
           >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+            <div
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
+              className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
             >
               {isExtracting && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                <div className="absolute inset-0 bg-theme-sidebar/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mb-4">
                     <Loader2 size={32} className="text-theme-accent animate-spin" />
                   </div>
@@ -574,10 +553,9 @@ export function AIAssistant({ launchContext, onApplyToContent, onApplyToSceneBea
               >
                 取消
               </button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

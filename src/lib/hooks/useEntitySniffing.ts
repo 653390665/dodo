@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-import type { Chapter, Character, Item, Location, SniffedEntities } from '../../types';
+import type { Chapter, Character, Item, Location, SniffedEntities } from '../../../shared/types';
 import { createCharacter, createItem, createLocation } from '../world-client';
 
 interface UseEntitySniffingArgs {
@@ -78,7 +78,6 @@ export function useEntitySniffing({
         };
       });
     } catch (error) {
-      console.error('Failed to add entity', error);
       alert(`添加失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setAddingEntityNames((prev) => prev.filter((name) => name !== entity.name));
@@ -109,8 +108,7 @@ export function useEntitySniffing({
       if (data.error) throw new Error(data.error);
       if (currentChapter?.id !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setSniffedEntities(data);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('嗅探失败');
     } finally {
       setIsSniffing(false);

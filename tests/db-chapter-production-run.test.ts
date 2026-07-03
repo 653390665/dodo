@@ -12,8 +12,8 @@ import {
   initDb,
   listChapterProductionRuns,
   updateChapterProductionRun,
-} from '../src/lib/db';
-import type { Chapter, ChapterProductionRun, Novel } from '../src/types';
+} from '../server/lib/db';
+import type { Chapter, ChapterProductionRun, Novel } from '../shared/types';
 
 function baseNovel(): Novel {
   const now = Date.now();

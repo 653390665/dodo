@@ -1,4 +1,4 @@
-import type { CopilotActionKey, CopilotSuggestion } from '../../types';
+import type { CopilotActionKey, CopilotSuggestion } from '../../../shared/types';
 
 interface CopilotHomePanelProps {
   suggestion: CopilotSuggestion;
@@ -14,7 +14,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
         <div className="mt-2">{suggestion.summary}</div>
       </div>
 
-      <div className="rounded-2xl border border-theme-border bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
         <div className="text-xs font-bold text-theme-text mb-1">主建议</div>
         <div className="text-base font-serif font-bold text-theme-text">{suggestion.title}</div>
         <p className="mt-2 text-sm text-theme-muted">{suggestion.summary}</p>
@@ -29,7 +29,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
             <button
               key={action.key}
               onClick={() => onAction(action.key)}
-              className="rounded-xl border border-theme-border bg-white px-3.5 py-2 text-sm font-medium text-theme-text hover:bg-theme-sidebar/45 transition-colors"
+              className="rounded-xl border border-theme-border bg-theme-sidebar px-3.5 py-2 text-sm font-medium text-theme-text hover:bg-theme-sidebar/45 transition-colors"
             >
               {action.label}
             </button>
@@ -38,7 +38,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-theme-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">已具备</div>
           <div className="space-y-1 text-xs text-theme-muted">
             {suggestion.reasons.ready.length > 0
@@ -46,7 +46,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
               : <div>暂无</div>}
           </div>
         </div>
-        <div className="rounded-2xl border border-theme-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">当前缺失</div>
           <div className="space-y-1 text-xs text-theme-muted">
             {suggestion.reasons.missing.length > 0
@@ -54,7 +54,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
               : <div>暂无</div>}
           </div>
         </div>
-        <div className="rounded-2xl border border-theme-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">潜在风险</div>
           <div className="space-y-1 text-xs text-theme-muted">
             {suggestion.reasons.risks.length > 0

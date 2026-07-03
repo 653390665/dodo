@@ -4,7 +4,7 @@ import {
   classifyAssistantSuggestion,
   getPrimaryAssistantAction,
 } from '../src/lib/assistant-suggestion';
-import type { AssistantLaunchContext } from '../src/types';
+import type { AssistantLaunchContext } from '../shared/types';
 
 function makeContext(overrides: Partial<AssistantLaunchContext> = {}): AssistantLaunchContext {
   return {

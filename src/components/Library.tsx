@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '../lib/utils';import Plus from 'lucide-react/dist/esm/icons/plus.js';
-import Search from 'lucide-react/dist/esm/icons/search.js';
-import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical.js';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
-import BookMarked from 'lucide-react/dist/esm/icons/book-marked.js';
-import Clock from 'lucide-react/dist/esm/icons/clock.js';
-import Download from 'lucide-react/dist/esm/icons/download.js';
+import { BookMarked, CheckCircle2, Clock, Download, FileText, Globe2, PenLine, Plus, Search, Trash2, Wand2 } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
+
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';
+import { listContinuationPacks } from '../lib/continuation-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { Novel, Chapter, ViewType } from '../types';
-import { motion, AnimatePresence } from '../lib/motion';
+import { Novel, ViewType, Chapter, ContinuationPack } from '../../shared/types';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
@@ -20,13 +17,49 @@ interface LibraryProps {
 
 export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   const [novels, setNovels] = useState<Novel[]>([]);
+  const [novelToDeleteId, setNovelToDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newNovelTitle, setNewNovelTitle] = useState('');
 
+  const [chaptersMap, setChaptersMap] = useState<Record<string, Chapter[]>>({});
+  const [packsMap, setPacksMap] = useState<Record<string, ContinuationPack[]>>({});
+
+  const loadMetadata = async (novelList: Novel[]) => {
+    const chaps: Record<string, Chapter[]> = {};
+    const pks: Record<string, ContinuationPack[]> = {};
+
+    await Promise.all(
+      novelList.map(async (novel) => {
+        try {
+          const [c, p] = await Promise.all([
+            listChapters(novel.id),
+            listContinuationPacks(novel.id),
+          ]);
+          chaps[novel.id] = c;
+          pks[novel.id] = p;
+        } catch {
+          chaps[novel.id] = [];
+          pks[novel.id] = [];
+        }
+      })
+    );
+
+    setChaptersMap(chaps);
+    setPacksMap(pks);
+  };
+
   useEffect(() => {
-    listNovels().then(setNovels);
-    return subscribeToChanges(() => listNovels().then(setNovels));
+    listNovels().then((list) => {
+      setNovels(list);
+      loadMetadata(list);
+    });
+    return subscribeToChanges(() => {
+      listNovels().then((list) => {
+        setNovels(list);
+        loadMetadata(list);
+      });
+    });
   }, []);
 
   const handleCreateNovel = async (e: React.FormEvent) => {
@@ -72,9 +105,14 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
   const handleDeleteNovel = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('确定要删除这部作品吗？此操作不可逆。')) return;
+    setNovelToDeleteId(id);
+  };
 
-    await deleteNovel(id);
+  const executeDeleteNovel = async () => {
+    if (novelToDeleteId) {
+      await deleteNovel(novelToDeleteId);
+      setNovelToDeleteId(null);
+    }
   };
 
   const handleExportNovel = async (e: React.MouseEvent, novel: Novel) => {
@@ -95,7 +133,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
       if ('showDirectoryPicker' in window) {
         try {
-          // @ts-ignore
+          // @ts-expect-error showDirectoryPicker may not be in all TS lib types
           const dirHandle = await window.showDirectoryPicker();
           const fileHandle = await dirHandle.getFileHandle(`${novel.title}.txt`, { create: true });
           const writable = await fileHandle.createWritable();
@@ -116,13 +154,18 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       a.download = `${novel.title}.txt`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert('导出失败');
     }
   };
 
   const filteredNovels = novels.filter(n => n.title.toLowerCase().includes(search.toLowerCase()));
+  const getReadinessItems = (novel: Novel) => [
+    { label: '简介', ready: Boolean(novel.summary?.trim()), icon: FileText },
+    { label: '大纲', ready: Boolean(novel.globalOutline?.trim()), icon: CheckCircle2 },
+    { label: '世界观', ready: Boolean(novel.worldRules?.trim()), icon: Globe2 },
+    { label: `技能 ${novel.mountedSkillIds?.length || 0}/3`, ready: Boolean(novel.mountedSkillIds?.length), icon: Wand2 },
+  ];
 
   return (
     <div className="h-full flex flex-col p-8 lg:p-12 overflow-y-auto bg-transparent">
@@ -138,7 +181,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
               placeholder="搜索作品..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-theme-sidebar border border-theme-border focus:bg-white focus:border-theme-accent rounded-lg text-sm outline-none transition-all w-64 shadow-sm text-theme-text placeholder:text-theme-muted"
+              className="pl-10 pr-4 py-2 bg-theme-sidebar border border-theme-border focus:bg-theme-sidebar focus:border-theme-accent rounded-lg text-sm outline-none transition-all w-64 shadow-sm text-theme-text placeholder:text-theme-muted"
             />
           </div>
           <button
@@ -179,8 +222,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       {/* Grid of Novels */}
       {novels.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        <AnimatePresence mode="popLayout">
-          {filteredNovels.map((novel) => {
+        {filteredNovels.map((novel) => {
             // Generate a deterministic gradient based on novel id
             const hues = [
               'from-rose-100 to-teal-50',
@@ -192,28 +234,32 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             const hueIndex = (parseInt(novel.id.slice(-3)) || 0) % hues.length;
             const gradientClass = hues[hueIndex];
 
+            const novelChapters = chaptersMap[novel.id] || [];
+            const latestCh = [...novelChapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+            const chaptersCount = novelChapters.length;
+            const novelPacks = packsMap[novel.id] || [];
+            const firstPack = novelPacks[0] || null;
+
             return (
-            <motion.div
-              layout
+            <div
               key={novel.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
               onClick={() => onSelectNovel(novel)}
-              className="group relative h-[420px] bg-white rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
+              className="group relative min-h-[440px] bg-theme-sidebar rounded-[2.5rem] border border-theme-border p-6 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1 cursor-pointer"
             >
               <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex gap-2 translate-y-2 group-hover:translate-y-0">
                 <button
                   onClick={(e) => handleExportNovel(e, novel)}
-                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-white transition-all shadow-lg border border-theme-border/50"
+                  className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-theme-text hover:bg-theme-sidebar transition-all shadow-lg border border-theme-border/50"
                   title="导出全本 (TXT)"
+                  aria-label={`导出《${novel.title}》`}
                 >
                   <Download size={16} />
                 </button>
                 <button
                   onClick={(e) => handleDeleteNovel(e, novel.id)}
-                  className="p-2.5 bg-white/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
+                  className="p-2.5 bg-theme-sidebar/90 backdrop-blur rounded-xl text-theme-muted hover:text-red-600 hover:bg-red-50 transition-all shadow-lg border border-theme-border/50"
                   title="删除作品"
+                  aria-label={`删除《${novel.title}》`}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -227,29 +273,76 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 <BookMarked size={56} className="text-theme-text/10 mb-2" />
                 <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">Inspiration Vault</div>
                 <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
-                
+
                 {/* Visual texture */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
               </div>
 
-              <div className="flex flex-col h-[calc(100%-14.5rem)]">
+              <div className="flex flex-col min-h-[160px]">
                 <h3 className="text-2xl font-serif font-bold text-theme-text line-clamp-2 leading-tight group-hover:text-theme-accent transition-colors">
                   {novel.title}
                 </h3>
+                {firstPack && (
+                  <div className="text-[10px] text-theme-muted mt-1 bg-theme-accent/5 border border-theme-accent/10 px-2 py-1 rounded-lg flex flex-wrap items-center gap-1 leading-4">
+                    <span className="font-bold text-theme-accent truncate max-w-[150px]">包: {firstPack.title}</span>
+                    <span>•</span>
+                    <span>{new Date(firstPack.createdAt).toLocaleDateString()}</span>
+                    <span>•</span>
+                    <span>{(firstPack.sourceDocuments || []).length} 篇文档</span>
+                  </div>
+                )}
+                <p className="mt-2 min-h-[40px] text-xs leading-5 text-theme-muted line-clamp-2">
+                  {novel.summary?.trim() || '还没有简介。继续写作时可以补全故事方向和角色动机。'}
+                </p>
+
+                {/* Chapter details box */}
+                <div className="mt-3 p-3 rounded-2xl bg-theme-bg/30 border border-theme-border/40 text-xs space-y-1">
+                  <div className="flex justify-between text-theme-muted text-[11px] font-bold">
+                    <span>章节总数:</span>
+                    <span className="text-theme-text font-semibold">{chaptersCount} 章</span>
+                  </div>
+                  <div className="flex justify-between text-theme-muted text-[11px] font-bold truncate gap-2">
+                    <span>最近章节:</span>
+                    <span className="text-theme-text font-semibold truncate" title={latestCh?.title || '无'}>
+                      {latestCh?.title || '暂无章节'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {getReadinessItems(novel).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div
+                        key={item.label}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[10px] font-bold',
+                          item.ready
+                            ? 'border-theme-accent/20 bg-theme-accent/5 text-theme-accent'
+                            : 'border-theme-border bg-theme-bg/40 text-theme-muted',
+                        )}
+                      >
+                        <Icon size={12} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
 
                 <div className="flex items-center gap-3 mt-auto pt-5 border-t border-theme-border/30">
                   <div className="flex items-center gap-1.5 text-[10px] text-theme-muted uppercase tracking-widest font-bold">
                     <Clock size={12} className="opacity-50" />
                     <span>{new Date(novel.updatedAt).toLocaleDateString()}</span>
                   </div>
-                  
+
                   {(() => {
-                    const statusConfig = {
+                    const configMap = {
                       ongoing: { label: '连载中', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
                       completed: { label: '已完结', color: 'bg-blue-50 text-blue-700 border-blue-100' },
                       hiatus: { label: '断更', color: 'bg-amber-50 text-amber-700 border-amber-100' }
-                    }[novel.status as keyof typeof statusConfig || 'ongoing'];
-                    
+                    };
+                    const statusConfig = configMap[(novel.status as keyof typeof configMap) || 'ongoing'];
+
                     return (
                       <span className={cn(
                         "ml-auto px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border shadow-sm",
@@ -260,20 +353,29 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                     );
                   })()}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectNovel(novel);
+                  }}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-theme-text px-4 py-3 text-sm font-bold text-theme-bg shadow-sm transition-opacity hover:opacity-90"
+                >
+                  <PenLine size={15} />
+                  继续写
+                </button>
               </div>
-            </motion.div>
+            </div>
             );
           })}
-        </AnimatePresence>
 
         {isAdding && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors"
           >
             <form onSubmit={handleCreateNovel} className="w-full px-4">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
+              <div className="w-20 h-20 bg-theme-sidebar rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
                 <Plus size={32} className="text-theme-accent" />
               </div>
               <input
@@ -300,10 +402,24 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 </button>
               </div>
             </form>
-          </motion.div>
+          </div>
         )}
       </div>
       )}
+      <AlertDialog open={Boolean(novelToDeleteId)} onOpenChange={(open) => !open && setNovelToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除这部作品吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作不可逆！将会删除该作品的全部卷章正文、大纲、世界观条目与创作记录。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteNovel} className="bg-red-600 hover:bg-red-700 text-white font-bold">确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

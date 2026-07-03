@@ -1,4 +1,4 @@
-import type { MountedSkillLoadoutItem, Skill } from '../../types';
+import type { MountedSkillLoadoutItem, Skill } from '../../../shared/types';
 import { createSkillUsageRecord } from '../skill-client';
 
 interface RecordSkillUsageOptions {

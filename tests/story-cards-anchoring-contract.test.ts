@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePromptTemplates } from '../src/config/prompt-templates';
+import { mergePromptTemplates } from '../shared/config/prompt-templates';
 
 test('storyCards prompt enforces input anchoring in hook', () => {
   const prompt = mergePromptTemplates().storyCards;

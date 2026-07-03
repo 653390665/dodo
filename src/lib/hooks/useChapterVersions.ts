@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { ChapterVersion } from '../../types';
+import type { ChapterVersion } from '../../../shared/types';
 import { listChapterVersions } from '../chapter-client';
 import { subscribeToChanges } from '../db-transport';
 
@@ -9,6 +9,7 @@ export function useChapterVersions(currentChapterId?: string) {
 
   useEffect(() => {
     if (!currentChapterId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state when chapter cleared
       setVersions([]);
       return;
     }

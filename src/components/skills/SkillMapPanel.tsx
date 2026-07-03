@@ -1,8 +1,7 @@
-import { useMemo } from 'react';import Compass from 'lucide-react/dist/esm/icons/compass.js';
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up.js';
-import Zap from 'lucide-react/dist/esm/icons/zap.js';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import type { Skill, SkillDimension, CardSourceKind } from '../../types';
+import { useMemo } from 'react';
+import { AlertCircle, Compass, TrendingUp, Zap } from 'lucide-react';
+
+import type { Skill, SkillDimension } from '../../../shared/types';
 
 const DIMENSION_LABELS: Record<SkillDimension, string> = {
   style: '文风',
@@ -31,7 +30,7 @@ interface FusionSuggestion {
 
 function deriveFusionSuggestions(
   populated: SkillDimension[],
-  missing: SkillDimension[],
+  _missing: SkillDimension[],
 ): FusionSuggestion[] {
   const suggestions: FusionSuggestion[] = [];
   const complementary: Array<[SkillDimension, SkillDimension, string]> = [
@@ -109,7 +108,7 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
   if (skills.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-theme-border bg-white p-5 space-y-4">
+    <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Compass size={18} className="text-theme-accent" />
         <span className="font-bold text-theme-text text-sm">Skill 地图</span>
@@ -123,7 +122,7 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
         </div>
         <div className="rounded-xl bg-theme-sidebar/20 px-3 py-2.5 text-center">
           <div className="text-lg font-bold text-theme-text">{stats.mountedCount}</div>
-          <div className="text-[10px] text-theme-muted">已装配</div>
+          <div className="text-[10px] text-theme-muted">全库被装配过的 Skill</div>
         </div>
         <div className="rounded-xl bg-theme-sidebar/20 px-3 py-2.5 text-center">
           <div className="text-lg font-bold text-theme-text">{stats.avgFeedback}</div>

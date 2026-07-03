@@ -1,18 +1,10 @@
-import React from 'react';import Feather from 'lucide-react/dist/esm/icons/feather.js';
-import Radar from 'lucide-react/dist/esm/icons/radar.js';
-import Loader2 from 'lucide-react/dist/esm/icons/loader-circle.js';
-import Bot from 'lucide-react/dist/esm/icons/bot.js';
-import Lightbulb from 'lucide-react/dist/esm/icons/lightbulb.js';
-import MessageSquareWarning from 'lucide-react/dist/esm/icons/message-square-warning.js';
-import Globe from 'lucide-react/dist/esm/icons/globe.js';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
-import Activity from 'lucide-react/dist/esm/icons/activity.js';
-import FileText from 'lucide-react/dist/esm/icons/file-text.js';
-import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import React from 'react';
+import { Activity, AlertCircle, Bot, Feather, FileText, Globe, Lightbulb, Loader2, MessageSquareWarning, Plus, Radar } from 'lucide-react';
+
 import {
   Novel, Chapter, AssistantLaunchContext, CopilotSuggestion,
   CopilotActionKey, AgentTab
-} from '../types';
+} from '../../shared/types';
 import { cn } from '../lib/utils';
 import { CopilotStatusBar } from './copilot/CopilotStatusBar';
 
@@ -77,7 +69,7 @@ export function WritingSurface({
         {currentChapter ? (
           <>
             <div className="w-full min-w-0 flex flex-col gap-4">
-              <section className="w-full min-w-0 rounded-3xl border border-theme-border bg-white shadow-sm px-5 py-5">
+              <section className="w-full min-w-0 rounded-3xl border border-theme-border bg-theme-sidebar shadow-sm px-5 py-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">创作舞台</p>
@@ -109,9 +101,9 @@ export function WritingSurface({
                       {novel.worldRules || novel.summary || '当前还没有完整设定，建议先补齐世界观、人物和技能挂载。'}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-theme-muted">
-                      <span className="px-2 py-1 rounded-full bg-white border border-theme-border">步骤 1 分镜</span>
-                      <span className="px-2 py-1 rounded-full bg-white border border-theme-border">步骤 2 正文</span>
-                      <span className="px-2 py-1 rounded-full bg-white border border-theme-border">步骤 3 审计</span>
+                      <span className="px-2 py-1 rounded-full bg-theme-sidebar border border-theme-border">步骤 1 分镜</span>
+                      <span className="px-2 py-1 rounded-full bg-theme-sidebar border border-theme-border">步骤 2 正文</span>
+                      <span className="px-2 py-1 rounded-full bg-theme-sidebar border border-theme-border">步骤 3 审计</span>
                     </div>
                   </div>
                 </div>
@@ -125,9 +117,13 @@ export function WritingSurface({
                     直接开始写
                   </button>
                   <button
-                    onClick={onGenerateBeats}
+                    onClick={() => {
+                      setAgentTab('planning');
+                      setIsAgentSidebarOpen(true);
+                      void onGenerateBeats();
+                    }}
                     disabled={isGeneratingBeats}
-                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-white hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
                   >
                     {isGeneratingBeats ? <Loader2 size={15} className="animate-spin text-theme-accent" /> : <Radar size={15} className="text-theme-accent" />}
                     生成分镜
@@ -137,7 +133,7 @@ export function WritingSurface({
                       setAgentTab('production');
                       setIsAgentSidebarOpen(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-white hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <Bot size={15} className="text-theme-accent" />
                     自动生产一章
@@ -150,7 +146,7 @@ export function WritingSurface({
                       }
                       setIsAgentSidebarOpen(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-white hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <Lightbulb size={15} className="text-theme-accent" />
                     带上下文打开灵感助手
@@ -158,7 +154,7 @@ export function WritingSurface({
                   <button
                     onClick={onRunAudit}
                     disabled={isGeneratingCritique || isChapterEmpty}
-                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-white hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    className="px-3.5 py-2 rounded-xl border border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/45 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
                   >
                     {isGeneratingCritique ? <Loader2 size={15} className="animate-spin text-theme-accent" /> : <MessageSquareWarning size={15} className="text-theme-accent" />}
                     审计正文
@@ -172,6 +168,12 @@ export function WritingSurface({
                     <div className="min-w-0">
                       <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">正文草稿</p>
                       <p className="text-sm text-theme-text/75 mt-1">这里是主写作区，当前布局不再预留右侧常驻侧栏，整行宽度优先给正文。</p>
+                      {generationStatus ? (
+                        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-theme-accent/10 px-3 py-1 text-xs font-bold text-theme-accent">
+                          <Loader2 size={12} className={isGeneratingContent ? 'animate-spin' : ''} />
+                          {generationStatus}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-theme-muted shrink-0">
                       <span className="px-2 py-1 rounded-full bg-theme-sidebar/60 border border-theme-border">自动保存</span>
@@ -179,14 +181,16 @@ export function WritingSurface({
                     </div>
                   </div>
                 </div>
-                <CopilotStatusBar
-                  suggestion={copilotSuggestion}
-                  onPrimaryAction={(key) => void runCopilotAction(key)}
-                  onOpen={() => {
-                    setAgentTab('copilot-home');
-                    setIsAgentSidebarOpen(true);
-                  }}
-                />
+                {copilotSuggestion && (
+                  <CopilotStatusBar
+                    suggestion={copilotSuggestion}
+                    onPrimaryAction={(key) => void runCopilotAction(key)}
+                    onOpen={() => {
+                      setAgentTab('copilot-home');
+                      setIsAgentSidebarOpen(true);
+                    }}
+                  />
+                )}
                 <textarea
                   ref={contentRef}
                   value={currentChapter.content || ''}
@@ -194,7 +198,7 @@ export function WritingSurface({
                   readOnly={isGeneratingContent}
                   placeholder="在这里开始书写这一章……"
                   className={cn(
-                    "w-full bg-[linear-gradient(180deg,rgba(250,247,241,0.92)_0%,rgba(255,255,255,1)_18%)] resize-none writing-surface text-theme-text placeholder:text-slate-400 transition-colors font-serif p-8 md:p-10 focus-visible:ring-0",
+                    "w-full max-w-[72ch] mx-auto bg-[linear-gradient(180deg,rgba(250,247,241,0.92)_0%,rgba(255,255,255,1)_18%)] resize-none writing-surface text-theme-text placeholder:text-slate-400 transition-colors font-serif p-8 md:p-10 focus-visible:ring-0 block",
                     isChapterEmpty ? "min-h-[68vh] lg:min-h-[calc(100vh-12rem)]" : "min-h-[80vh] lg:min-h-[calc(100vh-12rem)]"
                   )}
                 />
@@ -205,7 +209,7 @@ export function WritingSurface({
                   "rounded-3xl border px-4 py-4",
                   isChapterEmpty
                     ? "border-dashed border-theme-border bg-theme-sidebar/15"
-                    : "border-theme-border bg-white"
+                    : "border-theme-border bg-theme-sidebar"
                 )}>
                   <div className="flex items-center gap-2 text-theme-text font-medium">
                     {isChapterEmpty ? <AlertCircle size={16} className="text-theme-accent" /> : <Activity size={16} className="text-theme-accent" />}
@@ -224,7 +228,7 @@ export function WritingSurface({
                   )}
                 </div>
 
-                <div className="rounded-3xl border border-theme-border bg-white px-4 py-4">
+                <div className="rounded-3xl border border-theme-border bg-theme-sidebar px-4 py-4">
                   <div className="flex items-center gap-2 text-theme-text font-medium">
                     <Bot size={16} className="text-theme-accent" />
                     智能管家入口
@@ -244,7 +248,7 @@ export function WritingSurface({
             </div>
           </>
         ) : (
-          <div id="editor-empty-state" className="flex-1 flex flex-col items-center justify-center text-theme-muted opacity-100 min-h-[60vh] bg-white rounded-3xl shadow-sm border border-theme-border m-4 md:m-8 relative overflow-hidden">
+          <div id="editor-empty-state" className="flex-1 flex flex-col items-center justify-center text-theme-muted opacity-100 min-h-[60vh] bg-theme-sidebar rounded-3xl shadow-sm border border-theme-border m-4 md:m-8 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-theme-sidebar/50 to-theme-border/20 z-0" />
             <div className="z-10 flex flex-col items-center">
               <div className="w-24 h-24 bg-theme-accent/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
@@ -262,7 +266,7 @@ export function WritingSurface({
                 </button>
                 <button
                   onClick={() => setIsAgentSidebarOpen(true)}
-                  className="px-8 py-4 bg-white border-2 border-theme-accent/20 hover:border-theme-accent text-theme-accent hover:bg-theme-accent/5 rounded-2xl flex items-center gap-3 transition-[transform,background-color,border-color,box-shadow] duration-200 hover:-translate-y-1 font-bold shadow-md text-lg"
+                  className="px-8 py-4 bg-theme-sidebar border-2 border-theme-accent/20 hover:border-theme-accent text-theme-accent hover:bg-theme-accent/5 rounded-2xl flex items-center gap-3 transition-[transform,background-color,border-color,box-shadow] duration-200 hover:-translate-y-1 font-bold shadow-md text-lg"
                 >
                   <Bot size={22} />
                   唤起 AI 智能管家
