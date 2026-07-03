@@ -18,7 +18,15 @@ export interface SelectedRewriteTarget {
   snippet: string;
   window: PolishTargetWindow;
   confidence: 'high' | 'medium';
-  issueType: 'duplicate' | 'dialogue-logic' | 'syntax' | 'scene-execution' | 'general';
+  issueType:
+    | 'duplicate'
+    | 'dialogue-logic'
+    | 'syntax'
+    | 'scene-execution'
+    | 'style-slop'
+    | 'action-chain'
+    | 'hook-ending'
+    | 'general';
   issueSubtype:
     | 'duplicate-rupture'
     | 'dialogue-abrupt-info'
@@ -26,6 +34,14 @@ export interface SelectedRewriteTarget {
     | 'dialogue-general'
     | 'syntax-invalid-phrase'
     | 'scene-layer-missing'
+    | 'ai-cliche'
+    | 'tell-dont-show'
+    | 'template-emotion'
+    | 'sentence-monotony'
+    | 'weak-action-chain'
+    | 'dialogue-without-beat'
+    | 'generic-ending'
+    | 'exposition-dump'
     | 'general';
   priority: number;
 }
@@ -109,6 +125,15 @@ function classifyIssueType(context: string): SelectedRewriteTarget['issueType'] 
   if (/(写弱|缺失|分镜|关键道具|没写|执行情况)/.test(context)) {
     return 'scene-execution';
   }
+  if (/(AI套话|AI腔|套话|陈词滥调|解释感|exposition-dump|解释道|说明|描述感|tell-dont-show|眼神里充满了|心中燃起了|胸中涌动|不得不说|难以抑制|无力感|情绪模板)/i.test(context)) {
+    return 'style-slop';
+  }
+  if (/(动作链|弱动作|拖沓|动作模糊|没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat|做出了反应|采取了行动|试图)/i.test(context)) {
+    return 'action-chain';
+  }
+  if (/(通用收尾|陈词收尾|收尾陈词|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending|hook-ending)/i.test(context)) {
+    return 'hook-ending';
+  }
   return 'general';
 }
 
@@ -127,6 +152,20 @@ function classifyIssueSubtype(
       return 'syntax-invalid-phrase';
     case 'scene-execution':
       return 'scene-layer-missing';
+    case 'style-slop':
+      if (/(AI套话|AI腔|套话|陈词滥调)/.test(context)) return 'ai-cliche';
+      if (/(tell-dont-show|描述感|说明|眼神里充满了|心中燃起了|胸中涌动|难以抑制|无力感)/.test(context)) return 'tell-dont-show';
+      if (/(解释感|exposition-dump|解释道|原因在于|这意味着|这是因为|不得不说)/.test(context)) return 'exposition-dump';
+      if (/(情感|情绪|情绪模板)/.test(context)) return 'template-emotion';
+      if (/(节奏单调|句式|字数相同|等长)/.test(context)) return 'sentence-monotony';
+      return 'ai-cliche';
+    case 'action-chain':
+      if (/(没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat)/.test(context)) return 'dialogue-without-beat';
+      if (/(弱动作|做出了反应|采取了行动|试图)/.test(context)) return 'weak-action-chain';
+      return 'weak-action-chain';
+    case 'hook-ending':
+      if (/(通用收尾|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending)/.test(context)) return 'generic-ending';
+      return 'generic-ending';
     default:
       return 'general';
   }
@@ -135,11 +174,23 @@ function classifyIssueSubtype(
 function issuePriority(issueSubtype: SelectedRewriteTarget['issueSubtype']): number {
   switch (issueSubtype) {
     case 'duplicate-rupture':
-      return 6;
+      return 10;
     case 'dialogue-abrupt-info':
-      return 5;
+      return 9;
     case 'dialogue-answer-gap':
+      return 8;
+    case 'ai-cliche':
+    case 'tell-dont-show':
+    case 'template-emotion':
+    case 'sentence-monotony':
+    case 'exposition-dump':
+      return 6;
+    case 'weak-action-chain':
+      return 5;
+    case 'dialogue-without-beat':
       return 4;
+    case 'generic-ending':
+      return 3;
     case 'syntax-invalid-phrase':
       return 3;
     case 'scene-layer-missing':

@@ -14,6 +14,26 @@
 
 ## Roadmap
 
+### Phase 0：PM 边界锁定
+
+目标：先避免产品变成提示词货架，明确哪些能力默认内置、哪些由 Agent 推荐、哪些用户选配、哪些付费增强。
+
+产物：
+
+- 问题重述：作者缺的不是提示词，而是低负担、可持续、能保持风格的写作推进链路。
+- 功能边界：提示词资产不作为主入口，只作为 Agent 背后的能力、流程和质量护栏。
+- 入口边界：主入口仍是开书、章纲、正文、审稿、精修、卡文，不新增“提示词市场”主入口。
+- 质量/体验边界：审稿、去 AI、动作链、连续性默认内置；作者文风、拆书文风、平台强风格保持选配。
+- 白标边界：已授权定制资产上线前必须删除作者名、联系方式、个人协议和外部品牌痕迹。
+
+验收：
+
+- 每个新增能力都能说明增强哪个现有功能，而不是新增重复功能。
+- 用户每阶段最多看到 3 个下一步动作。
+- `sanitize-productize` 不等于必然上架，清洗后仍需质量复评。
+
+详细见：`docs/research/prompt-product-boundary-review.md`。
+
 ### Phase 1：离线候选池与评估
 
 目标：把 140 条提示词变成可追踪的候选池。
@@ -170,13 +190,13 @@ PM 判断：
 
 ## 推荐实施顺序
 
-1. 文风/去 AI 味：收益最大，风险可控。
+1. 边界与白标清洗规则：先避免资产直接变成用户可见提示词货架。
 2. 拆书卡组 schema：先统一文风、节奏、钩子、反模式、审稿卡，避免后续融合对象混乱。
-3. 长篇规划流程：能改善章节生产稳定性。
-4. 资产模型与交互引导：防止功能越做越乱。
-5. 前十章诊断：适合做主动触发工具。
-6. 题材 profile 补强：逐步补，不急。
-7. 体系重构：等前面有实证后再改类型和 UI。
+3. 后置质量链路：审稿、去 AI、动作链、反模式默认增强，收益最大且不增加用户选择。
+4. 写前 brief 与正文 overlay：正文只吃少量已选增强卡，避免提示词堆叠污染。
+5. 作者流程包 MVP：小飞鸡长篇、风华短篇/老福特、天马大纲先做流程样板。
+6. 平台与前十章诊断：选择平台或商业模式后启用，不全局强压。
+7. 题材 profile 与体系重构：等前面有实证后再扩展类型和 UI。
 
 完整 PM 版路线见：`docs/research/prompt-product-roadmap.md`。
 资产模型见：`docs/research/prompt-asset-operating-model.md`。
@@ -185,15 +205,16 @@ PM 判断：
 维度归一化见：`docs/research/prompt-dimension-normalization.md`。
 评分与放置见：`docs/research/prompt-scoring-and-placement.md`。
 拆书卡与融合系统见：`docs/research/prompt-deconstruction-fusion-system.md`。
+PM 边界复核见：`docs/research/prompt-product-boundary-review.md`。
 
 ## 后续实现提示
 
 如果进入代码实现，优先做小步：
 
-1. 先扩展 `slop-scorer` 的检测项和测试。
+1. 先补资产白标状态和拆书卡放置字段，不接原始定制 prompt 进运行时。
 2. 再定义拆书卡组 schema，并让 `extractSkill` 输出多卡 deck。
-3. 再调整 `buildRewritePrompt` 的精修规则。
-4. 再更新 `orchestrateWriter` 和 `manualAudit` 的提示词。
-5. 最后再考虑数据结构和 UI。
+3. 再扩展 `slop-scorer`、`manualAudit`、`buildRewritePrompt` 的质量规则。
+4. 再让 `orchestrateWriter` 只接收写前 brief 和少量 overlay 卡。
+5. 最后再做 Skill Series Flow、平台诊断和 UI 引导。
 
 每一步都要用真实章节样本验证，不靠“看起来更专业”判断成功。

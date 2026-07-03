@@ -5,6 +5,9 @@ export type StructuredAuditIssueType =
   | 'dialogue-logic'
   | 'syntax'
   | 'scene-execution'
+  | 'style-slop'
+  | 'action-chain'
+  | 'hook-ending'
   | 'general';
 
 export type StructuredAuditIssueSubtype =
@@ -14,6 +17,14 @@ export type StructuredAuditIssueSubtype =
   | 'dialogue-general'
   | 'syntax-invalid-phrase'
   | 'scene-layer-missing'
+  | 'ai-cliche'
+  | 'tell-dont-show'
+  | 'template-emotion'
+  | 'sentence-monotony'
+  | 'weak-action-chain'
+  | 'dialogue-without-beat'
+  | 'generic-ending'
+  | 'exposition-dump'
   | 'general';
 
 export interface StructuredAuditIssue {
@@ -109,6 +120,9 @@ function normalizeIssueType(value: string): StructuredAuditIssueType {
     case 'dialogue-logic':
     case 'syntax':
     case 'scene-execution':
+    case 'style-slop':
+    case 'action-chain':
+    case 'hook-ending':
       return value;
     default:
       return 'general';
@@ -123,6 +137,14 @@ function normalizeIssueSubtype(value: string): StructuredAuditIssueSubtype {
     case 'dialogue-general':
     case 'syntax-invalid-phrase':
     case 'scene-layer-missing':
+    case 'ai-cliche':
+    case 'tell-dont-show':
+    case 'template-emotion':
+    case 'sentence-monotony':
+    case 'weak-action-chain':
+    case 'dialogue-without-beat':
+    case 'generic-ending':
+    case 'exposition-dump':
       return value;
     default:
       return 'general';
@@ -166,8 +188,8 @@ function stringValue(value: unknown): string {
 function normalizeStructuredAuditIssue(item: unknown): StructuredAuditIssue | null {
   const r = asRecord(item);
   const snippet = stringValue(r.snippet).trim();
-  const explanation = stringValue(r.planation || r.explanation).trim();
-  const patchHint = stringValue(r.patchHint).trim();
+  const explanation = stringValue(r.planation || r.explanation || r.reason || '').trim();
+  const patchHint = stringValue(r.patchHint || r.fix || '').trim();
   if (!snippet || !explanation || !patchHint) return null;
 
   return {
@@ -238,6 +260,8 @@ export interface AuditScores {
   totalScore: number;
   pass: boolean;
   failReason?: string;
+  fatalIssues?: Array<Record<string, unknown>>;
+  surgerySuggestions?: string[];
 }
 
 export function parseAuditFiveDim(raw: string): AuditScores | null {
@@ -251,10 +275,27 @@ export function parseAuditFiveDim(raw: string): AuditScores | null {
       totalScore,
       pass: parsed.pass ?? (totalScore >= 36),
       failReason: parsed.failReason || '',
+      fatalIssues: Array.isArray(parsed.fatalIssues) ? parsed.fatalIssues as Array<Record<string, unknown>> : undefined,
+      surgerySuggestions: Array.isArray(parsed.surgerySuggestions) ? parsed.surgerySuggestions.map(String) : undefined,
     };
   } catch {
     return null;
   }
+}
+
+export function convertFiveDimToStructured(fiveDim: AuditScores): StructuredAudit {
+  const maxTotal = Object.keys(fiveDim.scores).length * 10;
+  const score = maxTotal > 0 ? Math.round((fiveDim.totalScore / maxTotal) * 100) : 0;
+  const fatalIssues = (fiveDim.fatalIssues || [])
+    .map(normalizeStructuredAuditIssue)
+    .filter((issue): issue is StructuredAuditIssue => Boolean(issue));
+  const surgerySuggestions = fiveDim.surgerySuggestions || [];
+  return {
+    score,
+    fatalIssues,
+    sceneChecks: [],
+    surgerySuggestions,
+  };
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -281,6 +322,27 @@ export function renderFiveDimMarkdown(audit: AuditScores): string {
   }
   const maxTotal = Object.keys(audit.scores).length * 10;
   lines.push(`| **总分** | **${audit.totalScore}/${maxTotal}** | |`);
+
+  if (audit.fatalIssues && audit.fatalIssues.length > 0) {
+    lines.push('');
+    lines.push('## 致命问题');
+    const formattedIssues = audit.fatalIssues
+      .map(normalizeStructuredAuditIssue)
+      .filter((issue): issue is StructuredAuditIssue => Boolean(issue))
+      .map((issue) => `- [${issue.issueType}/${issue.issueSubtype}] "${issue.snippet}"\n  - 问题：${issue.explanation}\n  - 修补建议：${issue.patchHint}`);
+    if (formattedIssues.length > 0) {
+      lines.push(formattedIssues.join('\n'));
+    } else {
+      lines.push('- 本轮未识别出明确致命问题。');
+    }
+  }
+
+  if (audit.surgerySuggestions && audit.surgerySuggestions.length > 0) {
+    lines.push('');
+    lines.push('## 手术建议');
+    lines.push(audit.surgerySuggestions.map((item) => `- ${item}`).join('\n'));
+  }
+
   return lines.join('\n');
 }
 
@@ -319,6 +381,11 @@ export function renderStructuredAuditMarkdown(audit: StructuredAudit): string {
 export function embedStructuredAudit(markdown: string, audit: StructuredAudit): string {
   const encoded = Buffer.from(JSON.stringify(audit), 'utf8').toString('base64');
   return `${markdown.trim()}\n\n<!-- ${AUDIT_COMMENT_PREFIX}${encoded} -->`;
+}
+
+export function stripEmbeddedStructuredAudit(critique: string): string {
+  if (!critique) return '';
+  return critique.replace(/\s*<!--\s*audit-structured:[A-Za-z0-9+/=]*\s*-->/g, '').trim();
 }
 
 export function extractStructuredAudit(critique: string): StructuredAudit | null {

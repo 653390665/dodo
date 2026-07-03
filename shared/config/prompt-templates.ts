@@ -191,20 +191,28 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 
 逐维评分（每维0-10分，必须引用原文具体问题解释扣分原因，禁止”还行””不错””可以更好”等笼统评价）：
 {
-  “scores”: {
-    “可读性”: {“score”: 0-10, “reason”: “≤50字，必须点明具体哪句有残句/指代不明/主谓缺失”},
-    “分镜执行度”: {“score”: 0-10, “reason”: “≤50字，必须指出哪个场景未兑现或写弱”},
-    “冲突推进度”: {“score”: 0-10, “reason”: “≤50字，必须说明信息/风险/关系是否真正前移”},
-    “风格契合度”: {“score”: 0-10, “reason”: “≤50字，必须指出哪句偏离了Skill规定的笔调”},
-    “网文章节感”: {“score”: 0-10, “reason”: “≤50字，必须判断是否像可发布章节初稿而非提纲扩写”}
+  "scores": {
+    "可读性": {"score": 0-10, "reason": "≤50字，必须点明具体哪句有残句/指代不明/主谓缺失"},
+    "分镜执行度": {"score": 0-10, "reason": "≤50字，必须指出哪个场景未兑现或写弱"},
+    "冲突推进度": {"score": 0-10, "reason": "≤50字，必须说明信息/风险/关系是否真正前移"},
+    "风格契合度": {"score": 0-10, "reason": "≤50字，必须指出哪句偏离了Skill规定的笔调"},
+    "网文章节感": {"score": 0-10, "reason": "≤50字，必须判断是否像可发布章节初稿而非提纲扩写"}
   },
-  “totalScore”: 0-50,
-  “pass”: true或false,
-  “failReason”: “totalScore<30或任一维度<4时必填，≤80字”,
-  “fatalIssues”: [
-    {“dimension”: “对应维度名”, “snippet”: “≤30字原文摘录”, “fix”: “≤30字修复建议”}
+  "totalScore": 0-50,
+  "pass": true或false,
+  "failReason": "totalScore<30或任一维度<4时必填，≤80字",
+  "fatalIssues": [
+    {
+      "dimension": "对应维度名",
+      "issueType": "问题分类，可选值: duplicate | dialogue-logic | syntax | scene-execution | style-slop | action-chain | hook-ending | general",
+      "issueSubtype": "子分类，可选值: duplicate-rupture | dialogue-abrupt-info | dialogue-answer-gap | dialogue-general | syntax-invalid-phrase | scene-layer-missing | ai-cliche | tell-dont-show | template-emotion | sentence-monotony | weak-action-chain | dialogue-without-beat | generic-ending | exposition-dump | general",
+      "severity": "严重度，可选值: critical | major | moderate",
+      "snippet": "必须完全、原封不动、原字原样存在于待审计正文草稿中的具体受损文字/片段",
+      "explanation": "指出具体存在的问题和不老练之处，不可空泛，≤50字",
+      "patchHint": "针对该片段，给出具体的、可操作的外科手术式重写替换说明，≤50字"
+    }
   ],
-  “surgerySuggestions”: [“≤50字/条，必须可操作”, “≤50字/条，必须可操作”]
+  "surgerySuggestions": ["≤50字/条，必须可操作", "≤50字/条，必须可操作"]
 }
 
 【输出格式】

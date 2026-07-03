@@ -528,6 +528,7 @@ export function AgentWorkspace({
                 locations={locations}
                 items={items}
                 factions={factions}
+                onSwitchTab={setAgentTab}
               />
             </div>
           )}

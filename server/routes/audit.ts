@@ -8,6 +8,7 @@ import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { scoreSlop, slopSummary } from '../../shared/lib/slop-scorer';
 import {
+  convertFiveDimToStructured,
   embedStructuredAudit,
   evaluateAuditGate,
   parseAuditFiveDim,
@@ -58,10 +59,22 @@ export function registerAuditRoutes(app: Express) {
       if (fiveDim) {
         const gate = evaluateAuditGate(
           Object.fromEntries(Object.entries(fiveDim.scores).map(([k, v]) => [k, (v as { score: number }).score])),
-          [],
-
+          (fiveDim.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>,
         );
-        const feedback = renderFiveDimMarkdown(fiveDim);
+
+        let slopFeedback = '';
+        if (slopReport) {
+          const warningsText = slopReport.hits.length > 0
+            ? slopReport.hits.map(h => `- [${h.category}] 行 ${h.line}: ${h.suggestion || h.snippet}`).join('\n')
+            : '- 未检测到明显的机械腔调或套话。';
+          slopFeedback = `\n\n## 机械审查反馈\n${slopSummary(slopReport)}\n${warningsText}`;
+        }
+
+        const structured = convertFiveDimToStructured(fiveDim);
+        const baseFeedback = renderFiveDimMarkdown(fiveDim);
+        const feedbackWithSlop = slopFeedback ? `${baseFeedback}${slopFeedback}` : baseFeedback;
+        const feedback = embedStructuredAudit(feedbackWithSlop, structured);
+
         return res.json({
           feedback,
           score: fiveDim.totalScore,

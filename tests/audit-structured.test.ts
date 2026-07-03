@@ -6,6 +6,9 @@ import {
   extractStructuredAudit,
   parseStructuredAuditResponse,
   renderStructuredAuditMarkdown,
+  stripEmbeddedStructuredAudit,
+  convertFiveDimToStructured,
+  AuditScores,
 } from '../src/lib/audit-structured';
 import { extractPolishTargetsFromCritique, selectRewriteTargetsForPatch } from '../src/lib/chapter-polish';
 
@@ -196,10 +199,10 @@ test('structured audit parser - filters invalid items and maps planation to expl
   const parsed = parseStructuredAuditResponse(raw);
   assert.ok(parsed);
   assert.equal(parsed.fatalIssues.length, 2);
-  
+
   // Verify planation mapping
   assert.equal(parsed.fatalIssues[0]?.explanation, '使用了 planation 代替 explanation');
-  
+
   // Verify invalid severity fallback
   assert.equal(parsed.fatalIssues[1]?.severity, 'major');
 
@@ -207,5 +210,57 @@ test('structured audit parser - filters invalid items and maps planation to expl
   assert.equal(parsed.sceneChecks.length, 1);
   assert.equal(parsed.sceneChecks[0]?.scene, '场景一');
   assert.equal(parsed.sceneChecks[0]?.status, 'weak');
+});
+
+test('stripEmbeddedStructuredAudit removes embedded audit comment and preserves raw markdown', () => {
+  const markdown = '## Original Title\nThis is the critique content.';
+  const audit = {
+    score: 85,
+    fatalIssues: [],
+    sceneChecks: [],
+    surgerySuggestions: []
+  };
+  const embedded = embedStructuredAudit(markdown, audit);
+
+  // Verify comment exists
+  assert.match(embedded, /<!--\s*audit-structured:[A-Za-z0-9+/=]+\s*-->/);
+
+  // Strip comment
+  const stripped = stripEmbeddedStructuredAudit(embedded);
+  assert.equal(stripped, markdown);
+});
+
+test('convertFiveDimToStructured deep boundary conversion correctly scales score and preserves issues', () => {
+  const fiveDim: AuditScores = {
+    scores: {
+      prose: { score: 8, reason: 'Good prose' },
+      narrative: { score: 7, reason: 'Nice flow' },
+      character: { score: 9, reason: 'Deep characters' },
+      setting: { score: 6, reason: 'Basic setting' },
+      pacing: { score: 5, reason: 'A bit slow' }
+    },
+    totalScore: 35, // 35 out of 50 possible points (5 dimensions * 10) -> should scale to 70 out of 100
+    pass: true,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        explanation: '突兀信息',
+        patchHint: '前文补追问'
+      }
+    ],
+    surgerySuggestions: ['让掌柜多一些小动作']
+  };
+
+  const converted = convertFiveDimToStructured(fiveDim);
+  assert.ok(converted);
+  assert.equal(converted.score, 70); // 35 / 50 * 100 = 70
+  assert.equal(converted.fatalIssues.length, 1);
+  assert.equal(converted.fatalIssues[0]?.issueType, 'dialogue-logic');
+  assert.equal(converted.fatalIssues[0]?.snippet, '“三……三天。”');
+  assert.deepEqual(converted.surgerySuggestions, ['让掌柜多一些小动作']);
+  assert.deepEqual(converted.sceneChecks, []);
 });
 

@@ -36,6 +36,7 @@
 
 | Stage | Initiative | Outcome | Metric | Notes |
 | --- | --- | --- | --- | --- |
+| Now | Product Boundary Review | 防止提示词资产变成用户主入口 | 每个新能力都能映射到现有功能增强；每阶段最多 3 个推荐动作 | 见 `prompt-product-boundary-review.md` |
 | Now | Prompt Candidate Audit | 建立 140 条提示词的质量地图 | 140/140 覆盖；Top 候选均有评分、结论、风险 | 已形成审计、Source Cards、集成路线 |
 | Now | Asset Operating Model | 明确 Prompt、Skill、作者流程包、题材包、Agent 的关系 | 用户不需要理解底层 prompt，也能知道增强包作用 | 见 `prompt-asset-operating-model.md` |
 | Now | Prompt Skill Taxonomy | 建立主归属+次归属分类，分清风格、功能、通用审稿、题材、流程 | 雷同提示词能归并，作者流程不被拆散 | 见 `prompt-skill-taxonomy.md` |
@@ -175,6 +176,7 @@ Success signals：
 
 ### Now
 
+- 完成 PM 边界复核：提示词资产不成为主入口，只作为 Agent 背后的能力、流程和质量护栏。
 - 完成离线评估文档。
 - 完成资产产品模型和用户旅程。
 - 完成主归属/次归属分类法，解决世界观、角色、命名等雷同提示词的使用边界。

@@ -153,9 +153,9 @@ export function buildCopilotSuggestion(input: CopilotInput): CopilotSuggestion {
       return {
         stage: 'pending-polish',
         stageLabel: '待精修',
-        title: '按审计结果精修',
-        summary: '这一章已经有审计结果，先处理高价值问题再继续写。',
-        primaryAction: { key: 'run-polish', label: '按审计精修' },
+        title: '按审计一键精修',
+        summary: '审计发现去AI味、动作链缺失、对白突兀等高价值问题，推荐一键执行局部手术式精修。',
+        primaryAction: { key: 'run-polish', label: '局部手术精修' },
         secondaryActions: [
           { key: 'open-quality', label: '查看审计问题' },
           { key: 'open-planning', label: '回看分镜' },

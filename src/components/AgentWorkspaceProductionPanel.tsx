@@ -56,6 +56,7 @@ interface AgentWorkspaceProductionPanelProps {
   locations?: Location[];
   items?: Item[];
   factions?: Faction[];
+  onSwitchTab?: (tab: AgentTab) => void;
 }
 export function AgentWorkspaceProductionPanel({
   agentTab,
@@ -104,6 +105,7 @@ export function AgentWorkspaceProductionPanel({
   locations,
   items,
   factions,
+  onSwitchTab,
 }: AgentWorkspaceProductionPanelProps) {
   const selectedContinuationPack = continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -214,6 +216,7 @@ export function AgentWorkspaceProductionPanel({
       isGeneratingCritique={isGeneratingCritique}
       onPolishChapterFromAudit={onPolishChapterFromAudit}
       isGeneratingContent={isGeneratingContent}
+      onSwitchTab={onSwitchTab}
     />
   );
 }

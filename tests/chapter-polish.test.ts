@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   extractPolishTargetsFromCritique,
   removeRepeatedQuotedBlocks,
@@ -9,6 +11,10 @@ import {
   validatePolishCandidate,
 } from '../src/lib/chapter-polish';
 import { buildRewritePrompt } from '../src/lib/rewrite-prompt';
+import { scoreSlop, slopSummary } from '../src/lib/slop-scorer';
+import { StructuredAuditIssue } from '../src/lib/audit-structured';
+import { embedStructuredAudit } from '../shared/lib/audit-structured';
+import { SAMPLE_MOCKS } from '../scripts/run-chapter-acceptance';
 
 test('extractPolishTargetsFromCritique extracts duplicate and rewrite targets from markdown critique', () => {
   const critique = `
@@ -188,4 +194,131 @@ test('buildRewritePrompt for surgical-patch forbids whole chapter rewrite', () =
   assert.match(prompt, /不要扩写整章/);
   assert.match(prompt, /前文衔接/);
   assert.match(prompt, /后文衔接/);
+});
+
+test('scoreSlop and slopSummary correctly detect and aggregate new slop categories', () => {
+  // Test text containing exposition dump (STYLE_SLOP), dialogue without beat (ACTION_CHAIN), and generic ending (HOOK_ENDING)
+  const text = [
+    '这是因为主角有一些不得不说的解释。也就是说，他的原因在于那个计划。',
+    '“你来了。”',
+    '“我来了。”',
+    '“你本不该来。”',
+    '他叹了口气，转身离去，消失在夜色中。'
+  ].join('\n');
+
+  const report = scoreSlop(text);
+  assert.ok(report);
+  assert.ok(report.hits.length > 0);
+
+  // Check specific categories are present
+  const categories = report.hits.map(h => h.category);
+  assert.ok(categories.includes('style_slop'));
+  assert.ok(categories.includes('action_chain'));
+  assert.ok(categories.includes('hook_ending'));
+
+  const summary = slopSummary(report);
+  assert.match(summary, /AI腔调/);
+  assert.match(summary, /动作链缺陷/);
+  assert.match(summary, /收尾套路/);
+});
+
+test('QualityTab decision partitioning and overflow merging logic correctly isolates autoFixable and overflow issues', () => {
+  const content = '前文A。\n\n坏句一。\n\n坏句二。\n\n坏句三。\n\n坏句四。\n\n后文B。';
+
+  // mock fatalIssues, 4 of them are auto-fixable (exist in content), 1 is manual-fixable (not exist in content)
+  const mockIssues: StructuredAuditIssue[] = [
+    {
+      issueType: 'style-slop',
+      issueSubtype: 'ai-cliche',
+      severity: 'critical',
+      snippet: '坏句一。',
+      explanation: '一号问题',
+      patchHint: '修一'
+    },
+    {
+      issueType: 'action-chain',
+      issueSubtype: 'weak-action-chain',
+      severity: 'major',
+      snippet: '坏句二。',
+      explanation: '二号问题',
+      patchHint: '修二'
+    },
+    {
+      issueType: 'hook-ending',
+      issueSubtype: 'generic-ending',
+      severity: 'moderate',
+      snippet: '坏句三。',
+      explanation: '三号问题',
+      patchHint: '修三'
+    },
+    {
+      issueType: 'style-slop',
+      issueSubtype: 'tell-dont-show',
+      severity: 'major',
+      snippet: '坏句四。',
+      explanation: '四号问题',
+      patchHint: '修四'
+    },
+    {
+      issueType: 'dialogue-logic',
+      issueSubtype: 'dialogue-abrupt-info',
+      severity: 'critical',
+      snippet: '不存在的坏句。', // Not in content, should be manual fix
+      explanation: '无法匹配的问题',
+      patchHint: '人工修'
+    }
+  ];
+
+  // 1. Detect which ones are auto-fixable using findPatchWindow
+  const autoFixable = mockIssues.filter(
+    (i) => i.snippet && findPatchWindow(content, i.snippet) !== null
+  );
+  const manualFix = mockIssues.filter(
+    (i) => !i.snippet || findPatchWindow(content, i.snippet) === null
+  );
+
+  assert.equal(autoFixable.length, 4); // 坏句一、二、三、四
+  assert.equal(manualFix.length, 1);   // 不存在的坏句
+
+  // 2. Apply slice limit (max 3)
+  const slicedAutoFixable = autoFixable.slice(0, 3);
+  const overflowAutoFixable = autoFixable.slice(3);
+
+  assert.equal(slicedAutoFixable.length, 3);
+  assert.equal(overflowAutoFixable.length, 1); // 坏句四溢出
+
+  // 3. Merge overflow auto-fixable into manual fixes
+  const finalManualFix = [...manualFix, ...overflowAutoFixable];
+
+  assert.equal(finalManualFix.length, 2); // 不存在的坏句 + 坏句四
+  assert.equal(finalManualFix[0]?.snippet, '不存在的坏句。');
+  assert.equal(finalManualFix[1]?.snippet, '坏句四。');
+});
+
+test('SAMPLE_MOCKS fixtures verify extracting targets correctly', () => {
+  const fixturesDir = path.join(process.cwd(), 'tests/fixtures');
+
+  // 1. chapter-slop-heavy.txt
+  const slopContent = fs.readFileSync(path.join(fixturesDir, 'chapter-slop-heavy.txt'), 'utf-8').trim();
+  const mockSlop = SAMPLE_MOCKS['chapter-slop-heavy.txt'];
+  const slopCritique = embedStructuredAudit(mockSlop.critique, mockSlop.structured);
+  const slopExtracted = extractPolishTargetsFromCritique(slopCritique);
+  assert.ok(slopExtracted.rewriteTargets.length >= 1, 'slop heavy rewrite targets should be extracted');
+  const slopSelected = selectRewriteTargetsForPatch(slopContent, slopExtracted.rewriteTargets, 3);
+  assert.ok(slopSelected.length >= 1, 'slop heavy selected targets should be >= 1');
+
+  // 2. chapter-action-weak.txt
+  const actionContent = fs.readFileSync(path.join(fixturesDir, 'chapter-action-weak.txt'), 'utf-8').trim();
+  const mockAction = SAMPLE_MOCKS['chapter-action-weak.txt'];
+  const actionCritique = embedStructuredAudit(mockAction.critique, mockAction.structured);
+  const actionExtracted = extractPolishTargetsFromCritique(actionCritique);
+  assert.ok(actionExtracted.rewriteTargets.length >= 1, 'action weak rewrite targets should be extracted');
+  const actionSelected = selectRewriteTargetsForPatch(actionContent, actionExtracted.rewriteTargets, 3);
+  assert.ok(actionSelected.length >= 1, 'action weak selected targets should be >= 1');
+
+  // 3. chapter-mature.txt
+  const mockMature = SAMPLE_MOCKS['chapter-mature.txt'];
+  const matureCritique = embedStructuredAudit(mockMature.critique, mockMature.structured);
+  const matureExtracted = extractPolishTargetsFromCritique(matureCritique);
+  assert.equal(matureExtracted.rewriteTargets.length, 0, 'mature rewrite targets should be 0');
 });
