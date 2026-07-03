@@ -7,7 +7,9 @@ import {
   analyzeAndSanitize,
   promoteToRuntimeReady,
   isCoreBuiltInAsset,
-  isUserOptionalAsset
+  isUserOptionalAsset,
+  validateAssetV2,
+  GOVERNED_ASSETS_V2_REGISTRY
 } from '../shared/lib/prompt-assets-governed.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -286,5 +288,67 @@ test('isCoreBuiltInAsset and isUserOptionalAsset segment assets correctly', () =
 
   assert.equal(isCoreBuiltInAsset(optionalAsset), false);
   assert.equal(isUserOptionalAsset(optionalAsset), true);
+});
+
+test('validateAssetV2 validator rules', () => {
+  // Correct V2 asset
+  const validAsset: GovernedPromptAsset = {
+    id: 'v2-valid-01',
+    title: 'V2 Valid Asset',
+    stage: 'polish',
+    goal: 'None',
+    inputs: [],
+    template: 'None',
+    outputShape: 'plain-text',
+    riskNotes: [],
+    successSignal: 'None',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    runtimeStatus: 'active',
+    placementTier: 'core-default',
+    score: 95,
+    grade: 'A',
+    primaryCategory: 'quality-guardrail',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in'
+  };
+
+  assert.equal(validateAssetV2(validAsset), true);
+
+  // 1. Missing primaryCategory
+  const missingCategory = { ...validAsset, primaryCategory: undefined };
+  assert.equal(validateAssetV2(missingCategory as any), false);
+
+  // 2. Missing sourceType
+  const missingSource = { ...validAsset, sourceType: undefined };
+  assert.equal(validateAssetV2(missingSource as any), false);
+
+  // 3. runtime-ready but isWhiteLabeled === false
+  const unwhitelabeledReady = { ...validAsset, isWhiteLabeled: false };
+  assert.equal(validateAssetV2(unwhitelabeledReady), false);
+
+  // 4. runtime-ready but isRuntimeReady === false
+  const unreadyReady = { ...validAsset, isRuntimeReady: false };
+  assert.equal(validateAssetV2(unreadyReady), false);
+
+  // 5. runtime-ready but grade is 'F' / score < 60
+  const failingGradeReady = { ...validAsset, grade: 'F', score: 50 };
+  assert.equal(validateAssetV2(failingGradeReady as any), false);
+
+  // 6. needs-sanitization but isWhiteLabeled === true
+  const rawAssetWithWhiteLabel: GovernedPromptAsset = {
+    ...validAsset,
+    sanitizationStatus: 'needs-sanitization',
+    isWhiteLabeled: true
+  };
+  assert.equal(validateAssetV2(rawAssetWithWhiteLabel), false);
+});
+
+test('GOVERNED_ASSETS_V2_REGISTRY assets pass validation', () => {
+  assert.ok(GOVERNED_ASSETS_V2_REGISTRY.length >= 4);
+  for (const asset of GOVERNED_ASSETS_V2_REGISTRY) {
+    assert.equal(validateAssetV2(asset), true, `Asset ${asset.id} should pass V2 validation`);
+  }
 });
 

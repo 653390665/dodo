@@ -1,4 +1,4 @@
-import type { GovernedPromptAsset, SanitizationHits } from '../types/prompt-assets-governed.js';
+import type { GovernedPromptAsset, SanitizationHits, PromptCategoryV2 } from '../types/prompt-assets-governed.js';
 
 /**
  * 物理抹除水印清洗分析器 (White-Label Watermark Sanitizer & Analyzer)
@@ -192,3 +192,164 @@ export function isCoreBuiltInAsset(asset: GovernedPromptAsset): boolean {
 export function isUserOptionalAsset(asset: GovernedPromptAsset): boolean {
   return asset.placementTier === 'optional-style' || asset.promptCategory === 'optional';
 }
+
+// ── V2 Prompt Governance & Scorecard (资产评分治理 V2 新增功能) ──
+
+/**
+ * V2 资产评分治理：核心校验准入规则 (V2 Asset Validation Gate)
+ *
+ * 物理校验门规则：
+ * 1. 资产必须包含主归属分类 (primaryCategory)，且其值属于合法的 PromptCategoryV2 大类。
+ * 2. 资产必须显式包含来源方式 (sourceType)，属于 'licensed' | 'plaza' | 'built-in' 之一。
+ * 3. 凡是 sanitizationStatus 已经扭转为 'runtime-ready'（运行时加载）的资产，必须严格同时满足：
+ *    - isWhiteLabeled === true (彻底物理清洗漂白)
+ *    - isRuntimeReady === true (可动态加载)
+ *    - 且治理评级不能为 'F' (即评审评分 score >= 60 且最好 >= 70 才被承认为 Grade D 以上)。
+ * 4. 如果 sanitizationStatus 为 'needs-sanitization'，则严禁声明 isWhiteLabeled === true。
+ *
+ * @param asset 受控提示词资产
+ * @returns 校验是否通过
+ */
+export function validateAssetV2(asset: GovernedPromptAsset): boolean {
+  // 1. 校验 primaryCategory
+  if (!asset.primaryCategory) {
+    return false;
+  }
+  const validCategories: PromptCategoryV2[] = [
+    'quality-guardrail',
+    'utility-tool',
+    'author-workflow',
+    'constellation-pack',
+    'platform-criteria',
+    'style-reference',
+  ];
+  if (!validCategories.includes(asset.primaryCategory)) {
+    return false;
+  }
+
+  // 2. 校验 sourceType
+  if (!asset.sourceType) {
+    return false;
+  }
+  const validSources = ['licensed', 'plaza', 'built-in'];
+  if (!validSources.includes(asset.sourceType)) {
+    return false;
+  }
+
+  // 3. 运行时就绪准入控制 (Runtime-ready checks)
+  if (asset.sanitizationStatus === 'runtime-ready') {
+    if (!asset.isWhiteLabeled || !asset.isRuntimeReady) {
+      return false;
+    }
+    if (asset.grade === 'F' || (asset.score !== undefined && asset.score < 60)) {
+      return false;
+    }
+  }
+
+  // 4. 清洗合规反向拦截 (Sanitization state compliance)
+  if (asset.sanitizationStatus === 'needs-sanitization' || asset.placementTier === 'sanitize-required') {
+    if (asset.isWhiteLabeled) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * InkFlow 提示词资产分级治理 V2 注册表库 (GOVERNED_ASSETS_V2_REGISTRY)
+ * 包含官方内置、购买授权、广场共享等典型分类资产，完全打上 V2 治理标签与评分评级。
+ */
+export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
+  {
+    id: 'core-slop-shield',
+    title: '去 AI 腔与废话净化器',
+    stage: 'polish',
+    goal: '剔除翻译腔与机械套话，加入肢体动作与环境张力',
+    inputs: ['content'],
+    template: '你现在是资深小说主编，请清洗段落中的AI陈词滥调。',
+    outputShape: 'plain-text',
+    riskNotes: ['内置护栏，确保高频执行性能'],
+    successSignal: 'AI 腔度评分显著下降，文字画面感提升',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'core-default',
+    score: 98,
+    grade: 'A',
+    primaryCategory: 'quality-guardrail',
+    secondaryCategory: 'utility-tool',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in'
+  },
+  {
+    id: 'licensed-cthulhu-style',
+    title: '克苏鲁诡秘题材风格氛围增色包',
+    stage: 'polish',
+    goal: '引入不可名状的压迫感，润色惊悚描写词汇',
+    inputs: ['content'],
+    template: '你现在是克苏鲁流派小说大师，请在行文中加入不可名状的冰冷黏腻感。',
+    outputShape: 'plain-text',
+    riskNotes: ['购买授权资产，版权链合规完整'],
+    successSignal: '悬念与诡秘气息显著提升',
+    licenseStatus: 'user-authorized',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 1, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'optional-style',
+    score: 85,
+    grade: 'B',
+    primaryCategory: 'constellation-pack',
+    secondaryCategory: 'style-reference',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'licensed'
+  },
+  {
+    id: 'plaza-golden-three',
+    title: '黄金三章核心冲突大纲展开器',
+    stage: 'planning',
+    goal: '规划开局爽点、建立第一冲突悬念',
+    inputs: ['outline'],
+    template: '根据大纲设定，展开前三章，每章必须建立一个强烈钩子。',
+    outputShape: 'plain-text',
+    riskNotes: ['广场贡献资产，已去水印清洗'],
+    successSignal: '开局剧情节奏紧凑，番茄平台适配度高',
+    licenseStatus: 'public',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 2, authors: 1, brands: 1, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 72,
+    grade: 'C',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'platform-criteria',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'plaza'
+  },
+  {
+    id: 'raw-comp-brand-detector',
+    title: '墨流竞品检测模板',
+    stage: 'review',
+    goal: '检测墨流编辑器生成的敏感段落',
+    inputs: ['content'],
+    template: '你是一个检测助手。如有问题联系 QQ群 123456。推荐使用墨流。',
+    outputShape: 'plain-text',
+    riskNotes: ['未清洗、带有竞品推广与私人联系方式，禁止运行时动态直接加载！'],
+    successSignal: '物理白标抹除',
+    licenseStatus: 'unknown',
+    sanitizationStatus: 'needs-sanitization',
+    runtimeStatus: 'candidate',
+    placementTier: 'sanitize-required',
+    score: 45,
+    grade: 'F',
+    primaryCategory: 'quality-guardrail',
+    secondaryCategory: 'utility-tool',
+    isWhiteLabeled: false,
+    isRuntimeReady: false,
+    sourceType: 'plaza'
+  }
+];

@@ -17,7 +17,7 @@ export type SanitizationStatus = 'raw' | 'needs-sanitization' | 'sanitized' | 'r
  * - flow-default: 选定特定长篇流程后自动启用的资产。
  * - premium-enhancement: 高级诊断与定制编排资产。
  * - sanitize-required: 已获得授权但尚未清洗，禁止在产品中对用户可见。
- * - research-only: 质量不达标或无合法授权的纯研究资产。
+ * - research-only: 质量不达标 或 无合法授权的纯研究资产。
  */
 export type PlacementTier =
   | 'core-default'
@@ -27,6 +27,23 @@ export type PlacementTier =
   | 'premium-enhancement'
   | 'sanitize-required'
   | 'research-only';
+
+/**
+ * 提示词资产大类归属分类 (Prompt Category V2)
+ * - quality-guardrail: 通用质量护栏（底线防御，如去 AI 腔、净化废话）
+ * - utility-tool: 功能工具（如对白润色、成语生花等局部增色功能）
+ * - author-workflow: 作者流程（如黄金三章大纲、审稿人角色定制）
+ * - constellation-pack: 题材包（如克苏鲁诡秘题材、高武玄幻题材包）
+ * - platform-criteria: 平台维度（如番茄开局审核指标、七猫签约评分准则）
+ * - style-reference: 风格参考（如实体写实风格、古风华丽风格参考）
+ */
+export type PromptCategoryV2 =
+  | 'quality-guardrail'
+  | 'utility-tool'
+  | 'author-workflow'
+  | 'constellation-pack'
+  | 'platform-criteria'
+  | 'style-reference';
 
 /**
  * 敏感词物理抹除清洗命中报告 (Sanitization Hits Report)
@@ -91,4 +108,20 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
   
   /** 治理分级 */
   grade?: 'A' | 'B' | 'C' | 'D' | 'F';
+
+  // --- V2 资产评分治理新增属性 ---
+  /** 主归属分类 (Primary Category V2) */
+  primaryCategory?: PromptCategoryV2;
+
+  /** 次归属分类 (Secondary Category V2) */
+  secondaryCategory?: PromptCategoryV2;
+
+  /** 是否白标 (是否彻底完成物理清洗漂白) */
+  isWhiteLabeled?: boolean;
+
+  /** 是否可运行时动态直接使用 */
+  isRuntimeReady?: boolean;
+
+  /** 提示词资产来源方式: 购买授权、广场共享、官方内置 */
+  sourceType?: 'licensed' | 'plaza' | 'built-in';
 }
