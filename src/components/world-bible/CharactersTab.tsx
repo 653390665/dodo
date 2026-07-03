@@ -50,7 +50,7 @@ export function CharactersTab({
             />
             <select
               value={char.role}
-              onChange={(e) => updateEntity('character', char.id, { role: e.target.value as any })}
+              onChange={(e) => updateEntity('character', char.id, { role: e.target.value as Character['role'] })}
               className="w-1/2 p-1 text-sm border-b border-theme-border/50 outline-none -mt-2 bg-transparent"
             >
               <option value="protagonist">主角</option>

@@ -1,14 +1,18 @@
 import { mergePromptTemplates, type PromptTemplateKey } from '../../shared/config/prompt-templates';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls.js';
 import { getConfig } from '../lib/config';
+import type { Skill } from '../../shared/types';
 
-export function buildSkillsPrompt(skills: any[]) {
+export function buildSkillsPrompt(skills: Skill[]) {
   if (!skills || skills.length === 0) return "";
 
-  const allBannedElements = Array.from(new Set(skills.flatMap(s => [...(s.bannedWords || []), ...(s.bannedElements || [])])));
-  const allImagery = Array.from(new Set(skills.flatMap(s => s.imagery || [])));
-  const allVocabulary = Array.from(new Set(skills.flatMap(s => s.vocabulary || [])));
-  const allCorePatterns = Array.from(new Set(skills.flatMap(s => s.corePatterns || [])));
+  const allBannedElements = Array.from(new Set(skills.flatMap(s => [
+    ...(Array.isArray(s.bannedWords) ? s.bannedWords : []),
+    ...(Array.isArray(s.bannedElements) ? s.bannedElements : [])
+  ])));
+  const allImagery = Array.from(new Set(skills.flatMap(s => Array.isArray(s.imagery) ? s.imagery : [])));
+  const allVocabulary = Array.from(new Set(skills.flatMap(s => Array.isArray(s.vocabulary) ? s.vocabulary : [])));
+  const allCorePatterns = Array.from(new Set(skills.flatMap(s => Array.isArray(s.corePatterns) ? s.corePatterns : [])));
 
   const primarySkill = skills[0];
   const secondarySkills = skills.slice(1);
@@ -45,7 +49,7 @@ export function buildSkillsPrompt(skills: any[]) {
 
   prompt += `风格对标样例 (Composite Few-Shots)：\n`;
   skills.forEach(s => {
-    (s.fewShots || []).slice(0, 2).forEach((fs: string) => {
+    (Array.isArray(s.fewShots) ? s.fewShots : []).slice(0, 2).forEach((fs: string) => {
       prompt += `  * "${fs}" (来自 ${s.name})\n`;
     });
   });

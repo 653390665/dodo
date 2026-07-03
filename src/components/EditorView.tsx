@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState } from '../../shared/types';
+import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState, ChapterVersion } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 import { listContinuationPacks } from '../lib/continuation-client';
@@ -256,7 +256,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   });
 
   const [chapterToDeleteId, setChapterToDeleteId] = React.useState<string | null>(null);
-  const [versionToRestore, setVersionToRestore] = React.useState<any | null>(null);
+  const [versionToRestore, setVersionToRestore] = React.useState<ChapterVersion | null>(null);
 
   const {
     productionIntent,

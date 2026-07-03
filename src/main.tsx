@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
@@ -16,7 +17,7 @@ window.fetch = async (input, init) => {
     let token = await window.inkflow?.getAuthToken?.();
 
     // 如果在非 Electron 的开发环境下，使用自举的缓存 Token
-    if (!token && (import.meta as any).env?.DEV) {
+    if (!token && import.meta.env.DEV) {
       if (!cachedDevToken) {
         try {
           const res = await originalFetch('/api/dev-auth-token');

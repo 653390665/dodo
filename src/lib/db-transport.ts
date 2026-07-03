@@ -1,6 +1,6 @@
 const CLIENT_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-async function call(method: string, ...args: any[]): Promise<any> {
+async function call<T = unknown>(method: string, ...args: unknown[]): Promise<T> {
   const res = await fetch('/api/db', {
     method: 'POST',
     headers: {
@@ -14,7 +14,7 @@ async function call(method: string, ...args: any[]): Promise<any> {
     throw new Error(err.error || 'API error');
   }
   const data = await res.json();
-  return data.result;
+  return data.result as T;
 }
 
 let globalEventSource: EventSource | null = null;

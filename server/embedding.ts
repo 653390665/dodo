@@ -3,12 +3,12 @@
  * Uses bge-small-zh-v1.5 (384-dim, ~130 MB cached).  Falls back to
  * the configured LLM's embedding endpoint if WASM is unavailable.
  */
-import { pipeline } from '@xenova/transformers';
+import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers';
 import { generateEmbedding } from './lib/server-llm';
 import { getConfig } from './lib/config';
 import { logger } from './logger';
 
-let embedPipeline: any = null;
+let embedPipeline: FeatureExtractionPipeline | null = null;
 let initPromise: Promise<void> | null = null;
 
 async function ensurePipeline(): Promise<void> {
@@ -21,7 +21,7 @@ async function ensurePipeline(): Promise<void> {
       logger.info('Embedding pipeline ready (local WASM)');
     } catch (e) {
       logger.warn('Local embedding pipeline failed, will use LLM fallback', e);
-      embedPipeline = null;
+      embedPipeline = null as unknown as FeatureExtractionPipeline | null;
     }
   })();
 

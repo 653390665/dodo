@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateFeedbackScore,
@@ -9,6 +9,7 @@ import {
 } from '../src/lib/skill-model';
 import type { SkillUsageRecord } from '../shared/types';
 
+describe("skill-extraction", () => {
 test('coerceMountedSkillLoadout migrates legacy mountedSkillIds', () => {
   const loadout = coerceMountedSkillLoadout(['skill-a', 'skill-b']);
   assert.deepEqual(loadout, [
@@ -223,4 +224,5 @@ test('calculateFeedbackScore produces a bounded recommendation score', () => {
 
   assert.equal(score >= 0 && score <= 100, true);
   assert.equal(score > 50, true);
+});
 });

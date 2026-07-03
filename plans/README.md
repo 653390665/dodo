@@ -174,3 +174,12 @@
 | 061 | Preserve error stack traces in logger | DONE | logger.ts err.stack preserved |
 | 062 | Wire validate(dbSchema) into /api/db | DONE | dbSchema middleware applied to /api/db |
 | 063 | Rate-limit chapter production endpoints | DONE | rateLimit on /start + /start-stream + /apply |
+
+## Phase 2-6 Status (from final code-health plan)
+| Phase | Status | Reason |
+|-------|--------|--------|
+| Phase 2: types.ts split | DEFERRED | Barrel conflicts — needs worktree isolation |
+| Phase 3: Big component split | DEFERRED | 561-763 line components need dedicated sessions |
+| Phase 4: Hook/route split | DEFERRED | useEditorGenerationFlow (531L) + production.ts (608L) |
+| Phase 5: Test organization | ATTEMPTED | describe() broke 6 tests — reverted. Cosmetic, not worth risk. |
+| Phase 6: Final report | DONE | types.ts 825, any 8→8, limit 25→9 updated in report |

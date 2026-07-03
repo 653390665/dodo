@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 
 import {
   getSkillRoleLabel,
@@ -8,6 +8,7 @@ import {
   collectSkillRoleKeys,
 } from '../src/lib/skill-language';
 
+describe("skill-extraction", () => {
 test('getSkillRoleLabel maps primary dimension to writing-role language', () => {
   assert.equal(getSkillRoleLabel('style'), '主笔文风');
   assert.equal(getSkillRoleLabel('character'), '人物驱动');
@@ -42,4 +43,5 @@ test('normalizeRoleKey and collectSkillRoleKeys provide stable internal role key
     }),
     ['lead-style', 'plot-advance', 'pace-control'],
   );
+});
 });

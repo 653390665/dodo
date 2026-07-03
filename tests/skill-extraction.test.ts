@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildFullFallbackSkillResult,
@@ -7,6 +7,7 @@ import {
   type SkillExtractionResult
 } from '../server/helpers/skill-extraction';
 
+describe("skill-extraction", () => {
 test('skill-extraction - buildFullFallbackSkillResult throws on empty text', () => {
   assert.throws(() => {
     buildFullFallbackSkillResult('');
@@ -83,4 +84,5 @@ test('skill-extraction - createSkillExtractionJob failed state transition', asyn
   assert.equal(failedJob.status, 'failed');
   assert.equal(failedJob.error, errorMsg);
   assert.equal(failedJob.result, undefined);
+});
 });

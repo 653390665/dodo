@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2, Wand2, Save, CheckCircle2 } from 'lucide-react';
-import type { Skill, AggregatedSkillDeck, BookEvidenceStage } from '../../../shared/types';
+import type { Novel, Skill, AggregatedSkillDeck, BookEvidenceStage } from '../../../shared/types';
 import { SkillCardDetails } from './SkillCardDetails';
 import { TestDrivePanel } from './TestDrivePanel';
 import { EquipPanel } from './EquipPanel';
@@ -74,7 +74,7 @@ interface BookFactoryOutputProps {
   onSetShowEquipPanel: (val: boolean) => void;
   equipNovelId: string;
   onSetEquipNovelId: (val: string) => void;
-  userNovels: any[];
+  userNovels: Novel[];
   lastSavedSkillId: string;
   savedDeckIds: string[];
   onTestDrive: () => void;

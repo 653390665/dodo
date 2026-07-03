@@ -42,9 +42,9 @@ export function registerDbRoutes(app: Express) {
     try {
       const result = fn(...args);
       res.json({ result });
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error("DB proxy error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Internal server error' });
     } finally {
       if (clientId) {
         setCurrentInitiator(undefined);

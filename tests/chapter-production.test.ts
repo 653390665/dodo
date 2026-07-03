@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildChapterProductionTitle,
@@ -8,6 +8,7 @@ import {
 } from '../src/lib/chapter-production';
 import type { Chapter } from '../shared/types';
 
+describe("production", () => {
 test('getNextChapterOrder returns one more than highest existing order', () => {
   const chapters = [
     { id: 'c1', order: 1 },
@@ -41,4 +42,5 @@ test('buildProductionPromptContexts injects continuation pack context into plann
   assert.match(contexts.planner, /近期章节/);
   assert.match(contexts.writer, /资料包续写任务/);
   assert.match(contexts.writer, /关键人物/);
+});
 });

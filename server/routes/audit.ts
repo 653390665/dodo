@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import type { Skill } from '../../shared/types';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
@@ -22,7 +23,7 @@ export function registerAuditRoutes(app: Express) {
     try {
       const { draftContent, sceneBeats, contextStr, skills = [], surface = 'chapter-polish' } = req.body;
       const skillsInfo = skills.length > 0
-        ? `\n【当前挂载的叙事 DNA 插件】\n${skills.map((s: any) => `
+        ? `\n【当前挂载的叙事 DNA 插件】\n${skills.map((s: Skill) => `
 - 技能名：${s.name}
 - 核心笔调：${s.style}
 - 句式特征：${s.sentenceStructure}
@@ -57,7 +58,8 @@ export function registerAuditRoutes(app: Express) {
       if (fiveDim) {
         const gate = evaluateAuditGate(
           Object.fromEntries(Object.entries(fiveDim.scores).map(([k, v]) => [k, (v as { score: number }).score])),
-          (fiveDim as any).fatalIssues || [],
+          [],
+
         );
         const feedback = renderFiveDimMarkdown(fiveDim);
         return res.json({

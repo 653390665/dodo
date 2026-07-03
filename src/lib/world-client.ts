@@ -37,10 +37,10 @@ export async function deleteTimelineEvent(id: string): Promise<void> { return ca
 export async function listEntityRelationshipsClient(novelId: string): Promise<EntityRelationship[]> {
   return call('listEntityRelationships', novelId);
 }
-export async function createEntityRelationshipClient(rel: any): Promise<void> {
+export async function createEntityRelationshipClient(rel: EntityRelationship): Promise<void> {
   return call('createEntityRelationship', rel);
 }
-export async function updateEntityRelationshipClient(id: string, data: any): Promise<void> {
+export async function updateEntityRelationshipClient(id: string, data: Partial<EntityRelationship>): Promise<void> {
   return call('updateEntityRelationship', id, data);
 }
 export async function deleteEntityRelationshipClient(id: string): Promise<void> {

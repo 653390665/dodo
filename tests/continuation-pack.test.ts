@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildContinuationContext,
@@ -7,6 +7,7 @@ import {
 } from '../src/lib/continuation-pack';
 import type { ContinuationPack } from '../shared/types';
 
+describe("continuation", () => {
 test('classifyContinuationSource detects common project document kinds', () => {
   assert.equal(classifyContinuationSource('世界观设定.docx', '灵气复苏，宗门割据'), 'world');
   assert.equal(classifyContinuationSource('第一卷大纲.md', '第一章主角入城'), 'outline');
@@ -178,4 +179,5 @@ test('buildCreationIntentDraft handles missing plotState fields gracefully', () 
 
   const draft = buildCreationIntentDraft(pack);
   assert.match(draft, /续写任务/);
+});
 });

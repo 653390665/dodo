@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import type { Novel, Chapter } from '../../shared/types';
 import * as db from '../lib/db';
 
 function escXml(s: string): string {
@@ -10,7 +11,7 @@ function escXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function buildEpub(novel: any, chapters: any[]): Promise<Buffer> {
+async function buildEpub(novel: Novel, chapters: Chapter[]): Promise<Buffer> {
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
   const escTitle = escXml(novel.title);

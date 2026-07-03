@@ -349,7 +349,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                           const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
                           const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
 
-                          const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: any, primary?: boolean }) => (
+                          const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: React.ComponentType<{size?: number, className?: string}>, primary?: boolean }) => (
                             <button
                               onClick={action}
                               className={cn(

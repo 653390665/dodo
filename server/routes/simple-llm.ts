@@ -14,7 +14,7 @@ export function registerSimpleLlmRoutes(app: Express) {
       const prompt = `请将以下创意片段扩展为更详细的描述:\n\n${text}\n\n上下文: ${context || '无'}`;
       const result = await generateText(getConfig(), { prompt });
       res.json({ text: result });
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error("Simple LLM route error:", e);
       res.status(500).json({ error: "Internal server error" });
     }

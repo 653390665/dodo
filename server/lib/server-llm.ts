@@ -27,12 +27,27 @@ function joinUrl(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
-function extractOpenAIText(data: any): string {
-  const content = data?.choices?.[0]?.message?.content;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+export function extractOpenAIText(data: unknown): string {
+  const rec = asRecord(data);
+  const choices = asArray(rec.choices);
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice.message);
+  const content = message.content;
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .map((part) => (typeof part?.text === "string" ? part.text : ""))
+      .map((part) => {
+        const partRec = asRecord(part);
+        return typeof partRec.text === "string" ? partRec.text : "";
+      })
       .join("");
   }
   return "";
@@ -340,7 +355,13 @@ export async function generateEmbedding(config: AppConfig, text: string): Promis
       model: modelName,
       contents: text,
     });
-    const values = (response as any).embedding?.values || (response as any).embeddings?.[0]?.values;
+    const responseRec = asRecord(response);
+    const embeddingField = asRecord(responseRec.embedding);
+    const embeddingsArray = asArray(responseRec.embeddings);
+    const firstEmbedding = asRecord(embeddingsArray[0]);
+
+    const values = (Array.isArray(embeddingField.values) ? (embeddingField.values as number[]) : null) ||
+                   (Array.isArray(firstEmbedding.values) ? (firstEmbedding.values as number[]) : null);
     if (!values) {
       throw new Error("Google GenAI returned empty embedding");
     }

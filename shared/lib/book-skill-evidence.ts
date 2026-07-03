@@ -1,10 +1,15 @@
-import type { SegmentSkillEvidence, SkillDimension, SkillSignalEvidence } from '../types';
+import type { SegmentSkillEvidence, SkillDimension, SkillSignalEvidence, Skill } from '../types';
 
-export function collectSignalEvidenceFromSkill(skill: any): SkillSignalEvidence[] {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+export function collectSignalEvidenceFromSkill(skill: Partial<Skill> | Record<string, unknown>): SkillSignalEvidence[] {
   const signals: SkillSignalEvidence[] = [];
-  const profile = skill?.compositionProfile || {};
+  const skillRec = asRecord(skill);
+  const profile = asRecord(skillRec.compositionProfile);
 
-  const pushSignal = (dimension: SkillDimension, source: string, fallbackWeight: number) => {
+  const pushSignal = (dimension: SkillDimension, source: unknown, fallbackWeight: number) => {
     const evidence = String(source || '').trim();
     if (!evidence) return;
 
@@ -24,17 +29,17 @@ export function collectSignalEvidenceFromSkill(skill: any): SkillSignalEvidence[
     });
   };
 
-  pushSignal('style', skill?.style, 0.88);
-  pushSignal('character', skill?.characterTraits, 0.72);
-  pushSignal('world', skill?.worldBuilding, 0.68);
-  pushSignal('power', [skill?.worldBuilding, skill?.plotPattern].filter(Boolean).join('；'), 0.58);
-  pushSignal('plot', [skill?.plotPattern, skill?.foreshadowing].filter(Boolean).join('；'), 0.8);
-  pushSignal('pacing', skill?.pacing, 0.74);
+  pushSignal('style', skillRec.style, 0.88);
+  pushSignal('character', skillRec.characterTraits, 0.72);
+  pushSignal('world', skillRec.worldBuilding, 0.68);
+  pushSignal('power', [skillRec.worldBuilding, skillRec.plotPattern].filter(Boolean).map(String).join('；'), 0.58);
+  pushSignal('plot', [skillRec.plotPattern, skillRec.foreshadowing].filter(Boolean).map(String).join('；'), 0.8);
+  pushSignal('pacing', skillRec.pacing, 0.74);
 
   return signals;
 }
 
-export function collectSegmentEvidence(rawSkills: any[], stage: SegmentSkillEvidence['stage']): SegmentSkillEvidence | null {
+export function collectSegmentEvidence(rawSkills: Array<Partial<Skill> | Record<string, unknown>>, stage: SegmentSkillEvidence['stage']): SegmentSkillEvidence | null {
   const skillSignals = rawSkills.flatMap((skill) => collectSignalEvidenceFromSkill(skill));
   if (skillSignals.length === 0) return null;
 

@@ -6,7 +6,7 @@ import type { AssistantLaunchContext, ContinuationEditorLaunchState, Novel, Work
 
 interface SplitWorkspaceProps {
   novel: Novel;
-  onboarding?: any;
+  onboarding?: React.ComponentProps<typeof WorldBibleView>['onboarding'];
   onBack: () => void;
   focus: WorkspaceFocus;
   onFocusChange: (focus: WorkspaceFocus) => void;

@@ -142,7 +142,7 @@ export function WorldBibleView({
     else if (type === 'powerLevel') await deletePowerLevel(id);
   };
 
-  const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: any) => {
+  const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: Record<string, unknown>) => {
     if (type === 'character') await updateCharacter(id, data);
     else if (type === 'location') await updateLocation(id, data);
     else if (type === 'item') await updateItem(id, data);

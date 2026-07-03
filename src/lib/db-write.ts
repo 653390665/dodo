@@ -2,7 +2,7 @@
  * Single-writer dispatch for SQLite.
  *
  * All write calls route through a serial queue here.  That means there is
- * exactly one writer at any point in time — concurrent writes are queued
+ * exactly one writer at a time — concurrent writes are queued
  * and serialised, preventing SQLITE_BUSY / database-locked crashes while
  * keeping the code ergonomic (just call `write.run(task)`).
  */

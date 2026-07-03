@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { StoryCardDeck } from './onboarding/StoryCardDeck';
 import { AIAssistant } from './AIAssistant';
 import { ErrorBoundary } from './ErrorBoundary';
-import type { AssistantLaunchContext, Novel, StoryIdeaCard, StoryPlanningInput } from '../../shared/types';
+import type { AssistantLaunchContext, Novel, StoryIdeaCard, StoryPlanningInput, OnboardingDraftState } from '../../shared/types';
 
 export function AIAssistantDrawer({
   isOpen,
@@ -21,7 +21,7 @@ export function AIAssistantDrawer({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onboardingDraft: any;
+  onboardingDraft: OnboardingDraftState | null;
   aiDrawerTab: 'cards' | 'chat';
   setAIDrawerTab: (tab: 'cards' | 'chat') => void;
   handleSelectStoryCard: (card: StoryIdeaCard, planning?: StoryPlanningInput) => void;
@@ -84,7 +84,7 @@ export function AIAssistantDrawer({
                   onSelectCard={handleSelectStoryCard}
                   onMixCard={() => {
                     if (onboardingDraft.cards.length >= 2) {
-                      const other = onboardingDraft.cards.find((c: any) => c.id !== onboardingDraft.selectedCardId);
+                      const other = onboardingDraft.cards.find((c) => c.id !== onboardingDraft.selectedCardId);
                       if (other) {
                         handleCreateDraftFromIdea({
                           ideaSeed: `${onboardingDraft.cards[0].hook} + ${other.hook}`,
