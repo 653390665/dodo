@@ -1,14 +1,14 @@
 /**
- * InkFlow Chapter Quality Acceptance Script (Real/Physical Mode) — V2 Chapter Quality Loop Verification.
+ * InkFlow Chapter Quality Acceptance Script (Mechanical Mode) — V2 Chapter Quality Loop Verification.
  *
- * This script runs the end-to-end loop dynamically with physical replacements (no fake scores):
- * Initial Real Scorer ➡ Dynamic Critique Generator ➡ Surgical Patch Apply ➡ Re-Audit Score Check
- * across 3 real chapter samples:
+ * This script runs the end-to-end loop dynamically with physical replacements (using mechanical slop scoring):
+ * Initial Mechanical Scorer ➡ Dynamic Critique Generator ➡ Surgical Patch Apply ➡ Re-Audit Score Check
+ * across 3 chapter samples:
  * 1. AI-heavy Slop (chapter-slop-heavy.txt)
  * 2. Weak dialogue/actions (chapter-action-weak.txt)
  * 3. Mature draft (chapter-mature.txt)
  *
- * It records and reports 4 key indicators in a new dedicated real-acceptance report.
+ * It records and reports 4 key indicators in a new dedicated mechanical-acceptance report.
  */
 
 import * as fs from 'fs';
@@ -58,9 +58,9 @@ interface SampleResult {
   appliedCount: number;
 }
 
-function runRealAcceptance() {
+function runMechanicalAcceptance() {
   console.log('================================================================');
-  console.log('  InkFlow Chapter Quality MVP Loop - PHYSICAL/REAL Acceptance Script ');
+  console.log('  InkFlow Chapter Quality MVP Loop - PHYSICAL/MECHANICAL Acceptance Script ');
   console.log('================================================================\n');
 
   const fixturesDir = path.join(process.cwd(), 'tests/fixtures');
@@ -259,20 +259,20 @@ function runRealAcceptance() {
     },
   ];
 
-  writeRealReport(results, indicators);
+  writeMechanicalReport(results, indicators);
 }
 
-function writeRealReport(results: Record<string, SampleResult>, indicators: ReportIndicator[]) {
-  const reportPath = path.join(process.cwd(), 'tests/fixtures/chapter-real-acceptance-report.md');
+function writeMechanicalReport(results: Record<string, SampleResult>, indicators: ReportIndicator[]) {
+  const reportPath = path.join(process.cwd(), 'tests/fixtures/chapter-mechanical-acceptance-report.md');
 
-  const md = `# InkFlow 章节质量闭环 物理真实模型验收报告
+  const md = `# InkFlow 章节质量闭环 物理机械评分验收报告
 
-本报告由物理自动化验收脚本 \`scripts/run-chapter-real-acceptance.ts\` **纯实跑物理替换**后动态计算生成。不包含任何 Mock 假数据。
+本报告由物理自动化验收脚本 \`scripts/run-chapter-mechanical-acceptance.ts\` **纯实跑物理替换**后动态计算生成。不包含任何 Mock 假数据。
 它使用真实的 \`scoreSlop\` 机械打分器对 3 类小说章节进行审稿，物理精准替换致命缺陷句段，并测量了替换后的真实分数变化。
 
 ---
 
-## 一、 四大物理核心验收指标 (Real Core Indicators)
+## 一、 四大物理核心验收指标 (Mechanical Core Indicators)
 
 | 指标维度 | 达成评分 | 物理评估诊断结论 |
 | :--- | :---: | :--- |
@@ -314,7 +314,7 @@ ${results['chapter-action-weak.txt'].repairedContent}
 
 ---
 
-## 四、 真实模型验收物理级结论
+## 四、 机械评分验收物理级结论
 
 > [!IMPORTANT]
 > - **物理一键精修完美闭环**：通过对真实样章的实跑验证，修后文本 100% 去除了被正则审稿器标注的所有致命机械套话与弱对话链。
@@ -336,6 +336,6 @@ ${results['chapter-action-weak.txt'].repairedContent}
   console.log('================================================================\n');
 }
 
-if (process.argv[1] && (process.argv[1].endsWith('run-chapter-real-acceptance.ts') || process.argv[1].endsWith('run-chapter-real-acceptance'))) {
-  runRealAcceptance();
+if (process.argv[1] && (process.argv[1].endsWith('run-chapter-mechanical-acceptance.ts') || process.argv[1].endsWith('run-chapter-mechanical-acceptance'))) {
+  runMechanicalAcceptance();
 }
