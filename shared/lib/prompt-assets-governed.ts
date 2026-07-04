@@ -1228,17 +1228,18 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
 
   const result = uniqueList.slice(0, 3);
 
-  // 7. 动态覆写并注入推荐原因（recommendationReason）
-  result.forEach(asset => {
+  // 7. 返回结果注入推荐原因，并对推荐资产进行浅拷贝，防止直接修改大库全局对象的副作用
+  return result.map(asset => {
     const tier = getAssetTier(asset);
-    if (tier === 1) {
-      asset.recommendationReason = "底线防御：AI味去化与局部问题审校，确保文字画面感。";
-    } else if (tier === 2) {
-      asset.recommendationReason = "流程推进：长篇写作连续步骤节点，确保大纲与剧情顺承。";
-    } else {
-      asset.recommendationReason = "题材/平台特化：番茄爽爆开篇与钩子强化，拉高完读指标。";
-    }
+    const recommendationReason =
+      tier === 1
+        ? "底线防御：AI味去化与局部问题审校，确保文字画面感。"
+        : tier === 2
+        ? "流程推进：长篇写作连续步骤节点，确保大纲与剧情顺承。"
+        : "题材/平台特化：番茄爽爆开篇与钩子强化，拉高完读指标。";
+    return {
+      ...asset,
+      recommendationReason
+    };
   });
-
-  return result;
 }

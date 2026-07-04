@@ -423,7 +423,6 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
     genreTags: ['fantasy'],
     currentStage: 'planning'
   });
-  console.log('DEBUG cardRec:', cardRec.map(a => ({ id: a.id, score: a.score, cat: a.primaryCategory, deconstructionCardType: a.deconstructionCardType })));
   const hasDeconstructCard = cardRec.some(a => a.id.startsWith('deconstruct-card-'));
   assert.equal(hasDeconstructCard, true, 'Enhancements recommendation should contain at least one deconstruct-card-* asset');
 
@@ -436,6 +435,36 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
       asset.recommendationReason.includes('底线'),
       `recommendationReason '${asset.recommendationReason}' must contain expected context tags`
     );
+  }
+});
+
+test('recommendPromptAssets is side-effect free, immutable and idempotent (V2.1.1 stability)', () => {
+  // 1. 调用前确认目录大库资产对象没有 recommendationReason
+  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+    assert.equal(asset.recommendationReason, undefined, `Catalog asset ${asset.id} should NOT have recommendationReason before any recommendation call`);
+  }
+
+  // 2. 调用推荐函数
+  const input = { currentStage: 'polish' as const };
+  const res1 = recommendPromptAssets(input);
+
+  // 3. 调用后，确认返回的每一个结果都有 recommendationReason
+  assert.ok(res1.length > 0);
+  for (const asset of res1) {
+    assert.ok(asset.recommendationReason, `Returned asset ${asset.id} must have recommendationReason`);
+  }
+
+  // 4. 再次检查，大库原资产仍没有被污染
+  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+    assert.equal(asset.recommendationReason, undefined, `Catalog asset ${asset.id} should remain untouched (no side-effects)`);
+  }
+
+  // 5. 连续调用两次，确认推荐 ID 和顺序完全一致（幂等性）
+  const res2 = recommendPromptAssets(input);
+  assert.equal(res1.length, res2.length, 'Idempotency check: result lengths should match');
+  for (let i = 0; i < res1.length; i++) {
+    assert.equal(res1[i].id, res2[i].id, `Idempotency check at index ${i}: assets should be identical`);
+    assert.equal(res1[i].recommendationReason, res2[i].recommendationReason, `Idempotency check at index ${i}: recommendationReason should match`);
   }
 });
 
