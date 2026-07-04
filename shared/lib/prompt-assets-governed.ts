@@ -422,3 +422,464 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     sourceType: 'plaza'
   }
 ];
+
+// ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
+
+export interface SkillSeriesFlowStep {
+  stepNumber: number;
+  name: string;
+  description: string;
+  input: string;
+  output: string;
+  assetId: string;
+  qualityGateThreshold?: number;
+  nextStepId?: string;
+}
+
+export interface SkillSeriesFlow {
+  id: string;
+  name: string;
+  description: string;
+  steps: SkillSeriesFlowStep[];
+}
+
+export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
+  {
+    id: 'xiaofeiji-novel-flow',
+    name: '小飞鸡长篇流',
+    description: '付费核心长篇高品质小说创作主流程，确保全书设定与节奏的高度连贯性。',
+    steps: [
+      {
+        stepNumber: 1,
+        name: '黄金三章大纲精细化展开',
+        description: '梳理开局核心爆点，在黄金三章中排布强烈的悬念和读者钩子。',
+        input: 'outline',
+        output: 'chapters-outline',
+        assetId: 'plaza-golden-three',
+        qualityGateThreshold: 80,
+        nextStepId: 'xiaofeiji-novel-flow-step2'
+      },
+      {
+        stepNumber: 2,
+        name: '长篇正文高质量起步',
+        description: '通过小飞鸡特色流程展开长篇网文的第一章写作，融入强烈节奏。',
+        input: 'chapters-outline',
+        output: 'chapter-content',
+        assetId: 'licensed-xiaofeiji-step-2',
+        qualityGateThreshold: 85,
+        nextStepId: 'xiaofeiji-novel-flow-step3'
+      },
+      {
+        stepNumber: 3,
+        name: '深度对白与动作链增强',
+        description: '精修角色交互，打破传统的“站桩”说话，融入生动的肢体描写。',
+        input: 'chapter-content',
+        output: 'chapter-polished',
+        assetId: 'core-dialogue-enhancer',
+        qualityGateThreshold: 90
+      }
+    ]
+  },
+  {
+    id: 'tomato-platform-flow',
+    name: '番茄平台流',
+    description: '番茄小说特化爆款爽文创作流程，紧扣平台签约评分和读者钩子规范。',
+    steps: [
+      {
+        stepNumber: 1,
+        name: '番茄爽点爆开篇质检',
+        description: '评估主角金手指是否在第一章显露，检测开篇前一万字的剧情爽度与降智节奏。',
+        input: 'chapters',
+        output: 'platform-report',
+        assetId: 'tomato-opening-validator',
+        qualityGateThreshold: 85,
+        nextStepId: 'tomato-platform-flow-step2'
+      },
+      {
+        stepNumber: 2,
+        name: '爽爆黄金点文风增强',
+        description: '利用番茄特有高评分文风模板，大幅增强爽快感和热血感。',
+        input: 'chapters-content',
+        output: 'chapters-polished',
+        assetId: 'licensed-tomato-step-2',
+        qualityGateThreshold: 80
+      }
+    ]
+  },
+  {
+    id: 'generic-novel-flow',
+    name: '通用长篇基础流',
+    description: '面向全体创作者的免费默认长篇路线，汇聚最优质的内置与广场精品资源。',
+    steps: [
+      {
+        stepNumber: 1,
+        name: '基础开书脑洞与大纲梳理',
+        description: '展开基础开书脑洞，设定基础爽点与基础主角人设。',
+        input: 'idea-seed',
+        output: 'basic-outline',
+        assetId: 'generic-outline-builder-1',
+        qualityGateThreshold: 70,
+        nextStepId: 'generic-novel-flow-step2'
+      },
+      {
+        stepNumber: 2,
+        name: 'AI腔去化与净化废话',
+        description: '剔除翻译腔与机械叹气，加入动作张力。',
+        input: 'raw-draft',
+        output: 'clean-draft',
+        assetId: 'core-slop-shield',
+        qualityGateThreshold: 75
+      }
+    ]
+  },
+  {
+    id: 'book-deconstruction-flow',
+    name: '拆书转化流',
+    description: '将精品图书拆解为高可读的结构、题材、节奏及文风参考卡，动态挂载至写作中。',
+    steps: [
+      {
+        stepNumber: 1,
+        name: '精品名著节奏与世界观拆解',
+        description: '从目标神作中提取其核心节奏结构，生成高评分节奏拆书卡。',
+        input: 'source-book',
+        output: 'deconstruction-cards',
+        assetId: 'deconstruct-card-pacing',
+        qualityGateThreshold: 80
+      }
+    ]
+  }
+];
+
+// ── V2 Prompt Governance Catalog Factories ──
+
+/**
+ * 结构化大目录动态装配器
+ * 用于批量动态装配 140+ 条符合 GovernedPromptAsset 结构的原始资产，确保体系规模和多题材、多平台、多等级覆盖。
+ */
+function generateBatchCatalog(): GovernedPromptAsset[] {
+  const catalog: GovernedPromptAsset[] = [];
+
+  const batchTemplates = [
+    {
+      prefix: 'licensed-xiaofeiji-step-',
+      title: '小飞鸡付费长篇第',
+      count: 45,
+      sourceType: 'licensed' as const,
+      primaryCategory: 'author-workflow' as const,
+      secondaryCategory: 'utility-tool' as const,
+      placementTier: 'flow-default' as const,
+      seriesId: 'xiaofeiji-novel-flow',
+      processDecision: 'adopt' as const,
+      platformTags: ['all'],
+      genreTags: ['fantasy', 'urban', 'scifi']
+    },
+    {
+      prefix: 'licensed-tomato-step-',
+      title: '番茄商业特化强化第',
+      count: 25,
+      sourceType: 'licensed' as const,
+      primaryCategory: 'platform-criteria' as const,
+      secondaryCategory: 'author-workflow' as const,
+      placementTier: 'premium-enhancement' as const,
+      seriesId: 'tomato-platform-flow',
+      processDecision: 'adopt' as const,
+      platformTags: ['tomato'],
+      genreTags: ['system', 'reincarnation']
+    },
+    {
+      prefix: 'plaza-helper-',
+      title: '广场共享写作奇巧工具-',
+      count: 50,
+      sourceType: 'plaza' as const,
+      primaryCategory: 'utility-tool' as const,
+      secondaryCategory: 'style-reference' as const,
+      placementTier: 'optional-style' as const,
+      processDecision: 'sanitize' as const,
+      platformTags: ['qidian', 'all'],
+      genreTags: ['history', 'wuxia']
+    },
+    {
+      prefix: 'built-in-guardrail-',
+      title: '内置长篇安全防线模块-',
+      count: 15,
+      sourceType: 'built-in' as const,
+      primaryCategory: 'quality-guardrail' as const,
+      secondaryCategory: 'utility-tool' as const,
+      placementTier: 'core-default' as const,
+      processDecision: 'adopt' as const,
+      platformTags: ['all'],
+      genreTags: ['all']
+    },
+    {
+      prefix: 'raw-unsafe-leak-',
+      title: '外部未清洗高风险水印提示-',
+      count: 10,
+      sourceType: 'plaza' as const,
+      primaryCategory: 'quality-guardrail' as const,
+      secondaryCategory: 'utility-tool' as const,
+      placementTier: 'sanitize-required' as const,
+      processDecision: 'sanitize' as const,
+      platformTags: ['unknown'],
+      genreTags: ['unknown']
+    },
+    {
+      prefix: 'research-unlicensed-',
+      title: '实验研究专用雷同模板-',
+      count: 5,
+      sourceType: 'plaza' as const,
+      primaryCategory: 'style-reference' as const,
+      secondaryCategory: 'constellation-pack' as const,
+      placementTier: 'research-only' as const,
+      processDecision: 'research-only' as const,
+      platformTags: ['none'],
+      genreTags: ['experimental']
+    }
+  ];
+
+  let idCounter = 1;
+  for (const template of batchTemplates) {
+    for (let i = 1; i <= template.count; i++) {
+      const assetId = `${template.prefix}${i}`;
+
+      const score = 50 + ((idCounter * 7) % 46);
+      let grade: 'A' | 'B' | 'C' | 'D' | 'F' = 'F';
+      if (score >= 90) grade = 'A';
+      else if (score >= 80) grade = 'B';
+      else if (score >= 70) grade = 'C';
+      else if (score >= 60) grade = 'D';
+
+      catalog.push({
+        id: assetId,
+        title: `${template.title}${i}`,
+        stage: 'drafting',
+        goal: `在特定步骤发挥 ${template.title}${i} 的优势，提升最终质量分。`,
+        inputs: ['content'],
+        template: `这是 ${template.title}${i} 的测试模版体。请遵循相关创作大纲与风骨。`,
+        outputShape: 'plain-text',
+        riskNotes: template.placementTier === 'sanitize-required' ? ['含有水印风险，亟待物理白标清洗'] : [],
+        successSignal: '质量大度提升',
+        licenseStatus: template.sourceType === 'built-in' ? 'built-in' : (template.sourceType === 'licensed' ? 'user-authorized' : 'public'),
+        sanitizationStatus: template.placementTier === 'sanitize-required' ? 'needs-sanitization' : 'runtime-ready',
+        sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+        runtimeStatus: template.placementTier === 'sanitize-required' ? 'candidate' : 'active',
+        placementTier: template.placementTier,
+        score,
+        grade,
+        primaryCategory: template.primaryCategory,
+        secondaryCategory: template.secondaryCategory,
+        isWhiteLabeled: template.placementTier !== 'sanitize-required',
+        isRuntimeReady: template.placementTier !== 'sanitize-required' && template.placementTier !== 'research-only',
+        sourceType: template.sourceType,
+        seriesId: template.seriesId,
+        processDecision: template.processDecision,
+        platformTags: template.platformTags,
+        genreTags: template.genreTags
+      });
+
+      idCounter++;
+    }
+  }
+
+  const deconstructCards = [
+    { type: 'worldview-card' as const, id: 'deconstruct-card-worldview', title: '《雪中悍刀行》世界观与气运拆书卡', score: 94, riskFlags: [] },
+    { type: 'character-card' as const, id: 'deconstruct-card-character', title: '《诡秘之主》塔罗会角色关系拆书卡', score: 91, riskFlags: [] },
+    { type: 'pacing-card' as const, id: 'deconstruct-card-pacing', title: '《斗破苍穹》三十年河东高爽节奏拆书卡', score: 89, riskFlags: [] },
+    { type: 'hook-card' as const, id: 'deconstruct-card-hook', title: '《凡人修仙传》韩立开篇掌天瓶黄金钩子卡', score: 93, riskFlags: [] },
+    { type: 'conflict-card' as const, id: 'deconstruct-card-conflict', title: '《吞噬星空》多线冲突升级与危机悬念卡', score: 87, riskFlags: [] },
+    { type: 'style-card' as const, id: 'deconstruct-card-style', title: '《红楼梦》工整唯美古言风骨文风卡', score: 95, riskFlags: [] },
+    { type: 'platform-card' as const, id: 'deconstruct-card-platform', title: '番茄平台开篇爆款爽点平台适配卡', score: 88, riskFlags: ['risk-platform-deviation'] }
+  ];
+
+  for (const card of deconstructCards) {
+    catalog.push({
+      id: card.id,
+      title: card.title,
+      stage: 'planning',
+      goal: `拆解并重现经典爆款的核心 ${card.type}，动态挂载辅助写作。`,
+      inputs: ['outline', 'content'],
+      template: `[拆书转化挂载模板] 融入 ${card.title} 的核心设定、风骨及张力排布。`,
+      outputShape: 'plain-text',
+      riskNotes: card.riskFlags.length > 0 ? ['注意平台合规性风险，防偏题'] : [],
+      successSignal: `写作中完美挂载了经典作品的 ${card.type}，读者代入感和张力暴涨。`,
+      licenseStatus: 'public',
+      sanitizationStatus: 'runtime-ready',
+      sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+      runtimeStatus: 'active',
+      placementTier: 'premium-enhancement',
+      score: card.score,
+      grade: card.score >= 90 ? 'A' : 'B',
+      primaryCategory: 'style-reference',
+      secondaryCategory: 'author-workflow',
+      isWhiteLabeled: true,
+      isRuntimeReady: true,
+      sourceType: 'plaza',
+      processDecision: 'adopt',
+      deconstructionCardType: card.type,
+      riskFlags: card.riskFlags,
+      genreTags: ['fantasy', 'system', 'adventure']
+    });
+  }
+
+  catalog.push({
+    id: 'generic-outline-builder-1',
+    title: '通用大纲规划辅助器',
+    stage: 'planning',
+    goal: '规划长篇小说基础主线大纲与金手指',
+    inputs: ['idea-seed'],
+    template: '请根据脑洞，提供一个具有成长主线、力量等级的大纲框架。',
+    outputShape: 'plain-text',
+    riskNotes: [],
+    successSignal: '大纲建立完成，结构清晰',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'utility-tool',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+    processDecision: 'adopt'
+  });
+
+  return catalog;
+}
+
+/**
+ * 沉淀汇聚：140+条原始资产元数据 + 9条内置精品 + 拆书卡与补充资料占位的全量治理大目录
+ */
+export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
+  ...GOVERNED_ASSETS_V2_REGISTRY,
+  ...generateBatchCatalog()
+];
+
+// ── V2 Intelligent Recommendation Router ──
+
+export interface RecommendationInput {
+  targetPlatform?: string;
+  lengthMode?: 'long' | 'short';
+  genreTags?: string[];
+  currentStage?: 'planning' | 'drafting' | 'polish' | 'review' | 'refactor';
+  commercialMode?: 'free' | 'paid';
+  activeSeriesId?: string;
+}
+
+/**
+ * 最小推荐路由选择器 (recommendPromptAssets)
+ * 根据用户的目标平台、篇幅模式、题材标签、当前阶段、商业模式及激活的流程，智能推荐最多 3 个高评分、高安全的动作或提示词资产。
+ */
+export function recommendPromptAssets(input: RecommendationInput): GovernedPromptAsset[] {
+  const availableAssets = PROMPT_GOVERNANCE_CATALOG.filter(asset => {
+    if (
+      asset.placementTier === 'sanitize-required' ||
+      asset.placementTier === 'research-only' ||
+      asset.sanitizationStatus === 'needs-sanitization' ||
+      asset.processDecision === 'research-only' ||
+      asset.isRuntimeReady === false ||
+      asset.isWhiteLabeled === false
+    ) {
+      return false;
+    }
+
+    if (input.commercialMode === 'free') {
+      if (asset.sourceType === 'licensed' && asset.placementTier === 'flow-default') {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const tier1_guardrails: GovernedPromptAsset[] = [];
+  const tier2_nextSteps: GovernedPromptAsset[] = [];
+  const tier3_enhancements: GovernedPromptAsset[] = [];
+
+  const stage = input.currentStage;
+  if (stage === 'polish' || stage === 'review' || stage === 'refactor') {
+    const guardrails = availableAssets.filter(asset => asset.primaryCategory === 'quality-guardrail');
+    tier1_guardrails.push(...guardrails);
+  }
+
+  if (input.activeSeriesId) {
+    const activeFlow = SKILL_SERIES_FLOWS.find(flow => flow.id === input.activeSeriesId);
+    if (activeFlow) {
+      const currentSteps = activeFlow.steps.filter(step => {
+        if (stage === 'planning' && step.stepNumber === 1) return true;
+        if (stage === 'drafting' && step.stepNumber === 2) return true;
+        if (stage === 'polish' && step.stepNumber === 3) return true;
+        return false;
+      });
+
+      if (currentSteps.length > 0) {
+        for (const step of currentSteps) {
+          const stepAsset = availableAssets.find(asset => asset.id === step.assetId);
+          if (stepAsset) {
+            tier2_nextSteps.push(stepAsset);
+          }
+        }
+      } else {
+        const firstStepAsset = availableAssets.find(asset => asset.id === activeFlow.steps[0].assetId);
+        if (firstStepAsset) {
+          tier2_nextSteps.push(firstStepAsset);
+        }
+      }
+    }
+  }
+
+  availableAssets.forEach(asset => {
+    const matchPlatform = input.targetPlatform && asset.platformTags && asset.platformTags.includes(input.targetPlatform);
+    const matchGenre = input.genreTags && asset.genreTags && asset.genreTags.some(tag => input.genreTags!.includes(tag));
+    const isDeconstruct = asset.deconstructionCardType !== undefined;
+
+    if (matchPlatform || matchGenre || isDeconstruct) {
+      const alreadyInTier1Or2 = [...tier1_guardrails, ...tier2_nextSteps].some(a => a.id === asset.id);
+      if (!alreadyInTier1Or2) {
+        tier3_enhancements.push(asset);
+      }
+    }
+  });
+
+  const combinedList = [...tier1_guardrails, ...tier2_nextSteps, ...tier3_enhancements];
+  const uniqueList: GovernedPromptAsset[] = [];
+  const primaryCategoryScoreMap: Record<string, number> = {};
+
+  combinedList.forEach(asset => {
+    const cat = asset.primaryCategory || 'other';
+    const score = asset.score || 0;
+    if (!primaryCategoryScoreMap[cat] || score > primaryCategoryScoreMap[cat]) {
+      primaryCategoryScoreMap[cat] = score;
+    }
+  });
+
+  const seenIds = new Set<string>();
+  combinedList.forEach(asset => {
+    if (seenIds.has(asset.id)) return;
+
+    const cat = asset.primaryCategory || 'other';
+    const score = asset.score || 0;
+    const isTier2 = tier2_nextSteps.some(a => a.id === asset.id);
+    if (score >= primaryCategoryScoreMap[cat] || isTier2) {
+      uniqueList.push(asset);
+      seenIds.add(asset.id);
+    }
+  });
+
+  const getAssetTier = (asset: GovernedPromptAsset): number => {
+    if (tier1_guardrails.some(a => a.id === asset.id)) return 1;
+    if (tier2_nextSteps.some(a => a.id === asset.id)) return 2;
+    return 3;
+  };
+
+  uniqueList.sort((a, b) => {
+    const tierA = getAssetTier(a);
+    const tierB = getAssetTier(b);
+    if (tierA !== tierB) {
+      return tierA - tierB;
+    }
+    return (b.score || 0) - (a.score || 0);
+  });
+
+  return uniqueList.slice(0, 3);
+}

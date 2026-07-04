@@ -9,7 +9,10 @@ import {
   isCoreBuiltInAsset,
   isUserOptionalAsset,
   validateAssetV2,
-  GOVERNED_ASSETS_V2_REGISTRY
+  GOVERNED_ASSETS_V2_REGISTRY,
+  recommendPromptAssets,
+  PROMPT_GOVERNANCE_CATALOG,
+  SKILL_SERIES_FLOWS
 } from '../shared/lib/prompt-assets-governed.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -350,5 +353,70 @@ test('GOVERNED_ASSETS_V2_REGISTRY assets pass validation', () => {
   for (const asset of GOVERNED_ASSETS_V2_REGISTRY) {
     assert.equal(validateAssetV2(asset), true, `Asset ${asset.id} should pass V2 validation`);
   }
+});
+
+test('Prompt Governance Catalog & Selector V2 checks', () => {
+  // 1. 断言目录总数：断言 PROMPT_GOVERNANCE_CATALOG 长度至少在 149 以上。
+  assert.ok(PROMPT_GOVERNANCE_CATALOG.length >= 149, `Catalog size should be at least 149, got ${PROMPT_GOVERNANCE_CATALOG.length}`);
+
+  // 2. 断言安全过滤拦截：
+  const allRecommended = recommendPromptAssets({ currentStage: 'planning' });
+  const unsafeAssets = PROMPT_GOVERNANCE_CATALOG.filter(
+    asset =>
+      asset.placementTier === 'sanitize-required' ||
+      asset.placementTier === 'research-only' ||
+      asset.isWhiteLabeled === false
+  );
+
+  assert.ok(unsafeAssets.length > 0, 'Unsafe assets should exist in catalog for testing filter logic');
+  for (const unsafe of unsafeAssets) {
+    const recommendedContainsUnsafe = allRecommended.some(a => a.id === unsafe.id);
+    assert.equal(recommendedContainsUnsafe, false, `Recommended list must not contain unsafe asset: ${unsafe.id}`);
+  }
+
+  // 3. 断言高分去重优先：
+  const polishRecommended = recommendPromptAssets({ currentStage: 'polish' });
+  const guardrailsRecommended = polishRecommended.filter(a => a.primaryCategory === 'quality-guardrail');
+  if (guardrailsRecommended.length > 1) {
+    const maxScore = Math.max(...PROMPT_GOVERNANCE_CATALOG.filter(a => a.primaryCategory === 'quality-guardrail' && a.isWhiteLabeled && a.isRuntimeReady).map(a => a.score || 0));
+    for (const asset of guardrailsRecommended) {
+      assert.ok((asset.score || 0) >= maxScore, `Asset ${asset.id} score (${asset.score}) should be equal to max score ${maxScore} in its category`);
+    }
+  }
+
+  // 4. 场景推荐测试：
+  // 4.1 番茄开书
+  const tomatoOpeningRec = recommendPromptAssets({
+    targetPlatform: 'tomato',
+    genreTags: ['fantasy'],
+    currentStage: 'planning',
+    activeSeriesId: 'tomato-platform-flow'
+  });
+  const hasTomatoOpeningValidator = tomatoOpeningRec.some(a => a.id === 'tomato-opening-validator');
+  assert.equal(hasTomatoOpeningValidator, true, 'Tomato planning scenario should recommend tomato-opening-validator');
+
+  // 4.2 长篇通用
+  const genericNovelRec = recommendPromptAssets({
+    currentStage: 'planning',
+    activeSeriesId: 'generic-novel-flow'
+  });
+  const hasGenericOutlineBuilder = genericNovelRec.some(a => a.id === 'generic-outline-builder-1');
+  assert.equal(hasGenericOutlineBuilder, true, 'Generic novel flow planning stage should recommend generic-outline-builder-1');
+
+  // 4.3 写完一章
+  const polishRec = recommendPromptAssets({
+    currentStage: 'polish'
+  });
+  const firstRecommended = polishRec[0];
+  assert.ok(firstRecommended, 'Polish recommended list should not be empty');
+  assert.equal(firstRecommended.id, 'core-slop-shield', 'First recommended asset for polish stage must be core-slop-shield');
+
+  // 4.4 卡文挂载（特定拆书卡推荐）
+  const cardRec = recommendPromptAssets({
+    genreTags: ['fantasy'],
+    currentStage: 'planning'
+  });
+  const hasDeconstructCard = cardRec.some(a => a.id.startsWith('deconstruct-card-'));
+  assert.equal(hasDeconstructCard, true, 'Enhancements recommendation should contain at least one deconstruct-card-* asset');
 });
 

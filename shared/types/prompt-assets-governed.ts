@@ -124,4 +124,21 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
 
   /** 提示词资产来源方式: 购买授权、广场共享、官方内置 */
   sourceType?: 'licensed' | 'plaza' | 'built-in';
+
+  // --- V2 路由与流程系列扩展属性 ---
+  /** 治理处理结论 */
+  processDecision?: 'adopt' | 'sanitize' | 'reject' | 'research-only';
+
+  /** 关联流程系列 ID */
+  seriesId?: string;
+
+  /** 拆书卡特殊分类类型 */
+  deconstructionCardType?:
+    | 'worldview-card'
+    | 'character-card'
+    | 'pacing-card'
+    | 'hook-card'
+    | 'conflict-card'
+    | 'style-card'
+    | 'platform-card';
 }
