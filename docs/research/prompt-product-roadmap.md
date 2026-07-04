@@ -49,13 +49,13 @@
 | Now | Scoring & Placement Model | 建立提示词评分和内置/选配/付费放置规则 | 用户知道哪些更好，系统知道放在哪里 | 见 `prompt-scoring-and-placement.md` |
 | Now | Deconstruction Card & Fusion System | 把拆书从单张文风卡升级为报告、卡组、诊断规则 | 拆书卡有证据、评分、推荐放置，能叠加到写作/审稿/精修 | 见 `prompt-deconstruction-fusion-system.md` |
 | Now | Style Humanization Pack | 降低 AI 味，提高章节可读性 | `slop-scorer` 命中更准确；改写后剧情不跑偏 | 优先补 `slop-scorer`、`buildRewritePrompt`、`orchestrateWriter` |
-| Next | Author Flow Pack MVP | 保留同作者提示词的连续流程 | 至少整理 3 个流程包：小飞鸡长篇、风华短篇、天马大纲 | 不拆散成散卡 |
-| Next | Skill Mount Recommendation | 让 Agent 引导用户挂载能力 | 推荐理由清楚；可接受/跳过/撤销 | 用当前项目缺口推荐 |
-| Next | Cross-Chapter Planning Pack | 支撑前十章和十章循环规划 | 分镜能声明使用/保留的剧情点；不提前揭示后续真相 | 补 `generateOutline`、`editorAgent`、章节生产流程 |
-| Next | Opening Diagnostic Pack | 帮作者判断前十章是否立住 | 输出章节级建议；能识别钩子、角色驱动力、伏笔期待 | 融合拆书器和商业审稿，不默认打断写作流 |
-| Later | Free/Paid Packaging Trial | 验证免费广场与付费定制的包装 | 以流程包/增强包为单位测试，不按单条 prompt 售卖 | 需完成白标清洗与价值验证 |
-| Later | Adaptive Dimension System | 让 InkFlow 维度随证据演进 | 新维度必须映射到生成/审稿行为 | 候选：`style-humanization`、`cross-chapter-continuity`、`commercial-readability`、`genre-fit` |
-| Later | Prompt Candidate Runtime Trials | 验证少数高质量提示词是否可直接沿用 | 每条候选通过 2-3 个样例稳定性测试 | 只针对白标清洗完成、无污染、输出可控的候选 |
+| Next | Author Flow Pack MVP | 保留同作者提示词的连续流程 | 至少整理 3 个流程包：小飞鸡长篇、风华短篇、天马大纲 | 不拆散成散卡 (已在 Phase 7 落地 MVP) |
+| Next | Skill Mount Recommendation | 让 Agent 引导用户挂载能力 | 推荐理由清楚；可接受/跳过/撤销 | 用当前项目缺口推荐 (已在 Phase 7 落地 MVP) |
+| Next | Cross-Chapter Planning Pack | 支撑前十章和十章循环规划 | 分镜能声明使用/保留的剧情点；不提前揭示后续真相 | 补 `generateOutline`、`editorAgent`、章节生产流程 (已在 Phase 8 落地 MVP) |
+| Next | Opening Diagnostic Pack | 帮作者判断前十章是否立住 | 输出章节级建议；能识别钩子、角色驱动力、伏笔期待 | 融合拆书器和商业审稿，不默认打断写作流 (已在 Phase 8 落地 MVP) |
+| Next (Phase 9) | Free/Paid Packaging Trial | 验证免费广场与付费定制的包装 | 以流程包/增强包为单位测试，不按单条 prompt 售卖 | 需完成白标清洗与价值验证 (本期开发收口验证) |
+| Next (Phase 10) | Adaptive Dimension System | 让 InkFlow 维度随证据演进 | 新维度必须映射到生成/审稿行为 | 候选：`style-humanization`、`cross-chapter-continuity`、`commercial-readability`、`genre-fit` (本期开发收口验证) |
+| Done (MVP) | Prompt Candidate Runtime Trials | 验证少数高质量提示词是否可直接沿用 | 每条候选通过 2-3 个样例稳定性测试 | 只针对白标清洗完成、无污染、输出可控的候选 (已在 Phase 8 落地 MVP) |
 
 ## Epic Hypotheses
 

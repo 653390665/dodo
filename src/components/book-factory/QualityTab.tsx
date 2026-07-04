@@ -7,7 +7,7 @@ import {
 import type { Chapter, AgentTab, Novel, MountedSkillLoadoutItem } from '../../../shared/types';
 import { extractStructuredAudit, stripEmbeddedStructuredAudit } from '../../../shared/lib/audit-structured';
 import { findPatchWindow } from '../../lib/chapter-polish';
-import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile } from '../../../shared/lib/prompt-assets-governed';
+import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile, getAssetEnhancementPackage, isPackageRestricted } from '../../../shared/lib/prompt-assets-governed';
 import type { PromptAssetActionKind } from '../../../shared/types/prompt-assets-governed';
 import { toast } from '../../lib/toast';
 
@@ -226,6 +226,10 @@ export function QualityTab({
 
               const actionKind = getPromptAssetAction(asset);
 
+              // 臻享/付费增强包判定 (Premium custom package restrictions check)
+              const pkg = getAssetEnhancementPackage(asset.id);
+              const isRestricted = pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false;
+
               // 判断状态
               const isMounted = actionKind === 'mount-skill' && mountedSkillLoadout.some(item => item.skillId === asset.id);
               const mountedSlotEntry = actionKind === 'mount-skill' ? mountedSkillLoadout.find(item => item.skillId === asset.id) : undefined;
@@ -262,6 +266,11 @@ export function QualityTab({
                       <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors duration-200">
                         {asset.title}
                       </span>
+                      {isRestricted && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500/20 to-pink-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold shrink-0">
+                          👑 Premium
+                        </span>
+                      )}
                       <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase shrink-0">
                         {asset.grade}级 ({asset.score}分)
                       </span>
@@ -288,6 +297,18 @@ export function QualityTab({
                         type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
+                          if (isRestricted && pkg) {
+                            window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+                              detail: {
+                                limitType: 'extractSkill',
+                                packageName: pkg.name,
+                                packageDesc: pkg.description,
+                                whyUpgrade: pkg.whyUpgrade,
+                                novelId: novel.id,
+                              }
+                            }));
+                            return;
+                          }
                           if (onRunRecommendedAsset) {
                             await onRunRecommendedAsset(asset.id, actionKind);
                           } else {

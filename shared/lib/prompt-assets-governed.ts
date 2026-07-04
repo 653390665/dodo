@@ -1831,3 +1831,234 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
   };
 }
 
+// ── Phase 9: 免费/付费增强包包装与判定 ──
+
+export interface EnhancementPackage {
+  id: string;
+  name: string;
+  type: 'free' | 'paid';
+  description: string;
+  whyUpgrade?: string; // 为什么此时推荐升级说明
+  assets?: string[]; // 关联的资产 ID 列表
+}
+
+export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = [
+  {
+    id: 'free-basic-audit',
+    name: '基础审稿增强包',
+    type: 'free',
+    description: '提供最基础的错别字、标点与常识性排查，确保格式规范。',
+  },
+  {
+    id: 'free-basic-humanization',
+    name: '基础去 AI 腔增强包',
+    type: 'free',
+    description: '过滤高频 AI 词汇（如：然而、不得不、闪烁、勾勒等），使行文更流畅。',
+  },
+  {
+    id: 'free-onboarding-pack',
+    name: '脑洞与角色构建包',
+    type: 'free',
+    description: '辅助展开最初的小说创意、起名以及构建基础人设。',
+  },
+  {
+    id: 'free-first-chapter',
+    name: '第一章闭环包',
+    type: 'free',
+    description: '支持完成正文第一章的基础写作与结构闭环。',
+  },
+  {
+    id: 'paid-author-flows',
+    name: '名家作者流程包',
+    type: 'paid',
+    description: '完整复现小飞鸡、风华等名家作者的定制创作全流程。',
+    whyUpgrade: '您的创作已经初具规模，此时升级名家流程包可以像金牌主编一样进行多轮、系统化的步骤推荐，彻底打通人设到黄金正文的连贯叙事脉络！',
+  },
+  {
+    id: 'paid-platform-diagnostics',
+    name: '爆款平台诊断包',
+    type: 'paid',
+    description: '结合番茄、起点等各平台完读率模型，诊断前十章是否立住、金手指是否吸睛。',
+    whyUpgrade: '多平台发书面临完全不同的审核红线与爆款节奏。升级爆款平台诊断包可以对您的前十章大纲进行深度“X光”式爆点质检，大幅提高内投签约成功率！',
+  },
+  {
+    id: 'paid-cross-chapter-continuity',
+    name: '跨章连贯性增强包',
+    type: 'paid',
+    description: '开启前十章及每十章循环的高级剧情预算与真相拦截器。',
+    whyUpgrade: '大纲虽好，生成时却极其容易“提前泄底”或节奏透支。跨章连贯性增强包能在后台为您守死真相锁、锁定伏笔并在后续章节匀速释放冲突！',
+  },
+  {
+    id: 'paid-deconstruction-fusion',
+    name: '神作拆书与文风融合包',
+    type: 'paid',
+    description: '支持从神作中动态拆解出节奏、钩子、反模式卡，并强力融合成写作指令。',
+    whyUpgrade: '想学习顶流神作的遣词造句？文风融合包能将参考神作一键提炼成主笔文风、节奏与钩子卡，无需写复杂的提示词，系统直接智能融合。',
+  },
+  {
+    id: 'paid-advanced-audit-patch',
+    name: '高级审稿与局部手术包',
+    type: 'paid',
+    description: '对对白、肢体、神态细节提供高密度、多维度的专项重塑与局部精细化重写。',
+    whyUpgrade: '基础的禁词替换已经无法满足细节质感。升级局部手术包，您可以针对指定段落进行站桩说话净化，动态追加肢体表情微动作，让场景像电影般生动！',
+  }
+];
+
+/**
+ * 根据包 ID 判定一个包是否是付费包，并且当前商业模式下是否被拦截。
+ */
+export function isPackageRestricted(packageId: string, commercialMode: string = 'free'): boolean {
+  const pkg = ENHANCEMENT_PACKAGES.find(p => p.id === packageId);
+  if (!pkg) return false;
+  return pkg.type === 'paid' && commercialMode !== 'paid';
+}
+
+// ── Phase 10: 动态维度信号挂载与自适应判定 ──
+
+export interface ActiveDimensionSignals {
+  styleHumanization: boolean;
+  crossChapterContinuity: boolean;
+  commercialReadability: boolean;
+  genreFit: boolean;
+  platformFit: boolean;
+
+  // 映射的具体行为文案或指令
+  extraAuditChecks: string[];       // 补充审稿项
+  extraWritingConstraints: string[]; // 加入写作约束
+  recommendedAssetIds: string[];    // 推荐的治理资产 ID
+}
+export interface GovernanceNovelInput {
+  wordCount?: number;
+  chapters?: unknown[];
+  projectPreferenceProfile?: {
+    commercialMode?: 'free' | 'paid' | 'strict';
+    targetPlatform?: string;
+  };
+  genre?: string;
+  tags?: string[];
+}
+
+/**
+ * 根据作品画像、基本信息以及字数等自适应判断应该挂载哪些维度的信号，并返回映射的具体行为
+ */
+export function getActiveDimensionSignals(novel: GovernanceNovelInput): ActiveDimensionSignals {
+  // 提取基本信号
+  const wordCount = novel.wordCount || 0;
+  const chapterCount = novel.chapters?.length || 0;
+  const isCommercial = novel.projectPreferenceProfile?.commercialMode === 'paid';
+  const targetPlatform = novel.projectPreferenceProfile?.targetPlatform || '';
+  const genre = novel.genre || '';
+  const tags = novel.tags || [];
+
+  // 1. style-humanization 激活条件：已经开始写正文，且存在字数，或者带有 style-humanization 的标签/偏好
+  const styleHumanization = wordCount > 0 || tags.includes('style-humanization') || tags.includes('美文') || tags.includes('精品');
+
+  // 2. cross-chapter-continuity 激活条件：章节数 >= 5，或者长篇字数 > 10000
+  const crossChapterContinuity = chapterCount >= 5 || wordCount > 10000 || tags.includes('long-novel') || tags.includes('长篇');
+
+  // 3. commercial-readability 激活条件：属于付费商业项目，或者目标平台是商业爆款导向（如番茄、七猫、起点）
+  const isCommercialPlatform = ['番茄', '起点', '晋江', '七猫', '17k'].some(p => targetPlatform.includes(p));
+  const commercialReadability = isCommercial || isCommercialPlatform || tags.includes('爽文') || tags.includes('商业');
+
+  // 4. genre-fit 激活条件：指定了明确的流派，且有对应的题材包/题材特征
+  const genreFit = !!genre && genre !== '未分类' && genre !== '其他';
+
+  // 5. platform-fit 激活条件：指定了明确的发布平台
+  const platformFit = !!targetPlatform && targetPlatform !== '未确定';
+
+  // 映射至具体行为：补充审稿项、写作约束、推荐资产
+  const extraAuditChecks: string[] = [];
+  const extraWritingConstraints: string[] = [];
+  const recommendedAssetIds: string[] = [];
+
+  if (styleHumanization) {
+    extraAuditChecks.push(
+      '检测是否存在机械套话与翻译腔（如“不得不说”、“然而，他知道”、“闪烁着...的光芒”）。',
+      '评估对话是否处于“站桩说话”状态，确保每个重要台词都有微表情、呼吸节奏或手部物理反应进行包裹。'
+    );
+    extraWritingConstraints.push(
+      '【文风约束】行文中严禁使用无意义修饰词或大面积总结性叙事（解释感过强），多用物理动作、声音、环境反馈和眼神微表情来暗示心理状态。'
+    );
+    recommendedAssetIds.push('core-slop-shield', 'core-dialogue-enhancer');
+  }
+
+  if (crossChapterContinuity) {
+    extraAuditChecks.push(
+      '评估此章是否泄露了前文或大纲中设定的核心秘密/真相。',
+      '核对黄金转折或冲突是否在该匀速释放的节点内，有无剧情过度消耗风险。'
+    );
+    extraWritingConstraints.push(
+      '【连贯性约束】严格锁死中后期核心设定的真相秘密，绝不让角色口无遮拦提前泄底。时刻跟进上一章遗留的末尾悬念（Hook）并在前500字内给予自然交代。'
+    );
+    recommendedAssetIds.push('plaza-golden-three');
+  }
+
+  if (commercialReadability) {
+    extraAuditChecks.push(
+      '质检此章开篇 300 字内是否拉起冲突或建立悬念，读者完读拉力是否足够。',
+      '核查是否有大段主角背景设定造成的“阅读阻力”（Info dump），是否符合该发书平台的签约标准。'
+    );
+    extraWritingConstraints.push(
+      '【商业质检约束】避免冗长的说明，用极致的动作链拉快开场节奏。第一页必须建立直观目标，严禁降智度过高的反派桥段，保持强烈的爽度与期待感。'
+    );
+    recommendedAssetIds.push('tomato-opening-validator');
+  }
+
+  if (genreFit) {
+    extraAuditChecks.push(`审视内容是否高度贴合流派 [${genre}] 的核心调性（如克苏鲁需要冰冷压迫感、古言需要典雅句式）。`);
+    extraWritingConstraints.push(`【流派特化】请严格遵循 [${genre}] 流派的核心叙事特征与审美词汇，强化该题材垂直受众最钟爱的氛围场景渲染。`);
+    if (genre.includes('克苏鲁') || genre.includes('悬疑')) {
+      recommendedAssetIds.push('licensed-cthulhu-style');
+    } else if (genre.includes('古风') || genre.includes('古言')) {
+      recommendedAssetIds.push('ancient-gorgeous-reference');
+    }
+  }
+
+  if (platformFit) {
+    extraAuditChecks.push(`检测审稿口径是否符合发布平台 [${targetPlatform}] 的签约 and 读者推荐倾向。`);
+    extraWritingConstraints.push(`【平台特化】针对发布平台 [${targetPlatform}] 的读者期望优化章节字数分布和悬念落点，符合平台完读率模型。`);
+    if (targetPlatform.includes('番茄')) {
+      recommendedAssetIds.push('tomato-opening-validator');
+    }
+  }
+
+  return {
+    styleHumanization,
+    crossChapterContinuity,
+    commercialReadability,
+    genreFit,
+    platformFit,
+    extraAuditChecks,
+    extraWritingConstraints,
+    recommendedAssetIds: Array.from(new Set(recommendedAssetIds))
+  };
+}
+
+/**
+ * 根据资产 ID 获取对应的增强包配置
+ */
+export function getAssetEnhancementPackage(assetId: string): EnhancementPackage | null {
+  let pkgId = '';
+  if (assetId === 'core-dialogue-enhancer' || assetId === 'core-slop-shield') {
+    pkgId = 'paid-advanced-audit-patch';
+  } else if (assetId === 'tomato-opening-validator') {
+    pkgId = 'paid-platform-diagnostics';
+  } else if (assetId === 'plaza-golden-three') {
+    pkgId = 'paid-cross-chapter-continuity';
+  } else if (assetId === 'licensed-cthulhu-style' || assetId === 'ancient-gorgeous-reference') {
+    pkgId = 'paid-deconstruction-fusion';
+  }
+
+  if (!pkgId) return null;
+  return ENHANCEMENT_PACKAGES.find(p => p.id === pkgId) || null;
+}
+
+/**
+ * 根据流程 ID 获取对应的增强包配置
+ */
+export function getFlowEnhancementPackage(flowId: string): EnhancementPackage | null {
+  if (flowId === 'fenghua-short-flow' || flowId === 'tianma-outline-flow') {
+    return ENHANCEMENT_PACKAGES.find(p => p.id === 'paid-author-flows') || null;
+  }
+  return null;
+}

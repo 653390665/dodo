@@ -19,7 +19,7 @@ import {
 import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 import * as db from '../lib/db.js';
-import { inferNovelGovernanceProfile } from '../../shared/lib/prompt-assets-governed.js';
+import { inferNovelGovernanceProfile, getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 
 export function registerAuditRoutes(app: Express) {
   app.post('/api/audit', async (req, res) => {
@@ -118,7 +118,18 @@ ${platformSpecificChecklist}
 `;
       }
 
-      const rawFeedback = await generateText(getConfig(), { prompt: prompt + openingDiagnosticsPrompt });
+      let extraDimensionPrompt = '';
+      if (novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel) {
+          const signals = getActiveDimensionSignals(novel);
+          if (signals.extraAuditChecks.length > 0) {
+            extraDimensionPrompt = `\n\n### 🚨 自适应维度追加审读规约 (Adaptive Dimension Review Checklist)\n基于当前小说的具体属性与特征，系统自适应挂载了以下高级审读维度，请总编额外进行排查诊断：\n${signals.extraAuditChecks.map((check, index) => `${index + 1}. ${check}`).join('\n')}\n`;
+          }
+        }
+      }
+
+      const rawFeedback = await generateText(getConfig(), { prompt: prompt + openingDiagnosticsPrompt + extraDimensionPrompt });
 
       // 智能审稿调用成功，消费 1 次额度 (Consume quota count)
       consumeQuota(novelId, 'advancedAudit');

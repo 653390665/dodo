@@ -17,7 +17,9 @@ import {
   SKILL_SERIES_FLOWS,
   inferNovelGovernanceProfile,
   getNovelCurrentStepId,
-  getNovelCompletedStepIds
+  getNovelCompletedStepIds,
+  getFlowEnhancementPackage,
+  isPackageRestricted
 } from '../../../shared/lib/prompt-assets-governed.js';
 
 interface PlanningTabProps {
@@ -55,6 +57,10 @@ export function PlanningTab({
 }: PlanningTabProps) {
   const activeProfile = inferNovelGovernanceProfile(novel);
   const activeSeriesId = activeProfile.activeSeriesId || 'generic-novel-flow';
+
+  // 臻享/付费增强包判定 (Premium custom package restrictions check)
+  const pkg = getFlowEnhancementPackage(activeSeriesId);
+  const isRestricted = pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false;
   
   const currentStepId = getNovelCurrentStepId(novel, activeSeriesId);
   const completedStepIds = getNovelCompletedStepIds(novel, activeSeriesId);
@@ -66,6 +72,19 @@ export function PlanningTab({
   const isLastStep = !currentStep.nextStepId;
 
   const handleNextStep = async () => {
+    if (isRestricted && pkg) {
+      window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+        detail: {
+          limitType: 'extractSkill',
+          packageName: pkg.name,
+          packageDesc: pkg.description,
+          whyUpgrade: pkg.whyUpgrade,
+          novelId: novel.id,
+        }
+      }));
+      return;
+    }
+
     if (!onPreferenceProfileChange) return;
 
     const nextStepId = currentStep.nextStepId;
@@ -141,6 +160,11 @@ export function PlanningTab({
                 <Compass size={10} className="animate-spin-slow" />
                 {flow.name}
               </span>
+              {isRestricted && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500/20 to-pink-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                  👑 Premium
+                </span>
+              )}
               <span className="text-xs font-semibold text-theme-muted">
                 步骤 {displayStepNumber} / {flow.steps.length}
               </span>

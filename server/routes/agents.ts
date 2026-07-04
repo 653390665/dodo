@@ -18,6 +18,7 @@ import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
 import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
+import { getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -286,7 +287,19 @@ export function registerAgentsRoutes(app: Express) {
       }
 
       const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
-      const effectiveContextStr = contextStr + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+      let adaptiveWritingGuidelines = '';
+      if (novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel) {
+          const signals = getActiveDimensionSignals(novel);
+          if (signals.extraWritingConstraints.length > 0) {
+            adaptiveWritingGuidelines = `\n\n【动态维度系统追加写作约束 (Adaptive Writing Constraints)】\n${signals.extraWritingConstraints.map(c => `- ${c}`).join('\n')}`;
+          }
+        }
+      }
+      const effectiveContextStr = contextStr +
+        (budgetGuidelines ? `\n\n${budgetGuidelines}` : '') +
+        (adaptiveWritingGuidelines ? `\n\n${adaptiveWritingGuidelines}` : '');
 
       const writerAsset = resolvePromptAssetForSurface({
         surface: draftingSurface,

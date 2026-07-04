@@ -18,7 +18,12 @@ import {
   getNovelCurrentStepId,
   getNovelCompletedStepIds,
   getNextFlowStep,
-  inferNovelGovernanceProfile
+  inferNovelGovernanceProfile,
+  getAssetEnhancementPackage,
+  getFlowEnhancementPackage,
+  isPackageRestricted,
+  getActiveDimensionSignals,
+  ENHANCEMENT_PACKAGES
 } from '../shared/lib/prompt-assets-governed.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -753,6 +758,75 @@ test('recommendOpeningGovernance and inferNovelGovernanceProfile preset flows au
     targetWordCount: 150000
   });
   assert.equal(recTianma.activeSeriesId, 'tianma-outline-flow');
+});
+
+test('Phase 9: Enhancement Packages and Gated Restrictions', () => {
+  // Test 1: getAssetEnhancementPackage maps restricted assets accurately
+  const assetPkg = getAssetEnhancementPackage('licensed-cthulhu-style');
+  assert.ok(assetPkg);
+  assert.equal(assetPkg.id, 'paid-deconstruction-fusion');
+
+  // Test 2: getFlowEnhancementPackage maps premium preset flows correctly
+  const flowPkg = getFlowEnhancementPackage('fenghua-short-flow');
+  assert.ok(flowPkg);
+  assert.equal(flowPkg.id, 'paid-author-flows');
+
+  // Test 3: isPackageRestricted blocks correctly based on commercialMode
+  const restrictedFree = isPackageRestricted('paid-author-flows', 'free');
+  assert.equal(restrictedFree, true);
+
+  const restrictedPaid = isPackageRestricted('paid-author-flows', 'paid');
+  assert.equal(restrictedPaid, false);
+
+  // Unregistered packages should not be restricted
+  const fakePkgRestricted = isPackageRestricted('fake-pkg', 'free');
+  assert.equal(fakePkgRestricted, false);
+});
+
+test('Phase 10: Adaptive Dimension System mounts signals correctly', () => {
+  // Create novel with specific characteristics to test dimension mapping
+  const mockNovel: any = {
+    id: 'n-dim-test',
+    title: '玄幻精品修真',
+    wordCount: 500,
+    tags: ['精品'],
+    projectPreferenceProfile: {
+      commercialMode: 'free',
+      tags: [],
+      weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 }
+    }
+  };
+
+  const signals = getActiveDimensionSignals(mockNovel);
+
+  // Tags includes '精品' should trigger style-humanization
+  assert.equal(signals.styleHumanization, true);
+
+  // Let's create a novel that triggers genre-fit
+  const novelWithGenre: any = {
+    id: 'n-genre',
+    title: '武侠精品',
+    genre: '武侠',
+    projectPreferenceProfile: {
+      tags: []
+    }
+  };
+  const signalsGenre = getActiveDimensionSignals(novelWithGenre);
+  assert.equal(signalsGenre.genreFit, true);
+
+  // Test commercial-readability trigger (having platform tags or paid mode)
+  const novelTomato: any = {
+    id: 'n-tomato',
+    title: '番茄神作',
+    projectPreferenceProfile: {
+      commercialMode: 'free',
+      targetPlatform: '番茄小说',
+      tags: []
+    }
+  };
+  const signalsTomato = getActiveDimensionSignals(novelTomato);
+  assert.equal(signalsTomato.platformFit, true);
+  assert.equal(signalsTomato.commercialReadability, true);
 });
 
 

@@ -38,6 +38,11 @@ export function PremiumUpgradeModal() {
   const [errorMsg, setErrorMsg] = useState('');
   const [novelId, setNovelId] = useState<string | null>(null);
 
+  const [packageName, setPackageName] = useState<string | null>(null);
+  const [packageDesc, setPackageDesc] = useState<string | null>(null);
+  const [whyUpgrade, setWhyUpgrade] = useState<string | null>(null);
+  const [isPackageGate, setIsPackageGate] = useState(false);
+
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -54,6 +59,18 @@ export function PremiumUpgradeModal() {
       setMax(detail.max ?? 5);
       setErrorMsg(detail.error || '');
       setNovelId(detail.novelId || null);
+
+      if (detail.packageName) {
+        setPackageName(detail.packageName);
+        setPackageDesc(detail.packageDesc || '');
+        setWhyUpgrade(detail.whyUpgrade || '');
+        setIsPackageGate(true);
+      } else {
+        setIsPackageGate(false);
+        setPackageName(null);
+        setPackageDesc(null);
+        setWhyUpgrade(null);
+      }
       
       // 重置升级状态
       setIsSuccess(false);
@@ -152,25 +169,61 @@ export function PremiumUpgradeModal() {
                 <MetaIcon size={24} className="text-purple-400 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-bold tracking-wider">配额超限</span>
-                  <span className="text-xs text-zinc-400">免费体验版限制</span>
-                </div>
-                <h3 className="text-lg font-bold text-zinc-100 font-serif leading-tight">
-                  {meta.title} 免费配额已用尽
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  当前累计消耗额度：<span className="text-amber-400 font-bold">{count}</span> / {max} 次
-                </p>
+                {isPackageGate ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-400 font-bold tracking-wider">👑 臻享增强包</span>
+                      <span className="text-xs text-zinc-400">Premium 专享</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-100 font-serif leading-tight">
+                      解锁「{packageName}」高级特权
+                    </h3>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      {packageDesc}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-bold tracking-wider">配额超限</span>
+                      <span className="text-xs text-zinc-400">免费体验版限制</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-100 font-serif leading-tight">
+                      {meta.title} 免费配额已用尽
+                    </h3>
+                    <p className="text-xs text-zinc-400">
+                      当前累计消耗额度：<span className="text-amber-400 font-bold">{count}</span> / {max} 次
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* 个性化额度超限说明文案 */}
-            {errorMsg && (
-              <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-                <ShieldAlert size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-200/90 leading-relaxed font-sans">
-                  {errorMsg}
+            {/* 个性化说明文案 (黄金升级理由或错误详情) */}
+            {(isPackageGate ? whyUpgrade : errorMsg) && (
+              <div
+                className="p-4 rounded-2xl flex items-start gap-3 border"
+                style={{
+                  background: isPackageGate
+                    ? 'linear-gradient(135deg, oklch(65% 0.25 280 / 0.08), oklch(70% 0.3 340 / 0.08))'
+                    : 'rgba(245, 158, 11, 0.05)',
+                  borderColor: isPackageGate
+                    ? 'oklch(65% 0.25 280 / 0.2)'
+                    : 'rgba(245, 158, 11, 0.1)',
+                }}
+              >
+                {isPackageGate ? (
+                  <Sparkles size={16} className="text-purple-400 shrink-0 mt-0.5" />
+                ) : (
+                  <ShieldAlert size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                )}
+                <p
+                  className="text-xs leading-relaxed font-sans"
+                  style={{
+                    color: isPackageGate ? 'oklch(90% 0.05 280)' : 'rgba(253, 230, 138, 0.9)',
+                  }}
+                >
+                  {isPackageGate ? whyUpgrade : errorMsg}
                 </p>
               </div>
             )}
