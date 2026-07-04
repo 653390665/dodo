@@ -2,6 +2,7 @@ import { getDb, notify } from './db-instance.js';
 
 export interface CrudConfig<T, TRow> {
   tableName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rowToEntity: (row: any) => T;
   entityToRow: (entity: T) => TRow;
   insertColumns: string[];
@@ -11,6 +12,7 @@ export interface CrudConfig<T, TRow> {
   listOrderBy?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createCrudHelpers<T, TRow extends Record<string, any>>(config: CrudConfig<T, TRow>) {
   const {
     tableName,
@@ -46,7 +48,7 @@ export function createCrudHelpers<T, TRow extends Record<string, any>>(config: C
   const deleteSql = `DELETE FROM ${tableName} WHERE id = ?`;
 
   return {
-    list(filterVal?: any): T[] {
+    list(filterVal?: unknown): T[] {
       const db = getDb();
       if (listFilterKey && filterVal === undefined) {
         const fallbackSql = `

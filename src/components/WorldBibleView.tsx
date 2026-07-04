@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Save, Scroll, Shield, Upload, Users, Zap, GitBranch } from 'lucide-react';
+import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Scroll, Shield, Upload, Users, Zap, GitBranch } from 'lucide-react';
 import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile, EntityRelationship } from '../../shared/types';
 import { StoryContractPanel } from './StoryContractPanel';
 import {
@@ -28,6 +28,7 @@ import { FactionsTab } from './world-bible/FactionsTab';
 import { PowerLevelsTab } from './world-bible/PowerLevelsTab';
 import { TimelineTab } from './world-bible/TimelineTab';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/AlertDialog';
+import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
 
 export function WorldBibleView({
   novel,
@@ -107,9 +108,11 @@ export function WorldBibleView({
     return subscribeToChanges(fetchAll);
   }, [novel]);
 
-  const saveGlobalInfo = async () => {
+  const handleSaveGlobalInfo = async (outline: string, rules: string) => {
     setIsSaving(true);
-    await updateNovel(novel.id, { globalOutline, worldRules });
+    await updateNovel(novel.id, { globalOutline: outline, worldRules: rules });
+    setGlobalOutline(outline);
+    setWorldRules(rules);
     setIsSaving(false);
   };
 
@@ -442,30 +445,12 @@ export function WorldBibleView({
               )}
 
               {activeTab === 'global' && (
-                <div key="global" className="max-w-4xl mx-auto space-y-8">
-                  <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-bold text-theme-text">故事大纲 (Global Outline)</h2>
-                      <button onClick={saveGlobalInfo} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm">{isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}</button>
-                    </div>
-                    <textarea
-                      value={globalOutline}
-                      onChange={e => setGlobalOutline(e.target.value)}
-                      placeholder="描述小说的起承转合、主线任务、结局走向..."
-                      className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
-                    />
-                  </div>
-
-                  <div className="bg-theme-sidebar rounded-2xl p-6 shadow-sm border border-theme-border/50">
-                    <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
-                    <textarea
-                      value={worldRules}
-                      onChange={e => setWorldRules(e.target.value)}
-                      placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
-                      className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
-                    />
-                  </div>
-                </div>
+                <GlobalSetupTab
+                  initialGlobalOutline={globalOutline}
+                  initialWorldRules={worldRules}
+                  isSaving={isSaving}
+                  onSave={handleSaveGlobalInfo}
+                />
               )}
 
               {activeTab === 'timeline' && (

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent,
   Chapter, ChapterVersion, Skill, SkillUsageRecord, IdeaFragment,
@@ -27,6 +28,7 @@ export function rowToCharacter(row: DbRow): Character {
     ...row,
     novelId: row.novel_id,
     traits: JSON.parse(row.traits || '[]'),
+    current_state: row.current_state || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -180,6 +182,7 @@ export function characterToRow(c: Character): DbRow {
     summary: c.summary,
     traits: JSON.stringify(c.traits || []),
     bio: c.bio,
+    current_state: c.current_state || '',
     created_at: c.createdAt,
     updated_at: c.updatedAt,
   };

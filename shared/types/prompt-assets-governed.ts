@@ -172,3 +172,12 @@ export interface InferenceOutput {
   activeSeriesId: string;
   commercialMode: 'free' | 'paid' | 'strict';
 }
+
+export interface EnhancementPackage {
+  id: string;
+  name: string;
+  type: 'free' | 'paid';
+  description: string;
+  whyUpgrade?: string; // 为什么此时推荐升级说明
+  assets?: string[]; // 关联的资产 ID 列表
+}

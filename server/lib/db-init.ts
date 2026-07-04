@@ -71,6 +71,7 @@ export function initDb(dbPath?: string): void {
       summary TEXT DEFAULT '',
       traits TEXT DEFAULT '[]',
       bio TEXT DEFAULT '',
+      current_state TEXT DEFAULT '',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
@@ -304,6 +305,7 @@ export function initDb(dbPath?: string): void {
   ensureColumn('continuation_packs', 'reading_questions', "TEXT DEFAULT '[]'");
   ensureColumn('continuation_packs', 'continuation_gaps', "TEXT DEFAULT '[]'");
   ensureColumn('continuation_packs', 'source_badge', 'TEXT');
+  ensureColumn('characters', 'current_state', "TEXT DEFAULT ''");
   repairImportedContinuationPackNovelLinks();
 
   // Indexes for foreign-key columns to avoid full table scans

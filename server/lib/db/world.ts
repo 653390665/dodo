@@ -8,8 +8,8 @@ const characterCrud = createCrudHelpers<Character, ReturnType<typeof characterTo
   tableName: 'characters',
   rowToEntity: rowToCharacter,
   entityToRow: characterToRow,
-  insertColumns: ['id', 'novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'updated_at'],
+  insertColumns: ['id', 'novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'current_state', 'created_at', 'updated_at'],
+  updateColumns: ['novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'current_state', 'updated_at'],
   listFilterKey: 'novel_id'
 });
 

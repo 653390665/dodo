@@ -68,7 +68,7 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/exhaustive-deps': 'error', // 提升为 error，保障 React 副作用正确性
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }], // 保持为 warn，保障本地调试体验
       'no-constant-condition': 'off',
       'no-unused-expressions': 'warn',
@@ -111,7 +111,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'off', // 后端/共享底层行映射和数据解析允许 any
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unsafe-function-type': 'off', // 允许使用 Function 类型作为通用的动态回调
       'preserve-caught-error': 'off', // 允许在不需要附带 cause 时直接抛出包装 Error
       'no-empty': ['warn', { allowEmptyCatch: true }],
