@@ -10,7 +10,10 @@ let toastContainer: HTMLDivElement | null = null;
 function ensureContainer(): HTMLDivElement {
   if (!toastContainer || !document.body.contains(toastContainer)) {
     toastContainer = document.createElement('div');
-    toastContainer.className = 'fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none';
+    toastContainer.className = 'fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none';
+    toastContainer.setAttribute('role', 'status');
+    toastContainer.setAttribute('aria-live', 'polite');
+    toastContainer.setAttribute('aria-atomic', 'true');
     document.body.appendChild(toastContainer);
   }
   return toastContainer;

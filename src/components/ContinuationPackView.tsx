@@ -111,7 +111,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
         />
         {files.length > 0 && (
           <div className="text-xs text-theme-muted space-y-1">
-            {files.map((f, i) => <div key={i} className="flex items-center gap-2"><FileText size={12} />{f.name}</div>)}
+            {files.map((f) => <div key={`${f.name}-${f.lastModified}`} className="flex items-center gap-2"><FileText size={12} />{f.name}</div>)}
           </div>
         )}
         <button
@@ -149,8 +149,8 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
           {activePack.contradictions.length > 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
               <div className="font-bold flex items-center gap-1"><AlertTriangle size={12} />发现资料冲突</div>
-              {activePack.contradictions.map((c, i) => (
-                <div key={i} className="mt-1">- [{c.severity}] {c.summary}</div>
+              {activePack.contradictions.map((c) => (
+                <div key={`${c.severity}-${c.summary}`} className="mt-1">- [{c.severity}] {c.summary}</div>
               ))}
               <div className="mt-2 text-amber-600">请解决冲突后再确认启用。</div>
             </div>
@@ -165,16 +165,16 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
           {activePack.sourceMap && (
             <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-2">
               <div className="text-xs font-bold text-theme-text">资料结构地图</div>
-              {activePack.sourceMap.sections.slice(0, 6).map((s, i) => (
-                <div key={i} className="text-xs text-theme-muted">
+              {activePack.sourceMap.sections.slice(0, 6).map((s) => (
+                <div key={s.title} className="text-xs text-theme-muted">
                   <span className="font-bold text-theme-text">{s.title}</span>：{s.summary}
                 </div>
               ))}
               {activePack.sourceMap.keyConflicts.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-theme-border">
                   <div className="text-[10px] font-bold text-amber-600 mb-1">资料间冲突</div>
-                  {activePack.sourceMap.keyConflicts.map((c, i) => (
-                    <div key={i} className="text-[10px] text-amber-700">- {c}</div>
+                  {activePack.sourceMap.keyConflicts.map((c) => (
+                    <div key={c} className="text-[10px] text-amber-700">- {c}</div>
                   ))}
                 </div>
               )}

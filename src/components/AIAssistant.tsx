@@ -58,6 +58,17 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   }, []);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showSaveModal) setShowSaveModal(null);
+        if (showExtractModal) setShowExtractModal(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSaveModal, showExtractModal]);
+
+  useEffect(() => {
     if (!launchContext) return;
     const seededPrompt = buildAssistantSeedPrompt(launchContext);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing props to state on context change
@@ -458,9 +469,12 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
           >
             <div
               onClick={e => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="save-modal-title"
               className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             >
-              <h3 className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
+              <h3 id="save-modal-title" className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
                 <FolderOpen size={20} className="text-theme-accent" />
                 保存至作品
               </h3>
@@ -510,6 +524,9 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
           >
             <div
               onClick={e => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="extract-modal-title"
               className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
             >
               {isExtracting && (
@@ -521,7 +538,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                   <p className="text-xs text-theme-muted mt-2">预计需要 5~15 秒</p>
                 </div>
               )}
-              <h3 className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
+              <h3 id="extract-modal-title" className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
                 <Globe size={20} className="text-theme-accent" />
                 提取设定至作品
               </h3>

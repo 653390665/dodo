@@ -119,20 +119,22 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 min-h-0 relative">
-        <div className="flex flex-col gap-1 pr-1.5 pb-4">
-          {mainItems.map(renderNavItem)}
+      <nav aria-label="主导航" className="flex-1 min-h-0">
+        <ScrollArea className="h-full px-3 relative">
+          <div className="flex flex-col gap-1 pr-1.5 pb-4">
+            {mainItems.map(renderNavItem)}
 
-          <div className="pt-3 mt-3 border-t border-theme-border/50">
-            {!isCollapsed && (
-              <div className="px-3 py-1 text-[10px] font-bold text-theme-muted/50 uppercase tracking-wider">
-                探索工具
-              </div>
-            )}
-            {exploreItems.map(renderNavItem)}
+            <div className="pt-3 mt-3 border-t border-theme-border/50" role="group" aria-label="探索工具">
+              {!isCollapsed && (
+                <div className="px-3 py-1 text-[10px] font-bold text-theme-muted/50 uppercase tracking-wider">
+                  探索工具
+                </div>
+              )}
+              {exploreItems.map(renderNavItem)}
+            </div>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </nav>
 
       {/* Footer */}
       <div className="px-3 pb-2 flex flex-col gap-1">
