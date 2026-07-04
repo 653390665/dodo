@@ -26,14 +26,8 @@ test('whiteLabelSanitize physical deletion of WeChat IDs', () => {
 
   for (const input of inputs) {
     const output = whiteLabelSanitize(input);
-    // 必须被删除，且绝对不保留 [微信号] 或 *** 占位
-    assert.equal(output.includes('wechat_123_abc'), false);
-    assert.equal(output.includes('my-vx-id-999'), false);
-    assert.equal(output.includes('vx_id_001_test'), false);
-    assert.equal(output.includes('wechat123456'), false);
-    assert.equal(output.includes('***'), false);
-    assert.equal(output.includes('脱敏'), false);
-    assert.equal(output.includes('微信号：'), false);
+    // 物理白标清洗机制：不仅抹除微信号，连带其前缀和后缀相关的无意义推广修饰词（如想要了解更多、欢迎交流等）整体抹去，结果必须完全为空
+    assert.equal(output, '');
   }
 });
 
@@ -356,8 +350,21 @@ test('GOVERNED_ASSETS_V2_REGISTRY assets pass validation', () => {
 });
 
 test('Prompt Governance Catalog & Selector V2 checks', () => {
-  // 1. 断言目录总数：断言 PROMPT_GOVERNANCE_CATALOG 长度至少在 149 以上。
-  assert.ok(PROMPT_GOVERNANCE_CATALOG.length >= 149, `Catalog size should be at least 149, got ${PROMPT_GOVERNANCE_CATALOG.length}`);
+  // 1. 物理来源分组精确断言资产数量
+  const builtInCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'built-in').length;
+  const squareCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'square').length;
+  const privateCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'private').length;
+  const toolCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'tool').length;
+  const supplementCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'fanqie-supplement').length;
+  const testFixtureCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.evidenceLevel === 'test-fixture').length;
+
+  assert.equal(builtInCount, 11, `Built-in assets count should be exactly 11, got ${builtInCount}`);
+  assert.equal(squareCount, 50, `Square assets count should be exactly 50, got ${squareCount}`);
+  assert.equal(privateCount, 78, `Private assets count should be exactly 78, got ${privateCount}`);
+  assert.equal(toolCount, 16, `Creative/tool assets count should be exactly 16, got ${toolCount}`);
+  assert.equal(supplementCount, 16, `Platform supplement assets count should be exactly 16, got ${supplementCount}`);
+  assert.equal(testFixtureCount, 2, `Test fixture assets count should be exactly 2, got ${testFixtureCount}`);
+  assert.equal(PROMPT_GOVERNANCE_CATALOG.length, 173, `Total catalog size should be exactly 173, got ${PROMPT_GOVERNANCE_CATALOG.length}`);
 
   // 2. 断言安全过滤拦截：
   const allRecommended = recommendPromptAssets({ currentStage: 'planning' });
@@ -400,8 +407,8 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
     currentStage: 'planning',
     activeSeriesId: 'generic-novel-flow'
   });
-  const hasGenericOutlineBuilder = genericNovelRec.some(a => a.id === 'generic-outline-builder-1');
-  assert.equal(hasGenericOutlineBuilder, true, 'Generic novel flow planning stage should recommend generic-outline-builder-1');
+  const hasGenericOutlineBuilder = genericNovelRec.some(a => a.id === 'generateOutline');
+  assert.equal(hasGenericOutlineBuilder, true, 'Generic novel flow planning stage should recommend generateOutline');
 
   // 4.3 写完一章
   const polishRec = recommendPromptAssets({
@@ -416,7 +423,19 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
     genreTags: ['fantasy'],
     currentStage: 'planning'
   });
+  console.log('DEBUG cardRec:', cardRec.map(a => ({ id: a.id, score: a.score, cat: a.primaryCategory, deconstructionCardType: a.deconstructionCardType })));
   const hasDeconstructCard = cardRec.some(a => a.id.startsWith('deconstruct-card-'));
   assert.equal(hasDeconstructCard, true, 'Enhancements recommendation should contain at least one deconstruct-card-* asset');
+
+  // 5. 校验推荐原因和动态文案
+  for (const asset of tomatoOpeningRec) {
+    assert.ok(asset.recommendationReason, `Recommended asset ${asset.id} must have recommendationReason`);
+    assert.ok(
+      asset.recommendationReason.includes('番茄') ||
+      asset.recommendationReason.includes('流程') ||
+      asset.recommendationReason.includes('底线'),
+      `recommendationReason '${asset.recommendationReason}' must contain expected context tags`
+    );
+  }
 });
 

@@ -141,4 +141,17 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
     | 'conflict-card'
     | 'style-card'
     | 'platform-card';
+
+  // --- V2.1 来源可追溯与路由引擎升级新增属性 ---
+  /** 来源文件、原始 ID、行号或章节名 */
+  sourceRef?: string;
+
+  /** 来源大组 */
+  sourceGroup?: 'built-in' | 'square' | 'private' | 'tool' | 'fanqie-supplement' | 'webnovel-writer' | 'test-fixture';
+
+  /** 证据链置信等级 */
+  evidenceLevel?: 'scored-from-source' | 'summarized-source' | 'placeholder-for-import' | 'test-fixture';
+
+  /** 推荐原因（由路由引擎动态组装） */
+  recommendationReason?: string;
 }
