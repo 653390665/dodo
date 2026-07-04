@@ -18,6 +18,15 @@ export interface ProjectPreferenceWeights {
   pacingWeight: number;
 }
 
+export interface QuotaLimits {
+  extractSkillMax?: number;      // 拆书萃取最大免费次数
+  extractSkillCount?: number;    // 当前已用拆书萃取次数
+  generateProseMax?: number;     // 正文生成最大免费次数
+  generateProseCount?: number;   // 当前已用正文生成次数
+  advancedAuditMax?: number;     // 智能审稿/高级诊断最大免费次数
+  advancedAuditCount?: number;   // 当前已用智能审稿/高级诊断次数
+}
+
 export interface ProjectPreferenceProfile {
   tags: string[];
   weights: ProjectPreferenceWeights;
@@ -27,6 +36,8 @@ export interface ProjectPreferenceProfile {
   evidenceCount: number;
   contract?: StoryContract;
   decisions?: ChapterDecision[];
+  commercialMode?: 'free' | 'paid' | 'strict'; // 商业化版本模式 (free | paid | strict)
+  quotaLimits?: QuotaLimits; // 配额限制与当前计数
 }
 
 export interface FitScoreExplanation {

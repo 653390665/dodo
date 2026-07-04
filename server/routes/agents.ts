@@ -16,6 +16,7 @@ import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/soul
 import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
+import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -263,7 +264,22 @@ export function registerAgentsRoutes(app: Express) {
         draftContent = '',
         skills = [],
         draftingSurface = 'workspace-draft',
+        novelId,
       } = req.body;
+
+      // ================================================================
+      // Quota Gate — verify free-tier limitations before LLM run
+      // ================================================================
+      const quotaCheck = checkQuota(novelId, 'generateProse');
+      if (!quotaCheck.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'generateProse',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
+      }
 
       const writerAsset = resolvePromptAssetForSurface({
         surface: draftingSurface,
@@ -291,6 +307,9 @@ export function registerAgentsRoutes(app: Express) {
         logger.warn('Writer generation fell back to local draft', error);
         text = buildFallbackDraft(sceneBeats, contextStr);
       }
+
+      // 成功生成，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'generateProse');
 
       res.json({
         text,

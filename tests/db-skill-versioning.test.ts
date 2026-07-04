@@ -162,13 +162,13 @@ test('fusionMeta round-trip through create and read', () => {
 
     // update with modified fusionMeta
     updateSkill('fusion-1', {
-      fusionMeta: { ...fusionMeta, risks: [...fusionMeta.risks, '再叠加世界观型 Skill 可能压慢节奏'] },
+      fusionMeta: { ...fusionMeta, risks: [...(fusionMeta.risks || []), '再叠加世界观型 Skill 可能压慢节奏'] },
     });
 
     const updated = getSkill('fusion-1');
     assert.ok(updated!.fusionMeta);
-    assert.equal(updated!.fusionMeta!.risks.length, 2);
-    assert.equal(updated!.fusionMeta!.risks[1], '再叠加世界观型 Skill 可能压慢节奏');
+    assert.equal(updated!.fusionMeta!.risks?.length, 2);
+    assert.equal(updated!.fusionMeta!.risks?.[1], '再叠加世界观型 Skill 可能压慢节奏');
 
     // fusionMeta survives a partial update (no fusionMeta in data)
     updateSkill('fusion-1', { description: 'updated description only' });

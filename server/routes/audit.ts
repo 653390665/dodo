@@ -17,12 +17,28 @@ import {
   renderStructuredAuditMarkdown,
 } from '../../shared/lib/audit-structured';
 import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
+import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 
 export function registerAuditRoutes(app: Express) {
   app.post('/api/audit', async (req, res) => {
     if (!rateLimit('audit')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { draftContent, sceneBeats, contextStr, skills = [], surface = 'chapter-polish' } = req.body;
+      const { draftContent, sceneBeats, contextStr, skills = [], surface = 'chapter-polish', novelId } = req.body;
+
+      // ================================================================
+      // Quota Gate — verify free-tier limitations before LLM run
+      // ================================================================
+      const quotaCheck = checkQuota(novelId, 'advancedAudit');
+      if (!quotaCheck.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'advancedAudit',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
+      }
+
       const skillsInfo = skills.length > 0
         ? `\n【当前挂载的叙事 DNA 插件】\n${skills.map((s: Skill) => `
 - 技能名：${s.name}
@@ -53,6 +69,9 @@ export function registerAuditRoutes(app: Express) {
       });
 
       const rawFeedback = await generateText(getConfig(), { prompt });
+
+      // 智能审稿调用成功，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'advancedAudit');
 
       // Try new 5-dimension format first, fall back to legacy format
       const fiveDim = parseAuditFiveDim(rawFeedback);
@@ -113,7 +132,23 @@ export function registerAuditRoutes(app: Express) {
         beforeContext = '',
         afterContext = '',
         auditIssue = '',
+        novelId,
       } = req.body;
+
+      // ================================================================
+      // Quota Gate — verify free-tier limitations before LLM run
+      // ================================================================
+      const quotaCheck = checkQuota(novelId, 'advancedAudit');
+      if (!quotaCheck.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'advancedAudit',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
+      }
+
       const prompt = buildRewritePrompt({
         text,
         instruction,
@@ -127,6 +162,10 @@ export function registerAuditRoutes(app: Express) {
       });
 
       const rewritten = await generateText(getConfig(), { prompt });
+
+      // 高级润色重写成功，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'advancedAudit');
+
       res.json({ text: rewritten });
     } catch (e) {
       logger.error(String(e));

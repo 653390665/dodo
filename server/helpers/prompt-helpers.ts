@@ -54,6 +54,66 @@ export function buildSkillsPrompt(skills: Skill[]) {
     });
   });
 
+  // ---- Deconstruction Card Injector (XML Overlays) ----
+  const deconstructionCards = skills.filter(s => s.deconstructionCardType);
+  if (deconstructionCards.length > 0) {
+    prompt += `\n【Deconstruction Card Injector】\n`;
+    prompt += `检测到挂载了 ${deconstructionCards.length} 张专业拆书卡。为了实现最佳的白标迁移（White-Label Transfer），请严格遵循以下卡牌规约与注入指令（你必须仅吸收其交互规律、描写规律、信息铺垫方法与语言手感，绝对不能直接套用任何原有小说中的角色名、专有名词、地点等实体，避免产生冲突性污染）：\n\n`;
+
+    deconstructionCards.forEach(s => {
+      const type = s.deconstructionCardType!;
+      prompt += `<deconstruction_${type} name="${s.name}">\n`;
+      prompt += `  <card_scope>${s.description}</card_scope>\n`;
+
+      if (type === 'style-card' && s.style) {
+        prompt += `  <style_rendering_rules>\n`;
+        prompt += `    ${s.style}\n`;
+        prompt += `  </style_rendering_rules>\n`;
+      }
+      if (type === 'character-card' && s.characterTraits) {
+        prompt += `  <character_interaction_rules>\n`;
+        prompt += `    ${s.characterTraits}\n`;
+        prompt += `  </character_interaction_rules>\n`;
+      }
+      if (type === 'pacing-card' && s.pacing) {
+        prompt += `  <pacing_density_rules>\n`;
+        prompt += `    ${s.pacing}\n`;
+        prompt += `  </pacing_density_rules>\n`;
+      }
+      if (type === 'worldview-card' && s.worldBuilding) {
+        prompt += `  <world_logic_rules>\n`;
+        prompt += `    ${s.worldBuilding}\n`;
+        prompt += `  </world_logic_rules>\n`;
+      }
+      if (type === 'conflict-card' && s.plotPattern) {
+        prompt += `  <conflict_tension_rules>\n`;
+        prompt += `    ${s.plotPattern}\n`;
+        prompt += `  </conflict_tension_rules>\n`;
+      }
+      if (type === 'hook-card' && s.foreshadowing) {
+        prompt += `  <hook_suspense_rules>\n`;
+        prompt += `    ${s.foreshadowing}\n`;
+        prompt += `  </hook_suspense_rules>\n`;
+      }
+      if (type === 'platform-card') {
+        prompt += `  <platform_preference_rules>\n`;
+        if (s.style) prompt += `    风格规约: ${s.style}\n`;
+        if (s.pacing) prompt += `    节奏规约: ${s.pacing}\n`;
+        if (s.plotPattern) prompt += `    情节爽点: ${s.plotPattern}\n`;
+        prompt += `  </platform_preference_rules>\n`;
+      }
+
+      if (Array.isArray(s.fewShots) && s.fewShots.length > 0) {
+        prompt += `  <transferable_few_shots>\n`;
+        s.fewShots.forEach((shot, idx) => {
+          prompt += `    <shot_${idx + 1}>${shot}</shot_${idx + 1}>\n`;
+        });
+        prompt += `  </transferable_few_shots>\n`;
+      }
+      prompt += `</deconstruction_${type}>\n\n`;
+    });
+  }
+
   prompt += `\n指令：不要生硬堆砌，要把上面提到的《人物特征》、《世界观》、《剧情》、《设定》和写作方式有机相融，打造独属于你的复合风格。`;
   return prompt;
 }

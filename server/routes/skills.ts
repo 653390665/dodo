@@ -22,6 +22,7 @@ import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregat
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence } from '../../shared/types';
 import { validate, extractSkillSchema } from '../validation';
+import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 
 const SKILL_EXTRACTION_LLM_OPTIONS = {
   timeoutMs: 35_000,
@@ -160,7 +161,21 @@ export function registerSkillsRoutes(app: Express) {
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     if (!rateLimit('extract-skill')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { text = '' } = req.body;
+      const { text = '', novelId } = req.body;
+
+      // ================================================================
+      // Layer 0: Quota Gate — verify free-tier limitations before LLM run
+      // ================================================================
+      const quotaCheck = checkQuota(novelId, 'extractSkill');
+      if (!quotaCheck.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'extractSkill',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
+      }
 
       // ================================================================
       // Layer 1: Input Gate — reject garbage before calling the model
@@ -172,6 +187,9 @@ export function registerSkillsRoutes(app: Express) {
           reason: inputGate.rejectedReason,
         });
       }
+
+      // 校验通过，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'extractSkill');
 
       // ================================================================
       // Phase 1 (fast): Build full fallback deck and return immediately.

@@ -11,6 +11,7 @@ import { deriveWorkspaceFocus } from './lib/workspace-nav';
 import type { ViewType, WorkspaceNavKey } from '../shared/types';
 import { AppShell } from './components/AppShell';
 import { TooltipProvider } from './components/ui/Tooltip';
+import { PremiumUpgradeModal } from './components/commercial/PremiumUpgradeModal';
 
 export default function App() {
   const {
@@ -81,6 +82,7 @@ export default function App() {
   return (
     <TooltipProvider>
       <AppShell />
+      <PremiumUpgradeModal />
     </TooltipProvider>
   );
 }

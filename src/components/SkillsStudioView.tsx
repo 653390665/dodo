@@ -55,6 +55,34 @@ export function SkillsStudioView({
   const handleEquipSkill = async (skillId: string, novelId: string) => {
     const novel = userNovels.find((n) => n.id === novelId);
     if (!novel) return;
+
+    const skill = savedSkills.find((s) => s.id === skillId);
+    if (!skill) return;
+
+    // 高阶卡牌暗定判定策略 (Implicit paid skill heuristics)
+    const isPaid = skill.accessTier === 'paid' ||
+                   (skill.executionScore !== undefined && skill.executionScore >= 90) ||
+                   !!skill.parentSkillId;
+
+    // 小说免费版判定规则 (Check if novel is in free tier)
+    const isFreeNovel = novel.projectPreferenceProfile?.commercialMode !== 'paid' &&
+                        novel.projectPreferenceProfile?.commercialMode !== 'strict';
+
+    // 如果是用免费版小说去装备高阶付费技能卡，则拦截并弹出 Premium 升舱弹窗
+    // If attempting to mount a premium skill card on a free novel, block and dispatch event
+    if (isPaid && isFreeNovel) {
+      window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+        detail: {
+          limitType: 'extractSkill',
+          count: 5,
+          max: 5,
+          error: `《${novel.title}》当前为免费体验作品，无法装配高阶 Premium 付费卡【${skill.name}】(评级 S级/传承卡)。立即升舱解锁无限卡牌装载特权！`,
+          novelId: novel.id,
+        }
+      }));
+      return;
+    }
+
     const currentIds = novel.mountedSkillIds || [];
     if (currentIds.includes(skillId)) {
       alert('该技能已装备到此作品。');

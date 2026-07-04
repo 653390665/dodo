@@ -50,13 +50,30 @@ function extractApiErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function extractSkill(text: string): Promise<ExtractSkillResponse> {
+export class QuotaError extends Error {
+  quotaExceeded = true;
+  limitType: string;
+  count: number;
+  max: number;
+  constructor(message: string, limitType: string, count: number, max: number) {
+    super(message);
+    this.name = 'QuotaError';
+    this.limitType = limitType;
+    this.count = count;
+    this.max = max;
+  }
+}
+
+export async function extractSkill(text: string, novelId?: string): Promise<ExtractSkillResponse> {
   const res = await fetch('/api/extract-skill', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, novelId }),
   });
   const data = await res.json();
+  if (data && data.quotaExceeded) {
+    throw new QuotaError(data.error || 'Quota exceeded', data.limitType, data.count, data.max);
+  }
   if (!res.ok || data.error || data.rejected) {
     throw new Error(extractApiErrorMessage(data, 'Failed to extract skill'));
   }

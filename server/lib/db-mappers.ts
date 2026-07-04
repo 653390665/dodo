@@ -61,6 +61,7 @@ export function rowToChapterVersion(row: DbRow): ChapterVersion {
 }
 
 export function rowToSkill(row: DbRow): Skill {
+  const fusionMeta = row.fusion_meta ? JSON.parse(row.fusion_meta) : undefined;
   return {
     ...row,
     sentenceStructure: row.sentence_structure,
@@ -83,7 +84,10 @@ export function rowToSkill(row: DbRow): Skill {
     compositionProfile: JSON.parse(row.composition_profile || '{}'),
     usageStats: JSON.parse(row.usage_stats || '{}'),
     feedbackScore: row.feedback_score ?? undefined,
-    fusionMeta: row.fusion_meta ? JSON.parse(row.fusion_meta) : undefined,
+    fusionMeta,
+    deconstructionCardType: fusionMeta?.deconstructionCardType || undefined,
+    executionScore: fusionMeta?.executionScore || undefined,
+    accessTier: fusionMeta?.accessTier || undefined,
     methodChain: row.method_chain ? JSON.parse(row.method_chain) : undefined,
     whyThisSkillWorks: row.why_this_skill_works || undefined,
     sourceBadge: row.source_badge || undefined,
@@ -210,6 +214,18 @@ export function chapterVersionToRow(cv: ChapterVersion): DbRow {
 }
 
 export function skillToRow(s: Skill): DbRow {
+  const fusionMeta = s.fusionMeta ? { ...s.fusionMeta } : {};
+  if (s.deconstructionCardType) {
+    fusionMeta.deconstructionCardType = s.deconstructionCardType;
+  }
+  if (s.executionScore !== undefined) {
+    fusionMeta.executionScore = s.executionScore;
+  }
+  if (s.accessTier) {
+    fusionMeta.accessTier = s.accessTier;
+  }
+  const serializedFusionMeta = Object.keys(fusionMeta).length > 0 ? JSON.stringify(fusionMeta) : null;
+
   return {
     id: s.id,
     name: s.name,
@@ -237,7 +253,7 @@ export function skillToRow(s: Skill): DbRow {
     composition_profile: JSON.stringify(s.compositionProfile || {}),
     usage_stats: JSON.stringify(s.usageStats || {}),
     feedback_score: s.feedbackScore ?? 0,
-    fusion_meta: s.fusionMeta ? JSON.stringify(s.fusionMeta) : null,
+    fusion_meta: serializedFusionMeta,
     method_chain: s.methodChain ? JSON.stringify(s.methodChain) : null,
     why_this_skill_works: s.whyThisSkillWorks || null,
     source_badge: s.sourceBadge || null,

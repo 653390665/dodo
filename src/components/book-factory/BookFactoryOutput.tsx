@@ -1,10 +1,23 @@
 import React from 'react';
-import { Loader2, Wand2, Save, CheckCircle2 } from 'lucide-react';
+import {
+  Loader2,
+  Wand2,
+  Save,
+  CheckCircle2,
+  Globe,
+  User,
+  Clock,
+  Sparkles,
+  Flame,
+  PenTool,
+  Shield
+} from 'lucide-react';
 import type { Novel, Skill, AggregatedSkillDeck, BookEvidenceStage } from '../../../shared/types';
 import { SkillCardDetails } from './SkillCardDetails';
 import { TestDrivePanel } from './TestDrivePanel';
 import { EquipPanel } from './EquipPanel';
 import { normalizeSkillConfig } from './useBookFactory';
+import { evaluateDeconstructionCard } from '../../../shared/lib/deconstruction-scoring';
 
 const SKILL_DIMENSIONS = [
   { value: 'style', label: '文笔文风' },
@@ -24,19 +37,29 @@ const SLOT_RECOMMENDATION = {
   pacing: { slotLabel: '卡槽 3 · 节奏位', reason: '更适合作为组合尾部调速器，控制快慢与爆点密度。', cardType: '节奏控制卡' },
 };
 
+const DECONSTRUCTION_CARD_TYPES = {
+  'worldview-card': { label: '世界设定卡', icon: Globe, text: 'text-[oklch(0.48_0.15_230)]', bg: 'bg-[oklch(0.38_0.12_230_/_0.1)]', border: 'border-[oklch(0.38_0.12_230_/_0.2)]' },
+  'character-card': { label: '人物驱动卡', icon: User, text: 'text-[oklch(0.6_0.18_300)]', bg: 'bg-[oklch(0.6_0.15_300_/_0.1)]', border: 'border-[oklch(0.6_0.15_300_/_0.2)]' },
+  'pacing-card': { label: '节奏控制卡', icon: Clock, text: 'text-[oklch(0.6_0.2_140)]', bg: 'bg-[oklch(0.65_0.18_140_/_0.1)]', border: 'border-[oklch(0.65_0.18_140_/_0.2)]' },
+  'hook-card': { label: '悬念钩子卡', icon: Sparkles, text: 'text-[oklch(0.55_0.22_40)]', bg: 'bg-[oklch(0.55_0.22_40_/_0.1)]', border: 'border-[oklch(0.55_0.22_40_/_0.2)]' },
+  'conflict-card': { label: '矛盾冲突卡', icon: Flame, text: 'text-[oklch(0.58_0.23_20)]', bg: 'bg-[oklch(0.58_0.23_20_/_0.1)]', border: 'border-[oklch(0.58_0.23_20_/_0.2)]' },
+  'style-card': { label: '主笔文风卡', icon: PenTool, text: 'text-[oklch(0.55_0.18_280)]', bg: 'bg-[oklch(0.55_0.15_280_/_0.1)]', border: 'border-[oklch(0.55_0.15_280_/_0.2)]' },
+  'platform-card': { label: '平台属性卡', icon: Shield, text: 'text-[oklch(0.45_0.18_180)]', bg: 'bg-[oklch(0.45_0.15_180_/_0.1)]', border: 'border-[oklch(0.45_0.15_180_/_0.2)]' },
+};
+
+const GRADE_COLORS = {
+  S: 'text-[oklch(0.62_0.25_20)] bg-[oklch(0.62_0.25_20_/_0.1)] border-[oklch(0.62_0.25_20_/_0.3)] shadow-[0_0_8px_oklch(0.62_0.25_20_/_0.2)]',
+  A: 'text-[oklch(0.68_0.19_75)] bg-[oklch(0.68_0.19_75_/_0.1)] border-[oklch(0.68_0.19_75_/_0.3)] shadow-[0_0_6px_oklch(0.68_0.19_75_/_0.15)]',
+  B: 'text-[oklch(0.58_0.15_230)] bg-[oklch(0.58_0.15_230_/_0.1)] border-[oklch(0.58_0.15_230_/_0.3)]',
+  C: 'text-[oklch(0.58_0.18_15)] bg-[oklch(0.58_0.18_15_/_0.1)] border-[oklch(0.58_0.18_15_/_0.3)]',
+};
+
 function getDimensionLabel(dimension?: string): string {
   return SKILL_DIMENSIONS.find((item) => item.value === dimension)?.label || '未标注';
 }
 
 function getSkillRecommendation(skill: Skill) {
   return SLOT_RECOMMENDATION[skill.primaryDimension || 'style'];
-}
-
-function getDimensionBand(score: number): string {
-  if (score >= 85) return '高特征';
-  if (score >= 70) return '推荐使用';
-  if (score >= 55) return '可补位';
-  return '弱信号';
 }
 
 const EVIDENCE_COVERAGE_LABELS = {
@@ -271,39 +294,67 @@ export function BookFactoryOutput({
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {skillCards.map((skill, index) => {
                   const rec = getSkillRecommendation(skill);
+                  const report = evaluateDeconstructionCard(skill);
+                  const isDecon = !!skill.deconstructionCardType;
+                  const typeConfig = skill.deconstructionCardType ? DECONSTRUCTION_CARD_TYPES[skill.deconstructionCardType] : null;
+                  const CardIcon = typeConfig ? typeConfig.icon : null;
                   return (
                     <button
                       key={`${skill.name}-${index}`}
                       type="button"
                       onClick={() => onSelectSkillIndex(index)}
-                      className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
-                        selectedSkillIndex === index ? 'border-theme-accent bg-theme-accent/5' : 'border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/30'
+                      className={`rounded-2xl border px-4 py-3 text-left transition-all duration-300 relative overflow-hidden ${
+                        selectedSkillIndex === index
+                          ? 'border-theme-accent bg-theme-accent/5 ring-1 ring-theme-accent/30'
+                          : 'border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/30'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-bold text-theme-text">{skill.name}</div>
-                          <div className="text-[10px] text-theme-muted mt-1">
-                            {index === 0 && deck ? '主笔卡' : index > 0 && deck ? `副卡 · ${rec.cardType}` : rec.cardType}
+                        <div className="space-y-1">
+                          <div className="text-sm font-bold text-theme-text truncate max-w-[180px]">{skill.name}</div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+                            {CardIcon && <CardIcon size={12} className={typeConfig?.text || ''} />}
+                            <span className={typeConfig ? typeConfig.text : 'text-theme-muted'}>
+                              {typeConfig ? typeConfig.label : (index === 0 && deck ? '主笔卡' : index > 0 && deck ? `副卡 · ${rec.cardType}` : rec.cardType)}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-[10px] font-bold text-theme-accent">{skill.stabilityScore}%</div>
+
+                        {/* Grade and Score Badge */}
+                        <div className="flex flex-col items-end shrink-0 gap-1">
+                          <div className={`px-2 py-0.5 rounded-md border text-[10px] font-bold font-mono tracking-wide flex items-center gap-1 ${GRADE_COLORS[report.grade]}`}>
+                            <span>{report.grade}</span>
+                            <span className="opacity-40">|</span>
+                            <span>{report.score}</span>
+                          </div>
+                          <div className="text-[9px] text-theme-muted font-medium">稳定性 {skill.stabilityScore}%</div>
+                        </div>
                       </div>
-                      <div className="mt-2 rounded-xl bg-theme-sidebar/40 border border-theme-border px-3 py-2">
-                        <div className="text-[10px] font-bold text-theme-text">{rec.slotLabel}</div>
-                        <div className="text-[10px] text-theme-muted mt-1 leading-relaxed">{rec.reason}</div>
+
+                      <div className="mt-3 rounded-xl bg-theme-sidebar/40 border border-theme-border px-3 py-2">
+                        <div className="text-[10px] font-bold text-theme-text">{isDecon ? '去污染评估' : rec.slotLabel}</div>
+                        <div className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                          {isDecon
+                            ? `纯净度段位 ${report.grade} 级，证据分 ${report.details.evidenceScore}，发现 ${report.details.transferabilityDeductions.length + report.details.safetyDeductions.length} 处泄露或AI腔。`
+                            : rec.reason
+                          }
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(skill.dimensionTags || []).slice(0, 3).map((tag) => (
-                          <span key={tag} className="px-2 py-0.5 rounded-full bg-theme-sidebar text-[10px] text-theme-muted border border-theme-border">
-                            {getDimensionLabel(tag)}
-                          </span>
-                        ))}
+
+                      <div className="mt-3 flex flex-wrap gap-1.5 items-center justify-between">
+                        <div className="flex flex-wrap gap-1">
+                          {(skill.dimensionTags || []).slice(0, 3).map((tag) => (
+                            <span key={tag} className="px-2 py-0.5 rounded-full bg-theme-sidebar text-[9px] text-theme-muted border border-theme-border font-medium">
+                              {getDimensionLabel(tag)}
+                            </span>
+                          ))}
+                        </div>
+                        {!!skill.evidenceCoverage && (
+                          <div className="text-[9px] text-theme-muted font-medium bg-theme-sidebar/60 px-1.5 py-0.5 rounded border border-theme-border/50">
+                            {EVIDENCE_COVERAGE_LABELS[skill.evidenceCoverage]}
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-2 text-[10px] text-theme-accent font-bold">{getDimensionBand(skill.stabilityScore || 0)}</div>
-                      {!!skill.evidenceCoverage && (
-                        <div className="mt-2 text-[10px] text-theme-muted">{EVIDENCE_COVERAGE_LABELS[skill.evidenceCoverage]}</div>
-                      )}
                     </button>
                   );
                 })}

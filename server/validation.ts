@@ -31,6 +31,7 @@ export const extractSkillSchema = z.object({
   text: z.string().min(1).max(150000, '文本字数超出 15 万字上限'),
   title: z.string().max(100).optional(),
   style: z.string().max(100).optional(),
+  novelId: z.string().optional(), // 关联的小说ID
 });
 
 export const storyCardsSchema = z.object({
@@ -58,6 +59,7 @@ export const orchestrateSchema = z.object({
   maxIterations: z.coerce.number().int().min(1).max(5).optional().default(2),
   draftContent: z.string().max(50000).optional().default(''),
   includeCritic: z.boolean().optional().default(true),
+  novelId: z.string().optional(), // 关联的小说ID
 });
 
 const base64Regex = /^[a-zA-Z0-9+/]*={0,2}$/;

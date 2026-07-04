@@ -32,6 +32,15 @@ export interface MountedSkillLoadoutItem {
   lockedDimensions: SkillDimension[];
 }
 
+export type DeconstructionCardType =
+  | 'worldview-card'
+  | 'character-card'
+  | 'pacing-card'
+  | 'hook-card'
+  | 'conflict-card'
+  | 'style-card'
+  | 'platform-card';
+
 export interface Skill {
   id: string;
   name: string;
@@ -66,6 +75,9 @@ export interface Skill {
   methodChain?: SkillMethodChain;
   whyThisSkillWorks?: string;
   sourceBadge?: CardSourceKind;
+  deconstructionCardType?: DeconstructionCardType;
+  executionScore?: number;
+  accessTier?: 'free' | 'paid'; // 卡片访问等级：free (免费版可用), paid (仅专业版可用)
   createdAt: number;
   updatedAt?: number;
 }
@@ -124,11 +136,14 @@ export interface SkillMethodChain {
 }
 
 export interface SkillFusionMeta {
-  mainSkillId: string;
-  supportSkillId: string;
-  retainedTraits: string[];
-  absorbedTraits: string[];
-  risks: string[];
+  mainSkillId?: string;
+  supportSkillId?: string;
+  retainedTraits?: string[];
+  absorbedTraits?: string[];
+  risks?: string[];
+  deconstructionCardType?: DeconstructionCardType;
+  executionScore?: number;
+  accessTier?: 'free' | 'paid'; // 融合卡片访问等级：free | paid
 }
 
 export interface SkillFusionExplanation {

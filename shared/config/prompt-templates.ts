@@ -353,18 +353,27 @@ PASS 或 FAIL
 
 ===== 第二部分：拆书执行（仅当自检通过后执行） =====
 
-拆解维度（每张卡只负责一个主维度）：
-- style：文笔风格（句法特征、意象系统、用词偏好、节奏感）
-- character：人物构建（性格模板、交互模式、行为动机特征）
-- world：世界观与设定（力量体系、背景规则、社会结构）
-- plot：剧情与爽点（情节推进套路、矛盾冲突模式、高潮节奏）
-- pacing：节奏与悬念（铺垫手法、断章技巧、信息释放节奏）
+拆解维度（你必须将萃取的卡牌映射到以下 7 类专业“拆书卡”中，并在输出的 deconstructionCardType 字段中体现）：
+1. worldview-card：世界观与设定卡。包含力量体系、核心设定、世界规则背景等。
+2. character-card：人物张力卡。包含核心角色说话基调、互动和行为逻辑。
+3. pacing-card：节奏调速卡。控制字数节奏、分镜信息释放密度。
+4. hook-card：开篇钩子卡。黄金三章核心悬念、入场吸引力。
+5. conflict-card：冲突递进卡。场景张力升级、矛盾爆发。
+6. style-card：风格笔调卡。意象、短句、动作细节描写规约。
+7. platform-card：平台偏好卡。番茄完读率、起点爽点、Webnovel 海外偏好等。
+
+在确定 primaryDimension 时：
+- style-card 对应 style
+- character-card 对应 character
+- worldview-card 对应 world
+- pacing-card 对应 pacing
+- conflict-card 或 hook-card 对应 plot
+- platform-card 对应 style 或 plot
 
 拆解原则：
 1. 输出 2-4 张卡。如果文本在某个维度信息不足，不要强行生成。
-2. 每张卡的 primaryDimension 必须是 style | character | world | plot | pacing 之一。
-3. 每张卡职责单一，不要把”文风”和”人物”揉在一起。
-4. style 字段必须从原文中提取具体的、可验证的句法特征和意象偏好，禁止使用空泛评价。禁止出现”文笔流畅””描写细腻””节奏感强””人物形象鲜明””情节紧凑”等万能模板词——如果你发现自己想写这些词，说明你没有真正读到文本的独特之处，请回原文再找具体特征。
+2. 强约束：实体白标化。必须在 description、style、characterTraits、fewShots 等所有输出字段中彻底抽离出“通用技法”，彻底清除并过滤任何具体小说的实体泄露。必须移除所有知名小说主角名（如：萧炎、唐三、石昊、叶凡、韩立、方源、林动等）以及占位泄漏名（如：林天凡、楚天凡），用通用指代（如“那人”、“那白衣青年”）代替。
+3. 强约束：杜绝 AI 套话。绝对禁止在输出字段中使用以下万能套话词汇：“文笔流畅”、“描写细腻”、“人物形象鲜明”、“情节紧凑”、“引人入胜”、“语言精炼”、“意象丰富”、“跃然纸上”及其近义词。若有类似特征，请用具体、可验证、不落俗套的句式结构、修辞或机制描述代替。
 
 ===== 第三部分：输出格式 =====
 
@@ -380,9 +389,10 @@ PASS 或 FAIL
   “skills”: [
     {
       “name”: “卡名（简洁有力，如：冷雨短句刀锋文风）”,
-      “primaryDimension”: “style”,
-      “description”: “一句话说明这张卡负责什么”,
-      “style”: “≤60字，分别描述笔调倾向、句法特征和意象系统——必须引用原文具体特征，禁止空洞评价”,
+      “primaryDimension”: “style | character | world | plot | pacing 之一”,
+      “deconstructionCardType”: “worldview-card | character-card | pacing-card | hook-card | conflict-card | style-card | platform-card 之一”,
+      “description”: “一句话说明这张卡负责什么（移除任何小说实体名）”,
+      “style”: “文笔风格描述（如与本卡无关则填空字符串）”,
       “pacing”: “节奏逻辑（如与本卡无关则填空字符串）”,
       “characterTraits”: “人物构建特征（如与本卡无关则填空字符串）”,
       “worldBuilding”: “世界观/力量体系特征（如与本卡无关则填空字符串）”,
@@ -390,8 +400,8 @@ PASS 或 FAIL
       “foreshadowing”: “伏笔与悬念手法（如与本卡无关则填空字符串）”,
       “corePatterns”: [“3-5个核心模式标签”],
       “bannedElements”: [“会破坏这张卡基调的词汇或设定”],
-      “vocabulary”: [“高辨识度的专属词汇”],
-      “fewShots”: [“最能体现这一维能力的代表性片段”],
+      “vocabulary”: [“高辨识度的通用词汇，移除实体词”],
+      “fewShots”: [“移除实体名白标化后的、最能体现这一维能力的代表性片段，且字符数必须大于20个字”],
       “blendHints”: [“更适合与哪类卡搭配的组合建议”]
     }
   ]
@@ -401,11 +411,11 @@ PASS 或 FAIL
 1. 不要包含 Markdown 代码块标记（\`\`\`json 等）
 2. 只输出上述 JSON，不要有任何前后缀
 3. 不确定是否能拆时，倾向于输出 needs_clarification
-4. style 字段禁止出现”文笔流畅””描写细腻””节奏感强””人物形象鲜明””情节紧凑””语言精炼””意象丰富””引人入胜”及其近义变体
+4. 禁止在任何字段出现上面列出的知名实体和 AI 腔套话字眼。
 
 以下为分析素材：
 {{text}}
-`.trim(),
+  `.trim(),
   generateOutline: `
 你是一个顶级的网文主编及架构师。用户正在进行长篇小说的架构规划。
 小说的预计总字数是：{{expectedWordCount}}字。

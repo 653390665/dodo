@@ -1,5 +1,20 @@
 import React from 'react';
+import {
+  Globe,
+  User,
+  Clock,
+  Sparkles,
+  Flame,
+  PenTool,
+  Shield,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Award,
+  ShieldAlert,
+} from 'lucide-react';
 import type { Skill, AggregatedSkillDeck, BookEvidenceStage } from '../../../shared/types';
+import { evaluateDeconstructionCard } from '../../../shared/lib/deconstruction-scoring';
 
 const EVIDENCE_COVERAGE_LABELS = {
   'full-book-stable': '全书稳定',
@@ -26,6 +41,103 @@ const SLOT_RECOMMENDATION = {
   pacing: { slotLabel: '卡槽 3 · 节奏位', reason: '更适合作为组合尾部调速器，控制快慢与爆点密度。', cardType: '节奏控制卡' },
 };
 
+const DECONSTRUCTION_CARD_TYPES = {
+  'worldview-card': {
+    label: '世界设定卡',
+    description: '承载世界观底色、地理、组织与法则设定，为写作提供空间语境约束。',
+    bg: 'bg-[oklch(0.38_0.12_230_/_0.1)]',
+    border: 'border-[oklch(0.38_0.12_230_/_0.2)]',
+    text: 'text-[oklch(0.48_0.15_230)]'
+  },
+  'character-card': {
+    label: '人物驱动卡',
+    description: '提取核心角色的说话方式、情绪滤镜与特殊行为偏好，提供对白和动作修饰。',
+    bg: 'bg-[oklch(0.6_0.15_300_/_0.1)]',
+    border: 'border-[oklch(0.6_0.15_300_/_0.2)]',
+    text: 'text-[oklch(0.6_0.18_300)]'
+  },
+  'pacing-card': {
+    label: '节奏控制卡',
+    description: '定义句式长短、场景切分与快慢调速器，为主笔卡提供时序密度微调。',
+    bg: 'bg-[oklch(0.65_0.18_140_/_0.1)]',
+    border: 'border-[oklch(0.65_0.18_140_/_0.2)]',
+    text: 'text-[oklch(0.6_0.2_140)]'
+  },
+  'hook-card': {
+    label: '悬念钩子卡',
+    description: '设定章节尾段的伏笔、留白与未解冲突，极大提升追读率。',
+    bg: 'bg-[oklch(0.55_0.22_40_/_0.1)]',
+    border: 'border-[oklch(0.55_0.22_40_/_0.2)]',
+    text: 'text-[oklch(0.55_0.22_40)]'
+  },
+  'conflict-card': {
+    label: '矛盾冲突卡',
+    description: '定位矛盾引爆点、利益诉求与势力碰撞模型，辅助剧情结构推进。',
+    bg: 'bg-[oklch(0.58_0.23_20_/_0.1)]',
+    border: 'border-[oklch(0.58_0.23_20_/_0.2)]',
+    text: 'text-[oklch(0.58_0.23_20)]'
+  },
+  'style-card': {
+    label: '主笔文风卡',
+    description: '主导叙事笔调、常用意象与特色修辞习惯，作为卡组里的主声部。',
+    bg: 'bg-[oklch(0.55_0.15_280_/_0.1)]',
+    border: 'border-[oklch(0.55_0.15_280_/_0.2)]',
+    text: 'text-[oklch(0.55_0.18_280)]'
+  },
+  'platform-card': {
+    label: '平台属性卡',
+    description: '对齐番茄/七猫/起点等渠道的读者偏好与禁忌，避免偏离市场生态。',
+    bg: 'bg-[oklch(0.45_0.15_180_/_0.1)]',
+    border: 'border-[oklch(0.45_0.15_180_/_0.2)]',
+    text: 'text-[oklch(0.45_0.18_180)]'
+  },
+};
+
+const CARD_TYPE_ICONS = {
+  'worldview-card': Globe,
+  'character-card': User,
+  'pacing-card': Clock,
+  'hook-card': Sparkles,
+  'conflict-card': Flame,
+  'style-card': PenTool,
+  'platform-card': Shield,
+};
+
+const GRADE_CONFIG = {
+  S: {
+    text: 'text-[oklch(0.62_0.25_20)]',
+    bg: 'bg-[oklch(0.62_0.25_20_/_0.06)]',
+    border: 'border-[oklch(0.62_0.25_20_/_0.25)]',
+    glow: 'shadow-[0_0_20px_oklch(0.62_0.25_20_/_0.15)]',
+    label: '神级 (S-Tier)',
+    description: '极高转写证据，完美无敏感实体泄露与AI模板废话，转译可用性极佳。'
+  },
+  A: {
+    text: 'text-[oklch(0.68_0.19_75)]',
+    bg: 'bg-[oklch(0.68_0.19_75_/_0.06)]',
+    border: 'border-[oklch(0.68_0.19_75_/_0.25)]',
+    glow: 'shadow-[0_0_12px_oklch(0.68_0.19_75_/_0.12)]',
+    label: '卓越 (A-Tier)',
+    description: '证据充足，白璧微瑕。存在轻微实体泄露或套话，但不影响主体使用。'
+  },
+  B: {
+    text: 'text-[oklch(0.58_0.15_230)]',
+    bg: 'bg-[oklch(0.58_0.15_230_/_0.06)]',
+    border: 'border-[oklch(0.58_0.15_230_/_0.25)]',
+    glow: '',
+    label: '合格 (B-Tier)',
+    description: '基础转译合格，但少数FewShot过短，或有明显的网文名人名字泄露。'
+  },
+  C: {
+    text: 'text-[oklch(0.58_0.18_15)]',
+    bg: 'bg-[oklch(0.58_0.18_15_/_0.06)]',
+    border: 'border-[oklch(0.58_0.18_15_/_0.25)]',
+    glow: '',
+    label: '薄弱 (C-Tier)',
+    description: '警告：缺乏FewShot示例，或者充满大量AI说车轱辘话与套路废话。'
+  },
+};
+
 interface SkillCardDetailsProps {
   selectedSkill: Skill;
   selectedSkillIndex: number;
@@ -42,6 +154,18 @@ export function SkillCardDetails({
   segmentLabels,
 }: SkillCardDetailsProps) {
   const rec = SLOT_RECOMMENDATION[selectedSkill.primaryDimension || 'style'];
+  const [showScoreDetails, setShowScoreDetails] = React.useState(false);
+
+  const report = evaluateDeconstructionCard(selectedSkill);
+  const gradeInfo = GRADE_CONFIG[report.grade];
+  const hasDeductions =
+    report.details.evidenceDeductions.length > 0 ||
+    report.details.transferabilityDeductions.length > 0 ||
+    report.details.safetyDeductions.length > 0;
+
+  const isDeconstructionCard = !!selectedSkill.deconstructionCardType;
+  const cardTypeInfo = selectedSkill.deconstructionCardType ? DECONSTRUCTION_CARD_TYPES[selectedSkill.deconstructionCardType] : null;
+  const IconComponent = selectedSkill.deconstructionCardType ? CARD_TYPE_ICONS[selectedSkill.deconstructionCardType] : null;
 
   return (
     <div className="space-y-6 mt-6">
@@ -58,13 +182,124 @@ export function SkillCardDetails({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-theme-border bg-theme-sidebar/25 px-4 py-3">
-          <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">卡片类型</div>
-          <div className="text-sm font-bold text-theme-text mt-2">
-            {selectedSkillIndex === 0 && deck ? '主笔卡（主导叙事基调）' : `副卡 · ${rec.cardType}`}
+      {/* 拆解卡健康打分与去污染面板 */}
+      <div className={`p-5 rounded-2xl border transition-all duration-300 ${gradeInfo.border} ${gradeInfo.bg} ${gradeInfo.glow}`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Award className={`w-5 h-5 ${gradeInfo.text}`} />
+              <h3 className="font-bold text-sm text-theme-text">拆解卡质量健康评估 (Deconstruction Health Audit)</h3>
+            </div>
+            <p className="text-xs text-theme-muted leading-relaxed max-w-[65ch]">
+              {gradeInfo.description}
+            </p>
           </div>
-          <div className="text-xs text-theme-muted mt-1">写作职责：{rec.reason}</div>
+          <div className="flex flex-col items-center shrink-0">
+            <div className={`w-14 h-14 rounded-2xl border ${gradeInfo.border} flex items-center justify-center font-bold text-3xl font-serif ${gradeInfo.text} bg-theme-sidebar shadow-inner`}>
+              {report.grade}
+            </div>
+            <span className="text-[10px] font-bold text-theme-muted mt-1.5">{report.score} / 100</span>
+          </div>
+        </div>
+
+        {/* 满分或扣分项提示 */}
+        <div className="mt-4 pt-3 border-t border-theme-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {!hasDeductions ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-xs text-emerald-600 font-medium">白璧无瑕！该卡未检测到任何命名实体泄露或 AI 腔套话，纯净度完美。</span>
+              </>
+            ) : (
+              <>
+                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                <span className="text-xs text-amber-600 font-medium">检测到有待优化的潜在泄露与 AI 套话红线，可展开查看明细。</span>
+              </>
+            )}
+          </div>
+          {hasDeductions && (
+            <button
+              onClick={() => setShowScoreDetails(!showScoreDetails)}
+              className="text-xs font-bold text-theme-accent hover:underline flex items-center gap-1"
+            >
+              {showScoreDetails ? '折叠明细' : '查看扣分明细'}
+              {showScoreDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
+        </div>
+
+        {/* 扣分明细折叠区 */}
+        {showScoreDetails && hasDeductions && (
+          <div className="mt-3 pt-3 border-t border-theme-border/30 space-y-3 animate-fade-in">
+            {/* 1. 证据覆盖 */}
+            {report.details.evidenceDeductions.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider flex justify-between">
+                  <span>证据效力评分 (Evidence Base)</span>
+                  <span className="text-red-500">{report.details.evidenceScore} / 30分</span>
+                </div>
+                <div className="space-y-1">
+                  {report.details.evidenceDeductions.map((deduction, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span>{deduction}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2. 实体净化 */}
+            {report.details.transferabilityDeductions.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider flex justify-between">
+                  <span>实体去污染净化 (Transferability & Entity Shield)</span>
+                  <span className="text-red-500">{report.details.transferabilityScore} / 35分</span>
+                </div>
+                <div className="space-y-1">
+                  {report.details.transferabilityDeductions.map((deduction, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span>{deduction}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. 去 AI 腔 */}
+            {report.details.safetyDeductions.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider flex justify-between">
+                  <span>去 AI 腔/防套路特征 (Pollution Safety & Anti-Slop)</span>
+                  <span className="text-red-500">{report.details.safetyScore} / 35分</span>
+                </div>
+                <div className="space-y-1">
+                  {report.details.safetyDeductions.map((deduction, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span>{deduction}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className={`rounded-xl border px-4 py-3 ${isDeconstructionCard && cardTypeInfo ? `${cardTypeInfo.border} ${cardTypeInfo.bg}` : 'border-theme-border bg-theme-sidebar/25'}`}>
+          <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider flex items-center gap-1.5">
+            {IconComponent && <IconComponent className={`w-3.5 h-3.5 ${cardTypeInfo?.text || ''}`} />}
+            <span>卡片类型</span>
+          </div>
+          <div className={`text-sm font-bold mt-2 ${isDeconstructionCard && cardTypeInfo ? cardTypeInfo.text : 'text-theme-text'}`}>
+            {isDeconstructionCard && cardTypeInfo ? cardTypeInfo.label : (selectedSkillIndex === 0 && deck ? '主笔卡（主导叙事基调）' : `副卡 · ${rec.cardType}`)}
+          </div>
+          <div className="text-xs text-theme-muted mt-1 leading-relaxed">
+            {isDeconstructionCard && cardTypeInfo ? cardTypeInfo.description : `写作职责：${rec.reason}`}
+          </div>
         </div>
         <div className="rounded-xl border border-theme-border bg-theme-sidebar/25 px-4 py-3">
           <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">建议装配位</div>

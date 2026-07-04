@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { listNovels, updateNovel } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
-import { extractSkill, checkSkillExtractionJob } from '../../lib/prompt-client';
+import { extractSkill, checkSkillExtractionJob, QuotaError } from '../../lib/prompt-client';
+import { useNovelStore } from '../../stores/novel-store';
 import { coerceMountedSkillLoadout } from '../../lib/skill-model';
 import type { Skill, AggregatedSkillDeck, Novel, BookEvidenceStage, MountedSkillLoadoutItem, SkillDimension } from '../../../shared/types';
 
@@ -11,6 +12,15 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((v) => (typeof v === 'string' ? v : String(v))) : [];
+}
+
+function isQuotaErrorLike(value: unknown): value is {
+  quotaExceeded: true;
+  limitType?: string;
+  count?: number;
+  max?: number;
+} {
+  return Boolean(asRecord(value).quotaExceeded);
 }
 
 // 编码自动打分辅助函数
@@ -81,6 +91,7 @@ export function normalizeSkillConfigs(data: unknown): Skill[] {
 }
 
 export function useBookFactory() {
+  const { selectedNovel } = useNovelStore();
   const [fileContent, setFileContent] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [skillCards, setSkillCards] = useState<Skill[]>([]);
@@ -225,7 +236,7 @@ export function useBookFactory() {
     setExtractionStatusNote('正在拆书与提炼本地保底卡……');
 
     try {
-      const data = await extractSkill(fileContent);
+      const data = await extractSkill(fileContent, selectedNovel?.id || undefined);
       const normalized = normalizeSkillConfigs(data);
       if (normalized.length === 0) {
         throw new Error('拆书接口返回成功，但没有可展示的技能卡。');
@@ -251,6 +262,19 @@ export function useBookFactory() {
         setIsModelPending(true);
       }
     } catch (e) {
+      if (e instanceof QuotaError || isQuotaErrorLike(e)) {
+        const quotaLike = e instanceof QuotaError ? e : e;
+        // 抛出全局自定义事件以触发毛玻璃升舱弹窗
+        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+          detail: {
+            limitType: quotaLike.limitType || 'extractSkill',
+            count: quotaLike.count ?? 5,
+            max: quotaLike.max ?? 5,
+            error: e instanceof Error ? e.message : String(e),
+            novelId: selectedNovel?.id || undefined, // 带上当前小说ID (Novel ID pass-through for upgrade tracking)
+          }
+        }));
+      }
       setExtractionStatusNote('拆书未开始：当前文本还不足以进入萃取流程。');
       setExtractionWarnings([e instanceof Error ? e.message : String(e)]);
     } finally {

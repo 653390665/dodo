@@ -72,7 +72,7 @@ test('buildFusionDraft expresses overlap risk with writing-role language', () =>
   });
 
   const draft = buildFusionDraft(mainSkill, supportSkill);
-  assert.equal(draft.fusionMeta?.risks[0], '同写作职责叠加可能导致表达过载');
+  assert.equal(draft.fusionMeta?.risks?.[0], '同写作职责叠加可能导致表达过载');
 });
 
 test('explainSkillFusion describes retained strengths and absorbed benefits', () => {

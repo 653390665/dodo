@@ -117,11 +117,27 @@ export function useEditorGenerationFlow({
           sceneBeats: currentChapter.sceneBeats,
           contextStr,
           skills: mountedSkills,
+          novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
         }),
         signal: controller.signal,
       });
       setAuditStatus('总编正在逐段扫描机械感、节奏和人设一致性…');
       const data = await response.json();
+
+      // 检测配额超限响应，抛出静默异常并触发升舱弹窗
+      // Catch quota exceeded response, dispatch global trigger-premium-modal event
+      if (data && data.quotaExceeded) {
+        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+          detail: {
+            limitType: data.limitType,
+            count: data.count,
+            max: data.max,
+            error: data.error,
+          }
+        }));
+        throw new Error('QUOTA_LIMIT_EXCEEDED');
+      }
+
       if (data.error) throw new Error(data.error);
       const numericAuditScore = typeof data.score === 'number'
         ? data.score
@@ -137,6 +153,7 @@ export function useEditorGenerationFlow({
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return; // 静默处理已触发弹窗的异常 (Silent catch for quota-exceeded redirect)
       alert(formatAiFailure(error, 'AI 审计'));
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -225,11 +242,27 @@ export function useEditorGenerationFlow({
           text: selectedText,
           instruction,
           contextStr: buildContextPrompt(buildAgentContext()),
+          novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
         }),
         signal: controller.signal,
       });
-      if (!response.ok) throw new Error('Rewrite failed.');
       const data = await response.json();
+
+      // 检测配额超限响应，抛出静默异常并触发升舱弹窗
+      // Catch quota exceeded response, dispatch global trigger-premium-modal event
+      if (data && data.quotaExceeded) {
+        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+          detail: {
+            limitType: data.limitType,
+            count: data.count,
+            max: data.max,
+            error: data.error,
+          }
+        }));
+        throw new Error('QUOTA_LIMIT_EXCEEDED');
+      }
+
+      if (!response.ok || data.error) throw new Error(data.error || 'Rewrite failed.');
 
       const newText = currentChapter.content.substring(0, start) + data.text + currentChapter.content.substring(end);
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
@@ -243,8 +276,14 @@ export function useEditorGenerationFlow({
         author: 'user',
         createdAt: Date.now(),
       });
+
+      await recordSkillUsage('accepted', {
+        fitScore: getCurrentFitScore(),
+        notes: 'text-rewrite-selected',
+      });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return; // 静默处理已触发弹窗的异常 (Silent catch for quota-exceeded redirect)
       alert('改写失败，请稍后重试。');
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -326,14 +365,30 @@ export function useEditorGenerationFlow({
           sceneBeats: currentChapter.sceneBeats,
           skills: mountedSkills,
           draftContent: currentChapter.content || '',
+          novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
         }),
         signal: controller.signal,
       });
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(async () => ({ error: await response.text() }));
-        throw new Error(errorPayload.error || `HTTP ${response.status}`);
-      }
       const data = await response.json();
+
+      // 检测配额超限响应，抛出静默异常并触发升舱弹窗
+      // Catch quota exceeded response, dispatch global trigger-premium-modal event
+      if (data && data.quotaExceeded) {
+        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+          detail: {
+            limitType: data.limitType,
+            count: data.count,
+            max: data.max,
+            error: data.error,
+          }
+        }));
+        throw new Error('QUOTA_LIMIT_EXCEEDED');
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
       const generatedText = String(data.text || '').trim();
       if (!generatedText) {
         throw new Error('AI 没有返回正文内容，请稍后重试或缩短分镜。');
@@ -375,6 +430,7 @@ export function useEditorGenerationFlow({
       setGenerationStatus('正文已生成到主编辑器。');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return; // 静默处理已触发弹窗的异常 (Silent catch for quota-exceeded redirect)
       alert(formatAiFailure(error, '连续写作'));
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -431,33 +487,48 @@ export function useEditorGenerationFlow({
       for (const { snippet } of actionableTargets) {
         if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
 
-        const window = selectRewriteTargetsForPatch(candidate, [snippet], 1, currentChapter.critique)[0]?.window;
-        if (!window) continue;
+        const targetWindow = selectRewriteTargetsForPatch(candidate, [snippet], 1, currentChapter.critique)[0]?.window;
+        if (!targetWindow) continue;
         const response = await fetch('/api/rewrite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mode: 'surgical-patch',
-            text: window.targetText,
-            beforeContext: window.beforeContext,
-            afterContext: window.afterContext,
+            text: targetWindow.targetText,
+            beforeContext: targetWindow.beforeContext,
+            afterContext: targetWindow.afterContext,
             auditIssue: snippet,
             instruction: '只修这个局部问题，保持全章剧情顺序和悬念落点不变。',
             contextStr: buildContextPrompt(buildAgentContext()),
             auditFeedback: currentChapter.critique,
             sceneBeats: currentChapter.sceneBeats || '',
+            novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
           }),
           signal: controller.signal,
         });
-        if (!response.ok) {
-          const errorPayload = await response.json().catch(async () => ({ error: await response.text() }));
-          throw new Error(errorPayload.error || `HTTP ${response.status}`);
+        const data = await response.json();
+
+        // 检测配额超限响应，抛出静默异常并触发升舱弹窗
+        // Catch quota exceeded response, dispatch global trigger-premium-modal event
+        if (data && data.quotaExceeded) {
+          window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+            detail: {
+              limitType: data.limitType,
+              count: data.count,
+              max: data.max,
+              error: data.error,
+            }
+          }));
+          throw new Error('QUOTA_LIMIT_EXCEEDED');
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
         const rewrittenText = String(data.text || '').trim();
         if (!rewrittenText) continue;
-        const nextCandidate = applyPatchWindow(candidate, window, rewrittenText);
+        const nextCandidate = applyPatchWindow(candidate, targetWindow, rewrittenText);
         changed = changed || nextCandidate !== candidate;
         candidate = nextCandidate;
       }
@@ -488,6 +559,11 @@ export function useEditorGenerationFlow({
           createdAt: Date.now(),
         });
 
+        await recordSkillUsage('accepted', {
+          fitScore: getCurrentFitScore(),
+          notes: 'polish-critique-patch',
+        });
+
         setGenerationStatus('已完成局部精修。建议再跑一次 AI 审计确认效果。');
         setTimeout(() => setGenerationStatus(null), 2500);
       } else {
@@ -495,6 +571,7 @@ export function useEditorGenerationFlow({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return; // 静默处理已触发弹窗的异常 (Silent catch for quota-exceeded redirect)
       alert('精修失败，请重试');
     } finally {
       if (requestSeqRef.current === currentSeq) {

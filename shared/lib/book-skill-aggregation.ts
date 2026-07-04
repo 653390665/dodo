@@ -8,6 +8,9 @@ import type {
   SkillMethodChain,
   SkillMethodQA,
 } from '../types';
+import { evaluateDeconstructionCard } from './deconstruction-scoring';
+import type { DeconstructionCardType } from '../types';
+
 
 type EvidenceBucket = {
   total: number;
@@ -198,11 +201,27 @@ export function buildSkillDeckFromEvidence(evidence: SegmentSkillEvidence[]): Ag
         },
       };
 
+      const DIMENSION_TO_CARD_TYPE: Record<SkillDimension, DeconstructionCardType> = {
+        style: 'style-card',
+        character: 'character-card',
+        world: 'worldview-card',
+        power: 'worldview-card',
+        plot: 'conflict-card',
+        pacing: 'pacing-card',
+      };
+
+      const cardType = DIMENSION_TO_CARD_TYPE[dimension];
+      const scoreReport = evaluateDeconstructionCard({
+        ...strategyFields[dimension],
+        fewShots: bucket.evidence,
+      });
+
       return {
         id: `deck-${dimension}`,
         name: role.name,
         description: `${role.summary}${bucket.evidence[0] ? ` 证据锚点：${bucket.evidence[0]}` : ''}`,
         ...strategyFields[dimension],
+        fewShots: bucket.evidence,
         stabilityScore: Math.round((bucket.total / bucket.moments.length) * 100),
         evaluationFeedback: `${role.useHint}｜${coverage}｜基于整书分段证据汇总`,
         version: 1,
@@ -222,6 +241,8 @@ export function buildSkillDeckFromEvidence(evidence: SegmentSkillEvidence[]): Ag
         evidenceCoverage: coverage,
         evidenceMoments: Array.from(new Set(bucket.moments)),
         sourceBadge: 'book-extracted',
+        deconstructionCardType: cardType,
+        executionScore: scoreReport.score,
       } satisfies SkillDeckCard;
     })
     .filter((card) => card.stabilityScore >= 60)
