@@ -360,7 +360,9 @@ export function registerProductionRoutes(app: Express) {
           });
         } catch (e) { logger.error('Decision record failed:', e); }
       }
-      if (res.headersSent && !res.writableEnded) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: message });
+      } else if (!res.writableEnded) {
         sseWrite(res, { type: 'error', message });
         res.end();
       }

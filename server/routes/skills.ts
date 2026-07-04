@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { renderPromptTemplate, getPromptTemplate } from '../helpers/prompt-helpers';
+import { renderPromptTemplate, getPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { withTimeout } from '../helpers/async-utils';
@@ -57,7 +57,7 @@ async function processModelSkillExtraction(
   for (const segment of modelSegments) {
     try {
       const prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
-        text: segment.excerpt.substring(0, 12000),
+        text: wrapUserInput(segment.excerpt.substring(0, 12000)),
       });
 
       const responseText = await withTimeout(

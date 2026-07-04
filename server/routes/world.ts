@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import { z } from 'zod';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
@@ -29,8 +30,28 @@ function stringValue(value: unknown): string {
 
 export function registerWorldRoutes(app: Express) {
   app.post('/api/generate-bio', async (req, res) => {
+    const generateBioSchema = z.object({
+      name: z.string().min(1, '角色名称不能为空'),
+      role: z.string().optional().default('supporting'),
+      summary: z.string().optional().default(''),
+      traits: z.array(z.string()).optional().default([]),
+      background: z.string().optional(),
+      features: z.string().optional(),
+      habits: z.string().optional(),
+      personality: z.string().optional(),
+      inventory: z.string().optional(),
+      abilities: z.string().optional(),
+      globalOutline: z.string().optional(),
+      worldRules: z.string().optional(),
+      concealGender: z.boolean().optional().default(false)
+    });
+
     try {
-      const { name, role, summary, traits = [], background, features, habits, personality, inventory, abilities, globalOutline, worldRules, concealGender = false } = req.body;
+      const parsed = generateBioSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: '请求参数校验失败', details: parsed.error.format() });
+      }
+      const { name, role, summary, traits, background, features, habits, personality, inventory, abilities, globalOutline, worldRules, concealGender } = parsed.data;
 
       const genderConstraint = concealGender
         ? `\n【极其重要的约束：该角色性别为谜，严禁使用"他""她""他的""原她的""他本人""她本人"等任何性别指示代词。一律以角色名"${name}"或"此人""该角色"指代。违反此规则将导致角色设定失败。】\n`

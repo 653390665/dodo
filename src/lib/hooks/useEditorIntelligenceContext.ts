@@ -4,6 +4,7 @@ import { PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/prompt-assets-gov
 import type {
   AgentTab,
   Chapter,
+  ChapterMetadata,
   Character,
   ContinuationPack,
   CopilotSuggestion,
@@ -24,7 +25,7 @@ import { deriveSkillFitNeeds } from '../skill-fit-language';
 
 interface UseEditorIntelligenceContextArgs {
   novel: Novel;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
   characters: Character[];
   locations: Location[];
@@ -130,7 +131,7 @@ export function useEditorIntelligenceContext({
     }
 
     return previousChapters
-      .map((chapter) => `【${chapter.title}】:\n<分镜纲要>${chapter.sceneBeats || '无'}</分镜纲要>\n`)
+      .map((chapter) => `【${chapter.title}】:\n<分镜纲要>${(chapter as Partial<Chapter>).sceneBeats || '无'}</分镜纲要>\n`)
       .join('\n');
   }, [chapters, currentChapter]);
 

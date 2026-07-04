@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeQuotes(raw: string): string {
   return raw
     .replace(/[“”]/g, '"')
@@ -162,7 +161,7 @@ function closeJsonStructures(raw: string): string {
   return normalized + closingStack.reverse().join('');
 }
 
-function tryParseTruncatedJson<T = any>(raw: string): T {
+function tryParseTruncatedJson<T = unknown>(raw: string): T {
   const trimmed = raw.trimEnd();
   const minLength = Math.max(0, trimmed.length - 400);
 
@@ -179,7 +178,7 @@ function tryParseTruncatedJson<T = any>(raw: string): T {
   throw new Error('模型返回了不完整的 JSON。');
 }
 
-export function parseModelJsonPayload<T = any>(raw: string): T {
+export function parseModelJsonPayload<T = unknown>(raw: string): T {
   const candidate = findJsonCandidate(raw);
   try {
     return JSON.parse(candidate) as T;

@@ -2,7 +2,7 @@ import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { renderPromptTemplate, buildSkillsPrompt } from './prompt-helpers';
+import { renderPromptTemplate, buildSkillsPrompt, wrapUserInput } from './prompt-helpers';
 import {
   buildFallbackDraft,
   buildFallbackSceneBeats,
@@ -83,7 +83,7 @@ export async function runProductionPipeline(params: {
   const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
     PLANNER_SOUL,
     contextStr: augmentedContext,
-    userIntent,
+    userIntent: wrapUserInput(userIntent),
   });
 
   let sceneBeats: string;

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import helmet from 'helmet';
 import { initDb } from './server/lib/db.js';
 import { authMiddleware, getAuthToken } from './server/middleware/auth';
 import { registerRoutes } from './server/routes/index.js';
@@ -9,6 +10,10 @@ initDb();
 
 async function startServer() {
   const app = express();
+  // Register helmet for secure headers (CSP, XSS, MIME Sniffing, Clickjacking)
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disable default restrictive CSP in local Dev Vite overlay mode
+  }));
   const PORT = parseInt(process.env.PORT || '3000', 10);
   const allowPortRetry = !process.env.PORT || process.env.NODE_ENV === 'production';
 

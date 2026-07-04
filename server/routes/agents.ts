@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { renderPromptTemplate, buildSkillsPrompt, resolveChainPrompt } from '../helpers/prompt-helpers';
+import { renderPromptTemplate, buildSkillsPrompt, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import {
@@ -91,9 +91,9 @@ export function registerAgentsRoutes(app: Express) {
               contextStr: effectiveContextStr,
               sceneBeats: '',
               draftContent: '',
-              userIntent,
-              ideaSeed: userIntent,
-              concept: userIntent,
+              userIntent: wrapUserInput(userIntent),
+              ideaSeed: wrapUserInput(userIntent),
+              concept: wrapUserInput(userIntent),
               expectedWordCount: '180000',
               seedOutline: contextStr,
             });
@@ -120,7 +120,7 @@ export function registerAgentsRoutes(app: Express) {
       const prompt = renderPromptTemplate(promptAsset.template, {
         PLANNER_SOUL,
         contextStr: effectiveContextStr,
-        userIntent,
+        userIntent: wrapUserInput(userIntent),
       });
       let text = '';
       try {

@@ -40,6 +40,8 @@ export interface Chapter {
   updatedAt: number;
 }
 
+export type ChapterMetadata = Omit<Chapter, 'content' | 'sceneBeats' | 'critique'>;
+
 export type ContinuityIssueSeverity = 'low' | 'medium' | 'high';
 export type ContinuityIssueCategory =
   | 'character'

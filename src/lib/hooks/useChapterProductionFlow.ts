@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-import type { Chapter, ChapterProductionRun } from '../../../shared/types';
+import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
 import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent } from '../production-client';
 
 interface UseChapterProductionFlowArgs {
@@ -8,7 +8,7 @@ interface UseChapterProductionFlowArgs {
   currentChapterId?: string;
   continuationPackId?: string;
   cancelPendingContentSync?: () => void;
-  refreshChapters: () => Promise<Chapter[]>;
+  refreshChapters: () => Promise<ChapterMetadata[]>;
   setCurrentChapter: React.Dispatch<React.SetStateAction<Chapter | null>>;
   activeEntityNames?: string[];
 }
@@ -206,7 +206,7 @@ export function useChapterProductionFlow({
       const result = await applyChapterProductionRun(runToApply.id);
       const freshChapters = await refreshChapters();
       setCurrentChapter(
-        freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0] || null,
+        (freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0] || null) as unknown as Chapter,
       );
       setActiveProductionRun({
         ...runToApply,

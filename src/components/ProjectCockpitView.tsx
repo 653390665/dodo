@@ -4,10 +4,10 @@ import {
   User, Compass, FileText,
   AlertCircle, ShieldCheck, Database, Layers, RefreshCw
 } from 'lucide-react';
-import { Novel, Chapter, Character, Location, Item, Faction, Skill, ContinuationPack } from '../../shared/types';
+import { Novel, Chapter, ChapterMetadata, Character, Location, Item, Faction, Skill, ContinuationPack } from '../../shared/types';
 import { cn } from '../lib/utils';
 import {
-  listChapters, listCharacters, listLocations, listItems,
+  listChaptersMetadata, getChapter, listCharacters, listLocations, listItems,
   listFactions, listContinuationPacks, listSkills, getNovel, createChapter
 } from '../lib/api';
 import { ScrollArea } from './ui/ScrollArea';
@@ -31,7 +31,8 @@ export function ProjectCockpitView({
   onEnterStoryboard,
 }: ProjectCockpitViewProps) {
   const [novel, setNovel] = useState<Novel>(initialNovel);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
+  const [latestFullChapter, setLatestFullChapter] = useState<Chapter | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -56,7 +57,7 @@ export function ProjectCockpitView({
         freshSkills
       ] = await Promise.all([
         getNovel(initialNovel.id),
-        listChapters(initialNovel.id),
+        listChaptersMetadata(initialNovel.id),
         listCharacters(initialNovel.id),
         listLocations(initialNovel.id),
         listItems(initialNovel.id),
@@ -75,6 +76,18 @@ export function ProjectCockpitView({
       setFactions(freshFactions);
       setPacks(freshPacks);
       setAllSkills(freshSkills);
+
+      // Lazy load latest full chapter content asynchronously
+      const latestMeta = [...freshChapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+      if (latestMeta) {
+        getChapter(latestMeta.id).then((fullCh) => {
+          setLatestFullChapter(fullCh || null);
+        }).catch((err) => {
+          console.warn('Failed to lazy load latest chapter full content:', err);
+        });
+      } else {
+        setLatestFullChapter(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取数据失败，请重试');
     } finally {
@@ -253,7 +266,7 @@ export function ProjectCockpitView({
                       <button
                         onClick={() => {
                           if (onSelectChapter && latestChapter) {
-                            onSelectChapter(latestChapter);
+                            onSelectChapter(latestChapter as unknown as Chapter);
                           }
                           if (onStartCockpitAction && latestChapter) {
                             onStartCockpitAction('resume', latestChapter.id);
@@ -277,7 +290,7 @@ export function ProjectCockpitView({
                       <button
                         onClick={() => {
                           if (onSelectChapter && latestChapter) {
-                            onSelectChapter(latestChapter);
+                            onSelectChapter(latestChapter as unknown as Chapter);
                           }
                           if (onStartCockpitAction && latestChapter) {
                             onStartCockpitAction('planning', latestChapter.id);
@@ -299,7 +312,7 @@ export function ProjectCockpitView({
                       <button
                         onClick={() => {
                           if (onSelectChapter && latestChapter) {
-                            onSelectChapter(latestChapter);
+                            onSelectChapter(latestChapter as unknown as Chapter);
                           }
                           if (onStartCockpitAction && latestChapter) {
                             onStartCockpitAction('production', latestChapter.id);
@@ -497,12 +510,12 @@ export function ProjectCockpitView({
                         <span className="text-theme-text font-bold flex items-center gap-1.5">
                           <Layers size={12} className="text-theme-muted" /> 章节分镜规划
                         </span>
-                        <span className={cn("font-bold text-[9px] px-1.5 py-0.5 rounded", latestChapter?.sceneBeats ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                          {latestChapter?.sceneBeats ? "分镜锁定" : "无分镜规划"}
+                        <span className={cn("font-bold text-[9px] px-1.5 py-0.5 rounded", latestFullChapter?.sceneBeats ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                          {latestFullChapter?.sceneBeats ? "分镜锁定" : "无分镜规划"}
                         </span>
                       </div>
                       <p className="text-[10px] text-theme-muted leading-relaxed">
-                        {latestChapter?.sceneBeats
+                        {latestFullChapter?.sceneBeats
                           ? '已锁定本章分镜 Beats 进行定向内容扩写。'
                           : '没有录入本章分镜大纲。大模型生成正文时将进行自由推演。'}
                       </p>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState, ChapterVersion } from '../../shared/types';
+import { Novel, CopilotActionKey, AssistantLaunchContext, AgentTab, ContinuationPack, ContinuationEditorLaunchState, ChapterVersion, Chapter } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
 import { listContinuationPacks } from '../lib/continuation-client';
@@ -367,7 +367,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (launchState?.targetChapterId && chapters.length > 0) {
       const matched = chapters.find(c => c.id === launchState.targetChapterId);
       if (matched) {
-        setCurrentChapter(matched);
+        setCurrentChapter(matched as unknown as Chapter);
       }
     }
   }, [launchState?.targetChapterId, chapters, setCurrentChapter]);
@@ -540,7 +540,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
         novel={novel}
         chapters={chapters}
         currentChapter={currentChapter}
-        onSelectChapter={setCurrentChapter}
+        onSelectChapter={(chapter) => setCurrentChapter(chapter as unknown as Chapter)}
         onAddChapter={handleAddChapter}
         onDeleteChapter={setChapterToDeleteId}
         isSidebarOpen={isSidebarOpen}

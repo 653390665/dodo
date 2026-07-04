@@ -63,6 +63,27 @@ export function WritingSurface({
   setAgentTab,
   setIsAgentSidebarOpen
 }: WritingSurfaceProps) {
+  const [prevChapterId, setPrevChapterId] = React.useState(currentChapter?.id);
+  const [prevChapterContent, setPrevChapterContent] = React.useState(currentChapter?.content);
+  const [localContent, setLocalContent] = React.useState(currentChapter?.content || '');
+
+  if (currentChapter?.id !== prevChapterId || currentChapter?.content !== prevChapterContent) {
+    setPrevChapterId(currentChapter?.id);
+    setPrevChapterContent(currentChapter?.content);
+    setLocalContent(currentChapter?.content || '');
+  }
+
+  // 2. 300ms 异步防抖提交至父级受控状态，消除打字 Input Lag
+  React.useEffect(() => {
+    if (!currentChapter) return;
+    const timer = setTimeout(() => {
+      if (localContent !== (currentChapter.content || '')) {
+        onUpdateContent(localContent);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localContent, onUpdateContent, currentChapter]);
+
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 xl:px-8 py-5 scroll-smooth flex flex-col relative">
       <div className="w-full self-stretch min-w-0 flex-1 flex flex-col relative transition-all duration-500 gap-4">
@@ -193,8 +214,8 @@ export function WritingSurface({
                 )}
                 <textarea
                   ref={contentRef}
-                  value={currentChapter.content || ''}
-                  onChange={(e) => onUpdateContent(e.target.value)}
+                  value={localContent}
+                  onChange={(e) => setLocalContent(e.target.value)}
                   readOnly={isGeneratingContent}
                   placeholder="在这里开始书写这一章……"
                   className={cn(

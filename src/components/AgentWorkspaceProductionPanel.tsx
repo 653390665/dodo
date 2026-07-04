@@ -1,6 +1,6 @@
 import React from 'react';
 
-import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel, Skill, MountedSkillLoadoutItem, EntityRelationship, Character, Location, Item, Faction, ProjectPreferenceProfile } from '../../shared/types';
+import type { AgentTab, Chapter, ChapterMetadata, ChapterProductionRun, ContinuationPack, Novel, Skill, MountedSkillLoadoutItem, EntityRelationship, Character, Location, Item, Faction, ProjectPreferenceProfile } from '../../shared/types';
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
@@ -13,9 +13,9 @@ type ProductionAgentTab = Extract<AgentTab, 'production' | 'outline' | 'planning
 interface AgentWorkspaceProductionPanelProps {
   agentTab: ProductionAgentTab;
   novel: Novel;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter) => void;
+  setCurrentChapter: (chapter: Chapter | null) => void;
   activeProductionRun: ChapterProductionRun | null;
   productionIntent: string;
   setProductionIntent: (intent: string) => void;

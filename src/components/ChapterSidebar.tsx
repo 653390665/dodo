@@ -1,14 +1,14 @@
 import React from 'react';
 import { ChevronLeft, Folder, FolderOpen, Plus, Trash2 } from 'lucide-react';
 
-import { Chapter, Novel } from '../../shared/types';
+import { Chapter, ChapterMetadata, Novel } from '../../shared/types';
 import { cn } from '../lib/utils';
 
 interface ChapterSidebarProps {
   novel: Novel;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  onSelectChapter: (chapter: Chapter) => void;
+  onSelectChapter: (chapter: ChapterMetadata) => void;
   onAddChapter: (volumeName?: string) => void;
   onDeleteChapter: (id: string) => void;
   isSidebarOpen: boolean;
@@ -33,8 +33,8 @@ export function ChapterSidebar({
 }: ChapterSidebarProps) {
 
   const groupedChapters = React.useMemo(() => {
-    const groups: { volumeName: string; chapters: Chapter[] }[] = [];
-    const volMap = new Map<string, Chapter[]>();
+    const groups: { volumeName: string; chapters: ChapterMetadata[] }[] = [];
+    const volMap = new Map<string, ChapterMetadata[]>();
 
     chapters.forEach(c => {
       const vName = c.volumeName || '正文卷';
@@ -122,14 +122,14 @@ export function ChapterSidebar({
                         </div>
 
                         {/* Third Level: Beats */}
-                        {currentChapter?.id === chapter.id && chapter.sceneBeats && (
+                        {currentChapter?.id === chapter.id && currentChapter?.sceneBeats && (
                           <div className="pl-7 mt-0.5 space-y-1 mb-2 relative before:absolute before:left-[17px] before:top-0 before:-bottom-2 before:w-px before:bg-theme-border/30">
-                            {chapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).slice(0, 4).map((beat, i) => (
+                            {currentChapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).slice(0, 4).map((beat, i) => (
                               <div key={i} className="text-[10px] text-theme-muted truncate relative before:absolute before:-left-2.5 before:top-1/2 before:-mt-px before:w-2 before:h-px before:bg-theme-border/30">
                                 {beat.replace(/^[-* 0-9.]+\s*/, '').trim() || beat}
                               </div>
                             ))}
-                            {chapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).length > 4 && (
+                            {currentChapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).length > 4 && (
                               <div className="text-[9px] text-theme-muted/50 pl-0.5">...</div>
                             )}
                           </div>

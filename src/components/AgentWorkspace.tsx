@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Activity, Bot, Brain, Eye, Globe, History, Lightbulb, ListOrdered, MessageSquareWarning, Sparkles, Wand2, X } from 'lucide-react';
 
 import {
-  Novel, Chapter, Character, Item, Location, ChapterVersion,
+  Novel, Chapter, ChapterMetadata, Character, Item, Location, ChapterVersion,
   Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, ContinuationPack,
   ChapterProductionRun, AgentTab, CopilotSuggestion, CopilotActionKey, SniffedEntities, EntityRelationship, Faction
 } from '../../shared/types';
@@ -27,9 +27,9 @@ function isKnowledgeAgentTab(tab: AgentTab): tab is Extract<AgentTab, 'bible' | 
 
 interface AgentWorkspaceProps {
   novel: Novel;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter) => void;
+  setCurrentChapter: (chapter: Chapter | null) => void;
   isAgentSidebarOpen: boolean;
   setIsAgentSidebarOpen: (open: boolean) => void;
   agentTab: AgentTab;

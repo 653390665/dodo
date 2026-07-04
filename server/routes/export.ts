@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import type { Novel, Chapter } from '../../shared/types';
 import * as db from '../lib/db';
+import { logger } from '../logger';
 
 function escXml(s: string): string {
   return s
@@ -115,7 +116,8 @@ export function registerExportRoutes(app: Express) {
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.txt"`);
         res.send(content);
       }
-    } catch {
+    } catch (e) {
+      logger.error('Export failed:', e);
       res.status(500).json({ error: "Internal server error" });
     }
   });

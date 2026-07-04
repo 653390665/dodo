@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { renderPromptTemplate } from '../helpers/prompt-helpers';
+import { renderPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { assessStorySeedQuality, sanitizeIdeaSeed } from '../../shared/lib/story-seed';
@@ -39,7 +39,7 @@ export function registerOnboardingRoutes(app: Express) {
         preferredTemplateKey: 'storyCards',
       });
       const prompt = renderPromptTemplate(promptAsset.template, {
-        ideaSeed,
+        ideaSeed: wrapUserInput(ideaSeed),
         chatContext,
         expectedWordCount: planning.expectedWordCount || 180000,
         storyFocus:
@@ -99,7 +99,7 @@ export function registerOnboardingRoutes(app: Express) {
       const prompt = renderPromptTemplate(promptAsset.template, {
         taskTitle,
         currentDraft,
-        userRequest,
+        userRequest: wrapUserInput(userRequest),
         storyContext,
       });
       const text = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 2048 });

@@ -37,7 +37,11 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chatContextRef = useRef(chatContext);
-  chatContextRef.current = chatContext;
+
+  // Sync chatContext inside an effect to prevent React 19 concurrent render-phase side effects
+  useEffect(() => {
+    chatContextRef.current = chatContext;
+  }, [chatContext]);
 
   // Cleanup poller on unmount
   useEffect(() => {

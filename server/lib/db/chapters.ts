@@ -1,6 +1,7 @@
-import type { Chapter, ChapterVersion } from '../../../shared/types';
+import type { Chapter, ChapterVersion, ChapterMetadata } from '../../../shared/types';
 import { rowToChapter, chapterToRow, rowToChapterVersion, chapterVersionToRow } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
+import { getDb } from '../db-instance.js';
 
 const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>({
   tableName: 'chapters',
@@ -14,6 +15,23 @@ const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>(
 
 export function listChapters(novelId: string): Chapter[] {
   return chapterCrud.list(novelId);
+}
+
+export function listChaptersMetadata(novelId: string): ChapterMetadata[] {
+  const db = getDb();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = db.prepare('SELECT id, novel_id, volume_name, title, "order", word_count, created_at, updated_at FROM chapters WHERE novel_id = ? ORDER BY "order" ASC').all(novelId) as any[];
+
+  return rows.map(row => ({
+    id: row.id,
+    novelId: row.novel_id,
+    volumeName: row.volume_name || undefined,
+    title: row.title,
+    order: row.order,
+    wordCount: row.word_count,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
 }
 
 export function getChapter(id: string): Chapter | undefined {

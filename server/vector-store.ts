@@ -4,6 +4,9 @@
 import { getDb } from './lib/db-instance';
 import { embed, cosineSimilarity } from './embedding';
 
+// 常驻内存向量解析 Cache，避免高频相似度计算下的重复 JSON.parse 消耗
+const embeddingCache = new Map<string, number[]>();
+
 /** Add a text chunk to the vector store (async, auto-embeds) */
 export async function addChunk(
   novelId: string,
@@ -13,6 +16,10 @@ export async function addChunk(
 ): Promise<void> {
   const embedding = await embed(text);
   const id = `${novelId}_${chapterId}_${index}`;
+
+  // 更新常驻缓存
+  embeddingCache.set(id, embedding);
+
   const db = getDb();
   db.prepare(`
     INSERT INTO vector_chunks (id, novel_id, chapter_id, chunk_index, text, embedding)
@@ -31,11 +38,15 @@ export function searchSimilar(
 ): Array<{ text: string; score: number }> {
   const db = getDb();
   const rows = db.prepare(`
-    SELECT text, embedding FROM vector_chunks WHERE novel_id = ?
-  `).all(novelId) as Array<{ text: string; embedding: string }>;
+    SELECT id, text, embedding FROM vector_chunks WHERE novel_id = ?
+  `).all(novelId) as Array<{ id: string; text: string; embedding: string }>;
 
   const scored = rows.map((row) => {
-    const emb = JSON.parse(row.embedding) as number[];
+    let emb = embeddingCache.get(row.id);
+    if (!emb) {
+      emb = JSON.parse(row.embedding) as number[];
+      embeddingCache.set(row.id, emb);
+    }
     return {
       text: row.text,
       score: cosineSimilarity(queryEmbedding, emb),
@@ -49,6 +60,14 @@ export function searchSimilar(
 export function deleteNovel(novelId: string): void {
   const db = getDb();
   db.prepare('DELETE FROM vector_chunks WHERE novel_id = ?').run(novelId);
+
+  // 同步清理内存缓存，确保无任何内存泄漏隐患
+  const prefix = `${novelId}_`;
+  for (const key of embeddingCache.keys()) {
+    if (key.startsWith(prefix)) {
+      embeddingCache.delete(key);
+    }
+  }
 }
 
 /** Export raw chunks for debugging */

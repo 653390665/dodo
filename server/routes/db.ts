@@ -5,7 +5,7 @@ import { validate, dbSchema } from '../validation';
 
 const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
-  'listChapters', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter', 'reorderChapters',
+  'listChapters', 'listChaptersMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter', 'reorderChapters',
   'listChapterVersions', 'getChapterVersion', 'createChapterVersion', 'deleteChapterVersion',
   'listScenes', 'getScene', 'createScene', 'updateScene', 'deleteScene',
   'listCharacters', 'createCharacter', 'updateCharacter', 'deleteCharacter',

@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { initDb, closeDb, createNovel, createContinuationPack, listContinuationPacks, getContinuationPack, updateContinuationPack } from '../server/lib/db';
 import type { ContinuationPack } from '../shared/types';
 
-const DB_PATH = '/tmp/test-continuation-pack.db';
-
+import os from 'node:os';
+import path from 'node:path';
 import fs from 'node:fs';
+
+const DB_PATH = path.join(os.tmpdir(), `test-continuation-pack-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
 
 test.beforeEach(() => {
   try { closeDb(); } catch {}
@@ -15,7 +17,12 @@ test.beforeEach(() => {
 });
 
 test.after(() => {
-  closeDb();
+  try { closeDb(); } catch {}
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      fs.unlinkSync(DB_PATH);
+    }
+  } catch {}
 });
 
 test('create and list continuation packs', () => {

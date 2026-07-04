@@ -2,21 +2,22 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject
 
 import type {
   Chapter,
+  ChapterMetadata,
   ChapterVersion,
   MountedSkillLoadoutItem,
   Novel,
   ProjectPreferenceProfile,
 } from '../../../shared/types';
-import { createChapter, createChapterVersion, deleteChapter, listChapters, updateChapter } from '../chapter-client';
+import { createChapter, createChapterVersion, deleteChapter, listChaptersMetadata, updateChapter } from '../chapter-client';
 import { updateNovel } from '../novel-client';
 
 interface UseEditorPersistenceArgs {
   novel: Novel;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
   isContentLockedRef: RefObject<boolean>;
   contentRef: RefObject<HTMLTextAreaElement | null>;
-  setChapters: Dispatch<SetStateAction<Chapter[]>>;
+  setChapters: Dispatch<SetStateAction<ChapterMetadata[]>>;
   setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
   setMountedSkillLoadout: Dispatch<SetStateAction<MountedSkillLoadoutItem[]>>;
   setProjectPreferenceProfile: Dispatch<SetStateAction<ProjectPreferenceProfile | undefined>>;
@@ -238,7 +239,7 @@ export function useEditorPersistence({
   const handleDeleteChapter = async (id: string) => {
     await deleteChapter(id);
     if (currentChapter?.id === id) {
-      setCurrentChapter(chapters.find((chapter) => chapter.id !== id) || null);
+      setCurrentChapter((chapters.find((chapter) => chapter.id !== id) as unknown as Chapter) || null);
     }
   };
 
@@ -263,7 +264,7 @@ export function useEditorPersistence({
   };
 
   const refreshChapters = async () => {
-    const freshChapters = await listChapters(novel.id);
+    const freshChapters = await listChaptersMetadata(novel.id);
     setChapters(freshChapters);
     return freshChapters;
   };

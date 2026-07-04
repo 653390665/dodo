@@ -324,6 +324,9 @@ export function initDb(dbPath?: string): void {
     CREATE INDEX IF NOT EXISTS idx_skill_usage_records_novel ON skill_usage_records(novel_id);
     CREATE INDEX IF NOT EXISTS idx_continuation_packs_novel ON continuation_packs(novel_id);
     CREATE INDEX IF NOT EXISTS idx_vector_chunks_novel ON vector_chunks(novel_id);
+    CREATE INDEX IF NOT EXISTS idx_vector_chunks_chapter ON vector_chunks(chapter_id);
+    CREATE INDEX IF NOT EXISTS idx_entity_relationships_novel ON entity_relationships(novelId);
+    CREATE INDEX IF NOT EXISTS idx_entity_relationships_composite ON entity_relationships(novelId, sourceId, targetId);
   `);
 }
 

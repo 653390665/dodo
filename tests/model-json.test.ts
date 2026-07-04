@@ -3,7 +3,7 @@ import test from 'node:test';
 import { parseModelJsonPayload } from '../src/lib/model-json';
 
 test('parseModelJsonPayload parses clean json wrapped in markdown fences', () => {
-  const payload = parseModelJsonPayload(`
+  const payload = parseModelJsonPayload<any>(`
 \`\`\`json
 {"continuationTask":"继续写下去","canonFacts":[]}
 \`\`\`
@@ -14,7 +14,7 @@ test('parseModelJsonPayload parses clean json wrapped in markdown fences', () =>
 });
 
 test('parseModelJsonPayload repairs unescaped quotes inside strings', () => {
-  const payload = parseModelJsonPayload(`
+  const payload = parseModelJsonPayload<any>(`
 {
   "canonFacts": [
     {
@@ -38,7 +38,7 @@ test('parseModelJsonPayload throws readable error for truncated json', () => {
 });
 
 test('parseModelJsonPayload auto-closes safely truncated json tails', () => {
-  const payload = parseModelJsonPayload(`
+  const payload = parseModelJsonPayload<any>(`
 {
   "continuationTask": "继续推进",
   "canonFacts": [

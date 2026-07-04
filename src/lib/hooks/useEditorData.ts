@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Chapter, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship } from '../../../shared/types';
+import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship } from '../../../shared/types';
 import {
-  listChapters, listCharacters, listLocations, listItems, listFactions,
+  listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
   getNovel, subscribeToChanges, listEntityRelationshipsClient
 } from '../api';
 import { coerceMountedSkillLoadout } from '../skill-model';
 
 export function useEditorData(novelId: string) {
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -42,7 +42,7 @@ export function useEditorData(novelId: string) {
         freshNovel,
         freshRelationships
       ] = await Promise.all([
-        listChapters(novelId),
+        listChaptersMetadata(novelId),
         listCharacters(novelId),
         listLocations(novelId),
         listItems(novelId),
@@ -79,13 +79,13 @@ export function useEditorData(novelId: string) {
 
       // Sync current chapter if already selected
       setCurrentChapter(prev => {
-        if (!prev && freshChapters.length > 0) return freshChapters[0];
+        if (!prev && freshChapters.length > 0) return freshChapters[0] as unknown as Chapter;
         if (prev) {
           const matched = freshChapters.find(c => c.id === prev.id);
           if (matched) {
             // Preserve the memory-only content if we are in the middle of editing
             // (The DB might be slightly behind due to debounce)
-            return { ...matched, content: prev.content };
+            return { ...matched, content: prev.content } as unknown as Chapter;
           }
         }
         return prev;
@@ -99,6 +99,25 @@ export function useEditorData(novelId: string) {
       }
     }
   };
+
+  useEffect(() => {
+    if (!currentChapter) return;
+    if (currentChapter.content === undefined) {
+      let active = true;
+      getChapter(currentChapter.id).then(fullCh => {
+        if (active && fullCh) {
+          setCurrentChapter(prev => {
+            if (prev && prev.id === fullCh.id) {
+              return fullCh;
+            }
+            return prev;
+          });
+        }
+      });
+      return () => { active = false; };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentChapter?.id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- set loading state before fetch

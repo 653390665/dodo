@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, Loader2, Sparkles } from 'lucide-react';
-import type { Chapter } from '../../../shared/types';
+import type { Chapter, ChapterMetadata } from '../../../shared/types';
 import { cn } from '../../lib/utils';
 
 interface OutlineTabProps {
@@ -10,9 +10,9 @@ interface OutlineTabProps {
   isGeneratingOutline: boolean;
   globalOutline: string;
   onGlobalOutlineChange: (outline: string) => void;
-  chapters: Chapter[];
+  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter) => void;
+  setCurrentChapter: (chapter: Chapter | null) => void;
 }
 
 export function OutlineTab({
@@ -71,7 +71,7 @@ export function OutlineTab({
           {chapters.map((chapter, index) => (
             <button
               key={chapter.id}
-              onClick={() => setCurrentChapter(chapter)}
+              onClick={() => setCurrentChapter(chapter as unknown as Chapter)}
               className={cn(
                 'w-full text-left p-3 rounded-xl border transition-[background-color,border-color,box-shadow,color] duration-200 flex flex-col gap-1',
                 currentChapter?.id === chapter.id
@@ -85,9 +85,13 @@ export function OutlineTab({
                 </span>
                 <span className="text-[9px] text-theme-muted">{chapter.wordCount} 字</span>
               </div>
-              {chapter.sceneBeats ? (
+              {currentChapter?.id === chapter.id && currentChapter.sceneBeats ? (
                 <p className="text-[9px] text-theme-muted line-clamp-1 opacity-70">
-                  {chapter.sceneBeats.substring(0, 50)}
+                  {currentChapter.sceneBeats.substring(0, 50)}
+                </p>
+              ) : (chapter as Partial<Chapter>).sceneBeats ? (
+                <p className="text-[9px] text-theme-muted line-clamp-1 opacity-70">
+                  {(chapter as Partial<Chapter>).sceneBeats?.substring(0, 50)}
                 </p>
               ) : null}
             </button>

@@ -1,4 +1,4 @@
-import { getDb, notify } from './db-instance.js';
+import { getDb, notify, runInTransaction } from './db-instance.js';
 
 export interface CrudConfig<T, TRow> {
   tableName: string;
@@ -75,18 +75,20 @@ export function createCrudHelpers<T, TRow extends Record<string, any>>(config: C
     },
 
     update(id: string, data: Partial<T>): void {
-      const existingRow = getDb().prepare(selectOneSql).get(id);
-      if (!existingRow) return;
+      runInTransaction(() => {
+        const existingRow = getDb().prepare(selectOneSql).get(id);
+        if (!existingRow) return;
 
-      const merged = {
-        ...rowToEntity(existingRow),
-        ...data,
-        id,
-        updatedAt: Date.now(),
-      };
+        const merged = {
+          ...rowToEntity(existingRow),
+          ...data,
+          id,
+          updatedAt: Date.now(),
+        };
 
-      getDb().prepare(updateSql).run(entityToRow(merged));
-      notify();
+        getDb().prepare(updateSql).run(entityToRow(merged));
+        notify();
+      });
     },
 
     delete(id: string): void {
