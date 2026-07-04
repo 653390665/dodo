@@ -529,6 +529,7 @@ export function AgentWorkspace({
                 items={items}
                 factions={factions}
                 onSwitchTab={setAgentTab}
+                onPreferenceProfileChange={onPreferenceProfileChange}
               />
             </div>
           )}

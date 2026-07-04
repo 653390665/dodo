@@ -338,7 +338,7 @@ export function AppShell() {
     }
   };
 
-  const handleSelectStoryCard = async (card: StoryIdeaCard, planning?: StoryPlanningInput) => {
+  const handleSelectStoryCard = async (card: StoryIdeaCard, planning?: StoryPlanningInput, recommendedTags?: string[]) => {
     try {
       const activePlanning = planning || onboardingDraft?.planning;
       if (!activePlanning) {
@@ -346,6 +346,13 @@ export function AppShell() {
       }
       const newNovelId = crypto.randomUUID();
       const now = Date.now();
+
+      const initialProfile = buildProjectPreferenceProfileFromPlanning(activePlanning);
+      if (recommendedTags && recommendedTags.length > 0) {
+        const mergedTagsSet = new Set([...initialProfile.tags, ...recommendedTags]);
+        initialProfile.tags = Array.from(mergedTagsSet);
+      }
+
       const newNovel: Novel = {
         id: newNovelId,
         title: card.hook.slice(0, 18) || '新作品',
@@ -355,7 +362,7 @@ export function AppShell() {
         worldRules: card.starterSeeds.worldSeed,
         mountedSkillIds: [],
         mountedSkillLoadout: [],
-        projectPreferenceProfile: buildProjectPreferenceProfileFromPlanning(activePlanning),
+        projectPreferenceProfile: initialProfile,
         status: 'ongoing',
         createdAt: now,
         updatedAt: now,

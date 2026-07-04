@@ -1,6 +1,7 @@
 import React from 'react';
 
-import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel, Skill, MountedSkillLoadoutItem, EntityRelationship, Character, Location, Item, Faction } from '../../shared/types';
+import type { AgentTab, Chapter, ChapterProductionRun, ContinuationPack, Novel, Skill, MountedSkillLoadoutItem, EntityRelationship, Character, Location, Item, Faction, ProjectPreferenceProfile } from '../../shared/types';
+import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -57,6 +58,8 @@ interface AgentWorkspaceProductionPanelProps {
   items?: Item[];
   factions?: Faction[];
   onSwitchTab?: (tab: AgentTab) => void;
+  onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
+  onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
 }
 export function AgentWorkspaceProductionPanel({
   agentTab,
@@ -106,6 +109,8 @@ export function AgentWorkspaceProductionPanel({
   items,
   factions,
   onSwitchTab,
+  onRunRecommendedAsset,
+  onPreferenceProfileChange,
 }: AgentWorkspaceProductionPanelProps) {
   const selectedContinuationPack = continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -205,6 +210,8 @@ export function AgentWorkspaceProductionPanel({
         onRewriteSelectedText={onRewriteSelectedText}
         onUpdateChapterBeats={onUpdateChapterBeats}
         generationStatus={generationStatus}
+        novel={novel}
+        onPreferenceProfileChange={onPreferenceProfileChange}
       />
     );
   }
@@ -218,6 +225,7 @@ export function AgentWorkspaceProductionPanel({
       onPolishChapterFromAudit={onPolishChapterFromAudit}
       isGeneratingContent={isGeneratingContent}
       onSwitchTab={onSwitchTab}
+      onRunRecommendedAsset={onRunRecommendedAsset}
     />
   );
 }

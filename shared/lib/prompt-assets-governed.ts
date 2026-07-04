@@ -1,4 +1,5 @@
-import type { GovernedPromptAsset, SanitizationHits, PromptCategoryV2, PlacementTier } from '../types/prompt-assets-governed.js';
+import type { GovernedPromptAsset, SanitizationHits, PromptCategoryV2, PlacementTier, PromptAssetActionKind, InferenceOutput } from '../types/prompt-assets-governed.js';
+import type { Novel } from '../types.js';
 
 /**
  * 物理抹除水印清洗分析器 (White-Label Watermark Sanitizer & Analyzer)
@@ -428,14 +429,16 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
 // ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
 
 export interface SkillSeriesFlowStep {
-  stepNumber: number;
-  name: string;
-  description: string;
-  input: string;
-  output: string;
-  assetId: string;
-  qualityGateThreshold?: number;
-  nextStepId?: string;
+  id: string;              // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
+  stepNumber: number;      // 序号 (1-based)
+  name: string;            // 步骤展示名称 (如 '脑洞灵感闪耀')
+  description: string;     // 步骤具体执行说明
+  input: string;           // 阶段输入特征
+  output: string;          // 阶段输出特征
+  assetId: string;         // 关联的真实治理资产 ID
+  qualityGate: string;     // 本步质量门栏标准
+  nextStepId: string | null; // 下一步 ID，尾步骤为 null
+  switchAllowed: boolean;  // 是否允许中途跳跃切换
 }
 
 export interface SkillSeriesFlow {
@@ -452,43 +455,179 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
     description: '付费核心长篇高品质小说创作主流程，确保全书设定与节奏的高度连贯性。',
     steps: [
       {
+        id: 'xiaofeiji-novel-flow-step1',
         stepNumber: 1,
-        name: '小飞鸡长篇通用大纲规划',
-        description: '设定长篇小说骨架主线大纲与金手指，建立第一冲突悬念。',
-        input: 'outline',
-        output: 'chapters-outline',
-        assetId: 'private-175', // 真实的万字大纲定制资产
-        qualityGateThreshold: 80,
-        nextStepId: 'xiaofeiji-novel-flow-step2'
+        name: '脑洞灵感闪耀',
+        description: '收集小说灵感种子，精炼核心创意。',
+        input: 'idea',
+        output: 'hook-idea',
+        assetId: 'square-182', // 【小飞鸡】爆款书名简介策划引擎！
+        qualityGate: '脑洞概念成型且具备初始爽点',
+        nextStepId: 'xiaofeiji-novel-flow-step2',
+        switchAllowed: true
       },
       {
+        id: 'xiaofeiji-novel-flow-step2',
         stepNumber: 2,
-        name: '小飞鸡长篇通用章纲展开',
-        description: '细化各章节脉络，排布强烈悬念和读者钩子。',
-        input: 'chapters-outline',
-        output: 'chapter-content',
-        assetId: 'private-179', // 真实的章纲定制资产
-        qualityGateThreshold: 85,
-        nextStepId: 'xiaofeiji-novel-flow-step3'
+        name: '世界观架构设定',
+        description: '构建宏大的世界背景、金手指规则与战力体系。',
+        input: 'hook-idea',
+        output: 'world-setting',
+        assetId: 'private-175', // 小飞鸡长篇通用大纲规划
+        qualityGate: '战力等级与世界观基本设定完备',
+        nextStepId: 'xiaofeiji-novel-flow-step3',
+        switchAllowed: true
       },
       {
+        id: 'xiaofeiji-novel-flow-step3',
         stepNumber: 3,
-        name: '小飞鸡长篇正文高质量起步',
+        name: '核心角色人设卡',
+        description: '定制主角、反派与重要配角的人物弧光与背景。',
+        input: 'world-setting',
+        output: 'characters',
+        assetId: 'square-183', // 【小飞鸡】长篇拆书器
+        qualityGate: '主角性格、成长动机与金手指明确',
+        nextStepId: 'xiaofeiji-novel-flow-step4',
+        switchAllowed: true
+      },
+      {
+        id: 'xiaofeiji-novel-flow-step4',
+        stepNumber: 4,
+        name: '大纲骨架与主线设计',
+        description: '设定长篇小说骨架主线大纲与金手指，建立第一冲突悬念。',
+        input: 'characters',
+        output: 'chapters-outline',
+        assetId: 'private-175', // 万字大纲定制资产
+        qualityGate: '万字主线大纲评级达到 B 级以上',
+        nextStepId: 'xiaofeiji-novel-flow-step5',
+        switchAllowed: true
+      },
+      {
+        id: 'xiaofeiji-novel-flow-step5',
+        stepNumber: 5,
+        name: '故事细纲与高潮铺设',
+        description: '梳理核心故事桥段，铺设情绪起伏和爽点转折。',
+        input: 'chapters-outline',
+        output: 'detailed-outline',
+        assetId: 'private-179', // 章纲定制资产
+        qualityGate: '细纲爽点和冲突闭环',
+        nextStepId: 'xiaofeiji-novel-flow-step6',
+        switchAllowed: true
+      },
+      {
+        id: 'xiaofeiji-novel-flow-step6',
+        stepNumber: 6,
+        name: '章纲逐章展开',
+        description: '细化各章节脉络，排布强烈悬念和读者钩子。',
+        input: 'detailed-outline',
+        output: 'chapter-content',
+        assetId: 'private-179', // 章纲定制资产
+        qualityGate: '前 3 章章纲精细度符合要求',
+        nextStepId: 'xiaofeiji-novel-flow-step7',
+        switchAllowed: true
+      },
+      {
+        id: 'xiaofeiji-novel-flow-step7',
+        stepNumber: 7,
+        name: '高质量正文起步',
         description: '展开长篇网文的第一章写作，融入强烈节奏。',
         input: 'chapter-content',
         output: 'chapter-draft',
         assetId: 'private-180', // 真实的正文定制资产
-        qualityGateThreshold: 90,
-        nextStepId: 'xiaofeiji-novel-flow-step4'
+        qualityGate: '正文第一章写作完成',
+        nextStepId: 'xiaofeiji-novel-flow-step8',
+        switchAllowed: true
       },
       {
-        stepNumber: 4,
-        name: '小飞鸡正文去AI润色',
+        id: 'xiaofeiji-novel-flow-step8',
+        stepNumber: 8,
+        name: '正文去AI润色',
         description: '深度精修段落陈词滥调，增强肢体动作与画面张力。',
         input: 'chapter-draft',
         output: 'chapter-polished',
         assetId: 'private-193', // 真实的去AI高频词润色资产
-        qualityGateThreshold: 92
+        qualityGate: 'AI腔去化度评测及格 (slop score > 85)',
+        nextStepId: null,
+        switchAllowed: true
+      }
+    ]
+  },
+  {
+    id: 'generic-novel-flow',
+    name: '通用长篇流',
+    description: '面向全体创作者的默认长篇路线，汇聚最优质的内置与广场精品资源。',
+    steps: [
+      {
+        id: 'generic-novel-flow-step1',
+        stepNumber: 1,
+        name: '灵感火花收集',
+        description: '记录随笔与核心创意。',
+        input: 'note',
+        output: 'idea',
+        assetId: 'generateOutline',
+        qualityGate: '有一个可以展开的核心灵感',
+        nextStepId: 'generic-novel-flow-step2',
+        switchAllowed: true
+      },
+      {
+        id: 'generic-novel-flow-step2',
+        stepNumber: 2,
+        name: '世界与角色设定',
+        description: '草拟世界规则和主角人设。',
+        input: 'idea',
+        output: 'setting',
+        assetId: 'generateOutline',
+        qualityGate: '基本人设与背景搭建完成',
+        nextStepId: 'generic-novel-flow-step3',
+        switchAllowed: true
+      },
+      {
+        id: 'generic-novel-flow-step3',
+        stepNumber: 3,
+        name: '小说主线大纲',
+        description: '规划全书起承转合结构。',
+        input: 'setting',
+        output: 'outline',
+        assetId: 'generateOutline',
+        qualityGate: '小说大纲具备明确的起承转合',
+        nextStepId: 'generic-novel-flow-step4',
+        switchAllowed: true
+      },
+      {
+        id: 'generic-novel-flow-step4',
+        stepNumber: 4,
+        name: '分镜章纲梳理',
+        description: '梳理章节的分镜或大纲。',
+        input: 'outline',
+        output: 'scene-outline',
+        assetId: 'generateOutline',
+        qualityGate: '核心情节具备明确的情感起伏',
+        nextStepId: 'generic-novel-flow-step5',
+        switchAllowed: true
+      },
+      {
+        id: 'generic-novel-flow-step5',
+        stepNumber: 5,
+        name: '正文快速初稿',
+        description: '流畅完成正文草稿撰写。',
+        input: 'scene-outline',
+        output: 'draft',
+        assetId: 'core-slop-shield',
+        qualityGate: '第一章正文初稿撰写完成',
+        nextStepId: 'generic-novel-flow-step6',
+        switchAllowed: true
+      },
+      {
+        id: 'generic-novel-flow-step6',
+        stepNumber: 6,
+        name: '全书基础审稿',
+        description: '对初稿进行基础去AI腔与内容审校。',
+        input: 'draft',
+        output: 'polished-draft',
+        assetId: 'core-slop-shield',
+        qualityGate: '基础文本去AI腔完成，语流顺畅',
+        nextStepId: null,
+        switchAllowed: true
       }
     ]
   },
@@ -498,59 +637,64 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
     description: '番茄小说特化爆款爽文创作流程，紧扣平台签约评分和读者钩子规范。',
     steps: [
       {
+        id: 'tomato-platform-flow-step1',
         stepNumber: 1,
-        name: '番茄评分卡测评',
-        description: '结合番茄完读指标，深度诊断大纲设定红线。',
+        name: '番茄开篇诊断',
+        description: '评估番茄小说大纲，分析完读与签约红线。',
         input: 'outline',
-        output: 'platform-report',
+        output: 'diagnostic-report',
         assetId: 'tomato-scorecard', // 真实的番茄评分卡资产
-        qualityGateThreshold: 85,
-        nextStepId: 'tomato-platform-flow-step2'
+        qualityGate: '开篇大纲契合番茄爆款模型',
+        nextStepId: 'tomato-platform-flow-step2',
+        switchAllowed: true
       },
       {
+        id: 'tomato-platform-flow-step2',
         stepNumber: 2,
-        name: '番茄开篇爆款爽点质检',
-        description: '评估主角金手指在前三章的显露节奏与钩子是否合理。',
+        name: '黄金三章钩子强化',
+        description: '在章首章末铺设钩子，拉满黄金三章读者期望。',
         input: 'chapters',
-        output: 'chapters-polish-report',
-        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
-        qualityGateThreshold: 80,
-        nextStepId: 'tomato-platform-flow-step3'
-      },
-      {
-        stepNumber: 3,
-        name: '章首章末爽文钩子强化',
-        description: '使用番茄章首 7 式与章末 13 式，拉升读者完读预期。',
-        input: 'chapters-polished',
-        output: 'chapters-final',
+        output: 'chapters-with-hooks',
         assetId: 'hook-system', // 真实的钩子体系资产
-        qualityGateThreshold: 90
-      }
-    ]
-  },
-  {
-    id: 'generic-novel-flow',
-    name: '通用长篇基础流',
-    description: '面向全体创作者的免费默认长篇路线，汇聚最优质的内置与广场精品资源。',
-    steps: [
-      {
-        stepNumber: 1,
-        name: '通用大纲规划辅助',
-        description: '展开基础开书脑洞，设定基础爽点与基础主角人设。',
-        input: 'idea-seed',
-        output: 'basic-outline',
-        assetId: 'generateOutline', // 真实的内置大纲辅助器
-        qualityGateThreshold: 70,
-        nextStepId: 'generic-novel-flow-step2'
+        qualityGate: '前三章完读率预测指标及格',
+        nextStepId: 'tomato-platform-flow-step3',
+        switchAllowed: true
       },
       {
-        stepNumber: 2,
-        name: 'AI腔去化与净化废话',
-        description: '剔除翻译腔与机械叹气，加入动作张力。',
-        input: 'raw-draft',
-        output: 'clean-draft',
-        assetId: 'core-slop-shield', // 真实的去AI腔内置质量护栏
-        qualityGateThreshold: 75
+        id: 'tomato-platform-flow-step3',
+        stepNumber: 3,
+        name: '核心爽点黄金排布',
+        description: '评估主角金手指在前三章的显露节奏与钩子是否合理。',
+        input: 'chapters-with-hooks',
+        output: 'chapters-with-highlights',
+        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
+        qualityGate: '金手指爽点在前三章显露节奏合理',
+        nextStepId: 'tomato-platform-flow-step4',
+        switchAllowed: true
+      },
+      {
+        id: 'tomato-platform-flow-step4',
+        stepNumber: 4,
+        name: '完读与节奏自检',
+        description: '使用番茄章首 7 式与章末 13 式，拉升读者完读预期。',
+        input: 'chapters-with-highlights',
+        output: 'chapters-final-checked',
+        assetId: 'hook-system', // 真实的钩子体系资产
+        qualityGate: '完读悬念与读者期待达成闭环',
+        nextStepId: 'tomato-platform-flow-step5',
+        switchAllowed: true
+      },
+      {
+        id: 'tomato-platform-flow-step5',
+        stepNumber: 5,
+        name: '正文精修与美学润色',
+        description: '消除白话/废话，进行高质感爽文精润。',
+        input: 'chapters-final-checked',
+        output: 'chapters-final',
+        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
+        qualityGate: '全文爽感突出、文字干净利落',
+        nextStepId: null,
+        switchAllowed: true
       }
     ]
   },
@@ -560,27 +704,79 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
     description: '将精品图书拆解为高可读的结构、题材、节奏及文风参考卡，动态挂载至写作中。',
     steps: [
       {
+        id: 'book-deconstruction-flow-step1',
         stepNumber: 1,
         name: '神作高爽节奏拆解',
         description: '提取精品小说的黄金冲突节奏，形成可挂载节奏拆书卡。',
         input: 'source-book',
         output: 'deconstruction-cards',
         assetId: 'deconstruct-card-pacing', // 真实的节奏拆书卡
-        qualityGateThreshold: 80,
-        nextStepId: 'book-deconstruction-flow-step2'
+        qualityGate: '拆解出黄金起伏节奏点',
+        nextStepId: 'book-deconstruction-flow-step2',
+        switchAllowed: true
       },
       {
+        id: 'book-deconstruction-flow-step2',
         stepNumber: 2,
         name: '黄金开篇钩子拆解',
         description: '提取爆款小说的开篇钩子机制，形成开篇拆书卡。',
         input: 'source-book',
         output: 'deconstruction-cards-hook',
         assetId: 'deconstruct-card-hook', // 真实的钩子拆书卡
-        qualityGateThreshold: 85
+        qualityGate: '前 3 章核心悬念钩子提炼完毕',
+        nextStepId: null,
+        switchAllowed: true
       }
     ]
   }
 ];
+
+export function getNovelCurrentStepId(novel: Novel, activeSeriesId: string): string {
+  const tags = novel.projectPreferenceProfile?.tags || [];
+  const prefix = `current-step:${activeSeriesId}:`;
+  const found = tags.find(t => t.startsWith(prefix));
+  if (found) {
+    return found.slice(prefix.length);
+  }
+  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId);
+  if (flow && flow.steps.length > 0) {
+    return flow.steps[0].id;
+  }
+  return '';
+}
+
+export function getNovelCompletedStepIds(novel: Novel, activeSeriesId: string): string[] {
+  const tags = novel.projectPreferenceProfile?.tags || [];
+  const prefix = `completed-step:${activeSeriesId}:`;
+  return tags
+    .filter(t => t.startsWith(prefix))
+    .map(t => t.slice(prefix.length));
+}
+
+export function getNextFlowStep(
+  activeSeriesId: string,
+  currentStage: string,
+  completedStepIds: string[]
+): SkillSeriesFlowStep | null {
+  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId);
+  if (!flow) return null;
+
+  // 1. 如果 currentStage 是某个步骤的 ID，直接根据 nextStepId 寻找
+  const currentStep = flow.steps.find(s => s.id === currentStage);
+  if (currentStep) {
+    if (currentStep.nextStepId) {
+      return flow.steps.find(s => s.id === currentStep.nextStepId) || null;
+    }
+    return null; // 已经是最后一步
+  }
+
+  // 2. Fallback：如果 currentStage 为空或外部业务非步骤 ID，返回第一个未完成的步骤
+  const uncompleted = flow.steps.find(s => !completedStepIds.includes(s.id));
+  if (uncompleted) return uncompleted;
+
+  return null;
+}
+
 
 // ── V2.1 160+ Real Trackable Prompt Asset Construction ──
 
@@ -1243,3 +1439,236 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
     };
   });
 }
+
+/**
+ * 依据启发式规则推断资产的推荐卡片动作类别 (Get Prompt Asset Action Kind)
+ */
+export function getPromptAssetAction(asset: Partial<GovernedPromptAsset> & { id: string }): PromptAssetActionKind | null {
+  // 1. 过滤及不可执行规则拦截
+  if (
+    asset.placementTier === 'sanitize-required' ||
+    asset.placementTier === 'research-only' ||
+    asset.id.includes('test-fixture')
+  ) {
+    return null;
+  }
+
+  // 2. 拆书卡规则推断
+  const isDeconstruction =
+    asset.deconstructionCardType !== undefined ||
+    asset.id.startsWith('deconstruct-card-') ||
+    asset.id.startsWith('deconstruct-');
+  if (isDeconstruction) {
+    return 'deconstruction-card';
+  }
+
+  // 3. 质量护栏及平台标准规则
+  if (asset.primaryCategory === 'quality-guardrail' || asset.primaryCategory === 'platform-criteria') {
+    const isRewrite =
+      asset.id.includes('rewrite') ||
+      asset.id.includes('polish') ||
+      asset.id.includes('slop') ||
+      asset.id.includes('shield') ||
+      asset.id.includes('brush');
+    return isRewrite ? 'polish-rewrite' : 'audit-enhance';
+  }
+
+  // 4. 作者流程规则
+  if (asset.primaryCategory === 'author-workflow') {
+    return 'open-flow-step';
+  }
+
+  // 5. 题材包 / 风格参考规则
+  if (
+    asset.primaryCategory === 'style-reference' ||
+    asset.primaryCategory === 'constellation-pack'
+  ) {
+    return 'mount-skill';
+  }
+
+  return null;
+}
+
+/**
+ * 纯推断函数：对 Novel 对象的标签与文本内容进行归一化特征解析，不增加数据库字段
+ */
+export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
+  const profileTags = novel.projectPreferenceProfile?.tags || [];
+  const textToSearch = [
+    novel.title || '',
+    novel.summary || '',
+    novel.worldRules || '',
+    novel.globalOutline || '',
+    ...profileTags
+  ].join('\n').toLowerCase();
+
+  const isTomato = textToSearch.includes('番茄') || textToSearch.includes('tomato');
+  const targetPlatform = isTomato ? 'tomato' : undefined;
+
+  const detectedGenres: string[] = [];
+  const GENRE_KEYWORD_MAP: { [key: string]: string } = {
+    '玄幻': 'fantasy',
+    'fantasy': 'fantasy',
+    '修真': 'cultivation',
+    '修仙': 'cultivation',
+    'cultivation': 'cultivation',
+    '都市': 'urban',
+    'urban': 'urban',
+    '悬疑': 'mystery',
+    'mystery': 'mystery',
+    '言情': 'romance',
+    'romance': 'romance',
+    '科幻': 'sci-fi',
+    'sci-fi': 'sci-fi',
+    'scifi': 'sci-fi',
+    '末世': 'apocalypse',
+    'apocalypse': 'apocalypse',
+    '重生': 'rebirth',
+    'rebirth': 'rebirth'
+  };
+
+  for (const [kw, tag] of Object.entries(GENRE_KEYWORD_MAP)) {
+    if (textToSearch.includes(kw) && !detectedGenres.includes(tag)) {
+      detectedGenres.push(tag);
+    }
+  }
+
+  const mountedSkillIds = novel.mountedSkillIds || [];
+  const mountedSkillLoadoutIds = novel.mountedSkillLoadout?.map(item => item.skillId) || [];
+  const hasXiaofeiji =
+    profileTags.some(t => t.toLowerCase().includes('xiaofeiji') || t.includes('小飞鸡')) ||
+    mountedSkillIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡')) ||
+    mountedSkillLoadoutIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡'));
+
+  let activeSeriesId = 'generic-novel-flow';
+  if (hasXiaofeiji) {
+    activeSeriesId = 'xiaofeiji-novel-flow';
+  } else if (isTomato) {
+    activeSeriesId = 'tomato-platform-flow';
+  }
+
+  const commercialMode = isTomato ? 'strict' : 'free';
+
+  return {
+    targetPlatform,
+    genreTags: detectedGenres,
+    activeSeriesId,
+    commercialMode
+  };
+}
+
+export interface OpeningRecommendationInput {
+  ideaSeed?: string;
+  title?: string;
+  summary?: string;
+  targetWordCount?: number;
+  tags?: string[];
+}
+
+export interface OpeningRecommendationResult {
+  targetPlatform?: string;
+  genreTags: string[];
+  activeSeriesId: string;
+  tagsToApply: string[];
+  explanation: string;
+}
+
+/**
+ * 开新书时智能推荐平台、题材包、流程系列
+ */
+export function recommendOpeningGovernance(input: OpeningRecommendationInput): OpeningRecommendationResult {
+  const title = input.title || '';
+  const summary = input.summary || '';
+  const ideaSeed = input.ideaSeed || '';
+  const tags = input.tags || [];
+  const targetWordCount = input.targetWordCount;
+
+  const textToSearch = [title, summary, ideaSeed, ...tags].join('\n').toLowerCase();
+
+  // 识别平台与短篇特征
+  const isShortForm = 
+    textToSearch.includes('短篇') || 
+    textToSearch.includes('知乎') || 
+    textToSearch.includes('老福特') || 
+    textToSearch.includes('lofter') || 
+    (targetWordCount !== undefined && targetWordCount > 0 && targetWordCount < 50000);
+
+  const isTomatoMatched = 
+    textToSearch.includes('番茄') || 
+    textToSearch.includes('tomato') ||
+    textToSearch.includes('爽文') ||
+    textToSearch.includes('系统') ||
+    textToSearch.includes('重生');
+
+  const isXiaofeijiMatched =
+    textToSearch.includes('小飞鸡') ||
+    textToSearch.includes('xiaofeiji');
+
+  // 决定推荐流程 ID 和平台
+  let activeSeriesId = 'generic-novel-flow';
+  let targetPlatform: string | undefined = undefined;
+  let platformTagToApply: string[] = [];
+  let explanation = '根据您的新书灵感，推荐您使用通用创作流程。';
+
+  if (isShortForm) {
+    // 短篇/知乎/老福特：不误推长篇番茄流，即便带有“重生/系统”等词，也只走通用流
+    activeSeriesId = 'generic-novel-flow';
+    targetPlatform = undefined;
+    explanation = '检测到您偏向于短篇/故事性创作，为您推荐最契合的通用创作流程，不误推平台流。';
+  } else if (isXiaofeijiMatched) {
+    activeSeriesId = 'xiaofeiji-novel-flow';
+    platformTagToApply = ['小飞鸡'];
+    explanation = '识别到您的小飞鸡大组定制流偏好，推荐挂载小飞鸡八步连续创作流程。';
+  } else if (isTomatoMatched) {
+    activeSeriesId = 'tomato-platform-flow';
+    targetPlatform = 'tomato';
+    platformTagToApply = ['番茄'];
+    explanation = '由于包含番茄、爽文、系统或重生等平台特质词，为您推荐极速番茄爆款签约流程。';
+  }
+
+  // 题材识别
+  const detectedGenres: string[] = [];
+  const genreTagsToApply: string[] = [];
+  const GENRE_MAP: { [key: string]: { tag: string, label: string } } = {
+    '玄幻': { tag: 'fantasy', label: '玄幻' },
+    'fantasy': { tag: 'fantasy', label: '玄幻' },
+    '修真': { tag: 'cultivation', label: '修真' },
+    '修仙': { tag: 'cultivation', label: '修仙' },
+    'cultivation': { tag: 'cultivation', label: '修真' },
+    '都市': { tag: 'urban', label: '都市' },
+    'urban': { tag: 'urban', label: '都市' },
+    '悬疑': { tag: 'mystery', label: '悬疑' },
+    'mystery': { tag: 'mystery', label: '悬疑' },
+    '言情': { tag: 'romance', label: '言情' },
+    'romance': { tag: 'romance', label: '言情' },
+    '科幻': { tag: 'sci-fi', label: '科幻' },
+    'sci-fi': { tag: 'sci-fi', label: '科幻' },
+    'scifi': { tag: 'sci-fi', label: '科幻' },
+    '末世': { tag: 'apocalypse', label: '末世' },
+    'apocalypse': { tag: 'apocalypse', label: '末世' },
+    '重生': { tag: 'rebirth', label: '重生' },
+    'rebirth': { tag: 'rebirth', label: '重生' }
+  };
+
+  for (const [kw, info] of Object.entries(GENRE_MAP)) {
+    if (textToSearch.includes(kw) && !detectedGenres.includes(info.tag)) {
+      detectedGenres.push(info.tag);
+      if (!genreTagsToApply.includes(info.label)) {
+        genreTagsToApply.push(info.label);
+      }
+    }
+  }
+
+  // 最多推荐 2 个题材包
+  const finalGenreTags = detectedGenres.slice(0, 2);
+  const finalGenreTagsToApply = genreTagsToApply.slice(0, 2);
+
+  return {
+    targetPlatform,
+    genreTags: finalGenreTags,
+    activeSeriesId,
+    tagsToApply: [...platformTagToApply, ...finalGenreTagsToApply],
+    explanation
+  };
+}
+

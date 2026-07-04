@@ -15,7 +15,7 @@ import { scoreSlop, slopSummary } from '../src/lib/slop-scorer';
 import { StructuredAuditIssue } from '../src/lib/audit-structured';
 import { embedStructuredAudit } from '../shared/lib/audit-structured';
 import { SAMPLE_MOCKS } from '../scripts/run-chapter-acceptance';
-import { inferNovelGovernanceProfile } from '../src/components/book-factory/QualityTab';
+import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile } from '../shared/lib/prompt-assets-governed';
 
 test('extractPolishTargetsFromCritique extracts duplicate and rewrite targets from markdown critique', () => {
   const critique = `
@@ -363,4 +363,48 @@ test('inferNovelGovernanceProfile checks logic deduction across multiple scenari
   assert.equal(profile3.commercialMode, 'strict');
   assert.ok(profile3.genreTags.includes('cultivation'));
   assert.ok(profile3.genreTags.includes('rebirth'));
+});
+
+test('QualityTab recommended asset execution rules check', () => {
+  // 1. 番茄小说画像场景下，推荐资产的动作匹配
+  const novel: any = {
+    title: '重生之我在番茄修仙',
+    projectPreferenceProfile: { tags: ['番茄'] }
+  };
+  const profile = inferNovelGovernanceProfile(novel);
+
+  const assets = recommendPromptAssets({
+    targetPlatform: profile.targetPlatform,
+    genreTags: profile.genreTags,
+    currentStage: 'polish', // 有质量问题需要修补时的场景
+    activeSeriesId: profile.activeSeriesId,
+    commercialMode: profile.commercialMode
+  });
+
+  // 确保 core-slop-shield 去 AI 腔资产存在且其动作映射到 'polish-rewrite' (一键精修)
+  const slopShield = assets.find((a: any) => a.id === 'core-slop-shield');
+  if (slopShield) {
+    assert.equal(getPromptAssetAction(slopShield), 'polish-rewrite');
+  }
+
+  // 确保番茄评分卡资产存在且其动作映射到 'audit-enhance' (审核审计)
+  const scorecard = assets.find((a: any) => a.id === 'tomato-scorecard');
+  if (scorecard) {
+    assert.equal(getPromptAssetAction(scorecard), 'audit-enhance');
+  }
+
+  // 2. 其它类型资产的拦截规则验证 (不可执行资产不展示按钮)
+  const testFixtureAsset: any = {
+    id: 'test-fixture-123',
+    primaryCategory: 'quality-guardrail',
+    placementTier: 'core-default'
+  };
+  assert.equal(getPromptAssetAction(testFixtureAsset), null);
+
+  const sanitizeRequiredAsset: any = {
+    id: 'private-999',
+    primaryCategory: 'author-workflow',
+    placementTier: 'sanitize-required'
+  };
+  assert.equal(getPromptAssetAction(sanitizeRequiredAsset), null);
 });

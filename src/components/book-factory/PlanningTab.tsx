@@ -1,7 +1,24 @@
 import React from 'react';
-import { Feather, ListOrdered, Loader2, Plus, Sparkles } from 'lucide-react';
-import type { Chapter } from '../../../shared/types';
+import {
+  Feather,
+  ListOrdered,
+  Loader2,
+  Plus,
+  Sparkles,
+  Lightbulb,
+  ArrowRight,
+  CheckCircle2,
+  RefreshCcw,
+  Compass
+} from 'lucide-react';
+import type { Chapter, Novel, ProjectPreferenceProfile } from '../../../shared/types';
 import { cn } from '../../lib/utils';
+import {
+  SKILL_SERIES_FLOWS,
+  inferNovelGovernanceProfile,
+  getNovelCurrentStepId,
+  getNovelCompletedStepIds
+} from '../../../shared/lib/prompt-assets-governed.js';
 
 interface PlanningTabProps {
   renderContextReceipt: () => React.ReactNode;
@@ -16,6 +33,8 @@ interface PlanningTabProps {
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
   generationStatus: string | null;
+  novel: Novel;
+  onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
 }
 
 export function PlanningTab({
@@ -31,9 +50,150 @@ export function PlanningTab({
   onRewriteSelectedText,
   onUpdateChapterBeats,
   generationStatus,
+  novel,
+  onPreferenceProfileChange,
 }: PlanningTabProps) {
+  const activeProfile = inferNovelGovernanceProfile(novel);
+  const activeSeriesId = activeProfile.activeSeriesId || 'generic-novel-flow';
+  
+  const currentStepId = getNovelCurrentStepId(novel, activeSeriesId);
+  const completedStepIds = getNovelCompletedStepIds(novel, activeSeriesId);
+  
+  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId) || SKILL_SERIES_FLOWS[1];
+  const currentStepIndex = flow.steps.findIndex(s => s.id === currentStepId);
+  const currentStep = currentStepIndex !== -1 ? flow.steps[currentStepIndex] : flow.steps[0];
+  const displayStepNumber = currentStepIndex !== -1 ? currentStepIndex + 1 : 1;
+  const isLastStep = !currentStep.nextStepId;
+
+  const handleNextStep = async () => {
+    if (!onPreferenceProfileChange) return;
+
+    const nextStepId = currentStep.nextStepId;
+    const profile = novel.projectPreferenceProfile || {
+      tags: [],
+      weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
+      acceptedDimensions: [],
+      rejectedDimensions: [],
+      notes: [],
+      evidenceCount: 0
+    };
+
+    const oldTags = profile.tags || [];
+    const otherTags = oldTags.filter(
+      t => !t.startsWith(`current-step:${activeSeriesId}:`) && 
+           !t.startsWith(`completed-step:${activeSeriesId}:`)
+    );
+
+    const newCompletedSet = new Set(completedStepIds);
+    newCompletedSet.add(currentStep.id);
+    const newCompletedList = Array.from(newCompletedSet);
+
+    const completedTags = newCompletedList.map(id => `completed-step:${activeSeriesId}:${id}`);
+    const newTags = [...otherTags, ...completedTags];
+    if (nextStepId) {
+      newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
+    }
+
+    const updatedProfile = {
+      ...profile,
+      tags: newTags
+    };
+
+    await onPreferenceProfileChange(updatedProfile);
+  };
+
+  const handleResetFlow = async () => {
+    if (!onPreferenceProfileChange) return;
+    const profile = novel.projectPreferenceProfile || {
+      tags: [],
+      weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
+      acceptedDimensions: [],
+      rejectedDimensions: [],
+      notes: [],
+      evidenceCount: 0
+    };
+
+    const oldTags = profile.tags || [];
+    const newTags = oldTags.filter(
+      t => !t.startsWith(`current-step:${activeSeriesId}:`) && 
+           !t.startsWith(`completed-step:${activeSeriesId}:`)
+    );
+
+    const updatedProfile = {
+      ...profile,
+      tags: newTags
+    };
+
+    await onPreferenceProfileChange(updatedProfile);
+  };
+
   return (
     <div className="space-y-6">
+      {/* 磨砂玻璃态当前创作流程向导栏 (Premium Glassmorphism Workflow Banner) */}
+      <div className="relative overflow-hidden rounded-2xl border border-theme-border/50 bg-theme-sidebar/60 backdrop-blur-md p-5 shadow-lg transition-all duration-300 hover:shadow-xl group">
+        {/* 顶部 OKLCH 霓虹渐变发光灯带 (Neon Ambient Glow) */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500 via-indigo-500 to-pink-500 opacity-80" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-theme-accent/10 text-theme-accent border border-theme-accent/20">
+                <Compass size={10} className="animate-spin-slow" />
+                {flow.name}
+              </span>
+              <span className="text-xs font-semibold text-theme-muted">
+                步骤 {displayStepNumber} / {flow.steps.length}
+              </span>
+            </div>
+            
+            <h4 className="text-base font-bold text-theme-text flex items-center gap-1.5 leading-snug">
+              {currentStep.name}
+            </h4>
+            
+            <p className="text-xs text-theme-muted leading-relaxed max-w-[55ch]">
+              {currentStep.description}
+            </p>
+
+            {/* 必填质量门栏提示 (Quality Gate Indicator) */}
+            <div className="flex items-start gap-1.5 mt-2 bg-theme-accent/5 rounded-lg p-2.5 border border-theme-accent/10 max-w-[55ch]">
+              <Lightbulb size={14} className="text-theme-accent shrink-0 mt-0.5 animate-pulse" />
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold text-theme-accent uppercase tracking-wider block">质量检查门栏 (Quality Gate)</span>
+                <span className="text-xs text-theme-muted leading-relaxed block">{currentStep.qualityGate}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end justify-center gap-2 shrink-0">
+            <button
+              onClick={handleNextStep}
+              className="px-4 py-2.5 bg-gradient-to-r from-theme-accent to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5"
+            >
+              {isLastStep ? (
+                <>
+                  <CheckCircle2 size={14} />
+                  完成全流程创作
+                </>
+              ) : (
+                <>
+                  下一步步骤：{flow.steps[currentStepIndex + 1]?.name || ''}
+                  <ArrowRight size={14} />
+                </>
+              )}
+            </button>
+
+            {completedStepIds.length > 0 && (
+              <button
+                onClick={handleResetFlow}
+                className="px-3 py-1.5 bg-transparent hover:bg-theme-border/20 text-theme-muted hover:text-theme-text rounded-lg text-[10px] font-semibold transition-all duration-200 flex items-center justify-center gap-1"
+              >
+                <RefreshCcw size={10} />
+                重置流程进度
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
       {renderContextReceipt()}
       <div className="space-y-4">
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">

@@ -5,9 +5,11 @@ import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
 import { SourceBadge } from './SourceBadge';
 import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../../shared/types';
+import { recommendOpeningGovernance } from '../../shared/lib/prompt-assets-governed';
+import type { OpeningRecommendationResult } from '../../shared/lib/prompt-assets-governed';
 
 interface WelcomeViewProps {
-  onSelectStoryCard: (card: StoryIdeaCard, planning: StoryPlanningInput) => void;
+  onSelectStoryCard: (card: StoryIdeaCard, planning: StoryPlanningInput, recommendedTags?: string[]) => void;
   onJumpToLibrary: () => void;
   onSelectNovel: (novel: Novel) => void;
   onStartContinuationImport: () => void;
@@ -37,6 +39,21 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
     pacingPreference: 'tight',
     storyFocus: 'plot',
   });
+
+  const [selectedCardForRec, setSelectedCardForRec] = useState<StoryIdeaCard | null>(null);
+  const [recResult, setRecResult] = useState<OpeningRecommendationResult | null>(null);
+
+  const handleCardClick = (card: StoryIdeaCard) => {
+    const result = recommendOpeningGovernance({
+      ideaSeed: input || card.hook,
+      title: card.hook.slice(0, 18),
+      summary: card.whyItWorks,
+      targetWordCount: planning.expectedWordCount,
+      tags: [],
+    });
+    setSelectedCardForRec(card);
+    setRecResult(result);
+  };
 
   const { cards, source, isWaiting, isModelPending, warnings, submit } = useStoryCards({
     planning,
@@ -327,7 +344,7 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
               {cards.map((card) => (
                 <button
                   key={card.id}
-                  onClick={() => onSelectStoryCard(card, planning)}
+                  onClick={() => handleCardClick(card)}
                   className="text-left p-5 rounded-2xl border border-theme-border bg-theme-sidebar hover:border-theme-accent hover:shadow-md transition-all group"
                 >
                   <div className="text-sm font-bold text-theme-text mb-2 group-hover:text-theme-accent transition-colors">
@@ -377,6 +394,112 @@ export function WelcomeView({ onSelectStoryCard, onJumpToLibrary, onSelectNovel,
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+        {/* 智能开书治理配置推荐磨砂面板 */}
+        {selectedCardForRec && recResult && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/60 backdrop-blur-md p-4 animate-fade-in">
+            <div className="bg-theme-sidebar border border-theme-border/50 max-w-lg w-full rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col gap-4 animate-scale-in max-h-[90vh] overflow-y-auto">
+              {/* 顶部的精致彩色斜角彩条，点缀 premium 观感 */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-theme-accent/40 via-theme-accent to-theme-accent/60" />
+              
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-theme-accent/10 text-theme-accent border border-theme-accent/20">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-serif font-bold text-theme-text">智能开书配置推荐</h3>
+                    <p className="text-[10px] text-theme-muted">InkFlow AI Governance System</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setSelectedCardForRec(null); setRecResult(null); }}
+                  className="text-theme-muted hover:text-theme-text text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="border-t border-theme-border/40 my-1" />
+
+              <div className="space-y-4">
+                <div>
+                  <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block mb-1">选定方向</span>
+                  <p className="text-sm font-medium text-theme-text leading-relaxed">《{selectedCardForRec.hook.slice(0, 18)}》</p>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block mb-1.5">智能匹配分析</span>
+                  <p className="text-xs text-theme-muted leading-relaxed bg-theme-bg/30 p-3 rounded-xl border border-theme-border/30">
+                    {recResult.explanation}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block mb-2">建议挂载资产与流程</span>
+                  <div className="flex flex-col gap-2">
+                    {/* 推荐流程卡 */}
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-theme-accent/20 bg-theme-accent/5">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-6 items-center justify-center rounded-lg bg-theme-accent/10 text-theme-accent text-[11px] font-serif">⚡</span>
+                        <div>
+                          <div className="text-xs font-bold text-theme-text">
+                            {recResult.activeSeriesId === 'tomato-platform-flow' ? '番茄爆款连续创作流程' :
+                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '小飞鸡八步连续流程' :
+                             '通用小说创作连续流程'}
+                          </div>
+                          <div className="text-[10px] text-theme-muted">
+                            {recResult.activeSeriesId === 'tomato-platform-flow' ? '专为新书起步与平台签约优化' :
+                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '覆盖脑洞到去AI打磨的极致作者流' :
+                             '包含灵感/设定/分镜/正文/审稿的全流程'}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-theme-accent/10 text-theme-accent">流程</span>
+                    </div>
+
+                    {/* 推荐挂载的包与题材 */}
+                    {recResult.tagsToApply.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {recResult.tagsToApply.map(tag => (
+                          <span key={tag} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-theme-sidebar border border-theme-border/60 text-theme-text flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-theme-border/40 my-1" />
+
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <button
+                  onClick={() => {
+                    onSelectStoryCard(selectedCardForRec, planning);
+                    setSelectedCardForRec(null);
+                    setRecResult(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-xs font-bold transition-all text-center"
+                >
+                  直接跳过开书
+                </button>
+                <button
+                  onClick={() => {
+                    onSelectStoryCard(selectedCardForRec, planning, recResult.tagsToApply);
+                    setSelectedCardForRec(null);
+                    setRecResult(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-theme-text text-white hover:opacity-90 text-xs font-bold transition-all shadow-md text-center flex items-center justify-center gap-1"
+                >
+                  <Sparkles size={12} />
+                  接受推荐，建立作品
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -12,7 +12,12 @@ import {
   GOVERNED_ASSETS_V2_REGISTRY,
   recommendPromptAssets,
   PROMPT_GOVERNANCE_CATALOG,
-  SKILL_SERIES_FLOWS
+  SKILL_SERIES_FLOWS,
+  getPromptAssetAction,
+  recommendOpeningGovernance,
+  getNovelCurrentStepId,
+  getNovelCompletedStepIds,
+  getNextFlowStep
 } from '../shared/lib/prompt-assets-governed.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -467,4 +472,250 @@ test('recommendPromptAssets is side-effect free, immutable and idempotent (V2.1.
     assert.equal(res1[i].recommendationReason, res2[i].recommendationReason, `Idempotency check at index ${i}: recommendationReason should match`);
   }
 });
+
+test('getPromptAssetAction maps asset kinds correctly', () => {
+  // Test 1: sanitize-required or research-only or test-fixture -> null
+  const assetSanitize: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'some-asset',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'sanitize-required',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetSanitize), null);
+
+  const assetResearch: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'some-asset',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'research-only',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetResearch), null);
+
+  const assetFixture: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'test-fixture-123',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetFixture), null);
+
+  // Test 2: Deconstruction card -> deconstruction-card
+  const assetDeconstruct1: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'deconstruct-card-abc',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetDeconstruct1), 'deconstruction-card');
+
+  const assetDeconstruct2: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'some-id',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active',
+    deconstructionCardType: 'worldview-card'
+  };
+  assert.equal(getPromptAssetAction(assetDeconstruct2), 'deconstruction-card');
+
+  // Test 3: Quality guardrails
+  const assetRewrite: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'core-slop-shield',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    primaryCategory: 'quality-guardrail',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetRewrite), 'polish-rewrite');
+
+  const assetAudit: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'general-audit',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    primaryCategory: 'quality-guardrail',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetAudit), 'audit-enhance');
+
+  // Test 4: Author workflow -> open-flow-step
+  const assetWorkflow: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'workflow-abc',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    primaryCategory: 'author-workflow',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetWorkflow), 'open-flow-step');
+
+  // Test 5: Style reference or constellation pack -> mount-skill
+  const assetStyle: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'style-abc',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    primaryCategory: 'style-reference',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetStyle), 'mount-skill');
+
+  const assetPack: Partial<GovernedPromptAsset> & { id: string } = {
+    id: 'pack-abc',
+    title: 'Test',
+    template: 'Test',
+    placementTier: 'core-default',
+    primaryCategory: 'constellation-pack',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'raw',
+    runtimeStatus: 'active'
+  };
+  assert.equal(getPromptAssetAction(assetPack), 'mount-skill');
+});
+
+test('recommendOpeningGovernance matches different creation scenarios correctly', () => {
+  // Scenario 1: 番茄玄幻长篇
+  const recTomato = recommendOpeningGovernance({
+    ideaSeed: '这是一个番茄修仙小说，带系统和重生',
+    title: '修仙之我有无限寿元',
+    targetWordCount: 200000
+  });
+  assert.equal(recTomato.activeSeriesId, 'tomato-platform-flow');
+  assert.equal(recTomato.targetPlatform, 'tomato');
+  assert.ok(recTomato.tagsToApply.includes('番茄'));
+  assert.ok(recTomato.genreTags.includes('cultivation'));
+  assert.ok(recTomato.tagsToApply.includes('修仙'));
+
+  // Scenario 2: 不确定平台长篇 (通用流)
+  const recGeneric = recommendOpeningGovernance({
+    ideaSeed: '一个凡人修仙传风格的长篇作品',
+    title: '凡人问道',
+    targetWordCount: 500000
+  });
+  assert.equal(recGeneric.activeSeriesId, 'generic-novel-flow');
+  assert.equal(recGeneric.targetPlatform, undefined);
+  assert.ok(!recGeneric.tagsToApply.includes('番茄'));
+
+  // Scenario 3: 小飞鸡定制流长篇
+  const recXiaofeiji = recommendOpeningGovernance({
+    ideaSeed: '小飞鸡流，高武玄幻脑洞设定',
+    title: '武道通天',
+    targetWordCount: 300000
+  });
+  assert.equal(recXiaofeiji.activeSeriesId, 'xiaofeiji-novel-flow');
+  assert.ok(recXiaofeiji.tagsToApply.includes('小飞鸡'));
+
+  // Scenario 4: 短篇/知乎/老福特 拦截平台推荐
+  const recShortZhihu = recommendOpeningGovernance({
+    ideaSeed: '知乎短篇：重生在手撕绿茶系统那天',
+    title: '手撕绿茶系统',
+    targetWordCount: 15000
+  });
+  // 即使包含“系统”、“重生”，也应该因为“知乎短篇”或者字数小于 5w 被拦截，退回通用流
+  assert.equal(recShortZhihu.activeSeriesId, 'generic-novel-flow');
+  assert.equal(recShortZhihu.targetPlatform, undefined);
+  assert.ok(!recShortZhihu.tagsToApply.includes('番茄'));
+
+  // Scenario 5: 题材包识别与上限控制 (最多推荐2个)
+  const recGenres = recommendOpeningGovernance({
+    ideaSeed: '科幻，悬疑，言情，都市，末世大乱斗',
+    title: '大杂烩',
+    targetWordCount: 100000
+  });
+  assert.ok(recGenres.genreTags.length <= 2, 'Genre tags count should be capped at 2');
+});
+
+test('Skill Series Flow sequence progression, steps fields and pointer calculators work correctly', () => {
+  // 1. 验证三大主创作系列注册表完整性与字段
+  const xiaofeiji = SKILL_SERIES_FLOWS.find(f => f.id === 'xiaofeiji-novel-flow');
+  assert.ok(xiaofeiji);
+  assert.equal(xiaofeiji.steps.length, 8);
+  for (const s of xiaofeiji.steps) {
+    assert.ok(s.id);
+    assert.ok(s.qualityGate);
+    assert.ok('nextStepId' in s);
+    assert.equal(typeof s.switchAllowed, 'boolean');
+  }
+
+  const generic = SKILL_SERIES_FLOWS.find(f => f.id === 'generic-novel-flow');
+  assert.ok(generic);
+  assert.equal(generic.steps.length, 6);
+
+  const tomato = SKILL_SERIES_FLOWS.find(f => f.id === 'tomato-platform-flow');
+  assert.ok(tomato);
+  assert.equal(tomato.steps.length, 5);
+
+  // 2. 验证 getNovelCurrentStepId
+  const mockNovelEmpty: any = { id: '1', title: 'Empty', projectPreferenceProfile: { tags: [] } };
+  const stepId1 = getNovelCurrentStepId(mockNovelEmpty, 'xiaofeiji-novel-flow');
+  assert.equal(stepId1, 'xiaofeiji-novel-flow-step1');
+
+  const mockNovelWithActive: any = {
+    id: '2',
+    title: 'Active',
+    projectPreferenceProfile: {
+      tags: ['current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step3']
+    }
+  };
+  const stepId3 = getNovelCurrentStepId(mockNovelWithActive, 'xiaofeiji-novel-flow');
+  assert.equal(stepId3, 'xiaofeiji-novel-flow-step3');
+
+  // 3. 验证 getNovelCompletedStepIds
+  const mockNovelCompleted: any = {
+    id: '3',
+    title: 'Completed',
+    projectPreferenceProfile: {
+      tags: [
+        'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1',
+        'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step2',
+        'completed-step:other-flow:some-step'
+      ]
+    }
+  };
+  const completedIds = getNovelCompletedStepIds(mockNovelCompleted, 'xiaofeiji-novel-flow');
+  assert.deepEqual(completedIds, ['xiaofeiji-novel-flow-step1', 'xiaofeiji-novel-flow-step2']);
+
+  // 4. 验证 getNextFlowStep 向前推演
+  // case 4.1: currentStage 在步骤中，有 nextStepId
+  const nextStepFrom1 = getNextFlowStep('xiaofeiji-novel-flow', 'xiaofeiji-novel-flow-step1', []);
+  assert.ok(nextStepFrom1);
+  assert.equal(nextStepFrom1.id, 'xiaofeiji-novel-flow-step2');
+
+  // case 4.2: currentStage 在尾步骤，无 nextStepId
+  const nextStepFrom8 = getNextFlowStep('xiaofeiji-novel-flow', 'xiaofeiji-novel-flow-step8', []);
+  assert.equal(nextStepFrom8, null);
+
+  // case 4.3: currentStage 不是步骤 ID (非流程内标识)，Fallback 到第一个未完成的步骤
+  const nextStepFallbackEmpty = getNextFlowStep('xiaofeiji-novel-flow', 'review', []);
+  assert.ok(nextStepFallbackEmpty);
+  assert.equal(nextStepFallbackEmpty.id, 'xiaofeiji-novel-flow-step1');
+
+  const nextStepFallbackSome = getNextFlowStep('xiaofeiji-novel-flow', 'review', ['xiaofeiji-novel-flow-step1', 'xiaofeiji-novel-flow-step2']);
+  assert.ok(nextStepFallbackSome);
+  assert.equal(nextStepFallbackSome.id, 'xiaofeiji-novel-flow-step3');
+});
+
 

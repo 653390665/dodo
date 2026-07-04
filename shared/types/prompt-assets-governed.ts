@@ -46,6 +46,16 @@ export type PromptCategoryV2 =
   | 'style-reference';
 
 /**
+ * 推荐卡片可执行动作分类 (Prompt Asset Action Kind)
+ */
+export type PromptAssetActionKind =
+  | 'audit-enhance'
+  | 'polish-rewrite'
+  | 'mount-skill'
+  | 'open-flow-step'
+  | 'deconstruction-card';
+
+/**
  * 敏感词物理抹除清洗命中报告 (Sanitization Hits Report)
  */
 export interface SanitizationHits {
@@ -154,4 +164,11 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
 
   /** 推荐原因（由路由引擎动态组装） */
   recommendationReason?: string;
+}
+
+export interface InferenceOutput {
+  targetPlatform?: string;
+  genreTags: string[];
+  activeSeriesId: string;
+  commercialMode: 'free' | 'paid' | 'strict';
 }
