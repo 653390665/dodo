@@ -6,6 +6,7 @@ import { renderPromptTemplate, resolveChainPrompt, wrapUserInput } from '../help
 import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
+import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 
 interface PacingInputChapter {
   order?: number;
@@ -72,7 +73,7 @@ ${genderConstraint}
 
   app.post('/api/generate-outline', async (req, res) => {
     try {
-      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId } = req.body;
+      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId, chapterOrder } = req.body;
 
       // Load continuation pack context if provided
       let packContext = '';
@@ -82,6 +83,8 @@ ${genderConstraint}
           packContext = buildContinuationContext(pack);
         }
       }
+
+      const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
 
       const promptAsset = resolvePromptAssetForSurface({
         surface,
@@ -94,6 +97,7 @@ ${genderConstraint}
         worldRules: [
           worldRules ? `世界观及设定：${worldRules}` : '',
           packContext,
+          budgetGuidelines,
         ].filter(Boolean).join('\n\n'),
         seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
       });

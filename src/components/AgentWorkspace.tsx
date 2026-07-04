@@ -94,6 +94,11 @@ interface AgentWorkspaceProps {
   relationships: EntityRelationship[];
   isDocked?: boolean;
   activeEntityNames?: string[];
+  skippedAssetIds?: string[];
+  stackedDeconstructionCardIds?: string[];
+  onStackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onSkipAsset?: (assetId: string) => Promise<void>;
 }
 
 export function AgentWorkspace({
@@ -165,6 +170,11 @@ export function AgentWorkspace({
   isDocked = false,
   activeEntityNames = [],
   factions,
+  skippedAssetIds,
+  stackedDeconstructionCardIds,
+  onStackDeconstructionCard,
+  onUnstackDeconstructionCard,
+  onSkipAsset,
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
 
@@ -528,6 +538,11 @@ export function AgentWorkspace({
                 locations={locations}
                 items={items}
                 factions={factions}
+                skippedAssetIds={skippedAssetIds}
+                stackedDeconstructionCardIds={stackedDeconstructionCardIds}
+                onStackDeconstructionCard={onStackDeconstructionCard}
+                onUnstackDeconstructionCard={onUnstackDeconstructionCard}
+                onSkipAsset={onSkipAsset}
                 onSwitchTab={setAgentTab}
                 onPreferenceProfileChange={onPreferenceProfileChange}
               />

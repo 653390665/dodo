@@ -118,6 +118,7 @@ export function useEditorGenerationFlow({
           contextStr,
           skills: mountedSkills,
           novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
+          chapterOrder: currentChapter ? currentChapter.order : 1,
         }),
         signal: controller.signal,
       });
@@ -312,6 +313,7 @@ export function useEditorGenerationFlow({
           worldRules: novel.worldRules,
           seedOutline: globalOutline,
           expectedWordCount,
+          chapterOrder: currentChapter ? currentChapter.order : 1,
           ...(selectedContinuationPackId ? { continuationPackId: selectedContinuationPackId } : {}),
         }),
         signal: controller.signal,
@@ -366,6 +368,7 @@ export function useEditorGenerationFlow({
           skills: mountedSkills,
           draftContent: currentChapter.content || '',
           novelId: novel.id, // 深度透传当前小说ID，用于配额卡控 (Novel ID pass-through for quota validation)
+          chapterOrder: currentChapter ? currentChapter.order : 1,
         }),
         signal: controller.signal,
       });

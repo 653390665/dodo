@@ -21,6 +21,7 @@ import { useChapterVersions } from '../lib/hooks/useChapterVersions';
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 import { useSkillLoadoutManager } from '../lib/hooks/useSkillLoadoutManager';
 import { useChapterUndo } from '../lib/hooks/useChapterUndo';
+import { toast } from '../lib/toast';
 
 interface EditorViewProps {
   novel: Novel;
@@ -126,6 +127,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
   };
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // 推荐卡 V2：状态与操作
+  const [skippedAssetIds, setSkippedAssetIds] = useState<string[]>([]);
+  const [stackedDeconstructionCardIds, setStackedDeconstructionCardIds] = useState<string[]>([]);
 
   const isChapterEmpty = !currentChapter?.content || currentChapter.content.trim() === '';
 
@@ -379,6 +384,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     sniffedEntities,
     userIntent,
     agentTab,
+    stackedDeconstructionCardIds,
   });
 
   const runCopilotAction = async (actionKey: CopilotActionKey) => {
@@ -448,6 +454,24 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     persistSkillLoadout,
     getCurrentFitScore,
   });
+
+  const handleStackDeconstructionCard = async (assetId: string) => {
+    setStackedDeconstructionCardIds(prev => [...prev, assetId]);
+    await recordSkillUsage('accepted', { notes: `stacked:${assetId}`, skillIds: [assetId] });
+    toast('已成功叠加拆书卡，相关素材将融入后续生成上下文', 'success');
+  };
+
+  const handleUnstackDeconstructionCard = async (assetId: string) => {
+    setStackedDeconstructionCardIds(prev => prev.filter(id => id !== assetId));
+    await recordSkillUsage('rejected', { notes: `unstacked:${assetId}`, skillIds: [assetId] });
+    toast('已撤销拆书卡叠加', 'info');
+  };
+
+  const handleSkipAsset = async (assetId: string) => {
+    setSkippedAssetIds(prev => [...prev, assetId]);
+    await recordSkillUsage('rejected', { notes: `skipped:${assetId}`, skillIds: [assetId] });
+    toast('已跳过该推荐，自动更换其他推荐', 'info');
+  };
 
   const buildAgentContext = (): AgentContext => agentContext;
 
@@ -693,6 +717,11 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
             mountedSkillLoadout={mountedSkillLoadout}
             onAssignSkill={assignSkillToSlot}
             onRemoveSkill={removeSkillFromSlot}
+            skippedAssetIds={skippedAssetIds}
+            stackedDeconstructionCardIds={stackedDeconstructionCardIds}
+            onStackDeconstructionCard={handleStackDeconstructionCard}
+            onUnstackDeconstructionCard={handleUnstackDeconstructionCard}
+            onSkipAsset={handleSkipAsset}
             projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
             onPreferenceProfileChange={persistProjectPreferenceProfile}
             versions={versions}

@@ -16,6 +16,7 @@ export interface AgentContext {
   activeEntityNames?: string[]; // Used for context pruning
   mountedSkills?: Skill[];
   sceneType?: SceneType;
+  chapterOrder?: number;
 }
 
 type NamedEntity = Pick<Character | Location | Item | Faction, 'name'>;
@@ -171,7 +172,13 @@ export async function editorAgentPhase(userIntent: string, context: AgentContext
   const response = await fetch('/api/editor-agent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userIntent, contextStr, surface: 'workspace-beats' satisfies PromptSurface, ...(continuationPackId ? { continuationPackId } : {}) })
+    body: JSON.stringify({
+      userIntent,
+      contextStr,
+      surface: 'workspace-beats' satisfies PromptSurface,
+      chapterOrder: context.chapterOrder,
+      ...(continuationPackId ? { continuationPackId } : {})
+    })
   });
   const data = await response.json();
   if (!response.ok || data.error) {

@@ -728,6 +728,128 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         switchAllowed: true
       }
     ]
+  },
+  {
+    id: 'fenghua-short-flow',
+    name: '风华短篇/老福特流',
+    description: '风华短篇及老福特高美感故事创作流，聚焦快节奏、情感反转与极致画面描写。',
+    steps: [
+      {
+        id: 'fenghua-short-flow-step1',
+        stepNumber: 1,
+        name: '风华短篇脑洞爆款分析',
+        description: '深度剖析流行脑洞，拆解爆款内核。',
+        input: 'idea',
+        output: 'hook-idea',
+        assetId: 'square-88', // 【风华出品】短篇破解爆款第一步
+        qualityGate: '脑洞内核分析清晰，爽点明确',
+        nextStepId: 'fenghua-short-flow-step2',
+        switchAllowed: true
+      },
+      {
+        id: 'fenghua-short-flow-step2',
+        stepNumber: 2,
+        name: '老福特高美感大纲',
+        description: '定制短篇大纲，规划情感起伏与关键反转。',
+        input: 'hook-idea',
+        output: 'outline',
+        assetId: 'square-93', // 【风华出品】短篇破解爆款备用版
+        qualityGate: '故事主线大纲具备高情感反转弧度',
+        nextStepId: 'fenghua-short-flow-step3',
+        switchAllowed: true
+      },
+      {
+        id: 'fenghua-short-flow-step3',
+        stepNumber: 3,
+        name: '爆款短篇故事起名',
+        description: '结合读者喜好与意境，确定具有高点击率的标题。',
+        input: 'outline',
+        output: 'title',
+        assetId: 'square-114', // 【风华出品】小说起名器（短篇为主）
+        qualityGate: '标题意境饱满，具备高吸引力',
+        nextStepId: 'fenghua-short-flow-step4',
+        switchAllowed: true
+      },
+      {
+        id: 'fenghua-short-flow-step4',
+        stepNumber: 4,
+        name: '老福特极速开篇',
+        description: '撰写具有高吸引力的黄金开篇正文。',
+        input: 'title',
+        output: 'chapter-draft',
+        assetId: 'private-163', // 【风华出品】短篇拆文仿写
+        qualityGate: '前文冲突极速铺开，文风华美',
+        nextStepId: 'fenghua-short-flow-step5',
+        switchAllowed: true
+      },
+      {
+        id: 'fenghua-short-flow-step5',
+        stepNumber: 5,
+        name: '高维情感逻辑分析',
+        description: '审校短文的叙事逻辑与情感张力。',
+        input: 'chapter-draft',
+        output: 'chapter-polished',
+        assetId: 'square-122', // 【风华出品】短篇文章逻辑检测分析器
+        qualityGate: '故事逻辑闭环，情感张力达标',
+        nextStepId: null,
+        switchAllowed: true
+      }
+    ]
+  },
+  {
+    id: 'tianma-outline-flow',
+    name: '天马大纲流',
+    description: '天马大纲定制流，聚焦于细致的大纲规划、设定强化以及高潮情节的黄金节奏排布。',
+    steps: [
+      {
+        id: 'tianma-outline-flow-step1',
+        stepNumber: 1,
+        name: '天马爆款脑洞提炼',
+        description: '进行脑洞与灵感提炼，定位番茄网文特色卖点。',
+        input: 'idea',
+        output: 'hook-idea',
+        assetId: 'square-76', // 天马-脑洞生成-番茄爆款
+        qualityGate: '核心创意脑洞契合番茄爆款结构',
+        nextStepId: 'tianma-outline-flow-step2',
+        switchAllowed: true
+      },
+      {
+        id: 'tianma-outline-flow-step2',
+        stepNumber: 2,
+        name: '天马设定与节奏大纲',
+        description: '定制具有高连贯性、强设定的人物与背景大纲。',
+        input: 'hook-idea',
+        output: 'setting-outline',
+        assetId: 'square-41', // 天马-大纲生成-设定强化+节奏
+        qualityGate: '设定机制独特，故事节奏主线清晰',
+        nextStepId: 'tianma-outline-flow-step3',
+        switchAllowed: true
+      },
+      {
+        id: 'tianma-outline-flow-step3',
+        stepNumber: 3,
+        name: '天马三幕式高潮规划',
+        description: '使用标准三幕结构，详细排布高潮、对峙与高爽冲突点。',
+        input: 'setting-outline',
+        output: 'climax-outline',
+        assetId: 'square-39', // 天马-大纲生成-三幕式
+        qualityGate: '核心冲突具备明确的三幕式递进节奏',
+        nextStepId: 'tianma-outline-flow-step4',
+        switchAllowed: true
+      },
+      {
+        id: 'tianma-outline-flow-step4',
+        stepNumber: 4,
+        name: '天马通用分章大纲',
+        description: '对大纲进行细化，按章节进行结构性排布与大纲规划。',
+        input: 'climax-outline',
+        output: 'chapters-outline',
+        assetId: 'square-42', // 天马-通用章节大纲
+        qualityGate: '分章结构完备，钩子排布合理',
+        nextStepId: null,
+        switchAllowed: true
+      }
+    ]
   }
 ];
 
@@ -1261,6 +1383,7 @@ export interface RecommendationInput {
   currentStage?: 'planning' | 'drafting' | 'polish' | 'review' | 'refactor';
   commercialMode?: 'free' | 'paid' | 'strict';
   activeSeriesId?: string;
+  excludeAssetIds?: string[];
 }
 
 /**
@@ -1270,6 +1393,10 @@ export interface RecommendationInput {
 export function recommendPromptAssets(input: RecommendationInput): GovernedPromptAsset[] {
   // 1. 置信度物理过滤与安全拦截门禁
   const availableAssets = PROMPT_GOVERNANCE_CATALOG.filter(asset => {
+    if (input.excludeAssetIds && input.excludeAssetIds.includes(asset.id)) {
+      return false;
+    }
+
     // 物理隔离 test-fixture 极其它不合规置信度资产（非正式资产），豁免 V2 注册表核心资产
     const isV2Registry = GOVERNED_ASSETS_V2_REGISTRY.some(r => r.id === asset.id);
     if (
@@ -1540,9 +1667,25 @@ export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
     mountedSkillIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡')) ||
     mountedSkillLoadoutIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡'));
 
+  // 检查是否符合风华短篇/老福特流 (老福特 / lofter / 风华 / short)
+  const isFenghua =
+    textToSearch.includes('老福特') ||
+    textToSearch.includes('lofter') ||
+    textToSearch.includes('风华') ||
+    textToSearch.includes('short');
+
+  // 检查是否符合天马大纲流 (天马 / 大纲)
+  const isTianma =
+    textToSearch.includes('天马') ||
+    textToSearch.includes('大纲');
+
   let activeSeriesId = 'generic-novel-flow';
   if (hasXiaofeiji) {
     activeSeriesId = 'xiaofeiji-novel-flow';
+  } else if (isFenghua) {
+    activeSeriesId = 'fenghua-short-flow';
+  } else if (isTianma) {
+    activeSeriesId = 'tianma-outline-flow';
   } else if (isTomato) {
     activeSeriesId = 'tomato-platform-flow';
   }
@@ -1604,13 +1747,29 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
     textToSearch.includes('小飞鸡') ||
     textToSearch.includes('xiaofeiji');
 
+  const isFenghuaMatched =
+    textToSearch.includes('老福特') ||
+    textToSearch.includes('lofter') ||
+    textToSearch.includes('风华') ||
+    textToSearch.includes('short');
+
+  const isTianmaMatched =
+    textToSearch.includes('天马') ||
+    textToSearch.includes('大纲');
+
   // 决定推荐流程 ID 和平台
   let activeSeriesId = 'generic-novel-flow';
   let targetPlatform: string | undefined = undefined;
   let platformTagToApply: string[] = [];
   let explanation = '根据您的新书灵感，推荐您使用通用创作流程。';
 
-  if (isShortForm) {
+  if (isFenghuaMatched) {
+    activeSeriesId = 'fenghua-short-flow';
+    explanation = '检测到您偏向于风华/老福特短篇高美感创作，为您推荐最契合的风华短篇/老福特流。';
+  } else if (isTianmaMatched) {
+    activeSeriesId = 'tianma-outline-flow';
+    explanation = '检测到您需要精细规划小说设定与大纲节奏，为您推荐天马大纲定制流。';
+  } else if (isShortForm) {
     // 短篇/知乎/老福特：不误推长篇番茄流，即便带有“重生/系统”等词，也只走通用流
     activeSeriesId = 'generic-novel-flow';
     targetPlatform = undefined;

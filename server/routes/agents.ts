@@ -17,6 +17,7 @@ import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
 import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
+import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -60,7 +61,7 @@ export function registerAgentsRoutes(app: Express) {
   app.post('/api/editor-agent', async (req, res) => {
     if (!rateLimit('editor-agent')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain } = req.body;
+      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain, chapterOrder } = req.body;
       if (!userIntent.trim()) {
         return res.status(400).json({ error: 'userIntent is required' });
       }
@@ -74,9 +75,11 @@ export function registerAgentsRoutes(app: Express) {
         }
       }
 
-      const effectiveContextStr = packContext
+      const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+
+      const effectiveContextStr = (packContext
         ? `${contextStr}\n\n${packContext}`
-        : contextStr;
+        : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
 
       // Chain mode: run focused sub-prompts instead of monolithic template
       if (chain && Array.isArray(chain) && chain.length > 0) {
@@ -265,6 +268,7 @@ export function registerAgentsRoutes(app: Express) {
         skills = [],
         draftingSurface = 'workspace-draft',
         novelId,
+        chapterOrder,
       } = req.body;
 
       // ================================================================
@@ -281,6 +285,9 @@ export function registerAgentsRoutes(app: Express) {
         });
       }
 
+      const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+      const effectiveContextStr = contextStr + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+
       const writerAsset = resolvePromptAssetForSurface({
         surface: draftingSurface,
         promptTemplates: getConfig().promptTemplates,
@@ -288,7 +295,7 @@ export function registerAgentsRoutes(app: Express) {
       });
       const writerPrompt = renderPromptTemplate(writerAsset.template, {
         WRITER_SOUL,
-        contextStr,
+        contextStr: effectiveContextStr,
         skillsInfo: buildSkillsPrompt(skills || []),
         sceneBeats,
         criticFeedback: draftContent
@@ -302,10 +309,10 @@ export function registerAgentsRoutes(app: Express) {
           prompt: writerPrompt,
           ...ORCHESTRATE_WRITER_LLM_OPTIONS,
         });
-        text = ensureMinimumDraftLength(text, sceneBeats, contextStr);
+        text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr);
       } catch (error) {
         logger.warn('Writer generation fell back to local draft', error);
-        text = buildFallbackDraft(sceneBeats, contextStr);
+        text = buildFallbackDraft(sceneBeats, effectiveContextStr);
       }
 
       // 成功生成，消费 1 次额度 (Consume quota count)

@@ -2,9 +2,9 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   Bot, Loader2, MessageSquareWarning, Wand2, RefreshCw, Compass,
-  HeartCrack, Sparkles, Lightbulb
+  HeartCrack, Sparkles, Lightbulb, X
 } from 'lucide-react';
-import type { Chapter, AgentTab, Novel } from '../../../shared/types';
+import type { Chapter, AgentTab, Novel, MountedSkillLoadoutItem } from '../../../shared/types';
 import { extractStructuredAudit, stripEmbeddedStructuredAudit } from '../../../shared/lib/audit-structured';
 import { findPatchWindow } from '../../lib/chapter-polish';
 import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile } from '../../../shared/lib/prompt-assets-governed';
@@ -20,6 +20,14 @@ interface QualityTabProps {
   isGeneratingContent: boolean;
   onSwitchTab?: (tab: AgentTab) => void;
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
+  skippedAssetIds?: string[];
+  stackedDeconstructionCardIds?: string[];
+  onStackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onSkipAsset?: (assetId: string) => Promise<void>;
+  mountedSkillLoadout?: MountedSkillLoadoutItem[];
+  onAssignSkill?: (slot: number, skillId: string) => Promise<void>;
+  onRemoveSkill?: (slot: number) => Promise<void>;
 }
 
 export function QualityTab({
@@ -31,6 +39,14 @@ export function QualityTab({
   isGeneratingContent,
   onSwitchTab,
   onRunRecommendedAsset,
+  skippedAssetIds = [],
+  stackedDeconstructionCardIds = [],
+  onStackDeconstructionCard,
+  onUnstackDeconstructionCard,
+  onSkipAsset,
+  mountedSkillLoadout = [],
+  onAssignSkill,
+  onRemoveSkill,
 }: QualityTabProps) {
   const critiqueText = currentChapter?.critique || '';
   const structuredAudit = React.useMemo(() => {
@@ -98,9 +114,10 @@ export function QualityTab({
       genreTags: profile.genreTags,
       currentStage,
       activeSeriesId: profile.activeSeriesId,
-      commercialMode: profile.commercialMode
+      commercialMode: profile.commercialMode,
+      excludeAssetIds: skippedAssetIds,
     });
-  }, [novel, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues]);
+  }, [novel, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
 
   // 渲染尚未审计状态
   if (!hasCritique) {
@@ -209,36 +226,66 @@ export function QualityTab({
 
               const actionKind = getPromptAssetAction(asset);
 
+              // 判断状态
+              const isMounted = actionKind === 'mount-skill' && mountedSkillLoadout.some(item => item.skillId === asset.id);
+              const mountedSlotEntry = actionKind === 'mount-skill' ? mountedSkillLoadout.find(item => item.skillId === asset.id) : undefined;
+              const isStacked = actionKind === 'deconstruction-card' && stackedDeconstructionCardIds.includes(asset.id);
+
               return (
                 <div
                   key={asset.id}
-                  className="group relative p-4 rounded-xl border border-theme-border/40 bg-theme-sidebar/30 hover:bg-theme-sidebar/60 hover:border-theme-accent/40 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-3 overflow-hidden"
+                  className={`group relative p-4 rounded-xl border transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-3 overflow-hidden ${
+                    isMounted || isStacked
+                      ? 'border-emerald-500/40 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.04]'
+                      : 'border-theme-border/40 bg-theme-sidebar/30 hover:bg-theme-sidebar/60 hover:border-theme-accent/40'
+                  }`}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-theme-accent/0 to-theme-accent/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                  <div className="space-y-1 z-10 text-left flex-1">
-                    <div className="flex items-center gap-2">
+                  {/* 忽略按钮：右上角微型关闭，带过渡动效 */}
+                  {onSkipAsset && (
+                    <button
+                      type="button"
+                      aria-label="忽略此推荐"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onSkipAsset(asset.id);
+                      }}
+                      className="absolute top-2.5 right-2.5 p-1 text-theme-muted hover:text-red-500 hover:bg-red-500/5 rounded-md transition-all duration-200 opacity-0 group-hover:opacity-100 z-20 cursor-pointer"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+
+                  <div className="space-y-1 z-10 text-left flex-1 pr-6">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors duration-200">
                         {asset.title}
                       </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase shrink-0">
                         {asset.grade}级 ({asset.score}分)
                       </span>
+                      {(isMounted || isStacked) && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0 animate-pulse">
+                          {isMounted ? '已装备' : '已叠加'}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-theme-muted group-hover:text-theme-text transition-colors duration-200 leading-relaxed">
                       {asset.recommendationReason}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 z-10 text-[9px] font-bold">
-                    <span className="px-2 py-0.5 rounded bg-theme-accent/5 border border-theme-accent/10 text-theme-accent">
+                  <div className="flex items-center gap-2 shrink-0 z-10 text-[9px] font-bold flex-wrap md:flex-nowrap">
+                    <span className="px-2 py-0.5 rounded bg-theme-accent/5 border border-theme-accent/10 text-theme-accent shrink-0">
                       {sourceLabel}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-theme-border/40 border border-theme-border/60 text-theme-muted">
+                    <span className="px-2 py-0.5 rounded bg-theme-border/40 border border-theme-border/60 text-theme-muted shrink-0">
                       {tierLabel}
                     </span>
                     {actionKind && (
                       <button
+                        type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
                           if (onRunRecommendedAsset) {
@@ -249,15 +296,42 @@ export function QualityTab({
                             } else if (actionKind === 'open-flow-step') {
                               onSwitchTab?.('planning');
                               toast('正在为您切换到设计规划页执行该步骤', 'info');
-                            } else if (actionKind === 'mount-skill' || actionKind === 'deconstruction-card') {
-                              toast('本技能已准备就绪，将在下一版开放自动大纲注入', 'info');
+                            } else if (actionKind === 'mount-skill') {
+                              if (isMounted && mountedSlotEntry) {
+                                if (onRemoveSkill) {
+                                  await onRemoveSkill(mountedSlotEntry.slot);
+                                  toast('已撤销技能卡装备', 'info');
+                                }
+                              } else {
+                                if (onAssignSkill) {
+                                  const emptySlot = [1, 2, 3].find(slot => !mountedSkillLoadout.some(item => item.slot === slot)) || 1;
+                                  await onAssignSkill(emptySlot, asset.id);
+                                  toast('技能卡装备成功，已装配到空闲槽位', 'success');
+                                }
+                              }
+                            } else if (actionKind === 'deconstruction-card') {
+                              if (isStacked) {
+                                if (onUnstackDeconstructionCard) {
+                                  await onUnstackDeconstructionCard(asset.id);
+                                }
+                              } else {
+                                if (onStackDeconstructionCard) {
+                                  await onStackDeconstructionCard(asset.id);
+                                }
+                              }
                             }
                           }
                         }}
-                        className="px-2.5 py-1 text-[10px] font-bold rounded bg-theme-accent/10 hover:bg-theme-accent text-theme-accent hover:text-white transition-all duration-200 shadow-sm border border-theme-accent/20 cursor-pointer select-none"
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all duration-200 shadow-sm border cursor-pointer select-none shrink-0 ${
+                          isMounted || isStacked
+                            ? 'bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-theme-accent/10 hover:bg-theme-accent text-theme-accent hover:text-white border-theme-accent/20'
+                        }`}
                       >
                         {actionKind === 'polish-rewrite' || actionKind === 'audit-enhance' ? '一键精修' :
-                         actionKind === 'open-flow-step' ? '进入步骤' : '挂载资产'}
+                         actionKind === 'open-flow-step' ? '进入步骤' :
+                         actionKind === 'mount-skill' ? (isMounted ? '撤销装备' : '装备技能') :
+                         (isStacked ? '撤销叠加' : '叠加拆书卡')}
                       </button>
                     )}
                   </div>

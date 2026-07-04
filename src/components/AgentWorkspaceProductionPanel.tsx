@@ -60,6 +60,11 @@ interface AgentWorkspaceProductionPanelProps {
   onSwitchTab?: (tab: AgentTab) => void;
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
+  skippedAssetIds?: string[];
+  stackedDeconstructionCardIds?: string[];
+  onStackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
+  onSkipAsset?: (assetId: string) => Promise<void>;
 }
 export function AgentWorkspaceProductionPanel({
   agentTab,
@@ -111,6 +116,11 @@ export function AgentWorkspaceProductionPanel({
   onSwitchTab,
   onRunRecommendedAsset,
   onPreferenceProfileChange,
+  skippedAssetIds,
+  stackedDeconstructionCardIds,
+  onStackDeconstructionCard,
+  onUnstackDeconstructionCard,
+  onSkipAsset,
 }: AgentWorkspaceProductionPanelProps) {
   const selectedContinuationPack = continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -226,6 +236,11 @@ export function AgentWorkspaceProductionPanel({
       isGeneratingContent={isGeneratingContent}
       onSwitchTab={onSwitchTab}
       onRunRecommendedAsset={onRunRecommendedAsset}
+      skippedAssetIds={skippedAssetIds}
+      stackedDeconstructionCardIds={stackedDeconstructionCardIds}
+      onStackDeconstructionCard={onStackDeconstructionCard}
+      onUnstackDeconstructionCard={onUnstackDeconstructionCard}
+      onSkipAsset={onSkipAsset}
     />
   );
 }

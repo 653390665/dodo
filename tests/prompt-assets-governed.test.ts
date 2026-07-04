@@ -17,7 +17,8 @@ import {
   recommendOpeningGovernance,
   getNovelCurrentStepId,
   getNovelCompletedStepIds,
-  getNextFlowStep
+  getNextFlowStep,
+  inferNovelGovernanceProfile
 } from '../shared/lib/prompt-assets-governed.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -716,6 +717,42 @@ test('Skill Series Flow sequence progression, steps fields and pointer calculato
   const nextStepFallbackSome = getNextFlowStep('xiaofeiji-novel-flow', 'review', ['xiaofeiji-novel-flow-step1', 'xiaofeiji-novel-flow-step2']);
   assert.ok(nextStepFallbackSome);
   assert.equal(nextStepFallbackSome.id, 'xiaofeiji-novel-flow-step3');
+});
+
+test('recommendOpeningGovernance and inferNovelGovernanceProfile preset flows auto-routing works', () => {
+  // 1. 测试 inferNovelGovernanceProfile (风华短篇 & 天马大纲)
+  const novelFenghua: any = {
+    id: 'n-fh',
+    title: '我的老福特短篇小甜饼',
+    summary: '高美感风华风',
+    projectPreferenceProfile: { tags: [] }
+  };
+  const profileFenghua = inferNovelGovernanceProfile(novelFenghua);
+  assert.equal(profileFenghua.activeSeriesId, 'fenghua-short-flow');
+
+  const novelTianma: any = {
+    id: 'n-tm',
+    title: '天马行空的世界观',
+    summary: '大纲节奏设定',
+    projectPreferenceProfile: { tags: [] }
+  };
+  const profileTianma = inferNovelGovernanceProfile(novelTianma);
+  assert.equal(profileTianma.activeSeriesId, 'tianma-outline-flow');
+
+  // 2. 测试 recommendOpeningGovernance
+  const recFenghua = recommendOpeningGovernance({
+    ideaSeed: '一个在lofter上很火的短篇风华故事',
+    title: '老福特短篇',
+    targetWordCount: 20000
+  });
+  assert.equal(recFenghua.activeSeriesId, 'fenghua-short-flow');
+
+  const recTianma = recommendOpeningGovernance({
+    ideaSeed: '这是一个天马设定的故事，主线大纲',
+    title: '大纲设定',
+    targetWordCount: 150000
+  });
+  assert.equal(recTianma.activeSeriesId, 'tianma-outline-flow');
 });
 
 

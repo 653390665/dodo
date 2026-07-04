@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/prompt-assets-governed';
 
 import type {
   AgentTab,
@@ -38,6 +39,7 @@ interface UseEditorIntelligenceContextArgs {
   sniffedEntities: SniffedEntities | null;
   userIntent: string;
   agentTab: AgentTab;
+  stackedDeconstructionCardIds?: string[];
 }
 
 export function useEditorIntelligenceContext({
@@ -57,19 +59,45 @@ export function useEditorIntelligenceContext({
   sniffedEntities,
   userIntent,
   agentTab,
+  stackedDeconstructionCardIds,
 }: UseEditorIntelligenceContextArgs) {
   const mountedSkillIds = useMemo(
     () => mountedSkillLoadout.slice().sort((a, b) => a.slot - b.slot).map((entry) => entry.skillId),
     [mountedSkillLoadout],
   );
 
-  const mountedSkills = useMemo(
-    () =>
-      mountedSkillIds
-        .map((skillId) => librarySkills.find((skill) => skill.id === skillId))
-        .filter((skill): skill is Skill => Boolean(skill)),
-    [librarySkills, mountedSkillIds],
-  );
+  const mountedSkills = useMemo(() => {
+    const base = mountedSkillIds
+      .map((skillId) => librarySkills.find((skill) => skill.id === skillId))
+      .filter((skill): skill is Skill => Boolean(skill));
+
+    // 推荐卡 V2：叠加虚拟化的拆书卡/推荐卡
+    if (stackedDeconstructionCardIds && stackedDeconstructionCardIds.length > 0) {
+      stackedDeconstructionCardIds.forEach((cardId) => {
+        if (!base.some((s) => s.id === cardId)) {
+          const asset = PROMPT_GOVERNANCE_CATALOG.find((a) => a.id === cardId);
+          if (asset) {
+            const virtualSkill: Skill = {
+              id: asset.id,
+              name: asset.title,
+              description: asset.goal,
+              style: asset.template, // 用 template 充当 style 指引
+              pacing: asset.successSignal || '',
+              stabilityScore: asset.score || 80,
+              evaluationFeedback: asset.recommendationReason || '',
+              version: 1,
+              createdAt: 0,
+              primaryDimension: 'style',
+              deconstructionCardType: asset.deconstructionCardType,
+            };
+            base.push(virtualSkill);
+          }
+        }
+      });
+    }
+
+    return base;
+  }, [librarySkills, mountedSkillIds, stackedDeconstructionCardIds]);
 
   const sceneType = useMemo<SceneType | undefined>(() => {
     const signals = (userIntent || '') + (currentChapter?.content?.slice(-500) || '');
@@ -119,6 +147,7 @@ export function useEditorIntelligenceContext({
       activeEntityNames: sniffedEntities?.activeExisting,
       mountedSkills,
       sceneType,
+      chapterOrder: currentChapter ? currentChapter.order : 1,
     }),
     [
       characters,
@@ -132,6 +161,7 @@ export function useEditorIntelligenceContext({
       sceneType,
       sniffedEntities?.activeExisting,
       timelineEvents,
+      currentChapter,
     ],
   );
 
