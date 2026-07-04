@@ -212,6 +212,7 @@ export function AgentWorkspaceProductionPanel({
   return (
     <QualityTab
       currentChapter={currentChapter}
+      novel={novel}
       onRunAudit={onRunAudit}
       isGeneratingCritique={isGeneratingCritique}
       onPolishChapterFromAudit={onPolishChapterFromAudit}

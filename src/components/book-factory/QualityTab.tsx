@@ -4,12 +4,90 @@ import {
   Bot, Loader2, MessageSquareWarning, Wand2, RefreshCw, Compass,
   HeartCrack, Sparkles, Lightbulb
 } from 'lucide-react';
-import type { Chapter, AgentTab } from '../../../shared/types';
+import type { Chapter, AgentTab, Novel } from '../../../shared/types';
 import { extractStructuredAudit, stripEmbeddedStructuredAudit } from '../../../shared/lib/audit-structured';
 import { findPatchWindow } from '../../lib/chapter-polish';
+import { recommendPromptAssets } from '../../../shared/lib/prompt-assets-governed';
+
+export interface InferenceOutput {
+  targetPlatform?: string;
+  genreTags: string[];
+  activeSeriesId: string;
+  commercialMode: 'free' | 'paid' | 'strict';
+}
+
+/**
+ * 纯推断函数：对 Novel 对象的标签与文本内容进行归一化特征解析，不增加数据库字段
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
+  const profileTags = novel.projectPreferenceProfile?.tags || [];
+  const textToSearch = [
+    novel.title || '',
+    novel.summary || '',
+    novel.worldRules || '',
+    novel.globalOutline || '',
+    ...profileTags
+  ].join('\n').toLowerCase();
+
+  const isTomato = textToSearch.includes('番茄') || textToSearch.includes('tomato');
+  const targetPlatform = isTomato ? 'tomato' : undefined;
+
+  const detectedGenres: string[] = [];
+  const GENRE_KEYWORD_MAP: { [key: string]: string } = {
+    '玄幻': 'fantasy',
+    'fantasy': 'fantasy',
+    '修真': 'cultivation',
+    '修仙': 'cultivation',
+    'cultivation': 'cultivation',
+    '都市': 'urban',
+    'urban': 'urban',
+    '悬疑': 'mystery',
+    'mystery': 'mystery',
+    '言情': 'romance',
+    'romance': 'romance',
+    '科幻': 'sci-fi',
+    'sci-fi': 'sci-fi',
+    'scifi': 'sci-fi',
+    '末世': 'apocalypse',
+    'apocalypse': 'apocalypse',
+    '重生': 'rebirth',
+    'rebirth': 'rebirth'
+  };
+
+  for (const [kw, tag] of Object.entries(GENRE_KEYWORD_MAP)) {
+    if (textToSearch.includes(kw) && !detectedGenres.includes(tag)) {
+      detectedGenres.push(tag);
+    }
+  }
+
+  const mountedSkillIds = novel.mountedSkillIds || [];
+  const mountedSkillLoadoutIds = novel.mountedSkillLoadout?.map(item => item.skillId) || [];
+  const hasXiaofeiji =
+    profileTags.some(t => t.toLowerCase().includes('xiaofeiji') || t.includes('小飞鸡')) ||
+    mountedSkillIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡')) ||
+    mountedSkillLoadoutIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡'));
+
+  let activeSeriesId = 'generic-novel-flow';
+  if (hasXiaofeiji) {
+    activeSeriesId = 'xiaofeiji-novel-flow';
+  } else if (isTomato) {
+    activeSeriesId = 'tomato-platform-flow';
+  }
+
+  const commercialMode = isTomato ? 'strict' : 'free';
+
+  return {
+    targetPlatform,
+    genreTags: detectedGenres,
+    activeSeriesId,
+    commercialMode
+  };
+}
 
 interface QualityTabProps {
   currentChapter: Chapter | null;
+  novel: Novel;
   onRunAudit: () => Promise<void>;
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
@@ -19,6 +97,7 @@ interface QualityTabProps {
 
 export function QualityTab({
   currentChapter,
+  novel,
   onRunAudit,
   isGeneratingCritique,
   onPolishChapterFromAudit,
@@ -81,6 +160,19 @@ export function QualityTab({
   }, [structuredAudit, currentChapter]);
 
   const hasCritique = Boolean(critiqueText);
+
+  const recommendedAssets = React.useMemo(() => {
+    const hasIssues = autoFixableIssues.length > 0 || hardIssues.length > 0 || slopIssues.length > 0 || manualFixIssues.length > 0;
+    const currentStage = hasCritique ? (hasIssues ? 'polish' : 'review') : 'review';
+    const profile = inferNovelGovernanceProfile(novel);
+    return recommendPromptAssets({
+      targetPlatform: profile.targetPlatform,
+      genreTags: profile.genreTags,
+      currentStage,
+      activeSeriesId: profile.activeSeriesId,
+      commercialMode: profile.commercialMode
+    });
+  }, [novel, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues]);
 
   // 渲染尚未审计状态
   if (!hasCritique) {
@@ -166,6 +258,60 @@ export function QualityTab({
             {isGeneratingCritique ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             重新审计
           </button>
+        </div>
+      )}
+
+      {/* 1.5 下一步治理资产推荐 */}
+      {hasCritique && recommendedAssets.length > 0 && (
+        <div className="space-y-3.5">
+          <div className="flex items-center gap-1.5 text-xs font-black text-theme-accent uppercase tracking-wider">
+            <Compass size={13} />
+            <span>智能推荐下一步治理资产 ({recommendedAssets.length})</span>
+          </div>
+          <div className="space-y-3">
+            {recommendedAssets.map((asset) => {
+              let sourceLabel = '广场共享';
+              if (asset.sourceType === 'built-in') sourceLabel = '官方内置';
+              else if (asset.sourceType === 'licensed') sourceLabel = '私有授权';
+
+              let tierLabel = '引导推荐';
+              if (asset.placementTier === 'core-default') tierLabel = '核心底线';
+              else if (asset.placementTier === 'optional-style') tierLabel = '风格定制';
+              else if (asset.placementTier === 'flow-default') tierLabel = '流程顺承';
+
+              return (
+                <div
+                  key={asset.id}
+                  className="group relative p-4 rounded-xl border border-theme-border/40 bg-theme-sidebar/30 hover:bg-theme-sidebar/60 hover:border-theme-accent/40 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-3 overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-theme-accent/0 to-theme-accent/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+                  <div className="space-y-1 z-10 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors duration-200">
+                        {asset.title}
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase">
+                        {asset.grade}级 ({asset.score}分)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-theme-muted group-hover:text-theme-text transition-colors duration-200 leading-relaxed">
+                      {asset.recommendationReason}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 z-10 text-[9px] font-bold">
+                    <span className="px-2 py-0.5 rounded bg-theme-accent/5 border border-theme-accent/10 text-theme-accent">
+                      {sourceLabel}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-theme-border/40 border border-theme-border/60 text-theme-muted">
+                      {tierLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

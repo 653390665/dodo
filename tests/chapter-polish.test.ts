@@ -15,6 +15,7 @@ import { scoreSlop, slopSummary } from '../src/lib/slop-scorer';
 import { StructuredAuditIssue } from '../src/lib/audit-structured';
 import { embedStructuredAudit } from '../shared/lib/audit-structured';
 import { SAMPLE_MOCKS } from '../scripts/run-chapter-acceptance';
+import { inferNovelGovernanceProfile } from '../src/components/book-factory/QualityTab';
 
 test('extractPolishTargetsFromCritique extracts duplicate and rewrite targets from markdown critique', () => {
   const critique = `
@@ -321,4 +322,45 @@ test('SAMPLE_MOCKS fixtures verify extracting targets correctly', () => {
   const matureCritique = embedStructuredAudit(mockMature.critique, mockMature.structured);
   const matureExtracted = extractPolishTargetsFromCritique(matureCritique);
   assert.equal(matureExtracted.rewriteTargets.length, 0, 'mature rewrite targets should be 0');
+});
+
+test('inferNovelGovernanceProfile checks logic deduction across multiple scenarios', () => {
+  // 1. Default blank novel
+  const novel1: any = {
+    title: '',
+    summary: '',
+    worldRules: '',
+    globalOutline: '',
+    projectPreferenceProfile: { tags: [] },
+    mountedSkillIds: [],
+    mountedSkillLoadout: []
+  };
+  const profile1 = inferNovelGovernanceProfile(novel1);
+  assert.equal(profile1.targetPlatform, undefined);
+  assert.equal(profile1.activeSeriesId, 'generic-novel-flow');
+  assert.equal(profile1.commercialMode, 'free');
+  assert.deepEqual(profile1.genreTags, []);
+
+  // 2. Novel with "Xiaofeiji" tags
+  const novel2: any = {
+    title: '神秘的书',
+    summary: '一个故事',
+    projectPreferenceProfile: { tags: ['xiaofeiji-novel'] },
+    mountedSkillIds: []
+  };
+  const profile2 = inferNovelGovernanceProfile(novel2);
+  assert.equal(profile2.activeSeriesId, 'xiaofeiji-novel-flow');
+
+  // 3. Novel with Tomato, rebirth and cultivation keywords
+  const novel3: any = {
+    title: '重生之我在番茄修仙',
+    summary: '这是一个修仙的故事',
+    projectPreferenceProfile: { tags: ['番茄'] }
+  };
+  const profile3 = inferNovelGovernanceProfile(novel3);
+  assert.equal(profile3.targetPlatform, 'tomato');
+  assert.equal(profile3.activeSeriesId, 'tomato-platform-flow');
+  assert.equal(profile3.commercialMode, 'strict');
+  assert.ok(profile3.genreTags.includes('cultivation'));
+  assert.ok(profile3.genreTags.includes('rebirth'));
 });
