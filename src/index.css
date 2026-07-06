@@ -34,6 +34,7 @@
   }
 }
 
+/* 写作区域基础样式 (Writing Surface) */
 .writing-surface {
   font-family: var(--font-serif);
   line-height: 1.95;
@@ -54,40 +55,86 @@
   color: oklch(0.45 0.005 60);
 }
 
+/* --- 高密度专业创作者控制台设计系统 (Professional Creator Console Design System) --- */
+
+/* 1. 卡片圆角收紧与超细发丝边框 (Tight Round Corners & Hairline Borders) */
 .natural-card {
-  @apply bg-theme-sidebar border border-theme-border rounded-xl shadow-sm hover:shadow-md transition-all duration-300;
+  @apply bg-theme-sidebar rounded-md transition-all duration-150;
+  /* 使用 40% 不透明度的极细边框，完全消除厚重边框感 */
+  border: 1px solid color-mix(in oklch, var(--color-theme-border) 40%, transparent);
+  /* 采用极其微弱的单像素阴影，提升平面悬浮感而非立体投影 */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  /* 严禁 bouncy 动效，采用流畅、快速的指数级 Ease-out 缓动曲线 */
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.natural-card:hover {
+  /* 悬停时通过轻微增强边框不透明度来进行视觉反馈，替代厚重投影 */
+  border-color: color-mix(in oklch, var(--color-theme-border) 70%, transparent);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* 2. 紧凑型按钮与非 Bouncy 微交互 (Compact Buttons & Flat Active States) */
 .natural-btn-primary {
-  @apply px-4 py-2 bg-theme-accent text-white rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all;
+  /* 将 px-4 py-2 调整为紧凑的创作者面板规格 px-3.5 py-1.5，字号调整为较密的 text-xs */
+  @apply px-3.5 py-1.5 bg-theme-accent text-white rounded-md text-xs font-semibold shadow-sm transition-all duration-150;
+  /* 消除 active:scale-95 等 bouncy 缩放，采用更克制的亮度或不透明度微调 */
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Custom Scrollbar */
+.natural-btn-primary:hover {
+  @apply opacity-95;
+}
+
+.natural-btn-primary:active {
+  @apply opacity-85;
+}
+
+/* 3. JetBrains Mono 专属字型绑定 (JetBrains Mono tabular font settings) */
+/* 强制启用等宽数字 (tabular-nums)，确保在频繁变动的统计、字数计数、标签页和表格中不产生排版抖动 */
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 4. 辅助高密度创作者界面的发丝分割线与微件样式 (Hairline Dividers & Micro Elements) */
+.console-divider-h {
+  height: 1px;
+  width: 100%;
+  background-color: color-mix(in oklch, var(--color-theme-border) 35%, transparent);
+}
+
+.console-divider-v {
+  width: 1px;
+  height: 100%;
+  background-color: color-mix(in oklch, var(--color-theme-border) 35%, transparent);
+}
+
+/* 5. 极致极细滚动条设计 (Ultra-thin Premium Scrollbar) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #CBD5E1;
-  border-radius: 10px;
+  background-color: color-mix(in oklch, var(--color-theme-text) 10%, transparent);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #94A3B8;
+  background-color: color-mix(in oklch, var(--color-theme-text) 25%, transparent);
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background-color: #3a3a3a;
+  background-color: color-mix(in oklch, var(--color-theme-text) 15%, transparent);
 }
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background-color: #555555;
+  background-color: color-mix(in oklch, var(--color-theme-text) 30%, transparent);
 }
 
-/* Hide scrollbar for tabs */
+/* 移除 Tabs 的滚动条 */
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -98,7 +145,7 @@
   }
 }
 
-/* Global prefers-reduced-motion support */
+/* 全局支持减弱动画 (Respect user motion preferences) */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

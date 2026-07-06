@@ -62,7 +62,7 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
 
     // 2. Validate essential branding element or text is present on Welcome view
     // 验证欢迎页面上是否存在核心品牌元素或文本
-    await expect(page.locator('h1')).toContainText('InkFlow 小说创作工作台');
+    await expect(page.locator('h1')).toContainText('InkFlow 创作终端');
 
     // 3. Create a new project named "荒原黎明"
     // 创建一个名为 "荒原黎明" 的新作品
@@ -76,18 +76,18 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
 
     // Wait for the local fallback or model direction cards to generate and show up
     // 等待本地保底或模型生成的方向卡片渲染显示
-    const selectDirectionTitle = page.locator('h2:has-text("选一个方向，创建新作品")');
+    const selectDirectionTitle = page.locator('h2:has-text("立项推荐方案方向")');
     await expect(selectDirectionTitle).toBeVisible({ timeout: 10000 });
 
-    // Click the first direction card's button containing "选这个方向"
-    // 点击包含 "选这个方向" 的第一个方向卡片按钮
-    const firstDirectionCard = page.locator('button:has-text("选这个方向")').first();
+    // Click the first direction card's button containing "一键开始此立项"
+    // 点击包含 "一键开始此立项" 的第一个方向卡片按钮
+    const firstDirectionCard = page.locator('button:has-text("一键开始此立项")').first();
     await expect(firstDirectionCard).toBeVisible();
     await firstDirectionCard.click();
 
     // Handle "智能开书配置推荐" modal dialog and accept recommendation
     // 处理 "智能开书配置推荐" 模态框并接受推荐
-    const acceptRecommendationButton = page.locator('button:has-text("接受推荐，建立作品")');
+    const acceptRecommendationButton = page.locator('button:has-text("接受治理规划立项")');
     await expect(acceptRecommendationButton).toBeVisible();
     await acceptRecommendationButton.click();
 

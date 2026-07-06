@@ -6,7 +6,7 @@ export interface ContinuationEditorLaunchState {
   launchToken: number;
   shouldOpenProductionPanel: true;
   prefillIntent?: string;
-  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production' | 'cockpit-resume';
+  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production' | 'cockpit-resume' | 'cockpit-audit' | 'cockpit-polish';
   targetChapterId?: string;
 }
 

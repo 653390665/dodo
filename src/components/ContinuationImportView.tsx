@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, FileText, Loader2, PlusCircle, Upload } from 'lucide-react';
+import JSZip from 'jszip';
 
 import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
+import { cn } from '../lib/utils';
 import { listNovels, createNovel } from '../lib/novel-client';
 import { parseContinuationPack } from '../lib/prompt-client';
 import { updateContinuationPack } from '../lib/continuation-client';
@@ -11,6 +13,26 @@ import {
   resolveContinuationImportTargetMode,
 } from '../lib/continuation-import-flow';
 import { buildCreationIntentDraft } from '../lib/continuation-pack';
+
+// 校验文档是否是合法的、高熵的文本输入（排除系统临时文件如 .DS_Store 及 __MACOSX 目录）
+const isValidDocument = (filename: string): boolean => {
+  const name = filename.toLowerCase();
+  if (name.includes('__macosx') || name.startsWith('.') || name.includes('/.')) {
+    return false;
+  }
+  return name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.docx');
+};
+
+// 消毒文件路径，防御 Zip Slip (路径遍历/穿透) 漏洞
+const sanitizePath = (path: string): string => {
+  let clean = path.replace(/\\/g, '/');
+  // 移除盘符如 C:/
+  clean = clean.replace(/^[a-zA-Z]:\//, '');
+  // 切分段并过滤掉空段、"." 以及 ".." 防止逃逸
+  const segments = clean.split('/').filter((s) => s && s !== '.' && s !== '..');
+  return segments.join('/');
+};
+
 
 interface ContinuationImportViewProps {
   onBack: () => void;
@@ -44,6 +66,93 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const createdTargetNovelRef = useRef<Novel | null>(null);
+
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // 处理拖拽逻辑
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer && e.dataTransfer.files) {
+      processSelectedFiles(e.dataTransfer.files);
+    }
+  };
+
+  // 核心解析选定文件、文件夹和压缩文件包的主逻辑
+  const processSelectedFiles = async (selectedList: FileList | File[]) => {
+    setError('');
+    const newFiles: File[] = [];
+    const filesToProcess = Array.from(selectedList);
+
+    for (const file of filesToProcess) {
+      const filename = file.name;
+      // 如果是 ZIP 压缩包，在前端内存中完成异步解压
+      if (filename.toLowerCase().endsWith('.zip')) {
+        try {
+          const zip = await JSZip.loadAsync(file);
+          for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+            if (!zipEntry.dir && isValidDocument(relativePath)) {
+              const cleanedRelativePath = sanitizePath(relativePath);
+              if (!cleanedRelativePath) continue;
+              const contentBuffer = await zipEntry.async('arraybuffer');
+              const virtualFile = new File([contentBuffer], cleanedRelativePath, {
+                type: 'application/octet-stream',
+              });
+              newFiles.push(virtualFile);
+            }
+          }
+        } catch (err) {
+          setError(`解包文件 ${filename} 失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      } else {
+        // 如果是普通文件，或者 webkitdirectory 选中的多级文件夹文件
+        const finalName = file.webkitRelativePath || file.name;
+        if (isValidDocument(finalName)) {
+          const cleanedRelativePath = sanitizePath(finalName);
+          if (!cleanedRelativePath) continue;
+          if (file.webkitRelativePath) {
+            try {
+              const contentBuffer = await file.arrayBuffer();
+              const virtualFile = new File([contentBuffer], cleanedRelativePath, {
+                type: file.type || 'application/octet-stream',
+              });
+              newFiles.push(virtualFile);
+            } catch {
+              newFiles.push(file);
+            }
+          } else {
+            newFiles.push(file);
+          }
+        }
+      }
+    }
+
+    if (newFiles.length > 0) {
+      setFiles((prev) => {
+        const merged = [...prev];
+        for (const nf of newFiles) {
+          // 根据文件名及大小进行双重去重，防止二次添加
+          const exists = merged.some((f) => f.name === nf.name && f.size === nf.size);
+          if (!exists) {
+            merged.push(nf);
+          }
+        }
+        return merged;
+      });
+    }
+  };
+
 
   useEffect(() => {
     let isMounted = true;
@@ -221,35 +330,126 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             <div className="text-xs text-theme-muted mt-1">支持多文件 `.txt .md .json .docx`，会按一次任务整体解析。</div>
           </div>
         </div>
-
         <div className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
-          <div className="rounded-2xl border border-dashed border-theme-border bg-theme-sidebar/15 p-5">
-            <input
-              type="file"
-              multiple
-              accept=".txt,.md,.json,.docx"
-              onChange={(e) => {
-                setFiles(Array.from(e.target.files || []));
-                setError('');
-              }}
-              className="block w-full text-sm text-theme-muted file:mr-4 file:rounded-full file:border-0 file:bg-theme-text file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:opacity-90"
-            />
-            <div className="mt-4 text-xs text-theme-muted">
-              建议一起上传：世界观设定、章节大纲、任务要求、已有正文片段、人物状态说明。
-            </div>
-            <div className="mt-4 space-y-2">
-              {files.length > 0 ? (
-                files.map((file) => (
-                  <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2 text-xs text-theme-text">
-                    <FileText size={13} className="text-theme-muted shrink-0" />
-                    <span className="truncate">{file.name}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-theme-border bg-theme-sidebar px-3 py-4 text-xs text-theme-muted">
-                  还没选择文件。至少上传一个资料文件后才能开始解析。
-                </div>
+          <div className="space-y-4 rounded-2xl border border-theme-border bg-theme-sidebar/40 p-5">
+            {/* Drag and Drop Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={cn(
+                "rounded-2xl border-2 border-dashed p-6 transition-all duration-200 flex flex-col items-center justify-center min-h-[200px] bg-theme-sidebar/5",
+                isDragging
+                  ? "border-theme-accent bg-theme-accent/10 scale-[0.99] shadow-inner"
+                  : "border-theme-border hover:border-theme-accent/30 hover:bg-theme-sidebar/10"
               )}
+            >
+              {/* Hidden Inputs */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                multiple
+                accept=".txt,.md,.json,.docx,.zip"
+                onChange={(e) => {
+                  if (e.target.files) processSelectedFiles(e.target.files);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={folderInputRef}
+                multiple
+                {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                onChange={(e) => {
+                  if (e.target.files) processSelectedFiles(e.target.files);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div className={cn(
+                  "rounded-full p-3 transition-colors duration-200",
+                  isDragging ? "bg-theme-accent/20 text-theme-accent" : "bg-theme-border/20 text-theme-muted"
+                )}>
+                  <Upload size={24} className={cn(isDragging && "animate-pulse")} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-theme-text">
+                    {isDragging ? "松开鼠标以添加文件" : "将文件、文件夹或 ZIP 拖拽到此处"}
+                  </p>
+                  <p className="text-xs text-theme-muted mt-1">
+                    支持自动提取 .zip 和多级目录，仅保留文本设定/正文
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-lg bg-theme-sidebar border border-theme-border px-3 py-1.5 text-xs font-bold text-theme-text hover:border-theme-accent/40 hover:bg-theme-sidebar-hover transition-colors cursor-pointer"
+                  >
+                    选择文件 / ZIP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => folderInputRef.current?.click()}
+                    className="rounded-lg bg-theme-sidebar border border-theme-border px-3 py-1.5 text-xs font-bold text-theme-text hover:border-theme-accent/40 hover:bg-theme-sidebar-hover transition-colors cursor-pointer"
+                  >
+                    选择文件夹
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Queue List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+                  待解析文件队列 ({files.length})
+                </div>
+                {files.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFiles([])}
+                    className="text-xs font-bold text-theme-muted hover:text-red-500 transition-colors cursor-pointer"
+                  >
+                    清空队列
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {files.length > 0 ? (
+                  files.map((file, index) => (
+                    <div
+                      key={`${file.name}-${file.size}-${index}`}
+                      className="flex items-center gap-2 rounded-xl border border-theme-border bg-theme-sidebar/50 px-3 py-2 text-xs text-theme-text hover:border-theme-accent/30 hover:bg-theme-sidebar transition-colors"
+                    >
+                      <FileText size={14} className="text-theme-muted shrink-0" />
+                      <span className="truncate flex-1" title={file.name}>
+                        {file.name}
+                      </span>
+                      <span className="text-[10px] text-theme-muted shrink-0 font-mono">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== index))}
+                        className="text-theme-muted hover:text-red-500 transition-colors p-0.5 rounded hover:bg-theme-border/20 cursor-pointer flex items-center justify-center"
+                        title="移除此文件"
+                      >
+                        <PlusCircle size={14} className="rotate-45 transform" style={{ transform: 'rotate(45deg)' }} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-theme-border/60 bg-theme-sidebar/20 px-3 py-6 text-center text-xs text-theme-muted">
+                    还没选择任何资料文件。至少上传一个资料文件后才能开始解析。
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -138,12 +138,12 @@ export function buildCopilotSuggestion(input: CopilotInput): CopilotSuggestion {
     case 'pending-audit':
       return {
         stage,
-        stageLabel: '待审计',
-        title: '先做 AI 审计',
-        summary: '当前章节已有正文，但还没有经过一致性和节奏检查。',
-        primaryAction: { key: 'run-audit', label: '开始审计' },
+        stageLabel: '待审稿',
+        title: '先审这一章',
+        summary: '当前章节已有正文，但还没有经过一致性和节奏检查。建议立即启动审稿人审计。',
+        primaryAction: { key: 'run-audit', label: '开始审稿' },
         secondaryActions: [
-          { key: 'open-quality', label: '打开质量面板' },
+          { key: 'open-quality', label: '打开审稿面板' },
           { key: 'open-skills', label: '查看技能挂载' },
         ],
         reasons,
@@ -153,11 +153,11 @@ export function buildCopilotSuggestion(input: CopilotInput): CopilotSuggestion {
       return {
         stage: 'pending-polish',
         stageLabel: '待精修',
-        title: '按审计一键精修',
-        summary: '审计发现去AI味、动作链缺失、对白突兀等高价值问题，推荐一键执行局部手术式精修。',
+        title: '按审稿做局部精修',
+        summary: '审稿意见发现去 AI 味、动作链缺失、对白突兀等高价值问题，推荐执行局部手术式精修。',
         primaryAction: { key: 'run-polish', label: '局部手术精修' },
         secondaryActions: [
-          { key: 'open-quality', label: '查看审计问题' },
+          { key: 'open-quality', label: '查看审稿意见' },
           { key: 'open-planning', label: '回看分镜' },
         ],
         reasons,

@@ -106,6 +106,9 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const container = document.getElementById('settings-dialog-container');
       expect(container).not.toBeNull();
 
+      // Wait for focus trap setTimeout (50ms) to trigger inside SettingsModal
+      await new Promise(resolve => setTimeout(resolve, 60));
+
       const firstInput = container?.querySelector('input, select, textarea, button') as HTMLElement;
       if (firstInput) {
         expect(document.activeElement).toBe(firstInput);

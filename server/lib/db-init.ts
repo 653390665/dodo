@@ -26,7 +26,7 @@ const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
 };
 
 const DB_DIR = path.join(os.homedir(), '.inkflow');
-const DB_PATH = path.join(DB_DIR, 'data.db');
+export const DB_PATH = path.join(DB_DIR, 'data.db');
 
 function ensureColumn(table: string, column: string, definition: string) {
   const database = getDb();
@@ -43,10 +43,37 @@ export function initDb(dbPath?: string): void {
 
   if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
 
-  const _db = new Database(dbPath || DB_PATH, { nativeBinding: nativeBindingPath });
+  const targetPath = dbPath || DB_PATH;
+
+  const _db = new Database(targetPath, { nativeBinding: nativeBindingPath });
   setDb(_db);
   getDb().pragma('journal_mode = WAL');
   getDb().pragma('foreign_keys = ON');
+
+  // WAL 模式下事务安全的一致性启动自动快照冷备 (测试环境和临时测试数据库跳过，避免测试中生成未追踪的 .bak 文件并防范连接被快速关闭报错)
+  const baseName = path.basename(targetPath);
+  const isTestEnv =
+    process.env.NODE_ENV === 'test' ||
+    targetPath === ':memory:' ||
+    baseName.startsWith('test-') ||
+    baseName.endsWith('.test.db') ||
+    targetPath.includes('/tests/');
+
+  if (!isTestEnv) {
+    _db.backup(targetPath + '.bak')
+      .then(() => {
+        console.log(`[db-init] 启动自动快照一致性冷备成功: ${targetPath}.bak`);
+      })
+      .catch((err: unknown) => {
+        // 优雅容灾：如果因为快速关闭数据库连接导致备份失败，温和记录即可
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (errMsg.includes('connection is not open')) {
+          console.log(`[db-init] 启动自动冷备在连接断开时静默退出: ${errMsg}`);
+        } else {
+          console.error(`[db-init] 启动自动快照一致性冷备失败:`, err);
+        }
+      });
+  }
 
   getDb().exec(`
     CREATE TABLE IF NOT EXISTS novels (

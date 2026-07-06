@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
-import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X } from 'lucide-react';
+import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 import {
   DEFAULT_PROMPT_TEMPLATES,
@@ -32,7 +32,44 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab'>('quick');
+  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab' | 'dataManage'>('quick');
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleExportData = () => {
+    window.location.href = '/api/db/export-file';
+  };
+
+  const handleImportDataClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const confirmRestore = window.confirm("⚠️ 警告：导入旧数据会完全覆盖当前系统的所有小说、设定和章节，且无法撤销。系统在覆盖前会自动为您创建一份安全灾难备份。您确定要执行覆盖恢复吗？");
+    if (!confirmRestore) {
+      e.target.value = '';
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch('/api/db/import-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error) throw new Error(data.error || '恢复数据失败');
+      alert("🎉 数据恢复成功！页面即将自动刷新加载最新数据。");
+      window.location.reload();
+    } catch (err) {
+      alert(`❌ 恢复数据失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -104,15 +141,18 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     };
     window.addEventListener('keydown', handleKeyDown);
 
-    // Auto focus first interactive element
-    const modalElement = document.getElementById('settings-dialog-container');
-    if (modalElement) {
-      const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
-      if (firstInput) firstInput.focus();
-    }
+    // Auto focus first interactive element with a small timeout to ensure DOM is ready
+    const focusTimer = setTimeout(() => {
+      const modalElement = document.getElementById('settings-dialog-container');
+      if (modalElement) {
+        const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+        if (firstInput) firstInput.focus();
+      }
+    }, 50);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(focusTimer);
       if (previouslyActive && typeof previouslyActive.focus === 'function') {
         previouslyActive.focus();
       }
@@ -205,7 +245,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
         className={`relative my-4 flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl transition-all duration-300 ${
-          settingsTab === 'quick' ? 'max-w-xl' : 'max-w-6xl'
+          settingsTab === 'quick' || settingsTab === 'dataManage' ? 'max-w-xl' : 'max-w-6xl'
         }`}
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
@@ -228,6 +268,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
           <TabsList className="mb-5 self-start w-full max-w-md shrink-0">
             <TabsTrigger value="quick" className="flex-1">快速模型设置</TabsTrigger>
             <TabsTrigger value="promptLab" className="flex-1">提示词实验室</TabsTrigger>
+            <TabsTrigger value="dataManage" className="flex-1">数据备份与管理</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="flex-1 min-h-0 relative pr-2">
@@ -491,6 +532,78 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="dataManage" className="m-0 outline-none focus:outline-none">
+              <div className="max-w-xl space-y-4 pb-4">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImportFileChange}
+                  accept=".db"
+                  className="hidden"
+                />
+
+                <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-bold text-theme-text">数据安全保障</div>
+                      <p className="text-[11px] text-theme-muted leading-relaxed">
+                        您的所有小说草稿、设定、大纲等均存储在本地。建议定期导出备份。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {/* 一键导出备份 */}
+                  <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-4 hover:border-theme-accent/30 transition-all duration-300">
+                    <div className="space-y-1">
+                      <div className="text-sm font-bold text-theme-text flex items-center gap-2">
+                        <Database size={16} className="text-theme-accent" />
+                        一键备份导出
+                      </div>
+                      <p className="text-[11px] text-theme-muted leading-relaxed">
+                        将当前的数据库完整导出为 <code>inkflow-data.db</code> 文件，妥善保存可随时用于数据恢复。
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExportData}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-theme-border bg-theme-bg hover:bg-theme-sidebar/50 text-xs font-bold text-theme-text hover:border-theme-accent transition-all cursor-pointer"
+                    >
+                      <Download size={14} />
+                      立即导出备份数据
+                    </button>
+                  </div>
+
+                  {/* 导入数据恢复 */}
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-4 hover:border-amber-500/40 transition-all duration-300">
+                    <div className="space-y-1">
+                      <div className="text-sm font-bold text-amber-700 dark:text-amber-500 flex items-center gap-2">
+                        <AlertTriangle size={16} />
+                        导入数据恢复
+                      </div>
+                      <p className="text-[11px] text-amber-600/85 dark:text-amber-400/85 leading-relaxed">
+                        ⚠️ <strong>极其危险</strong>：导入数据会完全<strong>覆盖并替换</strong>当前系统的所有数据且无法撤销！
+                        系统会在执行覆盖前自动为您创建一份 <code>.pre-import-bak</code> 灾难备份。
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleImportDataClick}
+                      disabled={saving}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                    >
+                      <Upload size={14} />
+                      {saving ? '正在导入中...' : '选择备份文件并覆盖导入'}
+                    </button>
                   </div>
                 </div>
               </div>

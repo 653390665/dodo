@@ -422,22 +422,39 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
     if (isEditorDataLoading) return;
 
+    // Ensure target chapter is synchronized and full content is loaded before executing cockpit action
+    if (launchState.targetChapterId) {
+      if (!currentChapter || currentChapter.id !== launchState.targetChapterId || currentChapter.content === undefined) {
+        return;
+      }
+    }
+
     const isCockpitAction =
       launchState.source === 'cockpit-planning' ||
       launchState.source === 'cockpit-production' ||
+      launchState.source === 'cockpit-audit' ||
+      launchState.source === 'cockpit-polish' ||
       launchState.source === 'cockpit-resume';
     if (!launchState.approvedPackId && !isCockpitAction) return;
 
     hasConsumedContinuationLaunchUiRef.current = true;
 
     /* eslint-disable react-hooks/set-state-in-effect */
-    // Only open assistant sidebar for planning, production or legacy launch events
+    // Only open assistant sidebar for planning, production, quality, or legacy launch events
     if (launchState.source === 'cockpit-production') {
       setIsAgentSidebarOpen(true);
       setAgentTab('production');
     } else if (launchState.source === 'cockpit-planning') {
       setIsAgentSidebarOpen(true);
       setAgentTab('planning');
+    } else if (launchState.source === 'cockpit-audit') {
+      setIsAgentSidebarOpen(true);
+      setAgentTab('quality');
+      void handleRunAudit();
+    } else if (launchState.source === 'cockpit-polish') {
+      setIsAgentSidebarOpen(true);
+      setAgentTab('quality');
+      void handlePolishChapterFromAudit();
     } else if (launchState.source !== 'cockpit-resume') {
       setIsAgentSidebarOpen(true);
       setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
@@ -453,7 +470,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab, setIsAgentSidebarOpen]);
+  }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab, setIsAgentSidebarOpen, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
 
   // Synchronize target chapter ID from cockpit / launch state
   useEffect(() => {
@@ -543,6 +560,8 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
           auditStatus={auditStatus}
           isChapterEmpty={isChapterEmpty}
           mountedSkillsCount={mountedSkills.length}
+          mountedSkills={mountedSkills}
+          sniffedEntities={sniffedEntities}
           copilotSuggestion={copilotSuggestion}
           runCopilotAction={runCopilotAction}
           contentRef={contentRef}

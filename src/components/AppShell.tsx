@@ -205,7 +205,7 @@ export function AppShell() {
 
   const navigateToEditorWithCockpitAction = (
     novel: Novel,
-    action: 'planning' | 'production' | 'resume',
+    action: 'planning' | 'production' | 'resume' | 'audit' | 'polish',
     targetChapterId?: string
   ) => {
     setContinuationLaunchState({
@@ -217,7 +217,11 @@ export function AppShell() {
           ? 'cockpit-planning'
           : action === 'production'
             ? 'cockpit-production'
-            : 'cockpit-resume',
+            : action === 'audit'
+              ? 'cockpit-audit'
+              : action === 'polish'
+                ? 'cockpit-polish'
+                : 'cockpit-resume',
       targetChapterId,
     });
     setSelectedNovel(novel);
