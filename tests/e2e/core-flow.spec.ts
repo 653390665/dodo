@@ -62,7 +62,7 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
 
     // 2. Validate essential branding element or text is present on Welcome view
     // 验证欢迎页面上是否存在核心品牌元素或文本
-    await expect(page.locator('h1')).toContainText('InkFlow 创作终端');
+    await expect(page.locator('h1')).toContainText('InkFlow 智能写作终端');
 
     // 3. Create a new project named "荒原黎明"
     // 创建一个名为 "荒原黎明" 的新作品
@@ -93,11 +93,16 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
 
     // 4. Navigate to the Editor View for this project
     // 进入该作品的编辑器视图
-    // First, verify we transitioned into the Workspace Cockpit View by waiting for the resume button
-    // 首先，通过等待 "继续写作最近章节" 按钮显示，确认已转换至项目 Cockpit 视图
-    const resumeButton = page.locator('button:has-text("继续写作最近章节")');
-    await expect(resumeButton).toBeVisible({ timeout: 10000 });
-    await resumeButton.click();
+    // First, verify we transitioned into the Workspace Cockpit View by waiting for the primary recommended action button (add world setting)
+    // 首先，通过等待自适应建议中的最优先建议行动 "补充世界观设定" 按钮显示，确认已转换至项目 Cockpit 视图
+    const recommendButton = page.locator('button:has-text("补充世界观设定")');
+    await expect(recommendButton).toBeVisible({ timeout: 10000 });
+
+    // Then, click the queued recommended action "继续写作最近章节" to enter the Editor View
+    // 随后，点击队列建议中的 "继续写作最近章节" 行动进入主编辑器工作台
+    const resumeStep = page.locator('[data-testid="queued-step-resume_editor"]');
+    await expect(resumeStep).toBeVisible();
+    await resumeStep.click();
 
     // Wait for the editor to be fully loaded by expecting the writing surface textarea to be visible
     // 等待编辑器主写作区域（textarea）加载并可见，这有助于平滑过渡懒加载/异步数据加载状态

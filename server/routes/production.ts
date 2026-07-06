@@ -23,6 +23,7 @@ import { runProductionPipeline } from '../helpers/ai-production-pipeline';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import * as db from '../lib/db';
 import { validate, chapterProductionSchema } from '../validation';
+import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 
 function sseWrite(res: Express['response'], payload: Record<string, unknown>) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -46,6 +47,18 @@ export function registerProductionRoutes(app: Express) {
       const { novelId = '', targetChapterId = '', userIntent = '', activeEntityNames } = req.body;
       if (!novelId.trim()) {
         return res.status(400).json({ error: 'novelId is required' });
+      }
+
+      // Quota Gate check
+      const quotaCheck = checkQuota(novelId, 'generateProse');
+      if (!quotaCheck.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'generateProse',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
       }
 
       // Run Reflexion evolution in the background to learn from the previous chapter's edits
@@ -109,6 +122,9 @@ export function registerProductionRoutes(app: Express) {
         continuityReport: fallbackContinuity,
       });
 
+      // 成功生成，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'generateProse');
+
       return res.json({ run: db.getChapterProductionRun(runId) });
     } catch (e) {
       logger.error(String(e));
@@ -138,6 +154,19 @@ export function registerProductionRoutes(app: Express) {
       } = req.body;
       if (!novelId.trim()) {
         res.status(400).json({ error: 'novelId is required' });
+        return;
+      }
+
+      // Quota Gate check
+      const quotaCheck = checkQuota(novelId, 'generateProse');
+      if (!quotaCheck.allowed) {
+        res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'generateProse',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        });
         return;
       }
 
@@ -253,6 +282,9 @@ export function registerProductionRoutes(app: Express) {
         styleAudit: fallbackAudit,
         continuityReport: fallbackContinuity,
       });
+
+      // 成功生成，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'generateProse');
 
       sseWrite(res, { type: 'status', message: '草稿已就绪，可以先审阅或接受写入。' });
 

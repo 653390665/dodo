@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Layers3, Loader2, PenLine, Send, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Layers3, Loader2, Send, Sliders, Sparkles, Upload } from 'lucide-react';
 
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
@@ -16,6 +16,7 @@ interface WelcomeViewProps {
   onJumpToLibrary: () => void;
   onSelectNovel: (novel: Novel) => void;
   onStartContinuationImport: () => void;
+  onNavigateToFactory?: () => void;
 }
 
 /**
@@ -32,6 +33,7 @@ export function WelcomeView({
   onJumpToLibrary,
   onSelectNovel,
   onStartContinuationImport,
+  onNavigateToFactory,
 }: WelcomeViewProps) {
   // 受控状态管理
   const [input, setInput] = useState('');
@@ -42,6 +44,10 @@ export function WelcomeView({
     expectedWordCount: 180000,
     pacingPreference: 'tight',
     storyFocus: 'plot',
+  });
+
+  const [showEmptyGuide, setShowEmptyGuide] = useState(() => {
+    return localStorage.getItem('inkflow_welcome_empty_guide_closed') !== 'true';
   });
 
   const [selectedCardForRec, setSelectedCardForRec] = useState<StoryIdeaCard | null>(null);
@@ -125,41 +131,41 @@ export function WelcomeView({
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-theme-accent/20 via-theme-accent/50 to-theme-accent/20" />
 
               <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
-                <span className="font-bold text-theme-accent tracking-wider">INKFLOW ENGINE STATUS</span>
+                <span className="font-bold text-theme-accent tracking-wider">AI 创作状态监视器</span>
                 <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">ACTIVE</span>
+                  <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">AI 协作已就绪</span>
                 </div>
               </div>
 
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-theme-muted">Workspace Engine</span>
-                  <span className="text-theme-text font-medium">v0.9.6 Stable</span>
+                  <span className="text-theme-muted">系统运行状态</span>
+                  <span className="text-theme-text font-medium">稳定就绪</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-theme-muted">Novel Count</span>
-                  <span className="text-theme-text font-bold font-mono">{totalNovelCount}</span>
+                  <span className="text-theme-muted">当前作品总数</span>
+                  <span className="text-theme-text font-bold font-mono">{totalNovelCount} 本</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-theme-muted">LLM Core Access</span>
+                  <span className="text-theme-muted">AI 引擎连接</span>
                   <div>
                     {hasApiKey === null ? (
-                      <span className="text-theme-muted">CHECKING...</span>
+                      <span className="text-theme-muted">正在检测...</span>
                     ) : hasApiKey === 'unknown' ? (
-                      <span className="text-amber-500 font-bold">STATE_UNKNOWN</span>
+                      <span className="text-amber-500 font-bold">可继续本地编辑</span>
                     ) : hasApiKey ? (
-                      <span className="text-theme-accent font-bold">CONNECTED</span>
+                      <span className="text-theme-accent font-bold">大模型已连接</span>
                     ) : (
-                      <span className="text-amber-500 font-bold">LOCAL_RESERVED</span>
+                      <span className="text-amber-500 font-bold">本地写作模式</span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-theme-muted">Active Backup Logs</span>
+                  <span className="text-theme-muted">数据安全保护</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="text-theme-text font-medium truncate">sqlite_journal.bak</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                    <span className="text-theme-text font-medium">自动快照备份中</span>
                   </div>
                 </div>
               </div>
@@ -208,7 +214,7 @@ export function WelcomeView({
               <div className="flex items-center gap-2 mb-1.5">
                 <Sparkles size={16} className="text-theme-accent animate-pulse shrink-0" />
                 <h1 className="text-lg font-bold text-theme-text tracking-tight font-serif">
-                  InkFlow 创作终端
+                  InkFlow 智能写作终端：一句话开书、长篇设定记忆、拆书技能、深度审稿精修
                 </h1>
               </div>
               <p className="text-xs text-theme-muted leading-relaxed">
@@ -216,57 +222,128 @@ export function WelcomeView({
               </p>
             </div>
 
-            {/* 2. 紧凑业务三大核心功能卡网格 */}
-            <div className={`grid gap-3 ${latestNovel ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
-              {latestNovel && (
-                <button
-                  onClick={() => onSelectNovel(latestNovel)}
-                  className="p-3 rounded-lg border border-theme-border/45 hover:border-theme-accent/60 transition-all bg-theme-sidebar/10 hover:bg-theme-sidebar/40 text-left flex flex-col justify-between h-[82px] group w-full"
-                >
-                  <div className="flex items-center gap-2">
-                    <PenLine size={13} className="text-theme-accent" />
-                    <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
-                      继续最近作品
-                    </span>
+            {totalNovelCount === 0 && showEmptyGuide && (
+              <div className="relative rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-theme-accent/5 p-4 text-left shadow-sm backdrop-blur-md animate-fade-in">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex gap-2.5">
+                    <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 font-sans">
+                        新手启航指南
+                      </h4>
+                      <p className="text-xs text-theme-text/85 leading-relaxed font-sans">
+                        您好，欢迎进入 InkFlow 创作终端！当前您的书库为空。您可以直接在下方输入新书灵感（如“雨夜酒馆里的复仇故事”）一键智能立项；或点击上方【导入资料续写】以上传世界观与人设。需要 AI 生成时，请在右上角配置您的 API Key。
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[10px] text-theme-muted font-medium">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('inkflow_welcome_empty_guide_closed', 'true');
+                      setShowEmptyGuide(false);
+                    }}
+                    className="text-theme-muted hover:text-theme-text transition-colors text-xs p-1 font-bold font-mono"
+                    aria-label="关闭提示"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 2. 极致磨砂玻璃四大核心创作卡面板 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* 卡片 1: 开新书 */}
+              <button
+                onClick={() => {
+                  const el = document.getElementById('story-seed-input');
+                  if (el) {
+                    el.focus();
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                className="p-3.5 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/60 hover:bg-theme-sidebar/35 transition-all hover:scale-[1.02] active:scale-[0.98] duration-300 text-left flex flex-col justify-between min-h-[96px] group w-full shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-theme-accent/10 text-theme-accent group-hover:bg-theme-accent group-hover:text-theme-bg transition-colors duration-300">
+                    <Sparkles size={14} />
+                  </span>
+                  <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    开新书
+                  </span>
+                </div>
+                <p className="text-[10px] text-theme-muted leading-relaxed mt-2 line-clamp-2">
+                  输入模糊场景思路，由智能规划引擎拆解起步。
+                </p>
+              </button>
+
+              {/* 卡片 2: 继续当前作品 */}
+              <button
+                onClick={() => {
+                  if (latestNovel) {
+                    onSelectNovel(latestNovel);
+                  } else {
+                    onJumpToLibrary();
+                  }
+                }}
+                className="p-3.5 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/60 hover:bg-theme-sidebar/35 transition-all hover:scale-[1.02] active:scale-[0.98] duration-300 text-left flex flex-col justify-between min-h-[96px] group w-full shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-theme-accent/10 text-theme-accent group-hover:bg-theme-accent group-hover:text-theme-bg transition-colors duration-300">
+                    <BookOpen size={14} />
+                  </span>
+                  <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    继续当前作品
+                  </span>
+                </div>
+                {latestNovel ? (
+                  <div className="min-w-0 mt-2">
+                    <p className="truncate text-[10px] text-theme-text font-semibold">
                       《{latestNovel.title}》
                     </p>
-                    <p className="text-[8px] text-theme-muted/60 mt-0.5 font-mono">
+                    <p className="text-[8px] text-theme-muted font-mono mt-0.5">
                       更新于: {new Date(latestNovel.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
-                </button>
-              )}
+                ) : (
+                  <p className="text-[10px] text-theme-muted leading-relaxed mt-2 line-clamp-2">
+                    暂无历史作品，点击进入作品书库。
+                  </p>
+                )}
+              </button>
 
+              {/* 卡片 3: 导入资料续写 */}
               <button
                 onClick={onStartContinuationImport}
-                className="p-3 rounded-lg border border-theme-border/45 hover:border-theme-accent/60 transition-all bg-theme-sidebar/10 hover:bg-theme-sidebar/40 text-left flex flex-col justify-between h-[82px] group w-full"
+                className="p-3.5 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/60 hover:bg-theme-sidebar/35 transition-all hover:scale-[1.02] active:scale-[0.98] duration-300 text-left flex flex-col justify-between min-h-[96px] group w-full shadow-xs"
               >
                 <div className="flex items-center gap-2">
-                  <Upload size={13} className="text-theme-accent" />
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-theme-accent/10 text-theme-accent group-hover:bg-theme-accent group-hover:text-theme-bg transition-colors duration-300">
+                    <Upload size={14} />
+                  </span>
                   <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                     导入资料续写
                   </span>
                 </div>
-                <p className="text-[10px] text-theme-muted leading-relaxed">
-                  上传世界大纲、人设或历史正文，一键理顺上下文启动续写。
+                <p className="text-[10px] text-theme-muted leading-relaxed mt-2 line-clamp-2">
+                  上传已有人设、世界设定大纲，一键理顺衔接。
                 </p>
               </button>
 
+              {/* 卡片 4: 拆书生成技能 */}
               <button
-                onClick={() => document.getElementById('story-seed-input')?.focus()}
-                className="p-3 rounded-lg border border-theme-border/45 hover:border-theme-accent/60 transition-all bg-theme-sidebar/10 hover:bg-theme-sidebar/40 text-left flex flex-col justify-between h-[82px] group w-full"
+                onClick={() => onNavigateToFactory?.()}
+                className="p-3.5 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/60 hover:bg-theme-sidebar/35 transition-all hover:scale-[1.02] active:scale-[0.98] duration-300 text-left flex flex-col justify-between min-h-[96px] group w-full shadow-xs"
               >
                 <div className="flex items-center gap-2">
-                  <Layers3 size={13} className="text-theme-accent" />
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-theme-accent/10 text-theme-accent group-hover:bg-theme-accent group-hover:text-theme-bg transition-colors duration-300">
+                    <Layers3 size={14} />
+                  </span>
                   <span className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
-                    从灵感创建
+                    拆书生成技能
                   </span>
                 </div>
-                <p className="text-[10px] text-theme-muted leading-relaxed">
-                  输入模糊思路场景，由分析引擎为您拆解 3 类起步立项通道。
+                <p className="text-[10px] text-theme-muted leading-relaxed mt-2 line-clamp-2">
+                  解构爆款名著优秀叙事骨架，提取文风卡牌。
                 </p>
               </button>
             </div>
@@ -482,6 +559,86 @@ export function WelcomeView({
             )}
           </div>
 
+        </div>
+
+        {/* ==================== InkFlow 能为您做什么 (Glassmorphism Quad-Grid Highlights) ==================== */}
+        <div className="mt-10 pt-8 border-t border-theme-border/20 space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-1 rounded bg-theme-accent shrink-0" />
+            <h2 className="text-sm font-bold text-theme-text uppercase tracking-wider font-sans">
+              InkFlow 能为您做什么
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 卡牌 1: 设定记忆 */}
+            <div className="p-4 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/50 hover:bg-theme-sidebar/20 transition-all hover:scale-[1.01] duration-300 flex flex-col justify-between group">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-theme-bg transition-colors duration-300 shrink-0">
+                    <Brain size={15} />
+                  </span>
+                  <h3 className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    设定记忆
+                  </h3>
+                </div>
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                  长效检索角色、地点、境界，告别写着写着就崩坏。
+                </p>
+              </div>
+            </div>
+
+            {/* 卡牌 2: 技能装配 */}
+            <div className="p-4 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/50 hover:bg-theme-sidebar/20 transition-all hover:scale-[1.01] duration-300 flex flex-col justify-between group">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-theme-bg transition-colors duration-300 shrink-0">
+                    <Sliders size={15} />
+                  </span>
+                  <h3 className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    技能装配
+                  </h3>
+                </div>
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                  千变万化的文风滤镜与创作规则，直接融入生成流。
+                </p>
+              </div>
+            </div>
+
+            {/* 卡牌 3: 题材/平台流程 */}
+            <div className="p-4 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/50 hover:bg-theme-sidebar/20 transition-all hover:scale-[1.01] duration-300 flex flex-col justify-between group">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-theme-bg transition-colors duration-300 shrink-0">
+                    <Compass size={15} />
+                  </span>
+                  <h3 className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    题材/平台流程
+                  </h3>
+                </div>
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                  官方内置番茄完读模型、起点节奏大纲，一键对齐爆款红线。
+                </p>
+              </div>
+            </div>
+
+            {/* 卡牌 4: 深度审稿去AI味 */}
+            <div className="p-4 rounded-xl border border-theme-border/40 backdrop-blur-md bg-theme-sidebar/10 hover:border-theme-accent/50 hover:bg-theme-sidebar/20 transition-all hover:scale-[1.01] duration-300 flex flex-col justify-between group">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-500 group-hover:bg-rose-500 group-hover:text-theme-bg transition-colors duration-300 shrink-0">
+                    <FileCheck size={15} />
+                  </span>
+                  <h3 className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                    深度审稿去AI味
+                  </h3>
+                </div>
+                <p className="text-[11px] text-theme-muted leading-relaxed">
+                  资深编辑多维一致性审计，错别字/大路货词汇一键定向精修重写。
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ==================== 智能开书治理配置推荐磨砂面板 ==================== */}

@@ -199,37 +199,51 @@ export function ProjectCockpitView({
       case 'create_first_chapter':
         return {
           icon: <Plus size={14} />,
-          code: "CMD::INIT_GENESIS",
+          code: "INIT_GENESIS",
           title: "创建作品第一章",
           description: "当前作品还没有任何章节。立即开启创作，AI 智能体将全程协助您构建正文！",
+          why: "当前作品尚未创建任何章节，AI 协作无从起笔",
+          output: "一键生成首章占位，自动初始化新书规划目录",
+          influence: "完成后解锁分镜 Beats 规划、前文导入以及技能卡装配",
           onClick: handleCreateFirstChapter
         };
       case 'add_world_setting':
         return {
           icon: <Compass size={14} />,
-          code: "CMD::SYNC_WORLD_BIBLE",
+          code: "SYNC_WORLD_BIBLE",
           title: "补充世界观设定",
           description: worldEntitiesCount > 0
             ? `当前已沉淀 ${worldEntitiesCount} 个设定条目。继续扩充人物、背景或组织关联，让故事更立体！`
             : "为这本作品添加首批角色、地点或势力设定。AI 写作时能自动检索这些信息，避免设定冲突。",
+          why: worldEntitiesCount > 0
+            ? "已有部分设定，但还需继续扩充以丰富 AI 协作生成的背景深度"
+            : "当前作品设定为空，大模型在生成正文时容易偏离背景或产生幻觉",
+          output: "录入或扩充人物人设、地点、门派、法宝、境界等世界观设定",
+          influence: "开启 AI 在写作正文时的自动上下文设定匹配，避免逻辑崩坏",
           onClick: () => onNavigate('world')
         };
       case 'import_continuation':
         return {
           icon: <FileText size={14} />,
-          code: "CMD::MEM_INJECTION",
+          code: "MEM_INJECTION",
           title: "导入前文参考资料",
           description: "导入已有作品碎片、大纲或大文本，AI 自动整理提炼成续写包，让创作自带完美长效记忆。",
+          why: "缺乏前文记忆参考包，AI 续写的长效检索范围与语境连贯性受限",
+          output: "上传或贴入已有的大纲或正文碎片，生成结构化知识索引",
+          influence: "赋予 AI 长达数十万字的长效关联记忆，自动保持上下文叙事统一",
           onClick: () => onNavigate('continuation-import')
         };
       case 'resume_editor':
         return {
           icon: <BookOpen size={14} />,
-          code: "CMD::RES_EDITOR",
+          code: "RES_EDITOR",
           title: "继续写作最近章节",
           description: latestChapter
             ? `进入「${latestChapter.title}」编辑器。无论是修补分镜还是直接创作正文，精彩故事从不停歇。`
             : "打开编辑器工作台，随时查看或编辑作品正文内容。",
+          why: "有未完成或最近修改的章节，需要继续润色或正文书写",
+          output: "直接进入主编辑器工作台，查看或编辑章节正文",
+          influence: "进入主创作流，是深度审稿、大纲对齐与一键精修的前置入口",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
               onSelectChapter(latestChapter as unknown as Chapter);
@@ -244,19 +258,25 @@ export function ProjectCockpitView({
       case 'mount_skill':
         return {
           icon: <BrainCircuit size={14} />,
-          code: "CMD::LOAD_SKILL_PRESET",
+          code: "LOAD_SKILL_PRESET",
           title: "装配写作技能滤镜",
           description: mountedSkills.length > 0
             ? `当前已启用 ${mountedSkills.length} 张创意滤镜。前往装配库，调整特定的写作词风或大纲规约。`
             : "前往技能卡仓库，为 AI 助手装配文笔风格、安全红线、特定叙事模式等高级技能滤镜。",
+          why: "尚未启用任何写作技能，AI 扩写目前将使用通用默认文风",
+          output: "前往技能卡仓库挑选文风卡、爆款逻辑、爽点规约或安全红线",
+          influence: "直接注入 AI 提示词底层，让每次生成都带有特定平台的爆款风格",
           onClick: () => onNavigate('skills')
         };
       case 'planning_beats':
         return {
           icon: <Sparkles size={14} />,
-          code: "CMD::PLAN_BEATS",
+          code: "PLAN_BEATS",
           title: "规划本章分镜 / Beats",
           description: "使用 AI 智能规划镜头。将最新一章的情节拆解为镜号、Beats 细纲，写作更胸有成竹。",
+          why: "最新一章尚未规划剧情分镜（Beats），直接写正文易偏离节奏",
+          output: "AI 辅助将核心情节拆解为精细的分镜大纲与节奏细纲",
+          influence: "为接下来的正文智能极速扩写提供坚实且高可控的剧情骨架",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
               onSelectChapter(latestChapter as unknown as Chapter);
@@ -271,9 +291,12 @@ export function ProjectCockpitView({
       case 'production_content':
         return {
           icon: <Sparkles size={14} />,
-          code: "CMD::PROD_CONTENT",
+          code: "PROD_CONTENT",
           title: "智能扩写生产正文",
           description: "分镜 Beats 已经骨骼丰满！立即让 AI 写作智能体对各镜头执行高还原度正文极速扩写。",
+          why: "当前章节的分镜 Beats 已就绪，适合一键扩充正文",
+          output: "AI 智能体基于分镜骨架执行高还原、极速正文段落扩写",
+          influence: "快速产出首版初稿，等待下一步的资深审稿人多维一致性审计",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
               onSelectChapter(latestChapter as unknown as Chapter);
@@ -288,9 +311,12 @@ export function ProjectCockpitView({
       case 'start_audit':
         return {
           icon: <ShieldCheck size={14} />,
-          code: "CMD::AUDIT_LINT",
+          code: "AUDIT_LINT",
           title: "对本章进行审稿",
           description: "正文已初具雏形。邀请 AI 资深审稿人执行深度审计，找出词风 AI 味、设定硬伤与逻辑死角。",
+          why: "正文已初具雏形，需要检测错别字、设定硬伤与 AI 味词汇",
+          output: "AI 资深编辑在后台进行错字、常识、文风、设定的一致性审计",
+          influence: "生成多维度的审稿批注报告，并解锁接下来的定向润色与精修",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
               onSelectChapter(latestChapter as unknown as Chapter);
@@ -305,9 +331,12 @@ export function ProjectCockpitView({
       case 'polish_content':
         return {
           icon: <Sparkles size={14} />,
-          code: "CMD::POLISH_CONTENT",
+          code: "POLISH_CONTENT",
           title: "一键精修局部润色",
           description: "根据最新审稿意见，针对性地对问题段落执行一键或逐步重构润色，彻底打磨精益求精。",
+          why: "审稿已完成，需要针对问题段落或文风AI味进行针对性精修",
+          output: "AI 定向润色重写，一键去除机械词汇、修补设定漏洞",
+          influence: "打磨产出高品质的完读正文，并可以开始冷备份或发布",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
               onSelectChapter(latestChapter as unknown as Chapter);
@@ -322,9 +351,12 @@ export function ProjectCockpitView({
       case 'export_db_backup':
         return {
           icon: <Database size={14} />,
-          code: "CMD::EXPORT_DB_BACKUP",
+          code: "EXPORT_DB_BACKUP",
           title: "一键离线冷备份",
           description: "写作成果至上！点击极速导出并冷备当前的 SQLite 数据库包，防范任何数据意外损坏丢失。",
+          why: "为了防范网络死锁、断电或异常故障导致本地数据损坏",
+          output: "基于原生具有事务快照特性的 API 导出高一致性 SQLite 冷备份包",
+          influence: "确保全书写作资产 100% 绝对安全，可随时进行恢复或迁移",
           onClick: () => window.open('/api/db/export-file', '_blank')
         };
       default:
@@ -400,40 +432,18 @@ export function ProjectCockpitView({
 
             {/* Left Column: Stats & Operations */}
             <div className="space-y-6">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 border border-theme-border/40 divide-x divide-y sm:divide-y-0 divide-theme-border/40 bg-theme-sidebar/10 rounded-xl overflow-hidden shadow-xs">
-                <div className="p-4 space-y-1 bg-theme-bg/10">
-                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">WORDS / 总字数</div>
-                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{totalWords.toLocaleString()}</div>
-                </div>
-                <div className="p-4 space-y-1 bg-theme-bg/10 border-t border-theme-border/40 sm:border-t-0">
-                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">CHAPTERS / 章节数</div>
-                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{chapters.length}</div>
-                </div>
-                <div className="p-4 space-y-1 bg-theme-bg/10">
-                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">ENTITIES / 设定条目</div>
-                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{worldEntitiesCount}</div>
-                </div>
-                <div className="p-4 space-y-1 bg-theme-bg/10">
-                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">ACTIVE / 最近活跃</div>
-                  <div className="text-[11px] font-mono font-medium text-theme-text truncate leading-relaxed pt-0.5" title={latestChapter ? latestChapter.title : '尚无创作记录'}>
-                    {latestChapter ? latestChapter.title : 'N/A'}
-                  </div>
-                </div>
-              </div>
-
               {/* Next Actions CTA Panel */}
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-5 space-y-5">
                 <div className="flex items-center justify-between border-b border-theme-border/40 pb-3">
                   <div className="space-y-0.5">
                     <h3 className="text-xs font-bold text-theme-text uppercase tracking-wider font-mono flex items-center gap-1.5">
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
-                      Operation Guide / 创作执行序列
+                      当前建议行动序列
                     </h3>
                     <p className="text-[10px] text-theme-muted">自适应 AI 引擎提供的下一步高优先级创作指令</p>
                   </div>
                   <span className="text-[9px] font-mono border border-theme-border/60 bg-theme-sidebar/30 text-theme-muted px-2 py-0.5 rounded uppercase tracking-wide">
-                    Adaptive Guide
+                    自适应创作助手建议
                   </span>
                 </div>
 
@@ -473,6 +483,22 @@ export function ProjectCockpitView({
                               </p>
                             </div>
 
+                            {/* Beautiful Glassmorphism properties grid */}
+                            <div className="grid grid-cols-1 gap-2 p-3 my-2 rounded-lg bg-theme-sidebar/15 border border-theme-border/30 text-[11px] leading-relaxed font-sans">
+                              <div>
+                                <span className="font-bold text-theme-accent">为什么建议：</span>
+                                <span className="text-theme-muted">{cardData.why}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold text-theme-accent">点了会产出什么：</span>
+                                <span className="text-theme-muted">{cardData.output}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold text-theme-accent">会影响下一步什么：</span>
+                                <span className="text-theme-muted">{cardData.influence}</span>
+                              </div>
+                            </div>
+
                             {/* Solid high-precision trigger button */}
                             <button
                               onClick={cardData.onClick}
@@ -492,10 +518,11 @@ export function ProjectCockpitView({
                       }
 
                       return (
-                        <button
+                        <div
                           key={id}
+                          data-testid={`queued-step-${id}`}
                           onClick={cardData.onClick}
-                          className="group/step relative pl-6 space-y-1.5 cursor-pointer block text-left w-full bg-transparent border-none p-0 focus:outline-none"
+                          className="group/step relative pl-6 space-y-2 cursor-pointer block text-left w-full bg-transparent p-0 focus:outline-none"
                         >
                           {/* Idle Bullet Dot */}
                           <div className="absolute -left-[11px] top-1">
@@ -517,10 +544,48 @@ export function ProjectCockpitView({
                           <p className="text-[10px] text-theme-muted leading-relaxed pr-2">
                             {cardData.description}
                           </p>
-                        </button>
+
+                          {/* Compact properties for Queued Actions */}
+                          <div className="grid grid-cols-1 gap-1 pl-2.5 border-l border-theme-border/30 text-[10px] text-theme-muted/80 group-hover/step:border-theme-accent/30 transition-colors font-sans">
+                            <div>
+                              <span className="font-semibold text-theme-text/80">建议：</span>
+                              <span>{cardData.why}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-theme-text/80">产出：</span>
+                              <span>{cardData.output}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-theme-text/80">后续：</span>
+                              <span>{cardData.influence}</span>
+                            </div>
+                          </div>
+                        </div>
                       );
                     });
                   })()}
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 border border-theme-border/40 divide-x divide-y sm:divide-y-0 divide-theme-border/40 bg-theme-sidebar/10 rounded-xl overflow-hidden shadow-xs opacity-80 hover:opacity-100 transition-opacity">
+                <div className="p-4 space-y-1 bg-theme-bg/10">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono font-sans font-bold">总字数 / WORDS</div>
+                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{totalWords.toLocaleString()}</div>
+                </div>
+                <div className="p-4 space-y-1 bg-theme-bg/10 border-t border-theme-border/40 sm:border-t-0">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono font-sans font-bold">章节数 / CHAPTERS</div>
+                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{chapters.length}</div>
+                </div>
+                <div className="p-4 space-y-1 bg-theme-bg/10">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono font-sans font-bold">设定条目 / ENTITIES</div>
+                  <div className="text-xl font-mono font-bold text-theme-text tabular-nums">{worldEntitiesCount}</div>
+                </div>
+                <div className="p-4 space-y-1 bg-theme-bg/10">
+                  <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono font-sans font-bold">最近活跃 / ACTIVE</div>
+                  <div className="text-[11px] font-mono font-medium text-theme-text truncate leading-relaxed pt-0.5" title={latestChapter ? latestChapter.title : '尚无创作记录'}>
+                    {latestChapter ? latestChapter.title : 'N/A'}
+                  </div>
                 </div>
               </div>
 
@@ -562,6 +627,49 @@ export function ProjectCockpitView({
 
             {/* Right Column: AI Context Infusion Matrix & Assets */}
             <div className="space-y-6">
+              {/* 当前上下文收据 (Context Receipt) */}
+              <div className="border border-dashed border-theme-border/60 bg-theme-sidebar/5 backdrop-blur-md rounded-xl p-5 font-mono space-y-4 shadow-sm relative overflow-hidden">
+                {/* Vintage Top Highlight Edge */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-theme-accent/40 via-theme-accent to-theme-accent/40" />
+
+                <div className="flex items-center justify-between border-b border-dashed border-theme-border/40 pb-2">
+                  <span className="text-xs font-bold text-theme-text uppercase tracking-wider">INKFLOW CONTEXT RECEIPT</span>
+                  <span className="text-[9px] text-theme-muted">#202607</span>
+                </div>
+
+                <div className="space-y-2 text-xs font-mono">
+                  <div className="flex justify-between items-center">
+                    <span className="text-theme-muted">章节总数 [Chapters]</span>
+                    <span className="text-theme-text font-bold">{chapters.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-theme-muted">设定条目 [World Bible Items]</span>
+                    <span className="text-theme-text font-bold">{worldEntitiesCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-theme-muted">已挂载技能 [Mounted Skills]</span>
+                    <span className="text-theme-text font-bold">{mountedSkills.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-theme-muted">导入资料包 [Continuation Packs]</span>
+                    <span className="text-theme-text font-bold">{packs.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-theme-muted">最新审计状态 [Audit Status]</span>
+                    <span className={cn("font-bold px-1.5 py-0.5 rounded-sm text-[10px]", latestFullChapter?.critique?.trim() ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500")}>
+                      {latestFullChapter?.critique?.trim() ? "已审计" : "待审计/未开始"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-dashed border-theme-border/40 pt-2 flex flex-col items-center justify-center gap-1">
+                  <div className="text-[9px] text-theme-muted/40 font-bold select-none tracking-widest leading-none">
+                    |||||| | ||||| | |||| ||| || | |||| ||||
+                  </div>
+                  <span className="text-[8px] text-theme-muted/50 tracking-wider">INKFLOW CONTEXT ENGINE VER 1.2.0</span>
+                </div>
+              </div>
+
               {/* Context Infusion Matrix Table */}
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-theme-border/40 pb-3">

@@ -349,50 +349,60 @@ export function SkillLoadoutBoard({
                   }
                 }}
                 className={cn(
-                  'rounded-2xl border p-4 min-h-[152px] transition-colors',
+                  'rounded-2xl border p-4 min-h-[180px] flex flex-col justify-between transition-colors',
                   selectedSlot === slot
                     ? 'border-theme-accent bg-theme-accent/5'
                     : 'border-theme-border bg-theme-sidebar',
                 )}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[10px] font-bold text-theme-muted uppercase">卡槽 {slot + 1}</div>
-                  {skill && (
-                    <button
-                      type="button"
-                      aria-label={`卸载卡槽 ${slot + 1} 的技能`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRemoveSkill(slot);
-                      }}
-                      className="p-1 rounded-md text-theme-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-[10px] font-bold text-theme-muted uppercase">
+                      {slot === 0 ? '卡槽 1 (分镜规划卡)' : slot === 1 ? '卡槽 2 (正文扩写卡)' : '卡槽 3 (深度审稿卡)'}
+                    </div>
+                    {skill && (
+                      <button
+                        type="button"
+                        aria-label={`卸载卡槽 ${slot + 1} 的技能`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRemoveSkill(slot);
+                        }}
+                        className="p-1 rounded-md text-theme-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {skill ? (
+                    <div className="space-y-2">
+                      <div className="text-sm font-bold text-theme-text">{skill.name}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getSkillRoleTags(skill.dimensionTags).slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 rounded-full bg-theme-sidebar text-[10px] text-theme-muted border border-theme-border"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-theme-muted leading-relaxed">
+                        {skill.description}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-[96px] rounded-xl border border-dashed border-theme-border/60 bg-theme-sidebar/20 flex items-center justify-center text-xs text-theme-muted">
+                      拖拽技能卡到这里
+                    </div>
                   )}
                 </div>
-                {skill ? (
-                  <div className="space-y-2">
-                    <div className="text-sm font-bold text-theme-text">{skill.name}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {getSkillRoleTags(skill.dimensionTags).slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-0.5 rounded-full bg-theme-sidebar text-[10px] text-theme-muted border border-theme-border"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="text-[11px] text-theme-muted leading-relaxed">
-                      {skill.description}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-[96px] rounded-xl border border-dashed border-theme-border/60 bg-theme-sidebar/20 flex items-center justify-center text-xs text-theme-muted">
-                    拖拽技能卡到这里
-                  </div>
-                )}
+
+                <div className="text-[10px] text-theme-muted border-t border-theme-border/30 pt-1.5 opacity-80 mt-3 leading-normal">
+                  {slot === 0 && '💡 影响 AI 规划本章分镜、情节 Beats 的切分与视角。'}
+                  {slot === 1 && '💡 影响 AI 扩写分镜生成正文时的遣词造句、节奏与去 AI 腔风格。'}
+                  {slot === 2 && '💡 影响 AI 审计错别字、毒点及局部润色精修时的内审质量标准。'}
+                </div>
               </div>
             );
           })}

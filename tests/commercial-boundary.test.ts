@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import express from 'express';
+import { registerAgentsRoutes } from '../server/routes/agents';
+import { registerProductionRoutes } from '../server/routes/production';
 
 import {
   isPaidSkill,
@@ -184,6 +187,105 @@ describe('Commercial Boundary & Quota Control Tests', () => {
 
     } finally {
       // 销毁并清理临时数据库
+      closeDb();
+      fs.rmSync(dbPath, { force: true });
+    }
+  });
+
+  // ==========================================
+  // 3. 路由层 Quota 拦截集成测试 (API Route Quota Block Integration)
+  // ==========================================
+  test('API routes for orchestrate and production correctly enforce quota restrictions and return 403', async () => {
+    // 准备隔离的 SQLite DB
+    closeDb();
+    const dbPath = path.join(os.tmpdir(), `inkflow-route-quota-${Date.now()}.db`);
+    initDb(dbPath);
+
+    // 创建测试小说，它的商业模式是 free 且 generateProseCount 已经用满 (10/10)
+    const exhaustedNovel = mockNovel('novel-exhausted', 'free');
+    if (exhaustedNovel.projectPreferenceProfile?.quotaLimits) {
+      exhaustedNovel.projectPreferenceProfile.quotaLimits.generateProseCount = 10; // 已经全部耗尽
+    }
+    createNovel(exhaustedNovel);
+
+    // 还有一部额度没用满的免费小说 (0/10)
+    const availableNovel = mockNovel('novel-available', 'free');
+    createNovel(availableNovel);
+
+    // 实例化 Express App
+    const app = express();
+    app.use(express.json());
+    registerAgentsRoutes(app);
+    registerProductionRoutes(app);
+
+    // 启动服务器
+    const server = app.listen(0);
+    const port = (server.address() as any).port;
+    const baseUrl = `http://localhost:${port}`;
+
+    try {
+      // A. 测试 /api/orchestrate (Streaming Prose Generation)
+      // 1. 额度未用满，允许通行
+      const resOrchOk = await fetch(`${baseUrl}/api/orchestrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novelId: 'novel-available',
+          sceneBeats: '主角林惊羽在剑冢中得到古剑',
+        }),
+      });
+      // 应该进入生成流程，状态码非 403
+      assert.notEqual(resOrchOk.status, 403);
+
+      // 2. 额度已用满，应该返回 403 拦截并携带 quotaExceeded 和 limitDetails
+      const resOrchBlocked = await fetch(`${baseUrl}/api/orchestrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novelId: 'novel-exhausted',
+          sceneBeats: '主角林惊羽在剑冢中得到古剑',
+        }),
+      });
+      assert.equal(resOrchBlocked.status, 403);
+      const payloadOrch = await resOrchBlocked.json() as any;
+      assert.equal(payloadOrch.quotaExceeded, true);
+      assert.ok(payloadOrch.limitDetails);
+      assert.equal(payloadOrch.limitDetails.limitType, 'generateProse');
+      assert.equal(payloadOrch.limitDetails.count, 10);
+      assert.equal(payloadOrch.limitDetails.max, 10);
+
+      // B. 测试 /api/chapter-production-runs/start
+      // 1. 额度已用满，拦截 403
+      const resStartBlocked = await fetch(`${baseUrl}/api/chapter-production-runs/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novelId: 'novel-exhausted',
+          userIntent: '主角拔出锈剑',
+        }),
+      });
+      assert.equal(resStartBlocked.status, 403);
+      const payloadStart = await resStartBlocked.json() as any;
+      assert.equal(payloadStart.quotaExceeded, true);
+      assert.equal(payloadStart.limitType, 'generateProse');
+
+      // C. 测试 /api/chapter-production-runs/start-stream
+      // 1. 额度已用满，拦截 403
+      const resStreamBlocked = await fetch(`${baseUrl}/api/chapter-production-runs/start-stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novelId: 'novel-exhausted',
+          userIntent: '主角拔出锈剑',
+        }),
+      });
+      assert.equal(resStreamBlocked.status, 403);
+      const payloadStream = await resStreamBlocked.json() as any;
+      assert.equal(payloadStream.quotaExceeded, true);
+      assert.equal(payloadStream.limitType, 'generateProse');
+
+    } finally {
+      server.close();
       closeDb();
       fs.rmSync(dbPath, { force: true });
     }

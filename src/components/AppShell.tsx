@@ -560,6 +560,7 @@ export function AppShell() {
                   onJumpToLibrary={() => setCurrentView('library')}
                   onSelectNovel={navigateToCockpit}
                   onStartContinuationImport={handleStartContinuationImport}
+                  onNavigateToFactory={() => setCurrentView('factory')}
                 />
               </ErrorBoundary>
             )}

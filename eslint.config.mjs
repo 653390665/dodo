@@ -14,6 +14,7 @@ export default tseslint.config(
       'tests',
       '.agents',
       'docs',
+      'scratch_modify.js',
     ],
   },
   js.configs.recommended,

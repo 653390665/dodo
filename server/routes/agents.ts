@@ -144,6 +144,7 @@ export function registerAgentsRoutes(app: Express) {
   app.post('/api/orchestrate', validate(orchestrateSchema), async (req, res) => {
     if (!rateLimit('orchestrate')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     const {
+      novelId,
       contextStr,
       sceneBeats,
       maxIterations = 2,
@@ -153,6 +154,25 @@ export function registerAgentsRoutes(app: Express) {
       draftingSurface = 'workspace-draft',
       reviewSurface = 'chapter-review',
     } = req.body;
+
+    // Quota Gate — verify free-tier limitations before starting SSE
+    const quotaCheck = checkQuota(novelId, 'generateProse');
+    if (!quotaCheck.allowed) {
+      return res.status(403).json({
+        quotaExceeded: true,
+        limitType: 'generateProse',
+        count: quotaCheck.count,
+        max: quotaCheck.max,
+        error: quotaCheck.error,
+        limitDetails: {
+          limitType: 'generateProse',
+          count: quotaCheck.count,
+          max: quotaCheck.max,
+          error: quotaCheck.error,
+        }
+      });
+    }
+
     const maxIter = Math.min(Math.max(1, Number(maxIterations) || 2), 5);
     let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
@@ -247,6 +267,9 @@ export function registerAgentsRoutes(app: Express) {
         clearInterval(orchestrateHeartbeat);
         orchestrateHeartbeat = null;
       }
+      // 成功生成，消费 1 次额度 (Consume quota count)
+      consumeQuota(novelId, 'generateProse');
+
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       res.end();
     } catch (err) {
