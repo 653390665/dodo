@@ -63,6 +63,16 @@ export function SplitWorkspace({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSplitRatio((prev) => Math.max(0.2, Math.min(0.8, prev - 0.02)));
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSplitRatio((prev) => Math.max(0.2, Math.min(0.8, prev + 0.02)));
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="shrink-0 border-b border-theme-border/60 bg-theme-bg/40 px-4 py-3 flex items-center gap-2">
@@ -97,7 +107,14 @@ export function SplitWorkspace({
         </div>
         <div
           onMouseDown={onMouseDown}
-          className={`w-1.5 cursor-col-resize shrink-0 transition-colors ${
+          onKeyDown={onKeyDown}
+          tabIndex={0}
+          role="separator"
+          aria-label="拖拽调整编辑器和世界设定面板的比例"
+          aria-valuenow={Math.round(splitRatio * 100)}
+          aria-valuemin={20}
+          aria-valuemax={80}
+          className={`w-1.5 cursor-col-resize shrink-0 transition-colors focus-visible:outline-none focus-visible:bg-theme-accent focus-visible:ring-1 focus-visible:ring-theme-accent ${
             dragging ? 'bg-theme-accent' : 'bg-theme-border/30 hover:bg-theme-accent/40'
           }`}
         />

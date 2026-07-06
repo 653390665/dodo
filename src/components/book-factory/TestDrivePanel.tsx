@@ -34,7 +34,7 @@ export function TestDrivePanel({
           disabled={isTesting || !testInput}
           className="w-full py-2 bg-theme-text/10 text-theme-text text-[10px] font-bold rounded-lg border border-theme-text/20 hover:bg-theme-text/20 transition-all flex items-center justify-center gap-2"
         >
-          {isTesting ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />} 运行风格涂抹测试
+          {isTesting ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <Wand2 size={12} aria-hidden="true" />} 运行风格涂抹测试
         </button>
         {testOutput && (
           <div className="p-3 bg-theme-sidebar border border-theme-border rounded-lg text-xs text-theme-text italic leading-relaxed font-serif shadow-inner">

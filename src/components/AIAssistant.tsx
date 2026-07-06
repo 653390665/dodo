@@ -259,7 +259,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
       <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar sticky top-0 z-20">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-theme-sidebar/40 rounded-xl text-theme-accent">
-            <Sparkles size={20} />
+            <Sparkles size={20} aria-hidden="true" />
           </div>
           <div>
             <h2 className="text-lg font-serif font-bold text-theme-text leading-none">{assistantTitle}</h2>
@@ -272,7 +272,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
             aria-label="关闭 AI 助手"
             className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text transition-all"
           >
-            <X size={20} />
+            <X size={20} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -280,7 +280,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
       <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6">
         <div className="rounded-2xl border border-theme-accent/20 bg-theme-accent/5 px-4 py-3">
           <div className="flex items-center gap-2 text-xs font-bold text-theme-text">
-            <Lightbulb size={14} className="text-theme-accent" />
+            <Lightbulb size={14} className="text-theme-accent" aria-hidden="true" />
             当前 AI 上下文
           </div>
           <div className="mt-2 text-[11px] text-theme-muted flex flex-col gap-1">
@@ -306,13 +306,13 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
 
         {/* Quick Suggestions - Compact for Drawer */}
         <div className="grid grid-cols-2 gap-2">
-          {suggestions.map((s, idx) => (
+          {suggestions.map((s) => (
             <button
-              key={idx}
+              key={s.label}
               onClick={() => handleSubmit(undefined, s.prompt)}
               className="flex items-center gap-2 p-3 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 hover:border-theme-accent hover:bg-theme-sidebar transition-all group text-left shadow-sm active:scale-95"
             >
-              <s.icon size={14} className="text-theme-muted group-hover:text-theme-accent shrink-0" />
+              <s.icon size={14} className="text-theme-muted group-hover:text-theme-accent shrink-0" aria-hidden="true" />
               <span className="text-[11px] font-bold text-theme-muted group-hover:text-theme-text truncate">{s.label}</span>
             </button>
           ))}
@@ -351,8 +351,9 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                         onClick={() => navigator.clipboard.writeText(msg.content)}
                         className="p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
                         title="复制"
+                        aria-label="复制"
                       >
-                        <Copy size={12} />
+                        <Copy size={12} aria-hidden="true" />
                       </button>
                       
                       {msg.id !== 'welcome' && launchContext ? (
@@ -371,7 +372,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                               )}
                               title={label}
                             >
-                              <Icon size={10} />
+                              <Icon size={10} aria-hidden="true" />
                               {label.replace('主动作：', '').replace('直接', '')}
                             </button>
                           );
@@ -395,19 +396,22 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                               )}
 
                               <details className="group relative">
-                                <summary className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent">
-                                  <MoreVertical size={12} />
+                                <summary
+                                  className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
+                                  aria-label="更多操作"
+                                >
+                                  <MoreVertical size={12} aria-hidden="true" />
                                 </summary>
                                 <div className="absolute bottom-full left-0 mb-2 w-48 bg-theme-sidebar rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
                                   <button onClick={() => setShowSaveModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                    <FolderOpen size={12} /> 保存到其他作品
+                                    <FolderOpen size={12} aria-hidden="true" /> 保存到其他作品
                                   </button>
                                   <button onClick={() => setShowExtractModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                    <Globe size={12} /> 提取到其他作品
+                                    <Globe size={12} aria-hidden="true" /> 提取到其他作品
                                   </button>
                                   {primaryAction !== 'save-fragment' && (
                                     <button onClick={() => handleSaveAsIdeaFragment(msg.content)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                      <FolderOpen size={12} /> 保存为灵感碎片
+                                      <FolderOpen size={12} aria-hidden="true" /> 保存为灵感碎片
                                     </button>
                                   )}
                                 </div>
@@ -430,7 +434,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
               <div
                 className="text-theme-accent"
               >
-                <Sparkles size={16} />
+                <Sparkles size={16} aria-hidden="true" />
               </div>
               <span className="text-[11px] font-serif italic text-theme-muted">正在编织灵感...</span>
             </div>
@@ -455,8 +459,9 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
             type="submit"
             disabled={isLoading}
             className="p-2.5 bg-theme-accent text-white rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 shadow-sm"
+            aria-label="发送消息"
           >
-            <Send size={14} />
+            <Send size={14} aria-hidden="true" />
           </button>
         </form>
       </div>
@@ -475,7 +480,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
               className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             >
               <h3 id="save-modal-title" className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
-                <FolderOpen size={20} className="text-theme-accent" />
+                <FolderOpen size={20} className="text-theme-accent" aria-hidden="true" />
                 保存至作品
               </h3>
               <p className="text-xs text-theme-muted mb-4">选择一个作品，该灵感将作为「💡 灵感备忘录」新增至对应作品的灵感碎片库中。</p>
@@ -498,8 +503,8 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                     >
                       <span className="font-bold text-sm text-theme-text group-hover:text-theme-accent transition-colors">{novel.title}</span>
                       <span className="flex items-center gap-2">
-                        {isSavingToNovel ? <Loader2 size={14} className="animate-spin text-theme-accent" /> : null}
-                        <ArrowRight size={14} className="text-transparent group-hover:text-theme-accent transition-colors" />
+                        {isSavingToNovel ? <Loader2 size={14} className="animate-spin text-theme-accent" aria-hidden="true" /> : null}
+                        <ArrowRight size={14} className="text-transparent group-hover:text-theme-accent transition-colors" aria-hidden="true" />
                       </span>
                     </button>
                   ))
@@ -532,14 +537,14 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
               {isExtracting && (
                 <div className="absolute inset-0 bg-theme-sidebar/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mb-4">
-                    <Loader2 size={32} className="text-theme-accent animate-spin" />
+                    <Loader2 size={32} className="text-theme-accent animate-spin" aria-hidden="true" />
                   </div>
                   <p className="font-bold text-theme-text font-serif">AI 正在结构化提取设定...</p>
                   <p className="text-xs text-theme-muted mt-2">预计需要 5~15 秒</p>
                 </div>
               )}
               <h3 id="extract-modal-title" className="text-xl font-bold font-serif mb-4 flex items-center gap-2">
-                <Globe size={20} className="text-theme-accent" />
+                <Globe size={20} className="text-theme-accent" aria-hidden="true" />
                 提取设定至作品
               </h3>
               <p className="text-xs text-theme-muted mb-4">选择一个作品，AI将自动提取当前卡片中的角色、地点、物品等结构化知识，并写入该作品的「设定集」库中。</p>
@@ -557,7 +562,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                       className="w-full flex items-center justify-between p-4 bg-theme-sidebar/30 hover:bg-theme-sidebar rounded-xl border border-theme-border/50 hover:border-theme-accent transition-all text-left group"
                     >
                       <span className="font-bold text-sm text-theme-text group-hover:text-theme-accent transition-colors">{novel.title}</span>
-                      <ArrowRight size={14} className="text-transparent group-hover:text-theme-accent transition-colors" />
+                      <ArrowRight size={14} className="text-transparent group-hover:text-theme-accent transition-colors" aria-hidden="true" />
                     </button>
                   ))
                 )}

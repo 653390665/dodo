@@ -30,6 +30,7 @@ export function useChapterUndo({ currentContent, isContentLockedRef, onUndoRedo 
     createUndoState(initial)
   );
   const undoPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInternalChangeRef = useRef(false);
 
   // Debounced push to history
   const pushToUndoHistory = useCallback((content: string) => {
@@ -41,20 +42,34 @@ export function useChapterUndo({ currentContent, isContentLockedRef, onUndoRedo 
 
   const handleUndo = useCallback(() => {
     if (isContentLockedRef.current) return;
+    isInternalChangeRef.current = true;
     dispatchUndo({ type: 'undo' });
   }, [isContentLockedRef]);
 
   const handleRedo = useCallback(() => {
     if (isContentLockedRef.current) return;
+    isInternalChangeRef.current = true;
     dispatchUndo({ type: 'redo' });
   }, [isContentLockedRef]);
+
+  const onUndoRedoRef = useRef(onUndoRedo);
+  useEffect(() => {
+    onUndoRedoRef.current = onUndoRedo;
+  }, [onUndoRedo]);
 
   // Sync undo present back to the caller
   useEffect(() => {
     if (isContentLockedRef.current) return;
-    if (undoState.present === currentContent) return;
-    onUndoRedo(undoState.present);
-  }, [undoState.present, isContentLockedRef, currentContent, onUndoRedo]);
+    if (undoState.present === undefined || undoState.present === null) return;
+    if (undoState.present === currentContent) {
+      isInternalChangeRef.current = false;
+      return;
+    }
+    if (isInternalChangeRef.current) {
+      onUndoRedoRef.current(undoState.present);
+      isInternalChangeRef.current = false;
+    }
+  }, [undoState.present, isContentLockedRef, currentContent]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -82,6 +97,7 @@ export function useChapterUndo({ currentContent, isContentLockedRef, onUndoRedo 
 
   // Expose manual push and reset
   const resetUndoHistory = useCallback((content: string) => {
+    isInternalChangeRef.current = false;
     dispatchUndo({ type: 'reset', content });
   }, []);
 

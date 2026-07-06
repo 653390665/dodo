@@ -147,14 +147,14 @@ export function BookFactoryOutput({
     <div className="bg-theme-sidebar rounded-2xl shadow-sm border border-theme-border overflow-hidden flex flex-col h-full opacity-100 min-h-[500px]">
       <div className="p-4 bg-theme-sidebar border-b border-theme-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wand2 size={18} className="text-theme-accent" />
+          <Wand2 size={18} className="text-theme-accent" aria-hidden="true" />
           <h3 className="font-bold text-theme-text">萃取结果 (Skill Deck)</h3>
           {extractionSource === 'fallback' && !isModelPending && (
             <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-[10px] font-bold text-amber-700">保底萃取</span>
           )}
           {extractionSource === 'fallback' && isModelPending && (
             <span className="px-2 py-0.5 rounded-full bg-blue-100 border border-blue-200 text-[10px] font-bold text-blue-700 flex items-center gap-1">
-              <Loader2 size={10} className="animate-spin" />保底萃取
+              <Loader2 size={10} className="animate-spin" aria-hidden="true" />保底萃取
             </span>
           )}
           {extractionSource === 'model' && (
@@ -179,7 +179,7 @@ export function BookFactoryOutput({
             }}
             className="text-[10px] bg-theme-sidebar border border-theme-border px-3 py-1 rounded-lg font-bold hover:bg-theme-sidebar transition-all flex items-center gap-1.5"
           >
-            {isEditing ? <><CheckCircle2 size={12} className="text-emerald-500" /> 完成编辑</> : <><Wand2 size={12} /> 手动修正 JSON</>}
+            {isEditing ? <><CheckCircle2 size={12} className="text-emerald-500" aria-hidden="true" /> 完成编辑</> : <><Wand2 size={12} aria-hidden="true" /> 手动修正 JSON</>}
           </button>
         )}
       </div>
@@ -188,12 +188,12 @@ export function BookFactoryOutput({
         <div className="px-4 pb-1">
           {isModelPending && (
             <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5 mb-2 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-blue-600" />
+              <Loader2 size={14} className="animate-spin text-blue-600" aria-hidden="true" />
               <div className="text-[11px] text-blue-700 font-medium">AI 正在后台深度分析文本风格...结果就绪后自动替换当前卡片。</div>
             </div>
           )}
           {extractionWarnings.map((warning, idx) => (
-            <div key={idx} className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2 mb-1.5 text-[11px] text-amber-700 leading-relaxed">{warning}</div>
+            <div key={warning + idx} className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2 mb-1.5 text-[11px] text-amber-700 leading-relaxed">{warning}</div>
           ))}
         </div>
       )}
@@ -201,7 +201,7 @@ export function BookFactoryOutput({
       <div className="flex-1 p-6 overflow-y-auto bg-theme-sidebar/50 backdrop-blur-sm">
         {!selectedSkill ? (
           <div className="h-full flex flex-col items-center justify-center text-theme-muted/70">
-            <Wand2 size={44} className="mb-4 opacity-50" />
+            <Wand2 size={44} className="mb-4 opacity-50" aria-hidden="true" />
             <p className="text-sm font-bold text-theme-text">{isAnalyzing ? '正在拆书...' : '等待拆书结果...'}</p>
             {extractionStatusNote && (
               <p className="text-[11px] text-theme-muted/60 mt-2 max-w-xs text-center">{extractionStatusNote}</p>
@@ -281,7 +281,7 @@ export function BookFactoryOutput({
                     disabled={isSaving || savedDeckIds.length > 0}
                     className="px-4 py-2 rounded-xl bg-theme-accent text-white text-[11px] font-bold hover:bg-theme-accent/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    <Save size={12} /> {savedDeckIds.length > 0 ? '整组 Deck 已保存' : '保存整组 Deck'}
+                    <Save size={12} aria-hidden="true" /> {savedDeckIds.length > 0 ? '整组 Deck 已保存' : '保存整组 Deck'}
                   </button>
                   <button
                     onClick={() => { onSetShowEquipPanel(true); onSetEquipNovelId(''); }}
@@ -300,7 +300,7 @@ export function BookFactoryOutput({
                   const CardIcon = typeConfig ? typeConfig.icon : null;
                   return (
                     <button
-                      key={`${skill.name}-${index}`}
+                      key={skill.id || `${skill.name}-${index}`}
                       type="button"
                       onClick={() => onSelectSkillIndex(index)}
                       className={`rounded-2xl border px-4 py-3 text-left transition-all duration-300 relative overflow-hidden ${
@@ -313,7 +313,7 @@ export function BookFactoryOutput({
                         <div className="space-y-1">
                           <div className="text-sm font-bold text-theme-text truncate max-w-[180px]">{skill.name}</div>
                           <div className="flex items-center gap-1.5 text-[10px] font-semibold">
-                            {CardIcon && <CardIcon size={12} className={typeConfig?.text || ''} />}
+                            {CardIcon && <CardIcon size={12} className={typeConfig?.text || ''} aria-hidden="true" />}
                             <span className={typeConfig ? typeConfig.text : 'text-theme-muted'}>
                               {typeConfig ? typeConfig.label : (index === 0 && deck ? '主笔卡' : index > 0 && deck ? `副卡 · ${rec.cardType}` : rec.cardType)}
                             </span>
@@ -369,7 +369,7 @@ export function BookFactoryOutput({
               disabled={isSaving || Boolean(deck && savedDeckIds.length > 0)}
               className="w-full py-4 mt-4 bg-theme-text text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:translate-y-[-2px] flex justify-center items-center gap-2 transition-all disabled:opacity-50 active:translate-y-0"
             >
-              <CheckCircle2 size={18} />
+              <CheckCircle2 size={18} aria-hidden="true" />
               {deck ? '单独保存当前卡（通常不需要）' : lastSavedSkillId ? '当前技能卡已保存' : '保存当前技能卡到技能库'}
             </button>
 

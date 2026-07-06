@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
-import { ScrollArea } from './ui/ScrollArea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { ScrollArea } from './ui/scroll-area';
 import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X } from 'lucide-react';
 
 import {
@@ -68,6 +68,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   // Focus trap and Escape key handler for dialog a11y
   useEffect(() => {
     if (!isOpen) return;
+    const previouslyActive = document.activeElement as HTMLElement;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -109,7 +111,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
       if (firstInput) firstInput.focus();
     }
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyActive && typeof previouslyActive.focus === 'function') {
+        previouslyActive.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
   const handleSave = async () => {

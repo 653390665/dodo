@@ -31,7 +31,7 @@ export function OutlineTab({
       <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold text-theme-text flex items-center gap-2">
-            <FileText size={14} className="text-theme-accent" />
+            <FileText size={14} className="text-theme-accent" aria-hidden="true" />
             全局大纲 (Global Outline)
           </h3>
         </div>
@@ -52,7 +52,7 @@ export function OutlineTab({
             disabled={!expectedWordCount || isGeneratingOutline}
             className="px-3 py-1.5 bg-theme-accent text-white text-[10px] font-bold rounded-lg hover:bg-theme-accent/90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200 flex items-center gap-1.5"
           >
-            {isGeneratingOutline ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} AI 智能排盘
+            {isGeneratingOutline ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <Sparkles size={12} aria-hidden="true" />} AI 智能排盘
           </button>
         </div>
 

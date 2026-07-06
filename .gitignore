@@ -33,3 +33,13 @@ design-audit/
 product-evaluation-report.html
 market-readiness-report.html
 code-health-report.html
+
+# Temporary test and media storage
+test-results/
+.tempmediaStorage
+.tempmediaStorage/
+
+# Temporary scratch files and logs
+.gemini/
+scratch/
+.scratch/

@@ -10,7 +10,7 @@ import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems,
   listFactions, listContinuationPacks, listSkills, getNovel, createChapter
 } from '../lib/api';
-import { ScrollArea } from './ui/ScrollArea';
+import { ScrollArea } from './ui/scroll-area';
 import { toast } from '../lib/toast';
 
 interface ProjectCockpitViewProps {

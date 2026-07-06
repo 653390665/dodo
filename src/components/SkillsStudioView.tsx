@@ -8,7 +8,7 @@ import { Skill, Novel, ViewType } from '../../shared/types';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
 
 export function SkillsStudioView({
   selectedNovel,

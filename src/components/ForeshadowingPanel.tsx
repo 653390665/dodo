@@ -179,7 +179,9 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
                 {f.description && <p className="text-[10px] text-theme-muted line-clamp-2 leading-relaxed">{f.description}</p>}
               </div>
               <button onClick={() => handleDelete(f.id)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-all shrink-0">
+                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-all shrink-0"
+                aria-label="删除伏笔"
+              >
                 <Trash2 size={12} />
               </button>
             </div>

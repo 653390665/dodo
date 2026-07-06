@@ -282,11 +282,15 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
                   <span className={pack.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'}>
                     {pack.status === 'approved' ? '已确认' : '待审核'}
                   </span>
-                  <span
+                  <button
+                    type="button"
                     onClick={e => { e.stopPropagation(); handleDeletePack(pack.id); }}
                     className="p-1 rounded hover:bg-red-50 text-theme-muted hover:text-red-500 transition-colors"
                     title="删除资料包"
-                  ><Trash2 size={12} /></span>
+                    aria-label="删除资料包"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
               <div className="text-theme-muted mt-1">

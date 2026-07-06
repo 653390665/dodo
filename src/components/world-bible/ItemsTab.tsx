@@ -36,6 +36,7 @@ export function ItemsTab({
             <button
               onClick={() => deleteEntity('item', item.id)}
               className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"
+              aria-label="删除物品"
             >
               <Trash2 size={16} />
             </button>

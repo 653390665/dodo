@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
 import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent } from '../production-client';
+import { getChapter } from '../chapter-client';
 
 interface UseChapterProductionFlowArgs {
   novelId: string;
@@ -37,14 +38,14 @@ export function useChapterProductionFlow({
   const productionCompletedRef = useRef(false);
   const productionHasUsableDraftRef = useRef(false);
 
-  const stopProductionFlow = () => {
+  const stopProductionFlow = useCallback(() => {
     if (productionAbortRef.current) {
       productionAbortRef.current.abort();
       productionAbortRef.current = null;
     }
     setIsProductionRunning(false);
     setProductionStatusMessage(null);
-  };
+  }, []);
 
   const handleStartProductionRun = async () => {
     if (productionAbortRef.current) {
@@ -99,8 +100,10 @@ export function useChapterProductionFlow({
         payload,
         (event: ProductionRunSSEEvent) => {
           if (productionAbortRef.current !== controller) return;
+
           switch (event.type) {
             case 'run_created':
+              setActiveProductionRun((prev) => prev ? { ...prev, id: event.runId } : prev);
               break;
             case 'status':
               setProductionStatusMessage(event.message);
@@ -139,6 +142,7 @@ export function useChapterProductionFlow({
             case 'model_score':
               break;
             case 'done':
+
               productionCompletedRef.current = true;
               setActiveProductionRun(event.run);
               setProductionError(null);
@@ -146,6 +150,7 @@ export function useChapterProductionFlow({
               setIsProductionRunning(false);
               break;
             case 'error':
+
               setProductionError(event.message);
               break;
           }
@@ -157,8 +162,10 @@ export function useChapterProductionFlow({
         return;
       }
       if (error instanceof Error && error.name === 'AbortError') return;
+
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {
+
       if (productionAbortRef.current === controller) {
         if (!productionCompletedRef.current) {
           if (productionHasUsableDraftRef.current) {
@@ -205,8 +212,9 @@ export function useChapterProductionFlow({
     try {
       const result = await applyChapterProductionRun(runToApply.id);
       const freshChapters = await refreshChapters();
+      const fullChapter = await getChapter(result.chapterId);
       setCurrentChapter(
-        (freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0] || null) as unknown as Chapter,
+        fullChapter || (freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0] || null) as unknown as Chapter,
       );
       setActiveProductionRun({
         ...runToApply,

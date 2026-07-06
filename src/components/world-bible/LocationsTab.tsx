@@ -36,6 +36,7 @@ export function LocationsTab({
             <button
               onClick={() => deleteEntity('location', loc.id)}
               className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"
+              aria-label="删除地点"
             >
               <Trash2 size={16} />
             </button>

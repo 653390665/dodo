@@ -91,7 +91,7 @@ export function normalizeSkillConfigs(data: unknown): Skill[] {
 }
 
 export function useBookFactory() {
-  const { selectedNovel } = useNovelStore();
+  const selectedNovel = useNovelStore(state => state.selectedNovel);
   const [fileContent, setFileContent] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [skillCards, setSkillCards] = useState<Skill[]>([]);

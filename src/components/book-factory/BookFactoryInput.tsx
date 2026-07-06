@@ -20,7 +20,7 @@ export function BookFactoryInput({
     <div className="flex flex-col gap-8">
       <div className="bg-theme-sidebar rounded-2xl shadow-sm border border-theme-border overflow-hidden flex flex-col h-full min-h-[500px]">
         <div className="p-4 bg-theme-sidebar border-b border-theme-border flex justify-between items-center">
-          <h3 className="font-bold text-theme-text flex gap-2 items-center"><Upload size={18} /> 上传范例文稿</h3>
+          <h3 className="font-bold text-theme-text flex gap-2 items-center"><Upload size={18} aria-hidden="true" /> 上传范例文稿</h3>
           <label className="cursor-pointer px-4 py-1.5 bg-theme-text text-white text-xs font-bold rounded-lg hover:bg-theme-text/90 transition-colors">
             选择 TXT 文件
             <input type="file" accept=".txt,.md" className="hidden" onChange={onFileUpload} />
@@ -41,9 +41,9 @@ export function BookFactoryInput({
             className="w-full py-4 bg-theme-accent text-white font-bold rounded-xl shadow-md hover:bg-theme-accent/90 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 transition-all text-lg"
           >
             {isAnalyzing ? (
-              <><Loader2 size={20} className="animate-spin" /> 正在提炼文风模型的灵魂...</>
+              <><Loader2 size={20} className="animate-spin" aria-hidden="true" /> 正在提炼文风模型的灵魂...</>
             ) : (
-              <>开始拆书与萃取 Skill <ChevronRight size={20}/></>
+              <>开始拆书与萃取 Skill <ChevronRight size={20} aria-hidden="true" /></>
             )}
           </button>
         </div>

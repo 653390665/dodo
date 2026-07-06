@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship } from '../../../shared/types';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
@@ -25,7 +25,7 @@ export function useEditorData(novelId: string) {
 
   const requestSeqRef = useRef(0);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     const currentSeq = ++requestSeqRef.current;
 
     try {
@@ -98,7 +98,7 @@ export function useEditorData(novelId: string) {
         setIsLoading(false);
       }
     }
-  };
+  }, [novelId]);
 
   useEffect(() => {
     if (!currentChapter) return;
@@ -127,8 +127,7 @@ export function useEditorData(novelId: string) {
     return () => {
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [novelId]);
+  }, [novelId, fetchAll]);
 
   return {
     chapters,

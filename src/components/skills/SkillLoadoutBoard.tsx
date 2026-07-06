@@ -360,6 +360,7 @@ export function SkillLoadoutBoard({
                   {skill && (
                     <button
                       type="button"
+                      aria-label={`卸载卡槽 ${slot + 1} 的技能`}
                       onClick={(event) => {
                         event.stopPropagation();
                         onRemoveSkill(slot);

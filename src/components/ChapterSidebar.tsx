@@ -18,7 +18,7 @@ interface ChapterSidebarProps {
   onToggleVolume: (volumeName: string) => void;
 }
 
-export function ChapterSidebar({
+export const ChapterSidebar = React.memo(function ChapterSidebar({
   novel,
   chapters,
   currentChapter,
@@ -51,6 +51,7 @@ export function ChapterSidebar({
     <>
       {!isFullscreen && isSidebarOpen && (
         <div
+          id="chapter-sidebar-panel"
           className="flex flex-col border-r border-theme-border bg-transparent overflow-hidden"
         >
           <div className="p-4 border-b border-theme-border bg-transparent sticky top-0 z-10 flex items-center justify-between">
@@ -58,16 +59,18 @@ export function ChapterSidebar({
               onClick={onBack}
               className="p-2 hover:bg-theme-border rounded-lg text-theme-muted transition-colors"
               title="返回书库"
+              aria-label="返回书库"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
             <h2 className="text-sm font-bold uppercase tracking-widest text-theme-muted truncate max-w-[120px]">{novel.title}</h2>
             <button
               onClick={() => onAddChapter()}
               className="p-2 hover:opacity-90 bg-theme-accent text-white rounded-lg transition-[background-color,opacity,box-shadow] duration-200"
               title="新建章节"
+              aria-label="新建章节"
             >
-              <Plus size={16} />
+              <Plus size={16} aria-hidden="true" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -79,9 +82,9 @@ export function ChapterSidebar({
                   className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-theme-border/30 rounded-lg text-theme-text transition-colors group/vol"
                 >
                   {expandedVolumes.includes(group.volumeName) ? (
-                    <FolderOpen size={14} className="text-theme-muted" />
+                    <FolderOpen size={14} className="text-theme-muted" aria-hidden="true" />
                   ) : (
-                    <Folder size={14} className="text-theme-muted" />
+                    <Folder size={14} className="text-theme-muted" aria-hidden="true" />
                   )}
                   <span className="text-xs font-bold truncate flex-1">{group.volumeName}</span>
                   <span className="text-[10px] text-theme-muted opacity-0 group-hover/vol:opacity-100 transition-opacity">
@@ -91,8 +94,9 @@ export function ChapterSidebar({
                     onClick={(e) => { e.stopPropagation(); onAddChapter(group.volumeName); }}
                     className="opacity-0 group-hover/vol:opacity-100 p-1 hover:text-theme-accent transition-opacity ml-1 shrink-0"
                     title="在此卷中添加"
+                    aria-label="在此卷中添加"
                   >
-                    <Plus size={12} />
+                    <Plus size={12} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -116,8 +120,9 @@ export function ChapterSidebar({
                           <button
                             onClick={(e) => { e.stopPropagation(); onDeleteChapter(chapter.id); }}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-opacity ml-2 shrink-0"
+                            aria-label="删除章节"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={12} aria-hidden="true" />
                           </button>
                         </div>
 
@@ -125,7 +130,7 @@ export function ChapterSidebar({
                         {currentChapter?.id === chapter.id && currentChapter?.sceneBeats && (
                           <div className="pl-7 mt-0.5 space-y-1 mb-2 relative before:absolute before:left-[17px] before:top-0 before:-bottom-2 before:w-px before:bg-theme-border/30">
                             {currentChapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).slice(0, 4).map((beat, i) => (
-                              <div key={i} className="text-[10px] text-theme-muted truncate relative before:absolute before:-left-2.5 before:top-1/2 before:-mt-px before:w-2 before:h-px before:bg-theme-border/30">
+                              <div key={`${currentChapter.id}-beat-${beat.trim().slice(0, 15)}-${i}`} className="text-[10px] text-theme-muted truncate relative before:absolute before:-left-2.5 before:top-1/2 before:-mt-px before:w-2 before:h-px before:bg-theme-border/30">
                                 {beat.replace(/^[-* 0-9.]+\s*/, '').trim() || beat}
                               </div>
                             ))}
@@ -145,4 +150,4 @@ export function ChapterSidebar({
       )}
     </>
   );
-}
+});

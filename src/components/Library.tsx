@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookMarked, CheckCircle2, Clock, Download, FileText, Globe2, PenLine, Plus, Search, Trash2, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/AlertDialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
 import { createChapter, listChapters } from '../lib/chapter-client';

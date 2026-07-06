@@ -126,7 +126,7 @@ export function QualityTab({
         <div className="bg-theme-sidebar p-6 rounded-2xl border border-theme-border/60 shadow-md flex flex-col items-center justify-center text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-theme-accent/5 to-transparent pointer-events-none" />
           <div className="flex items-center justify-center rounded-2xl w-14 h-14 bg-theme-accent/10 text-theme-accent mb-4">
-            <Bot size={28} className="opacity-90" />
+            <Bot size={28} className="opacity-90" aria-hidden="true" />
           </div>
           <h3 className="text-sm font-bold text-theme-text mb-1">AI 章节批判审计</h3>
           <p className="text-xs text-theme-muted mb-6 max-w-[240px] leading-relaxed">
@@ -139,12 +139,12 @@ export function QualityTab({
           >
             {isGeneratingCritique ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                 <span>审计诊断中... (约需30s)</span>
               </>
             ) : (
               <>
-                <MessageSquareWarning size={16} />
+                <MessageSquareWarning size={16} aria-hidden="true" />
                 <span>开始 AI 审计</span>
               </>
             )}
@@ -189,7 +189,7 @@ export function QualityTab({
         // 回退到普通面板
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border/60 shadow-sm flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Bot size={20} className="text-theme-accent" />
+            <Bot size={20} className="text-theme-accent" aria-hidden="true" />
             <div>
               <h4 className="text-xs font-bold text-theme-text">AI 审稿报告</h4>
               <p className="text-[10px] text-theme-muted">诊断已就绪，推荐使用下方一键精修</p>
@@ -200,7 +200,7 @@ export function QualityTab({
             disabled={isGeneratingCritique}
             className="px-3 py-1.5 border border-theme-border text-xs font-bold rounded-lg hover:bg-theme-border/40 transition-colors shrink-0 flex items-center gap-1 disabled:opacity-50"
           >
-            {isGeneratingCritique ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {isGeneratingCritique ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={12} aria-hidden="true" />}
             重新审计
           </button>
         </div>
@@ -210,7 +210,7 @@ export function QualityTab({
       {hasCritique && recommendedAssets.length > 0 && (
         <div className="space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-black text-theme-accent uppercase tracking-wider">
-            <Compass size={13} />
+            <Compass size={13} aria-hidden="true" />
             <span>智能推荐下一步治理资产 ({recommendedAssets.length})</span>
           </div>
           <div className="space-y-3">
@@ -257,7 +257,7 @@ export function QualityTab({
                       }}
                       className="absolute top-2.5 right-2.5 p-1 text-theme-muted hover:text-red-500 hover:bg-red-500/5 rounded-md transition-all duration-200 opacity-0 group-hover:opacity-100 z-20 cursor-pointer"
                     >
-                      <X size={11} />
+                      <X size={11} aria-hidden="true" />
                     </button>
                   )}
 
@@ -368,7 +368,7 @@ export function QualityTab({
         <div className="bg-gradient-to-br from-violet-600/5 via-indigo-600/5 to-transparent border border-indigo-500/20 p-5 rounded-2xl shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-              <Sparkles size={13} className="animate-pulse" />
+              <Sparkles size={13} className="animate-pulse" aria-hidden="true" />
               <span>局部手术式精修 ({autoFixableIssues.length} 处)</span>
             </div>
             <span className="text-[9px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold">
@@ -378,7 +378,7 @@ export function QualityTab({
 
           <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
             {autoFixableIssues.slice(0, 3).map((issue, idx) => (
-              <div key={idx} className="bg-theme-sidebar/60 p-3 rounded-xl border border-theme-border/40 text-[11px] leading-relaxed relative">
+              <div key={issue.snippet + idx} className="bg-theme-sidebar/60 p-3 rounded-xl border border-theme-border/40 text-[11px] leading-relaxed relative">
                 <div className="font-bold text-theme-text flex items-center gap-1.5 mb-1.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500" />
                   <span>
@@ -410,12 +410,12 @@ export function QualityTab({
           >
             {isGeneratingContent ? (
               <>
-                <Loader2 size={13} className="animate-spin" />
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
                 <span>手术精修中，请稍后...</span>
               </>
             ) : (
               <>
-                <Wand2 size={13} className="group-hover:rotate-12 transition-transform duration-300" />
+                <Wand2 size={13} className="group-hover:rotate-12 transition-transform duration-300" aria-hidden="true" />
                 <span>一键执行局部手术精修</span>
               </>
             )}
@@ -430,12 +430,12 @@ export function QualityTab({
           {hardIssues.length > 0 && (
             <div className="bg-red-500/5 border border-red-500/15 p-4 rounded-xl space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400">
-                <HeartCrack size={13} />
+                <HeartCrack size={13} aria-hidden="true" />
                 <span>逻辑与场景硬伤 ({hardIssues.length})</span>
               </div>
               <div className="space-y-2 divide-y divide-theme-border/20">
                 {hardIssues.map((issue, idx) => (
-                  <div key={idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
+                  <div key={issue.explanation + idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
                     <div className="font-bold text-theme-text">{issue.explanation}</div>
                     {issue.snippet && (
                       <div className="mt-1 pl-2.5 border-l border-theme-border/50 text-theme-muted italic font-serif">
@@ -453,12 +453,12 @@ export function QualityTab({
           {slopIssues.length > 0 && (
             <div className="bg-amber-500/5 border border-amber-500/15 p-4 rounded-xl space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                <Sparkles size={13} />
+                <Sparkles size={13} aria-hidden="true" />
                 <span>文风机械感 / AI腔 ({slopIssues.length})</span>
               </div>
               <div className="space-y-2 divide-y divide-theme-border/20">
                 {slopIssues.map((issue, idx) => (
-                  <div key={idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
+                  <div key={issue.explanation + idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
                     <div className="font-bold text-theme-text">{issue.explanation}</div>
                     {issue.snippet && (
                       <div className="mt-1 pl-2.5 border-l border-theme-border/50 text-theme-muted italic font-serif">
@@ -476,17 +476,17 @@ export function QualityTab({
           {(structuredAudit.surgerySuggestions.length > 0 || manualFixIssues.length > 0) && (
             <div className="bg-blue-500/5 border border-blue-500/15 p-4 rounded-xl space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
-                <Lightbulb size={13} />
+                <Lightbulb size={13} aria-hidden="true" />
                 <span>人工修改及方向建议</span>
               </div>
               <ul className="space-y-1.5 pl-3 list-disc text-[11px] text-theme-muted leading-relaxed">
                 {manualFixIssues.map((issue, idx) => (
-                  <li key={idx} className="marker:text-blue-500">
+                  <li key={issue.explanation + idx} className="marker:text-blue-500">
                     <span className="font-bold text-theme-text">{issue.explanation}</span>：{issue.patchHint}
                   </li>
                 ))}
                 {structuredAudit.surgerySuggestions.map((sug, idx) => (
-                  <li key={`sug-${idx}`} className="marker:text-blue-500/60">
+                  <li key={`sug-${sug.trim().slice(0, 15)}-${idx}`} className="marker:text-blue-500/60">
                     {sug}
                   </li>
                 ))}
@@ -506,7 +506,7 @@ export function QualityTab({
               disabled={isGeneratingCritique}
               className="py-1 px-2.5 border border-theme-border hover:bg-theme-border/30 rounded-lg text-[10px] font-bold text-theme-muted hover:text-theme-text flex items-center gap-1 transition-colors shrink-0 disabled:opacity-50"
             >
-              {isGeneratingCritique ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+              {isGeneratingCritique ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={10} aria-hidden="true" />}
               重新审计章节
             </button>
           )}
@@ -529,7 +529,7 @@ export function QualityTab({
             disabled={isGeneratingContent || !currentChapter?.critique || !currentChapter?.content}
             className="flex-1 py-2 bg-theme-sidebar border border-theme-border text-theme-text hover:bg-theme-border/40 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            {isGeneratingContent ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
+            {isGeneratingContent ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Wand2 size={13} aria-hidden="true" />}
             {isGeneratingContent ? '精修中...' : '按审计精修正文'}
           </button>
         )}
@@ -539,7 +539,7 @@ export function QualityTab({
             onClick={() => onSwitchTab('planning')}
             className="flex-1 py-2 bg-theme-sidebar border border-theme-border text-theme-muted hover:text-theme-text hover:bg-theme-border/40 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5"
           >
-            <Compass size={13} />
+            <Compass size={13} aria-hidden="true" />
             回看分镜规划
           </button>
         )}

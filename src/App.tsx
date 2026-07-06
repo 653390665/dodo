@@ -4,13 +4,14 @@
  */
 
 import { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from './stores/app-store';
 import { useNovelStore } from './stores/novel-store';
 import { matchesShortcut, SHORTCUTS } from './lib/keyboard-shortcuts';
 import { deriveWorkspaceFocus } from './lib/workspace-nav';
 import type { ViewType, WorkspaceNavKey } from '../shared/types';
 import { AppShell } from './components/AppShell';
-import { TooltipProvider } from './components/ui/Tooltip';
+import { TooltipProvider } from './components/ui/tooltip';
 import { PremiumUpgradeModal } from './components/commercial/PremiumUpgradeModal';
 
 export default function App() {
@@ -20,12 +21,27 @@ export default function App() {
     setSettingsOpen,
     setAIAssistantOpen,
     setWorkspaceFocus,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      theme: state.theme,
+      setTheme: state.setTheme,
+      setSettingsOpen: state.setSettingsOpen,
+      setAIAssistantOpen: state.setAIAssistantOpen,
+      setWorkspaceFocus: state.setWorkspaceFocus,
+    }))
+  );
 
   const {
     continuationLaunchState,
     setContinuationLaunchState,
-  } = useNovelStore();
+  } = useNovelStore(
+    useShallow((state) => ({
+      continuationLaunchState: state.continuationLaunchState,
+      setContinuationLaunchState: state.setContinuationLaunchState,
+    }))
+  );
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');

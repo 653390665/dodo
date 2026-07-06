@@ -41,7 +41,7 @@ interface WritingSurfaceProps {
   setIsAgentSidebarOpen: (open: boolean) => void;
 }
 
-export function WritingSurface({
+export const WritingSurface = React.memo(function WritingSurface({
   novel,
   currentChapter,
   isGeneratingBeats,
@@ -299,4 +299,4 @@ export function WritingSurface({
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { StoryCardDeck } from './onboarding/StoryCardDeck';
 import { AIAssistant } from './AIAssistant';
@@ -37,6 +37,60 @@ export function AIAssistantDrawer({
   handleReplaceAssistantSelection: (text: string) => void;
   selectedNovel?: Novel | null;
 }) {
+  // Focus trap, Escape key handler, and Focus restoration for AIAssistantDrawer
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyActive = document.activeElement as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusableElements = document.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+        );
+        const modalElement = document.getElementById('ai-assistant-drawer-container');
+        if (!modalElement) return;
+        const modalFocusables = Array.from(focusableElements).filter(el =>
+          modalElement.contains(el)
+        ) as HTMLElement[];
+
+        if (modalFocusables.length === 0) return;
+        const first = modalFocusables[0];
+        const last = modalFocusables[modalFocusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Auto focus first interactive element
+    const modalElement = document.getElementById('ai-assistant-drawer-container');
+    if (modalElement) {
+      const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+      if (firstInput) firstInput.focus();
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyActive && typeof previouslyActive.focus === 'function') {
+        previouslyActive.focus();
+      }
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -45,7 +99,13 @@ export function AIAssistantDrawer({
         onClick={onClose}
         className="fixed inset-0 sm:left-[76px] z-[60] bg-black/10 backdrop-blur-[2px]"
       />
-      <div className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl">
+      <div
+        id="ai-assistant-drawer-container"
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI协作与灵感助手"
+        className="fixed right-0 top-0 z-[70] h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl"
+      >
         {onboardingDraft ? (
           <div className="h-full flex flex-col">
             <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar">

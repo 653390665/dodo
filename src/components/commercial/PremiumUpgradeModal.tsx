@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Crown, Sparkles, X, ShieldAlert, CheckCircle, Zap } from 'lucide-react';
 import { getNovel, updateNovel } from '../../lib/novel-client';
 import type { ProjectPreferenceProfile } from '../../../shared/types';
@@ -46,6 +46,12 @@ export function PremiumUpgradeModal() {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // 弹窗关闭处理器，通过 useCallback 维持其稳定引用以符合 React Hook 的规范
+  const handleClose = useCallback(() => {
+    if (isUpgrading) return; // 升级中禁止中途关闭，保证写入事务安全
+    setIsOpen(false);
+  }, [isUpgrading]);
+
   useEffect(() => {
     // 注册全局事件监听，用于无缝唤起升舱引导
     // Reg event listeners to wake up premium modal with detail payload
@@ -84,11 +90,61 @@ export function PremiumUpgradeModal() {
     };
   }, []);
 
-  // 弹窗关闭处理器
-  const handleClose = () => {
-    if (isUpgrading) return; // 升级中禁止中途关闭，保证写入事务安全
-    setIsOpen(false);
-  };
+  // Focus trap, Escape key handler, and Focus restoration for PremiumUpgradeModal
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyActive = document.activeElement as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!isUpgrading) {
+          handleClose();
+        }
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusableElements = document.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]'
+        );
+        const modalElement = document.getElementById('premium-upgrade-dialog-container');
+        if (!modalElement) return;
+        const modalFocusables = Array.from(focusableElements).filter(el =>
+          modalElement.contains(el)
+        ) as HTMLElement[];
+
+        if (modalFocusables.length === 0) return;
+        const first = modalFocusables[0];
+        const last = modalFocusables[modalFocusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Auto focus first interactive element
+    const modalElement = document.getElementById('premium-upgrade-dialog-container');
+    if (modalElement) {
+      const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+      if (firstInput) firstInput.focus();
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyActive && typeof previouslyActive.focus === 'function') {
+        previouslyActive.focus();
+      }
+    };
+  }, [isOpen, isUpgrading, handleClose]);
 
   // 立即升级核心动作
   // Executes instant SQLite persistence and triggers premium glow transition
@@ -137,6 +193,10 @@ export function PremiumUpgradeModal() {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-md animate-fade-in">
       {/* 磨砂毛玻璃卡片容器 (OKLCH 霓虹流光与超薄柔和外边框) */}
       <div 
+        id="premium-upgrade-dialog-container"
+        role="dialog"
+        aria-modal="true"
+        aria-label="InkFlow 付费权益升舱"
         className="relative w-full max-w-2xl rounded-[2rem] border border-white/10 bg-zinc-900/90 p-8 shadow-[0_0_50px_rgba(118,75,255,0.15)] text-zinc-100 flex flex-col overflow-hidden max-h-[calc(100vh-2rem)]"
         style={{
           boxShadow: '0 0 80px -10px oklch(65% 0.25 280 / 0.15), 0 0 40px -20px oklch(70% 0.3 340 / 0.1)',

@@ -34,19 +34,19 @@ export function PowerLevelsTab({
             className="bg-theme-sidebar p-5 rounded-2xl border border-theme-border/50 shadow-sm flex items-start gap-4 group relative"
           >
             <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
-              <span className="w-8 h-8 flex items-center justify-center bg-theme-sidebar text-theme-accent font-bold rounded-full bg-theme-accent/10">
-                {lvl.tier}
-              </span>
-              <div className="flex gap-1 text-[10px]">
+              <div className="flex flex-col items-center gap-1 border border-theme-border/50 rounded-lg p-1 bg-theme-bg/50">
+                <span className="text-[10px] text-theme-muted font-bold leading-none">T{lvl.tier}</span>
                 <button
-                  onClick={() => updateEntity('powerLevel', lvl.id, { tier: lvl.tier - 1 })}
+                  onClick={() => updateEntity('powerLevel', lvl.id, { tier: Math.max(1, lvl.tier - 1) })}
                   className="text-theme-muted hover:text-theme-accent disabled:opacity-30"
+                  aria-label="提升等级"
                 >
                   ↑
                 </button>
                 <button
                   onClick={() => updateEntity('powerLevel', lvl.id, { tier: lvl.tier + 1 })}
                   className="text-theme-muted hover:text-theme-accent disabled:opacity-30"
+                  aria-label="降低等级"
                 >
                   ↓
                 </button>
@@ -56,6 +56,7 @@ export function PowerLevelsTab({
               <button
                 onClick={() => deleteEntity('powerLevel', lvl.id)}
                 className="absolute top-0 right-0 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2 rounded-lg hover:bg-red-100"
+                aria-label="删除境界"
               >
                 <Trash2 size={16} />
               </button>

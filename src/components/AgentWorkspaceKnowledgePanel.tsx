@@ -58,6 +58,34 @@ export function AgentWorkspaceKnowledgePanel({
   projectPreferenceProfile,
   onPreferenceProfileChange,
 }: AgentWorkspaceKnowledgePanelProps) {
+  // Local state to keep track of user input instantly.
+  const [localSearch, setLocalSearch] = React.useState(bibleSearch);
+  const [prevBibleSearch, setPrevBibleSearch] = React.useState(bibleSearch);
+
+  // Synchronize local search state during rendering when the parent `bibleSearch` prop changes.
+  // This avoids cascading renders in useEffect and complies with React best practices.
+  if (bibleSearch !== prevBibleSearch) {
+    setLocalSearch(bibleSearch);
+    setPrevBibleSearch(bibleSearch);
+  }
+
+  // Debounce updating the parent's `bibleSearch` state by 150ms.
+  // This avoids triggering expensive search logic and parent re-renders on every keystroke.
+  // CRITICAL OPTIMIZATION: Only notify parent of updates when localSearch differs from bibleSearch (prevents feedback loops).
+  React.useEffect(() => {
+    if (localSearch === bibleSearch) {
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      setBibleSearch(localSearch);
+    }, 150);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [localSearch, bibleSearch, setBibleSearch]);
+
   if (agentTab === 'bible') {
     const knowledgeEntries = buildKnowledgeSearchEntries({
       bibleSearch,
@@ -76,8 +104,9 @@ export function AgentWorkspaceKnowledgePanel({
             <input
               type="text"
               placeholder="检索资料包、角色、地点、道具..."
-              value={bibleSearch}
-              onChange={(e) => setBibleSearch(e.target.value)}
+              aria-label="检索设定和资料包"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-theme-sidebar border border-theme-border rounded-xl text-sm placeholder:text-theme-muted/50 shadow-sm transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
             />
           </div>

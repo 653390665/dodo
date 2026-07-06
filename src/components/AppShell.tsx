@@ -13,6 +13,7 @@ const SkillsStudioView = lazy(() => import('./SkillsStudioView').then(m => ({ de
 const BookFactoryView = lazy(() => import('./BookFactoryView').then(m => ({ default: m.BookFactoryView })));
 import { ProjectCockpitView } from './ProjectCockpitView';
 
+import { useShallow } from 'zustand/react/shallow';
 import type { AssistantLaunchContext, ContinuationEditorLaunchState, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceNavKey } from '../../shared/types';
 import { useAppStore } from '../stores/app-store';
 import { useNovelStore } from '../stores/novel-store';
@@ -144,7 +145,21 @@ export function AppShell() {
     isSettingsOpen, setSettingsOpen,
     isAIAssistantOpen, setAIAssistantOpen,
     aiDrawerTab, setAIDrawerTab,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      setWorkspaceFocus: state.setWorkspaceFocus,
+      theme: state.theme,
+      setTheme: state.setTheme,
+      isSettingsOpen: state.isSettingsOpen,
+      setSettingsOpen: state.setSettingsOpen,
+      isAIAssistantOpen: state.isAIAssistantOpen,
+      setAIAssistantOpen: state.setAIAssistantOpen,
+      aiDrawerTab: state.aiDrawerTab,
+      setAIDrawerTab: state.setAIDrawerTab,
+    }))
+  );
 
   const {
     selectedNovel, setSelectedNovel,
@@ -153,7 +168,22 @@ export function AppShell() {
     batchCounter, incrementBatchCounter,
     assistantLaunchContext, setAssistantLaunchContext,
     continuationLaunchState, setContinuationLaunchState,
-  } = useNovelStore();
+  } = useNovelStore(
+    useShallow((state) => ({
+      selectedNovel: state.selectedNovel,
+      setSelectedNovel: state.setSelectedNovel,
+      onboardingDraft: state.onboardingDraft,
+      setOnboardingDraft: state.setOnboardingDraft,
+      activeSetupTaskKey: state.activeSetupTaskKey,
+      setActiveSetupTaskKey: state.setActiveSetupTaskKey,
+      batchCounter: state.batchCounter,
+      incrementBatchCounter: state.incrementBatchCounter,
+      assistantLaunchContext: state.assistantLaunchContext,
+      setAssistantLaunchContext: state.setAssistantLaunchContext,
+      continuationLaunchState: state.continuationLaunchState,
+      setContinuationLaunchState: state.setContinuationLaunchState,
+    }))
+  );
 
   const [user] = useState(LOCAL_USER);
   const [loading, setLoading] = useState(false);

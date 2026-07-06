@@ -187,7 +187,7 @@ export function SkillCardDetails({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Award className={`w-5 h-5 ${gradeInfo.text}`} />
+              <Award className={`w-5 h-5 ${gradeInfo.text}`} aria-hidden="true" />
               <h3 className="font-bold text-sm text-theme-text">拆解卡质量健康评估 (Deconstruction Health Audit)</h3>
             </div>
             <p className="text-xs text-theme-muted leading-relaxed max-w-[65ch]">
@@ -207,12 +207,12 @@ export function SkillCardDetails({
           <div className="flex items-center gap-2">
             {!hasDeductions ? (
               <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" aria-hidden="true" />
                 <span className="text-xs text-emerald-600 font-medium">白璧无瑕！该卡未检测到任何命名实体泄露或 AI 腔套话，纯净度完美。</span>
               </>
             ) : (
               <>
-                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                <ShieldAlert className="w-4 h-4 text-amber-500" aria-hidden="true" />
                 <span className="text-xs text-amber-600 font-medium">检测到有待优化的潜在泄露与 AI 套话红线，可展开查看明细。</span>
               </>
             )}
@@ -223,7 +223,7 @@ export function SkillCardDetails({
               className="text-xs font-bold text-theme-accent hover:underline flex items-center gap-1"
             >
               {showScoreDetails ? '折叠明细' : '查看扣分明细'}
-              {showScoreDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {showScoreDetails ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
             </button>
           )}
         </div>
@@ -240,7 +240,7 @@ export function SkillCardDetails({
                 </div>
                 <div className="space-y-1">
                   {report.details.evidenceDeductions.map((deduction, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                    <div key={deduction + idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                       <span>{deduction}</span>
                     </div>
@@ -258,7 +258,7 @@ export function SkillCardDetails({
                 </div>
                 <div className="space-y-1">
                   {report.details.transferabilityDeductions.map((deduction, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                    <div key={deduction + idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                       <span>{deduction}</span>
                     </div>
@@ -276,7 +276,7 @@ export function SkillCardDetails({
                 </div>
                 <div className="space-y-1">
                   {report.details.safetyDeductions.map((deduction, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
+                    <div key={deduction + idx} className="flex items-center gap-2 text-xs text-theme-text/80 bg-theme-sidebar/50 px-3 py-1.5 rounded-lg border border-theme-border">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                       <span>{deduction}</span>
                     </div>
@@ -291,7 +291,7 @@ export function SkillCardDetails({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className={`rounded-xl border px-4 py-3 ${isDeconstructionCard && cardTypeInfo ? `${cardTypeInfo.border} ${cardTypeInfo.bg}` : 'border-theme-border bg-theme-sidebar/25'}`}>
           <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider flex items-center gap-1.5">
-            {IconComponent && <IconComponent className={`w-3.5 h-3.5 ${cardTypeInfo?.text || ''}`} />}
+            {IconComponent && <IconComponent className={`w-3.5 h-3.5 ${cardTypeInfo?.text || ''}`} aria-hidden="true" />}
             <span>卡片类型</span>
           </div>
           <div className={`text-sm font-bold mt-2 ${isDeconstructionCard && cardTypeInfo ? cardTypeInfo.text : 'text-theme-text'}`}>
@@ -417,7 +417,7 @@ export function SkillCardDetails({
         <h4 className="text-[10px] font-bold text-theme-accent uppercase mb-3">经典句式提取</h4>
         <div className="space-y-2">
           {(selectedSkill.fewShots || []).map((s, idx) => (
-            <div key={idx} className="text-xs text-theme-muted italic p-2 bg-theme-sidebar/10 rounded-lg border-l-2 border-theme-accent/30 font-serif">"{s}"</div>
+            <div key={s + idx} className="text-xs text-theme-muted italic p-2 bg-theme-sidebar/10 rounded-lg border-l-2 border-theme-accent/30 font-serif">"{s}"</div>
           ))}
         </div>
       </div>
@@ -433,7 +433,7 @@ export function SkillCardDetails({
           <p className="text-[10px] text-theme-muted mb-3 leading-relaxed">{deck.methodChain.summary}</p>
           <div className="space-y-3">
             {deck.methodChain.items.map((qa, idx) => (
-              <div key={idx} className="rounded-lg border border-theme-border bg-theme-sidebar/10 p-3">
+              <div key={qa.question + idx} className="rounded-lg border border-theme-border bg-theme-sidebar/10 p-3">
                 <div className="text-xs font-bold text-theme-text">Q{idx + 1}: {qa.question}</div>
                 <div className="text-xs text-theme-muted mt-1.5 leading-relaxed">{qa.answer}</div>
                 <div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px]">

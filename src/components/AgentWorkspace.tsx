@@ -70,8 +70,6 @@ interface AgentWorkspaceProps {
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
   onCreateChapter?: () => Promise<void>;
-  bibleSearch: string;
-  setBibleSearch: (search: string) => void;
   characters: Character[];
   locations: Location[];
   items: Item[];
@@ -94,6 +92,7 @@ interface AgentWorkspaceProps {
   relationships: EntityRelationship[];
   isDocked?: boolean;
   activeEntityNames?: string[];
+  contentRef?: React.RefObject<HTMLTextAreaElement | null>;
   skippedAssetIds?: string[];
   stackedDeconstructionCardIds?: string[];
   onStackDeconstructionCard?: (assetId: string) => Promise<void>;
@@ -101,7 +100,7 @@ interface AgentWorkspaceProps {
   onSkipAsset?: (assetId: string) => Promise<void>;
 }
 
-export function AgentWorkspace({
+export const AgentWorkspace = React.memo(function AgentWorkspace({
   novel,
   chapters,
   currentChapter,
@@ -146,8 +145,6 @@ export function AgentWorkspace({
   isGeneratingCritique,
   onPolishChapterFromAudit,
   onCreateChapter,
-  bibleSearch,
-  setBibleSearch,
   characters,
   locations,
   items,
@@ -168,7 +165,8 @@ export function AgentWorkspace({
   addingEntityNames,
   relationships,
   isDocked = false,
-  activeEntityNames = [],
+  activeEntityNames: propActiveEntityNames,
+  contentRef,
   factions,
   skippedAssetIds,
   stackedDeconstructionCardIds,
@@ -177,6 +175,58 @@ export function AgentWorkspace({
   onSkipAsset,
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
+  const [bibleSearch, setBibleSearch] = React.useState('');
+
+  const [localActiveEntityNames, setLocalActiveEntityNames] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!currentChapter || !currentChapter.content) {
+        setLocalActiveEntityNames([]);
+        return;
+      }
+
+      const fullText = currentChapter.content;
+      let textToScan = fullText;
+      const textarea = contentRef?.current;
+      if (textarea) {
+        const cursor = textarea.selectionStart || 0;
+        const minIdx = Math.max(0, cursor - 1500);
+        const maxIdx = Math.min(fullText.length, cursor + 500);
+        textToScan = fullText.substring(minIdx, maxIdx);
+      }
+
+      const matched: string[] = [];
+
+      characters.forEach((c) => {
+        if (c.name && textToScan.includes(c.name)) {
+          matched.push(c.name);
+        }
+      });
+      locations.forEach((l) => {
+        if (l.name && textToScan.includes(l.name)) {
+          matched.push(l.name);
+        }
+      });
+      items.forEach((i) => {
+        if (i.name && textToScan.includes(i.name)) {
+          matched.push(i.name);
+        }
+      });
+      factions.forEach((f) => {
+        if (f.name && textToScan.includes(f.name)) {
+          matched.push(f.name);
+        }
+      });
+
+      setLocalActiveEntityNames(matched);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentChapter, characters, locations, items, factions, contentRef]);
+
+  const activeEntityNames = propActiveEntityNames ?? localActiveEntityNames;
+
 
   const filteredRelationships = React.useMemo(() => {
     if (!relationships || !activeEntityNames || activeEntityNames.length === 0) return [];
@@ -437,10 +487,10 @@ export function AgentWorkspace({
                    <div className="bg-theme-sidebar/40 p-3 rounded-xl border border-theme-border/40 shadow-sm text-left">
                       <div className="text-[10px] font-bold text-theme-text mb-1.5">已挂载技能 ({mountedSkillLoadout.length})</div>
                       <div className="space-y-1">
-                         {mountedSkillLoadout.map((item, idx) => {
+                         {mountedSkillLoadout.map((item) => {
                             const skillName = librarySkills.find(s => s.id === item.skillId)?.name || item.skillId;
                             return (
-                               <div key={idx} className="text-[10px] text-theme-muted truncate">
+                               <div key={item.skillId} className="text-[10px] text-theme-muted truncate">
                                   • {skillName}
                                </div>
                             );
@@ -617,4 +667,4 @@ export function AgentWorkspace({
       </div>
     </div>
   );
-}
+});

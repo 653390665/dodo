@@ -12,7 +12,7 @@ export function BookFactoryView() {
       <div className="flex-1 overflow-y-auto w-full max-w-5xl mx-auto p-8 relative z-10">
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-serif font-bold text-theme-text flex items-center justify-center gap-3">
-            <BookTemplate size={28} className="text-theme-accent" />
+            <BookTemplate size={28} className="text-theme-accent" aria-hidden="true" />
             拆书工厂 (Book-to-Skill Studio)
           </h1>
           <p className="text-theme-muted mt-2">上传爆款小说样本，AI 自动提炼文风、句法与爽点套路，结晶为你的专属 Skill 卡牌。</p>

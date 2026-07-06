@@ -164,9 +164,9 @@ export function RelationshipGraph({ relationships, characters, locations, items,
   return (
     <svg ref={svgRef} viewBox="0 0 500 400" className="w-full h-80 bg-theme-sidebar rounded-xl border border-theme-border">
       {/* Edges */}
-      {edges.map((edge, i) => (
+      {edges.map((edge) => (
         <line
-          key={i}
+          key={`${edge.source}-${edge.target}`}
           x1={nodes.find((n) => n.id === edge.source)?.x || 0}
           y1={nodes.find((n) => n.id === edge.source)?.y || 0}
           x2={nodes.find((n) => n.id === edge.target)?.x || 0}

@@ -27,7 +27,7 @@ import { ItemsTab } from './world-bible/ItemsTab';
 import { FactionsTab } from './world-bible/FactionsTab';
 import { PowerLevelsTab } from './world-bible/PowerLevelsTab';
 import { TimelineTab } from './world-bible/TimelineTab';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/AlertDialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/alert-dialog';
 import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
 
 export function WorldBibleView({

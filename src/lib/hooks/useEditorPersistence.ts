@@ -141,6 +141,7 @@ export function useEditorPersistence({
   const handleUpdateContent = useCallback((newContent: string, isProgrammatic = false) => {
     if (!currentChapter) return;
     if (isContentLockedRef.current && !isProgrammatic) return;
+    if (newContent === undefined || newContent === null) return;
 
     const updatedChapter = { ...currentChapter, content: newContent };
     setCurrentChapter(updatedChapter);
@@ -195,7 +196,7 @@ export function useEditorPersistence({
     const newOrder = chapters.length + 1;
     const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
     const newId = Date.now().toString();
-    await createChapter({
+    const newChapterData = {
       id: newId,
       novelId: novel.id,
       volumeName,
@@ -205,8 +206,34 @@ export function useEditorPersistence({
       wordCount: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+    };
+
+    const newChapterMeta: ChapterMetadata = {
+      id: newId,
+      novelId: novel.id,
+      volumeName,
+      title: `第 ${newOrder} 章`,
+      order: newOrder,
+      wordCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    // 1. Optimistic Update in Memory
+    setChapters((prev) => [...prev, newChapterMeta]);
+    setCurrentChapter({
+      ...newChapterData,
+      sceneBeats: '',
+      critique: '',
     });
     setExpandedVolumes((prev) => (prev.includes(volumeName) ? prev : [...prev, volumeName]));
+
+    // 2. Perform DB write in the background
+    try {
+      await createChapter(newChapterData);
+    } catch (err) {
+      console.error('[useEditorPersistence] Failed to create chapter in DB:', err);
+    }
   };
 
   const handleAddFirstChapter = async () => {
@@ -238,6 +265,7 @@ export function useEditorPersistence({
 
   const handleDeleteChapter = async (id: string) => {
     await deleteChapter(id);
+    setChapters((prev) => prev.filter((chapter) => chapter.id !== id));
     if (currentChapter?.id === id) {
       setCurrentChapter((chapters.find((chapter) => chapter.id !== id) as unknown as Chapter) || null);
     }

@@ -3,7 +3,7 @@ import { BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, Pane
 
 import { Chapter, Skill } from '../../shared/types';
 import { cn } from '../lib/utils';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 interface EditorHeaderProps {
   currentChapter: Chapter | null;
@@ -49,9 +49,11 @@ export function EditorHeader({
         <button
           onClick={onToggleSidebar}
           aria-label={isSidebarOpen ? "收起章节列表" : "展开章节列表"}
+          aria-expanded={isSidebarOpen}
+          aria-controls="chapter-sidebar-panel"
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-theme-border text-xs font-medium text-theme-text hover:bg-theme-sidebar/40 transition-colors"
         >
-          <PanelRight size={14} className={cn(!isSidebarOpen && "rotate-180")} />
+          <PanelRight size={14} className={cn(!isSidebarOpen && "rotate-180")} aria-hidden="true" />
           {isSidebarOpen ? '收起章节' : '章节列表'}
         </button>
         <div className="h-4 w-px bg-theme-border/50" />

@@ -52,7 +52,7 @@ export function ProductionTab({
       {renderContextReceipt()}
       <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
         <div className="flex items-center gap-2">
-          <FileText size={14} className="text-theme-accent" />
+          <FileText size={14} className="text-theme-accent" aria-hidden="true" />
           <h3 className="text-xs font-bold text-theme-text">续写资料包</h3>
         </div>
         {continuationPacks.length > 0 ? (

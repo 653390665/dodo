@@ -4,8 +4,8 @@ import { BookOpen, BookTemplate, ChevronLeft, ChevronRight, Lightbulb, PenTool, 
 import { ViewType, WorkspaceNavKey } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip';
-import { ScrollArea } from './ui/ScrollArea';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { ScrollArea } from './ui/scroll-area';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -112,14 +112,16 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? "展开侧边栏" : "折叠侧边栏"}
+          aria-expanded={!isCollapsed}
+          aria-controls="sidebar-nav-panel"
           className={cn("p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted transition-colors", isCollapsed && "mx-auto")}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
         </button>
       </div>
 
       {/* Navigation */}
-      <nav aria-label="主导航" className="flex-1 min-h-0">
+      <nav id="sidebar-nav-panel" aria-label="主导航" className="flex-1 min-h-0">
         <ScrollArea className="h-full px-3 relative">
           <div className="flex flex-col gap-1 pr-1.5 pb-4">
             {mainItems.map(renderNavItem)}

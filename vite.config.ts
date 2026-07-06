@@ -20,4 +20,20 @@ export default defineConfig({
       '/api': 'http://localhost:3000',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'radix-vendor': [
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-tooltip'
+          ],
+          'lucide': ['lucide-react'],
+          'markdown-vendor': ['react-markdown'],
+        }
+      }
+    }
+  }
 });
