@@ -541,7 +541,7 @@ export function ProjectCockpitView({
                       completedSteps: novel.projectPreferenceProfile?.tags || [],
                     }).slice(0, 3);
 
-                    return recommendations.map((id, index) => {
+                    return recommendations.map((id: string, index: number) => {
                       const isPrimary = index === 0;
                       const cardData = getRecommendationDetails(id);
                       if (!cardData) return null;
