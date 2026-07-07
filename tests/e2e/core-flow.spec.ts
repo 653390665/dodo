@@ -70,14 +70,31 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
     await expect(seedInput).toBeVisible();
     await seedInput.fill('荒原黎明：主角在末日废墟中觉醒了异能，开始复仇。');
 
-    // Press Enter to submit the idea seed and start generator
-    // 按下 Enter 提交灵感种子并启动生成器
-    await seedInput.press('Enter');
+    // Press Enter or click next step to proceed to step 2 (Target Platform)
+    // 锁定灵感并进入下一步
+    await page.locator('button:has-text("下一步：选择发布平台")').click();
+
+    // Select target platform (e.g. Tomato platform)
+    // 选择目标平台（如：番茄平台）
+    await page.locator('button:has-text("番茄平台")').first().click();
+
+    // Proceed to step 3 (Size and Style)
+    // 进入下一步：篇幅与文风
+    await page.locator('button:has-text("下一步：篇幅与文风")').click();
+
+    // Select size and writing style
+    // 选择预计篇幅与核心写作调性
+    await page.locator('button:has-text("中长篇规划")').first().click();
+    await page.locator('button:has-text("剧情高能")').first().click();
+
+    // Trigger final generation and project initialization
+    // 唤醒灵感，智能开书立项并等待生成
+    await page.locator('button:has-text("唤醒灵感，智能开书立项")').click();
 
     // Wait for the local fallback or model direction cards to generate and show up
     // 等待本地保底或模型生成的方向卡片渲染显示
     const selectDirectionTitle = page.locator('h2:has-text("立项推荐方案方向")');
-    await expect(selectDirectionTitle).toBeVisible({ timeout: 10000 });
+    await expect(selectDirectionTitle).toBeVisible({ timeout: 15000 });
 
     // Click the first direction card's button containing "一键开始此立项"
     // 点击包含 "一键开始此立项" 的第一个方向卡片按钮

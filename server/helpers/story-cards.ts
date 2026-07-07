@@ -250,7 +250,8 @@ export function buildFallbackStoryCards(
   batchIndex = 0,
   _previousHookTexts: string[] = [],
 ) {
-  const seed = String(ideaSeed || '').trim() || '一个尚未成形的新故事';
+  let seed = String(ideaSeed || '').trim();
+  seed = seed.replace(/【[^】]+】\s*[:：]?\s*/g, ' ').trim() || '一个尚未成形的新故事';
   const keywords = extractKeywords(seed);
   const mainTerm = keywords[0] || '故事核心';
   const secondTerm = keywords[1] || mainTerm;

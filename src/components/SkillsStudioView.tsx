@@ -341,7 +341,7 @@ export function SkillsStudioView({
         return s.primaryCategory === 'platform-criteria';
       }
       if (selectedCategory === 'style-analysis-cards') {
-        return s.primaryCategory === 'constellation-pack' || s.primaryCategory === 'style-reference' || s.curatedCategory === 'style' || s.curatedCategory === 'deconstruct';
+        return s.primaryCategory === 'constellation-pack' || s.primaryCategory === 'style-reference' || s.curatedCategory === 'style' || s.curatedCategory === 'deconstruct' || s.id === 'bible-world-builder';
       }
       if (selectedCategory === 'aesthetic-quality-guards') {
         return s.primaryCategory === 'quality-guardrail' || s.curatedCategory === 'de-ai' || s.curatedCategory === 'audit';
