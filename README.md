@@ -1,10 +1,20 @@
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
+# InkFlow 墨影 — AI 协同创作小说操作系统
 
-# InkFlow 墨影 — AI 协作小说写作工具
+<p align="center">
+  <img src="https://img.shields.io/badge/Local--First-100%25_Offline-B388FF?style=for-the-badge&logo=sqlite&logoColor=white" alt="Local First" />
+  <img src="https://img.shields.io/badge/Aesthetic-Dark_Gold_Ink-FFD700?style=for-the-badge&logo=visual-studio-code&logoColor=white" alt="Dark Gold Ink" />
+  <img src="https://img.shields.io/badge/AI_Governance-No_AI_Slop-00E676?style=for-the-badge&logo=probot&logoColor=white" alt="No AI Slop" />
+  <img src="https://img.shields.io/badge/Engine-better--sqlite3-1e88e5?style=for-the-badge&logo=node.js&logoColor=white" alt="Better SQLite3" />
+</p>
 
-专为小说作者设计的本地化创作工具。集成 AI 灵感助手、自动章节生产、文风拆书工厂、技能卡牌装备系统，所有数据存储在本地，无需联网即可写作。
+**InkFlow 墨影 是一款专为严肃小说创作者与商业网文作者打造的本地优先（Local-First）AI 协同创作操作系统。**
+
+在传统写作软件中，创作者常面临：*AI 生成废话连篇、行文翻译腔过重、写到后面人设与法则崩塌、断网无法使用以及随时丢稿*的阵痛。
+
+墨影专为解决这些痛点而生。在本地 WAL 模式 SQLite 数据库的安全守护下，墨影集成**互动式开书多步向导**、**物理隔绝的白标能力商店**、**全天候上下文伴写雷达**，以及**业内首创的「去 AI 味」多波段句法体检中心**。这里不仅是你的数字手稿箱，更是你文思泉涌、人设不崩的沉浸式「创作大脑」。
 
 ---
 
@@ -30,6 +40,50 @@
 5. 安装完成后从桌面或开始菜单启动
 
 > **Windows 注意**：杀毒软件可能误报拦截，选择"仍要运行"即可。本项目代码完全开源，可自行审查。
+
+---
+
+## 🌟 墨影系统核心架构
+
+```mermaid
+graph TD
+    classDef focus fill:#FFF9C4,stroke:#FFD54F,stroke-width:2px;
+    classDef database fill:#E1F5FE,stroke:#03A9F4,stroke-width:2px;
+    classDef engine fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px;
+    classDef view fill:#F3E5F5,stroke:#9C27B0,stroke-width:2px;
+
+    User([创作者码字输入]) -->|实时侦听| Radar[上下文伴写记忆雷达]:::view
+    Radar -->|毫秒级正则实体检索| Match{是否命中设定?}
+    
+    Match -->|YES| Highlight[雷达控制台高亮卡片 <br/> 💍 龙纹古戒 / 👤 林默人设]:::focus
+    Match -->|NO (未录入专有名词)| Warning[琥珀色 `STATE_UNKNOWN` 预警]:::focus
+    Warning -->|免打扰一键拉起| Drawer[零摩擦补录 Drawer]:::view
+    Drawer -->|表单极速保存| DB[(本地 SQLite WAL 数据库)]:::database
+
+    User -->|进入| Guard[「去 AI 味」质量体检中心]:::view
+    Guard -->|多段剖析体检| Analytics[生成句法多波段热力图 <br/> 红色: 机械套话 / 蓝色: 排比废话]:::focus
+    Analytics -->|AI 评分 & 一键重写| Polish[智能高质抛光重写]:::view
+    Polish -->|写入编辑器| DB
+
+    DB -->|启动零感知快照拷贝| ColdBackup[data.db.bak 冷备份]:::engine
+    DB -->|后台导出/极速热重载| Restore[WAL 快照热恢复与一键物理覆盖回滚]:::engine
+```
+
+## 💎 墨影三大破局亮点 (Premium Key Highlights)
+
+传统 AI 写作工具往往只是简单的“一问一答”式对话，极易打断创作者极度珍贵的心流状态。墨影通过前/后端架构的深度闭环设计，在本地彻底终结这些阵痛：
+
+### 🎨 亮点 1：「去 AI 味」多波段句法体检中心 (Quality Guard Center)
+*   **痛点**：普通 AI 续写出来的句子翻译腔重、机械感强、充满了高频的排比句和心理情绪废话，一眼即知是 AI 笔墨。
+*   **破局**：行业首创的**段落句法热力图**。启动体检后，系统毫秒级剖析整篇语流，用不同饱和度颜色直观染色“机械翻译套话”与“水字数排比废话”，并给出客观的 AI 质量打分。支持一键抛光，将套话自动重写为极富真人作家语流和画面感的精致文本，保留创意的同时重塑文笔质感。
+
+### 🌀 亮点 2：常态化上下文伴写记忆雷达 (Memory Radar)
+*   **痛点**：写长篇时主角人设、地点法则、神兵道具设定庞杂，作者需要频繁切屏翻阅大纲，严重割裂码字状态。
+*   **破局**：在主编辑器右侧，常驻**高颜值旋转呼吸雷达脉冲挂件**。光标移到哪，雷达高频侦听检索。自动提取、高亮当前主角和道具属性（写到“林默抚摸着古戒”，右下角雷达瞬间悬浮弹出古戒完整法则）。遇到未录入的专有名词（如新登场人物林啸），雷达琥珀色常态闪烁预警并提供“一键录入”。免打扰 Drawer 表单支持不中断打字极速补录，创作心流 100% 持续。
+
+### 🛡️ 亮点 3：物理隔离与一致性 WAL 快照系统 (WAL Storage)
+*   **痛点**：市面写作工具随时断电丢稿；若开启云端同步，大纲人设等核心商业机密面临泄露和被洗劫的风险。
+*   **破局**：墨影坚守 **100% 本地优先 (Local-First)**。启动时零感知生成冷物理备份。在设置控制台，结合 SQLite 原生 WAL 事务快照特性的 `db.backup` 接口，提供一致性一键数据热导出与极速整页物理覆盖热重载回滚，守护您的百万字心血。
 
 ---
 
