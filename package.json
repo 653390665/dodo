@@ -1,7 +1,7 @@
 {
   "name": "inkflow",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "InkFlow — AI 协作小说写作工具",
   "author": "InkFlow",
   "type": "module",
