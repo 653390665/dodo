@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, 
 import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { useNovelStore } from '../stores/novel-store';
+import { useAppStore } from '../stores/app-store';
 
 function PlazaAssetCard({
   asset,
@@ -354,10 +355,11 @@ export function SkillsStudioView({
     return new Set(savedSkills.map((s) => s.parentSkillId).filter(Boolean) as string[]);
   }, [savedSkills]);
 
-  const isFreeNovel = !selectedNovel || (
+  const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
+  const isFreeNovel = !isGlobalPremium && (!selectedNovel || (
     selectedNovel.projectPreferenceProfile?.commercialMode !== 'paid' &&
     selectedNovel.projectPreferenceProfile?.commercialMode !== 'strict'
-  );
+  ));
 
   const handleImportAsset = async (asset: CuratedProductSkill) => {
     const isPremium = asset.sourceType === 'licensed';
@@ -408,8 +410,9 @@ export function SkillsStudioView({
 
     const isPaid = skill.accessTier === 'paid' || skill.sourceType === 'licensed';
 
-    const isFreeNovel = novel.projectPreferenceProfile?.commercialMode !== 'paid' &&
-                        novel.projectPreferenceProfile?.commercialMode !== 'strict';
+    const isGlobalPremiumState = useAppStore.getState().isGlobalPremium;
+    const isFreeNovel = !isGlobalPremiumState && (novel.projectPreferenceProfile?.commercialMode !== 'paid' &&
+                        novel.projectPreferenceProfile?.commercialMode !== 'strict');
 
     if (isPaid && isFreeNovel) {
       window.dispatchEvent(new CustomEvent('trigger-premium-modal', {

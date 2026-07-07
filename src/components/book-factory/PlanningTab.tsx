@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { Chapter, Novel, ProjectPreferenceProfile } from '../../../shared/types';
 import { cn } from '../../lib/utils';
+import { useAppStore } from '../../stores/app-store';
 import {
   SKILL_SERIES_FLOWS,
   inferNovelGovernanceProfile,
@@ -60,7 +61,8 @@ export function PlanningTab({
 
   // 臻享/付费增强包判定 (Premium custom package restrictions check)
   const pkg = getFlowEnhancementPackage(activeSeriesId);
-  const isRestricted = pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false;
+  const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
+  const isRestricted = !isGlobalPremium && (pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false);
   
   const currentStepId = getNovelCurrentStepId(novel, activeSeriesId);
   const completedStepIds = getNovelCompletedStepIds(novel, activeSeriesId);

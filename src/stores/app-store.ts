@@ -34,6 +34,9 @@ interface AppState {
   isAIAssistantOpen: boolean;
   aiDrawerTab: 'cards' | 'chat';
   factoryIntent: { activeSeriesId: string; stepId: string } | null;
+  isGlobalPremium: boolean;
+  activateGlobalPremium: (code: string) => { success: boolean; error?: string };
+  deactivateGlobalPremium: () => void;
   setCurrentView: (v: ViewType) => void;
   setWorkspaceFocus: (f: WorkspaceFocus) => void;
   setTheme: (t: Theme) => void;
@@ -42,6 +45,10 @@ interface AppState {
   setAIDrawerTab: (tab: 'cards' | 'chat') => void;
   setFactoryIntent: (intent: { activeSeriesId: string; stepId: string } | null) => void;
 }
+
+const PREMIUM_ACTIVATION_CODES = [
+  'DODO-DODO'
+];
 
 export const useAppStore = create<AppState>((set) => {
   // 初始化主题
@@ -57,6 +64,13 @@ export const useAppStore = create<AppState>((set) => {
     }
   } catch {}
 
+  let initialGlobalPremium = false;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      initialGlobalPremium = localStorage.getItem('inkflow-global-premium') === 'true';
+    }
+  } catch {}
+
   return {
     currentView: restoredView,
     workspaceFocus: 'editor',
@@ -65,6 +79,28 @@ export const useAppStore = create<AppState>((set) => {
     isAIAssistantOpen: false,
     aiDrawerTab: 'cards',
     factoryIntent: null,
+    isGlobalPremium: initialGlobalPremium,
+    activateGlobalPremium: (code) => {
+      const trimmed = (code || '').trim().toUpperCase();
+      if (PREMIUM_ACTIVATION_CODES.includes(trimmed)) {
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('inkflow-global-premium', 'true');
+          }
+        } catch {}
+        set({ isGlobalPremium: true });
+        return { success: true };
+      }
+      return { success: false, error: '无效的激活码。请检查拼写或输入正确的内测激活码。' };
+    },
+    deactivateGlobalPremium: () => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('inkflow-global-premium');
+        }
+      } catch {}
+      set({ isGlobalPremium: false });
+    },
     setCurrentView: (currentView) => {
       try { 
         // 增加非浏览器环境下的 LocalStorage 写入安全卫士

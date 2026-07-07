@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useAppStore } from '../stores/app-store';
 
 import {
   DEFAULT_PROMPT_TEMPLATES,
@@ -11,6 +12,13 @@ import {
 } from '../../shared/config/prompt-templates';
 
 export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void }) {
+  const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
+  const activateGlobalPremium = useAppStore(state => state.activateGlobalPremium);
+  const deactivateGlobalPremium = useAppStore(state => state.deactivateGlobalPremium);
+
+  const [activationInput, setActivationInput] = useState('');
+  const [activationError, setActivationError] = useState<string | null>(null);
+
   const [config, setConfig] = useState({
     apiKey: '',
     baseUrl: '',
@@ -356,6 +364,100 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     </div>
                   </div>
                 )}
+
+                {/* 内测专属高级全权限激活码模块 */}
+                <div className={`rounded-2xl border p-5 space-y-4 transition-all duration-300 relative overflow-hidden ${
+                  isGlobalPremium
+                    ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-yellow-500/5 shadow-inner'
+                    : 'border-theme-border bg-theme-sidebar/50'
+                }`}>
+                  {/* 背景金色微光修饰 */}
+                  {isGlobalPremium && (
+                    <div className="absolute -right-12 -top-12 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full" />
+                  )}
+
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-2 rounded-xl ${isGlobalPremium ? 'bg-amber-500/15 text-amber-600' : 'bg-theme-border/60 text-theme-muted'}`}>
+                      <Sparkles size={16} className={isGlobalPremium ? 'animate-pulse' : ''} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-theme-text flex items-center gap-1.5">
+                        <span>内测专属全权限激活</span>
+                        {isGlobalPremium && (
+                          <span className="text-[10px] bg-amber-600 text-white px-2 py-0.5 rounded-full font-serif scale-90 font-medium">
+                            Premium Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-theme-muted mt-0.5">
+                        输入内测码一键免密解锁全部高级付费卡牌与爆款节奏包特权。
+                      </p>
+                    </div>
+                  </div>
+
+                  {!isGlobalPremium ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={activationInput}
+                          onChange={(e) => {
+                            setActivationInput(e.target.value);
+                            setActivationError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const res = activateGlobalPremium(activationInput);
+                              if (!res.success) {
+                                setActivationError(res.error || '无效的激活码');
+                              }
+                            }
+                          }}
+                          placeholder="输入内测激活码"
+                          className="flex-1 px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-xs text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const res = activateGlobalPremium(activationInput);
+                            if (!res.success) {
+                              setActivationError(res.error || '无效的激活码');
+                            }
+                          }}
+                          className="px-4 py-2 bg-theme-accent text-theme-bg text-xs font-bold rounded-lg hover:bg-theme-accent/90 transition-colors cursor-pointer"
+                        >
+                          立即激活
+                        </button>
+                      </div>
+                      {activationError && (
+                        <p className="text-[10px] text-red-600 font-medium">{activationError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/20 p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-400">
+                        ✨ <strong>恭喜！全权限超级体验模式已成功激活！</strong> 
+                        <div className="text-[11px] text-amber-700/80 dark:text-amber-500/80 mt-1">
+                          系统已全面解除所有高级卡组、精品题材大纲和受限流程包的付费锁，后续所有 AI 创作功能已对您 100% 畅通无阻开放。
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-theme-muted">授权状态：永久有效（内测专享）</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deactivateGlobalPremium();
+                            setActivationInput('');
+                          }}
+                          className="text-[10px] text-amber-600 hover:text-amber-700 hover:underline cursor-pointer"
+                        >
+                          撤销超级权限（重置为免费受限版）
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
                   <div className="text-sm font-bold text-theme-text">生效验证链</div>

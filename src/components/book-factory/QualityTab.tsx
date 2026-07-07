@@ -10,6 +10,7 @@ import { findPatchWindow } from '../../lib/chapter-polish';
 import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile, getAssetEnhancementPackage, isPackageRestricted } from '../../../shared/lib/prompt-assets-governed';
 import type { PromptAssetActionKind } from '../../../shared/types/prompt-assets-governed';
 import { toast } from '../../lib/toast';
+import { useAppStore } from '../../stores/app-store';
 
 interface QualityTabProps {
   currentChapter: Chapter | null;
@@ -48,6 +49,7 @@ export function QualityTab({
   onAssignSkill,
   onRemoveSkill,
 }: QualityTabProps) {
+  const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
   const critiqueText = currentChapter?.critique || '';
   const structuredAudit = React.useMemo(() => {
     return extractStructuredAudit(critiqueText);
@@ -228,7 +230,7 @@ export function QualityTab({
 
               // 臻享/付费增强包判定 (Premium custom package restrictions check)
               const pkg = getAssetEnhancementPackage(asset.id);
-              const isRestricted = pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false;
+              const isRestricted = !isGlobalPremium && (pkg ? isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free') : false);
 
               // 判断状态
               const isMounted = actionKind === 'mount-skill' && mountedSkillLoadout.some(item => item.skillId === asset.id);
