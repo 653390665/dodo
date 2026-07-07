@@ -392,7 +392,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       );
 
       // Verify the amber state text STATE_UNKNOWN is displayed
-      const stateUnknown = await screen.findByText('配置状态未知，可继续本地编辑');
+      const stateUnknown = await screen.findByText('网络波动/配置未知');
       expect(stateUnknown).toBeDefined();
 
       // Verify empty library guide banner is visible

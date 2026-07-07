@@ -43,7 +43,7 @@ function WorkspacePreviewEmptyState({
   const previewItems = [
     { label: '章节写作', detail: '分镜、正文、审查反馈在同一条链路里推进。', icon: PenLine },
     { label: '世界观记忆', detail: '人物、地点、物品和规则跟作品绑定。', icon: Globe2 },
-    { label: '技能卡', detail: '文风、节奏、人物滤镜会影响下一章生成。', icon: Wand2 },
+    { label: '能力商店', detail: '文风、节奏、人物滤镜会影响下一章生成。', icon: Wand2 },
     { label: 'AI 协作', detail: '助手会读取当前作品与章节上下文。', icon: BrainCircuit },
   ];
 
@@ -129,7 +129,7 @@ function WorkspacePreviewEmptyState({
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar/60 p-4">
             <Wand2 size={16} className="mb-2 text-theme-accent" />
-            技能卡会影响章节生成和审查。
+            能力卡会影响章节生成和打磨。
           </div>
         </div>
       </div>
@@ -663,7 +663,7 @@ export function AppShell() {
             {currentView === 'editor' && !selectedNovel && (
               <WorkspacePreviewEmptyState
                 title="创作舞台等待作品"
-                description="选中作品后，编辑器会读取章节、分镜、世界观和技能卡，让正文生成、审查和打磨连成一条线。"
+                description="选中作品后，编辑器会读取章节、分镜、世界观与装配能力，让正文生成、打磨与质量中心连成一条线。"
                 onGoLibrary={() => setCurrentView('library')}
                 onCreateNovel={() => setCurrentView('library')}
                 onImport={handleStartContinuationImport}
@@ -672,7 +672,7 @@ export function AppShell() {
             {currentView === 'workspace' && !selectedNovel && (
               <WorkspacePreviewEmptyState
                 title="创作工作台暂未开启"
-                description="工作台会把章节写作、设定记忆、技能卡和 AI 助手组织在一起。先选择或创建作品，就能开始协作。"
+                description="工作台会把章节写作、设定记忆、装配能力和 AI 助手组织在一起。先选择或创建作品，就能开始协作。"
                 onGoLibrary={() => setCurrentView('library')}
                 onCreateNovel={() => setCurrentView('library')}
                 onImport={handleStartContinuationImport}

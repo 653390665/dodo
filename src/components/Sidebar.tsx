@@ -52,7 +52,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
 
   const exploreItems: NavItem[] = [
     { id: 'factory', label: '拆书工厂', icon: BookTemplate },
-    { id: 'skills', label: '技能仓库', icon: Wand2 },
+    { id: 'skills', label: '能力商店', icon: Wand2 },
     { id: 'continuation-import', label: '资料续写', icon: Upload },
   ];
 

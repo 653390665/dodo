@@ -402,7 +402,7 @@ JSON 格式规范：
       setHelperMessages(prev => [...prev, {
         id: Date.now().toString(),
         sender: 'assistant',
-        text: `🎉 成功！已将「${data.name || data.title || '新设定'}」物理写入《${novel.title}》的 SQLite 数据库，并刷新了侧边列表！`
+        text: `🎉 成功！已将「${data.name || data.title || '新设定'}」安全保存至《${novel.title}》的本地创作数据库，并刷新了侧边列表！`
       }]);
       setDraftEntity(null);
     } catch (err) {

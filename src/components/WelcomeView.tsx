@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Send, Sliders, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Sliders, Sparkles, Upload } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
@@ -34,6 +35,33 @@ const SEED_CARDS = [
   { label: '架空幻想', prompt: '一个靠记忆为货币运转的世界，有人开始造假记忆' },
 ];
 
+const GENRES = [
+  { id: 'urban', label: '都市奇幻', desc: '现代都市、异能觉醒、轻松快节奏', icon: '🌃' },
+  { id: 'fantasy', label: '玄幻仙侠', desc: '世界观宏大、法宝修炼、等级晋升', icon: '⚔️' },
+  { id: 'mystery', label: '悬疑推理', desc: '悬念环环相扣、多重反转、高智商博弈', icon: '🔍' },
+  { id: 'scifi', label: '科幻未来', desc: '星际探索、机械飞升、废土求生', icon: '🚀' },
+  { id: 'romance', label: '情感治愈', desc: '细腻唯美、命运纠葛、双向救赎', icon: '🌸' },
+];
+
+const PLATFORMS = [
+  { id: 'tomato', label: '番茄平台', desc: '主打黄金三章爆发、脑洞大开、极速推进与高能爽点', icon: '🍅' },
+  { id: 'yuewen', label: '阅文平台', desc: '适合慢热铺陈、世界观庞大细致、主角长线成长、剧情考究', icon: '📚' },
+  { id: 'lofter', label: 'Lofter平台', desc: '人设极为饱满、轻快同人风、注重情绪共鸣、文笔细腻唯美', icon: '✨' },
+];
+
+const LENGTHS = [
+  { id: 'long', label: '百万长篇', words: 1500000, desc: '波澜壮阔的世界观与升级主线', icon: '🌟' },
+  { id: 'medium', label: '中长篇规划', words: 300000, desc: '主线极其明确，节奏紧密不拖沓', icon: '📖' },
+  { id: 'short', label: '精致短篇', words: 80000, desc: '戏剧冲突一气呵成，适合极速突进', icon: '✍️' },
+];
+
+const STYLES = [
+  { id: 'relaxed', label: '轻松爽快', desc: '解压幽默、段子吐槽、高糖无雷无郁闷', icon: '🥳', pacing: 'tight' as const, focus: 'character' as const },
+  { id: 'fast', label: '剧情高能', desc: '快节奏推进、高潮不断、悬念丛生绝无尿点', icon: '🔥', pacing: 'tight' as const, focus: 'plot' as const },
+  { id: 'deep', label: '厚重深沉', desc: '强烈的史诗宿命感、探讨人性、角色深度挣扎', icon: '🏔️', pacing: 'balanced' as const, focus: 'world' as const },
+  { id: 'elegant', label: '文笔典雅', desc: '追求诗意隽永的文字美感、意境深远、古风留白', icon: '🎭', pacing: 'slow-burn' as const, focus: 'character' as const },
+];
+
 export function WelcomeView({
   onSelectStoryCard,
   onJumpToLibrary,
@@ -47,10 +75,17 @@ export function WelcomeView({
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [totalNovelCount, setTotalNovelCount] = useState(0); // 动态记录作品库总数
   const [planning, setPlanning] = useState<StoryPlanningInput>({
-    expectedWordCount: 180000,
-    pacingPreference: 'tight',
+    expectedWordCount: 300000,
+    pacingPreference: 'balanced',
     storyFocus: 'plot',
   });
+
+  // 多步开书助手向导状态
+  const [guideStep, setGuideStep] = useState<number>(0); // 0: 灵感与题材, 1: 目标平台, 2: 篇幅与风格
+  const [selectedGenre, setSelectedGenre] = useState<string>(''); // 题材
+  const [selectedPlatform, setSelectedPlatform] = useState<string>(''); // 平台
+  const [selectedLengthLabel, setSelectedLengthLabel] = useState<string>('中长篇规划'); // 篇幅标签
+  const [selectedStyleLabel, setSelectedStyleLabel] = useState<string>(''); // 风格标签
 
   const [showEmptyGuide, setShowEmptyGuide] = useState(() => {
     return localStorage.getItem('inkflow_welcome_empty_guide_closed') !== 'true';
@@ -117,28 +152,37 @@ export function WelcomeView({
     setRecResult(result);
   };
 
-  /**
-   * 提交想法处理函数
-   */
   const handleSubmit = async () => {
     if (!input.trim() || isWaiting) return;
-    const submitted = await submit(input);
+    const promptParts = [
+      `【核心故事创意】: ${input.trim()}`,
+      selectedGenre ? `【主打题材】: ${selectedGenre}` : '',
+      selectedPlatform ? `【目标平台】: ${selectedPlatform}` : '',
+      selectedLengthLabel ? `【篇幅规划】: ${selectedLengthLabel} (${planning.expectedWordCount}字)` : '',
+      selectedStyleLabel ? `【风格偏好】: ${selectedStyleLabel}` : '',
+    ].filter(Boolean).join('\n');
+
+    const submitted = await submit(promptParts);
     if (submitted) {
       setInput('');
     }
   };
 
   /**
-   * 快捷灵感种子一键填充并提交
+   * 快捷灵感种子一键填充并自动跳转至下一步
    */
-  const handleSeedClick = (prompt: string) => {
+  const handleSeedClick = (prompt: string, label: string) => {
     setInput(prompt);
-    // 稍微延迟，以便用户能看到输入框中填充文字的微动效
-    setTimeout(async () => {
-      const submitted = await submit(prompt);
-      if (submitted) {
-        setInput('');
-      }
+    if (label === '武侠悬疑') {
+      setSelectedGenre('mystery');
+    } else if (label === '都市情感') {
+      setSelectedGenre('romance');
+    } else if (label === '架空幻想') {
+      setSelectedGenre('fantasy');
+    }
+    // 自动跳转到 Step 1，提供顺滑的多步自适应体验
+    setTimeout(() => {
+      setGuideStep(1);
     }, 300);
   };
 
@@ -215,7 +259,7 @@ export function WelcomeView({
                 {(hasApiKey === 'unknown' || hasApiKey === false || hasApiKey === null) && (
                   <div className="mt-3.5 p-2.5 bg-amber-500/5 border border-amber-500/15 rounded text-[11px] text-amber-600/90 leading-relaxed font-sans normal-case">
                     <p className="font-bold flex items-center gap-1 mb-0.5">⚠️ 本地无缝降级指引：</p>
-                    <p>当前网络连接不稳定或未配置 API Key。系统已自动启用高可用本地降级策略。您的大纲草拟、本地分镜编辑、以及基于 SQLite 事务快照的灾备保护等核心功能均 **100% 正常运行**，可直接安心无碍地开展中长篇小说创作。</p>
+                    <p>当前网络连接不稳定或未配置 API Key。系统已自动启用高可用本地降级策略。您的大纲草拟、本地分镜编辑、以及基于本地事务快照的灾备保护等核心功能均 **100% 正常运行**，可直接安心无碍地开展中长篇小说创作。</p>
                   </div>
                 )}
               </div>
@@ -398,138 +442,416 @@ export function WelcomeView({
               </button>
             </div>
 
-            {/* 3. 灵感录入与规划引擎控制台面板 */}
-            <div className="bg-theme-sidebar/10 border border-theme-border/40 rounded-lg p-4 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between border-b border-theme-border/20 pb-2">
-                <span className="text-xs font-bold text-theme-text/90 tracking-wide">灵感转化引擎 & 规划设定</span>
-                <span className="text-[9px] text-theme-muted font-mono tracking-widest">PLANNING_CORE v1.0</span>
-              </div>
-
-              {/* 三列超紧凑规划设置格栅 */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded border border-theme-border bg-theme-sidebar/20 px-3 py-1.5 text-left">
-                  <span className="text-[9px] text-theme-muted block mb-1">预计总篇幅</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min={10000}
-                      step={10000}
-                      value={planning.expectedWordCount}
-                      onChange={(e) =>
-                        setPlanning((prev) => ({
-                          ...prev,
-                          expectedWordCount: Math.max(10000, Number(e.target.value) || 10000),
-                        }))
-                      }
-                      className="w-full bg-transparent text-xs text-theme-text outline-none font-bold font-mono"
-                    />
-                    <span className="text-[9px] text-theme-muted shrink-0">字</span>
-                  </div>
+            {/* 3. 极具沉浸感的多步骤手风琴开书向导 */}
+            <div className="space-y-4">
+              {/* 向导系统页眉与指示器 */}
+              <div className="flex items-center justify-between bg-theme-sidebar/10 border border-theme-border/30 rounded-xl px-4 py-3 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <Compass size={14} className="text-theme-accent animate-pulse" />
+                  <span className="text-xs font-bold text-theme-text font-serif">开书智导多步向导</span>
                 </div>
-
-                <div className="rounded border border-theme-border bg-theme-sidebar/20 px-3 py-1.5 text-left">
-                  <span className="text-[9px] text-theme-muted block mb-1">推进节奏</span>
-                  <select
-                    value={planning.pacingPreference}
-                    onChange={(e) =>
-                      setPlanning((prev) => ({
-                        ...prev,
-                        pacingPreference: e.target.value as StoryPlanningInput['pacingPreference'],
-                      }))
-                    }
-                    className="w-full bg-transparent text-xs text-theme-text outline-none font-bold"
-                  >
-                    <option value="tight">紧推进</option>
-                    <option value="balanced">均衡推进</option>
-                    <option value="slow-burn">慢热铺陈</option>
-                  </select>
-                </div>
-
-                <div className="rounded border border-theme-border bg-theme-sidebar/20 px-3 py-1.5 text-left">
-                  <span className="text-[9px] text-theme-muted block mb-1">当前核心更重</span>
-                  <select
-                    value={planning.storyFocus}
-                    onChange={(e) =>
-                      setPlanning((prev) => ({
-                        ...prev,
-                        storyFocus: e.target.value as StoryPlanningInput['storyFocus'],
-                      }))
-                    }
-                    className="w-full bg-transparent text-xs text-theme-text outline-none font-bold"
-                  >
-                    <option value="plot">剧情推进</option>
-                    <option value="character">人物关系</option>
-                    <option value="world">世界设定</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* API 缺失时的极简本地状态横幅 */}
-              {(hasApiKey === false || hasApiKey === 'unknown') && (
-                <div className="rounded border border-amber-500/20 bg-amber-500/5 p-2.5 text-left flex items-start gap-2">
-                  <Sparkles size={13} className="text-amber-500 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                      {hasApiKey === 'unknown' ? '配置状态未知，可继续本地编辑' : '本地引擎辅助模式已就绪'}
-                    </div>
-                    <p className="mt-0.5 text-[9px] text-theme-muted leading-relaxed">
-                      {hasApiKey === 'unknown'
-                        ? '网络请求失败，未检测到最新密钥。您可以继续使用本地大纲及全流程规划，或在右上角设置中进行配置。'
-                        : '未检测到配置密钥。您仍可通过本地保底逻辑建立大纲、章节骨架及全流程规划。需要更精准生成时，请在右上角设置中进行配置。'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* 精美输入框组合 */}
-              <div className="relative">
-                <textarea
-                  id="story-seed-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit();
-                    }
-                  }}
-                  placeholder="说点你的模糊思路吧... 例如：主角带有时间倒流能力、深夜便利店的第100次偶遇..."
-                  className="w-full rounded border border-theme-border px-4 py-3 pb-8 text-xs min-h-[90px] bg-theme-sidebar/40 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-theme-accent/40"
-                  disabled={isWaiting}
-                />
-                <div className="absolute bottom-2.5 left-3 text-[9px] text-theme-muted/50 font-mono">
-                  按 Enter 发送，Shift+Enter 换行
-                </div>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!input.trim() || isWaiting}
-                  className="absolute bottom-2 right-2 p-1.5 rounded bg-theme-text text-white hover:opacity-95 disabled:opacity-20 transition-opacity"
-                >
-                  {isWaiting ? (
-                    <div className="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Send size={12} />
-                  )}
-                </button>
-              </div>
-
-              {/* 极其轻量化的快捷灵感胶囊推荐 */}
-              {!hasContent && !isWaiting && (
-                <div className="flex items-center gap-2 pt-1 flex-wrap">
-                  <span className="text-[10px] text-theme-muted font-bold font-mono uppercase tracking-wider mr-1">
-                    快捷推荐种子:
-                  </span>
-                  {SEED_CARDS.map((item) => (
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2].map((sIndex) => (
                     <button
-                      key={item.label}
-                      onClick={() => handleSeedClick(item.prompt)}
-                      className="text-[10px] px-2.5 py-0.5 rounded border border-theme-border/60 bg-theme-sidebar/30 hover:border-theme-accent/50 hover:bg-theme-sidebar/80 text-theme-text/85 transition-all"
-                    >
-                      {item.label}
-                    </button>
+                      key={sIndex}
+                      type="button"
+                      onClick={() => setGuideStep(sIndex)}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all duration-300",
+                        guideStep === sIndex ? "w-6 bg-theme-accent" : "w-2 bg-theme-border/60 hover:bg-theme-accent/50"
+                      )}
+                      aria-label={`跳转至第 ${sIndex + 1} 步`}
+                    />
                   ))}
                 </div>
-              )}
+              </div>
+
+              {/* 手风琴第一步：创意灵感与主打题材 */}
+              <div className="border border-theme-border/40 rounded-xl overflow-hidden bg-theme-sidebar/5 shadow-xs transition-all duration-300 hover:border-theme-accent/20">
+                <button
+                  type="button"
+                  onClick={() => setGuideStep(0)}
+                  className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
+                      guideStep === 0 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
+                    )}>
+                      01
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">创意灵感与主打题材</h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">描述您的小说场景并选择对应的细分题材</p>
+                    </div>
+                  </div>
+                  {guideStep !== 0 && (
+                    <div className="text-[10px] font-bold text-theme-accent font-sans bg-theme-accent/5 px-2.5 py-0.5 rounded border border-theme-accent/15 truncate max-w-[200px]">
+                      {GENRES.find(g => g.id === selectedGenre)?.label || '未选定题材'} {input ? `| ${input.slice(0, 10)}...` : ''}
+                    </div>
+                  )}
+                </button>
+
+                <div className={cn(
+                  "grid transition-all duration-300 ease-out border-theme-border/20",
+                  guideStep === 0 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                )}>
+                  <div className="overflow-hidden">
+                    <div className="p-4 space-y-4">
+                      {/* 题材选择列表 */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
+                          01 / 选择主打题材类型
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          {GENRES.map((g) => {
+                            const isSelected = selectedGenre === g.id;
+                            return (
+                              <button
+                                key={g.id}
+                                type="button"
+                                onClick={() => setSelectedGenre(g.id)}
+                                className={cn(
+                                  "p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden",
+                                  isSelected
+                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
+                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                )}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-base">{g.icon}</span>
+                                  {isSelected && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse shrink-0" />
+                                  )}
+                                </div>
+                                <div className="space-y-0.5 mt-2">
+                                  <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                                    {g.label}
+                                  </div>
+                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">{g.desc}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 灵感思路录入 */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
+                            02 / 激发脑洞创意灵感
+                          </span>
+                          <span className="text-[9px] text-theme-muted font-sans font-bold">支持 Enter 快捷保存</span>
+                        </div>
+                        <div className="relative">
+                          <textarea
+                            id="story-seed-input"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                // 如果输入有效，自动进入下一步
+                                if (input.trim()) {
+                                  setGuideStep(1);
+                                }
+                              }
+                            }}
+                            placeholder="请描述您的故事雏形，或点击下方的快捷推荐种子...（如：两个陌生人在深夜便利店的第 100 次偶遇）"
+                            className="w-full rounded-xl border border-theme-border/50 px-4 py-3 pb-8 text-xs min-h-[90px] bg-theme-sidebar/30 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-theme-accent/40 leading-relaxed font-sans"
+                            disabled={isWaiting}
+                          />
+                          <div className="absolute bottom-2.5 left-3 text-[9px] text-theme-muted/50 font-mono">
+                            按 Enter 锁定灵感并进入下一步
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 快捷推荐种子 */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        <span className="text-[10px] text-theme-muted font-bold font-mono uppercase tracking-wider shrink-0">
+                          快速填充种子:
+                        </span>
+                        {SEED_CARDS.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => handleSeedClick(item.prompt, item.label)}
+                            className="text-[10px] px-2.5 py-1 rounded-lg border border-theme-border/60 bg-theme-sidebar/30 hover:border-theme-accent/50 hover:bg-theme-sidebar/80 text-theme-text/85 transition-all cursor-pointer font-sans"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 控制栏 */}
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          disabled={!input.trim() && !selectedGenre}
+                          onClick={() => setGuideStep(1)}
+                          className="px-4 py-2 rounded-lg bg-theme-text text-white hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          下一步：选择发布平台
+                          <ArrowRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 手风琴第二步：定位目标平台 */}
+              <div className="border border-theme-border/40 rounded-xl overflow-hidden bg-theme-sidebar/5 shadow-xs transition-all duration-300 hover:border-theme-accent/20">
+                <button
+                  type="button"
+                  onClick={() => setGuideStep(1)}
+                  className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
+                      guideStep === 1 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
+                    )}>
+                      02
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">定位目标平台</h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">选择契合的文学分发阵地，对齐其独特的爽点大纲规约</p>
+                    </div>
+                  </div>
+                  {guideStep !== 1 && (
+                    <div className="text-[10px] font-bold text-theme-accent font-sans bg-theme-accent/5 px-2.5 py-0.5 rounded border border-theme-accent/15 truncate max-w-[200px]">
+                      {PLATFORMS.find(p => p.id === selectedPlatform)?.label || '未选定平台'}
+                    </div>
+                  )}
+                </button>
+
+                <div className={cn(
+                  "grid transition-all duration-300 ease-out border-theme-border/20",
+                  guideStep === 1 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                )}>
+                  <div className="overflow-hidden">
+                    <div className="p-4 space-y-4">
+                      {/* 平台选择矩阵 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {PLATFORMS.map((p) => {
+                          const isSelected = selectedPlatform === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setSelectedPlatform(p.id)}
+                              className={cn(
+                                "p-4 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between min-h-[105px] overflow-hidden",
+                                isSelected
+                                  ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
+                                  : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                              )}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-xl">{p.icon}</span>
+                                {isSelected && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse shrink-0" />
+                                )}
+                              </div>
+                              <div className="space-y-1 mt-2">
+                                <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                                  {p.label}
+                                </div>
+                                <p className="text-[10px] text-theme-muted leading-relaxed line-clamp-2 font-sans">{p.desc}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 控制栏 */}
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setGuideStep(0)}
+                          className="px-3.5 py-2 rounded-lg border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar font-sans text-xs font-bold transition-all cursor-pointer"
+                        >
+                          返回上一步
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!selectedPlatform}
+                          onClick={() => setGuideStep(2)}
+                          className="px-4 py-2 rounded-lg bg-theme-text text-white hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          下一步：篇幅与文风
+                          <ArrowRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 手风琴第三步：篇幅规划与风格偏好 */}
+              <div className="border border-theme-border/40 rounded-xl overflow-hidden bg-theme-sidebar/5 shadow-xs transition-all duration-300 hover:border-theme-accent/20">
+                <button
+                  type="button"
+                  onClick={() => setGuideStep(2)}
+                  className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
+                      guideStep === 2 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
+                    )}>
+                      03
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">篇幅规划与写作文风</h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">锁定字数规模，调配高连贯性的行文格调与故事更重</p>
+                    </div>
+                  </div>
+                  {guideStep !== 2 && (
+                    <div className="text-[10px] font-bold text-theme-accent font-sans bg-theme-accent/5 px-2.5 py-0.5 rounded border border-theme-accent/15 truncate max-w-[200px]">
+                      {selectedLengthLabel} {selectedStyleLabel ? `| ${selectedStyleLabel}` : ''}
+                    </div>
+                  )}
+                </button>
+
+                <div className={cn(
+                  "grid transition-all duration-300 ease-out border-theme-border/20",
+                  guideStep === 2 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                )}>
+                  <div className="overflow-hidden">
+                    <div className="p-4 space-y-4">
+                      {/* 篇幅规划 */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
+                          01 / 预计全书总篇幅规模
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          {LENGTHS.map((l) => {
+                            const isSelected = selectedLengthLabel === l.label;
+                            return (
+                              <button
+                                key={l.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLengthLabel(l.label);
+                                  setPlanning((prev) => ({
+                                    ...prev,
+                                    expectedWordCount: l.words,
+                                  }));
+                                }}
+                                className={cn(
+                                  "p-3.5 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex items-start gap-3",
+                                  isSelected
+                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
+                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                )}
+                              >
+                                <span className="text-xl shrink-0 mt-0.5">{l.icon}</span>
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                                    {l.label}
+                                  </div>
+                                  <p className="text-[9px] text-theme-muted mt-0.5 font-sans">{l.desc}</p>
+                                  <div className="text-[10px] text-theme-accent font-mono font-bold mt-1.5">
+                                    {l.words.toLocaleString()} 字
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 风格偏好 */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
+                          02 / 确定核心行文风格调性
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {STYLES.map((s) => {
+                            const isSelected = selectedStyleLabel === s.label;
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedStyleLabel(s.label);
+                                  setPlanning((prev) => ({
+                                    ...prev,
+                                    pacingPreference: s.pacing,
+                                    storyFocus: s.focus,
+                                  }));
+                                }}
+                                className={cn(
+                                  "p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden",
+                                  isSelected
+                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
+                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                )}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-lg">{s.icon}</span>
+                                  {isSelected && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse shrink-0" />
+                                  )}
+                                </div>
+                                <div className="space-y-0.5 mt-2">
+                                  <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                                    {s.label}
+                                  </div>
+                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">{s.desc}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 离线降级状态下的警告提示 */}
+                      {(hasApiKey === false || hasApiKey === 'unknown') && (
+                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left flex items-start gap-2.5 font-sans leading-relaxed">
+                          <Sparkles size={14} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                          <div className="flex-1">
+                            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                              本地降级模式已自动就绪
+                            </div>
+                            <p className="mt-0.5 text-[9px] text-theme-muted">
+                              未检测到 API Key，我们将完全在前端通过本地高可用保底引擎，秒级为您拆解生成离线作品大纲与章节骨架。
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 控制栏与大生成按钮 */}
+                      <div className="flex items-center justify-between pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setGuideStep(1)}
+                          className="px-3.5 py-2 rounded-lg border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar font-sans text-xs font-bold transition-all cursor-pointer"
+                        >
+                          返回上一步
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!input.trim() || isWaiting}
+                          onClick={handleSubmit}
+                          className="px-5 py-2.5 rounded-xl bg-theme-text text-white hover:opacity-95 disabled:opacity-20 transition-all font-sans text-xs font-black tracking-wide flex items-center gap-1.5 shadow-lg cursor-pointer"
+                        >
+                          {isWaiting ? (
+                            <div className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <Sparkles size={13} className="animate-pulse" />
+                          )}
+                          唤醒灵感，智能开书立项
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 4. 模型生成等待反馈状态 */}

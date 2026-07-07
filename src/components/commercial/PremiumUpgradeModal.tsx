@@ -331,7 +331,7 @@ export function PremiumUpgradeModal() {
             {/* 底部升舱激活区 */}
             <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-[11px] text-zinc-400 text-center sm:text-left leading-relaxed max-w-sm">
-                点击下方按钮即可模拟发起升舱交易。系统会自动重写 SQLite 中的商业授权，解锁无尽写作潜能。
+                点击下方按钮即可模拟发起升舱交易。系统会自动更新本地会员权益，解锁更完整的写作流程。
               </div>
               <button
                 onClick={handleUpgrade}

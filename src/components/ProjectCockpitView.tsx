@@ -259,12 +259,12 @@ export function ProjectCockpitView({
         return {
           icon: <BrainCircuit size={14} />,
           code: "LOAD_SKILL_PRESET",
-          title: "装配写作技能滤镜",
+          title: "装配写作能力卡牌",
           description: mountedSkills.length > 0
             ? `当前已启用 ${mountedSkills.length} 张创意滤镜。前往装配库，调整特定的写作词风或大纲规约。`
-            : "前往技能卡仓库，为 AI 助手装配文笔风格、安全红线、特定叙事模式等高级技能滤镜。",
-          why: "尚未启用任何写作技能，AI 扩写目前将使用通用默认文风",
-          output: "前往技能卡仓库挑选文风卡、爆款逻辑、爽点规约或安全红线",
+            : "前往能力商店，为 AI 助手装配文笔风格、安全红线、特定叙事模式等高级写作能力。",
+          why: "尚未启用任何写作能力，AI 扩写目前将使用通用默认文风",
+          output: "前往能力商店挑选文风卡、爆款逻辑、爽点规约或安全红线",
           influence: "直接注入 AI 提示词底层，让每次生成都带有特定平台的爆款风格",
           onClick: () => onNavigate('skills')
         };
@@ -353,9 +353,9 @@ export function ProjectCockpitView({
           icon: <Database size={14} />,
           code: "EXPORT_DB_BACKUP",
           title: "一键离线冷备份",
-          description: "写作成果至上！点击极速导出并冷备当前的 SQLite 数据库包，防范任何数据意外损坏丢失。",
+          description: "写作成果至上！点击极速导出并冷备当前的数据快照备份包，防范任何数据意外损坏丢失。",
           why: "为了防范网络死锁、断电或异常故障导致本地数据损坏",
-          output: "基于原生具有事务快照特性的 API 导出高一致性 SQLite 冷备份包",
+          output: "基于一致性事务快照技术导出完整的高可用离线备份包",
           influence: "确保全书写作资产 100% 绝对安全，可随时进行恢复或迁移",
           onClick: () => window.open('/api/db/export-file', '_blank')
         };
@@ -432,6 +432,86 @@ export function ProjectCockpitView({
 
             {/* Left Column: Stats & Operations */}
             <div className="space-y-6">
+              {/* NextActionCard: Adaptive Next Decision Prompt / 创作大脑自适应下一步行动卡 */}
+              {chapters.length > 0 && latestChapter && (
+                <div className="relative overflow-hidden rounded-xl border border-theme-accent/30 bg-gradient-to-br from-theme-accent/10 via-theme-sidebar/10 to-transparent p-5 space-y-4 shadow-[0_4px_24px_-4px_rgba(var(--color-accent),0.08)] transition-all duration-300 hover:border-theme-accent/50 hover:shadow-[0_4px_28px_-2px_rgba(var(--color-accent),0.12)] group/next-card">
+                  {/* Futuristic decorative micro-elements / 未来科技感微型装饰元素 */}
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-theme-accent/5 rounded-full blur-2xl pointer-events-none transition-transform duration-500 group-hover/next-card:scale-125" />
+                  <div className="absolute -left-12 -bottom-12 w-32 h-32 bg-theme-accent/5 rounded-full blur-3xl pointer-events-none" />
+
+                  {/* Subtle technical corner marks / 精致科技感拐角符号 */}
+                  <div className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-theme-accent/40 rounded-tl-sm" />
+                  <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t border-r border-theme-accent/40 rounded-tr-sm" />
+                  <div className="absolute bottom-0 left-0 w-2.5 h-2.5 border-b border-l border-theme-accent/40 rounded-bl-sm" />
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 border-b border-r border-theme-accent/40 rounded-br-sm" />
+
+                  <div className="flex items-center justify-between border-b border-theme-border/30 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-theme-accent/40 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-theme-accent" />
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-theme-accent uppercase tracking-widest">
+                        COGNITIVE BRAIN COPILOT / 创作大脑下一步行动决策建议
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 text-[9px] font-mono font-bold rounded bg-theme-accent/15 text-theme-accent border border-theme-accent/20 uppercase tracking-wider">
+                      ADAPTIVE DECISION
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Immersive decision title with literary typography / 富有文学韵律的自适应大标题 */}
+                    <h3 className="text-sm sm:text-base font-serif font-black text-theme-text leading-relaxed tracking-wide">
+                      您的第一章已生成，检测到有 2 个未解悬念，建议立即进行‘去 AI 味’精修或撰写第二章分镜。
+                    </h3>
+                    <p className="text-[11px] text-theme-muted/90 leading-relaxed max-w-[70ch] font-sans">
+                      InkFlow 资深审稿引擎已对最新正文进行深度一致性扫描，检测到词风尚存机械痕迹及可继续深挖的剧情线。建议通过以下通道静默直达编辑器，一键润色。
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-1.5">
+                    {/* Primary Dark Button: 一键精修润色 */}
+                    <button
+                      onClick={() => {
+                        if (onSelectChapter && latestChapter) {
+                          onSelectChapter(latestChapter as unknown as Chapter);
+                        }
+                        if (onStartCockpitAction && latestChapter) {
+                          // Launches full custom-polish automated stream / 启动一键去AI味精修流
+                          onStartCockpitAction('polish', latestChapter.id);
+                        } else {
+                          onNavigate('editor');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-theme-text text-theme-bg hover:bg-theme-text/90 active:scale-[0.98] text-xs font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-md font-sans cursor-pointer tracking-wider"
+                    >
+                      <Sparkles size={14} className="text-theme-accent animate-pulse" />
+                      一键「去AI味」精修润色
+                    </button>
+
+                    {/* Secondary Ghost Button: 深度质量审计 */}
+                    <button
+                      onClick={() => {
+                        if (onSelectChapter && latestChapter) {
+                          onSelectChapter(latestChapter as unknown as Chapter);
+                        }
+                        if (onStartCockpitAction && latestChapter) {
+                          // Launches full quality audit stream / 启动后台质量审计流
+                          onStartCockpitAction('audit', latestChapter.id);
+                        } else {
+                          onNavigate('editor');
+                        }
+                      }}
+                      className="px-4 py-2.5 border border-theme-border/80 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 hover:border-theme-accent/30 active:scale-[0.98] text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer font-sans"
+                    >
+                      <BrainCircuit size={14} className="text-theme-muted group-hover/next-card:text-theme-accent transition-colors" />
+                      深度质量审计
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Next Actions CTA Panel */}
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-5 space-y-5">
                 <div className="flex items-center justify-between border-b border-theme-border/40 pb-3">
@@ -841,7 +921,7 @@ export function ProjectCockpitView({
                     </span>
                   ))}
                   {mountedSkills.length === 0 && (
-                    <div className="text-[10px] text-theme-muted/80 italic py-0.5">未装配任何词风卡，可前往技能仓库挑选。</div>
+                    <div className="text-[10px] text-theme-muted/80 italic py-0.5">未装配任何词风卡，可前往能力商店挑选。</div>
                   )}
                 </div>
               </div>
