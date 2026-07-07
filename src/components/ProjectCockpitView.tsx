@@ -12,6 +12,7 @@ import {
 } from '../lib/api';
 import { ScrollArea } from './ui/scroll-area';
 import { toast } from '../lib/toast';
+import { useAppStore } from '../stores/app-store';
 
 interface ComputeRecommendationsParams {
   chaptersCount: number;
@@ -19,10 +20,32 @@ interface ComputeRecommendationsParams {
   hasBeats: boolean;
   hasContent: boolean;
   hasCritique: boolean;
+  activeSeriesId?: string;
+  completedSteps?: string[];
 }
 
 function computeCockpitRecommendations(params: ComputeRecommendationsParams): string[] {
-  const { chaptersCount, worldEntitiesCount, hasBeats, hasContent, hasCritique } = params;
+  const { chaptersCount, worldEntitiesCount, hasBeats, hasContent, hasCritique, activeSeriesId, completedSteps = [] } = params;
+  
+  if (activeSeriesId === 'book-deconstruction-flow') {
+    const isStep1Done = completedSteps.includes('completed-step:book-deconstruction-flow:step1');
+    const isStep2Done = completedSteps.includes('completed-step:book-deconstruction-flow:step2');
+    
+    if (!isStep1Done) {
+      return ['deconstruct_flow_step1', ...[
+        chaptersCount === 0 ? 'create_first_chapter' : null,
+        worldEntitiesCount < 2 ? 'add_world_setting' : null,
+        'mount_skill'
+      ].filter((x): x is string => x !== null)].slice(0, 3);
+    } else if (!isStep2Done) {
+      return ['deconstruct_flow_step2', ...[
+        chaptersCount === 0 ? 'create_first_chapter' : null,
+        worldEntitiesCount < 2 ? 'add_world_setting' : null,
+        'mount_skill'
+      ].filter((x): x is string => x !== null)].slice(0, 3);
+    }
+  }
+
   if (chaptersCount === 0) {
     return ['create_first_chapter', 'add_world_setting', 'import_continuation'];
   }
@@ -359,6 +382,34 @@ export function ProjectCockpitView({
           influence: "确保全书写作资产 100% 绝对安全，可随时进行恢复或迁移",
           onClick: () => window.open('/api/db/export-file', '_blank')
         };
+      case 'deconstruct_flow_step1':
+        return {
+          icon: <BrainCircuit size={14} />,
+          code: "DECONSTRUCT_STEP1",
+          title: "神作高爽节奏拆解",
+          description: "激活拆书转化流：检测到您的作品处于高爽小说创作阶段。建议立即导入神作样本文本，由 AI 提炼拆解其标志性的高爽剧情节奏并一键装配为专属能力卡！",
+          why: "已激活「拆书转化工作流」，首要任务是拆解并学习爆款神作的节奏结构",
+          output: "导入样本文本，提炼出神作高爽剧情节奏与叙事模式",
+          influence: "完成后自动将提炼出的卡牌装备到本书，并解锁下一阶段「神作金句修辞润色」",
+          onClick: () => {
+            useAppStore.getState().setFactoryIntent({ activeSeriesId: 'book-deconstruction-flow', stepId: 'step1' });
+            onNavigate('factory');
+          }
+        };
+      case 'deconstruct_flow_step2':
+        return {
+          icon: <BrainCircuit size={14} />,
+          code: "DECONSTRUCT_STEP2",
+          title: "神作金句修辞润色",
+          description: "拆书转化流第二阶段：已成功装配爽点节奏卡！接下来建议继续通过拆书车间导入神作样本，提炼神作的顶奢修辞、爆款词风与金句技巧，装备为词风滤镜。",
+          why: "第一阶段节奏卡已装备，需进一步提炼其标志性修辞与词风以完全融会贯通",
+          output: "分析神作样本中的顶奢金句、修辞风格与极简对话技巧",
+          influence: "完成后自动装备专属修辞词风滤镜，彻底打通去 AI 味的高级润色模块",
+          onClick: () => {
+            useAppStore.getState().setFactoryIntent({ activeSeriesId: 'book-deconstruction-flow', stepId: 'step2' });
+            onNavigate('factory');
+          }
+        };
       default:
         return null;
     }
@@ -535,6 +586,8 @@ export function ProjectCockpitView({
                       hasBeats: !!latestFullChapter?.sceneBeats?.trim(),
                       hasContent: !!latestFullChapter?.content?.trim(),
                       hasCritique: !!latestFullChapter?.critique?.trim(),
+                      activeSeriesId: novel.projectPreferenceProfile?.activeSeriesId,
+                      completedSteps: novel.projectPreferenceProfile?.tags || [],
                     }).slice(0, 3);
 
                     return recommendations.map((id, index) => {

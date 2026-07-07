@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { cosineSimilarity, embed } from '../server/embedding';
 import { DEFAULT_PROMPT_TEMPLATES } from '../shared/config/prompt-templates';
+import { getConfig } from '../server/lib/config';
+
+// Ensure standard mock configuration is populated for hermetic CI tests
+const config = getConfig();
+config.apiKey = config.apiKey || 'sk-mock-key-for-test-12345';
+config.baseUrl = 'https://api.deepseek.com'; // Unconditionally force non-Google API to use fetch mock
 
 test('cosineSimilarity calculates correct similarity', () => {
   const v1 = [1, 0, 0];

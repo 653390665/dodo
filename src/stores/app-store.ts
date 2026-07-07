@@ -27,12 +27,14 @@ interface AppState {
   isSettingsOpen: boolean;
   isAIAssistantOpen: boolean;
   aiDrawerTab: 'cards' | 'chat';
+  factoryIntent: { activeSeriesId: string; stepId: string } | null;
   setCurrentView: (v: ViewType) => void;
   setWorkspaceFocus: (f: WorkspaceFocus) => void;
   setTheme: (t: Theme) => void;
   setSettingsOpen: (v: boolean) => void;
   setAIAssistantOpen: (v: boolean) => void;
   setAIDrawerTab: (tab: 'cards' | 'chat') => void;
+  setFactoryIntent: (intent: { activeSeriesId: string; stepId: string } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -54,6 +56,7 @@ export const useAppStore = create<AppState>((set) => {
     isSettingsOpen: false,
     isAIAssistantOpen: false,
     aiDrawerTab: 'cards',
+    factoryIntent: null,
     setCurrentView: (currentView) => {
       try { localStorage.setItem('inkflow-last-view', currentView); } catch {}
       set({ currentView });
@@ -67,5 +70,6 @@ export const useAppStore = create<AppState>((set) => {
     setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
     setAIAssistantOpen: (isAIAssistantOpen) => set({ isAIAssistantOpen }),
     setAIDrawerTab: (aiDrawerTab) => set({ aiDrawerTab }),
+    setFactoryIntent: (factoryIntent) => set({ factoryIntent }),
   };
 });

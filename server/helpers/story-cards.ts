@@ -218,7 +218,7 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
 
 export function extractKeywords(seed: string): string[] {
   // Extract meaningful 2-4 char Chinese substrings, skip common stop words
-  const stop = new Set(['一个', '这个', '那个', '什么', '怎么', '为什么', '可以', '还是', '或者', '但是', '因为', '所以', '如果', '虽然', '已经', '而且', '我的', '你的', '他的', '我们', '他们', '你们', '关于', '自己', '没有', '不是', '就是', '的话', '来说', '这样', '那样', '如何']);
+  const stop = new Set(['一个', '这个', '那个', '什么', '怎么', '为什么', '可以', '还是', '或者', '但是', '因为', '所以', '如果', '虽然', '已经', '而且', '我的', '你的', '他的', '我们', '他们', '你们', '关于', '自己', '没有', '不是', '就是', '的话', '来说', '这样', '那样', '如何', '核心故事创意', '主打题材', '目标平台', '篇幅规划', '风格偏好']);
   const cleaned = seed.replace(/[，,。！？、；：""''（）\s]+/g, ' ').trim();
   const segments = cleaned.split(' ').filter(s => s.length >= 2 && !stop.has(s));
   // Also split longer segments into bigrams for better coverage
@@ -251,7 +251,9 @@ export function buildFallbackStoryCards(
   _previousHookTexts: string[] = [],
 ) {
   let seed = String(ideaSeed || '').trim();
-  seed = seed.replace(/【[^】]+】\s*[:：]?\s*/g, ' ').trim() || '一个尚未成形的新故事';
+  seed = seed.replace(/【[^】]+】\s*[:：]?\s*/g, ' ').trim();
+  seed = seed.replace(/(核心故事创意|主打题材|目标平台|篇幅规划|风格偏好)\s*[:：]?\s*/g, ' ').trim();
+  seed = seed || '一个尚未成形的新故事';
   const keywords = extractKeywords(seed);
   const mainTerm = keywords[0] || '故事核心';
   const secondTerm = keywords[1] || mainTerm;

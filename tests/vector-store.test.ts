@@ -5,6 +5,12 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { initDb, closeDb } from '../server/lib/db';
 import { addChunk, searchSimilar, deleteNovel, getChunkCount } from '../server/vector-store';
+import { getConfig } from '../server/lib/config';
+
+// Ensure standard mock configuration is populated for hermetic CI tests
+const config = getConfig();
+config.apiKey = config.apiKey || 'sk-mock-key-for-test-12345';
+config.baseUrl = 'https://api.deepseek.com'; // Unconditionally force non-Google API to use fetch mock
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

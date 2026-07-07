@@ -3,6 +3,7 @@ import { listNovels, updateNovel } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
 import { extractSkill, checkSkillExtractionJob, QuotaError } from '../../lib/prompt-client';
 import { useNovelStore } from '../../stores/novel-store';
+import { useAppStore } from '../../stores/app-store';
 import { coerceMountedSkillLoadout } from '../../lib/skill-model';
 import type { Skill, AggregatedSkillDeck, Novel, BookEvidenceStage, MountedSkillLoadoutItem, SkillDimension } from '../../../shared/types';
 
@@ -357,9 +358,35 @@ export function useBookFactory() {
       return;
     }
     const newIds = [...currentIds, lastSavedSkillId];
+
+    const intent = useAppStore.getState().factoryIntent;
+    let extraUpdate = {};
+    if (intent && intent.activeSeriesId === 'book-deconstruction-flow' && equipNovelId === novel.id) {
+      const existingProfile = novel.projectPreferenceProfile || {
+        contract: {},
+        tags: [],
+        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+        acceptedDimensions: [],
+        rejectedDimensions: [],
+        notes: [],
+        evidenceCount: 0
+      };
+      const currentTags = existingProfile.tags || [];
+      const completedTag = `completed-step:book-deconstruction-flow:${intent.stepId}`;
+      const updatedTags = currentTags.includes(completedTag) ? currentTags : [...currentTags, completedTag];
+      extraUpdate = {
+        projectPreferenceProfile: {
+          ...existingProfile,
+          tags: updatedTags,
+        }
+      };
+      useAppStore.getState().setFactoryIntent(null);
+    }
+
     await updateNovel(equipNovelId, {
       mountedSkillIds: newIds,
       mountedSkillLoadout: coerceMountedSkillLoadout(newIds),
+      ...extraUpdate,
     });
     setShowEquipPanel(false);
   };
@@ -423,9 +450,35 @@ export function useBookFactory() {
       weight: index === 0 ? 1 : 0.7,
       lockedDimensions: [allCards[index]?.primaryDimension || 'style'],
     }));
+
+    const intent = useAppStore.getState().factoryIntent;
+    let extraUpdate = {};
+    if (intent && intent.activeSeriesId === 'book-deconstruction-flow' && equipNovelId === novel.id) {
+      const existingProfile = novel.projectPreferenceProfile || {
+        contract: {},
+        tags: [],
+        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+        acceptedDimensions: [],
+        rejectedDimensions: [],
+        notes: [],
+        evidenceCount: 0
+      };
+      const currentTags = existingProfile.tags || [];
+      const completedTag = `completed-step:book-deconstruction-flow:${intent.stepId}`;
+      const updatedTags = currentTags.includes(completedTag) ? currentTags : [...currentTags, completedTag];
+      extraUpdate = {
+        projectPreferenceProfile: {
+          ...existingProfile,
+          tags: updatedTags,
+        }
+      };
+      useAppStore.getState().setFactoryIntent(null);
+    }
+
     await updateNovel(equipNovelId, {
       mountedSkillIds: mountedIds,
       mountedSkillLoadout: loadout,
+      ...extraUpdate,
     });
     setShowEquipPanel(false);
     alert(`Deck「${deck.mainCard.name}」已装备到作品。`);
