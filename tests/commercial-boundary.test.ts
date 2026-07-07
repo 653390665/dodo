@@ -93,13 +93,17 @@ describe('Commercial Boundary & Quota Control Tests', () => {
     const explicitPaid = mockSkill({ accessTier: 'paid', executionScore: 80 });
     assert.equal(isPaidSkill(explicitPaid), true);
 
-    // 评分大等于 90 (S-tier卡) 隐式判定为付费高阶卡
-    const sTierSkill = mockSkill({ executionScore: 90 });
-    assert.equal(isPaidSkill(sTierSkill), true);
+    // 显式指定 sourceType 为 licensed
+    const licensedSkill = mockSkill({ sourceType: 'licensed', executionScore: 85 });
+    assert.equal(isPaidSkill(licensedSkill), true);
 
-    // 具有父级传承链的技能卡隐式判定为高阶卡
+    // 评分大等于 90 (S-tier卡) 隐式判定为付费高阶卡 (新规下为免费，除非显式指定 accessTier === 'paid')
+    const sTierSkill = mockSkill({ executionScore: 90 });
+    assert.equal(isPaidSkill(sTierSkill), false);
+
+    // 具有父级传承链的技能卡隐式判定为高阶卡 (新规下为免费)
     const inheritedSkill = mockSkill({ parentSkillId: 'parent-id-123', executionScore: 70 });
-    assert.equal(isPaidSkill(inheritedSkill), true);
+    assert.equal(isPaidSkill(inheritedSkill), false);
   });
 
   // ==========================================

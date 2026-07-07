@@ -38,6 +38,7 @@ export interface ProjectPreferenceProfile {
   decisions?: ChapterDecision[];
   commercialMode?: 'free' | 'paid' | 'strict'; // 商业化版本模式 (free | paid | strict)
   quotaLimits?: QuotaLimits; // 配额限制与当前计数
+  activeSeriesId?: string; // 选中的黄金创作流程包 ID
 }
 
 export interface FitScoreExplanation {

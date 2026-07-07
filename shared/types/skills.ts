@@ -78,6 +78,7 @@ export interface Skill {
   deconstructionCardType?: DeconstructionCardType;
   executionScore?: number;
   accessTier?: 'free' | 'paid'; // 卡片访问等级：free (免费版可用), paid (仅专业版可用)
+  sourceType?: 'built-in' | 'licensed' | 'plaza' | string; // 卡片来源类型：built-in (官方免费), licensed (授权付费), plaza (广场免费)
   createdAt: number;
   updatedAt?: number;
 }

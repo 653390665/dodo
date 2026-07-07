@@ -20,6 +20,7 @@ import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
 import * as db from '../lib/db.js';
 import { inferNovelGovernanceProfile, getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
+import { resolveRuntimeCuratedPrompts } from '../helpers/curated-skill-runtime.js';
 
 export function registerAuditRoutes(app: Express) {
   app.post('/api/audit', async (req, res) => {
@@ -41,8 +42,10 @@ export function registerAuditRoutes(app: Express) {
         });
       }
 
-      const skillsInfo = skills.length > 0
-        ? `\n【当前挂载的叙事 DNA 插件】\n${skills.map((s: Skill) => `
+      const resolvedSkills = resolveRuntimeCuratedPrompts(skills);
+
+      const skillsInfo = resolvedSkills.length > 0
+        ? `\n【当前挂载的叙事 DNA 插件】\n${resolvedSkills.map((s: Skill) => `
 - 技能名：${s.name}
 - 核心笔调：${s.style}
 - 句式特征：${s.sentenceStructure}

@@ -29,7 +29,18 @@ export function WorldBibleOnboarding({
     onAcceptRecommendedSkills: () => void;
   };
 }) {
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  // 核心状态：设定助手抽屉是否开启。
+  // 遵循 Google 编程规范，此处采用惰性初始化（Lazy Initialization）安全读取 localStorage，
+  // 支持从欢迎页（WelcomeView）的“补全世界观与角色”动作一键自适应路由并静默触发助手面板。
+  const [isAssistantOpen, setIsAssistantOpen] = useState(() => {
+    const shouldAutoOpen = localStorage.getItem('inkflow_auto_open_bible_assistant') === 'true';
+    if (shouldAutoOpen) {
+      // 消费后立即安全抹除该临时标识，保证无残留垃圾，且后续用户手动刷新时不会重复弹出
+      localStorage.removeItem('inkflow_auto_open_bible_assistant');
+      return true;
+    }
+    return false;
+  });
 
   return (
     <div className="h-full flex flex-col bg-transparent">

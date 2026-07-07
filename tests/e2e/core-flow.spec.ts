@@ -91,6 +91,18 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
     await expect(acceptRecommendationButton).toBeVisible();
     await acceptRecommendationButton.click();
 
+    // Handle "生成设定确认单" (confirm checklist) modal and write settings
+    // 处理 "生成设定确认单" 确认勾选并原子写入设定工坊
+    const confirmWriteButton = page.locator('button:has-text("勾选并原子写入设定工坊")');
+    await expect(confirmWriteButton).toBeVisible();
+    await confirmWriteButton.click();
+
+    // Choose to enable recommended flow inside "智能引导气泡弹窗" (smart onboarding guide bubble) to enter cockpit
+    // 在 "智能引导气泡弹窗" 中选择并点击 "启用推荐创作流程" 以开启驾驶舱
+    const enableFlowButton = page.locator('button:has-text("启用推荐创作流程")');
+    await expect(enableFlowButton).toBeVisible();
+    await enableFlowButton.click();
+
     // 4. Navigate to the Editor View for this project
     // 进入该作品的编辑器视图
     // First, verify we transitioned into the Workspace Cockpit View by waiting for the primary recommended action button (add world setting)

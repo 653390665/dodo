@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaunchState, Chapter, ChapterMetadata } from '../../shared/types';
+import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaunchState, Chapter, ChapterMetadata, ViewType } from '../../shared/types';
 import { cn } from '../lib/utils';
 import type { AgentContext } from '../lib/agents';
 import { Download, Loader2, Sparkles } from 'lucide-react';
@@ -28,9 +28,10 @@ interface EditorViewProps {
   launchState?: ContinuationEditorLaunchState | null;
   onBack: () => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
+  onNavigate?: (view: ViewType) => void;
 }
 
-export function EditorView({ novel, launchState = null, onBack, onOpenAssistant }: EditorViewProps) {
+export function EditorView({ novel, launchState = null, onBack, onOpenAssistant, onNavigate }: EditorViewProps) {
   // --- 1. Basic State & Ref Hooks (Declared at the very top) ---
   const {
     isFullscreen,
@@ -637,6 +638,10 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant 
           onAddFirstChapter={handleAddFirstChapter}
           setAgentTab={setAgentTab}
           setIsAgentSidebarOpen={setIsAgentSidebarOpen}
+          onNavigate={onNavigate}
+          characters={characters}
+          locations={locations}
+          items={items}
         />
 
         <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">

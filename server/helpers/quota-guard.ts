@@ -28,26 +28,17 @@ export interface QuotaCheckResult {
  * Fully encapsulates commercial boundary rules and limits verification
  */
 
-/**
- * 判定卡片是否属于高阶收费 Skill 插件
- * Determines if a narrative Skill is high-tier and requires Premium (paid) subscription
- */
 export function isPaidSkill(skill: Skill): boolean {
   // 1. 如果有显式指定的 accessTier，以其为准
   // If explicitly specified by the accessTier field
   if (skill.accessTier === 'paid') return true;
   if (skill.accessTier === 'free') return false;
 
-  // 2. 默认判定规则 (Implicit heuristic mapping):
-  // 评分大等于 90 (S-tier卡) 或具有父级传承链的均判定为付费高阶技能
-  // Execution score >= 90 (S-Tier) or inheriting from another card via parentSkillId
-  if (skill.executionScore !== undefined && skill.executionScore >= 90) {
-    return true;
-  }
-  if (skill.parentSkillId) {
-    return true;
-  }
+  // 2. 如果 sourceType 为 licensed，也是付费精选卡
+  if (skill.sourceType === 'licensed') return true;
 
+  // 3. 默认判定规则 (Default fallback):
+  // 仅看明确付费字段，不再因为评分 >= 90 或拥有 parentSkillId 自动判定付费。
   return false;
 }
 

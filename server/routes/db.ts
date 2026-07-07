@@ -189,6 +189,14 @@ export function registerDbRoutes(app: Express) {
           logger.error('严重警告：数据库还原回滚失败！', restoreErr);
         }
         res.status(500).json({ error: err instanceof Error ? err.message : '还原数据失败，已自动回撤恢复旧数据' });
+      } finally {
+        try {
+          if (existsSync(backupPath)) {
+            unlinkSync(backupPath);
+          }
+        } catch (unlinkErr) {
+          logger.error('删除导入临时备份文件失败:', unlinkErr);
+        }
       }
     }
   );

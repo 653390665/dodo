@@ -61,7 +61,16 @@ export function WorldBibleView({
   onStartContinuationWriting?: (approvedPackId: string, prefillIntent?: string) => void;
   onEnterStoryboard?: (approvedPackId: string, continuationTask?: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>(() => {
+    try {
+      const saved = localStorage.getItem('inkflow-world-bible-active-tab');
+      if (saved) {
+        localStorage.removeItem('inkflow-world-bible-active-tab');
+        return saved as 'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline';
+      }
+    } catch {}
+    return 'overview';
+  });
   const [requestedReviewPackId, setRequestedReviewPackId] = useState<string | null>(null);
   const [showRelationshipAlert, setShowRelationshipAlert] = useState(false);
 

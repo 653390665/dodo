@@ -2,6 +2,24 @@ import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { renderPromptTemplate, getPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
+import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-governance-catalog.js';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeSkillFields(skill: any): any {
+  if (!skill) return skill;
+  const fields = ['name', 'description', 'style', 'sentenceStructure', 'pacing', 'characterTraits', 'worldBuilding', 'plotPattern', 'foreshadowing'];
+  const sanitized = { ...skill };
+  for (const f of fields) {
+    if (typeof sanitized[f] === 'string') {
+      sanitized[f] = sanitizeWhiteLabelText(sanitized[f]);
+    }
+  }
+  if (Array.isArray(sanitized.fewShots)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sanitized.fewShots = sanitized.fewShots.map((fs: any) => typeof fs === 'string' ? sanitizeWhiteLabelText(fs) : fs);
+  }
+  return sanitized;
+}
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { withTimeout } from '../helpers/async-utils';
@@ -116,11 +134,19 @@ async function processModelSkillExtraction(
   }
 
   const deck = buildSkillDeckFromEvidence(segmentEvidence);
-  const skills = [deck.mainCard, ...deck.supportCards].map((skill, index) => ({
-    ...skill,
-    id: skill.id || `deck-skill-${index + 1}`,
-    version: skill.version || 1,
-  }));
+  if (deck.mainCard) deck.mainCard = sanitizeSkillFields(deck.mainCard);
+  if (Array.isArray(deck.supportCards)) {
+    deck.supportCards = deck.supportCards.map(s => sanitizeSkillFields(s));
+  }
+
+  const skills = [deck.mainCard, ...deck.supportCards].filter(Boolean).map((skill, index) => {
+    const s = {
+      ...skill,
+      id: skill.id || `deck-skill-${index + 1}`,
+      version: skill.version || 1,
+    };
+    return sanitizeSkillFields(s);
+  });
 
   const qualityReport = evaluateSkillOutputQuality(
     skills as Array<Record<string, unknown>>,
@@ -195,6 +221,17 @@ export function registerSkillsRoutes(app: Express) {
       // Phase 1 (fast): Build full fallback deck and return immediately.
       // ================================================================
       const fallbackResult = buildFullFallbackSkillResult(text);
+      if (fallbackResult.skills) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fallbackResult.skills = fallbackResult.skills.map((s: any) => sanitizeSkillFields(s));
+      }
+      if (fallbackResult.deck) {
+        if (fallbackResult.deck.mainCard) fallbackResult.deck.mainCard = sanitizeSkillFields(fallbackResult.deck.mainCard);
+        if (Array.isArray(fallbackResult.deck.supportCards)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          fallbackResult.deck.supportCards = fallbackResult.deck.supportCards.map((s: any) => sanitizeSkillFields(s));
+        }
+      }
 
       // ================================================================
       // Phase 2 (background): Fire model extraction as an async job.

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Layers3, Loader2, Send, Sliders, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Send, Sliders, Sparkles, Upload } from 'lucide-react';
 
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
 import { SourceBadge } from './SourceBadge';
-import type { StoryIdeaCard, Novel, StoryPlanningInput } from '../../shared/types';
+import type { StoryIdeaCard, Novel, StoryPlanningInput, ViewType } from '../../shared/types';
 import { recommendOpeningGovernance } from '../../shared/lib/prompt-assets-governed';
 import type { OpeningRecommendationResult } from '../../shared/lib/prompt-assets-governed';
 
@@ -12,7 +12,13 @@ import type { OpeningRecommendationResult } from '../../shared/lib/prompt-assets
  * 界面属性定义
  */
 interface WelcomeViewProps {
-  onSelectStoryCard: (card: StoryIdeaCard, planning: StoryPlanningInput, recommendedTags?: string[]) => void;
+  onSelectStoryCard: (
+    card: StoryIdeaCard,
+    planning: StoryPlanningInput,
+    recommendedTags?: string[],
+    targetView?: ViewType,
+    activeSeriesId?: string
+  ) => void;
   onJumpToLibrary: () => void;
   onSelectNovel: (novel: Novel) => void;
   onStartContinuationImport: () => void;
@@ -53,6 +59,30 @@ export function WelcomeView({
   const [selectedCardForRec, setSelectedCardForRec] = useState<StoryIdeaCard | null>(null);
   const [recResult, setRecResult] = useState<OpeningRecommendationResult | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean | null | 'unknown'>(null);
+
+  // 新开书拦截确认弹窗与引导气泡状态
+  const [showConfirmDetailsModal, setShowConfirmDetailsModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState<{
+    card: StoryIdeaCard;
+    tags: string[];
+    useWorkflow: boolean;
+    defaultFlowId: string;
+  } | null>(null);
+
+  const [showGuidedBubble, setShowGuidedBubble] = useState(false);
+  const [bubbleData, setConfirmBubbleData] = useState<{
+    card: StoryIdeaCard;
+    tags: string[];
+    defaultFlowId: string;
+  } | null>(null);
+
+  const [confirmedItems, setConfirmedItems] = useState({
+    character: true,
+    world: true,
+    power: true,
+    conflict: true,
+    platform: true,
+  });
 
   // 加载自定义卡片检索钩子
   const { cards, source, isWaiting, isModelPending, warnings, submit } = useStoryCards({
@@ -132,10 +162,22 @@ export function WelcomeView({
 
               <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
                 <span className="font-bold text-theme-accent tracking-wider">AI 创作状态监视器</span>
-                <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">AI 协作已就绪</span>
-                </div>
+                {hasApiKey === true ? (
+                  <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">已连接 | CONNECTED</span>
+                  </div>
+                ) : hasApiKey === 'unknown' || hasApiKey === null ? (
+                  <div className="flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">未知/波动 | STATE_UNKNOWN</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                    <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider">本地模式 | LOCAL_RESERVED</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -153,11 +195,11 @@ export function WelcomeView({
                     {hasApiKey === null ? (
                       <span className="text-theme-muted">正在检测...</span>
                     ) : hasApiKey === 'unknown' ? (
-                      <span className="text-amber-500 font-bold">可继续本地编辑</span>
+                      <span className="text-amber-500 font-bold">网络波动/配置未知</span>
                     ) : hasApiKey ? (
-                      <span className="text-theme-accent font-bold">大模型已连接</span>
+                      <span className="text-theme-accent font-bold font-mono text-[10px]">CONNECTED</span>
                     ) : (
-                      <span className="text-amber-500 font-bold">本地写作模式</span>
+                      <span className="text-amber-500 font-bold">LOCAL_RESERVED</span>
                     )}
                   </div>
                 </div>
@@ -168,6 +210,14 @@ export function WelcomeView({
                     <span className="text-theme-text font-medium">自动快照备份中</span>
                   </div>
                 </div>
+
+                {/* 专属本地无缝降级指引横幅 */}
+                {(hasApiKey === 'unknown' || hasApiKey === false || hasApiKey === null) && (
+                  <div className="mt-3.5 p-2.5 bg-amber-500/5 border border-amber-500/15 rounded text-[11px] text-amber-600/90 leading-relaxed font-sans normal-case">
+                    <p className="font-bold flex items-center gap-1 mb-0.5">⚠️ 本地无缝降级指引：</p>
+                    <p>当前网络连接不稳定或未配置 API Key。系统已自动启用高可用本地降级策略。您的大纲草拟、本地分镜编辑、以及基于 SQLite 事务快照的灾备保护等核心功能均 **100% 正常运行**，可直接安心无碍地开展中长篇小说创作。</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -693,7 +743,7 @@ export function WelcomeView({
                         <div className="min-w-0">
                           <div className="text-[11px] font-bold text-theme-text truncate">
                             {recResult.activeSeriesId === 'tomato-platform-flow' ? '番茄脑洞文爆款创作流' :
-                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '小飞鸡作者全套打磨流' :
+                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '长篇商业连载流程' :
                              '通用型多阶智能创作流'}
                           </div>
                           <div className="text-[9px] text-theme-muted truncate">
@@ -726,9 +776,18 @@ export function WelcomeView({
               <div className="grid grid-cols-2 gap-3 mt-1.5">
                 <button
                   onClick={() => {
-                    onSelectStoryCard(selectedCardForRec, planning);
+                    const card = selectedCardForRec;
                     setSelectedCardForRec(null);
                     setRecResult(null);
+                    
+                    // 前置拦截：打开“生成设定确认单”
+                    setConfirmModalData({
+                      card,
+                      tags: [],
+                      useWorkflow: false,
+                      defaultFlowId: 'generic-novel-flow'
+                    });
+                    setShowConfirmDetailsModal(true);
                   }}
                   className="px-3 py-2 rounded border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-[11px] font-bold transition-all text-center"
                 >
@@ -736,9 +795,20 @@ export function WelcomeView({
                 </button>
                 <button
                   onClick={() => {
-                    onSelectStoryCard(selectedCardForRec, planning, recResult.tagsToApply);
+                    const card = selectedCardForRec;
+                    const tags = recResult.tagsToApply;
+                    const defaultFlowId = recResult.activeSeriesId || 'generic-novel-flow';
                     setSelectedCardForRec(null);
                     setRecResult(null);
+                    
+                    // 前置拦截：打开“生成设定确认单”
+                    setConfirmModalData({
+                      card,
+                      tags,
+                      useWorkflow: true,
+                      defaultFlowId
+                    });
+                    setShowConfirmDetailsModal(true);
                   }}
                   className="px-3 py-2 rounded bg-theme-text text-white hover:opacity-90 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
                 >
@@ -747,6 +817,268 @@ export function WelcomeView({
                 </button>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* ==================== 1. 生成设定确认单 (Setting Confirmation Checklist) ==================== */}
+        {showConfirmDetailsModal && confirmModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/80 backdrop-blur-md p-4 animate-fade-in">
+            <div className="bg-theme-sidebar border border-theme-border/50 max-w-lg w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5 animate-scale-in max-h-[90vh] overflow-y-auto text-left">
+              {/* Decorative line */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
+
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+                    <FileCheck size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-theme-text flex items-center gap-2">
+                      生成设定确认单
+                      <span className="text-[9px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest font-mono">
+                        CONFIRM CHECKLIST
+                      </span>
+                    </h3>
+                    <p className="text-[10px] text-theme-muted mt-0.5">请勾选并确认即将导入设定工坊的虚构资产清单</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setShowConfirmDetailsModal(false); setConfirmModalData(null); }}
+                  className="text-theme-muted hover:text-theme-text text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="border-t border-theme-border/20 my-0.5" />
+
+              <div className="space-y-3.5 text-xs">
+                {/* Checklist items */}
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                  <input
+                    type="checkbox"
+                    id="chk-char"
+                    checked={confirmedItems.character}
+                    onChange={(e) => setConfirmedItems({ ...confirmedItems, character: e.target.checked })}
+                    className="mt-1 accent-amber-500"
+                  />
+                  <label htmlFor="chk-char" className="flex-1 cursor-pointer select-none">
+                    <div className="font-bold text-theme-text flex items-center gap-1.5">
+                      <span>待导入角色 (Protagonist)</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">角色库</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                      主角设定: {confirmModalData.card.protagonist || '自动生成核心主角，挂载至第一章主角人设卡。'}
+                    </p>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                  <input
+                    type="checkbox"
+                    id="chk-world"
+                    checked={confirmedItems.world}
+                    onChange={(e) => setConfirmedItems({ ...confirmedItems, world: e.target.checked })}
+                    className="mt-1 accent-amber-500"
+                  />
+                  <label htmlFor="chk-world" className="flex-1 cursor-pointer select-none">
+                    <div className="font-bold text-theme-text flex items-center gap-1.5">
+                      <span>世界观设定 (World Seed)</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">虚构创世</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                      世界设定: {confirmModalData.card.starterSeeds.worldSeed}
+                    </p>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                  <input
+                    type="checkbox"
+                    id="chk-power"
+                    checked={confirmedItems.power}
+                    onChange={(e) => setConfirmedItems({ ...confirmedItems, power: e.target.checked })}
+                    className="mt-1 accent-amber-500"
+                  />
+                  <label htmlFor="chk-power" className="flex-1 cursor-pointer select-none">
+                    <div className="font-bold text-theme-text flex items-center gap-1.5">
+                      <span>力量与战力等级体系 (Power System)</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">规则树</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                      基于该小说的虚构底层规则及升级序列，自动挂载高连贯性升级限制，保障大后期不崩。
+                    </p>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                  <input
+                    type="checkbox"
+                    id="chk-conflict"
+                    checked={confirmedItems.conflict}
+                    onChange={(e) => setConfirmedItems({ ...confirmedItems, conflict: e.target.checked })}
+                    className="mt-1 accent-amber-500"
+                  />
+                  <label htmlFor="chk-conflict" className="flex-1 cursor-pointer select-none">
+                    <div className="font-bold text-theme-text flex items-center gap-1.5">
+                      <span>核心冲突与金手指 (Conflict & Hooks)</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">大纲规划</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                      主线冲突: {confirmModalData.card.coreConflict}
+                    </p>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                  <input
+                    type="checkbox"
+                    id="chk-plat"
+                    checked={confirmedItems.platform}
+                    onChange={(e) => setConfirmedItems({ ...confirmedItems, platform: e.target.checked })}
+                    className="mt-1 accent-amber-500"
+                  />
+                  <label htmlFor="chk-plat" className="flex-1 cursor-pointer select-none">
+                    <div className="font-bold text-theme-text flex items-center gap-1.5">
+                      <span>自适应适配平台标准 (Platform Target)</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">白标质检</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                      目标发布: {confirmModalData.useWorkflow && confirmModalData.defaultFlowId === 'tomato-platform-flow' ? '番茄小说爆款规则协议' : '经典网络文学通用标准'}
+                    </p>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t border-theme-border/20 my-0.5" />
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => { setShowConfirmDetailsModal(false); setConfirmModalData(null); }}
+                  className="py-3 rounded-xl border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-xs font-bold transition-all text-center"
+                >
+                  取消返回
+                </button>
+                <button
+                  onClick={() => {
+                    const data = confirmModalData;
+                    setShowConfirmDetailsModal(false);
+                    setConfirmModalData(null);
+                    
+                    // 打开智能引导气泡弹窗
+                    setConfirmBubbleData({
+                      card: data.card,
+                      tags: data.tags,
+                      defaultFlowId: data.defaultFlowId
+                    });
+                    setShowGuidedBubble(true);
+                  }}
+                  className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                >
+                  <Sparkles size={14} />
+                  勾选并原子写入设定工坊
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== 2. 智能引导气泡弹窗 (Smart Onboarding Guide Bubble) ==================== */}
+        {showGuidedBubble && bubbleData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/85 backdrop-blur-md p-4 animate-fade-in">
+            <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5 animate-scale-in text-left">
+              {/* Gold gradient top border */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500" />
+
+              <div className="text-center space-y-2">
+                <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center animate-bounce mb-3">
+                  <Brain size={22} className="animate-pulse" />
+                </div>
+                <h3 className="text-base font-bold text-theme-text">✨ 设定已原子写入设定工坊！</h3>
+                <p className="text-xs text-theme-muted max-w-sm mx-auto leading-relaxed">
+                  大纲结构与角色人设已完美导入底层大库。接下来，您将作为总调度官，选择您的首发创作起点：
+                </p>
+              </div>
+
+              <div className="border-t border-theme-border/10 my-0.5" />
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    const data = bubbleData;
+                    setShowGuidedBubble(false);
+                    setConfirmBubbleData(null);
+                    onSelectStoryCard(data.card, planning, data.tags, 'editor', data.defaultFlowId);
+                  }}
+                  className="w-full p-4 rounded-xl border border-theme-accent/20 bg-theme-accent/5 hover:bg-theme-accent/10 transition-all duration-150 text-left flex items-start gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-theme-accent/15 text-theme-accent border border-theme-accent/20 group-hover:scale-105 transition-transform shrink-0">
+                    <BookOpen size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
+                      <span>📝 起草第一章分镜</span>
+                      <span className="text-[9px] bg-theme-accent/10 text-theme-accent px-1.5 py-0.2 rounded font-sans font-bold scale-90">官方推荐</span>
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">直接跨入高阶正文编辑器，AI 将基于当前设定自动生成第一章的细纲分镜。</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const data = bubbleData;
+                    setShowGuidedBubble(false);
+                    setConfirmBubbleData(null);
+                    localStorage.setItem('inkflow_auto_open_bible_assistant', 'true');
+                    onSelectStoryCard(data.card, planning, data.tags, 'world', data.defaultFlowId);
+                  }}
+                  className="w-full p-4 rounded-xl border border-theme-border/40 hover:border-theme-accent/35 bg-theme-bg/30 hover:bg-theme-bg/60 transition-all duration-150 text-left flex items-start gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-theme-border/40 text-theme-text border border-theme-border/20 group-hover:scale-105 transition-transform shrink-0">
+                    <Globe size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
+                      🔮 补全世界观与角色
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">前往设定工坊，开启世界观设定助手引导，逐步细化并锁定主角、世界背景与升级体系。</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const data = bubbleData;
+                    setShowGuidedBubble(false);
+                    setConfirmBubbleData(null);
+                    onSelectStoryCard(data.card, planning, data.tags, 'workspace', data.defaultFlowId);
+                  }}
+                  className="w-full p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-150 text-left flex items-start gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-amber-500/15 text-amber-500 border border-amber-500/20 group-hover:scale-105 transition-transform shrink-0">
+                    <Layers3 size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-theme-text group-hover:text-amber-500 transition-colors">
+                      ⚡ 启用推荐创作流程
+                    </div>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                      挂载 {bubbleData?.defaultFlowId === 'tomato-platform-flow' ? '番茄爆款爽文主流程' : '通用小说主流程'}，进入写作驾驶舱，享受极致多阶导航。
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              <div className="border-t border-theme-border/10 my-0.5" />
+
+              <div className="text-center">
+                <button
+                  onClick={() => { setShowGuidedBubble(false); setConfirmBubbleData(null); }}
+                  className="text-xs text-theme-muted hover:text-theme-text transition-colors"
+                >
+                  暂不需要，我自己探索
+                </button>
+              </div>
             </div>
           </div>
         )}

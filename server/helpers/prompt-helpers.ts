@@ -3,24 +3,28 @@ import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/soul
 import { getConfig } from '../lib/config';
 import type { Skill } from '../../shared/types';
 
+import { resolveRuntimeCuratedPrompts } from './curated-skill-runtime.js';
+
 export function buildSkillsPrompt(skills: Skill[]) {
   if (!skills || skills.length === 0) return "";
 
-  const allBannedElements = Array.from(new Set(skills.flatMap(s => [
+  const resolvedSkills = resolveRuntimeCuratedPrompts(skills);
+
+  const allBannedElements = Array.from(new Set(resolvedSkills.flatMap(s => [
     ...(Array.isArray(s.bannedWords) ? s.bannedWords : []),
     ...(Array.isArray(s.bannedElements) ? s.bannedElements : [])
   ])));
-  const allImagery = Array.from(new Set(skills.flatMap(s => Array.isArray(s.imagery) ? s.imagery : [])));
-  const allVocabulary = Array.from(new Set(skills.flatMap(s => Array.isArray(s.vocabulary) ? s.vocabulary : [])));
-  const allCorePatterns = Array.from(new Set(skills.flatMap(s => Array.isArray(s.corePatterns) ? s.corePatterns : [])));
+  const allImagery = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.imagery) ? s.imagery : [])));
+  const allVocabulary = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.vocabulary) ? s.vocabulary : [])));
+  const allCorePatterns = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.corePatterns) ? s.corePatterns : [])));
 
-  const primarySkill = skills[0];
-  const secondarySkills = skills.slice(1);
+  const primarySkill = resolvedSkills[0];
+  const secondarySkills = resolvedSkills.slice(1);
 
   let prompt = `\n【当前挂载的复合叙事 DNA (Composite Narrative Signature)】\n`;
-  prompt += `你现在的文字灵魂由以下 ${skills.length} 个维度交织而成，请进行深度化学反应式的融合：\n\n`;
+  prompt += `你现在的文字灵魂由以下 ${resolvedSkills.length} 个维度交织而成，请进行深度化学反应式的融合：\n\n`;
 
-  prompt += `核心描述基调 (Primary Voice)：\n`;
+  prompt += `核心描述基调 (Primary Voice):\n`;
   prompt += `- 基于《${primarySkill.name}》：${primarySkill.style}\n`;
   if (primarySkill.sentenceStructure) prompt += `  句法要求："${primarySkill.sentenceStructure}"\n`;
   prompt += `  节奏推进遵循："${primarySkill.pacing}"\n`;
@@ -31,7 +35,7 @@ export function buildSkillsPrompt(skills: Skill[]) {
   prompt += `\n`;
 
   if (secondarySkills.length > 0) {
-    prompt += `质感滤镜与大纲补强 (Flavor Overlays)：\n`;
+    prompt += `质感滤镜与大纲补强 (Flavor Overlays):\n`;
     secondarySkills.forEach(s => {
       prompt += `- 融合《${s.name}》：在描写层引入其"${s.style}"的色彩。`;
       if (s.characterTraits) prompt += `引入人物特征：${s.characterTraits}。`;
@@ -41,21 +45,21 @@ export function buildSkillsPrompt(skills: Skill[]) {
     prompt += `\n`;
   }
 
-  prompt += `全局语法规约 (Global Constraints)：\n`;
+  prompt += `全局语法规约 (Global Constraints):\n`;
   if (allImagery.length > 0) prompt += `- 【核心意象群】：${allImagery.join("、")} (在描写中高频出现这些符号)\n`;
   if (allVocabulary.length > 0) prompt += `- 【标志性词汇】：${allVocabulary.join("、")} (优先使用这些具有辨识度的词汇)\n`;
   if (allCorePatterns.length > 0) prompt += `- 【核心行文套路】：${allCorePatterns.join("、")} (在构建桥段时，请采纳这些模式)\n`;
   if (allBannedElements.length > 0) prompt += `- 【绝对禁忌红线】：${allBannedElements.join("、")} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
 
-  prompt += `风格对标样例 (Composite Few-Shots)：\n`;
-  skills.forEach(s => {
+  prompt += `风格对标样例 (Composite Few-Shots):\n`;
+  resolvedSkills.forEach(s => {
     (Array.isArray(s.fewShots) ? s.fewShots : []).slice(0, 2).forEach((fs: string) => {
       prompt += `  * "${fs}" (来自 ${s.name})\n`;
     });
   });
 
   // ---- Deconstruction Card Injector (XML Overlays) ----
-  const deconstructionCards = skills.filter(s => s.deconstructionCardType);
+  const deconstructionCards = resolvedSkills.filter(s => s.deconstructionCardType);
   if (deconstructionCards.length > 0) {
     prompt += `\n【Deconstruction Card Injector】\n`;
     prompt += `检测到挂载了 ${deconstructionCards.length} 张专业拆书卡。为了实现最佳的白标迁移（White-Label Transfer），请严格遵循以下卡牌规约与注入指令（你必须仅吸收其交互规律、描写规律、信息铺垫方法与语言手感，绝对不能直接套用任何原有小说中的角色名、专有名词、地点等实体，避免产生冲突性污染）：\n\n`;
@@ -105,7 +109,7 @@ export function buildSkillsPrompt(skills: Skill[]) {
 
       if (Array.isArray(s.fewShots) && s.fewShots.length > 0) {
         prompt += `  <transferable_few_shots>\n`;
-        s.fewShots.forEach((shot, idx) => {
+        s.fewShots.forEach((shot: string, idx: number) => {
           prompt += `    <shot_${idx + 1}>${shot}</shot_${idx + 1}>\n`;
         });
         prompt += `  </transferable_few_shots>\n`;

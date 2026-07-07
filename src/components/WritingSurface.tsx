@@ -1,13 +1,13 @@
 import React from 'react';
-import { Activity, AlertCircle, Bot, Feather, FileText, Globe, Lightbulb, Loader2, MessageSquareWarning, Plus, Radar } from 'lucide-react';
+import { Activity, AlertCircle, Bot, Feather, FileText, Globe, Lightbulb, Loader2, MessageSquareWarning, Plus, Radar, Sparkles, ShieldAlert } from 'lucide-react';
 
 import {
   Novel, Chapter, AssistantLaunchContext, CopilotSuggestion,
-  CopilotActionKey, AgentTab, Skill, SniffedEntities
+  CopilotActionKey, AgentTab, Skill, SniffedEntities, ViewType,
+  Character, Location, Item
 } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { CopilotStatusBar } from './copilot/CopilotStatusBar';
-import { extractStructuredAudit } from '../../shared/lib/audit-structured';
 
 interface WritingSurfaceProps {
   novel: Novel;
@@ -44,6 +44,11 @@ interface WritingSurfaceProps {
   // Navigation / UI
   setAgentTab: (tab: AgentTab) => void;
   setIsAgentSidebarOpen: (open: boolean) => void;
+
+  onNavigate?: (view: ViewType) => void;
+  characters?: Character[];
+  locations?: Location[];
+  items?: Item[];
 }
 
 export const WritingSurface = React.memo(function WritingSurface({
@@ -56,8 +61,8 @@ export const WritingSurface = React.memo(function WritingSurface({
   auditStatus,
   isChapterEmpty,
   mountedSkillsCount,
-  sniffedEntities = null,
-  mountedSkills = [],
+  sniffedEntities: _sniffedEntities = null,
+  mountedSkills: _mountedSkills = [],
   copilotSuggestion,
   runCopilotAction,
   contentRef,
@@ -68,7 +73,11 @@ export const WritingSurface = React.memo(function WritingSurface({
   buildAssistantLaunchContext,
   onAddFirstChapter,
   setAgentTab,
-  setIsAgentSidebarOpen
+  setIsAgentSidebarOpen,
+  onNavigate,
+  characters = [],
+  locations = [],
+  items = []
 }: WritingSurfaceProps) {
   const [prevChapterId, setPrevChapterId] = React.useState(currentChapter?.id);
   const [prevChapterContent, setPrevChapterContent] = React.useState(currentChapter?.content);
@@ -116,14 +125,6 @@ export const WritingSurface = React.memo(function WritingSurface({
     }
   }, [currentChapter, isChapterEmpty]);
 
-  const structuredAudit = React.useMemo(() => {
-    return extractStructuredAudit(currentChapter?.critique || '');
-  }, [currentChapter?.critique]);
-
-  const fatalIssuesCount = React.useMemo(() => {
-    return structuredAudit ? (structuredAudit.fatalIssues?.length || 0) : 0;
-  }, [structuredAudit]);
-
   if (currentChapter?.id !== prevChapterId || currentChapter?.content !== prevChapterContent) {
     setPrevChapterId(currentChapter?.id);
     setPrevChapterContent(currentChapter?.content);
@@ -140,6 +141,44 @@ export const WritingSurface = React.memo(function WritingSurface({
     }, 300);
     return () => clearTimeout(timer);
   }, [localContent, onUpdateContent, currentChapter]);
+
+  // ── Context Memory Radar (800ms Debounced Entity Sniffer) ──
+  const [matchedCharacters, setMatchedCharacters] = React.useState<Character[]>([]);
+  const [matchedLocations, setMatchedLocations] = React.useState<Location[]>([]);
+  const [matchedItems, setMatchedItems] = React.useState<Item[]>([]);
+  const [isSniffingActive, setIsSniffingActive] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!localContent || localContent.trim() === '') {
+      setMatchedCharacters([]);
+      setMatchedLocations([]);
+      setMatchedItems([]);
+      setIsSniffingActive(false);
+      return;
+    }
+
+    setIsSniffingActive(true);
+    const timer = setTimeout(() => {
+      const lowerContent = localContent.toLowerCase();
+      
+      const matchedChars = characters.filter(
+        (c) => c.name && lowerContent.includes(c.name.toLowerCase())
+      );
+      const matchedLocs = locations.filter(
+        (l) => l.name && lowerContent.includes(l.name.toLowerCase())
+      );
+      const matchedIts = items.filter(
+        (i) => i.name && lowerContent.includes(i.name.toLowerCase())
+      );
+
+      setMatchedCharacters(matchedChars);
+      setMatchedLocations(matchedLocs);
+      setMatchedItems(matchedIts);
+      setIsSniffingActive(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [localContent, characters, locations, items]);
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 xl:px-8 py-5 scroll-smooth flex flex-col relative">
@@ -403,92 +442,227 @@ export const WritingSurface = React.memo(function WritingSurface({
 
               <div className="h-px bg-theme-border/40" />
 
-              {/* 3. 常驻核心功能匹配遥测 (Active Context Telemetry) */}
+              {/* 3. 上下文记忆雷达 HUD (Context Memory Radar HUD) */}
               <div className="flex flex-col gap-3">
-                <p className="text-[10px] text-theme-muted uppercase tracking-wider font-bold">核心设定与技能遥测</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-theme-muted uppercase tracking-wider font-bold flex items-center gap-1">
+                    <Globe size={11} className="text-theme-accent" />
+                    <span>上下文记忆雷达</span>
+                  </p>
+                  {isSniffingActive && (
+                    <span className="inline-flex items-center gap-1 text-[9px] text-theme-accent font-semibold animate-pulse">
+                      <Loader2 size={9} className="animate-spin" />
+                      扫描中
+                    </span>
+                  )}
+                </div>
 
-                <div className="grid grid-cols-1 gap-2.5 text-[11px]">
-                  {/* 已配对设定 */}
-                  <div className="bg-theme-sidebar/20 rounded-lg p-2.5 border border-theme-border/30">
-                    <div className="flex items-center justify-between font-bold mb-1.5">
-                      <span className="text-theme-muted flex items-center gap-1">
-                        <Globe size={11} className="text-theme-accent" />
-                        已配对设定 (Bible Matches)
-                      </span>
-                      <span className="font-mono text-xs text-theme-accent font-semibold bg-theme-accent/5 px-1.5 py-0.5 rounded">
-                        {(sniffedEntities?.activeExisting?.length || 0).toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                    {sniffedEntities?.activeExisting && sniffedEntities.activeExisting.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {sniffedEntities.activeExisting.slice(0, 4).map((name) => (
-                          <span key={name} className="px-1.5 py-0.5 rounded bg-theme-accent/5 border border-theme-accent/10 text-[9px] text-theme-text/80 font-medium">
-                            {name}
-                          </span>
-                        ))}
-                        {sniffedEntities.activeExisting.length > 4 && (
-                          <span className="px-1.5 py-0.5 rounded bg-theme-border/30 text-[9px] text-theme-muted font-bold">
-                            +{sniffedEntities.activeExisting.length - 4}
-                          </span>
-                        )}
+                <div className="bg-theme-sidebar/20 rounded-xl p-3 border border-theme-border/30 flex flex-col gap-2.5">
+                  {/* Categorized sniffing tags */}
+                  {matchedCharacters.length === 0 && matchedLocations.length === 0 && matchedItems.length === 0 ? (
+                    isSniffingActive ? (
+                      <div className="py-4 flex flex-col items-center justify-center gap-2 text-center">
+                        <Radar size={18} className="text-theme-accent animate-spin" />
+                        <p className="text-[10px] text-theme-muted italic">雷达正在深度扫描正文中的实体...</p>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-theme-muted italic">暂无嗅探到的配对设定</p>
-                    )}
-                  </div>
-
-                  {/* 已生效技能 */}
-                  <div className="bg-theme-sidebar/20 rounded-lg p-2.5 border border-theme-border/30">
-                    <div className="flex items-center justify-between font-bold mb-1.5">
-                      <span className="text-theme-muted flex items-center gap-1">
-                        <Bot size={11} className="text-theme-accent" />
-                        已生效技能 (Mounted Skills)
-                      </span>
-                      <span className="font-mono text-xs text-theme-accent font-semibold bg-theme-accent/5 px-1.5 py-0.5 rounded">
-                        {(mountedSkills?.length || 0).toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                    {mountedSkills && mountedSkills.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {mountedSkills.slice(0, 3).map((skill) => (
-                          <span key={skill.id} className="px-1.5 py-0.5 rounded bg-emerald-500/5 border border-emerald-500/10 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
-                            {skill.name}
-                          </span>
-                        ))}
-                        {mountedSkills.length > 3 && (
-                          <span className="px-1.5 py-0.5 rounded bg-theme-border/30 text-[9px] text-theme-muted font-bold">
-                            +{mountedSkills.length - 3}
-                          </span>
-                        )}
+                      <div className="py-4 flex flex-col items-center justify-center gap-2 text-center">
+                        <Globe size={18} className="text-theme-muted/50" />
+                        <p className="text-[10px] text-theme-muted">暂无嗅探到的配对设定。在左侧打字后即可自动感知。</p>
                       </div>
-                    ) : (
-                      <p className="text-[10px] text-theme-muted italic">暂无活跃的挂载技能卡</p>
-                    )}
-                  </div>
+                    )
+                  ) : (
+                    <div className="flex flex-col gap-2 text-[11px]">
+                      {matchedCharacters.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-theme-muted font-bold font-mono">人物</span>
+                          <div className="flex flex-wrap gap-1">
+                            {matchedCharacters.map((c) => (
+                              <span
+                                key={c.id}
+                                onClick={() => {
+                                  try { localStorage.setItem('inkflow-world-bible-active-tab', 'characters'); } catch {}
+                                  onNavigate?.('world');
+                                }}
+                                className="px-1.5 py-0.5 rounded border border-violet-500/20 bg-violet-500/5 text-[9px] text-violet-600 dark:text-violet-400 font-medium cursor-pointer hover:bg-violet-500/10 transition-colors"
+                              >
+                                {c.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                  {/* 正文质量风险 */}
-                  <div className="bg-theme-sidebar/20 rounded-lg p-2.5 border border-theme-border/30">
-                    <div className="flex items-center justify-between font-bold">
-                      <span className="text-theme-muted flex items-center gap-1">
-                        <AlertCircle size={11} className="text-theme-accent" />
-                        正文质量风险 (Quality Risks)
-                      </span>
-                      {currentChapter?.critique ? (
-                        fatalIssuesCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
-                            {fatalIssuesCount} 处瑕疵
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-                            质量合格
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-[10px] text-theme-muted font-normal italic">未审计</span>
+                      {matchedLocations.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <span className="text-[9px] text-theme-muted font-bold font-mono">场景</span>
+                          <div className="flex flex-wrap gap-1">
+                            {matchedLocations.map((l) => (
+                              <span
+                                key={l.id}
+                                onClick={() => {
+                                  try { localStorage.setItem('inkflow-world-bible-active-tab', 'locations'); } catch {}
+                                  onNavigate?.('world');
+                                }}
+                                className="px-1.5 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/5 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium cursor-pointer hover:bg-emerald-500/10 transition-colors"
+                              >
+                                {l.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {matchedItems.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <span className="text-[9px] text-theme-muted font-bold font-mono">道具与设定</span>
+                          <div className="flex flex-wrap gap-1">
+                            {matchedItems.map((i) => (
+                              <span
+                                key={i.id}
+                                onClick={() => {
+                                  try { localStorage.setItem('inkflow-world-bible-active-tab', 'items'); } catch {}
+                                  onNavigate?.('world');
+                                }}
+                                className="px-1.5 py-0.5 rounded border border-sky-500/20 bg-sky-500/5 text-[9px] text-sky-600 dark:text-sky-400 font-medium cursor-pointer hover:bg-sky-500/10 transition-colors"
+                              >
+                                {i.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* 常驻去设定工坊补强按钮 */}
+                  <button
+                    onClick={() => onNavigate?.('world')}
+                    className="w-full mt-1.5 py-1.5 border border-dashed border-theme-border/60 hover:border-theme-accent/40 rounded-lg text-[10px] text-theme-muted hover:text-theme-accent transition-colors flex items-center justify-center gap-1 font-mono uppercase tracking-wider"
+                  >
+                    <Plus size={10} />
+                    <span>去设定工坊补强</span>
+                  </button>
                 </div>
+              </div>
+
+              {/* 4. 质量控制中心一键扁平网格 (Quality Control Center Grid) */}
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[10px] text-theme-muted uppercase tracking-wider font-bold">质量中心</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={onRunAudit}
+                    disabled={!localContent.trim() || isGeneratingCritique}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-theme-sidebar/30 border border-theme-border/50 hover:border-theme-accent/40 hover:bg-theme-sidebar/50 transition-all disabled:opacity-50 group"
+                  >
+                    {isGeneratingCritique ? (
+                      <Loader2 size={13} className="text-amber-500 animate-spin" />
+                    ) : (
+                      <ShieldAlert size={14} className="text-amber-500/80 group-hover:scale-105 transition-transform" />
+                    )}
+                    <span className="text-[9px] font-bold text-theme-text/80 text-center leading-none">一键审稿</span>
+                  </button>
+                  <button
+                    onClick={() => void runCopilotAction('run-polish')}
+                    disabled={!localContent.trim() || isGeneratingContent}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-theme-sidebar/30 border border-theme-border/50 hover:border-theme-accent/40 hover:bg-theme-sidebar/50 transition-all disabled:opacity-50 group"
+                  >
+                    {isGeneratingContent ? (
+                      <Loader2 size={13} className="text-violet-500 animate-spin" />
+                    ) : (
+                      <Sparkles size={14} className="text-violet-500/80 group-hover:scale-105 transition-transform" />
+                    )}
+                    <span className="text-[9px] font-bold text-theme-text/80 text-center leading-none">一键润色</span>
+                  </button>
+                  <button
+                    onClick={onRunAudit}
+                    disabled={!localContent.trim() || isGeneratingCritique}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-theme-sidebar/30 border border-theme-border/50 hover:border-theme-accent/40 hover:bg-theme-sidebar/50 transition-all disabled:opacity-50 group"
+                  >
+                    {isGeneratingCritique ? (
+                      <Loader2 size={13} className="text-rose-500 animate-spin" />
+                    ) : (
+                      <Radar size={14} className="text-rose-500/80 group-hover:scale-105 transition-transform" />
+                    )}
+                    <span className="text-[9px] font-bold text-theme-text/80 text-center leading-none">毒点扫描</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 5. 主创 Agent 智能行动指引气泡 (Amber-bordered Adaptive Bubble) */}
+              <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-3.5 flex flex-col gap-2.5 relative overflow-hidden">
+                <div className="flex items-center gap-1.5">
+                  <Bot size={13} className="text-amber-500" />
+                  <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">主创 AGENT 智能指引</span>
+                </div>
+                
+                {currentPhaseId === 1 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] text-theme-text/80 leading-relaxed">
+                      检测到本章尚未大纲分镜。建议由我为您自动起草一版<strong>场景分镜骨架</strong>，为后续扩写作好铺垫。
+                    </p>
+                    <button
+                      onClick={() => {
+                        setAgentTab('planning');
+                        setIsAgentSidebarOpen(true);
+                        void onGenerateBeats();
+                      }}
+                      disabled={isGeneratingBeats}
+                      className="self-start px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isGeneratingBeats ? <Loader2 size={10} className="animate-spin" /> : <Radar size={10} />}
+                      <span>一键构思分镜大纲</span>
+                    </button>
+                  </div>
+                )}
+
+                {currentPhaseId === 2 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] text-theme-text/80 leading-relaxed">
+                      分镜已整装待发！是否需要我根据现有的分镜骨架和挂载的设定/技能，为您<strong>一键扩写出精美的初稿正文</strong>？
+                    </p>
+                    <button
+                      onClick={() => void runCopilotAction('generate-draft')}
+                      disabled={isGeneratingContent}
+                      className="self-start px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isGeneratingContent ? <Loader2 size={10} className="animate-spin" /> : <Feather size={10} />}
+                      <span>一键智能扩写正文</span>
+                    </button>
+                  </div>
+                )}
+
+                {currentPhaseId === 3 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] text-theme-text/80 leading-relaxed">
+                      初稿已完成。建议由我启动<strong>全生命周期质量审计</strong>，秒级探测文中的设定冲突、逻辑死结、AI 腔等。
+                    </p>
+                    <button
+                      onClick={onRunAudit}
+                      disabled={isGeneratingCritique}
+                      className="self-start px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isGeneratingCritique ? <Loader2 size={10} className="animate-spin" /> : <ShieldAlert size={10} />}
+                      <span>一键全文深度体检</span>
+                    </button>
+                  </div>
+                )}
+
+                {currentPhaseId === 4 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] text-theme-text/80 leading-relaxed">
+                      审计报告已出炉。现在我可以对照存在的逻辑瑕疵，进行<strong>微创局部手术式智能精准精修润色</strong>。
+                    </p>
+                    <button
+                      onClick={() => void runCopilotAction('run-polish')}
+                      disabled={isGeneratingContent}
+                      className="self-start px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isGeneratingContent ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                      <span>一键局部手术润色</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

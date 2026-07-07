@@ -372,7 +372,13 @@ export function AppShell() {
     }
   };
 
-  const handleSelectStoryCard = async (card: StoryIdeaCard, planning?: StoryPlanningInput, recommendedTags?: string[]) => {
+  const handleSelectStoryCard = async (
+    card: StoryIdeaCard,
+    planning?: StoryPlanningInput,
+    recommendedTags?: string[],
+    targetView: ViewType = 'workspace',
+    activeSeriesId?: string
+  ) => {
     try {
       const activePlanning = planning || onboardingDraft?.planning;
       if (!activePlanning) {
@@ -385,6 +391,9 @@ export function AppShell() {
       if (recommendedTags && recommendedTags.length > 0) {
         const mergedTagsSet = new Set([...initialProfile.tags, ...recommendedTags]);
         initialProfile.tags = Array.from(mergedTagsSet);
+      }
+      if (activeSeriesId) {
+        initialProfile.activeSeriesId = activeSeriesId;
       }
 
       const newNovel: Novel = {
@@ -448,7 +457,7 @@ export function AppShell() {
       });
       setActiveSetupTaskKey(setupTasks[0]?.key ?? null);
       setAssistantInput('');
-      setCurrentView('workspace');
+      setCurrentView(targetView);
     } catch {
       toast('创建作品失败，请稍后重试', 'error');
     }
