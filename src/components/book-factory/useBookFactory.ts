@@ -86,14 +86,15 @@ export function normalizeSkillConfig(data: Partial<Skill> | Record<string, unkno
 }
 
 export function normalizeSkillConfigs(data: unknown): Skill[] {
+  if (data === null || data === undefined) {
+    return [];
+  }
   const rec = asRecord(data);
   const rawSkills = Array.isArray(rec.skills)
     ? rec.skills
     : Array.isArray(data)
       ? data
-      : data
-        ? [data]
-        : [];
+      : [data];
   return (rawSkills as Array<Partial<Skill> | Record<string, unknown>>).map(normalizeSkillConfig);
 }
 

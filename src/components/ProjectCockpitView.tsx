@@ -14,7 +14,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { toast } from '../lib/toast';
 import { useAppStore } from '../stores/app-store';
 
-interface ComputeRecommendationsParams {
+export interface ComputeRecommendationsParams {
   chaptersCount: number;
   worldEntitiesCount: number;
   hasBeats: boolean;
@@ -24,7 +24,7 @@ interface ComputeRecommendationsParams {
   completedSteps?: string[];
 }
 
-function computeCockpitRecommendations(params: ComputeRecommendationsParams): string[] {
+export function computeCockpitRecommendations(params: ComputeRecommendationsParams): string[] {
   const { chaptersCount, worldEntitiesCount, hasBeats, hasContent, hasCritique, activeSeriesId, completedSteps = [] } = params;
   
   if (activeSeriesId === 'book-deconstruction-flow') {

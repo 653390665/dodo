@@ -36,6 +36,15 @@ test('book factory - normalizeSkillConfig handles empty dimensionTags and profil
   assert.deepEqual(result.compositionProfile!.blendHints, ['混合']);
 });
 
+test('book factory - normalizeSkillConfig falls back to style when all tags are invalid', () => {
+  const result = normalizeSkillConfig({
+    name: '无效维度测试',
+    dimensionTags: ['invalid_tag_1', 'another_invalid']
+  });
+
+  assert.deepEqual(result.dimensionTags, ['style']);
+});
+
 test('book factory - normalizeSkillConfigs parses multiple raw input formats', () => {
   // Format 1: { skills: [...] }
   const format1 = normalizeSkillConfigs({
