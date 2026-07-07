@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrainCircuit, CheckCircle2, PenLine, Sparkles, Wand2, X, ShieldAlert, ArrowDown, Lock } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listNovels, updateNovel } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
@@ -9,9 +10,8 @@ import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
-import { cn } from '../lib/utils';
-import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/prompt-governance-catalog';
-import type { CuratedProductSkill, SkillSeriesFlow } from '../../shared/lib/prompt-governance-catalog';
+import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
+import type { CuratedProductSkill, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { useNovelStore } from '../stores/novel-store';
 
 function PlazaAssetCard({
@@ -194,6 +194,32 @@ const goldenFlowMetadata: Record<string, { target: string; output: string; color
   }
 };
 
+function FlowTimelinePreview({ flow }: { flow: SkillSeriesFlow }) {
+  return (
+    <div className="mt-3 bg-theme-bg/40 border border-theme-border/20 rounded-lg p-2.5 space-y-2 text-[10px]">
+      <div className="flex justify-between items-center text-[9px] text-theme-muted font-bold tracking-wider">
+        <span>阶段节点图谱</span>
+        <span>共 {flow.steps.length} 步</span>
+      </div>
+      <div className="relative flex items-center justify-between mt-1">
+        {/* Linear Connector Line */}
+        <div className="absolute top-[9px] left-2 right-2 h-0.5 bg-theme-border/30 z-0" />
+        {flow.steps.map((step) => (
+          <div key={step.id} className="relative z-10 flex flex-col items-center group/dot cursor-pointer">
+            <div className="w-5 h-5 rounded-full border border-theme-border/60 bg-theme-sidebar flex items-center justify-center text-[8px] font-bold text-theme-muted font-mono hover:border-theme-accent hover:text-theme-accent hover:shadow-sm transition-all">
+              {step.stepNumber}
+            </div>
+            {/* Hover tooltip */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-theme-sidebar border border-theme-border/80 px-2 py-1 rounded text-[8px] font-sans text-theme-text opacity-0 pointer-events-none group-hover/dot:opacity-100 transition-opacity duration-150 shadow-md whitespace-nowrap z-50">
+              {step.name} ({step.input} ➔ {step.output})
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SkillsStudioView({
   selectedNovel,
   onNavigate,
@@ -300,11 +326,28 @@ export function SkillsStudioView({
     }
   };
 
-  const [selectedCategory, setSelectedCategory] = useState<'opening' | 'bible' | 'prose' | 'audit' | 'de-ai' | 'platform' | 'style' | 'deconstruct'>('opening');
+  const [selectedCategory, setSelectedCategory] = useState<'official-free' | 'plaza-free' | 'premium-author-flows' | 'platform-diagnosis' | 'style-analysis-cards' | 'aesthetic-quality-guards'>('official-free');
   const setContinuationLaunchState = useNovelStore((state) => state.setContinuationLaunchState);
 
   const filteredCuratedSkills = useMemo(() => {
-    return CURATED_PRODUCT_SKILLS.filter(s => s.curatedCategory === selectedCategory);
+    return CURATED_PRODUCT_SKILLS.filter(s => {
+      if (selectedCategory === 'official-free') {
+        return s.sourceType === 'built-in' && s.primaryCategory !== 'quality-guardrail';
+      }
+      if (selectedCategory === 'plaza-free') {
+        return s.sourceType === 'plaza';
+      }
+      if (selectedCategory === 'platform-diagnosis') {
+        return s.primaryCategory === 'platform-criteria';
+      }
+      if (selectedCategory === 'style-analysis-cards') {
+        return s.primaryCategory === 'constellation-pack' || s.primaryCategory === 'style-reference' || s.curatedCategory === 'style' || s.curatedCategory === 'deconstruct';
+      }
+      if (selectedCategory === 'aesthetic-quality-guards') {
+        return s.primaryCategory === 'quality-guardrail' || s.curatedCategory === 'de-ai' || s.curatedCategory === 'audit';
+      }
+      return false;
+    });
   }, [selectedCategory]);
 
   const savedParentIds = useMemo(() => {
@@ -637,105 +680,15 @@ export function SkillsStudioView({
         {/* Plaza Tab Content */}
         {activeTab === 'plaza' && (
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
-            {/* 黄金长篇名家创作主航道 */}
-            <div className="space-y-4">
-              <div className="border-l-2 border-amber-500 pl-3.5">
-                <h2 className="text-base font-bold text-theme-text flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-500 animate-pulse" />
-                  黄金长篇名家创作主航道
-                </h2>
-                <p className="text-[11px] text-theme-muted mt-1">
-                  挂载业界顶尖名家写作生命线，从灵感脑洞到十万字大纲及前三章爆款正文，全链路自适应导航。
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {SKILL_SERIES_FLOWS.filter(f => ['xiaofeiji-novel-flow', 'tomato-platform-flow', 'generic-novel-flow', 'book-deconstruction-flow'].includes(f.id)).map((flow) => {
-                  const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
-                  const isActive = selectedNovel?.projectPreferenceProfile?.activeSeriesId === flow.id;
-                  const isPaid = flow.id !== 'generic-novel-flow';
-                  const isLocked = isPaid && isFreeNovel;
-
-                  return (
-                    <div
-                      key={flow.id}
-                      className={cn(
-                        "relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left",
-                        meta.color,
-                        isActive
-                          ? "ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]"
-                          : "hover:border-theme-border/80 hover:shadow-sm"
-                      )}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-2">
-                          <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
-                            <span className="truncate">{flow.name}</span>
-                          </h3>
-                          <div className="flex gap-1 shrink-0">
-                            {isActive && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                启用中
-                              </span>
-                            )}
-                            {isLocked && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                PREMIUM
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
-                          {flow.description}
-                        </p>
-
-                        <div className="space-y-1.5 mb-4 text-[10px]">
-                          <div>
-                            <span className="text-theme-muted block">适用人群:</span>
-                            <span className="text-theme-text font-medium">{meta.target}</span>
-                          </div>
-                          <div>
-                            <span className="text-theme-muted block">预期产物:</span>
-                            <span className="text-theme-text font-medium">{meta.output}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFlowDetail(flow)}
-                        className={cn(
-                          "w-full py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
-                          isActive
-                            ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"
-                            : isLocked
-                              ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                              : "bg-theme-text text-theme-bg hover:opacity-90"
-                        )}
-                      >
-                        查看流程详情
-                        {isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="border-t border-theme-border/20 my-4" />
-
-            {/* 8大创作者航道 Tabs */}
+            {/* 6大能力商店精品航道 Tabs */}
             <div className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-4">
               {([
-                { id: 'opening', label: '开篇策划', desc: '开局爽点与简介' },
-                { id: 'bible', label: '智能设定', desc: '虚构创世与群像' },
-                { id: 'prose', label: '黄金正文', desc: '口语主笔与对白' },
-                { id: 'audit', label: '深度审稿', desc: '情节审阅与质检' },
-                { id: 'de-ai', label: '废话去AI', desc: '套话净化与动作' },
-                { id: 'platform', label: '平台特化', desc: '主流渠道毒点质检' },
-                { id: 'style', label: '题材风格', desc: '克氏诡秘与古风' },
-                { id: 'deconstruct', label: '名作拆书', desc: '神作拆解与融入' },
+                { id: 'official-free', label: '官方免费能力', desc: '基础分镜与对白打磨' },
+                { id: 'plaza-free', label: '广场免费能力', desc: '经典流派与设定模版' },
+                { id: 'premium-author-flows', label: '高级作者流程包', desc: '连载名家爆款大包' },
+                { id: 'platform-diagnosis', label: '平台诊断包', desc: '番茄阅文多维度质检' },
+                { id: 'style-analysis-cards', label: '拆书卡 / 风格卡', desc: '克苏鲁诡秘与神作拆解' },
+                { id: 'aesthetic-quality-guards', label: '去 AI 味质量护栏', desc: '动作强化与废话精简' },
               ] as const).map((cat) => {
                 const isSelected = selectedCategory === cat.id;
                 return (
@@ -759,51 +712,137 @@ export function SkillsStudioView({
               })}
             </div>
 
-            {/* 货架卡网格 */}
-            <div className="space-y-4">
-              <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
-                <h2 className="text-base font-bold text-theme-text">
-                  {selectedCategory === 'opening' ? '开篇策划航道' :
-                   selectedCategory === 'bible' ? '智能设定航道' :
-                   selectedCategory === 'prose' ? '黄金正文航道' :
-                   selectedCategory === 'audit' ? '深度审稿航道' :
-                   selectedCategory === 'de-ai' ? '废话去AI航道' :
-                   selectedCategory === 'platform' ? '平台特化航道' :
-                   selectedCategory === 'style' ? '题材风格航道' : '名作拆书航道'}
-                </h2>
-                <p className="text-[11px] text-theme-muted mt-1">
-                  {selectedCategory === 'opening' ? '高张力爆款开局，番茄与起点平台强适配，一键吸睛大纲展开器。' :
-                   selectedCategory === 'bible' ? '高密度世界观创世，立体配角设定，战力规则与爽点机制逻辑闭环。' :
-                   selectedCategory === 'prose' ? '去除大模型书面腔，让主笔更通俗、更有画面感，动作与对白交织自然。' :
-                   selectedCategory === 'audit' ? '情节因果、因果链条体检，揪出网文毒点与软化情节，输出深度重写报告。' :
-                   selectedCategory === 'de-ai' ? '微米级净化一切废话，彻底洗白机械翻译套话，让AI生成回归真人作家质感。' :
-                   selectedCategory === 'platform' ? '针对不同阅读平台的核心指标、毒点和偏好进行专项质检，确保数据完美。' :
-                   selectedCategory === 'style' ? '导入特定题材的独创风格资产与氛围质感，从克系到古风应有尽有。' : '精细化肢解传世神作的起承转合，将其灵魂精髓骨肉无缝融合于当前章节。'}
-                </p>
-              </div>
+            {/* 货架卡主渲染区域 */}
+            {selectedCategory === 'premium-author-flows' ? (
+              <div className="space-y-6">
+                <div className="border-l-2 border-amber-500 pl-3.5 mb-6">
+                  <h2 className="text-base font-bold text-theme-text flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-500 animate-pulse" />
+                    高级作者流程大包 (Workflow Packages)
+                  </h2>
+                  <p className="text-[11px] text-theme-muted mt-1">
+                    挂载业界顶尖名家写作生命线，从灵感脑洞到十万字大纲及前三章爆款正文，全链路一键启用。
+                  </p>
+                </div>
 
-              {filteredCuratedSkills.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredCuratedSkills.map((asset) => (
-                    <PlazaAssetCard
-                      key={asset.id}
-                      asset={asset}
-                      isImported={importedAssetIds.has(asset.id) || savedParentIds.has(asset.id)}
-                      isCloning={cloningAssetId === asset.id}
-                      selectedNovel={selectedNovel || null}
-                      isFreeNovel={isFreeNovel}
-                      onImport={() => handleImportAsset(asset)}
-                      onEquip={() => handleEquipAsset(asset)}
-                      onDirectExec={() => handleDirectExec(asset)}
-                    />
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {SKILL_SERIES_FLOWS.filter(f => ['xiaofeiji-novel-flow', 'tomato-platform-flow', 'generic-novel-flow', 'book-deconstruction-flow'].includes(f.id)).map((flow) => {
+                    const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
+                    const isActive = selectedNovel?.projectPreferenceProfile?.activeSeriesId === flow.id;
+                    const isPaid = flow.id !== 'generic-novel-flow';
+                    const isLocked = isPaid && isFreeNovel;
+
+                    return (
+                      <div
+                        key={flow.id}
+                        className={cn(
+                          "relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left",
+                          meta.color,
+                          isActive
+                            ? "ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]"
+                            : "hover:border-theme-border/80 hover:shadow-sm"
+                        )}
+                      >
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
+                              <span className="truncate">{flow.name}</span>
+                            </h3>
+                            <div className="flex gap-1 shrink-0">
+                              {isActive && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                  启用中
+                                </span>
+                              )}
+                              {isLocked && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  PREMIUM
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
+                            {flow.description}
+                          </p>
+
+                          <div className="space-y-1.5 mb-4 text-[10px]">
+                            <div className="flex justify-between border-b border-theme-border/10 pb-1">
+                              <span className="text-theme-muted">适用人群:</span>
+                              <span className="text-theme-text font-medium">{meta.target}</span>
+                            </div>
+                            <div className="flex justify-between pt-0.5">
+                              <span className="text-theme-muted">预期产物:</span>
+                              <span className="text-theme-text font-medium">{meta.output}</span>
+                            </div>
+                          </div>
+
+                          {/* 进度节点迷你时间轴预览 */}
+                          <FlowTimelinePreview flow={flow} />
+                        </div>
+
+                        <div className="mt-5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFlowDetail(flow)}
+                            className={cn(
+                              "w-full py-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
+                              isActive
+                                ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"
+                                : isLocked
+                                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+                                  : "bg-theme-text text-theme-bg hover:opacity-90"
+                            )}
+                          >
+                            免密预览流程详情
+                            {isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="py-12 text-center text-theme-muted text-xs border border-dashed border-theme-border rounded-lg">
-                  该航道暂无精品卡，敬请期待
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
+                  <h2 className="text-base font-bold text-theme-text">
+                    {selectedCategory === 'official-free' ? '官方免费能力航道' :
+                     selectedCategory === 'plaza-free' ? '广场免费能力航道' :
+                     selectedCategory === 'platform-diagnosis' ? '平台诊断航道' :
+                     selectedCategory === 'style-analysis-cards' ? '拆书卡 / 风格卡航道' : '去 AI 腔质量护栏航道'}
+                  </h2>
+                  <p className="text-[11px] text-theme-muted mt-1">
+                    {selectedCategory === 'official-free' ? 'InkFlow 官方原生开发，提供最高物理级运行性能的开篇创作与审稿核心工具。' :
+                     selectedCategory === 'plaza-free' ? '来自千万职业创作者、网文大神共享的经典文风流派、爽点卡与人设模型。' :
+                     selectedCategory === 'platform-diagnosis' ? '深度融合番茄、阅文等主流渠道核心毒点退稿红线，一键体检过签率。' :
+                     selectedCategory === 'style-analysis-cards' ? '高精确解剖网文神作架构骨骼、诡秘克系描写，让正文瞬间升格。' : '微米级粉碎一切翻译腔、模板式套话，让 AI 续写的正文闪耀真人作家的高级质地。'}
+                  </p>
                 </div>
-              )}
-            </div>
+
+                {filteredCuratedSkills.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredCuratedSkills.map((asset) => (
+                      <PlazaAssetCard
+                        key={asset.id}
+                        asset={asset}
+                        isImported={importedAssetIds.has(asset.id) || savedParentIds.has(asset.id)}
+                        isCloning={cloningAssetId === asset.id}
+                        selectedNovel={selectedNovel || null}
+                        isFreeNovel={isFreeNovel}
+                        onImport={() => handleImportAsset(asset)}
+                        onEquip={() => handleEquipAsset(asset)}
+                        onDirectExec={() => handleDirectExec(asset)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-theme-muted text-xs border border-dashed border-theme-border rounded-lg">
+                    该航道暂无精品卡，敬请期待
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

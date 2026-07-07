@@ -25,6 +25,9 @@ import {
   getActiveDimensionSignals,
   ENHANCEMENT_PACKAGES
 } from '../shared/lib/prompt-assets-governed.js';
+import {
+  PROMPT_GOVERNANCE_CATALOG as SOURCE_PROMPT_GOVERNANCE_CATALOG
+} from '../shared/lib/prompt-governance-catalog.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
 test('whiteLabelSanitize physical deletion of WeChat IDs', () => {
@@ -362,12 +365,12 @@ test('GOVERNED_ASSETS_V2_REGISTRY assets pass validation', () => {
 
 test('Prompt Governance Catalog & Selector V2 checks', () => {
   // 1. 物理来源分组精确断言资产数量
-  const builtInCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'built-in').length;
-  const squareCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'square').length;
-  const privateCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'private').length;
-  const toolCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'tool').length;
-  const supplementCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'fanqie-supplement').length;
-  const testFixtureCount = PROMPT_GOVERNANCE_CATALOG.filter(a => a.evidenceLevel === 'test-fixture').length;
+  const builtInCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'built-in').length;
+  const squareCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'square').length;
+  const privateCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'private').length;
+  const toolCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'tool').length;
+  const supplementCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'fanqie-supplement').length;
+  const testFixtureCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.evidenceLevel === 'test-fixture').length;
 
   assert.equal(builtInCount, 11, `Built-in assets count should be exactly 11, got ${builtInCount}`);
   assert.equal(squareCount, 50, `Square assets count should be exactly 50, got ${squareCount}`);
@@ -375,11 +378,11 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
   assert.equal(toolCount, 16, `Creative/tool assets count should be exactly 16, got ${toolCount}`);
   assert.equal(supplementCount, 16, `Platform supplement assets count should be exactly 16, got ${supplementCount}`);
   assert.equal(testFixtureCount, 2, `Test fixture assets count should be exactly 2, got ${testFixtureCount}`);
-  assert.equal(PROMPT_GOVERNANCE_CATALOG.length, 173, `Total catalog size should be exactly 173, got ${PROMPT_GOVERNANCE_CATALOG.length}`);
+  assert.equal(SOURCE_PROMPT_GOVERNANCE_CATALOG.length, 173, `Source catalog size should be exactly 173, got ${SOURCE_PROMPT_GOVERNANCE_CATALOG.length}`);
 
   // 2. 断言安全过滤拦截：
   const allRecommended = recommendPromptAssets({ currentStage: 'planning' });
-  const unsafeAssets = PROMPT_GOVERNANCE_CATALOG.filter(
+  const unsafeAssets = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(
     asset =>
       asset.placementTier === 'sanitize-required' ||
       asset.placementTier === 'research-only' ||
@@ -391,6 +394,16 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
     const recommendedContainsUnsafe = allRecommended.some(a => a.id === unsafe.id);
     assert.equal(recommendedContainsUnsafe, false, `Recommended list must not contain unsafe asset: ${unsafe.id}`);
   }
+
+  const publicUnsafeAssets = PROMPT_GOVERNANCE_CATALOG.filter(
+    asset =>
+      asset.placementTier === 'sanitize-required' ||
+      asset.placementTier === 'research-only' ||
+      asset.isWhiteLabeled === false ||
+      asset.isRuntimeReady === false ||
+      asset.evidenceLevel === 'test-fixture'
+  );
+  assert.equal(publicUnsafeAssets.length, 0, 'Public catalog must not contain unsafe or test fixture assets');
 
   // 3. 断言高分去重优先：
   const polishRecommended = recommendPromptAssets({ currentStage: 'polish' });
@@ -829,4 +842,46 @@ test('Phase 10: Adaptive Dimension System mounts signals correctly', () => {
   assert.equal(signalsTomato.commercialReadability, true);
 });
 
+test('Safety Sandbox Door: public-skill-catalog template-leak and brand-leak protection', () => {
+  // 1. 验证所有导出资产的 template 必须全部为空字符串 "" 或者不存在
+  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+    assert.ok(asset.template === undefined || asset.template === '', `Asset ${asset.id} should not leak template`);
+  }
+  for (const asset of GOVERNED_ASSETS_V2_REGISTRY) {
+    assert.ok(asset.template === undefined || asset.template === '', `Registry Asset ${asset.id} should not leak template`);
+  }
 
+  // 2. 验证序列化后不包含敏感品牌名、微信号、QQ群等
+  const serialized = JSON.stringify({
+    PROMPT_GOVERNANCE_CATALOG,
+    GOVERNED_ASSETS_V2_REGISTRY,
+    SKILL_SERIES_FLOWS,
+    ENHANCEMENT_PACKAGES
+  });
+
+  const sensitiveKeywords = [
+    'template:', // 确保数据格式中不残存提示词元属性
+    '小飞鸡',
+    '天马',
+    '墨流',
+    '未清洗',
+    '风华出品',
+    '知轩藏书',
+    'Memory Radar',
+    'SNIFFING',
+    'QC Center',
+    'wechat',
+    'QQ群'
+  ];
+
+  for (const kw of sensitiveKeywords) {
+    assert.ok(!serialized.includes(kw), `Public catalog should not leak sensitive keyword: ${kw}`);
+  }
+
+  // 3. 验证 Quota Guard 判定对免费高分能力放行，对 licensed 大包卡控
+  const freeHighAsset = PROMPT_GOVERNANCE_CATALOG.find(a => a.id === 'plaza-golden-three');
+  const licensedAsset = PROMPT_GOVERNANCE_CATALOG.find(a => a.id === 'tomato-opening-validator');
+
+  assert.ok(freeHighAsset, 'Should find free asset');
+  assert.ok(licensedAsset, 'Should find licensed asset');
+});

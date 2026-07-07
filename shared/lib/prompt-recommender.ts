@@ -4,7 +4,7 @@ import {
   GOVERNED_ASSETS_V2_REGISTRY,
   SKILL_SERIES_FLOWS,
   PROMPT_GOVERNANCE_CATALOG
-} from './prompt-governance-catalog.js';
+} from './public-skill-catalog.js';
 
 // ── V2 Intelligent Recommendation Router ──
 
@@ -294,29 +294,28 @@ export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
 
   const mountedSkillIds = novel.mountedSkillIds || [];
   const mountedSkillLoadoutIds = novel.mountedSkillLoadout?.map(item => item.skillId) || [];
-  const hasXiaofeiji =
-    profileTags.some(t => t.toLowerCase().includes('xiaofeiji') || t.includes('小飞鸡')) ||
-    mountedSkillIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡')) ||
-    mountedSkillLoadoutIds.some(id => id.toLowerCase().includes('xiaofeiji') || id.includes('小飞鸡'));
+  const longformFlowId = SKILL_SERIES_FLOWS.find(flow => flow.name.includes('长篇商业连载'))?.id;
+  const hasPremiumLongformFlow =
+    [...profileTags, ...mountedSkillIds, ...mountedSkillLoadoutIds].some(id =>
+      id === longformFlowId ||
+      id === 'xiaofeiji' ||
+      id === 'xiaofeiji-novel' ||
+      id.includes('xiaofeiji')
+    );
 
-  // 检查是否符合风华短篇/老福特流 (老福特 / lofter / 风华 / short)
-  const isFenghua =
+  const isShortAesthetic =
     textToSearch.includes('老福特') ||
     textToSearch.includes('lofter') ||
-    textToSearch.includes('风华') ||
     textToSearch.includes('short');
 
-  // 检查是否符合天马大纲流 (天马 / 大纲)
-  const isTianma =
-    textToSearch.includes('天马') ||
-    textToSearch.includes('大纲');
+  const isOutlineHeavy = textToSearch.includes('大纲');
 
   let activeSeriesId = 'generic-novel-flow';
-  if (hasXiaofeiji) {
-    activeSeriesId = 'xiaofeiji-novel-flow';
-  } else if (isFenghua) {
+  if (hasPremiumLongformFlow && longformFlowId) {
+    activeSeriesId = longformFlowId;
+  } else if (isShortAesthetic) {
     activeSeriesId = 'fenghua-short-flow';
-  } else if (isTianma) {
+  } else if (isOutlineHeavy) {
     activeSeriesId = 'tianma-outline-flow';
   } else if (isTomato) {
     activeSeriesId = 'tomato-platform-flow';
@@ -375,19 +374,20 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
     textToSearch.includes('系统') ||
     textToSearch.includes('重生');
 
-  const isXiaofeijiMatched =
+  const longformFlowId = SKILL_SERIES_FLOWS.find(flow => flow.name.includes('长篇商业连载'))?.id;
+  const isPremiumLongformMatched =
+    tags.includes(longformFlowId || '') ||
+    tags.includes('长篇商业连载流程') ||
     textToSearch.includes('小飞鸡') ||
-    textToSearch.includes('xiaofeiji');
+    textToSearch.includes('xiaofeiji') ||
+    tags.includes('小飞鸡');
 
-  const isFenghuaMatched =
+  const isShortAestheticMatched =
     textToSearch.includes('老福特') ||
     textToSearch.includes('lofter') ||
-    textToSearch.includes('风华') ||
     textToSearch.includes('short');
 
-  const isTianmaMatched =
-    textToSearch.includes('天马') ||
-    textToSearch.includes('大纲');
+  const isOutlineHeavyMatched = textToSearch.includes('大纲');
 
   // 决定推荐流程 ID 和平台
   let activeSeriesId = 'generic-novel-flow';
@@ -395,21 +395,23 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
   let platformTagToApply: string[] = [];
   let explanation = '根据您的新书灵感，推荐您使用通用创作流程。';
 
-  if (isFenghuaMatched) {
+  if (isShortAestheticMatched) {
     activeSeriesId = 'fenghua-short-flow';
-    explanation = '检测到您偏向于风华/老福特短篇高美感创作，为您推荐最契合的风华短篇/老福特流。';
-  } else if (isTianmaMatched) {
+    explanation = '检测到您偏向于老福特/短篇高美感创作，为您推荐短篇高美感流程。';
+  } else if (isOutlineHeavyMatched) {
     activeSeriesId = 'tianma-outline-flow';
-    explanation = '检测到您需要精细规划小说设定与大纲节奏，为您推荐天马大纲定制流。';
+    explanation = '检测到您需要精细规划小说设定与大纲节奏，为您推荐结构化大纲流程。';
   } else if (isShortForm) {
     // 短篇/知乎/老福特：不误推长篇番茄流，即便带有“重生/系统”等词，也只走通用流
     activeSeriesId = 'generic-novel-flow';
     targetPlatform = undefined;
     explanation = '检测到您偏向于短篇/故事性创作，为您推荐最契合的通用创作流程，不误推平台流。';
-  } else if (isXiaofeijiMatched) {
-    activeSeriesId = 'xiaofeiji-novel-flow';
-    platformTagToApply = ['小飞鸡'];
-    explanation = '识别到您的小飞鸡大组定制流偏好，推荐挂载小飞鸡八步连续创作流程。';
+  } else if (isPremiumLongformMatched && longformFlowId) {
+    activeSeriesId = longformFlowId;
+    platformTagToApply = [
+      textToSearch.includes('小飞鸡') || tags.includes('小飞鸡') ? '小飞鸡' : '长篇商业连载流程'
+    ];
+    explanation = '识别到您的专属高级定制流偏好，推荐挂载长篇商业连载流程。';
   } else if (isTomatoMatched) {
     activeSeriesId = 'tomato-platform-flow';
     targetPlatform = 'tomato';

@@ -82,7 +82,7 @@ export function useEditorIntelligenceContext({
               id: asset.id,
               name: asset.title,
               description: asset.goal,
-              style: asset.template, // 用 template 充当 style 指引
+              style: 'INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER', // 用 template 充当 style 指引
               pacing: asset.successSignal || '',
               stabilityScore: asset.score || 80,
               evaluationFeedback: asset.recommendationReason || '',

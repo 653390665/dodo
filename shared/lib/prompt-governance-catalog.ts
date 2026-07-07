@@ -1,4 +1,4 @@
-import type { GovernedPromptAsset, PromptCategoryV2, PlacementTier, EnhancementPackage } from '../types/prompt-assets-governed.js';
+import type { GovernedPromptAsset, PromptCategoryV2, PlacementTier, EnhancementPackage, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
 import type { Novel } from '../types.js';
 
 /**
@@ -169,26 +169,6 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
 ];
 
 // ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
-
-export interface SkillSeriesFlowStep {
-  id: string;              // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
-  stepNumber: number;      // 序号 (1-based)
-  name: string;            // 步骤展示名称 (如 '脑洞灵感闪耀')
-  description: string;     // 步骤具体执行说明
-  input: string;           // 阶段输入特征
-  output: string;          // 阶段输出特征
-  assetId: string;         // 关联的真实治理资产 ID
-  qualityGate: string;     // 本步质量门栏标准
-  nextStepId: string | null; // 下一步 ID，尾步骤为 null
-  switchAllowed: boolean;  // 是否允许中途跳跃切换
-}
-
-export interface SkillSeriesFlow {
-  id: string;
-  name: string;
-  description: string;
-  steps: SkillSeriesFlowStep[];
-}
 
 export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
   {
@@ -1234,21 +1214,6 @@ export function sanitizeWhiteLabelText(text: string): string {
   return s;
 }
 
-export interface CuratedProductSkill {
-  id: string;
-  title: string;
-  curatedCategory: 'opening' | 'bible' | 'prose' | 'audit' | 'de-ai' | 'platform' | 'style' | 'deconstruct';
-  goal: string;
-  
-  successSignal: string;
-  score: number;
-  grade: string;
-  sourceType: 'built-in' | 'plaza' | 'licensed';
-  primaryCategory: string;
-  inputs: string[];
-  actionType: 'direct-exec' | 'equip' | 'import';
-  parentSkillId?: string;
-}
 
 /**
  * 精选白标白名单货架 - 8 大航道（每航道 2 张，共计 16 张高等级卡牌元数据）
