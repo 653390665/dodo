@@ -10,6 +10,13 @@ process.env.ELECTRON_BUILDER_NO_UPDATE_NOTIFIER = 'true';
 process.env.ELECTRON_BUILDER_UPDATE_NOTIFIER = 'false';
 process.env.NO_UPDATE_NOTIFIER = 'true';
 
+// Enable verbose debugging for electron-builder and electron-rebuild to prevent silent hangs
+process.env.DEBUG = 'electron-builder,electron-rebuild';
+process.env.ELECTRON_REBUILD_VERBOSE = 'true';
+
+// Prevent node-gyp network hangs during Electron headers download
+process.env.npm_config_disturl = 'https://electronjs.org/headers';
+
 const builderBin = resolve(
   root,
   process.platform === 'win32'
