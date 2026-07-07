@@ -9,8 +9,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-node@1d24214f2cd4e8b4137158ca9cf941a3693f2f58 # v4.2.0
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -45,8 +45,8 @@ jobs:
     needs: [check]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-node@1d24214f2cd4e8b4137158ca9cf941a3693f2f58 # v4.2.0
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -65,7 +65,7 @@ jobs:
           ls -la /tmp/inkflow-mnt/
           hdiutil detach /tmp/inkflow-mnt -quiet
           echo "DMG verification OK"
-      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+      - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-mac-arm64
           path: release/InkFlow-*-mac-*.dmg
@@ -74,8 +74,8 @@ jobs:
     needs: [check]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-node@1d24214f2cd4e8b4137158ca9cf941a3693f2f58 # v4.2.0
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -129,7 +129,7 @@ jobs:
           Write-Host "EXE verification OK"
           $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
           if ($zip) { Write-Host "ZIP: $zip ($((Get-Item $zip).Length) bytes)" }
-      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+      - uses: actions/upload-artifact@v4
         with:
           name: InkFlow-win-x64
           path: |
