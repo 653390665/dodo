@@ -87,6 +87,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Configure production toolchain
+        shell: pwsh
+        run: |
+          npm config set msvs_version 2022
+          npm install -g node-gyp@latest
       - run: npm ci
       - run: npx tsx --test tests/electron-startup-contract.test.ts
       - run: npx electron-builder install-app-deps
