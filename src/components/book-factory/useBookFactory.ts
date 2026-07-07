@@ -28,7 +28,7 @@ function isQuotaErrorLike(value: unknown): value is {
 function scoreDecodedText(text: string): number {
   const replacementCount = (text.match(/\uFFFD/g) || []).length;
   const chineseCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
-  const punctuationCount = (text.match(/[，。！？；：、“”‘’]/g) || []).length;
+  const punctuationCount = (text.match(/[，。！？；：、""'']/g) || []).length;
   return chineseCount * 2 + punctuationCount - replacementCount * 20;
 }
 
@@ -55,9 +55,15 @@ export function normalizeSkillConfig(data: Partial<Skill> | Record<string, unkno
   const primaryDimension = (typeof rec.primaryDimension === 'string' && ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(rec.primaryDimension))
     ? (rec.primaryDimension as SkillDimension)
     : 'style';
-  const dimensionTags = Array.isArray(rec.dimensionTags) && rec.dimensionTags.length > 0
-    ? (asStringArray(rec.dimensionTags).filter((t) => ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(t)) as SkillDimension[])
-    : ['style' as const];
+  
+  // 修复：检查是否为空数组或过滤后为空
+  let dimensionTags: SkillDimension[] = ['style' as const];
+  if (Array.isArray(rec.dimensionTags) && rec.dimensionTags.length > 0) {
+    const filtered = asStringArray(rec.dimensionTags).filter((t) => ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(t)) as SkillDimension[];
+    if (filtered.length > 0) {
+      dimensionTags = filtered;
+    }
+  }
 
   const comp = asRecord(rec.compositionProfile);
   const compositionProfile = {
