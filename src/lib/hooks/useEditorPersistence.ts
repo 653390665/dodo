@@ -167,6 +167,49 @@ export function useEditorPersistence({
     syncTimeoutRef.current = setTimeout(saveFn, 1000);
   }, [currentChapter, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
 
+  // ─── [BUG-01] 同步强行冲刷（Flush）编辑器内挂起的打字防抖正文并立即落盘 ───
+  const flushPendingContentSync = useCallback(() => {
+    if (contentRef.current && currentChapter) {
+      const latestValue = contentRef.current.value;
+      if (latestValue !== (currentChapter.content || '')) {
+        // 1. 同步强制流转内存状态，防止后续的 React State batching 带来状态回退
+        const updatedChapter = { ...currentChapter, content: latestValue };
+        setCurrentChapter(updatedChapter);
+        pushToUndoHistory(latestValue);
+
+        // 2. 扼杀并清理尚未触发的挂起防抖定时器
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
+        }
+
+        const chapterId = currentChapter.id;
+        const finalWordCount = latestValue.replace(/\s/g, '').length;
+
+        // 3. 立即触发物理 SQLite 数据库更新，不使用延时 setTimeout 机制
+        updateChapter(chapterId, {
+          content: latestValue,
+          updatedAt: Date.now(),
+          wordCount: finalWordCount,
+        }).catch((e) => console.error('[useEditorPersistence] Failed to auto-flush content on change:', e));
+
+        // 4. 同步修正侧边栏章节元数据中的字数和更新时间，保证全局一致
+        setChapters((prev) =>
+          prev.map((c) =>
+            c.id === chapterId
+              ? { ...c, wordCount: finalWordCount, updatedAt: Date.now() }
+              : c
+          )
+        );
+
+        // 5. 将保存标志状态置空，声明同步成功
+        pendingSaveRef.current = null;
+        setIsSyncing(false);
+        setSyncSuccess(true);
+      }
+    }
+  }, [contentRef, currentChapter, pushToUndoHistory, setCurrentChapter, setChapters]);
+
   const handleRestoreVersion = (version: ChapterVersion) => {
     handleUpdateContent(version.content, true);
   };
@@ -193,6 +236,7 @@ export function useEditorPersistence({
   };
 
   const handleAddChapter = async (targetVolumeName?: string) => {
+    flushPendingContentSync(); // ⚠️ 切换/增加新章节前，必须强制同步当前正在打字的内容
     const newOrder = chapters.length + 1;
     const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
     const newId = Date.now().toString();
@@ -237,6 +281,7 @@ export function useEditorPersistence({
   };
 
   const handleAddFirstChapter = async () => {
+    flushPendingContentSync(); // ⚠️ 初始化/创建首章前，确保无挂起的丢稿改动
     const newChapId = Date.now().toString();
     const newChap: Chapter = {
       id: newChapId,
@@ -313,6 +358,7 @@ export function useEditorPersistence({
     handleDeleteChapter,
     handleVolumeNameChange,
     handleTitleChange,
+    flushPendingContentSync, // 导出供 EditorView.tsx 使用
     refreshChapters,
   };
 }

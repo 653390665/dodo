@@ -8,6 +8,7 @@ export interface RewritePromptInput {
   beforeContext?: string;
   afterContext?: string;
   auditIssue?: string;
+  skillsInfo?: string;
 }
 
 export function buildRewritePrompt({
@@ -20,6 +21,7 @@ export function buildRewritePrompt({
   beforeContext = '',
   afterContext = '',
   auditIssue = '',
+  skillsInfo = '',
 }: RewritePromptInput): string {
   const baseInstruction = instruction?.trim()
     ? `【用户的改写要求 / 改写方向】\n${instruction}`
@@ -69,6 +71,7 @@ ${auditIssue ? `【本段对应的审计问题】\n${auditIssue}\n` : ''}
 【整体世界观与上下文背景】
 ${contextStr}
 
+${skillsInfo ? `【当前挂载的叙事 DNA 插件/文风约束】\n${skillsInfo}\n` : ''}
 ${sceneBeats ? `【本节分镜蓝图】\n${sceneBeats}\n` : ''}
 
 ${auditFeedback ? `【总编审计意见】\n${auditFeedback}\n` : ''}

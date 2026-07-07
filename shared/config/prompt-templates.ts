@@ -34,7 +34,7 @@ export const PROMPT_TEMPLATE_DEFINITIONS: PromptTemplateDefinition[] = [
     key: 'editorAgent',
     label: '分镜生成',
     description: '把用户意图拆解成场景分镜。',
-    variables: ['PLANNER_SOUL', 'contextStr', 'userIntent'],
+    variables: ['PLANNER_SOUL', 'contextStr', 'skillsInfo', 'userIntent'],
   },
   {
     key: 'manualAudit',
@@ -148,6 +148,9 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
   `.trim(),
   editorAgent: `
 {{PLANNER_SOUL}}
+
+【当前挂载的写作卡牌规约 (Narrative DNA)】
+{{skillsInfo}}
 
 【当前任务】
 利用以下小说的信息记忆库，根据用户的创作意图，拆解出这一章的场景分镜（Scene Beats）。

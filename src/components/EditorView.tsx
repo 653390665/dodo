@@ -162,6 +162,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     handleVolumeNameChange,
     handleTitleChange,
     cancelPendingContentSync,
+    flushPendingContentSync,
     refreshChapters,
   } = useEditorPersistence({
     novel,
@@ -335,8 +336,9 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
   }, [novel.id, novel.title, novel.summary, currentChapter]);
 
   const handleSelectChapter = React.useCallback((chapter: ChapterMetadata) => {
+    flushPendingContentSync(); // ⚠️ 切换章节前同步强制冲刷防抖内容
     setCurrentChapter(chapter as unknown as Chapter);
-  }, [setCurrentChapter]);
+  }, [flushPendingContentSync, setCurrentChapter]);
 
   const runCopilotAction = React.useCallback(async (actionKey: CopilotActionKey) => {
     switch (actionKey) {

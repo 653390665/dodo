@@ -159,6 +159,7 @@ export function useAuditPolishActions({
           instruction,
           contextStr: buildContextPrompt(buildAgentContext()),
           novelId: novel.id,
+          skills: mountedSkills,
         }),
         signal: controller.signal,
       });
@@ -267,6 +268,7 @@ export function useAuditPolishActions({
             auditFeedback: currentChapter.critique,
             sceneBeats: currentChapter.sceneBeats || '',
             novelId: novel.id,
+            skills: mountedSkills,
           }),
           signal: controller.signal,
         });

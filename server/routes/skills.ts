@@ -1,7 +1,8 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
-import { renderPromptTemplate, getPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
+import * as db from '../lib/db';
+import { renderPromptTemplate, getPromptTemplate, wrapUserInput, buildSkillsPrompt } from '../helpers/prompt-helpers';
 import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-governance-catalog.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +52,7 @@ const SKILL_EXTRACTION_LLM_OPTIONS = {
 async function processModelSkillExtraction(
   text: string,
   segments: ReturnType<typeof buildBookEvidenceSegments>,
+  deconstructSkillsInfo?: string,
 ) {
   const totalSegments = segments.length;
   const maxModelSegments = Math.min(6, totalSegments);
@@ -74,9 +76,12 @@ async function processModelSkillExtraction(
 
   for (const segment of modelSegments) {
     try {
-      const prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
+      let prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
         text: wrapUserInput(segment.excerpt.substring(0, 12000)),
       });
+      if (deconstructSkillsInfo) {
+        prompt = `${prompt}\n\n===== 🚨 黄金拆书规约：强制结合以下用户当前指定的【拆书解构指导卡】进行针对性萃取与分析 =====\n${deconstructSkillsInfo}\n你必须根据以上拆书卡所强调的重点（如特定的节奏、悬念、高潮点）来观察当前 analysis 素材，并在拆出的 skill 卡组中强力落实以上拆书卡的解构要求！`;
+      }
 
       const responseText = await withTimeout(
         generateText(getConfig(), {
@@ -187,7 +192,7 @@ export function registerSkillsRoutes(app: Express) {
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     if (!rateLimit('extract-skill')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { text = '', novelId } = req.body;
+      const { text = '', novelId, skills = [] } = req.body;
 
       // ================================================================
       // Layer 0: Quota Gate — verify free-tier limitations before LLM run
@@ -217,6 +222,28 @@ export function registerSkillsRoutes(app: Express) {
       // 校验通过，消费 1 次额度 (Consume quota count)
       consumeQuota(novelId, 'extractSkill');
 
+      // Retrieve active skills defensively from database if missing from the request body
+      let activeSkills = skills || [];
+      if ((!activeSkills || activeSkills.length === 0) && novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel && novel.mountedSkillLoadout) {
+          activeSkills = novel.mountedSkillLoadout
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((item: any) => db.getSkill(item.skillId))
+            .filter(Boolean);
+        }
+      }
+
+      // Filter out any skills that are meant for book deconstruction/decompile
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const deconstructSkills = (activeSkills || []).filter((s: any) => 
+        (s.id && s.id.startsWith('deconstruct-')) || 
+        s.deconstructionCardType !== undefined ||
+        s.curatedCategory === 'deconstruct'
+      );
+
+      const deconstructSkillsInfo = deconstructSkills.length > 0 ? buildSkillsPrompt(deconstructSkills) : undefined;
+
       // ================================================================
       // Phase 1 (fast): Build full fallback deck and return immediately.
       // ================================================================
@@ -237,7 +264,7 @@ export function registerSkillsRoutes(app: Express) {
       // Phase 2 (background): Fire model extraction as an async job.
       // ================================================================
       const segments = buildBookEvidenceSegments(text.substring(0, 120000));
-      const modelTask = processModelSkillExtraction(text, segments);
+      const modelTask = processModelSkillExtraction(text, segments, deconstructSkillsInfo);
       const jobId = createSkillExtractionJob(modelTask);
 
       res.json({

@@ -32,6 +32,7 @@ export const extractSkillSchema = z.object({
   title: z.string().max(100).optional(),
   style: z.string().max(100).optional(),
   novelId: z.string().optional(), // 关联的小说ID
+  skills: z.array(z.unknown()).max(3).optional().default([]),
 });
 
 export const storyCardsSchema = z.object({

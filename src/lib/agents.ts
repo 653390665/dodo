@@ -177,6 +177,8 @@ export async function editorAgentPhase(userIntent: string, context: AgentContext
       contextStr,
       surface: 'workspace-beats' satisfies PromptSurface,
       chapterOrder: context.chapterOrder,
+      novelId: context.novel.id,
+      skills: context.mountedSkills,
       ...(continuationPackId ? { continuationPackId } : {})
     })
   });

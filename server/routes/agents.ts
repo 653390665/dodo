@@ -62,7 +62,7 @@ export function registerAgentsRoutes(app: Express) {
   app.post('/api/editor-agent', async (req, res) => {
     if (!rateLimit('editor-agent')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain, chapterOrder } = req.body;
+      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain, chapterOrder, novelId, skills } = req.body;
       if (!userIntent.trim()) {
         return res.status(400).json({ error: 'userIntent is required' });
       }
@@ -81,6 +81,17 @@ export function registerAgentsRoutes(app: Express) {
       const effectiveContextStr = (packContext
         ? `${contextStr}\n\n${packContext}`
         : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+
+      let activeSkills = skills || [];
+      if ((!activeSkills || activeSkills.length === 0) && novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel && novel.mountedSkillLoadout) {
+          activeSkills = novel.mountedSkillLoadout
+            .map((item: { skillId: string }) => db.getSkill(item.skillId))
+            .filter(Boolean);
+        }
+      }
+      const skillsInfo = buildSkillsPrompt(activeSkills);
 
       // Chain mode: run focused sub-prompts instead of monolithic template
       if (chain && Array.isArray(chain) && chain.length > 0) {
@@ -120,6 +131,7 @@ export function registerAgentsRoutes(app: Express) {
       const prompt = renderPromptTemplate(promptAsset.template, {
         PLANNER_SOUL,
         contextStr: effectiveContextStr,
+        skillsInfo,
         userIntent: wrapUserInput(userIntent),
       });
       let text = '';

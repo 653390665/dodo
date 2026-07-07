@@ -3,7 +3,7 @@ import type { Skill } from '../../shared/types';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { renderPromptTemplate, truncateForAudit } from '../helpers/prompt-helpers';
+import { renderPromptTemplate, truncateForAudit, buildSkillsPrompt } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
 import { scoreSlop, slopSummary } from '../../shared/lib/slop-scorer';
@@ -197,6 +197,7 @@ ${platformSpecificChecklist}
         afterContext = '',
         auditIssue = '',
         novelId,
+        skills = [],
       } = req.body;
 
       // ================================================================
@@ -213,6 +214,19 @@ ${platformSpecificChecklist}
         });
       }
 
+      // Resolve skills and implement double-defense (load from database if empty)
+      let activeSkills = skills || [];
+      if ((!activeSkills || activeSkills.length === 0) && novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel && novel.mountedSkillLoadout) {
+          activeSkills = novel.mountedSkillLoadout
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((item: any) => db.getSkill(item.skillId))
+            .filter(Boolean);
+        }
+      }
+      const skillsInfo = buildSkillsPrompt(activeSkills);
+
       const prompt = buildRewritePrompt({
         text,
         instruction,
@@ -223,6 +237,7 @@ ${platformSpecificChecklist}
         beforeContext,
         afterContext,
         auditIssue,
+        skillsInfo,
       });
 
       const rewritten = await generateText(getConfig(), { prompt });
