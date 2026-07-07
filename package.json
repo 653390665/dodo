@@ -80,7 +80,12 @@
   "overrides": {
     "tar": "^7.5.19",
     "protobufjs": "^7.6.3",
-    "node-gyp": "^13.0.1"
+    "@electron/rebuild": {
+      "node-gyp": "^13.0.1"
+    },
+    "electron-builder": {
+      "node-gyp": "^13.0.1"
+    }
   },
   "pnpm": {
     "onlyBuiltDependencies": [
