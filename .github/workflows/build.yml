@@ -93,6 +93,11 @@ jobs:
           npm config set msvs_version 2022
           npm install -g node-gyp@latest
       - run: npm ci
+      - name: Hot-upgrade nested node-gyp for VS2022 compatibility
+        shell: pwsh
+        run: |
+          npm install --no-save --prefix node_modules/@electron/rebuild node-gyp@latest
+          npm install --no-save --prefix node_modules/electron-builder node-gyp@latest
       - run: npx tsx --test tests/electron-startup-contract.test.ts
       - run: npm run package
         env:
