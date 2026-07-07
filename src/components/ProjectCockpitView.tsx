@@ -13,56 +13,7 @@ import {
 import { ScrollArea } from './ui/scroll-area';
 import { toast } from '../lib/toast';
 import { useAppStore } from '../stores/app-store';
-
-export interface ComputeRecommendationsParams {
-  chaptersCount: number;
-  worldEntitiesCount: number;
-  hasBeats: boolean;
-  hasContent: boolean;
-  hasCritique: boolean;
-  activeSeriesId?: string;
-  completedSteps?: string[];
-}
-
-export function computeCockpitRecommendations(params: ComputeRecommendationsParams): string[] {
-  const { chaptersCount, worldEntitiesCount, hasBeats, hasContent, hasCritique, activeSeriesId, completedSteps = [] } = params;
-  
-  if (activeSeriesId === 'book-deconstruction-flow') {
-    const isStep1Done = completedSteps.includes('completed-step:book-deconstruction-flow:step1');
-    const isStep2Done = completedSteps.includes('completed-step:book-deconstruction-flow:step2');
-    
-    if (!isStep1Done) {
-      return ['deconstruct_flow_step1', ...[
-        chaptersCount === 0 ? 'create_first_chapter' : null,
-        worldEntitiesCount < 2 ? 'add_world_setting' : null,
-        'mount_skill'
-      ].filter((x): x is string => x !== null)].slice(0, 3);
-    } else if (!isStep2Done) {
-      return ['deconstruct_flow_step2', ...[
-        chaptersCount === 0 ? 'create_first_chapter' : null,
-        worldEntitiesCount < 2 ? 'add_world_setting' : null,
-        'mount_skill'
-      ].filter((x): x is string => x !== null)].slice(0, 3);
-    }
-  }
-
-  if (chaptersCount === 0) {
-    return ['create_first_chapter', 'add_world_setting', 'import_continuation'];
-  }
-  if (worldEntitiesCount < 2) {
-    return ['add_world_setting', 'resume_editor', 'mount_skill'];
-  }
-  if (!hasBeats) {
-    return ['planning_beats', 'add_world_setting', 'mount_skill'];
-  }
-  if (!hasContent) {
-    return ['production_content', 'planning_beats', 'mount_skill'];
-  }
-  if (!hasCritique) {
-    return ['start_audit', 'polish_content', 'resume_editor'];
-  }
-  return ['polish_content', 'resume_editor', 'export_db_backup'];
-}
+import { computeCockpitRecommendations } from '../lib/cockpit-recommendations';
 
 function createFirstChapterPayload(novelId: string): Chapter {
   const timestamp = Date.now();
