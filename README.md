@@ -52,21 +52,21 @@ graph TD
     classDef engine fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px;
     classDef view fill:#F3E5F5,stroke:#9C27B0,stroke-width:2px;
 
-    User([创作者码字输入]) -->|实时侦听| Radar[上下文伴写记忆雷达]:::view
-    Radar -->|毫秒级正则实体检索| Match{是否命中设定?}
+    User["创作者码字输入"] -->|实时侦听| Radar["上下文伴写记忆雷达"]:::view
+    Radar -->|毫秒级正则实体检索| Match{"是否命中设定?"}
     
-    Match -->|YES| Highlight[雷达控制台高亮卡片 <br/> 💍 龙纹古戒 / 👤 林默人设]:::focus
-    Match -->|NO (未录入专有名词)| Warning[琥珀色 `STATE_UNKNOWN` 预警]:::focus
-    Warning -->|免打扰一键拉起| Drawer[零摩擦补录 Drawer]:::view
-    Drawer -->|表单极速保存| DB[(本地 SQLite WAL 数据库)]:::database
+    Match -->|YES| Highlight["雷达控制台高亮卡片 <br/> 💍 龙纹古戒 / 👤 林默人设"]:::focus
+    Match -->|"NO (未录入专有名词)"| Warning["琥珀色 STATE_UNKNOWN 预警"]:::focus
+    Warning -->|免打扰一键拉起| Drawer["零摩擦补录 Drawer"]:::view
+    Drawer -->|表单极速保存| DB["本地 SQLite WAL 数据库"]:::database
 
-    User -->|进入| Guard[「去 AI 味」质量体检中心]:::view
-    Guard -->|多段剖析体检| Analytics[生成句法多波段热力图 <br/> 红色: 机械套话 / 蓝色: 排比废话]:::focus
-    Analytics -->|AI 评分 & 一键重写| Polish[智能高质抛光重写]:::view
+    User -->|进入| Guard["「去 AI 味」质量体检中心"]:::view
+    Guard -->|多段剖析体检| Analytics["生成句法多波段热力图 <br/> 红色: 机械套话 / 蓝色: 排比废话"]:::focus
+    Analytics -->|AI 评分 & 一键重写| Polish["智能高质抛光重写"]:::view
     Polish -->|写入编辑器| DB
 
-    DB -->|启动零感知快照拷贝| ColdBackup[data.db.bak 冷备份]:::engine
-    DB -->|后台导出/极速热重载| Restore[WAL 快照热恢复与一键物理覆盖回滚]:::engine
+    DB -->|启动零感知快照拷贝| ColdBackup["data.db.bak 冷备份"]:::engine
+    DB -->|后台导出/极速热重载| Restore["WAL 快照热恢复与一键物理覆盖回滚"]:::engine
 ```
 
 ## 💎 墨影三大破局亮点 (Premium Key Highlights)
