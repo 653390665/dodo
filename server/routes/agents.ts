@@ -210,7 +210,16 @@ export function registerAgentsRoutes(app: Express) {
         }
       });
 
-      const skillsInfo = buildSkillsPrompt(skills || []);
+      let activeSkills = skills || [];
+      if ((!activeSkills || activeSkills.length === 0) && novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel && novel.mountedSkillLoadout) {
+          activeSkills = novel.mountedSkillLoadout
+            .map((item: { skillId: string }) => db.getSkill(item.skillId))
+            .filter(Boolean);
+        }
+      }
+      const skillsInfo = buildSkillsPrompt(activeSkills);
       let currentDraft = draftContent || "";
       let criticFeedback = "";
       let isValid = false;
@@ -336,6 +345,16 @@ export function registerAgentsRoutes(app: Express) {
         (budgetGuidelines ? `\n\n${budgetGuidelines}` : '') +
         (adaptiveWritingGuidelines ? `\n\n${adaptiveWritingGuidelines}` : '');
 
+      let activeSkills = skills || [];
+      if ((!activeSkills || activeSkills.length === 0) && novelId) {
+        const novel = db.getNovel(novelId);
+        if (novel && novel.mountedSkillLoadout) {
+          activeSkills = novel.mountedSkillLoadout
+            .map((item: { skillId: string }) => db.getSkill(item.skillId))
+            .filter(Boolean);
+        }
+      }
+
       const writerAsset = resolvePromptAssetForSurface({
         surface: draftingSurface,
         promptTemplates: getConfig().promptTemplates,
@@ -344,7 +363,7 @@ export function registerAgentsRoutes(app: Express) {
       const writerPrompt = renderPromptTemplate(writerAsset.template, {
         WRITER_SOUL,
         contextStr: effectiveContextStr,
-        skillsInfo: buildSkillsPrompt(skills || []),
+        skillsInfo: buildSkillsPrompt(activeSkills),
         sceneBeats,
         criticFeedback: draftContent
           ? `请在已有正文基础上继续扩写，保持承接自然。\n\n【已有正文】\n${draftContent}`
