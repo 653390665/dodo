@@ -21,7 +21,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server.ts\"",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
-    "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs",
+    "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
     "package": "npm run build:electron && node scripts/package-electron.mjs",
     "electron:dev": "node scripts/dev-electron.mjs"
   },
@@ -88,7 +88,7 @@
   "build": {
     "appId": "com.inkflow.app",
     "productName": "InkFlow",
-    "npmRebuild": true,
+    "npmRebuild": false,
     "directories": {
       "output": "release",
       "buildResources": "build"
