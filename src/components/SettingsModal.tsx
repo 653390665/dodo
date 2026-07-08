@@ -430,39 +430,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   </div>
                 </div>
 
-                {onThemeChange && (
-                  <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-3">
-                    <div>
-                      <div className="text-sm font-bold text-theme-text">主题外观</div>
-                      <p className="text-[11px] text-theme-muted mt-1">选择亮色、暗色或跟随系统。</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {([
-                        { value: 'light' as const, label: '亮色', icon: Sun },
-                        { value: 'dark' as const, label: '暗色', icon: Moon },
-                        { value: 'system' as const, label: '跟随系统', icon: Monitor },
-                      ]).map((opt) => {
-                        const Icon = opt.icon;
-                        const isActive = theme === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => onThemeChange(opt.value)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                              isActive
-                                ? 'border-theme-accent bg-theme-accent text-theme-bg'
-                                : 'border-theme-border text-theme-muted hover:border-theme-accent/40'
-                            }`}
-                          >
-                            <Icon size={14} />
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+
 
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
                   <div className="text-sm font-bold text-theme-text">生效验证链</div>
@@ -831,14 +799,51 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
               <div className="text-[11px] text-theme-muted">保存后会立即写入本地配置，并被后续 AI 请求读取。</div>
             )}
           </div>
-          <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
-          >
-            <Save size={16} /> {saving ? '保存中...' : '保存配置'}
-          </button>
+          <div className="flex items-center gap-3">
+            {onThemeChange && (
+              <div className="relative flex items-center bg-theme-sidebar/40 border border-theme-border/60 rounded-full p-[2px] h-8 select-none shrink-0 mr-2">
+                <div
+                  className="absolute top-[2px] bottom-[2px] left-[2px] rounded-full bg-theme-accent shadow-sm transition-all duration-300 ease-out"
+                  style={{
+                    width: 'calc((100% - 4px) / 3)',
+                    transform: `translate3d(${
+                      theme === 'light' ? '0%' : theme === 'dark' ? '100%' : '200%'
+                    }, 0, 0)`,
+                  }}
+                />
+                {[
+                  { value: 'light' as const, label: '亮色', icon: Sun },
+                  { value: 'dark' as const, label: '暗色', icon: Moon },
+                  { value: 'system' as const, label: '系统', icon: Monitor },
+                ].map((opt) => {
+                  const Icon = opt.icon;
+                  const isActive = theme === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onThemeChange(opt.value)}
+                      className={`relative z-10 flex items-center justify-center gap-1 px-3 h-full rounded-full text-[11px] font-bold transition-colors duration-200 cursor-pointer ${
+                        isActive ? 'text-theme-bg' : 'text-theme-muted hover:text-theme-text'
+                      }`}
+                      style={{ width: '64px' }}
+                    >
+                      <Icon size={12} />
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
+            >
+              <Save size={16} /> {saving ? '保存中...' : '保存配置'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
