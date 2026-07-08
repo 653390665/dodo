@@ -29,6 +29,7 @@
    - 打开 **系统设置 → 隐私与安全性**
    - 找到 "InkFlow" 并点击 **"仍要打开"**
    - 或右键点击 `InkFlow.app` → 选 **"打开"** → 再点 **"打开"**
+   - **极客方案**：直接在终端运行 `sudo xattr -cr /Applications/InkFlow.app` 一键抹除未签名隔离属性。
 5. 之后正常双击即可启动
 
 ### Windows
@@ -236,7 +237,7 @@ A: 可以。设置页面随时修改 Base URL 和 Model，只要是 OpenAI 兼�
 A: 能。创作舞台底部状态栏有导出按钮，支持 TXT 和 EPUB 格式。
 
 **Q: macOS 提示"无法验证开发者"？**
-A: 应用未签名（需 Apple Developer 账号，$99/年）。右键点击 App → 打开 → 确认即可。
+A: 应用未签名（需 Apple Developer 账号，$99/年）。你可以右键点击 App → 打开 → 确认，或者在终端运行 `sudo xattr -cr /Applications/InkFlow.app` 物理抹除系统的隔离标识。
 
 **Q: Windows 杀毒软件拦截？**
 A: 选择"仍要运行"。代码开源可自行审查。如需彻底消除误报，需购买代码签名证书。
@@ -255,8 +256,8 @@ cp .env.example .env.local   # 编辑填入 API Key
 # 1. 仅启动 Web 端服务（在浏览器中调试）
 npm run dev                  # 启动开发服务器，打开 http://localhost:3000
 
-# 2. 启动 Electron 桌面开发端（调试桌面程序，含主进程与渲染进程）
-npm run electron:dev         # 启动桌面窗口并自动挂载 DevTools 调试面板
+# 2. 启动 Electron 桌面开发端（自愈式启动底座）
+npm run electron:dev         # 自动执行静默编译，排除 ELECTRON_RUN_AS_NODE 变量污染，一键拉起桌面并挂载 DevTools 调试面板
 ```
 
 ### 打包桌面应用

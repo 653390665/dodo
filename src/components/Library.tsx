@@ -111,6 +111,9 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   const executeDeleteNovel = async () => {
     if (novelToDeleteId) {
       await deleteNovel(novelToDeleteId);
+      const list = await listNovels();
+      setNovels(list);
+      loadMetadata(list);
       setNovelToDeleteId(null);
     }
   };

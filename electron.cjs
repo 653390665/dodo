@@ -274,7 +274,7 @@ function waitForServer(port, maxRetries = 50) {
 
 function startServer() {
   return new Promise((resolve, reject) => {
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = !app.isPackaged;
     const serverPath = isDev
       ? path.join(__dirname, 'server.ts')
       : path.join(process.resourcesPath, 'app.asar.unpacked', 'dist-electron', 'server.cjs');
@@ -426,7 +426,7 @@ async function createWindow() {
   buildAppMenu();
 
   let port;
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = !app.isPackaged;
 
   try {
     if (isDev) {

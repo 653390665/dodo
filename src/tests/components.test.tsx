@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent, screen, act } from '@testing-library/react';
 import axe from 'axe-core';
 import { Sidebar } from '../components/Sidebar';
 import { SettingsModal } from '../components/SettingsModal';
@@ -352,7 +352,9 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(container).not.toBeNull();
 
       // Wait for focus trap setTimeout (50ms) to trigger inside SettingsModal
-      await new Promise(resolve => setTimeout(resolve, 60));
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 60));
+      });
 
       const firstInput = container?.querySelector('input, select, textarea, button') as HTMLElement;
       if (firstInput) {
@@ -360,11 +362,15 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       }
 
       // 4. Fire Escape key to verify triggers close callback
-      fireEvent.keyDown(window, { key: 'Escape' });
+      await act(async () => {
+        fireEvent.keyDown(window, { key: 'Escape' });
+      });
       expect(mockClose).toHaveBeenCalledTimes(1);
 
       // 5. Unmount settings modal to trigger cleanup and check focus restoration
-      unmount();
+      await act(async () => {
+        unmount();
+      });
       expect(document.activeElement).toBe(triggerButton);
 
       // Cleanup DOM
@@ -505,7 +511,9 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       // Switch to 'dataManage' tab
       const tabTrigger = screen.getByText('数据备份与管理');
       expect(tabTrigger).toBeDefined();
-      fireEvent.click(tabTrigger);
+      await act(async () => {
+        fireEvent.click(tabTrigger);
+      });
 
       // Verify backup section is visible
       const backupTitle = screen.getByText('一键备份导出');
@@ -513,7 +521,9 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       // Click on immediate export button
       const exportBtn = screen.getByText('立即导出备份数据');
-      fireEvent.click(exportBtn);
+      await act(async () => {
+        fireEvent.click(exportBtn);
+      });
 
       // Verify the window.location.href changes correctly
       expect(window.location.href).toBe('/api/db/export-file');

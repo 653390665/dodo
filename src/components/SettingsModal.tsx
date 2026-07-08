@@ -40,7 +40,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab' | 'dataManage'>('quick');
+  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab' | 'dataManage' | 'activation'>('quick');
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -253,7 +253,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
         className={`relative my-4 flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl transition-all duration-300 ${
-          settingsTab === 'quick' || settingsTab === 'dataManage' ? 'max-w-xl' : 'max-w-6xl'
+          settingsTab === 'quick' || settingsTab === 'dataManage' || settingsTab === 'activation' ? 'max-w-xl' : 'max-w-6xl'
         }`}
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
@@ -272,15 +272,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
           </button>
         </div>
 
-        <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as 'quick' | 'promptLab')} className="flex flex-col flex-1 overflow-hidden relative z-10 min-h-0">
-          <TabsList className="mb-5 self-start w-full max-w-md shrink-0">
+        <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as 'quick' | 'promptLab' | 'dataManage' | 'activation')} className="flex flex-col flex-1 overflow-hidden relative z-10 min-h-0">
+          <TabsList className="mb-5 self-start w-full max-w-lg shrink-0">
             <TabsTrigger value="quick" className="flex-1">快速模型设置</TabsTrigger>
+            <TabsTrigger value="activation" className="flex-1">激活超级权限</TabsTrigger>
             <TabsTrigger value="promptLab" className="flex-1">提示词实验室</TabsTrigger>
             <TabsTrigger value="dataManage" className="flex-1">数据备份与管理</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 relative pr-2">
-            <TabsContent value="quick" className="m-0 outline-none focus:outline-none">
+          <TabsContent value="quick" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
               <div className="max-w-xl space-y-4 pb-4">
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
                   <div className="space-y-1">
@@ -365,6 +366,21 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   </div>
                 )}
 
+                <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
+                  <div className="text-sm font-bold text-theme-text">生效验证链</div>
+                  <div className="space-y-2 text-[11px] text-theme-muted leading-relaxed">
+                    <div><span className="font-bold text-theme-text">1.</span> 填写 API Key、Base URL 和模型名。</div>
+                    <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后写入本地配置，并同步到当前服务端内存。</div>
+                    <div><span className="font-bold text-theme-text">3.</span> 后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。</div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="activation" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
+              <div className="max-w-xl space-y-4 pb-4">
                 {/* 内测专属高级全权限激活码模块 */}
                 <div className={`rounded-2xl border p-5 space-y-4 transition-all duration-300 relative overflow-hidden ${
                   isGlobalPremium
@@ -458,19 +474,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     </div>
                   )}
                 </div>
-
-                <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
-                  <div className="text-sm font-bold text-theme-text">生效验证链</div>
-                  <div className="space-y-2 text-[11px] text-theme-muted leading-relaxed">
-                    <div><span className="font-bold text-theme-text">1.</span> 填写 API Key、Base URL 和模型名。</div>
-                    <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后写入本地配置，并同步到当前服务端内存。</div>
-                    <div><span className="font-bold text-theme-text">3.</span> 后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。</div>
-                  </div>
-                </div>
               </div>
-            </TabsContent>
+            </ScrollArea>
+          </TabsContent>
 
-            <TabsContent value="promptLab" className="m-0 outline-none focus:outline-none">
+          <TabsContent value="promptLab" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
               <div className="rounded-2xl border border-theme-border bg-theme-sidebar/40 p-4 space-y-4 min-w-0 pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -496,7 +505,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-4 min-h-[420px]">
-                  <div className="rounded-2xl border border-theme-border bg-theme-sidebar/25 p-3 space-y-2">
+                  <div className="rounded-2xl border border-theme-border bg-theme-sidebar/25 p-3 space-y-2 max-h-[580px] overflow-y-auto">
                     <div className="px-1">
                       <div className="text-xs font-bold text-theme-text">模板目录</div>
                       <div className="text-[10px] text-theme-muted mt-1">先选链路，再编辑右侧正文。</div>
@@ -590,6 +599,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                           className="w-full min-h-[360px] rounded-2xl border border-theme-border px-4 py-3 text-xs bg-theme-sidebar resize-y outline-none focus:border-theme-accent transition-colors font-mono leading-6"
                         />
                       </div>
+                    </div>
 
                       <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -636,10 +646,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     </div>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
+            </ScrollArea>
+          </TabsContent>
 
-            <TabsContent value="dataManage" className="m-0 outline-none focus:outline-none">
+          <TabsContent value="dataManage" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
               <div className="max-w-xl space-y-4 pb-4">
                 <input
                   type="file"
@@ -709,8 +720,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   </div>
                 </div>
               </div>
-            </TabsContent>
-          </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-theme-border/70 pt-4 relative z-10">
           <div className="mr-auto max-w-full space-y-1">

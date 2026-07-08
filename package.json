@@ -12,8 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron release",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --import tsx tests/*.test.ts",
-    "test:watch": "node --test --watch --import tsx tests/*.test.ts",
+    "test": "ELECTRON_RUN_AS_NODE=1 npx electron --test --import tsx tests/*.test.ts",
+    "test:watch": "ELECTRON_RUN_AS_NODE=1 npx electron --test --watch --import tsx tests/*.test.ts",
     "test:frontend": "vitest -c vitest.config.frontend.ts run",
     "test:frontend:watch": "vitest -c vitest.config.frontend.ts",
     "lint": "eslint . --max-warnings=0",
@@ -23,7 +23,8 @@
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
     "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
     "package": "npm run build:electron && node scripts/package-electron.mjs",
-    "electron:dev": "node scripts/dev-electron.mjs"
+    "electron:dev": "node scripts/dev-electron.mjs",
+    "dev:web": "ELECTRON_RUN_AS_NODE=1 npx electron --import tsx server.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
