@@ -1,0 +1,4 @@
+Trigger InkFlow packaging build via GitHub Actions.
+
+Requested by user on 2026-07-08.
+This file does not affect application runtime.
