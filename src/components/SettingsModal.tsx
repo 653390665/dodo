@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
-import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck, Activity, Wifi, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../stores/app-store';
 
 import {
@@ -37,6 +37,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
   const [isTesting, setIsTesting] = useState(false);
   const [testOutput, setTestOutput] = useState('');
   const [testError, setTestError] = useState<string | null>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<null | { success: boolean; message: string }>(null);
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -235,6 +237,37 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     }
   };
 
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+    try {
+      const response = await fetch('/api/config/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+          model: config.model,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error) {
+        throw new Error(data.error || '测试连接失败');
+      }
+      setConnectionTestResult({
+        success: true,
+        message: data.message || '模型连接成功！',
+      });
+    } catch (error) {
+      setConnectionTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : '连接错误，请检查网络或配置。',
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const selectedTemplate = PROMPT_TEMPLATE_DEFINITIONS.find((item) => item.key === selectedTemplateKey)!;
@@ -297,7 +330,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                       <input
                         type="password"
                         value={config.apiKey}
-                        onChange={e => setConfig({...config, apiKey: e.target.value})}
+                        onChange={e => {
+                          setConfig({...config, apiKey: e.target.value});
+                          setConnectionTestResult(null);
+                        }}
                         className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                         placeholder={hasExistingKey ? '已配置；留空保留，输入新 Key 替换' : 'sk-...'}
                       />
@@ -313,7 +349,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     <input
                       type="text"
                       value={config.baseUrl}
-                      onChange={e => setConfig({...config, baseUrl: e.target.value})}
+                      onChange={e => {
+                        setConfig({...config, baseUrl: e.target.value});
+                        setConnectionTestResult(null);
+                      }}
                       className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                       placeholder="https://api.deepseek.com"
                     />
@@ -324,11 +363,70 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     <input
                       type="text"
                       value={config.model}
-                      onChange={e => setConfig({...config, model: e.target.value})}
+                      onChange={e => {
+                        setConfig({...config, model: e.target.value});
+                        setConnectionTestResult(null);
+                      }}
                       className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors"
                       placeholder="deepseek-chat"
                     />
                     <p className="text-[10px] text-theme-muted mt-1">模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro</p>
+                  </div>
+
+                  {/* 分割线与测试连接 */}
+                  <div className="pt-4 border-t border-theme-border/50 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-theme-muted">在保存前测试配置的连通性：</span>
+                      <button
+                        type="button"
+                        onClick={handleTestConnection}
+                        disabled={isTestingConnection}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-theme-border hover:border-theme-accent/40 hover:bg-theme-border/20 text-xs font-medium text-theme-text cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isTestingConnection ? (
+                          <Activity size={12} className="animate-pulse" />
+                        ) : (
+                          <Wifi size={12} />
+                        )}
+                        {isTestingConnection ? '测试中...' : '测试连接'}
+                      </button>
+                    </div>
+
+                    {/* Loading 状态反馈 */}
+                    {isTestingConnection && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-theme-border bg-theme-sidebar/35 text-[11px] text-theme-muted animate-pulse">
+                        <Activity size={14} className="text-theme-accent animate-spin shrink-0" />
+                        <span>📡 正在与大语言模型建立连接并发送握手请求，请稍候...</span>
+                      </div>
+                    )}
+
+                    {/* 自适应结果横幅 */}
+                    {connectionTestResult && (
+                      <div
+                        className={`flex items-start gap-2 px-3 py-3 rounded-xl border text-[11px] leading-relaxed transition-all ${
+                          connectionTestResult.success
+                            ? 'bg-emerald-500/[0.04] border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                            : 'bg-red-500/[0.04] border-red-500/20 text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {connectionTestResult.success ? (
+                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-bold mb-0.5">
+                            {connectionTestResult.success ? '✅ 链接测试成功！' : '❌ 链接测试失败'}
+                          </div>
+                          <div className="break-all whitespace-pre-wrap">{connectionTestResult.message}</div>
+                          {!connectionTestResult.success && (
+                            <div className="mt-1 text-[10px] text-theme-muted leading-normal">
+                              💡 排查建议：请检查 API Key 是否正确、Base URL 格式是否正确、本地代理连接是否正常，或该模型名在此 API 服务商中是否可用。
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
