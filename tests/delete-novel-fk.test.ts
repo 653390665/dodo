@@ -3,14 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  initDb,
-  closeDb,
-  getDb,
-  createNovel,
-  getNovel,
-  deleteNovel,
-} from '../server/lib/db';
+import { initDb } from '../server/lib/db-init.js';
+import { getDb, closeDb } from '../server/lib/db-instance.js';
+import { createNovel, getNovel, deleteNovel } from '../server/lib/db/novels.js';
 import type { Novel } from '../shared/types';
 
 describe('deleteNovel cascades and integrity tests', () => {
@@ -20,6 +15,10 @@ describe('deleteNovel cascades and integrity tests', () => {
     // 1. Initialize custom isolated test DB
     initDb(dbPath);
     const db = getDb();
+    const getCount = (sql: string, ...params: any[]): number => {
+      const row = db.prepare(sql).get(...params) as { count: number } | undefined;
+      return row ? row.count : 0;
+    };
 
     const novelId = 'test-novel-to-delete';
     const now = Date.now();
@@ -118,42 +117,42 @@ describe('deleteNovel cascades and integrity tests', () => {
     `).run('rel-1', novelId, 'character', 'char-1', 'location', 'loc-1', 'resides_in', '居住在', now);
 
     // Verify all counts are 1
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapters WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapter_versions WHERE chapter_id = ?').get('chapter-1').count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM characters WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM locations WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM items WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM factions WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM power_levels WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM timeline_events WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM skill_usage_records WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM idea_fragments WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM foreshadowings WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapter_production_runs WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM continuation_packs WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?').get(novelId).count, 1);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM entity_relationships WHERE novelId = ?').get(novelId).count, 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapters WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapter_versions WHERE chapter_id = ?', 'chapter-1'), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM characters WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM locations WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM items WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM factions WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM power_levels WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM timeline_events WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM skill_usage_records WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM idea_fragments WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM foreshadowings WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapter_production_runs WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM continuation_packs WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?', novelId), 1);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM entity_relationships WHERE novelId = ?', novelId), 1);
 
     // 4. Perform Deletion
     deleteNovel(novelId);
 
     // 5. Verify everything is 0
     assert.equal(getNovel(novelId), undefined);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapters WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapter_versions WHERE chapter_id = ?').get('chapter-1').count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM characters WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM locations WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM items WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM factions WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM power_levels WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM timeline_events WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM skill_usage_records WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM idea_fragments WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM foreshadowings WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM chapter_production_runs WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM continuation_packs WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?').get(novelId).count, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) as count FROM entity_relationships WHERE novelId = ?').get(novelId).count, 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapters WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapter_versions WHERE chapter_id = ?', 'chapter-1'), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM characters WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM locations WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM items WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM factions WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM power_levels WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM timeline_events WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM skill_usage_records WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM idea_fragments WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM foreshadowings WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM chapter_production_runs WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM continuation_packs WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?', novelId), 0);
+    assert.equal(getCount('SELECT COUNT(*) as count FROM entity_relationships WHERE novelId = ?', novelId), 0);
 
     // Close the DB connection so we can delete the file
     closeDb();
