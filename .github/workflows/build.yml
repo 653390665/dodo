@@ -96,8 +96,14 @@ jobs:
       - name: Hot-upgrade nested node-gyp for VS2022 compatibility
         shell: pwsh
         run: |
-          npm install --no-save --prefix node_modules/@electron/rebuild node-gyp@latest
-          npm install --no-save --prefix node_modules/electron-builder node-gyp@latest
+          npm install --no-save node-gyp@latest
+          $targetGyp = (Resolve-Path node_modules/node-gyp).Path
+          $gypDirs = Get-ChildItem -Path node_modules -Filter node-gyp -Recurse -Directory | Where-Object { $_.FullName -ne $targetGyp }
+          foreach ($dir in $gypDirs) {
+            Write-Host "Hot-upgrading nested node-gyp at: $($dir.FullName)"
+            Remove-Item -Path "$($dir.FullName)/*" -Recurse -Force -ErrorAction SilentlyContinue
+            Copy-Item -Path "node_modules/node-gyp/*" -Destination $dir.FullName -Recurse -Force
+          }
       - run: npx tsx --test tests/electron-startup-contract.test.ts
       - run: npm run package
         env:
