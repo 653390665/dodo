@@ -15,7 +15,9 @@ process.env.DEBUG = 'electron-builder,electron-rebuild';
 process.env.ELECTRON_REBUILD_VERBOSE = 'true';
 
 // Prevent node-gyp network hangs during Electron headers download
-process.env.npm_config_disturl = 'https://electronjs.org/headers';
+if (!process.env.CI) {
+  process.env.npm_config_disturl = 'https://electronjs.org/headers';
+}
 
 const builderBin = resolve(
   root,
