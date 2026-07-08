@@ -98,7 +98,7 @@ jobs:
         run: |
           npm install --no-save node-gyp@latest
           $targetGyp = (Resolve-Path node_modules/node-gyp).Path
-          $gypDirs = Get-ChildItem -Path node_modules -Filter node-gyp -Recurse -Directory | Where-Object { $_.FullName -ne $targetGyp }
+          $gypDirs = Get-ChildItem -Path node_modules -Filter node-gyp -Recurse -Directory | Where-Object { $_.FullName -ne $targetGyp -and $_.Parent.Name -eq 'node_modules' }
           foreach ($dir in $gypDirs) {
             Write-Host "Hot-upgrading nested node-gyp at: $($dir.FullName)"
             Remove-Item -Path "$($dir.FullName)/*" -Recurse -Force -ErrorAction SilentlyContinue
