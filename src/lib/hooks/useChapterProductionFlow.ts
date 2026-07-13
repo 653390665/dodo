@@ -9,7 +9,7 @@ interface UseChapterProductionFlowArgs {
   novelId: string;
   currentChapterId?: string;
   continuationPackId?: string;
-  cancelPendingContentSync?: () => void;
+  flushPendingEditorWrites?: () => Promise<void>;
   refreshChapters: () => Promise<ChapterMetadata[]>;
   setCurrentChapter: React.Dispatch<React.SetStateAction<Chapter | null>>;
   activeEntityNames?: string[];
@@ -19,7 +19,7 @@ export function useChapterProductionFlow({
   novelId,
   currentChapterId,
   continuationPackId,
-  cancelPendingContentSync,
+  flushPendingEditorWrites,
   refreshChapters,
   setCurrentChapter,
   activeEntityNames,
@@ -209,8 +209,8 @@ export function useChapterProductionFlow({
     if (!runToApply) return;
     setIsApplyingProductionRun(true);
     setProductionError(null);
-    cancelPendingContentSync?.();
     try {
+      await flushPendingEditorWrites?.();
       const result = await applyChapterProductionRun(runToApply.id);
       const freshChapters = await refreshChapters();
       const fullChapter = await getChapter(result.chapterId);

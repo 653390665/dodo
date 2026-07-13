@@ -17,6 +17,7 @@ const {
   getServerRestartDelay,
   getWatchdogRetryDelay,
 } = require('./electron-startup-utils.cjs');
+const { createCloseHandshake } = require('./electron-close-handshake.cjs');
 
 // Legacy API Key decryption helper
 function deriveKey() {
@@ -120,6 +121,8 @@ let currentAppOrigin = '';
 let watchdogTimer = null;
 let isQuitting = false;
 let restartAttemptCount = 0;
+let closeHandshake = null;
+let quitRequested = false;
 
 // ── Startup Diagnostics ──────────────────────────────────────────────
 
@@ -266,6 +269,11 @@ ipcMain.on('set-title', (event, title) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setTitle(title ? `${title} — InkFlow` : 'InkFlow');
   }
+});
+
+ipcMain.on('renderer-ready-to-close', (event) => {
+  if (rejectUntrustedIpc(event)) return;
+  closeHandshake?.rendererReady();
 });
 
 // ── Server Lifecycle ─────────────────────────────────────────────────
@@ -441,6 +449,7 @@ async function restartServer() {
 
 async function createWindow() {
   buildAppMenu();
+  closeHandshake = null;
 
   let port;
   const isDev = !app.isPackaged;
@@ -485,6 +494,13 @@ async function createWindow() {
     backgroundColor: '#faf9f6',
     show: false,
   });
+  closeHandshake = createCloseHandshake({
+    sendPrepare: () => mainWindow?.webContents.send('prepare-close'),
+    allowClose: () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    },
+    logTimeout: () => writeStartupLog('ERROR: Editor flush timed out after 5000ms; allowing window close.'),
+  });
 
   if (windowState.isMaximized) {
     mainWindow.maximize();
@@ -506,7 +522,11 @@ async function createWindow() {
     saveTimer = setTimeout(saveWindowState, 500);
   };
 
-  mainWindow.on('close', () => { if (saveTimer) clearTimeout(saveTimer); saveWindowState(); });
+  mainWindow.on('close', (event) => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveWindowState();
+    closeHandshake?.requestClose(event);
+  });
   mainWindow.on('resize', debouncedSave);
   mainWindow.on('move', debouncedSave);
 
@@ -543,6 +563,7 @@ async function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (quitRequested) app.quit();
   });
 }
 
@@ -562,7 +583,13 @@ app.on('activate', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  quitRequested = true;
+  if (mainWindow && !mainWindow.isDestroyed() && !closeHandshake?.isComplete()) {
+    event.preventDefault();
+    mainWindow.close();
+    return;
+  }
   isQuitting = true;
   stopWatchdog();
   stopServer();

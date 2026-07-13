@@ -24,6 +24,7 @@ import { useSkillLoadoutManager } from '../lib/hooks/useSkillLoadoutManager';
 import { useChapterUndo } from '../lib/hooks/useChapterUndo';
 import { useEditorUiState } from '../lib/hooks/useEditorUiState';
 import { useEditorContinuationPacks } from '../lib/hooks/useEditorContinuationPacks';
+import { toast } from '../lib/toast';
 
 
 interface EditorViewProps {
@@ -165,8 +166,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     handleDeleteChapter,
     handleVolumeNameChange,
     handleTitleChange,
-    cancelPendingContentSync,
-    flushPendingContentSync,
+    flushPendingEditorWrites,
     refreshChapters,
   } = useEditorPersistence({
     novel,
@@ -205,7 +205,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     novelId: novel.id,
     currentChapterId: currentChapter?.id,
     continuationPackId: selectedContinuationPackId || undefined,
-    cancelPendingContentSync,
+    flushPendingEditorWrites,
     refreshChapters,
     setCurrentChapter,
     activeEntityNames: sniffedEntities?.activeExisting || undefined,
@@ -339,10 +339,15 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     };
   }, [novel.id, novel.title, novel.summary, currentChapter]);
 
-  const handleSelectChapter = React.useCallback((chapter: ChapterMetadata) => {
-    flushPendingContentSync(); // ⚠️ 切换章节前同步强制冲刷防抖内容
-    setCurrentChapter(metadataToChapter(chapter));
-  }, [flushPendingContentSync, setCurrentChapter]);
+  const handleSelectChapter = React.useCallback(async (chapter: ChapterMetadata) => {
+    try {
+      await flushPendingEditorWrites();
+      setCurrentChapter(metadataToChapter(chapter));
+    } catch (error) {
+      console.error('[EditorView] Failed to save before switching chapters:', error);
+      toast('尚有内容保存失败，请重试后再切换章节', 'error');
+    }
+  }, [flushPendingEditorWrites, setCurrentChapter]);
 
   const runCopilotAction = React.useCallback(async (actionKey: CopilotActionKey) => {
     switch (actionKey) {

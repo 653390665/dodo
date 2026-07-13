@@ -12,7 +12,51 @@ process.env.INKFLOW_DB_PATH = activeDbPath;
 test('database import serialization and recovery', async (t) => {
   const { closeDb, initDb } = await import('../server/lib/db');
   const { getDb, runInSerializedWrite } = await import('../server/lib/db-instance');
-  const { importDatabaseBuffer } = await import('../server/routes/db');
+  const {
+    DB_IMPORT_TEMP_MARKER,
+    importDatabaseBuffer,
+    registerDbRoutes,
+  } = await import('../server/routes/db');
+
+  const importTempFiles = () => fs.readdirSync(testDir)
+    .filter((name) => name.includes(DB_IMPORT_TEMP_MARKER));
+
+  const resetActiveDatabase = () => {
+    closeDb();
+    for (const filePath of [activeDbPath, `${activeDbPath}-wal`, `${activeDbPath}-shm`]) {
+      fs.rmSync(filePath, { force: true });
+    }
+    initDb(activeDbPath);
+    getDb().prepare(`
+      INSERT INTO novels (id, title, author_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run('protected-original', '不得被替换', 'local-user', Date.now(), Date.now());
+  };
+
+  const createCandidate = (
+    name: string,
+    mutate: (database: ReturnType<typeof getDb>) => void,
+  ): Buffer => {
+    closeDb();
+    const candidatePath = path.join(testDir, name);
+    fs.rmSync(candidatePath, { force: true });
+    initDb(candidatePath);
+    mutate(getDb());
+    closeDb();
+    const buffer = fs.readFileSync(candidatePath);
+    fs.rmSync(candidatePath, { force: true });
+    return buffer;
+  };
+
+  const assertRejectedWithoutReplacement = async (buffer: Buffer) => {
+    resetActiveDatabase();
+    await assert.rejects(importDatabaseBuffer(buffer));
+    assert.ok(
+      getDb().prepare('SELECT id FROM novels WHERE id = ?').get('protected-original'),
+      'validation failure must leave the active database untouched',
+    );
+    assert.deepEqual(importTempFiles(), [], 'validation temporary files must always be removed');
+  };
 
   try {
     await t.test('waits for old writes and prevents them from reaching the replacement', async () => {
@@ -109,10 +153,110 @@ test('database import serialization and recovery', async (t) => {
         'failed replacement data must not remain active after rollback',
       );
       assert.equal(fs.existsSync(`${activeDbPath}.pre-import-bak`), false);
+      assert.deepEqual(importTempFiles(), [], 'initialization rollback must clean import candidates');
 
       closeDb();
       assert.equal(fs.existsSync(`${activeDbPath}-wal`), false);
       assert.equal(fs.existsSync(`${activeDbPath}-shm`), false);
+    });
+
+    await t.test('rejects corrupt content before replacing the active database', async () => {
+      await assertRejectedWithoutReplacement(Buffer.from('not a sqlite database'));
+    });
+
+    await t.test('returns only a generic validation error to the import client', async () => {
+      const express = (await import('express')).default;
+      const app = express();
+      registerDbRoutes(app);
+      const server = app.listen(0, '127.0.0.1');
+      await new Promise<void>((resolve) => server.once('listening', resolve));
+
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address !== 'string');
+        const response = await fetch(`http://127.0.0.1:${address.port}/api/db/import-file`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/octet-stream' },
+          body: Buffer.from('not a sqlite database'),
+        });
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+          error: '数据库导入失败，请确认备份文件有效',
+        });
+      } finally {
+        await new Promise<void>((resolve, reject) => server.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        }));
+      }
+      assert.deepEqual(importTempFiles(), []);
+    });
+
+    await t.test('rejects forged same-name tables with an incompatible core schema', async () => {
+      const forgedBuffer = createCandidate('forged.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec(`
+          DROP TABLE chapters;
+          DROP TABLE novels;
+          CREATE TABLE novels (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            author_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            novel_id TEXT NOT NULL,
+            title TEXT,
+            content TEXT,
+            "order" INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+        `);
+      });
+      await assertRejectedWithoutReplacement(forgedBuffer);
+    });
+
+    await t.test('rejects a backup missing a non-migratable required column', async () => {
+      const missingColumnBuffer = createCandidate('missing-column.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec('ALTER TABLE chapters DROP COLUMN content');
+      });
+      await assertRejectedWithoutReplacement(missingColumnBuffer);
+    });
+
+    await t.test('rejects foreign-key violations before replacing the active database', async () => {
+      const invalidForeignKeyBuffer = createCandidate('invalid-foreign-key.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.prepare(`
+          INSERT INTO chapters (id, novel_id, title, content, "order", created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('orphan-chapter', 'missing-novel', '孤儿章节', '', 0, Date.now(), Date.now());
+      });
+      await assertRejectedWithoutReplacement(invalidForeignKeyBuffer);
+    });
+
+    await t.test('accepts an older valid backup and lets initialization migrate optional columns', async () => {
+      const oldBackupBuffer = createCandidate('old-valid.db', (database) => {
+        database.prepare(`
+          INSERT INTO novels (id, title, author_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run('old-backup-novel', '旧备份作品', 'local-user', Date.now(), Date.now());
+        database.exec('ALTER TABLE novels DROP COLUMN mounted_skill_loadout');
+      });
+
+      resetActiveDatabase();
+      await importDatabaseBuffer(oldBackupBuffer);
+
+      assert.ok(getDb().prepare('SELECT id FROM novels WHERE id = ?').get('old-backup-novel'));
+      const columns = getDb().pragma('table_info(novels)') as Array<{ name: string }>;
+      assert.ok(
+        columns.some((column) => column.name === 'mounted_skill_loadout'),
+        'initDb should migrate optional columns after preflight succeeds',
+      );
+      assert.deepEqual(importTempFiles(), []);
     });
   } finally {
     closeDb();

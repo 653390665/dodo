@@ -10,7 +10,15 @@ import type {
 } from '../../../shared/types';
 import { createChapter, createChapterVersion, deleteChapter, listChaptersMetadata, updateChapter } from '../chapter-client';
 import { metadataToChapter } from '../chapter-utils';
+import {
+  flushPendingEditorWrites as flushEditorWrites,
+  hasFailedEditorWrites,
+  hasPendingEditorWrites,
+  queueEditorWrite,
+  subscribeToEditorWrites,
+} from '../editor-write-queue';
 import { updateNovel } from '../novel-client';
+import { toast } from '../toast';
 
 interface UseEditorPersistenceArgs {
   novel: Novel;
@@ -44,56 +52,20 @@ export function useEditorPersistence({
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const beatsSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const outlineSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const titleSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isMountedRef = useRef(true);
-  const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
-  const prevChapterIdRef = useRef<string | null>(null);
+  const hasWriteActivityRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-      if (beatsSyncTimeoutRef.current) clearTimeout(beatsSyncTimeoutRef.current);
-      if (outlineSyncTimeoutRef.current) clearTimeout(outlineSyncTimeoutRef.current);
-      if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-
-      // Flush pending save on unmount
-      if (pendingSaveRef.current) {
-        const save = pendingSaveRef.current;
-        pendingSaveRef.current = null;
-        save().catch((e) => console.warn('[useEditorPersistence] Failed to flush pending save on unmount:', e));
-      }
     };
   }, []);
 
-  // Flush pending save on chapter switch
-  useEffect(() => {
-    const prevId = prevChapterIdRef.current;
-    const currentId = currentChapter?.id || null;
-
-    if (prevId && prevId !== currentId) {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
-      }
-      if (pendingSaveRef.current) {
-        const save = pendingSaveRef.current;
-        pendingSaveRef.current = null;
-        save().catch((e) => console.warn('[useEditorPersistence] Failed to flush pending save on chapter switch:', e));
-      }
-    }
-
-    prevChapterIdRef.current = currentId;
-  }, [currentChapter?.id]);
-
-  const markSyncComplete = () => {
+  const markSyncComplete = useCallback(() => {
     if (!isMountedRef.current) return;
     setIsSyncing(false);
     setSyncSuccess(true);
@@ -101,15 +73,20 @@ export function useEditorPersistence({
     successTimeoutRef.current = setTimeout(() => {
       if (isMountedRef.current) setSyncSuccess(false);
     }, 2000);
-  };
+  }, []);
 
-  const cancelPendingContentSync = () => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-      syncTimeoutRef.current = null;
+  useEffect(() => subscribeToEditorWrites(() => {
+    if (!isMountedRef.current) return;
+    const hasPending = hasPendingEditorWrites();
+    const hasFailure = hasFailedEditorWrites();
+    setIsSyncing(hasPending && !hasFailure);
+    if (hasFailure) {
+      setSyncSuccess(false);
+    } else if (!hasPending && hasWriteActivityRef.current) {
+      hasWriteActivityRef.current = false;
+      markSyncComplete();
     }
-    setIsSyncing(false);
-  };
+  }), [markSyncComplete]);
 
   const persistSkillLoadout = async (nextLoadout: MountedSkillLoadoutItem[]) => {
     const nextIds = nextLoadout.slice().sort((a, b) => a.slot - b.slot).map((entry) => entry.skillId);
@@ -129,6 +106,12 @@ export function useEditorPersistence({
 
   const handleSaveVersion = async (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
     if (!currentChapter) return;
+    try {
+      await flushEditorWrites();
+    } catch {
+      toast('章节尚未保存，无法创建版本，请重试', 'error');
+      return;
+    }
     await createChapterVersion({
       id: Date.now().toString(),
       chapterId: currentChapter.id,
@@ -150,53 +133,35 @@ export function useEditorPersistence({
 
     if (skipPersist) return;
 
-    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-
     setIsSyncing(true);
     setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
     const chapterId = currentChapter.id;
 
-    const saveFn = async () => {
-      await updateChapter(chapterId, {
+    queueEditorWrite(`chapter:${chapterId}:content`, async () => {
+      const saved = await updateChapter(chapterId, {
         content: newContent,
         updatedAt: Date.now(),
         wordCount: newContent.replace(/\s/g, '').length,
       });
-      pendingSaveRef.current = null;
-      markSyncComplete();
-    };
-
-    pendingSaveRef.current = saveFn;
-    syncTimeoutRef.current = setTimeout(saveFn, 1000);
+      if (!saved) return false;
+      return true;
+    });
   }, [currentChapter, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
 
-  // ─── [BUG-01] 同步强行冲刷（Flush）编辑器内挂起的打字防抖正文并立即落盘 ───
-  const flushPendingContentSync = useCallback(() => {
+  const flushPendingEditorWrites = useCallback(async () => {
     if (contentRef.current && currentChapter) {
       const latestValue = contentRef.current.value;
       if (latestValue !== (currentChapter.content || '')) {
-        // 1. 同步强制流转内存状态，防止后续的 React State batching 带来状态回退
         const updatedChapter = { ...currentChapter, content: latestValue };
         setCurrentChapter(updatedChapter);
         pushToUndoHistory(latestValue);
-
-        // 2. 扼杀并清理尚未触发的挂起防抖定时器
-        if (syncTimeoutRef.current) {
-          clearTimeout(syncTimeoutRef.current);
-          syncTimeoutRef.current = null;
-        }
-
         const chapterId = currentChapter.id;
         const finalWordCount = latestValue.replace(/\s/g, '').length;
-
-        // 3. 立即触发物理 SQLite 数据库更新，不使用延时 setTimeout 机制
-        updateChapter(chapterId, {
-          content: latestValue,
-          updatedAt: Date.now(),
-          wordCount: finalWordCount,
-        }).catch((e) => console.error('[useEditorPersistence] Failed to auto-flush content on change:', e));
-
-        // 4. 同步修正侧边栏章节元数据中的字数和更新时间，保证全局一致
+        hasWriteActivityRef.current = true;
+        queueEditorWrite(`chapter:${chapterId}:content`, () => updateChapter(chapterId, {
+          content: latestValue, updatedAt: Date.now(), wordCount: finalWordCount,
+        }), 0);
         setChapters((prev) =>
           prev.map((c) =>
             c.id === chapterId
@@ -204,14 +169,21 @@ export function useEditorPersistence({
               : c
           )
         );
-
-        // 5. 将保存标志状态置空，声明同步成功
-        pendingSaveRef.current = null;
-        setIsSyncing(false);
-        setSyncSuccess(true);
       }
     }
+    await flushEditorWrites();
   }, [contentRef, currentChapter, pushToUndoHistory, setCurrentChapter, setChapters]);
+
+  const flushBeforeChangingEditorContext = async (): Promise<boolean> => {
+    try {
+      await flushPendingEditorWrites();
+      return true;
+    } catch (error) {
+      console.error('[useEditorPersistence] Failed to flush editor writes:', error);
+      toast('尚有内容保存失败，请重试后再切换', 'error');
+      return false;
+    }
+  };
 
   const handleRestoreVersion = (version: ChapterVersion) => {
     handleUpdateContent(version.content, true);
@@ -221,25 +193,31 @@ export function useEditorPersistence({
     if (!currentChapter) return;
     setCurrentChapter((prev) => prev ? { ...prev, sceneBeats: newBeats } : null);
 
-    if (beatsSyncTimeoutRef.current) clearTimeout(beatsSyncTimeoutRef.current);
     const chapterId = currentChapter.id;
-    beatsSyncTimeoutRef.current = setTimeout(async () => {
-      await updateChapter(chapterId, {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
+    queueEditorWrite(`chapter:${chapterId}:sceneBeats`, async () => {
+      const saved = await updateChapter(chapterId, {
         sceneBeats: newBeats,
       });
-    }, 1000);
+      if (!saved) return false;
+      return true;
+    });
   };
 
   const handleUpdateGlobalOutline = (val: string) => {
     setGlobalOutline(val);
-    if (outlineSyncTimeoutRef.current) clearTimeout(outlineSyncTimeoutRef.current);
-    outlineSyncTimeoutRef.current = setTimeout(async () => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
+    queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
       await updateNovel(novel.id, { globalOutline: val });
-    }, 1000);
+    });
   };
 
   const handleAddChapter = async (targetVolumeName?: string) => {
-    flushPendingContentSync(); // ⚠️ 切换/增加新章节前，必须强制同步当前正在打字的内容
+    if (!await flushBeforeChangingEditorContext()) return;
     const newOrder = chapters.length + 1;
     const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
     const newId = Date.now().toString();
@@ -266,25 +244,23 @@ export function useEditorPersistence({
       updatedAt: Date.now(),
     };
 
-    // 1. Optimistic Update in Memory
-    setChapters((prev) => [...prev, newChapterMeta]);
-    setCurrentChapter({
-      ...newChapterData,
-      sceneBeats: '',
-      critique: '',
-    });
-    setExpandedVolumes((prev) => (prev.includes(volumeName) ? prev : [...prev, volumeName]));
-
-    // 2. Perform DB write in the background
     try {
       await createChapter(newChapterData);
+      setChapters((prev) => [...prev, newChapterMeta]);
+      setCurrentChapter({
+        ...newChapterData,
+        sceneBeats: '',
+        critique: '',
+      });
+      setExpandedVolumes((prev) => (prev.includes(volumeName) ? prev : [...prev, volumeName]));
     } catch (err) {
       console.error('[useEditorPersistence] Failed to create chapter in DB:', err);
+      toast('创建章节失败，请稍后重试', 'error');
     }
   };
 
   const handleAddFirstChapter = async () => {
-    flushPendingContentSync(); // ⚠️ 初始化/创建首章前，确保无挂起的丢稿改动
+    if (!await flushBeforeChangingEditorContext()) return;
     const newChapId = Date.now().toString();
     const newChap: Chapter = {
       id: newChapId,
@@ -297,14 +273,15 @@ export function useEditorPersistence({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    setChapters((prev) => [...prev, newChap]);
-    setCurrentChapter(newChap);
-
-    await createChapter({
-      ...newChap,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    try {
+      await createChapter({ ...newChap, createdAt: Date.now(), updatedAt: Date.now() });
+      setChapters((prev) => [...prev, newChap]);
+      setCurrentChapter(newChap);
+    } catch (error) {
+      console.error('[useEditorPersistence] Failed to create first chapter:', error);
+      toast('创建章节失败，请稍后重试', 'error');
+      return;
+    }
 
     setTimeout(() => {
       contentRef.current?.focus();
@@ -312,7 +289,12 @@ export function useEditorPersistence({
   };
 
   const handleDeleteChapter = async (id: string) => {
-    await deleteChapter(id);
+    if (!await flushBeforeChangingEditorContext()) return;
+    const deleted = await deleteChapter(id);
+    if (!deleted) {
+      toast('删除章节失败，章节可能已不存在', 'error');
+      return;
+    }
     setChapters((prev) => {
       const remaining = prev.filter((chapter) => chapter.id !== id);
       if (currentChapter?.id === id) {
@@ -327,20 +309,30 @@ export function useEditorPersistence({
     if (!currentChapter) return;
     setCurrentChapter({ ...currentChapter, volumeName: newVol });
 
-    if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-    titleSyncTimeoutRef.current = setTimeout(async () => {
-      await updateChapter(currentChapter.id, { volumeName: newVol });
-    }, 1000);
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
+    const chapterId = currentChapter.id;
+    queueEditorWrite(`chapter:${chapterId}:volumeName`, async () => {
+      const saved = await updateChapter(chapterId, { volumeName: newVol });
+      if (!saved) return false;
+      return true;
+    });
   };
 
   const handleTitleChange = (newTitle: string) => {
     if (!currentChapter) return;
     setCurrentChapter({ ...currentChapter, title: newTitle });
 
-    if (titleSyncTimeoutRef.current) clearTimeout(titleSyncTimeoutRef.current);
-    titleSyncTimeoutRef.current = setTimeout(async () => {
-      await updateChapter(currentChapter.id, { title: newTitle });
-    }, 1000);
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
+    const chapterId = currentChapter.id;
+    queueEditorWrite(`chapter:${chapterId}:title`, async () => {
+      const saved = await updateChapter(chapterId, { title: newTitle });
+      if (!saved) return false;
+      return true;
+    });
   };
 
   const refreshChapters = async () => {
@@ -352,7 +344,6 @@ export function useEditorPersistence({
   return {
     isSyncing,
     syncSuccess,
-    cancelPendingContentSync,
     persistSkillLoadout,
     persistProjectPreferenceProfile,
     handleSaveVersion,
@@ -365,7 +356,7 @@ export function useEditorPersistence({
     handleDeleteChapter,
     handleVolumeNameChange,
     handleTitleChange,
-    flushPendingContentSync, // 导出供 EditorView.tsx 使用
+    flushPendingEditorWrites,
     refreshChapters,
   };
 }

@@ -81,7 +81,9 @@ export function useDraftGeneration({
 
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
-      await updateChapter(currentChapter.id, { sceneBeats: beats });
+      if (!await updateChapter(currentChapter.id, { sceneBeats: beats })) {
+        throw new Error('章节已不存在，分镜未保存。');
+      }
       setUserIntent('');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -90,7 +92,9 @@ export function useDraftGeneration({
       );
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
-      await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats });
+      if (!await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats })) {
+        throw new Error('章节已不存在，分镜未保存。', { cause: error });
+      }
       usedFallback = true;
       setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
     } finally {
@@ -225,10 +229,11 @@ export function useDraftGeneration({
           : null
       ));
 
-      await updateChapter(currentChapter.id, {
+      const saved = await updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
       });
+      if (!saved) throw new Error('章节已不存在，生成正文未保存。');
 
       pushToUndoHistory(fullText);
 

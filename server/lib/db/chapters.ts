@@ -42,12 +42,12 @@ export function createChapter(chapter: Chapter): void {
   chapterCrud.create(chapter);
 }
 
-export function updateChapter(id: string, data: Partial<Chapter>): void {
-  chapterCrud.update(id, data);
+export function updateChapter(id: string, data: Partial<Chapter>): boolean {
+  return chapterCrud.update(id, data);
 }
 
-export function deleteChapter(id: string): void {
-  chapterCrud.delete(id);
+export function deleteChapter(id: string): boolean {
+  return chapterCrud.delete(id);
 }
 
 const chapterVersionCrud = createCrudHelpers<ChapterVersion, ReturnType<typeof chapterVersionToRow>>({

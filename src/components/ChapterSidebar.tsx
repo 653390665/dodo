@@ -8,7 +8,7 @@ interface ChapterSidebarProps {
   novel: Novel;
   chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  onSelectChapter: (chapter: ChapterMetadata) => void;
+  onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
   onAddChapter: (volumeName?: string) => void;
   onDeleteChapter: (id: string) => void;
   isSidebarOpen: boolean;

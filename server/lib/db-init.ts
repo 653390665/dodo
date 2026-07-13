@@ -25,6 +25,15 @@ const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   nativeBindingPath: string;
 };
 
+/** Open an isolated read-only connection without touching the active singleton. */
+export function openReadOnlyDb(dbPath: string): BetterSqlite3.Database {
+  return new Database(dbPath, {
+    readonly: true,
+    fileMustExist: true,
+    nativeBinding: nativeBindingPath,
+  });
+}
+
 // Allow tests / e2e / tooling to redirect the database to an isolated path.
 // Default behavior is unchanged (no env var → ~/.inkflow/data.db).
 const DB_PATH_ENV = process.env.INKFLOW_DB_PATH;

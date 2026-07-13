@@ -74,10 +74,10 @@ export function createCrudHelpers<T, TRow extends Record<string, any>>(config: C
       notify();
     },
 
-    update(id: string, data: Partial<T>): void {
-      runInTransaction(() => {
+    update(id: string, data: Partial<T>): boolean {
+      return runInTransaction(() => {
         const existingRow = getDb().prepare(selectOneSql).get(id);
-        if (!existingRow) return;
+        if (!existingRow) return false;
 
         const merged = {
           ...rowToEntity(existingRow),
@@ -86,14 +86,16 @@ export function createCrudHelpers<T, TRow extends Record<string, any>>(config: C
           updatedAt: Date.now(),
         };
 
-        getDb().prepare(updateSql).run(entityToRow(merged));
-        notify();
+        const result = getDb().prepare(updateSql).run(entityToRow(merged));
+        if (result.changes > 0) notify();
+        return result.changes > 0;
       });
     },
 
-    delete(id: string): void {
-      getDb().prepare(deleteSql).run(id);
-      notify();
+    delete(id: string): boolean {
+      const result = getDb().prepare(deleteSql).run(id);
+      if (result.changes > 0) notify();
+      return result.changes > 0;
     },
   };
 }

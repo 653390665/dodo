@@ -33,3 +33,21 @@ Plan 110 仅在上述门禁和独立 Gatekeeper 复核全部通过后保留为 D
 - Gatekeeper：全仓搜索、门禁和断连/配额语义独立复核。
 
 Plan 121 的全部命令与独立 Gatekeeper 复核已通过，状态收口为 `DONE`。
+
+## Plan 122–125：写作数据安全闭环
+
+### 目标
+
+在不新增依赖、不修改数据库业务 schema 的前提下，消除退出丢稿、幽灵章节、人物小传流式部分落盘和错误备份替换主库的风险。
+
+### 并行边界与顺序
+
+- Agent A（Plan 122 → 123）：串行重构编辑器五类字段保存队列、显式 flush、Electron 关闭握手，再收紧章节创建和 update/delete 成功语义。
+- Agent B（Plan 124）：人物小传使用严格 SSE reader、节流本地预览、完成后单次落盘及失败恢复。
+- Agent C（Plan 125）：唯一临时文件预检、SQLite 完整性/外键/schema/关键查询验证，再进入现有串行替换流程。
+- Coordinator：总装跨层契约、计划台账和项目切换边界。
+- Gatekeeper：使用隔离数据库独立复核定向持久化测试、全量门禁和打包契约。
+
+### 完成条件
+
+`npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过后，Plan 122–125 才能从 `IN PROGRESS` 收口为 `DONE`。

@@ -78,13 +78,13 @@ export function useAuditPolishActions({
   ): Promise<boolean> => {
     if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
     setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
-    await updateChapter(chapterId, {
+    const saved = await updateChapter(chapterId, {
       content,
       updatedAt: Date.now(),
       wordCount: content.replace(/\s/g, '').length,
       ...extraUpdates,
     });
-    return true;
+    return saved;
   };
 
   const handleRunAudit = async () => {
@@ -169,7 +169,8 @@ export function useAuditPolishActions({
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
       setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
-      await updateChapter(currentChapter.id, { critique: feedbackStr });
+      const saved = await updateChapter(currentChapter.id, { critique: feedbackStr });
+      if (!saved) throw new Error('章节已不存在，审稿结果未保存。');
       try {
         await recordSkillUsage('revised', {
           fitScore: getCurrentFitScore(),

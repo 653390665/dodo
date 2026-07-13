@@ -23,6 +23,7 @@ import { coerceMountedSkillLoadout } from '../lib/skill-model';
 import { SettingsModal } from './SettingsModal';
 import { deriveWorkspaceFocus } from '../lib/workspace-nav';
 import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from '../lib/assistant-apply';
+import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { BookOpen, BrainCircuit, Globe2, Layers3, PenLine, Sparkles, Wand2 } from 'lucide-react';
 
 const LOCAL_USER = { uid: 'local-user' };
@@ -190,24 +191,38 @@ export function AppShell() {
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
 
-  const navigateToEditor = (novel: Novel) => {
+  const flushBeforeNavigation = async (): Promise<boolean> => {
+    try {
+      await flushPendingEditorWrites();
+      return true;
+    } catch (error) {
+      console.error('[AppShell] Failed to save before navigation:', error);
+      toast('尚有写作内容保存失败，请重试后再切换', 'error');
+      return false;
+    }
+  };
+
+  const navigateToEditor = async (novel: Novel) => {
+    if (!await flushBeforeNavigation()) return;
     setContinuationLaunchState(null);
     setSelectedNovel(novel);
     setWorkspaceFocus('editor');
     setCurrentView('editor');
   };
 
-  const navigateToCockpit = (novel: Novel) => {
+  const navigateToCockpit = async (novel: Novel) => {
+    if (!await flushBeforeNavigation()) return;
     setContinuationLaunchState(null);
     setSelectedNovel(novel);
     setCurrentView('workspace');
   };
 
-  const navigateToEditorWithCockpitAction = (
+  const navigateToEditorWithCockpitAction = async (
     novel: Novel,
     action: 'planning' | 'production' | 'resume' | 'audit' | 'polish',
     targetChapterId?: string
   ) => {
+    if (!await flushBeforeNavigation()) return;
     setContinuationLaunchState({
       approvedPackId: '',
       launchToken: Date.now(),
@@ -229,12 +244,13 @@ export function AppShell() {
     setCurrentView('editor');
   };
 
-  const navigateToEditorWithContinuation = (
+  const navigateToEditorWithContinuation = async (
     novel: Novel,
     approvedPackId: string,
     source: ContinuationEditorLaunchState['source'],
     prefillIntent?: string,
   ) => {
+    if (!await flushBeforeNavigation()) return;
     setContinuationLaunchState({
       approvedPackId,
       launchToken: Date.now(),
@@ -251,11 +267,12 @@ export function AppShell() {
     setCurrentView('continuation-import');
   };
 
-  const handleNavigate = (view: ViewType, navKey?: WorkspaceNavKey) => {
+  const handleNavigate = async (view: ViewType, navKey?: WorkspaceNavKey) => {
     if (view === 'ai') {
       setAIAssistantOpen(true);
       return;
     }
+    if (!await flushBeforeNavigation()) return;
     setAIAssistantOpen(false);
     setWorkspaceFocus(deriveWorkspaceFocus(view, navKey, useAppStore.getState().workspaceFocus));
     setCurrentView(view);
@@ -273,11 +290,12 @@ export function AppShell() {
     if (!target) return;
 
     const nextContent = appendAssistantTextToChapterContent(target.content || '', text);
-    await updateChapter(target.id, {
+    const saved = await updateChapter(target.id, {
       content: nextContent,
       wordCount: nextContent.replace(/\s/g, '').length,
       updatedAt: Date.now(),
     });
+    if (!saved) throw new Error('Chapter no longer exists');
     setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
@@ -289,10 +307,11 @@ export function AppShell() {
     if (!target) return;
 
     const nextBeats = appendAssistantTextToSceneBeats(target.sceneBeats || '', text);
-    await updateChapter(target.id, {
+    const saved = await updateChapter(target.id, {
       sceneBeats: nextBeats,
       updatedAt: Date.now(),
     });
+    if (!saved) throw new Error('Chapter no longer exists');
     setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
@@ -321,11 +340,12 @@ export function AppShell() {
       text,
     );
 
-    await updateChapter(target.id, {
+    const saved = await updateChapter(target.id, {
       content: nextContent,
       wordCount: nextContent.replace(/\s/g, '').length,
       updatedAt: Date.now(),
     });
+    if (!saved) throw new Error('Chapter no longer exists');
     setCurrentView('editor');
     setWorkspaceFocus('editor');
   };
@@ -611,7 +631,10 @@ export function AppShell() {
                   key={`${selectedNovel.id}:${continuationLaunchState?.approvedPackId || 'default'}`}
                   novel={selectedNovel}
                   launchState={continuationLaunchState}
-                  onBack={() => setCurrentView('library')}
+                  onBack={async () => {
+                    if (!await flushBeforeNavigation()) return;
+                    setCurrentView('library');
+                  }}
                   onOpenAssistant={handleOpenAssistant}
                 />
               </ErrorBoundary>

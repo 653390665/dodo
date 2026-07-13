@@ -88,6 +88,7 @@ export default tseslint.config(
       'electron.cjs',
       'electron-preload.cjs',
       'electron-startup-utils.cjs',
+      'electron-close-handshake.cjs',
       'scripts/**/*.mjs',
       'shared/**/*.ts',
     ],

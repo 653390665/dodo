@@ -195,6 +195,7 @@ vi.mock('../lib/hooks/useEditorPersistence', () => ({
     handleVolumeNameChange: vi.fn(),
     handleTitleChange: vi.fn(),
     cancelPendingContentSync: vi.fn(),
+    flushPendingEditorWrites: vi.fn(async () => {}),
     refreshChapters: vi.fn(),
   }),
 }));

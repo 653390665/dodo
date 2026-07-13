@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
 const chapterClientMocks = vi.hoisted(() => ({
-  updateChapter: vi.fn(async () => {}),
+  updateChapter: vi.fn(async () => true),
   createChapterVersion: vi.fn(async () => {}),
 }));
 
