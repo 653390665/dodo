@@ -14,6 +14,28 @@ test('packaged server includes and unpacks the complete ONNX runtime pair', () =
   }
 });
 
+test('packaged server includes sharp with its nested runtime dependencies', () => {
+  const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8')) as {
+    build: { files: string[]; asarUnpack: string[] };
+  };
+  const runtimePackages = [
+    'sharp',
+    'color',
+    'color-convert',
+    'color-name',
+    'color-string',
+    'simple-swizzle',
+    'is-arrayish',
+    'detect-libc',
+  ];
+
+  for (const dependency of runtimePackages) {
+    const pattern = `node_modules/${dependency}/**/*`;
+    assert.ok(packageJson.build.files.includes(pattern), `${dependency} must be packaged for sharp`);
+    assert.ok(packageJson.build.asarUnpack.includes(pattern), `${dependency} must be unpacked beside sharp`);
+  }
+});
+
 test('server bundle preserves a runtime import.meta.url equivalent', () => {
   const buildScript = fs.readFileSync('scripts/build-server.mjs', 'utf8');
   assert.match(buildScript, /pathToFileURL\(__filename\)\.href/);

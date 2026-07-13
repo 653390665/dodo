@@ -101,6 +101,13 @@
       "node_modules/better-sqlite3/**/*",
       "node_modules/onnxruntime-node/**/*",
       "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
       "node_modules/mammoth/**/*",
       "node_modules/bindings/**/*",
       "node_modules/file-uri-to-path/**/*",
@@ -164,7 +171,15 @@
       "dist-electron/electron-preload.cjs",
       "node_modules/better-sqlite3/**/*",
       "node_modules/onnxruntime-node/**/*",
-      "node_modules/onnxruntime-common/**/*"
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
+      "node_modules/detect-libc/**/*"
     ]
   }
 }
