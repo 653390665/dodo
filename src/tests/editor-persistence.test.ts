@@ -22,7 +22,7 @@ vi.mock('../lib/chapter-client', () => ({
 vi.mock('../lib/novel-client', () => ({ updateNovel: client.updateNovel }));
 vi.mock('../lib/toast', () => ({ toast: client.toast }));
 
-import { __editorWriteQueueTestHooks, hasPendingEditorWrites } from '../lib/editor-write-queue';
+import { __editorWriteQueueTestHooks, flushPendingEditorWrites, hasPendingEditorWrites } from '../lib/editor-write-queue';
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 
 const novel: Novel = {
@@ -134,6 +134,20 @@ describe('useEditorPersistence safety boundary', () => {
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { title: '新标题' });
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { volumeName: '新卷名' });
     expect(client.updateNovel).toHaveBeenCalledWith(novel.id, { globalOutline: '新大纲' });
+    expect(hasPendingEditorWrites()).toBe(false);
+  });
+
+  test('queues textarea input before the local React debounce so close can flush it', async () => {
+    const { result } = setup();
+
+    act(() => result.current.queueContentWrite('立即退出前的最后输入'));
+    expect(hasPendingEditorWrites()).toBe(true);
+
+    await act(() => flushPendingEditorWrites());
+
+    expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({
+      content: '立即退出前的最后输入',
+    }));
     expect(hasPendingEditorWrites()).toBe(false);
   });
 });

@@ -158,6 +158,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     handleSaveVersion,
     handleRestoreVersion,
     handleUpdateContent,
+    queueContentWrite,
     handleUpdateChapterBeats,
     handleUpdateGlobalOutline,
     handleAddChapter,
@@ -624,6 +625,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
           onGenerateBeats={handleGenerateBeats}
           onRunAudit={handleRunAudit}
           onUpdateContent={handleUpdateContent}
+          onQueueContentWrite={queueContentWrite}
           onOpenAssistant={onOpenAssistant}
           buildAssistantLaunchContext={buildAssistantLaunchContext}
           onAddFirstChapter={handleAddFirstChapter}

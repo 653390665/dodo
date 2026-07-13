@@ -123,6 +123,27 @@ export function useEditorPersistence({
     });
   };
 
+  const enqueueContentWrite = useCallback((chapterId: string, newContent: string) => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    hasWriteActivityRef.current = true;
+    queueEditorWrite(`chapter:${chapterId}:content`, async () => {
+      const saved = await updateChapter(chapterId, {
+        content: newContent,
+        updatedAt: Date.now(),
+        wordCount: newContent.replace(/\s/g, '').length,
+      });
+      if (!saved) return false;
+      return true;
+    });
+  }, []);
+
+  const queueContentWrite = useCallback((newContent: string) => {
+    if (!currentChapter || isContentLockedRef.current) return;
+    if (newContent === undefined || newContent === null) return;
+    enqueueContentWrite(currentChapter.id, newContent);
+  }, [currentChapter, enqueueContentWrite, isContentLockedRef]);
+
   const handleUpdateContent = useCallback((newContent: string, isProgrammatic = false, skipPersist = false) => {
     if (!currentChapter) return;
     if (isContentLockedRef.current && !isProgrammatic) return;
@@ -133,22 +154,8 @@ export function useEditorPersistence({
     pushToUndoHistory(newContent);
 
     if (skipPersist) return;
-
-    setIsSyncing(true);
-    setSyncSuccess(false);
-    hasWriteActivityRef.current = true;
-    const chapterId = currentChapter.id;
-
-    queueEditorWrite(`chapter:${chapterId}:content`, async () => {
-      const saved = await updateChapter(chapterId, {
-        content: newContent,
-        updatedAt: Date.now(),
-        wordCount: newContent.replace(/\s/g, '').length,
-      });
-      if (!saved) return false;
-      return true;
-    });
-  }, [currentChapter, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
+    enqueueContentWrite(currentChapter.id, newContent);
+  }, [currentChapter, enqueueContentWrite, isContentLockedRef, pushToUndoHistory, setCurrentChapter]);
 
   const flushPendingEditorWrites = useCallback(async () => {
     if (contentRef.current && currentChapter) {
@@ -363,6 +370,7 @@ export function useEditorPersistence({
     handleSaveVersion,
     handleRestoreVersion,
     handleUpdateContent,
+    queueContentWrite,
     handleUpdateChapterBeats,
     handleUpdateGlobalOutline,
     handleAddChapter,

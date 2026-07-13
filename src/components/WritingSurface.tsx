@@ -266,6 +266,7 @@ interface WritingSurfaceProps {
   onGenerateBeats: () => Promise<void>;
   onRunAudit: () => Promise<void>;
   onUpdateContent: (content: string) => void;
+  onQueueContentWrite: (content: string) => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
   buildAssistantLaunchContext: () => AssistantLaunchContext;
   onAddFirstChapter: () => Promise<void>;
@@ -299,6 +300,7 @@ export const WritingSurface = React.memo(function WritingSurface({
   onGenerateBeats,
   onRunAudit,
   onUpdateContent,
+  onQueueContentWrite,
   onOpenAssistant,
   buildAssistantLaunchContext,
   onAddFirstChapter,
@@ -547,7 +549,10 @@ export const WritingSurface = React.memo(function WritingSurface({
                 <textarea
                   ref={contentRef}
                   value={localContent}
-                  onChange={(e) => setLocalContent(e.target.value)}
+                  onChange={(e) => {
+                    setLocalContent(e.target.value);
+                    onQueueContentWrite(e.target.value);
+                  }}
                   readOnly={isGeneratingContent}
                   placeholder="在这里开始书写这一章……"
                   className={cn(
@@ -1093,45 +1098,3 @@ export const WritingSurface = React.memo(function WritingSurface({
               />
             </div>
 
-            {/* Textarea description */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] text-theme-muted font-bold uppercase tracking-wider font-mono">设定设定详情与背景</label>
-              <textarea
-                rows={5}
-                value={quickAddDesc}
-                onChange={(e) => setQuickAddDesc(e.target.value)}
-                placeholder="描述其生平人设、道具卡功能或场景气候..."
-                className="w-full bg-theme-sidebar/40 border border-theme-border/60 focus:border-theme-accent rounded-lg p-2 text-xs text-theme-text outline-none resize-none transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2 bg-theme-accent hover:bg-theme-accent/90 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
-            >
-              <Send size={12} />
-              <span>保存设定并同步</span>
-            </button>
-          </form>
-
-          <p className="text-[9px] text-theme-muted italic text-center leading-relaxed mt-4">
-            提示：保存后设定将立刻注入本次写作生命周期的记忆雷达中，主编辑器输入时将无缝嗅探对齐。
-          </p>
-        </div>
-      )}
-
-      {/* Dynamic Keyframes styles inline injection */}
-      <style>{`
-        @keyframes radar-pulse {
-          0% { transform: scale(0.9); opacity: 0.15; }
-          50% { transform: scale(1.18); opacity: 0.45; }
-          100% { transform: scale(0.9); opacity: 0.15; }
-        }
-        @keyframes radar-scan {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
-  );
-});
