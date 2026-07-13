@@ -2,7 +2,7 @@
 
 ## 状态
 
-`IN PROGRESS`
+`DONE`
 
 ## 范围
 
