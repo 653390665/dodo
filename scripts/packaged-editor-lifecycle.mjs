@@ -49,12 +49,15 @@ async function reservePort() {
   return address.port;
 }
 
-async function waitForCdp(port, processOutput) {
+async function waitForCdp(port, child, processOutput) {
   const endpoint = `http://127.0.0.1:${port}/json/list`;
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(`Packaged application exited before exposing CDP (${child.exitCode}). Output:\n${processOutput()}`);
+    }
     try {
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, { signal: globalThis.AbortSignal.timeout(1_000) });
       if (response.ok) {
         const targets = await response.json();
         if (Array.isArray(targets) && targets.some((target) => target.type === 'page')) return;
@@ -70,6 +73,8 @@ async function waitForCdp(port, processOutput) {
 async function launch() {
   const port = await reservePort();
   let output = '';
+  mkdirSync(path.join(testRoot, 'AppData', 'Roaming'), { recursive: true });
+  mkdirSync(path.join(testRoot, 'AppData', 'Local'), { recursive: true });
   const child = spawn(executablePath, [
     `--remote-debugging-port=${port}`,
     '--remote-allow-origins=*',
@@ -89,7 +94,7 @@ async function launch() {
   child.stderr.on('data', (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitForCdp(port, () => output);
+    await waitForCdp(port, child, () => output);
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
