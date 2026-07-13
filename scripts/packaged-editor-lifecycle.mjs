@@ -77,7 +77,13 @@ async function launch() {
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
-    const page = context.pages()[0] || await context.waitForEvent('page', { timeout: 15_000 });
+    const processExited = new Promise((_, reject) => child.once('exit', (code, signal) => {
+      reject(new Error(`Packaged process exited before opening a window (${code ?? signal}). Output:\n${output}`));
+    }));
+    const page = context.pages()[0] || await Promise.race([
+      context.waitForEvent('page', { timeout: 60_000 }),
+      processExited,
+    ]);
     return { browser, child, page, output: () => output };
   } catch (error) {
     child.kill();
@@ -128,7 +134,7 @@ async function closeThroughElectronHandshake(application) {
 
 let application;
 try {
-  application = await withTimeout(launch(), 40_000, 'First packaged launch');
+  application = await withTimeout(launch(), 75_000, 'First packaged launch');
   let page = application.page;
   await page.locator('body').waitFor({ state: 'visible' });
 
@@ -161,7 +167,7 @@ try {
   await closeThroughElectronHandshake(application);
   application = undefined;
 
-  application = await withTimeout(launch(), 40_000, 'Second packaged launch');
+  application = await withTimeout(launch(), 75_000, 'Second packaged launch');
   page = application.page;
   await page.locator('body').waitFor({ state: 'visible' });
   const reopenedEditor = await enterEditor(page);

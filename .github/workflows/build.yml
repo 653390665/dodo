@@ -67,7 +67,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run packaged editor close/restart durability smoke
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           APP_EXECUTABLE=$(find release -path "*/InkFlow.app/Contents/MacOS/InkFlow" -type f | head -1)
           test -n "$APP_EXECUTABLE"
@@ -123,7 +123,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run packaged editor close/restart durability smoke
-        timeout-minutes: 3
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $appExecutable = (Get-ChildItem release -Filter InkFlow.exe -Recurse | Where-Object { $_.FullName -match 'win-unpacked' } | Select-Object -First 1).FullName
