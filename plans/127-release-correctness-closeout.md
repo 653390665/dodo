@@ -2,7 +2,7 @@
 
 ## 状态
 
-`IN PROGRESS`
+`DONE`
 
 ## 范围
 
@@ -16,4 +16,4 @@
 
 ## 完成条件
 
-`npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过，并由 CI 的 macOS/Windows 打包生命周期测试验证后标记 `DONE`。
+`npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过；CI 的 macOS/Windows 打包生命周期测试均已通过。

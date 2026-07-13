@@ -2,7 +2,7 @@
 
 ## 状态
 
-`IN PROGRESS`
+`DONE`
 
 ## 范围
 
@@ -17,4 +17,4 @@
 
 ## 完成条件
 
-`npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过；Plan 127 与本计划在 Playwright 和打包生命周期门禁完成前保持 `IN PROGRESS`。
+`npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过；CI 的 macOS/Windows 打包生命周期测试均已通过。
