@@ -44,11 +44,16 @@ interface ParseDocJob {
   stageText: string;
   result?: unknown;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const parseDocJobs = new Map<string, ParseDocJob>();
 const PARSE_DOC_JOB_TTL_MS = 30 * 60 * 1000;
-const pendingContinuationImports = new Map<string, { pack: ContinuationPack; createdAt: number }>();
+const pendingContinuationImports = new Map<string, {
+  pack: ContinuationPack;
+  createdAt: number;
+  databaseGeneration: number;
+}>();
 
 const approveContinuationImportSchema = z.object({
   packId: z.string().min(1).max(300),
@@ -236,20 +241,27 @@ export function registerContinuationRoutes(app: Express) {
   app.post('/api/parse-doc', validate(parseDocSchema), async (req, res) => {
     pruneParseDocJobs();
     const jobId = `parse-doc-${generateId()}`;
+    const databaseGeneration = getDatabaseGeneration();
     parseDocJobs.set(jobId, {
       status: 'queued',
       progress: 10,
       stageText: '正在读取并提取文档内容...',
       createdAt: Date.now(),
+      databaseGeneration,
     });
-    res.status(202).json({ jobId });
+    res.status(202).json({ jobId, databaseGeneration });
 
     void (async () => {
       const job = parseDocJobs.get(jobId);
       if (!job) return;
       try {
         Object.assign(job, { status: 'running', progress: 35, stageText: 'AI 正在解析设定结构...' });
-        job.result = await parseWorldDocument(req.body.filename, req.body.filedata);
+        const result = await parseWorldDocument(req.body.filename, req.body.filedata);
+        if (databaseGeneration !== getDatabaseGeneration()) {
+          Object.assign(job, { status: 'failed', progress: 100, stageText: '数据库已切换，请重新导入' });
+          return;
+        }
+        job.result = result;
         Object.assign(job, { status: 'completed', progress: 100, stageText: '解析完成' });
       } catch (error) {
         logger.error('设定文档解析失败:', error);
@@ -262,6 +274,14 @@ export function registerContinuationRoutes(app: Express) {
     pruneParseDocJobs();
     const job = parseDocJobs.get(req.params.jobId);
     if (!job) return res.status(404).json({ error: '解析任务不存在或已过期' });
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: '解析任务代际无效，请重新导入设定文档' });
+    }
+    if (job.databaseGeneration !== getDatabaseGeneration()) {
+      parseDocJobs.delete(req.params.jobId);
+      return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入设定文档' });
+    }
     return res.json(job);
   });
 
@@ -357,8 +377,15 @@ export function registerContinuationRoutes(app: Express) {
       };
 
       if (novelId.startsWith('continuation-import-draft-')) {
+        if (databaseGeneration !== getDatabaseGeneration()) {
+          return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入资料' });
+        }
         pruneParseDocJobs();
-        pendingContinuationImports.set(pack.id, { pack, createdAt: Date.now() });
+        pendingContinuationImports.set(pack.id, {
+          pack,
+          createdAt: Date.now(),
+          databaseGeneration,
+        });
       } else {
         const writeResult = await runInSerializedWriteForGeneration(
           databaseGeneration,
@@ -404,6 +431,10 @@ export function registerContinuationRoutes(app: Express) {
     if (!parsed.success) return res.status(400).json({ error: '确认导入参数无效' });
     const input = parsed.data;
     const pending = pendingContinuationImports.get(input.packId);
+    if (pending && pending.databaseGeneration !== getDatabaseGeneration()) {
+      pendingContinuationImports.delete(input.packId);
+      return res.status(409).json({ error: '数据库已在解析后切换，请重新导入资料' });
+    }
     const storedPack = db.getContinuationPack(input.packId);
     const sourcePack = pending?.pack || storedPack;
     if (!sourcePack) return res.status(404).json({ error: '续写资料包不存在或已过期' });

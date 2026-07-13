@@ -14,10 +14,12 @@ import {
   runInSerializedWriteForGeneration,
 } from '../lib/db-instance';
 import { generateId } from '../id';
+import { rateLimit } from '../middleware/rate-limit';
 
 const shortText = z.string().max(200).default('');
 const longText = z.string().max(100_000).default('');
 const worldExtractionImportSchema = z.object({
+  databaseGeneration: z.number().int().nonnegative(),
   novelId: z.string().min(1).max(200),
   globalOutline: longText,
   worldRules: longText,
@@ -60,9 +62,10 @@ const worldExtractionImportSchema = z.object({
 });
 
 type WorldExtractionImport = z.infer<typeof worldExtractionImportSchema>;
+type WorldExtractionContent = Omit<WorldExtractionImport, 'databaseGeneration'>;
 
 export function commitWorldExtraction(
-  payload: WorldExtractionImport,
+  payload: WorldExtractionContent,
   idFactory: () => string = generateId,
 ): void {
   const now = Date.now();
@@ -151,6 +154,9 @@ export function registerWorldRoutes(app: Express) {
       return res.status(400).json({ error: '导入设定结构无效' });
     }
     const payload = parsed.data;
+    if (payload.databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入设定文档' });
+    }
     if (!db.getNovel(payload.novelId)) {
       return res.status(404).json({ error: '作品不存在' });
     }
@@ -174,6 +180,9 @@ export function registerWorldRoutes(app: Express) {
   });
 
   app.post('/api/generate-bio', async (req, res) => {
+    if (!rateLimit('generate-bio')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     let disposeDisconnect = () => {};
     const generateBioSchema = z.object({
       name: z.string().min(1, '角色名称不能为空'),
@@ -268,6 +277,9 @@ ${genderConstraint}
   });
 
   app.post('/api/generate-outline', (req, res) => {
+    if (!rateLimit('generate-outline')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const jobId = createJob();
     res.json({ jobId });
 
@@ -462,6 +474,9 @@ ${chapterList}
   });
 
   app.post('/api/generate-entity-details', (req, res) => {
+    if (!rateLimit('generate-entity-details')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const jobId = createJob();
     res.json({ jobId });
 

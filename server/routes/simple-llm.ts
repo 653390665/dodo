@@ -3,6 +3,7 @@ import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import { rateLimit } from '../middleware/rate-limit';
 
 /**
  * Simple LLM proxy routes — no shared local helpers needed.
@@ -10,6 +11,9 @@ import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-di
 export function registerSimpleLlmRoutes(app: Express) {
   // 扩展创意片段 (SSE 流式输出)
   app.post('/api/expand-fragment', async (req, res) => {
+    if (!rateLimit('expand-fragment')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const controller = new AbortController();
     const disposeDisconnect = bindClientDisconnect(req, res, () => {
       controller.abort();

@@ -2,6 +2,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { applyChapterProductionRun, startChapterProductionRunStream } from '../src/lib/production-client';
+import type { ChapterProductionRun } from '../shared/types';
+
+function makeProductionRun(
+  id: string,
+  novelId: string,
+  status: ChapterProductionRun['status'],
+): ChapterProductionRun {
+  return {
+    id,
+    novelId,
+    status,
+    userIntent: '继续写',
+    sceneBeats: '场景节拍',
+    draftContent: '正文',
+    styleAudit: '审计结果',
+    continuityReport: {
+      score: 100,
+      issues: [],
+      proposedPatch: {
+        characterUpdates: [],
+        itemUpdates: [],
+        foreshadowingUpdates: [],
+        timelineEventsToCreate: [],
+        foreshadowingsToCreate: [],
+      },
+    },
+    createdAt: 1,
+    updatedAt: 2,
+  };
+}
 
 test('applyChapterProductionRun returns chapter id from apply endpoint', async () => {
   const originalFetch = globalThis.fetch;
@@ -25,6 +55,7 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
   const originalFetch = globalThis.fetch;
   const events: Array<{ type: string; [key: string]: unknown }> = [];
   const requests: Array<{ url: string; body: string | null }> = [];
+  const doneRun = makeProductionRun('run-1', 'novel-1', 'review_required');
 
   globalThis.fetch = async (input, init) => {
     requests.push({
@@ -35,7 +66,7 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(encoder.encode('data: {"type":"status","message":"正在生成"}\n\n'));
-        controller.enqueue(encoder.encode('data: {"type":"done","run":{"id":"run-1","status":"review_required"}}\n\n'));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', run: doneRun })}\n\n`));
         controller.close();
       },
     });
@@ -67,7 +98,7 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
     assert.deepEqual(events[0], { type: 'status', message: '正在生成' });
     assert.deepEqual(events[1], {
       type: 'done',
-      run: { id: 'run-1', status: 'review_required' },
+      run: doneRun,
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -77,6 +108,7 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
 test('startChapterProductionRunStream stitches split chunks and parses trailing buffer', async () => {
   const originalFetch = globalThis.fetch;
   const events: Array<{ type: string; [key: string]: unknown }> = [];
+  const doneRun = makeProductionRun('run-2', 'novel-2', 'applied');
 
   globalThis.fetch = async () => {
     const encoder = new TextEncoder();
@@ -84,7 +116,7 @@ test('startChapterProductionRunStream stitches split chunks and parses trailing 
       start(controller) {
         controller.enqueue(encoder.encode('data: {"type":"status",'));
         controller.enqueue(encoder.encode('"message":"第一阶段"}\n\n'));
-        controller.enqueue(encoder.encode('data: {"type":"done","run":{"id":"run-2","status":"applied"}}'));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', run: doneRun })}`));
         controller.close();
       },
     });
@@ -106,7 +138,7 @@ test('startChapterProductionRunStream stitches split chunks and parses trailing 
 
     assert.deepEqual(events, [
       { type: 'status', message: '第一阶段' },
-      { type: 'done', run: { id: 'run-2', status: 'applied' } },
+      { type: 'done', run: doneRun },
     ]);
   } finally {
     globalThis.fetch = originalFetch;
@@ -176,6 +208,71 @@ test('startChapterProductionRunStream rejects EOF without done', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('startChapterProductionRunStream rejects raw DONE without a typed run', async () => {
+  const originalFetch = globalThis.fetch;
+  const events: Array<{ type: string; [key: string]: unknown }> = [];
+  globalThis.fetch = async () => {
+    const encoder = new TextEncoder();
+    return {
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"type":"fallback_draft_token","content":"预览正文"}\n\n'));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      }),
+    } as Response;
+  };
+
+  try {
+    await assert.rejects(
+      () => startChapterProductionRunStream(
+        { novelId: 'novel-7', userIntent: '继续写' },
+        (event) => events.push(event),
+      ),
+      /完成事件前中断/,
+    );
+    assert.deepEqual(events, [{ type: 'fallback_draft_token', content: '预览正文' }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+for (const [label, invalidRun] of [
+  ['an empty run object', {}],
+  ['an array run', []],
+  ['a non-string run status', { ...makeProductionRun('run-invalid', 'novel-invalid', 'running'), status: ['running'] }],
+] as const) {
+  test(`startChapterProductionRunStream rejects ${label}`, async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      const encoder = new TextEncoder();
+      return {
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', run: invalidRun })}\n\n`));
+            controller.close();
+          },
+        }),
+      } as Response;
+    };
+
+    try {
+      await assert.rejects(
+        () => startChapterProductionRunStream(
+          { novelId: 'novel-invalid-run', userIntent: '继续写' },
+          () => undefined,
+        ),
+        /invalid run/i,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}
 
 test('startChapterProductionRunStream rejects a business error event', async () => {
   const originalFetch = globalThis.fetch;

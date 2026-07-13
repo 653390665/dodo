@@ -544,6 +544,7 @@ JSON 格式规范：
           // arrays consumed below. Individual fields are best-effort and the
           // backend fills in defaults for missing required fields.
           const extracted = extractedRaw as {
+            databaseGeneration: number;
             globalOutline?: string;
             worldRules?: string;
             characters?: Character[];
@@ -564,6 +565,7 @@ JSON 格式规范：
           // extracted entities. A malformed entity or failed insert rolls the
           // entire import back instead of leaving a half-imported world bible.
           await importWorldExtraction({
+            databaseGeneration: extracted.databaseGeneration,
             novelId: novel.id,
             globalOutline: newGlobalOutline,
             worldRules: newWorldRules,
