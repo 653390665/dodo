@@ -75,8 +75,8 @@ export function useAuditPolishActions({
     startingChapterId: string | undefined,
     currentSeq: number,
     extraUpdates: Partial<Chapter> = {},
-  ) => {
-    if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+  ): Promise<boolean> => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
     setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
     await updateChapter(chapterId, {
       content,
@@ -84,6 +84,7 @@ export function useAuditPolishActions({
       wordCount: content.replace(/\s/g, '').length,
       ...extraUpdates,
     });
+    return true;
   };
 
   const handleRunAudit = async () => {
@@ -275,7 +276,8 @@ export function useAuditPolishActions({
         return;
       }
 
-      await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+      const committed = await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+      if (!committed) return;
 
       try {
         await createChapterVersion({
@@ -433,7 +435,14 @@ export function useAuditPolishActions({
 
         if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-        await commitChapterContent(currentChapter.id, candidate, startingChapterId, currentSeq, { critique: '' });
+        const committed = await commitChapterContent(
+          currentChapter.id,
+          candidate,
+          startingChapterId,
+          currentSeq,
+          { critique: '' },
+        );
+        if (!committed) return;
 
         try {
           await createChapterVersion({

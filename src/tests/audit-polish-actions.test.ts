@@ -52,6 +52,19 @@ function sseResponse(events: string[], delayBeforeCloseMs = 0): Response {
   }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 }
 
+function delayedDoneSseResponse(token: string, delayMs = 25): Response {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+      setTimeout(() => {
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      }, delayMs);
+    },
+  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
 function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () => Promise<void> } = {}) {
   const novel = makeNovel();
   const chapter = options.chapter ?? makeChapter();
@@ -89,6 +102,7 @@ function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () =
     requestSeqRef,
     latestChapterIdRef,
     handleUpdateContent,
+    recordSkillUsage,
   };
 }
 
@@ -118,15 +132,14 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('a stale request cannot restore over a newer chapter or request', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
-      'data: {"token":"新文"}\n\n',
-    ], 25)));
+    vi.stubGlobal('fetch', vi.fn(async () => delayedDoneSseResponse('新文')));
     const {
       result,
       handleUpdateContent,
       chapter,
       requestSeqRef,
       latestChapterIdRef,
+      recordSkillUsage,
     } = renderRewriteHook();
 
     const pending = result.current.handleRewriteSelectedText();
@@ -138,6 +151,8 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     expect(handleUpdateContent).toHaveBeenCalledWith('新文尾', false, true);
     expect(handleUpdateContent).not.toHaveBeenCalledWith(chapter.content, false, true);
     expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
+    expect(chapterClientMocks.createChapterVersion).not.toHaveBeenCalled();
+    expect(recordSkillUsage).not.toHaveBeenCalled();
   });
 
   test('successful streaming previews use skipPersist and commit chapter content once', async () => {

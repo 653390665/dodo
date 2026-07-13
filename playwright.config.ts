@@ -22,7 +22,6 @@ export default defineConfig({
     ...(chromiumExecutablePath ? {
       launchOptions: {
         executablePath: chromiumExecutablePath,
-        args: ['--no-sandbox', '--single-process', '--no-zygote', '--disable-webgl'],
       },
     } : {}),
   },

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { getConfig } from '../server/lib/config.js';
 import { registerAgentsRoutes } from '../server/routes/agents.js';
 import { closeDb, createNovel, getNovel, initDb } from '../server/lib/db.js';
-import { __quotaTestHooks } from '../server/helpers/quota-guard.js';
+import { __quotaTestHooks, refundQuota } from '../server/helpers/quota-guard.js';
 import type { Novel, ProjectPreferenceProfile } from '../shared/types.js';
 
 const originalFetch = globalThis.fetch;
@@ -23,7 +23,8 @@ const originalConfig = {
 let server: ReturnType<express.Express['listen']>;
 let baseUrl: string;
 let dbPath: string;
-let upstreamMode: 'pending' | 'success' = 'success';
+let upstreamMode: 'pending' | 'success' | 'failure' = 'success';
+let upstreamRequestCount = 0;
 
 function makeNovel(id: string): Novel {
   const now = Date.now();
@@ -64,6 +65,25 @@ async function waitForQuota(novelId: string, expected: number): Promise<void> {
   );
 }
 
+async function waitForReservationStatus(
+  novelId: string,
+  expected: 'committed' | 'refunded',
+): Promise<string> {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const reservation = Array.from(__quotaTestHooks.quotaReservations.values())
+      .find((candidate) => candidate.novelId === novelId && candidate.status === expected);
+    if (reservation) return reservation.id;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  const reservation = Array.from(__quotaTestHooks.quotaReservations.values())
+    .find((candidate) => candidate.novelId === novelId);
+  assert.equal(reservation?.status, expected);
+  assert.ok(reservation);
+  return reservation.id;
+}
+
 before(() => {
   dbPath = path.join(os.tmpdir(), `inkflow-orchestrate-disconnect-${process.pid}.db`);
   closeDb();
@@ -79,6 +99,7 @@ before(() => {
     if (String(url).startsWith(baseUrl)) {
       return originalFetch(url, init);
     }
+    upstreamRequestCount += 1;
     if (upstreamMode === 'pending') {
       return new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal;
@@ -86,6 +107,9 @@ before(() => {
         if (signal?.aborted) rejectAbort();
         else signal?.addEventListener('abort', rejectAbort, { once: true });
       });
+    }
+    if (upstreamMode === 'failure') {
+      throw new Error('Simulated upstream failure');
     }
     const requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) as { stream?: boolean } : {};
     if (requestBody.stream) {
@@ -150,6 +174,8 @@ test('orchestrate-draft disconnect before prose delivery refunds quota', async (
   assert.equal(response.status, 200);
   await response.body?.cancel();
 
+  const reservationId = await waitForReservationStatus(novelId, 'refunded');
+  assert.equal(await refundQuota(reservationId), false);
   await waitForQuota(novelId, 0);
 });
 
@@ -175,6 +201,8 @@ test('orchestrate-draft disconnect after first prose token commits quota', async
   }
   await reader.cancel();
 
+  const reservationId = await waitForReservationStatus(novelId, 'committed');
+  assert.equal(await refundQuota(reservationId), false);
   await waitForQuota(novelId, 1);
 });
 
@@ -196,6 +224,8 @@ test('orchestrate disconnect before prose delivery refunds quota', async () => {
   assert.equal(response.status, 200);
   await response.body?.cancel();
 
+  const reservationId = await waitForReservationStatus(novelId, 'refunded');
+  assert.equal(await refundQuota(reservationId), false);
   await waitForQuota(novelId, 0);
 });
 
@@ -226,5 +256,36 @@ test('orchestrate disconnect after first prose token commits quota', async () =>
   }
   await reader.cancel();
 
+  const reservationId = await waitForReservationStatus(novelId, 'committed');
+  assert.equal(await refundQuota(reservationId), false);
+  await waitForQuota(novelId, 1);
+});
+
+test('orchestrate bills delivered fallback when critic also fails', async () => {
+  const novelId = 'orchestrate-fallback-critic-failure';
+  createNovel(makeNovel(novelId));
+  upstreamMode = 'failure';
+  const requestCountBefore = upstreamRequestCount;
+
+  const response = await fetch(`${baseUrl}/api/orchestrate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      novelId,
+      contextStr: '雨夜的旧车站里只剩一盏灯',
+      sceneBeats: '主角发现一封没有署名的信',
+      includeCritic: true,
+      maxIterations: 1,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /"type":"token"/);
+  assert.match(body, /"type":"error"/);
+  assert.doesNotMatch(body, /"type":"done"/);
+  assert.equal(upstreamRequestCount - requestCountBefore, 2);
+
+  const reservationId = await waitForReservationStatus(novelId, 'committed');
+  assert.equal(await refundQuota(reservationId), false);
   await waitForQuota(novelId, 1);
 });

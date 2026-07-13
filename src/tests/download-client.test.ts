@@ -15,6 +15,7 @@ describe('downloadAuthenticatedFile', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -31,17 +32,25 @@ describe('downloadAuthenticatedFile', () => {
     const anchor = { click: vi.fn(), href: '', download: '' } as unknown as HTMLAnchorElement;
     vi.spyOn(document, 'createElement').mockReturnValue(anchor as never);
 
+    vi.useFakeTimers();
+
     await downloadAuthenticatedFile('/api/db/export-file', {
       headers: { Authorization: 'Bearer test-token' },
       fallbackFilename: 'fallback.db',
     });
 
     expect(createObjectURL).toHaveBeenCalledOnce();
-    expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob);
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    expect(blob.size).toBe(new TextEncoder().encode('database-bytes').byteLength);
+    expect(blob.type).toBe('text/plain;charset=utf-8');
+    expect(new TextDecoder().decode(await blob.arrayBuffer())).toBe('database-bytes');
     expect(anchor.href).toBe('blob:download');
     expect(anchor.download).toBe('backup.db');
     expect(anchor.click).toHaveBeenCalledOnce();
-    expect(revokeObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    await vi.runAllTimersAsync();
+
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:download');
   });
 

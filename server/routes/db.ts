@@ -44,7 +44,10 @@ function removeDbSidecars(): void {
  * wait for all writes that were already queued; draining from inside the task
  * would wait on the task's own promise and deadlock.
  */
-export async function importDatabaseBuffer(buffer: Buffer): Promise<void> {
+export async function importDatabaseBuffer(
+  buffer: Buffer,
+  initialize: () => void = initDb,
+): Promise<void> {
   const backupPath = `${DB_PATH}.pre-import-bak`;
 
   await runInSerializedWrite(async () => {
@@ -57,7 +60,7 @@ export async function importDatabaseBuffer(buffer: Buffer): Promise<void> {
 
       removeDbSidecars();
       writeFileSync(DB_PATH, buffer);
-      initDb();
+      initialize();
     } catch (err: unknown) {
       logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
       try {
@@ -68,7 +71,7 @@ export async function importDatabaseBuffer(buffer: Buffer): Promise<void> {
         }
 
         removeDbSidecars();
-        initDb();
+        initialize();
       } catch (restoreErr) {
         logger.error('严重警告：数据库还原回滚失败！', restoreErr);
       }

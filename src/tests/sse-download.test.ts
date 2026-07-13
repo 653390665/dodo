@@ -77,8 +77,12 @@ describe('downloadAuthenticatedFile', () => {
     });
 
     expect(createObjectURL).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
     expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
   });
 
   test('throws on non-2xx responses', async () => {
