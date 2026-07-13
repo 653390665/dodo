@@ -9,7 +9,6 @@ import type {
   ProjectPreferenceProfile,
 } from '../../../shared/types';
 import { createChapter, createChapterVersion, deleteChapter, listChaptersMetadata, updateChapter } from '../chapter-client';
-import { metadataToChapter } from '../chapter-utils';
 import {
   flushPendingEditorWrites as flushEditorWrites,
   hasFailedEditorWrites,
@@ -28,6 +27,7 @@ interface UseEditorPersistenceArgs {
   contentRef: RefObject<HTMLTextAreaElement | null>;
   setChapters: Dispatch<SetStateAction<ChapterMetadata[]>>;
   setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
+  selectChapter: (chapterId: string) => Promise<Chapter | null>;
   setMountedSkillLoadout: Dispatch<SetStateAction<MountedSkillLoadoutItem[]>>;
   setProjectPreferenceProfile: Dispatch<SetStateAction<ProjectPreferenceProfile | undefined>>;
   setGlobalOutline: Dispatch<SetStateAction<string>>;
@@ -43,6 +43,7 @@ export function useEditorPersistence({
   contentRef,
   setChapters,
   setCurrentChapter,
+  selectChapter,
   setMountedSkillLoadout,
   setProjectPreferenceProfile,
   setGlobalOutline,
@@ -295,14 +296,22 @@ export function useEditorPersistence({
       toast('删除章节失败，章节可能已不存在', 'error');
       return;
     }
-    setChapters((prev) => {
-      const remaining = prev.filter((chapter) => chapter.id !== id);
-      if (currentChapter?.id === id) {
-        const fallback = remaining.find((chapter) => chapter.id !== id);
-        setCurrentChapter(fallback ? metadataToChapter(fallback) : null);
+    const remaining = chapters.filter((chapter) => chapter.id !== id);
+    setChapters(remaining);
+    if (currentChapter?.id === id) {
+      const fallback = remaining[0];
+      if (fallback) {
+        try {
+          await selectChapter(fallback.id);
+        } catch (error) {
+          console.error('[useEditorPersistence] Failed to load fallback chapter:', error);
+          setCurrentChapter(null);
+          toast('章节已删除，但备用章节加载失败，请重试', 'error');
+        }
+      } else {
+        setCurrentChapter(null);
       }
-      return remaining;
-    });
+    }
   };
 
   const handleVolumeNameChange = (newVol: string) => {
@@ -338,6 +347,11 @@ export function useEditorPersistence({
   const refreshChapters = async () => {
     const freshChapters = await listChaptersMetadata(novel.id);
     setChapters(freshChapters);
+    if (currentChapter && !freshChapters.some((chapter) => chapter.id === currentChapter.id)) {
+      const fallback = freshChapters[0];
+      if (fallback) await selectChapter(fallback.id);
+      else setCurrentChapter(null);
+    }
     return freshChapters;
   };
 

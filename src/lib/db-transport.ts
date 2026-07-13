@@ -56,8 +56,13 @@ function connectEventSource() {
     es.close();
     globalEventSource = null;
     if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (globalListeners.size === 0) {
+      reconnectTimer = null;
+      return;
+    }
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
+      if (globalListeners.size === 0) return;
       connectEventSource();
       reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
     }, reconnectDelay);
@@ -74,12 +79,25 @@ export function subscribeToChanges(onChange: () => void, _entityType?: string): 
   connectEventSource();
   return () => {
     globalListeners.delete(onChange);
-    if (globalListeners.size === 0 && globalEventSource) {
+    if (globalListeners.size === 0) {
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      globalEventSource.close();
+      reconnectTimer = null;
+      globalEventSource?.close();
       globalEventSource = null;
     }
   };
 }
+
+export const __dbTransportTestHooks = {
+  hasReconnectTimer: () => reconnectTimer !== null,
+  reset: () => {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    globalEventSource?.close();
+    globalEventSource = null;
+    globalListeners.clear();
+    reconnectDelay = 3000;
+  },
+};
 
 export { call };

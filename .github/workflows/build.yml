@@ -66,6 +66,11 @@ jobs:
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run packaged editor close/restart durability smoke
+        run: |
+          APP_EXECUTABLE=$(find release -path "*/InkFlow.app/Contents/MacOS/InkFlow" -type f | head -1)
+          test -n "$APP_EXECUTABLE"
+          INKFLOW_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" npm run smoke:packaged-editor
       - name: Verify DMG
         run: |
           DMG=$(ls release/InkFlow-*-mac-arm64.dmg)
@@ -116,6 +121,13 @@ jobs:
       - run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run packaged editor close/restart durability smoke
+        shell: pwsh
+        run: |
+          $appExecutable = (Get-ChildItem release -Filter InkFlow.exe -Recurse | Where-Object { $_.FullName -match 'win-unpacked' } | Select-Object -First 1).FullName
+          if (-not $appExecutable) { Write-Error "Packaged InkFlow.exe not found"; exit 1 }
+          $env:INKFLOW_PACKAGED_EXECUTABLE = $appExecutable
+          npm run smoke:packaged-editor
       - name: Verify server.cjs has no unbundled runtime deps
         shell: pwsh
         run: |

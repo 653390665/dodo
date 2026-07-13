@@ -35,9 +35,74 @@ export function validate(schema: z.ZodSchema) {
   };
 }
 
+const dbIdSchema = z.string().min(1).max(200);
+const dbEntitySchema = z.record(z.string(), z.unknown()).superRefine((value, context) => {
+  if (JSON.stringify(value).length > 1_000_000) {
+    context.addIssue({ code: 'custom', message: 'Database payload is too large' });
+  }
+});
+const noArgsSchema = z.tuple([]);
+const idArgsSchema = z.tuple([dbIdSchema]);
+const optionalIdArgsSchema = z.union([noArgsSchema, idArgsSchema]);
+const createArgsSchema = z.tuple([dbEntitySchema]);
+const updateArgsSchema = z.tuple([dbIdSchema, dbEntitySchema]);
+
+const DB_LIST_WITH_ID = [
+  'listChapters', 'listChaptersMetadata', 'listChapterVersions',
+  'listCharacters', 'listLocations', 'listItems', 'listFactions',
+  'listPowerLevels', 'listTimelineEvents', 'listSkillVersions',
+  'listForeshadowings', 'listChapterProductionRuns',
+  'listContinuationPacks', 'listEntityRelationships',
+] as const;
+const DB_OPTIONAL_LIST = ['listSkillUsageRecords', 'listIdeaFragments'] as const;
+const DB_GET_OR_DELETE = [
+  'getNovel', 'deleteNovel', 'getChapter', 'deleteChapter',
+  'getSkill', 'deleteSkill', 'getCharacter', 'deleteCharacter',
+  'deleteLocation', 'getItem', 'deleteItem', 'deleteFaction',
+  'deletePowerLevel', 'deleteTimelineEvent', 'getForeshadowing',
+  'deleteForeshadowing', 'getChapterProductionRun',
+  'getContinuationPack', 'deleteContinuationPack', 'deleteEntityRelationship',
+] as const;
+const DB_CREATE = [
+  'createNovel', 'createChapter', 'createChapterVersion', 'createSkill',
+  'createSkillUsageRecord', 'createCharacter', 'createLocation', 'createItem',
+  'createFaction', 'createPowerLevel', 'createTimelineEvent',
+  'createIdeaFragment', 'createForeshadowing', 'createChapterProductionRun',
+  'createContinuationPack', 'createEntityRelationship',
+] as const;
+const DB_UPDATE = [
+  'updateNovel', 'updateChapter', 'updateSkill', 'updateCharacter',
+  'updateLocation', 'updateItem', 'updateFaction', 'updatePowerLevel',
+  'updateTimelineEvent', 'updateIdeaFragment', 'updateForeshadowing',
+  'updateChapterProductionRun', 'updateContinuationPack', 'updateEntityRelationship',
+] as const;
+
+export const dbMethodSchemas: Record<string, z.ZodType<unknown>> = {
+  listNovels: noArgsSchema,
+  listSkills: noArgsSchema,
+  syncSkillFeedbackScores: noArgsSchema,
+};
+for (const method of DB_LIST_WITH_ID) dbMethodSchemas[method] = idArgsSchema;
+for (const method of DB_OPTIONAL_LIST) dbMethodSchemas[method] = optionalIdArgsSchema;
+for (const method of DB_GET_OR_DELETE) dbMethodSchemas[method] = idArgsSchema;
+for (const method of DB_CREATE) dbMethodSchemas[method] = createArgsSchema;
+for (const method of DB_UPDATE) dbMethodSchemas[method] = updateArgsSchema;
+
 export const dbSchema = z.object({
   method: z.string().min(1),
   args: z.array(z.unknown()).default([]),
+}).superRefine(({ method, args }, context) => {
+  const methodSchema = dbMethodSchemas[method];
+  if (!methodSchema) {
+    context.addIssue({ code: 'custom', path: ['method'], message: 'Unknown database method' });
+    return;
+  }
+  const result = methodSchema.safeParse(args);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      context.addIssue({ ...issue, path: ['args', ...issue.path] });
+    }
+  }
 });
 
 export const configSchema = z.object({

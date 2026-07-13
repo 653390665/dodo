@@ -53,3 +53,14 @@ Plan 121 的全部命令与独立 Gatekeeper 复核已通过，状态收口为 `
 `npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过后，Plan 122–125 才能从 `IN PROGRESS` 收口为 `DONE`。
 
 GitHub 官方 Playwright、runtime smoke、macOS 与 Windows 打包及全部本地门禁均已通过，Plan 122–125 状态收口为 `DONE`。
+
+## Plan 126：发布数据安全复核收口
+
+- 将编辑器章节选择改为 ID 与完整实体分离，完整正文返回前保持加载态，使用请求序号阻止迟到响应覆盖。
+- 所有 AI 正文/分镜写回和全局助手应用动作先等待编辑器写队列，失败时不启动或提交 AI 覆盖。
+- 数据库导入增加 `integrity_check`、应用标识、初始化后复检、同盘 rename 和时间戳备份。
+- 致命后端异常进入拒绝新请求、drain、关闭、非零退出流程。
+- 收紧前端同源鉴权、数据库事件重连和 `/api/db` 方法参数 registry。
+- 打包 CI 启动真实 Electron，执行输入、立即退出、重启和正文校验。
+
+Plan 126 仅在本地全量门禁及 macOS/Windows packaged lifecycle smoke 全部通过后标记 `DONE`。

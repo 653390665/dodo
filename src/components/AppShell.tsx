@@ -285,6 +285,7 @@ export function AppShell() {
 
   const handleApplyAssistantToContent = async (text: string) => {
     if (!assistantLaunchContext?.chapterId) return;
+    if (!await flushBeforeNavigation()) return;
     const chapters = await listChapters(assistantLaunchContext.novelId);
     const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);
     if (!target) return;
@@ -302,6 +303,7 @@ export function AppShell() {
 
   const handleApplyAssistantToSceneBeats = async (text: string) => {
     if (!assistantLaunchContext?.chapterId) return;
+    if (!await flushBeforeNavigation()) return;
     const chapters = await listChapters(assistantLaunchContext.novelId);
     const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);
     if (!target) return;
@@ -325,6 +327,8 @@ export function AppShell() {
     ) {
       return;
     }
+
+    if (!await flushBeforeNavigation()) return;
 
     const chapters = await listChapters(assistantLaunchContext.novelId);
     const target = chapters.find((chapter) => chapter.id === assistantLaunchContext.chapterId);

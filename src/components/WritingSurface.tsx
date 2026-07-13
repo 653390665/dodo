@@ -240,6 +240,7 @@ export function NovelDiagnosticRadar({ scores, hasCritique, onRunAudit }: RadarP
 interface WritingSurfaceProps {
   novel: Novel;
   currentChapter: Chapter | null;
+  chapterLoading?: boolean;
 
   // States
   isGeneratingBeats: boolean;
@@ -282,6 +283,7 @@ interface WritingSurfaceProps {
 export const WritingSurface = React.memo(function WritingSurface({
   novel: _novel,
   currentChapter,
+  chapterLoading = false,
   isGeneratingBeats,
   isGeneratingCritique,
   isGeneratingContent,
@@ -482,7 +484,12 @@ export const WritingSurface = React.memo(function WritingSurface({
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 xl:px-8 py-5 scroll-smooth flex flex-col relative">
       <div className="w-full self-stretch min-w-0 flex-1 flex flex-col relative transition-all duration-500 gap-4">
-        {currentChapter ? (
+        {chapterLoading ? (
+          <div className="min-h-[55vh] flex items-center justify-center text-sm text-theme-muted" role="status">
+            <Loader2 size={20} className="mr-2 animate-spin" aria-hidden="true" />
+            正在加载完整章节…
+          </div>
+        ) : currentChapter ? (
           <div className="w-full min-w-0 grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 xl:gap-8 items-start">
             {/* 左侧主创作栏 (Main Stage Column) */}
             <div className="min-w-0 flex flex-col gap-6">

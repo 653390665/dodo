@@ -65,7 +65,11 @@ function delayedDoneSseResponse(token: string, delayMs = 25): Response {
   }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 }
 
-function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () => Promise<void> } = {}) {
+function renderRewriteHook(options: {
+  chapter?: Chapter;
+  recordSkillUsage?: () => Promise<void>;
+  flushPendingEditorWrites?: () => Promise<void>;
+} = {}) {
   const novel = makeNovel();
   const chapter = options.chapter ?? makeChapter();
   const requestSeqRef = { current: 0 };
@@ -74,6 +78,7 @@ function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () =
   const handleUpdateContent = vi.fn();
   const setCurrentChapter = vi.fn();
   const recordSkillUsage = vi.fn(options.recordSkillUsage ?? (async () => {}));
+  const flushPendingEditorWrites = vi.fn(options.flushPendingEditorWrites ?? (async () => {}));
 
   const hook = renderHook(() => useAuditPolishActions({
     novel,
@@ -94,6 +99,7 @@ function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () =
     getCurrentFitScore: () => 80,
     recordSkillUsage,
     formatAiFailure: () => 'failed',
+    flushPendingEditorWrites,
   }));
 
   return {
@@ -103,6 +109,7 @@ function renderRewriteHook(options: { chapter?: Chapter; recordSkillUsage?: () =
     latestChapterIdRef,
     handleUpdateContent,
     recordSkillUsage,
+    flushPendingEditorWrites,
   };
 }
 
@@ -173,6 +180,21 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({
       content: '新文尾',
     }));
+  });
+
+  test('does not start or commit an AI rewrite when pending user content cannot flush', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, handleUpdateContent } = renderRewriteHook({
+      flushPendingEditorWrites: async () => { throw new Error('disk unavailable'); },
+    });
+
+    await result.current.handleRewriteSelectedText();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(handleUpdateContent).toHaveBeenCalledWith('原文尾', false, true);
+    expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
+    expect(chapterClientMocks.createChapterVersion).not.toHaveBeenCalled();
   });
 
   test('successful audit polish commits content and critique together once despite telemetry failure', async () => {

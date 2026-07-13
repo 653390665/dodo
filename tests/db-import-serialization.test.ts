@@ -13,6 +13,7 @@ test('database import serialization and recovery', async (t) => {
   const { closeDb, initDb } = await import('../server/lib/db');
   const { getDb, runInSerializedWrite } = await import('../server/lib/db-instance');
   const {
+    DB_IMPORT_BACKUP_MARKER,
     DB_IMPORT_TEMP_MARKER,
     importDatabaseBuffer,
     registerDbRoutes,
@@ -20,6 +21,8 @@ test('database import serialization and recovery', async (t) => {
 
   const importTempFiles = () => fs.readdirSync(testDir)
     .filter((name) => name.includes(DB_IMPORT_TEMP_MARKER));
+  const importBackupFiles = () => fs.readdirSync(testDir)
+    .filter((name) => name.includes(DB_IMPORT_BACKUP_MARKER) && name.endsWith('.bak'));
 
   const resetActiveDatabase = () => {
     closeDb();
@@ -238,6 +241,13 @@ test('database import serialization and recovery', async (t) => {
       await assertRejectedWithoutReplacement(invalidForeignKeyBuffer);
     });
 
+    await t.test('rejects a database carrying another application identifier', async () => {
+      const foreignApplicationBuffer = createCandidate('foreign-application.db', (database) => {
+        database.pragma('application_id = 123456');
+      });
+      await assertRejectedWithoutReplacement(foreignApplicationBuffer);
+    });
+
     await t.test('accepts an older valid backup and lets initialization migrate optional columns', async () => {
       const oldBackupBuffer = createCandidate('old-valid.db', (database) => {
         database.prepare(`
@@ -245,9 +255,11 @@ test('database import serialization and recovery', async (t) => {
           VALUES (?, ?, ?, ?, ?)
         `).run('old-backup-novel', '旧备份作品', 'local-user', Date.now(), Date.now());
         database.exec('ALTER TABLE novels DROP COLUMN mounted_skill_loadout');
+        database.pragma('application_id = 0');
       });
 
       resetActiveDatabase();
+      const backupsBefore = new Set(importBackupFiles());
       await importDatabaseBuffer(oldBackupBuffer);
 
       assert.ok(getDb().prepare('SELECT id FROM novels WHERE id = ?').get('old-backup-novel'));
@@ -257,6 +269,8 @@ test('database import serialization and recovery', async (t) => {
         'initDb should migrate optional columns after preflight succeeds',
       );
       assert.deepEqual(importTempFiles(), []);
+      const createdBackups = importBackupFiles().filter((name) => !backupsBefore.has(name));
+      assert.equal(createdBackups.length, 1, 'successful replacement must preserve a timestamped old database backup');
     });
   } finally {
     closeDb();

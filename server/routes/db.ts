@@ -3,29 +3,28 @@ import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
 import { validate, dbSchema } from '../validation';
 import express from 'express';
-import { existsSync, unlinkSync, copyFileSync, writeFileSync } from 'fs';
+import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { DB_PATH, initDb, openReadOnlyDb } from '../lib/db-init';
+import { DB_PATH, INKFLOW_SQLITE_APPLICATION_ID, initDb, openReadOnlyDb } from '../lib/db-init';
 import { closeDb, getDb, isDbInitialized } from '../lib/db-instance';
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
 
 const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
-  'listChapters', 'listChaptersMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter', 'reorderChapters',
-  'listChapterVersions', 'getChapterVersion', 'createChapterVersion', 'deleteChapterVersion',
-  'listScenes', 'getScene', 'createScene', 'updateScene', 'deleteScene',
-  'listCharacters', 'createCharacter', 'updateCharacter', 'deleteCharacter',
+  'listChapters', 'listChaptersMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter',
+  'listChapterVersions', 'createChapterVersion',
+  'listCharacters', 'getCharacter', 'createCharacter', 'updateCharacter', 'deleteCharacter',
   'listLocations', 'createLocation', 'updateLocation', 'deleteLocation',
-  'listItems', 'createItem', 'updateItem', 'deleteItem',
+  'listItems', 'getItem', 'createItem', 'updateItem', 'deleteItem',
   'listFactions', 'createFaction', 'updateFaction', 'deleteFaction',
   'listPowerLevels', 'createPowerLevel', 'updatePowerLevel', 'deletePowerLevel',
   'listTimelineEvents', 'createTimelineEvent', 'updateTimelineEvent', 'deleteTimelineEvent',
   'listSkills', 'getSkill', 'createSkill', 'updateSkill', 'deleteSkill', 'listSkillVersions',
   'listSkillUsageRecords', 'syncSkillFeedbackScores', 'createSkillUsageRecord',
   'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
-  'listForeshadowings', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
-  'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun', 'deleteChapterProductionRun',
+  'listForeshadowings', 'getForeshadowing', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
+  'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun',
   'listContinuationPacks', 'getContinuationPack', 'createContinuationPack', 'updateContinuationPack', 'deleteContinuationPack',
   'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
 ]);
@@ -41,6 +40,7 @@ function removeDbSidecars(): void {
 }
 
 export const DB_IMPORT_TEMP_MARKER = '.import-validation-';
+export const DB_IMPORT_BACKUP_MARKER = '.pre-import-';
 
 export class DatabaseImportValidationError extends Error {
   constructor(message: string) {
@@ -105,17 +105,25 @@ const REQUIRED_IMPORT_SCHEMA: Record<string, Record<string, {
  * Only the non-migratable core schema is required here; initDb remains
  * responsible for adding newer tables and optional columns to old backups.
  */
-export function validateDatabaseImportFile(filePath: string): void {
+export function validateDatabaseImportFile(filePath: string, requireApplicationId = false): void {
   let candidate: ReturnType<typeof openReadOnlyDb> | undefined;
   try {
     candidate = openReadOnlyDb(filePath);
 
-    const integrityRows = candidate.pragma('quick_check') as Array<Record<string, unknown>>;
+    const integrityRows = candidate.pragma('integrity_check') as Array<Record<string, unknown>>;
     if (
       integrityRows.length !== 1
       || String(Object.values(integrityRows[0] ?? {})[0]).toLowerCase() !== 'ok'
     ) {
-      throw new DatabaseImportValidationError('SQLite quick_check failed');
+      throw new DatabaseImportValidationError('SQLite integrity_check failed');
+    }
+
+    const applicationId = candidate.pragma('application_id', { simple: true }) as number;
+    if (
+      applicationId !== INKFLOW_SQLITE_APPLICATION_ID
+      && (requireApplicationId || applicationId !== 0)
+    ) {
+      throw new DatabaseImportValidationError('SQLite application_id does not belong to InkFlow');
     }
 
     const foreignKeyRows = candidate.pragma('foreign_key_check') as Array<Record<string, unknown>>;
@@ -210,6 +218,7 @@ function removeImportTempFiles(importTempPath: string): void {
     importTempPath,
     `${importTempPath}-wal`,
     `${importTempPath}-shm`,
+    `${importTempPath}.rollback`,
   ]) {
     try {
       if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
@@ -229,7 +238,7 @@ export async function importDatabaseBuffer(
   buffer: Buffer,
   initialize: () => void = initDb,
 ): Promise<void> {
-  const backupPath = `${DB_PATH}.pre-import-bak`;
+  const backupPath = `${DB_PATH}${DB_IMPORT_BACKUP_MARKER}${Date.now()}-${randomUUID()}.bak`;
   const importTempPath = createImportTempPath();
 
   try {
@@ -242,25 +251,30 @@ export async function importDatabaseBuffer(
       let backupReady = false;
       let hadExistingDatabase = false;
       try {
+        if (isDbInitialized()) {
+          getDb().pragma('wal_checkpoint(TRUNCATE)');
+        }
         closeDb();
 
         hadExistingDatabase = existsSync(DB_PATH);
-        if (existsSync(backupPath)) unlinkSync(backupPath);
         if (hadExistingDatabase) {
           copyFileSync(DB_PATH, backupPath);
           backupReady = true;
         }
 
         removeDbSidecars();
-        copyFileSync(importTempPath, DB_PATH);
+        renameSync(importTempPath, DB_PATH);
         initialize();
+        validateDatabaseImportFile(DB_PATH, true);
       } catch (err: unknown) {
         logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
         try {
           closeDb();
 
           if (backupReady && existsSync(backupPath)) {
-            copyFileSync(backupPath, DB_PATH);
+            const rollbackTempPath = `${importTempPath}.rollback`;
+            copyFileSync(backupPath, rollbackTempPath);
+            renameSync(rollbackTempPath, DB_PATH);
           } else if (!hadExistingDatabase && existsSync(DB_PATH)) {
             unlinkSync(DB_PATH);
           }
@@ -271,14 +285,6 @@ export async function importDatabaseBuffer(
           logger.error('严重警告：数据库还原回滚失败！', restoreErr);
         }
         throw err;
-      } finally {
-        try {
-          if (existsSync(backupPath)) {
-            unlinkSync(backupPath);
-          }
-        } catch (unlinkErr) {
-          logger.error('删除导入临时备份文件失败:', unlinkErr);
-        }
       }
     });
   } finally {

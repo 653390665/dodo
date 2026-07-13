@@ -3,7 +3,6 @@ import { useCallback, useRef, useState } from 'react';
 import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
 import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent } from '../production-client';
 import { getChapter } from '../chapter-client';
-import { metadataToChapter } from '../chapter-utils';
 
 interface UseChapterProductionFlowArgs {
   novelId: string;
@@ -214,9 +213,11 @@ export function useChapterProductionFlow({
       const result = await applyChapterProductionRun(runToApply.id);
       const freshChapters = await refreshChapters();
       const fullChapter = await getChapter(result.chapterId);
-      setCurrentChapter(
-        fullChapter || metadataToChapter(freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0]),
-      );
+      if (!fullChapter) throw new Error('生产结果章节不存在，未切换编辑器。');
+      if (!freshChapters.some((chapter) => chapter.id === fullChapter.id)) {
+        throw new Error('生产结果章节未出现在章节列表中。');
+      }
+      setCurrentChapter(fullChapter);
       setActiveProductionRun({
         ...runToApply,
         status: 'applied',

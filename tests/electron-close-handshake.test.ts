@@ -55,3 +55,9 @@ test('Electron main validates ready IPC before completing the close handshake', 
   const source = require('node:fs').readFileSync('electron.cjs', 'utf8');
   assert.match(source, /ipcMain\.on\('renderer-ready-to-close',[\s\S]*rejectUntrustedIpc\(event\)[\s\S]*closeHandshake\?\.rendererReady\(\)/);
 });
+
+test('Electron close timeout records the failure and visibly warns the user', () => {
+  const source = require('node:fs').readFileSync('electron.cjs', 'utf8');
+  assert.match(source, /Editor flush timed out after 5000ms/);
+  assert.match(source, /dialog\.showErrorBox\([\s\S]*保存超时/);
+});

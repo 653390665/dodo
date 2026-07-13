@@ -34,6 +34,7 @@ interface UseAuditPolishActionsArgs {
     options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
+  flushPendingEditorWrites: () => Promise<void>;
 }
 
 export function useAuditPolishActions({
@@ -55,6 +56,7 @@ export function useAuditPolishActions({
   getCurrentFitScore,
   recordSkillUsage,
   formatAiFailure,
+  flushPendingEditorWrites,
 }: UseAuditPolishActionsArgs) {
 
   const isRequestCurrent = (startingChapterId: string | undefined, currentSeq: number) =>
@@ -101,13 +103,15 @@ export function useAuditPolishActions({
     setIsGeneratingCritique(true);
     setAuditStatus('正在整理正文与分镜，提交总编审读…');
     try {
+      await flushPendingEditorWrites();
+      const latestContent = contentRef.current?.value ?? currentChapter.content;
       const contextStr = buildContextPrompt(buildAgentContext());
       const response = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           surface: polishPromptSurface,
-          draftContent: currentChapter.content,
+          draftContent: latestContent,
           sceneBeats: currentChapter.sceneBeats,
           contextStr,
           skills: mountedSkills,
@@ -218,9 +222,11 @@ export function useAuditPolishActions({
     }
     abortControllerRef.current = controller;
 
-    const baselineContent = currentChapter.content;
+    let baselineContent = currentChapter.content;
 
     try {
+      await flushPendingEditorWrites();
+      baselineContent = contentRef.current?.value ?? currentChapter.content;
       const response = await fetch('/api/rewrite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -335,8 +341,10 @@ export function useAuditPolishActions({
 
     setIsGeneratingContent(true);
     setGenerationStatus('正在按审计意见定位坏段落…');
-    const baseline = currentChapter.content;
+    let baseline = currentChapter.content;
     try {
+      await flushPendingEditorWrites();
+      baseline = contentRef.current?.value ?? currentChapter.content;
       const { duplicateTargets, rewriteTargets } = extractPolishTargetsFromCritique(currentChapter.critique);
 
       let candidate = baseline;

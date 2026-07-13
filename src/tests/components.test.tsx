@@ -128,6 +128,8 @@ vi.mock('../lib/hooks/useEditorData', () => ({
     setChapters: vi.fn(),
     currentChapter: mockCurrentChapter,
     setCurrentChapter: vi.fn(),
+    selectChapter: vi.fn(async () => mockCurrentChapter),
+    chapterLoading: false,
     characters: [],
     locations: [],
     items: [],

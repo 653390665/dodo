@@ -36,6 +36,7 @@ const chapter: Chapter = {
 function setup(currentChapter: Chapter | null = chapter, chapters = currentChapter ? [currentChapter] : []) {
   const setChapters = vi.fn();
   const setCurrentChapter = vi.fn();
+  const selectChapter = vi.fn().mockResolvedValue(chapter);
   const hook = renderHook(() => useEditorPersistence({
     novel,
     chapters,
@@ -44,13 +45,14 @@ function setup(currentChapter: Chapter | null = chapter, chapters = currentChapt
     contentRef: { current: null },
     setChapters,
     setCurrentChapter,
+    selectChapter,
     setMountedSkillLoadout: vi.fn(),
     setProjectPreferenceProfile: vi.fn(),
     setGlobalOutline: vi.fn(),
     setExpandedVolumes: vi.fn(),
     pushToUndoHistory: vi.fn(),
   }));
-  return { ...hook, setChapters, setCurrentChapter };
+  return { ...hook, setChapters, setCurrentChapter, selectChapter };
 }
 
 describe('useEditorPersistence safety boundary', () => {

@@ -499,7 +499,13 @@ async function createWindow() {
     allowClose: () => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     },
-    logTimeout: () => writeStartupLog('ERROR: Editor flush timed out after 5000ms; allowing window close.'),
+    logTimeout: () => {
+      writeStartupLog('ERROR: Editor flush timed out after 5000ms; allowing window close.');
+      dialog.showErrorBox(
+        '保存超时',
+        'InkFlow 未能在退出前确认最后一次保存。应用将继续关闭，请重新打开后检查最近编辑内容。',
+      );
+    },
   });
 
   if (windowState.isMaximized) {

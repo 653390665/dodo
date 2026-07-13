@@ -4,7 +4,6 @@ import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaun
 import { cn } from '../lib/utils';
 import type { AgentContext } from '../lib/agents';
 import { Loader2 } from 'lucide-react';
-import { metadataToChapter } from '../lib/chapter-utils';
 import { ChapterSidebar } from './ChapterSidebar';
 import { EditorHeader } from './EditorHeader';
 import { EditorGuideBanners } from './EditorGuideBanners';
@@ -97,7 +96,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
   // --- 2. Custom Hooks (Invoked in correct dependency order) ---
   const {
     chapters, setChapters,
-    currentChapter, setCurrentChapter,
+    currentChapter, setCurrentChapter, selectChapter, chapterLoading,
     characters,
     locations,
     items,
@@ -176,6 +175,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     contentRef,
     setChapters,
     setCurrentChapter,
+    selectChapter,
     setMountedSkillLoadout,
     setProjectPreferenceProfile,
     setGlobalOutline,
@@ -300,6 +300,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     getCurrentFitScore,
     recordSkillUsage,
     formatAiFailure,
+    flushPendingEditorWrites,
   });
 
   // eslint-disable-next-line react-hooks/refs -- syncing value to ref for use in callbacks
@@ -342,12 +343,13 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
   const handleSelectChapter = React.useCallback(async (chapter: ChapterMetadata) => {
     try {
       await flushPendingEditorWrites();
-      setCurrentChapter(metadataToChapter(chapter));
+      const loaded = await selectChapter(chapter.id);
+      if (!loaded) toast('章节已不存在或无法加载', 'error');
     } catch (error) {
       console.error('[EditorView] Failed to save before switching chapters:', error);
       toast('尚有内容保存失败，请重试后再切换章节', 'error');
     }
-  }, [flushPendingEditorWrites, setCurrentChapter]);
+  }, [flushPendingEditorWrites, selectChapter]);
 
   const runCopilotAction = React.useCallback(async (actionKey: CopilotActionKey) => {
     switch (actionKey) {
@@ -441,11 +443,11 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
 
   useEffect(() => {
     if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
-    if (isEditorDataLoading) return;
+    if (isEditorDataLoading || chapterLoading) return;
 
     // Ensure target chapter is synchronized and full content is loaded before executing cockpit action
     if (launchState.targetChapterId) {
-      if (!currentChapter || currentChapter.id !== launchState.targetChapterId || currentChapter.content === undefined) {
+      if (!currentChapter || currentChapter.id !== launchState.targetChapterId) {
         return;
       }
     }
@@ -496,7 +498,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab, setIsAgentSidebarOpen, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
+  }, [chapters.length, chapterLoading, handleAddFirstChapter, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, setAgentTab, setIsAgentSidebarOpen, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
 
   // Synchronize target chapter ID from cockpit / launch state
   useEffect(() => {
@@ -510,11 +512,15 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     if (launchState?.targetChapterId && chapters.length > 0) {
       const matched = chapters.find(c => c.id === launchState.targetChapterId);
       if (matched) {
-        setCurrentChapter(metadataToChapter(matched));
-        hasSyncedTargetChapterRef.current = true;
+        void selectChapter(matched.id).then((loaded) => {
+          if (loaded) hasSyncedTargetChapterRef.current = true;
+        }).catch((error) => {
+          console.error('[EditorView] Failed to load launch target chapter:', error);
+          toast('目标章节加载失败，请重试', 'error');
+        });
       }
     }
-  }, [launchState?.targetChapterId, chapters, setCurrentChapter]);
+  }, [launchState?.targetChapterId, chapters, selectChapter]);
 
   // Auto-polish once the AI audit completes if requested by cockpit-polish launch
   useEffect(() => {
@@ -540,7 +546,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
       "h-full flex overflow-hidden transition-all duration-700 relative",
       isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-theme-sidebar"
     )}>
-      {isEditorDataLoading && (
+      {(isEditorDataLoading || chapterLoading) && (
         <div className="absolute top-4 right-4 z-50">
           <Loader2 className="animate-spin text-theme-accent opacity-50" size={20} aria-hidden="true" />
         </div>
@@ -602,6 +608,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
         <WritingSurface
           novel={novel}
           currentChapter={currentChapter}
+          chapterLoading={chapterLoading}
           isGeneratingBeats={isGeneratingBeats}
           isGeneratingCritique={isGeneratingCritique}
           isGeneratingContent={isGeneratingContent}
