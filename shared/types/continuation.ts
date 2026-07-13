@@ -107,6 +107,7 @@ declare global {
       getAuthToken?: () => Promise<string>;
       saveConfig?: (config: unknown) => Promise<{ success: boolean; error?: string }>;
       onPrepareClose?: (callback: () => void | Promise<void>) => () => void;
+      requestClose?: () => void;
       readyToClose?: () => void;
     };
   }

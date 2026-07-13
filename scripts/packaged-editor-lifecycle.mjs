@@ -135,7 +135,10 @@ async function closeThroughElectronHandshake(application) {
     ? Promise.resolve(child.exitCode)
     : new Promise((resolve) => child.once('exit', resolve));
   const pageClosed = page.waitForEvent('close', { timeout: 15_000 });
-  await page.evaluate(() => globalThis.close());
+  await page.evaluate(() => {
+    if (!globalThis.inkflow?.requestClose) throw new Error('Packaged close bridge is unavailable');
+    globalThis.inkflow.requestClose();
+  });
   await pageClosed;
   await browser.close().catch(() => {});
 

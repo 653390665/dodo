@@ -276,6 +276,11 @@ ipcMain.on('renderer-ready-to-close', (event) => {
   closeHandshake?.rendererReady();
 });
 
+ipcMain.on('request-close', (event) => {
+  if (rejectUntrustedIpc(event)) return;
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+});
+
 // ── Server Lifecycle ─────────────────────────────────────────────────
 
 function waitForServer(port, maxRetries = 50) {

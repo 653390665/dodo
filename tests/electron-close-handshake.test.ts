@@ -56,6 +56,17 @@ test('Electron main validates ready IPC before completing the close handshake', 
   assert.match(source, /ipcMain\.on\('renderer-ready-to-close',[\s\S]*rejectUntrustedIpc\(event\)[\s\S]*closeHandshake\?\.rendererReady\(\)/);
 });
 
+test('renderer close requests enter the validated main-window handshake', () => {
+  const mainSource = require('node:fs').readFileSync('electron.cjs', 'utf8');
+  const preloadSource = require('node:fs').readFileSync('electron-preload.cjs', 'utf8');
+  const lifecycleSource = require('node:fs').readFileSync('scripts/packaged-editor-lifecycle.mjs', 'utf8');
+
+  assert.match(mainSource, /ipcMain\.on\('request-close',[\s\S]*rejectUntrustedIpc\(event\)[\s\S]*mainWindow\.close\(\)/);
+  assert.match(preloadSource, /requestClose:\s*\(\)\s*=>\s*ipcRenderer\.send\('request-close'\)/);
+  assert.match(lifecycleSource, /inkflow\.requestClose\(\)/);
+  assert.doesNotMatch(lifecycleSource, /globalThis\.close\(\)/);
+});
+
 test('Electron close timeout records the failure and visibly warns the user', () => {
   const source = require('node:fs').readFileSync('electron.cjs', 'utf8');
   assert.match(source, /Editor flush timed out after 5000ms/);

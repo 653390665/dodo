@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('inkflow', {
     ipcRenderer.on('prepare-close', listener);
     return () => ipcRenderer.removeListener('prepare-close', listener);
   },
+  requestClose: () => ipcRenderer.send('request-close'),
   readyToClose: () => ipcRenderer.send('renderer-ready-to-close'),
 });
