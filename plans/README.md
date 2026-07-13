@@ -16,11 +16,16 @@
 | 7 | `ca53899` | 2026-06-29 | 产品策略 + UX + IA 综合审计 | 10 | 042–052 |
 | 8 | `ca53899` | 2026-06-29 | 积压审计发现转计划 | 7 | 053–059 |
 | 9 | `ca53899` | 2026-06-30 | /shadcn-improve 深度审计 | 5 | 064–068 |
-| | 14 | `current` | 2026-07-04 | V4 非阻塞 Backlog (代码健康深度治理) | 6 | 103-108 |
+| 10 | `ca53899` | 2026-07-01 | /improve 深度安全与规范审计 | 4 | 077–080 |
+| 11 | `current` | 2026-07-04 | shadcn-improve 状态审计 | 1 | 081 |
+| 12 | `current` | 2026-07-04 | shadcn-improve 深度性能与数据落盘审计 | 2 | 095–096 |
+| 13 | `current` | 2026-07-04 | shadcn-improve 深度全类别审计 | 13 | 097–102 |
+| 14 | `current` | 2026-07-04 | V4 非阻塞 Backlog (代码健康深度治理) | 6 | 103–108 |
 | 15 | `current` | 2026-07-08 | /pua 多角色及 PM 联合刺穿审计 | 4 | 109 |
 | 16 | `current` | 2026-07-09 | SSE流式与异步Job前后端重构治理超时故障 | 3 | 110 |
 | 17 | `a90ff4bb` | 2026-07-10 | improve standard 审计 (correctness+security+perf+tests+dx) | 5 | 111–115 |
 | 18 | `a90ff4bb` | 2026-07-10 | improve standard 深度审计 (correctness+security+perf+tech-debt) | 6 | 116–120 |
+| 19 | `current` | 2026-07-12 | 全仓流式断连时序、配额与资源清理治理 | 1 | 121 |
 
 ## 执行顺序 & 依赖图
 
@@ -140,6 +145,7 @@
 | 118 | Library 批量 Metadata 加载消除 N+1 | DEFERRED | — |
 | 119 | db-mappers DbRow any → 类型安全行接口 | STOPPED | 需改 mapper 实现去 ...row spread，工作量超预期 |
 | 120 | 补全静默空 catch 块的日志记录 | DONE | — |
+| 121 | 全仓流式断连治理 | DONE | 110 |
 
 ## 考虑后排除的发现
 
@@ -159,4 +165,3 @@
 - 前端 console.warn/error 残留: 与 BACKLOG 计划 108 (前端日志治理) 重叠
 - db-mappers.ts 已有 safeJsonParse 日志: 不需要额外处理
 - WriteQueue 静默吞错 (db-instance.ts:49): 设计意图，已在第 17 轮排除
-

@@ -74,14 +74,17 @@ export function useAuditPolishActions({
     content: string,
     startingChapterId: string | undefined,
     currentSeq: number,
-  ) => {
-    if (!isRequestCurrent(startingChapterId, currentSeq)) return;
-    setCurrentChapter((prev) => (prev ? { ...prev, content } : null));
+    extraUpdates: Partial<Chapter> = {},
+  ): Promise<boolean> => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
+    setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
     await updateChapter(chapterId, {
       content,
       updatedAt: Date.now(),
       wordCount: content.replace(/\s/g, '').length,
+      ...extraUpdates,
     });
+    return true;
   };
 
   const handleRunAudit = async () => {
@@ -165,7 +168,7 @@ export function useAuditPolishActions({
       const feedbackStr = typeof jobResult.feedback === 'string' ? jobResult.feedback : '';
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
-      setCurrentChapter((prev) => (prev ? { ...prev, critique: feedbackStr } : null));
+      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
       await updateChapter(currentChapter.id, { critique: feedbackStr });
       try {
         await recordSkillUsage('revised', {
@@ -273,7 +276,8 @@ export function useAuditPolishActions({
         return;
       }
 
-      await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+      const committed = await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+      if (!committed) return;
 
       try {
         await createChapterVersion({
@@ -431,12 +435,14 @@ export function useAuditPolishActions({
 
         if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-        await commitChapterContent(currentChapter.id, candidate, startingChapterId, currentSeq);
-        try {
-          await updateChapter(currentChapter.id, { critique: '' });
-        } catch {
-          // Critique clear failure must not roll back committed content.
-        }
+        const committed = await commitChapterContent(
+          currentChapter.id,
+          candidate,
+          startingChapterId,
+          currentSeq,
+          { critique: '' },
+        );
+        if (!committed) return;
 
         try {
           await createChapterVersion({

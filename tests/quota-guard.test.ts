@@ -101,19 +101,14 @@ describe("quota-guard checkAndConsumeQuota", () => {
     assert.equal(after?.projectPreferenceProfile?.quotaLimits?.generateProseCount, 10);
   });
 
-  test('refundQuota is idempotent when caller guards with local flag pattern', async () => {
-    const novel = makeBaseNovel({ advancedAuditCount: 1, advancedAuditMax: 5 });
+  test('refundQuota is idempotent for the reservation without a caller-side flag', async () => {
+    const novel = makeBaseNovel({ advancedAuditCount: 0, advancedAuditMax: 5 });
     createNovel(novel);
 
-    let refunded = false;
-    const refundOnce = async () => {
-      if (refunded) return;
-      refunded = true;
-      await refundQuota(novel.id, 'advancedAudit');
-    };
-
-    await refundOnce();
-    await refundOnce();
+    const reserve = await reserveQuota(novel.id, 'advancedAudit');
+    assert.ok(reserve.reservationId);
+    assert.equal(await refundQuota(reserve.reservationId), true);
+    assert.equal(await refundQuota(reserve.reservationId), false);
 
     const after = getNovel(novel.id);
     assert.equal(after?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount, 0);
@@ -142,7 +137,7 @@ describe("quota-guard checkAndConsumeQuota", () => {
     const reserve = await reserveQuota(novel.id, 'advancedAudit');
     assert.equal(reserve.allowed, true);
 
-    await refundQuota(novel.id, 'advancedAudit');
+    await refundQuota(reserve.reservationId);
 
     const after = getNovel(novel.id);
     assert.equal(after?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount, 0);

@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import {
   reserveQuota,
   refundQuota,
   commitQuotaReservation,
+  settleQuotaReservation,
   __quotaTestHooks,
 } from '../server/helpers/quota-guard.js';
+import { closeDb, createNovel, getNovel, initDb } from '../server/lib/db.js';
 import type { Novel, ProjectPreferenceProfile } from '../shared/types';
 
 function makeNovel(id: string, count: number, max: number): Novel {
@@ -99,11 +100,37 @@ describe('quota reservation ledger', () => {
   });
 });
 
-import { buildFallbackDraft } from '../server/helpers/fallback-draft.js';
-
 describe('orchestrate fallback delivery semantics', () => {
-  test('fallback draft is non-empty deliverable content', () => {
-    const draft = buildFallbackDraft('主角进入剑冢', '上下文');
-    assert.ok(draft.trim().length > 0);
+  let dbPath: string;
+
+  test.beforeEach(() => {
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-qres-delivery-${Date.now()}.db`);
+    initDb(dbPath);
+    __quotaTestHooks.quotaReservations.clear();
+  });
+
+  test.afterEach(() => {
+    closeDb();
+    try { fs.rmSync(dbPath, { force: true }); } catch { /* ignore */ }
+  });
+
+  test('fallback already delivered is committed and remains billed after critic failure', async () => {
+    const novel = makeNovel('novel-fallback-delivered', 0, 10);
+    createNovel(novel);
+    const reserve = await reserveQuota(novel.id, 'generateProse');
+
+    assert.equal(await settleQuotaReservation(reserve.reservationId, true), true);
+    assert.equal(await refundQuota(reserve.reservationId), false);
+    assert.equal(getNovel(novel.id)?.projectPreferenceProfile?.quotaLimits?.generateProseCount, 1);
+  });
+
+  test('failure before any delivery refunds the reservation', async () => {
+    const novel = makeNovel('novel-no-delivery', 0, 10);
+    createNovel(novel);
+    const reserve = await reserveQuota(novel.id, 'generateProse');
+
+    assert.equal(await settleQuotaReservation(reserve.reservationId, false), true);
+    assert.equal(getNovel(novel.id)?.projectPreferenceProfile?.quotaLimits?.generateProseCount, 0);
   });
 });

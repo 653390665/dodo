@@ -8,6 +8,7 @@ import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
+import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
 
 interface PacingInputChapter {
   order?: number;
@@ -84,6 +85,7 @@ export function registerWorldRoutes(app: Express) {
   });
 
   app.post('/api/generate-bio', async (req, res) => {
+    let disposeDisconnect = () => {};
     const generateBioSchema = z.object({
       name: z.string().min(1, '角色名称不能为空'),
       role: z.string().optional().default('supporting'),
@@ -144,26 +146,35 @@ ${genderConstraint}
       req.socket.setTimeout(0);
 
       const controller = new AbortController();
-      req.on('close', () => {
+      disposeDisconnect = bindClientDisconnect(req, res, () => {
         controller.abort();
       });
 
       await generateText(getConfig(), {
         prompt,
         onToken: (token) => {
-          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          }
         },
         signal: controller.signal
       });
-      res.write('data: [DONE]\n\n');
-      res.end();
+      if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     } catch (e) {
       logger.error('Generate bio SSE error:', e);
+      if (isStreamDisconnected(req, res) || res.writableEnded) {
+        return;
+      }
       if (!res.headersSent) {
         res.status(500).json({ error: "Internal server error" });
       } else {
         res.end();
       }
+    } finally {
+      disposeDisconnect();
     }
   });
 

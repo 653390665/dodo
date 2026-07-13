@@ -32,11 +32,20 @@ export async function downloadAuthenticatedFile(
     'download';
 
   const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = objectUrl;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(objectUrl);
+  let downloadTriggered = false;
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.click();
+    downloadTriggered = true;
+  } finally {
+    if (downloadTriggered) {
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    } else {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
 }
 
 export function downloadDbBackup(): Promise<void> {

@@ -7,7 +7,11 @@ import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } 
 import type { PromptTemplateKey } from '../../shared/types';
 
 function getConfigDir(): string {
-  return process.env.INKFLOW_CONFIG_DIR || path.join(os.homedir(), '.inkflow');
+  if (process.env.INKFLOW_CONFIG_DIR) return process.env.INKFLOW_CONFIG_DIR;
+  if (process.env.NODE_ENV === 'test') {
+    return path.join(os.tmpdir(), 'inkflow-test-config', String(process.pid));
+  }
+  return path.join(os.homedir(), '.inkflow');
 }
 
 function getConfigPath(): string {
@@ -264,4 +268,3 @@ export function getLivenessStatus(): 'connected' | 'unknown' | 'disconnected' {
 export function setLivenessStatus(status: 'connected' | 'unknown' | 'disconnected'): void {
   currentLivenessStatus = status;
 }
-

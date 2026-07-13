@@ -1,4 +1,5 @@
 import type { Skill, QuotaLimits, ProjectPreferenceProfile } from '../../shared/types';
+import { randomUUID } from 'node:crypto';
 import { getNovel, updateNovel } from '../lib/db/novels.js';
 import { runInSerializedWrite } from '../lib/db-instance.js';
 
@@ -50,7 +51,7 @@ function pruneReservations(): void {
 }
 
 function createReservationId(): string {
-  return `qres_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `qres_${randomUUID()}`;
 }
 
 /**
@@ -342,12 +343,29 @@ export async function refundQuota(reservationId: string | undefined): Promise<bo
 }
 
 /** Mark a reservation as successfully delivered — credit stays consumed. */
-export function commitQuotaReservation(reservationId: string | undefined): void {
-  if (!reservationId) return;
+export function commitQuotaReservation(reservationId: string | undefined): boolean {
+  if (!reservationId) return false;
   const reservation = quotaReservations.get(reservationId);
   if (reservation && reservation.status === 'active') {
     reservation.status = 'committed';
+    return true;
   }
+  return false;
+}
+
+/**
+ * Finish a reserved request according to whether user-visible content was
+ * delivered. Delivered fallback text is billable even when later critic work
+ * fails; requests that delivered nothing remain refundable and retryable.
+ */
+export async function settleQuotaReservation(
+  reservationId: string | undefined,
+  contentDelivered: boolean,
+): Promise<boolean> {
+  if (contentDelivered) {
+    return commitQuotaReservation(reservationId);
+  }
+  return refundQuota(reservationId);
 }
 
 /** @internal Test-only access to reservation ledger. */

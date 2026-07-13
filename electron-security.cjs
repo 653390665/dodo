@@ -1,4 +1,5 @@
 'use strict';
+/* global URL, module */
 
 function getAppOrigin(port) {
   return `http://localhost:${port}`;
@@ -6,7 +7,9 @@ function getAppOrigin(port) {
 
 function isAppOrigin(url, appOrigin) {
   try {
-    return new URL(url).origin === appOrigin;
+    const parsed = new URL(url);
+    if (parsed.username || parsed.password) return false;
+    return parsed.origin === appOrigin;
   } catch {
     return false;
   }
@@ -16,6 +19,7 @@ function resolveExternalUrl(url, appOrigin) {
   if (isAppOrigin(url, appOrigin)) return null;
   try {
     const parsed = new URL(url);
+    if (parsed.username || parsed.password) return false;
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
       return parsed.toString();
     }

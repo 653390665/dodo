@@ -16,9 +16,14 @@ import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/soul
 import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
-import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
+import {
+  reserveQuota,
+  commitQuotaReservation,
+  settleQuotaReservation,
+} from '../helpers/quota-guard.js';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 import { getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
+import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -89,6 +94,10 @@ export function registerAgentsRoutes(app: Express) {
 
   app.post('/api/inspiration', async (req, res) => {
     if (!rateLimit('inspiration')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    const controller = new AbortController();
+    const disposeDisconnect = bindClientDisconnect(req, res, () => {
+      controller.abort();
+    });
     try {
       const { prompt = '', surface = 'workspace-draft' } = req.body;
       if (!prompt.trim()) {
@@ -105,11 +114,6 @@ export function registerAgentsRoutes(app: Express) {
       res.setHeader('Connection', 'keep-alive');
       req.socket.setTimeout(0);
 
-      const controller = new AbortController();
-      req.on('close', () => {
-        controller.abort();
-      });
-
       await generateText(getConfig(), {
         prompt,
         systemInstruction: promptAsset.template,
@@ -117,20 +121,29 @@ export function registerAgentsRoutes(app: Express) {
         maxAttempts: 2,
         maxTokens: 2048,
         onToken: (token) => {
-          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+            res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          }
         },
         signal: controller.signal
       });
 
-      res.write('data: [DONE]\n\n');
-      res.end();
+      if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     } catch (e) {
       logger.error('Inspiration SSE error:', e);
+      if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+        return;
+      }
       if (!res.headersSent) {
         res.status(500).json({ error: "Internal server error" });
       } else {
         res.end();
       }
+    } finally {
+      disposeDisconnect();
     }
   });
 
@@ -283,6 +296,17 @@ export function registerAgentsRoutes(app: Express) {
     let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
     let contentDelivered = false;
+    let disposeDisconnect = () => {};
+    let streamCleanedUp = false;
+    const cleanupStream = () => {
+      if (streamCleanedUp) return;
+      streamCleanedUp = true;
+      if (orchestrateHeartbeat) {
+        clearInterval(orchestrateHeartbeat);
+        orchestrateHeartbeat = null;
+      }
+      disposeDisconnect();
+    };
 
     try {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -292,17 +316,14 @@ export function registerAgentsRoutes(app: Express) {
 
       req.socket.setTimeout(0);
       orchestrateHeartbeat = setInterval(() => {
-        if (!res.writableEnded) {
+        if (!res.writableEnded && !res.destroyed) {
           res.write(':ping\n\n');
         }
       }, 30_000);
 
-      req.on('close', () => {
+      disposeDisconnect = bindClientDisconnect(req, res, () => {
         clientAbortController.abort();
-        if (orchestrateHeartbeat) {
-          clearInterval(orchestrateHeartbeat);
-          orchestrateHeartbeat = null;
-        }
+        cleanupStream();
       });
 
       let activeSkills = skills || [];
@@ -333,7 +354,9 @@ export function registerAgentsRoutes(app: Express) {
           criticFeedback: criticFeedback || '初稿阶段，请全力输出。',
         });
 
-        res.write(`data: ${JSON.stringify({ type: 'status', message: 'Writer Agent 正在生成正文…' })}\n\n`);
+        if (!res.writableEnded && !res.destroyed) {
+          res.write(`data: ${JSON.stringify({ type: 'status', message: 'Writer Agent 正在生成正文…' })}\n\n`);
+        }
         try {
           currentDraft = await generateText(getConfig(), {
             prompt: writerPrompt,
@@ -343,16 +366,28 @@ export function registerAgentsRoutes(app: Express) {
           });
           currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
         } catch (error) {
+          if (clientAbortController.signal.aborted) throw error;
           logger.warn('Writer generation fell back to local draft', error);
           currentDraft = buildFallbackDraft(sceneBeats, contextStr);
-          res.write(`data: ${JSON.stringify({
-            type: 'status',
-            message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
-          })}\n\n`);
+          if (!res.writableEnded && !res.destroyed) {
+            res.write(`data: ${JSON.stringify({
+              type: 'status',
+              message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+            })}\n\n`);
+          }
         }
-        contentDelivered = true;
-        await emitTextAsTokens(res, currentDraft);
-        res.write(`data: ${JSON.stringify({ type: 'writer_done' })}\n\n`);
+        if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+          throw new Error('Client disconnected before draft delivery');
+        }
+        await emitTextAsTokens(res, currentDraft, {
+          signal: clientAbortController.signal,
+          onFirstWrite: () => {
+            contentDelivered = true;
+          },
+        });
+        if (!res.writableEnded && !res.destroyed) {
+          res.write(`data: ${JSON.stringify({ type: 'writer_done' })}\n\n`);
+        }
 
         if (!includeCritic) {
           break;
@@ -377,29 +412,26 @@ export function registerAgentsRoutes(app: Express) {
           signal: clientAbortController.signal,
         });
         isValid = criticFeedback.includes("PASS");
-        res.write(`data: ${JSON.stringify({ type: 'critic_done', feedback: criticFeedback, isValid })}\n\n`);
+        if (!res.writableEnded && !res.destroyed) {
+          res.write(`data: ${JSON.stringify({ type: 'critic_done', feedback: criticFeedback, isValid })}\n\n`);
+        }
 
         if (isValid) break;
       }
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
-      }
-
       commitQuotaReservation(reservationId);
-      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-      res.end();
+      if (!res.writableEnded && !res.destroyed) {
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
+      }
     } catch (err) {
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
-      }
-      if (!contentDelivered) {
-        await refundQuota(reservationId);
-      }
+      await settleQuotaReservation(reservationId, contentDelivered);
       logger.error(String(err));
-      res.write(`data: ${JSON.stringify({ type: 'error', message: String(err) })}\n\n`);
-      res.end();
+      if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: String(err) })}\n\n`);
+        res.end();
+      }
+    } finally {
+      cleanupStream();
     }
   });
 
@@ -409,6 +441,17 @@ export function registerAgentsRoutes(app: Express) {
     const { novelId } = req.body;
     let reservationId: string | undefined;
     let contentDelivered = false;
+    let disposeDisconnect = () => {};
+    let streamCleanedUp = false;
+    const cleanupStream = () => {
+      if (streamCleanedUp) return;
+      streamCleanedUp = true;
+      if (orchestrateHeartbeat) {
+        clearInterval(orchestrateHeartbeat);
+        orchestrateHeartbeat = null;
+      }
+      disposeDisconnect();
+    };
 
     try {
       const {
@@ -443,17 +486,14 @@ export function registerAgentsRoutes(app: Express) {
 
       req.socket.setTimeout(0);
       orchestrateHeartbeat = setInterval(() => {
-        if (!res.writableEnded) {
+        if (!res.writableEnded && !res.destroyed) {
           res.write(':ping\n\n');
         }
       }, 30_000);
 
-      req.on('close', () => {
+      disposeDisconnect = bindClientDisconnect(req, res, () => {
         clientAbortController.abort();
-        if (orchestrateHeartbeat) {
-          clearInterval(orchestrateHeartbeat);
-          orchestrateHeartbeat = null;
-        }
+        cleanupStream();
       });
 
       const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
@@ -505,43 +545,48 @@ export function registerAgentsRoutes(app: Express) {
         });
         text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr);
       } catch (error) {
+        if (clientAbortController.signal.aborted) throw error;
         logger.warn('Writer generation fell back to local draft', error);
         text = buildFallbackDraft(sceneBeats, effectiveContextStr);
-        res.write(`data: ${JSON.stringify({
-          type: 'status',
-          message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
-        })}\n\n`);
+        if (!res.writableEnded && !res.destroyed) {
+          res.write(`data: ${JSON.stringify({
+            type: 'status',
+            message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+          })}\n\n`);
+        }
       }
 
-      contentDelivered = true;
-      await emitTextAsTokens(res, text);
-
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
+      if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+        throw new Error('Client disconnected before draft delivery');
       }
+      await emitTextAsTokens(res, text, {
+        signal: clientAbortController.signal,
+        onFirstWrite: () => {
+          contentDelivered = true;
+        },
+      });
 
       commitQuotaReservation(reservationId);
-      res.write(`data: ${JSON.stringify({
-        type: 'done',
-        text,
-        wordCount: countDraftChars(text),
-      })}\n\n`);
-      res.end();
+      if (!res.writableEnded && !res.destroyed) {
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          text,
+          wordCount: countDraftChars(text),
+        })}\n\n`);
+        res.end();
+      }
     } catch (error) {
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
-      }
-      if (!contentDelivered) {
-        await refundQuota(reservationId);
-      }
+      await settleQuotaReservation(reservationId, contentDelivered);
       logger.error(String(error));
-      res.write(`data: ${JSON.stringify({
-        type: 'error',
-        message: error instanceof Error ? error.message : String(error),
-      })}\n\n`);
-      res.end();
+      if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+        res.write(`data: ${JSON.stringify({
+          type: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        })}\n\n`);
+        res.end();
+      }
+    } finally {
+      cleanupStream();
     }
   });
 }

@@ -1,11 +1,12 @@
 import { logger } from '../logger';
-import type { Express } from 'express';
+import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
 import { validate, dbSchema } from '../validation';
 import express from 'express';
 import { existsSync, unlinkSync, copyFileSync, writeFileSync } from 'fs';
 import { DB_PATH, initDb } from '../lib/db-init';
 import { closeDb, getDb, isDbInitialized } from '../lib/db-instance';
+import { bindClientDisconnect } from '../helpers/stream-disconnect';
 
 const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
@@ -27,7 +28,105 @@ const DB_WHITELIST = new Set([
   'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
 ]);
 
-import { subscribe, setCurrentInitiator, runInSerializedWrite, drainWriteQueue } from '../lib/db-instance';
+import { subscribe, setCurrentInitiator, runInSerializedWrite } from '../lib/db-instance';
+
+function removeDbSidecars(): void {
+  for (const sidecarPath of [`${DB_PATH}-wal`, `${DB_PATH}-shm`]) {
+    if (existsSync(sidecarPath)) {
+      unlinkSync(sidecarPath);
+    }
+  }
+}
+
+/**
+ * Replace the active database without allowing a queued write to cross the
+ * close/replace/reinitialize boundary. Entering the FIFO queue is itself the
+ * wait for all writes that were already queued; draining from inside the task
+ * would wait on the task's own promise and deadlock.
+ */
+export async function importDatabaseBuffer(
+  buffer: Buffer,
+  initialize: () => void = initDb,
+): Promise<void> {
+  const backupPath = `${DB_PATH}.pre-import-bak`;
+
+  await runInSerializedWrite(async () => {
+    try {
+      closeDb();
+
+      if (existsSync(DB_PATH)) {
+        copyFileSync(DB_PATH, backupPath);
+      }
+
+      removeDbSidecars();
+      writeFileSync(DB_PATH, buffer);
+      initialize();
+    } catch (err: unknown) {
+      logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
+      try {
+        closeDb();
+
+        if (existsSync(backupPath)) {
+          copyFileSync(backupPath, DB_PATH);
+        }
+
+        removeDbSidecars();
+        initialize();
+      } catch (restoreErr) {
+        logger.error('严重警告：数据库还原回滚失败！', restoreErr);
+      }
+      throw err;
+    } finally {
+      try {
+        if (existsSync(backupPath)) {
+          unlinkSync(backupPath);
+        }
+      } catch (unlinkErr) {
+        logger.error('删除导入临时备份文件失败:', unlinkErr);
+      }
+    }
+  });
+}
+
+/**
+ * Keep the database event stream alive until the client actually disconnects.
+ * The returned cleanup is idempotent so setup failures and disconnect events
+ * can safely share the same teardown path.
+ */
+export function startDbEventStream(
+  req: Request,
+  res: Response,
+  heartbeatIntervalMs = 30_000,
+): () => void {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  res.write('retry: 3000\n\n');
+  req.socket.setTimeout(0);
+
+  let cleanedUp = false;
+  let disposeDisconnect = () => {};
+  const unsubscribe = subscribe((initiatorId) => {
+    res.write(`data: ${JSON.stringify({ initiator: initiatorId })}\n\n`);
+  });
+  const heartbeat = setInterval(() => {
+    res.write(':ping\n\n');
+  }, heartbeatIntervalMs);
+
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    clearInterval(heartbeat);
+    unsubscribe();
+    disposeDisconnect();
+  };
+
+  disposeDisconnect = bindClientDisconnect(req, res, cleanup);
+  return cleanup;
+}
 
 export function registerDbRoutes(app: Express) {
   app.post('/api/db', validate(dbSchema), (req, res) => {
@@ -58,27 +157,7 @@ export function registerDbRoutes(app: Express) {
 
   app.get('/api/db/events', (req, res) => {
     try {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.flushHeaders();
-
-      res.write('retry: 3000\n\n');
-      req.socket.setTimeout(0);
-
-      const unsub = subscribe((initiatorId) => {
-        res.write(`data: ${JSON.stringify({ initiator: initiatorId })}\n\n`);
-      });
-
-      const heartbeat = setInterval(() => {
-        res.write(':ping\n\n');
-      }, 30_000);
-
-      req.on('close', () => {
-        clearInterval(heartbeat);
-        unsub();
-      });
+      startDbEventStream(req, res);
     } catch (e) {
       logger.error('SSE events error:', e);
       if (!res.headersSent) res.status(500).json({ error: 'SSE connection failed' });
@@ -133,65 +212,12 @@ export function registerDbRoutes(app: Express) {
         return res.status(400).json({ error: '无效的 SQLite 数据库文件格式' });
       }
 
-      const backupPath = DB_PATH + '.pre-import-bak';
-
       try {
-        await runInSerializedWrite(async () => {
-          await drainWriteQueue();
-          closeDb();
-
-          if (existsSync(DB_PATH)) {
-            copyFileSync(DB_PATH, backupPath);
-          }
-
-          const walPath = DB_PATH + '-wal';
-          const shmPath = DB_PATH + '-shm';
-          if (existsSync(walPath)) {
-            unlinkSync(walPath);
-          }
-          if (existsSync(shmPath)) {
-            unlinkSync(shmPath);
-          }
-
-          writeFileSync(DB_PATH, buffer);
-          initDb();
-        });
+        await importDatabaseBuffer(buffer);
 
         res.json({ success: true });
       } catch (err: unknown) {
-        logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
-        try {
-          await runInSerializedWrite(async () => {
-            await drainWriteQueue();
-            closeDb();
-
-            if (existsSync(backupPath)) {
-              copyFileSync(backupPath, DB_PATH);
-            }
-
-            const walPath = DB_PATH + '-wal';
-            const shmPath = DB_PATH + '-shm';
-            if (existsSync(walPath)) {
-              unlinkSync(walPath);
-            }
-            if (existsSync(shmPath)) {
-              unlinkSync(shmPath);
-            }
-
-            initDb();
-          });
-        } catch (restoreErr) {
-          logger.error('严重警告：数据库还原回滚失败！', restoreErr);
-        }
         res.status(500).json({ error: err instanceof Error ? err.message : '还原数据失败，已自动回撤恢复旧数据' });
-      } finally {
-        try {
-          if (existsSync(backupPath)) {
-            unlinkSync(backupPath);
-          }
-        } catch (unlinkErr) {
-          logger.error('删除导入临时备份文件失败:', unlinkErr);
-        }
       }
     },
   );

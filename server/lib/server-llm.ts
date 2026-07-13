@@ -2,7 +2,6 @@ import type { AppConfig } from "./config";
 import { setLivenessStatus } from "./config";
 import { applyInputGuard, checkOutputGuard, buildCorrectionPrompt, isCreativeWritingRequest } from '../helpers/prompt-guard';
 import { getDb } from "./db-instance.js";
-import { logger } from '../logger';
 
 interface GenerateTextOptions {
   prompt: string;
@@ -409,6 +408,29 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             const decoder = new TextDecoder("utf-8");
             let fullText = '';
             let buffer = '';
+            let sawDone = false;
+
+            const processSseLine = (line: string) => {
+              const cleaned = line.trim();
+              if (!cleaned) return;
+              if (cleaned === 'data: [DONE]') {
+                sawDone = true;
+                return;
+              }
+              if (!cleaned.startsWith('data: ')) return;
+
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(cleaned.substring(6));
+              } catch {
+                throw new Error('LLM SSE returned invalid JSON');
+              }
+              const token = asRecord(asRecord(asArray(asRecord(parsed).choices)[0]).delta).content;
+              if (typeof token === 'string' && token) {
+                fullText += token;
+                onToken(token);
+              }
+            };
 
             while (true) {
               const { done, value } = await reader.read();
@@ -419,22 +441,13 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               buffer = lines.pop() || '';
 
               for (const line of lines) {
-                const cleaned = line.trim();
-                if (!cleaned) continue;
-                if (cleaned === 'data: [DONE]') continue;
-                if (cleaned.startsWith('data: ')) {
-                  try {
-                    const parsed = JSON.parse(cleaned.substring(6));
-                    const token = parsed?.choices?.[0]?.delta?.content || '';
-                    if (token) {
-                      fullText += token;
-                      onToken(token);
-                    }
-                  } catch (parseErr) {
-                    logger.warn('SSE token JSON parse skipped:', parseErr);
-                  }
-                }
+                processSseLine(line);
               }
+            }
+            buffer += decoder.decode();
+            if (buffer.trim()) processSseLine(buffer);
+            if (!sawDone) {
+              throw new Error('LLM SSE ended before [DONE]');
             }
             return sanitizeModelText(fullText);
           } else {

@@ -9,6 +9,7 @@ import { registerAuditRoutes, __auditTestHooks } from '../server/routes/audit.js
 import { closeDb, createNovel, getNovel, initDb } from '../server/lib/db.js';
 import { drainWriteQueue } from '../server/lib/db-instance.js';
 import { DEFAULT_QUOTA_MAX } from '../server/helpers/quota-guard.js';
+import { getConfig } from '../server/lib/config.js';
 import type { Novel } from '../shared/types';
 
 const originalFetch = globalThis.fetch;
@@ -41,7 +42,13 @@ function mockNovel(id: string, auditCount = 0): Novel {
   };
 }
 
-function mockLlmFetch(content: string, options?: { stream?: boolean; throwError?: boolean }) {
+function mockLlmFetch(content: string, options?: {
+  stream?: boolean;
+  throwError?: boolean;
+  chunkDelayMs?: number;
+  missingDone?: boolean;
+  invalidJson?: boolean;
+}) {
   globalThis.fetch = async (url, init) => {
     const urlStr = String(url);
     if (urlStr.includes('localhost') || urlStr.includes('127.0.0.1')) {
@@ -54,16 +61,25 @@ function mockLlmFetch(content: string, options?: { stream?: boolean; throwError?
     if (body.stream === true || options?.stream) {
       const encoder = new TextEncoder();
       const chunks = content.match(/.{1,8}/g) ?? [content];
-      const payload = chunks
-        .map((part) => `data: {"choices":[{"delta":{"content":${JSON.stringify(part)}}}]}\n\n`)
-        .join('') + 'data: [DONE]\n\n';
+      const events = chunks.map((part) =>
+        `data: {"choices":[{"delta":{"content":${JSON.stringify(part)}}}]}\n\n`,
+      );
+      if (options?.invalidJson) events.push('data: {invalid-json}\n\n');
+      if (!options?.missingDone) events.push('data: [DONE]\n\n');
+      let eventIndex = 0;
       return {
         ok: true,
         status: 200,
         body: new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(payload));
-            controller.close();
+          async pull(controller) {
+            if (eventIndex >= events.length) {
+              controller.close();
+              return;
+            }
+            if (options?.chunkDelayMs) {
+              await new Promise((resolve) => setTimeout(resolve, options.chunkDelayMs));
+            }
+            controller.enqueue(encoder.encode(events[eventIndex++]));
           },
         }),
       } as Response;
@@ -129,12 +145,27 @@ describe('audit / rewrite route integration', () => {
   });
 
   async function startAuditServer(): Promise<string> {
+    const config = getConfig();
+    config.apiKey = 'test-api-key';
+    config.baseUrl = 'https://api.openai.com/v1';
+    config.model = 'test-model';
     const app = express();
     app.use(express.json());
     registerAuditRoutes(app);
     server = app.listen(0);
     const port = (server.address() as { port: number }).port;
     return `http://localhost:${port}`;
+  }
+
+  async function waitForAuditJob(baseUrl: string, jobId: string) {
+    let job: { status: string; error?: string; result?: { feedback?: string } } = { status: 'pending' };
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}`);
+      job = await jobRes.json();
+      if (job.status === 'completed' || job.status === 'failed') break;
+    }
+    return job;
   }
 
   test('POST /api/audit returns jobId and GET job completes with result', async () => {
@@ -216,6 +247,40 @@ describe('audit / rewrite route integration', () => {
     assert.equal(afterCount, beforeCount);
   });
 
+  test('blank audit fails, refunds quota, and exposes only a generic error', async () => {
+    process.env.NODE_ENV = 'test';
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-audit-blank-${Date.now()}.db`);
+    initDb(dbPath);
+    createNovel(mockNovel('novel-audit-blank'));
+
+    mockLlmFetch('   ');
+
+    const baseUrl = await startAuditServer();
+    const postRes = await fetch(`${baseUrl}/api/audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novelId: 'novel-audit-blank',
+        draftContent: '测试正文',
+        sceneBeats: '测试分镜',
+        contextStr: '测试上下文',
+      }),
+    });
+    const { jobId } = await postRes.json() as { jobId: string };
+    const job = await waitForAuditJob(baseUrl, jobId);
+
+    assert.equal(job.status, 'failed');
+    assert.equal(job.error, 'Internal server error');
+    assert.equal(JSON.stringify(job).includes('empty feedback'), false);
+
+    await drainWriteQueue();
+    assert.equal(
+      getNovel('novel-audit-blank')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
+      0,
+    );
+  });
+
   test('POST /api/rewrite streams tokens and ends with [DONE]', async () => {
     process.env.NODE_ENV = 'test';
     closeDb();
@@ -223,7 +288,7 @@ describe('audit / rewrite route integration', () => {
     initDb(dbPath);
     createNovel(mockNovel('novel-rewrite'));
 
-    mockLlmFetch('改写完成', { stream: true });
+    mockLlmFetch('改写完成', { stream: true, chunkDelayMs: 15 });
 
     const baseUrl = await startAuditServer();
     const res = await fetch(`${baseUrl}/api/rewrite`, {
@@ -242,6 +307,91 @@ describe('audit / rewrite route integration', () => {
     const sse = await readSseBody(res);
     assert.equal(sse.done, true);
     assert.ok(sse.tokens.join('').length > 0);
+  });
+
+  test('rewrite fails immediately on malformed upstream SSE JSON and refunds quota', async () => {
+    process.env.NODE_ENV = 'test';
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-rewrite-json-${Date.now()}.db`);
+    initDb(dbPath);
+    createNovel(mockNovel('novel-rewrite-json'));
+
+    mockLlmFetch('部分内容', { stream: true, invalidJson: true });
+
+    const baseUrl = await startAuditServer();
+    const res = await fetch(`${baseUrl}/api/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novelId: 'novel-rewrite-json', text: '原文', contextStr: 'ctx' }),
+    });
+    const sse = await readSseBody(res);
+
+    assert.equal(sse.done, false);
+    assert.equal(sse.error, 'Internal server error');
+    await drainWriteQueue();
+    assert.equal(
+      getNovel('novel-rewrite-json')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
+      0,
+    );
+  });
+
+  test('rewrite without upstream [DONE] fails and refunds quota', async () => {
+    process.env.NODE_ENV = 'test';
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-rewrite-no-done-${Date.now()}.db`);
+    initDb(dbPath);
+    createNovel(mockNovel('novel-rewrite-no-done'));
+
+    mockLlmFetch('截断内容', { stream: true, missingDone: true });
+
+    const baseUrl = await startAuditServer();
+    const res = await fetch(`${baseUrl}/api/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novelId: 'novel-rewrite-no-done', text: '原文', contextStr: 'ctx' }),
+    });
+    const sse = await readSseBody(res);
+
+    assert.equal(sse.done, false);
+    assert.equal(sse.error, 'Internal server error');
+    await drainWriteQueue();
+    assert.equal(
+      getNovel('novel-rewrite-no-done')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
+      0,
+    );
+  });
+
+  test('aborted rewrite refunds quota and never emits a completed delivery', async () => {
+    process.env.NODE_ENV = 'test';
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-rewrite-abort-${Date.now()}.db`);
+    initDb(dbPath);
+    createNovel(mockNovel('novel-rewrite-abort'));
+
+    mockLlmFetch('这是一个足够长的延迟改写结果，用来确保客户端能在完成前中断连接。', {
+      stream: true,
+      chunkDelayMs: 30,
+    });
+
+    const baseUrl = await startAuditServer();
+    const controller = new AbortController();
+    const res = await fetch(`${baseUrl}/api/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novelId: 'novel-rewrite-abort', text: '原文', contextStr: 'ctx' }),
+      signal: controller.signal,
+    });
+    const reader = res.body?.getReader();
+    assert.ok(reader);
+    await reader.read();
+    controller.abort();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    await drainWriteQueue();
+    assert.equal(
+      getNovel('novel-rewrite-abort')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
+      0,
+    );
   });
 
   test('rewrite empty result refunds quota', async () => {
