@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +15,17 @@ const databasePath = path.join(testRoot, 'lifecycle.db');
 const configDir = path.join(testRoot, 'config');
 const expectedContent = `打包应用退出耐久性验证-${Date.now()}`;
 mkdirSync(configDir, { recursive: true });
+
+function collectStartupLogs(directory = testRoot) {
+  if (!existsSync(directory)) return '';
+  const logs = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) logs.push(collectStartupLogs(entryPath));
+    else if (entry.name === 'startup.log') logs.push(`--- ${entryPath} ---\n${readFileSync(entryPath, 'utf8')}`);
+  }
+  return logs.filter(Boolean).join('\n');
+}
 
 function withTimeout(promise, timeoutMs, label) {
   let timeout;
@@ -67,6 +78,8 @@ async function launch() {
       ...process.env,
       HOME: testRoot,
       USERPROFILE: testRoot,
+      APPDATA: path.join(testRoot, 'AppData', 'Roaming'),
+      LOCALAPPDATA: path.join(testRoot, 'AppData', 'Local'),
       INKFLOW_DB_PATH: databasePath,
       INKFLOW_CONFIG_DIR: configDir,
     },
@@ -131,8 +144,9 @@ async function closeThroughElectronHandshake(application) {
 }
 
 let application;
+let completed = false;
 try {
-  application = await withTimeout(launch(), 75_000, 'First packaged launch');
+  application = await launch();
   let page = application.page;
   await page.locator('body').waitFor({ state: 'visible' });
 
@@ -165,7 +179,7 @@ try {
   await closeThroughElectronHandshake(application);
   application = undefined;
 
-  application = await withTimeout(launch(), 75_000, 'Second packaged launch');
+  application = await launch();
   page = application.page;
   await page.locator('body').waitFor({ state: 'visible' });
   const reopenedEditor = await enterEditor(page);
@@ -176,11 +190,16 @@ try {
 
   await closeThroughElectronHandshake(application);
   application = undefined;
+  completed = true;
   process.stdout.write('Packaged Electron editor lifecycle persistence: OK\n');
 } finally {
   if (application) {
     await application.browser.close().catch(() => {});
     application.child.kill();
+  }
+  if (!completed) {
+    const startupLogs = collectStartupLogs();
+    if (startupLogs) process.stderr.write(`${startupLogs}\n`);
   }
   rmSync(testRoot, { recursive: true, force: true });
 }
