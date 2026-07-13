@@ -32,7 +32,12 @@ export async function persistQuickSetting(input: {
         bio: input.description,
         updatedAt: now,
       };
-      if (!await updateCharacter(entity.id, entity)) throw new Error('人物已不存在');
+      if (!await updateCharacter(entity.id, {
+        name: entity.name,
+        summary: entity.summary,
+        bio: entity.bio,
+        updatedAt: entity.updatedAt,
+      })) throw new Error('人物已不存在');
       return { type: 'character', entity, created: false };
     }
     if (input.type === 'location') {
@@ -42,7 +47,11 @@ export async function persistQuickSetting(input: {
         description: input.description,
         updatedAt: now,
       };
-      if (!await updateLocation(entity.id, entity)) throw new Error('地点已不存在');
+      if (!await updateLocation(entity.id, {
+        name: entity.name,
+        description: entity.description,
+        updatedAt: entity.updatedAt,
+      })) throw new Error('地点已不存在');
       return { type: 'location', entity, created: false };
     }
     const entity = {
@@ -51,7 +60,11 @@ export async function persistQuickSetting(input: {
       description: input.description,
       updatedAt: now,
     };
-    if (!await updateItem(entity.id, entity)) throw new Error('道具已不存在');
+    if (!await updateItem(entity.id, {
+      name: entity.name,
+      description: entity.description,
+      updatedAt: entity.updatedAt,
+    })) throw new Error('道具已不存在');
     return { type: 'item', entity, created: false };
   }
 

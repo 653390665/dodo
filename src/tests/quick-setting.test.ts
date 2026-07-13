@@ -63,6 +63,39 @@ describe('persistQuickSetting', () => {
     expect(result.entity.id).toBe('character-1');
   });
 
+  test('editing database-loaded entities strips raw SQLite column names', async () => {
+    const character = {
+      id: 'character-1', novelId: 'novel-1', name: 'Old', role: 'supporting' as const,
+      summary: '', traits: [], bio: '', createdAt: 1, updatedAt: 1,
+      novel_id: 'novel-1', created_at: 1, updated_at: 1,
+    };
+    const location = {
+      id: 'location-1', novelId: 'novel-1', name: 'Old', description: '', region: '',
+      createdAt: 1, updatedAt: 1, novel_id: 'novel-1', created_at: 1, updated_at: 1,
+    };
+    const item = {
+      id: 'item-1', novelId: 'novel-1', name: 'Old', description: '', type: '',
+      createdAt: 1, updatedAt: 1, novel_id: 'novel-1', created_at: 1, updated_at: 1,
+    };
+
+    await Promise.all([
+      persistQuickSetting({ novelId: 'novel-1', type: 'character', name: 'New', description: 'Details', existing: character }),
+      persistQuickSetting({ novelId: 'novel-1', type: 'location', name: 'New', description: 'Details', existing: location }),
+      persistQuickSetting({ novelId: 'novel-1', type: 'item', name: 'New', description: 'Details', existing: item }),
+    ]);
+
+    const payloads = [
+      clients.updateCharacter.mock.calls[0]?.[1],
+      clients.updateLocation.mock.calls[0]?.[1],
+      clients.updateItem.mock.calls[0]?.[1],
+    ];
+    for (const payload of payloads) {
+      expect(payload).not.toHaveProperty('novel_id');
+      expect(payload).not.toHaveProperty('created_at');
+      expect(payload).not.toHaveProperty('updated_at');
+    }
+  });
+
   test('editing reports failure when the target row no longer exists', async () => {
     clients.updateCharacter.mockResolvedValue(false);
     await expect(persistQuickSetting({
