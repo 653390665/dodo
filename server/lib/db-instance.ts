@@ -36,6 +36,41 @@ export function runInTransaction<T>(fn: () => T): T {
   return activeDb.transaction(fn)();
 }
 
+/**
+ * A FIFO Promise queue to serialize asynchronous database write transactions or routines.
+ */
+class WriteQueue {
+  private queue: Promise<unknown> = Promise.resolve();
+
+  async run<T>(fn: () => Promise<T> | T): Promise<T> {
+    const next = this.queue.then(async () => {
+      return fn();
+    });
+    this.queue = next.catch(() => {});
+    return next;
+  }
+
+  async drain(): Promise<void> {
+    await this.queue;
+  }
+
+  reset(): void {
+    this.queue = Promise.resolve();
+  }
+}
+
+const writeQueue = new WriteQueue();
+
+/**
+ * Run a database writing task in a serialized async FIFO queue.
+ * This guarantees no concurrent database locked issues occur when multiple
+ * asynchronous router transactions interleave.
+ */
+export async function runInSerializedWrite<T>(fn: () => Promise<T> | T): Promise<T> {
+  return writeQueue.run(fn);
+}
+
+
 /** Returns true if the database singleton has been initialized. */
 export function isDbInitialized(): boolean {
   return db !== undefined;
@@ -44,6 +79,11 @@ export function isDbInitialized(): boolean {
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
+
+/** Wait for all pending serialized writes to finish. */
+export async function drainWriteQueue(): Promise<void> {
+  await writeQueue.drain();
+}
 
 /** Closes the database connection and clears the singleton. */
 export function closeDb(): void {

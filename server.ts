@@ -11,8 +11,21 @@ initDb();
 async function startServer() {
   const app = express();
   // Register helmet for secure headers (CSP, XSS, MIME Sniffing, Clickjacking)
+  const isProduction = process.env.NODE_ENV === 'production';
   app.use(helmet({
-    contentSecurityPolicy: false, // Disable default restrictive CSP in local Dev Vite overlay mode
+    contentSecurityPolicy: isProduction ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    } : false,
   }));
   const PORT = parseInt(process.env.PORT || '3000', 10);
   const allowPortRetry = !process.env.PORT || process.env.NODE_ENV === 'production';

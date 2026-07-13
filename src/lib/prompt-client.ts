@@ -8,6 +8,24 @@ import type {
 } from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
 
+/**
+ * Result of parsing a world-setup document. All fields optional since the
+ * extracted structure depends on the uploaded document's content.
+ * Array payloads are typed loosely because they originate from untrusted LLM
+ * JSON output; callers validate/normalize before persisting.
+ */
+export type DocExtractionResult = {
+  globalOutline?: string;
+  worldRules?: string;
+  characters?: unknown[];
+  locations?: unknown[];
+  items?: unknown[];
+  factions?: unknown[];
+  powerLevels?: unknown[];
+  timelineEvents?: unknown[];
+  [key: string]: unknown;
+};
+
 export type ExtractSkillResponse = {
   skills: Skill[];
   deck: AggregatedSkillDeck;
@@ -125,26 +143,180 @@ export async function checkStoryCardJob(jobId: string): Promise<{
   return data;
 }
 
-export async function parseContinuationPack(payload: {
-  novelId: string;
-  title: string;
-  documents: Array<{ filename: string; filedata: string }>;
-}): Promise<ContinuationPack> {
+export async function parseContinuationPack(
+  payload: {
+    novelId: string;
+    title: string;
+    documents: Array<{ filename: string; filedata: string }>;
+  },
+  onProgress?: (progress: number, stageText: string) => void
+): Promise<ContinuationPack> {
   const res = await fetch('/api/continuation-packs/parse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }).catch(() => { throw new Error('无法连接到本地解析服务，请确认应用服务仍在运行。'); });
   const raw = await res.text();
   let data: unknown;
   try {
     data = raw ? JSON.parse(raw) : {};
   } catch {
-    throw new Error(raw || 'Failed to parse continuation pack');
+    throw new Error(raw || '解析服务返回异常，请重试。');
   }
   const rec = asRecord(data);
-  if (!res.ok || rec.error) throw new Error(String(rec.error || 'Failed to parse continuation pack'));
+  if (!res.ok || rec.error) {
+    if (rec.error === 'Validation failed' && Array.isArray(rec.details)) {
+      const detailMsgs = rec.details.map((d: { path: string; message: string }) => `[${d.path}]: ${d.message}`).join('; ');
+      throw new Error(`数据校验失败: ${detailMsgs}`);
+    }
+    throw new Error(String(rec.error || '解析失败，请重试。'));
+  }
+
+  // If backend returns a background jobId
+  if (typeof rec.jobId === 'string') {
+    const jobId = rec.jobId;
+    onProgress?.(10, '正在读取资料并提取文本...');
+
+    const startTime = Date.now();
+    const timeoutMs = 300_000; // 5 minutes timeout
+
+    let currentDisplayedProgress = 10;
+    let targetProgress = 10;
+    let currentStageText = '正在读取资料并提取文本...';
+    let isTerminated = false;
+
+    // Smooth micro-ticks progress interpolation timer
+    const intervalId = setInterval(() => {
+      if (isTerminated) return;
+      if (currentDisplayedProgress < targetProgress) {
+        currentDisplayedProgress += 1;
+        onProgress?.(currentDisplayedProgress, currentStageText);
+      } else if (currentDisplayedProgress < 90 && targetProgress < 100) {
+        // Slow creep up when waiting (0.2% every 200ms = 1% per second)
+        currentDisplayedProgress += 0.2;
+        onProgress?.(Math.floor(currentDisplayedProgress), currentStageText);
+      }
+    }, 200);
+
+    try {
+      while (true) {
+        if (Date.now() - startTime > timeoutMs) {
+          throw new Error('解析任务超时，请重试。');
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        const jobRes = await fetch(`/api/continuation-packs/jobs/${encodeURIComponent(jobId)}`);
+        if (!jobRes.ok) {
+          const errText = await jobRes.text().catch(() => '');
+          if (errText.includes('已过期') || jobRes.status === 404) {
+            throw new Error('解析任务已过期或服务已重启，请重新解析。');
+          }
+          throw new Error('无法连接到本地解析服务，请确认应用服务仍在运行。');
+        }
+
+        const jobData = asRecord(await jobRes.json());
+        const status = typeof jobData.status === 'string' ? jobData.status : '';
+
+        if (status === 'completed') {
+          isTerminated = true;
+          clearInterval(intervalId);
+          onProgress?.(100, '解析完成，正在加载工作区！');
+          return jobData.pack as ContinuationPack;
+        } else if (status === 'failed') {
+          isTerminated = true;
+          clearInterval(intervalId);
+          throw new Error(typeof jobData.error === 'string' ? jobData.error : '解析任务失败，请重试。');
+        } else {
+          targetProgress = typeof jobData.progress === 'number' ? jobData.progress : 15;
+          currentStageText = typeof jobData.stageText === 'string' ? jobData.stageText : '解析中...';
+        }
+      }
+    } finally {
+      isTerminated = true;
+      clearInterval(intervalId);
+    }
+  }
+
   return rec.pack as ContinuationPack;
+}
+
+export async function parseDocAsync(
+  payload: {
+    filename: string;
+    filedata: string;
+  },
+  onProgress?: (progress: number, stageText: string) => void
+): Promise<DocExtractionResult> {
+  const res = await fetch('/api/parse-doc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || '上传设定文档失败');
+  }
+
+  const { jobId } = await res.json();
+  onProgress?.(10, '正在读取并提取文档内容...');
+
+  const startTime = Date.now();
+  const timeoutMs = 300_000; // 5 minutes
+
+  let currentDisplayedProgress = 10;
+  let targetProgress = 10;
+  let currentStageText = '正在读取并提取文档内容...';
+  let isTerminated = false;
+
+  // Smooth micro-ticks progress interpolation timer
+  const intervalId = setInterval(() => {
+    if (isTerminated) return;
+    if (currentDisplayedProgress < targetProgress) {
+      currentDisplayedProgress += 1;
+      onProgress?.(currentDisplayedProgress, currentStageText);
+    } else if (currentDisplayedProgress < 90 && targetProgress < 100) {
+      // Slow creep up when waiting (0.2% every 200ms = 1% per second)
+      currentDisplayedProgress += 0.2;
+      onProgress?.(Math.floor(currentDisplayedProgress), currentStageText);
+    }
+  }, 200);
+
+  try {
+    while (true) {
+      if (Date.now() - startTime > timeoutMs) {
+        throw new Error('解析设定文档任务超时，请重试。');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const jobRes = await fetch(`/api/parse-doc/jobs/${encodeURIComponent(jobId)}`);
+      if (!jobRes.ok) {
+        throw new Error('无法连接到解析后台服务，请检查网络。');
+      }
+
+      const jobData = asRecord(await jobRes.json());
+      const status = typeof jobData.status === 'string' ? jobData.status : '';
+
+      if (status === 'completed') {
+        isTerminated = true;
+        clearInterval(intervalId);
+        onProgress?.(100, '解析完成，正在写入您的设定集...');
+        return jobData.result as DocExtractionResult;
+      } else if (status === 'failed') {
+        isTerminated = true;
+        clearInterval(intervalId);
+        throw new Error(typeof jobData.error === 'string' ? jobData.error : '解析设定文档任务失败，请重试。');
+      } else {
+        targetProgress = typeof jobData.progress === 'number' ? jobData.progress : 15;
+        currentStageText = typeof jobData.stageText === 'string' ? jobData.stageText : '解析中...';
+      }
+    }
+  } finally {
+    isTerminated = true;
+    clearInterval(intervalId);
+  }
 }
 
 export async function refineSetupTask(payload: {

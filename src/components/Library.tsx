@@ -4,10 +4,11 @@ import { cn } from '../lib/utils';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
 
 import { listNovels, createNovel, deleteNovel } from '../lib/novel-client';
-import { createChapter, listChapters } from '../lib/chapter-client';
+import { createChapter, listChapters, listChaptersMetadata } from '../lib/chapter-client';
 import { listContinuationPacks } from '../lib/continuation-client';
+import { logger } from '../lib/client-logger';
 import { subscribeToChanges } from '../lib/db-transport';
-import { Novel, ViewType, Chapter, ContinuationPack } from '../../shared/types';
+import { Novel, ViewType, ChapterMetadata, ContinuationPack } from '../../shared/types';
 
 interface LibraryProps {
   onSelectNovel: (novel: Novel) => void;
@@ -24,18 +25,18 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newNovelTitle, setNewNovelTitle] = useState('');
 
-  const [chaptersMap, setChaptersMap] = useState<Record<string, Chapter[]>>({});
+  const [chaptersMap, setChaptersMap] = useState<Record<string, ChapterMetadata[]>>({});
   const [packsMap, setPacksMap] = useState<Record<string, ContinuationPack[]>>({});
 
   const loadMetadata = async (novelList: Novel[]) => {
-    const chaps: Record<string, Chapter[]> = {};
+    const chaps: Record<string, ChapterMetadata[]> = {};
     const pks: Record<string, ContinuationPack[]> = {};
 
     await Promise.all(
       novelList.map(async (novel) => {
         try {
           const [c, p] = await Promise.all([
-            listChapters(novel.id),
+            listChaptersMetadata(novel.id),
             listContinuationPacks(novel.id),
           ]);
           chaps[novel.id] = c;
@@ -134,7 +135,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
         setSelectedNovelIds([]);
         setIsSelectionMode(false);
       } catch (err) {
-        console.error('Failed to delete novels:', err);
+        logger.error('Failed to delete novels:', err);
         alert(`删除小说失败: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         setNovelsToDelete([]);
@@ -170,7 +171,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
           return;
         } catch (err) {
           // Fallback if user cancels or permission denied
-          console.warn("Directory picker failed or canceled, falling back to download", err);
+          logger.warn('Directory picker failed or canceled, falling back to download', err);
         }
       }
 

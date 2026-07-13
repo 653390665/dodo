@@ -1,6 +1,6 @@
 import { logger } from '../logger';
 import type { Express } from 'express';
-import { getConfig, getLastConfigError, reloadConfig, saveConfig, updateCachedApiKey } from '../lib/config';
+import { getConfig, getLastConfigError, reloadConfig, saveConfig, updateCachedApiKey, getLivenessStatus, setLivenessStatus } from '../lib/config';
 import { mergePromptTemplates } from '../../shared/config/prompt-templates';
 import { validate, configSchema } from '../validation';
 import { generateText } from '../lib/server-llm';
@@ -13,8 +13,10 @@ export function registerConfigRoutes(app: Express) {
       const configError = getLastConfigError();
       res.json({
         hasApiKey: !!config.apiKey,
+        livenessStatus: getLivenessStatus(),
         baseUrl: config.baseUrl,
         model: config.model,
+        promptGuardLevel: config.promptGuardLevel || 'strict',
         promptTemplates: config.promptTemplates,
         ...(configError ? { configError } : {}),
       });
@@ -26,12 +28,13 @@ export function registerConfigRoutes(app: Express) {
 
   app.post('/api/config', validate(configSchema), (req, res) => {
     try {
-      const { apiKey, baseUrl, model, promptTemplates } = req.body;
+      const { apiKey, baseUrl, model, promptTemplates, promptGuardLevel } = req.body;
       const existing = getConfig();
       saveConfig({
         apiKey: apiKey || existing.apiKey,
         baseUrl: baseUrl || existing.baseUrl,
         model: model || existing.model,
+        promptGuardLevel: promptGuardLevel || existing.promptGuardLevel || 'strict',
         promptTemplates: mergePromptTemplates(promptTemplates),
       });
       reloadConfig();
@@ -42,7 +45,7 @@ export function registerConfigRoutes(app: Express) {
     }
   });
 
-  app.post('/api/config/sync', (req, res) => {
+  app.post('/api/config/sync', validate(configSchema), (req, res) => {
     try {
       const { apiKey } = req.body;
       if (apiKey !== undefined) {
@@ -87,4 +90,35 @@ export function registerConfigRoutes(app: Express) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   });
+
+  // Trigger startup liveness check asynchronously on boot
+  triggerStartupLivenessCheck();
+}
+
+async function triggerStartupLivenessCheck() {
+  try {
+    const config = getConfig();
+    if (!config.apiKey) {
+      setLivenessStatus('disconnected');
+      return;
+    }
+
+    setLivenessStatus('unknown');
+
+    // Run a quick, 5-second connection check
+    await withTimeout(
+      generateText(config, {
+        prompt: 'Please reply with "OK".',
+        maxTokens: 5,
+        maxAttempts: 1, // Only 1 attempt during startup check
+      }),
+      5000,
+      'Startup connection check timed out'
+    );
+    setLivenessStatus('connected');
+    logger.info('LLM startup liveness check: Connected successfully.');
+  } catch (_e) {
+    setLivenessStatus('unknown');
+    logger.warn('LLM startup liveness check: Failed or timed out. Status set to unknown.');
+  }
 }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { ScrollArea } from './ui/scroll-area';
 import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck, Activity, Wifi, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../stores/app-store';
 
@@ -10,6 +9,7 @@ import {
   type PromptTemplateKey,
   type PromptTemplates,
 } from '../../shared/config/prompt-templates';
+import { downloadDbBackup } from '../lib/download-client';
 
 export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void }) {
   const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
@@ -23,12 +23,14 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     apiKey: '',
     baseUrl: '',
     model: '',
+    promptGuardLevel: 'strict' as 'strict' | 'balanced' | 'disabled',
     promptTemplates: DEFAULT_PROMPT_TEMPLATES as PromptTemplates,
   });
   const [baselineConfig, setBaselineConfig] = useState({
     apiKey: '',
     baseUrl: '',
     model: '',
+    promptGuardLevel: 'strict' as 'strict' | 'balanced' | 'disabled',
     promptTemplates: DEFAULT_PROMPT_TEMPLATES as PromptTemplates,
   });
   const [hasExistingKey, setHasExistingKey] = useState(false);
@@ -46,8 +48,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleExportData = () => {
-    window.location.href = '/api/db/export-file';
+  const handleExportData = async () => {
+    try {
+      await downloadDbBackup();
+    } catch (err) {
+      alert(`❌ 导出备份失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    }
   };
 
   const handleImportDataClick = () => {
@@ -90,6 +96,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
             apiKey: '',
             baseUrl: data.baseUrl || '',
             model: data.model || '',
+            promptGuardLevel: data.promptGuardLevel || 'strict',
             promptTemplates: {
               ...DEFAULT_PROMPT_TEMPLATES,
               ...(data.promptTemplates || {}),
@@ -314,7 +321,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
           </TabsList>
 
           <TabsContent value="quick" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
+            <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
                   <div className="space-y-1">
@@ -371,6 +378,80 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                       placeholder="deepseek-chat"
                     />
                     <p className="text-[10px] text-theme-muted mt-1">模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro</p>
+                  </div>
+
+                  {/* 去 AI 味提示词质量守卫级别 (Prompt Guard Level) */}
+                  <div className="pt-3 border-t border-theme-border/30">
+                    <label className="block text-xs font-bold text-theme-text mb-2 uppercase tracking-wider">
+                      去 AI 味提示词质量守卫级别
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfig({ ...config, promptGuardLevel: 'strict' })}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all cursor-pointer ${
+                          config.promptGuardLevel === 'strict'
+                            ? 'bg-emerald-500/[0.04] border-emerald-500/50 text-theme-text'
+                            : 'bg-theme-bg border-theme-border hover:border-theme-accent/40 text-theme-muted'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-bold">严格纠错 🟢</span>
+                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                            config.promptGuardLevel === 'strict' ? 'border-emerald-500 bg-emerald-500' : 'border-theme-border'
+                          }`}>
+                            {config.promptGuardLevel === 'strict' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                        <span className="text-[10px] leading-relaxed">
+                          完整质量守卫 + 自适应二次静默重试。效果极其精修。
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setConfig({ ...config, promptGuardLevel: 'balanced' })}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all cursor-pointer ${
+                          config.promptGuardLevel === 'balanced'
+                            ? 'bg-amber-500/[0.04] border-amber-500/50 text-theme-text'
+                            : 'bg-theme-bg border-theme-border hover:border-theme-accent/40 text-theme-muted'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-bold">前置注入 🟡</span>
+                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                            config.promptGuardLevel === 'balanced' ? 'border-amber-500 bg-amber-500' : 'border-theme-border'
+                          }`}>
+                            {config.promptGuardLevel === 'balanced' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                        <span className="text-[10px] leading-relaxed">
+                          仅注入前置规约规则，关闭评分纠错。最节省 API 额度。
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setConfig({ ...config, promptGuardLevel: 'disabled' })}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all cursor-pointer ${
+                          config.promptGuardLevel === 'disabled'
+                            ? 'bg-theme-border/20 border-theme-text/40 text-theme-text'
+                            : 'bg-theme-bg border-theme-border hover:border-theme-accent/40 text-theme-muted'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-bold">关闭守卫 ⚪</span>
+                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                            config.promptGuardLevel === 'disabled' ? 'border-theme-text/50 bg-theme-text/50' : 'border-theme-border'
+                          }`}>
+                            {config.promptGuardLevel === 'disabled' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                        <span className="text-[10px] leading-relaxed">
+                          不做任何质量干预，直接原味生成。速度极快无延迟。
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* 分割线与测试连接 */}
@@ -441,11 +522,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="activation" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
+            <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 {/* 内测专属高级全权限激活码模块 */}
                 <div className={`rounded-2xl border p-5 space-y-4 transition-all duration-300 relative overflow-hidden ${
@@ -541,11 +622,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   )}
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="promptLab" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
+            <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="rounded-2xl border border-theme-border bg-theme-sidebar/40 p-4 space-y-4 min-w-0 pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -712,11 +793,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                     </div>
                   </div>
                 </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="dataManage" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1 min-h-0 relative pr-2 h-full">
+            <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 <input
                   type="file"
@@ -786,22 +867,25 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-theme-border/70 pt-4 relative z-10">
-          <div className="mr-auto max-w-full space-y-1">
+        <div className="mt-6 border-t border-theme-border/70 pt-4 relative z-10 space-y-3 shrink-0">
+          {/* Status Message / Info Row */}
+          <div className="text-[11px]">
             {saveError ? (
-              <div className="text-[11px] text-red-600">{saveError}</div>
+              <span className="text-red-600 font-medium">{saveError}</span>
             ) : saveMessage ? (
-              <div className="text-[11px] text-emerald-700">{saveMessage}</div>
+              <span className="text-emerald-700 font-medium">{saveMessage}</span>
             ) : (
-              <div className="text-[11px] text-theme-muted">保存后会立即写入本地配置，并被后续 AI 请求读取。</div>
+              <span className="text-theme-muted hidden sm:inline">保存后会立即写入本地配置，并被后续 AI 请求读取。</span>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            {onThemeChange && (
-              <div className="relative flex items-center bg-theme-sidebar/40 border border-theme-border/60 rounded-full p-[2px] h-8 select-none shrink-0 mr-2">
+
+          {/* Action Controls Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {onThemeChange ? (
+              <div className="relative flex items-center bg-theme-sidebar/40 border border-theme-border/60 rounded-full p-[2px] h-8 select-none shrink-0">
                 <div
                   className="absolute top-[2px] bottom-[2px] left-[2px] rounded-full bg-theme-accent shadow-sm transition-all duration-300 ease-out"
                   style={{
@@ -834,15 +918,20 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
                   );
                 })}
               </div>
+            ) : (
+              <div />
             )}
-            <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
-            >
-              <Save size={16} /> {saving ? '保存中...' : '保存配置'}
-            </button>
+
+            <div className="flex items-center gap-3 ml-auto">
+              <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-6 py-2 bg-theme-accent text-theme-bg rounded-lg shadow hover:bg-theme-accent/90 transition-colors font-medium disabled:opacity-50"
+              >
+                <Save size={16} /> {saving ? '保存中...' : '保存配置'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -28,7 +28,61 @@ function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : value != null ? String(value) : '';
 }
 
+// ---- Lightweight In-Memory Job Queue / Store ----
+interface Job {
+  id: string;
+  status: 'queueing' | 'running' | 'completed' | 'failed';
+  progress: number;
+  result?: unknown;
+  error?: string;
+  createdAt: number;
+}
+
+const jobs = new Map<string, Job>();
+const JOB_TTL = 15 * 60 * 1000; // 15 minutes TTL
+
+function pruneJobs() {
+  const now = Date.now();
+  for (const [id, job] of jobs.entries()) {
+    if (now - job.createdAt > JOB_TTL) {
+      jobs.delete(id);
+    }
+  }
+}
+
+// Prune old jobs periodically
+setInterval(pruneJobs, 60 * 1000).unref();
+
+function createJob(): string {
+  pruneJobs();
+  const id = 'job_' + Math.random().toString(36).substring(2, 15);
+  jobs.set(id, {
+    id,
+    status: 'queueing',
+    progress: 10,
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+function updateJob(id: string, updates: Partial<Omit<Job, 'id' | 'createdAt'>>) {
+  const job = jobs.get(id);
+  if (job) {
+    Object.assign(job, updates);
+  }
+}
+
 export function registerWorldRoutes(app: Express) {
+  // GET endpoint to query world background job status
+  app.get('/api/world/jobs/:jobId', (req, res) => {
+    const { jobId } = req.params;
+    const job = jobs.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json(job);
+  });
+
   app.post('/api/generate-bio', async (req, res) => {
     const generateBioSchema = z.object({
       name: z.string().min(1, '角色名称不能为空'),
@@ -84,58 +138,91 @@ ${genderConstraint}
 5. 直接输出故事内容，不要包含任何前导词（如"好的，这是为您生成的..."）。
       `;
 
-      const bio = await generateText(getConfig(), { prompt });
-      res.json({ bio });
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      req.socket.setTimeout(0);
+
+      const controller = new AbortController();
+      req.on('close', () => {
+        controller.abort();
+      });
+
+      await generateText(getConfig(), {
+        prompt,
+        onToken: (token) => {
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        },
+        signal: controller.signal
+      });
+      res.write('data: [DONE]\n\n');
+      res.end();
     } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
-  app.post('/api/generate-outline', async (req, res) => {
-    try {
-      const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId, chapterOrder } = req.body;
-
-      // Load continuation pack context if provided
-      let packContext = '';
-      if (continuationPackId) {
-        const pack = db.getContinuationPack(continuationPackId);
-        if (pack) {
-          packContext = buildContinuationContext(pack);
-        }
+      logger.error('Generate bio SSE error:', e);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        res.end();
       }
-
-      const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
-
-      const promptAsset = resolvePromptAssetForSurface({
-        surface,
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'generateOutline',
-      });
-      const prompt = renderPromptTemplate(promptAsset.template, {
-        expectedWordCount,
-        title: title ? `小说名称：${title}` : '',
-        worldRules: [
-          worldRules ? `世界观及设定：${worldRules}` : '',
-          packContext,
-          budgetGuidelines,
-        ].filter(Boolean).join('\n\n'),
-        seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
-      });
-
-      const outline = await generateText(getConfig(), { prompt });
-      res.json({ outline });
-    } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  app.post('/api/extract-entities', async (req, res) => {
-    try {
-      const { text = '', existingNames = [] } = req.body;
+  app.post('/api/generate-outline', (req, res) => {
+    const jobId = createJob();
+    res.json({ jobId });
 
-      const prompt = `
+    // Silent background execution
+    (async () => {
+      try {
+        updateJob(jobId, { status: 'running', progress: 50 });
+        const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId, chapterOrder } = req.body;
+
+        // Load continuation pack context if provided
+        let packContext = '';
+        if (continuationPackId) {
+          const pack = db.getContinuationPack(continuationPackId);
+          if (pack) {
+            packContext = buildContinuationContext(pack);
+          }
+        }
+
+        const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+
+        const promptAsset = resolvePromptAssetForSurface({
+          surface,
+          promptTemplates: getConfig().promptTemplates,
+          preferredTemplateKey: 'generateOutline',
+        });
+        const prompt = renderPromptTemplate(promptAsset.template, {
+          expectedWordCount,
+          title: title ? `小说名称：${title}` : '',
+          worldRules: [
+            worldRules ? `世界观及设定：${worldRules}` : '',
+            packContext,
+            budgetGuidelines,
+          ].filter(Boolean).join('\n\n'),
+          seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
+        });
+
+        const outline = await generateText(getConfig(), { prompt });
+        updateJob(jobId, { status: 'completed', progress: 100, result: { outline } });
+      } catch (e) {
+        logger.error('Background generate-outline error:', e);
+        updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
+      }
+    })();
+  });
+
+  app.post('/api/extract-entities', (req, res) => {
+    const jobId = createJob();
+    res.json({ jobId });
+
+    (async () => {
+      try {
+        updateJob(jobId, { status: 'running', progress: 50 });
+        const { text = '', existingNames = [] } = req.body;
+
+        const prompt = `
 你是一个极为敏锐的设定集萃取 AI。请阅读下方的网文片段，从中提取所有的专有名词（包括：人物姓名、地点/据点/组织名称、特殊功法/道具/武器名称）。
 
 网文片段：
@@ -157,26 +244,38 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
     { "name": "新名字A", "type": "character", "context": "在某酒馆出场的神秘老者大能" }
   ]
 }
-      `;
+        `;
 
-      let rawText = await generateText(getConfig(), { prompt });
-      rawText = rawText.replace(/```(json)?/g, '').trim();
+        let rawText = await generateText(getConfig(), { prompt });
+        rawText = rawText.replace(/```(json)?/g, '').trim();
 
-      try { res.json(JSON.parse(rawText)); } catch { return res.status(422).json({ error: "AI returned invalid JSON", raw: rawText.substring(0, 500) }); }
-    } catch (e) {
-      logger.error('Extract entities error:', e);
-      res.status(500).json({ error: "Internal server error" });
-    }
+        try {
+          const parsed = JSON.parse(rawText);
+          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
+        } catch {
+          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${rawText.substring(0, 500)}` });
+        }
+      } catch (e) {
+        logger.error('Background extract-entities error:', e);
+        updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
+      }
+    })();
   });
 
-  app.post('/api/detect-foreshadowing', async (req, res) => {
-    try {
-      const { chapterContent, chapterTitle, existingForeshadowings } = req.body;
-      if (!chapterContent || typeof chapterContent !== 'string' || !chapterContent.trim()) {
-        return res.status(400).json({ error: 'Chapter content is required' });
-      }
-      const config = getConfig();
-      const prompt = `你是一个小说伏笔分析专家。请阅读以下章节内容，找出其中可能的伏笔埋设点和伏笔回收点。
+  app.post('/api/detect-foreshadowing', (req, res) => {
+    const { chapterContent, chapterTitle, existingForeshadowings } = req.body;
+    if (!chapterContent || typeof chapterContent !== 'string' || !chapterContent.trim()) {
+      return res.status(400).json({ error: 'Chapter content is required' });
+    }
+
+    const jobId = createJob();
+    res.json({ jobId });
+
+    (async () => {
+      try {
+        updateJob(jobId, { status: 'running', progress: 50 });
+        const config = getConfig();
+        const prompt = `你是一个小说伏笔分析专家。请阅读以下章节内容，找出其中可能的伏笔埋设点和伏笔回收点。
 
 【已有伏笔列表】：${existingForeshadowings ? JSON.stringify(existingForeshadowings) : '无'}
 
@@ -193,29 +292,41 @@ ${chapterContent.substring(0, 15000)}
 严格只输出 JSON 数组，不要包含 markdown 标记：
 [{"title": "...", "description": "...", "type": "planted", "relatedTo": ""}]`;
 
-      let raw = (await generateText(config, { prompt })).trim();
-      raw = raw.replace(/```(json)?/g, '').trim();
-      try { res.json(JSON.parse(raw)); } catch { res.status(422).json({ error: "AI returned invalid JSON", raw: raw.substring(0, 500) }); }
-    } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
-    }
+        let raw = (await generateText(config, { prompt })).trim();
+        raw = raw.replace(/```(json)?/g, '').trim();
+        try {
+          const parsed = JSON.parse(raw);
+          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
+        } catch {
+          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${raw.substring(0, 500)}` });
+        }
+      } catch (e) {
+        logger.error('Background detect-foreshadowing error:', e);
+        updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
+      }
+    })();
   });
 
-  app.post('/api/analyze-pacing', async (req, res) => {
-    try {
-      const { chapters } = req.body;
-      if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
-        return res.status(400).json({ error: 'Chapters array is required' });
-      }
-      const config = getConfig();
-      const MAX_CHAPTERS = 50;
-      const limited = (chapters as PacingInputChapter[]).slice(-MAX_CHAPTERS);
-      const chapterList = limited.map((c) =>
-        `第${c.order ?? '?'}章「${c.title ?? '无标题'}」(字数:${c.wordCount ?? 0})：${(c.content || '').substring(0, 500)}...`
-      ).join('\n---\n');
+  app.post('/api/analyze-pacing', (req, res) => {
+    const { chapters } = req.body;
+    if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
+      return res.status(400).json({ error: 'Chapters array is required' });
+    }
 
-      const prompt = `你是一个小说节奏分析专家。请对以下章节列表进行节奏诊断。
+    const jobId = createJob();
+    res.json({ jobId });
+
+    (async () => {
+      try {
+        updateJob(jobId, { status: 'running', progress: 50 });
+        const config = getConfig();
+        const MAX_CHAPTERS = 50;
+        const limited = (chapters as PacingInputChapter[]).slice(-MAX_CHAPTERS);
+        const chapterList = limited.map((c) =>
+          `第${c.order ?? '?'}章「${c.title ?? '无标题'}」(字数:${c.wordCount ?? 0})：${(c.content || '').substring(0, 500)}...`
+        ).join('\n---\n');
+
+        const prompt = `你是一个小说节奏分析专家。请对以下章节列表进行节奏诊断。
 
 ${chapterList}
 
@@ -232,30 +343,34 @@ ${chapterList}
 
 严格只输出 JSON 数组，不要包含 markdown 标记。`;
 
-      let raw = (await generateText(config, { prompt })).trim();
-      raw = raw.replace(/```(json)?/g, '').trim();
-      let chapterResults: unknown;
-      try {
-        chapterResults = JSON.parse(raw);
-      } catch {
-        return res.status(422).json({ error: "AI returned invalid JSON", raw: raw.substring(0, 500) });
+        let raw = (await generateText(config, { prompt })).trim();
+        raw = raw.replace(/```(json)?/g, '').trim();
+        let chapterResults: unknown;
+        try {
+          chapterResults = JSON.parse(raw);
+          // Strand Weave heuristic analysis
+          const strandWeave = computeStrandWeave(limited);
+          updateJob(jobId, { status: 'completed', progress: 100, result: { chapters: chapterResults, strandWeave } });
+        } catch {
+          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${raw.substring(0, 500)}` });
+        }
+      } catch (e) {
+        logger.error('Background analyze-pacing error:', e);
+        updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
       }
-
-      // Strand Weave heuristic analysis
-      const strandWeave = computeStrandWeave(limited);
-
-      res.json({ chapters: chapterResults, strandWeave });
-    } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
-    }
+    })();
   });
 
-  app.post('/api/generate-entity-details', async (req, res) => {
-    try {
-      const { name, type, context } = req.body;
+  app.post('/api/generate-entity-details', (req, res) => {
+    const jobId = createJob();
+    res.json({ jobId });
 
-      const prompt = `你是一个网文世界观架构师。系统在一个新章节中扫描到了一个新设定实体，请根据上下文为其生成一份初始的万物词典（World Bible）条目。
+    (async () => {
+      try {
+        updateJob(jobId, { status: 'running', progress: 50 });
+        const { name, type, context } = req.body;
+
+        const prompt = `你是一个网文世界观架构师。系统在一个新章节中扫描到了一个新设定实体，请根据上下文为其生成一份初始的万物词典（World Bible）条目。
 
 实体名称：${name}
 初步判断的类型：${type} (可能是人物 character、地点 location、物品 item、概念等，你可以根据上下文自行调整)
@@ -290,59 +405,77 @@ ${chapterList}
 }
 `;
 
-      let rawText = await generateText(getConfig(), { prompt });
-      rawText = rawText.replace(/```(json)?/g, '').trim();
+        let rawText = await generateText(getConfig(), { prompt });
+        rawText = rawText.replace(/```(json)?/g, '').trim();
 
-      try { res.json(JSON.parse(rawText)); } catch { return res.status(422).json({ error: "AI returned invalid JSON", raw: rawText.substring(0, 500) }); }
-    } catch (e) {
-      logger.error('Generate entity details error:', e);
-      res.status(500).json({ error: "Internal server error" });
-    }
+        try {
+          const parsed = JSON.parse(rawText);
+          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
+        } catch {
+          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${rawText.substring(0, 500)}` });
+        }
+      } catch (e) {
+        logger.error('Background generate-entity-details error:', e);
+        updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
+      }
+    })();
   });
 
-  // Update character state after chapter write
-  app.post('/api/update-character-state', async (req, res) => {
+  // Update character state after chapter write (silently executed in background)
+  app.post('/api/update-character-state', (req, res) => {
     try {
       const { novelId, chapterContent } = req.body;
       if (!novelId || !chapterContent) {
         return res.status(400).json({ error: 'novelId and chapterContent required' });
       }
-      const characters = db.listCharacters(novelId);
-      const currentState = characters
-        .map((c) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
-        .join('\n');
 
-      const { prompt } = resolveChainPrompt('chainCharacterState', {
-        chapterContent: chapterContent.slice(0, 8000),
-        currentState,
-      });
+      // Immediately respond with success to unblock client
+      res.json({ success: true, message: 'Character state update queued in background' });
 
-      const raw = await generateText(getConfig(), { prompt, maxTokens: 1024 });
-      const cleaned = raw.replace(/```(json)?/g, '').trim();
-      let result: unknown;
-      try {
-        result = JSON.parse(cleaned);
-      } catch {
-        return res.status(422).json({ error: "AI returned invalid JSON", raw: cleaned.substring(0, 500) });
-      }
+      // Silent background Promise execution
+      (async () => {
+        try {
+          const characters = db.listCharacters(novelId);
+          const currentState = characters
+            .map((c) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
+            .join('\n');
 
-      const resultRecord = asRecord(result);
-      const resultCharacters = asArray(resultRecord.characters);
-
-      let updatedCount = 0;
-      for (const updateVal of resultCharacters) {
-        const update = asRecord(updateVal);
-        const name = stringValue(update.name);
-        if (!name) continue;
-        const char = characters.find((c) => c.name === name);
-        if (char) {
-          db.updateCharacter(char.id, {
-            current_state: JSON.stringify(update.changes),
+          const { prompt } = resolveChainPrompt('chainCharacterState', {
+            chapterContent: chapterContent.slice(0, 8000),
+            currentState,
           });
-          updatedCount++;
+
+          const raw = await generateText(getConfig(), { prompt, maxTokens: 1024 });
+          const cleaned = raw.replace(/```(json)?/g, '').trim();
+          let result: unknown;
+          try {
+            result = JSON.parse(cleaned);
+          } catch {
+            logger.warn('Background update-character-state warning: invalid JSON returned by AI');
+            return;
+          }
+
+          const resultRecord = asRecord(result);
+          const resultCharacters = asArray(resultRecord.characters);
+
+          let updatedCount = 0;
+          for (const updateVal of resultCharacters) {
+            const update = asRecord(updateVal);
+            const name = stringValue(update.name);
+            if (!name) continue;
+            const char = characters.find((c) => c.name === name);
+            if (char) {
+              db.updateCharacter(char.id, {
+                current_state: JSON.stringify(update.changes),
+              });
+              updatedCount++;
+            }
+          }
+          logger.info(`Background update-character-state completed silently. Updated ${updatedCount} characters.`);
+        } catch (bgErr) {
+          logger.error('Background update-character-state task error:', bgErr);
         }
-      }
-      res.json({ updated: updatedCount });
+      })();
     } catch (e) {
       logger.error('Update character state error:', e);
       res.status(500).json({ error: "Internal server error" });

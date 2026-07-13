@@ -1,3 +1,5 @@
+import { toast } from '../lib/toast';
+import { logger } from '../lib/client-logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Trash2, User } from 'lucide-react';
 
@@ -20,6 +22,8 @@ const TYPE_LABELS: Record<string, string> = {
   plot_hook: '剧情钩子',
   world: '世界观',
 };
+
+const expansionCache = new Map<string, string>();
 
 interface Props {
   novelId?: string;
@@ -57,18 +61,73 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
 
   const handleExpand = async (f: IdeaFragment) => {
     setExpandingId(f.id);
+    
+    // 初始化状态：清空已有的 aiExpansion 并将状态标记为已展开 (expanded)
+    setFragments(prev => prev.map(x => x.id === f.id ? { ...x, aiExpansion: '', status: 'expanded' as const } : x));
+
     try {
       const res = await fetch('/api/expand-fragment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: f.content, type: f.type }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      await updateIdeaFragment(f.id, { aiExpansion: data.expansion, status: 'expanded' });
-      setFragments(prev => prev.map(x => x.id === f.id ? { ...x, aiExpansion: data.expansion, status: 'expanded' as const } : x));
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error('无法创建流式读取器');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      expansionCache.set(f.id, '');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // 缓存可能不完整的最后一行
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          if (trimmed === 'data: [DONE]') {
+            break;
+          }
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const dataStr = trimmed.slice(6);
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+              if (parsed.token) {
+                const currentVal = expansionCache.get(f.id) || '';
+                const nextVal = currentVal + parsed.token;
+                expansionCache.set(f.id, nextVal);
+                // 打字机效果：高频更新本地状态列表，保证界面流动感
+                setFragments(prev =>
+                  prev.map(x => x.id === f.id ? { ...x, aiExpansion: nextVal } : x)
+                );
+              }
+            } catch (err) {
+              logger.error('解析 SSE 单行失败:', trimmed, err);
+            }
+          }
+        }
+      }
+
+      const finalVal = expansionCache.get(f.id) || '';
+      // 生成完全结束后，将最终文本更新至 SQLite 本地数据库
+      await updateIdeaFragment(f.id, { aiExpansion: finalVal, status: 'expanded' });
+      expansionCache.delete(f.id);
     } catch (e) {
-      alert('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)));
+      toast('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
     } finally {
       setExpandingId(null);
     }

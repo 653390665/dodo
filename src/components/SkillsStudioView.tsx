@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrainCircuit, CheckCircle2, PenLine, Sparkles, Wand2, X, ShieldAlert, ArrowDown, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { logger } from '../lib/client-logger';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listNovels, updateNovel } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
@@ -293,7 +294,7 @@ export function SkillsStudioView({
       // Trigger standard navigation to workspace/editor
       onNavigate?.('workspace');
     } catch (err) {
-      console.warn('Failed to activate flow:', err);
+      logger.warn('Failed to activate flow:', err);
     }
   };
 
@@ -301,7 +302,7 @@ export function SkillsStudioView({
     const refreshSkills = () => {
       syncSkillFeedbackScores()
         .then(setSavedSkills)
-        .catch((err) => console.warn('Failed to load skills:', err));
+        .catch((err) => logger.warn('Failed to load skills:', err));
     };
     refreshSkills();
     listNovels().then(setUserNovels);
@@ -327,25 +328,22 @@ export function SkillsStudioView({
     }
   };
 
-  const [selectedCategory, setSelectedCategory] = useState<'official-free' | 'plaza-free' | 'premium-author-flows' | 'platform-diagnosis' | 'style-analysis-cards' | 'aesthetic-quality-guards'>('official-free');
+  const [selectedCategory, setSelectedCategory] = useState<'creative-setup' | 'active-drafting' | 'style-polish' | 'commercial-sign'>('creative-setup');
   const setContinuationLaunchState = useNovelStore((state) => state.setContinuationLaunchState);
 
   const filteredCuratedSkills = useMemo(() => {
     return CURATED_PRODUCT_SKILLS.filter(s => {
-      if (selectedCategory === 'official-free') {
-        return s.sourceType === 'built-in' && s.primaryCategory !== 'quality-guardrail';
+      if (selectedCategory === 'creative-setup') {
+        return s.id === 'bible-world-builder' || s.id === 'bible-character-arc' || s.id === 'opening-gold-three';
       }
-      if (selectedCategory === 'plaza-free') {
-        return s.sourceType === 'plaza';
+      if (selectedCategory === 'active-drafting') {
+        return s.id === 'prose-mouth-flavor' || s.id === 'prose-action-booster' || s.curatedCategory === 'style' || s.curatedCategory === 'deconstruct' || s.id === 'style-cthulhu-mystique' || s.id === 'style-ancient-elegance' || s.id === 'deconstruct-golden-climax' || s.id === 'deconstruct-suspense-hook';
       }
-      if (selectedCategory === 'platform-diagnosis') {
-        return s.primaryCategory === 'platform-criteria';
+      if (selectedCategory === 'style-polish') {
+        return s.id === 'de-ai-slop-shield' || s.id === 'de-ai-rhythm-restorer' || s.id === 'audit-cliche-detector' || s.id === 'audit-logical-sanity';
       }
-      if (selectedCategory === 'style-analysis-cards') {
-        return s.primaryCategory === 'constellation-pack' || s.primaryCategory === 'style-reference' || s.curatedCategory === 'style' || s.curatedCategory === 'deconstruct' || s.id === 'bible-world-builder';
-      }
-      if (selectedCategory === 'aesthetic-quality-guards') {
-        return s.primaryCategory === 'quality-guardrail' || s.curatedCategory === 'de-ai' || s.curatedCategory === 'audit';
+      if (selectedCategory === 'commercial-sign') {
+        return s.id === 'platform-tomato-scoring' || s.id === 'platform-webnovel-criteria' || s.id === 'opening-novelty-hook';
       }
       return false;
     });
@@ -395,7 +393,7 @@ export function SkillsStudioView({
         return next;
       });
     } catch (err) {
-      console.warn('Failed to clone asset:', err);
+      logger.warn('Failed to clone asset:', err);
     } finally {
       setCloningAssetId(null);
     }
@@ -487,7 +485,7 @@ export function SkillsStudioView({
           return next;
         });
       } catch (err) {
-        console.warn('Failed to auto-clone asset during equip:', err);
+        logger.warn('Failed to auto-clone asset during equip:', err);
         return;
       } finally {
         setCloningAssetId(null);
@@ -683,15 +681,13 @@ export function SkillsStudioView({
         {/* Plaza Tab Content */}
         {activeTab === 'plaza' && (
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
-            {/* 6大能力商店精品航道 Tabs */}
+            {/* 4大能力商店精品航道 Tabs */}
             <div className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-4">
               {([
-                { id: 'official-free', label: '官方免费能力', desc: '基础分镜与对白打磨' },
-                { id: 'plaza-free', label: '广场免费能力', desc: '经典流派与设定模版' },
-                { id: 'premium-author-flows', label: '高级作者流程包', desc: '连载名家爆款大包' },
-                { id: 'platform-diagnosis', label: '平台诊断包', desc: '番茄阅文多维度质检' },
-                { id: 'style-analysis-cards', label: '拆书卡 / 风格卡', desc: '克苏鲁诡秘与神作拆解' },
-                { id: 'aesthetic-quality-guards', label: '去 AI 味质量护栏', desc: '动作强化与废话精简' },
+                { id: 'creative-setup', label: '① 大纲设定期', desc: '世界观、人设与开篇大纲' },
+                { id: 'active-drafting', label: '② 快速写作期', desc: '对白肢体、题材与名家流程' },
+                { id: 'style-polish', label: '③ 精修打磨期', desc: '一键去AI腔、套话与逻辑检测' },
+                { id: 'commercial-sign', label: '④ 商业过签期', desc: '番茄阅文主流平台完读率' },
               ] as const).map((cat) => {
                 const isSelected = selectedCategory === cat.id;
                 return (
@@ -716,112 +712,117 @@ export function SkillsStudioView({
             </div>
 
             {/* 货架卡主渲染区域 */}
-            {selectedCategory === 'premium-author-flows' ? (
-              <div className="space-y-6">
-                <div className="border-l-2 border-amber-500 pl-3.5 mb-6">
-                  <h2 className="text-base font-bold text-theme-text flex items-center gap-2">
-                    <Sparkles size={16} className="text-amber-500 animate-pulse" />
-                    高级作者流程大包 (Workflow Packages)
-                  </h2>
-                  <p className="text-[11px] text-theme-muted mt-1">
-                    挂载业界顶尖名家写作生命线，从灵感脑洞到十万字大纲及前三章爆款正文，全链路一键启用。
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {SKILL_SERIES_FLOWS.filter(f => ['xiaofeiji-novel-flow', 'tomato-platform-flow', 'generic-novel-flow', 'book-deconstruction-flow'].includes(f.id)).map((flow) => {
-                    const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
-                    const isActive = selectedNovel?.projectPreferenceProfile?.activeSeriesId === flow.id;
-                    const isPaid = flow.id !== 'generic-novel-flow';
-                    const isLocked = isPaid && isFreeNovel;
-
-                    return (
-                      <div
-                        key={flow.id}
-                        className={cn(
-                          "relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left",
-                          meta.color,
-                          isActive
-                            ? "ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]"
-                            : "hover:border-theme-border/80 hover:shadow-sm"
-                        )}
-                      >
-                        <div>
-                          <div className="flex justify-between items-start gap-2 mb-2">
-                            <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
-                              <span className="truncate">{flow.name}</span>
-                            </h3>
-                            <div className="flex gap-1 shrink-0">
-                              {isActive && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                  启用中
-                                </span>
-                              )}
-                              {isLocked && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                  PREMIUM
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
-                            {flow.description}
-                          </p>
-
-                          <div className="space-y-1.5 mb-4 text-[10px]">
-                            <div className="flex justify-between border-b border-theme-border/10 pb-1">
-                              <span className="text-theme-muted">适用人群:</span>
-                              <span className="text-theme-text font-medium">{meta.target}</span>
-                            </div>
-                            <div className="flex justify-between pt-0.5">
-                              <span className="text-theme-muted">预期产物:</span>
-                              <span className="text-theme-text font-medium">{meta.output}</span>
-                            </div>
-                          </div>
-
-                          {/* 进度节点迷你时间轴预览 */}
-                          <FlowTimelinePreview flow={flow} />
-                        </div>
-
-                        <div className="mt-5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedFlowDetail(flow)}
-                            className={cn(
-                              "w-full py-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
-                              isActive
-                                ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"
-                                : isLocked
-                                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                                  : "bg-theme-text text-theme-bg hover:opacity-90"
-                            )}
-                          >
-                            免密预览流程详情
-                            {isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="space-y-8">
+              <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
+                <h2 className="text-base font-bold text-theme-text">
+                  {selectedCategory === 'creative-setup' ? '① 大纲设定期 (Creative Setup)' :
+                   selectedCategory === 'active-drafting' ? '② 快速写作期 (Active Drafting)' :
+                   selectedCategory === 'style-polish' ? '③ 精修打磨期 (Style Polish)' : '④ 商业过签期 (Commercial Sign)'}
+                </h2>
+                <p className="text-[11px] text-theme-muted mt-1">
+                  {selectedCategory === 'creative-setup' ? '构建作品的基础骨架与底盘。包含官方世界观设定器、核心人设生成卡与黄金三章展开器，为长篇打下坚实地盘。' :
+                   selectedCategory === 'active-drafting' ? '流式推进章节写作。顶部可选择并激活爆款作者流程，下方配有口语化正文器、画面张力增强卡及各种经典文风、拆书参考卡。' :
+                   selectedCategory === 'style-polish' ? '对写出的正文进行微米级精细打磨。物理级去AI翻译腔、剔除机械套话、润色语流节奏，并检测情节中的逻辑与常识漏洞。' :
+                   '对接商业平台真实指标。包含番茄、阅文等主流平台签约质检、爽点评分仪，大幅提升开篇过签与连载完读表现。'}
+                </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
-                  <h2 className="text-base font-bold text-theme-text">
-                    {selectedCategory === 'official-free' ? '官方免费能力航道' :
-                     selectedCategory === 'plaza-free' ? '广场免费能力航道' :
-                     selectedCategory === 'platform-diagnosis' ? '平台诊断航道' :
-                     selectedCategory === 'style-analysis-cards' ? '拆书卡 / 风格卡航道' : '去 AI 腔质量护栏航道'}
-                  </h2>
-                  <p className="text-[11px] text-theme-muted mt-1">
-                    {selectedCategory === 'official-free' ? 'InkFlow 官方原生开发，提供最高物理级运行性能的开篇创作与审稿核心工具。' :
-                     selectedCategory === 'plaza-free' ? '来自千万职业创作者、网文大神共享的经典文风流派、爽点卡与人设模型。' :
-                     selectedCategory === 'platform-diagnosis' ? '深度融合番茄、阅文等主流渠道核心毒点退稿红线，一键体检过签率。' :
-                     selectedCategory === 'style-analysis-cards' ? '高精确解剖网文神作架构骨骼、诡秘克系描写，让正文瞬间升格。' : '微米级粉碎一切翻译腔、模板式套话，让 AI 续写的正文闪耀真人作家的高级质地。'}
-                  </p>
+
+              {/* 当选中 快速写作期 时，顶部渲染高级作者流程大包 */}
+              {selectedCategory === 'active-drafting' && (
+                <div className="space-y-6 pb-6 border-b border-theme-border/20 text-left">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-amber-500 animate-pulse" />
+                    <h3 className="text-xs font-bold text-theme-text">高级作者流程大包 (Workflow Packages)</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {SKILL_SERIES_FLOWS.filter(f => ['xiaofeiji-novel-flow', 'tomato-platform-flow', 'generic-novel-flow', 'book-deconstruction-flow'].includes(f.id)).map((flow) => {
+                      const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
+                      const isActive = selectedNovel?.projectPreferenceProfile?.activeSeriesId === flow.id;
+                      const isPaid = flow.id !== 'generic-novel-flow';
+                      const isLocked = isPaid && isFreeNovel;
+
+                      return (
+                        <div
+                          key={flow.id}
+                          className={cn(
+                            "relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left",
+                            meta.color,
+                            isActive
+                              ? "ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]"
+                              : "hover:border-theme-border/80 hover:shadow-sm"
+                          )}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-2 mb-2">
+                              <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{flow.name}</span>
+                              </h3>
+                              <div className="flex gap-1 shrink-0">
+                                {isActive && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                    启用中
+                                  </span>
+                                )}
+                                {isLocked && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                    PREMIUM
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
+                              {flow.description}
+                            </p>
+
+                            <div className="space-y-1.5 mb-4 text-[10px]">
+                              <div className="flex justify-between border-b border-theme-border/10 pb-1">
+                                <span className="text-theme-muted">适用人群:</span>
+                                <span className="text-theme-text font-medium">{meta.target}</span>
+                              </div>
+                              <div className="flex justify-between pt-0.5">
+                                <span className="text-theme-muted">预期产物:</span>
+                                <span className="text-theme-text font-medium">{meta.output}</span>
+                              </div>
+                            </div>
+
+                            {/* 进度节点迷你时间轴预览 */}
+                            <FlowTimelinePreview flow={flow} />
+                          </div>
+
+                          <div className="mt-5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFlowDetail(flow)}
+                              className={cn(
+                                "w-full py-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
+                                isActive
+                                  ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"
+                                  : isLocked
+                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+                                    : "bg-theme-text text-theme-bg hover:opacity-90"
+                              )}
+                            >
+                              免密预览流程详情
+                              {isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
+
+              {/* 推荐的辅助写作精品卡 */}
+              <div className="space-y-4">
+                {selectedCategory === 'active-drafting' && (
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-theme-accent animate-pulse" />
+                    <h3 className="text-xs font-bold text-theme-text">辅助写作推荐技能卡 (Recommended Skills)</h3>
+                  </div>
+                )}
 
                 {filteredCuratedSkills.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -845,7 +846,7 @@ export function SkillsStudioView({
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

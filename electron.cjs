@@ -1,4 +1,10 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, safeStorage, shell } = require('electron');
+const {
+  getAppOrigin,
+  isAppOrigin,
+  resolveExternalUrl,
+  isTrustedIpcSender,
+} = require('./electron-security.cjs');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -110,6 +116,7 @@ process.stderr.on('error', (err) => {
 let mainWindow = null;
 let serverProcess = null;
 let serverPort = 3000;
+let currentAppOrigin = '';
 let watchdogTimer = null;
 let isQuitting = false;
 let restartAttemptCount = 0;
@@ -245,7 +252,17 @@ function buildAppMenu() {
 
 // ── IPC ───────────────────────────────────────────────────────────────
 
-ipcMain.on('set-title', (_event, title) => {
+function rejectUntrustedIpc(event) {
+  if (!isTrustedIpcSender(event, mainWindow, currentAppOrigin)) {
+    console.warn('[ipc] Rejected call from untrusted frame:', event.senderFrame?.url);
+    return true;
+  }
+  return false;
+}
+
+ipcMain.on('set-title', (event, title) => {
+  if (rejectUntrustedIpc(event)) return;
+  if (typeof title !== 'string') return;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setTitle(title ? `${title} — InkFlow` : 'InkFlow');
   }
@@ -497,7 +514,28 @@ async function createWindow() {
     console.error(`[window] Failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
   });
 
-  mainWindow.loadURL(`http://localhost:${port}`);
+  currentAppOrigin = getAppOrigin(port);
+  const appOrigin = currentAppOrigin;
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isAppOrigin(url, appOrigin)) return;
+    event.preventDefault();
+    const external = resolveExternalUrl(url, appOrigin);
+    if (external) shell.openExternal(external);
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAppOrigin(url, appOrigin)) {
+      return { action: 'allow' };
+    }
+    const external = resolveExternalUrl(url, appOrigin);
+    if (external) {
+      shell.openExternal(external);
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.loadURL(appOrigin);
 
   if (isDev && !mainWindow.webContents.isDevToolsOpened()) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -542,11 +580,18 @@ function getLocalAuthToken() {
   return '';
 }
 
-ipcMain.handle('get-auth-token', () => {
+ipcMain.handle('get-auth-token', (event) => {
+  if (rejectUntrustedIpc(event)) return '';
   return getLocalAuthToken();
 });
 
-ipcMain.handle('save-config', async (_event, config) => {
+ipcMain.handle('save-config', async (event, config) => {
+  if (rejectUntrustedIpc(event)) {
+    return { success: false, error: 'Untrusted IPC caller' };
+  }
+  if (!config || typeof config !== 'object') {
+    return { success: false, error: 'Invalid config payload' };
+  }
   const apiKey = config.apiKey || '';
   let migrationError = null;
 

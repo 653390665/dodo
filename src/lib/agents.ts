@@ -1,6 +1,7 @@
 import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill } from "../../shared/types";
 import { getSkillRoleLabel, getSkillRoleTags } from './skill-language';
 import type { PromptSurface } from './prompt-stage-routing';
+import { pollJob } from './poll-client';
 
 export type SceneType = 'dialogue' | 'action' | 'politics' | 'emotional';
 
@@ -133,10 +134,10 @@ export function buildContextPrompt(context: AgentContext): string {
   return `
 【故事核心】
 ${truncateText(context.novel.summary, 600)}
-
+ 
 【世界观法则】
 ${truncateText(context.novel.worldRules, MAX_WORLD_RULES_CHARS)}
-
+ 
 【全局大纲】
 ${truncateText(context.novel.globalOutline, MAX_GLOBAL_OUTLINE_CHARS)}
 ${powerLevelContext}
@@ -153,7 +154,10 @@ ${(() => {
  * 规划层 (Planning Layer): Editor Agent
  * 负责将用户的模糊意图转化为结构化的场景大纲 (Scene Beats)
  */
-export async function extractWorldSetupPhase(documentText: string): Promise<ExtractedWorldSetup> {
+export async function extractWorldSetupPhase(
+  documentText: string,
+  onProgress?: (progress: number, status: string) => void
+): Promise<ExtractedWorldSetup> {
   const response = await fetch('/api/extract-world-setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -163,10 +167,23 @@ export async function extractWorldSetupPhase(documentText: string): Promise<Extr
   if (!response.ok || data.error) {
     throw new Error(data.error || 'Failed to extract world setup');
   }
-  return data as ExtractedWorldSetup;
+
+  const { jobId } = data;
+  if (!jobId) {
+    throw new Error('Server did not return a jobId for extract-world-setup');
+  }
+
+  return await pollJob<ExtractedWorldSetup>(`/api/extract-world-setup/jobs/${jobId}`, {
+    onProgress,
+  });
 }
 
-export async function editorAgentPhase(userIntent: string, context: AgentContext, continuationPackId?: string): Promise<string> {
+export async function editorAgentPhase(
+  userIntent: string,
+  context: AgentContext,
+  continuationPackId?: string,
+  onProgress?: (progress: number, status: string) => void
+): Promise<string> {
   const contextStr = buildContextPrompt(context);
 
   const response = await fetch('/api/editor-agent', {
@@ -186,5 +203,16 @@ export async function editorAgentPhase(userIntent: string, context: AgentContext
   if (!response.ok || data.error) {
     throw new Error(data.error || 'Failed to generate scene beats');
   }
-  return data.text || '';
+
+  const { jobId } = data;
+  if (!jobId) {
+    throw new Error('Server did not return a jobId for editor-agent');
+  }
+
+  // Poll the job status using the reusable pollJob utility
+  const result = await pollJob<{ text: string }>(`/api/agents/jobs/${jobId}`, {
+    onProgress,
+  });
+
+  return result.text || '';
 }

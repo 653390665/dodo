@@ -113,8 +113,8 @@
 
 /* 5. 极致极细滚动条设计 (Ultra-thin Premium Scrollbar) */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

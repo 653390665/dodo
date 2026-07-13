@@ -49,6 +49,8 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   const [showExtractModal, setShowExtractModal] = useState<string | null>(null);
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractProgress, setExtractProgress] = useState(0);
+  const [extractStageText, setExtractStageText] = useState('正在读取资料并解包文本...');
   const [isSavingToNovel, setIsSavingToNovel] = useState(false);
 
   useEffect(() => {
@@ -117,7 +119,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   const handleSaveToNovel = async (novel: Novel, content: string) => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
-      alert('当前没有可保存的灵感内容。');
+      toast('当前没有可保存的灵感内容。', 'error');
       return;
     }
 
@@ -136,10 +138,10 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
         createdAt: now,
         updatedAt: now
       });
-      alert(`已成功保存至《${novel.title}》的灵感碎片库！`);
+      toast(`已保存至《${novel.title}》灵感库`, 'success');
       setShowSaveModal(null);
     } catch {
-      alert('保存失败，请稍后重试。');
+      toast('保存失败，请稍后重试。', 'error');
     } finally {
       setIsSavingToNovel(false);
     }
@@ -148,8 +150,13 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   const handleExtractToWorldBible = async (novel: Novel, content: string) => {
     setShowExtractModal(null);
     setIsExtracting(true);
+    setExtractProgress(10);
+    setExtractStageText('正在初始化后台解析引擎...');
     try {
-      const extracted = await extractWorldSetupPhase(content);
+      const extracted = await extractWorldSetupPhase(content, (progress, status) => {
+        setExtractProgress(progress);
+        setExtractStageText(status);
+      });
       // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const now = Date.now();
 
@@ -202,9 +209,9 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
         }
       }
 
-      alert(`AI 已成功解析出 ${count} 个设定项，并存储至《${novel.title}》的设定集库中！您可前往「设定记忆」界面查看。`);
+      toast(`已解析 ${count} 个设定项并存储至《${novel.title}》`, 'success');
     } catch {
-      alert('提取设定失败，可能是内容不包含明确的角色/地点/物品设定格式，或者大语言模型返回了异常。');
+      toast('提取设定失败，内容可能不包含明确的设定格式', 'error');
     } finally {
       setIsExtracting(false);
     }
@@ -212,7 +219,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
 
   const handleSaveAsIdeaFragment = async (content: string) => {
     if (!launchContext?.novelId) {
-      alert('当前没有绑定作品上下文，暂时无法直接保存为灵感碎片。');
+      toast('请先绑定作品上下文', 'info');
       return;
     }
     const trimmed = content.trim();
@@ -220,20 +227,20 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
 
     try {
       await createIdeaFragment(buildAssistantIdeaFragment(trimmed, launchContext));
-      alert(`已保存到《${launchContext.novelTitle}》的灵感碎片库。`);
+      toast(`已保存到《${launchContext.novelTitle}》灵感库`, 'success');
     } catch {
-      alert('保存灵感碎片失败，请稍后重试。');
+      toast('保存失败，请稍后重试', 'error');
     }
   };
 
   const handleExtractToCurrentNovel = async (content: string) => {
     if (!launchContext?.novelId) {
-      alert('当前没有绑定作品上下文，暂时无法直接提取到设定。');
+      toast('请先绑定作品上下文', 'info');
       return;
     }
     const novel = userNovels.find((entry) => entry.id === launchContext.novelId);
     if (!novel) {
-      alert('未找到当前上下文对应的作品，请稍后重试。');
+      toast('未找到对应作品', 'error');
       return;
     }
     await handleExtractToWorldBible(novel, content);
@@ -535,12 +542,22 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
               className="bg-theme-sidebar rounded-3xl p-6 shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col relative overflow-hidden"
             >
               {isExtracting && (
-                <div className="absolute inset-0 bg-theme-sidebar/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mb-4">
+                <div className="absolute inset-0 bg-theme-sidebar/90 backdrop-blur-md z-10 flex flex-col items-center justify-center p-6">
+                  <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mb-4 relative">
                     <Loader2 size={32} className="text-theme-accent animate-spin" aria-hidden="true" />
+                    <span className="absolute text-[10px] font-bold text-theme-accent">{extractProgress}%</span>
                   </div>
-                  <p className="font-bold text-theme-text font-serif">AI 正在结构化提取设定...</p>
-                  <p className="text-xs text-theme-muted mt-2">预计需要 5~15 秒</p>
+                  <p className="font-bold text-theme-text font-serif text-center">{extractStageText || 'AI 正在结构化提取设定...'}</p>
+                  
+                  {/* Modern Glassmorphic Progress Bar */}
+                  <div className="w-full max-w-[240px] bg-theme-border/50 h-1.5 rounded-full mt-4 overflow-hidden relative">
+                    <div 
+                      className="bg-gradient-to-r from-theme-accent/70 to-theme-accent h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${extractProgress}%` }}
+                    />
+                  </div>
+                  
+                  <p className="text-xs text-theme-muted mt-3">深度计算解析中，后台异步守卫已激活</p>
                 </div>
               )}
               <h3 id="extract-modal-title" className="text-xl font-bold font-serif mb-4 flex items-center gap-2">

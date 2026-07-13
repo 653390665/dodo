@@ -1,3 +1,4 @@
+import { toast } from '../../lib/toast';
 import React from 'react';
 import {
   Loader2,
@@ -170,7 +171,7 @@ export function BookFactoryOutput({
                   updateSelectedSkill(() => normalizeSkillConfig(parsed));
                   onSetIsEditing(false);
                 } catch {
-                  alert("JSON 格式错误，请检查后再保存编辑。");
+                  toast("JSON 格式错误，请检查后再保存编辑。", "error");
                 }
               } else {
                 onSetEditableJson(JSON.stringify(selectedSkill, null, 2));

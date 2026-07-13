@@ -1,12 +1,67 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { logger } from '../logger';
 import type {
   Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent,
   Chapter, ChapterVersion, Skill, SkillUsageRecord, IdeaFragment,
   Foreshadowing, ChapterProductionRun, ContinuationPack
 } from '../../shared/types';
 
+/**
+ * Safely parse a JSON string from a DB column, returning a fallback value
+ * if the string is null, undefined, empty, or contains malformed JSON.
+ * Logs a warning when malformed JSON is encountered so corruption is detectable.
+ */
+function safeJsonParse<T>(raw: string | null | undefined, fallback: T): any {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    logger.warn(`[db-mappers] Malformed JSON in column, using fallback. Value starts with: ${raw.slice(0, 80)}`);
+    return fallback;
+  }
+}
+
 type SafeAny = any;
+/** @deprecated Use typed row interfaces (NovelRow, ChapterRow, etc.) for new code */
 export type DbRow = SafeAny;
+
+export interface NovelRow {
+  id: string; title: string; author_id: string; summary: string;
+  cover_image: string | null; status: string; world_rules: string | null;
+  global_outline: string | null; mounted_skill_ids: string;
+  mounted_skill_loadout: string | null; project_preference_profile: string | null;
+  created_at: number; updated_at: number;
+}
+
+export interface CharacterRow {
+  id: string; novel_id: string; name: string; role: string;
+  summary: string; traits: string; bio: string; current_state: string;
+  created_at: number; updated_at: number;
+}
+
+export interface ChapterRow {
+  id: string; novel_id: string; volume_name: string | null; title: string;
+  content: string; order: number; word_count: number;
+  scene_beats: string | null; critique: string | null;
+  created_at: number; updated_at: number;
+}
+
+export interface SkillRow {
+  id: string; name: string; description: string; style: string;
+  pacing: string; vocabulary: string; sentence_structure: string | null;
+  imagery: string; banned_words: string; few_shots: string;
+  character_traits: string | null; world_building: string | null;
+  foreshadowing: string | null; plot_pattern: string | null;
+  core_patterns: string; banned_elements: string;
+  stability_score: number; evaluation_feedback: string;
+  version: number; parent_skill_id: string | null;
+  lineage_root_id: string | null; primary_dimension: string | null;
+  dimension_tags: string; composition_profile: string;
+  usage_stats: string; feedback_score: number;
+  fusion_meta: string | null; method_chain: string | null;
+  why_this_skill_works: string | null; source_badge: string | null;
+  created_at: number; updated_at: number | null;
+}
 
 export function rowToNovel(row: DbRow): Novel {
   return {
@@ -15,9 +70,9 @@ export function rowToNovel(row: DbRow): Novel {
     coverImage: row.cover_image,
     worldRules: row.world_rules,
     globalOutline: row.global_outline,
-    mountedSkillIds: JSON.parse(row.mounted_skill_ids || '[]'),
-    mountedSkillLoadout: JSON.parse(row.mounted_skill_loadout || '[]'),
-    projectPreferenceProfile: JSON.parse(row.project_preference_profile || '{}'),
+    mountedSkillIds: safeJsonParse(row.mounted_skill_ids, []),
+    mountedSkillLoadout: safeJsonParse(row.mounted_skill_loadout, []),
+    projectPreferenceProfile: safeJsonParse(row.project_preference_profile, {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -27,7 +82,7 @@ export function rowToCharacter(row: DbRow): Character {
   return {
     ...row,
     novelId: row.novel_id,
-    traits: JSON.parse(row.traits || '[]'),
+    traits: safeJsonParse(row.traits, []),
     current_state: row.current_state || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -63,34 +118,34 @@ export function rowToChapterVersion(row: DbRow): ChapterVersion {
 }
 
 export function rowToSkill(row: DbRow): Skill {
-  const fusionMeta = row.fusion_meta ? JSON.parse(row.fusion_meta) : undefined;
+  const fusionMeta = safeJsonParse(row.fusion_meta, undefined);
   return {
     ...row,
     sentenceStructure: row.sentence_structure,
-    bannedWords: JSON.parse(row.banned_words || '[]'),
-    fewShots: JSON.parse(row.few_shots || '[]'),
-    vocabulary: JSON.parse(row.vocabulary || '[]'),
-    imagery: JSON.parse(row.imagery || '[]'),
+    bannedWords: safeJsonParse(row.banned_words, []),
+    fewShots: safeJsonParse(row.few_shots, []),
+    vocabulary: safeJsonParse(row.vocabulary, []),
+    imagery: safeJsonParse(row.imagery, []),
     characterTraits: row.character_traits,
     worldBuilding: row.world_building,
     plotPattern: row.plot_pattern,
     foreshadowing: row.foreshadowing,
-    corePatterns: JSON.parse(row.core_patterns || '[]'),
-    bannedElements: JSON.parse(row.banned_elements || '[]'),
+    corePatterns: safeJsonParse(row.core_patterns, []),
+    bannedElements: safeJsonParse(row.banned_elements, []),
     stabilityScore: row.stability_score,
     evaluationFeedback: row.evaluation_feedback,
     parentSkillId: row.parent_skill_id || undefined,
     lineageRootId: row.lineage_root_id || undefined,
     primaryDimension: row.primary_dimension || undefined,
-    dimensionTags: JSON.parse(row.dimension_tags || '[]'),
-    compositionProfile: JSON.parse(row.composition_profile || '{}'),
-    usageStats: JSON.parse(row.usage_stats || '{}'),
+    dimensionTags: safeJsonParse(row.dimension_tags, []),
+    compositionProfile: safeJsonParse(row.composition_profile, {}),
+    usageStats: safeJsonParse(row.usage_stats, {}),
     feedbackScore: row.feedback_score ?? undefined,
     fusionMeta,
     deconstructionCardType: fusionMeta?.deconstructionCardType || undefined,
     executionScore: fusionMeta?.executionScore || undefined,
     accessTier: fusionMeta?.accessTier || undefined,
-    methodChain: row.method_chain ? JSON.parse(row.method_chain) : undefined,
+    methodChain: safeJsonParse(row.method_chain, undefined),
     whyThisSkillWorks: row.why_this_skill_works || undefined,
     sourceBadge: row.source_badge || undefined,
     createdAt: row.created_at,
@@ -103,7 +158,7 @@ export function rowToSkillUsageRecord(row: DbRow): SkillUsageRecord {
     ...row,
     novelId: row.novel_id,
     chapterId: row.chapter_id || undefined,
-    mountedSkillIds: JSON.parse(row.mounted_skill_ids || '[]'),
+    mountedSkillIds: safeJsonParse(row.mounted_skill_ids, []),
     fitScore: row.fit_score,
     auditScore: row.audit_score ?? undefined,
     userAction: row.user_action,
@@ -129,7 +184,7 @@ export function rowToForeshadowing(row: DbRow): Foreshadowing {
     novelId: row.novel_id,
     plantedChapterId: row.planted_chapter_id,
     payoffChapterId: row.payoff_chapter_id,
-    relatedCharacterIds: JSON.parse(row.related_character_ids || '[]'),
+    relatedCharacterIds: safeJsonParse(row.related_character_ids, []),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -145,7 +200,7 @@ export function rowToChapterProductionRun(row: DbRow): ChapterProductionRun {
     sceneBeats: row.scene_beats || '',
     draftContent: row.draft_content || '',
     styleAudit: row.style_audit || '',
-    continuityReport: JSON.parse(row.continuity_report || '{}'),
+    continuityReport: safeJsonParse(row.continuity_report, {}),
     errorMessage: row.error_message || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -327,19 +382,19 @@ export function chapterProductionRunToRow(run: ChapterProductionRun): DbRow {
 }
 
 export function mapContinuationPackRow(row: DbRow): ContinuationPack {
-  const styleProfile = JSON.parse(row.style_profile || '{}');
+  const styleProfile = safeJsonParse(row.style_profile, {});
   styleProfile.proseTraits = styleProfile.proseTraits || [];
   styleProfile.avoidTraits = styleProfile.avoidTraits || [];
   styleProfile.pov = styleProfile.pov || '';
   styleProfile.pacing = styleProfile.pacing || '';
   styleProfile.dialogueDensity = styleProfile.dialogueDensity || '';
 
-  const characterStates = JSON.parse(row.character_states || '[]');
+  const characterStates = safeJsonParse(row.character_states, []);
   for (const cs of characterStates) {
     cs.relationshipNotes = cs.relationshipNotes || [];
   }
 
-  const plotState = JSON.parse(row.plot_state || '{}');
+  const plotState = safeJsonParse(row.plot_state, {});
   plotState.unresolvedHooks = plotState.unresolvedHooks || [];
 
   return {
@@ -347,16 +402,16 @@ export function mapContinuationPackRow(row: DbRow): ContinuationPack {
     novelId: row.novel_id,
     title: row.title,
     status: row.status,
-    sourceDocuments: JSON.parse(row.source_documents || '[]'),
-    canonFacts: JSON.parse(row.canon_facts || '[]'),
+    sourceDocuments: safeJsonParse(row.source_documents, []),
+    canonFacts: safeJsonParse(row.canon_facts, []),
     characterStates,
     plotState,
     styleProfile,
-    contradictions: JSON.parse(row.contradictions || '[]'),
+    contradictions: safeJsonParse(row.contradictions, []),
     continuationTask: row.continuation_task,
-    sourceMap: JSON.parse(row.source_map || '{}'),
-    readingQuestions: JSON.parse(row.reading_questions || '[]'),
-    continuationGaps: JSON.parse(row.continuation_gaps || '[]'),
+    sourceMap: safeJsonParse(row.source_map, {}),
+    readingQuestions: safeJsonParse(row.reading_questions, []),
+    continuationGaps: safeJsonParse(row.continuation_gaps, []),
     sourceBadge: row.source_badge || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

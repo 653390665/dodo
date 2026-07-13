@@ -108,6 +108,24 @@ export function whiteLabelSanitize(text: string): string {
 }
 
 /**
+ * 白标物理净化函数：剔除一切 QQ 群、微信、盗贴标记、联系方式及竞品水印，实现“防漏安全护栏”。
+ *
+ * 注意：本函数为轻量级纯文本替换，适用于快速清理展示文本；
+ * 对需要命中统计的资产治理场景，请优先使用 analyzeAndSanitize。
+ */
+export function sanitizeWhiteLabelText(text: string): string {
+  if (!text) return '';
+  let s = text;
+  s = s.replace(/(?:qq\s*群|群号|扣扣群|企鹅群)[:：]?\s*\d+/gi, '');
+  s = s.replace(/(?:https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,6}(?:\/\S*)?/gi, m => (m.includes('localhost') || m.includes('api') ? m : ''));
+  s = s.replace(/(?:知轩藏书|精校版|校对版|精校完本|精校无错|精校电子书)/gi, '');
+  s = s.replace(/(?:微信号|微信|vx号|vx|wechat)\s*[:：]?\s*[a-zA-Z0-9_-]{5,20}/gi, '');
+  s = s.replace(/【(?:风华出品|小飞鸡|天马|私有化|自用)】/gi, '');
+  s = s.replace(/(?:风华出品|小飞鸡出品|风华出品的|沐殇专用|乐乐乐专用|牧殇角色|fire定制)/gi, '');
+  return s;
+}
+
+/**
  * 彻底白标清洗一个受控提示词资产
  * 对资产的所有核心文案字段（template、title、goal、riskNotes、successSignal）执行 analyzeAndSanitize
  * 汇总命中计数并置 sanitizationStatus 为 'sanitized'。

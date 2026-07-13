@@ -8,7 +8,7 @@ import type { PromptTemplateKey } from '../../shared/config/prompt-templates';
 
 export function registerPromptTestRoutes(app: Express) {
   app.post('/api/prompt-template-test', async (req, res) => {
-    let promptPreview = '';
+    let promptPreview: string | undefined;
     try {
       const { key, template } = req.body as { key?: PromptTemplateKey; template?: string };
       if (!key || typeof key !== 'string') {
@@ -32,7 +32,7 @@ export function registerPromptTestRoutes(app: Express) {
       });
     } catch (e) {
       logger.error(String(e));
-      res.status(500).json({ error: String(e), promptPreview });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 }

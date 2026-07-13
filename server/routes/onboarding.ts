@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
+import { generateId } from '../id';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
@@ -115,12 +116,36 @@ export function registerOnboardingRoutes(app: Express) {
     }
   });
 
-  app.post('/api/extract-world-setup', async (req, res) => {
-    try {
-      const { documentText = '' } = req.body;
-      if (!documentText.trim()) {
-        return res.status(400).json({ error: 'documentText is required' });
+  interface WorldSetupJob {
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    progress: number;
+    stageText: string;
+    result?: unknown;
+    error?: string;
+    createdAt: number;
+  }
+
+  const worldSetupJobs = new Map<string, WorldSetupJob>();
+  const WORLD_SETUP_JOB_TTL_MS = 15 * 60_000; // 15 minutes
+
+  async function runExtractWorldSetupJob(jobId: string, documentText: string) {
+    const updateJob = (updates: Partial<WorldSetupJob>) => {
+      const current = worldSetupJobs.get(jobId);
+      if (current) {
+        worldSetupJobs.set(jobId, { ...current, ...updates });
       }
+    };
+
+    try {
+      updateJob({
+        status: 'processing',
+        progress: 30,
+        stageText: '正在分析设定并提取关键名词元素...'
+      });
+
+      // Limit characters to avoid API contextual window blowup or slow processing
+      const slicedText = documentText.slice(0, 80000);
+
       const prompt = `
 你是一个世界观与设定提取分析师。
 请阅读下面用户上传的小说设定文档/大纲，并提取出标准化的结构数据。
@@ -165,8 +190,14 @@ export function registerOnboardingRoutes(app: Express) {
 }
 
 【设定文档内容】：
-${documentText}
+${slicedText}
       `;
+
+      updateJob({
+        progress: 50,
+        stageText: 'AI 正在结构化生成世界观、角色与时间线卡片...'
+      });
+
       const raw = await generateText(getConfig(), {
         prompt,
         timeoutMs: 90_000,
@@ -175,8 +206,64 @@ ${documentText}
         responseMimeType: 'application/json',
         disableThinking: true,
       });
+
+      updateJob({
+        progress: 85,
+        stageText: '正在校验并融合设定集合数据...'
+      });
+
       const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
-      res.json(JSON.parse(cleaned));
+      const resultJson = JSON.parse(cleaned);
+
+      updateJob({
+        status: 'completed',
+        progress: 100,
+        stageText: '设定提取完成！',
+        result: resultJson
+      });
+    } catch (e) {
+      logger.error(`Error in runExtractWorldSetupJob: ${e}`);
+      updateJob({
+        status: 'failed',
+        progress: 100,
+        stageText: '设定提取失败',
+        error: String(e)
+      });
+    }
+  }
+
+  app.get('/api/extract-world-setup/jobs/:jobId', (req, res) => {
+    const { jobId } = req.params;
+    const job = worldSetupJobs.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json(job);
+  });
+
+  app.post('/api/extract-world-setup', async (req, res) => {
+    try {
+      const { documentText = '' } = req.body;
+      if (!documentText.trim()) {
+        return res.status(400).json({ error: 'documentText is required' });
+      }
+
+      const jobId = `world-setup-${generateId()}`;
+      worldSetupJobs.set(jobId, {
+        status: 'pending',
+        progress: 10,
+        stageText: '正在队列中，准备解析文档...',
+        createdAt: Date.now()
+      });
+
+      runExtractWorldSetupJob(jobId, documentText).catch(e => {
+        logger.error(`Unhandled error in background runExtractWorldSetupJob: ${e}`);
+      });
+
+      // TTL cleanup
+      setTimeout(() => worldSetupJobs.delete(jobId), WORLD_SETUP_JOB_TTL_MS);
+
+      res.json({ jobId });
     } catch (e) {
       logger.error(String(e));
       res.status(500).json({ error: "Internal server error" });

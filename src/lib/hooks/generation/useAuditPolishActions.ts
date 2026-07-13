@@ -3,6 +3,7 @@ import type { Novel, Chapter, Skill } from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { buildContextPrompt } from '../../agents';
 import { createChapterVersion, updateChapter } from '../../chapter-client';
+import { readSseStream } from '../../sse-client';
 import {
   applyPatchWindow,
   extractPolishTargetsFromCritique,
@@ -26,7 +27,7 @@ interface UseAuditPolishActionsArgs {
   setAuditStatus: (val: string | null) => void;
   setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
   buildAgentContext: () => AgentContext;
-  handleUpdateContent: (newContent: string, isProgrammatic?: boolean) => void;
+  handleUpdateContent: (newContent: string, isProgrammatic?: boolean, skipPersist?: boolean) => void;
   getCurrentFitScore: () => number;
   recordSkillUsage: (
     userAction: 'accepted' | 'revised' | 'rejected',
@@ -55,6 +56,33 @@ export function useAuditPolishActions({
   recordSkillUsage,
   formatAiFailure,
 }: UseAuditPolishActionsArgs) {
+
+  const isRequestCurrent = (startingChapterId: string | undefined, currentSeq: number) =>
+    latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq;
+
+  const restorePreviewIfCurrent = (
+    baseline: string,
+    startingChapterId: string | undefined,
+    currentSeq: number,
+  ) => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+    handleUpdateContent(baseline, false, true);
+  };
+
+  const commitChapterContent = async (
+    chapterId: string,
+    content: string,
+    startingChapterId: string | undefined,
+    currentSeq: number,
+  ) => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+    setCurrentChapter((prev) => (prev ? { ...prev, content } : null));
+    await updateChapter(chapterId, {
+      content,
+      updatedAt: Date.now(),
+      wordCount: content.replace(/\s/g, '').length,
+    });
+  };
 
   const handleRunAudit = async () => {
     const startingChapterId = currentChapter?.id;
@@ -85,38 +113,75 @@ export function useAuditPolishActions({
         }),
         signal: controller.signal,
       });
-      setAuditStatus('总编正在逐段扫描机械感、节奏和人设一致性…');
-      const data = await response.json();
 
-      if (data && data.quotaExceeded) {
+      const initData = await response.json();
+
+      if (initData && initData.quotaExceeded) {
         window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
           detail: {
-            limitType: data.limitType,
-            count: data.count,
-            max: data.max,
-            error: data.error,
+            limitType: initData.limitType,
+            count: initData.count,
+            max: initData.max,
+            error: initData.error,
           }
         }));
         throw new Error('QUOTA_LIMIT_EXCEEDED');
       }
 
-      if (data.error) throw new Error(data.error);
-      const numericAuditScore = typeof data.score === 'number'
-        ? data.score
-        : Number(String(data.feedback || '').match(/(\d{2,3})\s*分/)?.[1] || 0) || undefined;
+      if (initData.error) throw new Error(initData.error);
+      const jobId = initData.jobId;
+      if (!jobId) throw new Error('Failed to initiate audit job');
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-      setCurrentChapter((prev) => (prev ? { ...prev, critique: data.feedback } : null));
-      await updateChapter(currentChapter.id, { critique: data.feedback });
-      await recordSkillUsage('revised', {
-        fitScore: getCurrentFitScore(),
-        auditScore: numericAuditScore,
-        notes: 'manual-audit',
-      });
+      let jobResult: Record<string, unknown> | null = null;
+      while (true) {
+        if (controller.signal.aborted) throw new Error('AbortError');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        const jobResponse = await fetch(`/api/audit/jobs/${jobId}`, {
+          signal: controller.signal,
+        });
+        if (!jobResponse.ok) {
+          throw new Error(`Failed to check audit status: ${jobResponse.status}`);
+        }
+        const job = await jobResponse.json();
+
+        if (job.status === 'completed') {
+          jobResult = job.result;
+          break;
+        } else if (job.status === 'failed') {
+          throw new Error('智能审稿服务异常或超时，请重试。');
+        } else {
+          const percent = job.progress || 0;
+          setAuditStatus(`[${percent}%] ${job.stageText || '总编正在逐段扫描机械感、节奏和人设一致性…'}`);
+        }
+      }
+
+      if (!jobResult) throw new Error('AI Audit returned no result');
+
+      const numericAuditScore = typeof jobResult.score === 'number'
+        ? jobResult.score
+        : Number(String(jobResult.feedback || '').match(/(\d{2,3})\s*分/)?.[1] || 0) || undefined;
+
+      const feedbackStr = typeof jobResult.feedback === 'string' ? jobResult.feedback : '';
+
+      if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+      setCurrentChapter((prev) => (prev ? { ...prev, critique: feedbackStr } : null));
+      await updateChapter(currentChapter.id, { critique: feedbackStr });
+      try {
+        await recordSkillUsage('revised', {
+          fitScore: getCurrentFitScore(),
+          auditScore: numericAuditScore,
+          notes: 'run-audit-success',
+        });
+      } catch {
+        // Auxiliary telemetry must not roll back committed critique.
+      }
+      setAuditStatus(null);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
-      alert(formatAiFailure(error, 'AI 审计'));
+      setAuditStatus(null);
+      alert(formatAiFailure(error, '审稿'));
     } finally {
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingCritique(false);
@@ -139,7 +204,6 @@ export function useAuditPolishActions({
       alert('请先在右侧区域选中一段您需要改写的文字，然后再点击此按钮。');
       return;
     }
-    const selectedText = currentChapter.content.substring(start, end);
     const instruction = prompt('请输入改写要求（如：更加通俗易懂，或者更有文学色彩），留空则由 AI 自动润色：');
     if (instruction === null) return;
 
@@ -150,12 +214,14 @@ export function useAuditPolishActions({
     }
     abortControllerRef.current = controller;
 
+    const baselineContent = currentChapter.content;
+
     try {
       const response = await fetch('/api/rewrite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: selectedText,
+          text: baselineContent.substring(start, end),
           instruction,
           contextStr: buildContextPrompt(buildAgentContext()),
           novelId: novel.id,
@@ -163,42 +229,80 @@ export function useAuditPolishActions({
         }),
         signal: controller.signal,
       });
-      const data = await response.json();
 
-      if (data && data.quotaExceeded) {
-        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
-          detail: {
-            limitType: data.limitType,
-            count: data.count,
-            max: data.max,
-            error: data.error,
-          }
-        }));
-        throw new Error('QUOTA_LIMIT_EXCEEDED');
+      if (response.status === 403) {
+        const data = await response.json().catch(() => ({}));
+        if (data && data.quotaExceeded) {
+          window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+            detail: {
+              limitType: data.limitType,
+              count: data.count,
+              max: data.max,
+              error: data.error,
+            }
+          }));
+          throw new Error('QUOTA_LIMIT_EXCEEDED');
+        }
       }
 
-      if (!response.ok || data.error) throw new Error(data.error || 'Rewrite failed.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Rewrite failed.');
+      }
 
-      const newText = currentChapter.content.substring(0, start) + data.text + currentChapter.content.substring(end);
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-      handleUpdateContent(newText, true);
-
-      await createChapterVersion({
-        id: Date.now().toString(),
-        chapterId: currentChapter.id,
-        content: newText,
-        wordCount: newText.replace(/\s/g, '').length,
-        author: 'user',
-        createdAt: Date.now(),
+      let previewAccum = '';
+      const streamResult = await readSseStream(response, (token) => {
+        previewAccum += token;
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+        const preview = baselineContent.substring(0, start) + previewAccum + baselineContent.substring(end);
+        handleUpdateContent(preview, false, true);
       });
 
-      await recordSkillUsage('accepted', {
-        fitScore: getCurrentFitScore(),
-        notes: 'text-rewrite-selected',
-      });
+      if (!streamResult.done) {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        alert('改写流未正常结束，已恢复原文。');
+        return;
+      }
+
+      const rewritten = streamResult.text;
+      const newText = baselineContent.substring(0, start) + rewritten + baselineContent.substring(end);
+
+      if (!rewritten.trim()) {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        alert('改写结果为空，已恢复原文。');
+        return;
+      }
+
+      await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+
+      try {
+        await createChapterVersion({
+          id: Date.now().toString(),
+          chapterId: currentChapter.id,
+          content: newText,
+          wordCount: newText.replace(/\s/g, '').length,
+          author: 'user',
+          createdAt: Date.now(),
+        });
+      } catch {
+        // Version history failure must not roll back committed content.
+      }
+
+      try {
+        await recordSkillUsage('accepted', {
+          fitScore: getCurrentFitScore(),
+          notes: 'text-rewrite-selected',
+        });
+      } catch {
+        // Telemetry failure must not roll back committed content.
+      }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.name === 'AbortError') {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        return;
+      }
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
+      restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
       alert('改写失败，请稍后重试。');
     } finally {
       if (requestSeqRef.current === currentSeq) {
@@ -226,8 +330,8 @@ export function useAuditPolishActions({
 
     setIsGeneratingContent(true);
     setGenerationStatus('正在按审计意见定位坏段落…');
+    const baseline = currentChapter.content;
     try {
-      const baseline = currentChapter.content;
       const { duplicateTargets, rewriteTargets } = extractPolishTargetsFromCritique(currentChapter.critique);
 
       let candidate = baseline;
@@ -250,10 +354,11 @@ export function useAuditPolishActions({
       }
 
       for (const { snippet } of actionableTargets) {
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
         const targetWindow = selectRewriteTargetsForPatch(candidate, [snippet], 1, currentChapter.critique)[0]?.window;
         if (!targetWindow) continue;
+
         const response = await fetch('/api/rewrite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -272,61 +377,88 @@ export function useAuditPolishActions({
           }),
           signal: controller.signal,
         });
-        const data = await response.json();
 
-        if (data && data.quotaExceeded) {
-          window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
-            detail: {
-              limitType: data.limitType,
-              count: data.count,
-              max: data.max,
-              error: data.error,
-            }
-          }));
-          throw new Error('QUOTA_LIMIT_EXCEEDED');
+        if (response.status === 403) {
+          const data = await response.json().catch(() => ({}));
+          if (data && data.quotaExceeded) {
+            window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+              detail: {
+                limitType: data.limitType,
+                count: data.count,
+                max: data.max,
+                error: data.error,
+              }
+            }));
+            throw new Error('QUOTA_LIMIT_EXCEEDED');
+          }
         }
 
         if (!response.ok) {
-          throw new Error(data.error || `HTTP ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
         }
 
-        const rewrittenText = String(data.text || '').trim();
+        let patchPreview = '';
+        const streamResult = await readSseStream(response, (token) => {
+          patchPreview += token;
+          if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+          const tempCandidate = applyPatchWindow(candidate, targetWindow, patchPreview);
+          handleUpdateContent(tempCandidate, false, true);
+        });
+
+        if (!streamResult.done) {
+          restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+          throw new Error('精修流未正常结束');
+        }
+
+        const rewrittenText = streamResult.text.trim();
         if (!rewrittenText) continue;
-        const nextCandidate = applyPatchWindow(candidate, targetWindow, rewrittenText);
-        changed = changed || nextCandidate !== candidate;
-        candidate = nextCandidate;
+        candidate = applyPatchWindow(candidate, targetWindow, rewrittenText);
+        changed = changed || candidate !== baseline;
+
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+        handleUpdateContent(candidate, false, true);
       }
 
       if (changed) {
         const guard = validatePolishCandidate(baseline, candidate);
         if (!guard.ok) {
+          restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
           setGenerationStatus(null);
           alert(`本轮精修结果疑似异常，已取消覆盖：${guard.reason}`);
           return;
         }
 
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-        handleUpdateContent(candidate, true);
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-        await updateChapter(currentChapter.id, {
-          content: candidate,
-          wordCount: candidate.replace(/\s/g, '').length,
-          critique: '',
-        });
+        await commitChapterContent(currentChapter.id, candidate, startingChapterId, currentSeq);
+        try {
+          await updateChapter(currentChapter.id, { critique: '' });
+        } catch {
+          // Critique clear failure must not roll back committed content.
+        }
 
-        await createChapterVersion({
-          id: Date.now().toString(),
-          chapterId: currentChapter.id,
-          content: candidate,
-          wordCount: candidate.replace(/\s/g, '').length,
-          author: 'editor-agent',
-          createdAt: Date.now(),
-        });
+        try {
+          await createChapterVersion({
+            id: Date.now().toString(),
+            chapterId: currentChapter.id,
+            content: candidate,
+            wordCount: candidate.replace(/\s/g, '').length,
+            author: 'editor-agent',
+            createdAt: Date.now(),
+          });
+        } catch {
+          // Version history failure must not roll back committed content.
+        }
 
-        await recordSkillUsage('accepted', {
-          fitScore: getCurrentFitScore(),
-          notes: 'polish-critique-patch',
-        });
+        try {
+          await recordSkillUsage('accepted', {
+            fitScore: getCurrentFitScore(),
+            notes: 'polish-critique-patch',
+          });
+        } catch {
+          // Telemetry failure must not roll back committed content.
+        }
 
         setGenerationStatus('已完成局部精修。建议再跑一次 AI 审计确认效果。');
         setTimeout(() => setGenerationStatus(null), 2500);
@@ -334,8 +466,12 @@ export function useAuditPolishActions({
         setGenerationStatus(null);
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.name === 'AbortError') {
+        restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+        return;
+      }
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
+      restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
       alert('精修失败，请重试');
     } finally {
       if (requestSeqRef.current === currentSeq) {

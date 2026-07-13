@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
 import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent } from '../production-client';
 import { getChapter } from '../chapter-client';
+import { metadataToChapter } from '../chapter-utils';
 
 interface UseChapterProductionFlowArgs {
   novelId: string;
@@ -214,7 +215,7 @@ export function useChapterProductionFlow({
       const freshChapters = await refreshChapters();
       const fullChapter = await getChapter(result.chapterId);
       setCurrentChapter(
-        fullChapter || (freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0] || null) as unknown as Chapter,
+        fullChapter || metadataToChapter(freshChapters.find((chapter) => chapter.id === result.chapterId) || freshChapters[0]),
       );
       setActiveProductionRun({
         ...runToApply,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship } from '../../../shared/types';
+import { metadataToChapter } from '../chapter-utils';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
@@ -79,13 +80,13 @@ export function useEditorData(novelId: string) {
 
       // Sync current chapter if already selected
       setCurrentChapter(prev => {
-        if (!prev && freshChapters.length > 0) return freshChapters[0] as unknown as Chapter;
+        if (!prev && freshChapters.length > 0) return metadataToChapter(freshChapters[0]);
         if (prev) {
           const matched = freshChapters.find(c => c.id === prev.id);
           if (matched) {
             // Preserve the memory-only content if we are in the middle of editing
             // (The DB might be slightly behind due to debounce)
-            return { ...matched, content: prev.content } as unknown as Chapter;
+            return { ...metadataToChapter(matched), content: prev.content };
           }
         }
         return prev;

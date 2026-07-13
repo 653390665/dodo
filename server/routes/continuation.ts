@@ -317,12 +317,30 @@ ${text.substring(0, 30000)}
     } catch (e) {
       logger.error(String(e));
       const message = e instanceof Error ? e.message : String(e);
-      if (/only thinking\/reasoning content|empty response|可解析的 JSON|不完整的 JSON|LLM returned empty response/i.test(message)) {
-        return res.status(502).json({
-          error: '模型未返回可用 JSON，请重试。',
-        });
+
+      // Classify the error for better user feedback
+      if (/内容过短|无可识别中文|too short/i.test(message)) {
+        return res.status(400).json({ error: message });
       }
-      res.status(500).json({ error: "Internal server error" });
+      if (/only thinking\/reasoning content/i.test(message)) {
+        return res.status(502).json({ error: 'AI 模型仅返回思考内容，未生成可用结果。请重试。' });
+      }
+      if (/empty response|LLM returned empty/i.test(message)) {
+        return res.status(502).json({ error: 'AI 模型返回空内容，请减少资料文件数量后重试。' });
+      }
+      if (/不完整的 JSON|missing.*JSON|incomplete/i.test(message)) {
+        return res.status(502).json({ error: 'AI 返回的数据不完整，请重试或减少文件数量。' });
+      }
+      if (/可解析的 JSON/i.test(message)) {
+        return res.status(502).json({ error: 'AI 返回的数据无法解析，请重试。' });
+      }
+      if (/timeout|超时|timed out/i.test(message)) {
+        return res.status(502).json({ error: 'AI 解析超时，请减少资料文件数量后重试。' });
+      }
+      if (/API.?[Kk]ey|未配置|unauthorized/i.test(message)) {
+        return res.status(401).json({ error: '未配置 AI API Key，请在设置中配置后重试。' });
+      }
+      return res.status(500).json({ error: '解析服务异常，请稍后重试。' });
     }
   });
 }

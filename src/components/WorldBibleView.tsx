@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../lib/client-logger';
 import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Scroll, Shield, Upload, Users, Zap, GitBranch, Sparkles, Send, Trash2, X, ChevronRight } from 'lucide-react';
 import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile, EntityRelationship } from '../../shared/types';
 import { StoryContractPanel } from './StoryContractPanel';
@@ -14,6 +15,7 @@ import {
 import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
 import { subscribeToChanges } from '../lib/db-transport';
+import { parseDocAsync } from '../lib/prompt-client';
 
 import { cn } from '../lib/utils';
 import { buildContinuationOverviewState } from '../lib/continuation-overview';
@@ -29,6 +31,7 @@ import { PowerLevelsTab } from './world-bible/PowerLevelsTab';
 import { TimelineTab } from './world-bible/TimelineTab';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/alert-dialog';
 import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
+import { RelationshipGraph } from './RelationshipGraph';
 
 export function WorldBibleView({
   novel,
@@ -61,12 +64,12 @@ export function WorldBibleView({
   onStartContinuationWriting?: (approvedPackId: string, prefillIntent?: string) => void;
   onEnterStoryboard?: (approvedPackId: string, continuationTask?: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline' | 'graph'>(() => {
     try {
       const saved = localStorage.getItem('inkflow-world-bible-active-tab');
       if (saved) {
         localStorage.removeItem('inkflow-world-bible-active-tab');
-        return saved as 'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline';
+        return saved as 'overview' | 'pack-management' | 'contract' | 'characters' | 'locations' | 'items' | 'factions' | 'powerLevels' | 'global' | 'timeline' | 'graph';
       }
     } catch {}
     return 'overview';
@@ -87,6 +90,8 @@ export function WorldBibleView({
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStageText, setImportStageText] = useState('');
   const [generatingBioIds, setGeneratingBioIds] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -195,12 +200,42 @@ export function WorldBibleView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...char, globalOutline, worldRules })
       });
-      const data = await response.json();
-      if (data.bio) {
-        updateEntity('character', char.id, { bio: data.bio });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedBio = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || '';
+
+        for (const msg of messages) {
+          const trimmed = msg.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.token) {
+                accumulatedBio += data.token;
+                updateEntity('character', char.id, { bio: accumulatedBio });
+              }
+            } catch (e) {
+              logger.error('Failed to parse bio token:', trimmed, e);
+            }
+          }
+        }
       }
-    } catch {
-      alert("生物生成失败，请重试");
+    } catch (e) {
+      logger.error("WorldBibleView error:", e);
+      alert("生成故事设定失败，请重试：" + (e instanceof Error ? e.message : String(e)));
     } finally {
       setGeneratingBioIds(prev => prev.filter(id => id !== char.id));
     }
@@ -273,12 +308,51 @@ JSON 格式规范：
       if (!response.ok) {
         throw new Error('API request failed');
       }
+      if (!response.body) {
+        throw new Error('No response body');
+      }
 
-      const resData = await response.json();
-      const text = resData.text || '';
+      const assistantMsgId = (Date.now() + 1).toString();
+      setHelperMessages(prev => [...prev, { id: assistantMsgId, sender: 'assistant', text: '✍️ 正在构思设定中...' }]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || '';
+
+        for (const msg of messages) {
+          const trimmed = msg.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.token) {
+                accumulatedText += data.token;
+                // Live typing filter: hide half-rendered JSON block from helper window
+                let cleanText = accumulatedText.replace(/\[JSON_DATA\][\s\S]*?\[\/JSON_DATA\]/, '').trim();
+                // Filter out any incomplete leading/trailing tags
+                cleanText = cleanText.replace(/\[JSON_DATA\][\s\S]*$/, '').trim();
+                setHelperMessages(prev =>
+                  prev.map(m => m.id === assistantMsgId ? { ...m, text: cleanText || '✍️ 正在设计专属新设定中...' } : m)
+                );
+              }
+            } catch (e) {
+              logger.error('Failed to parse helper token:', trimmed, e);
+            }
+          }
+        }
+      }
 
       const jsonRegex = /\[JSON_DATA\]([\s\S]*?)\[\/JSON_DATA\]/;
-      const match = text.match(jsonRegex);
+      const match = accumulatedText.match(jsonRegex);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let parsedEntity: any = null;
 
@@ -293,11 +367,11 @@ JSON 格式规范：
             });
           }
         } catch (err) {
-          console.error("Failed to parse agent json data:", err);
+          logger.error("Failed to parse agent json data:", err);
         }
       }
 
-      let cleanText = text.replace(/\[JSON_DATA\][\s\S]*?\[\/JSON_DATA\]/, '').trim();
+      let cleanText = accumulatedText.replace(/\[JSON_DATA\][\s\S]*?\[\/JSON_DATA\]/, '').trim();
       if (!cleanText) {
         if (parsedEntity) {
           cleanText = `✨ 我已为你设计好「${parsedEntity.data.name || parsedEntity.data.title || '新设定'}」！请在右侧设定单中确认和微调，然后一键写入。`;
@@ -306,14 +380,12 @@ JSON 格式规范：
         }
       }
 
-      setHelperMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        sender: 'assistant',
-        text: cleanText
-      }]);
+      setHelperMessages(prev =>
+        prev.map(m => m.id === assistantMsgId ? { ...m, text: cleanText } : m)
+      );
 
     } catch (err) {
-      console.error(err);
+      logger.error('WorldBibleView error:', err);
       setHelperMessages(prev => [...prev, {
         id: Date.now().toString(),
         sender: 'system',
@@ -406,7 +478,7 @@ JSON 格式规范：
       }]);
       setDraftEntity(null);
     } catch (err) {
-      console.error(err);
+      logger.error('WorldBibleView error:', err);
       alert("写入设定失败，请重试");
     }
   };
@@ -431,6 +503,8 @@ JSON 格式规范：
     if (!file) return;
 
     setIsImporting(true);
+    setImportProgress(10);
+    setImportStageText('正在提取文档内容...');
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
@@ -438,17 +512,32 @@ JSON 格式规范：
           const result = event.target?.result as string;
           const base64Data = result.split(',')[1];
 
-          const response = await fetch('/api/parse-doc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          const extractedRaw = await parseDocAsync(
+            {
               filename: file.name,
               filedata: base64Data
-            })
-          });
+            },
+            (progress, stageText) => {
+              setImportProgress(progress);
+              setImportStageText(stageText);
+            }
+          );
+          // LLM extraction output is dynamically shaped; assert to the entity
+          // arrays consumed below. Individual fields are best-effort and the
+          // backend fills in defaults for missing required fields.
+          const extracted = extractedRaw as {
+            globalOutline?: string;
+            worldRules?: string;
+            characters?: Character[];
+            locations?: Location[];
+            items?: Item[];
+            factions?: Faction[];
+            powerLevels?: PowerLevel[];
+            timelineEvents?: TimelineEvent[];
+          };
 
-          if (!response.ok) throw new Error("Upload failed.");
-          const extracted = await response.json();
+          setImportStageText('解析成功，正在写入本地设定集...');
+          setImportProgress(95);
 
           const newGlobalOutline = extracted.globalOutline || globalOutline;
           const newWorldRules = extracted.worldRules || worldRules;
@@ -462,50 +551,56 @@ JSON 格式规范：
 
           if (extracted.characters && Array.isArray(extracted.characters)) {
             for (const char of extracted.characters) {
-              await createCharacter({ ...char, id: Date.now().toString(), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createCharacter({ ...char, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.locations && Array.isArray(extracted.locations)) {
             for (const loc of extracted.locations) {
-              await createLocation({ ...loc, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createLocation({ ...loc, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.items && Array.isArray(extracted.items)) {
             for (const item of extracted.items) {
-              await createItem({ ...item, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createItem({ ...item, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.factions && Array.isArray(extracted.factions)) {
             for (const faction of extracted.factions) {
-              await createFaction({ ...faction, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createFaction({ ...faction, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.powerLevels && Array.isArray(extracted.powerLevels)) {
             for (const pl of extracted.powerLevels) {
-              await createPowerLevel({ ...pl, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createPowerLevel({ ...pl, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
           if (extracted.timelineEvents && Array.isArray(extracted.timelineEvents)) {
             for (const evt of extracted.timelineEvents) {
-              await createTimelineEvent({ ...evt, id: Date.now().toString(), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
+              await createTimelineEvent({ ...evt, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
             }
           }
 
-          alert("设定文档导入解析成功！");
-        } catch {
-          alert("导入失败，文档格式不正确或解析出错");
-        } finally {
+          setImportProgress(100);
+          setImportStageText('设定文档导入解析成功！');
+          setTimeout(() => {
+            setIsImporting(false);
+          }, 800);
+        } catch (err) {
+          logger.error('WorldBibleView error:', err);
+          alert(err instanceof Error ? err.message : "导入失败，文档格式不正确或解析出错");
           setIsImporting(false);
+        } finally {
           if (fileInputRef.current) fileInputRef.current.value = '';
         }
       };
       reader.readAsDataURL(file);
-    } catch {
+    } catch (err) {
+      logger.error('WorldBibleView error:', err);
       alert("导入失败，文档格式不正确或解析出错");
       setIsImporting(false);
     }
@@ -600,6 +695,7 @@ JSON 格式规范：
     { id: 'factions', icon: Shield, label: '势力设定' },
     { id: 'powerLevels', icon: Zap, label: '力量体系' },
     { id: 'timeline', icon: Clock, label: '纪元与时间线' },
+    { id: 'graph', icon: GitBranch, label: '关系图谱' },
   ] as const;
 
   if (onboarding) {
@@ -665,12 +761,15 @@ JSON 格式规范：
                 <tab.icon size={18} />
                 {tab.label}
                 <span className="ml-auto text-xs opacity-60">
-                  {tab.id === 'pack-management' && continuationPacks.length}
-                  {tab.id === 'characters' && characters.length}
-                  {tab.id === 'locations' && locations.length}
-                  {tab.id === 'items' && items.length}
-                {tab.id === 'timeline' && timelineEvents.length}
-              </span>
+                  {tab.id === 'pack-management' && continuationPacks.length > 0 && continuationPacks.length}
+                  {tab.id === 'characters' && characters.length > 0 && characters.length}
+                  {tab.id === 'locations' && locations.length > 0 && locations.length}
+                  {tab.id === 'items' && items.length > 0 && items.length}
+                  {tab.id === 'factions' && factions.length > 0 && factions.length}
+                  {tab.id === 'powerLevels' && powerLevels.length > 0 && powerLevels.length}
+                  {tab.id === 'timeline' && timelineEvents.length > 0 && timelineEvents.length}
+                  {tab.id === 'graph' && relationships.length > 0 && relationships.length}
+                </span>
             </button>
           ))}
         </div>
@@ -680,7 +779,8 @@ JSON 格式规范：
           {isWorldBibleEmpty &&
           activeTab !== 'pack-management' &&
           activeTab !== 'contract' &&
-          activeTab !== 'global' ? (
+          activeTab !== 'global' &&
+          activeTab !== 'graph' ? (
             renderColdStart()
           ) : (
             <>
@@ -802,6 +902,33 @@ JSON 格式规范：
                   deleteEntity={deleteEntity}
                   updateEntity={updateEntity}
                 />
+              )}
+
+              {activeTab === 'graph' && (
+                <div className="h-[calc(100vh-12rem)] bg-theme-sidebar/20 border border-theme-border/30 rounded-2xl p-6 overflow-hidden shadow-inner flex flex-col gap-4">
+                  <div className="flex flex-col">
+                    <h3 className="text-base font-bold text-theme-text flex items-center gap-2">
+                      <GitBranch size={16} className="text-theme-accent" />
+                      <span>全局实体关系图谱</span>
+                    </h3>
+                    <p className="text-xs text-theme-muted">支持拖拽节点与双击节点直接跳转至对应实体详细档案。</p>
+                  </div>
+                  <div className="flex-1 min-h-0 relative rounded-xl border border-theme-border/40 bg-theme-sidebar/10 overflow-hidden">
+                    <RelationshipGraph
+                      relationships={relationships}
+                      characters={characters}
+                      locations={locations}
+                      items={items}
+                      factions={factions}
+                      onSelectEntity={(type) => {
+                        if (type === 'character') setActiveTab('characters');
+                        else if (type === 'location') setActiveTab('locations');
+                        else if (type === 'item') setActiveTab('items');
+                        else if (type === 'faction') setActiveTab('factions');
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -1224,6 +1351,42 @@ JSON 格式规范：
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {isImporting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md animate-fade-in">
+          <div className="w-[420px] bg-theme-sidebar/85 border border-theme-border/60 p-7 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden flex flex-col gap-5 text-center">
+            {/* Top decorative gradient border line */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-theme-accent via-violet-500 to-cyan-500" />
+            
+            <div className="flex flex-col items-center justify-center gap-3">
+              <div className="size-12 rounded-full bg-theme-accent/10 border border-theme-accent/20 flex items-center justify-center text-theme-accent animate-bounce">
+                <Sparkles size={22} className="animate-pulse" />
+              </div>
+              <h3 className="text-base font-serif font-bold text-theme-text mt-1">智能设定导入与深度解析</h3>
+              <p className="text-xs text-theme-muted px-2">
+                我们正在使用 AI 深入阅读和解构您上传的设定文档，并在本地持久化建立各实体索引与逻辑关联。
+              </p>
+            </div>
+
+            <div className="space-y-2 text-left">
+              <div className="flex justify-between items-center text-xs px-0.5">
+                <span className="text-theme-muted font-medium animate-pulse">{importStageText || '正在读取文档内容...'}</span>
+                <span className="font-mono font-bold text-theme-text text-sm">{importProgress}%</span>
+              </div>
+              <div className="h-2 w-full bg-theme-border/30 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-theme-accent rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${importProgress}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="text-[10px] text-theme-muted leading-relaxed pt-1 border-t border-theme-border/20">
+              ⚡ 基于 SQLite WAL 事务快照一致性架构
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

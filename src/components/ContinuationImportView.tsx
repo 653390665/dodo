@@ -63,6 +63,8 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const [parsedState, setParsedState] = useState<ParsedPackState | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isParsing, setIsParsing] = useState(false);
+  const [parseProgress, setParseProgress] = useState(0);
+  const [parseStageText, setParseStageText] = useState('正在读取资料包并展开文档树...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const createdTargetNovelRef = useRef<Novel | null>(null);
@@ -194,14 +196,22 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const resetParsedSession = () => {
     setParsedState(null);
     createdTargetNovelRef.current = null;
+    setIsParsing(false);
+    setParseProgress(0);
+    setParseStageText('正在读取资料包并展开文档树...');
   };
 
   async function fileToBase64(file: File): Promise<string> {
-    const buffer = await file.arrayBuffer();
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.substring(result.indexOf(',') + 1);
+        resolve(base64);
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
   }
 
   const handleParse = async () => {
@@ -213,8 +223,13 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         : `continuation-import-draft-${Date.now()}`;
 
     setIsParsing(true);
+    setParseProgress(0);
+    setParseStageText('正在读取资料包并展开文档树...');
     setError('');
-    resetParsedSession();
+    
+    // Reset previous parse results safely without interrupting the active parsing state
+    setParsedState(null);
+    createdTargetNovelRef.current = null;
 
     try {
       const documents = await Promise.all(
@@ -223,14 +238,24 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
           filedata: await fileToBase64(file),
         })),
       );
-      const pack = await parseContinuationPack({
-        novelId: parseNovelId,
-        title:
-          targetMode === 'existing' && selectedNovel
-            ? `${selectedNovel.title} 资料包`
-            : `导入续写资料包 ${new Date().toLocaleDateString('zh-CN')}`,
-        documents,
-      });
+      const pack = await parseContinuationPack(
+        {
+          novelId: parseNovelId,
+          title:
+            targetMode === 'existing' && selectedNovel
+              ? `${selectedNovel.title} 资料包`
+              : `导入续写资料包 ${new Date().toLocaleDateString('zh-CN')}`,
+          documents,
+        },
+        (progress, stageText) => {
+          setParseProgress(progress);
+          setParseStageText(stageText);
+        }
+      );
+
+      setParseProgress(100);
+      setParseStageText('解析完成！正在生成体验大盘...');
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       setParsedState({
         pack,
@@ -240,7 +265,6 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
       setStage('confirm');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
       setIsParsing(false);
     }
   };
@@ -706,6 +730,80 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     );
   };
 
+  const renderParsingStage = () => {
+    return (
+      <div className="flex h-full min-h-[500px] flex-col items-center justify-center p-6">
+        <div className="relative w-full max-w-lg rounded-3xl border border-theme-border/60 bg-theme-sidebar/40 p-10 shadow-2xl backdrop-blur-md">
+          {/* Subtle Glowing AI Halo */}
+          <div className="absolute -top-12 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-theme-text/10 blur-xl animate-pulse" />
+          
+          <div className="flex flex-col items-center text-center">
+            {/* Spinning AI Orb */}
+            <div className="relative mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-theme-text/5 text-theme-text border border-theme-border">
+              <Loader2 className="h-10 w-10 animate-spin text-theme-text" />
+              <div className="absolute inset-0 rounded-2xl border border-theme-text/25 animate-ping opacity-20" />
+            </div>
+
+            <h3 className="mb-2 text-xl font-bold tracking-tight text-theme-text">
+              AI 灵感解析控制台
+            </h3>
+            <p className="mb-8 text-xs text-theme-muted">
+              正在对导入的文本文档进行多维语义提炼，构建断代设定时空底盘
+            </p>
+
+            {/* Premium Progress Bar Wrapper */}
+            <div className="w-full space-y-3">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-theme-text">{parseStageText}</span>
+                <span className="font-mono text-theme-text">{parseProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-theme-border/50">
+                <div 
+                  className="h-full rounded-full bg-gradient-to-r from-theme-text/60 to-theme-text transition-all duration-300 ease-out"
+                  style={{ width: `${parseProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* List of Parsing Status Items */}
+            <div className="mt-8 w-full space-y-3.5 text-left border-t border-theme-border/40 pt-6">
+              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 20 ? "text-theme-text font-medium" : "text-theme-muted")}>
+                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 20 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
+                  {parseProgress >= 20 ? "✓" : "1"}
+                </div>
+                <span>分析文档拓扑，解包并提取基础语料</span>
+              </div>
+              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 50 ? "text-theme-text font-medium" : "text-theme-muted")}>
+                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 50 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
+                  {parseProgress >= 50 ? "✓" : "2"}
+                </div>
+                <span>跨文档实体检索，标记角色与人设底稿</span>
+              </div>
+              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 73 ? "text-theme-text font-medium" : "text-theme-muted")}>
+                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 73 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
+                  {parseProgress >= 73 ? "✓" : "3"}
+                </div>
+                <span>提取多维关系连线，梳理设定关联脉络</span>
+              </div>
+              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 88 ? "text-theme-text font-medium" : "text-theme-muted")}>
+                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 88 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
+                  {parseProgress >= 88 ? "✓" : "4"}
+                </div>
+                <span>重构叙事大纲冲突，提取时间线与未决悬念</span>
+              </div>
+              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 96 ? "text-theme-text font-medium" : "text-theme-muted")}>
+                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 96 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
+                  {parseProgress >= 96 ? "✓" : "5"}
+                </div>
+                <span>执行自适应质量审计，预防剧情逻辑崩坏</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isBootstrapping) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -719,7 +817,11 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
 
   return (
     <div className="h-full overflow-y-auto bg-theme-bg/30">
-      {stage === 'upload' ? renderUploadStage() : renderConfirmStage()}
+      {isParsing 
+        ? renderParsingStage() 
+        : stage === 'upload' 
+          ? renderUploadStage() 
+          : renderConfirmStage()}
     </div>
   );
 }

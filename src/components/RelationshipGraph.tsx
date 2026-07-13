@@ -162,7 +162,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
   }
 
   return (
-    <svg ref={svgRef} viewBox="0 0 500 400" className="w-full h-80 bg-theme-sidebar rounded-xl border border-theme-border">
+    <svg ref={svgRef} viewBox="0 0 500 400" className="w-full h-80 bg-theme-sidebar/45 rounded-xl border border-theme-border/60 backdrop-blur-md">
       {/* Edges */}
       {edges.map((edge) => (
         <line
@@ -171,10 +171,10 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           y1={nodes.find((n) => n.id === edge.source)?.y || 0}
           x2={nodes.find((n) => n.id === edge.target)?.x || 0}
           y2={nodes.find((n) => n.id === edge.target)?.y || 0}
-          stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : '#94a3b8'}
+          stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--theme-muted)'}
           strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
           strokeWidth={1.5}
-          opacity={0.6}
+          opacity={0.65}
         >
           <title>{edge.description || edge.type}</title>
         </line>
@@ -195,16 +195,16 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           >
             <circle
               r={selectedNode === node.id ? 14 : 11}
-              fill={ENTITY_COLORS[node.type] || '#94a3b8'}
+              fill={ENTITY_COLORS[node.type] || 'var(--theme-muted)'}
               stroke={isActiveNode ? '#38bdf8' : (selectedNode === node.id ? '#fff' : 'none')}
               strokeWidth={isActiveNode ? 3 : (selectedNode === node.id ? 2 : 0)}
-              opacity={selectedNode === node.id || isActiveNode ? 1 : 0.8}
+              opacity={selectedNode === node.id || isActiveNode ? 1 : 0.85}
               className={isActiveNode ? "animate-pulse" : ""}
             />
             <text
               textAnchor="middle"
-              dy={20}
-              className="fill-theme-text font-semibold"
+              dy={22}
+              className="fill-theme-text font-bold"
               style={{ fontSize: '10px', fontFamily: 'sans-serif' }}
             >
               {node.label}

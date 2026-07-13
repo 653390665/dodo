@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaunchState, Chapter, ChapterMetadata, ViewType } from '../../shared/types';
+import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaunchState, ChapterMetadata, ViewType } from '../../shared/types';
 import { cn } from '../lib/utils';
 import type { AgentContext } from '../lib/agents';
-import { Download, Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { metadataToChapter } from '../lib/chapter-utils';
 import { ChapterSidebar } from './ChapterSidebar';
 import { EditorHeader } from './EditorHeader';
+import { EditorGuideBanners } from './EditorGuideBanners';
+import { EditorStatusBar } from './EditorStatusBar';
 import { AgentWorkspace } from './AgentWorkspace';
 import { WritingSurface } from './WritingSurface';
 import { EditorModals, EditorModalsHandle } from './EditorModals';
@@ -71,6 +74,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
   const hasConsumedContinuationLaunchUiRef = useRef(false);
   const hasSyncedTargetChapterRef = useRef(false);
   const prevTargetChapterIdRef = useRef<string | undefined>(undefined);
+  const autoPolishAfterAuditRef = useRef(false);
   const recordSkillUsageRef = useRef<((
     userAction: 'accepted' | 'revised' | 'rejected',
     options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
@@ -337,7 +341,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
 
   const handleSelectChapter = React.useCallback((chapter: ChapterMetadata) => {
     flushPendingContentSync(); // ⚠️ 切换章节前同步强制冲刷防抖内容
-    setCurrentChapter(chapter as unknown as Chapter);
+    setCurrentChapter(metadataToChapter(chapter));
   }, [flushPendingContentSync, setCurrentChapter]);
 
   const runCopilotAction = React.useCallback(async (actionKey: CopilotActionKey) => {
@@ -426,6 +430,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
 
   useEffect(() => {
     hasConsumedContinuationLaunchUiRef.current = false;
+    autoPolishAfterAuditRef.current = false;
   }, [launchState?.launchToken, novel.id]);
 
 
@@ -465,7 +470,12 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     } else if (launchState.source === 'cockpit-polish') {
       setIsAgentSidebarOpen(true);
       setAgentTab('quality');
-      void handlePolishChapterFromAudit();
+      if (currentChapter?.critique) {
+        void handlePolishChapterFromAudit();
+      } else {
+        autoPolishAfterAuditRef.current = true;
+        void handleRunAudit();
+      }
     } else if (launchState.source !== 'cockpit-resume') {
       setIsAgentSidebarOpen(true);
       setAgentTab(launchState.source === 'world-overview' ? 'production' : 'planning');
@@ -495,11 +505,19 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     if (launchState?.targetChapterId && chapters.length > 0) {
       const matched = chapters.find(c => c.id === launchState.targetChapterId);
       if (matched) {
-        setCurrentChapter(matched as unknown as Chapter);
+        setCurrentChapter(metadataToChapter(matched));
         hasSyncedTargetChapterRef.current = true;
       }
     }
   }, [launchState?.targetChapterId, chapters, setCurrentChapter]);
+
+  // Auto-polish once the AI audit completes if requested by cockpit-polish launch
+  useEffect(() => {
+    if (autoPolishAfterAuditRef.current && !isGeneratingCritique && currentChapter?.critique) {
+      autoPolishAfterAuditRef.current = false;
+      void handlePolishChapterFromAudit();
+    }
+  }, [isGeneratingCritique, currentChapter?.critique, handlePolishChapterFromAudit]);
 
   useEffect(() => {
     recordSkillUsageRef.current = recordSkillUsage;
@@ -560,61 +578,20 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
           onTitleChange={handleTitleChange}
         />
 
-        {currentChapter && isChapterEmpty && showEmptyChapterGuide && (
-          <div className="mx-6 mt-4 relative rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-theme-accent/5 p-4 text-left shadow-sm backdrop-blur-md animate-fade-in">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex gap-2.5">
-                <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 font-sans">
-                    空章节指引
-                  </h4>
-                  <p className="text-xs text-theme-text/85 leading-relaxed font-sans">
-                    当前章节暂无正文。您可以：(1) 直接在编辑器中起笔或输入文字；(2) 打开右侧【智能助理】下的【分镜规划】或【扩写生成】进行 AI 智能辅助创作。
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  localStorage.setItem('inkflow_editor_empty_chapter_guide_closed', 'true');
-                  setShowEmptyChapterGuide(false);
-                }}
-                className="text-theme-muted hover:text-theme-text transition-colors text-xs p-1 font-bold font-mono"
-                aria-label="关闭提示"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {currentChapter && (currentChapter.wordCount || 0) > 100 && showHasContentGuide && (
-          <div className="mx-6 mt-4 relative rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-theme-accent/5 p-4 text-left shadow-sm backdrop-blur-md animate-fade-in">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex gap-2.5">
-                <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 font-sans">
-                    章节打磨与审计指引
-                  </h4>
-                  <p className="text-xs text-theme-text/85 leading-relaxed font-sans">
-                    本章正文已具雏形！您可以：(1) 打开右侧【智能助理】的【审稿】面板对本章进行一致性和节奏审计，找出 AI 味；(2) 在右侧【大纲与设定】面板中提取或补充人物/地点设定，确保设定长效一致；(3) 回到【立项驾驶舱】总览小说大局。
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  localStorage.setItem('inkflow_editor_has_content_guide_closed', 'true');
-                  setShowHasContentGuide(false);
-                }}
-                className="text-theme-muted hover:text-theme-text transition-colors text-xs p-1 font-bold font-mono"
-                aria-label="关闭提示"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
+        <EditorGuideBanners
+          currentChapter={currentChapter}
+          isChapterEmpty={isChapterEmpty}
+          showEmptyChapterGuide={showEmptyChapterGuide}
+          showHasContentGuide={showHasContentGuide}
+          onCloseEmptyGuide={() => {
+            localStorage.setItem('inkflow_editor_empty_chapter_guide_closed', 'true');
+            setShowEmptyChapterGuide(false);
+          }}
+          onCloseContentGuide={() => {
+            localStorage.setItem('inkflow_editor_has_content_guide_closed', 'true');
+            setShowHasContentGuide(false);
+          }}
+        />
 
         {/* Writing Surface */}
         <WritingSurface
@@ -646,54 +623,14 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
           items={items}
         />
 
-        <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
-          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
-            {launchState?.approvedPackId && (
-              <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">
-                当前模式：资料包续写
-              </span>
-            )}
-            <span className="font-medium tabular-nums">字数 {currentChapter?.wordCount || 0}</span>
-            <span className="hidden sm:inline tabular-nums">更新 {currentChapter ? statusTimeFormatter.format(new Date(currentChapter.updatedAt)) : '-'}</span>
-            <span className="hidden lg:inline">预计 token <span className="text-theme-text font-semibold tabular-nums">~2.4k</span></span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-600 shadow-[0_0_5px_rgba(22,163,74,0.3)]" />
-              <span className="hidden sm:inline">{isSyncing ? '保存中…' : '本地已保存'}</span>
-            </div>
-            <div className="hidden sm:block h-3 w-px bg-theme-border/50" />
-            <button
-              onClick={async () => {
-                if (!novel?.id) return;
-                const format = confirm('导出为 EPUB？（确定=EPUB，取消=TXT）') ? 'epub' : 'txt';
-                try {
-                  const res = await fetch('/api/export', {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify({ novelId: novel.id, format }),
-                  });
-                  if (!res.ok) {
-                    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-                    throw new Error(err.error || `HTTP ${res.status}`);
-                  }
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${novel.title}.${format}`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch (e) {
-                  alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
-                }
-              }}
-              className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
-            >
-              <Download size={12} aria-hidden="true" /> 导出
-            </button>
-          </div>
-        </div>
+        <EditorStatusBar
+          currentChapter={currentChapter}
+          statusTimeFormatter={statusTimeFormatter}
+          isSyncing={isSyncing}
+          launchState={launchState}
+          novelId={novel.id}
+          novelTitle={novel.title}
+        />
 
       </div>
 

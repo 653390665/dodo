@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 
-import { deriveSkillFitNeeds } from '../src/lib/skill-fit-language';
+import { deriveSkillFitNeeds, checkPowerSignal } from '../src/lib/skill-fit-language';
 
 describe("skill-extraction", () => {
 test('deriveSkillFitNeeds returns dimension inputs plus readable role labels', () => {
@@ -35,4 +35,19 @@ test('deriveSkillFitNeeds returns dimension inputs plus readable role labels', (
   assert.deepEqual(result.requiredRoleLabels, ['主笔文风', '剧情推进', '节奏调速', '世界约束']);
   assert.deepEqual(result.chapterRoleLabels, ['剧情推进', '节奏调速', '世界约束', '体系爆点']);
 });
+
+test('checkPowerSignal correctly filters out daily false-positives and identifies real power signals', () => {
+  // 1. 真阳性：包含高精修仙术语
+
+  assert.equal(checkPowerSignal('他运转体内的功法进行抵抗。'), true);
+  assert.equal(checkPowerSignal('两人同为筑基期境界。'), true);
+  
+  // 2. 假阳性：含有“境”和“灵”的日常词语，应该返回 false
+  assert.equal(checkPowerSignal('今天处境不太妙，感觉整个人的写作灵感彻底枯竭了，我的灵魂仿佛在流浪。'), false);
+  assert.equal(checkPowerSignal('在这个优雅的环境中，我能感受到大自然灵巧的心境。'), false);
+  
+  // 3. 真阳性：去除日常词后，依然具有多次“灵”与“境”字频共现（代表修仙/战斗）
+  assert.equal(checkPowerSignal('空气中的灵压开始汇聚成一道灵光，将眼前的幻境彻底撕裂。'), true);
 });
+});
+

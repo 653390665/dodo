@@ -1,3 +1,4 @@
+import { toast } from '../../lib/toast';
 import React from 'react';
 import {
   ShieldAlert, Sparkles, Loader2, ArrowRight, CheckCircle2,
@@ -160,7 +161,7 @@ export function QualityGuardCenter({
       });
       setAiScore(98); // Perfect natural human-like prose score
       
-      alert(`✨ 智能全自动抛光成功！外科手术式重写了 ${replacedCount} 处典型 AI 腔与废话，段落流畅度已跃升为真人小说作家级别！`);
+      toast('抛光成功！已重写 ' + String(replacedCount) + ' 处', 'success');
     } else {
       alert('💡 提示：当前正文中未发现典型 AI 味测试段落。建议先点击“植入测试文本”后一键体验抛光效果！');
     }

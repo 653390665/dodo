@@ -23,7 +23,7 @@ import { runProductionPipeline } from '../helpers/ai-production-pipeline';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import * as db from '../lib/db';
 import { validate, chapterProductionSchema } from '../validation';
-import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
+import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
 
 function sseWrite(res: Express['response'], payload: Record<string, unknown>) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -43,29 +43,34 @@ export function registerProductionRoutes(app: Express) {
       return res.status(429).json({ error: 'Rate limited — please wait before starting another production run', retryAfter: 30 });
     }
     let runId: string | null = null;
+    const { novelId = '' } = req.body;
+    let reservationId: string | undefined;
     try {
-      const { novelId = '', targetChapterId = '', userIntent = '', activeEntityNames } = req.body;
+      const { targetChapterId = '', userIntent = '', activeEntityNames } = req.body;
       if (!novelId.trim()) {
         return res.status(400).json({ error: 'novelId is required' });
       }
 
-      // Quota Gate check
-      const quotaCheck = checkQuota(novelId, 'generateProse');
-      if (!quotaCheck.allowed) {
+      // Quota Gate — atomic reserve before any LLM work
+      const reserve = await reserveQuota(novelId, 'generateProse');
+      if (!reserve.allowed) {
         return res.status(403).json({
           quotaExceeded: true,
           limitType: 'generateProse',
-          count: quotaCheck.count,
-          max: quotaCheck.max,
-          error: quotaCheck.error,
+          count: reserve.count,
+          max: reserve.max,
+          error: reserve.error,
         });
       }
+
+      reservationId = reserve.reservationId;
 
       // Run Reflexion evolution in the background to learn from the previous chapter's edits
       runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
 
       const novel = db.getNovel(novelId);
       if (!novel) {
+        await refundQuota(reservationId);
         return res.status(404).json({ error: 'Novel not found' });
       }
 
@@ -122,8 +127,8 @@ export function registerProductionRoutes(app: Express) {
         continuityReport: fallbackContinuity,
       });
 
-      // 成功生成，消费 1 次额度 (Consume quota count)
-      consumeQuota(novelId, 'generateProse');
+      // 成功生成 fallback，额度已在 reserve 时预占
+      commitQuotaReservation(reservationId);
 
       return res.json({ run: db.getChapterProductionRun(runId) });
     } catch (e) {
@@ -135,6 +140,7 @@ export function registerProductionRoutes(app: Express) {
           errorMessage: message,
         });
       }
+      await refundQuota(reservationId);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -143,10 +149,12 @@ export function registerProductionRoutes(app: Express) {
     let runId: string | null = null;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
+    const { novelId = '' } = req.body;
+    let reservationId: string | undefined;
+    let contentDelivered = false;
 
     try {
       const {
-        novelId = '',
         targetChapterId = '',
         userIntent = '',
         continuationPackId = '',
@@ -157,24 +165,27 @@ export function registerProductionRoutes(app: Express) {
         return;
       }
 
-      // Quota Gate check
-      const quotaCheck = checkQuota(novelId, 'generateProse');
-      if (!quotaCheck.allowed) {
+      // Quota Gate — atomic reserve before any LLM work
+      const reserve = await reserveQuota(novelId, 'generateProse');
+      if (!reserve.allowed) {
         res.status(403).json({
           quotaExceeded: true,
           limitType: 'generateProse',
-          count: quotaCheck.count,
-          max: quotaCheck.max,
-          error: quotaCheck.error,
+          count: reserve.count,
+          max: reserve.max,
+          error: reserve.error,
         });
         return;
       }
+
+      reservationId = reserve.reservationId;
 
       // Run Reflexion evolution in the background to learn from the previous chapter's edits
       runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
 
       const novel = db.getNovel(novelId);
       if (!novel) {
+        await refundQuota(reservationId);
         res.status(404).json({ error: 'Novel not found' });
         return;
       }
@@ -283,8 +294,8 @@ export function registerProductionRoutes(app: Express) {
         continuityReport: fallbackContinuity,
       });
 
-      // 成功生成，消费 1 次额度 (Consume quota count)
-      consumeQuota(novelId, 'generateProse');
+      contentDelivered = true;
+      commitQuotaReservation(reservationId);
 
       sseWrite(res, { type: 'status', message: '草稿已就绪，可以先审阅或接受写入。' });
 
@@ -407,6 +418,9 @@ export function registerProductionRoutes(app: Express) {
             errorMessage: message,
           });
         } catch (e) { logger.error('Decision record failed:', e); }
+      }
+      if (!contentDelivered) {
+        await refundQuota(reservationId);
       }
       if (!res.headersSent) {
         res.status(500).json({ error: message });

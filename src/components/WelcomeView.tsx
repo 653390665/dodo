@@ -133,7 +133,15 @@ export function WelcomeView({
     });
     fetch('/api/config')
       .then((r) => r.json())
-      .then((data) => setHasApiKey(!!data.hasApiKey))
+      .then((data) => {
+        if (data.livenessStatus === 'unknown') {
+          setHasApiKey('unknown');
+        } else if (data.livenessStatus === 'disconnected') {
+          setHasApiKey(false);
+        } else {
+          setHasApiKey(!!data.hasApiKey);
+        }
+      })
       .catch(() => setHasApiKey('unknown'));
   }, []);
 

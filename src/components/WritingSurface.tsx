@@ -10,6 +10,233 @@ import { cn } from '../lib/utils';
 import { CopilotStatusBar } from './copilot/CopilotStatusBar';
 import { QualityGuardCenter } from './copilot/QualityGuardCenter';
 
+// 1. 维度与评分定义
+interface DiagnosticScore {
+  prose: number;       // 文笔
+  narrative: number;   // 叙事
+  character: number;   // 角色
+  setting: number;     // 设定
+  pacing: number;      // 节奏
+  readerPull: number;  // 追读力
+}
+
+// 2. 诚实容灾的多维分数抓取函数
+function parseDimensionScores(critiqueText: string | undefined): DiagnosticScore {
+  const scores: DiagnosticScore = {
+    prose: 0,
+    narrative: 0,
+    character: 0,
+    setting: 0,
+    pacing: 0,
+    readerPull: 0,
+  };
+  
+  if (!critiqueText || critiqueText.trim() === '') {
+    return scores;
+  }
+
+  // A. 首先使用正则表达式拉取 Markdown 表格中的评分
+  // 匹配格式: | prose | 8/10 | prose reason | 或 | 文笔 | 8.5/10 | 原因 |
+  const rowRegex = /\|\s*([^|]+?)\s*\|\s*(\d+(?:\.\d+)?)\s*\/\s*10\s*\|/g;
+  let match;
+  while ((match = rowRegex.exec(critiqueText)) !== null) {
+    const dimLabel = match[1].trim().toLowerCase();
+    const score = parseFloat(match[2]);
+    
+    if (dimLabel === 'prose' || dimLabel === '文笔') scores.prose = score;
+    else if (dimLabel === 'narrative' || dimLabel === '叙事') scores.narrative = score;
+    else if (dimLabel === 'character' || dimLabel === '角色') scores.character = score;
+    else if (dimLabel === 'setting' || dimLabel === '设定') scores.setting = score;
+    else if (dimLabel === 'pacing' || dimLabel === '节奏') scores.pacing = score;
+    else if (dimLabel === 'readerpull' || dimLabel === '追读力') scores.readerPull = score;
+  }
+
+  return scores;
+}
+
+interface RadarProps {
+  scores: DiagnosticScore;
+  hasCritique: boolean;
+  onRunAudit?: () => void;
+}
+
+export function NovelDiagnosticRadar({ scores, hasCritique, onRunAudit }: RadarProps) {
+  const dimensions = [
+    { key: 'prose', label: '文笔' },
+    { key: 'narrative', label: '叙事' },
+    { key: 'character', label: '角色' },
+    { key: 'setting', label: '设定' },
+    { key: 'pacing', label: '节奏' },
+    { key: 'readerPull', label: '追读力' },
+  ] as const;
+
+  const width = 220;
+  const height = 180;
+  const center = { x: width / 2, y: height / 2 - 5 };
+  const radius = 55;
+  const totalLevels = 3; // 对应 3.3, 6.6, 10 环线
+
+  // 计算多边形顶点的角步长 (6等分)
+  const angleStep = (Math.PI * 2) / 6;
+
+  // 1. 计算每个网格环的顶点 (同心六边形)
+  const getGridPoints = (level: number) => {
+    const r = (level / totalLevels) * radius;
+    const points: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = i * angleStep - Math.PI / 2; // 从 12 点钟方向顺时针计算
+      const x = center.x + Math.cos(angle) * r;
+      const y = center.y + Math.sin(angle) * r;
+      points.push(`${x},${y}`);
+    }
+    return points.join(' ');
+  };
+
+  // 2. 计算实际的分数填充区域顶点
+  const actualPoints = dimensions.map((dim, i) => {
+    const scoreVal = hasCritique ? (scores[dim.key as keyof DiagnosticScore] || 0) : 0;
+    const valRadius = (scoreVal / 10) * radius;
+    const angle = i * angleStep - Math.PI / 2;
+    const x = center.x + Math.cos(angle) * valRadius;
+    const y = center.y + Math.sin(angle) * valRadius;
+    return { x, y, score: scoreVal };
+  });
+
+  const actualPointsStr = actualPoints.map(p => `${p.x},${p.y}`).join(' ');
+
+  // 3. 计算文本标签定位 (微调 padding 防止文字出界)
+  const getLabelCoords = (i: number) => {
+    const angle = i * angleStep - Math.PI / 2;
+    const textRadius = radius + 15;
+    const x = center.x + Math.cos(angle) * textRadius;
+    const y = center.y + Math.sin(angle) * textRadius;
+    return { x, y };
+  };
+
+  return (
+    <div className="relative w-full py-4 flex flex-col items-center justify-center bg-theme-sidebar/25 border border-theme-border/30 rounded-2xl overflow-hidden shadow-inner backdrop-blur-sm">
+      <svg width={width} height={height} className="overflow-visible">
+        {/* 定义渐变与网格滤镜 */}
+        <defs>
+          <radialGradient id="radar-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--theme-accent)" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="var(--theme-accent)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* 1. 同心六边形背景线 */}
+        {[1, 2, 3].map((level) => (
+          <polygon
+            key={level}
+            points={getGridPoints(level)}
+            fill="none"
+            stroke="var(--theme-border)"
+            strokeWidth="0.8"
+            strokeDasharray={level === 3 ? "none" : "3, 3"}
+            opacity={level === 3 ? "0.6" : "0.35"}
+          />
+        ))}
+
+        {/* 2. 极轴轴线 */}
+        {Array.from({ length: 6 }).map((_, i) => {
+          const angle = i * angleStep - Math.PI / 2;
+          const targetX = center.x + Math.cos(angle) * radius;
+          const targetY = center.y + Math.sin(angle) * radius;
+          return (
+            <line
+              key={i}
+              x1={center.x}
+              y1={center.y}
+              x2={targetX}
+              y2={targetY}
+              stroke="var(--theme-border)"
+              strokeWidth="0.8"
+              opacity="0.35"
+            />
+          );
+        })}
+
+        {/* 3. 实际分数多边形填充和描边 (仅在有 critique 且不为 0 时渲染，否则渲染幽灵底网) */}
+        {hasCritique ? (
+          <>
+            <polygon
+              points={actualPointsStr}
+              fill="url(#radar-glow)"
+              stroke="var(--theme-accent)"
+              strokeWidth="1.5"
+              className="transition-all duration-500 ease-out"
+            />
+            {/* 4. 顶点发光脉冲圆点 */}
+            {actualPoints.map((pt, i) => {
+              if (pt.score === 0) return null;
+              return (
+                <g key={i}>
+                  <circle cx={pt.x} cy={pt.y} r="3" fill="var(--theme-accent)" />
+                  <circle cx={pt.x} cy={pt.y} r="6" fill="var(--theme-accent)" className="animate-ping" opacity="0.4" />
+                </g>
+              );
+            })}
+          </>
+        ) : (
+          /* 幽灵占位网: 灰暗点画虚线，代表空状态 */
+          <polygon
+            points={getGridPoints(1.2)}
+            fill="none"
+            stroke="var(--theme-muted)"
+            strokeWidth="1"
+            strokeDasharray="2, 2"
+            opacity="0.25"
+          />
+        )}
+
+        {/* 5. 渲染顶点文本和数字 */}
+        {dimensions.map((dim, i) => {
+          const coords = getLabelCoords(i);
+          const scoreVal = hasCritique ? (scores[dim.key as keyof DiagnosticScore] || 0) : 0;
+          const isTopOrBottom = i === 0 || i === 3;
+          const isLeft = i === 4 || i === 5;
+          const textAnchor = isTopOrBottom ? 'middle' : isLeft ? 'end' : 'start';
+
+          return (
+            <text
+              key={dim.key}
+              x={coords.x}
+              y={coords.y}
+              textAnchor={textAnchor}
+              dominantBaseline="middle"
+              className="text-[10px] font-sans transition-all duration-300 select-none fill-theme-muted"
+              opacity={hasCritique && scoreVal > 0 ? "1" : "0.55"}
+            >
+              <tspan className={cn("font-semibold", hasCritique && scoreVal > 0 ? "fill-theme-text" : "fill-theme-muted")}>{dim.label}</tspan>
+              {hasCritique && (
+                <tspan dx="2" className="fill-theme-accent font-mono text-[9px] font-bold">
+                  {scoreVal}
+                </tspan>
+              )}
+            </text>
+          );
+        })}
+      </svg>
+
+      {/* 诚实底栏指示器 */}
+      <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-[9px] text-theme-muted font-bold font-mono">
+        <div className="flex items-center gap-1.5">
+          <span className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            hasCritique ? "bg-emerald-400 animate-pulse" : "bg-theme-muted"
+          )} />
+          <span>{hasCritique ? "诊断雷达已载入" : "待审计 / 未评分"}</span>
+        </div>
+        {!hasCritique && onRunAudit && (
+          <span onClick={onRunAudit} className="text-theme-accent hover:underline cursor-pointer select-none">
+            前往质量打分 →
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface WritingSurfaceProps {
   novel: Novel;
   currentChapter: Chapter | null;
@@ -83,6 +310,9 @@ export const WritingSurface = React.memo(function WritingSurface({
   const [prevChapterId, setPrevChapterId] = React.useState(currentChapter?.id);
   const [prevChapterContent, setPrevChapterContent] = React.useState(currentChapter?.content);
   const [localContent, setLocalContent] = React.useState(currentChapter?.content || '');
+
+  const critiqueScores = React.useMemo(() => parseDimensionScores(currentChapter?.critique), [currentChapter?.critique]);
+  const hasCritiqueVal = Boolean(currentChapter?.critique?.trim());
 
   // 创作阶段描述
   const phases = React.useMemo(() => [
@@ -165,15 +395,19 @@ export const WritingSurface = React.memo(function WritingSurface({
 
   React.useEffect(() => {
     if (!localContent || localContent.trim() === '') {
-      setMatchedCharacters([]);
-      setMatchedLocations([]);
-      setMatchedItems([]);
-      setIsSniffingActive(false);
-      setIsLinXiaoMissing(false);
-      return;
+      const resetTimer = setTimeout(() => {
+        setMatchedCharacters([]);
+        setMatchedLocations([]);
+        setMatchedItems([]);
+        setIsSniffingActive(false);
+        setIsLinXiaoMissing(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
 
-    setIsSniffingActive(true);
+    const startTimer = setTimeout(() => {
+      setIsSniffingActive(true);
+    }, 0);
     const timer = setTimeout(() => {
       const lowerContent = localContent.toLowerCase();
       
@@ -194,22 +428,8 @@ export const WritingSurface = React.memo(function WritingSurface({
 
       // ── Hard Positive 1: Highlight Ring 💍 ──
       // If content mentions "戒指", "龙纹" or "古戒", automatically high-fidelity match mock item card
-      if (lowerContent.includes('戒指') || lowerContent.includes('龙纹') || lowerContent.includes('古戒')) {
-        const hasRing = matchedIts.some(i => i.id === 'mock-ring' || i.name === '龙纹古戒');
-        if (!hasRing) {
-          matchedIts.push({
-            id: 'mock-ring',
-            name: '💍 龙纹古戒',
-            description: '主角母亲留下的虚空神器，内部自成虚空，可吞吐虚无煞气，亦能吸纳诸天器物。',
-            category: 'items',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as unknown as Item);
-        }
-      }
-
-      // ── Hard Positive 2: Missing Entity Detector ──
-      // If content mentions "林啸" but no characters settings (including local) have "林啸" recorded
+      // ── Missing Entity Detector ──
+      // If content mentions characters not yet recorded in settings, flag them for registration
       const hasLinXiaoInSetting = allCharacters.some(c => c.name === '林啸');
       if (lowerContent.includes('林啸') && !hasLinXiaoInSetting) {
         setIsLinXiaoMissing(true);
@@ -223,7 +443,10 @@ export const WritingSurface = React.memo(function WritingSurface({
       setIsSniffingActive(false);
     }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(timer);
+    };
   }, [localContent, characters, locations, items, localCharacters, localLocations, localItems]);
 
   // Handler to smoothly save setting to localized supplemental state
@@ -531,35 +754,11 @@ export const WritingSurface = React.memo(function WritingSurface({
                   )}
                 </div>
 
-                {/* Concentric Pulse Radar Visualizer Widget */}
-                <div className="relative w-full h-32 rounded-xl bg-theme-sidebar/35 border border-theme-border/40 flex items-center justify-center overflow-hidden shadow-inner">
-                  {/* CSS keyframes injected via localized inline style block below */}
-                  <div className="absolute w-24 h-24 rounded-full border border-theme-accent/15 animate-[radar-pulse_3s_infinite]" />
-                  <div className="absolute w-16 h-16 rounded-full border border-theme-accent/25 animate-pulse" />
-                  <div className="absolute w-8 h-8 rounded-full border border-theme-accent/40 bg-theme-accent/5" />
-
-                  {/* Rotating beam */}
-                  <div
-                    className="absolute top-1/2 left-1/2 w-[60px] h-[60px] origin-top-left -translate-x-[0.5px] -translate-y-[0.5px] bg-gradient-to-tr from-theme-accent/0 via-theme-accent/10 to-theme-accent/30 rounded-tr-full"
-                    style={{ animation: 'radar-scan 5s linear infinite' }}
-                  />
-
-                  {/* Blinking telemetry dots representing entity nodes */}
-                  {(matchedCharacters.length > 0 || matchedItems.length > 0) && (
-                    <>
-                      <div className="absolute top-10 left-16 w-2 h-2 rounded-full bg-violet-400 animate-pulse shadow-[0_0_8px_rgba(139,92,246,0.8)]" />
-                      <div className="absolute bottom-12 right-16 w-2 h-2 rounded-full bg-sky-400 animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-                    </>
-                  )}
-                  {matchedLocations.length > 0 && (
-                    <div className="absolute top-16 right-12 w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  )}
-
-                  <div className="absolute bottom-2 left-3 flex items-center gap-1.5 text-[9px] text-theme-muted font-bold font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-theme-accent animate-pulse" />
-                    <span>记忆雷达巡航中</span>
-                  </div>
-                </div>
+                <NovelDiagnosticRadar
+                  scores={critiqueScores}
+                  hasCritique={hasCritiqueVal}
+                  onRunAudit={onRunAudit}
+                />
 
                 {/* Amber Alerts for Unregistered Entity '林啸' */}
                 {isLinXiaoMissing && (

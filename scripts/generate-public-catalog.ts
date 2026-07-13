@@ -6,8 +6,8 @@ import {
   CURATED_PRODUCT_SKILLS,
   PROMPT_GOVERNANCE_CATALOG,
   ENHANCEMENT_PACKAGES,
-  sanitizeWhiteLabelText
 } from '../shared/lib/prompt-governance-catalog.js';
+import { sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
 // Define the keys that contain sanitizable human-facing text

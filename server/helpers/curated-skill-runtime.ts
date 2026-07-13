@@ -1,4 +1,5 @@
-import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText } from '../../shared/lib/prompt-governance-catalog.js';
+import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.js';
+import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer.js';
 
 /**
  * 私有提示词大包字典 (IP Protection Matrix)

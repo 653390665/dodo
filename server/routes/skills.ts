@@ -3,7 +3,7 @@ import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import * as db from '../lib/db';
 import { renderPromptTemplate, getPromptTemplate, wrapUserInput, buildSkillsPrompt } from '../helpers/prompt-helpers';
-import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-governance-catalog.js';
+import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeSkillFields(skill: any): any {
@@ -41,7 +41,7 @@ import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregat
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence } from '../../shared/types';
 import { validate, extractSkillSchema } from '../validation';
-import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
+import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
 
 const SKILL_EXTRACTION_LLM_OPTIONS = {
   timeoutMs: 35_000,
@@ -191,22 +191,10 @@ async function processModelSkillExtraction(
 export function registerSkillsRoutes(app: Express) {
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     if (!rateLimit('extract-skill')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    const { novelId } = req.body;
+    let reservationId: string | undefined;
     try {
-      const { text = '', novelId, skills = [] } = req.body;
-
-      // ================================================================
-      // Layer 0: Quota Gate — verify free-tier limitations before LLM run
-      // ================================================================
-      const quotaCheck = checkQuota(novelId, 'extractSkill');
-      if (!quotaCheck.allowed) {
-        return res.status(403).json({
-          quotaExceeded: true,
-          limitType: 'extractSkill',
-          count: quotaCheck.count,
-          max: quotaCheck.max,
-          error: quotaCheck.error,
-        });
-      }
+      const { text = '', skills = [] } = req.body;
 
       // ================================================================
       // Layer 1: Input Gate — reject garbage before calling the model
@@ -219,8 +207,21 @@ export function registerSkillsRoutes(app: Express) {
         });
       }
 
-      // 校验通过，消费 1 次额度 (Consume quota count)
-      consumeQuota(novelId, 'extractSkill');
+      // ================================================================
+      // Layer 0: Quota Gate — atomic reserve after input validation
+      // ================================================================
+      const reserve = await reserveQuota(novelId, 'extractSkill');
+      if (!reserve.allowed) {
+        return res.status(403).json({
+          quotaExceeded: true,
+          limitType: 'extractSkill',
+          count: reserve.count,
+          max: reserve.max,
+          error: reserve.error,
+        });
+      }
+
+      reservationId = reserve.reservationId;
 
       // Retrieve active skills defensively from database if missing from the request body
       let activeSkills = skills || [];
@@ -267,6 +268,8 @@ export function registerSkillsRoutes(app: Express) {
       const modelTask = processModelSkillExtraction(text, segments, deconstructSkillsInfo);
       const jobId = createSkillExtractionJob(modelTask);
 
+      commitQuotaReservation(reservationId);
+
       res.json({
         ...fallbackResult,
         source: 'fallback',
@@ -275,6 +278,7 @@ export function registerSkillsRoutes(app: Express) {
       });
     } catch (e) {
       logger.error(String(e));
+      await refundQuota(reservationId);
       const message = e instanceof Error ? e.message : String(e);
       if (/timed out|拆书超时/i.test(message)) {
         return res.status(504).json({

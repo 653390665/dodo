@@ -49,6 +49,7 @@ export interface AppConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  promptGuardLevel?: 'strict' | 'balanced' | 'disabled';
   promptTemplates: PromptTemplates;
 }
 
@@ -56,6 +57,7 @@ const defaults: AppConfig = {
   apiKey: process.env.API_KEY || '',
   baseUrl: process.env.API_BASE_URL || 'https://generativelanguage.googleapis.com',
   model: process.env.API_MODEL || 'gemini-2.5-pro',
+  promptGuardLevel: 'strict',
   promptTemplates: DEFAULT_PROMPT_TEMPLATES,
 };
 
@@ -218,7 +220,9 @@ export function saveConfig(config: AppConfig): void {
             finalApiKey = decryptApiKey(parsed.apiKey);
           }
         }
-      } catch {}
+      } catch (readErr) {
+        logger.warn('Failed to read existing config for API key migration, will create fresh:', readErr);
+      }
     }
 
     const safeConfig = {
@@ -250,3 +254,14 @@ export function reloadConfig(): AppConfig {
   cached = null;
   return getConfig();
 }
+
+let currentLivenessStatus: 'connected' | 'unknown' | 'disconnected' = 'unknown';
+
+export function getLivenessStatus(): 'connected' | 'unknown' | 'disconnected' {
+  return currentLivenessStatus;
+}
+
+export function setLivenessStatus(status: 'connected' | 'unknown' | 'disconnected'): void {
+  currentLivenessStatus = status;
+}
+

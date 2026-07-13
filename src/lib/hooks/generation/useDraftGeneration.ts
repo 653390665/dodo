@@ -72,6 +72,11 @@ export function useDraftGeneration({
         userIntent || `关于章节「${currentChapter.title}」的大纲`,
         buildAgentContext(),
         selectedContinuationPackId || undefined,
+        (progress, _status) => {
+          if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+            setGenerationStatus(`正在分镜拆解中 [${progress}%]...`);
+          }
+        }
       );
 
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
@@ -119,6 +124,7 @@ export function useDraftGeneration({
 
     const baseContent = currentChapter.content ? `${currentChapter.content}\n\n` : '';
     let completedContent = false;
+    let accumulatedGeneratedText = '';
 
     try {
       const contextStr = buildContextPrompt(buildAgentContext());
@@ -137,25 +143,71 @@ export function useDraftGeneration({
         }),
         signal: controller.signal,
       });
-      const data = await response.json();
-
-      if (data && data.quotaExceeded) {
-        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
-          detail: {
-            limitType: data.limitType,
-            count: data.count,
-            max: data.max,
-            error: data.error,
-          }
-        }));
-        throw new Error('QUOTA_LIMIT_EXCEEDED');
-      }
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        if (response.status === 403) {
+          const initData = await response.json().catch(() => null);
+          if (initData && initData.quotaExceeded) {
+            window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+              detail: {
+                limitType: initData.limitType,
+                count: initData.count,
+                max: initData.max,
+                error: initData.error,
+              }
+            }));
+            throw new Error('QUOTA_LIMIT_EXCEEDED');
+          }
+        }
+        const errText = await response.text();
+        throw new Error(errText || `HTTP ${response.status}`);
       }
 
-      const generatedText = String(data.text || '').trim();
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || '';
+
+        for (const msg of messages) {
+          if (!msg.startsWith('data: ')) continue;
+          const dataStr = msg.slice(6);
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.type === 'status') {
+              setGenerationStatus(data.message);
+            } else if (data.type === 'token') {
+              accumulatedGeneratedText += data.content;
+              const fullText = baseContent + accumulatedGeneratedText;
+              const currentWords = fullText.replace(/\s/g, '').length;
+
+              if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+                setCurrentChapter((prev) => (
+                  prev ? { ...prev, content: fullText, wordCount: currentWords } : null
+                ));
+              }
+            } else if (data.type === 'done') {
+              if (data.text) {
+                accumulatedGeneratedText = data.text;
+              }
+            } else if (data.type === 'error') {
+              throw new Error(data.message || 'Stream generation failed');
+            }
+	          } catch (_e) {
+	            // Skip unparseable JSON/ping
+	          }
+        }
+      }
+
+      const generatedText = accumulatedGeneratedText.trim();
       if (!generatedText) {
         throw new Error('AI 没有返回正文内容，请稍后重试或缩短分镜。');
       }

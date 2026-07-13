@@ -9,6 +9,7 @@ import type {
   ProjectPreferenceProfile,
 } from '../../../shared/types';
 import { createChapter, createChapterVersion, deleteChapter, listChaptersMetadata, updateChapter } from '../chapter-client';
+import { metadataToChapter } from '../chapter-utils';
 import { updateNovel } from '../novel-client';
 
 interface UseEditorPersistenceArgs {
@@ -138,7 +139,7 @@ export function useEditorPersistence({
     });
   };
 
-  const handleUpdateContent = useCallback((newContent: string, isProgrammatic = false) => {
+  const handleUpdateContent = useCallback((newContent: string, isProgrammatic = false, skipPersist = false) => {
     if (!currentChapter) return;
     if (isContentLockedRef.current && !isProgrammatic) return;
     if (newContent === undefined || newContent === null) return;
@@ -146,6 +147,8 @@ export function useEditorPersistence({
     const updatedChapter = { ...currentChapter, content: newContent };
     setCurrentChapter(updatedChapter);
     pushToUndoHistory(newContent);
+
+    if (skipPersist) return;
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
@@ -310,10 +313,14 @@ export function useEditorPersistence({
 
   const handleDeleteChapter = async (id: string) => {
     await deleteChapter(id);
-    setChapters((prev) => prev.filter((chapter) => chapter.id !== id));
-    if (currentChapter?.id === id) {
-      setCurrentChapter((chapters.find((chapter) => chapter.id !== id) as unknown as Chapter) || null);
-    }
+    setChapters((prev) => {
+      const remaining = prev.filter((chapter) => chapter.id !== id);
+      if (currentChapter?.id === id) {
+        const fallback = remaining.find((chapter) => chapter.id !== id);
+        setCurrentChapter(fallback ? metadataToChapter(fallback) : null);
+      }
+      return remaining;
+    });
   };
 
   const handleVolumeNameChange = (newVol: string) => {

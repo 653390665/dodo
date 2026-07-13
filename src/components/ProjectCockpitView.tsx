@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { Novel, Chapter, ChapterMetadata, Character, Location, Item, Faction, Skill, ContinuationPack } from '../../shared/types';
 import { cn } from '../lib/utils';
+import { metadataToChapter } from '../lib/chapter-utils';
+import { logger } from '../lib/client-logger';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems,
   listFactions, listContinuationPacks, listSkills, getNovel, createChapter
@@ -14,6 +16,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { toast } from '../lib/toast';
 import { useAppStore } from '../stores/app-store';
 import { computeCockpitRecommendations } from '../lib/cockpit-recommendations';
+import { downloadDbBackup } from '../lib/download-client';
 
 function createFirstChapterPayload(novelId: string): Chapter {
   const timestamp = Date.now();
@@ -101,7 +104,7 @@ export function ProjectCockpitView({
         getChapter(latestMeta.id).then((fullCh) => {
           setLatestFullChapter(fullCh || null);
         }).catch((err) => {
-          console.warn('Failed to lazy load latest chapter full content:', err);
+          logger.warn('Failed to lazy load latest chapter full content:', err);
         });
       } else {
         setLatestFullChapter(null);
@@ -220,7 +223,7 @@ export function ProjectCockpitView({
           influence: "进入主创作流，是深度审稿、大纲对齐与一键精修的前置入口",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
-              onSelectChapter(latestChapter as unknown as Chapter);
+              onSelectChapter(metadataToChapter(latestChapter));
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('resume', latestChapter.id);
@@ -253,7 +256,7 @@ export function ProjectCockpitView({
           influence: "为接下来的正文智能极速扩写提供坚实且高可控的剧情骨架",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
-              onSelectChapter(latestChapter as unknown as Chapter);
+              onSelectChapter(metadataToChapter(latestChapter));
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('planning', latestChapter.id);
@@ -273,7 +276,7 @@ export function ProjectCockpitView({
           influence: "快速产出首版初稿，等待下一步的资深审稿人多维一致性审计",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
-              onSelectChapter(latestChapter as unknown as Chapter);
+              onSelectChapter(metadataToChapter(latestChapter));
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('production', latestChapter.id);
@@ -293,7 +296,7 @@ export function ProjectCockpitView({
           influence: "生成多维度的审稿批注报告，并解锁接下来的定向润色与精修",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
-              onSelectChapter(latestChapter as unknown as Chapter);
+              onSelectChapter(metadataToChapter(latestChapter));
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('audit', latestChapter.id);
@@ -313,7 +316,7 @@ export function ProjectCockpitView({
           influence: "打磨产出高品质的完读正文，并可以开始冷备份或发布",
           onClick: () => {
             if (onSelectChapter && latestChapter) {
-              onSelectChapter(latestChapter as unknown as Chapter);
+              onSelectChapter(metadataToChapter(latestChapter));
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('polish', latestChapter.id);
@@ -331,7 +334,7 @@ export function ProjectCockpitView({
           why: "为了防范网络死锁、断电或异常故障导致本地数据损坏",
           output: "基于一致性事务快照技术导出完整的高可用离线备份包",
           influence: "确保全书写作资产 100% 绝对安全，可随时进行恢复或迁移",
-          onClick: () => window.open('/api/db/export-file', '_blank')
+          onClick: () => { void downloadDbBackup().catch((err) => toast(`导出备份失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error')); }
         };
       case 'deconstruct_flow_step1':
         return {
@@ -477,7 +480,7 @@ export function ProjectCockpitView({
                     <button
                       onClick={() => {
                         if (onSelectChapter && latestChapter) {
-                          onSelectChapter(latestChapter as unknown as Chapter);
+                          onSelectChapter(metadataToChapter(latestChapter));
                         }
                         if (onStartCockpitAction && latestChapter) {
                           // Launches full custom-polish automated stream / 启动一键去AI味精修流
@@ -496,7 +499,7 @@ export function ProjectCockpitView({
                     <button
                       onClick={() => {
                         if (onSelectChapter && latestChapter) {
-                          onSelectChapter(latestChapter as unknown as Chapter);
+                          onSelectChapter(metadataToChapter(latestChapter));
                         }
                         if (onStartCockpitAction && latestChapter) {
                           // Launches full quality audit stream / 启动后台质量审计流

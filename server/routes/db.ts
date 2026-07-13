@@ -27,7 +27,7 @@ const DB_WHITELIST = new Set([
   'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
 ]);
 
-import { subscribe, setCurrentInitiator } from '../lib/db-instance';
+import { subscribe, setCurrentInitiator, runInSerializedWrite, drainWriteQueue } from '../lib/db-instance';
 
 export function registerDbRoutes(app: Express) {
   app.post('/api/db', validate(dbSchema), (req, res) => {
@@ -122,13 +122,12 @@ export function registerDbRoutes(app: Express) {
   app.post(
     '/api/db/import-file',
     express.raw({ limit: '100mb', type: 'application/octet-stream' }),
-    (req, res) => {
+    async (req, res) => {
       const buffer = req.body;
       if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
         return res.status(400).json({ error: '接收到的数据库文件为空' });
       }
 
-      // 校验 SQLite 数据库魔术字前缀 (SQLite format 3)
       const magic = buffer.toString('utf8', 0, 15);
       if (magic !== 'SQLite format 3') {
         return res.status(400).json({ error: '无效的 SQLite 数据库文件格式' });
@@ -137,43 +136,14 @@ export function registerDbRoutes(app: Express) {
       const backupPath = DB_PATH + '.pre-import-bak';
 
       try {
-        // 优雅断开当前所有的底层数据库连接
-        closeDb();
-
-        // 将当前的 DB_PATH 物理备份，作为容灾重试的凭据
-        if (existsSync(DB_PATH)) {
-          copyFileSync(DB_PATH, backupPath);
-        }
-
-        // 同步检查并删除可能干扰新库加载的 WAL 与 SHM 临时日志
-        const walPath = DB_PATH + '-wal';
-        const shmPath = DB_PATH + '-shm';
-        if (existsSync(walPath)) {
-          unlinkSync(walPath);
-        }
-        if (existsSync(shmPath)) {
-          unlinkSync(shmPath);
-        }
-
-        // 物理覆盖写入新上传的数据库文件
-        writeFileSync(DB_PATH, buffer);
-
-        // 重新调用初始化，尝试打开新库
-        initDb();
-
-        res.json({ success: true });
-      } catch (err: unknown) {
-        logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
-        try {
-          // 断开可能失败的错误连接
+        await runInSerializedWrite(async () => {
+          await drainWriteQueue();
           closeDb();
 
-          // 从暂存的灾难备份中还原旧库物理文件
-          if (existsSync(backupPath)) {
-            copyFileSync(backupPath, DB_PATH);
+          if (existsSync(DB_PATH)) {
+            copyFileSync(DB_PATH, backupPath);
           }
 
-          // 清理残留的 WAL / SHM 干扰日志
           const walPath = DB_PATH + '-wal';
           const shmPath = DB_PATH + '-shm';
           if (existsSync(walPath)) {
@@ -183,8 +153,33 @@ export function registerDbRoutes(app: Express) {
             unlinkSync(shmPath);
           }
 
-          // 重新初始化并连接旧库，保证系统可用性不受影响
+          writeFileSync(DB_PATH, buffer);
           initDb();
+        });
+
+        res.json({ success: true });
+      } catch (err: unknown) {
+        logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
+        try {
+          await runInSerializedWrite(async () => {
+            await drainWriteQueue();
+            closeDb();
+
+            if (existsSync(backupPath)) {
+              copyFileSync(backupPath, DB_PATH);
+            }
+
+            const walPath = DB_PATH + '-wal';
+            const shmPath = DB_PATH + '-shm';
+            if (existsSync(walPath)) {
+              unlinkSync(walPath);
+            }
+            if (existsSync(shmPath)) {
+              unlinkSync(shmPath);
+            }
+
+            initDb();
+          });
         } catch (restoreErr) {
           logger.error('严重警告：数据库还原回滚失败！', restoreErr);
         }
@@ -198,6 +193,6 @@ export function registerDbRoutes(app: Express) {
           logger.error('删除导入临时备份文件失败:', unlinkErr);
         }
       }
-    }
+    },
   );
 }

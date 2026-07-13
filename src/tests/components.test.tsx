@@ -8,8 +8,11 @@ import { SettingsModal } from '../components/SettingsModal';
 import { WelcomeView } from '../components/WelcomeView';
 import { ProjectCockpitView } from '../components/ProjectCockpitView';
 import { EditorView } from '../components/EditorView';
+import { downloadDbBackup } from '../lib/download-client';
 
-// Mock tooltip to avoid complicated portal testing in jsdom
+vi.mock('../lib/download-client', () => ({
+  downloadDbBackup: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -117,11 +120,13 @@ vi.mock('../lib/hooks/useEditorContinuationPacks', () => ({
   }),
 }));
 
+let mockCurrentChapter: any = { id: 'ch-1', title: '第一章', content: 'Here is some content', wordCount: 150, createdAt: Date.now(), updatedAt: Date.now() };
+
 vi.mock('../lib/hooks/useEditorData', () => ({
   useEditorData: () => ({
-    chapters: [{ id: 'ch-1', title: '第一章', content: 'Here is some content', createdAt: Date.now(), updatedAt: Date.now() }],
+    chapters: [mockCurrentChapter],
     setChapters: vi.fn(),
-    currentChapter: { id: 'ch-1', title: '第一章', content: 'Here is some content', wordCount: 150, createdAt: Date.now(), updatedAt: Date.now() },
+    currentChapter: mockCurrentChapter,
     setCurrentChapter: vi.fn(),
     characters: [],
     locations: [],
@@ -235,6 +240,7 @@ vi.mock('../lib/hooks/useSkillLoadoutManager', () => ({
   }),
 }));
 
+let mockIsGeneratingCritique = false;
 const mockHandleRunAudit = vi.fn().mockResolvedValue(undefined);
 const mockHandlePolishChapterFromAudit = vi.fn().mockResolvedValue(undefined);
 
@@ -243,7 +249,7 @@ vi.mock('../lib/hooks/useEditorGenerationFlow', () => ({
     isGeneratingContent: false,
     isGeneratingOutline: false,
     isGeneratingBeats: false,
-    isGeneratingCritique: false,
+    isGeneratingCritique: mockIsGeneratingCritique,
     generationStatus: '',
     auditStatus: '',
     handleRunAudit: mockHandleRunAudit,
@@ -260,6 +266,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
   beforeEach(() => {
     // Clear fetch mocks
     vi.restoreAllMocks();
+    mockHandleRunAudit.mockClear();
+    mockHandlePolishChapterFromAudit.mockClear();
+    mockIsGeneratingCritique = false;
+    mockCurrentChapter = { id: 'ch-1', title: '第一章', content: 'Here is some content', wordCount: 150, createdAt: Date.now(), updatedAt: Date.now() };
     localStorage.clear();
 
     // Mock the fetch call in SettingsModal to resolve immediately
@@ -490,14 +500,130 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(mockHandleRunAudit).toHaveBeenCalled();
     });
 
+    test('行动决策跳转 EditorView 时 cockpit-polish 且具有 critique 时直接触发 handlePolishChapterFromAudit()', async () => {
+      const mockBack = vi.fn();
+      const mockOpenAssistant = vi.fn();
+      const novel = {
+        id: 'test-novel-id',
+        title: 'Test Novel',
+        authorId: 'local-user',
+        summary: 'A test novel summary',
+        mountedSkillIds: [],
+        mountedSkillLoadout: [],
+        status: 'ongoing' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // critique is present
+      mockCurrentChapter = {
+        id: 'ch-1',
+        title: '第一章',
+        content: 'Here is some content',
+        critique: 'Some critique report',
+        wordCount: 150,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      render(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: '',
+            launchToken: Date.now(),
+            shouldOpenProductionPanel: true,
+            source: 'cockpit-polish',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={mockBack}
+          onOpenAssistant={mockOpenAssistant}
+        />
+      );
+
+      // Wait a tick for effects to trigger
+      await new Promise(resolve => setTimeout(resolve, 15));
+
+      // Assert handlePolishChapterFromAudit was automatically called
+      expect(mockHandlePolishChapterFromAudit).toHaveBeenCalled();
+      expect(mockHandleRunAudit).not.toHaveBeenCalled();
+    });
+
+    test('行动决策跳转 EditorView 时 cockpit-polish 且没有 critique 时自动跑 handleRunAudit()，并在结束后自动触发 handlePolishChapterFromAudit()', async () => {
+      const mockBack = vi.fn();
+      const mockOpenAssistant = vi.fn();
+      const novel = {
+        id: 'test-novel-id',
+        title: 'Test Novel',
+        authorId: 'local-user',
+        summary: 'A test novel summary',
+        mountedSkillIds: [],
+        mountedSkillLoadout: [],
+        status: 'ongoing' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // critique is NOT present
+      mockCurrentChapter = {
+        id: 'ch-1',
+        title: '第一章',
+        content: 'Here is some content',
+        wordCount: 150,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const { rerender } = render(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: '',
+            launchToken: Date.now(),
+            shouldOpenProductionPanel: true,
+            source: 'cockpit-polish',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={mockBack}
+          onOpenAssistant={mockOpenAssistant}
+        />
+      );
+
+      // Wait a tick for effects to trigger
+      await new Promise(resolve => setTimeout(resolve, 15));
+
+      // Assert handleRunAudit was automatically called instead
+      expect(mockHandleRunAudit).toHaveBeenCalled();
+      expect(mockHandlePolishChapterFromAudit).not.toHaveBeenCalled();
+
+      // Now simulate audit completes: we update mockCurrentChapter with critique and make isGeneratingCritique false
+      mockIsGeneratingCritique = false;
+      mockCurrentChapter.critique = 'Newly generated critique';
+
+      // Rerender to trigger effect
+      rerender(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: '',
+            launchToken: Date.now(),
+            shouldOpenProductionPanel: true,
+            source: 'cockpit-polish',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={mockBack}
+          onOpenAssistant={mockOpenAssistant}
+        />
+      );
+
+      await new Promise(resolve => setTimeout(resolve, 15));
+
+      // Now assert handlePolishChapterFromAudit was automatically run!
+      expect(mockHandlePolishChapterFromAudit).toHaveBeenCalled();
+    });
+
     test('SettingsModal 数据备份与管理选项卡切换和一键导出', async () => {
       const mockClose = vi.fn();
-      const originalLocation = window.location;
-
-      // Mock window.location.href safely
-      const mockLocation = { href: '' };
-      delete (window as any).location;
-      window.location = mockLocation as any;
 
       render(
         <SettingsModal
@@ -508,28 +634,21 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         />
       );
 
-      // Switch to 'dataManage' tab
       const tabTrigger = screen.getByText('数据备份与管理');
       expect(tabTrigger).toBeDefined();
       await act(async () => {
         fireEvent.click(tabTrigger);
       });
 
-      // Verify backup section is visible
       const backupTitle = screen.getByText('一键备份导出');
       expect(backupTitle).toBeDefined();
 
-      // Click on immediate export button
       const exportBtn = screen.getByText('立即导出备份数据');
       await act(async () => {
         fireEvent.click(exportBtn);
       });
 
-      // Verify the window.location.href changes correctly
-      expect(window.location.href).toBe('/api/db/export-file');
-
-      // Restore window.location
-      (window as any).location = originalLocation;
+      expect(downloadDbBackup).toHaveBeenCalled();
     });
   });
 });

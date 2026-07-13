@@ -15,6 +15,8 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   const [activePack, setActivePack] = useState<ContinuationPack | null>(null);
   const [packs, setPacks] = useState<ContinuationPack[]>([]);
   const [isParsing, setIsParsing] = useState(false);
+  const [parseProgress, setParseProgress] = useState(0);
+  const [parseStageText, setParseStageText] = useState('');
   const [error, setError] = useState('');
   const [editingTask, setEditingTask] = useState(false);
   const [taskDraft, setTaskDraft] = useState('');
@@ -33,23 +35,36 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   }, [initialActivePackId, packs]);
 
   async function fileToBase64(file: File): Promise<string> {
-    const buffer = await file.arrayBuffer();
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.substring(result.indexOf(',') + 1);
+        resolve(base64);
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
   }
 
   const handleParsePack = async () => {
     if (files.length === 0) return;
     setIsParsing(true);
     setError('');
+    setParseProgress(10);
+    setParseStageText('正在提取资料并解包文本...');
     try {
       const documents = await Promise.all(files.map(async (file) => ({
         filename: file.name,
         filedata: await fileToBase64(file),
       })));
-      const pack = await parseContinuationPack({ novelId: novel.id, title: `${novel.title} 续写资料包`, documents });
+      const pack = await parseContinuationPack(
+        { novelId: novel.id, title: `${novel.title} 续写资料包`, documents },
+        (progress, stageText) => {
+          setParseProgress(progress);
+          setParseStageText(stageText);
+        }
+      );
       setActivePack(pack);
       setPacks(prev => [pack, ...prev]);
       setFiles([]);
@@ -114,15 +129,36 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
             {files.map((f) => <div key={`${f.name}-${f.lastModified}`} className="flex items-center gap-2"><FileText size={12} />{f.name}</div>)}
           </div>
         )}
-        <button
-          onClick={handleParsePack}
-          disabled={files.length === 0 || isParsing}
-          className="px-4 py-2 rounded-xl bg-theme-text text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
-        >
-          {isParsing ? <Loader2 size={14} className="animate-spin" /> : null}
-          {isParsing ? '解析中...' : '解析资料包'}
-        </button>
-        {error && <div className="text-xs text-red-600">{error}</div>}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleParsePack}
+            disabled={files.length === 0 || isParsing}
+            className="px-5 py-2.5 rounded-xl bg-theme-text text-theme-sidebar text-sm font-semibold disabled:opacity-50 flex items-center gap-2 transition-all hover:opacity-90 active:scale-95"
+          >
+            {isParsing ? <Loader2 size={14} className="animate-spin" /> : null}
+            {isParsing ? '解析中...' : '解析资料包'}
+          </button>
+          {isParsing && (
+            <div className="flex-1 space-y-1.5 bg-theme-sidebar/40 border border-theme-border/60 p-3.5 rounded-xl backdrop-blur-md">
+              <div className="flex items-center justify-between text-[11px] leading-none">
+                <span className="text-theme-muted font-medium animate-pulse">{parseStageText || '正在解析...'}</span>
+                <span className="font-mono text-theme-text font-bold">{parseProgress}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-theme-border/30 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-theme-text rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${parseProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        {error && (
+          <div className="text-xs text-red-500 font-medium bg-red-500/10 border border-red-500/20 px-3.5 py-2.5 rounded-xl animate-fade-in flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
       </div>
 
       {/* Active pack review */}

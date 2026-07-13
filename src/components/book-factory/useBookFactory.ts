@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { toast } from '../../lib/toast';
 import { listNovels, updateNovel } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
 import { extractSkill, checkSkillExtractionJob, QuotaError } from '../../lib/prompt-client';
@@ -330,7 +331,7 @@ export function useBookFactory() {
         }
       }
     } catch {
-      alert('模拟失败');
+      toast('模拟失败', 'error');
     } finally {
       setIsTesting(false);
     }
@@ -361,7 +362,7 @@ export function useBookFactory() {
       return;
     }
     if (currentIds.length >= 3) {
-      alert('每个作品最多装备 3 个技能。请先在技能仓库中移除一个。');
+      toast('每个作品最多装备 3 个技能', 'error');
       return;
     }
     const newIds = [...currentIds, lastSavedSkillId];
@@ -436,7 +437,7 @@ export function useBookFactory() {
       }
       setSavedDeckIds(savedIds);
       setLastSavedSkillId(savedIds[0] || '');
-      alert(`Deck 已保存：主笔卡「${deck.mainCard.name}」+ ${deck.supportCards.length} 张副卡`);
+      toast(`Deck 已保存：${deck.mainCard.name} + ${deck.supportCards.length} 副卡`, 'success');
       return savedIds;
     } finally {
       setIsSaving(false);
@@ -488,7 +489,7 @@ export function useBookFactory() {
       ...extraUpdate,
     });
     setShowEquipPanel(false);
-    alert(`Deck「${deck.mainCard.name}」已装备到作品。`);
+    toast(`Deck「${deck.mainCard.name}」已装备`, 'success');
   };
 
   return {

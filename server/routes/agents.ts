@@ -16,7 +16,7 @@ import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/soul
 import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { validate, orchestrateSchema } from '../validation';
-import { checkQuota, consumeQuota } from '../helpers/quota-guard.js';
+import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 import { getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 
@@ -32,7 +32,61 @@ const ORCHESTRATE_CRITIC_LLM_OPTIONS = {
   maxTokens: 1200,
 } as const;
 
+// ---- Lightweight In-Memory Job Queue / Store ----
+interface Job {
+  id: string;
+  status: 'queueing' | 'running' | 'completed' | 'failed';
+  progress: number;
+  result?: unknown;
+  error?: string;
+  createdAt: number;
+}
+
+const jobs = new Map<string, Job>();
+const JOB_TTL = 15 * 60 * 1000; // 15 minutes TTL
+
+function pruneJobs() {
+  const now = Date.now();
+  for (const [id, job] of jobs.entries()) {
+    if (now - job.createdAt > JOB_TTL) {
+      jobs.delete(id);
+    }
+  }
+}
+
+// Prune old jobs periodically
+setInterval(pruneJobs, 60 * 1000).unref();
+
+function createJob(): string {
+  pruneJobs();
+  const id = 'job_' + Math.random().toString(36).substring(2, 15);
+  jobs.set(id, {
+    id,
+    status: 'queueing',
+    progress: 10,
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+function updateJob(id: string, updates: Partial<Omit<Job, 'id' | 'createdAt'>>) {
+  const job = jobs.get(id);
+  if (job) {
+    Object.assign(job, updates);
+  }
+}
+
 export function registerAgentsRoutes(app: Express) {
+  // GET endpoint to query agents background job status
+  app.get('/api/agents/jobs/:jobId', (req, res) => {
+    const { jobId } = req.params;
+    const job = jobs.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json(job);
+  });
+
   app.post('/api/inspiration', async (req, res) => {
     if (!rateLimit('inspiration')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
@@ -45,108 +99,147 @@ export function registerAgentsRoutes(app: Express) {
         promptTemplates: getConfig().promptTemplates,
         preferredTemplateKey: 'inspirationSystem',
       });
-      const text = await generateText(getConfig(), {
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      req.socket.setTimeout(0);
+
+      const controller = new AbortController();
+      req.on('close', () => {
+        controller.abort();
+      });
+
+      await generateText(getConfig(), {
         prompt,
         systemInstruction: promptAsset.template,
         timeoutMs: 90_000,
         maxAttempts: 2,
         maxTokens: 2048,
+        onToken: (token) => {
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        },
+        signal: controller.signal
       });
-      res.json({ text });
+
+      res.write('data: [DONE]\n\n');
+      res.end();
     } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
+      logger.error('Inspiration SSE error:', e);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        res.end();
+      }
     }
   });
 
-  app.post('/api/editor-agent', async (req, res) => {
+  app.post('/api/editor-agent', (req, res) => {
     if (!rateLimit('editor-agent')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    
     try {
       const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain, chapterOrder, novelId, skills } = req.body;
       if (!userIntent.trim()) {
         return res.status(400).json({ error: 'userIntent is required' });
       }
 
-      // Load continuation pack context if provided
-      let packContext = '';
-      if (continuationPackId) {
-        const pack = db.getContinuationPack(continuationPackId);
-        if (pack) {
-          packContext = buildContinuationContext(pack);
-        }
-      }
+      const jobId = createJob();
+      res.json({ jobId });
 
-      const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+      // Run actual LLM generation in the background
+      (async () => {
+        try {
+          updateJob(jobId, { status: 'running', progress: 50 });
 
-      const effectiveContextStr = (packContext
-        ? `${contextStr}\n\n${packContext}`
-        : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+          // Load continuation pack context if provided
+          let packContext = '';
+          if (continuationPackId) {
+            const pack = db.getContinuationPack(continuationPackId);
+            if (pack) {
+              packContext = buildContinuationContext(pack);
+            }
+          }
 
-      let activeSkills = skills || [];
-      if ((!activeSkills || activeSkills.length === 0) && novelId) {
-        const novel = db.getNovel(novelId);
-        if (novel && novel.mountedSkillLoadout) {
-          activeSkills = novel.mountedSkillLoadout
-            .map((item: { skillId: string }) => db.getSkill(item.skillId))
-            .filter(Boolean);
-        }
-      }
-      const skillsInfo = buildSkillsPrompt(activeSkills);
+          const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
 
-      // Chain mode: run focused sub-prompts instead of monolithic template
-      if (chain && Array.isArray(chain) && chain.length > 0) {
-        const results: Array<{ module: string; pass: boolean; text: string }> = [];
-        for (const module of chain) {
+          const effectiveContextStr = (packContext
+            ? `${contextStr}\n\n${packContext}`
+            : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+
+          let activeSkills = skills || [];
+          if ((!activeSkills || activeSkills.length === 0) && novelId) {
+            const novel = db.getNovel(novelId);
+            if (novel && novel.mountedSkillLoadout) {
+              activeSkills = novel.mountedSkillLoadout
+                .map((item: { skillId: string }) => db.getSkill(item.skillId))
+                .filter(Boolean);
+            }
+          }
+          const skillsInfo = buildSkillsPrompt(activeSkills);
+
+          // Chain mode: run focused sub-prompts instead of monolithic template
+          if (chain && Array.isArray(chain) && chain.length > 0) {
+            const results: Array<{ module: string; pass: boolean; text: string }> = [];
+            for (const module of chain) {
+              try {
+                const { prompt } = resolveChainPrompt(module, {
+                  contextStr: effectiveContextStr,
+                  sceneBeats: '',
+                  draftContent: '',
+                  userIntent: wrapUserInput(userIntent),
+                  ideaSeed: wrapUserInput(userIntent),
+                  concept: wrapUserInput(userIntent),
+                  expectedWordCount: '180000',
+                  seedOutline: contextStr,
+                });
+                const text = await generateText(getConfig(), {
+                  prompt,
+                  timeoutMs: 8_000,
+                  maxAttempts: 1,
+                  maxTokens: 1024,
+                  novelId,
+                });
+                results.push({ module, pass: text.includes('PASS'), text });
+              } catch (chainErr) {
+                logger.warn(`Chain module ${module} failed`, chainErr);
+                results.push({ module, pass: false, text: '' });
+              }
+            }
+            const finalResult = { chainResults: results, text: results.map(r => r.text).filter(Boolean).join('\n---\n') };
+            updateJob(jobId, { status: 'completed', progress: 100, result: finalResult });
+            return;
+          }
+
+          const promptAsset = resolvePromptAssetForSurface({
+            surface,
+            promptTemplates: getConfig().promptTemplates,
+            preferredTemplateKey: 'editorAgent',
+          });
+          const prompt = renderPromptTemplate(promptAsset.template, {
+            PLANNER_SOUL,
+            contextStr: effectiveContextStr,
+            skillsInfo,
+            userIntent: wrapUserInput(userIntent),
+          });
+          let text = '';
           try {
-            const { prompt } = resolveChainPrompt(module, {
-              contextStr: effectiveContextStr,
-              sceneBeats: '',
-              draftContent: '',
-              userIntent: wrapUserInput(userIntent),
-              ideaSeed: wrapUserInput(userIntent),
-              concept: wrapUserInput(userIntent),
-              expectedWordCount: '180000',
-              seedOutline: contextStr,
-            });
-            const text = await generateText(getConfig(), {
+            text = await generateText(getConfig(), {
               prompt,
               timeoutMs: 8_000,
               maxAttempts: 1,
-              maxTokens: 1024,
+              maxTokens: 1600,
+              novelId,
             });
-            results.push({ module, pass: text.includes('PASS'), text });
-          } catch (chainErr) {
-            logger.warn(`Chain module ${module} failed`, chainErr);
-            results.push({ module, pass: false, text: '' });
+          } catch (error) {
+            logger.warn('Editor agent fell back', error);
+            text = buildFallbackSceneBeats(userIntent);
           }
+          updateJob(jobId, { status: 'completed', progress: 100, result: { text } });
+        } catch (e) {
+          logger.error('Background editor-agent error:', e);
+          updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
         }
-        return res.json({ chainResults: results, text: results.map(r => r.text).filter(Boolean).join('\n---\n') });
-      }
-
-      const promptAsset = resolvePromptAssetForSurface({
-        surface,
-        promptTemplates: getConfig().promptTemplates,
-        preferredTemplateKey: 'editorAgent',
-      });
-      const prompt = renderPromptTemplate(promptAsset.template, {
-        PLANNER_SOUL,
-        contextStr: effectiveContextStr,
-        skillsInfo,
-        userIntent: wrapUserInput(userIntent),
-      });
-      let text = '';
-      try {
-        text = await generateText(getConfig(), {
-          prompt,
-          timeoutMs: 8_000,
-          maxAttempts: 1,
-          maxTokens: 1600,
-        });
-      } catch (error) {
-        logger.warn('Editor agent fell back', error);
-        text = buildFallbackSceneBeats(userIntent);
-      }
-      res.json({ text });
+      })();
     } catch (e) {
       logger.error(String(e));
       res.status(500).json({ error: "Internal server error" });
@@ -167,27 +260,29 @@ export function registerAgentsRoutes(app: Express) {
       reviewSurface = 'chapter-review',
     } = req.body;
 
-    // Quota Gate — verify free-tier limitations before starting SSE
-    const quotaCheck = checkQuota(novelId, 'generateProse');
-    if (!quotaCheck.allowed) {
+    // Quota Gate — atomic reserve before any LLM work
+    const reserve = await reserveQuota(novelId, 'generateProse');
+    if (!reserve.allowed) {
       return res.status(403).json({
         quotaExceeded: true,
         limitType: 'generateProse',
-        count: quotaCheck.count,
-        max: quotaCheck.max,
-        error: quotaCheck.error,
+        count: reserve.count,
+        max: reserve.max,
+        error: reserve.error,
         limitDetails: {
           limitType: 'generateProse',
-          count: quotaCheck.count,
-          max: quotaCheck.max,
-          error: quotaCheck.error,
+          count: reserve.count,
+          max: reserve.max,
+          error: reserve.error,
         }
       });
     }
 
+    const reservationId = reserve.reservationId;
     const maxIter = Math.min(Math.max(1, Number(maxIterations) || 2), 5);
     let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
+    let contentDelivered = false;
 
     try {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -244,6 +339,7 @@ export function registerAgentsRoutes(app: Express) {
             prompt: writerPrompt,
             ...ORCHESTRATE_WRITER_LLM_OPTIONS,
             signal: clientAbortController.signal,
+            novelId,
           });
           currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
         } catch (error) {
@@ -254,6 +350,7 @@ export function registerAgentsRoutes(app: Express) {
             message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
           })}\n\n`);
         }
+        contentDelivered = true;
         await emitTextAsTokens(res, currentDraft);
         res.write(`data: ${JSON.stringify({ type: 'writer_done' })}\n\n`);
 
@@ -288,15 +385,17 @@ export function registerAgentsRoutes(app: Express) {
         clearInterval(orchestrateHeartbeat);
         orchestrateHeartbeat = null;
       }
-      // 成功生成，消费 1 次额度 (Consume quota count)
-      consumeQuota(novelId, 'generateProse');
 
+      commitQuotaReservation(reservationId);
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       res.end();
     } catch (err) {
       if (orchestrateHeartbeat) {
         clearInterval(orchestrateHeartbeat);
         orchestrateHeartbeat = null;
+      }
+      if (!contentDelivered) {
+        await refundQuota(reservationId);
       }
       logger.error(String(err));
       res.write(`data: ${JSON.stringify({ type: 'error', message: String(err) })}\n\n`);
@@ -305,6 +404,12 @@ export function registerAgentsRoutes(app: Express) {
   });
 
   app.post('/api/orchestrate-draft', async (req, res) => {
+    let orchestrateHeartbeat: NodeJS.Timeout | null = null;
+    const clientAbortController = new AbortController();
+    const { novelId } = req.body;
+    let reservationId: string | undefined;
+    let contentDelivered = false;
+
     try {
       const {
         contextStr = '',
@@ -312,23 +417,44 @@ export function registerAgentsRoutes(app: Express) {
         draftContent = '',
         skills = [],
         draftingSurface = 'workspace-draft',
-        novelId,
         chapterOrder,
       } = req.body;
 
       // ================================================================
-      // Quota Gate — verify free-tier limitations before LLM run
+      // Quota Gate — atomic reserve before any LLM work
       // ================================================================
-      const quotaCheck = checkQuota(novelId, 'generateProse');
-      if (!quotaCheck.allowed) {
+      const reserve = await reserveQuota(novelId, 'generateProse');
+      if (!reserve.allowed) {
         return res.status(403).json({
           quotaExceeded: true,
           limitType: 'generateProse',
-          count: quotaCheck.count,
-          max: quotaCheck.max,
-          error: quotaCheck.error,
+          count: reserve.count,
+          max: reserve.max,
+          error: reserve.error,
         });
       }
+
+      reservationId = reserve.reservationId;
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      req.socket.setTimeout(0);
+      orchestrateHeartbeat = setInterval(() => {
+        if (!res.writableEnded) {
+          res.write(':ping\n\n');
+        }
+      }, 30_000);
+
+      req.on('close', () => {
+        clientAbortController.abort();
+        if (orchestrateHeartbeat) {
+          clearInterval(orchestrateHeartbeat);
+          orchestrateHeartbeat = null;
+        }
+      });
 
       const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
       let adaptiveWritingGuidelines = '';
@@ -375,23 +501,47 @@ export function registerAgentsRoutes(app: Express) {
         text = await generateText(getConfig(), {
           prompt: writerPrompt,
           ...ORCHESTRATE_WRITER_LLM_OPTIONS,
+          signal: clientAbortController.signal,
         });
         text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr);
       } catch (error) {
         logger.warn('Writer generation fell back to local draft', error);
         text = buildFallbackDraft(sceneBeats, effectiveContextStr);
+        res.write(`data: ${JSON.stringify({
+          type: 'status',
+          message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+        })}\n\n`);
       }
 
-      // 成功生成，消费 1 次额度 (Consume quota count)
-      consumeQuota(novelId, 'generateProse');
+      contentDelivered = true;
+      await emitTextAsTokens(res, text);
 
-      res.json({
+      if (orchestrateHeartbeat) {
+        clearInterval(orchestrateHeartbeat);
+        orchestrateHeartbeat = null;
+      }
+
+      commitQuotaReservation(reservationId);
+      res.write(`data: ${JSON.stringify({
+        type: 'done',
         text,
         wordCount: countDraftChars(text),
-      });
+      })}\n\n`);
+      res.end();
     } catch (error) {
+      if (orchestrateHeartbeat) {
+        clearInterval(orchestrateHeartbeat);
+        orchestrateHeartbeat = null;
+      }
+      if (!contentDelivered) {
+        await refundQuota(reservationId);
+      }
       logger.error(String(error));
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      res.write(`data: ${JSON.stringify({
+        type: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      })}\n\n`);
+      res.end();
     }
   });
 }

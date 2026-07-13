@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import type { Novel, Chapter } from '../../shared/types';
 import * as db from '../lib/db';
 import { logger } from '../logger';
+import { validate, exportSchema } from '../validation';
 
 function escXml(s: string): string {
   return s
@@ -83,10 +84,9 @@ ${paragraphs}
 }
 
 export function registerExportRoutes(app: Express) {
-  app.post('/api/export', async (req, res) => {
+  app.post('/api/export', validate(exportSchema), async (req, res) => {
     try {
       const { novelId, format } = req.body;
-      if (!novelId) return res.status(400).json({ error: 'Missing novelId' });
 
       const novel = db.getNovel(novelId);
       if (!novel) return res.status(404).json({ error: 'Novel not found' });

@@ -1,4 +1,8 @@
 import type { AppConfig } from "./config";
+import { setLivenessStatus } from "./config";
+import { applyInputGuard, checkOutputGuard, buildCorrectionPrompt, isCreativeWritingRequest } from '../helpers/prompt-guard';
+import { getDb } from "./db-instance.js";
+import { logger } from '../logger';
 
 interface GenerateTextOptions {
   prompt: string;
@@ -10,6 +14,7 @@ interface GenerateTextOptions {
   disableThinking?: boolean;
   signal?: AbortSignal;
   onToken?: (token: string) => void;
+  novelId?: string;
 }
 
 const OPENAI_TIMEOUT_MS = 75_000;
@@ -101,7 +106,11 @@ export function buildOpenAICompatibleChatRequest(
     request.max_tokens = maxTokens;
   }
   if (responseMimeType === "application/json") {
-    request.response_format = { type: "json_object" };
+    // Siliconflow's API gateway fails or drops connection when response_format is sent
+    const isSiliconFlow = config.baseUrl.includes("siliconflow");
+    if (!isSiliconFlow) {
+      request.response_format = { type: "json_object" };
+    }
   }
 
   return request;
@@ -135,7 +144,134 @@ async function sleep(ms: number) {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function buildCharacterRelationshipContext(novelId: string): string {
+  try {
+    const database = getDb();
+    const characters = database.prepare(
+      'SELECT id, name, role, summary, traits, bio, current_state FROM characters WHERE novel_id = ?'
+    ).all(novelId) as Array<{
+      id: string;
+      name: string;
+      role: string;
+      summary: string;
+      traits: string;
+      bio: string;
+      current_state: string;
+    }>;
+
+    const relationships = database.prepare(
+      'SELECT sourceId, targetId, relationshipType, description FROM entity_relationships WHERE novelId = ?'
+    ).all(novelId) as Array<{
+      sourceId: string;
+      targetId: string;
+      relationshipType: string;
+      description: string;
+    }>;
+
+    if (characters.length === 0) return '';
+
+    let context = '\n\n【全局角色设定与人物关系图谱（剧情一致性对齐防崩坏）】\n';
+    context += '角色名册：\n';
+    const charMap = new Map<string, string>();
+    for (const char of characters) {
+      charMap.set(char.id, char.name);
+
+      let traitsStr = '';
+      try {
+        if (char.traits) {
+          const parsed = JSON.parse(char.traits);
+          traitsStr = Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
+        }
+      } catch {
+        traitsStr = char.traits || '';
+      }
+
+      context += `- **${char.name}** (${char.role || '配角'}): ${char.summary || ''}\n`;
+      if (traitsStr) context += `  * 标签特质: ${traitsStr}\n`;
+      if (char.bio) context += `  * 背景小传: ${char.bio}\n`;
+      if (char.current_state) context += `  * 当前状态/处境: ${char.current_state}\n`;
+    }
+
+    if (relationships.length > 0) {
+      context += '\n人物情感/阵营羁绊：\n';
+      for (const rel of relationships) {
+        const sourceName = charMap.get(rel.sourceId) || rel.sourceId;
+        const targetName = charMap.get(rel.targetId) || rel.targetId;
+        context += `- **${sourceName}** 与 **${targetName}** 之间的关系为 [${rel.relationshipType || '普通羁绊'}]: ${rel.description || ''}\n`;
+      }
+    }
+    return context;
+  } catch {
+    return '';
+  }
+}
+
 export async function generateText(config: AppConfig, options: GenerateTextOptions): Promise<string> {
+  const guardLevel = config.promptGuardLevel || 'strict';
+
+  if (guardLevel === 'disabled') {
+    return generateTextRaw(config, options);
+  }
+
+  // Build character relationship context if novelId is present
+  let updatedSystemInstruction = options.systemInstruction;
+  if (options.novelId && isCreativeWritingRequest(options.prompt, options.systemInstruction)) {
+    const charContext = buildCharacterRelationshipContext(options.novelId);
+    if (charContext) {
+      updatedSystemInstruction = (options.systemInstruction || '') + charContext;
+    }
+  }
+
+  // 1. Input Gate: Apply prompt guard rules to systemInstruction or prompt if creative writing
+  const guarded = applyInputGuard(options.prompt, updatedSystemInstruction);
+  const effectiveOptions = {
+    ...options,
+    prompt: guarded.prompt,
+    systemInstruction: guarded.systemInstruction,
+  };
+
+  // 2. Execute raw generation
+  const rawResult = await generateTextRaw(config, effectiveOptions);
+
+  // If this request is not creative-writing-related or level is balanced, skip output guard and corrective retry
+  if (guardLevel === 'balanced' || !isCreativeWritingRequest(options.prompt, updatedSystemInstruction)) {
+    return rawResult;
+  }
+
+  // 3. Output Gate: Check for AI slop and cliches
+  const guardResult = checkOutputGuard(rawResult);
+  if (guardResult.pass) {
+    return rawResult;
+  }
+
+  // 4. Correction Gate: If output failed quality gate, run self-correction retry
+  try {
+    const correctionPrompt = buildCorrectionPrompt(rawResult, guardResult.violations);
+    const correctionOptions = {
+      ...effectiveOptions,
+      prompt: correctionPrompt,
+      // Disable streaming token emissions on correction to avoid disjointed UI streaming
+      onToken: undefined,
+      maxAttempts: 1, // Restrict to exactly 1 attempt to avoid API budget/time bloating
+    };
+
+    const correctedResult = await generateTextRaw(config, correctionOptions);
+
+    // Validate the corrected result
+    const secondGuardResult = checkOutputGuard(correctedResult);
+    if (secondGuardResult.pass) {
+      return correctedResult;
+    }
+
+    // If both failed, return the one with the higher clean score (better quality)
+    return secondGuardResult.score >= guardResult.score ? correctedResult : rawResult;
+  } catch {
+    // If corrective retry fails (e.g. network/API issue), fall back gracefully to the original draft
+    return rawResult;
+  }
+}
+
+async function generateTextRaw(config: AppConfig, options: GenerateTextOptions): Promise<string> {
   const {
     prompt,
     systemInstruction,
@@ -294,7 +430,9 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
                       fullText += token;
                       onToken(token);
                     }
-                  } catch {}
+                  } catch (parseErr) {
+                    logger.warn('SSE token JSON parse skipped:', parseErr);
+                  }
                 }
               }
             }
@@ -314,24 +452,38 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
         })(),
         raceTimeoutPromise,
       ]);
+      // Successfully connected and received response -> Mark liveness as connected
+      setLivenessStatus('connected');
       return result;
     } catch (error) {
-      const isAbort = error instanceof Error && error.name === "AbortError";
+      // Node undici fetch aborts are wrapped as TypeError: fetch failed with a nested AbortError cause.
+      // Check both nested cause name and standard error names.
+      const isAbort = (error instanceof Error && error.name === "AbortError") ||
+                      (error instanceof Error && error.message.includes("fetch failed") &&
+                       (error.cause instanceof Error) && error.cause.name === "AbortError") ||
+                      (error instanceof Error && error.message.includes("The user aborted a request"));
       if (isAbort) {
         lastError = new Error(`LLM request timed out after ${timeoutMs / 1000}s`);
       } else {
         lastError = error;
       }
 
-      const isRetryable = isAbort || isRetryableStatus(
-        error instanceof Error ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0') : 0
-      ) || isRetryableNetworkError(error) || isRetryableModelOutputError(error);
+      // Do not retry if request was explicitly aborted or timed out to prevent compounding delays.
+      const isRetryable = !isAbort && (
+        isRetryableStatus(
+          error instanceof Error ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0') : 0
+        ) ||
+        isRetryableNetworkError(error) ||
+        isRetryableModelOutputError(error)
+      );
 
       if (attempt < maxAttempts && isRetryable) {
         await sleep(400 * attempt);
         continue;
       }
 
+      // Final failure for this request -> set liveness to unknown
+      setLivenessStatus('unknown');
       throw lastError;
     } finally {
       clearTimeout(abortTimeoutId);
@@ -339,6 +491,7 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
     }
   }
 
+  setLivenessStatus('unknown');
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 

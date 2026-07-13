@@ -25,8 +25,13 @@ const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   nativeBindingPath: string;
 };
 
-const DB_DIR = path.join(os.homedir(), '.inkflow');
-export const DB_PATH = path.join(DB_DIR, 'data.db');
+// Allow tests / e2e / tooling to redirect the database to an isolated path.
+// Default behavior is unchanged (no env var → ~/.inkflow/data.db).
+const DB_PATH_ENV = process.env.INKFLOW_DB_PATH;
+export const DB_PATH = DB_PATH_ENV && DB_PATH_ENV.length > 0
+  ? DB_PATH_ENV
+  : path.join(os.homedir(), '.inkflow', 'data.db');
+const DB_DIR = path.dirname(DB_PATH);
 
 function ensureColumn(table: string, column: string, definition: string) {
   const database = getDb();
@@ -41,23 +46,32 @@ function ensureColumn(table: string, column: string, definition: string) {
 export function initDb(dbPath?: string): void {
   if (isDbInitialized()) return;
 
-  if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
-
   const targetPath = dbPath || DB_PATH;
+
+  if (targetPath !== ':memory:') {
+    const targetDir = path.dirname(targetPath);
+    if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true });
+  } else if (!existsSync(DB_DIR)) {
+    mkdirSync(DB_DIR, { recursive: true });
+  }
 
   const _db = new Database(targetPath, { nativeBinding: nativeBindingPath });
   setDb(_db);
   getDb().pragma('journal_mode = WAL');
   getDb().pragma('foreign_keys = ON');
+  getDb().pragma('busy_timeout = 5000');
 
   // WAL 模式下事务安全的一致性启动自动快照冷备 (测试环境和临时测试数据库跳过，避免测试中生成未追踪的 .bak 文件并防范连接被快速关闭报错)
   const baseName = path.basename(targetPath);
   const isTestEnv =
     process.env.NODE_ENV === 'test' ||
+    Boolean(process.env.NODE_TEST_CONTEXT) ||
     targetPath === ':memory:' ||
     baseName.startsWith('test-') ||
+    baseName.startsWith('inkflow-') ||
     baseName.endsWith('.test.db') ||
-    targetPath.includes('/tests/');
+    targetPath.includes('/tests/') ||
+    targetPath.includes('test-results/');
 
   if (!isTestEnv) {
     _db.backup(targetPath + '.bak')

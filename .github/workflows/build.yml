@@ -19,6 +19,12 @@ jobs:
       - run: npm run lint
       - name: Run Unit Tests
         run: npm run test
+      - name: Run Frontend Tests
+        run: npm run test:frontend
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium --with-deps
+      - name: Run E2E Tests
+        run: npx playwright test
       - name: Run Runtime Smoke Tests
         run: |
           PORT=3000 npm run dev &

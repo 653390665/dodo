@@ -37,7 +37,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return res.status(401).json({ error: 'Missing or invalid authorization header' });
   }
   const token = authHeader.slice(7);
-  if (token !== AUTH_TOKEN) {
+  if (token.length !== AUTH_TOKEN.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(AUTH_TOKEN))) {
     return res.status(401).json({ error: 'Invalid token' });
   }
   next();
