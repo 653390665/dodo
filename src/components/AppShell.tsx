@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from 'react';
+import { useCallback, useEffect, useState, Suspense, lazy } from 'react';
 import { Sidebar } from './Sidebar';
 import { WelcomeView } from './WelcomeView';
 import { AIAssistantDrawer } from './AIAssistantDrawer';
@@ -25,6 +25,7 @@ import { deriveWorkspaceFocus } from '../lib/workspace-nav';
 import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from '../lib/assistant-apply';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { BookOpen, BrainCircuit, Globe2, Layers3, PenLine, Sparkles, Wand2 } from 'lucide-react';
+import { matchesShortcut, SHORTCUTS } from '../lib/keyboard-shortcuts';
 
 const LOCAL_USER = { uid: 'local-user' };
 
@@ -191,7 +192,7 @@ export function AppShell() {
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
 
-  const flushBeforeNavigation = async (): Promise<boolean> => {
+  const flushBeforeNavigation = useCallback(async (): Promise<boolean> => {
     try {
       await flushPendingEditorWrites();
       return true;
@@ -200,7 +201,7 @@ export function AppShell() {
       toast('尚有写作内容保存失败，请重试后再切换', 'error');
       return false;
     }
-  };
+  }, []);
 
   const navigateToEditor = async (novel: Novel) => {
     if (!await flushBeforeNavigation()) return;
@@ -267,7 +268,7 @@ export function AppShell() {
     setCurrentView('continuation-import');
   };
 
-  const handleNavigate = async (view: ViewType, navKey?: WorkspaceNavKey) => {
+  const handleNavigate = useCallback(async (view: ViewType, navKey?: WorkspaceNavKey) => {
     if (view === 'ai') {
       setAIAssistantOpen(true);
       return;
@@ -276,7 +277,34 @@ export function AppShell() {
     setAIAssistantOpen(false);
     setWorkspaceFocus(deriveWorkspaceFocus(view, navKey, useAppStore.getState().workspaceFocus));
     setCurrentView(view);
-  };
+  }, [flushBeforeNavigation, setAIAssistantOpen, setCurrentView, setWorkspaceFocus]);
+
+  useEffect(() => {
+    const viewMap: Record<string, { view: ViewType; navKey?: WorkspaceNavKey }> = {
+      view1: { view: 'welcome' },
+      view2: { view: 'library' },
+      view3: { view: 'workspace', navKey: 'workspace-editor' },
+      view4: { view: 'workspace', navKey: 'workspace-world' },
+      view5: { view: 'ai' },
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement
+        || event.target instanceof HTMLTextAreaElement
+        || event.target instanceof HTMLSelectElement
+      ) return;
+      for (const [id, shortcut] of Object.entries(SHORTCUTS)) {
+        if (id in viewMap && matchesShortcut(event, shortcut)) {
+          event.preventDefault();
+          const target = viewMap[id];
+          void handleNavigate(target.view, target.navKey);
+          return;
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleNavigate]);
 
   const handleOpenAssistant = (context: AssistantLaunchContext) => {
     setAssistantLaunchContext(context);
@@ -640,6 +668,7 @@ export function AppShell() {
                     setCurrentView('library');
                   }}
                   onOpenAssistant={handleOpenAssistant}
+                  onNavigate={(view) => { void handleNavigate(view); }}
                 />
               </ErrorBoundary>
             )}

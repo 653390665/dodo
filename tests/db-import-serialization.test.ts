@@ -15,7 +15,9 @@ test('database import serialization and recovery', async (t) => {
   const {
     DB_IMPORT_BACKUP_MARKER,
     DB_IMPORT_TEMP_MARKER,
+    MAX_IMPORT_BACKUPS,
     importDatabaseBuffer,
+    pruneImportBackups,
     registerDbRoutes,
   } = await import('../server/routes/db');
 
@@ -271,6 +273,23 @@ test('database import serialization and recovery', async (t) => {
       assert.deepEqual(importTempFiles(), []);
       const createdBackups = importBackupFiles().filter((name) => !backupsBefore.has(name));
       assert.equal(createdBackups.length, 1, 'successful replacement must preserve a timestamped old database backup');
+    });
+
+    await t.test('retains only the newest bounded set of pre-import backups', () => {
+      const prefix = `${path.basename(activeDbPath)}${DB_IMPORT_BACKUP_MARKER}`;
+      for (let index = 0; index < MAX_IMPORT_BACKUPS + 3; index += 1) {
+        const backupPath = path.join(testDir, `${prefix}${index}.bak`);
+        fs.writeFileSync(backupPath, `backup-${index}`);
+        const modifiedAt = new Date(Date.now() + index * 1000);
+        fs.utimesSync(backupPath, modifiedAt, modifiedAt);
+      }
+
+      pruneImportBackups();
+
+      const remaining = importBackupFiles();
+      assert.equal(remaining.length, MAX_IMPORT_BACKUPS);
+      assert.ok(remaining.includes(`${prefix}${MAX_IMPORT_BACKUPS + 2}.bak`));
+      assert.equal(remaining.includes(`${prefix}0.bak`), false);
     });
   } finally {
     closeDb();

@@ -3,6 +3,7 @@ import type { Novel, Chapter, Skill } from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
 import { createChapterVersion, updateChapter } from '../../chapter-client';
+import { readDraftStream } from '../../draft-stream';
 
 interface UseDraftGenerationArgs {
   novel: Novel;
@@ -72,36 +73,46 @@ export function useDraftGeneration({
     setIsGeneratingBeats(true);
     setGenerationStatus('正在根据创作意图和世界观拆解本章分镜…');
     try {
-      await flushPendingEditorWrites();
-      const beats = await editorAgentPhase(
-        userIntent || `关于章节「${currentChapter.title}」的大纲`,
-        buildAgentContext(),
-        selectedContinuationPackId || undefined,
-        (progress, _status) => {
-          if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
-            setGenerationStatus(`正在分镜拆解中 [${progress}%]...`);
-          }
+      try {
+        await flushPendingEditorWrites();
+      } catch (error) {
+        if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+          alert(`正文保存失败，未开始生成分镜：${error instanceof Error ? error.message : String(error)}`);
         }
-      );
+        return;
+      }
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-      setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
-      if (!await updateChapter(currentChapter.id, { sceneBeats: beats })) {
-        throw new Error('章节已不存在，分镜未保存。');
+      try {
+        const beats = await editorAgentPhase(
+          userIntent || `关于章节「${currentChapter.title}」的大纲`,
+          buildAgentContext(),
+          selectedContinuationPackId || undefined,
+          (progress, _status) => {
+            if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+              setGenerationStatus(`正在分镜拆解中 [${progress}%]...`);
+            }
+          }
+        );
+
+        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+        setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
+        if (!await updateChapter(currentChapter.id, { sceneBeats: beats })) {
+          throw new Error('章节已不存在，分镜未保存。');
+        }
+        setUserIntent('');
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        const fallbackBeats = buildClientFallbackSceneBeats(
+          userIntent || `关于章节「${currentChapter.title}」的大纲`,
+        );
+        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+        setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
+        if (!await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats })) {
+          throw new Error('章节已不存在，分镜未保存。', { cause: error });
+        }
+        usedFallback = true;
+        setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
       }
-      setUserIntent('');
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      const fallbackBeats = buildClientFallbackSceneBeats(
-        userIntent || `关于章节「${currentChapter.title}」的大纲`,
-      );
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-      setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
-      if (!await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats })) {
-        throw new Error('章节已不存在，分镜未保存。', { cause: error });
-      }
-      usedFallback = true;
-      setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
     } finally {
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingBeats(false);
@@ -133,10 +144,12 @@ export function useDraftGeneration({
 
     let completedContent = false;
     let accumulatedGeneratedText = '';
+    let baselineContent = currentChapter.content || '';
 
     try {
       await flushPendingEditorWrites();
       const latestContent = contentRef.current?.value ?? currentChapter.content;
+      baselineContent = latestContent || '';
       const baseContent = latestContent ? `${latestContent}\n\n` : '';
       const contextStr = buildContextPrompt(buildAgentContext());
       setGenerationStatus('Writer Agent 正在生成 4000 字以上正文…');
@@ -176,47 +189,19 @@ export function useDraftGeneration({
 
       if (!response.body) throw new Error('No response body');
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const messages = buffer.split('\n\n');
-        buffer = messages.pop() || '';
-
-        for (const msg of messages) {
-          if (!msg.startsWith('data: ')) continue;
-          const dataStr = msg.slice(6);
-          try {
-            const data = JSON.parse(dataStr);
-            if (data.type === 'status') {
-              setGenerationStatus(data.message);
-            } else if (data.type === 'token') {
-              accumulatedGeneratedText += data.content;
-              const fullText = baseContent + accumulatedGeneratedText;
-              const currentWords = fullText.replace(/\s/g, '').length;
-
-              if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
-                setCurrentChapter((prev) => (
-                  prev ? { ...prev, content: fullText, wordCount: currentWords } : null
-                ));
-              }
-            } else if (data.type === 'done') {
-              if (data.text) {
-                accumulatedGeneratedText = data.text;
-              }
-            } else if (data.type === 'error') {
-              throw new Error(data.message || 'Stream generation failed');
-            }
-	          } catch (_e) {
-	            // Skip unparseable JSON/ping
-	          }
-        }
-      }
+      accumulatedGeneratedText = await readDraftStream(response, {
+        onStatus: (message) => setGenerationStatus(message),
+        onToken: (token) => {
+          accumulatedGeneratedText += token;
+          const fullText = baseContent + accumulatedGeneratedText;
+          const currentWords = fullText.replace(/\s/g, '').length;
+          if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+            setCurrentChapter((prev) => (
+              prev ? { ...prev, content: fullText, wordCount: currentWords } : null
+            ));
+          }
+        },
+      });
 
       const generatedText = accumulatedGeneratedText.trim();
       if (!generatedText) {
@@ -242,23 +227,41 @@ export function useDraftGeneration({
       });
       if (!saved) throw new Error('章节已不存在，生成正文未保存。');
 
+      // The chapter body is the authoritative delivery boundary. Auxiliary
+      // version/telemetry failures must not roll back an already saved draft.
+      completedContent = true;
       pushToUndoHistory(fullText);
 
-      await createChapterVersion({
-        id: Date.now().toString(),
-        chapterId: currentChapter.id,
-        content: fullText,
-        wordCount: finalWordCount,
-        author: 'writer-agent',
-        createdAt: Date.now(),
-      });
-      await recordSkillUsage('accepted', {
-        fitScore: getCurrentFitScore(),
-        notes: 'writer-generated',
-      });
-      completedContent = true;
+      try {
+        await createChapterVersion({
+          id: Date.now().toString(),
+          chapterId: currentChapter.id,
+          content: fullText,
+          wordCount: finalWordCount,
+          author: 'writer-agent',
+          createdAt: Date.now(),
+        });
+      } catch (error) {
+        console.error('[DraftGeneration] Failed to create generated chapter version:', error);
+      }
+      try {
+        await recordSkillUsage('accepted', {
+          fitScore: getCurrentFitScore(),
+          notes: 'writer-generated',
+        });
+      } catch (error) {
+        console.error('[DraftGeneration] Failed to record generated draft usage:', error);
+      }
       setGenerationStatus('正文已生成到主编辑器。');
     } catch (error) {
+      if (!completedContent && latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+        const baselineWordCount = baselineContent.replace(/\s/g, '').length;
+        setCurrentChapter((prev) => (
+          prev && prev.id === startingChapterId
+            ? { ...prev, content: baselineContent, wordCount: baselineWordCount }
+            : prev
+        ));
+      }
       if (error instanceof Error && error.name === 'AbortError') return;
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
       alert(formatAiFailure(error, '连续写作'));

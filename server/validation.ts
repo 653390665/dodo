@@ -36,6 +36,9 @@ export function validate(schema: z.ZodSchema) {
 }
 
 const dbIdSchema = z.string().min(1).max(200);
+const dbTextSchema = z.string().max(1_000_000);
+const dbShortTextSchema = z.string().max(500);
+const dbTimestampSchema = z.number().int().nonnegative().finite();
 const dbEntitySchema = z.record(z.string(), z.unknown()).superRefine((value, context) => {
   if (JSON.stringify(value).length > 1_000_000) {
     context.addIssue({ code: 'custom', message: 'Database payload is too large' });
@@ -46,6 +49,72 @@ const idArgsSchema = z.tuple([dbIdSchema]);
 const optionalIdArgsSchema = z.union([noArgsSchema, idArgsSchema]);
 const createArgsSchema = z.tuple([dbEntitySchema]);
 const updateArgsSchema = z.tuple([dbIdSchema, dbEntitySchema]);
+
+// Core writing entities cross a generic IPC/HTTP proxy, so validate their
+// domain fields at runtime instead of trusting TypeScript-only interfaces.
+const novelEntitySchema = z.object({
+  id: dbIdSchema,
+  title: dbShortTextSchema,
+  authorId: dbIdSchema,
+  summary: dbTextSchema,
+  coverImage: dbTextSchema.optional(),
+  status: z.enum(['ongoing', 'completed', 'hiatus']),
+  worldRules: dbTextSchema.optional(),
+  globalOutline: dbTextSchema.optional(),
+  mountedSkillIds: z.array(dbIdSchema).max(100).optional(),
+  mountedSkillLoadout: z.array(z.unknown()).max(100).optional(),
+  projectPreferenceProfile: z.record(z.string(), z.unknown()).optional(),
+  createdAt: dbTimestampSchema,
+  updatedAt: dbTimestampSchema,
+}).strict();
+
+const chapterEntitySchema = z.object({
+  id: dbIdSchema,
+  novelId: dbIdSchema,
+  volumeName: dbShortTextSchema.optional(),
+  title: dbShortTextSchema,
+  content: dbTextSchema,
+  order: z.number().int().nonnegative(),
+  wordCount: z.number().int().nonnegative(),
+  sceneBeats: dbTextSchema.optional(),
+  critique: dbTextSchema.optional(),
+  createdAt: dbTimestampSchema,
+  updatedAt: dbTimestampSchema,
+}).strict();
+
+const characterEntitySchema = z.object({
+  id: dbIdSchema,
+  novelId: dbIdSchema,
+  name: dbShortTextSchema,
+  role: z.enum(['protagonist', 'antagonist', 'supporting', 'extra']),
+  summary: dbTextSchema,
+  traits: z.array(dbShortTextSchema).max(200),
+  bio: dbTextSchema,
+  current_state: dbTextSchema.optional(),
+  concealGender: z.boolean().optional(),
+  createdAt: dbTimestampSchema.optional(),
+  updatedAt: dbTimestampSchema.optional(),
+}).strict();
+
+const locationEntitySchema = z.object({
+  id: dbIdSchema,
+  novelId: dbIdSchema,
+  name: dbShortTextSchema,
+  description: dbTextSchema,
+  region: dbShortTextSchema,
+  createdAt: dbTimestampSchema,
+  updatedAt: dbTimestampSchema,
+}).strict();
+
+const itemEntitySchema = z.object({
+  id: dbIdSchema,
+  novelId: dbIdSchema,
+  name: dbShortTextSchema,
+  description: dbTextSchema,
+  type: dbShortTextSchema,
+  createdAt: dbTimestampSchema,
+  updatedAt: dbTimestampSchema,
+}).strict();
 
 const DB_LIST_WITH_ID = [
   'listChapters', 'listChaptersMetadata', 'listChapterVersions',
@@ -87,6 +156,17 @@ for (const method of DB_OPTIONAL_LIST) dbMethodSchemas[method] = optionalIdArgsS
 for (const method of DB_GET_OR_DELETE) dbMethodSchemas[method] = idArgsSchema;
 for (const method of DB_CREATE) dbMethodSchemas[method] = createArgsSchema;
 for (const method of DB_UPDATE) dbMethodSchemas[method] = updateArgsSchema;
+
+for (const [name, schema] of Object.entries({
+  Novel: novelEntitySchema,
+  Chapter: chapterEntitySchema,
+  Character: characterEntitySchema,
+  Location: locationEntitySchema,
+  Item: itemEntitySchema,
+})) {
+  dbMethodSchemas[`create${name}`] = z.tuple([schema]);
+  dbMethodSchemas[`update${name}`] = z.tuple([dbIdSchema, schema.partial()]);
+}
 
 export const dbSchema = z.object({
   method: z.string().min(1),

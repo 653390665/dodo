@@ -33,7 +33,11 @@ const chapter: Chapter = {
   order: 1, wordCount: 2, createdAt: 1, updatedAt: 1,
 };
 
-function setup(currentChapter: Chapter | null = chapter, chapters = currentChapter ? [currentChapter] : []) {
+function setup(
+  currentChapter: Chapter | null = chapter,
+  chapters = currentChapter ? [currentChapter] : [],
+  contentRef: { current: HTMLTextAreaElement | null } = { current: null },
+) {
   const setChapters = vi.fn();
   const setCurrentChapter = vi.fn();
   const selectChapter = vi.fn().mockResolvedValue(chapter);
@@ -42,7 +46,7 @@ function setup(currentChapter: Chapter | null = chapter, chapters = currentChapt
     chapters,
     currentChapter,
     isContentLockedRef: { current: false },
-    contentRef: { current: null },
+    contentRef,
     setChapters,
     setCurrentChapter,
     selectChapter,
@@ -149,5 +153,20 @@ describe('useEditorPersistence safety boundary', () => {
       content: '立即退出前的最后输入',
     }));
     expect(hasPendingEditorWrites()).toBe(false);
+  });
+
+  test('save version takes the latest textarea snapshot after flushing queued writes', async () => {
+    const contentRef = { current: { value: '最后一次输入' } as HTMLTextAreaElement };
+    const { result } = setup(chapter, [chapter], contentRef);
+    act(() => result.current.queueContentWrite('最后一次输入'));
+
+    await act(() => result.current.handleSaveVersion('user'));
+
+    expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({ content: '最后一次输入' }));
+    expect(client.createChapterVersion).toHaveBeenCalledWith(expect.objectContaining({
+      chapterId: chapter.id,
+      content: '最后一次输入',
+      wordCount: 6,
+    }));
   });
 });

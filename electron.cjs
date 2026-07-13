@@ -241,7 +241,7 @@ function buildAppMenu() {
               type: 'info',
               title: `关于 ${app.name}`,
               message: 'InkFlow — AI 协作小说写作工具',
-              detail: `版本 1.0.0\nElectron ${process.versions.electron}\nNode ${process.versions.node}\nChrome ${process.versions.chrome}`,
+              detail: `版本 ${app.getVersion()}\nElectron ${process.versions.electron}\nNode ${process.versions.node}\nChrome ${process.versions.chrome}`,
             });
           },
         },

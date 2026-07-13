@@ -3,7 +3,7 @@ import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
 import { validate, dbSchema } from '../validation';
 import express from 'express';
-import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync } from 'fs';
+import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { DB_PATH, INKFLOW_SQLITE_APPLICATION_ID, initDb, openReadOnlyDb } from '../lib/db-init';
@@ -41,6 +41,35 @@ function removeDbSidecars(): void {
 
 export const DB_IMPORT_TEMP_MARKER = '.import-validation-';
 export const DB_IMPORT_BACKUP_MARKER = '.pre-import-';
+export const MAX_IMPORT_BACKUPS = 5;
+
+/** Keep a small recovery window without retaining unlimited copies of novels. */
+export function pruneImportBackups(maxBackups = MAX_IMPORT_BACKUPS): void {
+  let backups: Array<{ filePath: string; modifiedAt: number }>;
+  try {
+    const directory = path.dirname(DB_PATH);
+    const prefix = `${path.basename(DB_PATH)}${DB_IMPORT_BACKUP_MARKER}`;
+    backups = readdirSync(directory)
+      .filter((name) => name.startsWith(prefix) && name.endsWith('.bak'))
+      .map((name) => {
+        const filePath = path.join(directory, name);
+        return { filePath, modifiedAt: statSync(filePath).mtimeMs };
+      })
+      .sort((left, right) => right.modifiedAt - left.modifiedAt);
+
+  } catch (error) {
+    logger.error('读取数据库导入备份列表失败:', error);
+    return;
+  }
+
+  for (const backup of backups.slice(Math.max(0, maxBackups))) {
+    try {
+      unlinkSync(backup.filePath);
+    } catch (error) {
+      logger.error('清理过期数据库导入备份失败:', error);
+    }
+  }
+}
 
 export class DatabaseImportValidationError extends Error {
   constructor(message: string) {
@@ -266,6 +295,7 @@ export async function importDatabaseBuffer(
         renameSync(importTempPath, DB_PATH);
         initialize();
         validateDatabaseImportFile(DB_PATH, true);
+        pruneImportBackups();
       } catch (err: unknown) {
         logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
         try {

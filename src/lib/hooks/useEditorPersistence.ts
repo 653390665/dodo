@@ -113,11 +113,13 @@ export function useEditorPersistence({
       toast('章节尚未保存，无法创建版本，请重试', 'error');
       return;
     }
+    const versionContent = contentRef.current?.value ?? currentChapter.content;
+    const versionWordCount = versionContent.replace(/\s/g, '').length;
     await createChapterVersion({
       id: Date.now().toString(),
       chapterId: currentChapter.id,
-      content: currentChapter.content,
-      wordCount: currentChapter.wordCount,
+      content: versionContent,
+      wordCount: versionWordCount,
       author,
       createdAt: Date.now(),
     });
