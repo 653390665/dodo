@@ -5,6 +5,7 @@ interface EditorStatusBarProps {
   currentChapter: Chapter | null;
   statusTimeFormatter: Intl.DateTimeFormat;
   isSyncing: boolean;
+  syncFailed: boolean;
   launchState?: ContinuationEditorLaunchState | null;
   novelId: string;
   novelTitle: string;
@@ -14,6 +15,7 @@ export function EditorStatusBar({
   currentChapter,
   statusTimeFormatter,
   isSyncing,
+  syncFailed,
   launchState,
   novelId,
   novelTitle,
@@ -37,7 +39,7 @@ export function EditorStatusBar({
       a.href = url;
       a.download = `${novelTitle}.${format}`;
       a.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (e) {
       alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
     }
@@ -57,8 +59,10 @@ export function EditorStatusBar({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-600 shadow-[0_0_5px_rgba(22,163,74,0.3)]" />
-          <span className="hidden sm:inline">{isSyncing ? '保存中…' : '本地已保存'}</span>
+          <div className={`w-1.5 h-1.5 rounded-full ${syncFailed ? 'bg-red-600' : isSyncing ? 'bg-amber-500' : 'bg-green-600'}`} />
+          <span className={syncFailed ? 'text-red-600' : undefined}>
+            {syncFailed ? '保存失败，等待重试' : isSyncing ? '保存中…' : '本地已保存'}
+          </span>
         </div>
         <div className="hidden sm:block h-3 w-px bg-theme-border/50" />
         <button

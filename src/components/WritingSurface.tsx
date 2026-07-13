@@ -392,6 +392,7 @@ export const WritingSurface = React.memo(function WritingSurface({
   const [quickAddType, setQuickAddType] = React.useState<'character' | 'location' | 'item'>('character');
   const [quickAddName, setQuickAddName] = React.useState('');
   const [quickAddDesc, setQuickAddDesc] = React.useState('');
+  const [quickEditEntity, setQuickEditEntity] = React.useState<Character | Location | Item | null>(null);
   const [isSavingQuickSetting, setIsSavingQuickSetting] = React.useState(false);
 
   // ── Context Memory Radar (800ms Debounced Entity Sniffer) ──
@@ -420,15 +421,15 @@ export const WritingSurface = React.memo(function WritingSurface({
       
       // Merge global configurations with locally supplemented worldsettings for full telemetry alignment
       const allCharacters = [
-        ...characters,
+        ...characters.map((saved) => localCharacters.find((local) => local.id === saved.id) || saved),
         ...localCharacters.filter((local) => !characters.some((saved) => saved.id === local.id)),
       ];
       const allLocations = [
-        ...locations,
+        ...locations.map((saved) => localLocations.find((local) => local.id === saved.id) || saved),
         ...localLocations.filter((local) => !locations.some((saved) => saved.id === local.id)),
       ];
       const allItems = [
-        ...items,
+        ...items.map((saved) => localItems.find((local) => local.id === saved.id) || saved),
         ...localItems.filter((local) => !items.some((saved) => saved.id === local.id)),
       ];
 
@@ -475,15 +476,28 @@ export const WritingSurface = React.memo(function WritingSurface({
     const description = quickAddDesc.trim();
     setIsSavingQuickSetting(true);
     try {
-      const saved = await persistQuickSetting({ novelId: novel.id, type: quickAddType, name, description });
-      if (saved.type === 'character') setLocalCharacters((previous) => [...previous, saved.entity]);
-      if (saved.type === 'location') setLocalLocations((previous) => [...previous, saved.entity]);
-      if (saved.type === 'item') setLocalItems((previous) => [...previous, saved.entity]);
+      const saved = await persistQuickSetting({
+        novelId: novel.id,
+        type: quickAddType,
+        name,
+        description,
+        existing: quickEditEntity || undefined,
+      });
+      if (saved.type === 'character') {
+        setLocalCharacters((previous) => [...previous.filter((item) => item.id !== saved.entity.id), saved.entity]);
+      }
+      if (saved.type === 'location') {
+        setLocalLocations((previous) => [...previous.filter((item) => item.id !== saved.entity.id), saved.entity]);
+      }
+      if (saved.type === 'item') {
+        setLocalItems((previous) => [...previous.filter((item) => item.id !== saved.entity.id), saved.entity]);
+      }
 
       setIsQuickAddOpen(false);
       setQuickAddName('');
       setQuickAddDesc('');
-      toast(`设定「${name}」已保存到设定库`, 'success');
+      setQuickEditEntity(null);
+      toast(`设定「${name}」已${saved.created ? '保存' : '更新'}到设定库`, 'success');
     } catch (error) {
       console.error('[WritingSurface] Failed to persist quick setting:', error);
       toast('设定保存失败，请重试', 'error');
@@ -796,6 +810,7 @@ export const WritingSurface = React.memo(function WritingSurface({
                     <button
                       onClick={() => {
                         setQuickAddType('character');
+                        setQuickEditEntity(null);
                         setQuickAddName('林啸');
                         setQuickAddDesc('林默的父亲，曾是大荒九部之一的主祭。如今隐姓埋名守护在小镇中，是主角踏入虚空之秘的引路人。');
                         setIsQuickAddOpen(true);
@@ -835,6 +850,7 @@ export const WritingSurface = React.memo(function WritingSurface({
                             <button
                               onClick={() => {
                                 setQuickAddType('character');
+                                setQuickEditEntity(c);
                                 setQuickAddName(c.name);
                                 setQuickAddDesc(c.bio || c.summary || '');
                                 setIsQuickAddOpen(true);
@@ -867,6 +883,7 @@ export const WritingSurface = React.memo(function WritingSurface({
                             <button
                               onClick={() => {
                                 setQuickAddType('item');
+                                setQuickEditEntity(i);
                                 setQuickAddName(i.name.replace('💍 ', ''));
                                 setQuickAddDesc(i.description || '');
                                 setIsQuickAddOpen(true);
@@ -899,6 +916,7 @@ export const WritingSurface = React.memo(function WritingSurface({
                             <button
                               onClick={() => {
                                 setQuickAddType('location');
+                                setQuickEditEntity(l);
                                 setQuickAddName(l.name);
                                 setQuickAddDesc(l.description || '');
                                 setIsQuickAddOpen(true);
@@ -1057,11 +1075,14 @@ export const WritingSurface = React.memo(function WritingSurface({
             <div className="flex items-center justify-between border-b border-theme-border/30 pb-2">
               <div className="flex items-center gap-1.5">
                 <Plus size={14} className="text-theme-accent" />
-                <h4 className="text-xs font-bold text-theme-text uppercase tracking-wider">零阻碍设定快速补录</h4>
+                <h4 className="text-xs font-bold text-theme-text uppercase tracking-wider">{quickEditEntity ? '编辑设定' : '零阻碍设定快速补录'}</h4>
               </div>
               <button
                 type="button"
-                onClick={() => setIsQuickAddOpen(false)}
+                onClick={() => {
+                  setIsQuickAddOpen(false);
+                  setQuickEditEntity(null);
+                }}
                 className="text-theme-muted hover:text-theme-text transition-colors text-xs font-mono font-bold animate-[spin_0.3s]"
               >
                 ✕
@@ -1079,7 +1100,10 @@ export const WritingSurface = React.memo(function WritingSurface({
                     <button
                       key={t}
                       type="button"
-                      onClick={() => setQuickAddType(t)}
+                      onClick={() => {
+                        setQuickAddType(t);
+                        if (t !== quickAddType) setQuickEditEntity(null);
+                      }}
                       className={cn(
                         "py-1.5 text-[10px] font-bold rounded-lg border text-center transition-all",
                         isSelected

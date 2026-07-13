@@ -10,6 +10,7 @@ import {
   type PromptTemplates,
 } from '../../shared/config/prompt-templates';
 import { downloadDbBackup } from '../lib/download-client';
+import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 
 export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void }) {
   const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
@@ -70,6 +71,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     }
     setSaving(true);
     try {
+      await flushPendingEditorWrites();
       const response = await fetch('/api/db/import-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -80,7 +82,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
       alert("🎉 数据恢复成功！页面即将自动刷新加载最新数据。");
       window.location.reload();
     } catch (err) {
-      alert(`❌ 恢复数据失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      alert(`❌ 恢复数据失败，当前数据库未被替换: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setSaving(false);
       e.target.value = '';

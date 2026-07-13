@@ -113,12 +113,28 @@ describe('useEditorPersistence safety boundary', () => {
     act(() => result.current.handleUpdateContent('第一次输入'));
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(result.current.syncSuccess).toBe(false);
+    expect(result.current.syncFailed).toBe(true);
     expect(hasPendingEditorWrites()).toBe(true);
 
     act(() => result.current.handleUpdateContent('第二次输入'));
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(result.current.syncSuccess).toBe(false);
     expect(hasPendingEditorWrites()).toBe(true);
+  });
+
+  test('refuses to restore a version belonging to another chapter', () => {
+    const { result, setCurrentChapter } = setup();
+    act(() => result.current.handleRestoreVersion({
+      id: 'version-b',
+      chapterId: 'chapter-b',
+      content: '错误章节正文',
+      wordCount: 6,
+      author: 'user',
+      createdAt: 2,
+    }));
+
+    expect(setCurrentChapter).not.toHaveBeenCalled();
+    expect(client.toast).toHaveBeenCalledWith('该版本不属于当前章节，已阻止恢复', 'error');
   });
 
   test('flushes all five editor fields through their real persistence handlers before one second', async () => {

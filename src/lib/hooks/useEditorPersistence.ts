@@ -52,6 +52,7 @@ export function useEditorPersistence({
 }: UseEditorPersistenceArgs) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
 
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -69,6 +70,7 @@ export function useEditorPersistence({
   const markSyncComplete = useCallback(() => {
     if (!isMountedRef.current) return;
     setIsSyncing(false);
+    setSyncFailed(false);
     setSyncSuccess(true);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     successTimeoutRef.current = setTimeout(() => {
@@ -81,6 +83,7 @@ export function useEditorPersistence({
     const hasPending = hasPendingEditorWrites();
     const hasFailure = hasFailedEditorWrites();
     setIsSyncing(hasPending && !hasFailure);
+    setSyncFailed(hasFailure);
     if (hasFailure) {
       setSyncSuccess(false);
     } else if (!hasPending && hasWriteActivityRef.current) {
@@ -115,14 +118,20 @@ export function useEditorPersistence({
     }
     const versionContent = contentRef.current?.value ?? currentChapter.content;
     const versionWordCount = versionContent.replace(/\s/g, '').length;
-    await createChapterVersion({
-      id: Date.now().toString(),
-      chapterId: currentChapter.id,
-      content: versionContent,
-      wordCount: versionWordCount,
-      author,
-      createdAt: Date.now(),
-    });
+    try {
+      await createChapterVersion({
+        id: Date.now().toString(),
+        chapterId: currentChapter.id,
+        content: versionContent,
+        wordCount: versionWordCount,
+        author,
+        createdAt: Date.now(),
+      });
+      toast('版本已保存', 'success');
+    } catch (error) {
+      console.error('[useEditorPersistence] Failed to create chapter version:', error);
+      toast('版本保存失败，请重试', 'error');
+    }
   };
 
   const enqueueContentWrite = useCallback((chapterId: string, newContent: string) => {
@@ -196,6 +205,10 @@ export function useEditorPersistence({
   };
 
   const handleRestoreVersion = (version: ChapterVersion) => {
+    if (!currentChapter || version.chapterId !== currentChapter.id) {
+      toast('该版本不属于当前章节，已阻止恢复', 'error');
+      return;
+    }
     handleUpdateContent(version.content, true);
   };
 
@@ -367,6 +380,7 @@ export function useEditorPersistence({
   return {
     isSyncing,
     syncSuccess,
+    syncFailed,
     persistSkillLoadout,
     persistProjectPreferenceProfile,
     handleSaveVersion,

@@ -113,7 +113,7 @@ test('startChapterProductionRunStream stitches split chunks and parses trailing 
   }
 });
 
-test('startChapterProductionRunStream ignores non-data and invalid json chunks', async () => {
+test('startChapterProductionRunStream rejects invalid json immediately', async () => {
   const originalFetch = globalThis.fetch;
   const events: Array<{ type: string; [key: string]: unknown }> = [];
 
@@ -123,8 +123,6 @@ test('startChapterProductionRunStream ignores non-data and invalid json chunks',
       start(controller) {
         controller.enqueue(encoder.encode('event: ping\n\n'));
         controller.enqueue(encoder.encode('data: not-json\n\n'));
-        controller.enqueue(encoder.encode('data: {"foo":"bar"}\n\n'));
-        controller.enqueue(encoder.encode('data: {"type":"status","message":"仍在继续"}\n\n'));
         controller.close();
       },
     });
@@ -136,17 +134,71 @@ test('startChapterProductionRunStream ignores non-data and invalid json chunks',
   };
 
   try {
-    await startChapterProductionRunStream(
-      {
-        novelId: 'novel-3',
-        userIntent: '继续写第三章',
-      },
-      (event) => events.push(event),
+    await assert.rejects(
+      () => startChapterProductionRunStream(
+        {
+          novelId: 'novel-3',
+          userIntent: '继续写第三章',
+        },
+        (event) => events.push(event),
+      ),
+      /Invalid SSE payload/,
     );
+    assert.deepEqual(events, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
-    assert.deepEqual(events, [
-      { type: 'status', message: '仍在继续' },
-    ]);
+test('startChapterProductionRunStream rejects EOF without done', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const encoder = new TextEncoder();
+    return {
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"type":"fallback_draft_token","content":"半段正文"}\n\n'));
+          controller.close();
+        },
+      }),
+    } as Response;
+  };
+  try {
+    await assert.rejects(
+      () => startChapterProductionRunStream(
+        { novelId: 'novel-5', userIntent: '继续写' },
+        () => undefined,
+      ),
+      /完成事件前中断/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('startChapterProductionRunStream rejects a business error event', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const encoder = new TextEncoder();
+    return {
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"type":"error","message":"writer failed"}\n\n'));
+          controller.close();
+        },
+      }),
+    } as Response;
+  };
+  try {
+    await assert.rejects(
+      () => startChapterProductionRunStream(
+        { novelId: 'novel-6', userIntent: '继续写' },
+        () => undefined,
+      ),
+      /writer failed/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

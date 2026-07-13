@@ -33,8 +33,8 @@ export function createNovel(novel: Novel): void {
   novelCrud.create(novel);
 }
 
-export function updateNovel(id: string, data: Partial<Novel>): void {
-  novelCrud.update(id, data);
+export function updateNovel(id: string, data: Partial<Novel>): boolean {
+  return novelCrud.update(id, data);
 }
 
 export function deleteNovel(id: string): void {
@@ -60,4 +60,3 @@ export function deleteNovel(id: string): void {
 
   deleteTransaction();
 }
-

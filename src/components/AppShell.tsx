@@ -264,7 +264,8 @@ export function AppShell() {
     setCurrentView('editor');
   };
 
-  const handleStartContinuationImport = () => {
+  const handleStartContinuationImport = async () => {
+    if (!await flushBeforeNavigation()) return;
     setCurrentView('continuation-import');
   };
 
@@ -618,17 +619,17 @@ export function AppShell() {
               <ErrorBoundary>
                 <WelcomeView
                   onSelectStoryCard={handleSelectStoryCard}
-                  onJumpToLibrary={() => setCurrentView('library')}
+                  onJumpToLibrary={() => { void handleNavigate('library'); }}
                   onSelectNovel={navigateToCockpit}
                   onStartContinuationImport={handleStartContinuationImport}
-                  onNavigateToFactory={() => setCurrentView('factory')}
+                  onNavigateToFactory={() => { void handleNavigate('factory'); }}
                 />
               </ErrorBoundary>
             )}
             {currentView === 'continuation-import' && (
               <ErrorBoundary>
                 <ContinuationImportView
-                  onBack={() => setCurrentView('welcome')}
+                  onBack={() => { void handleNavigate('welcome'); }}
                   onEnterEditor={(novel, approvedPackId, prefillIntent) =>
                     navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import', prefillIntent)
                   }
@@ -637,7 +638,7 @@ export function AppShell() {
             )}
             {currentView === 'library' && (
               <ErrorBoundary>
-                <Library onSelectNovel={navigateToCockpit} onNavigate={setCurrentView} userId={'local-user'} />
+                <Library onSelectNovel={navigateToCockpit} onNavigate={(view) => { void handleNavigate(view); }} userId={'local-user'} />
               </ErrorBoundary>
             )}
             {currentView === 'workspace' && selectedNovel && (
@@ -648,7 +649,7 @@ export function AppShell() {
                     if (view === 'editor') {
                       navigateToEditor(selectedNovel);
                     } else {
-                      setCurrentView(view);
+                      void handleNavigate(view);
                     }
                   }}
                   onStartCockpitAction={(action, chapterId) => navigateToEditorWithCockpitAction(selectedNovel, action, chapterId)}
@@ -696,7 +697,7 @@ export function AppShell() {
                           assistantLoading,
                           completedCount: countCompletedSetupTasks(onboardingDraft.setupTasks),
                           canEnterEditor: countCompletedSetupTasks(onboardingDraft.setupTasks) >= 3,
-                          onEnterEditor: () => setCurrentView('editor'),
+                          onEnterEditor: () => { void handleNavigate('editor'); },
                           recommendedSkills: onboardingDraft.recommendedSkills,
                           acceptedRecommendedSkills: onboardingDraft.acceptedRecommendedSkills,
                           onAcceptRecommendedSkills: handleAcceptRecommendedSkills,
@@ -713,15 +714,15 @@ export function AppShell() {
             )}
             {currentView === 'skills' && (
               <ErrorBoundary>
-                <SkillsStudioView selectedNovel={selectedNovel} onNavigate={setCurrentView} />
+                <SkillsStudioView selectedNovel={selectedNovel} onNavigate={(view) => { void handleNavigate(view); }} />
               </ErrorBoundary>
             )}
             {currentView === 'editor' && !selectedNovel && (
               <WorkspacePreviewEmptyState
                 title="创作舞台等待作品"
                 description="选中作品后，编辑器会读取章节、分镜、世界观与装配能力，让正文生成、打磨与质量中心连成一条线。"
-                onGoLibrary={() => setCurrentView('library')}
-                onCreateNovel={() => setCurrentView('library')}
+                onGoLibrary={() => { void handleNavigate('library'); }}
+                onCreateNovel={() => { void handleNavigate('library'); }}
                 onImport={handleStartContinuationImport}
               />
             )}
@@ -729,8 +730,8 @@ export function AppShell() {
               <WorkspacePreviewEmptyState
                 title="创作工作台暂未开启"
                 description="工作台会把章节写作、设定记忆、装配能力和 AI 助手组织在一起。先选择或创建作品，就能开始协作。"
-                onGoLibrary={() => setCurrentView('library')}
-                onCreateNovel={() => setCurrentView('library')}
+                onGoLibrary={() => { void handleNavigate('library'); }}
+                onCreateNovel={() => { void handleNavigate('library'); }}
                 onImport={handleStartContinuationImport}
               />
             )}
@@ -738,8 +739,8 @@ export function AppShell() {
               <WorkspacePreviewEmptyState
                 title="设定集需要绑定作品"
                 description="人物、地点、道具和世界规则都跟作品绑定。选中作品后，设定会成为后续写作和审查的上下文。"
-                onGoLibrary={() => setCurrentView('library')}
-                onCreateNovel={() => setCurrentView('library')}
+                onGoLibrary={() => { void handleNavigate('library'); }}
+                onCreateNovel={() => { void handleNavigate('library'); }}
                 onImport={handleStartContinuationImport}
               />
             )}

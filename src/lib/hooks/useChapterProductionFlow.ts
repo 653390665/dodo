@@ -36,7 +36,8 @@ export function useChapterProductionFlow({
   const productionAbortRef = useRef<AbortController | null>(null);
   const productionDraftSourceRef = useRef<'fallback' | 'model' | null>(null);
   const productionCompletedRef = useRef(false);
-  const productionHasUsableDraftRef = useRef(false);
+  const fallbackDraftRef = useRef('');
+  const modelDraftRef = useRef('');
 
   const stopProductionFlow = useCallback(() => {
     if (productionAbortRef.current) {
@@ -62,7 +63,8 @@ export function useChapterProductionFlow({
     setProductionAuditSource(null);
     setProductionStatusMessage('正在连接...');
     productionCompletedRef.current = false;
-    productionHasUsableDraftRef.current = false;
+    fallbackDraftRef.current = '';
+    modelDraftRef.current = '';
 
     setActiveProductionRun({
       id: '',
@@ -113,8 +115,8 @@ export function useChapterProductionFlow({
               setProductionBeatsSource('fallback');
               break;
             case 'fallback_draft_token':
-              productionHasUsableDraftRef.current = true;
-              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: (prev.draftContent || '') + event.content } : prev);
+              fallbackDraftRef.current += event.content;
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: fallbackDraftRef.current } : prev);
               break;
             case 'fallback_draft_done':
               setProductionDraftSource('fallback');
@@ -128,10 +130,17 @@ export function useChapterProductionFlow({
               setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : prev);
               setProductionBeatsSource('model');
               break;
+            case 'model_draft_start':
+              modelDraftRef.current = '';
+              setProductionDraftSource('model');
+              productionDraftSourceRef.current = 'model';
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: '' } : prev);
+              break;
             case 'model_draft_token':
               setProductionDraftSource('model');
               productionDraftSourceRef.current = 'model';
-              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: (prev.draftContent || '') + event.content } : prev);
+              modelDraftRef.current += event.content;
+              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: modelDraftRef.current } : prev);
               break;
             case 'model_draft_done':
               break;
@@ -168,36 +177,24 @@ export function useChapterProductionFlow({
 
       if (productionAbortRef.current === controller) {
         if (!productionCompletedRef.current) {
-          if (productionHasUsableDraftRef.current) {
-            setActiveProductionRun((prev) =>
-              prev && prev.status === 'running'
-                ? {
-                    ...prev,
-                    status: 'review_required',
-                    errorMessage: undefined,
-                  }
-                : prev,
-            );
-            setProductionError(null);
-          } else {
-            const message = '生产连接已中断，请直接再次点击"开始生产一章"重试。';
-            setProductionError((current) => current || message);
-            setActiveProductionRun((prev) =>
-              prev && prev.status === 'running'
-                ? {
-                    ...prev,
-                    status: 'failed',
-                    errorMessage: prev.errorMessage || message,
-                  }
-                : prev,
-            );
-          }
+          const message = '生产流未完整结束，预览不会作为成功正文提交，请重试。';
+          setProductionError((current) => current || message);
+          setActiveProductionRun((prev) =>
+            prev && prev.status === 'running'
+              ? {
+                  ...prev,
+                  status: 'failed',
+                  errorMessage: prev.errorMessage || message,
+                }
+              : prev,
+          );
         }
         setIsProductionRunning(false);
         setProductionStatusMessage(null);
         productionDraftSourceRef.current = null;
         productionCompletedRef.current = false;
-        productionHasUsableDraftRef.current = false;
+        fallbackDraftRef.current = '';
+        modelDraftRef.current = '';
         productionAbortRef.current = null;
       }
     }

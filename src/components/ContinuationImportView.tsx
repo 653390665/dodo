@@ -4,9 +4,9 @@ import JSZip from 'jszip';
 
 import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
 import { cn } from '../lib/utils';
-import { listNovels, createNovel } from '../lib/novel-client';
+import { listNovels } from '../lib/novel-client';
 import { parseContinuationPack } from '../lib/prompt-client';
-import { updateContinuationPack } from '../lib/continuation-client';
+import { approveContinuationImport } from '../lib/continuation-client';
 import {
   buildImportedNovelDraft,
   canApproveContinuationImportPack,
@@ -67,7 +67,6 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const [parseStageText, setParseStageText] = useState('正在读取资料包并展开文档树...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const createdTargetNovelRef = useRef<Novel | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +194,6 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
 
   const resetParsedSession = () => {
     setParsedState(null);
-    createdTargetNovelRef.current = null;
     setIsParsing(false);
     setParseProgress(0);
     setParseStageText('正在读取资料包并展开文档树...');
@@ -229,7 +227,6 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     
     // Reset previous parse results safely without interrupting the active parsing state
     setParsedState(null);
-    createdTargetNovelRef.current = null;
 
     try {
       const documents = await Promise.all(
@@ -276,38 +273,28 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     setError('');
 
     try {
-      let targetNovel: Novel | null = null;
-
-      if (parsedState.targetModeAtParse === 'existing') {
-        targetNovel = novels.find((novel) => novel.id === parsedState.selectedNovelIdAtParse) || null;
-        if (!targetNovel) {
+      if (
+        parsedState.targetModeAtParse === 'existing'
+        && !novels.some((novel) => novel.id === parsedState.selectedNovelIdAtParse)
+      ) {
           throw new Error('未找到要导入的目标作品，请返回上一步重新选择。');
-        }
-      } else {
-        targetNovel = createdTargetNovelRef.current;
-        if (!targetNovel) {
-          const now = Date.now();
-          const draft = buildImportedNovelDraft(parsedPack.title);
-          targetNovel = {
-            id: now.toString(),
-            title: draft.title,
-            authorId: 'local-user',
-            summary: draft.summary,
-            status: 'ongoing',
-            createdAt: now,
-            updatedAt: now,
-          };
-          await createNovel(targetNovel);
-          createdTargetNovelRef.current = targetNovel;
-        }
       }
 
-      await updateContinuationPack(parsedPack.id, {
-        novelId: targetNovel.id,
-        status: 'approved',
+      const draft = buildImportedNovelDraft(parsedPack.title);
+      const approved = await approveContinuationImport({
+        packId: parsedPack.id,
+        mode: parsedState.targetModeAtParse,
+        existingNovelId: parsedState.selectedNovelIdAtParse || undefined,
+        newNovel: parsedState.targetModeAtParse === 'new'
+          ? { title: draft.title, summary: draft.summary }
+          : undefined,
       });
 
-      onEnterEditor(targetNovel, parsedPack.id, buildCreationIntentDraft(parsedPack) || undefined);
+      onEnterEditor(
+        approved.novel,
+        approved.pack.id,
+        buildCreationIntentDraft(approved.pack) || undefined,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

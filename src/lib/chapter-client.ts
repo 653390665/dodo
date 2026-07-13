@@ -9,4 +9,11 @@ export async function updateChapter(id: string, data: Partial<Chapter>): Promise
 export async function deleteChapter(id: string): Promise<boolean> { return call('deleteChapter', id); }
 
 export async function listChapterVersions(chapterId: string): Promise<ChapterVersion[]> { return call('listChapterVersions', chapterId); }
-export async function createChapterVersion(cv: ChapterVersion): Promise<void> { return call('createChapterVersion', cv); }
+export async function createChapterVersion(cv: ChapterVersion): Promise<void> {
+  await call('createChapterVersion', cv);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inkflow:chapter-version-created', {
+      detail: { chapterId: cv.chapterId },
+    }));
+  }
+}

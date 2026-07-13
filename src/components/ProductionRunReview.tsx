@@ -48,14 +48,13 @@ export function ProductionRunReview({
     ? history.find((item) => item.status === 'review_required' && Boolean(item.draftContent.trim()))
     : undefined;
   const displayRun = recoveredRun || run;
-  const displayRunning = running && !recoveredRun;
+  const displayRunning = running;
   const issues = displayRun?.continuityReport.issues || [];
   const timelineEvents = displayRun?.continuityReport.proposedPatch.timelineEventsToCreate || [];
   const foreshadowings = displayRun?.continuityReport.proposedPatch.foreshadowingsToCreate || [];
-  const hasReviewableDraft = Boolean(displayRun?.draftContent?.trim());
-  const effectiveStatus = displayRun?.status === 'failed' && hasReviewableDraft ? 'review_required' : displayRun?.status;
-  const visibleError = hasReviewableDraft ? null : error;
-  const visibleRunError = hasReviewableDraft ? null : displayRun?.errorMessage;
+  const effectiveStatus = displayRun?.status;
+  const visibleError = error;
+  const visibleRunError = displayRun?.errorMessage;
 
   const loadHistory = useCallback(async () => {
     if (!novelId) return;
@@ -114,12 +113,6 @@ export function ProductionRunReview({
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             <XCircle size={14} />
             {visibleError}
-          </div>
-        ) : null}
-        {hasReviewableDraft && displayRun?.status === 'failed' ? (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            <CheckCircle2 size={14} />
-            已生成可用草稿，后续增强连接中断不影响接受写入。
           </div>
         ) : null}
         {displayRun?.status === 'applied' && !visibleError ? (

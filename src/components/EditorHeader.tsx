@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, PanelRight, Settings, Sparkles } from 'lucide-react';
+import { AlertCircle, BookOpen, Bot, CheckCircle2, Cloud, Loader2, Maximize2, Minimize2, PanelRight, Settings, Sparkles } from 'lucide-react';
 
 import { Chapter, Skill } from '../../shared/types';
 import { cn } from '../lib/utils';
@@ -17,6 +17,7 @@ interface EditorHeaderProps {
   isAnyGenerating: boolean;
   isSyncing: boolean;
   syncSuccess: boolean;
+  syncFailed: boolean;
   mountedSkills: Skill[];
   onVolumeNameChange: (newVol: string) => void;
   onTitleChange: (newTitle: string) => void;
@@ -34,6 +35,7 @@ export function EditorHeader({
   isAnyGenerating,
   isSyncing,
   syncSuccess,
+  syncFailed,
   mountedSkills,
   onVolumeNameChange,
   onTitleChange,
@@ -114,6 +116,15 @@ export function EditorHeader({
             >
               <Cloud size={14} className="animate-pulse" />
               保存中…
+            </div>
+          ) : syncFailed ? (
+            <div
+              key="failed"
+              className="flex items-center gap-2 text-xs text-red-600 mr-2 font-mono"
+              role="alert"
+            >
+              <AlertCircle size={14} />
+              保存失败，等待重试
             </div>
           ) : syncSuccess ? (
             <div

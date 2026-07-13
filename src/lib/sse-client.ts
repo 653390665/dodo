@@ -18,6 +18,37 @@ export async function readSseEvents<T extends Record<string, unknown>>(
   let buffer = '';
   let sawDone = false;
 
+  const processLine = (line: string): void => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith(':')) return;
+    if (trimmed === 'data: [DONE]') {
+      sawDone = true;
+      return;
+    }
+    if (!trimmed.startsWith('data:')) return;
+
+    const dataStr = trimmed.slice(5).trimStart();
+    let parsed: T;
+    try {
+      const candidate = JSON.parse(dataStr) as unknown;
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        throw new SseParseError('Invalid SSE event payload');
+      }
+      parsed = candidate as T;
+    } catch (error) {
+      if (error instanceof SseParseError) throw error;
+      throw new SseParseError('Invalid SSE payload');
+    }
+
+    const errorMessage = typeof parsed.error === 'string'
+      ? parsed.error
+      : parsed.type === 'error' && typeof parsed.message === 'string'
+        ? parsed.message
+        : null;
+    if (errorMessage) throw new Error(errorMessage);
+    if (onEvent(parsed) === 'done') sawDone = true;
+  };
+
   try {
     while (!sawDone) {
       const { done, value } = await reader.read();
@@ -28,39 +59,13 @@ export async function readSseEvents<T extends Record<string, unknown>>(
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith(':')) continue;
-        if (trimmed === 'data: [DONE]') {
-          sawDone = true;
-          break;
-        }
-        if (!trimmed.startsWith('data:')) continue;
-
-        const dataStr = trimmed.slice(5).trimStart();
-        let parsed: T;
-        try {
-          const candidate = JSON.parse(dataStr) as unknown;
-          if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
-            throw new SseParseError('Invalid SSE event payload');
-          }
-          parsed = candidate as T;
-        } catch (error) {
-          if (error instanceof SseParseError) throw error;
-          throw new SseParseError('Invalid SSE payload');
-        }
-
-        const errorMessage = typeof parsed.error === 'string'
-          ? parsed.error
-          : parsed.type === 'error' && typeof parsed.message === 'string'
-            ? parsed.message
-            : null;
-        if (errorMessage) throw new Error(errorMessage);
-        if (onEvent(parsed) === 'done') {
-          sawDone = true;
-          break;
-        }
+        processLine(line);
+        if (sawDone) break;
       }
     }
+
+    buffer += decoder.decode();
+    if (!sawDone && buffer.trim()) processLine(buffer);
   } catch (error) {
     await reader.cancel().catch(() => {});
     throw error;

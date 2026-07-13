@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import { z } from 'zod';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
@@ -20,7 +21,12 @@ import type {
   ContinuationSourceMap,
   ContinuationReadingQuestion,
   ContinuationGap,
+  ContinuationPack,
 } from '../../shared/types';
+import {
+  getDatabaseGeneration,
+  runInSerializedWriteForGeneration,
+} from '../lib/db-instance';
 
 interface UploadedDocument {
   filename: string;
@@ -30,6 +36,38 @@ interface UploadedDocument {
 interface ParsedUploadedDocument {
   filename: string;
   text: string;
+}
+
+interface ParseDocJob {
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  progress: number;
+  stageText: string;
+  result?: unknown;
+  createdAt: number;
+}
+
+const parseDocJobs = new Map<string, ParseDocJob>();
+const PARSE_DOC_JOB_TTL_MS = 30 * 60 * 1000;
+const pendingContinuationImports = new Map<string, { pack: ContinuationPack; createdAt: number }>();
+
+const approveContinuationImportSchema = z.object({
+  packId: z.string().min(1).max(300),
+  mode: z.enum(['existing', 'new']),
+  existingNovelId: z.string().min(1).max(300).optional(),
+  newNovel: z.object({
+    title: z.string().min(1).max(500),
+    summary: z.string().max(20_000).default(''),
+  }).optional(),
+});
+
+function pruneParseDocJobs(): void {
+  const cutoff = Date.now() - PARSE_DOC_JOB_TTL_MS;
+  for (const [id, job] of parseDocJobs) {
+    if (job.createdAt < cutoff) parseDocJobs.delete(id);
+  }
+  for (const [id, pending] of pendingContinuationImports) {
+    if (pending.createdAt < cutoff) pendingContinuationImports.delete(id);
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -162,25 +200,9 @@ async function extractUploadedText(filename: string, filedata: string): Promise<
   throw new Error('Unsupported file type.');
 }
 
-export function registerContinuationRoutes(app: Express) {
-  app.post('/api/parse-doc', validate(parseDocSchema), async (req, res) => {
-    try {
-      const { filename, filedata } = req.body;
-      let text = '';
-
-      if (filename.endsWith('.txt') || filename.endsWith('.md') || filename.endsWith('.json')) {
-        text = Buffer.from(filedata, 'base64').toString('utf8');
-      } else if (filename.endsWith('.docx')) {
-        const mammoth = await import('mammoth');
-        const buffer = Buffer.from(filedata, 'base64');
-        const result = await mammoth.extractRawText({ buffer });
-        text = result.value;
-      } else {
-        return res.status(400).json({ error: 'Unsupported file type.' });
-      }
-
-      // Now use AI to parse this text into World Bible Entities
-      const prompt = `
+async function parseWorldDocument(filename: string, filedata: string): Promise<unknown> {
+  const text = await extractUploadedText(filename, filedata);
+  const prompt = `
 你是一个小说世界观设定解析专家。用户上传了一份设定文档（内容在下方）。
 请提取其中的世界观设定、角色信息、大纲、以及时间线等。
 
@@ -199,31 +221,53 @@ export function registerContinuationRoutes(app: Express) {
 ${text.substring(0, 30000)}
 """
 
-请严格以JSON格式输出，结构如下：
-{
-  "globalOutline": "...",
-  "worldRules": "...",
-  "characters": [...],
-  "locations": [...],
-  "items": [...],
-  "factions": [...],
-  "powerLevels": [...],
-  "timelineEvents": [...]
+请严格以JSON格式输出上述字段。`;
+
+  const rawText = await generateText(getConfig(), {
+    prompt,
+    responseMimeType: 'application/json',
+    timeoutMs: 90_000,
+    maxAttempts: 2,
+  });
+  return parseModelJsonPayload<unknown>(rawText);
 }
-`;
 
-      let rawText = await generateText(getConfig(), { prompt });
-      rawText = rawText.replace(/```(json)?/g, '').trim();
+export function registerContinuationRoutes(app: Express) {
+  app.post('/api/parse-doc', validate(parseDocSchema), async (req, res) => {
+    pruneParseDocJobs();
+    const jobId = `parse-doc-${generateId()}`;
+    parseDocJobs.set(jobId, {
+      status: 'queued',
+      progress: 10,
+      stageText: '正在读取并提取文档内容...',
+      createdAt: Date.now(),
+    });
+    res.status(202).json({ jobId });
 
-      res.json(JSON.parse(rawText));
-    } catch (e) {
-      logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
-    }
+    void (async () => {
+      const job = parseDocJobs.get(jobId);
+      if (!job) return;
+      try {
+        Object.assign(job, { status: 'running', progress: 35, stageText: 'AI 正在解析设定结构...' });
+        job.result = await parseWorldDocument(req.body.filename, req.body.filedata);
+        Object.assign(job, { status: 'completed', progress: 100, stageText: '解析完成' });
+      } catch (error) {
+        logger.error('设定文档解析失败:', error);
+        Object.assign(job, { status: 'failed', progress: 100, stageText: '解析失败' });
+      }
+    })();
+  });
+
+  app.get('/api/parse-doc/jobs/:jobId', (req, res) => {
+    pruneParseDocJobs();
+    const job = parseDocJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: '解析任务不存在或已过期' });
+    return res.json(job);
   });
 
   app.post('/api/continuation-packs/parse', validate(continuationParseSchema), async (req, res) => {
     try {
+      const databaseGeneration = getDatabaseGeneration();
       const novelId = stringValue(req.body.novelId);
       const title = stringValue(req.body.title);
       const documents = asArray(req.body.documents) as UploadedDocument[];
@@ -312,7 +356,18 @@ ${text.substring(0, 30000)}
         updatedAt: now,
       };
 
-      db.createContinuationPack(pack);
+      if (novelId.startsWith('continuation-import-draft-')) {
+        pruneParseDocJobs();
+        pendingContinuationImports.set(pack.id, { pack, createdAt: Date.now() });
+      } else {
+        const writeResult = await runInSerializedWriteForGeneration(
+          databaseGeneration,
+          () => db.createContinuationPack(pack),
+        );
+        if (!writeResult.executed) {
+          return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入资料' });
+        }
+      }
       res.json({ pack });
     } catch (e) {
       logger.error(String(e));
@@ -341,6 +396,60 @@ ${text.substring(0, 30000)}
         return res.status(401).json({ error: '未配置 AI API Key，请在设置中配置后重试。' });
       }
       return res.status(500).json({ error: '解析服务异常，请稍后重试。' });
+    }
+  });
+
+  app.post('/api/continuation-packs/approve-import', (req, res) => {
+    const parsed = approveContinuationImportSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: '确认导入参数无效' });
+    const input = parsed.data;
+    const pending = pendingContinuationImports.get(input.packId);
+    const storedPack = db.getContinuationPack(input.packId);
+    const sourcePack = pending?.pack || storedPack;
+    if (!sourcePack) return res.status(404).json({ error: '续写资料包不存在或已过期' });
+
+    try {
+      let approvedNovel: ReturnType<typeof db.getNovel>;
+      let approvedPack: ContinuationPack | undefined;
+      db.runInTransaction(() => {
+        if (input.mode === 'existing') {
+          approvedNovel = input.existingNovelId ? db.getNovel(input.existingNovelId) : undefined;
+          if (!approvedNovel) throw new Error('Target novel not found');
+        } else {
+          if (!input.newNovel) throw new Error('New novel data missing');
+          const now = Date.now();
+          approvedNovel = {
+            id: generateId(),
+            title: input.newNovel.title,
+            authorId: 'local-user',
+            summary: input.newNovel.summary,
+            status: 'ongoing',
+            createdAt: now,
+            updatedAt: now,
+          };
+          db.createNovel(approvedNovel);
+        }
+
+        approvedPack = {
+          ...sourcePack,
+          novelId: approvedNovel.id,
+          status: 'approved',
+          updatedAt: Date.now(),
+        };
+        if (pending) {
+          db.createContinuationPack(approvedPack);
+        } else if (!db.updateContinuationPack(sourcePack.id, {
+          novelId: approvedNovel.id,
+          status: 'approved',
+        })) {
+          throw new Error('Continuation pack disappeared during approval');
+        }
+      });
+      pendingContinuationImports.delete(input.packId);
+      return res.json({ novel: approvedNovel, pack: approvedPack });
+    } catch (error) {
+      logger.error('确认续写资料导入失败:', error);
+      return res.status(409).json({ error: '确认导入失败，未写入作品或资料包' });
     }
   });
 }

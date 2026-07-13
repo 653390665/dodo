@@ -1,5 +1,13 @@
 import type { ChapterProductionRun } from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
+import { readSseEvents, SseParseError } from './sse-client';
+
+export class IncompleteProductionStreamError extends Error {
+  constructor() {
+    super('正文生成流在完成事件前中断');
+    this.name = 'IncompleteProductionStreamError';
+  }
+}
 
 export async function startChapterProductionRun(payload: {
   novelId: string;
@@ -28,6 +36,7 @@ export type ProductionRunSSEEvent =
   | { type: 'fallback_audit'; content: string }
   | { type: 'fallback_continuity'; report: ChapterProductionRun['continuityReport'] }
   | { type: 'model_beats'; content: string }
+  | { type: 'model_draft_start' }
   | { type: 'model_draft_token'; content: string }
   | { type: 'model_draft_done' }
   | { type: 'model_audit'; content: string; isValid?: boolean }
@@ -61,46 +70,23 @@ export async function startChapterProductionRunStream(
   }
 
   if (!res.body) throw new Error('No response body');
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const messages = buffer.split('\n\n');
-      buffer = messages.pop() || '';
-
-      for (const msg of messages) {
-        if (!msg.startsWith('data: ')) continue;
-        const dataStr = msg.slice(6);
-        try {
-          const data = JSON.parse(dataStr);
-          if (data && typeof data.type === 'string') {
-            onEvent(data as ProductionRunSSEEvent);
-          }
-        } catch {
-          // Skip unparseable chunks
-        }
-      }
+  const allowedTypes = new Set<ProductionRunSSEEvent['type']>([
+    'run_created', 'status', 'fallback_beats', 'fallback_draft_token',
+    'fallback_draft_done', 'fallback_audit', 'fallback_continuity',
+    'model_beats', 'model_draft_start', 'model_draft_token', 'model_draft_done', 'model_audit',
+    'model_continuity', 'model_score', 'done', 'error',
+  ]);
+  const result = await readSseEvents<Record<string, unknown>>(res, (data) => {
+    if (typeof data.type !== 'string' || !allowedTypes.has(data.type as ProductionRunSSEEvent['type'])) {
+      throw new SseParseError('Invalid production SSE event type');
     }
-
-    if (buffer.trim().startsWith('data: ')) {
-      try {
-        const data = JSON.parse(buffer.trim().slice(6));
-        if (data && typeof data.type === 'string') {
-          onEvent(data as ProductionRunSSEEvent);
-        }
-      } catch {
-        // Skip
-      }
+    if (data.type === 'done' && (!data.run || typeof data.run !== 'object')) {
+      throw new SseParseError('Production done event is missing its run');
     }
-  } finally {
-    reader.releaseLock();
-  }
+    onEvent(data as ProductionRunSSEEvent);
+    if (data.type === 'done') return 'done';
+  });
+  if (!result.done) throw new IncompleteProductionStreamError();
 }
 
 export async function applyChapterProductionRun(runId: string): Promise<{ chapterId: string }> {

@@ -153,6 +153,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
   const {
     isSyncing,
     syncSuccess,
+    syncFailed,
     persistSkillLoadout,
     persistProjectPreferenceProfile,
     handleSaveVersion,
@@ -585,6 +586,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
           isAnyGenerating={isAnyGenerating}
           isSyncing={isSyncing}
           syncSuccess={syncSuccess}
+          syncFailed={syncFailed}
           mountedSkills={mountedSkills}
           onVolumeNameChange={handleVolumeNameChange}
           onTitleChange={handleTitleChange}
@@ -641,6 +643,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
           currentChapter={currentChapter}
           statusTimeFormatter={statusTimeFormatter}
           isSyncing={isSyncing}
+          syncFailed={syncFailed}
           launchState={launchState}
           novelId={novel.id}
           novelTitle={novel.title}

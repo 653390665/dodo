@@ -1,7 +1,11 @@
 /**
  * Lightweight vector store backed by SQLite.
  */
-import { getDb } from './lib/db-instance';
+import {
+  getDatabaseGeneration,
+  getDb,
+  runInSerializedWriteForGeneration,
+} from './lib/db-instance';
 import { embed, cosineSimilarity } from './embedding';
 
 // 常驻内存向量解析 Cache，避免高频相似度计算下的重复 JSON.parse 消耗
@@ -14,20 +18,26 @@ export async function addChunk(
   index: number,
   text: string
 ): Promise<void> {
+  const generation = getDatabaseGeneration();
   const embedding = await embed(text);
   const id = `${novelId}_${chapterId}_${index}`;
 
-  // 更新常驻缓存
-  embeddingCache.set(id, embedding);
+  await runInSerializedWriteForGeneration(generation, () => {
+    embeddingCache.set(id, embedding);
+    const db = getDb();
+    db.prepare(`
+      INSERT INTO vector_chunks (id, novel_id, chapter_id, chunk_index, text, embedding)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        text = excluded.text,
+        embedding = excluded.embedding
+    `).run(id, novelId, chapterId, index, text, JSON.stringify(embedding));
+  });
+}
 
-  const db = getDb();
-  db.prepare(`
-    INSERT INTO vector_chunks (id, novel_id, chapter_id, chunk_index, text, embedding)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      text = excluded.text,
-      embedding = excluded.embedding
-  `).run(id, novelId, chapterId, index, text, JSON.stringify(embedding));
+/** Clear data derived from a previously mounted database. */
+export function clearEmbeddingCache(): void {
+  embeddingCache.clear();
 }
 
 /** Search top-k most similar chunks for a given novel */

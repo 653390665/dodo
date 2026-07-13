@@ -1,7 +1,7 @@
 import type { Skill, QuotaLimits, ProjectPreferenceProfile } from '../../shared/types';
 import { randomUUID } from 'node:crypto';
 import { getNovel, updateNovel } from '../lib/db/novels.js';
-import { runInSerializedWrite } from '../lib/db-instance.js';
+import { getDatabaseGeneration, runInSerializedWrite } from '../lib/db-instance.js';
 
 /**
  * 默认免费额度上限配置
@@ -36,6 +36,7 @@ interface QuotaReservation {
   limitType: QuotaLimitType;
   status: ReservationStatus;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const quotaReservations = new Map<string, QuotaReservation>();
@@ -301,6 +302,7 @@ export async function reserveQuota(
   limitType: QuotaLimitType,
 ): Promise<QuotaCheckResult> {
   pruneReservations();
+  const databaseGeneration = getDatabaseGeneration();
   const result = await checkAndConsumeQuota(novelId, limitType);
   if (!result.allowed || !novelId || result.reservationId) {
     return result;
@@ -311,6 +313,12 @@ export async function reserveQuota(
     return result;
   }
 
+  // The consumed counter belonged to a database that has since been replaced.
+  // Do not create a reservation capable of mutating the newly imported file.
+  if (databaseGeneration !== getDatabaseGeneration()) {
+    return { allowed: false, error: '数据库已切换，请重试当前操作' };
+  }
+
   const reservationId = createReservationId();
   quotaReservations.set(reservationId, {
     id: reservationId,
@@ -318,6 +326,7 @@ export async function reserveQuota(
     limitType,
     status: 'active',
     createdAt: Date.now(),
+    databaseGeneration,
   });
 
   return { ...result, reservationId };
@@ -336,6 +345,11 @@ export async function refundQuota(reservationId: string | undefined): Promise<bo
       return false;
     }
 
+    if (reservation.databaseGeneration !== getDatabaseGeneration()) {
+      reservation.status = 'refunded';
+      return false;
+    }
+
     decrementQuotaCounter(reservation.novelId, reservation.limitType);
     reservation.status = 'refunded';
     return true;
@@ -347,6 +361,10 @@ export function commitQuotaReservation(reservationId: string | undefined): boole
   if (!reservationId) return false;
   const reservation = quotaReservations.get(reservationId);
   if (reservation && reservation.status === 'active') {
+    if (reservation.databaseGeneration !== getDatabaseGeneration()) {
+      reservation.status = 'refunded';
+      return false;
+    }
     reservation.status = 'committed';
     return true;
   }

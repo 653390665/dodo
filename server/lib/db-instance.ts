@@ -11,6 +11,15 @@ import { logger } from '../logger';
 let db: BetterSqlite3.Database | undefined;
 
 /**
+ * Monotonic identity of the logical database currently mounted at DB_PATH.
+ * Async work captures this value before it leaves the database boundary and
+ * must re-check it before writing. An import advances the generation before
+ * the active connection is closed, invalidating work started against the old
+ * database.
+ */
+let databaseGeneration = 0;
+
+/**
  * Returns the active database instance.
  * Throws if initDb() has not been called yet.
  */
@@ -64,6 +73,30 @@ const writeQueue = new WriteQueue();
  */
 export async function runInSerializedWrite<T>(fn: () => Promise<T> | T): Promise<T> {
   return writeQueue.run(fn);
+}
+
+export function getDatabaseGeneration(): number {
+  return databaseGeneration;
+}
+
+/** Only the serialized database replacement task may call this function. */
+export function advanceDatabaseGeneration(): number {
+  databaseGeneration += 1;
+  return databaseGeneration;
+}
+
+/**
+ * Serialize a delayed write and discard it if a database replacement happened
+ * while the caller was awaiting external work.
+ */
+export async function runInSerializedWriteForGeneration<T>(
+  generation: number,
+  fn: () => Promise<T> | T,
+): Promise<{ executed: true; result: T } | { executed: false }> {
+  return writeQueue.run(async () => {
+    if (generation !== databaseGeneration) return { executed: false };
+    return { executed: true, result: await fn() };
+  });
 }
 
 

@@ -24,10 +24,10 @@ export function createContinuationPack(pack: ContinuationPack): void {
   continuationPackCrud.create(pack);
 }
 
-export function updateContinuationPack(id: string, data: Partial<ContinuationPack>): void {
-  continuationPackCrud.update(id, data);
+export function updateContinuationPack(id: string, data: Partial<ContinuationPack>): boolean {
+  return continuationPackCrud.update(id, data);
 }
 
-export function deleteContinuationPack(id: string): void {
-  continuationPackCrud.delete(id);
+export function deleteContinuationPack(id: string): boolean {
+  return continuationPackCrud.delete(id);
 }

@@ -45,6 +45,13 @@ const CRITIC_LLM_OPTIONS = {
   maxTokens: 1200,
 } as const;
 
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  const error = new Error('Production pipeline aborted');
+  error.name = 'AbortError';
+  throw error;
+}
+
 /**
  * Run Planner → Writer → Critic pipeline.
  * Planner generates scene beats from user intent.
@@ -96,6 +103,7 @@ export async function runProductionPipeline(params: {
       signal: progress.signal,
     });
   } catch (err) {
+    throwIfAborted(progress.signal);
     logger.warn('Planner fell back to deterministic beats', err);
     sceneBeats = buildFallbackSceneBeats(userIntent);
   }
@@ -103,8 +111,6 @@ export async function runProductionPipeline(params: {
   // ================================================================
   // Phase 2–3: Writer → Critic loop
   // ================================================================
-  progress.onPhase?.('writer');
-
   const skillsInfo = buildSkillsPrompt(skills);
   let currentDraft = '';
   let criticFeedback = '';
@@ -113,6 +119,7 @@ export async function runProductionPipeline(params: {
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     attempts = attempt + 1;
+    progress.onPhase?.('writer');
 
     // --- Writer ---
     const writerAsset = resolvePromptAssetForSurface({
@@ -140,11 +147,13 @@ export async function runProductionPipeline(params: {
       });
       currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
     } catch (err) {
+      throwIfAborted(progress.signal);
       logger.warn('Writer fell back to deterministic draft', err);
       currentDraft = buildFallbackDraft(sceneBeats, contextStr);
       // Emit tokens for fallback draft
       const chunks = currentDraft.match(/.{1,24}/gs) || [];
       for (const chunk of chunks) {
+        throwIfAborted(progress.signal);
         progress.onWriterToken?.(chunk);
       }
     }
@@ -175,6 +184,7 @@ export async function runProductionPipeline(params: {
         signal: progress.signal,
       });
     } catch (err) {
+      throwIfAborted(progress.signal);
       logger.warn('Critic fell back — accepting draft', err);
       criticFeedback = 'PASS (critic unavailable — accepting draft)';
     }
