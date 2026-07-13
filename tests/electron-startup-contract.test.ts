@@ -38,6 +38,7 @@ test('packaged lifecycle attaches to the real application renderer target', () =
   assert.match(lifecycleSource, /target\.type === 'page' && isPackagedRendererUrl\(target\.url\)/);
   assert.match(lifecycleSource, /context\.pages\(\)\.find\(\(candidate\) => isPackagedRendererUrl\(candidate\.url\(\)\)\)/);
   assert.doesNotMatch(lifecycleSource, /context\.pages\(\)\[0\]/);
+  assert.match(lifecycleSource, /await callDb\(page, 'getChapter', 'packaged-lifecycle-chapter'\)/);
 });
 
 test('startup parser resolves JSON messages across split stdout chunks', () => {

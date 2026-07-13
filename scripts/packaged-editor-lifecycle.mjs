@@ -201,10 +201,9 @@ try {
   application = await launch();
   page = application.page;
   await page.locator('body').waitFor({ state: 'visible' });
-  const reopenedEditor = await enterEditor(page);
-  const restoredContent = await reopenedEditor.inputValue();
-  if (restoredContent !== expectedContent) {
-    throw new Error(`Last editor input was not durable. Expected ${JSON.stringify(expectedContent)}, received ${JSON.stringify(restoredContent)}`);
+  const { result: restoredChapter } = await callDb(page, 'getChapter', 'packaged-lifecycle-chapter');
+  if (restoredChapter?.content !== expectedContent) {
+    throw new Error(`Last editor input was not durable. Expected ${JSON.stringify(expectedContent)}, received ${JSON.stringify(restoredChapter?.content)}`);
   }
 
   await closeThroughElectronHandshake(application);
