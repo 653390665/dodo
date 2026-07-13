@@ -39,12 +39,15 @@ async function reservePort() {
 }
 
 async function waitForCdp(port, processOutput) {
-  const endpoint = `http://127.0.0.1:${port}/json/version`;
-  const deadline = Date.now() + 30_000;
+  const endpoint = `http://127.0.0.1:${port}/json/list`;
+  const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(endpoint);
-      if (response.ok) return;
+      if (response.ok) {
+        const targets = await response.json();
+        if (Array.isArray(targets) && targets.some((target) => target.type === 'page')) return;
+      }
     } catch {
       // The packaged renderer is still starting.
     }
@@ -77,13 +80,8 @@ async function launch() {
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
-    const processExited = new Promise((_, reject) => child.once('exit', (code, signal) => {
-      reject(new Error(`Packaged process exited before opening a window (${code ?? signal}). Output:\n${output}`));
-    }));
-    const page = context.pages()[0] || await Promise.race([
-      context.waitForEvent('page', { timeout: 60_000 }),
-      processExited,
-    ]);
+    const page = context.pages()[0];
+    if (!page) throw new Error(`CDP reported a page target that Playwright could not attach. Output:\n${output}`);
     return { browser, child, page, output: () => output };
   } catch (error) {
     child.kill();
