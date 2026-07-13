@@ -2,7 +2,6 @@ import React from 'react';
 import { FileText, Loader2, Sparkles } from 'lucide-react';
 import type { Chapter, ChapterMetadata } from '../../../shared/types';
 import { cn } from '../../lib/utils';
-import { metadataToChapter } from '../../lib/chapter-utils';
 
 interface OutlineTabProps {
   expectedWordCount: number | '';
@@ -13,7 +12,7 @@ interface OutlineTabProps {
   onGlobalOutlineChange: (outline: string) => void;
   chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter | null) => void;
+  onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
 }
 
 export function OutlineTab({
@@ -25,7 +24,7 @@ export function OutlineTab({
   onGlobalOutlineChange,
   chapters,
   currentChapter,
-  setCurrentChapter,
+  onSelectChapter,
 }: OutlineTabProps) {
   return (
     <div className="space-y-6">
@@ -72,7 +71,7 @@ export function OutlineTab({
           {chapters.map((chapter, index) => (
             <button
               key={chapter.id}
-              onClick={() => setCurrentChapter(metadataToChapter(chapter))}
+              onClick={() => void onSelectChapter(chapter)}
               className={cn(
                 'w-full text-left p-3 rounded-xl border transition-[background-color,border-color,box-shadow,color] duration-200 flex flex-col gap-1',
                 currentChapter?.id === chapter.id

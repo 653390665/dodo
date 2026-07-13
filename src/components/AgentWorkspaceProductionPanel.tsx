@@ -15,7 +15,7 @@ interface AgentWorkspaceProductionPanelProps {
   novel: Novel;
   chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter | null) => void;
+  onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
   activeProductionRun: ChapterProductionRun | null;
   productionIntent: string;
   setProductionIntent: (intent: string) => void;
@@ -71,7 +71,7 @@ export function AgentWorkspaceProductionPanel({
   novel,
   chapters,
   currentChapter,
-  setCurrentChapter,
+  onSelectChapter,
   activeProductionRun,
   productionIntent,
   setProductionIntent,
@@ -200,7 +200,7 @@ export function AgentWorkspaceProductionPanel({
         onGlobalOutlineChange={onGlobalOutlineChange}
         chapters={chapters}
         currentChapter={currentChapter}
-        setCurrentChapter={setCurrentChapter}
+        onSelectChapter={onSelectChapter}
       />
     );
   }

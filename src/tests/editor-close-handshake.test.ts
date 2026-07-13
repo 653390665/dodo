@@ -46,4 +46,26 @@ describe('desktop editor close handshake', () => {
     // Simulated restart reads the independently persisted backing store.
     expect(isolatedDatabase.get('chapter-1')).toBe('退出前最后一次输入');
   });
+
+  test('blocks desktop reload with pending writes but allows the approved close', async () => {
+    let prepareClose!: () => Promise<void>;
+    const dispose = bindEditorCloseSafety(window, {
+      onPrepareClose: (callback) => {
+        prepareClose = async () => { await callback(); };
+        return vi.fn();
+      },
+      readyToClose: vi.fn(),
+    });
+    queueEditorWrite('chapter:chapter-1:content', async () => true);
+
+    const reloadEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(reloadEvent);
+    expect(reloadEvent.defaultPrevented).toBe(true);
+
+    await prepareClose();
+    const approvedCloseEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(approvedCloseEvent);
+    expect(approvedCloseEvent.defaultPrevented).toBe(false);
+    dispose();
+  });
 });

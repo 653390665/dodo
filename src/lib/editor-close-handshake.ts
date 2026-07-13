@@ -24,21 +24,25 @@ export function bindEditorCloseSafety(
   target: Window,
   bridge: CloseBridge | undefined,
 ): () => void {
+  let closeApproved = false;
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
-    if (!hasPendingEditorWrites()) return;
+    if (closeApproved || !hasPendingEditorWrites()) return;
     event.preventDefault();
     event.returnValue = '';
   };
   const syncBeforeUnloadListener = () => {
     target.removeEventListener('beforeunload', onBeforeUnload);
-    if (hasPendingEditorWrites() && !bridge?.onPrepareClose) {
+    if (hasPendingEditorWrites()) {
       target.addEventListener('beforeunload', onBeforeUnload);
     }
   };
   syncBeforeUnloadListener();
   const unsubscribeWrites = subscribeToEditorWrites(syncBeforeUnloadListener);
   const unsubscribeClose = bridge?.onPrepareClose?.(async () => {
-    await flushEditorWritesForClose(bridge.readyToClose);
+    await flushEditorWritesForClose(() => {
+      closeApproved = true;
+      bridge.readyToClose?.();
+    });
   });
 
   return () => {
