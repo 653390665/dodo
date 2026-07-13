@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import { generateText } from '../lib/server-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
+import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
 
 /**
  * Simple LLM proxy routes — no shared local helpers needed.
@@ -10,7 +11,7 @@ export function registerSimpleLlmRoutes(app: Express) {
   // 扩展创意片段 (SSE 流式输出)
   app.post('/api/expand-fragment', async (req, res) => {
     const controller = new AbortController();
-    req.on('close', () => {
+    const disposeDisconnect = bindClientDisconnect(req, res, () => {
       controller.abort();
     });
 
@@ -44,21 +45,30 @@ export function registerSimpleLlmRoutes(app: Express) {
         prompt,
         signal: controller.signal,
         onToken: (token) => {
-          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ token })}\n\n`);
+          }
         }
       });
 
       // 写入流结束标志并安全关闭连接
-      res.write('data: [DONE]\n\n');
-      res.end();
+      if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     } catch (e: unknown) {
       logger.error("Simple LLM route error:", e);
+      if (isStreamDisconnected(req, res) || res.writableEnded) {
+        return;
+      }
       if (!res.headersSent) {
         res.status(500).json({ error: "Internal server error" });
       } else {
         res.write(`data: ${JSON.stringify({ error: "Internal server error" })}\n\n`);
         res.end();
       }
+    } finally {
+      disposeDisconnect();
     }
   });
 

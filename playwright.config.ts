@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+
 /**
  * Playwright E2E configuration for InkFlow.
  * Targets the fully integrated developer portal running on http://localhost:3000.
@@ -17,6 +19,12 @@ export default defineConfig({
     baseURL: 'http://localhost:3001',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    ...(chromiumExecutablePath ? {
+      launchOptions: {
+        executablePath: chromiumExecutablePath,
+        args: ['--no-sandbox', '--single-process', '--no-zygote', '--disable-webgl'],
+      },
+    } : {}),
   },
   projects: [
     {
@@ -25,7 +33,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'node --import tsx server.ts',
     url: 'http://localhost:3001/api/dev-auth-token',
     reuseExistingServer: false,
     timeout: 30000,

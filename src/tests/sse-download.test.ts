@@ -70,7 +70,7 @@ describe('downloadAuthenticatedFile', () => {
     }) as typeof fetch;
 
     const click = vi.fn();
-    vi.spyOn(document, 'createElement').mockReturnValue({ click } as unknown as HTMLAnchorElement);
+    vi.spyOn(document, 'createElement').mockReturnValue({ click } as never);
 
     await downloadAuthenticatedFile('/api/db/export-file', {
       headers: { Authorization: 'Bearer test-token' },

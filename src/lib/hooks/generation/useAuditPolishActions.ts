@@ -74,13 +74,15 @@ export function useAuditPolishActions({
     content: string,
     startingChapterId: string | undefined,
     currentSeq: number,
+    extraUpdates: Partial<Chapter> = {},
   ) => {
     if (!isRequestCurrent(startingChapterId, currentSeq)) return;
-    setCurrentChapter((prev) => (prev ? { ...prev, content } : null));
+    setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
     await updateChapter(chapterId, {
       content,
       updatedAt: Date.now(),
       wordCount: content.replace(/\s/g, '').length,
+      ...extraUpdates,
     });
   };
 
@@ -165,7 +167,7 @@ export function useAuditPolishActions({
       const feedbackStr = typeof jobResult.feedback === 'string' ? jobResult.feedback : '';
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
-      setCurrentChapter((prev) => (prev ? { ...prev, critique: feedbackStr } : null));
+      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
       await updateChapter(currentChapter.id, { critique: feedbackStr });
       try {
         await recordSkillUsage('revised', {
@@ -431,12 +433,7 @@ export function useAuditPolishActions({
 
         if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-        await commitChapterContent(currentChapter.id, candidate, startingChapterId, currentSeq);
-        try {
-          await updateChapter(currentChapter.id, { critique: '' });
-        } catch {
-          // Critique clear failure must not roll back committed content.
-        }
+        await commitChapterContent(currentChapter.id, candidate, startingChapterId, currentSeq, { critique: '' });
 
         try {
           await createChapterVersion({

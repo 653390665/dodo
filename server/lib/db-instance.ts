@@ -53,10 +53,6 @@ class WriteQueue {
   async drain(): Promise<void> {
     await this.queue;
   }
-
-  reset(): void {
-    this.queue = Promise.resolve();
-  }
 }
 
 const writeQueue = new WriteQueue();

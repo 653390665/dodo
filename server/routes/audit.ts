@@ -218,7 +218,7 @@ ${platformSpecificChecklist}
     updateAuditJob(jobId, { progress: 85, stageText: '正在整理审稿报告…' });
 
     const fiveDim = parseAuditFiveDim(rawFeedback);
-    if (fiveDim) {
+    if (fiveDim && fiveDim.scores && typeof fiveDim.scores === 'object') {
       const gate = evaluateAuditGate(
         Object.fromEntries(Object.entries(fiveDim.scores).map(([k, v]) => [k, (v as { score: number }).score])),
         (fiveDim.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>,
