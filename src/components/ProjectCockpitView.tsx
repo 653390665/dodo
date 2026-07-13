@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { Novel, Chapter, ChapterMetadata, Character, Location, Item, Faction, Skill, ContinuationPack } from '../../shared/types';
 import { cn } from '../lib/utils';
-import { metadataToChapter } from '../lib/chapter-utils';
 import { logger } from '../lib/client-logger';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems,
@@ -222,8 +221,8 @@ export function ProjectCockpitView({
           output: "直接进入主编辑器工作台，查看或编辑章节正文",
           influence: "进入主创作流，是深度审稿、大纲对齐与一键精修的前置入口",
           onClick: () => {
-            if (onSelectChapter && latestChapter) {
-              onSelectChapter(metadataToChapter(latestChapter));
+            if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+              onSelectChapter(latestFullChapter);
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('resume', latestChapter.id);
@@ -255,8 +254,8 @@ export function ProjectCockpitView({
           output: "AI 辅助将核心情节拆解为精细的分镜大纲与节奏细纲",
           influence: "为接下来的正文智能极速扩写提供坚实且高可控的剧情骨架",
           onClick: () => {
-            if (onSelectChapter && latestChapter) {
-              onSelectChapter(metadataToChapter(latestChapter));
+            if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+              onSelectChapter(latestFullChapter);
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('planning', latestChapter.id);
@@ -275,8 +274,8 @@ export function ProjectCockpitView({
           output: "AI 智能体基于分镜骨架执行高还原、极速正文段落扩写",
           influence: "快速产出首版初稿，等待下一步的资深审稿人多维一致性审计",
           onClick: () => {
-            if (onSelectChapter && latestChapter) {
-              onSelectChapter(metadataToChapter(latestChapter));
+            if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+              onSelectChapter(latestFullChapter);
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('production', latestChapter.id);
@@ -295,8 +294,8 @@ export function ProjectCockpitView({
           output: "AI 资深编辑在后台进行错字、常识、文风、设定的一致性审计",
           influence: "生成多维度的审稿批注报告，并解锁接下来的定向润色与精修",
           onClick: () => {
-            if (onSelectChapter && latestChapter) {
-              onSelectChapter(metadataToChapter(latestChapter));
+            if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+              onSelectChapter(latestFullChapter);
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('audit', latestChapter.id);
@@ -315,8 +314,8 @@ export function ProjectCockpitView({
           output: "AI 定向润色重写，一键去除机械词汇、修补设定漏洞",
           influence: "打磨产出高品质的完读正文，并可以开始冷备份或发布",
           onClick: () => {
-            if (onSelectChapter && latestChapter) {
-              onSelectChapter(metadataToChapter(latestChapter));
+            if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+              onSelectChapter(latestFullChapter);
             }
             if (onStartCockpitAction && latestChapter) {
               onStartCockpitAction('polish', latestChapter.id);
@@ -479,8 +478,8 @@ export function ProjectCockpitView({
                     {/* Primary Dark Button: 一键精修润色 */}
                     <button
                       onClick={() => {
-                        if (onSelectChapter && latestChapter) {
-                          onSelectChapter(metadataToChapter(latestChapter));
+                        if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+                          onSelectChapter(latestFullChapter);
                         }
                         if (onStartCockpitAction && latestChapter) {
                           // Launches full custom-polish automated stream / 启动一键去AI味精修流
@@ -498,8 +497,8 @@ export function ProjectCockpitView({
                     {/* Secondary Ghost Button: 深度质量审计 */}
                     <button
                       onClick={() => {
-                        if (onSelectChapter && latestChapter) {
-                          onSelectChapter(metadataToChapter(latestChapter));
+                        if (onSelectChapter && latestFullChapter?.id === latestChapter?.id) {
+                          onSelectChapter(latestFullChapter);
                         }
                         if (onStartCockpitAction && latestChapter) {
                           // Launches full quality audit stream / 启动后台质量审计流

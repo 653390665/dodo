@@ -26,6 +26,8 @@
 | 17 | `a90ff4bb` | 2026-07-10 | improve standard 审计 (correctness+security+perf+tests+dx) | 5 | 111–115 |
 | 18 | `a90ff4bb` | 2026-07-10 | improve standard 深度审计 (correctness+security+perf+tech-debt) | 6 | 116–120 |
 | 19 | `current` | 2026-07-12 | 全仓流式断连时序、配额与资源清理治理 | 1 | 121 |
+| 20 | `1a56ccad` | 2026-07-12 | 写作数据安全闭环 | 4 | 122–125 |
+| 21 | `1a56ccad` | 2026-07-13 | 发布数据安全复核收口 | 1 | 126 |
 
 ## 执行顺序 & 依赖图
 
@@ -146,6 +148,11 @@
 | 119 | db-mappers DbRow any → 类型安全行接口 | STOPPED | 需改 mapper 实现去 ...row spread，工作量超预期 |
 | 120 | 补全静默空 catch 块的日志记录 | DONE | — |
 | 121 | 全仓流式断连治理 | DONE | 110 |
+| 122 | 建立可等待的编辑器保存边界 | DONE | 121 |
+| 123 | 阻止幽灵章节 | DONE | 122 |
+| 124 | 人物小传流式预览只落盘一次 | DONE | 121 |
+| 125 | 导入前验证 SQLite 完整性与 schema | DONE | 121 |
+| 126 | 发布数据安全复核收口 | DONE | 122–125 |
 
 ## 考虑后排除的发现
 

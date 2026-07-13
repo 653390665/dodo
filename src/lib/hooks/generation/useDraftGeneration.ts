@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction } from 'react';
+import { type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { Novel, Chapter, Skill } from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
@@ -10,6 +10,7 @@ interface UseDraftGenerationArgs {
   mountedSkills: Skill[];
   userIntent: string;
   selectedContinuationPackId: string;
+  contentRef: RefObject<HTMLTextAreaElement | null>;
   draftPromptSurface: string;
   requestSeqRef: { current: number };
   abortControllerRef: { current: AbortController | null };
@@ -28,6 +29,7 @@ interface UseDraftGenerationArgs {
     options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
+  flushPendingEditorWrites: () => Promise<void>;
 }
 
 export function useDraftGeneration({
@@ -36,6 +38,7 @@ export function useDraftGeneration({
   mountedSkills,
   userIntent,
   selectedContinuationPackId,
+  contentRef,
   draftPromptSurface,
   requestSeqRef,
   abortControllerRef,
@@ -51,6 +54,7 @@ export function useDraftGeneration({
   getCurrentFitScore,
   recordSkillUsage,
   formatAiFailure,
+  flushPendingEditorWrites,
 }: UseDraftGenerationArgs) {
 
   const handleGenerateBeats = async () => {
@@ -68,6 +72,7 @@ export function useDraftGeneration({
     setIsGeneratingBeats(true);
     setGenerationStatus('正在根据创作意图和世界观拆解本章分镜…');
     try {
+      await flushPendingEditorWrites();
       const beats = await editorAgentPhase(
         userIntent || `关于章节「${currentChapter.title}」的大纲`,
         buildAgentContext(),
@@ -81,7 +86,9 @@ export function useDraftGeneration({
 
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
-      await updateChapter(currentChapter.id, { sceneBeats: beats });
+      if (!await updateChapter(currentChapter.id, { sceneBeats: beats })) {
+        throw new Error('章节已不存在，分镜未保存。');
+      }
       setUserIntent('');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -90,7 +97,9 @@ export function useDraftGeneration({
       );
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
-      await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats });
+      if (!await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats })) {
+        throw new Error('章节已不存在，分镜未保存。', { cause: error });
+      }
       usedFallback = true;
       setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
     } finally {
@@ -122,11 +131,13 @@ export function useDraftGeneration({
     setIsGeneratingContent(true);
     setGenerationStatus('正在整理世界观、人物与分镜…');
 
-    const baseContent = currentChapter.content ? `${currentChapter.content}\n\n` : '';
     let completedContent = false;
     let accumulatedGeneratedText = '';
 
     try {
+      await flushPendingEditorWrites();
+      const latestContent = contentRef.current?.value ?? currentChapter.content;
+      const baseContent = latestContent ? `${latestContent}\n\n` : '';
       const contextStr = buildContextPrompt(buildAgentContext());
       setGenerationStatus('Writer Agent 正在生成 4000 字以上正文…');
       const response = await fetch('/api/orchestrate-draft', {
@@ -137,7 +148,7 @@ export function useDraftGeneration({
           contextStr,
           sceneBeats: currentChapter.sceneBeats,
           skills: mountedSkills,
-          draftContent: currentChapter.content || '',
+          draftContent: latestContent || '',
           novelId: novel.id,
           chapterOrder: currentChapter ? currentChapter.order : 1,
         }),
@@ -225,10 +236,11 @@ export function useDraftGeneration({
           : null
       ));
 
-      await updateChapter(currentChapter.id, {
+      const saved = await updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
       });
+      if (!saved) throw new Error('章节已不存在，生成正文未保存。');
 
       pushToUndoHistory(fullText);
 

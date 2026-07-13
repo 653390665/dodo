@@ -27,6 +27,7 @@ interface UseEditorGenerationFlowArgs {
     options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
+  flushPendingEditorWrites: () => Promise<void>;
 }
 
 const draftPromptSurface = 'workspace-draft';
@@ -51,6 +52,7 @@ export function useEditorGenerationFlow({
   getCurrentFitScore,
   recordSkillUsage,
   formatAiFailure,
+  flushPendingEditorWrites,
 }: UseEditorGenerationFlowArgs) {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
@@ -109,6 +111,7 @@ export function useEditorGenerationFlow({
     mountedSkills,
     userIntent,
     selectedContinuationPackId,
+    contentRef,
     draftPromptSurface,
     requestSeqRef,
     abortControllerRef,
@@ -124,6 +127,7 @@ export function useEditorGenerationFlow({
     getCurrentFitScore: () => getCurrentFitScore(),
     recordSkillUsage,
     formatAiFailure,
+    flushPendingEditorWrites,
   });
 
   // 3. 挂载智能审计、精修及手术重写子 Hook
@@ -146,6 +150,7 @@ export function useEditorGenerationFlow({
     getCurrentFitScore: () => getCurrentFitScore(),
     recordSkillUsage,
     formatAiFailure,
+    flushPendingEditorWrites,
   });
 
   return {

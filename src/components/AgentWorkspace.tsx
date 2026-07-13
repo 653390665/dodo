@@ -29,7 +29,7 @@ interface AgentWorkspaceProps {
   novel: Novel;
   chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
-  setCurrentChapter: (chapter: Chapter | null) => void;
+  onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
   isAgentSidebarOpen: boolean;
   setIsAgentSidebarOpen: (open: boolean) => void;
   agentTab: AgentTab;
@@ -104,7 +104,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   novel,
   chapters,
   currentChapter,
-  setCurrentChapter,
+  onSelectChapter,
   isAgentSidebarOpen: _isAgentSidebarOpen,
   setIsAgentSidebarOpen,
   agentTab,
@@ -540,7 +540,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                 novel={novel}
                 chapters={chapters}
                 currentChapter={currentChapter}
-                setCurrentChapter={setCurrentChapter}
+                onSelectChapter={onSelectChapter}
                 activeProductionRun={activeProductionRun}
                 productionIntent={productionIntent}
                 setProductionIntent={setProductionIntent}

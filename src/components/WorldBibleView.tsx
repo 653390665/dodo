@@ -32,6 +32,7 @@ import { TimelineTab } from './world-bible/TimelineTab';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/alert-dialog';
 import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
 import { RelationshipGraph } from './RelationshipGraph';
+import { enqueueLatestCharacterBioCommit, streamCharacterBio } from '../lib/character-bio-stream';
 
 export function WorldBibleView({
   novel,
@@ -93,6 +94,9 @@ export function WorldBibleView({
   const [importProgress, setImportProgress] = useState(0);
   const [importStageText, setImportStageText] = useState('');
   const [generatingBioIds, setGeneratingBioIds] = useState<string[]>([]);
+  const bioRequestSeqRef = React.useRef(new Map<string, number>());
+  const bioAbortControllersRef = React.useRef(new Map<string, AbortController>());
+  const bioCommitChainsRef = React.useRef(new Map<string, Promise<void>>());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -140,6 +144,12 @@ export function WorldBibleView({
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [helperMessages, helperLoading, helperOpen]);
+
+  useEffect(() => () => {
+    for (const controller of bioAbortControllersRef.current.values()) controller.abort();
+    bioAbortControllersRef.current.clear();
+    bioRequestSeqRef.current.clear();
+  }, [novel.id]);
 
   const handleSaveGlobalInfo = async (outline: string, rules: string) => {
     setIsSaving(true);
@@ -193,51 +203,50 @@ export function WorldBibleView({
       return;
     }
 
-    setGeneratingBioIds(prev => [...prev, char.id]);
+    const requestSeq = (bioRequestSeqRef.current.get(char.id) ?? 0) + 1;
+    bioRequestSeqRef.current.set(char.id, requestSeq);
+    bioAbortControllersRef.current.get(char.id)?.abort();
+    const abortController = new AbortController();
+    bioAbortControllersRef.current.set(char.id, abortController);
+    const isCurrent = () => bioRequestSeqRef.current.get(char.id) === requestSeq;
+
+    setGeneratingBioIds(prev => prev.includes(char.id) ? prev : [...prev, char.id]);
     try {
       const response = await fetch('/api/generate-bio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...char, globalOutline, worldRules })
+        body: JSON.stringify({ ...char, globalOutline, worldRules }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       if (!response.body) throw new Error('No response body');
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulatedBio = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const messages = buffer.split('\n\n');
-        buffer = messages.pop() || '';
-
-        for (const msg of messages) {
-          const trimmed = msg.trim();
-          if (!trimmed || trimmed === 'data: [DONE]') continue;
-          if (trimmed.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(trimmed.slice(6));
-              if (data.token) {
-                accumulatedBio += data.token;
-                updateEntity('character', char.id, { bio: accumulatedBio });
-              }
-            } catch (e) {
-              logger.error('Failed to parse bio token:', trimmed, e);
-            }
-          }
-        }
-      }
+      await streamCharacterBio({
+        response,
+        originalBio: char.bio,
+        isCurrent,
+        onPreview: (bio) => {
+          setCharacters(prev => prev.map(item => item.id === char.id ? { ...item, bio } : item));
+        },
+        onCommit: async (bio) => {
+          await enqueueLatestCharacterBioCommit(
+            bioCommitChainsRef.current,
+            char.id,
+            isCurrent,
+            async () => updateCharacter(char.id, { bio }),
+          );
+        },
+      });
     } catch (e) {
+      if (!isCurrent()) return;
       logger.error("WorldBibleView error:", e);
       alert("生成故事设定失败，请重试：" + (e instanceof Error ? e.message : String(e)));
     } finally {
-      setGeneratingBioIds(prev => prev.filter(id => id !== char.id));
+      if (isCurrent()) {
+        bioAbortControllersRef.current.delete(char.id);
+        setGeneratingBioIds(prev => prev.filter(id => id !== char.id));
+      }
     }
   };
 

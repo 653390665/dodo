@@ -13,6 +13,7 @@ import type { ViewType, WorkspaceNavKey } from '../shared/types';
 import { AppShell } from './components/AppShell';
 import { TooltipProvider } from './components/ui/tooltip';
 import { PremiumUpgradeModal } from './components/commercial/PremiumUpgradeModal';
+import { bindEditorCloseSafety } from './lib/editor-close-handshake';
 
 export default function App() {
   const {
@@ -94,6 +95,8 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [setAIAssistantOpen, setCurrentView, setWorkspaceFocus]);
+
+  useEffect(() => bindEditorCloseSafety(window, window.inkflow), []);
 
   return (
     <TooltipProvider>

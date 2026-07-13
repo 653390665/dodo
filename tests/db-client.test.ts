@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { listNovels, subscribeToChanges, updateNovel } from '../src/lib/db-client';
+import { __dbTransportTestHooks } from '../src/lib/db-transport';
 
 class MockEventSource {
   static OPEN = 1;
@@ -101,6 +102,27 @@ test('subscribeToChanges shares one EventSource and closes it after last unsubsc
     unsubscribeSecond();
     assert.equal(instance.closed, true);
   } finally {
+    globalThis.EventSource = OriginalEventSource;
+  }
+});
+
+test('last unsubscribe clears reconnect after EventSource has already been nulled', () => {
+  const OriginalEventSource = globalThis.EventSource;
+  MockEventSource.instances = [];
+  // @ts-expect-error test double
+  globalThis.EventSource = MockEventSource;
+
+  try {
+    const unsubscribe = subscribeToChanges(() => {});
+    const instance = MockEventSource.instances[0];
+    instance.onerror?.();
+    assert.equal(instance.closed, true);
+    assert.equal(__dbTransportTestHooks.hasReconnectTimer(), true);
+
+    unsubscribe();
+    assert.equal(__dbTransportTestHooks.hasReconnectTimer(), false);
+  } finally {
+    __dbTransportTestHooks.reset();
     globalThis.EventSource = OriginalEventSource;
   }
 });

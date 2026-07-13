@@ -4,6 +4,11 @@ import helmet from 'helmet';
 import { initDb } from './server/lib/db.js';
 import { authMiddleware, getAuthToken } from './server/middleware/auth';
 import { registerRoutes } from './server/routes/index.js';
+import { closeDb, drainWriteQueue } from './server/lib/db-instance.js';
+import type { Server } from 'http';
+
+let activeHttpServer: Server | null = null;
+let fatalShutdownStarted = false;
 
 // Initialize local database on startup
 initDb();
@@ -29,6 +34,14 @@ async function startServer() {
   }));
   const PORT = parseInt(process.env.PORT || '3000', 10);
   const allowPortRetry = !process.env.PORT || process.env.NODE_ENV === 'production';
+
+  app.use((_req, res, next) => {
+    if (fatalShutdownStarted) {
+      res.setHeader('Connection', 'close');
+      return res.status(503).json({ error: 'Server is shutting down' });
+    }
+    next();
+  });
 
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -89,6 +102,7 @@ async function startServer() {
         console.log(JSON.stringify({ port }));
       }
     });
+    activeHttpServer = server;
 
     server.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE' && allowPortRetry && port < PORT + 50) {
@@ -102,13 +116,42 @@ async function startServer() {
   listen(PORT);
 }
 
-// Global process-level error handlers to prevent silent backend crashes in production
+async function shutdownAfterFatalError(label: string, error: unknown): Promise<void> {
+  if (fatalShutdownStarted) return;
+  fatalShutdownStarted = true;
+  console.error(`[Fatal] ${label}:`, error);
+  process.exitCode = 1;
+
+  const forceExit = setTimeout(() => process.exit(1), 5000);
+  forceExit.unref();
+
+  try {
+    activeHttpServer?.close();
+    await Promise.race([
+      drainWriteQueue(),
+      new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+    ]);
+  } catch (shutdownError) {
+    console.error('[Fatal] Failed while draining database writes:', shutdownError);
+  } finally {
+    try {
+      closeDb();
+    } catch (closeError) {
+      console.error('[Fatal] Failed to close database:', closeError);
+    }
+    activeHttpServer?.closeAllConnections?.();
+    clearTimeout(forceExit);
+    process.exit(1);
+  }
+}
+
+// A fatal process error invalidates in-memory state. Exit non-zero so Electron restarts us.
 process.on('uncaughtException', (error) => {
-  console.error('[Fatal] Uncaught Exception:', error);
+  void shutdownAfterFatalError('Uncaught Exception', error);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Fatal] Unhandled Rejection at:', promise, 'reason:', reason);
+  void shutdownAfterFatalError(`Unhandled Rejection at ${String(promise)}`, reason);
 });
 
 startServer();

@@ -21,6 +21,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server.ts\"",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
+    "smoke:packaged-editor": "node scripts/packaged-editor-lifecycle.mjs",
     "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
     "package": "npm run build:electron && node scripts/package-electron.mjs",
     "electron:dev": "node scripts/dev-electron.mjs",
@@ -98,6 +99,15 @@
       "dist-electron/**/*",
       "dist/**/*",
       "node_modules/better-sqlite3/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
       "node_modules/mammoth/**/*",
       "node_modules/bindings/**/*",
       "node_modules/file-uri-to-path/**/*",
@@ -159,7 +169,17 @@
       "dist-electron/server.cjs",
       "dist-electron/better-sqlite3-shim.cjs",
       "dist-electron/electron-preload.cjs",
-      "node_modules/better-sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
+      "node_modules/detect-libc/**/*"
     ]
   }
 }

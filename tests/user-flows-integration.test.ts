@@ -99,10 +99,11 @@ test.describe('InkFlow End-to-End User Flows Integration Tests', () => {
     assert.equal(chapter.content, '荒野古刹...');
 
     // Save/Update Chapter Content
-    updateChapter('c-1', {
+    assert.equal(updateChapter('c-1', {
       content: '荒野古刹，大雨倾盆。林照慢慢睁开双眼...',
       wordCount: 19
-    });
+    }), true);
+    assert.equal(updateChapter('missing-chapter', { title: '幽灵章节' }), false);
 
     const updatedChapter = getChapter('c-1');
     assert.equal(updatedChapter?.content, '荒野古刹，大雨倾盆。林照慢慢睁开双眼...');

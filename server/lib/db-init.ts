@@ -25,6 +25,18 @@ const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   nativeBindingPath: string;
 };
 
+/** ASCII "INKF". New databases carry this marker; legacy zero-marker backups remain migratable. */
+export const INKFLOW_SQLITE_APPLICATION_ID = 0x494e4b46;
+
+/** Open an isolated read-only connection without touching the active singleton. */
+export function openReadOnlyDb(dbPath: string): BetterSqlite3.Database {
+  return new Database(dbPath, {
+    readonly: true,
+    fileMustExist: true,
+    nativeBinding: nativeBindingPath,
+  });
+}
+
 // Allow tests / e2e / tooling to redirect the database to an isolated path.
 // Default behavior is unchanged (no env var → ~/.inkflow/data.db).
 const DB_PATH_ENV = process.env.INKFLOW_DB_PATH;
@@ -369,6 +381,8 @@ export function initDb(dbPath?: string): void {
     CREATE INDEX IF NOT EXISTS idx_entity_relationships_novel ON entity_relationships(novelId);
     CREATE INDEX IF NOT EXISTS idx_entity_relationships_composite ON entity_relationships(novelId, sourceId, targetId);
   `);
+
+  getDb().pragma(`application_id = ${INKFLOW_SQLITE_APPLICATION_ID}`);
 }
 
 function repairImportedContinuationPackNovelLinks() {

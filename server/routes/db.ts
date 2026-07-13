@@ -3,27 +3,28 @@ import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
 import { validate, dbSchema } from '../validation';
 import express from 'express';
-import { existsSync, unlinkSync, copyFileSync, writeFileSync } from 'fs';
-import { DB_PATH, initDb } from '../lib/db-init';
+import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
+import { DB_PATH, INKFLOW_SQLITE_APPLICATION_ID, initDb, openReadOnlyDb } from '../lib/db-init';
 import { closeDb, getDb, isDbInitialized } from '../lib/db-instance';
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
 
 const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
-  'listChapters', 'listChaptersMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter', 'reorderChapters',
-  'listChapterVersions', 'getChapterVersion', 'createChapterVersion', 'deleteChapterVersion',
-  'listScenes', 'getScene', 'createScene', 'updateScene', 'deleteScene',
-  'listCharacters', 'createCharacter', 'updateCharacter', 'deleteCharacter',
+  'listChapters', 'listChaptersMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter',
+  'listChapterVersions', 'createChapterVersion',
+  'listCharacters', 'getCharacter', 'createCharacter', 'updateCharacter', 'deleteCharacter',
   'listLocations', 'createLocation', 'updateLocation', 'deleteLocation',
-  'listItems', 'createItem', 'updateItem', 'deleteItem',
+  'listItems', 'getItem', 'createItem', 'updateItem', 'deleteItem',
   'listFactions', 'createFaction', 'updateFaction', 'deleteFaction',
   'listPowerLevels', 'createPowerLevel', 'updatePowerLevel', 'deletePowerLevel',
   'listTimelineEvents', 'createTimelineEvent', 'updateTimelineEvent', 'deleteTimelineEvent',
   'listSkills', 'getSkill', 'createSkill', 'updateSkill', 'deleteSkill', 'listSkillVersions',
   'listSkillUsageRecords', 'syncSkillFeedbackScores', 'createSkillUsageRecord',
   'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
-  'listForeshadowings', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
-  'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun', 'deleteChapterProductionRun',
+  'listForeshadowings', 'getForeshadowing', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
+  'listChapterProductionRuns', 'getChapterProductionRun', 'createChapterProductionRun', 'updateChapterProductionRun',
   'listContinuationPacks', 'getContinuationPack', 'createContinuationPack', 'updateContinuationPack', 'deleteContinuationPack',
   'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
 ]);
@@ -38,6 +39,195 @@ function removeDbSidecars(): void {
   }
 }
 
+export const DB_IMPORT_TEMP_MARKER = '.import-validation-';
+export const DB_IMPORT_BACKUP_MARKER = '.pre-import-';
+
+export class DatabaseImportValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseImportValidationError';
+  }
+}
+
+type TableColumn = {
+  name: string;
+  type: string;
+  notnull: number;
+  pk: number;
+};
+
+type ForeignKeyDefinition = {
+  table: string;
+  from: string;
+  to: string;
+  on_delete: string;
+};
+
+const REQUIRED_IMPORT_SCHEMA: Record<string, Record<string, {
+  type: 'TEXT' | 'INTEGER';
+  primaryKey?: boolean;
+  notNull?: boolean;
+}>> = {
+  novels: {
+    id: { type: 'TEXT', primaryKey: true },
+    title: { type: 'TEXT', notNull: true },
+    author_id: { type: 'TEXT', notNull: true },
+    created_at: { type: 'INTEGER', notNull: true },
+    updated_at: { type: 'INTEGER', notNull: true },
+  },
+  chapters: {
+    id: { type: 'TEXT', primaryKey: true },
+    novel_id: { type: 'TEXT', notNull: true },
+    title: { type: 'TEXT' },
+    content: { type: 'TEXT' },
+    order: { type: 'INTEGER' },
+    created_at: { type: 'INTEGER', notNull: true },
+    updated_at: { type: 'INTEGER', notNull: true },
+  },
+  characters: {
+    id: { type: 'TEXT', primaryKey: true },
+    novel_id: { type: 'TEXT', notNull: true },
+    name: { type: 'TEXT', notNull: true },
+    bio: { type: 'TEXT' },
+    created_at: { type: 'INTEGER', notNull: true },
+    updated_at: { type: 'INTEGER', notNull: true },
+  },
+  chapter_versions: {
+    id: { type: 'TEXT', primaryKey: true },
+    chapter_id: { type: 'TEXT', notNull: true },
+    content: { type: 'TEXT' },
+    created_at: { type: 'INTEGER', notNull: true },
+  },
+};
+
+/**
+ * Validate an uploaded database through a separate read-only connection.
+ * Only the non-migratable core schema is required here; initDb remains
+ * responsible for adding newer tables and optional columns to old backups.
+ */
+export function validateDatabaseImportFile(filePath: string, requireApplicationId = false): void {
+  let candidate: ReturnType<typeof openReadOnlyDb> | undefined;
+  try {
+    candidate = openReadOnlyDb(filePath);
+
+    const integrityRows = candidate.pragma('integrity_check') as Array<Record<string, unknown>>;
+    if (
+      integrityRows.length !== 1
+      || String(Object.values(integrityRows[0] ?? {})[0]).toLowerCase() !== 'ok'
+    ) {
+      throw new DatabaseImportValidationError('SQLite integrity_check failed');
+    }
+
+    const applicationId = candidate.pragma('application_id', { simple: true }) as number;
+    if (
+      applicationId !== INKFLOW_SQLITE_APPLICATION_ID
+      && (requireApplicationId || applicationId !== 0)
+    ) {
+      throw new DatabaseImportValidationError('SQLite application_id does not belong to InkFlow');
+    }
+
+    const foreignKeyRows = candidate.pragma('foreign_key_check') as Array<Record<string, unknown>>;
+    if (foreignKeyRows.length > 0) {
+      throw new DatabaseImportValidationError('SQLite foreign_key_check found violations');
+    }
+
+    const schemaRows = candidate.prepare(`
+      SELECT name, type
+      FROM sqlite_master
+      WHERE name IN ('novels', 'chapters', 'characters', 'chapter_versions')
+    `).all() as Array<{ name: string; type: string }>;
+    const tableTypes = new Map(schemaRows.map((row) => [row.name, row.type]));
+
+    for (const [tableName, requiredColumns] of Object.entries(REQUIRED_IMPORT_SCHEMA)) {
+      if (tableTypes.get(tableName) !== 'table') {
+        throw new DatabaseImportValidationError(`Required table is missing or invalid: ${tableName}`);
+      }
+
+      const columns = candidate.pragma(`table_info(${tableName})`) as TableColumn[];
+      const byName = new Map(columns.map((column) => [column.name, column]));
+      for (const [columnName, requirement] of Object.entries(requiredColumns)) {
+        const column = byName.get(columnName);
+        if (!column) {
+          throw new DatabaseImportValidationError(`Required column is missing: ${tableName}.${columnName}`);
+        }
+        if (column.type.toUpperCase() !== requirement.type) {
+          throw new DatabaseImportValidationError(`Required column has an invalid type: ${tableName}.${columnName}`);
+        }
+        if (requirement.primaryKey && column.pk < 1) {
+          throw new DatabaseImportValidationError(`Required primary key is missing: ${tableName}.${columnName}`);
+        }
+        if (requirement.notNull && column.notnull !== 1) {
+          throw new DatabaseImportValidationError(`Required NOT NULL constraint is missing: ${tableName}.${columnName}`);
+        }
+      }
+    }
+
+    const requiredForeignKeys = [
+      { table: 'chapters', from: 'novel_id', parentTable: 'novels', to: 'id' },
+      { table: 'characters', from: 'novel_id', parentTable: 'novels', to: 'id' },
+      { table: 'chapter_versions', from: 'chapter_id', parentTable: 'chapters', to: 'id' },
+    ];
+    for (const requirement of requiredForeignKeys) {
+      const foreignKeys = candidate.pragma(`foreign_key_list(${requirement.table})`) as ForeignKeyDefinition[];
+      const hasRequiredForeignKey = foreignKeys.some((foreignKey) => (
+        foreignKey.table === requirement.parentTable
+        && foreignKey.from === requirement.from
+        && foreignKey.to === requirement.to
+        && foreignKey.on_delete.toUpperCase() === 'CASCADE'
+      ));
+      if (!hasRequiredForeignKey) {
+        throw new DatabaseImportValidationError(`Required foreign key is missing: ${requirement.table}.${requirement.from}`);
+      }
+    }
+
+    // Exercise the two critical read paths, including their relationship.
+    candidate.prepare(`
+      SELECT c.id, c.title, c.content, n.title AS novel_title
+      FROM chapters c
+      JOIN novels n ON n.id = c.novel_id
+      ORDER BY c."order", c.created_at
+      LIMIT 1
+    `).all();
+    candidate.prepare(`
+      SELECT cv.id, cv.content, c.title, n.title AS novel_title
+      FROM chapter_versions cv
+      JOIN chapters c ON c.id = cv.chapter_id
+      JOIN novels n ON n.id = c.novel_id
+      ORDER BY cv.created_at DESC
+      LIMIT 1
+    `).all();
+  } catch (error) {
+    if (error instanceof DatabaseImportValidationError) throw error;
+    throw new DatabaseImportValidationError(
+      `Unable to validate SQLite backup: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    candidate?.close();
+  }
+}
+
+function createImportTempPath(): string {
+  return path.join(
+    path.dirname(DB_PATH),
+    `${path.basename(DB_PATH)}${DB_IMPORT_TEMP_MARKER}${randomUUID()}`,
+  );
+}
+
+function removeImportTempFiles(importTempPath: string): void {
+  for (const temporaryPath of [
+    importTempPath,
+    `${importTempPath}-wal`,
+    `${importTempPath}-shm`,
+    `${importTempPath}.rollback`,
+  ]) {
+    try {
+      if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    } catch (unlinkErr) {
+      logger.error('删除数据库导入验证临时文件失败:', unlinkErr);
+    }
+  }
+}
+
 /**
  * Replace the active database without allowing a queued write to cross the
  * close/replace/reinitialize boundary. Entering the FIFO queue is itself the
@@ -48,44 +238,58 @@ export async function importDatabaseBuffer(
   buffer: Buffer,
   initialize: () => void = initDb,
 ): Promise<void> {
-  const backupPath = `${DB_PATH}.pre-import-bak`;
+  const backupPath = `${DB_PATH}${DB_IMPORT_BACKUP_MARKER}${Date.now()}-${randomUUID()}.bak`;
+  const importTempPath = createImportTempPath();
 
-  await runInSerializedWrite(async () => {
-    try {
-      closeDb();
+  try {
+    // `flag: wx` guarantees that even an extremely unlikely UUID collision
+    // cannot overwrite another in-flight import candidate.
+    writeFileSync(importTempPath, buffer, { flag: 'wx', mode: 0o600 });
+    validateDatabaseImportFile(importTempPath);
 
-      if (existsSync(DB_PATH)) {
-        copyFileSync(DB_PATH, backupPath);
-      }
-
-      removeDbSidecars();
-      writeFileSync(DB_PATH, buffer);
-      initialize();
-    } catch (err: unknown) {
-      logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
+    await runInSerializedWrite(async () => {
+      let backupReady = false;
+      let hadExistingDatabase = false;
       try {
+        if (isDbInitialized()) {
+          getDb().pragma('wal_checkpoint(TRUNCATE)');
+        }
         closeDb();
 
-        if (existsSync(backupPath)) {
-          copyFileSync(backupPath, DB_PATH);
+        hadExistingDatabase = existsSync(DB_PATH);
+        if (hadExistingDatabase) {
+          copyFileSync(DB_PATH, backupPath);
+          backupReady = true;
         }
 
         removeDbSidecars();
+        renameSync(importTempPath, DB_PATH);
         initialize();
-      } catch (restoreErr) {
-        logger.error('严重警告：数据库还原回滚失败！', restoreErr);
-      }
-      throw err;
-    } finally {
-      try {
-        if (existsSync(backupPath)) {
-          unlinkSync(backupPath);
+        validateDatabaseImportFile(DB_PATH, true);
+      } catch (err: unknown) {
+        logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
+        try {
+          closeDb();
+
+          if (backupReady && existsSync(backupPath)) {
+            const rollbackTempPath = `${importTempPath}.rollback`;
+            copyFileSync(backupPath, rollbackTempPath);
+            renameSync(rollbackTempPath, DB_PATH);
+          } else if (!hadExistingDatabase && existsSync(DB_PATH)) {
+            unlinkSync(DB_PATH);
+          }
+
+          removeDbSidecars();
+          initialize();
+        } catch (restoreErr) {
+          logger.error('严重警告：数据库还原回滚失败！', restoreErr);
         }
-      } catch (unlinkErr) {
-        logger.error('删除导入临时备份文件失败:', unlinkErr);
+        throw err;
       }
-    }
-  });
+    });
+  } finally {
+    removeImportTempFiles(importTempPath);
+  }
 }
 
 /**
@@ -207,17 +411,14 @@ export function registerDbRoutes(app: Express) {
         return res.status(400).json({ error: '接收到的数据库文件为空' });
       }
 
-      const magic = buffer.toString('utf8', 0, 15);
-      if (magic !== 'SQLite format 3') {
-        return res.status(400).json({ error: '无效的 SQLite 数据库文件格式' });
-      }
-
       try {
         await importDatabaseBuffer(buffer);
 
         res.json({ success: true });
       } catch (err: unknown) {
-        res.status(500).json({ error: err instanceof Error ? err.message : '还原数据失败，已自动回撤恢复旧数据' });
+        logger.error('数据库导入失败:', err);
+        const status = err instanceof DatabaseImportValidationError ? 400 : 500;
+        res.status(status).json({ error: '数据库导入失败，请确认备份文件有效' });
       }
     },
   );

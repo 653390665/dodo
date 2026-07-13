@@ -128,6 +128,8 @@ vi.mock('../lib/hooks/useEditorData', () => ({
     setChapters: vi.fn(),
     currentChapter: mockCurrentChapter,
     setCurrentChapter: vi.fn(),
+    selectChapter: vi.fn(async () => mockCurrentChapter),
+    chapterLoading: false,
     characters: [],
     locations: [],
     items: [],
@@ -195,6 +197,7 @@ vi.mock('../lib/hooks/useEditorPersistence', () => ({
     handleVolumeNameChange: vi.fn(),
     handleTitleChange: vi.fn(),
     cancelPendingContentSync: vi.fn(),
+    flushPendingEditorWrites: vi.fn(async () => {}),
     refreshChapters: vi.fn(),
   }),
 }));
