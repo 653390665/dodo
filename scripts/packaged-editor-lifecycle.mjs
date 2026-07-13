@@ -49,6 +49,15 @@ async function reservePort() {
   return address.port;
 }
 
+function isPackagedRendererUrl(value) {
+  try {
+    const url = new globalThis.URL(value);
+    return url.protocol === 'http:' && url.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 async function waitForCdp(port, child, processOutput) {
   const endpoint = `http://127.0.0.1:${port}/json/list`;
   const deadline = Date.now() + 60_000;
@@ -60,7 +69,9 @@ async function waitForCdp(port, child, processOutput) {
       const response = await fetch(endpoint, { signal: globalThis.AbortSignal.timeout(1_000) });
       if (response.ok) {
         const targets = await response.json();
-        if (Array.isArray(targets) && targets.some((target) => target.type === 'page')) return;
+        if (Array.isArray(targets) && targets.some((target) => (
+          target.type === 'page' && isPackagedRendererUrl(target.url)
+        ))) return;
       }
     } catch {
       // The packaged renderer is still starting.
@@ -98,8 +109,8 @@ async function launch() {
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
-    const page = context.pages()[0];
-    if (!page) throw new Error(`CDP reported a page target that Playwright could not attach. Output:\n${output}`);
+    const page = context.pages().find((candidate) => isPackagedRendererUrl(candidate.url()));
+    if (!page) throw new Error(`CDP reported no packaged renderer target that Playwright could attach. Output:\n${output}`);
     return { browser, child, page, output: () => output };
   } catch (error) {
     child.kill();

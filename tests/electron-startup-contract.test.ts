@@ -32,6 +32,14 @@ test('packaged Electron passes packaged static dist path to server', () => {
   assert.match(serverSource, /process\.env\.INKFLOW_STATIC_DIR\s*\|\|\s*path\.join\(process\.cwd\(\),\s*'dist'\)/);
 });
 
+test('packaged lifecycle attaches to the real application renderer target', () => {
+  const lifecycleSource = fs.readFileSync('scripts/packaged-editor-lifecycle.mjs', 'utf8');
+
+  assert.match(lifecycleSource, /target\.type === 'page' && isPackagedRendererUrl\(target\.url\)/);
+  assert.match(lifecycleSource, /context\.pages\(\)\.find\(\(candidate\) => isPackagedRendererUrl\(candidate\.url\(\)\)\)/);
+  assert.doesNotMatch(lifecycleSource, /context\.pages\(\)\[0\]/);
+});
+
 test('startup parser resolves JSON messages across split stdout chunks', () => {
   const seenLines: string[] = [];
   const seenMessages: Array<{ port?: number; status?: string }> = [];
