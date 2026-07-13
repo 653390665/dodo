@@ -22,8 +22,12 @@ await esbuild.build({
   format: 'cjs',
   outfile: 'dist-electron/server.cjs',
   external: [...NATIVE_EXTERNALS],
+  banner: {
+    js: 'var __inkflow_import_meta_url__ = require("node:url").pathToFileURL(__filename).href;',
+  },
   define: {
     'process.env.NODE_ENV': '"production"',
+    'import.meta.url': '__inkflow_import_meta_url__',
     '__CJS_BUNDLE__': 'true',
   },
   minify: false,

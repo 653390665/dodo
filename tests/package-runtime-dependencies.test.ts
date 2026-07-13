@@ -13,3 +13,9 @@ test('packaged server includes and unpacks the complete ONNX runtime pair', () =
     assert.ok(packageJson.build.asarUnpack.includes(pattern), `${dependency} must be unpacked beside its runtime peer`);
   }
 });
+
+test('server bundle preserves a runtime import.meta.url equivalent', () => {
+  const buildScript = fs.readFileSync('scripts/build-server.mjs', 'utf8');
+  assert.match(buildScript, /pathToFileURL\(__filename\)\.href/);
+  assert.match(buildScript, /'import\.meta\.url': '__inkflow_import_meta_url__'/);
+});
