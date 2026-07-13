@@ -147,10 +147,10 @@
 | 119 | db-mappers DbRow any → 类型安全行接口 | STOPPED | 需改 mapper 实现去 ...row spread，工作量超预期 |
 | 120 | 补全静默空 catch 块的日志记录 | DONE | — |
 | 121 | 全仓流式断连治理 | DONE | 110 |
-| 122 | 建立可等待的编辑器保存边界 | IN PROGRESS | 121 |
-| 123 | 阻止幽灵章节 | IN PROGRESS | 122 |
-| 124 | 人物小传流式预览只落盘一次 | IN PROGRESS | 121 |
-| 125 | 导入前验证 SQLite 完整性与 schema | IN PROGRESS | 121 |
+| 122 | 建立可等待的编辑器保存边界 | DONE | 121 |
+| 123 | 阻止幽灵章节 | DONE | 122 |
+| 124 | 人物小传流式预览只落盘一次 | DONE | 121 |
+| 125 | 导入前验证 SQLite 完整性与 schema | DONE | 121 |
 
 ## 考虑后排除的发现
 

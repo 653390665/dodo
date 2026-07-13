@@ -51,3 +51,5 @@ Plan 121 的全部命令与独立 Gatekeeper 复核已通过，状态收口为 `
 ### 完成条件
 
 `npm run typecheck`、`npm run lint`、`npm test`、`npm run test:frontend`、`npx playwright test`、`git diff --check` 全部通过后，Plan 122–125 才能从 `IN PROGRESS` 收口为 `DONE`。
+
+GitHub 官方 Playwright、runtime smoke、macOS 与 Windows 打包及全部本地门禁均已通过，Plan 122–125 状态收口为 `DONE`。
