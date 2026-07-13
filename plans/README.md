@@ -134,7 +134,7 @@
 | 107 | 依赖大版本升级安全评估与规划（Express/Vite/TS/Electron） | BACKLOG | — |
 | 108 | 前端日志治理：后续统一 error reporting | DONE | — |
 | 109 | InkFlow V3 创作管线与极致美学重构 | PLANNING | — |
-| 110 | InkFlow 核心接口异步化改写与前后端不兼容缺陷治理 | IN PROGRESS | — |
+| 110 | InkFlow 核心接口异步化改写与前后端不兼容缺陷治理 | DONE | — |
 | 111 | 原子化配额 check-then-consume 防止免费用户超额 | DONE | — |
 | 112 | 修复 handleDeleteChapter 闭包过期导致选中错误章节 | DONE | — |
 | 113 | db-mappers JSON.parse 安全防护防止脏数据崩溃整条读取链 | DONE | — |
@@ -145,7 +145,7 @@
 | 118 | Library 批量 Metadata 加载消除 N+1 | DEFERRED | — |
 | 119 | db-mappers DbRow any → 类型安全行接口 | STOPPED | 需改 mapper 实现去 ...row spread，工作量超预期 |
 | 120 | 补全静默空 catch 块的日志记录 | DONE | — |
-| 121 | 全仓流式断连治理 | IN PROGRESS | 110 |
+| 121 | 全仓流式断连治理 | DONE | 110 |
 
 ## 考虑后排除的发现
 

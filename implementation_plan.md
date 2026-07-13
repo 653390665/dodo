@@ -32,4 +32,4 @@ Plan 110 仅在上述门禁和独立 Gatekeeper 复核全部通过后保留为 D
 - Agent C：迁移数据库事件流，补测试和计划台账。
 - Gatekeeper：全仓搜索、门禁和断连/配额语义独立复核。
 
-Plan 121 在全部命令退出码为 0 前保持 `IN PROGRESS`。
+Plan 121 的全部命令与独立 Gatekeeper 复核已通过，状态收口为 `DONE`。

@@ -2,9 +2,9 @@
 
 ## 状态
 
-`IN PROGRESS`
+`DONE`
 
-> 仅当 typecheck、lint、后端与前端测试、Playwright、diff 检查及全仓静态搜索全部通过后，才能在主台账中标记为 `DONE`。若 Playwright 缺少可用浏览器，继续保持 `IN PROGRESS`。
+> Typecheck、lint、后端与前端测试、官方 Playwright、diff 检查及全仓静态搜索均已通过。
 
 ## 目标
 
