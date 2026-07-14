@@ -156,10 +156,10 @@
 | 126 | 发布数据安全复核收口 | DONE | 122–125 |
 | 127 | 发布正确性收口 | DONE | 126 |
 | 128 | 深度数据完整性收口 | DONE | 127 |
-| 129 | Domain Ownership & Data Integrity | IN PROGRESS | 128 |
-| 130 | LLM Cancellation & Cost Governance | IN PROGRESS | 129 |
-| 131 | Electron Recovery & Release Trust | IN PROGRESS | 129–130 |
-| 132 | 生产流断连与 Electron 单服务收口 | IN PROGRESS | 129–131 |
+| 129 | Domain Ownership & Data Integrity | DONE | 128 |
+| 130 | LLM Cancellation & Cost Governance | DONE | 129 |
+| 131 | Electron Recovery & Release Trust | DONE | 129–130 |
+| 132 | 生产流断连与 Electron 单服务收口 | DONE | 129–131 |
 
 ## 考虑后排除的发现
 
