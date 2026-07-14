@@ -141,6 +141,12 @@ test('OpenAI discovery + known model triggers connection probe', async () => {
       return makeModelsResponse(['deepseek-chat', 'deepseek-coder']);
     }
     if (u.includes('/chat/completions')) {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        max_tokens?: number;
+        max_completion_tokens?: number;
+      };
+      const outputBudget = body.max_tokens ?? body.max_completion_tokens ?? 0;
+      assert.ok(outputBudget >= 128, 'connection probe output budget must support reasoning models');
       return Response.json({ choices: [{ message: { content: 'OK' } }] });
     }
     return Response.json({ error: 'unexpected' }, { status: 404 });

@@ -8,6 +8,10 @@ import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-ex
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
 import { discoverModels } from '../helpers/model-discovery';
 
+// Reasoning models may spend their first tokens on hidden reasoning before
+// emitting the visible response used by the connection probe.
+const CONNECTION_PROBE_MAX_TOKENS = 128;
+
 export function registerConfigRoutes(app: Express) {
   app.get('/api/config', (_req, res) => {
     try {
@@ -148,7 +152,7 @@ export function registerConfigRoutes(app: Express) {
         // Phase 2: Probe the model via a short generation.
         const text = await generateText(effectiveConfig, {
           prompt: 'Please reply with the word "OK" only.',
-          maxTokens: 5,
+          maxTokens: CONNECTION_PROBE_MAX_TOKENS,
           signal,
         });
 
@@ -210,7 +214,7 @@ async function triggerStartupLivenessCheck() {
     await execution.run(({ signal }) =>
       generateText(config, {
         prompt: 'Please reply with "OK".',
-        maxTokens: 5,
+        maxTokens: CONNECTION_PROBE_MAX_TOKENS,
         maxAttempts: 1, // Only 1 attempt during startup check
         signal,
       }));
