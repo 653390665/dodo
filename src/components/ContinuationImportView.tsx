@@ -235,6 +235,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         selectedNovelIdAtParse: selectedNovelId,
       });
       setStage('confirm');
+      setIsParsing(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setIsParsing(false);
