@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck, Activity, Wifi, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, AlertTriangle, ShieldCheck, Activity, Wifi, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../stores/app-store';
 
 import {
@@ -45,6 +45,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [modelDiscoveryStatus, setModelDiscoveryStatus] = useState<'available' | 'unsupported' | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [showAllModels, setShowAllModels] = useState(false);
   const [activeModelIndex, setActiveModelIndex] = useState(-1);
   const modelInputRef = React.useRef<HTMLInputElement>(null);
   const modelListboxRef = React.useRef<HTMLUListElement>(null);
@@ -293,6 +294,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
     setDiscoveredModels([]);
     setModelDiscoveryStatus(null);
     setIsModelDropdownOpen(false);
+    setShowAllModels(false);
     try {
       const response = await fetch('/api/config/test-connection', {
         method: 'POST',
@@ -325,6 +327,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       // Save discovered models regardless of connection success
       if (Array.isArray(data.models) && data.models.length > 0) {
         setDiscoveredModels(data.models);
+        setShowAllModels(true);
+        setIsModelDropdownOpen(true);
       }
       setModelDiscoveryStatus(data.modelDiscovery || null);
 
@@ -480,10 +484,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           setConfig({...config, model: e.target.value});
                           setConnectionTestResult(null);
                           setActiveModelIndex(-1);
+                          setShowAllModels(false);
                           setIsModelDropdownOpen(true);
                         }}
                         onFocus={() => {
                           if (discoveredModels.length > 0) {
+                            setShowAllModels(true);
                             setIsModelDropdownOpen(true);
                           }
                         }}
@@ -495,6 +501,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           if (!isModelDropdownOpen || discoveredModels.length === 0) {
                             if (e.key === 'ArrowDown' && discoveredModels.length > 0) {
                               e.preventDefault();
+                              setShowAllModels(true);
                               setIsModelDropdownOpen(true);
                               setActiveModelIndex(0);
                             }
@@ -503,7 +510,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           const inputVal = config.model.toLowerCase();
                           const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
                           // When filter yields nothing, navigate the full list
-                          const navigable = filtered.length > 0 ? filtered : discoveredModels;
+                          const navigable = showAllModels || filtered.length === 0 ? discoveredModels : filtered;
                           if (e.key === 'ArrowDown') {
                             e.preventDefault();
                             setActiveModelIndex(prev =>
@@ -519,22 +526,41 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                             setConfig({...config, model: navigable[activeModelIndex]});
                             setConnectionTestResult(null);
                             setIsModelDropdownOpen(false);
+                            setShowAllModels(false);
                             setActiveModelIndex(-1);
                           } else if (e.key === 'Escape') {
                             e.stopPropagation();
                             setIsModelDropdownOpen(false);
+                            setShowAllModels(false);
                             setActiveModelIndex(-1);
                           }
                         }}
                         className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors pr-24"
                         placeholder="deepseek-chat"
                       />
-                      {discoveredModels.length > 0 && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none select-none">
-                          {modelDiscoveryStatus === 'available'
-                            ? `共 ${discoveredModels.length} 个`
-                            : <span className="text-amber-600 dark:text-amber-400">手动填入</span>}
-                        </span>
+                      {discoveredModels.length > 0 && modelDiscoveryStatus === 'available' && (
+                        <button
+                          type="button"
+                          aria-label={isModelDropdownOpen ? '收起模型列表' : '展开模型列表'}
+                          aria-expanded={isModelDropdownOpen}
+                          aria-controls="model-listbox"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            const nextOpen = !isModelDropdownOpen;
+                            setIsModelDropdownOpen(nextOpen);
+                            setShowAllModels(nextOpen);
+                            setActiveModelIndex(-1);
+                            if (nextOpen) modelInputRef.current?.focus();
+                          }}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-theme-muted hover:bg-theme-border/30 hover:text-theme-text transition-colors"
+                        >
+                          <span>共 {discoveredModels.length} 个</span>
+                          <ChevronDown
+                            size={12}
+                            aria-hidden="true"
+                            className={`transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`}
+                          />
+                        </button>
                       )}
                     </div>
 
@@ -543,8 +569,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
                       // When no models match the filter, show ALL models so the user
                       // can still pick from the full list even with a custom model name.
-                      const displayModels = filtered.length > 0 ? filtered : discoveredModels;
-                      const isFilterActive = filtered.length > 0 && filtered.length < discoveredModels.length;
+                      const displayModels = showAllModels || filtered.length === 0 ? discoveredModels : filtered;
+                      const isFilterActive = !showAllModels && filtered.length > 0 && filtered.length < discoveredModels.length;
                       return (
                         <ul
                           ref={modelListboxRef}
@@ -576,6 +602,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                                 setConfig({...config, model});
                                 setConnectionTestResult(null);
                                 setIsModelDropdownOpen(false);
+                                setShowAllModels(false);
                                 setActiveModelIndex(-1);
                                 modelInputRef.current?.focus();
                               }}
@@ -594,7 +621,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
 
                     <p className="text-[10px] text-theme-muted mt-1">
                       {discoveredModels.length > 0
-                        ? `已发现 ${discoveredModels.length} 个模型，输入名称过滤`
+                        ? `已发现 ${discoveredModels.length} 个模型，可输入搜索或点击箭头选择`
                         : '模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro'}
                     </p>
                     {discoveredModels.length > 0 && config.model && !discoveredModels.includes(config.model) && (

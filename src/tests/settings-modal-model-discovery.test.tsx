@@ -291,6 +291,38 @@ describe('SettingsModal Model Discovery', () => {
     expect(screen.getByText('gpt-4o-mini')).toBeDefined();
   });
 
+  test('explicit dropdown button shows all models while typing still filters', async () => {
+    window.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/config') return makeConfigResponse();
+      if (url === '/api/config/test-connection') return makeTestConnectionResponse();
+      return DEFAULT_FETCH(url);
+    });
+
+    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
+    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+
+    fireEvent.click(screen.getByText('测试连接'));
+    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+
+    const modelInput = document.getElementById('model-input') as HTMLInputElement;
+    fireEvent.change(modelInput, { target: { value: 'gpt' } });
+    expect(document.querySelectorAll('#model-listbox [role="option"]')).toHaveLength(2);
+
+    fireEvent.keyDown(modelInput, { key: 'Escape' });
+    const dropdownButton = screen.getByRole('button', { name: '展开模型列表' });
+    expect(dropdownButton.getAttribute('aria-controls')).toBe('model-listbox');
+    fireEvent.click(dropdownButton);
+
+    expect(dropdownButton.getAttribute('aria-expanded')).toBe('true');
+    expect(modelInput.value).toBe('gpt');
+    expect(document.querySelectorAll('#model-listbox [role="option"]')).toHaveLength(4);
+
+    fireEvent.change(modelInput, { target: { value: 'gemini' } });
+    const options = document.querySelectorAll('#model-listbox [role="option"]');
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain('gemini-2.5-pro');
+  });
+
   test('no-match filter falls back to full model list', async () => {
     window.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/config') return makeConfigResponse();
