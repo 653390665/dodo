@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStoryCards, checkStoryCardJob } from '../lib/prompt-client';
+import { generateStoryCards, checkStoryCardJob, cancelStoryCardJob } from '../lib/prompt-client';
 import type { StoryIdeaCard, StoryPlanningInput } from '../../shared/types';
 import type { ContentSource } from '../components/SourceBadge';
 
@@ -36,6 +36,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
   });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeJobIdRef = useRef<string | null>(null);
   const chatContextRef = useRef(chatContext);
 
   // Sync chatContext inside an effect to prevent React 19 concurrent render-phase side effects
@@ -47,6 +48,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (activeJobIdRef.current) void cancelStoryCardJob(activeJobIdRef.current).catch(() => {});
     };
   }, []);
 
@@ -55,10 +57,14 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
+    activeJobIdRef.current = null;
   }, []);
 
   const submit = useCallback(
     async (ideaSeed: string) => {
+      if (activeJobIdRef.current) {
+        void cancelStoryCardJob(activeJobIdRef.current).catch(() => {});
+      }
       clearPoller();
 
       setState((prev) => ({
@@ -91,6 +97,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
 
         // Start polling if we have a background model job
         if (hasModelJob && jobId) {
+          activeJobIdRef.current = jobId;
           pollRef.current = setInterval(async () => {
             try {
               const job = await checkStoryCardJob(jobId);

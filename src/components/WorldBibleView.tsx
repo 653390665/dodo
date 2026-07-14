@@ -15,7 +15,7 @@ import {
 } from '../lib/world-client';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
-import { subscribeToChanges } from '../lib/db-transport';
+import { requireResponseDatabaseGeneration, subscribeToChanges } from '../lib/db-transport';
 import { parseDocAsync } from '../lib/prompt-client';
 
 import { cn } from '../lib/utils';
@@ -98,6 +98,7 @@ export function WorldBibleView({
   const bioRequestSeqRef = React.useRef(new Map<string, number>());
   const bioAbortControllersRef = React.useRef(new Map<string, AbortController>());
   const bioCommitChainsRef = React.useRef(new Map<string, Promise<void>>());
+  const importControllerRef = React.useRef<AbortController | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -150,6 +151,8 @@ export function WorldBibleView({
     for (const controller of bioAbortControllersRef.current.values()) controller.abort();
     bioAbortControllersRef.current.clear();
     bioRequestSeqRef.current.clear();
+    importControllerRef.current?.abort();
+    importControllerRef.current = null;
   }, [novel.id]);
 
   const handleSaveGlobalInfo = async (outline: string, rules: string) => {
@@ -226,6 +229,7 @@ export function WorldBibleView({
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       if (!response.body) throw new Error('No response body');
+      const databaseGeneration = requireResponseDatabaseGeneration(response);
 
       await streamCharacterBio({
         response,
@@ -240,7 +244,7 @@ export function WorldBibleView({
             char.id,
             isCurrent,
             async () => {
-              if (!await updateCharacter(char.id, { bio })) {
+              if (!await updateCharacter(char.id, { bio }, databaseGeneration)) {
                 throw new Error('人物已不存在，小传未保存。');
               }
             },
@@ -318,6 +322,7 @@ JSON 格式规范：
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          novelId: novel.id,
           prompt: `${systemPrompt}\n\n作者：${userText}`,
           surface: 'workspace-draft'
         })
@@ -523,6 +528,9 @@ JSON 格式规范：
     setIsImporting(true);
     setImportProgress(10);
     setImportStageText('正在提取文档内容...');
+    importControllerRef.current?.abort();
+    const importController = new AbortController();
+    importControllerRef.current = importController;
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
@@ -532,13 +540,15 @@ JSON 格式规范：
 
           const extractedRaw = await parseDocAsync(
             {
+              novelId: novel.id,
               filename: file.name,
               filedata: base64Data
             },
             (progress, stageText) => {
               setImportProgress(progress);
               setImportStageText(stageText);
-            }
+            },
+            importController.signal,
           );
           // LLM extraction output is dynamically shaped; assert to the entity
           // arrays consumed below. Individual fields are best-effort and the
@@ -589,6 +599,7 @@ JSON 格式规范：
           alert(err instanceof Error ? err.message : "导入失败，文档格式不正确或解析出错");
           setIsImporting(false);
         } finally {
+          if (importControllerRef.current === importController) importControllerRef.current = null;
           if (fileInputRef.current) fileInputRef.current.value = '';
         }
       };

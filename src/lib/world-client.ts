@@ -1,7 +1,7 @@
 import type { Character, Location, Item, Faction, PowerLevel, TimelineEvent } from '../../shared/types';
 import type { EntityRelationship } from '../../shared/types';
 export type { EntityRelationship };
-import { call } from './db-transport';
+import { call, callForGeneration } from './db-transport';
 
 export async function importWorldExtraction(payload: Record<string, unknown>): Promise<void> {
   const response = await fetch('/api/world/import-extraction', {
@@ -14,17 +14,27 @@ export async function importWorldExtraction(payload: Record<string, unknown>): P
 }
 
 export async function listCharacters(novelId: string): Promise<Character[]> { return call('listCharacters', novelId); }
-export async function createCharacter(c: Character): Promise<void> { return call('createCharacter', c); }
-export async function updateCharacter(id: string, data: Partial<Character>): Promise<boolean> { return call('updateCharacter', id, data); }
+export async function createCharacter(c: Character, databaseGeneration?: number): Promise<void> {
+  return databaseGeneration === undefined ? call('createCharacter', c) : callForGeneration(databaseGeneration, 'createCharacter', c);
+}
+export async function updateCharacter(id: string, data: Partial<Character>, databaseGeneration?: number): Promise<boolean> {
+  return databaseGeneration === undefined
+    ? call('updateCharacter', id, data)
+    : callForGeneration(databaseGeneration, 'updateCharacter', id, data);
+}
 export async function deleteCharacter(id: string): Promise<boolean> { return call('deleteCharacter', id); }
 
 export async function listLocations(novelId: string): Promise<Location[]> { return call('listLocations', novelId); }
-export async function createLocation(loc: Location): Promise<void> { return call('createLocation', loc); }
+export async function createLocation(loc: Location, databaseGeneration?: number): Promise<void> {
+  return databaseGeneration === undefined ? call('createLocation', loc) : callForGeneration(databaseGeneration, 'createLocation', loc);
+}
 export async function updateLocation(id: string, data: Partial<Location>): Promise<boolean> { return call('updateLocation', id, data); }
 export async function deleteLocation(id: string): Promise<boolean> { return call('deleteLocation', id); }
 
 export async function listItems(novelId: string): Promise<Item[]> { return call('listItems', novelId); }
-export async function createItem(item: Item): Promise<void> { return call('createItem', item); }
+export async function createItem(item: Item, databaseGeneration?: number): Promise<void> {
+  return databaseGeneration === undefined ? call('createItem', item) : callForGeneration(databaseGeneration, 'createItem', item);
+}
 export async function updateItem(id: string, data: Partial<Item>): Promise<boolean> { return call('updateItem', id, data); }
 export async function deleteItem(id: string): Promise<boolean> { return call('deleteItem', id); }
 

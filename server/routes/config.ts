@@ -2,9 +2,10 @@ import { logger } from '../logger';
 import type { Express } from 'express';
 import { getConfig, getLastConfigError, reloadConfig, saveConfig, updateCachedApiKey, getLivenessStatus, setLivenessStatus } from '../lib/config';
 import { mergePromptTemplates } from '../../shared/config/prompt-templates';
-import { validate, configSchema } from '../validation';
-import { generateText } from '../lib/server-llm';
-import { withTimeout } from '../helpers/async-utils';
+import { validate, configConnectionSchema, configSchema } from '../validation';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
+import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
+import { bindClientDisconnect } from '../helpers/stream-disconnect';
 
 export function registerConfigRoutes(app: Express) {
   app.get('/api/config', (_req, res) => {
@@ -59,7 +60,9 @@ export function registerConfigRoutes(app: Express) {
     }
   });
 
-  app.post('/api/config/test-connection', async (req, res) => {
+  app.post('/api/config/test-connection', validate(configConnectionSchema), async (req, res) => {
+    const controller = new AbortController();
+    const disposeDisconnect = bindClientDisconnect(req, res, () => controller.abort());
     try {
       const { apiKey, baseUrl, model } = req.body;
       const existing = getConfig();
@@ -75,19 +78,37 @@ export function registerConfigRoutes(app: Express) {
         return res.status(400).json({ error: 'API Key 未配置' });
       }
 
-      const text = await withTimeout(
+      // A connection test happens before a project is selected, so it is an
+      // explicit non-quota operation inside the shared execution gate.
+      const execution = await createLlmExecution({
+        operation: 'config-test-connection',
+        novelId: undefined,
+        timeoutMs: 10_000,
+        concurrency: 1,
+        signal: controller.signal,
+      });
+      const text = await execution.run(({ signal }) =>
         generateText(effectiveConfig, {
           prompt: 'Please reply with the word "OK" only.',
           maxTokens: 5,
-        }),
-        10000,
-        '链接测试超时：网络超时或大模型接口响应过慢。'
-      );
+          signal,
+        }));
 
       res.json({ ok: true, message: text });
     } catch (e) {
       logger.error('POST /api/config/test-connection error:', e);
-      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.writableEnded) {
+        if (e instanceof LlmExecutionRejectedError) {
+          return res.status(e.status).json({
+            error: e.message,
+            code: e.quota.code,
+            ...(e.status === 429 ? { retryAfter: 5 } : {}),
+          });
+        }
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    } finally {
+      disposeDisconnect();
     }
   });
 
@@ -105,16 +126,20 @@ async function triggerStartupLivenessCheck() {
 
     setLivenessStatus('unknown');
 
-    // Run a quick, 5-second connection check
-    await withTimeout(
+    // Startup liveness is the same explicit non-quota exception.
+    const execution = await createLlmExecution({
+      operation: 'startup-connection-check',
+      novelId: undefined,
+      timeoutMs: 5_000,
+      concurrency: 1,
+    });
+    await execution.run(({ signal }) =>
       generateText(config, {
         prompt: 'Please reply with "OK".',
         maxTokens: 5,
         maxAttempts: 1, // Only 1 attempt during startup check
-      }),
-      5000,
-      'Startup connection check timed out'
-    );
+        signal,
+      }));
     setLivenessStatus('connected');
     logger.info('LLM startup liveness check: Connected successfully.');
   } catch (_e) {

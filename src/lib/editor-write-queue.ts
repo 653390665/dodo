@@ -5,6 +5,13 @@ interface WriteEntry {
   pending: EditorWrite | null;
   inFlight: Promise<void> | null;
   failed: boolean;
+  snapshot: unknown;
+}
+
+export interface PendingEditorWriteSnapshot {
+  key: string;
+  snapshot: unknown;
+  failed: boolean;
 }
 
 const writes = new Map<string, WriteEntry>();
@@ -17,7 +24,13 @@ function notify(): void {
 function getOrCreateEntry(key: string): WriteEntry {
   const existing = writes.get(key);
   if (existing) return existing;
-  const entry: WriteEntry = { timer: null, pending: null, inFlight: null, failed: false };
+  const entry: WriteEntry = {
+    timer: null,
+    pending: null,
+    inFlight: null,
+    failed: false,
+    snapshot: null,
+  };
   writes.set(key, entry);
   return entry;
 }
@@ -58,17 +71,31 @@ async function runPendingWrite(key: string): Promise<void> {
   await operation;
 }
 
-export function queueEditorWrite(key: string, writer: EditorWrite, delayMs = 1000): void {
+export function queueEditorWrite(
+  key: string,
+  writer: EditorWrite,
+  delayMs = 1000,
+  snapshot: unknown = null,
+): void {
   const entry = getOrCreateEntry(key);
   if (entry.timer) clearTimeout(entry.timer);
   entry.pending = writer;
   entry.failed = false;
+  entry.snapshot = snapshot;
   entry.timer = setTimeout(() => {
     void runPendingWrite(key).catch((error) => {
       console.error('[editor-write-queue] Background save failed:', error);
     });
   }, delayMs);
   notify();
+}
+
+export function getPendingEditorWriteSnapshots(): PendingEditorWriteSnapshot[] {
+  return [...writes.entries()].map(([key, entry]) => ({
+    key,
+    snapshot: entry.snapshot,
+    failed: entry.failed,
+  }));
 }
 
 export async function flushPendingEditorWrites(): Promise<void> {

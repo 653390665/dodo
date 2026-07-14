@@ -1,13 +1,47 @@
 const CLIENT_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
+export const DATABASE_GENERATION_HEADER = 'x-inkflow-database-generation';
+
+export function requireResponseDatabaseGeneration(response: Response): number {
+  const raw = response.headers.get(DATABASE_GENERATION_HEADER);
+  if (raw === null || raw.trim() === '') {
+    throw new Error('Server response is missing a valid database generation');
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error('Server response is missing a valid database generation');
+  }
+  return value;
+}
+
+export async function getDatabaseGenerationSnapshot(signal?: AbortSignal): Promise<number> {
+  const response = await fetch('/api/db/generation', { signal });
+  const payload = await response.json().catch(() => ({})) as { databaseGeneration?: number; error?: string };
+  if (!response.ok || !Number.isInteger(payload.databaseGeneration) || (payload.databaseGeneration as number) < 0) {
+    throw new Error(payload.error || 'Unable to read database generation');
+  }
+  return payload.databaseGeneration as number;
+}
 
 async function call<T = unknown>(method: string, ...args: unknown[]): Promise<T> {
+  return callWithGeneration<T>(undefined, method, ...args);
+}
+
+export async function callForGeneration<T = unknown>(
+  databaseGeneration: number,
+  method: string,
+  ...args: unknown[]
+): Promise<T> {
+  return callWithGeneration<T>(databaseGeneration, method, ...args);
+}
+
+async function callWithGeneration<T>(databaseGeneration: number | undefined, method: string, ...args: unknown[]): Promise<T> {
   const res = await fetch('/api/db', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-client-id': CLIENT_ID,
     },
-    body: JSON.stringify({ method, args }),
+    body: JSON.stringify({ method, args, ...(databaseGeneration === undefined ? {} : { databaseGeneration }) }),
   });
   if (!res.ok) {
     const err = await res.json();

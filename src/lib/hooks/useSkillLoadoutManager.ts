@@ -6,6 +6,7 @@ interface RecordSkillUsageOptions {
   auditScore?: number;
   notes?: string;
   skillIds?: string[];
+  databaseGeneration?: number;
 }
 
 interface UseSkillLoadoutManagerArgs {
@@ -43,7 +44,7 @@ export function useSkillLoadoutManager({
       userAction,
       notes: options?.notes,
       createdAt: Date.now(),
-    });
+    }, options?.databaseGeneration);
   };
 
   const assignSkillToSlot = async (slot: number, skillId: string) => {

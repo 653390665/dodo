@@ -106,9 +106,16 @@ declare global {
       setTitle: (title: string) => void;
       getAuthToken?: () => Promise<string>;
       saveConfig?: (config: unknown) => Promise<{ success: boolean; error?: string }>;
-      onPrepareClose?: (callback: () => void | Promise<void>) => () => void;
+      onPrepareClose?: (callback: (attemptId: number) => void | Promise<void>) => () => void;
       requestClose?: () => void;
-      readyToClose?: () => void;
+      readyToClose?: (attemptId: number) => Promise<boolean>;
+      reportCloseSnapshot?: (attemptId: number, snapshot: {
+        capturedAt: string;
+        location: string;
+        pendingWrites: Array<{ key: string; snapshot: unknown; failed: boolean }>;
+        visibleFields: Array<{ name: string; value: string }>;
+      }) => void;
+      closeSaveFailed?: (attemptId: number, details: { reason: string }) => void;
     };
   }
 }

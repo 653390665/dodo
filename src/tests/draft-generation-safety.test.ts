@@ -75,7 +75,7 @@ describe('draft generation save and stream gates', () => {
   test('partial draft EOF restores the baseline and creates no success records', async () => {
     globalThis.fetch = vi.fn(async () => new Response(
       'data: {"type":"token","content":"partial"}\n\n',
-      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      { status: 200, headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '11' } },
     )) as typeof fetch;
     const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
 
@@ -98,17 +98,69 @@ describe('draft generation save and stream gates', () => {
     expect(alert).toHaveBeenCalledWith(expect.stringContaining('正文保存失败'));
   });
 
+  test('scene beats use the starting generation and update UI only after persistence succeeds', async () => {
+    globalThis.fetch = vi.fn(async () => Response.json({ databaseGeneration: 9 })) as typeof fetch;
+    mocks.editorAgentPhase.mockResolvedValueOnce({ text: 'new beats', databaseGeneration: 9 });
+    const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
+
+    await act(() => hook.result.current.handleGenerateBeats());
+
+    expect(mocks.editorAgentPhase).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      9,
+      undefined,
+      expect.any(Function),
+      expect.any(AbortSignal),
+    );
+    expect(mocks.updateChapter).toHaveBeenCalledTimes(1);
+    expect(mocks.updateChapter).toHaveBeenCalledWith(chapter.id, { sceneBeats: 'new beats' }, 9);
+    expect(props.setCurrentChapter).toHaveBeenCalledTimes(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  test('guarded scene-beat persistence failure keeps the original and never attempts a client fallback', async () => {
+    globalThis.fetch = vi.fn(async () => Response.json({ databaseGeneration: 10 })) as typeof fetch;
+    mocks.editorAgentPhase.mockResolvedValueOnce({ text: 'stale beats', databaseGeneration: 10 });
+    mocks.updateChapter.mockResolvedValueOnce(false);
+    const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
+
+    await act(() => hook.result.current.handleGenerateBeats());
+
+    expect(mocks.updateChapter).toHaveBeenCalledTimes(1);
+    expect(props.setCurrentChapter).toHaveBeenCalledTimes(1);
+    const restore = props.setCurrentChapter.mock.calls[0][0] as (value: Chapter) => Chapter;
+    expect(restore({ ...chapter, sceneBeats: chapter.sceneBeats })).toMatchObject({ sceneBeats: chapter.sceneBeats });
+    expect(alert).toHaveBeenCalledWith(expect.stringContaining('分镜保存失败'));
+  });
+
+  test('editor-agent generation rejection does not create or persist an unbilled fallback', async () => {
+    globalThis.fetch = vi.fn(async () => Response.json({ databaseGeneration: 12 })) as typeof fetch;
+    mocks.editorAgentPhase.mockRejectedValueOnce(new Error('数据库已在分镜生成期间切换'));
+    const { hook } = setup(vi.fn().mockResolvedValue(undefined));
+
+    await act(() => hook.result.current.handleGenerateBeats());
+
+    expect(mocks.updateChapter).not.toHaveBeenCalled();
+    expect(alert).toHaveBeenCalledWith(expect.stringContaining('未修改当前章节'));
+  });
+
   test('auxiliary version failure does not roll back an already committed draft', async () => {
     globalThis.fetch = vi.fn(async () => new Response(
       'data: {"type":"token","content":"generated"}\n\ndata: {"type":"done","text":"generated"}\n\n',
-      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      { status: 200, headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '11' } },
     )) as typeof fetch;
     mocks.createChapterVersion.mockRejectedValueOnce(new Error('version store failed'));
     const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
 
     await act(() => hook.result.current.handleGenerateContent());
 
-    expect(mocks.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({ content: 'baseline\n\ngenerated' }));
+    expect(mocks.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({ content: 'baseline\n\ngenerated' }),
+      11,
+    );
+    expect(mocks.createChapterVersion).toHaveBeenCalledWith(expect.any(Object), 11);
     expect(props.recordSkillUsage).toHaveBeenCalledTimes(1);
     expect(props.setGenerationStatus).toHaveBeenCalledWith('正文已生成到主编辑器。');
     expect(alert).not.toHaveBeenCalled();

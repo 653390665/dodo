@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildGoogleGenerateContentRequest, buildOpenAICompatibleChatRequest, generateEmbedding } from '../server/lib/server-llm';
+import { buildGoogleGenerateContentRequest, buildOpenAICompatibleChatRequest, generateEmbedding, generateText } from '../server/lib/server-llm';
 import { DEFAULT_PROMPT_TEMPLATES } from '../shared/config/prompt-templates';
 
 test('buildGoogleGenerateContentRequest forwards system instruction and max output tokens', () => {
@@ -106,6 +106,190 @@ test('generateEmbedding sends correct POST request to OpenAI /embeddings endpoin
     const body = JSON.parse(calledInit?.body as string);
     assert.equal(body.input, 'hello world');
     assert.equal(body.model, 'text-embedding-3-small');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('generateEmbedding forwards abort to the provider request', async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  let providerSignal: AbortSignal | undefined;
+  globalThis.fetch = async (_url, init) => {
+    providerSignal = init?.signal as AbortSignal;
+    return new Promise<Response>((_resolve, reject) => {
+      providerSignal?.addEventListener('abort', () => reject(providerSignal?.reason), { once: true });
+    });
+  };
+
+  try {
+    const pending = generateEmbedding(
+      { apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'text-embedding-3-small', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      'cancel me',
+      controller.signal,
+    );
+    controller.abort(new Error('caller cancelled'));
+    await assert.rejects(pending, /caller cancelled/);
+    assert.equal(providerSignal?.aborted, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Google generation aborted during SDK loading never reaches the provider', async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  let providerCalls = 0;
+
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: 'late response' }] } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+
+  try {
+    const generation = generateText(
+      {
+        apiKey: 'mock-google-key',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        model: 'gemini-2.5-pro',
+        promptGuardLevel: 'disabled',
+        promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+      },
+      { prompt: 'continue', signal: controller.signal, timeoutMs: 5_000, maxAttempts: 1 },
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort(new Error('client disconnected'));
+
+    await assert.rejects(generation, /client disconnected|abort/i);
+    assert.equal(providerCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('pre-aborted Google embedding never reaches the provider', async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  let providerCalls = 0;
+  controller.abort(new Error('embedding cancelled before start'));
+
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(JSON.stringify({ embedding: { values: [0.1, 0.2] } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    await assert.rejects(generateEmbedding(
+      {
+        apiKey: 'mock-google-key',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        model: 'text-embedding-004',
+        promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+      },
+      'cancel me',
+      controller.signal,
+    ), /embedding cancelled before start/i);
+    assert.equal(providerCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenAI streaming stops parsing the current chunk immediately after abort', async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  const encoder = new TextEncoder();
+  const tokens: string[] = [];
+
+  globalThis.fetch = async () => new Response(new ReadableStream({
+    start(streamController) {
+      streamController.enqueue(encoder.encode([
+        'data: {"choices":[{"delta":{"content":"first"}}]}',
+        'data: {"choices":[{"delta":{"content":"second"}}]}',
+        'data: [DONE]',
+        '',
+      ].join('\n')));
+      streamController.close();
+    },
+  }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+
+  try {
+    await assert.rejects(generateText(
+      {
+        apiKey: 'mock-openai-key',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4o-mini',
+        promptGuardLevel: 'disabled',
+        promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+      },
+      {
+        prompt: 'continue',
+        signal: controller.signal,
+        timeoutMs: 5_000,
+        maxAttempts: 1,
+        onToken(token) {
+          tokens.push(token);
+          controller.abort(new Error('stop after first token'));
+        },
+      },
+    ), /stop after first token|abort/i);
+    assert.deepEqual(tokens, ['first']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Google streaming stops token callbacks immediately after abort', async () => {
+  const originalFetch = globalThis.fetch;
+  const externalController = new AbortController();
+  const encoder = new TextEncoder();
+  const tokens: string[] = [];
+  let transportSignal: AbortSignal | undefined;
+
+  globalThis.fetch = async (_url, init) => {
+    transportSignal = init?.signal ?? undefined;
+    return new Response(new ReadableStream({
+      start(streamController) {
+        streamController.enqueue(encoder.encode('data: {"candidates":[{"content":{"parts":[{"text":"first"}]}}]}\n\n'));
+        setTimeout(() => {
+          streamController.enqueue(encoder.encode('data: {"candidates":[{"content":{"parts":[{"text":"second"}]}}]}\n\n'));
+          streamController.close();
+        }, 5);
+      },
+    }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  };
+
+  try {
+    const generation = generateText(
+      {
+        apiKey: 'mock-google-key',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        model: 'gemini-2.5-pro',
+        promptGuardLevel: 'disabled',
+        promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+      },
+      {
+        prompt: 'continue',
+        signal: externalController.signal,
+        timeoutMs: 5_000,
+        maxAttempts: 1,
+        onToken(token) {
+          tokens.push(token);
+          externalController.abort(new Error('stop after first token'));
+        },
+      },
+    );
+
+    await assert.rejects(generation, /stop after first token|abort/i);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    assert.deepEqual(tokens, ['first']);
+    assert.equal(transportSignal?.aborted, true);
   } finally {
     globalThis.fetch = originalFetch;
   }

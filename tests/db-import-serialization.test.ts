@@ -10,7 +10,8 @@ const importedDbPath = path.join(testDir, 'imported.test.db');
 process.env.INKFLOW_DB_PATH = activeDbPath;
 
 test('database import serialization and recovery', async (t) => {
-  const { closeDb, initDb } = await import('../server/lib/db');
+  const { closeDb, getNovel, initDb } = await import('../server/lib/db');
+  const { refundQuota, reserveQuota } = await import('../server/helpers/quota-guard');
   const {
     getDatabaseGeneration,
     getDb,
@@ -158,6 +159,9 @@ test('database import serialization and recovery', async (t) => {
         INSERT INTO novels (id, title, author_id, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
       `).run('original-novel', '原数据库作品', 'local-user', Date.now(), Date.now());
+      const reservation = await reserveQuota('original-novel', 'generateProse');
+      assert.equal(reservation.allowed, true);
+      assert.ok(reservation.reservationId);
       closeDb();
 
       fs.writeFileSync(`${activeDbPath}-wal`, 'stale wal');
@@ -180,6 +184,17 @@ test('database import serialization and recovery', async (t) => {
 
       assert.equal(initializeCalls, 2, 'rollback must reinitialize the restored database');
       assert.ok(getDb().prepare('SELECT id FROM novels WHERE id = ?').get('original-novel'));
+      assert.equal(
+        getNovel('original-novel')?.projectPreferenceProfile?.quotaLimits?.generateProseCount,
+        1,
+        'the restored backup includes the pre-import reservation increment',
+      );
+      assert.equal(await refundQuota(reservation.reservationId), true);
+      assert.equal(
+        getNovel('original-novel')?.projectPreferenceProfile?.quotaLimits?.generateProseCount,
+        0,
+        'a failed import rollback must preserve the reservation refund path',
+      );
       assert.equal(
         getDb().prepare('SELECT id FROM novels WHERE id = ?').get('imported-novel'),
         undefined,
@@ -276,6 +291,163 @@ test('database import serialization and recovery', async (t) => {
         database.pragma('application_id = 123456');
       });
       await assertRejectedWithoutReplacement(foreignApplicationBuffer);
+    });
+
+    await t.test('rejects executable schema objects such as malicious triggers', async () => {
+      const maliciousTriggerBuffer = createCandidate('malicious-trigger.db', (database) => {
+        database.exec(`
+          CREATE TRIGGER erase_other_chapters_after_update
+          AFTER UPDATE OF content ON chapters
+          BEGIN
+            DELETE FROM chapters WHERE id <> NEW.id;
+          END;
+        `);
+      });
+      await assertRejectedWithoutReplacement(maliciousTriggerBuffer);
+    });
+
+    await t.test('rejects unknown unique, partial, and expression indexes', async () => {
+      const maliciousIndexBuffer = createCandidate('malicious-index.db', (database) => {
+        database.exec(`
+          CREATE UNIQUE INDEX unexpected_chapter_title_expression
+          ON chapters(lower(title))
+          WHERE title <> '';
+        `);
+      });
+      await assertRejectedWithoutReplacement(maliciousIndexBuffer);
+    });
+
+    await t.test('rejects table-level UNIQUE constraints hidden behind sqlite_autoindex', async () => {
+      const implicitUniqueBuffer = createCandidate('implicit-unique-index.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec(`
+          DROP TABLE chapters;
+          CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            novel_id TEXT NOT NULL,
+            volume_name TEXT,
+            title TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            "order" INTEGER DEFAULT 0,
+            word_count INTEGER DEFAULT 0,
+            scene_beats TEXT,
+            critique TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE (novel_id) ON CONFLICT REPLACE,
+            FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
+          );
+        `);
+      });
+      await assertRejectedWithoutReplacement(implicitUniqueBuffer);
+    });
+
+    await t.test('rejects a known index name with a modified definition', async () => {
+      const forgedKnownIndexBuffer = createCandidate('forged-known-index.db', (database) => {
+        database.exec(`
+          DROP INDEX idx_chapters_novel;
+          CREATE INDEX idx_chapters_novel ON chapters(novel_id DESC, title);
+        `);
+      });
+      await assertRejectedWithoutReplacement(forgedKnownIndexBuffer);
+    });
+
+    await t.test('rejects extra CHECK constraints', async () => {
+      const checkedColumnBuffer = createCandidate('checked-column.db', (database) => {
+        database.exec(`
+          ALTER TABLE chapters
+          ADD COLUMN imported_guard INTEGER CHECK (imported_guard IN (0, 1));
+        `);
+      });
+      await assertRejectedWithoutReplacement(checkedColumnBuffer);
+    });
+
+    await t.test('rejects generated columns', async () => {
+      const generatedColumnBuffer = createCandidate('generated-column.db', (database) => {
+        database.exec(`
+          ALTER TABLE chapters
+          ADD COLUMN normalized_title TEXT GENERATED ALWAYS AS (lower(title)) VIRTUAL;
+        `);
+      });
+      await assertRejectedWithoutReplacement(generatedColumnBuffer);
+    });
+
+    await t.test('rejects expression defaults', async () => {
+      const expressionDefaultBuffer = createCandidate('expression-default.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec(`
+          DROP TABLE chapters;
+          CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            novel_id TEXT NOT NULL,
+            volume_name TEXT,
+            title TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            "order" INTEGER DEFAULT 0,
+            word_count INTEGER DEFAULT 0,
+            scene_beats TEXT,
+            critique TEXT,
+            imported_nonce INTEGER DEFAULT (random()),
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE
+          );
+          CREATE INDEX idx_chapters_novel ON chapters(novel_id);
+        `);
+      });
+      await assertRejectedWithoutReplacement(expressionDefaultBuffer);
+    });
+
+    await t.test('rejects extra foreign keys', async () => {
+      const extraForeignKeyBuffer = createCandidate('extra-foreign-key.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec(`
+          DROP TABLE chapters;
+          CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            novel_id TEXT NOT NULL,
+            volume_name TEXT,
+            title TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            "order" INTEGER DEFAULT 0,
+            word_count INTEGER DEFAULT 0,
+            scene_beats TEXT,
+            critique TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE,
+            FOREIGN KEY (title) REFERENCES novels(id) ON DELETE SET NULL
+          );
+          CREATE INDEX idx_chapters_novel ON chapters(novel_id);
+        `);
+      });
+      await assertRejectedWithoutReplacement(extraForeignKeyBuffer);
+    });
+
+    await t.test('rejects modified foreign-key update actions', async () => {
+      const modifiedUpdateBuffer = createCandidate('modified-foreign-key-action.db', (database) => {
+        database.pragma('foreign_keys = OFF');
+        database.exec(`
+          DROP TABLE chapters;
+          CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            novel_id TEXT NOT NULL,
+            volume_name TEXT,
+            title TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            "order" INTEGER DEFAULT 0,
+            word_count INTEGER DEFAULT 0,
+            scene_beats TEXT,
+            critique TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (novel_id) REFERENCES novels(id)
+              ON DELETE CASCADE ON UPDATE CASCADE
+          );
+          CREATE INDEX idx_chapters_novel ON chapters(novel_id);
+        `);
+      });
+      await assertRejectedWithoutReplacement(modifiedUpdateBuffer);
     });
 
     await t.test('accepts an older valid backup and lets initialization migrate optional columns', async () => {

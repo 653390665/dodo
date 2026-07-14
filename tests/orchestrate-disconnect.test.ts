@@ -149,10 +149,12 @@ after(async () => {
 
 test('inspiration normal completion sends token and [DONE]', async () => {
   upstreamMode = 'success';
+  const novelId = 'inspiration-completion';
+  createNovel(makeNovel(novelId));
   const response = await fetch(`${baseUrl}/api/inspiration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: '给我一个雨夜灵感' }),
+    body: JSON.stringify({ prompt: '给我一个雨夜灵感', surface: 'workspace-draft', novelId }),
   });
 
   assert.equal(response.status, 200);
@@ -172,6 +174,7 @@ test('orchestrate-draft disconnect before prose delivery refunds quota', async (
     body: JSON.stringify({ novelId, contextStr: '上下文', sceneBeats: '场景节拍' }),
   });
   assert.equal(response.status, 200);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
   await response.body?.cancel();
 
   const reservationId = await waitForReservationStatus(novelId, 'refunded');
@@ -190,12 +193,13 @@ test('orchestrate-draft disconnect after first prose token commits quota', async
     body: JSON.stringify({ novelId, contextStr: '上下文', sceneBeats: '场景节拍' }),
   });
   assert.equal(response.status, 200);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
   const reader = response.body?.getReader();
   assert.ok(reader);
   const decoder = new TextDecoder();
   let received = '';
   while (!received.includes('"type":"token"')) {
-    const chunk = await reader.read();
+    const chunk: ReadableStreamReadResult<Uint8Array> = await reader.read();
     assert.equal(chunk.done, false);
     received += decoder.decode(chunk.value, { stream: true });
   }
@@ -250,7 +254,7 @@ test('orchestrate disconnect after first prose token commits quota', async () =>
   const decoder = new TextDecoder();
   let received = '';
   while (!received.includes('"type":"token"')) {
-    const chunk = await reader.read();
+    const chunk: ReadableStreamReadResult<Uint8Array> = await reader.read();
     assert.equal(chunk.done, false);
     received += decoder.decode(chunk.value, { stream: true });
   }
@@ -288,4 +292,28 @@ test('orchestrate bills delivered fallback when critic also fails', async () => 
   const reservationId = await waitForReservationStatus(novelId, 'committed');
   assert.equal(await refundQuota(reservationId), false);
   await waitForQuota(novelId, 1);
+});
+
+test('one max-iteration orchestrate workflow is not rate-limited by its own provider calls', async () => {
+  const novelId = 'orchestrate-five-iterations';
+  createNovel(makeNovel(novelId));
+  upstreamMode = 'success';
+  const requestCountBefore = upstreamRequestCount;
+
+  const response = await fetch(`${baseUrl}/api/orchestrate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      novelId,
+      contextStr: '雨夜的旧车站里只剩一盏灯',
+      sceneBeats: '主角发现一封没有署名的信',
+      includeCritic: true,
+      maxIterations: 5,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /"type":"done"/);
+  assert.doesNotMatch(body, /"type":"error"/);
+  assert.equal(upstreamRequestCount - requestCountBefore, 10);
 });

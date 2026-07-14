@@ -33,7 +33,8 @@ async function startServer() {
     } : false,
   }));
   const PORT = parseInt(process.env.PORT || '3000', 10);
-  const allowPortRetry = !process.env.PORT || process.env.NODE_ENV === 'production';
+  const allowPortRetry = process.env.INKFLOW_FIXED_PORT !== 'true'
+    && (!process.env.PORT || process.env.NODE_ENV === 'production');
 
   app.use((_req, res, next) => {
     if (fatalShutdownStarted) {

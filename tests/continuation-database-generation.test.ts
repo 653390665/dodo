@@ -121,12 +121,15 @@ test('continuation imports reject async results from an obsolete database genera
       const replacement = createReplacement('parse-replacement.db', 'replacement-b');
       resetActiveDatabase();
       const deferred = queueLlmResponse({});
+      const sessionResponse = await fetch(`${baseUrl}/api/continuation-packs/import-session`, { method: 'POST' });
+      assert.equal(sessionResponse.status, 201);
+      const session = await sessionResponse.json() as { novelId: string };
 
       const parsePromise = fetch(`${baseUrl}/api/continuation-packs/parse`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          novelId: 'continuation-import-draft-a',
+          novelId: session.novelId,
           title: '旧库资料',
           documents: [{ filename: '资料.txt', filedata }],
         }),
@@ -146,12 +149,15 @@ test('continuation imports reject async results from an obsolete database genera
       resetActiveDatabase();
       const deferred = queueLlmResponse({});
       const generationA = getDatabaseGeneration();
+      const sessionResponse = await fetch(`${baseUrl}/api/continuation-packs/import-session`, { method: 'POST' });
+      assert.equal(sessionResponse.status, 201);
+      const session = await sessionResponse.json() as { novelId: string };
 
       const parsePromise = fetch(`${baseUrl}/api/continuation-packs/parse`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          novelId: 'continuation-import-draft-b',
+          novelId: session.novelId,
           title: '待确认资料',
           documents: [{ filename: '资料.txt', filedata }],
         }),
@@ -190,6 +196,52 @@ test('continuation imports reject async results from an obsolete database genera
       assert.equal(retry.status, 404);
     });
 
+    await t.test('rejects approving a stored continuation pack for another novel', async () => {
+      resetActiveDatabase('novel-a');
+      const now = Date.now();
+      db.createNovel({
+        id: 'novel-b',
+        title: 'novel-b',
+        authorId: 'local-user',
+        summary: '',
+        status: 'ongoing',
+        createdAt: now,
+        updatedAt: now,
+      });
+      db.createContinuationPack({
+        id: 'stored-pack-a',
+        novelId: 'novel-a',
+        title: 'stored pack',
+        status: 'draft',
+        sourceDocuments: [],
+        canonFacts: [],
+        characterStates: [],
+        plotState: {
+          currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '',
+        },
+        styleProfile: {
+          pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '',
+        },
+        contradictions: [],
+        continuationTask: '',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: 'stored-pack-a',
+          mode: 'existing',
+          existingNovelId: 'novel-b',
+        }),
+      });
+      assert.equal(response.status, 409);
+      assert.equal(db.getContinuationPack('stored-pack-a')?.novelId, 'novel-a');
+      assert.equal(db.getContinuationPack('stored-pack-a')?.status, 'draft');
+    });
+
     await t.test('rejects stale world-document jobs and import confirmations', async () => {
       const replacement = createReplacement('world-replacement.db', 'shared-novel');
       resetActiveDatabase('shared-novel');
@@ -202,7 +254,7 @@ test('continuation imports reject async results from an obsolete database genera
       const start = await fetch(`${baseUrl}/api/parse-doc`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ filename: '设定.txt', filedata }),
+        body: JSON.stringify({ novelId: 'shared-novel', filename: '设定.txt', filedata }),
       });
       assert.equal(start.status, 202);
       const started = await start.json() as { jobId: string; databaseGeneration: number };

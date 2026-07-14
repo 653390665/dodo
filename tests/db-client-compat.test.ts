@@ -37,5 +37,5 @@ test('db-client compatibility layer re-exports fine-grained db modules', () => {
   assert.equal(dbClient.createForeshadowing, foreshadowingClient.createForeshadowing);
 
   assert.equal(dbClient.listChapterProductionRuns, chapterProductionDbClient.listChapterProductionRuns);
-  assert.equal(dbClient.updateChapterProductionRun, chapterProductionDbClient.updateChapterProductionRun);
+  assert.equal(dbClient.getChapterProductionRun, chapterProductionDbClient.getChapterProductionRun);
 });

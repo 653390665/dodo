@@ -45,6 +45,7 @@ interface SkillDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onSelectSkill: (skillId: string) => void;
+  novelId: string;
 }
 
 export function SkillDetailDrawer({
@@ -53,6 +54,7 @@ export function SkillDetailDrawer({
   open,
   onClose,
   onSelectSkill,
+  novelId,
 }: SkillDetailDrawerProps) {
   const [draft, setDraft] = useState<Skill | null>(buildDraft(skill));
   const [versions, setVersions] = useState<Skill[]>([]);
@@ -455,6 +457,7 @@ export function SkillDetailDrawer({
             <SkillTestBench
               baseSkill={fusionPreview || draft}
               candidates={testBenchCandidates}
+              novelId={novelId}
             />
           </section>
 

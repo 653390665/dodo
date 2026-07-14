@@ -77,4 +77,16 @@ describe('streamIdeaFragment', () => {
     expect(preview).toHaveBeenLastCalledWith('original');
     expect(commit).not.toHaveBeenCalled();
   });
+
+  test('a failed final database update restores the original expansion', async () => {
+    const preview = vi.fn();
+    await expect(streamIdeaFragment({
+      response: sseResponse('data: {"token":"expanded"}\n\ndata: [DONE]\n\n'),
+      originalExpansion: 'original',
+      isCurrent: () => true,
+      onPreview: preview,
+      onCommit: async () => { throw new Error('fragment no longer exists'); },
+    })).rejects.toThrow('fragment no longer exists');
+    expect(preview).toHaveBeenLastCalledWith('original');
+  });
 });

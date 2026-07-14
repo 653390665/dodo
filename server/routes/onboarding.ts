@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { generateId } from '../id';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
@@ -10,17 +10,38 @@ import { assessStorySeedQuality, sanitizeIdeaSeed } from '../../shared/lib/story
 import {
   STORY_CARD_MODEL_TIMEOUT_MS,
   storyCardJobs,
+  storyCardJobAbortControllers,
   createStoryCardJob,
   parseStoryCardsFromModel,
   buildFallbackStoryCards,
 } from '../helpers/story-cards';
-import { validate, storyCardsSchema } from '../validation';
+import {
+  validate,
+  setupTaskRefineSchema,
+  storyCardsSchema,
+  worldSetupExtractSchema,
+} from '../validation';
+import { createLlmExecution, LlmExecutionRejectedError, type LlmExecutionSession } from '../helpers/llm-execution-gate';
+import { bindClientDisconnect } from '../helpers/stream-disconnect';
+import { consumeOnboardingLlmSession, issueOnboardingLlmSession } from '../helpers/onboarding-llm-session';
+import { getDatabaseGeneration } from '../lib/db-instance';
 
 export function registerOnboardingRoutes(app: Express) {
+  app.post('/api/onboarding/llm-session', (_req, res) => {
+    if (!rateLimit('onboarding-llm-session')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    const operation = _req.body?.operation;
+    if (operation !== 'story-cards' && operation !== 'inspiration') {
+      return res.status(400).json({ error: 'Invalid onboarding model operation' });
+    }
+    const grant = issueOnboardingLlmSession(operation);
+    if (!grant.allowed) return res.status(grant.status).json({ error: grant.error });
+    return res.status(201).json(grant);
+  });
+
   app.post('/api/story-cards', validate(storyCardsSchema), async (req, res) => {
     if (!rateLimit('story-cards')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     try {
-      const { ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
+      const { onboardingSessionId, ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0 } = req.body;
       const ideaSeed = sanitizeIdeaSeed(rawSeed) || rawSeed.trim();
 
       if (!ideaSeed.trim()) {
@@ -34,6 +55,8 @@ export function registerOnboardingRoutes(app: Express) {
           questions: seedQuality.questions,
         });
       }
+      const session = consumeOnboardingLlmSession(onboardingSessionId, 'story-cards');
+      if (!session.allowed) return res.status(session.status).json({ error: session.error });
       const promptAsset = resolvePromptAssetForSurface({
         surface,
         promptTemplates: getConfig().promptTemplates,
@@ -56,14 +79,26 @@ export function registerOnboardingRoutes(app: Express) {
               ? '均衡推进'
               : '紧推进',
       });
-      const modelTask = generateText(getConfig(), {
-        prompt,
+      // Story cards are created before a novel exists. Keep this explicit
+      // non-quota exception inside the same cancellation/concurrency gate.
+      const jobController = new AbortController();
+      const execution = await createLlmExecution({
+        operation: 'onboarding-story-cards',
+        novelId: undefined,
         timeoutMs: STORY_CARD_MODEL_TIMEOUT_MS,
-        maxAttempts: 2,
-        maxTokens: 2048,
-      }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed));
+        concurrency: 2,
+        signal: jobController.signal,
+      });
+      const modelTask = execution.run(({ signal }) =>
+        generateText(getConfig(), {
+          prompt,
+          signal,
+          timeoutMs: STORY_CARD_MODEL_TIMEOUT_MS,
+          maxAttempts: 2,
+          maxTokens: 2048,
+        }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed)));
 
-      const jobId = createStoryCardJob(modelTask);
+      const jobId = createStoryCardJob(modelTask, jobController);
 
       // Return fallback immediately; model result arrives via job polling
       res.json({
@@ -86,9 +121,22 @@ export function registerOnboardingRoutes(app: Express) {
     res.json(job);
   });
 
-  app.post('/api/setup-task-refine', async (req, res) => {
+  app.post('/api/story-cards/jobs/:jobId/cancel', (req, res) => {
+    const job = storyCardJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Story card job not found' });
+    const controller = storyCardJobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status !== 'pending') return res.status(409).json({ error: 'Job is not cancellable' });
+    controller.abort(new Error('Story-card job cancelled'));
+    storyCardJobAbortControllers.delete(req.params.jobId);
+    storyCardJobs.set(req.params.jobId, { status: 'failed', createdAt: Date.now(), error: 'Cancelled' });
+    return res.json({ cancelled: true });
+  });
+
+  app.post('/api/setup-task-refine', validate(setupTaskRefineSchema), async (req, res) => {
+    const controller = new AbortController();
+    const disposeDisconnect = bindClientDisconnect(req, res, () => controller.abort());
     try {
-      const { taskTitle = '', currentDraft = '', userRequest = '', storyContext = '', surface = 'world-onboarding' } = req.body;
+      const { novelId, taskTitle = '', currentDraft = '', userRequest = '', storyContext = '', surface = 'world-onboarding' } = req.body;
       if (!taskTitle.trim()) {
         return res.status(400).json({ error: 'taskTitle is required' });
       }
@@ -103,7 +151,22 @@ export function registerOnboardingRoutes(app: Express) {
         userRequest: wrapUserInput(userRequest),
         storyContext,
       });
-      const text = await generateText(getConfig(), { prompt, timeoutMs: 90_000, maxAttempts: 2, maxTokens: 2048 });
+      const execution = await createLlmExecution({
+        operation: 'onboarding-setup-task-refine',
+        novelId,
+        quotaType: 'generateProse',
+        timeoutMs: 90_000,
+        concurrency: 2,
+        signal: controller.signal,
+      });
+      const text = await execution.run(({ signal }) =>
+        generateText(getConfig(), {
+          prompt,
+          signal,
+          timeoutMs: 90_000,
+          maxAttempts: 2,
+          maxTokens: 2048,
+        }));
       try {
         const parsed = JSON.parse(text);
         res.json({ text: parsed.result || text, changedFields: parsed.changedFields, reason: parsed.reason });
@@ -111,8 +174,13 @@ export function registerOnboardingRoutes(app: Express) {
         res.json({ text });
       }
     } catch (e) {
+      if (e instanceof LlmExecutionRejectedError && !res.headersSent) {
+        return res.status(e.status).json({ error: e.message, code: e.quota.code });
+      }
       logger.error(String(e));
-      res.status(500).json({ error: "Internal server error" });
+      if (!res.writableEnded) res.status(500).json({ error: "Internal server error" });
+    } finally {
+      disposeDisconnect();
     }
   });
 
@@ -123,12 +191,19 @@ export function registerOnboardingRoutes(app: Express) {
     result?: unknown;
     error?: string;
     createdAt: number;
+    databaseGeneration: number;
   }
 
   const worldSetupJobs = new Map<string, WorldSetupJob>();
+  const worldSetupJobAbortControllers = new Map<string, AbortController>();
   const WORLD_SETUP_JOB_TTL_MS = 15 * 60_000; // 15 minutes
 
-  async function runExtractWorldSetupJob(jobId: string, documentText: string) {
+  async function runExtractWorldSetupJob(
+    jobId: string,
+    documentText: string,
+    novelId: string,
+    execution: LlmExecutionSession,
+  ) {
     const updateJob = (updates: Partial<WorldSetupJob>) => {
       const current = worldSetupJobs.get(jobId);
       if (current) {
@@ -198,14 +273,18 @@ ${slicedText}
         stageText: 'AI 正在结构化生成世界观、角色与时间线卡片...'
       });
 
-      const raw = await generateText(getConfig(), {
-        prompt,
-        timeoutMs: 90_000,
-        maxAttempts: 2,
-        maxTokens: 4096,
-        responseMimeType: 'application/json',
-        disableThinking: true,
-      });
+      // World setup extraction also happens before the project is persisted.
+      const raw = await execution.run(({ signal }) =>
+        generateText(getConfig(), {
+          prompt,
+          signal,
+          timeoutMs: 90_000,
+          maxAttempts: 2,
+          maxTokens: 4096,
+          responseMimeType: 'application/json',
+          disableThinking: true,
+          novelId,
+        }));
 
       updateJob({
         progress: 85,
@@ -229,6 +308,8 @@ ${slicedText}
         stageText: '设定提取失败',
         error: String(e)
       });
+    } finally {
+      worldSetupJobAbortControllers.delete(jobId);
     }
   }
 
@@ -238,33 +319,87 @@ ${slicedText}
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'World-setup job database generation mismatch' });
+    }
+    if (job.databaseGeneration !== getDatabaseGeneration()) {
+      worldSetupJobAbortControllers.get(jobId)?.abort(new Error('Database changed'));
+      worldSetupJobAbortControllers.delete(jobId);
+      worldSetupJobs.set(jobId, {
+        ...job,
+        status: 'failed',
+        progress: 100,
+        stageText: '数据库已切换',
+        error: 'Database changed',
+      });
+      return res.status(409).json({ error: 'Database changed' });
+    }
     res.json(job);
   });
 
-  app.post('/api/extract-world-setup', async (req, res) => {
+  app.post('/api/extract-world-setup/jobs/:jobId/cancel', (req, res) => {
+    const job = worldSetupJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'World-setup job database generation mismatch' });
+    }
+    const controller = worldSetupJobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status === 'completed' || job.status === 'failed') {
+      return res.status(409).json({ error: 'Job is not cancellable' });
+    }
+    controller.abort(new Error('World-setup job cancelled'));
+    worldSetupJobAbortControllers.delete(req.params.jobId);
+    worldSetupJobs.set(req.params.jobId, { ...job, status: 'failed', progress: 100, stageText: '已取消', error: 'Cancelled' });
+    return res.json({ cancelled: true });
+  });
+
+  app.post('/api/extract-world-setup', validate(worldSetupExtractSchema), async (req, res) => {
     try {
-      const { documentText = '' } = req.body;
+      const { novelId, documentText = '' } = req.body;
       if (!documentText.trim()) {
         return res.status(400).json({ error: 'documentText is required' });
       }
 
+      const jobController = new AbortController();
+      const databaseGeneration = getDatabaseGeneration();
+      const execution = await createLlmExecution({
+        operation: 'onboarding-world-setup',
+        novelId,
+        quotaType: 'advancedAudit',
+        timeoutMs: 90_000,
+        concurrency: 1,
+        signal: jobController.signal,
+        databaseGeneration,
+      });
       const jobId = `world-setup-${generateId()}`;
       worldSetupJobs.set(jobId, {
         status: 'pending',
         progress: 10,
         stageText: '正在队列中，准备解析文档...',
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        databaseGeneration,
       });
+      worldSetupJobAbortControllers.set(jobId, jobController);
 
-      runExtractWorldSetupJob(jobId, documentText).catch(e => {
+      runExtractWorldSetupJob(jobId, documentText, novelId, execution).catch(e => {
         logger.error(`Unhandled error in background runExtractWorldSetupJob: ${e}`);
       });
 
       // TTL cleanup
-      setTimeout(() => worldSetupJobs.delete(jobId), WORLD_SETUP_JOB_TTL_MS);
+      const cleanupTimer = setTimeout(() => {
+        worldSetupJobAbortControllers.get(jobId)?.abort(new Error('World-setup job expired'));
+        worldSetupJobAbortControllers.delete(jobId);
+        worldSetupJobs.delete(jobId);
+      }, WORLD_SETUP_JOB_TTL_MS);
+      cleanupTimer.unref();
 
-      res.json({ jobId });
+      res.json({ jobId, databaseGeneration });
     } catch (e) {
+      if (e instanceof LlmExecutionRejectedError) {
+        return res.status(e.status).json({ error: e.message, code: e.quota.code });
+      }
       logger.error(String(e));
       res.status(500).json({ error: "Internal server error" });
     }

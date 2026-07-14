@@ -1,10 +1,14 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { getConfig } from '../server/lib/config.js';
 import { registerSimpleLlmRoutes } from '../server/routes/simple-llm.js';
 import { registerWorldRoutes } from '../server/routes/world.js';
+import { closeDb, createNovel, initDb } from '../server/lib/db.js';
 
 const originalFetch = globalThis.fetch;
 const config = getConfig();
@@ -17,6 +21,7 @@ const originalConfig = {
 
 let server: ReturnType<express.Express['listen']>;
 let baseUrl: string;
+let dbPath: string;
 
 function mockUpstreamSse(content: string): Response {
   const encoder = new TextEncoder();
@@ -47,6 +52,19 @@ async function readSse(response: Response): Promise<{ body: string; done: boolea
 }
 
 before(() => {
+  dbPath = path.join(os.tmpdir(), `inkflow-ordinary-sse-${process.pid}.db`);
+  closeDb();
+  initDb(dbPath);
+  createNovel({
+    id: 'sse-novel', title: 'SSE', authorId: 'local', summary: '', status: 'ongoing',
+    projectPreferenceProfile: {
+      tags: [],
+      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+      acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0,
+      commercialMode: 'paid',
+    },
+    createdAt: 1, updatedAt: 1,
+  });
   config.apiKey = 'test-api-key';
   config.baseUrl = 'https://api.openai.test/v1';
   config.model = 'test-model';
@@ -74,17 +92,20 @@ after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
+  closeDb();
+  fs.rmSync(dbPath, { force: true });
 });
 
 test('人物简介生成正常完成时发送 token 和 [DONE]', async () => {
   const response = await fetch(`${baseUrl}/api/generate-bio`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: '叶半夏' }),
+    body: JSON.stringify({ novelId: 'sse-novel', name: '叶半夏' }),
   });
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type') || '', /text\/event-stream/);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
   const sse = await readSse(response);
   assert.match(sse.body, /"token":"流式测试内容"/);
   assert.equal(sse.done, true);
@@ -94,11 +115,12 @@ test('片段扩写正常完成时发送 token 和 [DONE]', async () => {
   const response = await fetch(`${baseUrl}/api/expand-fragment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: '雨夜来客', type: '悬疑' }),
+    body: JSON.stringify({ novelId: 'sse-novel', content: '雨夜来客', type: '悬疑' }),
   });
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type') || '', /text\/event-stream/);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
   const sse = await readSse(response);
   assert.match(sse.body, /"token":"流式测试内容"/);
   assert.equal(sse.done, true);

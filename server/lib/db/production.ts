@@ -7,7 +7,7 @@ const chapterProductionRunCrud = createCrudHelpers<ChapterProductionRun, ReturnT
   rowToEntity: rowToChapterProductionRun,
   entityToRow: chapterProductionRunToRow,
   insertColumns: ['id', 'novel_id', 'target_chapter_id', 'status', 'user_intent', 'scene_beats', 'draft_content', 'style_audit', 'continuity_report', 'error_message', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'target_chapter_id', 'status', 'user_intent', 'scene_beats', 'draft_content', 'style_audit', 'continuity_report', 'error_message', 'updated_at'],
+  updateColumns: ['target_chapter_id', 'status', 'user_intent', 'scene_beats', 'draft_content', 'style_audit', 'continuity_report', 'error_message', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: 'created_at DESC'
 });

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from '../../lib/toast';
 import { listNovels, updateNovel } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
-import { extractSkill, checkSkillExtractionJob, QuotaError } from '../../lib/prompt-client';
+import { extractSkill, checkSkillExtractionJob, cancelSkillExtractionJob, QuotaError } from '../../lib/prompt-client';
+import { readDraftStream } from '../../lib/draft-stream';
 import { useNovelStore } from '../../stores/novel-store';
 import { useAppStore } from '../../stores/app-store';
 import { coerceMountedSkillLoadout } from '../../lib/skill-model';
@@ -204,6 +205,7 @@ export function useBookFactory() {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      void cancelSkillExtractionJob(extractionJobId).catch(() => {});
     };
   }, [extractionJobId, isModelPending]);
 
@@ -230,6 +232,10 @@ export function useBookFactory() {
 
   const handleAnalyze = async () => {
     if (!fileContent) return;
+    if (!selectedNovel) {
+      toast('请先选择要绑定的作品，再开始拆书萃取。', 'error');
+      return;
+    }
     setIsAnalyzing(true);
     setSkillCards([]);
     setSelectedSkillIndex(0);
@@ -245,7 +251,7 @@ export function useBookFactory() {
     setExtractionStatusNote('正在拆书与提炼本地保底卡……');
 
     try {
-      const data = await extractSkill(fileContent, selectedNovel?.id || undefined);
+      const data = await extractSkill(fileContent, selectedNovel.id);
       const normalized = normalizeSkillConfigs(data);
       if (normalized.length === 0) {
         throw new Error('拆书接口返回成功，但没有可展示的技能卡。');
@@ -293,6 +299,10 @@ export function useBookFactory() {
 
   const handleTestDrive = async () => {
     if (!selectedSkill || !testInput) return;
+    if (!selectedNovel) {
+      toast('请先选择要计费和承载试驾结果的作品。', 'error');
+      return;
+    }
     setIsTesting(true);
     try {
       const response = await fetch('/api/orchestrate', {
@@ -306,30 +316,19 @@ export function useBookFactory() {
           skills: [selectedSkill],
           maxIterations: 1,
           draftContent: "",
-          includeCritic: false
+          includeCritic: false,
+          novelId: selectedNovel.id,
         })
       });
-      if (!response.body) throw new Error("No response body");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let streamedText = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunkStr = decoder.decode(value, { stream: true });
-        const messages = chunkStr.split('\n\n').filter(Boolean);
-        for (const msg of messages) {
-          if (msg.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(msg.replace('data: ', ''));
-              if (data.type === 'token') {
-                streamedText += data.content;
-                setTestOutput(streamedText);
-              }
-            } catch {}
-          }
-        }
-      }
+      if (!response.ok) throw new Error(await response.text() || `HTTP ${response.status}`);
+      let streamedText = '';
+      streamedText = await readDraftStream(response, {
+        onToken: (token) => {
+          streamedText += token;
+          setTestOutput(streamedText);
+        },
+      });
+      setTestOutput(streamedText);
     } catch {
       toast('模拟失败', 'error');
     } finally {

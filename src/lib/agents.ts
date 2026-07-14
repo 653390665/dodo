@@ -33,6 +33,18 @@ export interface ExtractedWorldSetup {
   timelineEvents?: Array<Partial<TimelineEvent>>;
 }
 
+export interface ExtractedWorldSetupJobResult {
+  result: ExtractedWorldSetup;
+  databaseGeneration: number;
+}
+
+export class EditorAgentGenerationChangedError extends Error {
+  constructor() {
+    super('数据库已在分镜生成期间切换');
+    this.name = 'EditorAgentGenerationChangedError';
+  }
+}
+
 const MAX_WORLD_RULES_CHARS = 1200;
 const MAX_GLOBAL_OUTLINE_CHARS = 1800;
 const MAX_PREVIOUS_CHAPTERS_CHARS = 2200;
@@ -156,34 +168,53 @@ ${(() => {
  */
 export async function extractWorldSetupPhase(
   documentText: string,
-  onProgress?: (progress: number, status: string) => void
-): Promise<ExtractedWorldSetup> {
+  novelId: string,
+  onProgress?: (progress: number, status: string) => void,
+  signal?: AbortSignal,
+): Promise<ExtractedWorldSetupJobResult> {
   const response = await fetch('/api/extract-world-setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documentText })
+    body: JSON.stringify({ documentText, novelId })
   });
   const data = await response.json();
   if (!response.ok || data.error) {
     throw new Error(data.error || 'Failed to extract world setup');
   }
 
-  const { jobId } = data;
-  if (!jobId) {
+  const { jobId, databaseGeneration } = data;
+  if (!jobId || !Number.isInteger(databaseGeneration)) {
     throw new Error('Server did not return a jobId for extract-world-setup');
   }
 
-  return await pollJob<ExtractedWorldSetup>(`/api/extract-world-setup/jobs/${jobId}`, {
-    onProgress,
-  });
+  let completed = false;
+  let cancelled = false;
+  const cancel = () => {
+    if (completed || cancelled) return;
+    cancelled = true;
+    void fetch(`/api/extract-world-setup/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, { method: 'POST' }).catch(() => {});
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    const result = await pollJob<ExtractedWorldSetup>(`/api/extract-world-setup/jobs/${jobId}?databaseGeneration=${databaseGeneration}`, {
+      onProgress,
+    }, signal);
+    completed = true;
+    return { result, databaseGeneration };
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+    if (!completed) cancel();
+  }
 }
 
 export async function editorAgentPhase(
   userIntent: string,
   context: AgentContext,
+  databaseGeneration: number,
   continuationPackId?: string,
-  onProgress?: (progress: number, status: string) => void
-): Promise<string> {
+  onProgress?: (progress: number, status: string) => void,
+  signal?: AbortSignal,
+): Promise<{ text: string; databaseGeneration: number }> {
   const contextStr = buildContextPrompt(context);
 
   const response = await fetch('/api/editor-agent', {
@@ -195,24 +226,52 @@ export async function editorAgentPhase(
       surface: 'workspace-beats' satisfies PromptSurface,
       chapterOrder: context.chapterOrder,
       novelId: context.novel.id,
+      databaseGeneration,
       skills: context.mountedSkills,
       ...(continuationPackId ? { continuationPackId } : {})
-    })
+    }),
+    signal,
   });
   const data = await response.json();
   if (!response.ok || data.error) {
+    if (response.status === 409) throw new EditorAgentGenerationChangedError();
     throw new Error(data.error || 'Failed to generate scene beats');
   }
 
-  const { jobId } = data;
-  if (!jobId) {
+  const { jobId, databaseGeneration: responseGeneration } = data;
+  if (!jobId || responseGeneration !== databaseGeneration) {
     throw new Error('Server did not return a jobId for editor-agent');
   }
 
-  // Poll the job status using the reusable pollJob utility
-  const result = await pollJob<{ text: string }>(`/api/agents/jobs/${jobId}`, {
-    onProgress,
-  });
+  let completed = false;
+  let cancelled = false;
+  const cancel = () => {
+    if (completed || cancelled) return;
+    cancelled = true;
+    void fetch(`/api/agents/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, {
+      method: 'POST',
+    }).catch(() => {});
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    let result: { text: string };
+    try {
+      result = await pollJob<{ text: string }>(
+        `/api/agents/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`,
+        { onProgress },
+        signal,
+      );
+    } catch (error) {
+      if (error instanceof Error && /HTTP 409/.test(error.message)) {
+        throw new EditorAgentGenerationChangedError();
+      }
+      throw error;
+    }
 
-  return result.text || '';
+    completed = true;
+    return { text: result.text || '', databaseGeneration };
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+    if (!completed) cancel();
+  }
 }

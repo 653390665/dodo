@@ -18,16 +18,23 @@ export type SkillExtractionJob = {
 
 export const SKILL_EXTRACTION_JOB_TTL_MS = 10 * 60_000;
 export const skillExtractionJobs = new Map<string, SkillExtractionJob>();
+export const skillExtractionJobAbortControllers = new Map<string, AbortController>();
 
-export function createSkillExtractionJob(task: Promise<SkillExtractionResult>): string {
+export function createSkillExtractionJob(
+  task: Promise<SkillExtractionResult>,
+  controller: AbortController = new AbortController(),
+): string {
   const jobId = `skill-extract-${generateId()}`;
   skillExtractionJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  skillExtractionJobAbortControllers.set(jobId, controller);
 
   task
     .then((result) => {
+      skillExtractionJobAbortControllers.delete(jobId);
       skillExtractionJobs.set(jobId, { status: 'completed', createdAt: Date.now(), result });
     })
     .catch((error) => {
+      skillExtractionJobAbortControllers.delete(jobId);
       skillExtractionJobs.set(jobId, {
         status: 'failed',
         createdAt: Date.now(),
@@ -35,7 +42,11 @@ export function createSkillExtractionJob(task: Promise<SkillExtractionResult>): 
       });
     });
 
-  const timer = setTimeout(() => skillExtractionJobs.delete(jobId), SKILL_EXTRACTION_JOB_TTL_MS);
+  const timer = setTimeout(() => {
+    skillExtractionJobAbortControllers.get(jobId)?.abort(new Error('Skill extraction job expired'));
+    skillExtractionJobAbortControllers.delete(jobId);
+    skillExtractionJobs.delete(jobId);
+  }, SKILL_EXTRACTION_JOB_TTL_MS);
   if (typeof timer.unref === 'function') {
     timer.unref();
   }

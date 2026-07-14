@@ -92,6 +92,7 @@ export interface ContinuityReport {
   score: number;
   issues: ContinuityIssue[];
   proposedPatch: ProposedLedgerPatch;
+  continuationPackId?: string;
 }
 
 export type ChapterProductionRunStatus =
@@ -158,4 +159,3 @@ export interface Scene {
   createdAt: number;
   updatedAt: number;
 }
-

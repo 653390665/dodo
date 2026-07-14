@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 
 import { Foreshadowing, Chapter } from '../../shared/types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
+import { startWorldJob } from '../lib/world-job-client';
 
 const STATUS_CONFIG = {
   planted: { label: '已埋设', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -25,6 +26,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const [newDesc, setNewDesc] = useState('');
   const [filter, setFilter] = useState<'all' | 'planted' | 'hinted' | 'payoff'>('all');
   const [detecting, setDetecting] = useState(false);
+  const detectControllerRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
     setItems(await listForeshadowings(novelId));
@@ -32,6 +34,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   }, [novelId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+  useEffect(() => () => detectControllerRef.current?.abort(), []);
 
   const handleAdd = async () => {
     if (!newTitle.trim()) return;
@@ -69,21 +72,21 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       return;
     }
     setDetecting(true);
+    detectControllerRef.current?.abort();
+    const controller = new AbortController();
+    detectControllerRef.current = controller;
     try {
-      const res = await fetch('/api/detect-foreshadowing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { result: detected, databaseGeneration } = await startWorldJob<Array<{ title: string; description: string; type: string }>>(
+        '/api/detect-foreshadowing',
+        {
+          novelId,
           chapterContent: targetChapter.content,
           chapterTitle: targetChapter.title,
           existingForeshadowings: items.map(i => ({ title: i.title, status: i.status })),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || `Server returned ${res.status}`);
-      }
-      const detected = await res.json();
+        },
+        {},
+        controller.signal,
+      );
       if (Array.isArray(detected)) {
         for (const d of detected) {
           await createForeshadowing({
@@ -97,14 +100,18 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
             relatedCharacterIds: [],
             createdAt: Date.now(),
             updatedAt: Date.now(),
-          });
+          }, databaseGeneration);
         }
       }
       refresh();
     } catch (e) {
+      if (controller.signal.aborted) return;
       alert('AI 扫描失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
-      setDetecting(false);
+      if (detectControllerRef.current === controller) {
+        detectControllerRef.current = null;
+        setDetecting(false);
+      }
     }
   };
 

@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, FileText, Loader2, PlusCircle, Upload } from 'lucide-react';
-import JSZip from 'jszip';
 
 import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { listNovels } from '../lib/novel-client';
-import { parseContinuationPack } from '../lib/prompt-client';
+import { createContinuationImportSession, parseContinuationPack } from '../lib/prompt-client';
 import { approveContinuationImport } from '../lib/continuation-client';
 import {
   buildImportedNovelDraft,
@@ -13,25 +12,14 @@ import {
   resolveContinuationImportTargetMode,
 } from '../lib/continuation-import-flow';
 import { buildCreationIntentDraft } from '../lib/continuation-pack';
+import { expandContinuationZip } from '../lib/continuation-zip-client';
+import { isSupportedContinuationDocument, sanitizeArchivePath } from '../../shared/lib/archive-limits';
 
 // 校验文档是否是合法的、高熵的文本输入（排除系统临时文件如 .DS_Store 及 __MACOSX 目录）
-const isValidDocument = (filename: string): boolean => {
-  const name = filename.toLowerCase();
-  if (name.includes('__macosx') || name.startsWith('.') || name.includes('/.')) {
-    return false;
-  }
-  return name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.docx');
-};
+const isValidDocument = isSupportedContinuationDocument;
 
 // 消毒文件路径，防御 Zip Slip (路径遍历/穿透) 漏洞
-const sanitizePath = (path: string): string => {
-  let clean = path.replace(/\\/g, '/');
-  // 移除盘符如 C:/
-  clean = clean.replace(/^[a-zA-Z]:\//, '');
-  // 切分段并过滤掉空段、"." 以及 ".." 防止逃逸
-  const segments = clean.split('/').filter((s) => s && s !== '.' && s !== '..');
-  return segments.join('/');
-};
+const sanitizePath = sanitizeArchivePath;
 
 
 interface ContinuationImportViewProps {
@@ -98,21 +86,10 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
 
     for (const file of filesToProcess) {
       const filename = file.name;
-      // 如果是 ZIP 压缩包，在前端内存中完成异步解压
+      // ZIP 在独立 Worker 内受资源预算约束地解压，避免阻塞渲染器或遭受 ZIP bomb。
       if (filename.toLowerCase().endsWith('.zip')) {
         try {
-          const zip = await JSZip.loadAsync(file);
-          for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-            if (!zipEntry.dir && isValidDocument(relativePath)) {
-              const cleanedRelativePath = sanitizePath(relativePath);
-              if (!cleanedRelativePath) continue;
-              const contentBuffer = await zipEntry.async('arraybuffer');
-              const virtualFile = new File([contentBuffer], cleanedRelativePath, {
-                type: 'application/octet-stream',
-              });
-              newFiles.push(virtualFile);
-            }
-          }
+          newFiles.push(...await expandContinuationZip(file));
         } catch (err) {
           setError(`解包文件 ${filename} 失败: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -215,11 +192,6 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const handleParse = async () => {
     if (uploadActionDisabled) return;
 
-    const parseNovelId =
-      targetMode === 'existing'
-        ? selectedNovelId
-        : `continuation-import-draft-${Date.now()}`;
-
     setIsParsing(true);
     setParseProgress(0);
     setParseStageText('正在读取资料包并展开文档树...');
@@ -229,6 +201,9 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     setParsedState(null);
 
     try {
+      const parseNovelId = targetMode === 'existing'
+        ? selectedNovelId
+        : await createContinuationImportSession();
       const documents = await Promise.all(
         files.map(async (file) => ({
           filename: file.name,

@@ -18,6 +18,8 @@ test('cosineSimilarity calculates correct similarity', () => {
   assert.equal(cosineSimilarity(v1, v2), 1);
   assert.equal(cosineSimilarity(v1, v3), 0);
   assert.equal(cosineSimilarity(v1, v4), -1);
+  assert.equal(cosineSimilarity([1, 0], [1]), 0);
+  assert.equal(cosineSimilarity([1, Number.NaN], [1, 0]), 0);
 });
 
 test('embed calls generateEmbedding on fallback when WASM pipeline is not ready', async () => {

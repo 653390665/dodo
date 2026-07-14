@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Chapter, Character, Item, Location, SniffedEntities } from '../../../shared/types';
 import { createCharacter, createItem, createLocation } from '../world-client';
+import { startWorldJob } from '../world-job-client';
 
 interface UseEntitySniffingArgs {
   novelId: string;
@@ -9,6 +10,18 @@ interface UseEntitySniffingArgs {
   characters: Character[];
   locations: Location[];
   items: Item[];
+}
+
+interface GeneratedEntityDetails {
+  entityType?: 'character' | 'location' | 'item';
+  name?: string;
+  role?: Character['role'];
+  summary?: string;
+  traits?: string[];
+  bio?: string;
+  region?: string;
+  description?: string;
+  type?: string;
 }
 
 export function useEntitySniffing({
@@ -23,16 +36,22 @@ export function useEntitySniffing({
   const [addingEntityNames, setAddingEntityNames] = useState<string[]>([]);
 
   const requestSeqRef = useRef(0);
+  const sniffControllerRef = useRef<AbortController | null>(null);
+  const sniffDatabaseGenerationRef = useRef<number | null>(null);
+
+  useEffect(() => () => sniffControllerRef.current?.abort(), []);
 
   const handleAddSniffedEntity = async (entity: SniffedEntities['newEntities'][number]) => {
     setAddingEntityNames((prev) => [...prev, entity.name]);
     try {
-      const response = await fetch('/api/generate-entity-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entity),
-      });
-      const data = await response.json();
+      const { result: data, databaseGeneration } = await startWorldJob<GeneratedEntityDetails>(
+        '/api/generate-entity-details',
+        {
+          ...entity,
+          novelId,
+          ...(sniffDatabaseGenerationRef.current === null ? {} : { databaseGeneration: sniffDatabaseGenerationRef.current }),
+        },
+      );
 
       const now = Date.now();
 
@@ -40,34 +59,34 @@ export function useEntitySniffing({
         await createCharacter({
           id: Date.now().toString(),
           novelId,
-          name: data.name,
+          name: data.name || entity.name,
           role: data.role || 'supporting',
           summary: data.summary || '',
           traits: data.traits || [],
           bio: data.bio || '',
           createdAt: now,
           updatedAt: now,
-        });
+        }, databaseGeneration);
       } else if (data.entityType === 'location') {
         await createLocation({
           id: Date.now().toString(),
           novelId,
-          name: data.name,
+          name: data.name || entity.name,
           region: data.region || '',
           description: data.description || '',
           createdAt: now,
           updatedAt: now,
-        });
+        }, databaseGeneration);
       } else if (data.entityType === 'item') {
         await createItem({
           id: Date.now().toString(),
           novelId,
-          name: data.name,
+          name: data.name || entity.name,
           type: data.type || '',
           description: data.description || '',
           createdAt: now,
           updatedAt: now,
-        });
+        }, databaseGeneration);
       }
 
       setSniffedEntities((prev) => {
@@ -89,6 +108,9 @@ export function useEntitySniffing({
     if (!currentChapter) return;
 
     const currentSeq = ++requestSeqRef.current;
+    sniffControllerRef.current?.abort();
+    const controller = new AbortController();
+    sniffControllerRef.current = controller;
 
     setIsSniffing(true);
     try {
@@ -99,19 +121,23 @@ export function useEntitySniffing({
       ].filter(Boolean);
       const textToScan = `${currentChapter.sceneBeats || ''}\n${currentChapter.content || ''}`;
 
-      const response = await fetch('/api/extract-entities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToScan, existingNames }),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const { result: data, databaseGeneration } = await startWorldJob<SniffedEntities>(
+        '/api/extract-entities',
+        { novelId, text: textToScan, existingNames },
+        {},
+        controller.signal,
+      );
       if (currentChapter?.id !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      sniffDatabaseGenerationRef.current = databaseGeneration;
       setSniffedEntities(data);
     } catch {
+      if (controller.signal.aborted) return;
       alert('嗅探失败');
     } finally {
-      setIsSniffing(false);
+      if (sniffControllerRef.current === controller) {
+        sniffControllerRef.current = null;
+        setIsSniffing(false);
+      }
     }
   };
 

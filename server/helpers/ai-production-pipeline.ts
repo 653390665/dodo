@@ -1,4 +1,4 @@
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from './governed-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
@@ -60,13 +60,14 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
  * If Planner or Writer fails, falls back to deterministic helpers.
  */
 export async function runProductionPipeline(params: {
+  novelId: string;
   userIntent: string;
   contextStr: string;
   skills?: Skill[];
   learnedPreferences?: LearnedPreference[];
   progress?: PipelineProgress;
 }): Promise<PipelineResult> {
-  const { userIntent, contextStr, skills = [], learnedPreferences = [], progress = {} } = params;
+  const { novelId, userIntent, contextStr, skills = [], learnedPreferences = [], progress = {} } = params;
 
   // Build learned preference context
   const learnedContext = learnedPreferences.length > 0
@@ -100,6 +101,13 @@ export async function runProductionPipeline(params: {
       timeoutMs: 8_000,
       maxAttempts: 1,
       maxTokens: 1600,
+      signal: progress.signal,
+      novelId,
+    }, {
+      operation: 'production-pipeline-planner',
+      novelId,
+      timeoutMs: 8_000,
+      concurrency: 2,
       signal: progress.signal,
     });
   } catch (err) {
@@ -144,6 +152,13 @@ export async function runProductionPipeline(params: {
         onToken: (token) => {
           progress.onWriterToken?.(token);
         },
+        novelId,
+      }, {
+        operation: 'production-pipeline-writer',
+        novelId,
+        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+        concurrency: 2,
+        signal: progress.signal,
       });
       currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
     } catch (err) {
@@ -181,6 +196,13 @@ export async function runProductionPipeline(params: {
       criticFeedback = await generateText(getConfig(), {
         prompt: criticPrompt,
         ...CRITIC_LLM_OPTIONS,
+        signal: progress.signal,
+        novelId,
+      }, {
+        operation: 'production-pipeline-critic',
+        novelId,
+        timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
+        concurrency: 2,
         signal: progress.signal,
       });
     } catch (err) {

@@ -1,12 +1,21 @@
 import type { Response } from 'express';
 
-export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+  options: { controller?: AbortController } = {},
+): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+        timer = setTimeout(() => {
+          const timeoutError = new Error(message);
+          options.controller?.abort(timeoutError);
+          reject(timeoutError);
+        }, timeoutMs);
       }),
     ]);
   } finally {
