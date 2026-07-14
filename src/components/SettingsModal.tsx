@@ -48,6 +48,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const [activeModelIndex, setActiveModelIndex] = useState(-1);
   const modelInputRef = React.useRef<HTMLInputElement>(null);
   const modelListboxRef = React.useRef<HTMLUListElement>(null);
+  const testRequestIdRef = React.useRef(0);
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -266,6 +267,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   };
 
   const handleTestConnection = async () => {
+    const currentId = ++testRequestIdRef.current;
     setIsTestingConnection(true);
     setConnectionTestResult(null);
     setDiscoveredModels([]);
@@ -282,6 +284,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         }),
       });
       const data = await response.json().catch(() => ({}));
+
+      // Ignore stale responses — API Key/Base URL may have changed since request
+      if (currentId !== testRequestIdRef.current) return;
+
       if (response.status === 401) {
         throw new Error('API Key 验证失败');
       }
@@ -311,12 +317,15 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         message: data.message || '模型连接成功！',
       });
     } catch (error) {
+      if (currentId !== testRequestIdRef.current) return;
       setConnectionTestResult({
         success: false,
         message: error instanceof Error ? error.message : '连接错误，请检查网络或配置。',
       });
     } finally {
-      setIsTestingConnection(false);
+      if (currentId === testRequestIdRef.current) {
+        setIsTestingConnection(false);
+      }
     }
   };
 
@@ -455,19 +464,21 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           }
                           const inputVal = config.model.toLowerCase();
                           const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
+                          // When filter yields nothing, navigate the full list
+                          const navigable = filtered.length > 0 ? filtered : discoveredModels;
                           if (e.key === 'ArrowDown') {
                             e.preventDefault();
                             setActiveModelIndex(prev =>
-                              prev < filtered.length - 1 ? prev + 1 : 0
+                              prev < navigable.length - 1 ? prev + 1 : 0
                             );
                           } else if (e.key === 'ArrowUp') {
                             e.preventDefault();
                             setActiveModelIndex(prev =>
-                              prev > 0 ? prev - 1 : filtered.length - 1
+                              prev > 0 ? prev - 1 : navigable.length - 1
                             );
-                          } else if (e.key === 'Enter' && activeModelIndex >= 0 && filtered[activeModelIndex]) {
+                          } else if (e.key === 'Enter' && activeModelIndex >= 0 && navigable[activeModelIndex]) {
                             e.preventDefault();
-                            setConfig({...config, model: filtered[activeModelIndex]});
+                            setConfig({...config, model: navigable[activeModelIndex]});
                             setConnectionTestResult(null);
                             setIsModelDropdownOpen(false);
                             setActiveModelIndex(-1);
@@ -491,7 +502,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                     {isModelDropdownOpen && discoveredModels.length > 0 && (() => {
                       const inputVal = config.model.toLowerCase();
                       const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
-                      if (filtered.length === 0) return null;
+                      // When no models match the filter, show ALL models so the user
+                      // can still pick from the full list even with a custom model name.
+                      const displayModels = filtered.length > 0 ? filtered : discoveredModels;
+                      const isFilterActive = filtered.length > 0 && filtered.length < discoveredModels.length;
                       return (
                         <ul
                           ref={modelListboxRef}
@@ -500,7 +514,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           aria-label="可用模型"
                           className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-theme-border bg-theme-bg shadow-lg"
                         >
-                          {filtered.map((model, index) => (
+                          {!isFilterActive && filtered.length === 0 && (
+                            <li className="px-3 py-2 text-xs text-theme-muted italic pointer-events-none" role="presentation">
+                              当前输入未匹配，展示全部模型
+                            </li>
+                          )}
+                          {displayModels.map((model, index) => (
                             <li
                               key={model}
                               id={`model-option-${index}`}

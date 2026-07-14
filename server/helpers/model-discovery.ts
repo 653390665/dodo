@@ -63,14 +63,15 @@ async function discoverGoogleModels(
   const { GoogleGenAI } = await import('@google/genai');
   const ai = new GoogleGenAI({ apiKey: config.apiKey });
 
-  // The SDK list() method accepts a ListModelsParameters object.
-  const page = await ai.models.list({ config: { httpOptions: { abortSignal: signal } } });
+  // The SDK list() returns an async iterable Pager; use for await.
+  // abortSignal is passed at the ListModelsConfig level.
+  const page = await ai.models.list({ config: { abortSignal: signal } });
 
   const raw: string[] = [];
-  for (const model of page) {
+  for await (const model of page) {
     // Only keep models that support text generation.
-    const supported = model.supportedGenerationMethods;
-    if (!supported || supported.includes('generateContent')) {
+    const actions = model.supportedActions;
+    if (!actions || actions.includes('generateContent')) {
       // The SDK returns full resource names like "models/gemini-2.5-pro";
       // strip the "models/" prefix for display.
       const id = (model.name || '').replace(/^models\//, '');

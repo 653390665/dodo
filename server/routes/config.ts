@@ -79,9 +79,61 @@ export function registerConfigRoutes(app: Express) {
         return res.status(400).json({ error: 'API Key 未配置' });
       }
 
-      // ── Phase 1: Model discovery (shares the execution gate's signal + timeout) ──
-      // A connection test happens before a project is selected, so it is an
-      // explicit non-quota operation inside the shared execution gate.
+      // ── Phase 1: Model discovery (plain HTTP, no execution gate needed) ──
+      let models: string[] = [];
+      let modelDiscovery: 'available' | 'unsupported' = 'unsupported';
+      let discoveryWarning: string | undefined;
+
+      try {
+        const result = await discoverModels(effectiveConfig, controller.signal);
+        models = result.models;
+        modelDiscovery = result.discovery;
+      } catch (e) {
+        // 401/403 from discovery — surface as credential failure.
+        const status = (e as Error & { status?: number }).status;
+        if (status === 401 || status === 403) {
+          return res.status(401).json({ error: 'API Key 验证失败' });
+        }
+        // Other discovery errors — degrade gracefully.
+        discoveryWarning = '模型列表获取失败，请手动填写模型名称';
+      }
+
+      // ── Phase 2: Connection test (uses one-shot LLM execution gate) ──
+      // Build the response shape first, then probe if appropriate.
+      const responseBase = {
+        models,
+        modelDiscovery,
+        ...(discoveryWarning ? { warning: discoveryWarning } : {}),
+      };
+
+      // If discovery was successful and the model is NOT in the list, don't probe.
+      // If discovery was unsupported (private proxy), ALWAYS allow manual entry probe.
+      // If model is empty, return the list for selection.
+      if (!effectiveConfig.model) {
+        return res.json({
+          ...responseBase,
+          ok: false,
+          connectionOk: false,
+          selectedModelValid: false,
+          modelTested: false,
+          message: models.length > 0
+            ? '请从已发现的模型中选择一个'
+            : '请输入模型名称',
+        });
+      }
+
+      if (modelDiscovery === 'available' && models.length > 0 && !models.includes(effectiveConfig.model)) {
+        return res.json({
+          ...responseBase,
+          ok: false,
+          connectionOk: false,
+          selectedModelValid: false,
+          modelTested: false,
+          message: `模型 "${effectiveConfig.model}" 不在可用列表中，请选择后再次测试`,
+        });
+      }
+
+      // Probe the model via a short generation.
       const execution = await createLlmExecution({
         operation: 'config-test-connection',
         novelId: undefined,
@@ -90,65 +142,21 @@ export function registerConfigRoutes(app: Express) {
         signal: controller.signal,
       });
 
-      let models: string[] = [];
-      let modelDiscovery: 'available' | 'unsupported' = 'unsupported';
-      let discoveryWarning: string | undefined;
-
-      try {
-        const result = await execution.run(({ signal }) => discoverModels(effectiveConfig, signal));
-        models = result.models;
-        modelDiscovery = result.discovery;
-      } catch (e) {
-        // 401/403 from discovery — surface as a credential warning but keep going.
-        const status = (e as Error & { status?: number }).status;
-        if (status === 401 || status === 403) {
-          return res.status(401).json({ error: 'API Key 验证失败' });
-        }
-        // Other discovery errors — degrade gracefully, continue to connection test.
-        discoveryWarning = '模型列表获取失败，请手动填写模型名称';
-      }
-
-      const selectedModelValid = !!effectiveConfig.model && models.includes(effectiveConfig.model);
-
-      // ── Phase 2: Connection test (only when model is known to be valid) ──
-      // If the model is empty or not in the discovered list, skip the generation
-      // probe; return the model list so the user can pick one.
-      if (!effectiveConfig.model || !selectedModelValid) {
-        const message = effectiveConfig.model
-          ? `模型 "${effectiveConfig.model}" 不在可用列表中，请选择后再次测试`
-          : '请从已发现的模型中选择一个';
-        return res.json({
-          ok: false,
-          connectionOk: false,
-          models,
-          modelDiscovery,
-          selectedModelValid: false,
-          modelTested: false,
-          message,
-          ...(discoveryWarning ? { warning: discoveryWarning } : {}),
-        });
-      }
-
-      let connectionOk = false;
-      let message = '';
       const text = await execution.run(({ signal }) =>
         generateText(effectiveConfig, {
           prompt: 'Please reply with the word "OK" only.',
           maxTokens: 5,
           signal,
-        }));
-      connectionOk = true;
-      message = text;
+        }),
+      );
 
-      res.json({
+      return res.json({
+        ...responseBase,
         ok: true,
-        connectionOk,
-        models,
-        modelDiscovery,
+        connectionOk: true,
         selectedModelValid: true,
         modelTested: true,
-        message,
-        ...(discoveryWarning ? { warning: discoveryWarning } : {}),
+        message: text,
       });
     } catch (e) {
       logger.error('POST /api/config/test-connection error:', e);
