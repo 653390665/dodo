@@ -105,8 +105,9 @@ export function useEditorPersistence({
     const result = await updateNovel(novel.id, {
       projectPreferenceProfile: profile,
     });
-    // Only update local React state after successful DB write
-    if (result === false) {
+    // Only update local React state after a confirmed successful DB write.
+    // false, undefined, or an exception means the write did not happen.
+    if (result !== true) {
       throw new Error('保存设定失败：数据库写入未生效');
     }
     setProjectPreferenceProfile(profile);

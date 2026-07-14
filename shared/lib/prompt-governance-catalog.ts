@@ -378,56 +378,60 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'diagnostic-report',
         assetId: 'tomato-scorecard', // 真实的番茄评分卡资产
         qualityGate: '开篇大纲契合番茄爆款模型',
-        nextStepId: 'tomato-platform-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'tomato-platform-flow-step2',
-        stepNumber: 2,
-        name: '黄金三章钩子强化',
-        description: '在章首章末铺设钩子，拉满黄金三章读者期望。',
-        input: 'chapters',
-        output: 'chapters-with-hooks',
-        assetId: 'hook-system', // 真实的钩子体系资产
-        qualityGate: '前三章完读率预测指标及格',
-        nextStepId: 'tomato-platform-flow-step3',
-        switchAllowed: true
-      },
-      {
-        id: 'tomato-platform-flow-step3',
-        stepNumber: 3,
-        name: '核心爽点黄金排布',
-        description: '评估主角金手指在前三章的显露节奏与钩子是否合理。',
-        input: 'chapters-with-hooks',
-        output: 'chapters-with-highlights',
-        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
-        qualityGate: '金手指爽点在前三章显露节奏合理',
-        nextStepId: 'tomato-platform-flow-step4',
-        switchAllowed: true
-      },
-      {
-        id: 'tomato-platform-flow-step4',
-        stepNumber: 4,
-        name: '完读与节奏自检',
-        description: '使用番茄章首 7 式与章末 13 式，拉升读者完读预期。',
-        input: 'chapters-with-highlights',
-        output: 'chapters-final-checked',
-        assetId: 'hook-system', // 真实的钩子体系资产
-        qualityGate: '完读悬念与读者期待达成闭环',
-        nextStepId: 'tomato-platform-flow-step5',
-        switchAllowed: true
-      },
-      {
-        id: 'tomato-platform-flow-step5',
-        stepNumber: 5,
-        name: '正文精修与美学润色',
-        description: '消除白话/废话，进行高质感爽文精润。',
-        input: 'chapters-final-checked',
-        output: 'chapters-final',
-        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
-        qualityGate: '全文爽感突出、文字干净利落',
-        nextStepId: null,
-        switchAllowed: true
+	      nextStepId: 'tomato-platform-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'tomato-platform-flow-step2',
+	        stepNumber: 2,
+	        name: '黄金三章钩子强化',
+	        description: '在章首章末铺设钩子，拉满黄金三章读者期望。',
+	        input: 'chapters',
+	        output: 'chapters-with-hooks',
+	        assetId: 'hook-system', // 真实的钩子体系资产
+	        qualityGate: '前三章完读率预测指标及格',
+	        nextStepId: 'tomato-platform-flow-step3',
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      },
+	      {
+	        id: 'tomato-platform-flow-step3',
+	        stepNumber: 3,
+	        name: '核心爽点黄金排布',
+	        description: '评估主角金手指在前三章的显露节奏与钩子是否合理。',
+	        input: 'chapters-with-hooks',
+	        output: 'chapters-with-highlights',
+	        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
+	        qualityGate: '金手指爽点在前三章显露节奏合理',
+	        nextStepId: 'tomato-platform-flow-step4',
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      },
+	      {
+	        id: 'tomato-platform-flow-step4',
+	        stepNumber: 4,
+	        name: '完读与节奏自检',
+	        description: '使用番茄章首 7 式与章末 13 式，拉升读者完读预期。',
+	        input: 'chapters-with-highlights',
+	        output: 'chapters-final-checked',
+	        assetId: 'hook-system', // 真实的钩子体系资产
+	        qualityGate: '完读悬念与读者期待达成闭环',
+	        nextStepId: 'tomato-platform-flow-step5',
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      },
+	      {
+	        id: 'tomato-platform-flow-step5',
+	        stepNumber: 5,
+	        name: '正文精修与美学润色',
+	        description: '消除白话/废话，进行高质感爽文精润。',
+	        input: 'chapters-final-checked',
+	        output: 'chapters-final',
+	        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
+	        qualityGate: '全文爽感突出、文字干净利落',
+	        nextStepId: null,
+	        switchAllowed: true,
+	        navigateTo: 'quality'
       }
     ]
   },
@@ -445,25 +449,26 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'deconstruction-cards',
         assetId: 'deconstruct-card-pacing', // 真实的节奏拆书卡
         qualityGate: '拆解出黄金起伏节奏点',
-        nextStepId: 'book-deconstruction-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'book-deconstruction-flow-step2',
-        stepNumber: 2,
-        name: '黄金开篇钩子拆解',
-        description: '提取爆款小说的开篇钩子机制，形成开篇拆书卡。',
-        input: 'source-book',
-        output: 'deconstruction-cards-hook',
-        assetId: 'deconstruct-card-hook', // 真实的钩子拆书卡
-        qualityGate: '前 3 章核心悬念钩子提炼完毕',
-        nextStepId: null,
-        switchAllowed: true
-      }
-    ]
-  },
-  {
-    id: 'fenghua-short-flow',
+	      nextStepId: 'book-deconstruction-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'book-deconstruction-flow-step2',
+	        stepNumber: 2,
+	        name: '黄金开篇钩子拆解',
+	        description: '提取爆款小说的开篇钩子机制，形成开篇拆书卡。',
+	        input: 'source-book',
+	        output: 'deconstruction-cards-hook',
+	        assetId: 'deconstruct-card-hook', // 真实的钩子拆书卡
+	        qualityGate: '前 3 章核心悬念钩子提炼完毕',
+	        nextStepId: null,
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      }
+	    ]
+	  },
+	  {
+	    id: 'fenghua-short-flow',
     name: '风华短篇/老福特流',
     description: '风华短篇及老福特高美感故事创作流，聚焦快节奏、情感反转与极致画面描写。',
     steps: [
@@ -476,56 +481,60 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'hook-idea',
         assetId: 'square-88', // 【风华出品】短篇破解爆款第一步
         qualityGate: '脑洞内核分析清晰，爽点明确',
-        nextStepId: 'fenghua-short-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'fenghua-short-flow-step2',
-        stepNumber: 2,
-        name: '老福特高美感大纲',
-        description: '定制短篇大纲，规划情感起伏与关键反转。',
-        input: 'hook-idea',
-        output: 'outline',
-        assetId: 'square-93', // 【风华出品】短篇破解爆款备用版
-        qualityGate: '故事主线大纲具备高情感反转弧度',
-        nextStepId: 'fenghua-short-flow-step3',
-        switchAllowed: true
-      },
-      {
-        id: 'fenghua-short-flow-step3',
-        stepNumber: 3,
-        name: '爆款短篇故事起名',
-        description: '结合读者喜好与意境，确定具有高点击率的标题。',
-        input: 'outline',
-        output: 'title',
-        assetId: 'square-114', // 【风华出品】小说起名器（短篇为主）
-        qualityGate: '标题意境饱满，具备高吸引力',
-        nextStepId: 'fenghua-short-flow-step4',
-        switchAllowed: true
-      },
-      {
-        id: 'fenghua-short-flow-step4',
-        stepNumber: 4,
-        name: '老福特极速开篇',
-        description: '撰写具有高吸引力的黄金开篇正文。',
-        input: 'title',
-        output: 'chapter-draft',
-        assetId: 'private-163', // 【风华出品】短篇拆文仿写
-        qualityGate: '前文冲突极速铺开，文风华美',
-        nextStepId: 'fenghua-short-flow-step5',
-        switchAllowed: true
-      },
-      {
-        id: 'fenghua-short-flow-step5',
-        stepNumber: 5,
-        name: '高维情感逻辑分析',
-        description: '审校短文的叙事逻辑与情感张力。',
-        input: 'chapter-draft',
-        output: 'chapter-polished',
-        assetId: 'square-122', // 【风华出品】短篇文章逻辑检测分析器
-        qualityGate: '故事逻辑闭环，情感张力达标',
-        nextStepId: null,
-        switchAllowed: true
+	      nextStepId: 'fenghua-short-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'fenghua-short-flow-step2',
+	        stepNumber: 2,
+	        name: '老福特高美感大纲',
+	        description: '定制短篇大纲，规划情感起伏与关键反转。',
+	        input: 'hook-idea',
+	        output: 'outline',
+	        assetId: 'square-93', // 【风华出品】短篇破解爆款备用版
+	        qualityGate: '故事主线大纲具备高情感反转弧度',
+	        nextStepId: 'fenghua-short-flow-step3',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'fenghua-short-flow-step3',
+	        stepNumber: 3,
+	        name: '爆款短篇故事起名',
+	        description: '结合读者喜好与意境，确定具有高点击率的标题。',
+	        input: 'outline',
+	        output: 'title',
+	        assetId: 'square-114', // 【风华出品】小说起名器（短篇为主）
+	        qualityGate: '标题意境饱满，具备高吸引力',
+	        nextStepId: 'fenghua-short-flow-step4',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'fenghua-short-flow-step4',
+	        stepNumber: 4,
+	        name: '老福特极速开篇',
+	        description: '撰写具有高吸引力的黄金开篇正文。',
+	        input: 'title',
+	        output: 'chapter-draft',
+	        assetId: 'private-163', // 【风华出品】短篇拆文仿写
+	        qualityGate: '前文冲突极速铺开，文风华美',
+	        nextStepId: 'fenghua-short-flow-step5',
+	        switchAllowed: true,
+	        navigateTo: 'production'
+	      },
+	      {
+	        id: 'fenghua-short-flow-step5',
+	        stepNumber: 5,
+	        name: '高维情感逻辑分析',
+	        description: '审校短文的叙事逻辑与情感张力。',
+	        input: 'chapter-draft',
+	        output: 'chapter-polished',
+	        assetId: 'square-122', // 【风华出品】短篇文章逻辑检测分析器
+	        qualityGate: '故事逻辑闭环，情感张力达标',
+	        nextStepId: null,
+	        switchAllowed: true,
+	        navigateTo: 'quality'
       }
     ]
   },
@@ -543,41 +552,43 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'hook-idea',
         assetId: 'square-76', // 天马-脑洞生成-番茄爆款
         qualityGate: '核心创意脑洞契合番茄爆款结构',
-        nextStepId: 'tianma-outline-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'tianma-outline-flow-step2',
-        stepNumber: 2,
-        name: '天马设定与节奏大纲',
-        description: '定制具有高连贯性、强设定的人物与背景大纲。',
-        input: 'hook-idea',
-        output: 'setting-outline',
-        assetId: 'square-41', // 天马-大纲生成-设定强化+节奏
-        qualityGate: '设定机制独特，故事节奏主线清晰',
-        nextStepId: 'tianma-outline-flow-step3',
-        switchAllowed: true
-      },
-      {
-        id: 'tianma-outline-flow-step3',
-        stepNumber: 3,
-        name: '天马三幕式高潮规划',
-        description: '使用标准三幕结构，详细排布高潮、对峙与高爽冲突点。',
-        input: 'setting-outline',
-        output: 'climax-outline',
-        assetId: 'square-39', // 天马-大纲生成-三幕式
-        qualityGate: '核心冲突具备明确的三幕式递进节奏',
-        nextStepId: 'tianma-outline-flow-step4',
-        switchAllowed: true
-      },
-      {
-        id: 'tianma-outline-flow-step4',
-        stepNumber: 4,
-        name: '天马通用分章大纲',
-        description: '对大纲进行细化，按章节进行结构性排布与大纲规划。',
-        input: 'climax-outline',
-        output: 'chapters-outline',
-        assetId: 'square-42', // 天马-通用章节大纲
+	      nextStepId: 'tianma-outline-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'tianma-outline-flow-step2',
+	        stepNumber: 2,
+	        name: '天马设定与节奏大纲',
+	        description: '定制具有高连贯性、强设定的人物与背景大纲。',
+	        input: 'hook-idea',
+	        output: 'setting-outline',
+	        assetId: 'square-41', // 天马-大纲生成-设定强化+节奏
+	        qualityGate: '设定机制独特，故事节奏主线清晰',
+	        nextStepId: 'tianma-outline-flow-step3',
+	        switchAllowed: true,
+	        navigateTo: 'bible'
+	      },
+	      {
+	        id: 'tianma-outline-flow-step3',
+	        stepNumber: 3,
+	        name: '天马三幕式高潮规划',
+	        description: '使用标准三幕结构，详细排布高潮、对峙与高爽冲突点。',
+	        input: 'setting-outline',
+	        output: 'climax-outline',
+	        assetId: 'square-39', // 天马-大纲生成-三幕式
+	        qualityGate: '核心冲突具备明确的三幕式递进节奏',
+	        nextStepId: 'tianma-outline-flow-step4',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'tianma-outline-flow-step4',
+	        stepNumber: 4,
+	        name: '天马通用分章大纲',
+	        description: '对大纲进行细化，按章节进行结构性排布与大纲规划。',
+	        input: 'climax-outline',
+	        output: 'chapters-outline',
+	        assetId: 'square-42', // 天马-通用章节大纲
         qualityGate: '分章结构完备，钩子排布合理',
         nextStepId: null,
         switchAllowed: true

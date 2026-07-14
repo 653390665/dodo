@@ -15,13 +15,13 @@ import type { Chapter, Novel, ProjectPreferenceProfile, AgentTab } from '../../.
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/app-store';
 import {
+  SKILL_SERIES_FLOWS,
   inferNovelGovernanceProfile,
   getNovelCurrentStepId,
   getNovelCompletedStepIds,
   getFlowEnhancementPackage,
   isPackageRestricted
 } from '../../../shared/lib/prompt-assets-governed.js';
-import { SKILL_SERIES_FLOWS } from '../../../shared/lib/prompt-governance-catalog.js';
 
 interface PlanningTabProps {
   renderContextReceipt: () => React.ReactNode;
@@ -148,10 +148,11 @@ export function PlanningTab({
 
 	      setStepError(null);
 
-	      // Navigate to the step's designated target tab (if any).
-	      // Steps without navigateTo (e.g. idea-spark) stay on the
-	      // planning tab so the user can continue working.
-	      const navigateTo = currentStep.navigateTo as AgentTab | undefined;
+	      // Navigate based on the NEXT step's designated target tab.
+	      // When step 1 (脑洞灵感闪耀) completes, nextStep is step 2
+	      // (世界观架构设定) whose navigateTo:'bible' sends the user to
+	      // the bible tab.  Steps with no navigateTo stay on planning.
+	      const navigateTo = nextStep?.navigateTo as AgentTab | undefined;
 	      if (navigateTo && onSwitchTab) {
 	        onSwitchTab(navigateTo);
 	      }
@@ -177,8 +178,14 @@ export function PlanningTab({
     const oldTags = profile.tags || [];
     const newTags = oldTags.filter(
       t => !t.startsWith(`current-step:${activeSeriesId}:`) &&
-           !t.startsWith(`completed-step:${activeSeriesId}:`)
+           !t.startsWith(`completed-step:${activeSeriesId}:`) &&
+           !t.startsWith(`completed-flow:${activeSeriesId}`)
     );
+    // Restore step 1 as the current step after reset.
+    const firstStep = flow.steps[0];
+    if (firstStep) {
+      newTags.push(`current-step:${activeSeriesId}:${firstStep.id}`);
+    }
 
     const updatedProfile: ProjectPreferenceProfile = {
       ...profile,
@@ -237,19 +244,20 @@ export function PlanningTab({
           </div>
 
           <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end justify-center gap-2 shrink-0">
+            {!isFlowCompleted && (
 <button
-              onClick={handleNextStep}
-              disabled={isSavingStep}
-              className="px-4 py-2.5 bg-gradient-to-r from-theme-accent to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSavingStep ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-                  保存中...
-                </>
-              ) : isLastStep ? (
-                <>
-                  <CheckCircle2 size={14} aria-hidden="true" />
+                onClick={handleNextStep}
+                disabled={isSavingStep}
+                className="px-4 py-2.5 bg-gradient-to-r from-theme-accent to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSavingStep ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                    保存中...
+                  </>
+                ) : isLastStep ? (
+                  <>
+                    <CheckCircle2 size={14} aria-hidden="true" />
                   完成全流程创作
                 </>
               ) : (
@@ -259,8 +267,9 @@ export function PlanningTab({
                 </>
               )}
             </button>
+            )}
 
-            {completedStepIds.length > 0 && (
+            {(completedStepIds.length > 0 || isFlowCompleted) && (
               <button
                 onClick={handleResetFlow}
                 className="px-3 py-1.5 bg-transparent hover:bg-theme-border/20 text-theme-muted hover:text-theme-text rounded-lg text-[10px] font-semibold transition-all duration-200 flex items-center justify-center gap-1"
