@@ -60,7 +60,11 @@ function setupTestServer() {
   return { app, server, config, originalConfig, testDir, ready: new Promise<void>(resolve => server.once('listening', resolve)) };
 }
 
-
+function getServerUrl(server: ReturnType<express.Application['listen']>): string {
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string', 'server must be listening');
+  return `http://127.0.0.1:${address.port}/api/config/test-connection`;
+}
 
 function teardownTestServer(ctx: ReturnType<typeof setupTestServer>, originalFetch: typeof fetch) {
   globalThis.fetch = originalFetch;

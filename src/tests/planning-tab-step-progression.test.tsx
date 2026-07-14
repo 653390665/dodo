@@ -82,7 +82,38 @@ describe('PlanningTab Step Progression', () => {
     // Old current-step1 should be removed
     expect(tags).not.toContain('current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1');
 
-    // Should switch to bible tab
+    // Step1 (脑洞灵感闪耀) has NO navigateTo → stay on planning tab
+    expect(onSwitchTab).not.toHaveBeenCalled();
+  });
+
+  test('step with navigateTo navigates to the correct tab after save', async () => {
+    const onPreferenceProfileChange = vi.fn().mockResolvedValue(undefined);
+    const onSwitchTab = vi.fn();
+
+    // Mock novel on step2 (世界观架构设定 → navigateTo: 'bible')
+    const step2Novel = {
+      ...mockNovel,
+      projectPreferenceProfile: {
+        ...mockNovel.projectPreferenceProfile,
+        tags: ['current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step2'],
+      },
+    };
+
+    render(
+      <PlanningTab
+        {...defaultProps}
+        novel={step2Novel as any}
+        onPreferenceProfileChange={onPreferenceProfileChange}
+        onSwitchTab={onSwitchTab}
+      />
+    );
+
+    const advanceBtn = screen.getByText(/完成本步并前往/);
+    fireEvent.click(advanceBtn);
+
+    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+
+    // Step2 has navigateTo: 'bible'
     expect(onSwitchTab).toHaveBeenCalledWith('bible');
   });
 
@@ -201,12 +232,15 @@ describe('PlanningTab Step Progression', () => {
     const tags = updatedProfile.tags as string[];
     expect(tags).toContain('completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8');
 
+    // Should add completed-flow tag (T3: prevent fallback to step 1)
+    expect(tags).toContain('completed-flow:xiaofeiji-novel-flow');
+
     // Should NOT add a new current-step (no next step)
     const currentStepTags = tags.filter((t: string) => t.startsWith('current-step:'));
     expect(currentStepTags.length).toBe(0);
 
-    // Should NOT switch tabs (no next step)
-    expect(onSwitchTab).not.toHaveBeenCalled();
+    // Step8 has navigateTo: 'quality' → should switch to quality tab
+    expect(onSwitchTab).toHaveBeenCalledWith('quality');
   });
 
   test('displayStepNumber and total steps shown correctly', () => {
@@ -224,5 +258,67 @@ describe('PlanningTab Step Progression', () => {
 
     expect(screen.getByText('脑洞灵感闪耀')).toBeDefined();
     expect(screen.getByText(/脑洞概念成型且具备初始爽点/)).toBeDefined();
+  });
+
+  test('flow completed state shows completion banner', () => {
+    const flowCompletedNovel = {
+      ...mockNovel,
+      projectPreferenceProfile: {
+        ...mockNovel.projectPreferenceProfile,
+        tags: [
+          'completed-flow:xiaofeiji-novel-flow',
+          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step2',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step3',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step4',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step5',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step6',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step7',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+        ],
+      },
+    };
+
+    render(
+      <PlanningTab
+        {...defaultProps}
+        novel={flowCompletedNovel as any}
+      />
+    );
+
+    // Should show completion banner
+    expect(screen.getByText(/全流程已完成/)).toBeDefined();
+    // Button should show last step state
+    expect(screen.getByText('完成全流程创作')).toBeDefined();
+  });
+
+  test('completed-flow tag prevents fallback to step 1', () => {
+    // Simulate state after last step save: completed-flow exists,
+    // no current-step tag (but UI should still show last step)
+    const flowCompletedNovel = {
+      ...mockNovel,
+      projectPreferenceProfile: {
+        ...mockNovel.projectPreferenceProfile,
+        tags: [
+          'completed-flow:xiaofeiji-novel-flow',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+        ],
+      },
+    };
+
+    render(
+      <PlanningTab
+        {...defaultProps}
+        novel={flowCompletedNovel as any}
+      />
+    );
+
+    // Should NOT show step 1 (脑洞灵感闪耀)
+    expect(screen.queryByText('脑洞灵感闪耀')).toBeNull();
+    // Should show last step name
+    expect(screen.getByText('正文去AI润色')).toBeDefined();
+    // Should show completion banner
+    expect(screen.getByText(/全流程已完成/)).toBeDefined();
   });
 });

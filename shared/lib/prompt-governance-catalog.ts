@@ -177,100 +177,107 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
     description: '付费核心长篇高品质小说创作主流程，确保全书设定与节奏的高度连贯性。',
     steps: [
       {
-        id: 'xiaofeiji-novel-flow-step1',
-        stepNumber: 1,
-        name: '脑洞灵感闪耀',
-        description: '收集小说灵感种子，精炼核心创意。',
-        input: 'idea',
-        output: 'hook-idea',
-        assetId: 'square-182', // 【小飞鸡】爆款书名简介策划引擎！
-        qualityGate: '脑洞概念成型且具备初始爽点',
-        nextStepId: 'xiaofeiji-novel-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step2',
-        stepNumber: 2,
-        name: '世界观架构设定',
-        description: '构建宏大的世界背景、金手指规则与战力体系。',
-        input: 'idea',
-        output: 'world-setting',
-        assetId: 'private-175', // 小飞鸡长篇通用大纲规划
-        qualityGate: '战力等级与世界观基本设定完备',
-        nextStepId: 'xiaofeiji-novel-flow-step3',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step3',
-        stepNumber: 3,
-        name: '核心角色人设卡',
-        description: '定制主角、反派与重要配角的人物弧光与背景。',
-        input: 'world-setting',
-        output: 'characters',
-        assetId: 'square-183', // 【小飞鸡】长篇拆书器
-        qualityGate: '主角性格、成长动机与金手指明确',
-        nextStepId: 'xiaofeiji-novel-flow-step4',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step4',
-        stepNumber: 4,
-        name: '大纲骨架与主线设计',
-        description: '设定长篇小说骨架主线大纲与金手指，建立第一冲突悬念。',
-        input: 'characters',
-        output: 'chapters-outline',
-        assetId: 'private-175', // 万字大纲定制资产
-        qualityGate: '万字主线大纲评级达到 B 级以上',
-        nextStepId: 'xiaofeiji-novel-flow-step5',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step5',
-        stepNumber: 5,
-        name: '故事细纲与高潮铺设',
-        description: '故事细纲与高潮铺设描述说明',
-        input: 'chapters-outline',
-        output: 'detailed-outline',
-        assetId: 'private-179', // 章纲定制资产
-        qualityGate: '细纲爽点和冲突闭环',
-        nextStepId: 'xiaofeiji-novel-flow-step6',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step6',
-        stepNumber: 6,
-        name: '章纲逐章展开',
-        description: '细化各章节脉络，排布强烈悬念和读者钩子。',
-        input: 'detailed-outline',
-        output: 'chapter-content',
-        assetId: 'private-179', // 章纲定制资产
-        qualityGate: '前 3 章章纲精细度符合要求',
-        nextStepId: 'xiaofeiji-novel-flow-step7',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step7',
-        stepNumber: 7,
-        name: '高质量正文起步',
-        description: '展开长篇网文的第一章写作，融入强烈节奏。',
-        input: 'chapter-content',
-        output: 'chapter-draft',
-        assetId: 'private-180', // 真实的正文定制资产
-        qualityGate: '正文第一章写作完成',
-        nextStepId: 'xiaofeiji-novel-flow-step8',
-        switchAllowed: true
-      },
-      {
-        id: 'xiaofeiji-novel-flow-step8',
-        stepNumber: 8,
-        name: '正文去AI润色',
-        description: '深度精修段落陈词滥调，增强肢体动作与画面张力。',
-        input: 'chapter-draft',
-        output: 'chapter-polished',
-        assetId: 'private-193', // 真实的去AI高频词润色资产
-        qualityGate: 'AI腔去化度评测及格 (slop score > 85)',
-        nextStepId: null,
-        switchAllowed: true
+	      id: 'xiaofeiji-novel-flow-step1',
+	        stepNumber: 1,
+	        name: '脑洞灵感闪耀',
+	        description: '收集小说灵感种子，精炼核心创意。',
+	        input: 'idea',
+	        output: 'hook-idea',
+	        assetId: 'square-182', // 【小飞鸡】爆款书名简介策划引擎！
+	        qualityGate: '脑洞概念成型且具备初始爽点',
+	        nextStepId: 'xiaofeiji-novel-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step2',
+	        stepNumber: 2,
+	        name: '世界观架构设定',
+	        description: '构建宏大的世界背景、金手指规则与战力体系。',
+	        input: 'idea',
+	        output: 'world-setting',
+	        assetId: 'private-175', // 小飞鸡长篇通用大纲规划
+	        qualityGate: '战力等级与世界观基本设定完备',
+	        nextStepId: 'xiaofeiji-novel-flow-step3',
+	        switchAllowed: true,
+	        navigateTo: 'bible'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step3',
+	        stepNumber: 3,
+	        name: '核心角色人设卡',
+	        description: '定制主角、反派与重要配角的人物弧光与背景。',
+	        input: 'world-setting',
+	        output: 'characters',
+	        assetId: 'square-183', // 【小飞鸡】长篇拆书器
+	        qualityGate: '主角性格、成长动机与金手指明确',
+	        nextStepId: 'xiaofeiji-novel-flow-step4',
+	        switchAllowed: true,
+	        navigateTo: 'bible'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step4',
+	        stepNumber: 4,
+	        name: '大纲骨架与主线设计',
+	        description: '设定长篇小说骨架主线大纲与金手指，建立第一冲突悬念。',
+	        input: 'characters',
+	        output: 'chapters-outline',
+	        assetId: 'private-175', // 万字大纲定制资产
+	        qualityGate: '万字主线大纲评级达到 B 级以上',
+	        nextStepId: 'xiaofeiji-novel-flow-step5',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step5',
+	        stepNumber: 5,
+	        name: '故事细纲与高潮铺设',
+	        description: '故事细纲与高潮铺设描述说明',
+	        input: 'chapters-outline',
+	        output: 'detailed-outline',
+	        assetId: 'private-179', // 章纲定制资产
+	        qualityGate: '细纲爽点和冲突闭环',
+	        nextStepId: 'xiaofeiji-novel-flow-step6',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step6',
+	        stepNumber: 6,
+	        name: '章纲逐章展开',
+	        description: '细化各章节脉络，排布强烈悬念和读者钩子。',
+	        input: 'detailed-outline',
+	        output: 'chapter-content',
+	        assetId: 'private-179', // 章纲定制资产
+	        qualityGate: '前 3 章章纲精细度符合要求',
+	        nextStepId: 'xiaofeiji-novel-flow-step7',
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step7',
+	        stepNumber: 7,
+	        name: '高质量正文起步',
+	        description: '展开长篇网文的第一章写作，融入强烈节奏。',
+	        input: 'chapter-content',
+	        output: 'chapter-draft',
+	        assetId: 'private-180', // 真实的正文定制资产
+	        qualityGate: '正文第一章写作完成',
+	        nextStepId: 'xiaofeiji-novel-flow-step8',
+	        switchAllowed: true,
+	        navigateTo: 'production'
+	      },
+	      {
+	        id: 'xiaofeiji-novel-flow-step8',
+	        stepNumber: 8,
+	        name: '正文去AI润色',
+	        description: '深度精修段落陈词滥调，增强肢体动作与画面张力。',
+	        input: 'chapter-draft',
+	        output: 'chapter-polished',
+	        assetId: 'private-193', // 真实的去AI高频词润色资产
+	        qualityGate: 'AI腔去化度评测及格 (slop score > 85)',
+	        nextStepId: null,
+	        switchAllowed: true,
+	        navigateTo: 'quality'
       }
     ]
   },
@@ -280,73 +287,77 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
     description: '面向全体创作者的默认长篇路线，汇聚最优质的内置与广场精品资源。',
     steps: [
       {
-        id: 'generic-novel-flow-step1',
-        stepNumber: 1,
-        name: '灵感火花收集',
-        description: '记录随笔与核心创意。',
-        input: 'note',
-        output: 'idea',
-        assetId: 'generateOutline',
-        qualityGate: '有一个可以展开的核心灵感',
-        nextStepId: 'generic-novel-flow-step2',
-        switchAllowed: true
-      },
-      {
-        id: 'generic-novel-flow-step2',
-        stepNumber: 2,
-        name: '世界与角色设定',
-        description: '草拟世界规则和主角人设。',
-        input: 'idea',
-        output: 'setting',
-        assetId: 'generateOutline',
-        qualityGate: '基本人设与背景搭建完成',
-        nextStepId: 'generic-novel-flow-step3',
-        switchAllowed: true
-      },
-      {
-        id: 'generic-novel-flow-step3',
-        stepNumber: 3,
-        name: '小说主线大纲',
-        description: '规划全书起承转合结构。',
-        input: 'setting',
-        output: 'outline',
-        assetId: 'generateOutline',
-        qualityGate: '小说大纲具备明确的起承转合',
-        nextStepId: 'generic-novel-flow-step4',
-        switchAllowed: true
-      },
-      {
-        id: 'generic-novel-flow-step4',
-        stepNumber: 4,
-        name: '分镜章纲梳理',
-        description: '梳理章节的分镜或大纲。',
-        input: 'outline',
-        output: 'scene-outline',
-        assetId: 'generateOutline',
-        qualityGate: '核心情节具备明确的情感起伏',
-        nextStepId: 'generic-novel-flow-step5',
-        switchAllowed: true
-      },
-      {
-        id: 'generic-novel-flow-step5',
-        stepNumber: 5,
-        name: '正文快速初稿',
-        description: '流畅完成正文草稿撰写。',
-        input: 'scene-outline',
-        output: 'draft',
-        assetId: 'core-slop-shield',
-        qualityGate: '第一章正文初稿撰写完成',
-        nextStepId: 'generic-novel-flow-step6',
-        switchAllowed: true
-      },
-      {
-        id: 'generic-novel-flow-step6',
-        stepNumber: 6,
-        name: '全书基础审稿',
-        description: '对初稿进行基础去AI腔与内容审校。',
-        input: 'draft',
-        output: 'polished-draft',
-        assetId: 'core-slop-shield',
+	      id: 'generic-novel-flow-step1',
+	        stepNumber: 1,
+	        name: '灵感火花收集',
+	        description: '记录随笔与核心创意。',
+	        input: 'note',
+	        output: 'idea',
+	        assetId: 'generateOutline',
+	        qualityGate: '有一个可以展开的核心灵感',
+	        nextStepId: 'generic-novel-flow-step2',
+	        switchAllowed: true
+	      },
+	      {
+	        id: 'generic-novel-flow-step2',
+	        stepNumber: 2,
+	        name: '世界与角色设定',
+	        description: '草拟世界规则和主角人设。',
+	        input: 'idea',
+	        output: 'setting',
+	        assetId: 'generateOutline',
+	        qualityGate: '基本人设与背景搭建完成',
+	        nextStepId: 'generic-novel-flow-step3',
+	        switchAllowed: true,
+	        navigateTo: 'bible'
+	      },
+	      {
+	        id: 'generic-novel-flow-step3',
+	        stepNumber: 3,
+	        name: '小说主线大纲',
+	        description: '规划全书起承转合结构。',
+	        input: 'setting',
+	        output: 'outline',
+	        assetId: 'generateOutline',
+	        qualityGate: '小说大纲具备明确的起承转合',
+	        nextStepId: 'generic-novel-flow-step4',
+	        switchAllowed: true,
+	        navigateTo: 'outline'
+	      },
+	      {
+	        id: 'generic-novel-flow-step4',
+	        stepNumber: 4,
+	        name: '分镜章纲梳理',
+	        description: '梳理章节的分镜或大纲。',
+	        input: 'outline',
+	        output: 'scene-outline',
+	        assetId: 'generateOutline',
+	        qualityGate: '核心情节具备明确的情感起伏',
+	        nextStepId: 'generic-novel-flow-step5',
+	        switchAllowed: true,
+	        navigateTo: 'planning'
+	      },
+	      {
+	        id: 'generic-novel-flow-step5',
+	        stepNumber: 5,
+	        name: '正文快速初稿',
+	        description: '流畅完成正文草稿撰写。',
+	        input: 'scene-outline',
+	        output: 'draft',
+	        assetId: 'core-slop-shield',
+	        qualityGate: '第一章正文初稿撰写完成',
+	        nextStepId: 'generic-novel-flow-step6',
+	        switchAllowed: true,
+	        navigateTo: 'production'
+	      },
+	      {
+	        id: 'generic-novel-flow-step6',
+	        stepNumber: 6,
+	        name: '全书基础审稿',
+	        description: '对初稿进行基础去AI腔与内容审校。',
+	        input: 'draft',
+	        output: 'polished-draft',
+	        assetId: 'core-slop-shield',
         qualityGate: '基础文本去AI腔完成，语流顺畅',
         nextStepId: null,
         switchAllowed: true

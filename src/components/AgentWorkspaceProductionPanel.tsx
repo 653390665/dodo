@@ -225,7 +225,7 @@ export function AgentWorkspaceProductionPanel({
         novel={novel}
         projectPreferenceProfile={projectPreferenceProfile}
         onPreferenceProfileChange={onPreferenceProfileChange}
-        onSwitchTab={onSwitchTab ? (tab: string) => onSwitchTab(tab as AgentTab) : undefined}
+        onSwitchTab={onSwitchTab ?? undefined}
       />
     );
   }

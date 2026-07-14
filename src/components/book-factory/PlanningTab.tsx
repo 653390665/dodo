@@ -11,17 +11,17 @@ import {
   RefreshCcw,
   Compass
 } from 'lucide-react';
-import type { Chapter, Novel, ProjectPreferenceProfile } from '../../../shared/types';
+import type { Chapter, Novel, ProjectPreferenceProfile, AgentTab } from '../../../shared/types';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/app-store';
 import {
-  SKILL_SERIES_FLOWS,
   inferNovelGovernanceProfile,
   getNovelCurrentStepId,
   getNovelCompletedStepIds,
   getFlowEnhancementPackage,
   isPackageRestricted
 } from '../../../shared/lib/prompt-assets-governed.js';
+import { SKILL_SERIES_FLOWS } from '../../../shared/lib/prompt-governance-catalog.js';
 
 interface PlanningTabProps {
   renderContextReceipt: () => React.ReactNode;
@@ -39,7 +39,7 @@ interface PlanningTabProps {
   novel: Novel;
   projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
-  onSwitchTab?: (tab: string) => void;
+  onSwitchTab?: (tab: AgentTab) => void;
 }
 
 export function PlanningTab({
@@ -74,7 +74,15 @@ export function PlanningTab({
   const completedStepIds = getNovelCompletedStepIds(novelWithLiveProfile, activeSeriesId);
 
   const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId) || SKILL_SERIES_FLOWS[1];
-  const currentStepIndex = flow.steps.findIndex(s => s.id === currentStepId);
+
+  // If the "completed-flow" tag exists, the entire flow is done.
+  // This prevents a fallback to step 1 when no current-step tag is present.
+  const isFlowCompleted = (liveProfile?.tags || []).includes(`completed-flow:${activeSeriesId}`);
+
+  const currentStepIdOrDefault = isFlowCompleted
+    ? flow.steps[flow.steps.length - 1].id  // keep showing the last step as "current"
+    : currentStepId;
+  const currentStepIndex = flow.steps.findIndex(s => s.id === currentStepIdOrDefault);
   const currentStep = currentStepIndex !== -1 ? flow.steps[currentStepIndex] : flow.steps[0];
   const displayStepNumber = currentStepIndex !== -1 ? currentStepIndex + 1 : 1;
   const isLastStep = !currentStep.nextStepId;
@@ -121,24 +129,32 @@ export function PlanningTab({
       newCompletedSet.add(currentStep.id);
       const newCompletedList = Array.from(newCompletedSet);
 
-      const completedTags = newCompletedList.map(id => `completed-step:${activeSeriesId}:${id}`);
-      const newTags = [...otherTags, ...completedTags];
-      if (nextStepId) {
-        newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
-      }
+	      const completedTags = newCompletedList.map(id => `completed-step:${activeSeriesId}:${id}`);
+	      const newTags = [...otherTags, ...completedTags];
+	      if (nextStepId) {
+	        newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
+	      } else {
+	        // Last step — mark the entire flow as completed so we never
+	        // fall back to step 1 when the current-step tag is absent.
+	        newTags.push(`completed-flow:${activeSeriesId}`);
+	      }
 
-      const updatedProfile: ProjectPreferenceProfile = {
-        ...profile,
-        tags: newTags
-      };
+	      const updatedProfile: ProjectPreferenceProfile = {
+	        ...profile,
+	        tags: newTags
+	      };
 
-      await onPreferenceProfileChange(updatedProfile);
+	      await onPreferenceProfileChange(updatedProfile);
 
-      setStepError(null);
+	      setStepError(null);
 
-      if (nextStep && onSwitchTab) {
-        onSwitchTab('bible');
-      }
+	      // Navigate to the step's designated target tab (if any).
+	      // Steps without navigateTo (e.g. idea-spark) stay on the
+	      // planning tab so the user can continue working.
+	      const navigateTo = currentStep.navigateTo as AgentTab | undefined;
+	      if (navigateTo && onSwitchTab) {
+	        onSwitchTab(navigateTo);
+	      }
     } catch (e) {
       console.error('Failed to advance step:', e);
       setStepError(e instanceof Error ? e.message : '保存失败，请重试');
@@ -255,6 +271,12 @@ export function PlanningTab({
             )}
           </div>
         </div>
+        {isFlowCompleted && (
+          <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+            <CheckCircle2 size={14} className="shrink-0" />
+            <span>🎉 全流程已完成！所有创作步骤均已标记完成。</span>
+          </div>
+        )}
       </div>
       {renderContextReceipt()}
       <div className="space-y-4">

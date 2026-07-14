@@ -102,10 +102,14 @@ export function useEditorPersistence({
   };
 
   const persistProjectPreferenceProfile = async (profile: ProjectPreferenceProfile) => {
-    setProjectPreferenceProfile(profile);
-    await updateNovel(novel.id, {
+    const result = await updateNovel(novel.id, {
       projectPreferenceProfile: profile,
     });
+    // Only update local React state after successful DB write
+    if (result === false) {
+      throw new Error('保存设定失败：数据库写入未生效');
+    }
+    setProjectPreferenceProfile(profile);
   };
 
   const handleSaveVersion = async (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
