@@ -42,6 +42,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const [testError, setTestError] = useState<string | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<null | { success: boolean; message: string }>(null);
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [modelDiscoveryStatus, setModelDiscoveryStatus] = useState<'available' | 'unsupported' | null>(null);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [activeModelIndex, setActiveModelIndex] = useState(-1);
+  const modelInputRef = React.useRef<HTMLInputElement>(null);
+  const modelListboxRef = React.useRef<HTMLUListElement>(null);
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -178,6 +184,15 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
     };
   }, [isOpen, onClose]);
 
+  // Scroll active model option into view during keyboard navigation
+  useEffect(() => {
+    if (activeModelIndex < 0 || !modelListboxRef.current) return;
+    const option = modelListboxRef.current.querySelector(`#model-option-${activeModelIndex}`);
+    if (option) {
+      option.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeModelIndex]);
+
   const handleSave = async () => {
     setSaving(true);
     setSaveError(null);
@@ -253,6 +268,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const handleTestConnection = async () => {
     setIsTestingConnection(true);
     setConnectionTestResult(null);
+    setDiscoveredModels([]);
+    setModelDiscoveryStatus(null);
+    setIsModelDropdownOpen(false);
     try {
       const response = await fetch('/api/config/test-connection', {
         method: 'POST',
@@ -264,9 +282,30 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.error) {
+      if (response.status === 401) {
+        throw new Error('API Key 验证失败');
+      }
+      if (!response.ok) {
         throw new Error(data.error || '测试连接失败');
       }
+
+      // Save discovered models regardless of connection success
+      if (Array.isArray(data.models) && data.models.length > 0) {
+        setDiscoveredModels(data.models);
+      }
+      setModelDiscoveryStatus(data.modelDiscovery || null);
+
+      if (data.selectedModelValid === false) {
+        const warning = data.models?.length > 0
+          ? `模型 "${config.model}" 不在可用列表中，请选择后再次测试`
+          : '请从已发现的模型中选择一个';
+        setConnectionTestResult({
+          success: false,
+          message: warning,
+        });
+        return;
+      }
+
       setConnectionTestResult({
         success: true,
         message: data.message || '模型连接成功！',
@@ -346,6 +385,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         onChange={e => {
                           setConfig({...config, apiKey: e.target.value});
                           setConnectionTestResult(null);
+                          setDiscoveredModels([]);
+                          setModelDiscoveryStatus(null);
+                          setIsModelDropdownOpen(false);
                         }}
                         className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                         placeholder={hasExistingKey ? '已配置；留空保留，输入新 Key 替换' : 'sk-...'}
@@ -365,25 +407,144 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       onChange={e => {
                         setConfig({...config, baseUrl: e.target.value});
                         setConnectionTestResult(null);
+                        setDiscoveredModels([]);
+                        setModelDiscoveryStatus(null);
+                        setIsModelDropdownOpen(false);
                       }}
                       className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                       placeholder="https://api.deepseek.com"
                     />
                     <p className="text-[10px] text-theme-muted mt-1">兼容 OpenAI 接口规范的 API 地址，如 https://api.deepseek.com</p>
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Model</label>
-                    <input
-                      type="text"
-                      value={config.model}
-                      onChange={e => {
-                        setConfig({...config, model: e.target.value});
-                        setConnectionTestResult(null);
-                      }}
-                      className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors"
-                      placeholder="deepseek-chat"
-                    />
-                    <p className="text-[10px] text-theme-muted mt-1">模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro</p>
+                    <div className="relative">
+                      <input
+                        ref={modelInputRef}
+                        type="text"
+                        role="combobox"
+                        aria-expanded={isModelDropdownOpen && discoveredModels.length > 0}
+                        aria-controls="model-listbox"
+                        aria-haspopup="listbox"
+                        aria-autocomplete="list"
+                        aria-activedescendant={isModelDropdownOpen && activeModelIndex >= 0 ? `model-option-${activeModelIndex}` : undefined}
+                        value={config.model}
+                        onChange={e => {
+                          setConfig({...config, model: e.target.value});
+                          setConnectionTestResult(null);
+                          setActiveModelIndex(-1);
+                          setIsModelDropdownOpen(true);
+                        }}
+                        onFocus={() => {
+                          if (discoveredModels.length > 0) {
+                            setIsModelDropdownOpen(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay closing so mousedown on an option fires first
+                          setTimeout(() => setIsModelDropdownOpen(false), 150);
+                        }}
+                        onKeyDown={e => {
+                          if (!isModelDropdownOpen || discoveredModels.length === 0) {
+                            if (e.key === 'ArrowDown' && discoveredModels.length > 0) {
+                              e.preventDefault();
+                              setIsModelDropdownOpen(true);
+                              setActiveModelIndex(0);
+                            }
+                            return;
+                          }
+                          const inputVal = config.model.toLowerCase();
+                          const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setActiveModelIndex(prev =>
+                              prev < filtered.length - 1 ? prev + 1 : 0
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setActiveModelIndex(prev =>
+                              prev > 0 ? prev - 1 : filtered.length - 1
+                            );
+                          } else if (e.key === 'Enter' && activeModelIndex >= 0 && filtered[activeModelIndex]) {
+                            e.preventDefault();
+                            setConfig({...config, model: filtered[activeModelIndex]});
+                            setConnectionTestResult(null);
+                            setIsModelDropdownOpen(false);
+                            setActiveModelIndex(-1);
+                          } else if (e.key === 'Escape') {
+                            setIsModelDropdownOpen(false);
+                            setActiveModelIndex(-1);
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors pr-24"
+                        placeholder="deepseek-chat"
+                      />
+                      {discoveredModels.length > 0 && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-theme-muted pointer-events-none select-none">
+                          {modelDiscoveryStatus === 'available'
+                            ? `共 ${discoveredModels.length} 个`
+                            : '手动填入'}
+                        </span>
+                      )}
+                    </div>
+
+                    {isModelDropdownOpen && discoveredModels.length > 0 && (() => {
+                      const inputVal = config.model.toLowerCase();
+                      const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
+                      if (filtered.length === 0) return null;
+                      return (
+                        <ul
+                          ref={modelListboxRef}
+                          id="model-listbox"
+                          role="listbox"
+                          aria-label="可用模型"
+                          className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-theme-border bg-theme-bg shadow-lg"
+                        >
+                          {filtered.map((model, index) => (
+                            <li
+                              key={model}
+                              id={`model-option-${index}`}
+                              role="option"
+                              aria-selected={model === config.model}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                index === activeModelIndex
+                                  ? 'bg-theme-accent/10 text-theme-accent'
+                                  : model === config.model
+                                    ? 'bg-theme-accent/5 text-theme-text font-medium'
+                                    : 'text-theme-text hover:bg-theme-border/30'
+                              }`}
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                setConfig({...config, model});
+                                setConnectionTestResult(null);
+                                setIsModelDropdownOpen(false);
+                                setActiveModelIndex(-1);
+                                modelInputRef.current?.focus();
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{model}</span>
+                                {model === config.model && (
+                                  <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
+
+                    <p className="text-[10px] text-theme-muted mt-1">
+                      {discoveredModels.length > 0
+                        ? `已发现 ${discoveredModels.length} 个模型，输入名称过滤`
+                        : '模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro'}
+                    </p>
+                    {modelDiscoveryStatus === 'unsupported' && discoveredModels.length === 0 && (
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                        <AlertTriangle size={10} />
+                        该服务商不支持自动发现模型，请手动填写
+                      </div>
+                    )}
                   </div>
 
                   {/* 去 AI 味提示词质量守卫级别 (Prompt Guard Level) */}
@@ -506,6 +667,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                             {connectionTestResult.success ? '✅ 链接测试成功！' : '❌ 链接测试失败'}
                           </div>
                           <div className="break-all whitespace-pre-wrap">{connectionTestResult.message}</div>
+                          {discoveredModels.length > 0 && (
+                            <div className="mt-1.5 text-[10px] text-theme-muted leading-normal">
+                              已发现 <strong className="text-theme-text">{discoveredModels.length}</strong> 个模型，
+                              可在 Model 输入框中搜索选择
+                            </div>
+                          )}
                           {!connectionTestResult.success && (
                             <div className="mt-1 text-[10px] text-theme-muted leading-normal">
                               💡 排查建议：请检查 API Key 是否正确、Base URL 格式是否正确、本地代理连接是否正常，或该模型名在此 API 服务商中是否可用。
