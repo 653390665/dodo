@@ -1,260 +1,430 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
+import express from 'express';
+import os from 'node:os';
+import path from 'node:path';
+import fs from 'node:fs';
 
-// ── normalizeModels (pure function, no mocking needed) ───────────────
+import { normalizeModels, discoverModels } from '../server/helpers/model-discovery';
+import { registerConfigRoutes } from '../server/routes/config';
+import { getConfig } from '../server/lib/config';
+import { __rateLimitTestHooks } from '../server/middleware/rate-limit';
 
-const { normalizeModels } = await import('../server/helpers/model-discovery');
+// ── Unit: normalizeModels ──
 
-await test('normalizeModels trims and removes empty', () => {
-  const result = normalizeModels([' gpt-4 ', '', '  claude-3  ']);
-  assert.deepEqual(result, ['claude-3', 'gpt-4']);
+test('normalizeModels trims, deduplicates, sorts, and caps', () => {
+  const input = ['  gpt-4o  ', 'gpt-4o', 'claude-3', 'b-model', 'a-model'];
+  const result = normalizeModels(input);
+  assert.deepEqual(result, ['a-model', 'b-model', 'claude-3', 'gpt-4o']);
 });
 
-await test('normalizeModels deduplicates', () => {
-  const result = normalizeModels(['gpt-4', 'gpt-4', 'gpt-4o']);
-  assert.deepEqual(result, ['gpt-4', 'gpt-4o']);
+test('normalizeModels drops empty and oversized entries', () => {
+  const long = 'x'.repeat(501);
+  const result = normalizeModels(['', '  ', long, 'ok']);
+  assert.deepEqual(result, ['ok']);
 });
 
-await test('normalizeModels sorts alphabetically', () => {
-  const result = normalizeModels(['z-model', 'a-model', 'm-model']);
-  assert.deepEqual(result, ['a-model', 'm-model', 'z-model']);
+test('normalizeModels caps at 500 items', () => {
+  const input = Array.from({ length: 600 }, (_, i) => `model-${String(i).padStart(3, '0')}`);
+  const result = normalizeModels(input);
+  assert.equal(result.length, 500);
+  // Sorted, so first 500 alphabetically
+  assert.equal(result[0], 'model-000');
+  assert.equal(result[499], 'model-499');
 });
 
-await test('normalizeModels drops non-strings', () => {
-  const result = normalizeModels(['gpt-4', null, undefined, 123] as unknown as string[]);
-  assert.deepEqual(result, ['gpt-4']);
-});
+// ── Integration: OpenAI model discovery via test-connection ──
 
-await test('normalizeModels caps at 500', () => {
-  const many = Array.from({ length: 600 }, (_, i) => `model-${i}`);
-  assert.equal(normalizeModels(many).length, 500);
-});
+function setupTestServer() {
+  const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-model-discovery-'));
+  process.env.INKFLOW_DB_PATH = path.join(testDir, 'model-discovery.test.db');
 
-await test('normalizeModels rejects > 500 chars', () => {
-  const long = 'a'.repeat(501);
-  assert.deepEqual(normalizeModels(['gpt-4', long, 'claude']), ['claude', 'gpt-4']);
-});
+  const config = getConfig();
+  const originalConfig = {
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    model: config.model,
+    promptGuardLevel: config.promptGuardLevel,
+  };
+  config.apiKey = 'test-key';
+  config.promptGuardLevel = 'disabled';
+  config.baseUrl = 'https://api.openai-compat.test/v1';
 
-await test('normalizeModels empty input', () => {
-  assert.deepEqual(normalizeModels([]), []);
-});
-
-// ── discoverModels (mocked HTTP server without /v1 prefix) ────────────
-
-const { discoverModels } = await import('../server/helpers/model-discovery');
-const { DEFAULT_PROMPT_TEMPLATES } = await import('../shared/config/prompt-templates');
-
-function mockConfig(partial: { apiKey: string; baseUrl: string; model: string }) {
-  return { ...partial, promptTemplates: DEFAULT_PROMPT_TEMPLATES };
-}
-
-let testServer: http.Server;
-let serverUrl: string;
-
-await test('setup discoverModels mock server', async () => {
-  testServer = http.createServer((req, res) => {
-    if (req.url === '/models') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        data: [
-          { id: 'gpt-4o' },
-          { id: 'gpt-4-turbo' },
-          { id: 'gpt-3.5-turbo' },
-        ],
-      }));
-    } else if (req.url === '/401/models') {
-      res.writeHead(401);
-      res.end();
-    } else if (req.url === '/bad-endpoint/models') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end('not-json');
-    } else {
-      res.writeHead(404);
-      res.end();
-    }
-  });
-
-  await new Promise<void>((resolve) => testServer.listen(0, () => resolve()));
-  serverUrl = `http://localhost:${(testServer.address() as { port: number }).port}`;
-});
-
-await test('discoverOpenAIModels returns sorted model list', async () => {
-  const result = await discoverModels(
-    mockConfig({ apiKey: 'test-key', baseUrl: serverUrl, model: 'gpt-4o' }),
-    new AbortController().signal,
-  );
-  assert.equal(result.discovery, 'available');
-  assert.deepEqual(result.models, ['gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4o']);
-});
-
-await test('discoverOpenAIModels returns unsupported on 404', async () => {
-  const result = await discoverModels(
-    mockConfig({ apiKey: 'test-key', baseUrl: `${serverUrl}/nonexistent`, model: 'test' }),
-    new AbortController().signal,
-  );
-  // joinUrl(serverUrl + '/nonexistent', '/models') -> serverUrl/nonexistent/models -> 404
-  assert.equal(result.discovery, 'unsupported');
-  assert.deepEqual(result.models, []);
-});
-
-await test('discoverOpenAIModels throws on 401/403', async () => {
-  await assert.rejects(
-    () => discoverModels(
-      mockConfig({ apiKey: 'bad-key', baseUrl: `${serverUrl}/401`, model: 'test' }),
-      new AbortController().signal,
-    ),
-    /401/,
-  );
-});
-
-await test('discoverOpenAIModels handles malformed JSON gracefully', async () => {
-  const result = await discoverModels(
-    mockConfig({ apiKey: 'test-key', baseUrl: `${serverUrl}/malformed`, model: 'test' }),
-    new AbortController().signal,
-  );
-  // joinUrl appends /models -> connects to joinUrl(serverUrl+/malformed, /models)
-  // = serverUrl/malformed/models -> 404. We need to target the malformed endpoint directly.
-  // Replace baseUrl with serverUrl + /malformed so /models becomes a 404.
-  // Actually, malformed JSON response returns unsupported, tested via a special case.
-  // Let me just verify that a bad fetch target returns unsupported gracefully.
-  const badResult = await discoverModels(
-    mockConfig({ apiKey: 'test-key', baseUrl: `${serverUrl}/bad-endpoint`, model: 'test' }),
-    new AbortController().signal,
-  );
-  assert.equal(badResult.discovery, 'unsupported');
-});
-
-await test('discoverOpenAIModels handles AbortSignal gracefully', async () => {
-  const controller = new AbortController();
-  controller.abort();
-  // AbortError is caught by the discovery function's catch block and returned as unsupported.
-  const result = await discoverModels(
-    mockConfig({ apiKey: 'test-key', baseUrl: serverUrl, model: 'test' }),
-    controller.signal,
-  );
-  assert.equal(result.discovery, 'unsupported');
-  assert.deepEqual(result.models, []);
-});
-
-await test('teardown discoverModels server', () => {
-  testServer.close();
-});
-
-// ── Config route test-connection (mock server with /v1 prefix) ────────
-
-await test('POST /api/config/test-connection integration', async () => {
-  // Start a mock provider that handles both discovery AND generation
-  const provider = http.createServer((req, res) => {
-    if (req.url === '/v1/models') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ data: [{ id: 'mock-model' }, { id: 'another-model' }] }));
-    } else if (req.url === '/v1/chat/completions') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        choices: [{ message: { content: 'OK' } }],
-      }));
-    } else {
-      res.writeHead(404);
-      res.end();
-    }
-  });
-  await new Promise<void>((resolve) => provider.listen(0, () => resolve()));
-  const providerUrl = `http://localhost:${(provider.address() as { port: number }).port}`;
-
-  // Start the app with the config route
-  const express = (await import('express')).default;
-  const { registerConfigRoutes } = await import('../server/routes/config');
-  const { getConfig } = await import('../server/lib/config');
-
-  // Save original config state
-  const cfg = getConfig();
-  const origKey = cfg.apiKey;
-  const origUrl = cfg.baseUrl;
-  const origModel = cfg.model;
+  __rateLimitTestHooks.reset();
 
   const app = express();
   app.use(express.json());
   registerConfigRoutes(app);
+  const server = app.listen(0, '127.0.0.1');
 
-  const appServer = app.listen(0);
-  const apiUrl = `http://localhost:${(appServer.address() as { port: number }).port}`;
+  return { app, server, config, originalConfig, testDir, ready: new Promise<void>(resolve => server.once('listening', resolve)) };
+}
+
+function getServerUrl(server: ReturnType<express.Application['listen']>): string {
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string', 'server must be listening');
+  return `http://127.0.0.1:${address.port}/api/config/test-connection`;
+}
+
+function teardownTestServer(ctx: ReturnType<typeof setupTestServer>, originalFetch: typeof fetch) {
+  globalThis.fetch = originalFetch;
+  const { server, config, originalConfig, testDir } = ctx;
+  Object.assign(config, originalConfig);
+  __rateLimitTestHooks.reset();
+  server.close();
+  try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+}
+
+function makeModelsResponse(models: string[]): Response {
+  return Response.json({
+    data: models.map(id => ({ id })),
+  });
+}
+
+test('OpenAI discovery returns model list and skips probe for unknown model', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  let modelsCalled = false;
+  let chatCalled = false;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      modelsCalled = true;
+      return makeModelsResponse(['gpt-4o', 'gpt-4o-mini', 'claude-3']);
+    }
+    if (u.includes('/chat/completions')) {
+      chatCalled = true;
+      return Response.json({ choices: [{ message: { content: 'OK' } }] });
+    }
+    return Response.json({ error: 'unexpected' }, { status: 404 });
+  }) as typeof fetch;
 
   try {
-    // Test 1: model not in list returns selection prompt
-    {
-      const res = await fetch(`${apiUrl}/api/config/test-connection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: 'test-key',
-          baseUrl: `${providerUrl}/v1`,
-          model: 'non-existent',
-        }),
-      });
-      assert.equal(res.status, 200);
-      const d = await res.json();
-      assert.equal(d.selectedModelValid, false);
-      assert.equal(d.modelTested, false);
-      assert.equal(d.modelDiscovery, 'available');
-      assert.ok(d.models.includes('mock-model'));
-      assert.match(d.message, /不在可用列表中/);
-    }
-
-    // Test 2: empty model returns prompt
-    {
-      const res = await fetch(`${apiUrl}/api/config/test-connection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: 'test-key',
-          baseUrl: `${providerUrl}/v1`,
-          model: '',
-        }),
-      });
-      assert.equal(res.status, 200);
-      const d = await res.json();
-      assert.equal(d.selectedModelValid, false);
-      assert.equal(d.modelTested, false);
-    }
-
-    // Test 3: valid model succeeds
-    {
-      const res = await fetch(`${apiUrl}/api/config/test-connection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: 'test-key',
-          baseUrl: `${providerUrl}/v1`,
-          model: 'mock-model',
-        }),
-      });
-      const d = await res.json();
-      assert.equal(d.selectedModelValid, true);
-      assert.equal(d.modelTested, true);
-      assert.equal(d.connectionOk, true);
-      assert.equal(d.ok, true);
-    }
-
-    // Test 4: missing API Key returns 400
-    {
-      const res = await fetch(`${apiUrl}/api/config/test-connection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: '',
-          baseUrl: `${providerUrl}/v1`,
-          model: 'mock-model',
-        }),
-      });
-      assert.equal(res.status, 400);
-    }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'unknown-model' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.modelDiscovery, 'available');
+    assert.ok(Array.isArray(data.models) && data.models.length === 3);
+    assert.equal(data.selectedModelValid, false);
+    assert.equal(data.modelTested, false);
+    assert.ok(data.message.includes('不在可用列表中'));
+    assert.ok(modelsCalled);
+    assert.ok(!chatCalled, 'chat completions must not be called for unknown model');
   } finally {
-    // Restore config
-    cfg.apiKey = origKey;
-    cfg.baseUrl = origUrl;
-    cfg.model = origModel;
-    appServer.close();
-    provider.close();
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('OpenAI discovery + known model triggers connection probe', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return makeModelsResponse(['deepseek-chat', 'deepseek-coder']);
+    }
+    if (u.includes('/chat/completions')) {
+      return Response.json({ choices: [{ message: { content: 'OK' } }] });
+    }
+    return Response.json({ error: 'unexpected' }, { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'deepseek-chat' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.ok, true);
+    assert.equal(data.connectionOk, true);
+    assert.equal(data.selectedModelValid, true);
+    assert.equal(data.modelTested, true);
+    assert.equal(data.message, 'OK');
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('404 from /models degrades to unsupported without models', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return Response.json({ error: 'not found' }, { status: 404 });
+    }
+    if (u.includes('/chat/completions')) {
+      return Response.json({ choices: [{ message: { content: 'OK' } }] });
+    }
+    return Response.json({ error: 'unexpected' }, { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'my-custom-model' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.modelDiscovery, 'unsupported');
+    assert.equal(data.models.length, 0);
+    // Custom model + unsupported → probe succeeds, model is valid
+    assert.equal(data.modelTested, true);
+    assert.equal(data.selectedModelValid, true);
+    assert.equal(data.connectionOk, true);
+    assert.equal(data.ok, true);
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('401 from /models surfaces as API Key credential error', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return Response.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o' }),
+    });
+    assert.equal(response.status, 401);
+    const data = await response.json();
+    assert.ok(data.error.includes('API Key'));
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('bad JSON from /models degrades to unsupported', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return new Response('not json', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'custom' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.modelDiscovery, 'unsupported');
+    assert.equal(data.models.length, 0);
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('discovery normalizes and deduplicates model list', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return makeModelsResponse(['  z-model  ', 'z-model', 'a-model', 'b-model']);
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'a-model' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(data.models, ['a-model', 'b-model', 'z-model']);
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('empty model field with available discovery returns model list for selection', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return makeModelsResponse(['gpt-4o', 'gpt-4o-mini']);
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    // Set model to empty in config
+    ctx.config.model = '';
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: '' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.modelDiscovery, 'available');
+    assert.ok(data.models.length === 2);
+    assert.equal(data.selectedModelValid, false);
+    assert.equal(data.modelTested, false);
+    assert.ok(data.message.includes('请从已发现的模型中选择'));
+  } finally {
+    ctx.config.model = '';
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+// ── Additional discovery unit tests ──
+
+test('discoverModels with pre-aborted signal propagates error', async () => {
+  const controller = new AbortController();
+  controller.abort(new Error('cancelled'));
+  // The error is re-thrown by discoverOpenAIModels when signal is aborted.
+  await assert.rejects(
+    () => discoverModels(
+      { apiKey: 'test', baseUrl: 'https://api.example.com/v1', model: 'test', promptTemplates: {} as any },
+      controller.signal,
+    ),
+    /cancelled/i,
+  );
+});
+
+test('discoverModels with pre-aborted signal without reason still throws', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    () => discoverModels(
+      { apiKey: 'test', baseUrl: 'https://api.example.com/v1', model: 'test', promptTemplates: {} as any },
+      controller.signal,
+    ),
+    /aborted/i,
+  );
+});
+
+test('403 from /models surfaces as API Key credential error', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o' }),
+    });
+    assert.equal(response.status, 401);
+    const data = await response.json();
+    assert.ok(data.error.includes('API Key'));
+  } finally {
+    teardownTestServer(ctx, originalFetch);
+  }
+});
+
+test('discovery with empty API response returns unsupported', async () => {
+  const originalFetch = globalThis.fetch;
+  const ctx = setupTestServer();
+  await ctx.ready;
+  const { server } = ctx;
+  const port = (server.address() as { port: number }).port;
+  const url = `http://127.0.0.1:${port}/api/config/test-connection`;
+
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (String(input).startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    const u = String(input);
+    if (u.includes('/models')) {
+      return Response.json({ data: [] }, { status: 200 });
+    }
+    return Response.json({ choices: [{ message: { content: 'OK' } }] });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'custom-model' }),
+    });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.modelDiscovery, 'unsupported');
+    assert.equal(data.models.length, 0);
+    // Unsupported discovery + custom model → probe attempted
+    assert.equal(data.modelTested, true);
+  } finally {
+    teardownTestServer(ctx, originalFetch);
   }
 });

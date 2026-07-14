@@ -49,6 +49,20 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const modelInputRef = React.useRef<HTMLInputElement>(null);
   const modelListboxRef = React.useRef<HTMLUListElement>(null);
   const testRequestIdRef = React.useRef(0);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const latestConfigRef = React.useRef(config);
+
+  // Keep latestConfigRef in sync with live config state.
+  useEffect(() => { latestConfigRef.current = config; }, [config]);
+
+  /** Cancel any in-flight test-connection, re-enable the button, and
+   *  invalidate any pending response. */
+  const cancelPendingTest = React.useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    testRequestIdRef.current += 1;
+    setIsTestingConnection(false);
+  }, []);
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -119,7 +133,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         })
         .catch(() => {});
     }
-  }, [isOpen]);
+    // When dialog closes, cancel any in-flight test
+    return () => { cancelPendingTest(); };
+  }, [isOpen, cancelPendingTest]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on template change
@@ -267,7 +283,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   };
 
   const handleTestConnection = async () => {
-    const currentId = ++testRequestIdRef.current;
+    // Cancel any previous in-flight request
+    cancelPendingTest();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const currentId = testRequestIdRef.current;
     setIsTestingConnection(true);
     setConnectionTestResult(null);
     setDiscoveredModels([]);
@@ -282,11 +302,18 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
           baseUrl: config.baseUrl,
           model: config.model,
         }),
+        signal: controller.signal,
       });
       const data = await response.json().catch(() => ({}));
 
-      // Ignore stale responses — API Key/Base URL may have changed since request
+      // Ignore stale responses — request ID or config may have changed
       if (currentId !== testRequestIdRef.current) return;
+      const currentConfig = latestConfigRef.current;
+      if (currentConfig.apiKey !== config.apiKey
+          || currentConfig.baseUrl !== config.baseUrl
+          || currentConfig.model !== config.model) {
+        return;
+      }
 
       if (response.status === 401) {
         throw new Error('API Key 验证失败');
@@ -302,6 +329,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       setModelDiscoveryStatus(data.modelDiscovery || null);
 
       if (data.selectedModelValid === false) {
+        // Don't show a red failure banner for "model not selected" —
+        // the inline help text guides the user, and the dropdown is populated.
+        if (!config.model || data.modelDiscovery === 'unsupported') {
+          return;
+        }
         const warning = data.models?.length > 0
           ? `模型 "${config.model}" 不在可用列表中，请选择后再次测试`
           : '请从已发现的模型中选择一个';
@@ -318,6 +350,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       });
     } catch (error) {
       if (currentId !== testRequestIdRef.current) return;
+      // AbortError — silently stop (the config has already changed)
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       setConnectionTestResult({
         success: false,
         message: error instanceof Error ? error.message : '连接错误，请检查网络或配置。',
@@ -392,6 +426,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         type="password"
                         value={config.apiKey}
                         onChange={e => {
+                          cancelPendingTest();
                           setConfig({...config, apiKey: e.target.value});
                           setConnectionTestResult(null);
                           setDiscoveredModels([]);
@@ -410,15 +445,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Base URL</label>
-                    <input
-                      type="text"
-                      value={config.baseUrl}
-                      onChange={e => {
-                        setConfig({...config, baseUrl: e.target.value});
-                        setConnectionTestResult(null);
-                        setDiscoveredModels([]);
-                        setModelDiscoveryStatus(null);
-                        setIsModelDropdownOpen(false);
+                      <input
+                        type="text"
+                        value={config.baseUrl}
+                        onChange={e => {
+                          cancelPendingTest();
+                          setConfig({...config, baseUrl: e.target.value});
+                          setConnectionTestResult(null);
+                          setDiscoveredModels([]);
+                          setModelDiscoveryStatus(null);
+                          setIsModelDropdownOpen(false);
                       }}
                       className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                       placeholder="https://api.deepseek.com"
@@ -426,10 +462,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                     <p className="text-[10px] text-theme-muted mt-1">兼容 OpenAI 接口规范的 API 地址，如 https://api.deepseek.com</p>
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Model</label>
+                    <label htmlFor="model-input" className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Model</label>
                     <div className="relative">
                       <input
                         ref={modelInputRef}
+                        id="model-input"
                         type="text"
                         role="combobox"
                         aria-expanded={isModelDropdownOpen && discoveredModels.length > 0}
@@ -439,6 +476,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         aria-activedescendant={isModelDropdownOpen && activeModelIndex >= 0 ? `model-option-${activeModelIndex}` : undefined}
                         value={config.model}
                         onChange={e => {
+                          cancelPendingTest();
                           setConfig({...config, model: e.target.value});
                           setConnectionTestResult(null);
                           setActiveModelIndex(-1);
@@ -483,6 +521,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                             setIsModelDropdownOpen(false);
                             setActiveModelIndex(-1);
                           } else if (e.key === 'Escape') {
+                            e.stopPropagation();
                             setIsModelDropdownOpen(false);
                             setActiveModelIndex(-1);
                           }
@@ -491,10 +530,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         placeholder="deepseek-chat"
                       />
                       {discoveredModels.length > 0 && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-theme-muted pointer-events-none select-none">
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none select-none">
                           {modelDiscoveryStatus === 'available'
                             ? `共 ${discoveredModels.length} 个`
-                            : '手动填入'}
+                            : <span className="text-amber-600 dark:text-amber-400">手动填入</span>}
                         </span>
                       )}
                     </div>
@@ -558,6 +597,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         ? `已发现 ${discoveredModels.length} 个模型，输入名称过滤`
                         : '模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro'}
                     </p>
+                    {discoveredModels.length > 0 && config.model && !discoveredModels.includes(config.model) && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                        <AlertTriangle size={10} />
+                        自定义模型
+                      </span>
+                    )}
                     {modelDiscoveryStatus === 'unsupported' && discoveredModels.length === 0 && (
                       <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
                         <AlertTriangle size={10} />
@@ -660,6 +705,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                     </div>
 
                     {/* Loading 状态反馈 */}
+                    <div role="status" aria-live="polite" aria-atomic="true">
                     {isTestingConnection && (
                       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-theme-border bg-theme-sidebar/35 text-[11px] text-theme-muted animate-pulse">
                         <Activity size={14} className="text-theme-accent animate-spin shrink-0" />
@@ -700,6 +746,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         </div>
                       </div>
                     )}
+                    </div>
                   </div>
                 </div>
 

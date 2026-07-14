@@ -95,7 +95,12 @@ async function discoverOpenAIModels(
       },
       signal,
     });
-  } catch {
+  } catch (e) {
+    // AbortError must propagate so the caller knows the request was cancelled,
+    // not silently degraded to "unsupported".
+    if (e instanceof Error && (e.name === 'AbortError' || signal.aborted)) {
+      throw e;
+    }
     // Network error — treat as unsupported so caller can fall back.
     return { models: [], discovery: 'unsupported' };
   }
