@@ -11,6 +11,7 @@ import {
   listPowerLevels, createPowerLevel, updatePowerLevel, deletePowerLevel,
   listTimelineEvents, createTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
   listEntityRelationshipsClient,
+  importWorldExtraction,
 } from '../lib/world-client';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { updateNovel } from '../lib/novel-client';
@@ -180,21 +181,25 @@ export function WorldBibleView({
   };
 
   const deleteEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
-    if (type === 'character') await deleteCharacter(id);
-    else if (type === 'location') await deleteLocation(id);
-    else if (type === 'item') await deleteItem(id);
-    else if (type === 'timeline') await deleteTimelineEvent(id);
-    else if (type === 'faction') await deleteFaction(id);
-    else if (type === 'powerLevel') await deletePowerLevel(id);
+    let deleted = false;
+    if (type === 'character') deleted = await deleteCharacter(id);
+    else if (type === 'location') deleted = await deleteLocation(id);
+    else if (type === 'item') deleted = await deleteItem(id);
+    else if (type === 'timeline') deleted = await deleteTimelineEvent(id);
+    else if (type === 'faction') deleted = await deleteFaction(id);
+    else if (type === 'powerLevel') deleted = await deletePowerLevel(id);
+    if (!deleted) throw new Error('设定条目已不存在，删除未生效。');
   };
 
   const updateEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string, data: Record<string, unknown>) => {
-    if (type === 'character') await updateCharacter(id, data);
-    else if (type === 'location') await updateLocation(id, data);
-    else if (type === 'item') await updateItem(id, data);
-    else if (type === 'timeline') await updateTimelineEvent(id, data);
-    else if (type === 'faction') await updateFaction(id, data);
-    else if (type === 'powerLevel') await updatePowerLevel(id, data);
+    let updated = false;
+    if (type === 'character') updated = await updateCharacter(id, data);
+    else if (type === 'location') updated = await updateLocation(id, data);
+    else if (type === 'item') updated = await updateItem(id, data);
+    else if (type === 'timeline') updated = await updateTimelineEvent(id, data);
+    else if (type === 'faction') updated = await updateFaction(id, data);
+    else if (type === 'powerLevel') updated = await updatePowerLevel(id, data);
+    if (!updated) throw new Error('设定条目已不存在，修改未保存。');
   };
 
   const handleGenerateBio = async (char: Character) => {
@@ -234,7 +239,11 @@ export function WorldBibleView({
             bioCommitChainsRef.current,
             char.id,
             isCurrent,
-            async () => updateCharacter(char.id, { bio }),
+            async () => {
+              if (!await updateCharacter(char.id, { bio })) {
+                throw new Error('人物已不存在，小传未保存。');
+              }
+            },
           );
         },
       });
@@ -535,6 +544,7 @@ JSON 格式规范：
           // arrays consumed below. Individual fields are best-effort and the
           // backend fills in defaults for missing required fields.
           const extracted = extractedRaw as {
+            databaseGeneration: number;
             globalOutline?: string;
             worldRules?: string;
             characters?: Character[];
@@ -551,48 +561,23 @@ JSON 格式规范：
           const newGlobalOutline = extracted.globalOutline || globalOutline;
           const newWorldRules = extracted.worldRules || worldRules;
 
-          await updateNovel(novel.id, {
+          // One server-side SQLite transaction owns the outline and all
+          // extracted entities. A malformed entity or failed insert rolls the
+          // entire import back instead of leaving a half-imported world bible.
+          await importWorldExtraction({
+            databaseGeneration: extracted.databaseGeneration,
+            novelId: novel.id,
             globalOutline: newGlobalOutline,
-            worldRules: newWorldRules
+            worldRules: newWorldRules,
+            characters: extracted.characters || [],
+            locations: extracted.locations || [],
+            items: extracted.items || [],
+            factions: extracted.factions || [],
+            powerLevels: extracted.powerLevels || [],
+            timelineEvents: extracted.timelineEvents || [],
           });
           setGlobalOutline(newGlobalOutline);
           setWorldRules(newWorldRules);
-
-          if (extracted.characters && Array.isArray(extracted.characters)) {
-            for (const char of extracted.characters) {
-              await createCharacter({ ...char, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), traits: char.traits || [], novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
-
-          if (extracted.locations && Array.isArray(extracted.locations)) {
-            for (const loc of extracted.locations) {
-              await createLocation({ ...loc, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
-
-          if (extracted.items && Array.isArray(extracted.items)) {
-            for (const item of extracted.items) {
-              await createItem({ ...item, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
-
-          if (extracted.factions && Array.isArray(extracted.factions)) {
-            for (const faction of extracted.factions) {
-              await createFaction({ ...faction, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
-
-          if (extracted.powerLevels && Array.isArray(extracted.powerLevels)) {
-            for (const pl of extracted.powerLevels) {
-              await createPowerLevel({ ...pl, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
-
-          if (extracted.timelineEvents && Array.isArray(extracted.timelineEvents)) {
-            for (const evt of extracted.timelineEvents) {
-              await createTimelineEvent({ ...evt, id: Date.now().toString() + Math.random().toString(36).substr(2, 5), novelId: novel.id, createdAt: Date.now(), updatedAt: Date.now() });
-            }
-          }
 
           setImportProgress(100);
           setImportStageText('设定文档导入解析成功！');

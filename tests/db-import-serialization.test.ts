@@ -11,11 +11,18 @@ process.env.INKFLOW_DB_PATH = activeDbPath;
 
 test('database import serialization and recovery', async (t) => {
   const { closeDb, initDb } = await import('../server/lib/db');
-  const { getDb, runInSerializedWrite } = await import('../server/lib/db-instance');
+  const {
+    getDatabaseGeneration,
+    getDb,
+    runInSerializedWrite,
+    runInSerializedWriteForGeneration,
+  } = await import('../server/lib/db-instance');
   const {
     DB_IMPORT_BACKUP_MARKER,
     DB_IMPORT_TEMP_MARKER,
+    MAX_IMPORT_BACKUPS,
     importDatabaseBuffer,
+    pruneImportBackups,
     registerDbRoutes,
   } = await import('../server/routes/db');
 
@@ -110,6 +117,29 @@ test('database import serialization and recovery', async (t) => {
         undefined,
         'a write queued against the old database must finish before replacement, not leak into it',
       );
+    });
+
+    await t.test('discards a delayed task that resumes after database replacement', async () => {
+      const replacement = createCandidate('generation-replacement.db', (database) => {
+        database.prepare(`
+          INSERT INTO novels (id, title, author_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run('generation-new', '代际新库', 'local-user', Date.now(), Date.now());
+      });
+      resetActiveDatabase();
+      const oldGeneration = getDatabaseGeneration();
+
+      await importDatabaseBuffer(replacement);
+      const delayedWrite = await runInSerializedWriteForGeneration(oldGeneration, () => {
+        getDb().prepare(`
+          INSERT INTO novels (id, title, author_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run('late-old-task', '旧任务幽灵写入', 'local-user', Date.now(), Date.now());
+      });
+
+      assert.equal(delayedWrite.executed, false);
+      assert.equal(getDb().prepare('SELECT id FROM novels WHERE id = ?').get('late-old-task'), undefined);
+      assert.ok(getDb().prepare('SELECT id FROM novels WHERE id = ?').get('generation-new'));
     });
 
     await t.test('restores the original database and cleans temporary files when initialization fails', async () => {
@@ -271,6 +301,23 @@ test('database import serialization and recovery', async (t) => {
       assert.deepEqual(importTempFiles(), []);
       const createdBackups = importBackupFiles().filter((name) => !backupsBefore.has(name));
       assert.equal(createdBackups.length, 1, 'successful replacement must preserve a timestamped old database backup');
+    });
+
+    await t.test('retains only the newest bounded set of pre-import backups', () => {
+      const prefix = `${path.basename(activeDbPath)}${DB_IMPORT_BACKUP_MARKER}`;
+      for (let index = 0; index < MAX_IMPORT_BACKUPS + 3; index += 1) {
+        const backupPath = path.join(testDir, `${prefix}${index}.bak`);
+        fs.writeFileSync(backupPath, `backup-${index}`);
+        const modifiedAt = new Date(Date.now() + index * 1000);
+        fs.utimesSync(backupPath, modifiedAt, modifiedAt);
+      }
+
+      pruneImportBackups();
+
+      const remaining = importBackupFiles();
+      assert.equal(remaining.length, MAX_IMPORT_BACKUPS);
+      assert.ok(remaining.includes(`${prefix}${MAX_IMPORT_BACKUPS + 2}.bak`));
+      assert.equal(remaining.includes(`${prefix}0.bak`), false);
     });
   } finally {
     closeDb();

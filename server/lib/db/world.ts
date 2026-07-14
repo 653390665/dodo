@@ -25,12 +25,12 @@ export function createCharacter(c: Character): void {
   characterCrud.create(c);
 }
 
-export function updateCharacter(id: string, data: Partial<Character>): void {
-  characterCrud.update(id, data);
+export function updateCharacter(id: string, data: Partial<Character>): boolean {
+  return characterCrud.update(id, data);
 }
 
-export function deleteCharacter(id: string): void {
-  characterCrud.delete(id);
+export function deleteCharacter(id: string): boolean {
+  return characterCrud.delete(id);
 }
 
 // --- Location CRUD ---
@@ -51,12 +51,12 @@ export function createLocation(loc: Location): void {
   locationCrud.create(loc);
 }
 
-export function updateLocation(id: string, data: Partial<Location>): void {
-  locationCrud.update(id, data);
+export function updateLocation(id: string, data: Partial<Location>): boolean {
+  return locationCrud.update(id, data);
 }
 
-export function deleteLocation(id: string): void {
-  locationCrud.delete(id);
+export function deleteLocation(id: string): boolean {
+  return locationCrud.delete(id);
 }
 
 // --- Item CRUD ---
@@ -81,12 +81,12 @@ export function createItem(item: Item): void {
   itemCrud.create(item);
 }
 
-export function updateItem(id: string, data: Partial<Item>): void {
-  itemCrud.update(id, data);
+export function updateItem(id: string, data: Partial<Item>): boolean {
+  return itemCrud.update(id, data);
 }
 
-export function deleteItem(id: string): void {
-  itemCrud.delete(id);
+export function deleteItem(id: string): boolean {
+  return itemCrud.delete(id);
 }
 
 // --- Faction CRUD ---
@@ -107,12 +107,12 @@ export function createFaction(f: Faction): void {
   factionCrud.create(f);
 }
 
-export function updateFaction(id: string, data: Partial<Faction>): void {
-  factionCrud.update(id, data);
+export function updateFaction(id: string, data: Partial<Faction>): boolean {
+  return factionCrud.update(id, data);
 }
 
-export function deleteFaction(id: string): void {
-  factionCrud.delete(id);
+export function deleteFaction(id: string): boolean {
+  return factionCrud.delete(id);
 }
 
 // --- PowerLevel CRUD ---
@@ -134,12 +134,12 @@ export function createPowerLevel(p: PowerLevel): void {
   powerLevelCrud.create(p);
 }
 
-export function updatePowerLevel(id: string, data: Partial<PowerLevel>): void {
-  powerLevelCrud.update(id, data);
+export function updatePowerLevel(id: string, data: Partial<PowerLevel>): boolean {
+  return powerLevelCrud.update(id, data);
 }
 
-export function deletePowerLevel(id: string): void {
-  powerLevelCrud.delete(id);
+export function deletePowerLevel(id: string): boolean {
+  return powerLevelCrud.delete(id);
 }
 
 // --- TimelineEvent CRUD ---
@@ -161,12 +161,12 @@ export function createTimelineEvent(t: TimelineEvent): void {
   timelineEventCrud.create(t);
 }
 
-export function updateTimelineEvent(id: string, data: Partial<TimelineEvent>): void {
-  timelineEventCrud.update(id, data);
+export function updateTimelineEvent(id: string, data: Partial<TimelineEvent>): boolean {
+  return timelineEventCrud.update(id, data);
 }
 
-export function deleteTimelineEvent(id: string): void {
-  timelineEventCrud.delete(id);
+export function deleteTimelineEvent(id: string): boolean {
+  return timelineEventCrud.delete(id);
 }
 
 // --- Entity Relationships ---
@@ -183,7 +183,7 @@ const ENTITY_RELATIONSHIP_COLUMNS = new Set([
   'sourceType', 'sourceId', 'targetType', 'targetId', 'relationshipType', 'description'
 ]);
 
-export function updateEntityRelationship(id: string, data: Partial<EntityRelationship>): void {
+export function updateEntityRelationship(id: string, data: Partial<EntityRelationship>): boolean {
   const sets: string[] = []; const vals: unknown[] = [];
   for (const [k, v] of Object.entries(data)) {
     if (!ENTITY_RELATIONSHIP_COLUMNS.has(k)) {
@@ -192,13 +192,15 @@ export function updateEntityRelationship(id: string, data: Partial<EntityRelatio
     sets.push(k + ' = ?');
     vals.push(v);
   }
-  if (sets.length === 0) return;
+  if (sets.length === 0) return false;
   vals.push(id);
-  getDb().prepare('UPDATE entity_relationships SET ' + sets.join(', ') + ' WHERE id = ?').run(...vals);
-  notify();
+  const result = getDb().prepare('UPDATE entity_relationships SET ' + sets.join(', ') + ' WHERE id = ?').run(...vals);
+  if (result.changes > 0) notify();
+  return result.changes > 0;
 }
 
-export function deleteEntityRelationship(id: string): void {
-  getDb().prepare('DELETE FROM entity_relationships WHERE id = ?').run(id);
-  notify();
+export function deleteEntityRelationship(id: string): boolean {
+  const result = getDb().prepare('DELETE FROM entity_relationships WHERE id = ?').run(id);
+  if (result.changes > 0) notify();
+  return result.changes > 0;
 }

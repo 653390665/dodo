@@ -26,3 +26,28 @@ test('db method registry rejects oversized entity payloads', () => {
   });
   assert.equal(result.success, false);
 });
+
+test('db method registry validates core entity fields and enums', () => {
+  assert.equal(dbSchema.safeParse({
+    method: 'createCharacter',
+    args: [{
+      id: 'character-1', novelId: 'novel-1', name: '角色', role: 'supporting',
+      summary: '', traits: [], bio: '', createdAt: 1, updatedAt: 1,
+    }],
+  }).success, true);
+  assert.equal(dbSchema.safeParse({
+    method: 'createCharacter',
+    args: [{
+      id: 'character-1', novelId: 'novel-1', name: '角色', role: 'invalid-role',
+      summary: '', traits: [], bio: '', createdAt: 1, updatedAt: 1,
+    }],
+  }).success, false);
+  assert.equal(dbSchema.safeParse({
+    method: 'updateChapter',
+    args: ['chapter-1', { wordCount: 'not-a-number' }],
+  }).success, false);
+  assert.equal(dbSchema.safeParse({
+    method: 'updateItem',
+    args: ['item-1', { unexpectedField: true }],
+  }).success, false);
+});

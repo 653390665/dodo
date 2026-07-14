@@ -14,6 +14,7 @@ const testRoot = path.join(os.tmpdir(), `inkflow-packaged-lifecycle-${process.pi
 const databasePath = path.join(testRoot, 'lifecycle.db');
 const configDir = path.join(testRoot, 'config');
 const expectedContent = `打包应用退出耐久性验证-${Date.now()}`;
+let launchSequence = 0;
 mkdirSync(configDir, { recursive: true });
 
 function collectStartupLogs(directory = testRoot) {
@@ -69,9 +70,10 @@ async function waitForCdp(port, child, processOutput) {
       const response = await fetch(endpoint, { signal: globalThis.AbortSignal.timeout(1_000) });
       if (response.ok) {
         const targets = await response.json();
-        if (Array.isArray(targets) && targets.some((target) => (
+        const rendererTarget = Array.isArray(targets) && targets.find((target) => (
           target.type === 'page' && isPackagedRendererUrl(target.url)
-        ))) return;
+        ));
+        if (rendererTarget) return rendererTarget;
       }
     } catch {
       // The packaged renderer is still starting.
@@ -81,14 +83,16 @@ async function waitForCdp(port, child, processOutput) {
   throw new Error(`Packaged application did not expose CDP. Output:\n${processOutput()}`);
 }
 
-async function launch() {
+async function launch({ connectBrowser = true } = {}) {
   const port = await reservePort();
+  const userDataDir = path.join(testRoot, `user-data-${++launchSequence}`);
   let output = '';
   mkdirSync(path.join(testRoot, 'AppData', 'Roaming'), { recursive: true });
   mkdirSync(path.join(testRoot, 'AppData', 'Local'), { recursive: true });
   const child = spawn(executablePath, [
     `--remote-debugging-port=${port}`,
     '--remote-allow-origins=*',
+    `--user-data-dir=${userDataDir}`,
   ], {
     env: {
       ...process.env,
@@ -105,17 +109,42 @@ async function launch() {
   child.stderr.on('data', (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitForCdp(port, child, () => output);
+    const rendererTarget = await waitForCdp(port, child, () => output);
+    if (!connectBrowser) {
+      return { browser: null, child, page: null, rendererUrl: rendererTarget.url, userDataDir, output: () => output };
+    }
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
     const page = context.pages().find((candidate) => isPackagedRendererUrl(candidate.url()));
     if (!page) throw new Error(`CDP reported no packaged renderer target that Playwright could attach. Output:\n${output}`);
-    return { browser, child, page, output: () => output };
+    return { browser, child, page, userDataDir, output: () => output };
   } catch (error) {
     child.kill();
     throw error;
   }
+}
+
+async function callDbOverHttp(rendererUrl, method, ...args) {
+  const token = readFileSync(path.join(testRoot, '.inkflow', '.auth-token'), 'utf8').trim();
+  const response = await fetch(new globalThis.URL('/api/db', rendererUrl), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ method, args }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function terminateApplication(application) {
+  const exited = application.child.exitCode !== null
+    ? Promise.resolve(application.child.exitCode)
+    : new Promise((resolve) => application.child.once('exit', resolve));
+  application.child.kill('SIGKILL');
+  await withTimeout(exited, 5_000, `Packaged process termination. Output:\n${application.output()}`);
 }
 
 async function callDb(page, method, ...args) {
@@ -131,7 +160,13 @@ async function callDb(page, method, ...args) {
 }
 
 async function enterEditor(page) {
-  await page.getByRole('button', { name: /继续当前作品/ }).click();
+  const continueButton = page.getByRole('button', { name: /继续当前作品/ });
+  try {
+    await continueButton.click();
+  } catch (error) {
+    const bodyText = await page.locator('body').innerText().catch(() => '<unavailable>');
+    throw new Error(`Unable to enter the packaged editor at ${page.url()}. Visible text:\n${bodyText.slice(0, 4_000)}`, { cause: error });
+  }
   const resume = page.locator('[data-testid="queued-step-resume_editor"]');
   await resume.waitFor({ state: 'visible', timeout: 15_000 });
   await resume.click();
@@ -159,6 +194,11 @@ async function closeThroughElectronHandshake(application) {
     // macOS intentionally keeps the process alive after its final window closes.
     child.kill();
     await withTimeout(exited, 5_000, `Packaged process termination. Output:\n${output()}`);
+  }
+
+  const startupLog = readFileSync(path.join(application.userDataDir, 'startup.log'), 'utf8');
+  if (startupLog.includes('Editor flush timed out')) {
+    throw new Error(`Packaged close used the timeout fallback instead of completing the renderer flush handshake.\n${startupLog}`);
   }
 }
 
@@ -198,21 +238,23 @@ try {
   await closeThroughElectronHandshake(application);
   application = undefined;
 
-  application = await launch();
-  page = application.page;
-  await page.locator('body').waitFor({ state: 'visible' });
-  const { result: restoredChapter } = await callDb(page, 'getChapter', 'packaged-lifecycle-chapter');
+  application = await launch({ connectBrowser: false });
+  const { result: restoredChapter } = await callDbOverHttp(
+    application.rendererUrl,
+    'getChapter',
+    'packaged-lifecycle-chapter',
+  );
   if (restoredChapter?.content !== expectedContent) {
     throw new Error(`Last editor input was not durable. Expected ${JSON.stringify(expectedContent)}, received ${JSON.stringify(restoredChapter?.content)}`);
   }
 
-  await closeThroughElectronHandshake(application);
+  await terminateApplication(application);
   application = undefined;
   completed = true;
   process.stdout.write('Packaged Electron editor lifecycle persistence: OK\n');
 } finally {
   if (application) {
-    await application.browser.close().catch(() => {});
+    await application.browser?.close().catch(() => {});
     application.child.kill();
   }
   if (!completed) {

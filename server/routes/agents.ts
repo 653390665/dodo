@@ -436,6 +436,9 @@ export function registerAgentsRoutes(app: Express) {
   });
 
   app.post('/api/orchestrate-draft', async (req, res) => {
+    if (!rateLimit('orchestrate-draft')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     let orchestrateHeartbeat: NodeJS.Timeout | null = null;
     const clientAbortController = new AbortController();
     const { novelId } = req.body;

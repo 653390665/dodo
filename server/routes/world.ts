@@ -9,6 +9,80 @@ import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import {
+  getDatabaseGeneration,
+  runInSerializedWriteForGeneration,
+} from '../lib/db-instance';
+import { generateId } from '../id';
+import { rateLimit } from '../middleware/rate-limit';
+
+const shortText = z.string().max(200).default('');
+const longText = z.string().max(100_000).default('');
+const worldExtractionImportSchema = z.object({
+  databaseGeneration: z.number().int().nonnegative(),
+  novelId: z.string().min(1).max(200),
+  globalOutline: longText,
+  worldRules: longText,
+  characters: z.array(z.object({
+    name: z.string().min(1).max(200),
+    role: z.enum(['protagonist', 'antagonist', 'supporting', 'extra']).default('supporting'),
+    summary: z.string().max(10_000).default(''),
+    bio: longText,
+    traits: z.array(z.string().max(200)).max(100).default([]),
+  })).max(1000).default([]),
+  locations: z.array(z.object({
+    name: z.string().min(1).max(200),
+    region: shortText,
+    description: longText,
+  })).max(1000).default([]),
+  items: z.array(z.object({
+    name: z.string().min(1).max(200),
+    type: shortText,
+    description: longText,
+  })).max(1000).default([]),
+  factions: z.array(z.object({
+    name: z.string().min(1).max(200),
+    leader: shortText,
+    territory: shortText,
+    description: longText,
+  })).max(1000).default([]),
+  powerLevels: z.array(z.object({
+    name: z.string().min(1).max(200),
+    tier: z.coerce.number().int().min(0).max(100_000).default(0),
+    characteristics: longText,
+    description: longText,
+  })).max(1000).default([]),
+  timelineEvents: z.array(z.object({
+    title: z.string().min(1).max(500),
+    timestamp: shortText,
+    statusTag: shortText,
+    description: longText,
+    order: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  })).max(5000).default([]),
+});
+
+type WorldExtractionImport = z.infer<typeof worldExtractionImportSchema>;
+type WorldExtractionContent = Omit<WorldExtractionImport, 'databaseGeneration'>;
+
+export function commitWorldExtraction(
+  payload: WorldExtractionContent,
+  idFactory: () => string = generateId,
+): void {
+  const now = Date.now();
+  db.runInTransaction(() => {
+    if (!db.updateNovel(payload.novelId, {
+      globalOutline: payload.globalOutline,
+      worldRules: payload.worldRules,
+    })) throw new Error('Novel disappeared during world import');
+
+    for (const entity of payload.characters) db.createCharacter({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+    for (const entity of payload.locations) db.createLocation({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+    for (const entity of payload.items) db.createItem({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+    for (const entity of payload.factions) db.createFaction({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+    for (const entity of payload.powerLevels) db.createPowerLevel({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+    for (const entity of payload.timelineEvents) db.createTimelineEvent({ ...entity, id: idFactory(), novelId: payload.novelId, createdAt: now, updatedAt: now });
+  });
+}
 
 interface PacingInputChapter {
   order?: number;
@@ -74,6 +148,27 @@ function updateJob(id: string, updates: Partial<Omit<Job, 'id' | 'createdAt'>>) 
 }
 
 export function registerWorldRoutes(app: Express) {
+  app.post('/api/world/import-extraction', (req, res) => {
+    const parsed = worldExtractionImportSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: '导入设定结构无效' });
+    }
+    const payload = parsed.data;
+    if (payload.databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入设定文档' });
+    }
+    if (!db.getNovel(payload.novelId)) {
+      return res.status(404).json({ error: '作品不存在' });
+    }
+    try {
+      commitWorldExtraction(payload);
+      return res.json({ success: true });
+    } catch (error) {
+      logger.error('原子导入设定失败:', error);
+      return res.status(500).json({ error: '设定导入失败，未写入任何数据' });
+    }
+  });
+
   // GET endpoint to query world background job status
   app.get('/api/world/jobs/:jobId', (req, res) => {
     const { jobId } = req.params;
@@ -85,6 +180,9 @@ export function registerWorldRoutes(app: Express) {
   });
 
   app.post('/api/generate-bio', async (req, res) => {
+    if (!rateLimit('generate-bio')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     let disposeDisconnect = () => {};
     const generateBioSchema = z.object({
       name: z.string().min(1, '角色名称不能为空'),
@@ -179,6 +277,9 @@ ${genderConstraint}
   });
 
   app.post('/api/generate-outline', (req, res) => {
+    if (!rateLimit('generate-outline')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const jobId = createJob();
     res.json({ jobId });
 
@@ -373,6 +474,9 @@ ${chapterList}
   });
 
   app.post('/api/generate-entity-details', (req, res) => {
+    if (!rateLimit('generate-entity-details')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const jobId = createJob();
     res.json({ jobId });
 
@@ -446,6 +550,7 @@ ${chapterList}
       // Silent background Promise execution
       (async () => {
         try {
+          const databaseGeneration = getDatabaseGeneration();
           const characters = db.listCharacters(novelId);
           const currentState = characters
             .map((c) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
@@ -469,20 +574,27 @@ ${chapterList}
           const resultRecord = asRecord(result);
           const resultCharacters = asArray(resultRecord.characters);
 
-          let updatedCount = 0;
-          for (const updateVal of resultCharacters) {
-            const update = asRecord(updateVal);
-            const name = stringValue(update.name);
-            if (!name) continue;
-            const char = characters.find((c) => c.name === name);
-            if (char) {
-              db.updateCharacter(char.id, {
-                current_state: JSON.stringify(update.changes),
-              });
-              updatedCount++;
+          const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => {
+            let updatedCount = 0;
+            for (const updateVal of resultCharacters) {
+              const update = asRecord(updateVal);
+              const name = stringValue(update.name);
+              if (!name) continue;
+              const char = characters.find((c) => c.name === name);
+              if (char) {
+                db.updateCharacter(char.id, {
+                  current_state: JSON.stringify(update.changes),
+                });
+                updatedCount++;
+              }
             }
+            return updatedCount;
+          });
+          if (writeResult.executed) {
+            logger.info(`Background update-character-state completed silently. Updated ${writeResult.result} characters.`);
+          } else {
+            logger.info('Background update-character-state discarded after database replacement.');
           }
-          logger.info(`Background update-character-state completed silently. Updated ${updatedCount} characters.`);
         } catch (bgErr) {
           logger.error('Background update-character-state task error:', bgErr);
         }

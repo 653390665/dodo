@@ -3,12 +3,18 @@ import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
 import { validate, dbSchema } from '../validation';
 import express from 'express';
-import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync } from 'fs';
+import { existsSync, unlinkSync, copyFileSync, writeFileSync, renameSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { DB_PATH, INKFLOW_SQLITE_APPLICATION_ID, initDb, openReadOnlyDb } from '../lib/db-init';
-import { closeDb, getDb, isDbInitialized } from '../lib/db-instance';
+import {
+  advanceDatabaseGeneration,
+  closeDb,
+  getDb,
+  isDbInitialized,
+} from '../lib/db-instance';
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
+import { clearEmbeddingCache } from '../vector-store';
 
 const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
@@ -41,6 +47,35 @@ function removeDbSidecars(): void {
 
 export const DB_IMPORT_TEMP_MARKER = '.import-validation-';
 export const DB_IMPORT_BACKUP_MARKER = '.pre-import-';
+export const MAX_IMPORT_BACKUPS = 5;
+
+/** Keep a small recovery window without retaining unlimited copies of novels. */
+export function pruneImportBackups(maxBackups = MAX_IMPORT_BACKUPS): void {
+  let backups: Array<{ filePath: string; modifiedAt: number }>;
+  try {
+    const directory = path.dirname(DB_PATH);
+    const prefix = `${path.basename(DB_PATH)}${DB_IMPORT_BACKUP_MARKER}`;
+    backups = readdirSync(directory)
+      .filter((name) => name.startsWith(prefix) && name.endsWith('.bak'))
+      .map((name) => {
+        const filePath = path.join(directory, name);
+        return { filePath, modifiedAt: statSync(filePath).mtimeMs };
+      })
+      .sort((left, right) => right.modifiedAt - left.modifiedAt);
+
+  } catch (error) {
+    logger.error('读取数据库导入备份列表失败:', error);
+    return;
+  }
+
+  for (const backup of backups.slice(Math.max(0, maxBackups))) {
+    try {
+      unlinkSync(backup.filePath);
+    } catch (error) {
+      logger.error('清理过期数据库导入备份失败:', error);
+    }
+  }
+}
 
 export class DatabaseImportValidationError extends Error {
   constructor(message: string) {
@@ -248,6 +283,9 @@ export async function importDatabaseBuffer(
     validateDatabaseImportFile(importTempPath);
 
     await runInSerializedWrite(async () => {
+      // Invalidate every async operation that started against the old file
+      // before closing it. Rollback still represents a new mounted generation.
+      advanceDatabaseGeneration();
       let backupReady = false;
       let hadExistingDatabase = false;
       try {
@@ -266,6 +304,8 @@ export async function importDatabaseBuffer(
         renameSync(importTempPath, DB_PATH);
         initialize();
         validateDatabaseImportFile(DB_PATH, true);
+        clearEmbeddingCache();
+        pruneImportBackups();
       } catch (err: unknown) {
         logger.error('还原数据库失败，正在执行自动容灾回滚:', err);
         try {
@@ -281,6 +321,7 @@ export async function importDatabaseBuffer(
 
           removeDbSidecars();
           initialize();
+          clearEmbeddingCache();
         } catch (restoreErr) {
           logger.error('严重警告：数据库还原回滚失败！', restoreErr);
         }
@@ -333,7 +374,7 @@ export function startDbEventStream(
 }
 
 export function registerDbRoutes(app: Express) {
-  app.post('/api/db', validate(dbSchema), (req, res) => {
+  app.post('/api/db', validate(dbSchema), async (req, res) => {
     const { method, args = [] } = req.body;
     if (!DB_WHITELIST.has(method)) {
       return res.status(400).json({ error: `Unknown method: ${method}` });
@@ -342,20 +383,22 @@ export function registerDbRoutes(app: Express) {
     if (typeof fn !== 'function') {
       return res.status(500).json({ error: `Method not a function: ${method}` });
     }
-    const clientId = req.headers['x-client-id'] as string | undefined;
-    if (clientId) {
-      setCurrentInitiator(clientId);
-    }
     try {
-      const result = fn(...args);
+      // All proxy calls share the same FIFO boundary as database replacement.
+      // This also keeps the module-level initiator scoped to exactly one call.
+      const result = await runInSerializedWrite(() => {
+        const clientId = req.headers['x-client-id'] as string | undefined;
+        setCurrentInitiator(clientId);
+        try {
+          return fn(...args);
+        } finally {
+          setCurrentInitiator(undefined);
+        }
+      });
       res.json({ result });
     } catch (e: unknown) {
       logger.error("DB proxy error:", e);
       res.status(500).json({ error: 'Internal server error' });
-    } finally {
-      if (clientId) {
-        setCurrentInitiator(undefined);
-      }
     }
   });
 
@@ -371,13 +414,16 @@ export function registerDbRoutes(app: Express) {
   // 一键冷备数据下载
   app.get('/api/db/export-file', async (req, res) => {
     try {
-      if (isDbInitialized()) {
-        const activeDb = getDb();
+      const tempBackupPath = await runInSerializedWrite(async () => {
+        if (!isDbInitialized()) return null;
         const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        const tempBackupPath = `${DB_PATH}-${uniqueId}.temp-export`;
+        const backupPath = `${DB_PATH}-${uniqueId}.temp-export`;
         // 使用 better-sqlite3 提供的符合事务一致性快照的备份 API
-        await activeDb.backup(tempBackupPath);
+        await getDb().backup(backupPath);
+        return backupPath;
+      });
 
+      if (tempBackupPath) {
         res.download(tempBackupPath, 'inkflow-data.db', (err) => {
           try {
             if (existsSync(tempBackupPath)) {

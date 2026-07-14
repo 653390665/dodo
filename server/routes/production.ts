@@ -24,15 +24,35 @@ import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import * as db from '../lib/db';
 import { validate, chapterProductionSchema } from '../validation';
 import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
+import { bindClientDisconnect } from '../helpers/stream-disconnect';
+import {
+  getDatabaseGeneration,
+  runInSerializedWriteForGeneration,
+} from '../lib/db-instance';
 
-function sseWrite(res: Express['response'], payload: Record<string, unknown>) {
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+function isResponseWritable(res: Express['response']): boolean {
+  return !res.writableEnded && !res.destroyed;
 }
 
-async function emitTextAsTokensWithType(res: Express['response'], text: string, eventType: string) {
+function sseWrite(res: Express['response'], payload: Record<string, unknown>): boolean {
+  if (!isResponseWritable(res)) return false;
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  return true;
+}
+
+async function emitTextAsTokensWithType(
+  res: Express['response'],
+  text: string,
+  eventType: string,
+  signal?: AbortSignal,
+) {
   const chunks = text.match(/.{1,24}/gs) || [];
   for (const chunk of chunks) {
-    sseWrite(res, { type: eventType, content: chunk });
+    if (signal?.aborted || !sseWrite(res, { type: eventType, content: chunk })) {
+      const error = new Error('Client disconnected during production stream');
+      error.name = 'AbortError';
+      throw error;
+    }
     await new Promise((resolve) => setTimeout(resolve, 8));
   }
 }
@@ -64,6 +84,7 @@ export function registerProductionRoutes(app: Express) {
       }
 
       reservationId = reserve.reservationId;
+      const streamDatabaseGeneration = getDatabaseGeneration();
 
       // Run Reflexion evolution in the background to learn from the previous chapter's edits
       runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
@@ -119,13 +140,19 @@ export function registerProductionRoutes(app: Express) {
       const fallbackAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
       const fallbackContinuity = buildEmptyContinuityReport();
 
-      db.updateChapterProductionRun(runId, {
-        status: 'review_required',
-        sceneBeats: fallbackBeats,
-        draftContent: fallbackDraft,
-        styleAudit: fallbackAudit,
-        continuityReport: fallbackContinuity,
-      });
+      const fallbackWrite = await runInSerializedWriteForGeneration(
+        streamDatabaseGeneration,
+        () => db.updateChapterProductionRun(runId!, {
+          status: 'review_required',
+          sceneBeats: fallbackBeats,
+          draftContent: fallbackDraft,
+          styleAudit: fallbackAudit,
+          continuityReport: fallbackContinuity,
+        }),
+      );
+      if (!fallbackWrite.executed) {
+        throw new Error('数据库已在生成期间切换，已丢弃旧生成任务');
+      }
 
       // 成功生成 fallback，额度已在 reserve 时预占
       commitQuotaReservation(reservationId);
@@ -146,12 +173,27 @@ export function registerProductionRoutes(app: Express) {
   });
 
   app.post('/api/chapter-production-runs/start-stream', validate(chapterProductionSchema), async (req, res) => {
+    if (!rateLimit('chapter-production-stream')) {
+      return res.status(429).json({ error: 'Rate limited — please wait before starting another production run', retryAfter: 30 });
+    }
     let runId: string | null = null;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
+    let disposeDisconnect = () => {};
+    let streamCleanedUp = false;
+    const cleanupStream = () => {
+      if (streamCleanedUp) return;
+      streamCleanedUp = true;
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = null;
+      }
+      disposeDisconnect();
+    };
     const { novelId = '' } = req.body;
     let reservationId: string | undefined;
     let contentDelivered = false;
+    let streamDatabaseGeneration: number | undefined;
 
     try {
       const {
@@ -189,6 +231,7 @@ export function registerProductionRoutes(app: Express) {
         res.status(404).json({ error: 'Novel not found' });
         return;
       }
+      streamDatabaseGeneration = getDatabaseGeneration();
 
       let packContext = '';
       if (continuationPackId) {
@@ -207,19 +250,14 @@ export function registerProductionRoutes(app: Express) {
       req.socket.setTimeout(0);
 
       heartbeat = setInterval(() => {
-        if (!res.writableEnded) {
+        if (isResponseWritable(res)) {
           res.write(':ping\n\n');
         }
       }, 30_000);
 
-      res.on('close', () => {
-        if (!res.writableEnded) {
-          clientAbortController.abort();
-        }
-        if (heartbeat) {
-          clearInterval(heartbeat);
-          heartbeat = null;
-        }
+      disposeDisconnect = bindClientDisconnect(req, res, () => {
+        clientAbortController.abort();
+        cleanupStream();
       });
 
       // --- Data loading (same as non-streaming endpoint) ---
@@ -277,7 +315,12 @@ export function registerProductionRoutes(app: Express) {
       sseWrite(res, { type: 'fallback_beats', content: fallbackBeats });
 
       const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext);
-      await emitTextAsTokensWithType(res, fallbackDraft, 'fallback_draft_token');
+      await emitTextAsTokensWithType(
+        res,
+        fallbackDraft,
+        'fallback_draft_token',
+        clientAbortController.signal,
+      );
       sseWrite(res, { type: 'fallback_draft_done' });
 
       const fallbackAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
@@ -286,13 +329,19 @@ export function registerProductionRoutes(app: Express) {
       const fallbackContinuity = buildEmptyContinuityReport();
       sseWrite(res, { type: 'fallback_continuity', report: fallbackContinuity });
 
-      db.updateChapterProductionRun(runId, {
-        status: 'review_required',
-        sceneBeats: fallbackBeats,
-        draftContent: fallbackDraft,
-        styleAudit: fallbackAudit,
-        continuityReport: fallbackContinuity,
-      });
+      const fallbackWrite = await runInSerializedWriteForGeneration(
+        streamDatabaseGeneration,
+        () => db.updateChapterProductionRun(runId!, {
+          status: 'review_required',
+          sceneBeats: fallbackBeats,
+          draftContent: fallbackDraft,
+          styleAudit: fallbackAudit,
+          continuityReport: fallbackContinuity,
+        }),
+      );
+      if (!fallbackWrite.executed) {
+        throw new Error('数据库已在生成期间切换，已丢弃旧生成任务');
+      }
 
       contentDelivered = true;
       commitQuotaReservation(reservationId);
@@ -305,10 +354,7 @@ export function registerProductionRoutes(app: Express) {
         sseWrite(res, { type: 'model_score', score: 85, attempts: 1 });
         const runData = db.getChapterProductionRun(runId!);
         sseWrite(res, { type: 'done', run: runData });
-        if (heartbeat) {
-          clearInterval(heartbeat);
-          heartbeat = null;
-        }
+        cleanupStream();
         // 增加 100ms 延时，确保极速返回下的客户端完整读取 TCP 数据包 buffer
         await new Promise((resolve) => setTimeout(resolve, 100));
         res.end();
@@ -348,6 +394,7 @@ export function registerProductionRoutes(app: Express) {
           evidenceCount: 0
         },
       );
+      const pipelineDatabaseGeneration = streamDatabaseGeneration;
 
       runProductionPipeline({
         userIntent: intent,
@@ -356,67 +403,80 @@ export function registerProductionRoutes(app: Express) {
         learnedPreferences,
         progress: {
           onPhase: (phase) => {
-            if (!res.writableEnded) sseWrite(res, { type: 'status', message: `AI ${phase} 进行中...` });
+            if (isResponseWritable(res)) {
+              if (phase === 'writer') sseWrite(res, { type: 'model_draft_start' });
+              sseWrite(res, { type: 'status', message: `AI ${phase} 进行中...` });
+            }
           },
           onWriterToken: (chunk) => {
-            if (!res.writableEnded) sseWrite(res, { type: 'model_draft_token', content: chunk });
+            if (isResponseWritable(res)) sseWrite(res, { type: 'model_draft_token', content: chunk });
           },
           onWriterDone: () => {
-            if (!res.writableEnded) sseWrite(res, { type: 'model_draft_done' });
+            if (isResponseWritable(res)) sseWrite(res, { type: 'model_draft_done' });
           },
           onCriticDone: (feedback, isValid) => {
-            if (!res.writableEnded) sseWrite(res, { type: 'model_audit', content: feedback, isValid });
+            if (isResponseWritable(res)) sseWrite(res, { type: 'model_audit', content: feedback, isValid });
           },
           signal: clientAbortController.signal,
         },
-      }).then((result) => {
-        if (res.writableEnded) return;
+      }).then(async (result) => {
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
         sseWrite(res, { type: 'model_beats', content: result.sceneBeats });
         sseWrite(res, { type: 'model_score', score: result.score, attempts: result.attempts });
-        try {
-          const currentRun = db.getChapterProductionRun(runId!);
-          if (currentRun && currentRun.status !== 'applied') {
-            db.updateChapterProductionRun(runId!, {
-            sceneBeats: result.sceneBeats,
-            draftContent: result.draft,
-            styleAudit: result.audit,
-            status: 'review_required',
-          });
-          }
-        } catch (e) { logger.error('Production pipeline DB update failed:', e); }
-        sseWrite(res, { type: 'done', run: db.getChapterProductionRun(runId!) });
-        if (heartbeat) {
-          clearInterval(heartbeat);
-          heartbeat = null;
+        const modelWrite = await runInSerializedWriteForGeneration(
+          pipelineDatabaseGeneration,
+          () => {
+            const currentRun = db.getChapterProductionRun(runId!);
+            if (currentRun && currentRun.status !== 'applied') {
+              db.updateChapterProductionRun(runId!, {
+                sceneBeats: result.sceneBeats,
+                draftContent: result.draft,
+                styleAudit: result.audit,
+                status: 'review_required',
+              });
+            }
+            return db.getChapterProductionRun(runId!);
+          },
+        );
+        if (!modelWrite.executed) {
+          throw new Error('数据库已在生成期间切换，已丢弃旧生成结果');
         }
+        sseWrite(res, { type: 'done', run: modelWrite.result });
+        cleanupStream();
         res.end();
       }).catch((err) => {
-        if (res.writableEnded) return;
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
         logger.error('AI pipeline error:', err);
-        sseWrite(res, { type: 'error', message: err instanceof Error ? err.message : String(err) });
-        sseWrite(res, { type: 'done', run: db.getChapterProductionRun(runId!) });
-        if (heartbeat) {
-          clearInterval(heartbeat);
-          heartbeat = null;
+        if (err instanceof Error && err.message.includes('数据库已在生成期间切换')) {
+          sseWrite(res, { type: 'error', message: '数据库已切换，本次旧生成结果已丢弃。' });
+          cleanupStream();
+          res.end();
+          return;
         }
+        // The fallback is already persisted and billable. A later model failure
+        // is a warning, not a terminal stream error.
+        sseWrite(res, { type: 'status', message: 'AI 精修失败，已保留完整保底草稿。' });
+        sseWrite(res, { type: 'done', run: db.getChapterProductionRun(runId!) });
+        cleanupStream();
         res.end();
       });
 
       // NOTE: stream stays open; heartbeat keeps connection alive until AI pipeline completes
       return;
     } catch (e) {
-      if (heartbeat) {
-        clearInterval(heartbeat);
-        heartbeat = null;
-      }
+      cleanupStream();
       logger.error('Chapter production stream fatal error:', e);
       const message = e instanceof Error ? e.message : String(e);
       if (runId) {
         try {
-          db.updateChapterProductionRun(runId, {
-            status: 'failed',
-            errorMessage: message,
-          });
+          if (streamDatabaseGeneration !== undefined) {
+            await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
+              db.updateChapterProductionRun(runId!, {
+                status: 'failed',
+                errorMessage: message,
+              });
+            });
+          }
         } catch (e) { logger.error('Decision record failed:', e); }
       }
       if (!contentDelivered) {
@@ -424,7 +484,7 @@ export function registerProductionRoutes(app: Express) {
       }
       if (!res.headersSent) {
         res.status(500).json({ error: message });
-      } else if (!res.writableEnded) {
+      } else if (isResponseWritable(res) && !clientAbortController.signal.aborted) {
         sseWrite(res, { type: 'error', message });
         res.end();
       }
@@ -605,6 +665,7 @@ export function registerProductionRoutes(app: Express) {
 
 async function runEvolutionReflexion(novelId: string): Promise<void> {
   try {
+    const databaseGeneration = getDatabaseGeneration();
     const novel = db.getNovel(novelId);
     if (!novel) return;
 
@@ -658,13 +719,19 @@ ${final.substring(0, 3000)}
         });
       }
 
-      db.updateNovel(novelId, {
-        projectPreferenceProfile: {
-          ...profile,
-          notes: newNotes.slice(-20),
-        }
-      });
-      logger.info('Reflexion evolution complete, updated preference profile notes');
+      const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => (
+        db.updateNovel(novelId, {
+          projectPreferenceProfile: {
+            ...profile,
+            notes: newNotes.slice(-20),
+          }
+        })
+      ));
+      if (writeResult.executed) {
+        logger.info('Reflexion evolution complete, updated preference profile notes');
+      } else {
+        logger.info('Reflexion evolution discarded after database replacement');
+      }
     }
   } catch (e) {
     logger.error('Reflexion evolution failed:', e);

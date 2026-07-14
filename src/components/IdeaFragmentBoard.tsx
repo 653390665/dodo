@@ -1,11 +1,12 @@
 import { toast } from '../lib/toast';
 import { logger } from '../lib/client-logger';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Trash2, User } from 'lucide-react';
 
 import { IdeaFragment } from '../../shared/types';
 import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
+import { streamIdeaFragment } from '../lib/idea-fragment-stream';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scene: <Crosshair size={14} />,
@@ -23,8 +24,6 @@ const TYPE_LABELS: Record<string, string> = {
   world: '世界观',
 };
 
-const expansionCache = new Map<string, string>();
-
 interface Props {
   novelId?: string;
   compact?: boolean;
@@ -34,7 +33,9 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   const [fragments, setFragments] = useState<IdeaFragment[]>([]);
   const [newContent, setNewContent] = useState('');
   const [newType, setNewType] = useState<IdeaFragment['type']>('scene');
-  const [expandingId, setExpandingId] = useState<string | null>(null);
+  const [expandingIds, setExpandingIds] = useState<Set<string>>(() => new Set());
+  const expansionRequestsRef = useRef(new Map<string, { sequence: number; controller: AbortController }>());
+  const expansionSequenceRef = useRef(new Map<string, number>());
 
   const refresh = useCallback(async () => {
     setFragments(await listIdeaFragments(novelId));
@@ -42,6 +43,11 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+
+  useEffect(() => () => {
+    expansionRequestsRef.current.forEach(({ controller }) => controller.abort());
+    expansionRequestsRef.current.clear();
+  }, []);
 
   const handleAdd = async () => {
     if (!newContent.trim()) return;
@@ -60,82 +66,81 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   };
 
   const handleExpand = async (f: IdeaFragment) => {
-    setExpandingId(f.id);
-    
-    // 初始化状态：清空已有的 aiExpansion 并将状态标记为已展开 (expanded)
-    setFragments(prev => prev.map(x => x.id === f.id ? { ...x, aiExpansion: '', status: 'expanded' as const } : x));
+    if (expansionRequestsRef.current.has(f.id)) return;
+    const sequence = (expansionSequenceRef.current.get(f.id) || 0) + 1;
+    expansionSequenceRef.current.set(f.id, sequence);
+    const controller = new AbortController();
+    expansionRequestsRef.current.set(f.id, { sequence, controller });
+    setExpandingIds((previous) => new Set(previous).add(f.id));
+
+    const isCurrent = () => expansionRequestsRef.current.get(f.id)?.sequence === sequence;
+    const originalExpansion = f.aiExpansion || '';
+    const originalStatus = f.status;
+    setFragments((previous) => previous.map((item) => (
+      item.id === f.id ? { ...item, aiExpansion: '' } : item
+    )));
 
     try {
       const res = await fetch('/api/expand-fragment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: f.content, type: f.type }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
 
-      const reader = res.body?.getReader();
-      if (!reader) {
-        throw new Error('无法创建流式读取器');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      expansionCache.set(f.id, '');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // 缓存可能不完整的最后一行
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          if (trimmed === 'data: [DONE]') {
-            break;
+      await streamIdeaFragment({
+        response: res,
+        originalExpansion,
+        isCurrent,
+        onPreview: (text) => setFragments((previous) => previous.map((item) => (
+          item.id === f.id ? { ...item, aiExpansion: text, status: originalStatus } : item
+        ))),
+        onCommit: async (text) => {
+          await updateIdeaFragment(f.id, { aiExpansion: text, status: 'expanded' });
+          if (isCurrent()) {
+            setFragments((previous) => previous.map((item) => (
+              item.id === f.id ? { ...item, aiExpansion: text, status: 'expanded' } : item
+            )));
           }
-          if (trimmed.startsWith('data: ')) {
-            try {
-              const dataStr = trimmed.slice(6);
-              const parsed = JSON.parse(dataStr);
-              if (parsed.error) {
-                throw new Error(parsed.error);
-              }
-              if (parsed.token) {
-                const currentVal = expansionCache.get(f.id) || '';
-                const nextVal = currentVal + parsed.token;
-                expansionCache.set(f.id, nextVal);
-                // 打字机效果：高频更新本地状态列表，保证界面流动感
-                setFragments(prev =>
-                  prev.map(x => x.id === f.id ? { ...x, aiExpansion: nextVal } : x)
-                );
-              }
-            } catch (err) {
-              logger.error('解析 SSE 单行失败:', trimmed, err);
-            }
-          }
+        },
+      });
+    } catch (e) {
+      if (isCurrent()) {
+        setFragments((previous) => previous.map((item) => (
+          item.id === f.id ? { ...item, aiExpansion: originalExpansion, status: originalStatus } : item
+        )));
+        if (!(e instanceof Error && e.name === 'AbortError')) {
+          logger.error('AI 展开失败:', e);
+          toast('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
         }
       }
-
-      const finalVal = expansionCache.get(f.id) || '';
-      // 生成完全结束后，将最终文本更新至 SQLite 本地数据库
-      await updateIdeaFragment(f.id, { aiExpansion: finalVal, status: 'expanded' });
-      expansionCache.delete(f.id);
-    } catch (e) {
-      toast('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
     } finally {
-      setExpandingId(null);
+      if (isCurrent()) {
+        expansionRequestsRef.current.delete(f.id);
+        setExpandingIds((previous) => {
+          const next = new Set(previous);
+          next.delete(f.id);
+          return next;
+        });
+      }
     }
   };
 
   const handleDelete = async (id: string) => {
+    expansionRequestsRef.current.get(id)?.controller.abort();
+    expansionRequestsRef.current.delete(id);
+    expansionSequenceRef.current.set(id, (expansionSequenceRef.current.get(id) || 0) + 1);
     await deleteIdeaFragment(id);
     setFragments(prev => prev.filter(f => f.id !== id));
+    setExpandingIds((previous) => {
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
   };
 
   return (
@@ -201,10 +206,10 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
               {f.status === 'raw' && (
                 <button
                   onClick={() => handleExpand(f)}
-                  disabled={expandingId === f.id}
+                  disabled={expandingIds.has(f.id)}
                   className="flex-1 py-2 text-xs font-bold text-theme-accent hover:bg-theme-accent/5 transition-colors flex items-center justify-center gap-1.5"
                 >
-                  {expandingId === f.id ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  {expandingIds.has(f.id) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                   AI 展开
                 </button>
               )}

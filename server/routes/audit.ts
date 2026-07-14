@@ -345,6 +345,9 @@ export function registerAuditRoutes(app: Express) {
   });
 
   app.post('/api/rewrite', async (req, res) => {
+    if (!rateLimit('rewrite')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     const {
       text,
       instruction,

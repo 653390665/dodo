@@ -76,13 +76,19 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   };
 
   const handleApprovePack = async (pack: ContinuationPack) => {
-    await updateContinuationPack(pack.id, { status: 'approved' });
+    if (!await updateContinuationPack(pack.id, { status: 'approved' })) {
+      setError('资料包已不存在，无法批准。');
+      return;
+    }
     setActivePack({ ...pack, status: 'approved', updatedAt: Date.now() });
     setPacks(prev => prev.map(p => p.id === pack.id ? { ...p, status: 'approved' } : p));
   };
 
   const handleDeletePack = async (packId: string) => {
-    await deleteContinuationPack(packId);
+    if (!await deleteContinuationPack(packId)) {
+      setError('资料包已不存在，删除未生效。');
+      return;
+    }
     setActivePack(prev => prev?.id === packId ? null : prev);
     setPacks(prev => prev.filter(p => p.id !== packId));
   };
@@ -95,7 +101,10 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
 
   const handleSaveTask = async () => {
     if (!activePack) return;
-    await updateContinuationPack(activePack.id, { continuationTask: taskDraft });
+    if (!await updateContinuationPack(activePack.id, { continuationTask: taskDraft })) {
+      setError('资料包已不存在，任务修改未保存。');
+      return;
+    }
     const updated = { ...activePack, continuationTask: taskDraft, updatedAt: Date.now() };
     setActivePack(updated);
     setPacks(prev => prev.map(p => p.id === activePack.id ? updated : p));

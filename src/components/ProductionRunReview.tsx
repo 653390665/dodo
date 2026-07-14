@@ -44,18 +44,20 @@ export function ProductionRunReview({
 }: ProductionRunReviewProps) {
   const [history, setHistory] = useState<ChapterProductionRun[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const recoveredRun = run?.status === 'running' && !run.draftContent.trim()
+  const recoveredRun = !running && run?.status === 'running' && !run.draftContent.trim()
     ? history.find((item) => item.status === 'review_required' && Boolean(item.draftContent.trim()))
     : undefined;
   const displayRun = recoveredRun || run;
-  const displayRunning = running && !recoveredRun;
+  const displayRunning = running;
   const issues = displayRun?.continuityReport.issues || [];
   const timelineEvents = displayRun?.continuityReport.proposedPatch.timelineEventsToCreate || [];
   const foreshadowings = displayRun?.continuityReport.proposedPatch.foreshadowingsToCreate || [];
-  const hasReviewableDraft = Boolean(displayRun?.draftContent?.trim());
-  const effectiveStatus = displayRun?.status === 'failed' && hasReviewableDraft ? 'review_required' : displayRun?.status;
-  const visibleError = hasReviewableDraft ? null : error;
-  const visibleRunError = hasReviewableDraft ? null : displayRun?.errorMessage;
+  const effectiveStatus = displayRun?.status;
+  const canApply = !running
+    && displayRun?.status === 'review_required'
+    && displayRun.id === run?.id;
+  const visibleError = error;
+  const visibleRunError = displayRun?.errorMessage;
 
   const loadHistory = useCallback(async () => {
     if (!novelId) return;
@@ -116,12 +118,6 @@ export function ProductionRunReview({
             {visibleError}
           </div>
         ) : null}
-        {hasReviewableDraft && displayRun?.status === 'failed' ? (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            <CheckCircle2 size={14} />
-            已生成可用草稿，后续增强连接中断不影响接受写入。
-          </div>
-        ) : null}
         {displayRun?.status === 'applied' && !visibleError ? (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
             <CheckCircle2 size={14} />
@@ -146,8 +142,11 @@ export function ProductionRunReview({
               <div className="mt-1 text-xs text-theme-muted">状态 {effectiveStatus} · 连续性评分 {displayRun.continuityReport.score}/100</div>
             </div>
             <button
-              onClick={() => onApply(displayRun)}
-              disabled={applying || effectiveStatus !== 'review_required'}
+              onClick={() => {
+                if (!canApply || applying) return;
+                onApply(displayRun);
+              }}
+              disabled={applying || !canApply}
               className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
             >
               {applying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}

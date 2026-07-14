@@ -19,6 +19,10 @@ const {
 } = require('./electron-startup-utils.cjs');
 const { createCloseHandshake } = require('./electron-close-handshake.cjs');
 
+function getConfigDir() {
+  return process.env.INKFLOW_CONFIG_DIR || path.join(app.getPath('home'), '.inkflow');
+}
+
 // Legacy API Key decryption helper
 function deriveKey() {
   const seed = `${os.hostname()}:${os.userInfo().username}:inkflow-v1`;
@@ -41,7 +45,7 @@ function decryptApiKey(encoded) {
 
 // Startup migration logic for API Key
 function migrateAndGetApiKey() {
-  const configDir = path.join(app.getPath('home'), '.inkflow');
+  const configDir = getConfigDir();
   const configPath = path.join(configDir, 'config.json');
   const secureKeyPath = path.join(configDir, 'secure-key.bin');
 
@@ -241,7 +245,7 @@ function buildAppMenu() {
               type: 'info',
               title: `关于 ${app.name}`,
               message: 'InkFlow — AI 协作小说写作工具',
-              detail: `版本 1.0.0\nElectron ${process.versions.electron}\nNode ${process.versions.node}\nChrome ${process.versions.chrome}`,
+              detail: `版本 ${app.getVersion()}\nElectron ${process.versions.electron}\nNode ${process.versions.node}\nChrome ${process.versions.chrome}`,
             });
           },
         },
@@ -633,7 +637,7 @@ ipcMain.handle('save-config', async (event, config) => {
   const apiKey = config.apiKey || '';
   let migrationError = null;
 
-  const configDir = path.join(app.getPath('home'), '.inkflow');
+  const configDir = getConfigDir();
   const configPath = path.join(configDir, 'config.json');
   const secureKeyPath = path.join(configDir, 'secure-key.bin');
 

@@ -26,6 +26,13 @@ export function rateLimit(endpoint: string): boolean {
   return false;
 }
 
+/** @internal Test-only access for isolating route limiter state. */
+export const __rateLimitTestHooks = {
+  reset(): void {
+    buckets.clear();
+  },
+};
+
 // Periodic cleanup: remove stale entries to prevent unbounded Map growth
 // Runs every 5 minutes to evict buckets where no tokens have been used in >10 minutes
 setInterval(() => {

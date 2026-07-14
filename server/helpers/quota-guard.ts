@@ -1,7 +1,7 @@
 import type { Skill, QuotaLimits, ProjectPreferenceProfile } from '../../shared/types';
 import { randomUUID } from 'node:crypto';
 import { getNovel, updateNovel } from '../lib/db/novels.js';
-import { runInSerializedWrite } from '../lib/db-instance.js';
+import { getDatabaseGeneration, runInSerializedWrite } from '../lib/db-instance.js';
 
 /**
  * 默认免费额度上限配置
@@ -36,6 +36,7 @@ interface QuotaReservation {
   limitType: QuotaLimitType;
   status: ReservationStatus;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const quotaReservations = new Map<string, QuotaReservation>();
@@ -164,6 +165,81 @@ export function consumeQuota(
   updateNovel(novelId, { projectPreferenceProfile: profile });
 }
 
+function checkAndConsumeQuotaSync(
+  novelId: string,
+  limitType: QuotaLimitType,
+): QuotaCheckResult {
+  const novel = getNovel(novelId);
+  if (!novel) {
+    return { allowed: true };
+  }
+
+  const profile: ProjectPreferenceProfile = {
+    tags: [],
+    weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+    acceptedDimensions: [],
+    rejectedDimensions: [],
+    notes: [],
+    evidenceCount: 0,
+    ...(novel.projectPreferenceProfile || {}),
+  };
+  const commercialMode = profile.commercialMode || 'free';
+
+  if (commercialMode === 'paid' || commercialMode === 'strict') {
+    return { allowed: true };
+  }
+
+  const limits: QuotaLimits = { ...(profile.quotaLimits || {}) };
+
+  let max = DEFAULT_QUOTA_MAX[limitType];
+  let count = 0;
+
+  if (limitType === 'extractSkill') {
+    max = limits.extractSkillMax ?? DEFAULT_QUOTA_MAX.extractSkill;
+    count = limits.extractSkillCount ?? 0;
+  } else if (limitType === 'generateProse') {
+    max = limits.generateProseMax ?? DEFAULT_QUOTA_MAX.generateProse;
+    count = limits.generateProseCount ?? 0;
+  } else if (limitType === 'advancedAudit') {
+    max = limits.advancedAuditMax ?? DEFAULT_QUOTA_MAX.advancedAudit;
+    count = limits.advancedAuditCount ?? 0;
+  }
+
+  if (count >= max) {
+    const errorMsg = getQuotaErrorMessage(limitType, max);
+    return {
+      allowed: false,
+      limitType,
+      count,
+      max,
+      error: errorMsg,
+    };
+  }
+
+  if (limitType === 'extractSkill') {
+    limits.extractSkillMax = limits.extractSkillMax ?? DEFAULT_QUOTA_MAX.extractSkill;
+    limits.extractSkillCount = (limits.extractSkillCount ?? 0) + 1;
+  } else if (limitType === 'generateProse') {
+    limits.generateProseMax = limits.generateProseMax ?? DEFAULT_QUOTA_MAX.generateProse;
+    limits.generateProseCount = (limits.generateProseCount ?? 0) + 1;
+  } else if (limitType === 'advancedAudit') {
+    limits.advancedAuditMax = limits.advancedAuditMax ?? DEFAULT_QUOTA_MAX.advancedAudit;
+    limits.advancedAuditCount = (limits.advancedAuditCount ?? 0) + 1;
+  }
+
+  profile.quotaLimits = limits;
+  profile.commercialMode = 'free';
+
+  updateNovel(novelId, { projectPreferenceProfile: profile });
+
+  return {
+    allowed: true,
+    limitType,
+    count: count + 1,
+    max,
+  };
+}
+
 export async function checkAndConsumeQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
@@ -173,75 +249,7 @@ export async function checkAndConsumeQuota(
   }
 
   return runInSerializedWrite<QuotaCheckResult>(() => {
-    const novel = getNovel(novelId);
-    if (!novel) {
-      return { allowed: true };
-    }
-
-    const profile: ProjectPreferenceProfile = {
-      tags: [],
-      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
-      acceptedDimensions: [],
-      rejectedDimensions: [],
-      notes: [],
-      evidenceCount: 0,
-      ...(novel.projectPreferenceProfile || {}),
-    };
-    const commercialMode = profile.commercialMode || 'free';
-
-    if (commercialMode === 'paid' || commercialMode === 'strict') {
-      return { allowed: true };
-    }
-
-    const limits: QuotaLimits = { ...(profile.quotaLimits || {}) };
-
-    let max = DEFAULT_QUOTA_MAX[limitType];
-    let count = 0;
-
-    if (limitType === 'extractSkill') {
-      max = limits.extractSkillMax ?? DEFAULT_QUOTA_MAX.extractSkill;
-      count = limits.extractSkillCount ?? 0;
-    } else if (limitType === 'generateProse') {
-      max = limits.generateProseMax ?? DEFAULT_QUOTA_MAX.generateProse;
-      count = limits.generateProseCount ?? 0;
-    } else if (limitType === 'advancedAudit') {
-      max = limits.advancedAuditMax ?? DEFAULT_QUOTA_MAX.advancedAudit;
-      count = limits.advancedAuditCount ?? 0;
-    }
-
-    if (count >= max) {
-      const errorMsg = getQuotaErrorMessage(limitType, max);
-      return {
-        allowed: false,
-        limitType,
-        count,
-        max,
-        error: errorMsg,
-      };
-    }
-
-    if (limitType === 'extractSkill') {
-      limits.extractSkillMax = limits.extractSkillMax ?? DEFAULT_QUOTA_MAX.extractSkill;
-      limits.extractSkillCount = (limits.extractSkillCount ?? 0) + 1;
-    } else if (limitType === 'generateProse') {
-      limits.generateProseMax = limits.generateProseMax ?? DEFAULT_QUOTA_MAX.generateProse;
-      limits.generateProseCount = (limits.generateProseCount ?? 0) + 1;
-    } else if (limitType === 'advancedAudit') {
-      limits.advancedAuditMax = limits.advancedAuditMax ?? DEFAULT_QUOTA_MAX.advancedAudit;
-      limits.advancedAuditCount = (limits.advancedAuditCount ?? 0) + 1;
-    }
-
-    profile.quotaLimits = limits;
-    profile.commercialMode = 'free';
-
-    updateNovel(novelId, { projectPreferenceProfile: profile });
-
-    return {
-      allowed: true,
-      limitType,
-      count: count + 1,
-      max,
-    };
+    return checkAndConsumeQuotaSync(novelId, limitType);
   });
 }
 
@@ -301,26 +309,38 @@ export async function reserveQuota(
   limitType: QuotaLimitType,
 ): Promise<QuotaCheckResult> {
   pruneReservations();
-  const result = await checkAndConsumeQuota(novelId, limitType);
-  if (!result.allowed || !novelId || result.reservationId) {
-    return result;
+  if (!novelId) {
+    return { allowed: true };
   }
 
-  // Paid/unlimited paths do not consume counters — no reservation ledger entry needed.
-  if (result.count === undefined) {
-    return result;
-  }
+  const databaseGeneration = getDatabaseGeneration();
+  return runInSerializedWrite<QuotaCheckResult>(() => {
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return { allowed: false, error: '数据库已切换，请重试当前操作' };
+    }
 
-  const reservationId = createReservationId();
-  quotaReservations.set(reservationId, {
-    id: reservationId,
-    novelId,
-    limitType,
-    status: 'active',
-    createdAt: Date.now(),
+    const result = checkAndConsumeQuotaSync(novelId, limitType);
+    if (!result.allowed || result.reservationId) {
+      return result;
+    }
+
+    // Paid/unlimited paths do not consume counters — no reservation ledger entry needed.
+    if (result.count === undefined) {
+      return result;
+    }
+
+    const reservationId = createReservationId();
+    quotaReservations.set(reservationId, {
+      id: reservationId,
+      novelId,
+      limitType,
+      status: 'active',
+      createdAt: Date.now(),
+      databaseGeneration,
+    });
+
+    return { ...result, reservationId };
   });
-
-  return { ...result, reservationId };
 }
 
 /**
@@ -336,6 +356,11 @@ export async function refundQuota(reservationId: string | undefined): Promise<bo
       return false;
     }
 
+    if (reservation.databaseGeneration !== getDatabaseGeneration()) {
+      reservation.status = 'refunded';
+      return false;
+    }
+
     decrementQuotaCounter(reservation.novelId, reservation.limitType);
     reservation.status = 'refunded';
     return true;
@@ -347,6 +372,10 @@ export function commitQuotaReservation(reservationId: string | undefined): boole
   if (!reservationId) return false;
   const reservation = quotaReservations.get(reservationId);
   if (reservation && reservation.status === 'active') {
+    if (reservation.databaseGeneration !== getDatabaseGeneration()) {
+      reservation.status = 'refunded';
+      return false;
+    }
     reservation.status = 'committed';
     return true;
   }

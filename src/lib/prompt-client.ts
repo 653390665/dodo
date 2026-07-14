@@ -15,6 +15,7 @@ import type { PromptSurface } from './prompt-stage-routing';
  * JSON output; callers validate/normalize before persisting.
  */
 export type DocExtractionResult = {
+  databaseGeneration: number;
   globalOutline?: string;
   worldRules?: string;
   characters?: unknown[];
@@ -259,7 +260,13 @@ export async function parseDocAsync(
     throw new Error(errorData.error || '上传设定文档失败');
   }
 
-  const { jobId } = await res.json();
+  const { jobId, databaseGeneration } = await res.json() as {
+    jobId?: string;
+    databaseGeneration?: number;
+  };
+  if (!jobId || !Number.isInteger(databaseGeneration)) {
+    throw new Error('解析服务未返回有效的数据库代际，请重试。');
+  }
   onProgress?.(10, '正在读取并提取文档内容...');
 
   const startTime = Date.now();
@@ -291,9 +298,16 @@ export async function parseDocAsync(
 
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const jobRes = await fetch(`/api/parse-doc/jobs/${encodeURIComponent(jobId)}`);
+      const jobRes = await fetch(
+        `/api/parse-doc/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`,
+      );
       if (!jobRes.ok) {
-        throw new Error('无法连接到解析后台服务，请检查网络。');
+        const errorData = asRecord(await jobRes.json().catch(() => ({})));
+        throw new Error(
+          typeof errorData.error === 'string'
+            ? errorData.error
+            : '无法连接到解析后台服务，请检查网络。',
+        );
       }
 
       const jobData = asRecord(await jobRes.json());
@@ -303,7 +317,10 @@ export async function parseDocAsync(
         isTerminated = true;
         clearInterval(intervalId);
         onProgress?.(100, '解析完成，正在写入您的设定集...');
-        return jobData.result as DocExtractionResult;
+        return {
+          ...asRecord(jobData.result),
+          databaseGeneration,
+        } as DocExtractionResult;
       } else if (status === 'failed') {
         isTerminated = true;
         clearInterval(intervalId);

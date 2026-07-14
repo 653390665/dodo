@@ -32,13 +32,22 @@ test('packaged Electron passes packaged static dist path to server', () => {
   assert.match(serverSource, /process\.env\.INKFLOW_STATIC_DIR\s*\|\|\s*path\.join\(process\.cwd\(\),\s*'dist'\)/);
 });
 
+test('packaged Electron honors the configured isolated config directory', () => {
+  const mainProcessSource = fs.readFileSync('electron.cjs', 'utf8');
+
+  assert.match(mainProcessSource, /process\.env\.INKFLOW_CONFIG_DIR \|\| path\.join\(app\.getPath\('home'\), '\.inkflow'\)/);
+  assert.match(mainProcessSource, /const configDir = getConfigDir\(\)/);
+});
+
 test('packaged lifecycle attaches to the real application renderer target', () => {
   const lifecycleSource = fs.readFileSync('scripts/packaged-editor-lifecycle.mjs', 'utf8');
 
   assert.match(lifecycleSource, /target\.type === 'page' && isPackagedRendererUrl\(target\.url\)/);
   assert.match(lifecycleSource, /context\.pages\(\)\.find\(\(candidate\) => isPackagedRendererUrl\(candidate\.url\(\)\)\)/);
   assert.doesNotMatch(lifecycleSource, /context\.pages\(\)\[0\]/);
-  assert.match(lifecycleSource, /await callDb\(page, 'getChapter', 'packaged-lifecycle-chapter'\)/);
+  assert.match(lifecycleSource, /await callDbOverHttp\(/);
+  assert.match(lifecycleSource, /application\.rendererUrl/);
+  assert.match(lifecycleSource, /startupLog\.includes\('Editor flush timed out'\)/);
 });
 
 test('startup parser resolves JSON messages across split stdout chunks', () => {
