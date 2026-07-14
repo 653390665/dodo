@@ -1,4 +1,4 @@
-import type { ContinuationPack, Novel } from '../../shared/types';
+import type { ContinuationConflictResolution, ContinuationPack, Novel } from '../../shared/types';
 import { call } from './db-transport';
 
 export async function listContinuationPacks(novelId: string): Promise<ContinuationPack[]> {
@@ -18,6 +18,7 @@ export async function approveContinuationImport(payload: {
   mode: 'existing' | 'new';
   existingNovelId?: string;
   newNovel?: { title: string; summary: string };
+  conflictResolutions: ContinuationConflictResolution[];
 }): Promise<{ novel: Novel; pack: ContinuationPack }> {
   const response = await fetch('/api/continuation-packs/approve-import', {
     method: 'POST',
