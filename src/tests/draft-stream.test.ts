@@ -41,4 +41,12 @@ describe('readDraftStream strict completion', () => {
     await expect(readDraftStream(sseResponse('data: null\n\n')))
       .rejects.toBeInstanceOf(SseParseError);
   });
+
+  test('raw [DONE] cannot impersonate the required typed done event', async () => {
+    await expect(readDraftStream(sseResponse([
+      'data: {"type":"token","content":"partial"}',
+      'data: [DONE]',
+      '',
+    ].join('\n\n')))).rejects.toBeInstanceOf(IncompleteDraftStreamError);
+  });
 });

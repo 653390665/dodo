@@ -11,10 +11,17 @@ describe('world document import generation contract', () => {
   test('polls and returns the database generation issued with the parse job', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        jobId: 'parse-doc-1',
-        databaseGeneration: 7,
-      }), { status: 202, headers: { 'content-type': 'application/json' } }))
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          novelId: 'novel-1',
+          filename: '设定.txt',
+          filedata: 'YQ==',
+        });
+        return new Response(JSON.stringify({
+          jobId: 'parse-doc-1',
+          databaseGeneration: 7,
+        }), { status: 202, headers: { 'content-type': 'application/json' } });
+      })
       .mockImplementationOnce(async (input: RequestInfo | URL) => {
         expect(String(input)).toBe('/api/parse-doc/jobs/parse-doc-1?databaseGeneration=7');
         return new Response(JSON.stringify({
@@ -25,7 +32,7 @@ describe('world document import generation contract', () => {
       });
     vi.stubGlobal('fetch', fetchMock);
 
-    const resultPromise = parseDocAsync({ filename: '设定.txt', filedata: 'YQ==' });
+    const resultPromise = parseDocAsync({ novelId: 'novel-1', filename: '设定.txt', filedata: 'YQ==' });
     await vi.advanceTimersByTimeAsync(1500);
 
     await expect(resultPromise).resolves.toEqual({

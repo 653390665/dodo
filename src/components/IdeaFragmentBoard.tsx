@@ -5,7 +5,7 @@ import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Tr
 
 import { IdeaFragment } from '../../shared/types';
 import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
-import { subscribeToChanges } from '../lib/db-transport';
+import { requireResponseDatabaseGeneration, subscribeToChanges } from '../lib/db-transport';
 import { streamIdeaFragment } from '../lib/idea-fragment-stream';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -84,13 +84,14 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       const res = await fetch('/api/expand-fragment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: f.content, type: f.type }),
+        body: JSON.stringify({ novelId, content: f.content, type: f.type }),
         signal: controller.signal,
       });
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
+      const databaseGeneration = requireResponseDatabaseGeneration(res);
 
       await streamIdeaFragment({
         response: res,
@@ -100,7 +101,9 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
           item.id === f.id ? { ...item, aiExpansion: text, status: originalStatus } : item
         ))),
         onCommit: async (text) => {
-          await updateIdeaFragment(f.id, { aiExpansion: text, status: 'expanded' });
+          if (!await updateIdeaFragment(f.id, { aiExpansion: text, status: 'expanded' }, databaseGeneration)) {
+            throw new Error('灵感碎片已不存在，展开结果未保存。');
+          }
           if (isCurrent()) {
             setFragments((previous) => previous.map((item) => (
               item.id === f.id ? { ...item, aiExpansion: text, status: 'expanded' } : item

@@ -7,6 +7,7 @@ import type {
   BookEvidenceSegment,
 } from '../../shared/types';
 import type { PromptSurface } from './prompt-stage-routing';
+import { readSseStream } from './sse-client';
 
 /**
  * Result of parsing a world-setup document. All fields optional since the
@@ -115,6 +116,10 @@ export async function checkSkillExtractionJob(jobId: string): Promise<SkillExtra
   return data;
 }
 
+export async function cancelSkillExtractionJob(jobId: string): Promise<void> {
+  await fetch(`/api/extract-skill/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+}
+
 export async function generateStoryCards(payload: {
   ideaSeed: string;
   chatContext: string;
@@ -123,10 +128,11 @@ export async function generateStoryCards(payload: {
   previousHookTexts?: string[];
   batchIndex?: number;
 }): Promise<{ cards: StoryIdeaCard[]; source?: 'model' | 'fallback'; jobId?: string; warnings?: string[] }> {
+  const onboardingSessionId = await createOnboardingLlmSession('story-cards');
   const res = await fetch('/api/story-cards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, onboardingSessionId }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate story cards');
@@ -142,6 +148,19 @@ export async function checkStoryCardJob(jobId: string): Promise<{
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Failed to check story card job');
   return data;
+}
+
+export async function cancelStoryCardJob(jobId: string): Promise<void> {
+  await fetch(`/api/story-cards/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+}
+
+export async function createContinuationImportSession(): Promise<string> {
+  const res = await fetch('/api/continuation-packs/import-session', { method: 'POST' });
+  const data = asRecord(await res.json().catch(() => ({})));
+  if (!res.ok || typeof data.novelId !== 'string') {
+    throw new Error(String(data.error || '无法创建续写导入会话，请重试。'));
+  }
+  return data.novelId;
 }
 
 export async function parseContinuationPack(
@@ -244,15 +263,18 @@ export async function parseContinuationPack(
 
 export async function parseDocAsync(
   payload: {
+    novelId: string;
     filename: string;
     filedata: string;
   },
-  onProgress?: (progress: number, stageText: string) => void
+  onProgress?: (progress: number, stageText: string) => void,
+  signal?: AbortSignal,
 ): Promise<DocExtractionResult> {
   const res = await fetch('/api/parse-doc', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
   
   if (!res.ok) {
@@ -267,6 +289,14 @@ export async function parseDocAsync(
   if (!jobId || !Number.isInteger(databaseGeneration)) {
     throw new Error('解析服务未返回有效的数据库代际，请重试。');
   }
+  let completed = false;
+  let cancelled = false;
+  const cancel = () => {
+    if (completed || cancelled) return;
+    cancelled = true;
+    void fetch(`/api/parse-doc/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, { method: 'POST' }).catch(() => {});
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
   onProgress?.(10, '正在读取并提取文档内容...');
 
   const startTime = Date.now();
@@ -292,14 +322,28 @@ export async function parseDocAsync(
 
   try {
     while (true) {
+      if (signal?.aborted) throw signal.reason || new Error('解析任务已取消');
       if (Date.now() - startTime > timeoutMs) {
         throw new Error('解析设定文档任务超时，请重试。');
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve();
+        }, 1500);
+        const onAbort = () => {
+          clearTimeout(timer);
+          signal?.removeEventListener('abort', onAbort);
+          reject(signal?.reason || new Error('解析任务已取消'));
+        };
+        if (signal?.aborted) onAbort();
+        else signal?.addEventListener('abort', onAbort, { once: true });
+      });
 
       const jobRes = await fetch(
         `/api/parse-doc/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`,
+        { signal },
       );
       if (!jobRes.ok) {
         const errorData = asRecord(await jobRes.json().catch(() => ({})));
@@ -314,6 +358,7 @@ export async function parseDocAsync(
       const status = typeof jobData.status === 'string' ? jobData.status : '';
 
       if (status === 'completed') {
+        completed = true;
         isTerminated = true;
         clearInterval(intervalId);
         onProgress?.(100, '解析完成，正在写入您的设定集...');
@@ -333,10 +378,13 @@ export async function parseDocAsync(
   } finally {
     isTerminated = true;
     clearInterval(intervalId);
+    signal?.removeEventListener('abort', cancel);
+    if (!completed) cancel();
   }
 }
 
 export async function refineSetupTask(payload: {
+  novelId: string;
   taskTitle: string;
   currentDraft: string;
   userRequest: string;
@@ -353,13 +401,32 @@ export async function refineSetupTask(payload: {
   return data.text;
 }
 
-export async function generateInspiration(prompt: string, surface: PromptSurface = 'workspace-draft'): Promise<string> {
+export async function generateInspiration(prompt: string, surface: PromptSurface = 'workspace-draft', novelId?: string): Promise<string> {
+  const onboardingSessionId = novelId ? undefined : await createOnboardingLlmSession('inspiration');
   const res = await fetch('/api/inspiration', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, surface }),
+    body: JSON.stringify({ prompt, surface, ...(novelId ? { novelId } : { onboardingSessionId }) }),
   });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate inspiration');
-  return data.text;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(extractApiErrorMessage(data, 'Failed to generate inspiration'));
+  }
+  const result = await readSseStream(res, () => {});
+  if (!result.done) throw new Error('灵感生成流不完整，请重试。');
+  if (!result.text.trim()) throw new Error('灵感生成结果为空，请重试。');
+  return result.text;
+}
+
+async function createOnboardingLlmSession(operation: 'story-cards' | 'inspiration'): Promise<string> {
+  const res = await fetch('/api/onboarding/llm-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ operation }),
+  });
+  const data = asRecord(await res.json().catch(() => ({})));
+  if (!res.ok || typeof data.sessionId !== 'string') {
+    throw new Error(extractApiErrorMessage(data, '无法创建欢迎页模型会话，请稍后重试。'));
+  }
+  return data.sessionId;
 }

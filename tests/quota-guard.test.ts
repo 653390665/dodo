@@ -5,7 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { closeDb, initDb, createNovel, getNovel, updateNovel } from '../server/lib/db';
-import { checkAndConsumeQuota, refundQuota, reserveQuota } from '../server/helpers/quota-guard';
+import {
+  __quotaTestHooks,
+  checkAndConsumeQuota,
+  refundQuota,
+  reserveQuota,
+} from '../server/helpers/quota-guard';
 import type { Novel, ProjectPreferenceProfile } from '../shared/types';
 
 function makeBaseNovel(quotaLimits?: Record<string, number>, commercialMode?: string): Novel {
@@ -61,9 +66,16 @@ describe("quota-guard checkAndConsumeQuota", () => {
     try { fs.unlinkSync(dbPath + '-shm'); } catch { /* ignore */ }
   });
 
-  test('undefined novelId returns allowed without consuming', async () => {
+  test('undefined novelId is rejected instead of bypassing quota', async () => {
     const result = await checkAndConsumeQuota(undefined, 'generateProse');
-    assert.equal(result.allowed, true);
+    assert.equal(result.allowed, false);
+    assert.equal(result.code, 'NOVEL_ID_REQUIRED');
+  });
+
+  test('unknown novelId is rejected instead of bypassing quota', async () => {
+    const result = await reserveQuota('does-not-exist', 'generateProse');
+    assert.equal(result.allowed, false);
+    assert.equal(result.code, 'NOVEL_NOT_FOUND');
   });
 
   test('paid novel returns allowed and does NOT increment count', async () => {
@@ -141,5 +153,23 @@ describe("quota-guard checkAndConsumeQuota", () => {
 
     const after = getNovel(novel.id);
     assert.equal(after?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount, 0);
+  });
+
+  test('expired active reservations are refunded before ledger pruning', async () => {
+    const novel = makeBaseNovel({ advancedAuditCount: 0, advancedAuditMax: 5 });
+    createNovel(novel);
+    const reserve = await reserveQuota(novel.id, 'advancedAudit');
+    assert.ok(reserve.reservationId);
+    const ledgerEntry = __quotaTestHooks.quotaReservations.get(reserve.reservationId);
+    assert.ok(ledgerEntry);
+    ledgerEntry.createdAt = 0;
+
+    await __quotaTestHooks.pruneReservations();
+
+    assert.equal(__quotaTestHooks.quotaReservations.has(reserve.reservationId), false);
+    assert.equal(
+      getNovel(novel.id)?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
+      0,
+    );
   });
 });

@@ -28,6 +28,7 @@
 | 19 | `current` | 2026-07-12 | 全仓流式断连时序、配额与资源清理治理 | 1 | 121 |
 | 20 | `1a56ccad` | 2026-07-12 | 写作数据安全闭环 | 4 | 122–125 |
 | 21 | `1a56ccad` | 2026-07-13 | 发布数据安全复核收口 | 1 | 126 |
+| 22 | `f7473224 + local Plans 129–131` | 2026-07-14 | 生产流断连与 Electron 单服务复核 | 2 | 132 |
 
 ## 执行顺序 & 依赖图
 
@@ -155,6 +156,10 @@
 | 126 | 发布数据安全复核收口 | DONE | 122–125 |
 | 127 | 发布正确性收口 | DONE | 126 |
 | 128 | 深度数据完整性收口 | DONE | 127 |
+| 129 | Domain Ownership & Data Integrity | DONE | 128 |
+| 130 | LLM Cancellation & Cost Governance | DONE | 129 |
+| 131 | Electron Recovery & Release Trust | DONE | 129–130 |
+| 132 | 生产流断连与 Electron 单服务收口 | DONE | 129–131 |
 
 ## 考虑后排除的发现
 

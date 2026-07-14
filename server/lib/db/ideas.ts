@@ -8,7 +8,7 @@ const ideaFragmentCrud = createCrudHelpers<IdeaFragment, ReturnType<typeof ideaF
   rowToEntity: rowToIdeaFragment,
   entityToRow: ideaFragmentToRow,
   insertColumns: ['id', 'novel_id', 'content', 'type', 'status', 'ai_expansion', 'target_chapter_id', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'content', 'type', 'status', 'ai_expansion', 'target_chapter_id', 'updated_at'],
+  updateColumns: ['content', 'type', 'status', 'ai_expansion', 'target_chapter_id', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: 'created_at DESC'
 });
@@ -24,8 +24,8 @@ export function createIdeaFragment(f: IdeaFragment): void {
   ideaFragmentCrud.create(f);
 }
 
-export function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): void {
-  ideaFragmentCrud.update(id, data);
+export function updateIdeaFragment(id: string, data: Partial<IdeaFragment>): boolean {
+  return ideaFragmentCrud.update(id, data);
 }
 
 export function deleteIdeaFragment(id: string): void {

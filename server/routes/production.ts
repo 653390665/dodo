@@ -1,8 +1,9 @@
 import { logger } from '../logger';
+import { createHash } from 'crypto';
 import { rateLimit } from '../middleware/rate-limit';
 import type { Express } from 'express';
 import { generateId } from '../id';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import {
   buildChapterProductionTitle,
@@ -23,7 +24,12 @@ import { runProductionPipeline } from '../helpers/ai-production-pipeline';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import * as db from '../lib/db';
 import { validate, chapterProductionSchema } from '../validation';
-import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
+import {
+  reserveQuota,
+  refundQuota,
+  commitQuotaReservation,
+  quotaFailureHttpStatus,
+} from '../helpers/quota-guard.js';
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
 import {
   getDatabaseGeneration,
@@ -38,6 +44,186 @@ function sseWrite(res: Express['response'], payload: Record<string, unknown>): b
   if (!isResponseWritable(res)) return false;
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
   return true;
+}
+
+type ProductionOwnershipIssue = {
+  status: 404 | 409;
+  message: string;
+};
+
+class ProductionDomainConflict extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProductionDomainConflict';
+  }
+}
+
+function findProductionInputOwnershipIssue(
+  novelId: string,
+  targetChapterId?: string,
+  continuationPackId?: string,
+): ProductionOwnershipIssue | undefined {
+  if (targetChapterId) {
+    const chapter = db.getChapter(targetChapterId);
+    if (!chapter) {
+      return { status: 404, message: 'Target chapter not found' };
+    }
+    if (chapter.novelId !== novelId) {
+      return { status: 409, message: 'Target chapter does not belong to production run novel' };
+    }
+  }
+
+  if (continuationPackId) {
+    const pack = db.getContinuationPack(continuationPackId);
+    if (!pack) {
+      return { status: 404, message: 'Continuation pack not found' };
+    }
+    if (pack.novelId !== novelId) {
+      return { status: 409, message: 'Continuation pack does not belong to production run novel' };
+    }
+  }
+
+  return undefined;
+}
+
+function assertOwnedEntity(
+  entity: { novelId: string } | undefined,
+  novelId: string,
+  entityLabel: string,
+): void {
+  if (!entity || entity.novelId !== novelId) {
+    throw new ProductionDomainConflict(`${entityLabel} does not belong to production run novel`);
+  }
+}
+
+function assertApplyOwnership(run: ReturnType<typeof db.getChapterProductionRun>): void {
+  if (!run) throw new ProductionDomainConflict('Production run no longer exists');
+
+  if (run.continuityReport.continuationPackId) {
+    assertOwnedEntity(
+      db.getContinuationPack(run.continuityReport.continuationPackId),
+      run.novelId,
+      'Continuation pack',
+    );
+  }
+
+  if (run.targetChapterId) {
+    assertOwnedEntity(db.getChapter(run.targetChapterId), run.novelId, 'Target chapter');
+  }
+
+  const patch = run.continuityReport.proposedPatch;
+  for (const update of patch.characterUpdates || []) {
+    assertOwnedEntity(db.getCharacter(update.characterId), run.novelId, 'Continuity character');
+  }
+  for (const update of patch.itemUpdates || []) {
+    assertOwnedEntity(db.getItem(update.itemId), run.novelId, 'Continuity item');
+  }
+  for (const update of patch.foreshadowingUpdates || []) {
+    assertOwnedEntity(db.getForeshadowing(update.foreshadowingId), run.novelId, 'Continuity foreshadowing');
+  }
+  for (const entry of patch.foreshadowingsToCreate || []) {
+    if (entry.plantedChapterId) {
+      assertOwnedEntity(db.getChapter(entry.plantedChapterId), run.novelId, 'Foreshadowing planted chapter');
+    }
+  }
+}
+
+function buildProductionContinuityReport(continuationPackId?: string) {
+  return {
+    ...buildEmptyContinuityReport(),
+    ...(continuationPackId ? { continuationPackId } : {}),
+  };
+}
+
+const completedReflexionKeys = new Set<string>();
+const MAX_REFLEXION_KEYS = 1000;
+
+function rememberReflexionKey(key: string): void {
+  if (completedReflexionKeys.size >= MAX_REFLEXION_KEYS) {
+    const oldest = completedReflexionKeys.values().next().value;
+    if (oldest) completedReflexionKeys.delete(oldest);
+  }
+  completedReflexionKeys.add(key);
+}
+
+function initializeProductionRun(
+  novelId: string,
+  targetChapterId: string,
+  continuationPackId: string,
+  userIntent: string,
+  activeEntityNames?: string[],
+) {
+  const novel = db.getNovel(novelId);
+  if (!novel) {
+    return {
+      ok: false as const,
+      issue: { status: 404 as const, message: 'Novel not found' },
+    };
+  }
+  const ownershipIssue = findProductionInputOwnershipIssue(
+    novelId,
+    targetChapterId,
+    continuationPackId,
+  );
+  if (ownershipIssue) return { ok: false as const, issue: ownershipIssue };
+
+  const chapters = db.listChapters(novelId);
+  const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
+  const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
+  const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
+  const factions = db.listFactions(novelId).filter(f => !activeEntityNames || activeEntityNames.includes(f.name));
+  const powerLevels = db.listPowerLevels(novelId).filter(p => !activeEntityNames || activeEntityNames.includes(p.name));
+  const timelineEvents = db.listTimelineEvents(novelId);
+  const foreshadowings = db.listForeshadowings(novelId);
+  const mountedSkillIds = novel.mountedSkillIds || [];
+  const skills = db.listSkills().filter(skill => mountedSkillIds.includes(skill.id));
+  const continuationPack = continuationPackId
+    ? db.getContinuationPack(continuationPackId)
+    : undefined;
+  const packContext = continuationPack
+    ? buildContinuationContext(continuationPack)
+    : '';
+
+  const ledger = buildStoryStateLedger({
+    novel,
+    chapters,
+    characters,
+    locations,
+    items,
+    factions,
+    powerLevels,
+    timelineEvents,
+    foreshadowings,
+  });
+  const intent = normalizeProductionIntent(userIntent);
+  const runId = generateId();
+  const now = Date.now();
+  db.createChapterProductionRun({
+    id: runId,
+    novelId,
+    targetChapterId: targetChapterId || undefined,
+    status: 'running',
+    userIntent: intent,
+    sceneBeats: '',
+    draftContent: '',
+    styleAudit: '',
+    continuityReport: buildProductionContinuityReport(continuationPackId),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    ok: true as const,
+    runId,
+    novel,
+    chapters,
+    characters,
+    skills,
+    packContext,
+    plannerContext: buildProductionPlannerContext(ledger),
+    writerContext: buildProductionWriterContext(ledger),
+    intent,
+  };
 }
 
 async function emitTextAsTokensWithType(
@@ -64,17 +250,36 @@ export function registerProductionRoutes(app: Express) {
     }
     let runId: string | null = null;
     const { novelId = '' } = req.body;
+    const requestDatabaseGeneration = getDatabaseGeneration();
     let reservationId: string | undefined;
     try {
-      const { targetChapterId = '', userIntent = '', activeEntityNames } = req.body;
+      const {
+        targetChapterId = '',
+        userIntent = '',
+        continuationPackId = '',
+        activeEntityNames,
+      } = req.body;
       if (!novelId.trim()) {
         return res.status(400).json({ error: 'novelId is required' });
+      }
+
+      const novel = db.getNovel(novelId);
+      if (!novel) {
+        return res.status(404).json({ error: 'Novel not found' });
+      }
+      const ownershipIssue = findProductionInputOwnershipIssue(
+        novelId,
+        targetChapterId,
+        continuationPackId,
+      );
+      if (ownershipIssue) {
+        return res.status(ownershipIssue.status).json({ error: ownershipIssue.message });
       }
 
       // Quota Gate — atomic reserve before any LLM work
       const reserve = await reserveQuota(novelId, 'generateProse');
       if (!reserve.allowed) {
-        return res.status(403).json({
+        return res.status(quotaFailureHttpStatus(reserve)).json({
           quotaExceeded: true,
           limitType: 'generateProse',
           count: reserve.count,
@@ -84,64 +289,42 @@ export function registerProductionRoutes(app: Express) {
       }
 
       reservationId = reserve.reservationId;
-      const streamDatabaseGeneration = getDatabaseGeneration();
+
+      const initialization = await runInSerializedWriteForGeneration(
+        requestDatabaseGeneration,
+        () => initializeProductionRun(
+          novelId,
+          targetChapterId,
+          continuationPackId,
+          userIntent,
+          activeEntityNames,
+        ),
+      );
+      if (!initialization.executed) {
+        await refundQuota(reservationId);
+        return res.status(409).json({ error: '数据库已在生产任务启动期间切换，请重试' });
+      }
+      if (!initialization.result.ok) {
+        await refundQuota(reservationId);
+        return res.status(initialization.result.issue.status).json({
+          error: initialization.result.issue.message,
+        });
+      }
+
+      runId = initialization.result.runId;
 
       // Run Reflexion evolution in the background to learn from the previous chapter's edits
       runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
 
-      const novel = db.getNovel(novelId);
-      if (!novel) {
-        await refundQuota(reservationId);
-        return res.status(404).json({ error: 'Novel not found' });
-      }
-
-      const chapters = db.listChapters(novelId);
-      const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
-      const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
-      const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
-      const factions = db.listFactions(novelId).filter(f => !activeEntityNames || activeEntityNames.includes(f.name));
-      const powerLevels = db.listPowerLevels(novelId).filter(p => !activeEntityNames || activeEntityNames.includes(p.name));
-      const timelineEvents = db.listTimelineEvents(novelId);
-      const foreshadowings = db.listForeshadowings(novelId);
-
-      const ledger = buildStoryStateLedger({
-        novel,
-        chapters,
-        characters,
-        locations,
-        items,
-        factions,
-        powerLevels,
-        timelineEvents,
-        foreshadowings,
-      });
-      const writerContext = buildProductionWriterContext(ledger);
-      const intent = normalizeProductionIntent(userIntent);
-      runId = generateId();
-      const now = Date.now();
-      const baseRun = {
-        id: runId,
-        novelId,
-        targetChapterId: targetChapterId || undefined,
-        status: 'running' as const,
-        userIntent: intent,
-        sceneBeats: '',
-        draftContent: '',
-        styleAudit: '',
-        continuityReport: buildEmptyContinuityReport(),
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      db.createChapterProductionRun(baseRun);
+      const { intent, writerContext } = initialization.result;
 
       const fallbackBeats = buildFallbackSceneBeats(intent);
       const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext);
       const fallbackAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
-      const fallbackContinuity = buildEmptyContinuityReport();
+      const fallbackContinuity = buildProductionContinuityReport(continuationPackId);
 
       const fallbackWrite = await runInSerializedWriteForGeneration(
-        streamDatabaseGeneration,
+        requestDatabaseGeneration,
         () => db.updateChapterProductionRun(runId!, {
           status: 'review_required',
           sceneBeats: fallbackBeats,
@@ -162,9 +345,11 @@ export function registerProductionRoutes(app: Express) {
       logger.error(String(e));
       const message = e instanceof Error ? e.message : String(e);
       if (runId) {
-        db.updateChapterProductionRun(runId, {
-          status: 'failed',
-          errorMessage: message,
+        await runInSerializedWriteForGeneration(requestDatabaseGeneration, () => {
+          db.updateChapterProductionRun(runId!, {
+            status: 'failed',
+            errorMessage: message,
+          });
         });
       }
       await refundQuota(reservationId);
@@ -191,6 +376,7 @@ export function registerProductionRoutes(app: Express) {
       disposeDisconnect();
     };
     const { novelId = '' } = req.body;
+    const requestDatabaseGeneration = getDatabaseGeneration();
     let reservationId: string | undefined;
     let contentDelivered = false;
     let streamDatabaseGeneration: number | undefined;
@@ -207,10 +393,25 @@ export function registerProductionRoutes(app: Express) {
         return;
       }
 
+      const novel = db.getNovel(novelId);
+      if (!novel) {
+        res.status(404).json({ error: 'Novel not found' });
+        return;
+      }
+      const ownershipIssue = findProductionInputOwnershipIssue(
+        novelId,
+        targetChapterId,
+        continuationPackId,
+      );
+      if (ownershipIssue) {
+        res.status(ownershipIssue.status).json({ error: ownershipIssue.message });
+        return;
+      }
+
       // Quota Gate — atomic reserve before any LLM work
       const reserve = await reserveQuota(novelId, 'generateProse');
       if (!reserve.allowed) {
-        res.status(403).json({
+        res.status(quotaFailureHttpStatus(reserve)).json({
           quotaExceeded: true,
           limitType: 'generateProse',
           count: reserve.count,
@@ -222,24 +423,43 @@ export function registerProductionRoutes(app: Express) {
 
       reservationId = reserve.reservationId;
 
-      // Run Reflexion evolution in the background to learn from the previous chapter's edits
-      runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
-
-      const novel = db.getNovel(novelId);
-      if (!novel) {
+      const initialization = await runInSerializedWriteForGeneration(
+        requestDatabaseGeneration,
+        () => initializeProductionRun(
+          novelId,
+          targetChapterId,
+          continuationPackId,
+          userIntent,
+          activeEntityNames,
+        ),
+      );
+      if (!initialization.executed) {
         await refundQuota(reservationId);
-        res.status(404).json({ error: 'Novel not found' });
+        res.status(409).json({ error: '数据库已在生产任务启动期间切换，请重试' });
         return;
       }
-      streamDatabaseGeneration = getDatabaseGeneration();
-
-      let packContext = '';
-      if (continuationPackId) {
-        const pack = db.getContinuationPack(continuationPackId);
-        if (pack) {
-          packContext = buildContinuationContext(pack);
-        }
+      if (!initialization.result.ok) {
+        await refundQuota(reservationId);
+        res.status(initialization.result.issue.status).json({
+          error: initialization.result.issue.message,
+        });
+        return;
       }
+
+      runId = initialization.result.runId;
+      streamDatabaseGeneration = requestDatabaseGeneration;
+      const {
+        novel: productionNovel,
+        characters,
+        skills,
+        packContext,
+        plannerContext,
+        writerContext,
+        intent,
+      } = initialization.result;
+
+      // Run Reflexion evolution in the background to learn from the previous chapter's edits
+      runEvolutionReflexion(novelId).catch(err => logger.error('Reflexion background task error:', err));
 
       // SSE setup
       res.setHeader('Content-Type', 'text/event-stream');
@@ -259,50 +479,6 @@ export function registerProductionRoutes(app: Express) {
         clientAbortController.abort();
         cleanupStream();
       });
-
-      // --- Data loading (same as non-streaming endpoint) ---
-      const chapters = db.listChapters(novelId);
-      const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
-      const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
-      const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
-      const factions = db.listFactions(novelId).filter(f => !activeEntityNames || activeEntityNames.includes(f.name));
-      const powerLevels = db.listPowerLevels(novelId).filter(p => !activeEntityNames || activeEntityNames.includes(p.name));
-      const timelineEvents = db.listTimelineEvents(novelId);
-      const foreshadowings = db.listForeshadowings(novelId);
-      const mountedSkillIds = novel.mountedSkillIds || [];
-      const skills = db.listSkills().filter(skill => mountedSkillIds.includes(skill.id));
-
-      const ledger = buildStoryStateLedger({
-        novel,
-        chapters,
-        characters,
-        locations,
-        items,
-        factions,
-        powerLevels,
-        timelineEvents,
-        foreshadowings,
-      });
-      const plannerContext = buildProductionPlannerContext(ledger);
-      const writerContext = buildProductionWriterContext(ledger);
-      const intent = normalizeProductionIntent(userIntent);
-      runId = generateId();
-      const now = Date.now();
-
-      const baseRun = {
-        id: runId,
-        novelId,
-        targetChapterId: targetChapterId || undefined,
-        status: 'running' as const,
-        userIntent: intent,
-        sceneBeats: '',
-        draftContent: '',
-        styleAudit: '',
-        continuityReport: buildEmptyContinuityReport(),
-        createdAt: now,
-        updatedAt: now,
-      };
-      db.createChapterProductionRun(baseRun);
 
       sseWrite(res, { type: 'run_created', runId });
 
@@ -326,8 +502,22 @@ export function registerProductionRoutes(app: Express) {
       const fallbackAudit = '## 保底审计\n- 模型响应过慢，本次生产先生成可编辑草稿。\n- 建议稍后单独运行 AI 审计，检查人物一致性、分镜执行和节奏问题。';
       sseWrite(res, { type: 'fallback_audit', content: fallbackAudit });
 
-      const fallbackContinuity = buildEmptyContinuityReport();
+      const fallbackContinuity = buildProductionContinuityReport(continuationPackId);
       sseWrite(res, { type: 'fallback_continuity', report: fallbackContinuity });
+
+      // Test hook: allows deterministic simulation of queue delay + disconnect
+      if (__productionTestHooks.preFallbackWriteHook) {
+        await __productionTestHooks.preFallbackWriteHook();
+      }
+
+      // ── Disconnect guard: skip fallback write if client already gone ──
+      if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+        // Client disconnected while fallback was queued. Do NOT persist
+        // content, do NOT set contentDelivered, let the outer catch refund.
+        const abortError = new Error('Client disconnected before fallback write');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
 
       const fallbackWrite = await runInSerializedWriteForGeneration(
         streamDatabaseGeneration,
@@ -341,6 +531,17 @@ export function registerProductionRoutes(app: Express) {
       );
       if (!fallbackWrite.executed) {
         throw new Error('数据库已在生成期间切换，已丢弃旧生成任务');
+      }
+
+      // Re-check after the write queue drains — client may have disconnected
+      // while we were waiting for our turn.
+      if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+        // Fallback content IS persisted at this point. We keep it but do NOT
+        // mark contentDelivered so the outer catch refunds the reservation.
+        // The persisted fallback is harmless — it has no committed billing.
+        const abortError = new Error('Client disconnected after fallback persist');
+        abortError.name = 'AbortError';
+        throw abortError;
       }
 
       contentDelivered = true;
@@ -371,7 +572,7 @@ export function registerProductionRoutes(app: Express) {
       ].filter(Boolean).join('\n\n');
 
       // Load story contract
-      const contract = novel.projectPreferenceProfile?.contract;
+      const contract = productionNovel.projectPreferenceProfile?.contract;
       const contractStr = contract ? buildContractPrompt(contract) : '';
 
       // Build character state summary from current_state
@@ -385,7 +586,7 @@ export function registerProductionRoutes(app: Express) {
 
       // Extract learned preferences from past decisions
       const learnedPreferences = summarizeChapterDecisions(
-        novel.projectPreferenceProfile || {
+        productionNovel.projectPreferenceProfile || {
           tags: [],
           weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
           acceptedDimensions: [],
@@ -397,6 +598,7 @@ export function registerProductionRoutes(app: Express) {
       const pipelineDatabaseGeneration = streamDatabaseGeneration;
 
       runProductionPipeline({
+        novelId,
         userIntent: intent,
         contextStr: pipelineContextStr + characterStateStr + (contractStr ? `\n\n${contractStr}` : ''),
         skills,
@@ -423,9 +625,23 @@ export function registerProductionRoutes(app: Express) {
         if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
         sseWrite(res, { type: 'model_beats', content: result.sceneBeats });
         sseWrite(res, { type: 'model_score', score: result.score, attempts: result.attempts });
+
+        // ── Disconnect guard: skip model DB write if client already gone ──
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
+
+        // Test hook: allows deterministic simulation of model queue delay + disconnect
+        if (__productionTestHooks.preModelWriteHook) {
+          await __productionTestHooks.preModelWriteHook();
+        }
+
         const modelWrite = await runInSerializedWriteForGeneration(
           pipelineDatabaseGeneration,
           () => {
+            // Disconnect guard inside the queue callback: if client left while
+            // this write was queued, keep the persisted fallback and skip model.
+            if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+              return db.getChapterProductionRun(runId!);
+            }
             const currentRun = db.getChapterProductionRun(runId!);
             if (currentRun && currentRun.status !== 'applied') {
               db.updateChapterProductionRun(runId!, {
@@ -440,6 +656,12 @@ export function registerProductionRoutes(app: Express) {
         );
         if (!modelWrite.executed) {
           throw new Error('数据库已在生成期间切换，已丢弃旧生成结果');
+        }
+        // Post-queue disconnect: client left during model write queue wait.
+        // Fallback was already committed; just clean up without sending done.
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+          cleanupStream();
+          return;
         }
         sseWrite(res, { type: 'done', run: modelWrite.result });
         cleanupStream();
@@ -509,6 +731,11 @@ export function registerProductionRoutes(app: Express) {
       const wordCount = run.draftContent.replace(/\s/g, '').length;
 
       db.runInTransaction(() => {
+        // Revalidate every cross-entity reference inside the same transaction
+        // that performs the apply. A forged/imported run must fail before the
+        // first chapter, version, entity, or preference write occurs.
+        assertApplyOwnership(run);
+
         if (chapterId && db.getChapter(chapterId)) {
           db.updateChapter(chapterId, {
             sceneBeats: run.sceneBeats,
@@ -657,6 +884,9 @@ export function registerProductionRoutes(app: Express) {
 
       res.json({ chapterId });
     } catch (e) {
+      if (e instanceof ProductionDomainConflict) {
+        return res.status(409).json({ error: e.message });
+      }
       logger.error(String(e));
       res.status(500).json({ error: "Internal server error" });
     }
@@ -664,6 +894,7 @@ export function registerProductionRoutes(app: Express) {
 }
 
 async function runEvolutionReflexion(novelId: string): Promise<void> {
+  let reflexionKey: string | undefined;
   try {
     const databaseGeneration = getDatabaseGeneration();
     const novel = db.getNovel(novelId);
@@ -677,7 +908,7 @@ async function runEvolutionReflexion(novelId: string): Promise<void> {
     if (!latestApplied || !latestApplied.targetChapterId) return;
 
     const chapter = db.getChapter(latestApplied.targetChapterId);
-    if (!chapter || !chapter.content) return;
+    if (!chapter || chapter.novelId !== novelId || !chapter.content) return;
 
     const original = latestApplied.draftContent;
     const final = chapter.content;
@@ -685,6 +916,17 @@ async function runEvolutionReflexion(novelId: string): Promise<void> {
     if (original.trim() === final.trim()) {
       return; // No changes made by the user
     }
+
+    reflexionKey = [
+      databaseGeneration,
+      novelId,
+      chapter.id,
+      createHash('sha256').update(final).digest('hex'),
+    ].join(':');
+    if (completedReflexionKeys.has(reflexionKey)) return;
+    // Reserve the key before the model call so concurrent production starts
+    // cannot analyze the same published chapter more than once.
+    rememberReflexionKey(reflexionKey);
 
     const prompt = `你是一个写作进化分析器 (Evolution Agent)。
 以下是 AI 自动生成的原稿与作者最终修改并发表的成品之间的对比。
@@ -707,33 +949,76 @@ ${final.substring(0, 3000)}
       prompt,
       maxTokens: 1024,
       responseMimeType: 'application/json',
+      novelId,
+    }, {
+      operation: 'production-reflexion',
+      novelId,
+      timeoutMs: 60_000,
+      concurrency: 1,
     });
 
     const parsed = JSON.parse(response.replace(/```(json)?/g, '').trim());
     if (parsed && (Array.isArray(parsed.bannedWords) || Array.isArray(parsed.rules))) {
-      const profile = novel.projectPreferenceProfile || { tags: [], weights: { characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1, styleWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 };
-      const newNotes = [...(profile.notes || [])];
-      if (Array.isArray(parsed.rules)) {
-        parsed.rules.forEach((r: string) => {
-          if (!newNotes.includes(r)) newNotes.push(r);
-        });
-      }
-
-      const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => (
-        db.updateNovel(novelId, {
+      const rules = Array.isArray(parsed.rules)
+        ? parsed.rules.filter((rule: unknown): rule is string => typeof rule === 'string' && Boolean(rule.trim()))
+        : [];
+      const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => {
+        const latestNovel = db.getNovel(novelId);
+        if (!latestNovel) return false;
+        const latestProfile = latestNovel.projectPreferenceProfile || {
+          tags: [],
+          weights: { characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1, styleWeight: 1 },
+          acceptedDimensions: [],
+          rejectedDimensions: [],
+          notes: [],
+          evidenceCount: 0,
+        };
+        const newNotes = [...(latestProfile.notes || [])];
+        for (const rule of rules) {
+          if (!newNotes.includes(rule)) newNotes.push(rule);
+        }
+        return db.updateNovel(novelId, {
           projectPreferenceProfile: {
-            ...profile,
+            ...latestProfile,
             notes: newNotes.slice(-20),
           }
-        })
-      ));
-      if (writeResult.executed) {
+        });
+      });
+      if (writeResult.executed && writeResult.result) {
         logger.info('Reflexion evolution complete, updated preference profile notes');
       } else {
+        completedReflexionKeys.delete(reflexionKey);
+        reflexionKey = undefined;
         logger.info('Reflexion evolution discarded after database replacement');
       }
+    } else {
+      completedReflexionKeys.delete(reflexionKey);
+      reflexionKey = undefined;
     }
   } catch (e) {
+    if (reflexionKey) completedReflexionKeys.delete(reflexionKey);
     logger.error('Reflexion evolution failed:', e);
   }
 }
+
+/** @internal Test-only hooks for deterministic production concurrency coverage. */
+export const __productionTestHooks = {
+  runEvolutionReflexion,
+  resetReflexionKeys(): void {
+    completedReflexionKeys.clear();
+  },
+  /**
+   * When set to a non-null function, the start-stream route calls it after
+   * building the fallback content but BEFORE the fallback write queue.
+   * The hook may return a Promise to simulate queue delay. The route waits
+   * for it before proceeding to the disconnect guard and write queue.
+   * Set to null to restore normal behavior.
+   */
+  preFallbackWriteHook: null as (() => Promise<void> | void) | null,
+  /**
+   * When set to a non-null function, the AI pipeline .then() callback calls
+   * it AFTER emitting model_beats/score but BEFORE the model write queue.
+   * Used to simulate disconnect during model write queue wait.
+   */
+  preModelWriteHook: null as (() => Promise<void> | void) | null,
+};

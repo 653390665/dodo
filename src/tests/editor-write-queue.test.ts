@@ -5,6 +5,7 @@ import {
   flushPendingEditorWrites,
   hasFailedEditorWrites,
   hasPendingEditorWrites,
+  getPendingEditorWriteSnapshots,
   queueEditorWrite,
 } from '../lib/editor-write-queue';
 
@@ -65,5 +66,20 @@ describe('editor write boundary', () => {
 
     await flushPendingEditorWrites();
     expect(persisted).toEqual(['new']);
+  });
+
+  test('exposes serializable pending snapshots without running writers', () => {
+    const writer = vi.fn(async () => true);
+    queueEditorWrite('chapter:1:content', writer, 1000, {
+      value: '退出前未保存正文',
+      field: 'content',
+    });
+
+    expect(getPendingEditorWriteSnapshots()).toEqual([{
+      key: 'chapter:1:content',
+      snapshot: { value: '退出前未保存正文', field: 'content' },
+      failed: false,
+    }]);
+    expect(writer).not.toHaveBeenCalled();
   });
 });

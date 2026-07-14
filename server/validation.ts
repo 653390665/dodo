@@ -136,14 +136,14 @@ const DB_CREATE = [
   'createNovel', 'createChapter', 'createChapterVersion', 'createSkill',
   'createSkillUsageRecord', 'createCharacter', 'createLocation', 'createItem',
   'createFaction', 'createPowerLevel', 'createTimelineEvent',
-  'createIdeaFragment', 'createForeshadowing', 'createChapterProductionRun',
-  'createContinuationPack', 'createEntityRelationship',
+  'createIdeaFragment', 'createForeshadowing',
+  'createEntityRelationship',
 ] as const;
 const DB_UPDATE = [
   'updateNovel', 'updateChapter', 'updateSkill', 'updateCharacter',
   'updateLocation', 'updateItem', 'updateFaction', 'updatePowerLevel',
   'updateTimelineEvent', 'updateIdeaFragment', 'updateForeshadowing',
-  'updateChapterProductionRun', 'updateContinuationPack', 'updateEntityRelationship',
+  'updateContinuationPack', 'updateEntityRelationship',
 ] as const;
 
 export const dbMethodSchemas: Record<string, z.ZodType<unknown>> = {
@@ -165,12 +165,67 @@ for (const [name, schema] of Object.entries({
   Item: itemEntitySchema,
 })) {
   dbMethodSchemas[`create${name}`] = z.tuple([schema]);
-  dbMethodSchemas[`update${name}`] = z.tuple([dbIdSchema, schema.partial()]);
 }
+
+// Identity and ownership fields are immutable.  In particular, accepting a
+// renderer supplied `novelId` here would let a generic update silently move a
+// chapter or world entity between projects and bypass the route-level domain
+// checks.
+dbMethodSchemas.updateNovel = z.tuple([
+  dbIdSchema,
+  novelEntitySchema.omit({ id: true, createdAt: true }).partial(),
+]);
+dbMethodSchemas.updateChapter = z.tuple([
+  dbIdSchema,
+  chapterEntitySchema.omit({ id: true, novelId: true, createdAt: true }).partial(),
+]);
+dbMethodSchemas.updateCharacter = z.tuple([
+  dbIdSchema,
+  characterEntitySchema.omit({ id: true, novelId: true, createdAt: true }).partial(),
+]);
+dbMethodSchemas.updateLocation = z.tuple([
+  dbIdSchema,
+  locationEntitySchema.omit({ id: true, novelId: true, createdAt: true }).partial(),
+]);
+dbMethodSchemas.updateItem = z.tuple([
+  dbIdSchema,
+  itemEntitySchema.omit({ id: true, novelId: true, createdAt: true }).partial(),
+]);
+
+const immutableProjectUpdateSchema = dbEntitySchema.superRefine((value, context) => {
+  for (const key of ['id', 'novelId', 'createdAt']) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      context.addIssue({ code: 'custom', path: [key], message: `${key} is immutable` });
+    }
+  }
+});
+for (const method of [
+  'updateFaction',
+  'updatePowerLevel',
+  'updateTimelineEvent',
+  'updateIdeaFragment',
+  'updateForeshadowing',
+  'updateEntityRelationship',
+]) {
+  dbMethodSchemas[method] = z.tuple([dbIdSchema, immutableProjectUpdateSchema]);
+}
+
+// Continuation packs are created only by the guarded import workflow. The
+// renderer may edit review state, but it must never move a pack to another
+// novel or rewrite its source/canon payload through the generic DB proxy.
+dbMethodSchemas.updateContinuationPack = z.tuple([
+  dbIdSchema,
+  z.object({
+    status: z.enum(['draft', 'approved']).optional(),
+    continuationTask: dbTextSchema.optional(),
+    updatedAt: dbTimestampSchema.optional(),
+  }).strict(),
+]);
 
 export const dbSchema = z.object({
   method: z.string().min(1),
   args: z.array(z.unknown()).default([]),
+  databaseGeneration: z.number().int().nonnegative().optional(),
 }).superRefine(({ method, args }, context) => {
   const methodSchema = dbMethodSchemas[method];
   if (!methodSchema) {
@@ -193,19 +248,42 @@ export const configSchema = z.object({
   promptTemplates: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const configConnectionSchema = z.object({
+  apiKey: z.string().max(20_000).optional(),
+  baseUrl: z.string().url().max(2_000).optional().or(z.literal('')),
+  model: z.string().max(500).optional(),
+});
+
 export const extractSkillSchema = z.object({
   text: z.string().min(1).max(150000, '文本字数超出 15 万字上限'),
   title: z.string().max(100).optional(),
   style: z.string().max(100).optional(),
-  novelId: z.string().optional(), // 关联的小说ID
+  novelId: dbIdSchema,
   skills: z.array(z.unknown()).max(3).optional().default([]),
 });
 
 export const storyCardsSchema = z.object({
+  onboardingSessionId: dbIdSchema,
   ideaSeed: z.string().min(1).max(5000, '创意种子字数不能超过 5000 字'),
   chatContext: z.string().max(10000).optional(),
   planning: z.record(z.string(), z.unknown()).optional(),
   surface: z.string().max(100).optional(),
+  previousHookTexts: z.array(z.string().max(2_000)).max(50).optional(),
+  batchIndex: z.number().int().nonnegative().max(100).optional(),
+});
+
+export const setupTaskRefineSchema = z.object({
+  novelId: dbIdSchema,
+  taskTitle: z.string().min(1).max(500),
+  currentDraft: z.string().max(100_000).optional(),
+  userRequest: z.string().max(20_000).optional(),
+  storyContext: z.string().max(100_000).optional(),
+  surface: z.string().max(100).optional(),
+});
+
+export const worldSetupExtractSchema = z.object({
+  novelId: dbIdSchema,
+  documentText: z.string().min(1).max(150_000),
 });
 
 export const chapterProductionSchema = z.object({
@@ -231,11 +309,12 @@ export const orchestrateSchema = z.object({
 
 const base64Regex = /^[a-zA-Z0-9+/_\-\s]*={0,2}$/;
 const allowedExtensions = /\.(txt|md|json|docx)$/i;
-const allowedDocExtensions = /\.(txt|md|json|docx|zip)$/i;
+const allowedDocExtensions = /\.(txt|md|json|docx)$/i;
 
 export const parseDocSchema = z.object({
+  novelId: z.string().min(1).max(200),
   filename: z.string().min(1).max(255).refine(val => allowedDocExtensions.test(val), {
-    message: '仅支持 .txt, .md, .json, .docx, .zip 格式文档'
+    message: '仅支持 .txt, .md, .json, .docx 格式文档'
   }),
   filedata: z.string().min(1).max(8000000, '单文件不能超过 6MB').regex(base64Regex, '非法 Base64 数据'),
 });

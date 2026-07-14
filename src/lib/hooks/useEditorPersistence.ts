@@ -146,7 +146,7 @@ export function useEditorPersistence({
       });
       if (!saved) return false;
       return true;
-    });
+    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'content', value: newContent });
   }, []);
 
   const queueContentWrite = useCallback((newContent: string) => {
@@ -180,7 +180,7 @@ export function useEditorPersistence({
         hasWriteActivityRef.current = true;
         queueEditorWrite(`chapter:${chapterId}:content`, () => updateChapter(chapterId, {
           content: latestValue, updatedAt: Date.now(), wordCount: finalWordCount,
-        }), 0);
+        }), 0, { entityType: 'chapter', entityId: chapterId, field: 'content', value: latestValue });
         setChapters((prev) =>
           prev.map((c) =>
             c.id === chapterId
@@ -226,7 +226,7 @@ export function useEditorPersistence({
       });
       if (!saved) return false;
       return true;
-    });
+    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'sceneBeats', value: newBeats });
   };
 
   const handleUpdateGlobalOutline = (val: string) => {
@@ -236,7 +236,7 @@ export function useEditorPersistence({
     hasWriteActivityRef.current = true;
     queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
       await updateNovel(novel.id, { globalOutline: val });
-    });
+    }, 1000, { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val });
   };
 
   const handleAddChapter = async (targetVolumeName?: string) => {
@@ -348,7 +348,7 @@ export function useEditorPersistence({
       const saved = await updateChapter(chapterId, { volumeName: newVol });
       if (!saved) return false;
       return true;
-    });
+    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'volumeName', value: newVol });
   };
 
   const handleTitleChange = (newTitle: string) => {
@@ -363,7 +363,7 @@ export function useEditorPersistence({
       const saved = await updateChapter(chapterId, { title: newTitle });
       if (!saved) return false;
       return true;
-    });
+    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'title', value: newTitle });
   };
 
   const refreshChapters = async () => {

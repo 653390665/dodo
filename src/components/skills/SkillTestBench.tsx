@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 
 import type { Skill } from '../../../shared/types';
+import { readDraftStream } from '../../lib/draft-stream';
 
 interface SkillTestBenchProps {
   baseSkill: Skill;
   candidates: Skill[];
+  novelId: string;
 }
 
-async function runSkillStream(input: string, skills: Skill[]) {
+async function runSkillStream(input: string, skills: Skill[], novelId: string) {
   const response = await fetch('/api/orchestrate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -21,6 +23,7 @@ async function runSkillStream(input: string, skills: Skill[]) {
       maxIterations: 1,
       draftContent: '',
       includeCritic: false,
+      novelId,
     }),
   });
 
@@ -29,37 +32,10 @@ async function runSkillStream(input: string, skills: Skill[]) {
     throw new Error(message || '试驾失败');
   }
 
-  if (!response.body) {
-    throw new Error('No response body');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let output = '';
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value, { stream: true });
-    const messages = chunk.split('\n\n').filter(Boolean);
-    for (const message of messages) {
-      if (!message.startsWith('data: ')) continue;
-      try {
-        const data = JSON.parse(message.replace('data: ', ''));
-        if (data.type === 'token') {
-          output += data.content;
-        }
-      } catch {
-        // ignore malformed SSE payloads
-      }
-    }
-  }
-
-  return output;
+  return readDraftStream(response);
 }
 
-export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
+export function SkillTestBench({ baseSkill, candidates, novelId }: SkillTestBenchProps) {
   const [input, setInput] = useState('');
   const [candidateId, setCandidateId] = useState<string>('');
   const [baseOutput, setBaseOutput] = useState('');
@@ -74,19 +50,24 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
 
   async function handleRun(mode: 'single' | 'compare') {
     if (!input.trim()) return;
+    if (!novelId) {
+      alert('请先选择作品，再运行会消耗额度的技能试驾。');
+      return;
+    }
 
     setRunningMode(mode);
     setBaseOutput('');
     setCandidateOutput('');
 
     try {
-      const primary = await runSkillStream(input, [baseSkill]);
+      const primary = await runSkillStream(input, [baseSkill], novelId);
       setBaseOutput(primary);
 
       if (mode === 'compare' && candidateSkill) {
         const secondary = await runSkillStream(
           input,
           compareMode === 'combo' ? [baseSkill, candidateSkill] : [candidateSkill],
+          novelId,
         );
         setCandidateOutput(secondary);
       }
@@ -111,7 +92,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={!input.trim() || runningMode !== null}
+            disabled={!input.trim() || !novelId || runningMode !== null}
             onClick={() => handleRun('single')}
             className="flex-1 rounded-xl bg-theme-text text-white px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
@@ -120,7 +101,7 @@ export function SkillTestBench({ baseSkill, candidates }: SkillTestBenchProps) {
           </button>
           <button
             type="button"
-            disabled={!input.trim() || !candidateSkill || runningMode !== null}
+            disabled={!input.trim() || !novelId || !candidateSkill || runningMode !== null}
             onClick={() => handleRun('compare')}
             className="flex-1 rounded-xl bg-theme-accent text-white px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >

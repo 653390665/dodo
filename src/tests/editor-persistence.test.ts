@@ -22,7 +22,12 @@ vi.mock('../lib/chapter-client', () => ({
 vi.mock('../lib/novel-client', () => ({ updateNovel: client.updateNovel }));
 vi.mock('../lib/toast', () => ({ toast: client.toast }));
 
-import { __editorWriteQueueTestHooks, flushPendingEditorWrites, hasPendingEditorWrites } from '../lib/editor-write-queue';
+import {
+  __editorWriteQueueTestHooks,
+  flushPendingEditorWrites,
+  getPendingEditorWriteSnapshots,
+  hasPendingEditorWrites,
+} from '../lib/editor-write-queue';
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 
 const novel: Novel = {
@@ -155,6 +160,25 @@ describe('useEditorPersistence safety boundary', () => {
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { volumeName: '新卷名' });
     expect(client.updateNovel).toHaveBeenCalledWith(novel.id, { globalOutline: '新大纲' });
     expect(hasPendingEditorWrites()).toBe(false);
+  });
+
+  test('captures exportable latest values for all five editor fields', () => {
+    const { result } = setup();
+    act(() => {
+      result.current.handleUpdateContent('新正文');
+      result.current.handleUpdateChapterBeats('新分镜');
+      result.current.handleUpdateGlobalOutline('新大纲');
+      result.current.handleTitleChange('新标题');
+      result.current.handleVolumeNameChange('新卷名');
+    });
+
+    expect(getPendingEditorWriteSnapshots().map(({ snapshot }) => snapshot)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'content', value: '新正文' }),
+      expect.objectContaining({ field: 'sceneBeats', value: '新分镜' }),
+      expect.objectContaining({ field: 'globalOutline', value: '新大纲' }),
+      expect.objectContaining({ field: 'title', value: '新标题' }),
+      expect.objectContaining({ field: 'volumeName', value: '新卷名' }),
+    ]));
   });
 
   test('queues textarea input before the local React debounce so close can flush it', async () => {

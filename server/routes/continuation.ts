@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { z } from 'zod';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { generateId } from '../id';
@@ -27,6 +27,17 @@ import {
   getDatabaseGeneration,
   runInSerializedWriteForGeneration,
 } from '../lib/db-instance';
+import {
+  createLlmExecution,
+  LlmExecutionRejectedError,
+} from '../helpers/llm-execution-gate';
+import { rateLimit } from '../middleware/rate-limit';
+import { bindClientDisconnect } from '../helpers/stream-disconnect';
+import {
+  CONTINUATION_DOCUMENTS_MAX_TOTAL_UNCOMPRESSED_BYTES,
+  DOCX_ARCHIVE_LIMITS,
+  validateArchiveManifest,
+} from '../../shared/lib/archive-limits';
 
 interface UploadedDocument {
   filename: string;
@@ -43,14 +54,20 @@ interface ParseDocJob {
   progress: number;
   stageText: string;
   result?: unknown;
+  error?: string;
   createdAt: number;
   databaseGeneration: number;
 }
 
 const parseDocJobs = new Map<string, ParseDocJob>();
+const parseDocJobAbortControllers = new Map<string, AbortController>();
 const PARSE_DOC_JOB_TTL_MS = 30 * 60 * 1000;
 const pendingContinuationImports = new Map<string, {
   pack: ContinuationPack;
+  createdAt: number;
+  databaseGeneration: number;
+}>();
+const continuationImportSessions = new Map<string, {
   createdAt: number;
   databaseGeneration: number;
 }>();
@@ -68,10 +85,17 @@ const approveContinuationImportSchema = z.object({
 function pruneParseDocJobs(): void {
   const cutoff = Date.now() - PARSE_DOC_JOB_TTL_MS;
   for (const [id, job] of parseDocJobs) {
-    if (job.createdAt < cutoff) parseDocJobs.delete(id);
+    if (job.createdAt < cutoff) {
+      parseDocJobAbortControllers.get(id)?.abort(new Error('Parse-doc job expired'));
+      parseDocJobAbortControllers.delete(id);
+      parseDocJobs.delete(id);
+    }
   }
   for (const [id, pending] of pendingContinuationImports) {
     if (pending.createdAt < cutoff) pendingContinuationImports.delete(id);
+  }
+  for (const [id, session] of continuationImportSessions) {
+    if (session.createdAt < cutoff) continuationImportSessions.delete(id);
   }
 }
 
@@ -191,21 +215,65 @@ export function mapContinuationGap(g: unknown, packId: string, i: number): Conti
   };
 }
 
-async function extractUploadedText(filename: string, filedata: string): Promise<string> {
+async function extractUploadedText(filename: string, filedata: string, prevalidatedBuffer?: Buffer): Promise<string> {
   const lower = filename.toLowerCase();
   if (lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.json')) {
     return Buffer.from(filedata, 'base64').toString('utf8');
   }
   if (lower.endsWith('.docx')) {
+    const buffer = prevalidatedBuffer ?? Buffer.from(filedata, 'base64');
+    if (!prevalidatedBuffer) await validateDocxArchive(buffer);
     const mammoth = await import('mammoth');
-    const buffer = Buffer.from(filedata, 'base64');
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
   throw new Error('Unsupported file type.');
 }
 
-async function parseWorldDocument(filename: string, filedata: string): Promise<unknown> {
+type ZipEntryMetadata = {
+  compressedSize?: number;
+  uncompressedSize?: number;
+};
+
+export async function validateDocxArchive(buffer: Buffer): Promise<number> {
+  const JSZip = (await import('jszip')).default;
+  const zip = await JSZip.loadAsync(buffer);
+  return validateArchiveManifest(Object.values(zip.files).map((entry) => {
+    const metadata = (entry as unknown as { _data?: ZipEntryMetadata })._data;
+    return {
+      name: entry.name,
+      directory: entry.dir,
+      compressedSize: metadata?.compressedSize,
+      uncompressedSize: metadata?.uncompressedSize,
+    };
+  }), DOCX_ARCHIVE_LIMITS);
+}
+
+export async function preflightUploadedDocumentArchives(
+  documents: UploadedDocument[],
+  maxTotalUncompressedBytes = CONTINUATION_DOCUMENTS_MAX_TOTAL_UNCOMPRESSED_BYTES,
+): Promise<Map<number, Buffer>> {
+  const docxBuffers = new Map<number, Buffer>();
+  let totalUncompressedBytes = 0;
+  for (const [index, document] of documents.entries()) {
+    const buffer = Buffer.from(document.filedata, 'base64');
+    const expandedBytes = document.filename.toLowerCase().endsWith('.docx')
+      ? await validateDocxArchive(buffer)
+      : buffer.length;
+    if (document.filename.toLowerCase().endsWith('.docx')) docxBuffers.set(index, buffer);
+    totalUncompressedBytes += expandedBytes;
+    if (!Number.isSafeInteger(totalUncompressedBytes) || totalUncompressedBytes > maxTotalUncompressedBytes) {
+      throw new Error('文档解压后总大小超出安全上限');
+    }
+  }
+  return docxBuffers;
+}
+
+async function parseWorldDocument(
+  filename: string,
+  filedata: string,
+  signal: AbortSignal,
+): Promise<unknown> {
   const text = await extractUploadedText(filename, filedata);
   const prompt = `
 你是一个小说世界观设定解析专家。用户上传了一份设定文档（内容在下方）。
@@ -230,6 +298,7 @@ ${text.substring(0, 30000)}
 
   const rawText = await generateText(getConfig(), {
     prompt,
+    signal,
     responseMimeType: 'application/json',
     timeoutMs: 90_000,
     maxAttempts: 2,
@@ -238,10 +307,43 @@ ${text.substring(0, 30000)}
 }
 
 export function registerContinuationRoutes(app: Express) {
+  app.post('/api/continuation-packs/import-session', (_req, res) => {
+    if (!rateLimit('continuation-import-session')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
+    pruneParseDocJobs();
+    const novelId = `continuation-import-draft-${generateId()}`;
+    continuationImportSessions.set(novelId, {
+      createdAt: Date.now(),
+      databaseGeneration: getDatabaseGeneration(),
+    });
+    return res.status(201).json({ novelId });
+  });
+
   app.post('/api/parse-doc', validate(parseDocSchema), async (req, res) => {
+    if (!rateLimit('parse-world-document')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
     pruneParseDocJobs();
     const jobId = `parse-doc-${generateId()}`;
+    const jobController = new AbortController();
     const databaseGeneration = getDatabaseGeneration();
+    let execution: Awaited<ReturnType<typeof createLlmExecution>>;
+    try {
+      execution = await createLlmExecution({
+        operation: 'parse-world-document',
+        novelId: req.body.novelId,
+        quotaType: 'advancedAudit',
+        timeoutMs: 90_000,
+        concurrency: 1,
+        signal: jobController.signal,
+      });
+    } catch (error) {
+      if (error instanceof LlmExecutionRejectedError) {
+        return res.status(error.status).json({ error: error.message, quota: error.quota });
+      }
+      throw error;
+    }
     parseDocJobs.set(jobId, {
       status: 'queued',
       progress: 10,
@@ -249,6 +351,7 @@ export function registerContinuationRoutes(app: Express) {
       createdAt: Date.now(),
       databaseGeneration,
     });
+    parseDocJobAbortControllers.set(jobId, jobController);
     res.status(202).json({ jobId, databaseGeneration });
 
     void (async () => {
@@ -256,16 +359,25 @@ export function registerContinuationRoutes(app: Express) {
       if (!job) return;
       try {
         Object.assign(job, { status: 'running', progress: 35, stageText: 'AI 正在解析设定结构...' });
-        const result = await parseWorldDocument(req.body.filename, req.body.filedata);
-        if (databaseGeneration !== getDatabaseGeneration()) {
-          Object.assign(job, { status: 'failed', progress: 100, stageText: '数据库已切换，请重新导入' });
-          return;
-        }
+        const result = await execution.run(async ({ signal }) => {
+          const parsed = await parseWorldDocument(req.body.filename, req.body.filedata, signal);
+          if (databaseGeneration !== getDatabaseGeneration()) {
+            throw new Error('数据库已切换，请重新导入');
+          }
+          return parsed;
+        });
         job.result = result;
         Object.assign(job, { status: 'completed', progress: 100, stageText: '解析完成' });
       } catch (error) {
         logger.error('设定文档解析失败:', error);
-        Object.assign(job, { status: 'failed', progress: 100, stageText: '解析失败' });
+        Object.assign(job, {
+          status: 'failed',
+          progress: 100,
+          stageText: '解析失败',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        parseDocJobAbortControllers.delete(jobId);
       }
     })();
   });
@@ -285,8 +397,27 @@ export function registerContinuationRoutes(app: Express) {
     return res.json(job);
   });
 
+  app.post('/api/parse-doc/jobs/:jobId/cancel', (req, res) => {
+    pruneParseDocJobs();
+    const job = parseDocJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: '解析任务不存在或已过期' });
+    const controller = parseDocJobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status === 'completed' || job.status === 'failed') {
+      return res.status(409).json({ error: '解析任务不可取消' });
+    }
+    controller.abort(new Error('Parse-doc job cancelled'));
+    parseDocJobAbortControllers.delete(req.params.jobId);
+    Object.assign(job, { status: 'failed', progress: 100, stageText: '已取消', error: 'Cancelled' });
+    return res.json({ cancelled: true });
+  });
+
   app.post('/api/continuation-packs/parse', validate(continuationParseSchema), async (req, res) => {
+    const controller = new AbortController();
+    const disposeDisconnect = bindClientDisconnect(req, res, () => controller.abort());
     try {
+      if (!rateLimit('continuation-packs-parse')) {
+        return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+      }
       const databaseGeneration = getDatabaseGeneration();
       const novelId = stringValue(req.body.novelId);
       const title = stringValue(req.body.title);
@@ -294,17 +425,29 @@ export function registerContinuationRoutes(app: Express) {
       if (!novelId.trim()) return res.status(400).json({ error: 'novelId is required' });
       if (!documents.length) return res.status(400).json({ error: 'At least one document is required' });
 
-      const parsedDocs: ParsedUploadedDocument[] = await Promise.all(
-        documents.map(async (doc) => {
-          const text = await extractUploadedText(doc.filename, doc.filedata);
-          const trimmed = text.slice(0, 60000);
-          const chineseChars = trimmed.replace(/[^一-鿿]/g, '');
-          if (chineseChars.length < 20) {
-            throw new Error(`"${doc.filename}" 内容过短或无可识别中文文本，请检查文件。`);
-          }
-          return { filename: doc.filename, text: trimmed };
-        })
-      );
+      const isPendingNovelImport = novelId.startsWith('continuation-import-draft-');
+      if (isPendingNovelImport) {
+        const session = continuationImportSessions.get(novelId);
+        continuationImportSessions.delete(novelId);
+        if (!session || session.databaseGeneration !== databaseGeneration) {
+          return res.status(400).json({ error: '续写导入会话无效或已过期，请重新开始导入' });
+        }
+      }
+      if (!isPendingNovelImport && !db.getNovel(novelId)) {
+        return res.status(404).json({ error: '指定作品不存在' });
+      }
+
+      const docxBuffers = await preflightUploadedDocumentArchives(documents);
+      const parsedDocs: ParsedUploadedDocument[] = [];
+      for (const [index, doc] of documents.entries()) {
+        const text = await extractUploadedText(doc.filename, doc.filedata, docxBuffers.get(index));
+        const trimmed = text.slice(0, 60000);
+        const chineseChars = trimmed.replace(/[^一-鿿]/g, '');
+        if (chineseChars.length < 20) {
+          throw new Error(`"${doc.filename}" 内容过短或无可识别中文文本，请检查文件。`);
+        }
+        parsedDocs.push({ filename: doc.filename, text: trimmed });
+      }
 
       const llmConfig = getConfig();
       const buildDocumentsForPrompt = (maxCharsPerDocument: number) =>
@@ -315,90 +458,111 @@ export function registerContinuationRoutes(app: Express) {
       const shouldRetryWithShorterPrompt = (message: string) =>
         /only thinking\/reasoning content|empty response|可解析的 JSON|不完整的 JSON|LLM returned empty response/i.test(message);
       const promptAttempts = buildContinuationPackParseAttempts(llmConfig.baseUrl);
+      const execution = await createLlmExecution({
+        operation: 'parse-continuation-pack',
+        novelId: isPendingNovelImport ? undefined : novelId,
+        quotaType: isPendingNovelImport ? undefined : 'advancedAudit',
+        timeoutMs: 180_000,
+        concurrency: 1,
+        signal: controller.signal,
+      });
 
-      let parsed: unknown = null;
-      let lastParseError: unknown = null;
-      for (const attempt of promptAttempts) {
-        try {
-          const raw = await generateText(llmConfig, {
-            prompt: buildContinuationPackPrompt(
-              buildDocumentsForPrompt(attempt.maxCharsPerDocument),
-              attempt.compactMode,
-            ),
-            timeoutMs: 90_000,
-            maxAttempts: 3,
-            maxTokens: attempt.maxTokens,
-            responseMimeType: 'application/json',
-            disableThinking: true,
-          });
-          parsed = parseModelJsonPayload<unknown>(raw);
-          break;
-        } catch (error) {
-          lastParseError = error;
-          const message = error instanceof Error ? error.message : String(error);
-          if (!shouldRetryWithShorterPrompt(message) || attempt === promptAttempts[promptAttempts.length - 1]) {
-            throw error;
+      const pack = await execution.run(async ({ signal }) => {
+        let modelResult: unknown = null;
+        let lastParseError: unknown = null;
+        for (const attempt of promptAttempts) {
+          try {
+            const raw = await generateText(llmConfig, {
+              prompt: buildContinuationPackPrompt(
+                buildDocumentsForPrompt(attempt.maxCharsPerDocument),
+                attempt.compactMode,
+              ),
+              signal,
+              timeoutMs: 90_000,
+              maxAttempts: 3,
+              maxTokens: attempt.maxTokens,
+              responseMimeType: 'application/json',
+              disableThinking: true,
+            });
+            modelResult = parseModelJsonPayload<unknown>(raw);
+            break;
+          } catch (error) {
+            lastParseError = error;
+            const message = error instanceof Error ? error.message : String(error);
+            if (!shouldRetryWithShorterPrompt(message) || attempt === promptAttempts[promptAttempts.length - 1]) {
+              throw error;
+            }
           }
         }
-      }
-      if (!parsed) {
-        throw lastParseError instanceof Error ? lastParseError : new Error(String(lastParseError || '模型未返回可用 JSON，请重试。'));
-      }
-
-      const parsedRecord = asRecord(parsed);
-      const now = Date.now();
-      const packId = `cont-pack-${generateId()}`;
-      const pack = {
-        id: packId,
-        novelId,
-        title: title || '续写资料包',
-        status: 'draft' as const,
-        sourceDocuments: parsedDocs.map((d, i: number) => ({
-          id: `${packId}-doc-${i}`,
-          packId,
-          filename: d.filename,
-          kind: classifyContinuationSource(d.filename, d.text),
-          text: d.text,
-          excerpt: d.text.slice(0, 500),
+        if (!modelResult) {
+          throw lastParseError instanceof Error
+            ? lastParseError
+            : new Error(String(lastParseError || '模型未返回可用 JSON，请重试。'));
+        }
+        const parsedRecord = asRecord(modelResult);
+        const now = Date.now();
+        const packId = `cont-pack-${generateId()}`;
+        const nextPack: ContinuationPack = {
+          id: packId,
+          novelId,
+          title: title || '续写资料包',
+          status: 'draft',
+          sourceDocuments: parsedDocs.map((d, i: number) => ({
+            id: `${packId}-doc-${i}`,
+            packId,
+            filename: d.filename,
+            kind: classifyContinuationSource(d.filename, d.text),
+            text: d.text,
+            excerpt: d.text.slice(0, 500),
+            createdAt: now,
+          })),
+          canonFacts: asArray(parsedRecord.canonFacts).map((f, i: number) => mapCanonFact(f, packId, i)),
+          characterStates: asArray(parsedRecord.characterStates).map(mapCharacterState),
+          plotState: mapPlotState(parsedRecord.plotState ?? { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' }),
+          styleProfile: mapStyleProfile(parsedRecord.styleProfile ?? { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' }),
+          contradictions: asArray(parsedRecord.contradictions).map((c, i: number) => mapContradiction(c, packId, i)),
+          sourceMap: mapSourceMap(parsedRecord.sourceMap ?? { sections: [], keyConflicts: [] }),
+          readingQuestions: asArray(parsedRecord.readingQuestions).map((q, i: number) => mapReadingQuestion(q, packId, i)),
+          continuationGaps: asArray(parsedRecord.continuationGaps).map((g, i: number) => mapContinuationGap(g, packId, i)),
+          continuationTask: stringValue(parsedRecord.continuationTask) || '',
+          sourceBadge: 'user-uploaded',
           createdAt: now,
-        })),
-        canonFacts: asArray(parsedRecord.canonFacts).map((f, i: number) => mapCanonFact(f, packId, i)),
-        characterStates: asArray(parsedRecord.characterStates).map(mapCharacterState),
-        plotState: mapPlotState(parsedRecord.plotState ?? { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' }),
-        styleProfile: mapStyleProfile(parsedRecord.styleProfile ?? { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' }),
-        contradictions: asArray(parsedRecord.contradictions).map((c, i: number) => mapContradiction(c, packId, i)),
-        sourceMap: mapSourceMap(parsedRecord.sourceMap ?? { sections: [], keyConflicts: [] }),
-        readingQuestions: asArray(parsedRecord.readingQuestions).map((q, i: number) => mapReadingQuestion(q, packId, i)),
-        continuationGaps: asArray(parsedRecord.continuationGaps).map((g, i: number) => mapContinuationGap(g, packId, i)),
-        continuationTask: stringValue(parsedRecord.continuationTask) || '',
-        sourceBadge: 'user-uploaded' as const,
-        createdAt: now,
-        updatedAt: now,
-      };
+          updatedAt: now,
+        };
 
-      if (novelId.startsWith('continuation-import-draft-')) {
-        if (databaseGeneration !== getDatabaseGeneration()) {
-          return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入资料' });
+        if (isPendingNovelImport) {
+          if (databaseGeneration !== getDatabaseGeneration()) {
+            throw new Error('DATABASE_GENERATION_CHANGED');
+          }
+          pruneParseDocJobs();
+          pendingContinuationImports.set(nextPack.id, {
+            pack: nextPack,
+            createdAt: Date.now(),
+            databaseGeneration,
+          });
+        } else {
+          const writeResult = await runInSerializedWriteForGeneration(
+            databaseGeneration,
+            () => db.createContinuationPack(nextPack),
+          );
+          if (!writeResult.executed) {
+            throw new Error('DATABASE_GENERATION_CHANGED');
+          }
         }
-        pruneParseDocJobs();
-        pendingContinuationImports.set(pack.id, {
-          pack,
-          createdAt: Date.now(),
-          databaseGeneration,
-        });
-      } else {
-        const writeResult = await runInSerializedWriteForGeneration(
-          databaseGeneration,
-          () => db.createContinuationPack(pack),
-        );
-        if (!writeResult.executed) {
-          return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入资料' });
-        }
-      }
+        return nextPack;
+      });
+
       res.json({ pack });
     } catch (e) {
       logger.error(String(e));
       const message = e instanceof Error ? e.message : String(e);
+
+      if (e instanceof LlmExecutionRejectedError) {
+        return res.status(e.status).json({ error: e.message, quota: e.quota });
+      }
+      if (message === 'DATABASE_GENERATION_CHANGED') {
+        return res.status(409).json({ error: '数据库已在解析期间切换，请重新导入资料' });
+      }
 
       // Classify the error for better user feedback
       if (/内容过短|无可识别中文|too short/i.test(message)) {
@@ -423,6 +587,8 @@ export function registerContinuationRoutes(app: Express) {
         return res.status(401).json({ error: '未配置 AI API Key，请在设置中配置后重试。' });
       }
       return res.status(500).json({ error: '解析服务异常，请稍后重试。' });
+    } finally {
+      disposeDisconnect();
     }
   });
 
@@ -461,6 +627,10 @@ export function registerContinuationRoutes(app: Express) {
           db.createNovel(approvedNovel);
         }
 
+        if (!pending && sourcePack.novelId !== approvedNovel.id) {
+          throw new Error('Stored continuation pack belongs to another novel');
+        }
+
         approvedPack = {
           ...sourcePack,
           novelId: approvedNovel.id,
@@ -470,7 +640,6 @@ export function registerContinuationRoutes(app: Express) {
         if (pending) {
           db.createContinuationPack(approvedPack);
         } else if (!db.updateContinuationPack(sourcePack.id, {
-          novelId: approvedNovel.id,
           status: 'approved',
         })) {
           throw new Error('Continuation pack disappeared during approval');

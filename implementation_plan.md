@@ -64,3 +64,29 @@ GitHub 官方 Playwright、runtime smoke、macOS 与 Windows 打包及全部本�
 - 打包 CI 启动真实 Electron，执行输入、立即退出、重启和正文校验。
 
 Plan 126 仅在本地全量门禁及 macOS/Windows packaged lifecycle smoke 全部通过后标记 `DONE`。
+
+## Plan 129–131：发布阻塞收口
+
+### 目标
+
+在不新增依赖或业务 schema 迁移的前提下，关闭跨作品数据污染、异步 AI 跨库写回、LLM 取消与成本治理、Electron 退出恢复以及压缩包资源耗尽风险。
+
+### 并行审查边界
+
+- Agent A（Plan 129）：归属与事务、database generation、导入 schema 白名单、DB 核心字段不可变。
+- Agent B（Plan 130）：provider 真取消、execution gate、配额/并发/速率、后台任务取消。
+- Agent C（Plan 131）：Electron 关闭恢复、Watchdog 固定端口、ZIP/DOCX 资源预算。
+- Coordinator：补丁导入、跨层契约总装、测试 ABI 顺序、计划台账与最终提交。
+
+### 验收门禁
+
+1. `npm run typecheck`
+2. `npm run lint`
+3. `npm test`
+4. `npm run test:frontend`
+5. `npx playwright test`
+6. `npm run build`
+7. `git diff --check`
+8. macOS/Windows 打包及 packaged lifecycle smoke
+
+Plan 129–131 在完整 Node 原生测试、Playwright 和双平台打包生命周期全部通过前保持 `IN PROGRESS`。

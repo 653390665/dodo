@@ -8,7 +8,7 @@ const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>(
   rowToEntity: rowToChapter,
   entityToRow: chapterToRow,
   insertColumns: ['id', 'novel_id', 'volume_name', 'title', 'content', '"order"', 'word_count', 'scene_beats', 'critique', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'volume_name', 'title', 'content', '"order"', 'word_count', 'scene_beats', 'critique', 'updated_at'],
+  updateColumns: ['volume_name', 'title', 'content', '"order"', 'word_count', 'scene_beats', 'critique', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: '"order" ASC'
 });

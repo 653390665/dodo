@@ -29,16 +29,23 @@ export const STORY_CARD_FALLBACK_MS = 2_000;
 export const STORY_CARD_MODEL_TIMEOUT_MS = 90_000;
 export const STORY_CARD_JOB_TTL_MS = 10 * 60_000;
 export const storyCardJobs = new Map<string, StoryCardJob>();
+export const storyCardJobAbortControllers = new Map<string, AbortController>();
 
-export function createStoryCardJob(task: Promise<StoryIdeaCard[]>): string {
+export function createStoryCardJob(
+  task: Promise<StoryIdeaCard[]>,
+  controller: AbortController = new AbortController(),
+): string {
   const jobId = `story-cards-${generateId()}`;
   storyCardJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  storyCardJobAbortControllers.set(jobId, controller);
 
   task
     .then((cards) => {
+      storyCardJobAbortControllers.delete(jobId);
       storyCardJobs.set(jobId, { status: 'completed', createdAt: Date.now(), cards });
     })
     .catch((error) => {
+      storyCardJobAbortControllers.delete(jobId);
       storyCardJobs.set(jobId, {
         status: 'failed',
         createdAt: Date.now(),
@@ -46,7 +53,12 @@ export function createStoryCardJob(task: Promise<StoryIdeaCard[]>): string {
       });
     });
 
-  setTimeout(() => storyCardJobs.delete(jobId), STORY_CARD_JOB_TTL_MS);
+  const cleanupTimer = setTimeout(() => {
+    storyCardJobAbortControllers.get(jobId)?.abort(new Error('Story-card job expired'));
+    storyCardJobAbortControllers.delete(jobId);
+    storyCardJobs.delete(jobId);
+  }, STORY_CARD_JOB_TTL_MS);
+  cleanupTimer.unref();
   return jobId;
 }
 

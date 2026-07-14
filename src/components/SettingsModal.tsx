@@ -12,7 +12,7 @@ import {
 import { downloadDbBackup } from '../lib/download-client';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 
-export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void }) {
+export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedNovelId }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void, selectedNovelId?: string }) {
   const isGlobalPremium = useAppStore(state => state.isGlobalPremium);
   const activateGlobalPremium = useAppStore(state => state.activateGlobalPremium);
   const deactivateGlobalPremium = useAppStore(state => state.deactivateGlobalPremium);
@@ -225,10 +225,14 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange }: { isOpe
     setTestOutput('');
     setPromptPreview('');
     try {
+      if (!selectedNovelId) {
+        throw new Error('请先选择作品，再试跑提示词模板。');
+      }
       const response = await fetch('/api/prompt-template-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          novelId: selectedNovelId,
           key: selectedTemplateKey,
           template: config.promptTemplates[selectedTemplateKey],
         }),

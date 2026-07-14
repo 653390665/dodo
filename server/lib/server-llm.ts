@@ -61,13 +61,14 @@ function sanitizeModelText(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-export function buildGoogleGenerateContentRequest(options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking">) {
-  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking } = options;
+export function buildGoogleGenerateContentRequest(options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking" | "signal">) {
+  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, signal } = options;
   const config = {
     ...(systemInstruction ? { systemInstruction } : {}),
     ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
     ...(responseMimeType ? { responseMimeType } : {}),
     ...(disableThinking ? { thinkingConfig: { thinkingBudget: 0, includeThoughts: false } } : {}),
+    ...(signal ? { abortSignal: signal } : {}),
   };
 
   return {
@@ -290,66 +291,81 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const controller = new AbortController();
+      const timeoutError = new Error(`LLM request timed out after ${timeoutMs / 1000}s`);
+      const timeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+      const onExternalAbort = () => {
+        controller.abort(options.signal?.reason || new Error('AbortError'));
+      };
+
+      if (options.signal?.aborted) {
+        clearTimeout(timeoutId);
+        throw options.signal.reason || new Error('AbortError');
+      }
+      options.signal?.addEventListener('abort', onExternalAbort, { once: true });
+
       try {
-        const callPromise = (async () => {
-          const { GoogleGenAI } = await import("@google/genai");
-          const ai = new GoogleGenAI({ apiKey: config.apiKey });
-          const request = buildGoogleGenerateContentRequest({
-            prompt,
-            systemInstruction,
-            maxTokens,
-            responseMimeType,
-            disableThinking,
-          });
-          request.model = config.model || request.model;
-          if (onToken) {
-            const responseStream = await ai.models.generateContentStream(request);
-            let fullText = '';
-            for await (const chunk of responseStream) {
-              const text = chunk.text || '';
+        const { GoogleGenAI } = await import("@google/genai");
+        if (controller.signal.aborted) {
+          throw controller.signal.reason || new Error('AbortError');
+        }
+        const ai = new GoogleGenAI({ apiKey: config.apiKey });
+        const request = buildGoogleGenerateContentRequest({
+          prompt,
+          systemInstruction,
+          maxTokens,
+          responseMimeType,
+          disableThinking,
+          signal: controller.signal,
+        });
+        request.model = config.model || request.model;
+
+        if (onToken) {
+          if (controller.signal.aborted) {
+            throw controller.signal.reason || new Error('AbortError');
+          }
+          const responseStream = await ai.models.generateContentStream(request);
+          let fullText = '';
+          for await (const chunk of responseStream) {
+            if (controller.signal.aborted) {
+              throw controller.signal.reason || new Error('AbortError');
+            }
+            const text = chunk.text || '';
+            if (text) {
               fullText += text;
               onToken(text);
             }
-            return sanitizeModelText(fullText);
-          } else {
-            const response = await ai.models.generateContent(request);
-            return sanitizeModelText(response.text || "");
           }
-        })();
-
-        let onAbort: (() => void) | undefined;
-        const abortPromise = new Promise<never>((_, reject) => {
-          const signal = options.signal;
-          if (signal) {
-            if (signal.aborted) {
-              return reject(signal.reason || new Error("AbortError"));
-            }
-            onAbort = () => reject(signal.reason || new Error("AbortError"));
-            signal.addEventListener("abort", onAbort);
+          if (controller.signal.aborted) {
+            throw controller.signal.reason || new Error('AbortError');
           }
-        });
+          return sanitizeModelText(fullText);
+        }
 
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        const result = await Promise.race([
-          callPromise,
-          abortPromise,
-          new Promise<string>((_, reject) =>
-            timeoutId = setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`)), timeoutMs),
-          ),
-        ]);
-        if (onAbort && options.signal) options.signal.removeEventListener("abort", onAbort);
-        if (timeoutId) clearTimeout(timeoutId);
-        return result;
+        if (controller.signal.aborted) {
+          throw controller.signal.reason || new Error('AbortError');
+        }
+        const response = await ai.models.generateContent(request);
+        if (controller.signal.aborted) {
+          throw controller.signal.reason || new Error('AbortError');
+        }
+        return sanitizeModelText(response.text || "");
       } catch (error) {
-        lastError = error;
+        lastError = controller.signal.aborted
+          ? (controller.signal.reason || error)
+          : error;
 
-        const isTimeout = error instanceof Error && error.message.includes("timed out");
-        if (attempt < maxAttempts && (isTimeout || isRetryableNetworkError(error) || isRetryableModelOutputError(error))) {
+        const externallyAborted = options.signal?.aborted === true;
+        const isTimeout = lastError instanceof Error && lastError.message.includes("timed out");
+        if (!externallyAborted && attempt < maxAttempts && (isTimeout || isRetryableNetworkError(lastError) || isRetryableModelOutputError(lastError))) {
           await sleep(400 * attempt);
           continue;
         }
 
         throw lastError instanceof Error ? lastError : new Error(String(lastError));
+      } finally {
+        clearTimeout(timeoutId);
+        options.signal?.removeEventListener('abort', onExternalAbort);
       }
     }
 
@@ -360,15 +376,18 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const controller = new AbortController();
-    const abortTimeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutError = new Error(`LLM request timed out after ${timeoutMs / 1000}s`);
+    const abortTimeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+    const onExternalAbort = () => {
+      controller.abort(options.signal?.reason || new Error('AbortError'));
+    };
 
     if (options.signal) {
       if (options.signal.aborted) {
+        clearTimeout(abortTimeoutId);
         throw options.signal.reason || new Error("AbortError");
       }
-      options.signal.addEventListener("abort", () => {
-        controller.abort();
-      });
+      options.signal.addEventListener("abort", onExternalAbort, { once: true });
     }
 
     // Double safety net: Promise.race with a hard timeout in case AbortController
@@ -411,6 +430,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             let sawDone = false;
 
             const processSseLine = (line: string) => {
+              if (controller.signal.aborted) {
+                throw controller.signal.reason || new Error('AbortError');
+              }
               const cleaned = line.trim();
               if (!cleaned) return;
               if (cleaned === 'data: [DONE]') {
@@ -427,6 +449,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               }
               const token = asRecord(asRecord(asArray(asRecord(parsed).choices)[0]).delta).content;
               if (typeof token === 'string' && token) {
+                if (controller.signal.aborted) {
+                  throw controller.signal.reason || new Error('AbortError');
+                }
                 fullText += token;
                 onToken(token);
               }
@@ -434,6 +459,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
 
             while (true) {
               const { done, value } = await reader.read();
+              if (controller.signal.aborted) {
+                throw controller.signal.reason || new Error('AbortError');
+              }
               if (done) break;
 
               buffer += decoder.decode(value, { stream: true });
@@ -471,18 +499,21 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     } catch (error) {
       // Node undici fetch aborts are wrapped as TypeError: fetch failed with a nested AbortError cause.
       // Check both nested cause name and standard error names.
-      const isAbort = (error instanceof Error && error.name === "AbortError") ||
+      const isAbort = controller.signal.aborted ||
+                      (error instanceof Error && error.name === "AbortError") ||
                       (error instanceof Error && error.message.includes("fetch failed") &&
                        (error.cause instanceof Error) && error.cause.name === "AbortError") ||
                       (error instanceof Error && error.message.includes("The user aborted a request"));
-      if (isAbort) {
+      if (controller.signal.aborted) {
+        lastError = controller.signal.reason || error;
+      } else if (isAbort) {
         lastError = new Error(`LLM request timed out after ${timeoutMs / 1000}s`);
       } else {
         lastError = error;
       }
 
       // Do not retry if request was explicitly aborted or timed out to prevent compounding delays.
-      const isRetryable = !isAbort && (
+      const isRetryable = !controller.signal.aborted && !isAbort && (
         isRetryableStatus(
           error instanceof Error ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0') : 0
         ) ||
@@ -500,6 +531,7 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       throw lastError;
     } finally {
       clearTimeout(abortTimeoutId);
+      options.signal?.removeEventListener('abort', onExternalAbort);
       if (raceTimeoutId !== null) clearTimeout(raceTimeoutId);
     }
   }
@@ -508,61 +540,88 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-export async function generateEmbedding(config: AppConfig, text: string): Promise<number[]> {
+export async function generateEmbedding(
+  config: AppConfig,
+  text: string,
+  signal?: AbortSignal,
+  timeoutMs = 30_000,
+): Promise<number[]> {
   if (!config.apiKey) {
     throw new Error("API key not configured");
   }
 
-  if (isGoogleProvider(config.baseUrl)) {
-    const { GoogleGenAI } = await import("@google/genai");
-    const ai = new GoogleGenAI({ apiKey: config.apiKey });
-    const modelName = config.model && config.model.includes("embedding") ? config.model : "text-embedding-004";
-    const response = await ai.models.embedContent({
-      model: modelName,
-      contents: text,
-    });
-    const responseRec = asRecord(response);
-    const embeddingField = asRecord(responseRec.embedding);
-    const embeddingsArray = asArray(responseRec.embeddings);
-    const firstEmbedding = asRecord(embeddingsArray[0]);
+  const controller = new AbortController();
+  const onExternalAbort = () => controller.abort(signal?.reason || new Error('Embedding request aborted'));
+  if (signal?.aborted) onExternalAbort();
+  else signal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timeoutId = setTimeout(() => controller.abort(new Error('Embedding request timed out')), timeoutMs);
 
-    const values = (Array.isArray(embeddingField.values) ? (embeddingField.values as number[]) : null) ||
-                   (Array.isArray(firstEmbedding.values) ? (firstEmbedding.values as number[]) : null);
-    if (!values) {
-      throw new Error("Google GenAI returned empty embedding");
+  try {
+    if (controller.signal.aborted) {
+      throw controller.signal.reason || new Error('Embedding request aborted');
     }
-    return values;
+    if (isGoogleProvider(config.baseUrl)) {
+      const { GoogleGenAI } = await import("@google/genai");
+      if (controller.signal.aborted) {
+        throw controller.signal.reason || new Error('Embedding request aborted');
+      }
+      const ai = new GoogleGenAI({ apiKey: config.apiKey });
+      const modelName = config.model && config.model.includes("embedding") ? config.model : "text-embedding-004";
+      if (controller.signal.aborted) {
+        throw controller.signal.reason || new Error('Embedding request aborted');
+      }
+      const response = await ai.models.embedContent({
+        model: modelName,
+        contents: text,
+        config: { abortSignal: controller.signal },
+      });
+      const responseRec = asRecord(response);
+      const embeddingField = asRecord(responseRec.embedding);
+      const embeddingsArray = asArray(responseRec.embeddings);
+      const firstEmbedding = asRecord(embeddingsArray[0]);
+
+      const values = (Array.isArray(embeddingField.values) ? (embeddingField.values as number[]) : null) ||
+                     (Array.isArray(firstEmbedding.values) ? (firstEmbedding.values as number[]) : null);
+      if (!values) {
+        throw new Error("Google GenAI returned empty embedding");
+      }
+      return values;
+    }
+
+    const isChatModel = config.model && (
+      config.model.includes("chat") ||
+      config.model.includes("gpt-") ||
+      config.model.includes("claude-") ||
+      config.model.includes("deepseek-")
+    );
+    const model = isChatModel ? "text-embedding-3-small" : (config.model || "text-embedding-3-small");
+
+    const response = await fetch(joinUrl(config.baseUrl, "/embeddings"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        input: text,
+        model: model,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Embedding request failed (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const embedding = data?.data?.[0]?.embedding;
+    if (!Array.isArray(embedding)) {
+      throw new Error("OpenAI returned invalid embedding format");
+    }
+    return embedding;
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', onExternalAbort);
   }
-
-  const isChatModel = config.model && (
-    config.model.includes("chat") ||
-    config.model.includes("gpt-") ||
-    config.model.includes("claude-") ||
-    config.model.includes("deepseek-")
-  );
-  const model = isChatModel ? "text-embedding-3-small" : (config.model || "text-embedding-3-small");
-
-  const response = await fetch(joinUrl(config.baseUrl, "/embeddings"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      input: text,
-      model: model,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Embedding request failed (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const embedding = data?.data?.[0]?.embedding;
-  if (!Array.isArray(embedding)) {
-    throw new Error("OpenAI returned invalid embedding format");
-  }
-  return embedding;
 }

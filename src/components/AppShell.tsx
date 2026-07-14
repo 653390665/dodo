@@ -537,6 +537,7 @@ export function AppShell() {
     setAssistantLoading(true);
     try {
       const text = await refineSetupTask({
+        novelId: selectedNovel.id,
         taskTitle: task.title,
         currentDraft: task.summary,
         userRequest: assistantInput,
@@ -764,7 +765,7 @@ export function AppShell() {
         selectedNovel={selectedNovel}
       />
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} selectedNovelId={selectedNovel?.id} />
     </div>
   );
 }

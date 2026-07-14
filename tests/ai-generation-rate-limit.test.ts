@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { getConfig } from '../server/lib/config';
 import { registerSimpleLlmRoutes } from '../server/routes/simple-llm';
 import { registerWorldRoutes } from '../server/routes/world';
+import { closeDb, createNovel, initDb } from '../server/lib/db';
+import { getDatabaseGeneration } from '../server/lib/db-instance';
 
 test('high-frequency AI generation routes stop before the LLM when rate limited', async (t) => {
   const originalFetch = globalThis.fetch;
@@ -20,6 +25,19 @@ test('high-frequency AI generation routes stop before the LLM when rate limited'
   };
 
   const app = express();
+  const dbPath = path.join(os.tmpdir(), `inkflow-rate-limit-${process.pid}.db`);
+  closeDb();
+  initDb(dbPath);
+  createNovel({
+    id: 'rate-novel', title: 'Rate', authorId: 'local', summary: '', status: 'ongoing',
+    projectPreferenceProfile: {
+      tags: [],
+      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+      acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0,
+      commercialMode: 'paid',
+    },
+    createdAt: 1, updatedAt: 1,
+  });
   app.use(express.json());
   registerWorldRoutes(app);
   registerSimpleLlmRoutes(app);
@@ -107,22 +125,44 @@ test('high-frequency AI generation routes stop before the LLM when rate limited'
 
     await t.test('limits fragment expansion', () => assertRouteLimited(
       '/api/expand-fragment',
-      { content: '雨夜来客', type: '悬疑' },
+      { novelId: 'rate-novel', content: '雨夜来客', type: '悬疑' },
       'sse',
     ));
     await t.test('limits character bio generation', () => assertRouteLimited(
       '/api/generate-bio',
-      { name: '叶半夏' },
+      { novelId: 'rate-novel', name: '叶半夏' },
       'sse',
     ));
     await t.test('limits outline generation', () => assertRouteLimited(
       '/api/generate-outline',
-      { title: '测试小说', worldRules: '测试法则', seedOutline: '故事开端', expectedWordCount: 10_000 },
+      {
+        novelId: 'rate-novel',
+        title: '测试小说',
+        worldRules: '测试法则',
+        seedOutline: '故事开端',
+        expectedWordCount: 10_000,
+        databaseGeneration: getDatabaseGeneration(),
+      },
       'job',
     ));
     await t.test('limits entity detail generation', () => assertRouteLimited(
       '/api/generate-entity-details',
-      { name: '玄铁剑', type: 'item', context: '主角在遗迹中拾得' },
+      {
+        novelId: 'rate-novel',
+        name: '玄铁剑',
+        type: 'item',
+        context: '主角在遗迹中拾得',
+        databaseGeneration: getDatabaseGeneration(),
+      },
+      'job',
+    ));
+    await t.test('limits a paid background route through the shared execution gate', () => assertRouteLimited(
+      '/api/update-character-state',
+      {
+        novelId: 'rate-novel',
+        chapterContent: '叶半夏在雨夜推开客栈大门。',
+        databaseGeneration: getDatabaseGeneration(),
+      },
       'job',
     ));
   } finally {
@@ -132,5 +172,7 @@ test('high-frequency AI generation routes stop before the LLM when rate limited'
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
+    closeDb();
+    fs.rmSync(dbPath, { force: true });
   }
 });

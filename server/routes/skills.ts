@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import * as db from '../lib/db';
 import { renderPromptTemplate, getPromptTemplate, wrapUserInput, buildSkillsPrompt } from '../helpers/prompt-helpers';
@@ -23,9 +23,9 @@ function sanitizeSkillFields(skill: any): any {
 }
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
-import { withTimeout } from '../helpers/async-utils';
 import {
   skillExtractionJobs,
+  skillExtractionJobAbortControllers,
   createSkillExtractionJob,
   buildFallbackSkillForSegment,
   buildFullFallbackSkillResult,
@@ -41,7 +41,10 @@ import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregat
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence } from '../../shared/types';
 import { validate, extractSkillSchema } from '../validation';
-import { reserveQuota, refundQuota, commitQuotaReservation } from '../helpers/quota-guard.js';
+import {
+  createLlmExecution,
+  LlmExecutionRejectedError,
+} from '../helpers/llm-execution-gate';
 
 const SKILL_EXTRACTION_LLM_OPTIONS = {
   timeoutMs: 35_000,
@@ -53,6 +56,7 @@ async function processModelSkillExtraction(
   text: string,
   segments: ReturnType<typeof buildBookEvidenceSegments>,
   deconstructSkillsInfo?: string,
+  signal?: AbortSignal,
 ) {
   const totalSegments = segments.length;
   const maxModelSegments = Math.min(6, totalSegments);
@@ -76,6 +80,9 @@ async function processModelSkillExtraction(
 
   for (const segment of modelSegments) {
     try {
+      if (signal?.aborted) {
+        throw signal.reason || new Error('Skill extraction aborted');
+      }
       let prompt = renderPromptTemplate(getPromptTemplate('extractSkill'), {
         text: wrapUserInput(segment.excerpt.substring(0, 12000)),
       });
@@ -83,14 +90,11 @@ async function processModelSkillExtraction(
         prompt = `${prompt}\n\n===== 🚨 黄金拆书规约：强制结合以下用户当前指定的【拆书解构指导卡】进行针对性萃取与分析 =====\n${deconstructSkillsInfo}\n你必须根据以上拆书卡所强调的重点（如特定的节奏、悬念、高潮点）来观察当前 analysis 素材，并在拆出的 skill 卡组中强力落实以上拆书卡的解构要求！`;
       }
 
-      const responseText = await withTimeout(
-        generateText(getConfig(), {
+      const responseText = await generateText(getConfig(), {
           prompt,
           ...SKILL_EXTRACTION_LLM_OPTIONS,
-        }),
-        SKILL_EXTRACTION_LLM_OPTIONS.timeoutMs + 2_000,
-        '拆书超时：当前模型响应过慢。建议先缩短样本文本，或稍后重试。',
-      );
+          signal,
+        });
 
       const parsed = extractJsonPayload(responseText);
       const refusal = parseModelRefusal(parsed);
@@ -116,6 +120,9 @@ async function processModelSkillExtraction(
         segmentEvidence.push(mergedSegmentEvidence);
       }
     } catch (error) {
+      if (signal?.aborted) {
+        throw signal.reason || error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       const fallbackEvidence = collectSegmentEvidence(
         [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
@@ -192,7 +199,6 @@ export function registerSkillsRoutes(app: Express) {
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     if (!rateLimit('extract-skill')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     const { novelId } = req.body;
-    let reservationId: string | undefined;
     try {
       const { text = '', skills = [] } = req.body;
 
@@ -206,22 +212,6 @@ export function registerSkillsRoutes(app: Express) {
           reason: inputGate.rejectedReason,
         });
       }
-
-      // ================================================================
-      // Layer 0: Quota Gate — atomic reserve after input validation
-      // ================================================================
-      const reserve = await reserveQuota(novelId, 'extractSkill');
-      if (!reserve.allowed) {
-        return res.status(403).json({
-          quotaExceeded: true,
-          limitType: 'extractSkill',
-          count: reserve.count,
-          max: reserve.max,
-          error: reserve.error,
-        });
-      }
-
-      reservationId = reserve.reservationId;
 
       // Retrieve active skills defensively from database if missing from the request body
       let activeSkills = skills || [];
@@ -265,10 +255,18 @@ export function registerSkillsRoutes(app: Express) {
       // Phase 2 (background): Fire model extraction as an async job.
       // ================================================================
       const segments = buildBookEvidenceSegments(text.substring(0, 120000));
-      const modelTask = processModelSkillExtraction(text, segments, deconstructSkillsInfo);
-      const jobId = createSkillExtractionJob(modelTask);
-
-      commitQuotaReservation(reservationId);
+      const jobController = new AbortController();
+      const execution = await createLlmExecution({
+        operation: 'extract-skill',
+        novelId,
+        quotaType: 'extractSkill',
+        timeoutMs: 240_000,
+        concurrency: 1,
+        signal: jobController.signal,
+      });
+      const modelTask = execution.run(({ signal }) =>
+        processModelSkillExtraction(text, segments, deconstructSkillsInfo, signal));
+      const jobId = createSkillExtractionJob(modelTask, jobController);
 
       res.json({
         ...fallbackResult,
@@ -278,7 +276,15 @@ export function registerSkillsRoutes(app: Express) {
       });
     } catch (e) {
       logger.error(String(e));
-      await refundQuota(reservationId);
+      if (e instanceof LlmExecutionRejectedError) {
+        return res.status(e.status).json({
+          quotaExceeded: e.quota.code === 'QUOTA_EXCEEDED',
+          limitType: 'extractSkill',
+          count: e.quota.count,
+          max: e.quota.max,
+          error: e.message,
+        });
+      }
       const message = e instanceof Error ? e.message : String(e);
       if (/timed out|拆书超时/i.test(message)) {
         return res.status(504).json({
@@ -307,5 +313,16 @@ export function registerSkillsRoutes(app: Express) {
       });
     }
     res.json({ status: job.status, error: job.error });
+  });
+
+  app.post('/api/extract-skill/jobs/:jobId/cancel', (req, res) => {
+    const job = skillExtractionJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Skill extraction job not found' });
+    const controller = skillExtractionJobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status !== 'pending') return res.status(409).json({ error: 'Job is not cancellable' });
+    controller.abort(new Error('Skill extraction job cancelled'));
+    skillExtractionJobAbortControllers.delete(req.params.jobId);
+    skillExtractionJobs.set(req.params.jobId, { status: 'failed', createdAt: Date.now(), error: 'Cancelled' });
+    return res.json({ cancelled: true });
   });
 }

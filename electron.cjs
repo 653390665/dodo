@@ -1,3 +1,5 @@
+/* global queueMicrotask */
+
 const { app, BrowserWindow, Menu, ipcMain, dialog, safeStorage, shell } = require('electron');
 const {
   getAppOrigin,
@@ -18,6 +20,7 @@ const {
   getWatchdogRetryDelay,
 } = require('./electron-startup-utils.cjs');
 const { createCloseHandshake } = require('./electron-close-handshake.cjs');
+const { createSingleFlight, probeHttp, terminateChild } = require('./electron-server-restart.cjs');
 
 function getConfigDir() {
   return process.env.INKFLOW_CONFIG_DIR || path.join(app.getPath('home'), '.inkflow');
@@ -127,6 +130,9 @@ let isQuitting = false;
 let restartAttemptCount = 0;
 let closeHandshake = null;
 let quitRequested = false;
+let closeRecoveryDialogPromise = null;
+let latestCloseBlockedDetails = null;
+let createWindowInFlight = false;
 
 // ── Startup Diagnostics ──────────────────────────────────────────────
 
@@ -275,9 +281,35 @@ ipcMain.on('set-title', (event, title) => {
   }
 });
 
-ipcMain.on('renderer-ready-to-close', (event) => {
+ipcMain.handle('renderer-ready-to-close', (event, attemptId) => {
+  if (rejectUntrustedIpc(event)) return false;
+  if (!Number.isSafeInteger(attemptId)) return false;
+  return closeHandshake?.rendererReady(attemptId) === true;
+});
+
+function normalizeCloseSnapshot(snapshot) {
+  try {
+    const serialized = JSON.stringify(snapshot);
+    if (serialized.length > 10 * 1024 * 1024) return null;
+    return JSON.parse(serialized);
+  } catch {
+    return null;
+  }
+}
+
+ipcMain.on('renderer-close-snapshot', (event, attemptId, snapshot) => {
   if (rejectUntrustedIpc(event)) return;
-  closeHandshake?.rendererReady();
+  if (!Number.isSafeInteger(attemptId)) return;
+  closeHandshake?.rendererSnapshot(attemptId, normalizeCloseSnapshot(snapshot));
+});
+
+ipcMain.on('renderer-close-save-failed', (event, attemptId, details) => {
+  if (rejectUntrustedIpc(event)) return;
+  if (!Number.isSafeInteger(attemptId)) return;
+  const reason = typeof details?.reason === 'string'
+    ? details.reason.slice(0, 500)
+    : 'Editor writes could not be persisted';
+  closeHandshake?.rendererFailed(attemptId, reason);
 });
 
 ipcMain.on('request-close', (event) => {
@@ -291,9 +323,7 @@ function waitForServer(port, maxRetries = 50) {
   return new Promise((resolve, reject) => {
     let retries = 0;
     const check = () => {
-      http.get(`http://localhost:${port}`, () => {
-        resolve();
-      }).on('error', () => {
+      probeHttp(http.get, `http://localhost:${port}`, 1500).then(resolve).catch(() => {
         retries++;
         if (retries >= maxRetries) {
           reject(new Error(`Server not ready on port ${port} after ${maxRetries} retries`));
@@ -306,7 +336,7 @@ function waitForServer(port, maxRetries = 50) {
   });
 }
 
-function startServer() {
+function startServer(preferredPort) {
   return new Promise((resolve, reject) => {
     const isDev = !app.isPackaged;
     const serverPath = isDev
@@ -334,6 +364,7 @@ function startServer() {
         INKFLOW_STATIC_DIR: staticDir,
         INKFLOW_ELECTRON_MODE: 'true',
         INKFLOW_SECURE_API_KEY: activeApiKey,
+        ...(preferredPort ? { PORT: String(preferredPort), INKFLOW_FIXED_PORT: 'true' } : {}),
         ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
       },
     });
@@ -408,11 +439,7 @@ function startWatchdog(port) {
   serverPort = port;
   if (watchdogTimer) clearInterval(watchdogTimer);
   watchdogTimer = setInterval(() => {
-    http.get(`http://localhost:${serverPort}`, (res) => {
-      if (res.statusCode >= 500) restartServer();
-    }).on('error', () => {
-      restartServer();
-    });
+    void runWatchdogCheck();
   }, 10_000);
 }
 
@@ -431,19 +458,37 @@ function stopServer() {
   }
 }
 
-async function restartServer() {
+async function stopServerAndWait() {
+  const processToStop = serverProcess;
+  if (!processToStop) return true;
+  serverProcess = null;
+  const exited = await terminateChild(processToStop);
+  if (!exited) {
+    serverProcess = processToStop;
+    writeStartupLog('ERROR: old server process survived SIGKILL timeout; replacement start aborted.');
+    throw new Error('Old server process did not exit; refusing to start a replacement');
+  }
+  return true;
+}
+
+async function performServerRestart() {
   if (isQuitting) return;
   restartAttemptCount += 1;
   stopWatchdog();
-  stopServer();
   try {
-    const port = await startServer();
+    const previousPort = serverPort;
+    await stopServerAndWait();
+    if (isQuitting) return;
+    // Preserve the renderer origin across watchdog recovery. This keeps the
+    // existing page and its in-memory pending-write queue alive; a direct
+    // loadURL here could either be blocked by beforeunload or discard edits.
+    const port = await startServer(previousPort);
+    if (port !== previousPort) {
+      throw new Error(`Server restarted on unexpected port ${port}; refusing unsafe renderer reload`);
+    }
     restartAttemptCount = 0;
     serverPort = port;
     await waitForServer(port);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(`http://localhost:${port}`);
-    }
     startWatchdog(port);
   } catch (err) {
     console.error('[watchdog] Failed to restart server:', err.message);
@@ -454,9 +499,125 @@ async function restartServer() {
   }
 }
 
+const restartServer = createSingleFlight(performServerRestart);
+const runWatchdogCheck = createSingleFlight(async () => {
+  try {
+    const statusCode = await probeHttp(http.get, `http://localhost:${serverPort}`, 2500);
+    if (statusCode >= 500) await restartServer();
+  } catch {
+    await restartServer();
+  }
+});
+
+// ── Single-server guarantee for Dock re-activation ───────────────────
+// Decides whether the packaged window should reuse the live server child,
+// restart an unhealthy one, or start fresh. Single-flight so concurrent
+// activate events coalesce into a single backend decision and never spawn
+// a second orphaned child. Never nulls/overwrites serverProcess while a
+// live child exists; the restart path uses stopServerAndWait which waits
+// for exit before reassigning.
+
+async function performEnsurePackagedServer() {
+  if (isQuitting) throw new Error('app is quitting');
+  const child = serverProcess;
+  const childAlive = !!child && child.exitCode === null;
+  if (childAlive) {
+    // Probe the existing port. Accept any 2xx/3xx/4xx as "alive".
+    try {
+      const statusCode = await probeHttp(http.get, `http://localhost:${serverPort}`, 2500);
+      if (statusCode < 500) {
+        // Healthy: reuse process, port, origin. Do NOT overwrite serverProcess.
+        return serverPort;
+      }
+    } catch {
+      // probe failed -> fall through to restart path
+    }
+    // Child alive but unhealthy: the single-flight restart handles stop+wait+restart.
+    await restartServer();
+    return serverPort;
+  }
+  // No live child: start fresh, preserve last port preference.
+  const port = await startServer(serverPort || undefined);
+  serverPort = port;
+  await waitForServer(port);
+  startWatchdog(port);
+  return port;
+}
+const ensurePackagedServerForWindow = createSingleFlight(performEnsurePackagedServer);
+
+async function exportPendingCloseSnapshot(snapshot, reason) {
+  if (!snapshot) {
+    dialog.showErrorBox('无法导出', '渲染器尚未提供可导出的未保存内容快照。请返回编辑器复制内容或重试保存。');
+    return false;
+  }
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: '导出未保存内容',
+    defaultPath: `inkflow-unsaved-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return false;
+  try {
+    fs.writeFileSync(result.filePath, JSON.stringify({ ...snapshot, closeReason: reason }, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    writeStartupLog(`ERROR: Failed to export unsaved editor snapshot: ${error.message}`);
+    dialog.showErrorBox('导出失败', '未保存内容无法写入所选文件，请更换位置后重试。');
+    return false;
+  }
+}
+
+function showCloseRecoveryDialog(details) {
+  latestCloseBlockedDetails = details;
+  if (closeRecoveryDialogPromise) return closeRecoveryDialogPromise;
+  const isTimeout = details.reason === 'timeout';
+  const reason = isTimeout ? '保存操作等待超过 5 秒。' : details.message;
+  writeStartupLog(`ERROR: ${isTimeout ? 'Editor flush timed out after 5000ms' : 'Editor flush failed'}; close remains blocked.`);
+
+  closeRecoveryDialogPromise = (async () => {
+    while (closeHandshake?.getState() === 'blocked') {
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: '内容尚未安全保存',
+        message: 'InkFlow 尚未确认最后一次编辑已保存。',
+        detail: `${reason}\n\n请选择重试保存、导出未保存内容，或明确放弃并退出。`,
+        buttons: ['重试保存', '导出未保存内容', '放弃并退出', '取消退出'],
+        defaultId: 0,
+        cancelId: 3,
+        noLink: true,
+      });
+      if (result.response === 0) {
+        closeHandshake?.retry();
+        break;
+      }
+      if (result.response === 1) {
+        await exportPendingCloseSnapshot(details.snapshot, reason);
+        continue;
+      }
+      if (result.response === 2) {
+        closeHandshake?.abandon();
+        break;
+      }
+      closeHandshake?.cancel();
+      quitRequested = false;
+      break;
+    }
+  })().finally(() => {
+    closeRecoveryDialogPromise = null;
+    if (closeHandshake?.getState() === 'blocked' && latestCloseBlockedDetails) {
+      queueMicrotask(() => { void showCloseRecoveryDialog(latestCloseBlockedDetails); });
+    }
+  });
+  return closeRecoveryDialogPromise;
+}
+
 // ── Window Creation ──────────────────────────────────────────────────
 
 async function createWindow() {
+  // Concurrent-activate guard: coalesce rapid Dock clicks into one window
+  // creation and one backend decision.
+  if (createWindowInFlight) return;
+  createWindowInFlight = true;
+
   buildAppMenu();
   closeHandshake = null;
 
@@ -468,10 +629,8 @@ async function createWindow() {
       port = 3000;
       await waitForServer(port);
     } else {
-      port = await startServer();
-      serverPort = port;
-      await waitForServer(port);
-      startWatchdog(port);
+      // Reuse a live backend or start fresh — never spawns a second child.
+      port = await ensurePackagedServerForWindow();
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -483,6 +642,8 @@ async function createWindow() {
     dialog.showErrorBox('InkFlow 启动失败', detail);
     app.quit();
     return;
+  } finally {
+    createWindowInFlight = false;
   }
 
   const windowState = loadWindowState();
@@ -504,17 +665,14 @@ async function createWindow() {
     show: false,
   });
   closeHandshake = createCloseHandshake({
-    sendPrepare: () => mainWindow?.webContents.send('prepare-close'),
+    sendPrepare: (attemptId) => mainWindow?.webContents.send('prepare-close', attemptId),
     allowClose: () => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     },
-    logTimeout: () => {
-      writeStartupLog('ERROR: Editor flush timed out after 5000ms; allowing window close.');
-      dialog.showErrorBox(
-        '保存超时',
-        'InkFlow 未能在退出前确认最后一次保存。应用将继续关闭，请重新打开后检查最近编辑内容。',
-      );
+    abandonClose: () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
     },
+    onBlocked: (details) => { void showCloseRecoveryDialog(details); },
   });
 
   if (windowState.isMaximized) {
@@ -550,27 +708,26 @@ async function createWindow() {
   });
 
   currentAppOrigin = getAppOrigin(port);
-  const appOrigin = currentAppOrigin;
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (isAppOrigin(url, appOrigin)) return;
+    if (isAppOrigin(url, currentAppOrigin)) return;
     event.preventDefault();
-    const external = resolveExternalUrl(url, appOrigin);
+    const external = resolveExternalUrl(url, currentAppOrigin);
     if (external) shell.openExternal(external);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isAppOrigin(url, appOrigin)) {
+    if (isAppOrigin(url, currentAppOrigin)) {
       return { action: 'allow' };
     }
-    const external = resolveExternalUrl(url, appOrigin);
+    const external = resolveExternalUrl(url, currentAppOrigin);
     if (external) {
       shell.openExternal(external);
     }
     return { action: 'deny' };
   });
 
-  mainWindow.loadURL(appOrigin);
+  mainWindow.loadURL(currentAppOrigin);
 
   if (isDev && !mainWindow.webContents.isDevToolsOpened()) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });

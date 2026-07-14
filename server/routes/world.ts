@@ -1,9 +1,9 @@
-import type { Express } from 'express';
+import type { Express, Response } from 'express';
 import { z } from 'zod';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { renderPromptTemplate, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
+import { renderPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
 import * as db from '../lib/db';
 import { buildContinuationContext } from '../../shared/lib/continuation-pack';
 import { logger } from '../logger';
@@ -15,6 +15,12 @@ import {
 } from '../lib/db-instance';
 import { generateId } from '../id';
 import { rateLimit } from '../middleware/rate-limit';
+import {
+  createLlmExecution,
+  LlmExecutionRejectedError,
+  type LlmExecutionSession,
+} from '../helpers/llm-execution-gate';
+import type { QuotaLimitType } from '../helpers/quota-guard';
 
 const shortText = z.string().max(200).default('');
 const longText = z.string().max(100_000).default('');
@@ -111,15 +117,19 @@ interface Job {
   result?: unknown;
   error?: string;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const jobs = new Map<string, Job>();
+const jobAbortControllers = new Map<string, AbortController>();
 const JOB_TTL = 15 * 60 * 1000; // 15 minutes TTL
 
 function pruneJobs() {
   const now = Date.now();
   for (const [id, job] of jobs.entries()) {
     if (now - job.createdAt > JOB_TTL) {
+      jobAbortControllers.get(id)?.abort(new Error('World job expired'));
+      jobAbortControllers.delete(id);
       jobs.delete(id);
     }
   }
@@ -128,7 +138,7 @@ function pruneJobs() {
 // Prune old jobs periodically
 setInterval(pruneJobs, 60 * 1000).unref();
 
-function createJob(): string {
+function createJob(controller: AbortController, databaseGeneration: number): string {
   pruneJobs();
   const id = 'job_' + Math.random().toString(36).substring(2, 15);
   jobs.set(id, {
@@ -136,7 +146,9 @@ function createJob(): string {
     status: 'queueing',
     progress: 10,
     createdAt: Date.now(),
+    databaseGeneration,
   });
+  jobAbortControllers.set(id, controller);
   return id;
 }
 
@@ -144,6 +156,42 @@ function updateJob(id: string, updates: Partial<Omit<Job, 'id' | 'createdAt'>>) 
   const job = jobs.get(id);
   if (job) {
     Object.assign(job, updates);
+    if (updates.status === 'completed' || updates.status === 'failed') {
+      jobAbortControllers.delete(id);
+    }
+  }
+}
+
+async function prepareWorldLlmExecution(
+  res: Response,
+  novelId: unknown,
+  operation: string,
+  quotaType: QuotaLimitType,
+  options: { signal?: AbortSignal; timeoutMs?: number; databaseGeneration?: number } = {},
+): Promise<LlmExecutionSession | null> {
+  if (typeof novelId !== 'string' || !novelId.trim()) {
+    res.status(400).json({ error: 'novelId is required' });
+    return null;
+  }
+  try {
+    return await createLlmExecution({
+      operation,
+      novelId,
+      quotaType,
+      timeoutMs: options.timeoutMs ?? 90_000,
+      signal: options.signal,
+      concurrency: 2,
+      databaseGeneration: options.databaseGeneration,
+    });
+  } catch (error) {
+    if (error instanceof LlmExecutionRejectedError) {
+      res.status(error.status).json({
+        error: error.message,
+        ...(error.status === 429 ? { retryAfter: 5 } : { code: error.quota.code }),
+      });
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -176,7 +224,32 @@ export function registerWorldRoutes(app: Express) {
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'World job database generation is invalid' });
+    }
+    if (job.databaseGeneration !== getDatabaseGeneration()) {
+      jobAbortControllers.get(job.id)?.abort(new Error('Database replaced during world job'));
+      updateJob(job.id, { status: 'failed', progress: 100, error: 'Database replaced during world job' });
+      return res.status(409).json({ error: '数据库已在世界任务期间切换，请重试' });
+    }
     res.json(job);
+  });
+
+  app.post('/api/world/jobs/:jobId/cancel', (req, res) => {
+    const job = jobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'World job database generation is invalid' });
+    }
+    const controller = jobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status === 'completed' || job.status === 'failed') {
+      return res.status(409).json({ error: 'Job is not cancellable' });
+    }
+    controller.abort(new Error('World job cancelled'));
+    updateJob(req.params.jobId, { status: 'failed', progress: 100, error: 'Cancelled' });
+    return res.json({ cancelled: true });
   });
 
   app.post('/api/generate-bio', async (req, res) => {
@@ -185,6 +258,7 @@ export function registerWorldRoutes(app: Express) {
     }
     let disposeDisconnect = () => {};
     const generateBioSchema = z.object({
+      novelId: z.string().trim().min(1).max(200),
       name: z.string().min(1, '角色名称不能为空'),
       role: z.string().optional().default('supporting'),
       summary: z.string().optional().default(''),
@@ -205,7 +279,17 @@ export function registerWorldRoutes(app: Express) {
       if (!parsed.success) {
         return res.status(400).json({ error: '请求参数校验失败', details: parsed.error.format() });
       }
-      const { name, role, summary, traits, background, features, habits, personality, inventory, abilities, globalOutline, worldRules, concealGender } = parsed.data;
+      const { novelId, name, role, summary, traits, background, features, habits, personality, inventory, abilities, globalOutline, worldRules, concealGender } = parsed.data;
+      const controller = new AbortController();
+      const databaseGeneration = getDatabaseGeneration();
+      const execution = await prepareWorldLlmExecution(
+        res,
+        novelId,
+        'generate-bio',
+        'generateProse',
+        { signal: controller.signal, databaseGeneration },
+      );
+      if (!execution) return;
 
       const genderConstraint = concealGender
         ? `\n【极其重要的约束：该角色性别为谜，严禁使用"他""她""他的""原她的""他本人""她本人"等任何性别指示代词。一律以角色名"${name}"或"此人""该角色"指代。违反此规则将导致角色设定失败。】\n`
@@ -241,26 +325,38 @@ ${genderConstraint}
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
       req.socket.setTimeout(0);
 
-      const controller = new AbortController();
       disposeDisconnect = bindClientDisconnect(req, res, () => {
         controller.abort();
       });
 
-      await generateText(getConfig(), {
-        prompt,
-        onToken: (token) => {
-          if (!isStreamDisconnected(req, res) && !res.writableEnded) {
-            res.write(`data: ${JSON.stringify({ token })}\n\n`);
-          }
-        },
-        signal: controller.signal
-      });
-      if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+      await execution.run(async ({ signal }) => {
+        await generateText(getConfig(), {
+          prompt,
+          novelId,
+          onToken: (token) => {
+            if (databaseGeneration !== getDatabaseGeneration()) {
+              controller.abort(new Error('Database changed during bio generation'));
+              return;
+            }
+            if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+              res.write(`data: ${JSON.stringify({ token })}\n\n`);
+            }
+          },
+          signal,
+        });
+        if (
+          databaseGeneration !== getDatabaseGeneration()
+          || isStreamDisconnected(req, res)
+          || res.writableEnded
+        ) {
+          throw new Error('Client disconnected before bio completion');
+        }
         res.write('data: [DONE]\n\n');
         res.end();
-      }
+      });
     } catch (e) {
       logger.error('Generate bio SSE error:', e);
       if (isStreamDisconnected(req, res) || res.writableEnded) {
@@ -276,27 +372,42 @@ ${genderConstraint}
     }
   });
 
-  app.post('/api/generate-outline', (req, res) => {
+  app.post('/api/generate-outline', async (req, res) => {
     if (!rateLimit('generate-outline')) {
       return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     }
-    const jobId = createJob();
-    res.json({ jobId });
+    const { novelId, continuationPackId, databaseGeneration } = req.body;
+    if (!Number.isInteger(databaseGeneration)) {
+      return res.status(400).json({ error: 'databaseGeneration is required' });
+    }
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已切换，请重新生成大纲' });
+    }
+    let continuationPackContext = '';
+    if (continuationPackId) {
+      const pack = db.getContinuationPack(continuationPackId);
+      if (!pack) {
+        return res.status(404).json({ error: 'Continuation pack not found' });
+      }
+      if (pack.novelId !== novelId) {
+        return res.status(409).json({ error: 'Continuation pack does not belong to novel' });
+      }
+      continuationPackContext = buildContinuationContext(pack);
+    }
+    const jobController = new AbortController();
+    const execution = await prepareWorldLlmExecution(res, novelId, 'generate-outline', 'generateProse', {
+      signal: jobController.signal,
+      databaseGeneration,
+    });
+    if (!execution) return;
+    const jobId = createJob(jobController, databaseGeneration);
+    res.json({ jobId, databaseGeneration });
 
     // Silent background execution
     (async () => {
       try {
         updateJob(jobId, { status: 'running', progress: 50 });
-        const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', continuationPackId, chapterOrder } = req.body;
-
-        // Load continuation pack context if provided
-        let packContext = '';
-        if (continuationPackId) {
-          const pack = db.getContinuationPack(continuationPackId);
-          if (pack) {
-            packContext = buildContinuationContext(pack);
-          }
-        }
+        const { title, worldRules, seedOutline, expectedWordCount, surface = 'workspace-beats', chapterOrder } = req.body;
 
         const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
 
@@ -310,13 +421,13 @@ ${genderConstraint}
           title: title ? `小说名称：${title}` : '',
           worldRules: [
             worldRules ? `世界观及设定：${worldRules}` : '',
-            packContext,
+            continuationPackContext,
             budgetGuidelines,
           ].filter(Boolean).join('\n\n'),
           seedOutline: seedOutline ? `用户的初始构思/种子创意：\n${seedOutline}` : '',
         });
 
-        const outline = await generateText(getConfig(), { prompt });
+        const outline = await execution.run(({ signal }) => generateText(getConfig(), { prompt, signal, novelId }));
         updateJob(jobId, { status: 'completed', progress: 100, result: { outline } });
       } catch (e) {
         logger.error('Background generate-outline error:', e);
@@ -325,9 +436,22 @@ ${genderConstraint}
     })();
   });
 
-  app.post('/api/extract-entities', (req, res) => {
-    const jobId = createJob();
-    res.json({ jobId });
+  app.post('/api/extract-entities', async (req, res) => {
+    const { novelId, databaseGeneration } = req.body;
+    if (!Number.isInteger(databaseGeneration)) {
+      return res.status(400).json({ error: 'databaseGeneration is required' });
+    }
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已切换，请重新嗅探实体' });
+    }
+    const jobController = new AbortController();
+    const execution = await prepareWorldLlmExecution(res, novelId, 'extract-entities', 'advancedAudit', {
+      signal: jobController.signal,
+      databaseGeneration,
+    });
+    if (!execution) return;
+    const jobId = createJob(jobController, databaseGeneration);
+    res.json({ jobId, databaseGeneration });
 
     (async () => {
       try {
@@ -358,15 +482,16 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
 }
         `;
 
-        let rawText = await generateText(getConfig(), { prompt });
-        rawText = rawText.replace(/```(json)?/g, '').trim();
-
-        try {
-          const parsed = JSON.parse(rawText);
-          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
-        } catch {
-          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${rawText.substring(0, 500)}` });
-        }
+        const parsed = await execution.run(async ({ signal }) => {
+          let rawText = await generateText(getConfig(), { prompt, signal, novelId });
+          rawText = rawText.replace(/```(json)?/g, '').trim();
+          try {
+            return JSON.parse(rawText) as unknown;
+          } catch {
+            throw new Error(`AI returned invalid JSON: ${rawText.substring(0, 500)}`);
+          }
+        });
+        updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
       } catch (e) {
         logger.error('Background extract-entities error:', e);
         updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
@@ -374,14 +499,25 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
     })();
   });
 
-  app.post('/api/detect-foreshadowing', (req, res) => {
-    const { chapterContent, chapterTitle, existingForeshadowings } = req.body;
+  app.post('/api/detect-foreshadowing', async (req, res) => {
+    const { novelId, chapterContent, chapterTitle, existingForeshadowings, databaseGeneration } = req.body;
     if (!chapterContent || typeof chapterContent !== 'string' || !chapterContent.trim()) {
       return res.status(400).json({ error: 'Chapter content is required' });
     }
-
-    const jobId = createJob();
-    res.json({ jobId });
+    if (!Number.isInteger(databaseGeneration)) {
+      return res.status(400).json({ error: 'databaseGeneration is required' });
+    }
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已切换，请重新检测伏笔' });
+    }
+    const jobController = new AbortController();
+    const execution = await prepareWorldLlmExecution(res, novelId, 'detect-foreshadowing', 'advancedAudit', {
+      signal: jobController.signal,
+      databaseGeneration,
+    });
+    if (!execution) return;
+    const jobId = createJob(jobController, databaseGeneration);
+    res.json({ jobId, databaseGeneration });
 
     (async () => {
       try {
@@ -404,14 +540,16 @@ ${chapterContent.substring(0, 15000)}
 严格只输出 JSON 数组，不要包含 markdown 标记：
 [{"title": "...", "description": "...", "type": "planted", "relatedTo": ""}]`;
 
-        let raw = (await generateText(config, { prompt })).trim();
-        raw = raw.replace(/```(json)?/g, '').trim();
-        try {
-          const parsed = JSON.parse(raw);
-          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
-        } catch {
-          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${raw.substring(0, 500)}` });
-        }
+        const parsed = await execution.run(async ({ signal }) => {
+          let raw = (await generateText(config, { prompt, signal, novelId })).trim();
+          raw = raw.replace(/```(json)?/g, '').trim();
+          try {
+            return JSON.parse(raw) as unknown;
+          } catch {
+            throw new Error(`AI returned invalid JSON: ${raw.substring(0, 500)}`);
+          }
+        });
+        updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
       } catch (e) {
         logger.error('Background detect-foreshadowing error:', e);
         updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
@@ -419,14 +557,25 @@ ${chapterContent.substring(0, 15000)}
     })();
   });
 
-  app.post('/api/analyze-pacing', (req, res) => {
-    const { chapters } = req.body;
+  app.post('/api/analyze-pacing', async (req, res) => {
+    const { novelId, chapters, databaseGeneration } = req.body;
     if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
       return res.status(400).json({ error: 'Chapters array is required' });
     }
-
-    const jobId = createJob();
-    res.json({ jobId });
+    if (!Number.isInteger(databaseGeneration)) {
+      return res.status(400).json({ error: 'databaseGeneration is required' });
+    }
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已切换，请重新分析节奏' });
+    }
+    const jobController = new AbortController();
+    const execution = await prepareWorldLlmExecution(res, novelId, 'analyze-pacing', 'advancedAudit', {
+      signal: jobController.signal,
+      databaseGeneration,
+    });
+    if (!execution) return;
+    const jobId = createJob(jobController, databaseGeneration);
+    res.json({ jobId, databaseGeneration });
 
     (async () => {
       try {
@@ -455,17 +604,17 @@ ${chapterList}
 
 严格只输出 JSON 数组，不要包含 markdown 标记。`;
 
-        let raw = (await generateText(config, { prompt })).trim();
-        raw = raw.replace(/```(json)?/g, '').trim();
-        let chapterResults: unknown;
-        try {
-          chapterResults = JSON.parse(raw);
-          // Strand Weave heuristic analysis
-          const strandWeave = computeStrandWeave(limited);
-          updateJob(jobId, { status: 'completed', progress: 100, result: { chapters: chapterResults, strandWeave } });
-        } catch {
-          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${raw.substring(0, 500)}` });
-        }
+        const chapterResults = await execution.run(async ({ signal }) => {
+          let raw = (await generateText(config, { prompt, signal, novelId })).trim();
+          raw = raw.replace(/```(json)?/g, '').trim();
+          try {
+            return JSON.parse(raw) as unknown;
+          } catch {
+            throw new Error(`AI returned invalid JSON: ${raw.substring(0, 500)}`);
+          }
+        });
+        const strandWeave = computeStrandWeave(limited);
+        updateJob(jobId, { status: 'completed', progress: 100, result: { chapters: chapterResults, strandWeave } });
       } catch (e) {
         logger.error('Background analyze-pacing error:', e);
         updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
@@ -473,12 +622,25 @@ ${chapterList}
     })();
   });
 
-  app.post('/api/generate-entity-details', (req, res) => {
+  app.post('/api/generate-entity-details', async (req, res) => {
     if (!rateLimit('generate-entity-details')) {
       return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     }
-    const jobId = createJob();
-    res.json({ jobId });
+    const { novelId, databaseGeneration } = req.body;
+    if (!Number.isInteger(databaseGeneration)) {
+      return res.status(400).json({ error: 'databaseGeneration is required' });
+    }
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据库已切换，请重新嗅探实体' });
+    }
+    const jobController = new AbortController();
+    const execution = await prepareWorldLlmExecution(res, novelId, 'generate-entity-details', 'generateProse', {
+      signal: jobController.signal,
+      databaseGeneration,
+    });
+    if (!execution) return;
+    const jobId = createJob(jobController, databaseGeneration);
+    res.json({ jobId, databaseGeneration });
 
     (async () => {
       try {
@@ -520,15 +682,16 @@ ${chapterList}
 }
 `;
 
-        let rawText = await generateText(getConfig(), { prompt });
-        rawText = rawText.replace(/```(json)?/g, '').trim();
-
-        try {
-          const parsed = JSON.parse(rawText);
-          updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
-        } catch {
-          updateJob(jobId, { status: 'failed', progress: 100, error: `AI returned invalid JSON: ${rawText.substring(0, 500)}` });
-        }
+        const parsed = await execution.run(async ({ signal }) => {
+          let rawText = await generateText(getConfig(), { prompt, signal, novelId });
+          rawText = rawText.replace(/```(json)?/g, '').trim();
+          try {
+            return JSON.parse(rawText) as unknown;
+          } catch {
+            throw new Error(`AI returned invalid JSON: ${rawText.substring(0, 500)}`);
+          }
+        });
+        updateJob(jobId, { status: 'completed', progress: 100, result: parsed });
       } catch (e) {
         logger.error('Background generate-entity-details error:', e);
         updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
@@ -537,66 +700,90 @@ ${chapterList}
   });
 
   // Update character state after chapter write (silently executed in background)
-  app.post('/api/update-character-state', (req, res) => {
+  app.post('/api/update-character-state', async (req, res) => {
     try {
-      const { novelId, chapterContent } = req.body;
+      const { novelId, chapterContent, databaseGeneration } = req.body;
       if (!novelId || !chapterContent) {
         return res.status(400).json({ error: 'novelId and chapterContent required' });
       }
+      if (!Number.isInteger(databaseGeneration)) {
+        return res.status(400).json({ error: 'databaseGeneration is required' });
+      }
+      if (databaseGeneration !== getDatabaseGeneration()) {
+        return res.status(409).json({ error: '数据库已切换，请重试角色状态更新' });
+      }
+      const jobController = new AbortController();
+      const execution = await prepareWorldLlmExecution(res, novelId, 'update-character-state', 'advancedAudit', {
+        signal: jobController.signal,
+        databaseGeneration,
+      });
+      if (!execution) return;
+
+      const jobId = createJob(jobController, databaseGeneration);
 
       // Immediately respond with success to unblock client
-      res.json({ success: true, message: 'Character state update queued in background' });
+      res.json({ success: true, jobId, databaseGeneration, message: 'Character state update queued in background' });
 
       // Silent background Promise execution
       (async () => {
         try {
-          const databaseGeneration = getDatabaseGeneration();
+          updateJob(jobId, { status: 'running', progress: 50 });
           const characters = db.listCharacters(novelId);
           const currentState = characters
             .map((c) => `${c.name}(${c.role}): ${c.current_state || '无记录'}`)
             .join('\n');
 
-          const { prompt } = resolveChainPrompt('chainCharacterState', {
-            chapterContent: chapterContent.slice(0, 8000),
-            currentState,
-          });
+          const prompt = `根据本章内容更新已有角色的当前状态。
 
-          const raw = await generateText(getConfig(), { prompt, maxTokens: 1024 });
-          const cleaned = raw.replace(/```(json)?/g, '').trim();
-          let result: unknown;
-          try {
-            result = JSON.parse(cleaned);
-          } catch {
-            logger.warn('Background update-character-state warning: invalid JSON returned by AI');
-            return;
-          }
+【已有角色状态】
+${wrapUserInput(currentState)}
 
-          const resultRecord = asRecord(result);
-          const resultCharacters = asArray(resultRecord.characters);
+【本章内容】
+${wrapUserInput(chapterContent.slice(0, 8000))}
 
-          const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => {
-            let updatedCount = 0;
-            for (const updateVal of resultCharacters) {
-              const update = asRecord(updateVal);
-              const name = stringValue(update.name);
-              if (!name) continue;
-              const char = characters.find((c) => c.name === name);
-              if (char) {
-                db.updateCharacter(char.id, {
-                  current_state: JSON.stringify(update.changes),
-                });
-                updatedCount++;
-              }
+严格只输出 JSON，不要包含 Markdown：
+{"characters":[{"name":"必须与已有角色姓名完全一致","changes":{"状态字段":"最新状态"}}]}`;
+
+          const updatedCount = await execution.run(async ({ signal }) => {
+            const raw = await generateText(getConfig(), { prompt, maxTokens: 1024, signal, novelId });
+            const cleaned = raw.replace(/```(json)?/g, '').trim();
+            let result: unknown;
+            try {
+              result = JSON.parse(cleaned);
+            } catch {
+              throw new Error('AI returned invalid character-state JSON');
             }
-            return updatedCount;
+
+            const resultRecord = asRecord(result);
+            const resultCharacters = asArray(resultRecord.characters);
+
+            const writeResult = await runInSerializedWriteForGeneration(databaseGeneration, () => {
+              if (signal.aborted) throw signal.reason || new Error('Character-state job cancelled before write');
+              let count = 0;
+              for (const updateVal of resultCharacters) {
+                const update = asRecord(updateVal);
+                const name = stringValue(update.name);
+                if (!name) continue;
+                const char = characters.find((c) => c.name === name);
+                if (char) {
+                  db.updateCharacter(char.id, {
+                    current_state: JSON.stringify(update.changes),
+                  });
+                  count++;
+                }
+              }
+              return count;
+            });
+            if (!writeResult.executed) {
+              throw new Error('Character-state write discarded after database replacement');
+            }
+            return writeResult.result;
           });
-          if (writeResult.executed) {
-            logger.info(`Background update-character-state completed silently. Updated ${writeResult.result} characters.`);
-          } else {
-            logger.info('Background update-character-state discarded after database replacement.');
-          }
+          logger.info(`Background update-character-state completed silently. Updated ${updatedCount} characters.`);
+          updateJob(jobId, { status: 'completed', progress: 100, result: { updatedCount } });
         } catch (bgErr) {
           logger.error('Background update-character-state task error:', bgErr);
+          updateJob(jobId, { status: 'failed', progress: 100, error: String(bgErr) });
         }
       })();
     } catch (e) {

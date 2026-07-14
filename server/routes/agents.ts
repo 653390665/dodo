@@ -1,5 +1,6 @@
 import type { Express } from 'express';
-import { generateText } from '../lib/server-llm';
+import { z } from 'zod';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, buildSkillsPrompt, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
@@ -20,10 +21,68 @@ import {
   reserveQuota,
   commitQuotaReservation,
   settleQuotaReservation,
+  quotaFailureHttpStatus,
 } from '../helpers/quota-guard.js';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 import { getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
+import type { Skill } from '../../shared/types';
+import { consumeOnboardingLlmSession } from '../helpers/onboarding-llm-session';
+import { getDatabaseGeneration } from '../lib/db-instance';
+
+const EDITOR_AGENT_CHAIN_MODULES = [
+  'chainConcept',
+  'chainOpening',
+  'chainVolumeOutline',
+  'chainPlotLogic',
+  'chainCharacterConsistency',
+  'chainTransition',
+  'chainDialogue',
+  'chainChapterEnding',
+  'chainAntiAiVoice',
+  'chainConsistencyReview',
+] as const;
+
+const editorAgentSkillCoreSchema = z.object({
+  id: z.string().trim().min(1).max(200),
+  name: z.string().max(500),
+  description: z.string().max(20_000),
+  style: z.string().max(20_000),
+  pacing: z.string().max(20_000),
+  stabilityScore: z.number().finite(),
+  evaluationFeedback: z.string().max(20_000),
+  version: z.number().int().nonnegative(),
+  createdAt: z.number().finite(),
+}).passthrough();
+
+const editorAgentSkillSchema = z.custom<Skill>(
+  (value) => editorAgentSkillCoreSchema.safeParse(value).success,
+  { message: 'Invalid skill payload' },
+);
+
+const editorAgentSchema = z.object({
+  userIntent: z.string().trim().min(1).max(20_000),
+  contextStr: z.string().max(200_000).default(''),
+  surface: z.enum([
+    'welcome',
+    'world-onboarding',
+    'workspace-beats',
+    'workspace-draft',
+    'chapter-polish',
+    'chapter-review',
+  ]).default('workspace-beats'),
+  continuationPackId: z.string().trim().min(1).max(200).optional(),
+  chain: z.array(z.enum(EDITOR_AGENT_CHAIN_MODULES)).max(6).optional(),
+  chapterOrder: z.coerce.number().int().positive().max(1_000_000).optional(),
+  novelId: z.string().trim().min(1).max(200),
+  skills: z.array(editorAgentSkillSchema).max(32).default([]),
+  databaseGeneration: z.number().int().nonnegative(),
+}).strict().superRefine((value, ctx) => {
+  if (value.chain && new Set(value.chain).size !== value.chain.length) {
+    ctx.addIssue({ code: 'custom', path: ['chain'], message: 'Chain modules must be unique' });
+  }
+});
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -45,9 +104,11 @@ interface Job {
   result?: unknown;
   error?: string;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const jobs = new Map<string, Job>();
+const jobAbortControllers = new Map<string, AbortController>();
 const JOB_TTL = 15 * 60 * 1000; // 15 minutes TTL
 
 function pruneJobs() {
@@ -55,6 +116,8 @@ function pruneJobs() {
   for (const [id, job] of jobs.entries()) {
     if (now - job.createdAt > JOB_TTL) {
       jobs.delete(id);
+      jobAbortControllers.get(id)?.abort(new Error('Editor-agent job expired'));
+      jobAbortControllers.delete(id);
     }
   }
 }
@@ -62,7 +125,7 @@ function pruneJobs() {
 // Prune old jobs periodically
 setInterval(pruneJobs, 60 * 1000).unref();
 
-function createJob(): string {
+function createJob(databaseGeneration: number): string {
   pruneJobs();
   const id = 'job_' + Math.random().toString(36).substring(2, 15);
   jobs.set(id, {
@@ -70,6 +133,7 @@ function createJob(): string {
     status: 'queueing',
     progress: 10,
     createdAt: Date.now(),
+    databaseGeneration,
   });
   return id;
 }
@@ -89,7 +153,32 @@ export function registerAgentsRoutes(app: Express) {
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'Editor-agent job database generation mismatch' });
+    }
+    if (job.databaseGeneration !== getDatabaseGeneration()) {
+      jobAbortControllers.get(jobId)?.abort(new Error('Database changed'));
+      updateJob(jobId, { status: 'failed', progress: 100, error: 'Database changed' });
+      return res.status(409).json({ error: 'Database changed' });
+    }
     res.json(job);
+  });
+
+  app.post('/api/agents/jobs/:jobId/cancel', (req, res) => {
+    const job = jobs.get(req.params.jobId);
+    const controller = jobAbortControllers.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'Editor-agent job database generation mismatch' });
+    }
+    if (!controller || job.status === 'completed' || job.status === 'failed') {
+      return res.status(409).json({ error: 'Job is not cancellable' });
+    }
+    controller.abort(new Error('Editor-agent job cancelled'));
+    updateJob(job.id, { status: 'failed', progress: 100, error: 'Cancelled' });
+    return res.json({ cancelled: true });
   });
 
   app.post('/api/inspiration', async (req, res) => {
@@ -99,10 +188,25 @@ export function registerAgentsRoutes(app: Express) {
       controller.abort();
     });
     try {
-      const { prompt = '', surface = 'workspace-draft' } = req.body;
-      if (!prompt.trim()) {
+      const { prompt = '', surface = 'workspace-draft', novelId, onboardingSessionId } = req.body;
+      if (typeof prompt !== 'string' || !prompt.trim()) {
         return res.status(400).json({ error: 'Prompt is required' });
       }
+      if (!novelId || typeof novelId !== 'string') {
+        if (surface !== 'welcome') {
+          return res.status(400).json({ error: 'novelId is required outside onboarding' });
+        }
+        const session = consumeOnboardingLlmSession(onboardingSessionId, 'inspiration');
+        if (!session.allowed) return res.status(session.status).json({ error: session.error });
+      }
+      const execution = await createLlmExecution({
+        operation: surface === 'welcome' && !novelId ? 'onboarding-inspiration' : 'inspiration',
+        novelId: typeof novelId === 'string' ? novelId : undefined,
+        ...(typeof novelId === 'string' ? { quotaType: 'generateProse' as const } : {}),
+        timeoutMs: 90_000,
+        signal: controller.signal,
+        concurrency: 2,
+      });
       const promptAsset = resolvePromptAssetForSurface({
         surface,
         promptTemplates: getConfig().promptTemplates,
@@ -114,25 +218,31 @@ export function registerAgentsRoutes(app: Express) {
       res.setHeader('Connection', 'keep-alive');
       req.socket.setTimeout(0);
 
-      await generateText(getConfig(), {
-        prompt,
-        systemInstruction: promptAsset.template,
-        timeoutMs: 90_000,
-        maxAttempts: 2,
-        maxTokens: 2048,
-        onToken: (token) => {
-          if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
-            res.write(`data: ${JSON.stringify({ token })}\n\n`);
-          }
-        },
-        signal: controller.signal
-      });
-
-      if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+      await execution.run(async ({ signal }) => {
+        await generateText(getConfig(), {
+          prompt,
+          systemInstruction: promptAsset.template,
+          timeoutMs: 90_000,
+          maxAttempts: 2,
+          maxTokens: 2048,
+          onToken: (token) => {
+            if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
+              res.write(`data: ${JSON.stringify({ token })}\n\n`);
+            }
+          },
+          signal,
+          novelId: typeof novelId === 'string' ? novelId : undefined,
+        });
+        if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+          throw new Error('Client disconnected before inspiration completion');
+        }
         res.write('data: [DONE]\n\n');
         res.end();
-      }
+      });
     } catch (e) {
+      if (e instanceof LlmExecutionRejectedError && !res.headersSent) {
+        return res.status(e.status).json({ error: e.message, code: e.quota.code });
+      }
       logger.error('Inspiration SSE error:', e);
       if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
         return;
@@ -147,113 +257,151 @@ export function registerAgentsRoutes(app: Express) {
     }
   });
 
-  app.post('/api/editor-agent', (req, res) => {
+  app.post('/api/editor-agent', async (req, res) => {
     if (!rateLimit('editor-agent')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
-    
-    try {
-      const { userIntent = '', contextStr = '', surface = 'workspace-beats', continuationPackId, chain, chapterOrder, novelId, skills } = req.body;
-      if (!userIntent.trim()) {
-        return res.status(400).json({ error: 'userIntent is required' });
-      }
 
-      const jobId = createJob();
-      res.json({ jobId });
+    try {
+      const parsed = editorAgentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid editor-agent request' });
+      }
+      const { userIntent, contextStr, surface, continuationPackId, chain, chapterOrder, novelId, skills, databaseGeneration } = parsed.data;
+      if (databaseGeneration !== getDatabaseGeneration()) {
+        return res.status(409).json({ error: 'Database changed' });
+      }
+      if (continuationPackId) {
+        const pack = db.getContinuationPack(continuationPackId);
+        if (!pack) {
+          return res.status(404).json({ error: 'Continuation pack not found' });
+        }
+        if (pack.novelId !== novelId) {
+          return res.status(409).json({ error: 'Continuation pack does not belong to editor-agent novel' });
+        }
+      }
+      const jobController = new AbortController();
+      const execution = await createLlmExecution({
+        operation: 'editor-agent',
+        novelId,
+        quotaType: 'generateProse',
+        timeoutMs: 60_000,
+        concurrency: 2,
+        signal: jobController.signal,
+        databaseGeneration,
+      });
+
+      const jobId = createJob(databaseGeneration);
+      jobAbortControllers.set(jobId, jobController);
+      res.json({ jobId, traceId: execution.traceId, databaseGeneration });
 
       // Run actual LLM generation in the background
       (async () => {
         try {
           updateJob(jobId, { status: 'running', progress: 50 });
-
-          // Load continuation pack context if provided
-          let packContext = '';
-          if (continuationPackId) {
-            const pack = db.getContinuationPack(continuationPackId);
-            if (pack) {
+          const result = await execution.run(async ({ signal }) => {
+            // Load continuation pack context if provided
+            let packContext = '';
+            if (continuationPackId) {
+              const pack = db.getContinuationPack(continuationPackId);
+              if (!pack || pack.novelId !== novelId) {
+                throw new Error('Continuation pack ownership changed before execution');
+              }
               packContext = buildContinuationContext(pack);
             }
-          }
 
-          const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+            const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
 
-          const effectiveContextStr = (packContext
-            ? `${contextStr}\n\n${packContext}`
-            : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+            const effectiveContextStr = (packContext
+              ? `${contextStr}\n\n${packContext}`
+              : contextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
 
-          let activeSkills = skills || [];
-          if ((!activeSkills || activeSkills.length === 0) && novelId) {
-            const novel = db.getNovel(novelId);
-            if (novel && novel.mountedSkillLoadout) {
-              activeSkills = novel.mountedSkillLoadout
-                .map((item: { skillId: string }) => db.getSkill(item.skillId))
-                .filter(Boolean);
+            let activeSkills = skills;
+            if (activeSkills.length === 0) {
+              const novel = db.getNovel(novelId);
+              if (novel && novel.mountedSkillLoadout) {
+                activeSkills = novel.mountedSkillLoadout
+                  .map((item: { skillId: string }) => db.getSkill(item.skillId))
+                  .filter((skill): skill is Skill => Boolean(skill));
+              }
             }
-          }
-          const skillsInfo = buildSkillsPrompt(activeSkills);
+            const skillsInfo = buildSkillsPrompt(activeSkills);
 
-          // Chain mode: run focused sub-prompts instead of monolithic template
-          if (chain && Array.isArray(chain) && chain.length > 0) {
-            const results: Array<{ module: string; pass: boolean; text: string }> = [];
-            for (const module of chain) {
+            // Chain mode: run focused sub-prompts instead of monolithic template
+            if (chain && chain.length > 0) {
+              const results: Array<{ module: string; pass: boolean; text: string }> = [];
+              for (const module of chain) {
+                try {
+                  const { prompt } = resolveChainPrompt(module, {
+                    contextStr: effectiveContextStr,
+                    sceneBeats: '',
+                    draftContent: '',
+                    userIntent: wrapUserInput(userIntent),
+                    ideaSeed: wrapUserInput(userIntent),
+                    concept: wrapUserInput(userIntent),
+                    expectedWordCount: '180000',
+                    seedOutline: contextStr,
+                  });
+                  const text = await generateText(getConfig(), {
+                    prompt,
+                    timeoutMs: 8_000,
+                    maxAttempts: 1,
+                    maxTokens: 1024,
+                    novelId,
+                    signal,
+                  });
+                  results.push({ module, pass: text.includes('PASS'), text });
+                } catch (chainErr) {
+                  if (signal.aborted) throw chainErr;
+                  logger.warn(`Chain module ${module} failed`, chainErr);
+                  results.push({ module, pass: false, text: '' });
+                }
+              }
+              if (!results.some((entry) => entry.text.trim())) {
+                throw new Error('Editor-agent chain produced no result');
+              }
+              return { chainResults: results, text: results.map(r => r.text).filter(Boolean).join('\n---\n') };
+            }
+
+            const promptAsset = resolvePromptAssetForSurface({
+              surface,
+              promptTemplates: getConfig().promptTemplates,
+              preferredTemplateKey: 'editorAgent',
+            });
+            const prompt = renderPromptTemplate(promptAsset.template, {
+              PLANNER_SOUL,
+              contextStr: effectiveContextStr,
+              skillsInfo,
+              userIntent: wrapUserInput(userIntent),
+            });
+            const text = await (async () => {
               try {
-                const { prompt } = resolveChainPrompt(module, {
-                  contextStr: effectiveContextStr,
-                  sceneBeats: '',
-                  draftContent: '',
-                  userIntent: wrapUserInput(userIntent),
-                  ideaSeed: wrapUserInput(userIntent),
-                  concept: wrapUserInput(userIntent),
-                  expectedWordCount: '180000',
-                  seedOutline: contextStr,
-                });
-                const text = await generateText(getConfig(), {
+                return await generateText(getConfig(), {
                   prompt,
                   timeoutMs: 8_000,
                   maxAttempts: 1,
-                  maxTokens: 1024,
+                  maxTokens: 1600,
                   novelId,
+                  signal,
                 });
-                results.push({ module, pass: text.includes('PASS'), text });
-              } catch (chainErr) {
-                logger.warn(`Chain module ${module} failed`, chainErr);
-                results.push({ module, pass: false, text: '' });
+              } catch (error) {
+                if (signal.aborted) throw error;
+                logger.warn('Editor agent fell back', error);
+                return buildFallbackSceneBeats(userIntent);
               }
-            }
-            const finalResult = { chainResults: results, text: results.map(r => r.text).filter(Boolean).join('\n---\n') };
-            updateJob(jobId, { status: 'completed', progress: 100, result: finalResult });
-            return;
-          }
-
-          const promptAsset = resolvePromptAssetForSurface({
-            surface,
-            promptTemplates: getConfig().promptTemplates,
-            preferredTemplateKey: 'editorAgent',
+            })();
+            return { text };
           });
-          const prompt = renderPromptTemplate(promptAsset.template, {
-            PLANNER_SOUL,
-            contextStr: effectiveContextStr,
-            skillsInfo,
-            userIntent: wrapUserInput(userIntent),
-          });
-          let text = '';
-          try {
-            text = await generateText(getConfig(), {
-              prompt,
-              timeoutMs: 8_000,
-              maxAttempts: 1,
-              maxTokens: 1600,
-              novelId,
-            });
-          } catch (error) {
-            logger.warn('Editor agent fell back', error);
-            text = buildFallbackSceneBeats(userIntent);
-          }
-          updateJob(jobId, { status: 'completed', progress: 100, result: { text } });
+          updateJob(jobId, { status: 'completed', progress: 100, result });
         } catch (e) {
           logger.error('Background editor-agent error:', e);
           updateJob(jobId, { status: 'failed', progress: 100, error: String(e) });
+        } finally {
+          jobAbortControllers.delete(jobId);
         }
       })();
     } catch (e) {
+      if (e instanceof LlmExecutionRejectedError) {
+        return res.status(e.status).json({ error: e.message, code: e.quota.code });
+      }
       logger.error(String(e));
       res.status(500).json({ error: "Internal server error" });
     }
@@ -276,7 +424,7 @@ export function registerAgentsRoutes(app: Express) {
     // Quota Gate — atomic reserve before any LLM work
     const reserve = await reserveQuota(novelId, 'generateProse');
     if (!reserve.allowed) {
-      return res.status(403).json({
+      return res.status(quotaFailureHttpStatus(reserve)).json({
         quotaExceeded: true,
         limitType: 'generateProse',
         count: reserve.count,
@@ -363,6 +511,12 @@ export function registerAgentsRoutes(app: Express) {
             ...ORCHESTRATE_WRITER_LLM_OPTIONS,
             signal: clientAbortController.signal,
             novelId,
+          }, {
+            operation: 'orchestrate',
+            novelId,
+            timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
+            concurrency: 2,
+            signal: clientAbortController.signal,
           });
           currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
         } catch (error) {
@@ -409,6 +563,13 @@ export function registerAgentsRoutes(app: Express) {
         criticFeedback = await generateText(getConfig(), {
           prompt: criticPrompt,
           ...ORCHESTRATE_CRITIC_LLM_OPTIONS,
+          signal: clientAbortController.signal,
+          novelId,
+        }, {
+          operation: 'orchestrate',
+          novelId,
+          timeoutMs: ORCHESTRATE_CRITIC_LLM_OPTIONS.timeoutMs,
+          concurrency: 2,
           signal: clientAbortController.signal,
         });
         isValid = criticFeedback.includes("PASS");
@@ -471,7 +632,7 @@ export function registerAgentsRoutes(app: Express) {
       // ================================================================
       const reserve = await reserveQuota(novelId, 'generateProse');
       if (!reserve.allowed) {
-        return res.status(403).json({
+        return res.status(quotaFailureHttpStatus(reserve)).json({
           quotaExceeded: true,
           limitType: 'generateProse',
           count: reserve.count,
@@ -481,10 +642,17 @@ export function registerAgentsRoutes(app: Express) {
       }
 
       reservationId = reserve.reservationId;
+      const databaseGeneration = reserve.databaseGeneration ?? getDatabaseGeneration();
+      if (databaseGeneration !== getDatabaseGeneration()) {
+        await settleQuotaReservation(reservationId, false);
+        reservationId = undefined;
+        return res.status(409).json({ error: 'Database changed' });
+      }
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
       res.flushHeaders();
 
       req.socket.setTimeout(0);
@@ -545,6 +713,13 @@ export function registerAgentsRoutes(app: Express) {
           prompt: writerPrompt,
           ...ORCHESTRATE_WRITER_LLM_OPTIONS,
           signal: clientAbortController.signal,
+          novelId,
+        }, {
+          operation: 'orchestrate-draft',
+          novelId,
+          timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
+          concurrency: 2,
+          signal: clientAbortController.signal,
         });
         text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr);
       } catch (error) {
@@ -559,7 +734,12 @@ export function registerAgentsRoutes(app: Express) {
         }
       }
 
-      if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+      if (
+        databaseGeneration !== getDatabaseGeneration()
+        || isStreamDisconnected(req, res)
+        || res.writableEnded
+        || res.destroyed
+      ) {
         throw new Error('Client disconnected before draft delivery');
       }
       await emitTextAsTokens(res, text, {
@@ -568,6 +748,10 @@ export function registerAgentsRoutes(app: Express) {
           contentDelivered = true;
         },
       });
+
+      if (databaseGeneration !== getDatabaseGeneration()) {
+        throw new Error('Database changed before draft completion');
+      }
 
       commitQuotaReservation(reservationId);
       if (!res.writableEnded && !res.destroyed) {

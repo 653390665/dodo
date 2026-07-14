@@ -23,18 +23,20 @@ export async function readDraftStream(
 ): Promise<string> {
   let accumulated = '';
   let finalText: string | undefined;
-  const result = await readSseEvents<DraftStreamEvent>(response, (event) => {
+  let sawTypedDone = false;
+  await readSseEvents<DraftStreamEvent>(response, (event) => {
     if (event.type === 'status' && event.message) handlers.onStatus?.(event.message);
     if (event.type === 'token' && event.content) {
       accumulated += event.content;
       handlers.onToken?.(event.content);
     }
     if (event.type === 'done') {
+      sawTypedDone = true;
       finalText = typeof event.text === 'string' ? event.text : accumulated;
       return 'done';
     }
   });
 
-  if (!result.done) throw new IncompleteDraftStreamError();
+  if (!sawTypedDone) throw new IncompleteDraftStreamError();
   return finalText ?? accumulated;
 }

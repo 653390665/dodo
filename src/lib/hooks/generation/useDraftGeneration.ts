@@ -4,6 +4,7 @@ import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
 import { createChapterVersion, updateChapter } from '../../chapter-client';
 import { readDraftStream } from '../../draft-stream';
+import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
 
 interface UseDraftGenerationArgs {
   novel: Novel;
@@ -27,7 +28,7 @@ interface UseDraftGenerationArgs {
   getCurrentFitScore: () => number;
   recordSkillUsage: (
     userAction: 'accepted' | 'revised' | 'rejected',
-    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
+    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[]; databaseGeneration?: number },
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
   flushPendingEditorWrites: () => Promise<void>;
@@ -69,7 +70,6 @@ export function useDraftGeneration({
     }
     abortControllerRef.current = controller;
 
-    let usedFallback = false;
     setIsGeneratingBeats(true);
     setGenerationStatus('正在根据创作意图和世界观拆解本章分镜…');
     try {
@@ -82,45 +82,54 @@ export function useDraftGeneration({
         return;
       }
 
+      let databaseGeneration: number;
       try {
-        const beats = await editorAgentPhase(
+        databaseGeneration = await getDatabaseGenerationSnapshot(controller.signal);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        alert(`无法建立安全的数据库写入边界：${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
+
+      let beats: string;
+      try {
+        ({ text: beats } = await editorAgentPhase(
           userIntent || `关于章节「${currentChapter.title}」的大纲`,
           buildAgentContext(),
+          databaseGeneration,
           selectedContinuationPackId || undefined,
           (progress, _status) => {
             if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
               setGenerationStatus(`正在分镜拆解中 [${progress}%]...`);
             }
-          }
-        );
-
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-        setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
-        if (!await updateChapter(currentChapter.id, { sceneBeats: beats })) {
-          throw new Error('章节已不存在，分镜未保存。');
-        }
-        setUserIntent('');
+          },
+          controller.signal,
+        ));
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return;
-        const fallbackBeats = buildClientFallbackSceneBeats(
-          userIntent || `关于章节「${currentChapter.title}」的大纲`,
-        );
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-        setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: fallbackBeats } : null));
-        if (!await updateChapter(currentChapter.id, { sceneBeats: fallbackBeats })) {
-          throw new Error('章节已不存在，分镜未保存。', { cause: error });
-        }
-        usedFallback = true;
-        setGenerationStatus('模型响应不稳定，已生成保底分镜，可直接编辑后继续写。');
+        alert(`分镜生成失败，未修改当前章节：${error instanceof Error ? error.message : String(error)}`);
+        return;
       }
+
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      try {
+        if (!await updateChapter(currentChapter.id, { sceneBeats: beats }, databaseGeneration)) {
+          throw new Error('章节已不存在，分镜未保存。');
+        }
+      } catch (error) {
+        setCurrentChapter((prev) => (
+          prev?.id === currentChapter.id ? { ...prev, sceneBeats: currentChapter.sceneBeats } : prev
+        ));
+        alert(`分镜保存失败，已保留原分镜：${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
+
+      setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: beats } : null));
+      setUserIntent('');
     } finally {
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingBeats(false);
-        if (!usedFallback) {
-          setGenerationStatus(null);
-        } else {
-          setTimeout(() => setGenerationStatus(null), 8000);
-        }
+        setGenerationStatus(null);
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }
@@ -188,6 +197,7 @@ export function useDraftGeneration({
       }
 
       if (!response.body) throw new Error('No response body');
+      const databaseGeneration = requireResponseDatabaseGeneration(response);
 
       accumulatedGeneratedText = await readDraftStream(response, {
         onStatus: (message) => setGenerationStatus(message),
@@ -224,7 +234,7 @@ export function useDraftGeneration({
       const saved = await updateChapter(currentChapter.id, {
         content: fullText,
         wordCount: finalWordCount,
-      });
+      }, databaseGeneration);
       if (!saved) throw new Error('章节已不存在，生成正文未保存。');
 
       // The chapter body is the authoritative delivery boundary. Auxiliary
@@ -240,7 +250,7 @@ export function useDraftGeneration({
           wordCount: finalWordCount,
           author: 'writer-agent',
           createdAt: Date.now(),
-        });
+        }, databaseGeneration);
       } catch (error) {
         console.error('[DraftGeneration] Failed to create generated chapter version:', error);
       }
@@ -248,6 +258,7 @@ export function useDraftGeneration({
         await recordSkillUsage('accepted', {
           fitScore: getCurrentFitScore(),
           notes: 'writer-generated',
+          databaseGeneration,
         });
       } catch (error) {
         console.error('[DraftGeneration] Failed to record generated draft usage:', error);
@@ -285,10 +296,3 @@ export function useDraftGeneration({
     handleGenerateContent,
   };
 }
-
-export const buildClientFallbackSceneBeats = (intent: string) =>
-  [
-    `### 场景 1：异动入场\n\n**核心冲突**：${intent}，但信息并不完整，角色只能先试探。\n\n**关键动作链**：角色观察异常；对方给出含糊回应；一个细节暴露真正风险。\n\n**退场钩子**：新的脚步声、信物或消息把局势推向下一场。`,
-    '### 场景 2：试探加深\n\n**核心冲突**：双方围绕真实目的互相遮掩。\n\n**关键动作链**：试探被接住；旧线索浮出；角色意识到眼前不是偶然。\n\n**退场钩子**：关键人物或危险信号正式出现。',
-    '### 场景 3：悬念收束\n\n**核心冲突**：保全自身与追查真相发生冲突。\n\n**关键动作链**：角色做出选择；关键道具或信息被确认；局势留下更大的疑问。\n\n**退场钩子**：以一个未解释的动作或声音结束本章。',
-  ].join('\n\n---\n\n');

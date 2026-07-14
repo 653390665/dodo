@@ -4,6 +4,7 @@ import type { AgentContext } from '../../agents';
 import { buildContextPrompt } from '../../agents';
 import { createChapterVersion, updateChapter } from '../../chapter-client';
 import { readSseStream } from '../../sse-client';
+import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
 import {
   applyPatchWindow,
   extractPolishTargetsFromCritique,
@@ -31,7 +32,7 @@ interface UseAuditPolishActionsArgs {
   getCurrentFitScore: () => number;
   recordSkillUsage: (
     userAction: 'accepted' | 'revised' | 'rejected',
-    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
+    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[]; databaseGeneration?: number },
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
   flushPendingEditorWrites: () => Promise<void>;
@@ -77,16 +78,19 @@ export function useAuditPolishActions({
     startingChapterId: string | undefined,
     currentSeq: number,
     extraUpdates: Partial<Chapter> = {},
+    databaseGeneration?: number,
   ): Promise<boolean> => {
     if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
-    setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
     const saved = await updateChapter(chapterId, {
       content,
       updatedAt: Date.now(),
       wordCount: content.replace(/\s/g, '').length,
       ...extraUpdates,
-    });
-    return saved;
+    }, databaseGeneration);
+    if (!saved) throw new Error('章节已不存在，生成结果未保存。');
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
+    setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
+    return true;
   };
 
   const handleRunAudit = async () => {
@@ -99,6 +103,17 @@ export function useAuditPolishActions({
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = controller;
+    let auditJobId: string | null = null;
+    let auditDatabaseGeneration: number | null = null;
+    let auditJobCompleted = false;
+    let cancelRequested = false;
+    const cancelAuditJob = () => {
+      if (!auditJobId || cancelRequested) return;
+      cancelRequested = true;
+      if (auditDatabaseGeneration === null) return;
+      void fetch(`/api/audit/jobs/${encodeURIComponent(auditJobId)}/cancel?databaseGeneration=${auditDatabaseGeneration}`, { method: 'POST' }).catch(() => {});
+    };
+    controller.signal.addEventListener('abort', cancelAuditJob, { once: true });
 
     setIsGeneratingCritique(true);
     setAuditStatus('正在整理正文与分镜，提交总编审读…');
@@ -136,15 +151,29 @@ export function useAuditPolishActions({
       }
 
       if (initData.error) throw new Error(initData.error);
-      const jobId = initData.jobId;
-      if (!jobId) throw new Error('Failed to initiate audit job');
+      auditJobId = initData.jobId;
+      auditDatabaseGeneration = initData.databaseGeneration;
+      if (!auditJobId || !Number.isInteger(auditDatabaseGeneration)) throw new Error('Failed to initiate audit job');
+      const databaseGeneration = auditDatabaseGeneration as number;
 
       let jobResult: Record<string, unknown> | null = null;
       while (true) {
         if (controller.signal.aborted) throw new Error('AbortError');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            controller.signal.removeEventListener('abort', onAbort);
+            resolve();
+          }, 1500);
+          const onAbort = () => {
+            clearTimeout(timer);
+            controller.signal.removeEventListener('abort', onAbort);
+            reject(controller.signal.reason || new DOMException('Aborted', 'AbortError'));
+          };
+          if (controller.signal.aborted) onAbort();
+          else controller.signal.addEventListener('abort', onAbort, { once: true });
+        });
 
-        const jobResponse = await fetch(`/api/audit/jobs/${jobId}`, {
+        const jobResponse = await fetch(`/api/audit/jobs/${auditJobId}?databaseGeneration=${databaseGeneration}`, {
           signal: controller.signal,
         });
         if (!jobResponse.ok) {
@@ -153,6 +182,7 @@ export function useAuditPolishActions({
         const job = await jobResponse.json();
 
         if (job.status === 'completed') {
+          auditJobCompleted = true;
           jobResult = job.result;
           break;
         } else if (job.status === 'failed') {
@@ -172,14 +202,16 @@ export function useAuditPolishActions({
       const feedbackStr = typeof jobResult.feedback === 'string' ? jobResult.feedback : '';
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
-      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
-      const saved = await updateChapter(currentChapter.id, { critique: feedbackStr });
+      const saved = await updateChapter(currentChapter.id, { critique: feedbackStr }, databaseGeneration);
       if (!saved) throw new Error('章节已不存在，审稿结果未保存。');
+      if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
       try {
         await recordSkillUsage('revised', {
           fitScore: getCurrentFitScore(),
           auditScore: numericAuditScore,
           notes: 'run-audit-success',
+          databaseGeneration,
         });
       } catch {
         // Auxiliary telemetry must not roll back committed critique.
@@ -191,6 +223,8 @@ export function useAuditPolishActions({
       setAuditStatus(null);
       alert(formatAiFailure(error, '审稿'));
     } finally {
+      controller.signal.removeEventListener('abort', cancelAuditJob);
+      if (!auditJobCompleted) cancelAuditJob();
       if (requestSeqRef.current === currentSeq) {
         setIsGeneratingCritique(false);
         setAuditStatus(null);
@@ -259,6 +293,7 @@ export function useAuditPolishActions({
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Rewrite failed.');
       }
+      const databaseGeneration = requireResponseDatabaseGeneration(response);
 
       let previewAccum = '';
       const streamResult = await readSseStream(response, (token) => {
@@ -283,7 +318,14 @@ export function useAuditPolishActions({
         return;
       }
 
-      const committed = await commitChapterContent(currentChapter.id, newText, startingChapterId, currentSeq);
+      const committed = await commitChapterContent(
+        currentChapter.id,
+        newText,
+        startingChapterId,
+        currentSeq,
+        {},
+        databaseGeneration,
+      );
       if (!committed) return;
 
       try {
@@ -294,7 +336,7 @@ export function useAuditPolishActions({
           wordCount: newText.replace(/\s/g, '').length,
           author: 'user',
           createdAt: Date.now(),
-        });
+        }, databaseGeneration);
       } catch {
         // Version history failure must not roll back committed content.
       }
@@ -303,6 +345,7 @@ export function useAuditPolishActions({
         await recordSkillUsage('accepted', {
           fitScore: getCurrentFitScore(),
           notes: 'text-rewrite-selected',
+          databaseGeneration,
         });
       } catch {
         // Telemetry failure must not roll back committed content.
@@ -345,6 +388,7 @@ export function useAuditPolishActions({
     try {
       await flushPendingEditorWrites();
       baseline = contentRef.current?.value ?? currentChapter.content;
+      const databaseGeneration = await getDatabaseGenerationSnapshot(controller.signal);
       const { duplicateTargets, rewriteTargets } = extractPolishTargetsFromCritique(currentChapter.critique);
 
       let candidate = baseline;
@@ -410,6 +454,10 @@ export function useAuditPolishActions({
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `HTTP ${response.status}`);
         }
+        const responseGeneration = requireResponseDatabaseGeneration(response);
+        if (responseGeneration !== databaseGeneration) {
+          throw new Error('数据库已在精修期间切换');
+        }
 
         let patchPreview = '';
         const streamResult = await readSseStream(response, (token) => {
@@ -450,6 +498,7 @@ export function useAuditPolishActions({
           startingChapterId,
           currentSeq,
           { critique: '' },
+          databaseGeneration,
         );
         if (!committed) return;
 
@@ -461,7 +510,7 @@ export function useAuditPolishActions({
             wordCount: candidate.replace(/\s/g, '').length,
             author: 'editor-agent',
             createdAt: Date.now(),
-          });
+          }, databaseGeneration);
         } catch {
           // Version history failure must not roll back committed content.
         }
@@ -470,6 +519,7 @@ export function useAuditPolishActions({
           await recordSkillUsage('accepted', {
             fitScore: getCurrentFitScore(),
             notes: 'polish-critique-patch',
+            databaseGeneration,
           });
         } catch {
           // Telemetry failure must not roll back committed content.

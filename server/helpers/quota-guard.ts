@@ -26,6 +26,25 @@ export interface QuotaCheckResult {
   max?: number;
   error?: string;
   reservationId?: string;
+  databaseGeneration?: number;
+  code?: 'NOVEL_ID_REQUIRED' | 'NOVEL_NOT_FOUND' | 'QUOTA_EXCEEDED' | 'DATABASE_CHANGED' | 'RATE_LIMITED';
+}
+
+const NOVEL_ID_REQUIRED_ERROR = '必须绑定现有作品才能调用此 AI 功能';
+const NOVEL_NOT_FOUND_ERROR = '指定作品不存在';
+
+function missingNovelResult(novelId: string | undefined): QuotaCheckResult {
+  return novelId
+    ? { allowed: false, error: NOVEL_NOT_FOUND_ERROR, code: 'NOVEL_NOT_FOUND' }
+    : { allowed: false, error: NOVEL_ID_REQUIRED_ERROR, code: 'NOVEL_ID_REQUIRED' };
+}
+
+export function quotaFailureHttpStatus(result: QuotaCheckResult): 400 | 403 | 404 | 409 | 429 {
+  if (result.code === 'RATE_LIMITED') return 429;
+  if (result.code === 'NOVEL_ID_REQUIRED') return 400;
+  if (result.code === 'NOVEL_NOT_FOUND') return 404;
+  if (result.code === 'DATABASE_CHANGED') return 409;
+  return 403;
 }
 
 type ReservationStatus = 'active' | 'committed' | 'refunded';
@@ -42,10 +61,13 @@ interface QuotaReservation {
 const quotaReservations = new Map<string, QuotaReservation>();
 const RESERVATION_TTL_MS = 60 * 60 * 1000;
 
-function pruneReservations(): void {
+async function pruneReservations(): Promise<void> {
   const cutoff = Date.now() - RESERVATION_TTL_MS;
   for (const [id, reservation] of quotaReservations.entries()) {
     if (reservation.createdAt < cutoff) {
+      if (reservation.status === 'active') {
+        await refundQuota(id);
+      }
       quotaReservations.delete(id);
     }
   }
@@ -72,12 +94,12 @@ export function checkQuota(
   limitType: QuotaLimitType,
 ): QuotaCheckResult {
   if (!novelId) {
-    return { allowed: true };
+    return missingNovelResult(novelId);
   }
 
   const novel = getNovel(novelId);
   if (!novel) {
-    return { allowed: true };
+    return missingNovelResult(novelId);
   }
 
   const profile = (novel.projectPreferenceProfile || {}) as ProjectPreferenceProfile;
@@ -111,6 +133,7 @@ export function checkQuota(
       count,
       max,
       error: errorMsg,
+      code: 'QUOTA_EXCEEDED',
     };
   }
 
@@ -171,7 +194,7 @@ function checkAndConsumeQuotaSync(
 ): QuotaCheckResult {
   const novel = getNovel(novelId);
   if (!novel) {
-    return { allowed: true };
+    return missingNovelResult(novelId);
   }
 
   const profile: ProjectPreferenceProfile = {
@@ -213,6 +236,7 @@ function checkAndConsumeQuotaSync(
       count,
       max,
       error: errorMsg,
+      code: 'QUOTA_EXCEEDED',
     };
   }
 
@@ -245,7 +269,7 @@ export async function checkAndConsumeQuota(
   limitType: QuotaLimitType,
 ): Promise<QuotaCheckResult> {
   if (!novelId) {
-    return { allowed: true };
+    return missingNovelResult(novelId);
   }
 
   return runInSerializedWrite<QuotaCheckResult>(() => {
@@ -308,15 +332,15 @@ export async function reserveQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
 ): Promise<QuotaCheckResult> {
-  pruneReservations();
+  await pruneReservations();
   if (!novelId) {
-    return { allowed: true };
+    return missingNovelResult(novelId);
   }
 
   const databaseGeneration = getDatabaseGeneration();
   return runInSerializedWrite<QuotaCheckResult>(() => {
     if (databaseGeneration !== getDatabaseGeneration()) {
-      return { allowed: false, error: '数据库已切换，请重试当前操作' };
+      return { allowed: false, error: '数据库已切换，请重试当前操作', code: 'DATABASE_CHANGED' };
     }
 
     const result = checkAndConsumeQuotaSync(novelId, limitType);
@@ -326,7 +350,7 @@ export async function reserveQuota(
 
     // Paid/unlimited paths do not consume counters — no reservation ledger entry needed.
     if (result.count === undefined) {
-      return result;
+      return { ...result, databaseGeneration };
     }
 
     const reservationId = createReservationId();
@@ -339,7 +363,7 @@ export async function reserveQuota(
       databaseGeneration,
     });
 
-    return { ...result, reservationId };
+    return { ...result, reservationId, databaseGeneration };
   });
 }
 
@@ -395,6 +419,26 @@ export async function settleQuotaReservation(
     return commitQuotaReservation(reservationId);
   }
   return refundQuota(reservationId);
+}
+
+/**
+ * Rebind active reservations when a failed database import restores the exact
+ * pre-import logical database. The restored file already contains their quota
+ * increments, so later failure must still be able to refund them. Callers must
+ * hold the serialized database write boundary while rebasing.
+ */
+export function rebaseActiveQuotaReservationsAfterRollback(
+  previousGeneration: number,
+  restoredGeneration: number,
+): void {
+  for (const reservation of quotaReservations.values()) {
+    if (
+      reservation.status === 'active'
+      && reservation.databaseGeneration === previousGeneration
+    ) {
+      reservation.databaseGeneration = restoredGeneration;
+    }
+  }
 }
 
 /** @internal Test-only access to reservation ledger. */

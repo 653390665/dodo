@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
@@ -49,7 +49,7 @@ function sseResponse(events: string[], delayBeforeCloseMs = 0): Response {
         controller.close();
       }
     },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  }), { status: 200, headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' } });
 }
 
 function delayedDoneSseResponse(token: string, delayMs = 25): Response {
@@ -62,7 +62,7 @@ function delayedDoneSseResponse(token: string, delayMs = 25): Response {
         controller.close();
       }, delayMs);
     },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  }), { status: 200, headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' } });
 }
 
 function renderRewriteHook(options: {
@@ -122,6 +122,7 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -177,9 +178,12 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       expect(call[2]).toBe(true);
     }
     expect(chapterClientMocks.updateChapter).toHaveBeenCalledTimes(1);
-    expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({
-      content: '新文尾',
-    }));
+    expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({ content: '新文尾' }),
+      7,
+    );
+    expect(chapterClientMocks.createChapterVersion).toHaveBeenCalledWith(expect.any(Object), 7);
   });
 
   test('does not start or commit an AI rewrite when pending user content cannot flush', async () => {
@@ -197,17 +201,35 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     expect(chapterClientMocks.createChapterVersion).not.toHaveBeenCalled();
   });
 
+  test('a completed rewrite without a database generation is restored and never persisted', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      'data: {"token":"新文"}\n\ndata: [DONE]\n\n',
+      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+    )));
+    const { result, handleUpdateContent, chapter } = renderRewriteHook();
+
+    await result.current.handleRewriteSelectedText();
+
+    expect(handleUpdateContent).toHaveBeenLastCalledWith(chapter.content, false, true);
+    expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
+    expect(chapterClientMocks.createChapterVersion).not.toHaveBeenCalled();
+  });
+
   test('successful audit polish commits content and critique together once despite telemetry failure', async () => {
     const original = '他做出了明确反应，然后转身离去。';
     const chapter = {
       ...makeChapter(original),
       critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
     };
-    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
-      'data: {"token":"他猛地扣住门框，"}\n\n',
-      'data: {"token":"挡住了对方去路。"}\n\n',
-      'data: [DONE]\n\n',
-    ])));
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => (
+      String(input) === '/api/db/generation'
+        ? Response.json({ databaseGeneration: 7 })
+        : sseResponse([
+          'data: {"token":"他猛地扣住门框，"}\n\n',
+          'data: {"token":"挡住了对方去路。"}\n\n',
+          'data: [DONE]\n\n',
+        ])
+    )));
     const { result, handleUpdateContent } = renderRewriteHook({
       chapter,
       recordSkillUsage: async () => { throw new Error('telemetry unavailable'); },
@@ -219,9 +241,66 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       expect(call[2]).toBe(true);
     }
     expect(chapterClientMocks.updateChapter).toHaveBeenCalledTimes(1);
-    expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({
-      content: '他猛地扣住门框，挡住了对方去路。',
-      critique: '',
-    }));
+    expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({
+        content: '他猛地扣住门框，挡住了对方去路。',
+        critique: '',
+      }),
+      7,
+    );
+  });
+
+  test('audit polling and critique persistence stay bound to the starting database generation', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ jobId: 'audit-1', databaseGeneration: 17 }))
+      .mockResolvedValueOnce(Response.json({
+        status: 'completed',
+        progress: 100,
+        result: { feedback: '完整审稿反馈', score: 88 },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, chapter } = renderRewriteHook();
+
+    const pending = result.current.handleRunAudit();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+      await pending;
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/audit/jobs/audit-1?databaseGeneration=17', {
+      signal: expect.any(AbortSignal),
+    });
+    expect(chapterClientMocks.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      { critique: '完整审稿反馈' },
+      17,
+    );
+    vi.useRealTimers();
+  });
+
+  test('audit polling failure cancels the incomplete generation-bound job', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ jobId: 'audit-failed', databaseGeneration: 23 }))
+      .mockResolvedValueOnce(new Response('backend unavailable', { status: 502 }))
+      .mockResolvedValueOnce(Response.json({ cancelled: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderRewriteHook();
+
+    const pending = result.current.handleRunAudit();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+      await pending;
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      '/api/audit/jobs/audit-failed/cancel?databaseGeneration=23',
+      { method: 'POST' },
+    );
+    expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

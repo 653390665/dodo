@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction } from 'react';
 import type { Novel, Chapter } from '../../../../shared/types';
 import { updateNovel } from '../../novel-client';
+import { startWorldJob } from '../../world-job-client';
 
 interface UseOutlineGenerationArgs {
   novel: Novel;
@@ -38,10 +39,8 @@ export function useOutlineGeneration({
 
     setIsGeneratingOutline(true);
     try {
-      const response = await fetch('/api/generate-outline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { result: data, databaseGeneration } = await startWorldJob<{ outline: string }>('/api/generate-outline', {
+          novelId: novel.id,
           surface: planningPromptSurface,
           title: novel.title,
           worldRules: novel.worldRules,
@@ -49,17 +48,15 @@ export function useOutlineGeneration({
           expectedWordCount,
           chapterOrder: currentChapter ? currentChapter.order : 1,
           ...(selectedContinuationPackId ? { continuationPackId: selectedContinuationPackId } : {}),
-        }),
-        signal: controller.signal,
-      });
-      const data = await response.json();
+        }, {}, controller.signal);
       if (requestSeqRef.current !== currentSeq) return;
 
       if (data.outline) {
-        setGlobalOutline(data.outline);
-        await updateNovel(novel.id, { globalOutline: data.outline });
-      } else if (data.error) {
-        throw new Error(data.error);
+      const updated = await updateNovel(novel.id, { globalOutline: data.outline }, databaseGeneration);
+      if (!updated) throw new Error('作品已不存在，大纲未保存。');
+      setGlobalOutline(data.outline);
+      } else {
+        throw new Error('大纲生成结果为空');
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;

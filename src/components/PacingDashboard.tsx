@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Activity, Loader2 } from 'lucide-react';
 
 import { Chapter, PacingData } from '../../shared/types';
 import { listChapters } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
+import { startWorldJob } from '../lib/world-job-client';
 
 interface Props {
   novelId: string;
@@ -13,10 +14,12 @@ export function PacingDashboard({ novelId }: Props) {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [pacing, setPacing] = useState<PacingData[]>([]);
   const [loading, setLoading] = useState(false);
+  const analyzeControllerRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => setChapters(await listChapters(novelId)), [novelId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+  useEffect(() => () => analyzeControllerRef.current?.abort(), []);
 
   const handleAnalyze = async () => {
     const withContent = chapters.filter(c => c.content && c.content.trim().length > 0);
@@ -25,19 +28,19 @@ export function PacingDashboard({ novelId }: Props) {
       return;
     }
     setLoading(true);
+    analyzeControllerRef.current?.abort();
+    const controller = new AbortController();
+    analyzeControllerRef.current = controller;
     try {
       const MAX_CHAPTERS = 50;
       const slice = withContent.slice(-MAX_CHAPTERS);
-      const res = await fetch('/api/analyze-pacing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chapters: slice }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || `Server returned ${res.status}`);
-      }
-      const raw = await res.json() as Partial<PacingData>[];
+      const { result } = await startWorldJob<{ chapters: Partial<PacingData>[] }>(
+        '/api/analyze-pacing',
+        { novelId, chapters: slice },
+        {},
+        controller.signal,
+      );
+      const raw = result.chapters;
       const enriched: PacingData[] = raw.map(r => {
         const ch = slice.find(c => c.id === r.chapterId);
         return {
@@ -53,9 +56,13 @@ export function PacingDashboard({ novelId }: Props) {
       });
       setPacing(enriched);
     } catch (e) {
+      if (controller.signal.aborted) return;
       alert('AI 分析失败: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
-      setLoading(false);
+      if (analyzeControllerRef.current === controller) {
+        analyzeControllerRef.current = null;
+        setLoading(false);
+      }
     }
   };
 

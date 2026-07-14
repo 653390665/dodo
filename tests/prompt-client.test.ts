@@ -36,6 +36,7 @@ test('refineSetupTask returns refined text payload', async () => {
 
   try {
     const text = await refineSetupTask({
+      novelId: 'novel-1',
       taskTitle: '角色动机',
       currentDraft: '主角想加入宗门。',
       userRequest: '让动机更具体',

@@ -7,7 +7,7 @@ const continuationPackCrud = createCrudHelpers<ContinuationPack, ReturnType<type
   rowToEntity: mapContinuationPackRow,
   entityToRow: continuationPackToRow,
   insertColumns: ['id', 'novel_id', 'title', 'status', 'source_documents', 'canon_facts', 'character_states', 'plot_state', 'style_profile', 'contradictions', 'continuation_task', 'source_map', 'reading_questions', 'continuation_gaps', 'source_badge', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'title', 'status', 'source_documents', 'canon_facts', 'character_states', 'plot_state', 'style_profile', 'contradictions', 'continuation_task', 'source_map', 'reading_questions', 'continuation_gaps', 'source_badge', 'updated_at'],
+  updateColumns: ['title', 'status', 'source_documents', 'canon_facts', 'character_states', 'plot_state', 'style_profile', 'contradictions', 'continuation_task', 'source_map', 'reading_questions', 'continuation_gaps', 'source_badge', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: 'updated_at DESC'
 });

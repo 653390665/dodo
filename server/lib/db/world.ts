@@ -9,7 +9,7 @@ const characterCrud = createCrudHelpers<Character, ReturnType<typeof characterTo
   rowToEntity: rowToCharacter,
   entityToRow: characterToRow,
   insertColumns: ['id', 'novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'current_state', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'current_state', 'updated_at'],
+  updateColumns: ['name', 'role', 'summary', 'traits', 'bio', 'current_state', 'updated_at'],
   listFilterKey: 'novel_id'
 });
 
@@ -39,7 +39,7 @@ const locationCrud = createCrudHelpers<Location, ReturnType<typeof locationToRow
   rowToEntity: rowToLocation,
   entityToRow: locationToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'region', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'description', 'region', 'updated_at'],
+  updateColumns: ['name', 'description', 'region', 'updated_at'],
   listFilterKey: 'novel_id'
 });
 
@@ -65,7 +65,7 @@ const itemCrud = createCrudHelpers<Item, ReturnType<typeof itemToRow>>({
   rowToEntity: rowToItem,
   entityToRow: itemToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'type', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'description', 'type', 'updated_at'],
+  updateColumns: ['name', 'description', 'type', 'updated_at'],
   listFilterKey: 'novel_id'
 });
 
@@ -95,7 +95,7 @@ const factionCrud = createCrudHelpers<Faction, ReturnType<typeof factionToRow>>(
   rowToEntity: rowToFaction,
   entityToRow: factionToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'leader', 'territory', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'description', 'leader', 'territory', 'updated_at'],
+  updateColumns: ['name', 'description', 'leader', 'territory', 'updated_at'],
   listFilterKey: 'novel_id'
 });
 
@@ -121,7 +121,7 @@ const powerLevelCrud = createCrudHelpers<PowerLevel, ReturnType<typeof powerLeve
   rowToEntity: rowToPowerLevel,
   entityToRow: powerLevelToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'tier', 'characteristics', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'name', 'description', 'tier', 'characteristics', 'updated_at'],
+  updateColumns: ['name', 'description', 'tier', 'characteristics', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: 'tier ASC'
 });
@@ -148,7 +148,7 @@ const timelineEventCrud = createCrudHelpers<TimelineEvent, ReturnType<typeof tim
   rowToEntity: rowToTimelineEvent,
   entityToRow: timelineEventToRow,
   insertColumns: ['id', 'novel_id', 'title', 'description', 'timestamp', 'status_tag', '"order"', 'created_at', 'updated_at'],
-  updateColumns: ['novel_id', 'title', 'description', 'timestamp', 'status_tag', '"order"', 'updated_at'],
+  updateColumns: ['title', 'description', 'timestamp', 'status_tag', '"order"', 'updated_at'],
   listFilterKey: 'novel_id',
   listOrderBy: '"order" ASC'
 });

@@ -6,10 +6,18 @@ import {
   getDb,
   runInSerializedWriteForGeneration,
 } from './lib/db-instance';
-import { embed, cosineSimilarity } from './embedding';
+import { createHash } from 'node:crypto';
+import { embedWithMetadata, cosineSimilarity } from './embedding';
+
+interface StoredEmbedding {
+  values: number[];
+  modelId: string;
+  dimensions: number;
+  contentHash: string;
+}
 
 // 常驻内存向量解析 Cache，避免高频相似度计算下的重复 JSON.parse 消耗
-const embeddingCache = new Map<string, number[]>();
+const embeddingCache = new Map<string, StoredEmbedding>();
 
 /** Add a text chunk to the vector store (async, auto-embeds) */
 export async function addChunk(
@@ -19,7 +27,13 @@ export async function addChunk(
   text: string
 ): Promise<void> {
   const generation = getDatabaseGeneration();
-  const embedding = await embed(text);
+  const embedded = await embedWithMetadata(text, novelId);
+  const embedding: StoredEmbedding = {
+    values: embedded.values,
+    modelId: embedded.modelId,
+    dimensions: embedded.values.length,
+    contentHash: createHash('sha256').update(text).digest('hex'),
+  };
   const id = `${novelId}_${chapterId}_${index}`;
 
   await runInSerializedWriteForGeneration(generation, () => {
@@ -44,7 +58,8 @@ export function clearEmbeddingCache(): void {
 export function searchSimilar(
   queryEmbedding: number[],
   novelId: string,
-  topK: number = 5
+  queryModelId: string,
+  topK: number = 5,
 ): Array<{ text: string; score: number }> {
   const db = getDb();
   const rows = db.prepare(`
@@ -52,16 +67,23 @@ export function searchSimilar(
   `).all(novelId) as Array<{ id: string; text: string; embedding: string }>;
 
   const scored = rows.map((row) => {
-    let emb = embeddingCache.get(row.id);
-    if (!emb) {
-      emb = JSON.parse(row.embedding) as number[];
-      embeddingCache.set(row.id, emb);
+    let stored = embeddingCache.get(row.id);
+    if (!stored) {
+      const parsed = JSON.parse(row.embedding) as number[] | StoredEmbedding;
+      const values = Array.isArray(parsed) ? parsed : parsed.values;
+      stored = Array.isArray(parsed)
+        ? { values, modelId: 'legacy:unknown', dimensions: values.length, contentHash: '' }
+        : parsed;
+      embeddingCache.set(row.id, stored);
     }
+    const compatible = stored.modelId !== 'legacy:unknown'
+      && stored.modelId === queryModelId
+      && stored.dimensions === queryEmbedding.length;
     return {
       text: row.text,
-      score: cosineSimilarity(queryEmbedding, emb),
+      score: compatible ? cosineSimilarity(queryEmbedding, stored.values) : Number.NEGATIVE_INFINITY,
     };
-  });
+  }).filter((row) => Number.isFinite(row.score));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
 }

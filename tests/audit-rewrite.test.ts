@@ -7,7 +7,7 @@ import express from 'express';
 
 import { registerAuditRoutes, __auditTestHooks } from '../server/routes/audit.js';
 import { closeDb, createNovel, getNovel, initDb } from '../server/lib/db.js';
-import { drainWriteQueue } from '../server/lib/db-instance.js';
+import { advanceDatabaseGeneration, drainWriteQueue } from '../server/lib/db-instance.js';
 import { DEFAULT_QUOTA_MAX } from '../server/helpers/quota-guard.js';
 import { getConfig } from '../server/lib/config.js';
 import type { Novel } from '../shared/types';
@@ -157,11 +157,11 @@ describe('audit / rewrite route integration', () => {
     return `http://localhost:${port}`;
   }
 
-  async function waitForAuditJob(baseUrl: string, jobId: string) {
+  async function waitForAuditJob(baseUrl: string, jobId: string, databaseGeneration: number) {
     let job: { status: string; error?: string; result?: { feedback?: string } } = { status: 'pending' };
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 100));
-      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}`);
+      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}?databaseGeneration=${databaseGeneration}`);
       job = await jobRes.json();
       if (job.status === 'completed' || job.status === 'failed') break;
     }
@@ -191,13 +191,14 @@ describe('audit / rewrite route integration', () => {
       }),
     });
     assert.equal(postRes.status, 200);
-    const { jobId } = await postRes.json() as { jobId: string };
+    const { jobId, databaseGeneration } = await postRes.json() as { jobId: string; databaseGeneration: number };
     assert.ok(jobId);
+    assert.equal(Number.isInteger(databaseGeneration), true);
 
     let job: { status: string; result?: { feedback?: string } } = { status: 'pending' };
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 100));
-      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}`);
+      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}?databaseGeneration=${databaseGeneration}`);
       job = await jobRes.json();
       if (job.status === 'completed' || job.status === 'failed') break;
     }
@@ -231,12 +232,12 @@ describe('audit / rewrite route integration', () => {
         contextStr: '测试上下文',
       }),
     });
-    const { jobId } = await postRes.json() as { jobId: string };
+    const { jobId, databaseGeneration } = await postRes.json() as { jobId: string; databaseGeneration: number };
 
     let job: { status: string } = { status: 'pending' };
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 100));
-      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}`);
+      const jobRes = await fetch(`${baseUrl}/api/audit/jobs/${jobId}?databaseGeneration=${databaseGeneration}`);
       job = await jobRes.json();
       if (job.status === 'failed') break;
     }
@@ -267,8 +268,8 @@ describe('audit / rewrite route integration', () => {
         contextStr: '测试上下文',
       }),
     });
-    const { jobId } = await postRes.json() as { jobId: string };
-    const job = await waitForAuditJob(baseUrl, jobId);
+    const { jobId, databaseGeneration } = await postRes.json() as { jobId: string; databaseGeneration: number };
+    const job = await waitForAuditJob(baseUrl, jobId, databaseGeneration);
 
     assert.equal(job.status, 'failed');
     assert.equal(job.error, 'Internal server error');
@@ -279,6 +280,34 @@ describe('audit / rewrite route integration', () => {
       getNovel('novel-audit-blank')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
       0,
     );
+  });
+
+  test('audit result cannot be polled after the active database generation changes', async () => {
+    process.env.NODE_ENV = 'test';
+    closeDb();
+    dbPath = path.join(os.tmpdir(), `inkflow-audit-generation-${Date.now()}.db`);
+    initDb(dbPath);
+    createNovel(mockNovel('novel-audit-generation'));
+    mockLlmFetch('完整审稿结果');
+
+    const baseUrl = await startAuditServer();
+    const postRes = await fetch(`${baseUrl}/api/audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novelId: 'novel-audit-generation',
+        draftContent: '旧数据库正文',
+        sceneBeats: '分镜',
+        contextStr: '上下文',
+      }),
+    });
+    const started = await postRes.json() as { jobId: string; databaseGeneration: number };
+    advanceDatabaseGeneration();
+
+    const jobRes = await fetch(
+      `${baseUrl}/api/audit/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`,
+    );
+    assert.equal(jobRes.status, 409);
   });
 
   test('POST /api/rewrite streams tokens and ends with [DONE]', async () => {
@@ -303,6 +332,7 @@ describe('audit / rewrite route integration', () => {
     });
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type') || '', /text\/event-stream/);
+    assert.match(res.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
 
     const sse = await readSseBody(res);
     assert.equal(sse.done, true);

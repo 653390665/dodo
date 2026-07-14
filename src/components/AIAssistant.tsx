@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '../lib/toast';
 
 import { extractWorldSetupPhase } from '../lib/agents';
@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import { ArrowRight, BrainCircuit, Copy, FolderOpen, Globe, Lightbulb, Loader2, MoreVertical, Send, Sparkles, Terminal, X } from 'lucide-react';
 import { listNovels } from '../lib/novel-client';
 import { createChapter } from '../lib/chapter-client';
-import { createCharacter, createLocation, createItem } from '../lib/world-client';
+import { importWorldExtraction } from '../lib/world-client';
 import { createIdeaFragment } from '../lib/idea-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { generateInspiration } from '../lib/prompt-client';
@@ -32,7 +32,7 @@ interface AIAssistantProps {
 }
 
 export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onClose }: AIAssistantProps) {
-  const promptSurface = 'workspace-draft';
+  const promptSurface = activeNovel ? 'workspace-draft' : 'welcome';
   const hasProjectContext = Boolean(launchContext || activeNovel);
   const assistantTitle = hasProjectContext ? '作品协作助手' : '灵感启动助手';
   const assistantSubtitle = hasProjectContext ? 'PROJECT COPILOT' : 'IDEA STARTER';
@@ -52,6 +52,9 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   const [extractProgress, setExtractProgress] = useState(0);
   const [extractStageText, setExtractStageText] = useState('正在读取资料并解包文本...');
   const [isSavingToNovel, setIsSavingToNovel] = useState(false);
+  const extractionControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => extractionControllerRef.current?.abort(), []);
 
   useEffect(() => {
     const refreshNovels = () => listNovels().then(setUserNovels);
@@ -105,7 +108,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
     setIsLoading(true);
 
     try {
-      const result = await generateInspiration(prompt, promptSurface);
+      const result = await generateInspiration(prompt, promptSurface, activeNovel?.id);
       // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
       const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result || '未能生成灵感，请重试。' };
       setMessages(prev => [...prev, aiMsg]);
@@ -152,68 +155,49 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
     setIsExtracting(true);
     setExtractProgress(10);
     setExtractStageText('正在初始化后台解析引擎...');
+    extractionControllerRef.current?.abort();
+    const controller = new AbortController();
+    extractionControllerRef.current = controller;
     try {
-      const extracted = await extractWorldSetupPhase(content, (progress, status) => {
+      const { result: extracted, databaseGeneration } = await extractWorldSetupPhase(content, novel.id, (progress, status) => {
         setExtractProgress(progress);
         setExtractStageText(status);
-      });
-      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
-      const now = Date.now();
+      }, controller.signal);
+      const entityCollections = [
+        extracted.characters,
+        extracted.locations,
+        extracted.items,
+        extracted.factions,
+        extracted.powerLevels,
+        extracted.timelineEvents,
+      ];
+      const count = entityCollections.reduce((total, entries) => total + (entries?.length ?? 0), 0);
 
-      let count = 0;
-      if (extracted.characters) {
-        for (const char of extracted.characters) {
-           await createCharacter({
-             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
-             id: Date.now().toString(),
-             novelId: novel.id,
-             name: char.name || '',
-             role: char.role || 'supporting',
-             summary: char.summary || '',
-             traits: char.traits || [],
-             bio: char.bio || '',
-             createdAt: now,
-             updatedAt: now
-           });
-           count++;
-        }
-      }
-      if (extracted.locations) {
-        for (const loc of extracted.locations) {
-           await createLocation({
-             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
-             id: Date.now().toString(),
-             novelId: novel.id,
-             name: loc.name || '',
-             region: loc.region || '',
-             description: loc.description || '',
-             createdAt: now,
-             updatedAt: now
-           });
-           count++;
-        }
-      }
-      if (extracted.items) {
-        for (const item of extracted.items) {
-           await createItem({
-             // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, safe
-             id: Date.now().toString(),
-             novelId: novel.id,
-             name: item.name || '',
-             type: item.type || '',
-             description: item.description || '',
-             createdAt: now,
-             updatedAt: now
-           });
-           count++;
-        }
-      }
+      // The server validates the entire extraction and commits outline, world
+      // rules, and every supported entity collection in one SQLite transaction.
+      // A single invalid entity therefore cannot leave a partial world bible.
+      await importWorldExtraction({
+        databaseGeneration,
+        novelId: novel.id,
+        globalOutline: extracted.globalOutline ?? novel.globalOutline ?? '',
+        worldRules: extracted.worldRules ?? novel.worldRules ?? '',
+        characters: extracted.characters ?? [],
+        locations: extracted.locations ?? [],
+        items: extracted.items ?? [],
+        factions: extracted.factions ?? [],
+        powerLevels: extracted.powerLevels ?? [],
+        timelineEvents: extracted.timelineEvents ?? [],
+      });
 
       toast(`已解析 ${count} 个设定项并存储至《${novel.title}》`, 'success');
     } catch {
+      if (controller.signal.aborted) return;
       toast('提取设定失败，内容可能不包含明确的设定格式', 'error');
     } finally {
-      setIsExtracting(false);
+      if (extractionControllerRef.current === controller) {
+        extractionControllerRef.current = null;
+        setIsExtracting(false);
+      }
     }
   };
 

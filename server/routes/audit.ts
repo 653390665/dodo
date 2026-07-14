@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import type { Skill } from '../../shared/types';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, truncateForAudit, buildSkillsPrompt } from '../helpers/prompt-helpers';
@@ -21,11 +21,13 @@ import {
   reserveQuota,
   refundQuota,
   commitQuotaReservation,
+  quotaFailureHttpStatus,
 } from '../helpers/quota-guard.js';
 import { isStreamDisconnected } from '../helpers/stream-disconnect.js';
 import * as db from '../lib/db.js';
 import { inferNovelGovernanceProfile, getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 import { resolveRuntimeCuratedPrompts } from '../helpers/curated-skill-runtime.js';
+import { getDatabaseGeneration } from '../lib/db-instance.js';
 
 const GENERIC_CLIENT_ERROR = 'Internal server error';
 
@@ -40,15 +42,19 @@ interface AuditJob {
   result?: Record<string, unknown>;
   error?: string;
   createdAt: number;
+  databaseGeneration: number;
 }
 
 const auditJobs = new Map<string, AuditJob>();
+const auditJobAbortControllers = new Map<string, AbortController>();
 const JOB_TTL = 15 * 60 * 1000;
 
 function pruneAuditJobs(): void {
   const now = Date.now();
   for (const [id, job] of auditJobs.entries()) {
     if (now - job.createdAt > JOB_TTL) {
+      auditJobAbortControllers.get(id)?.abort(new Error('Audit job expired'));
+      auditJobAbortControllers.delete(id);
       auditJobs.delete(id);
     }
   }
@@ -56,7 +62,7 @@ function pruneAuditJobs(): void {
 
 setInterval(pruneAuditJobs, 60 * 1000).unref();
 
-function createAuditJob(): string {
+function createAuditJob(controller: AbortController, databaseGeneration: number): string {
   pruneAuditJobs();
   const id = 'audit_' + Math.random().toString(36).substring(2, 15);
   auditJobs.set(id, {
@@ -65,13 +71,20 @@ function createAuditJob(): string {
     progress: 5,
     stageText: '已提交审稿任务，等待总编接单…',
     createdAt: Date.now(),
+    databaseGeneration,
   });
+  auditJobAbortControllers.set(id, controller);
   return id;
 }
 
 function updateAuditJob(id: string, updates: Partial<Omit<AuditJob, 'id' | 'createdAt'>>): void {
   const job = auditJobs.get(id);
-  if (job) Object.assign(job, updates);
+  if (job) {
+    Object.assign(job, updates);
+    if (updates.status === 'completed' || updates.status === 'failed') {
+      auditJobAbortControllers.delete(id);
+    }
+  }
 }
 
 function failAuditJob(jobId: string, reservationId: string | undefined, logMessage: string): void {
@@ -98,6 +111,7 @@ async function runAuditJob(
   jobId: string,
   body: AuditRequestBody,
   reservationId: string | undefined,
+  signal?: AbortSignal,
 ): Promise<void> {
   updateAuditJob(jobId, {
     status: 'running',
@@ -208,6 +222,13 @@ ${platformSpecificChecklist}
 
     const rawFeedback = await generateText(getConfig(), {
       prompt: prompt + openingDiagnosticsPrompt + extraDimensionPrompt,
+      novelId,
+    }, {
+      operation: 'audit-job',
+      novelId,
+      timeoutMs: 90_000,
+      concurrency: 2,
+      signal,
     });
 
     if (!rawFeedback || !rawFeedback.trim()) {
@@ -321,16 +342,44 @@ export function registerAuditRoutes(app: Express) {
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'Audit job database generation mismatch' });
+    }
+    if (job.databaseGeneration !== getDatabaseGeneration()) {
+      auditJobAbortControllers.get(jobId)?.abort(new Error('Database changed'));
+      updateAuditJob(jobId, { status: 'failed', progress: 100, error: GENERIC_CLIENT_ERROR });
+      return res.status(409).json({ error: 'Database changed' });
+    }
     res.json(job);
+  });
+
+  app.post('/api/audit/jobs/:jobId/cancel', (req, res) => {
+    const job = auditJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Audit job not found' });
+    const requestedGeneration = Number(req.query.databaseGeneration);
+    if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
+      return res.status(409).json({ error: 'Audit job database generation mismatch' });
+    }
+    const controller = auditJobAbortControllers.get(req.params.jobId);
+    if (!controller || job.status === 'completed' || job.status === 'failed') {
+      return res.status(409).json({ error: 'Audit job is not cancellable' });
+    }
+    controller.abort(new Error('Audit job cancelled'));
+    updateAuditJob(req.params.jobId, { status: 'failed', progress: 100, error: 'Cancelled' });
+    return res.json({ cancelled: true });
   });
 
   app.post('/api/audit', async (req, res) => {
     if (!rateLimit('audit')) return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
     const { novelId } = req.body;
+    if (typeof novelId !== 'string' || !novelId.trim()) {
+      return res.status(400).json({ error: 'novelId is required' });
+    }
 
     const reserve = await reserveQuota(novelId, 'advancedAudit');
     if (!reserve.allowed) {
-      return res.status(403).json({
+      return res.status(quotaFailureHttpStatus(reserve)).json({
         quotaExceeded: true,
         limitType: 'advancedAudit',
         count: reserve.count,
@@ -339,9 +388,15 @@ export function registerAuditRoutes(app: Express) {
       });
     }
 
-    const jobId = createAuditJob();
-    void runAuditJob(jobId, req.body as AuditRequestBody, reserve.reservationId);
-    res.json({ jobId });
+    const databaseGeneration = reserve.databaseGeneration ?? getDatabaseGeneration();
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      await refundQuota(reserve.reservationId);
+      return res.status(409).json({ error: 'Database changed' });
+    }
+    const jobController = new AbortController();
+    const jobId = createAuditJob(jobController, databaseGeneration);
+    void runAuditJob(jobId, req.body as AuditRequestBody, reserve.reservationId, jobController.signal);
+    res.json({ jobId, databaseGeneration });
   });
 
   app.post('/api/rewrite', async (req, res) => {
@@ -361,10 +416,13 @@ export function registerAuditRoutes(app: Express) {
       novelId,
       skills = [],
     } = req.body;
+    if (typeof novelId !== 'string' || !novelId.trim()) {
+      return res.status(400).json({ error: 'novelId is required' });
+    }
 
     const reserve = await reserveQuota(novelId, 'advancedAudit');
     if (!reserve.allowed) {
-      return res.status(403).json({
+      return res.status(quotaFailureHttpStatus(reserve)).json({
         quotaExceeded: true,
         limitType: 'advancedAudit',
         count: reserve.count,
@@ -374,6 +432,11 @@ export function registerAuditRoutes(app: Express) {
     }
 
     const reservationId = reserve.reservationId;
+    const databaseGeneration = reserve.databaseGeneration ?? getDatabaseGeneration();
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      await refundQuota(reservationId);
+      return res.status(409).json({ error: 'Database changed' });
+    }
     let completed = false;
     const controller = new AbortController();
 
@@ -387,6 +450,7 @@ export function registerAuditRoutes(app: Express) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
       req.socket.setTimeout(0);
 
       let activeSkills = skills || [];
@@ -418,6 +482,10 @@ export function registerAuditRoutes(app: Express) {
         prompt,
         signal: controller.signal,
         onToken: (token) => {
+          if (databaseGeneration !== getDatabaseGeneration()) {
+            controller.abort(new Error('Database changed during rewrite'));
+            return;
+          }
           if (isStreamDisconnected(req, res)) {
             controller.abort();
             return;
@@ -425,9 +493,15 @@ export function registerAuditRoutes(app: Express) {
           accumulated += token;
           res.write(`data: ${JSON.stringify({ token })}\n\n`);
         },
+      }, {
+        operation: 'rewrite',
+        novelId,
+        timeoutMs: 90_000,
+        concurrency: 2,
+        signal: controller.signal,
       });
 
-      if (isStreamDisconnected(req, res)) {
+      if (databaseGeneration !== getDatabaseGeneration() || isStreamDisconnected(req, res)) {
         await refundQuota(reservationId);
         return;
       }

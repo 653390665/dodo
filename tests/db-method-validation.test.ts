@@ -51,3 +51,26 @@ test('db method registry validates core entity fields and enums', () => {
     args: ['item-1', { unexpectedField: true }],
   }).success, false);
 });
+
+test('db method registry keeps identity and project ownership immutable', () => {
+  for (const [method, changes] of [
+    ['updateNovel', { id: 'novel-2' }],
+    ['updateNovel', { createdAt: 2 }],
+    ['updateChapter', { novelId: 'novel-2' }],
+    ['updateCharacter', { novelId: 'novel-2' }],
+    ['updateLocation', { novelId: 'novel-2' }],
+    ['updateItem', { novelId: 'novel-2' }],
+    ['updateFaction', { novelId: 'novel-2' }],
+    ['updatePowerLevel', { novelId: 'novel-2' }],
+    ['updateTimelineEvent', { novelId: 'novel-2' }],
+    ['updateIdeaFragment', { novelId: 'novel-2' }],
+    ['updateForeshadowing', { novelId: 'novel-2' }],
+    ['updateEntityRelationship', { novelId: 'novel-2' }],
+  ] as const) {
+    assert.equal(
+      dbSchema.safeParse({ method, args: ['entity-1', changes] }).success,
+      false,
+      `${method} must reject immutable fields`,
+    );
+  }
+});

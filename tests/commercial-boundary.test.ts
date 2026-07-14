@@ -125,10 +125,11 @@ describe('Commercial Boundary & Quota Control Tests', () => {
       createNovel(mockNovel('novel-premium', 'paid'));
 
       // ----------------------------------------
-      // A. 游客或未绑定小说的请求: 自由通行
+      // A. 商业模型调用必须绑定现有作品，未绑定请求不得绕过额度
       // ----------------------------------------
       const guestCheck = checkQuota(undefined, 'extractSkill');
-      assert.equal(guestCheck.allowed, true);
+      assert.equal(guestCheck.allowed, false);
+      assert.equal(guestCheck.code, 'NOVEL_ID_REQUIRED');
 
       // ----------------------------------------
       // B. Premium 付费小说: 无限额度直接放行
@@ -287,4 +288,3 @@ describe('Store Licensing & Tamper-Proof Signature Tests', () => {
     assert.notEqual(signature, computeTamperProofSignature('FAKE-CODE')); // Collision resistant
   });
 });
-

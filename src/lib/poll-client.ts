@@ -50,7 +50,19 @@ export async function pollJob<T = unknown>(
       throw new Error(data.error || 'Job failed in background execution');
     }
 
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, intervalMs);
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        reject(signal?.reason || new Error('Polling aborted'));
+      };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener('abort', onAbort, { once: true });
+    });
   }
   throw new Error("Polling exceeded maximum retries");
 }

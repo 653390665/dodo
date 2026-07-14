@@ -962,6 +962,7 @@ export function SkillsStudioView({
         open={Boolean(selectedSkill)}
         onClose={() => setSelectedSkillId(null)}
         onSelectSkill={(id) => setSelectedSkillId(id)}
+        novelId={selectedNovel?.id || ''}
       />
       <AlertDialog open={Boolean(skillToDeleteId)} onOpenChange={(open) => !open && setSkillToDeleteId(null)}>
         <AlertDialogContent>

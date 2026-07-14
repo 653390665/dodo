@@ -1,9 +1,11 @@
 import type { Express } from 'express';
-import { generateText } from '../lib/server-llm';
+import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
 import { rateLimit } from '../middleware/rate-limit';
+import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
+import { getDatabaseGeneration } from '../lib/db-instance';
 
 /**
  * Simple LLM proxy routes — no shared local helpers needed.
@@ -20,22 +22,48 @@ export function registerSimpleLlmRoutes(app: Express) {
     });
 
     try {
-      // 设置 SSE 响应头，确保数据实时下发且无缓存
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      req.socket.setTimeout(0);
-
       // 同时兼容旧的 { text, context } 与前端实际调用的 { content, type } 参数
       const content = req.body.content || req.body.text || '';
       const type = req.body.type || '';
       const context = req.body.context || '';
+      const novelId = req.body.novelId;
 
       if (!content) {
         res.write(`data: ${JSON.stringify({ error: "Content is required" })}\n\n`);
         res.end();
         return;
       }
+      if (typeof novelId !== 'string' || !novelId.trim()) {
+        res.status(400).json({ error: 'novelId is required' });
+        return;
+      }
+
+      let execution;
+      const databaseGeneration = getDatabaseGeneration();
+      try {
+        execution = await createLlmExecution({
+          operation: 'expand-fragment',
+          novelId,
+          quotaType: 'generateProse',
+          timeoutMs: 90_000,
+          signal: controller.signal,
+          concurrency: 2,
+          databaseGeneration,
+        });
+      } catch (error) {
+        if (error instanceof LlmExecutionRejectedError) {
+          res.status(error.status).json({ error: error.message, code: error.quota.code });
+          return;
+        }
+        throw error;
+      }
+
+      // 设置 SSE 响应头，确保数据实时下发且无缓存
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
+      req.socket.setTimeout(0);
 
       let prompt = '';
       if (type) {
@@ -45,21 +73,31 @@ export function registerSimpleLlmRoutes(app: Express) {
       }
 
       // 调用大模型进行流式生成，通过 onToken 写入客户端
-      await generateText(getConfig(), {
-        prompt,
-        signal: controller.signal,
-        onToken: (token) => {
-          if (!isStreamDisconnected(req, res) && !res.writableEnded) {
-            res.write(`data: ${JSON.stringify({ token })}\n\n`);
+      await execution.run(async ({ signal }) => {
+        await generateText(getConfig(), {
+          prompt,
+          novelId,
+          signal,
+          onToken: (token) => {
+            if (databaseGeneration !== getDatabaseGeneration()) {
+              controller.abort(new Error('Database changed during fragment expansion'));
+              return;
+            }
+            if (!isStreamDisconnected(req, res) && !res.writableEnded) {
+              res.write(`data: ${JSON.stringify({ token })}\n\n`);
+            }
           }
+        });
+        if (
+          databaseGeneration !== getDatabaseGeneration()
+          || isStreamDisconnected(req, res)
+          || res.writableEnded
+        ) {
+          throw new Error('Client disconnected before fragment completion');
         }
-      });
-
-      // 写入流结束标志并安全关闭连接
-      if (!isStreamDisconnected(req, res) && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
         res.end();
-      }
+      });
     } catch (e: unknown) {
       logger.error("Simple LLM route error:", e);
       if (isStreamDisconnected(req, res) || res.writableEnded) {
