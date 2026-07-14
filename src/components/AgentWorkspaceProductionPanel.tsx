@@ -59,6 +59,7 @@ interface AgentWorkspaceProductionPanelProps {
   factions?: Faction[];
   onSwitchTab?: (tab: AgentTab) => void;
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
+  projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
   skippedAssetIds?: string[];
   stackedDeconstructionCardIds?: string[];
@@ -115,6 +116,7 @@ export function AgentWorkspaceProductionPanel({
   factions,
   onSwitchTab,
   onRunRecommendedAsset,
+  projectPreferenceProfile,
   onPreferenceProfileChange,
   skippedAssetIds,
   stackedDeconstructionCardIds,
@@ -221,7 +223,9 @@ export function AgentWorkspaceProductionPanel({
         onUpdateChapterBeats={onUpdateChapterBeats}
         generationStatus={generationStatus}
         novel={novel}
+        projectPreferenceProfile={projectPreferenceProfile}
         onPreferenceProfileChange={onPreferenceProfileChange}
+        onSwitchTab={onSwitchTab ? (tab: string) => onSwitchTab(tab as AgentTab) : undefined}
       />
     );
   }
