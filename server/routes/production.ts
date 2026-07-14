@@ -505,6 +505,20 @@ export function registerProductionRoutes(app: Express) {
       const fallbackContinuity = buildProductionContinuityReport(continuationPackId);
       sseWrite(res, { type: 'fallback_continuity', report: fallbackContinuity });
 
+      // Test hook: allows deterministic simulation of queue delay + disconnect
+      if (__productionTestHooks.preFallbackWriteHook) {
+        await __productionTestHooks.preFallbackWriteHook();
+      }
+
+      // ── Disconnect guard: skip fallback write if client already gone ──
+      if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+        // Client disconnected while fallback was queued. Do NOT persist
+        // content, do NOT set contentDelivered, let the outer catch refund.
+        const abortError = new Error('Client disconnected before fallback write');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
       const fallbackWrite = await runInSerializedWriteForGeneration(
         streamDatabaseGeneration,
         () => db.updateChapterProductionRun(runId!, {
@@ -517,6 +531,17 @@ export function registerProductionRoutes(app: Express) {
       );
       if (!fallbackWrite.executed) {
         throw new Error('数据库已在生成期间切换，已丢弃旧生成任务');
+      }
+
+      // Re-check after the write queue drains — client may have disconnected
+      // while we were waiting for our turn.
+      if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+        // Fallback content IS persisted at this point. We keep it but do NOT
+        // mark contentDelivered so the outer catch refunds the reservation.
+        // The persisted fallback is harmless — it has no committed billing.
+        const abortError = new Error('Client disconnected after fallback persist');
+        abortError.name = 'AbortError';
+        throw abortError;
       }
 
       contentDelivered = true;
@@ -600,9 +625,23 @@ export function registerProductionRoutes(app: Express) {
         if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
         sseWrite(res, { type: 'model_beats', content: result.sceneBeats });
         sseWrite(res, { type: 'model_score', score: result.score, attempts: result.attempts });
+
+        // ── Disconnect guard: skip model DB write if client already gone ──
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
+
+        // Test hook: allows deterministic simulation of model queue delay + disconnect
+        if (__productionTestHooks.preModelWriteHook) {
+          await __productionTestHooks.preModelWriteHook();
+        }
+
         const modelWrite = await runInSerializedWriteForGeneration(
           pipelineDatabaseGeneration,
           () => {
+            // Disconnect guard inside the queue callback: if client left while
+            // this write was queued, keep the persisted fallback and skip model.
+            if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+              return db.getChapterProductionRun(runId!);
+            }
             const currentRun = db.getChapterProductionRun(runId!);
             if (currentRun && currentRun.status !== 'applied') {
               db.updateChapterProductionRun(runId!, {
@@ -617,6 +656,12 @@ export function registerProductionRoutes(app: Express) {
         );
         if (!modelWrite.executed) {
           throw new Error('数据库已在生成期间切换，已丢弃旧生成结果');
+        }
+        // Post-queue disconnect: client left during model write queue wait.
+        // Fallback was already committed; just clean up without sending done.
+        if (clientAbortController.signal.aborted || !isResponseWritable(res)) {
+          cleanupStream();
+          return;
         }
         sseWrite(res, { type: 'done', run: modelWrite.result });
         cleanupStream();
@@ -956,10 +1001,24 @@ ${final.substring(0, 3000)}
   }
 }
 
-/** @internal Test-only hooks for deterministic Reflexion concurrency coverage. */
+/** @internal Test-only hooks for deterministic production concurrency coverage. */
 export const __productionTestHooks = {
   runEvolutionReflexion,
   resetReflexionKeys(): void {
     completedReflexionKeys.clear();
   },
+  /**
+   * When set to a non-null function, the start-stream route calls it after
+   * building the fallback content but BEFORE the fallback write queue.
+   * The hook may return a Promise to simulate queue delay. The route waits
+   * for it before proceeding to the disconnect guard and write queue.
+   * Set to null to restore normal behavior.
+   */
+  preFallbackWriteHook: null as (() => Promise<void> | void) | null,
+  /**
+   * When set to a non-null function, the AI pipeline .then() callback calls
+   * it AFTER emitting model_beats/score but BEFORE the model write queue.
+   * Used to simulate disconnect during model write queue wait.
+   */
+  preModelWriteHook: null as (() => Promise<void> | void) | null,
 };

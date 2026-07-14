@@ -132,6 +132,7 @@ let closeHandshake = null;
 let quitRequested = false;
 let closeRecoveryDialogPromise = null;
 let latestCloseBlockedDetails = null;
+let createWindowInFlight = false;
 
 // ── Startup Diagnostics ──────────────────────────────────────────────
 
@@ -508,6 +509,42 @@ const runWatchdogCheck = createSingleFlight(async () => {
   }
 });
 
+// ── Single-server guarantee for Dock re-activation ───────────────────
+// Decides whether the packaged window should reuse the live server child,
+// restart an unhealthy one, or start fresh. Single-flight so concurrent
+// activate events coalesce into a single backend decision and never spawn
+// a second orphaned child. Never nulls/overwrites serverProcess while a
+// live child exists; the restart path uses stopServerAndWait which waits
+// for exit before reassigning.
+
+async function performEnsurePackagedServer() {
+  if (isQuitting) throw new Error('app is quitting');
+  const child = serverProcess;
+  const childAlive = !!child && child.exitCode === null;
+  if (childAlive) {
+    // Probe the existing port. Accept any 2xx/3xx/4xx as "alive".
+    try {
+      const statusCode = await probeHttp(http.get, `http://localhost:${serverPort}`, 2500);
+      if (statusCode < 500) {
+        // Healthy: reuse process, port, origin. Do NOT overwrite serverProcess.
+        return serverPort;
+      }
+    } catch {
+      // probe failed -> fall through to restart path
+    }
+    // Child alive but unhealthy: the single-flight restart handles stop+wait+restart.
+    await restartServer();
+    return serverPort;
+  }
+  // No live child: start fresh, preserve last port preference.
+  const port = await startServer(serverPort || undefined);
+  serverPort = port;
+  await waitForServer(port);
+  startWatchdog(port);
+  return port;
+}
+const ensurePackagedServerForWindow = createSingleFlight(performEnsurePackagedServer);
+
 async function exportPendingCloseSnapshot(snapshot, reason) {
   if (!snapshot) {
     dialog.showErrorBox('无法导出', '渲染器尚未提供可导出的未保存内容快照。请返回编辑器复制内容或重试保存。');
@@ -576,6 +613,11 @@ function showCloseRecoveryDialog(details) {
 // ── Window Creation ──────────────────────────────────────────────────
 
 async function createWindow() {
+  // Concurrent-activate guard: coalesce rapid Dock clicks into one window
+  // creation and one backend decision.
+  if (createWindowInFlight) return;
+  createWindowInFlight = true;
+
   buildAppMenu();
   closeHandshake = null;
 
@@ -587,10 +629,8 @@ async function createWindow() {
       port = 3000;
       await waitForServer(port);
     } else {
-      port = await startServer();
-      serverPort = port;
-      await waitForServer(port);
-      startWatchdog(port);
+      // Reuse a live backend or start fresh — never spawns a second child.
+      port = await ensurePackagedServerForWindow();
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -602,6 +642,8 @@ async function createWindow() {
     dialog.showErrorBox('InkFlow 启动失败', detail);
     app.quit();
     return;
+  } finally {
+    createWindowInFlight = false;
   }
 
   const windowState = loadWindowState();
