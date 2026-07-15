@@ -392,6 +392,9 @@ ${genderConstraint}
       if (pack.novelId !== novelId) {
         return res.status(409).json({ error: 'Continuation pack does not belong to novel' });
       }
+      if (pack.status !== 'approved') {
+        return res.status(400).json({ error: 'Only approved packs can be used for outline generation' });
+      }
       continuationPackContext = buildContinuationContext(pack);
     }
     const jobController = new AbortController();

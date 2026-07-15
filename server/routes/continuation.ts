@@ -38,6 +38,11 @@ import {
   DOCX_ARCHIVE_LIMITS,
   validateArchiveManifest,
 } from '../../shared/lib/archive-limits';
+import {
+  applyContinuationConflictResolutions,
+  canApproveContinuationImportPack,
+  isContinuationContradictionResolved,
+} from '../../shared/lib/continuation-import-flow';
 
 interface UploadedDocument {
   filename: string;
@@ -80,6 +85,10 @@ const approveContinuationImportSchema = z.object({
     title: z.string().min(1).max(500),
     summary: z.string().max(20_000).default(''),
   }).optional(),
+  conflictResolutions: z.array(z.object({
+    contradictionId: z.string().min(1).max(300),
+    resolution: z.string().trim().min(1).max(1_000),
+  })).max(10).default([]),
 });
 
 function pruneParseDocJobs(): void {
@@ -604,6 +613,26 @@ export function registerContinuationRoutes(app: Express) {
     const storedPack = db.getContinuationPack(input.packId);
     const sourcePack = pending?.pack || storedPack;
     if (!sourcePack) return res.status(404).json({ error: '续写资料包不存在或已过期' });
+    if (sourcePack.status === 'approved') {
+      return res.status(409).json({ error: '续写资料包已批准，不能重复修改冲突裁决' });
+    }
+
+    let resolvedPack: ContinuationPack;
+    try {
+      resolvedPack = applyContinuationConflictResolutions(sourcePack, input.conflictResolutions);
+    } catch (error) {
+      logger.warn('续写资料包冲突裁决无效:', error);
+      return res.status(400).json({ error: '冲突裁决无效，请检查冲突 ID 与方案内容' });
+    }
+    if (!canApproveContinuationImportPack(resolvedPack)) {
+      const error = resolvedPack.canonFacts.length === 0
+        ? '资料包缺少可确认的事实，无法批准'
+        : '资料包仍有未解决的高风险冲突，无法批准';
+      return res.status(409).json({ error });
+    }
+    if (resolvedPack.contradictions.filter(isContinuationContradictionResolved).length > 10) {
+      return res.status(409).json({ error: '冲突裁决数量超过上限，请精简后重试' });
+    }
 
     try {
       let approvedNovel: ReturnType<typeof db.getNovel>;
@@ -632,7 +661,7 @@ export function registerContinuationRoutes(app: Express) {
         }
 
         approvedPack = {
-          ...sourcePack,
+          ...resolvedPack,
           novelId: approvedNovel.id,
           status: 'approved',
           updatedAt: Date.now(),
@@ -640,7 +669,9 @@ export function registerContinuationRoutes(app: Express) {
         if (pending) {
           db.createContinuationPack(approvedPack);
         } else if (!db.updateContinuationPack(sourcePack.id, {
+          contradictions: approvedPack.contradictions,
           status: 'approved',
+          updatedAt: approvedPack.updatedAt,
         })) {
           throw new Error('Continuation pack disappeared during approval');
         }

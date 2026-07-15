@@ -594,6 +594,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                 onUnstackDeconstructionCard={onUnstackDeconstructionCard}
                 onSkipAsset={onSkipAsset}
                 onSwitchTab={setAgentTab}
+                projectPreferenceProfile={projectPreferenceProfile}
                 onPreferenceProfileChange={onPreferenceProfileChange}
               />
             </div>

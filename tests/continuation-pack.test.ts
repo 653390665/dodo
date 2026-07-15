@@ -49,6 +49,57 @@ test('buildContinuationContext prioritizes hard canon and current plot state', (
   assert.doesNotMatch(context, /可以慢热/);
 });
 
+test('buildContinuationContext injects accepted conflict resolutions with priority', () => {
+  const pack: ContinuationPack = {
+    id: 'pack-1', novelId: 'novel-1', title: '测试资料包', status: 'approved',
+    sourceDocuments: [],
+    canonFacts: [{ id: 'f1', priority: 'hard', category: 'plot', text: '主角仍在城内。', evidence: '原文' }],
+    characterStates: [],
+    plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
+    styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
+    contradictions: [{
+      id: 'c1',
+      severity: 'high',
+      summary: '主角去向冲突',
+      conflictingEvidence: ['城内', '城外'],
+      suggestedResolution: '以最新章节为准',
+      acceptedResolution: '主角仍在城内，以最新章节为准。',
+      resolvedAt: 123,
+    }],
+    continuationTask: '续写下一章。',
+    createdAt: 1, updatedAt: 1,
+  };
+
+  const context = buildContinuationContext(pack);
+  assert.match(context, /【冲突裁决，优先遵循】/);
+  assert.match(context, /主角去向冲突：主角仍在城内，以最新章节为准/);
+});
+
+test('buildContinuationContext never injects unaccepted suggestions or truncates accepted resolutions', () => {
+  const contradictions: ContinuationPack['contradictions'] = Array.from({ length: 11 }, (_, index) => ({
+    id: `c-${index}`,
+    severity: 'high',
+    summary: `冲突 ${index}`,
+    conflictingEvidence: ['A', 'B'],
+    suggestedResolution: `未采纳建议 ${index}`,
+    ...(index === 0 ? {} : {
+      acceptedResolution: `已采纳裁决 ${index}`,
+      resolvedAt: 100 + index,
+    }),
+  }));
+  const pack: ContinuationPack = {
+    id: 'pack-many', novelId: 'novel-1', title: '测试资料包', status: 'approved',
+    sourceDocuments: [], canonFacts: [], characterStates: [], contradictions,
+    plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
+    styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
+    continuationTask: '继续写。', createdAt: 1, updatedAt: 1,
+  };
+
+  const context = buildContinuationContext(pack);
+  assert.doesNotMatch(context, /未采纳建议 0/);
+  assert.match(context, /已采纳裁决 10/);
+});
+
 test('buildCreationIntentDraft returns empty for null pack', () => {
   assert.equal(buildCreationIntentDraft(null), '');
 });

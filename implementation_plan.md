@@ -90,3 +90,19 @@ Plan 126 仅在本地全量门禁及 macOS/Windows packaged lifecycle smoke 全�
 8. macOS/Windows 打包及 packaged lifecycle smoke
 
 Plan 129–131 在完整 Node 原生测试、Playwright 和双平台打包生命周期全部通过前保持 `IN PROGRESS`。
+
+## Plan 134：续写资料冲突裁决闭环
+
+### 目标
+
+在不新增依赖或数据库迁移的前提下，让 AI 给出的冲突方案可被用户采纳、服务端验证并随资料包持久化，解除确认按钮死锁，并将已采纳裁决注入后续写作上下文。
+
+### 并行边界
+
+- Agent A（前端）：确认页展示冲突证据与可编辑方案，逐项采纳后启用确认；审批请求携带裁决。
+- Agent B（后端/共享）：扩展冲突 JSON 类型与审批校验，原子持久化裁决，并写入续写上下文。
+- Gatekeeper：覆盖未解决 high 冲突阻断、采纳后放行、伪造 ID 拒绝、上下文注入及前端交互。
+
+### 验收
+
+`npm run typecheck`、`npm run lint`、相关后端/前端测试、`git diff --check` 全部通过；不得绕过未解决的 high 冲突，不修改数据库表结构。

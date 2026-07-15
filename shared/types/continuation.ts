@@ -46,6 +46,12 @@ export interface ContinuationStyleProfile {
 export interface ContinuationContradiction {
   id: string; severity: 'low' | 'medium' | 'high';
   summary: string; conflictingEvidence: string[]; suggestedResolution: string;
+  acceptedResolution?: string; resolvedAt?: number;
+}
+
+export interface ContinuationConflictResolution {
+  contradictionId: string;
+  resolution: string;
 }
 
 export interface ContinuationPack {

@@ -29,6 +29,7 @@ describe('outline chapter navigation', () => {
         chapters={[chapter]}
         currentChapter={null}
         onSelectChapter={onSelectChapter}
+        selectedContinuationPack={null}
       />,
     );
 
