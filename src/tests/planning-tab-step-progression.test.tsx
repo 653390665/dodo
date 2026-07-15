@@ -45,21 +45,6 @@ async function clickAdvance() {
   await act(async () => { await new Promise(r => setTimeout(r, 50)); });
 }
 
-/** Build a saved profile for step 1 → step 2 transition. */
-function savedProfileForStep1() {
-  return {
-    tags: [
-      'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1',
-      'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step2',
-    ],
-    weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
-    acceptedDimensions: [],
-    rejectedDimensions: [],
-    notes: [],
-    evidenceCount: 0,
-  };
-}
-
 // ── Tests ─────────────────────────────────────────────────────────
 
 describe('PlanningTab Step Progression', () => {

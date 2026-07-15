@@ -203,6 +203,7 @@ export function AgentWorkspaceProductionPanel({
         chapters={chapters}
         currentChapter={currentChapter}
         onSelectChapter={onSelectChapter}
+        selectedContinuationPack={selectedContinuationPack}
       />
     );
   }

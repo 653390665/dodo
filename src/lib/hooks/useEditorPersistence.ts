@@ -234,15 +234,18 @@ export function useEditorPersistence({
     }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'sceneBeats', value: newBeats });
   };
 
-  const handleUpdateGlobalOutline = (val: string) => {
+  const handleUpdateGlobalOutline = useCallback((val: string): boolean => {
     setGlobalOutline(val);
     setIsSyncing(true);
     setSyncSuccess(false);
     hasWriteActivityRef.current = true;
     queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
-      await updateNovel(novel.id, { globalOutline: val });
+      const saved = await updateNovel(novel.id, { globalOutline: val });
+      if (!saved) return false;
+      return true;
     }, 1000, { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val });
-  };
+    return true;
+  }, [novel.id, setGlobalOutline]);
 
   const handleAddChapter = async (targetVolumeName?: string) => {
     if (!await flushBeforeChangingEditorContext()) return;

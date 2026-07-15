@@ -6,6 +6,7 @@ import {
   getNovel, subscribeToChanges, listEntityRelationshipsClient
 } from '../api';
 import { coerceMountedSkillLoadout } from '../skill-model';
+import { hasPendingWriteForExactKey } from '../editor-write-queue';
 
 export function useEditorData(novelId: string) {
   const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
@@ -23,12 +24,19 @@ export function useEditorData(novelId: string) {
   const [mountedSkillLoadout, setMountedSkillLoadout] = useState<MountedSkillLoadoutItem[]>([]);
   const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
   const [projectPreferenceProfile, setProjectPreferenceProfile] = useState<ProjectPreferenceProfile | undefined>(undefined);
+  const [globalOutline, setGlobalOutlineRaw] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
   const dataRequestSeqRef = useRef(0);
   const chapterRequestSeqRef = useRef(0);
   const selectedChapterIdRef = useRef<string | null>(null);
   const currentChapterRef = useRef<Chapter | null>(null);
+  const globalOutlineRevisionRef = useRef(0);
+
+  const setGlobalOutline = useCallback((value: string | ((prev: string) => string)) => {
+    globalOutlineRevisionRef.current += 1;
+    setGlobalOutlineRaw(value);
+  }, []);
 
   useEffect(() => {
     currentChapterRef.current = currentChapter;
@@ -119,6 +127,7 @@ export function useEditorData(novelId: string) {
 
   const fetchAll = useCallback(async () => {
     const requestSeq = ++dataRequestSeqRef.current;
+    const revisionAtStart = globalOutlineRevisionRef.current;
 
     try {
       const [freshChapters, freshNovel] = await Promise.all([
@@ -136,6 +145,13 @@ export function useEditorData(novelId: string) {
             : coerceMountedSkillLoadout(freshNovel.mountedSkillIds)
         );
         setProjectPreferenceProfile(freshNovel.projectPreferenceProfile);
+        if (
+          freshNovel.globalOutline !== undefined
+          && revisionAtStart === globalOutlineRevisionRef.current
+          && !hasPendingWriteForExactKey(`novel:${novelId}:globalOutline`)
+        ) {
+          setGlobalOutlineRaw(freshNovel.globalOutline || '');
+        }
       }
 
       const selectedId = selectedChapterIdRef.current;
@@ -181,10 +197,12 @@ export function useEditorData(novelId: string) {
     /* eslint-disable react-hooks/set-state-in-effect -- reset visible editor state before loading a different project */
     dataRequestSeqRef.current += 1;
     chapterRequestSeqRef.current += 1;
+    globalOutlineRevisionRef.current = 0;
     selectedChapterIdRef.current = null;
     currentChapterRef.current = null;
     setSelectedChapterId(null);
     setCurrentChapter(null);
+    setGlobalOutlineRaw('');
     setIsLoading(true);
     setChapterLoading(false);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -227,6 +245,8 @@ export function useEditorData(novelId: string) {
     setRelationships,
     projectPreferenceProfile,
     setProjectPreferenceProfile,
+    globalOutline,
+    setGlobalOutline,
     isLoading,
     refreshEditorData: fetchAll
   };

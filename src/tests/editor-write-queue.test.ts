@@ -5,6 +5,7 @@ import {
   flushPendingEditorWrites,
   hasFailedEditorWrites,
   hasPendingEditorWrites,
+  hasPendingWriteForExactKey,
   getPendingEditorWriteSnapshots,
   queueEditorWrite,
 } from '../lib/editor-write-queue';
@@ -81,5 +82,33 @@ describe('editor write boundary', () => {
       failed: false,
     }]);
     expect(writer).not.toHaveBeenCalled();
+  });
+
+  test('hasPendingWriteForExactKey returns true for pending write', () => {
+    queueEditorWrite('novel:1:globalOutline', async () => true, 1000);
+    expect(hasPendingWriteForExactKey('novel:1:globalOutline')).toBe(true);
+  });
+
+  test('hasPendingWriteForExactKey returns false for non-existent key', () => {
+    queueEditorWrite('novel:1:globalOutline', async () => true, 1000);
+    expect(hasPendingWriteForExactKey('novel:2:globalOutline')).toBe(false);
+  });
+
+  test('hasPendingWriteForExactKey returns false after flush', async () => {
+    queueEditorWrite('novel:1:globalOutline', async () => true, 0);
+    await flushPendingEditorWrites();
+    expect(hasPendingWriteForExactKey('novel:1:globalOutline')).toBe(false);
+  });
+
+  test('hasPendingWriteForExactKey returns true for failed write', async () => {
+    queueEditorWrite('novel:1:globalOutline', async () => { throw new Error('fail'); }, 0);
+    await flushPendingEditorWrites().catch(() => {});
+    expect(hasPendingWriteForExactKey('novel:1:globalOutline')).toBe(true);
+  });
+
+  test('hasPendingWriteForExactKey does not match partial key', () => {
+    queueEditorWrite('novel:1:globalOutline', async () => true, 1000);
+    expect(hasPendingWriteForExactKey('globalOutline')).toBe(false);
+    expect(hasPendingWriteForExactKey('novel:1:')).toBe(false);
   });
 });
