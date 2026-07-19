@@ -8,7 +8,7 @@ import express from 'express';
 import { registerContinuationRoutes } from '../server/routes/continuation.js';
 import { registerDbRoutes } from '../server/routes/db.js';
 import { closeDb, createContinuationPack, createNovel, initDb } from '../server/lib/db.js';
-import { getDb, getDatabaseGeneration, advanceDatabaseGeneration } from '../server/lib/db-instance.js';
+import { getDb, getDatabaseGeneration, advanceDatabaseGeneration, holdWriteQueue, drainWriteQueue, runInSerializedWriteForGeneration } from '../server/lib/db-instance.js';
 import { reloadConfig } from '../server/lib/config.js';
 import { __rateLimitTestHooks } from '../server/middleware/rate-limit.js';
 import {
@@ -1042,14 +1042,20 @@ test('T3.1: transaction rollback — mid-write failure preserves all entities', 
   const beforeLocs = listLocations(NOVEL_ID).map(l => l.name).sort();
   const beforeRels = listEntityRelationships(NOVEL_ID).map(r => `${r.sourceType}:${r.sourceId}-${r.targetType}:${r.targetId}`).sort();
 
-  // Create a pack, then delete it AFTER the transaction starts writing.
-  // The transaction will read entities, start writing, then fail at pack check
-  // (pack was deleted), causing full rollback.
+  // Create a trigger that fires on the SECOND location INSERT and throws an error.
+  // This simulates a mid-transaction failure AFTER the character is written
+  // but BEFORE the transaction commits — forcing a full rollback.
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_t3_rollback_fail
+    AFTER INSERT ON locations
+    WHEN NEW.name = '回滚地点'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated mid-write failure');
+    END;
+  `);
+
   const pack = makePack('t3-rollback-mid', NOVEL_ID, 'approved');
   createContinuationPack(pack);
-
-  // Delete pack to trigger PACK_NOT_FOUND inside the transaction
-  db.prepare('DELETE FROM continuation_packs WHERE id = ?').run('t3-rollback-mid');
 
   const res = await fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
     method: 'POST',
@@ -1063,11 +1069,14 @@ test('T3.1: transaction rollback — mid-write failure preserves all entities', 
       relationships: [{ sourceName: '回滚角色', sourceType: 'character', targetName: '回滚地点', targetType: 'location', relationshipType: '关联', description: '' }],
     }),
   });
-  assert.equal(res.status, 404);
+  assert.equal(res.status, 500);
 
-  // All pre-seed data must survive — no partial writes
-  assert.deepEqual(listCharacters(NOVEL_ID).map(c => c.name).sort(), beforeChars, 'pre-seed characters survive');
-  assert.deepEqual(listLocations(NOVEL_ID).map(l => l.name).sort(), beforeLocs, 'pre-seed locations survive');
+  // Clean up trigger
+  db.exec('DROP TRIGGER IF EXISTS trg_t3_rollback_fail');
+
+  // ALL pre-seed data must survive AND the mid-written character must be rolled back
+  assert.deepEqual(listCharacters(NOVEL_ID).map(c => c.name).sort(), beforeChars, 'pre-seed characters survive, mid-write character rolled back');
+  assert.deepEqual(listLocations(NOVEL_ID).map(l => l.name).sort(), beforeLocs, 'pre-seed locations survive, mid-write location rolled back');
   assert.deepEqual(listEntityRelationships(NOVEL_ID).map(r => `${r.sourceType}:${r.sourceId}-${r.targetType}:${r.targetId}`).sort(), beforeRels, 'pre-seed relationships survive');
 });
 
@@ -1078,44 +1087,63 @@ test('T3.2: FIFO novel fields — second sync does not overwrite first', async (
   createContinuationPack(pack2);
 
   const dbInstance = getDb();
+  const gen = getDatabaseGeneration();
 
-  // First sync sets globalOutline and worldRules
-  const res1 = await fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
+  // Hold the write queue so we can enqueue operations in controlled order
+  const release = holdWriteQueue();
+
+  // 1. Enqueue a "user save" that sets globalOutline and worldRules
+  const userSavePromise = runInSerializedWriteForGeneration(gen, () => {
+    dbInstance.prepare('UPDATE novels SET global_outline = ?, world_rules = ? WHERE id = ?').run('用户保存的大纲', '用户保存的规则', NOVEL_ID);
+    return { executed: true as const, result: 'user-save' };
+  });
+
+  // 2. Enqueue sync pack1 (should see the user save's values and NOT overwrite them)
+  const sync1Promise = fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       packId: pack1.id,
       novelId: NOVEL_ID,
-      databaseGeneration: getDatabaseGeneration(),
+      databaseGeneration: gen,
       characters: [],
       globalOutline: '第一版大纲',
       worldRules: '第一版规则',
     }),
   });
-  assert.equal(res1.status, 200);
 
-  const row1 = dbInstance.prepare('SELECT global_outline, world_rules FROM novels WHERE id = ?').get(NOVEL_ID) as { global_outline: string; world_rules: string };
-  assert.equal(row1.global_outline, '第一版大纲');
-  assert.equal(row1.world_rules, '第一版规则');
-
-  // Second sync tries to overwrite — should be ignored (FIFO)
-  const res2 = await fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
+  // 3. Enqueue sync pack2 (FIFO: should NOT overwrite pack1's result)
+  const sync2Promise = fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       packId: pack2.id,
       novelId: NOVEL_ID,
-      databaseGeneration: getDatabaseGeneration(),
+      databaseGeneration: gen,
       characters: [],
       globalOutline: '第二版大纲',
       worldRules: '第二版规则',
     }),
   });
-  assert.equal(res2.status, 200);
 
-  const row2 = dbInstance.prepare('SELECT global_outline, world_rules FROM novels WHERE id = ?').get(NOVEL_ID) as { global_outline: string; world_rules: string };
-  assert.equal(row2.global_outline, '第一版大纲', 'FIFO: first write wins for globalOutline');
-  assert.equal(row2.world_rules, '第一版规则', 'FIFO: first write wins for worldRules');
+  // Release — operations drain in FIFO order
+  release();
+
+  const [userSaveResult, res1, res2] = await Promise.all([userSavePromise, sync1Promise, sync2Promise]);
+  assert.ok(userSaveResult.executed, 'user save executed');
+
+  const body1 = await res1.json() as { error?: string };
+  const body2 = await res2.json() as { error?: string };
+
+  // Both syncs should succeed (user save ran first, syncs follow)
+  assert.equal(res1.status, 200, `sync1 status: ${JSON.stringify(body1)}`);
+  assert.equal(res2.status, 200, `sync2 status: ${JSON.stringify(body2)}`);
+
+  // FIFO: user save wrote first, then sync1 wrote on top (since novel fields were already non-empty
+  // at the time sync1 ran, sync1 should NOT overwrite user save's values)
+  const row = dbInstance.prepare('SELECT global_outline, world_rules FROM novels WHERE id = ?').get(NOVEL_ID) as { global_outline: string; world_rules: string };
+  assert.equal(row.global_outline, '用户保存的大纲', 'FIFO: user save values preserved — sync did not overwrite');
+  assert.equal(row.world_rules, '用户保存的规则', 'FIFO: user save values preserved — sync did not overwrite');
 });
 
 test('T3.3: concurrent syncs do not produce duplicate entities', async () => {
@@ -1124,30 +1152,39 @@ test('T3.3: concurrent syncs do not produce duplicate entities', async () => {
   createContinuationPack(pack1);
   createContinuationPack(pack2);
 
+  const gen = getDatabaseGeneration();
   const payload1 = {
     packId: pack1.id,
     novelId: NOVEL_ID,
-    databaseGeneration: getDatabaseGeneration(),
+    databaseGeneration: gen,
     characters: [{ name: '并发角色' }],
     locations: [{ name: '并发地点' }],
   };
   const payload2 = {
     packId: pack2.id,
     novelId: NOVEL_ID,
-    databaseGeneration: getDatabaseGeneration(),
+    databaseGeneration: gen,
     characters: [{ name: '并发角色' }],
     locations: [{ name: '并发地点' }],
   };
 
-  // Fire both concurrently
-  const [res1, res2] = await Promise.all([
-    fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload1),
-    }),
-    fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload2),
-    }),
-  ]);
+  // Hold the queue so both syncs are guaranteed to be queued before either runs
+  const release = holdWriteQueue();
+
+  const p1 = fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload1),
+  });
+  const p2 = fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload2),
+  });
+
+  // Small delay to ensure both HTTP requests are received and queued
+  await new Promise(r => setTimeout(r, 50));
+
+  // Release — both syncs now run in FIFO order
+  release();
+
+  const [res1, res2] = await Promise.all([p1, p2]);
 
   const body1 = await res1.json() as { created: { characters: number }; skipped: { characters: number } };
   const body2 = await res2.json() as { created: { characters: number }; skipped: { characters: number } };

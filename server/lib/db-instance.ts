@@ -50,9 +50,11 @@ export function runInTransaction<T>(fn: () => T): T {
  */
 class WriteQueue {
   private queue: Promise<unknown> = Promise.resolve();
+  private latch: Promise<void> | null = null;
 
   async run<T>(fn: () => Promise<T> | T): Promise<T> {
     const next = this.queue.then(async () => {
+      if (this.latch) await this.latch;
       return fn();
     });
     this.queue = next.catch(() => {});
@@ -61,6 +63,13 @@ class WriteQueue {
 
   async drain(): Promise<void> {
     await this.queue;
+  }
+
+  /** Test-only: hold the queue until the returned resolve function is called. */
+  hold(): () => void {
+    let resolver: () => void;
+    this.latch = new Promise<void>((resolve) => { resolver = resolve; });
+    return () => { this.latch = null; resolver(); };
   }
 }
 
@@ -112,6 +121,11 @@ export function isDbInitialized(): boolean {
 /** Wait for all pending serialized writes to finish. */
 export async function drainWriteQueue(): Promise<void> {
   await writeQueue.drain();
+}
+
+/** Test-only: hold the write queue until the returned resolve function is called. */
+export function holdWriteQueue(): () => void {
+  return writeQueue.hold();
 }
 
 /** Closes the database connection and clears the singleton. */
