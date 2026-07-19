@@ -1,0 +1,556 @@
+import { type Dispatch, type RefObject, type SetStateAction } from 'react';
+import type { Novel, Chapter, Skill } from '../../../../shared/types';
+import type { AgentContext } from '../../agents';
+import { buildContextPrompt } from '../../agents';
+import { createChapterVersion, updateChapter } from '../../chapter-client';
+import { readSseStream } from '../../sse-client';
+import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
+import {
+  applyPatchWindow,
+  extractPolishTargetsFromCritique,
+  removeRepeatedQuotedBlocks,
+  selectRewriteTargetsForPatch,
+  validatePolishCandidate,
+} from '../../chapter-polish.js';
+
+interface UseAuditPolishActionsArgs {
+  novel: Novel;
+  currentChapter: Chapter | null;
+  mountedSkills: Skill[];
+  contentRef: RefObject<HTMLTextAreaElement | null>;
+  polishPromptSurface: string;
+  requestSeqRef: { current: number };
+  abortControllerRef: { current: AbortController | null };
+  latestChapterIdRef: { current: string | null };
+  setIsGeneratingContent: (val: boolean) => void;
+  setIsGeneratingCritique: (val: boolean) => void;
+  setGenerationStatus: (val: string | null) => void;
+  setAuditStatus: (val: string | null) => void;
+  setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
+  buildAgentContext: () => AgentContext;
+  handleUpdateContent: (newContent: string, isProgrammatic?: boolean, skipPersist?: boolean) => void;
+  getCurrentFitScore: () => number;
+  recordSkillUsage: (
+    userAction: 'accepted' | 'revised' | 'rejected',
+    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[]; databaseGeneration?: number },
+  ) => Promise<void>;
+  formatAiFailure: (error: unknown, actionLabel: string) => string;
+  flushPendingEditorWrites: () => Promise<void>;
+}
+
+export function useAuditPolishActions({
+  novel,
+  currentChapter,
+  mountedSkills,
+  contentRef,
+  polishPromptSurface,
+  requestSeqRef,
+  abortControllerRef,
+  latestChapterIdRef,
+  setIsGeneratingContent,
+  setIsGeneratingCritique,
+  setGenerationStatus,
+  setAuditStatus,
+  setCurrentChapter,
+  buildAgentContext,
+  handleUpdateContent,
+  getCurrentFitScore,
+  recordSkillUsage,
+  formatAiFailure,
+  flushPendingEditorWrites,
+}: UseAuditPolishActionsArgs) {
+
+  const isRequestCurrent = (startingChapterId: string | undefined, currentSeq: number) =>
+    latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq;
+
+  const restorePreviewIfCurrent = (
+    baseline: string,
+    startingChapterId: string | undefined,
+    currentSeq: number,
+  ) => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+    handleUpdateContent(baseline, false, true);
+  };
+
+  const commitChapterContent = async (
+    chapterId: string,
+    content: string,
+    startingChapterId: string | undefined,
+    currentSeq: number,
+    extraUpdates: Partial<Chapter> = {},
+    databaseGeneration?: number,
+  ): Promise<boolean> => {
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
+    const saved = await updateChapter(chapterId, {
+      content,
+      updatedAt: Date.now(),
+      wordCount: content.replace(/\s/g, '').length,
+      ...extraUpdates,
+    }, databaseGeneration);
+    if (!saved) throw new Error('章节已不存在，生成结果未保存。');
+    if (!isRequestCurrent(startingChapterId, currentSeq)) return false;
+    setCurrentChapter((prev) => (prev?.id === chapterId ? { ...prev, content, ...extraUpdates } : prev));
+    return true;
+  };
+
+  const handleRunAudit = async () => {
+    const startingChapterId = currentChapter?.id;
+    if (!currentChapter) return;
+
+    const currentSeq = ++requestSeqRef.current;
+    const controller = new AbortController();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = controller;
+    let auditJobId: string | null = null;
+    let auditDatabaseGeneration: number | null = null;
+    let auditJobCompleted = false;
+    let cancelRequested = false;
+    const cancelAuditJob = () => {
+      if (!auditJobId || cancelRequested) return;
+      cancelRequested = true;
+      if (auditDatabaseGeneration === null) return;
+      void fetch(`/api/audit/jobs/${encodeURIComponent(auditJobId)}/cancel?databaseGeneration=${auditDatabaseGeneration}`, { method: 'POST' }).catch(() => {});
+    };
+    controller.signal.addEventListener('abort', cancelAuditJob, { once: true });
+
+    setIsGeneratingCritique(true);
+    setAuditStatus('正在整理正文与分镜，提交总编审读…');
+    try {
+      await flushPendingEditorWrites();
+      const latestContent = contentRef.current?.value ?? currentChapter.content;
+      const contextStr = buildContextPrompt(buildAgentContext());
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surface: polishPromptSurface,
+          draftContent: latestContent,
+          sceneBeats: currentChapter.sceneBeats,
+          contextStr,
+          skills: mountedSkills,
+          novelId: novel.id,
+          chapterOrder: currentChapter ? currentChapter.order : 1,
+        }),
+        signal: controller.signal,
+      });
+
+      const initData = await response.json();
+
+      if (initData && initData.quotaExceeded) {
+        window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+          detail: {
+            limitType: initData.limitType,
+            count: initData.count,
+            max: initData.max,
+            error: initData.error,
+          }
+        }));
+        throw new Error('QUOTA_LIMIT_EXCEEDED');
+      }
+
+      if (initData.error) throw new Error(initData.error);
+      auditJobId = initData.jobId;
+      auditDatabaseGeneration = initData.databaseGeneration;
+      if (!auditJobId || !Number.isInteger(auditDatabaseGeneration)) throw new Error('Failed to initiate audit job');
+      const databaseGeneration = auditDatabaseGeneration as number;
+
+      let jobResult: Record<string, unknown> | null = null;
+      while (true) {
+        if (controller.signal.aborted) throw new Error('AbortError');
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            controller.signal.removeEventListener('abort', onAbort);
+            resolve();
+          }, 1500);
+          const onAbort = () => {
+            clearTimeout(timer);
+            controller.signal.removeEventListener('abort', onAbort);
+            reject(controller.signal.reason || new DOMException('Aborted', 'AbortError'));
+          };
+          if (controller.signal.aborted) onAbort();
+          else controller.signal.addEventListener('abort', onAbort, { once: true });
+        });
+
+        const jobResponse = await fetch(`/api/audit/jobs/${auditJobId}?databaseGeneration=${databaseGeneration}`, {
+          signal: controller.signal,
+        });
+        if (!jobResponse.ok) {
+          throw new Error(`Failed to check audit status: ${jobResponse.status}`);
+        }
+        const job = await jobResponse.json();
+
+        if (job.status === 'completed') {
+          auditJobCompleted = true;
+          jobResult = job.result;
+          break;
+        } else if (job.status === 'failed') {
+          throw new Error('智能审稿服务异常或超时，请重试。');
+        } else {
+          const percent = job.progress || 0;
+          setAuditStatus(`[${percent}%] ${job.stageText || '总编正在逐段扫描机械感、节奏和人设一致性…'}`);
+        }
+      }
+
+      if (!jobResult) throw new Error('AI Audit returned no result');
+
+      const numericAuditScore = typeof jobResult.score === 'number'
+        ? jobResult.score
+        : Number(String(jobResult.feedback || '').match(/(\d{2,3})\s*分/)?.[1] || 0) || undefined;
+
+      const feedbackStr = typeof jobResult.feedback === 'string' ? jobResult.feedback : '';
+
+      if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+      const saved = await updateChapter(currentChapter.id, { critique: feedbackStr }, databaseGeneration);
+      if (!saved) throw new Error('章节已不存在，审稿结果未保存。');
+      if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, critique: feedbackStr } : prev));
+      try {
+        await recordSkillUsage('revised', {
+          fitScore: getCurrentFitScore(),
+          auditScore: numericAuditScore,
+          notes: 'run-audit-success',
+          databaseGeneration,
+        });
+      } catch {
+        // Auxiliary telemetry must not roll back committed critique.
+      }
+      setAuditStatus(null);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
+      setAuditStatus(null);
+      alert(formatAiFailure(error, '审稿'));
+    } finally {
+      controller.signal.removeEventListener('abort', cancelAuditJob);
+      if (!auditJobCompleted) cancelAuditJob();
+      if (requestSeqRef.current === currentSeq) {
+        setIsGeneratingCritique(false);
+        setAuditStatus(null);
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleRewriteSelectedText = async () => {
+    const startingChapterId = currentChapter?.id;
+    if (!contentRef.current || !currentChapter) return;
+
+    const currentSeq = ++requestSeqRef.current;
+    const start = contentRef.current.selectionStart;
+    const end = contentRef.current.selectionEnd;
+    if (start === end) {
+      alert('请先在右侧区域选中一段您需要改写的文字，然后再点击此按钮。');
+      return;
+    }
+    const instruction = prompt('请输入改写要求（如：更加通俗易懂，或者更有文学色彩），留空则由 AI 自动润色：');
+    if (instruction === null) return;
+
+    setIsGeneratingContent(true);
+    const controller = new AbortController();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = controller;
+
+    let baselineContent = currentChapter.content;
+
+    try {
+      await flushPendingEditorWrites();
+      baselineContent = contentRef.current?.value ?? currentChapter.content;
+      const response = await fetch('/api/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: baselineContent.substring(start, end),
+          instruction,
+          contextStr: buildContextPrompt(buildAgentContext()),
+          novelId: novel.id,
+          skills: mountedSkills,
+        }),
+        signal: controller.signal,
+      });
+
+      if (response.status === 403) {
+        const data = await response.json().catch(() => ({}));
+        if (data && data.quotaExceeded) {
+          window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+            detail: {
+              limitType: data.limitType,
+              count: data.count,
+              max: data.max,
+              error: data.error,
+            }
+          }));
+          throw new Error('QUOTA_LIMIT_EXCEEDED');
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Rewrite failed.');
+      }
+      const databaseGeneration = requireResponseDatabaseGeneration(response);
+
+      let previewAccum = '';
+      const streamResult = await readSseStream(response, (token) => {
+        previewAccum += token;
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+        const preview = baselineContent.substring(0, start) + previewAccum + baselineContent.substring(end);
+        handleUpdateContent(preview, false, true);
+      });
+
+      if (!streamResult.done) {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        alert('改写流未正常结束，已恢复原文。');
+        return;
+      }
+
+      const rewritten = streamResult.text;
+      const newText = baselineContent.substring(0, start) + rewritten + baselineContent.substring(end);
+
+      if (!rewritten.trim()) {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        alert('改写结果为空，已恢复原文。');
+        return;
+      }
+
+      const committed = await commitChapterContent(
+        currentChapter.id,
+        newText,
+        startingChapterId,
+        currentSeq,
+        {},
+        databaseGeneration,
+      );
+      if (!committed) return;
+
+      try {
+        await createChapterVersion({
+          id: Date.now().toString(),
+          chapterId: currentChapter.id,
+          content: newText,
+          wordCount: newText.replace(/\s/g, '').length,
+          author: 'user',
+          createdAt: Date.now(),
+        }, databaseGeneration);
+      } catch {
+        // Version history failure must not roll back committed content.
+      }
+
+      try {
+        await recordSkillUsage('accepted', {
+          fitScore: getCurrentFitScore(),
+          notes: 'text-rewrite-selected',
+          databaseGeneration,
+        });
+      } catch {
+        // Telemetry failure must not roll back committed content.
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+        return;
+      }
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
+      restorePreviewIfCurrent(baselineContent, startingChapterId, currentSeq);
+      alert('改写失败，请稍后重试。');
+    } finally {
+      if (requestSeqRef.current === currentSeq) {
+        setIsGeneratingContent(false);
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handlePolishChapterFromAudit = async () => {
+    const startingChapterId = currentChapter?.id;
+    if (!currentChapter?.content || !currentChapter.critique) {
+      alert('请先生成正文并完成一次 AI 审计，再执行精修。');
+      return;
+    }
+
+    const currentSeq = ++requestSeqRef.current;
+    const controller = new AbortController();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = controller;
+
+    setIsGeneratingContent(true);
+    setGenerationStatus('正在按审计意见定位坏段落…');
+    let baseline = currentChapter.content;
+    try {
+      await flushPendingEditorWrites();
+      baseline = contentRef.current?.value ?? currentChapter.content;
+      const databaseGeneration = await getDatabaseGenerationSnapshot(controller.signal);
+      const { duplicateTargets, rewriteTargets } = extractPolishTargetsFromCritique(currentChapter.critique);
+
+      let candidate = baseline;
+      let changed = false;
+
+      if (duplicateTargets.length > 0) {
+        const deduped = removeRepeatedQuotedBlocks(candidate, duplicateTargets);
+        candidate = deduped.content;
+        changed = changed || deduped.removedCount > 0;
+      }
+
+      setGenerationStatus('已清理重复段，正在逐段精修关键问题…');
+
+      const actionableTargets = selectRewriteTargetsForPatch(candidate, rewriteTargets, 3, currentChapter.critique);
+
+      if (duplicateTargets.length === 0 && actionableTargets.length === 0) {
+        setGenerationStatus(null);
+        alert('本轮审计没有定位到可自动修补的明确片段，请先重跑 AI 审计或手动修改。');
+        return;
+      }
+
+      for (const { snippet } of actionableTargets) {
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+
+        const targetWindow = selectRewriteTargetsForPatch(candidate, [snippet], 1, currentChapter.critique)[0]?.window;
+        if (!targetWindow) continue;
+
+        const response = await fetch('/api/rewrite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'surgical-patch',
+            text: targetWindow.targetText,
+            beforeContext: targetWindow.beforeContext,
+            afterContext: targetWindow.afterContext,
+            auditIssue: snippet,
+            instruction: '只修这个局部问题，保持全章剧情顺序和悬念落点不变。',
+            contextStr: buildContextPrompt(buildAgentContext()),
+            auditFeedback: currentChapter.critique,
+            sceneBeats: currentChapter.sceneBeats || '',
+            novelId: novel.id,
+            skills: mountedSkills,
+          }),
+          signal: controller.signal,
+        });
+
+        if (response.status === 403) {
+          const data = await response.json().catch(() => ({}));
+          if (data && data.quotaExceeded) {
+            window.dispatchEvent(new CustomEvent('trigger-premium-modal', {
+              detail: {
+                limitType: data.limitType,
+                count: data.count,
+                max: data.max,
+                error: data.error,
+              }
+            }));
+            throw new Error('QUOTA_LIMIT_EXCEEDED');
+          }
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        const responseGeneration = requireResponseDatabaseGeneration(response);
+        if (responseGeneration !== databaseGeneration) {
+          throw new Error('数据库已在精修期间切换');
+        }
+
+        let patchPreview = '';
+        const streamResult = await readSseStream(response, (token) => {
+          patchPreview += token;
+          if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+          const tempCandidate = applyPatchWindow(candidate, targetWindow, patchPreview);
+          handleUpdateContent(tempCandidate, false, true);
+        });
+
+        if (!streamResult.done) {
+          restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+          throw new Error('精修流未正常结束');
+        }
+
+        const rewrittenText = streamResult.text.trim();
+        if (!rewrittenText) continue;
+        candidate = applyPatchWindow(candidate, targetWindow, rewrittenText);
+        changed = changed || candidate !== baseline;
+
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+        handleUpdateContent(candidate, false, true);
+      }
+
+      if (changed) {
+        const guard = validatePolishCandidate(baseline, candidate);
+        if (!guard.ok) {
+          restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+          setGenerationStatus(null);
+          alert(`本轮精修结果疑似异常，已取消覆盖：${guard.reason}`);
+          return;
+        }
+
+        if (!isRequestCurrent(startingChapterId, currentSeq)) return;
+
+        const committed = await commitChapterContent(
+          currentChapter.id,
+          candidate,
+          startingChapterId,
+          currentSeq,
+          { critique: '' },
+          databaseGeneration,
+        );
+        if (!committed) return;
+
+        try {
+          await createChapterVersion({
+            id: Date.now().toString(),
+            chapterId: currentChapter.id,
+            content: candidate,
+            wordCount: candidate.replace(/\s/g, '').length,
+            author: 'editor-agent',
+            createdAt: Date.now(),
+          }, databaseGeneration);
+        } catch {
+          // Version history failure must not roll back committed content.
+        }
+
+        try {
+          await recordSkillUsage('accepted', {
+            fitScore: getCurrentFitScore(),
+            notes: 'polish-critique-patch',
+            databaseGeneration,
+          });
+        } catch {
+          // Telemetry failure must not roll back committed content.
+        }
+
+        setGenerationStatus('已完成局部精修。建议再跑一次 AI 审计确认效果。');
+        setTimeout(() => setGenerationStatus(null), 2500);
+      } else {
+        setGenerationStatus(null);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+        return;
+      }
+      if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
+      restorePreviewIfCurrent(baseline, startingChapterId, currentSeq);
+      alert('精修失败，请重试');
+    } finally {
+      if (requestSeqRef.current === currentSeq) {
+        setIsGeneratingContent(false);
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    }
+  };
+
+  return {
+    handleRunAudit,
+    handleRewriteSelectedText,
+    handlePolishChapterFromAudit,
+  };
+}

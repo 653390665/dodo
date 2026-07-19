@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InkFlow 墨影 — 产品评估报告 V2</title>
+<style>
+  :root {
+    --bg: oklch(0.98 0.005 90);
+    --surface: oklch(1 0 0);
+    --border: oklch(0.90 0.005 90);
+    --text: oklch(0.20 0.01 90);
+    --muted: oklch(0.55 0.01 90);
+    --green: oklch(0.55 0.15 145);
+    --amber: oklch(0.70 0.15 65);
+    --red: oklch(0.55 0.18 25);
+    --blue: oklch(0.50 0.15 240);
+    --purple: oklch(0.50 0.15 300);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px 120px; }
+
+  .hero {
+    text-align: center;
+    padding: 60px 24px 48px;
+    background: linear-gradient(180deg, oklch(0.95 0.02 145 / 0.3) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .hero .subtitle { font-size: 1rem; color: var(--muted); margin-bottom: 16px; }
+  .hero .meta { font-size: 0.85rem; color: var(--muted); }
+  .score-badge {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    margin-top: 24px; padding: 20px 48px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; box-shadow: 0 4px 24px oklch(0.55 0.15 145 / 0.1);
+  }
+  .score-badge .num { font-size: 3.5rem; font-weight: 900; color: var(--green); letter-spacing: -2px; }
+  .score-badge .grade { font-size: 1.2rem; font-weight: 700; color: var(--muted); }
+
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .section h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; letter-spacing: -0.3px; }
+  .section h3 { font-size: 1.15rem; font-weight: 600; margin: 24px 0 12px; }
+  .section p { margin-bottom: 12px; color: var(--text); }
+  .section ul, .section ol { margin: 8px 0 16px 20px; }
+  .section li { margin-bottom: 6px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9rem; }
+  th { background: var(--bg); padding: 12px 16px; text-align: left; font-weight: 700; font-size: 0.85rem; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .cell-strong { font-weight: 700; color: var(--green); }
+  .cell-weak { color: var(--red); }
+  .cell-winner { background: oklch(0.55 0.15 145 / 0.06); font-weight: 600; }
+
+  .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0; }
+  .score-card { text-align: center; padding: 24px 12px; background: var(--bg); border-radius: 14px; border: 1px solid var(--border); }
+  .score-card .num { font-size: 2rem; font-weight: 800; margin-bottom: 4px; }
+  .score-card .label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+  .score-card .bar { height: 5px; border-radius: 3px; margin-top: 8px; background: var(--border); overflow: hidden; }
+  .score-card .fill { height: 100%; border-radius: 3px; }
+
+  .diff { font-size: 0.8rem; font-weight: 600; }
+  .diff-up { color: var(--green); }
+  .diff-down { color: var(--red); }
+  .diff-same { color: var(--muted); }
+
+  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.85em; }
+
+  .callout { padding: 16px 20px; border-radius: 12px; margin: 16px 0; border-left: 4px solid; }
+  .callout-good { background: oklch(0.55 0.15 145 / 0.08); border-color: var(--green); }
+  .callout-warn { background: oklch(0.70 0.15 65 / 0.08); border-color: var(--amber); }
+  .callout-info { background: oklch(0.50 0.15 240 / 0.08); border-color: var(--blue); }
+  .callout-danger { background: oklch(0.55 0.18 25 / 0.08); border-color: var(--red); }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+
+  .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .swot-box { border-radius: 12px; padding: 20px; border: 1px solid; }
+  .swot-box h4 { font-size: 1rem; margin-bottom: 10px; font-weight: 700; }
+  .swot-box ul { margin-left: 16px; font-size: 0.85rem; }
+  .swot-s { border-color: oklch(0.55 0.15 145 / 0.3); background: oklch(0.55 0.15 145 / 0.04); }
+  .swot-s h4 { color: var(--green); }
+  .swot-w { border-color: oklch(0.55 0.18 25 / 0.3); background: oklch(0.55 0.18 25 / 0.04); }
+  .swot-w h4 { color: var(--red); }
+  .swot-o { border-color: oklch(0.50 0.15 240 / 0.3); background: oklch(0.50 0.15 240 / 0.04); }
+  .swot-o h4 { color: var(--blue); }
+  .swot-t { border-color: oklch(0.70 0.15 65 / 0.3); background: oklch(0.70 0.15 65 / 0.04); }
+  .swot-t h4 { color: var(--amber); }
+
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 24px; }
+  .timeline-item::before { content: ''; position: absolute; left: -28px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue); border: 2px solid var(--surface); }
+  .timeline-item .when { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .timeline-item .what { font-weight: 600; margin: 4px 0; }
+
+  .chart-container { display: flex; justify-content: center; margin: 24px 0; }
+
+  @media (max-width: 768px) {
+    .container { padding: 0 16px 80px; }
+    .hero { padding: 40px 16px 32px; }
+    .hero h1 { font-size: 1.6rem; }
+    .section { padding: 20px; border-radius: 12px; }
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+    .swot-grid { grid-template-columns: 1fr; }
+    table { font-size: 0.8rem; }
+    th, td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>InkFlow 墨影 — 产品评估报告 V2</h1>
+  <div class="subtitle">本地优先 AI 小说写作工具 · Electron + React 19 + Express + SQLite</div>
+  <div class="meta">2026-07-06 · v1.1.0 · 73 组件 / 21,769 前端行 + 6,622 服务端行 + 7,388 共享库 · 352+5 测试</div>
+  <div class="score-badge">
+    <span class="num">7.8</span>
+    <span class="grade">/ 10 · B+ → A- 在望</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ==================== 评分总览 ==================== -->
+<div class="section">
+  <h2>📊 七维评分（V1 → V2 对比）</h2>
+  <p>距上次产品评估（7月2日）过去 4 天，期间完成了代码深度体检 3 轮 + 前端审查 4 轮，代码健康度从 B+（82）升至 A（91），前端从 A-（87）升至 A（91）。功能层面新增了 Preference Flywheel、Story State Ledger、Slop Scorer 等深度系统，但商业化和风险维度改善有限。</p>
+
+  <div class="chart-container">
+    <svg width="420" height="420" viewBox="0 0 420 420">
+      <g fill="none" stroke="var(--border)" stroke-width="1">
+        <polygon points="210,60 338,135 338,285 210,360 82,285 82,135 303,155 303,265 210,325 117,265 117,155" opacity="0" />
+        <circle cx="210" cy="210" r="150" />
+        <circle cx="210" cy="210" r="112" opacity="0.7" />
+        <circle cx="210" cy="210" r="75" opacity="0.5" />
+        <circle cx="210" cy="210" r="37" opacity="0.3" />
+      </g>
+      <!-- V1 (7.6 avg) - orange dashed -->
+      <polygon points="210,82 316,145 316,255 210,345 104,255 104,145 210,118 210,118 210,118"
+        fill="oklch(0.70 0.15 65 / 0.05)" stroke="oklch(0.70 0.15 65 / 0.4)" stroke-width="1.5" stroke-dasharray="4,4" />
+      <!-- V2 (7.8 avg) - green solid -->
+      <polygon points="210,75 322,142 322,262 210,340 98,262 98,142 210,115 210,115 210,115"
+        fill="oklch(0.55 0.15 145 / 0.12)" stroke="var(--green)" stroke-width="2.5" />
+      <g font-size="11" fill="var(--muted)" font-weight="600" text-anchor="middle">
+        <text x="210" y="45">定位 8.5</text>
+        <text x="365" y="130">架构 8.5</text>
+        <text x="365" y="290">功能 8.0</text>
+        <text x="210" y="390">UX 7.5</text>
+        <text x="55" y="290">竞争 8.5</text>
+        <text x="55" y="130">商业 5.0</text>
+      </g>
+      <text x="210" y="205" font-size="13" fill="var(--muted)" text-anchor="middle">V2</text>
+      <text x="210" y="230" font-size="32" font-weight="900" fill="var(--green)" text-anchor="middle">7.8</text>
+    </svg>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:0.85rem;">橙虚线 = V1（7.6） · 绿实线 = V2（7.8） · <span class="diff-up">↑ +0.2</span></p>
+
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="num" style="color:var(--green)">8.5</div>
+      <div class="label">产品定位</div>
+      <div class="diff diff-same">→ 持平</div>
+      <div class="bar"><div class="fill" style="width:85%;background:var(--green)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--green)">8.5</div>
+      <div class="label">技术架构</div>
+      <div class="diff diff-up">↑ +0.5</div>
+      <div class="bar"><div class="fill" style="width:85%;background:var(--green)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--green)">8.0</div>
+      <div class="label">功能完整性</div>
+      <div class="diff diff-up">↑ +0.5</div>
+      <div class="bar"><div class="fill" style="width:80%;background:var(--green)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--amber)">7.5</div>
+      <div class="label">用户体验</div>
+      <div class="diff diff-up">↑ +0.5</div>
+      <div class="bar"><div class="fill" style="width:75%;background:var(--amber)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--green)">8.5</div>
+      <div class="label">竞争壁垒</div>
+      <div class="diff diff-up">↑ +0.5</div>
+      <div class="bar"><div class="fill" style="width:85%;background:var(--green)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--red)">5.0</div>
+      <div class="label">商业模型</div>
+      <div class="diff diff-up">↑ +1.0</div>
+      <div class="bar"><div class="fill" style="width:50%;background:var(--red)"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="num" style="color:var(--amber)">6.5</div>
+      <div class="label">风险评估</div>
+      <div class="diff diff-same">→ 持平</div>
+      <div class="bar"><div class="fill" style="width:65%;background:var(--amber)"></div></div>
+    </div>
+    <div class="score-card" style="grid-column:span 1;border-color:var(--green);background:oklch(0.55 0.15 145 / 0.06);">
+      <div class="num" style="color:var(--green)">7.8</div>
+      <div class="label">综合评分</div>
+      <div class="diff diff-up">↑ +0.2</div>
+      <div class="bar"><div class="fill" style="width:78%;background:var(--green)"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 产品定位 ==================== -->
+<div class="section">
+  <h2>🎯 一、产品定位评估</h2>
+  <div class="callout callout-good">
+    <div class="callout-title">核心定位</div>
+    <p><strong>"AI 小说自动化工厂"</strong>——不是 AI 聊天助手，而是一条 Planner → Writer → Critic 三 Agent 协同的数字化生产线。用户是"制作人"，负责决策与验收，AI 负责生成与自查。本地优先 + BYO Key，数据不离开用户设备。</p>
+  </div>
+
+  <h3>定位优势</h3>
+  <ul>
+    <li><strong>差异化清晰</strong>：在所有竞品都做"AI 对话写作"时，InkFlow 做的是"AI 流水线生产"——这个定位在中文市场没有直接对手</li>
+    <li><strong>用户角色定义精准</strong>：明确将用户定义为"制作人/总监"而非"写手"，降低了用户的心理负担（"我不需要会写，我只需要会判断"）</li>
+    <li><strong>BYO Key 模型契合目标用户</strong>：专业/半专业作者愿意为成本透明和控制力付费，这恰恰是 BYO Key 的核心价值</li>
+    <li><strong>Skill 萃取是独特卖点</strong>："上传你喜欢的小说 → 获得文风技能卡"——这个功能在任何竞品中都没有对标物</li>
+  </ul>
+
+  <h3>定位风险</h3>
+  <ul>
+    <li><strong>"自动化"可能吓退传统作者</strong>：部分作者认为"AI 全自动写作 = 没有灵魂"，需要在 messaging 上强调"人机协作"而非"机器替代"</li>
+    <li><strong>概念密度过高</strong>：Agent、Skill、Bible、Ledger、Slop Scorer、Flywheel……对新用户来说认知负荷很大，README 和 Onboarding 需要大幅简化</li>
+    <li><strong>品牌认知为零</strong>：GitHub 项目之外没有任何品牌曝光，需要内容营销建立认知</li>
+  </ul>
+</div>
+
+<!-- ==================== 功能矩阵 ==================== -->
+<div class="section">
+  <h2>🔧 二、功能完整性评估</h2>
+  <p>17 张数据库表、32 个 API 端点、73 个前端组件、7,388 行共享逻辑库。功能覆盖从灵感 → 世界观 → 大纲 → 生产 → 审校 → 导出的完整链路。</p>
+
+  <h3>已实现功能矩阵</h3>
+  <table>
+    <thead>
+      <tr><th>功能域</th><th>具体功能</th><th>实现深度</th><th>竞争力</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="3"><strong>灵感→立项</strong></td>
+        <td>一句话生成 3 张故事方案卡</td>
+        <td class="cell-strong">完整 · 含 AI 自动生成设定任务</td>
+        <td class="cell-strong">★★★★★</td>
+      </tr>
+      <tr>
+        <td>设定任务引导式 Onboarding</td>
+        <td class="cell-strong">完整 · 逐项确认 + AI 完善</td>
+        <td class="cell-strong">★★★★☆</td>
+      </tr>
+      <tr>
+        <td>资料续写包导入</td>
+        <td class="cell-strong">完整 · 支持 .txt/.md/.json/.docx + AI 结构化解析</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>世界构建</strong></td>
+        <td>7 类实体管理（角色/地点/道具/势力/境界/时间线/全局设定）</td>
+        <td class="cell-strong">完整 · 含 AI 自动生成背景故事</td>
+        <td class="cell-strong">★★★★☆</td>
+      </tr>
+      <tr>
+        <td>实体关系图谱</td>
+        <td>已实现 · 可视化关系网络</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>时间线管理</td>
+        <td>已实现 · 拖拽排序 + 事件状态标签</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>章节级上下文精准注入（Context Pruning）</td>
+        <td class="cell-strong">已实现 · 仅注入本章活跃实体</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td rowspan="5"><strong>AI 生产管线</strong></td>
+        <td>三 Agent 流水线（Planner → Writer → Critic）</td>
+        <td class="cell-strong">完整 · 含 Soul 设定 + 重试循环（&lt;80分打回）</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>流式正文生成（SSE）</td>
+        <td class="cell-strong">完整 · 实时 token 流 + 可中断</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>Slop Scorer（机械去 AI 味）</td>
+        <td class="cell-strong">完整 · 7 类正则检测 · 零 API 成本</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>Story State Ledger（连续性追踪）</td>
+        <td class="cell-strong">完整 · 实体快照 + 章节摘要</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>Preference Flywheel（偏好飞轮）</td>
+        <td class="cell-strong">已实现 · 从用户接受/拒绝行为学习</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>技能系统</strong></td>
+        <td>拆书工厂（Book → Skill 卡牌）</td>
+        <td class="cell-strong">完整 · 结构化 + Few-Shot 提取</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>技能融合（Skill Fusion）</td>
+        <td>已实现 · 混搭产生变异文风</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>技能版本时间线</td>
+        <td>已实现 · 版本追踪 + 父子传承</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>技能试驾（Test Bench）</td>
+        <td>已实现 · 装备前试运行</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td rowspan="3"><strong>质量管控</strong></td>
+        <td>文风审计（Critic Agent）</td>
+        <td class="cell-strong">完整 · 4 维度评分 + 修改建议</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>伏笔追踪（Foreshadowing）</td>
+        <td>已实现 · 种植/回收/状态管理</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td>节奏/张力分析（Pacing Dashboard）</td>
+        <td>已实现 · 可视化情绪曲线</td>
+        <td>★★★★☆</td>
+      </tr>
+      <tr>
+        <td rowspan="3"><strong>基础设施</strong></td>
+        <td>RAG 向量检索（本地 WASM embedding）</td>
+        <td class="cell-strong">完整 · bge-small-zh-v1.5 · 零云端依赖</td>
+        <td class="cell-strong">★★★★★ 独有</td>
+      </tr>
+      <tr>
+        <td>导出（TXT / EPUB）</td>
+        <td>已实现</td>
+        <td>★★★☆☆</td>
+      </tr>
+      <tr>
+        <td>商业化基建（配额系统 + Premium 弹窗）</td>
+        <td class="cell-weak">框架存在 · 无支付集成</td>
+        <td class="cell-weak">★★☆☆☆</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>未实现 / 规划中</h3>
+  <table>
+    <thead>
+      <tr><th>功能</th><th>PRD 状态</th><th>影响</th><th>优先级</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Evolution Agent（文风自进化）</td><td>Phase 6 规划</td><td>失去"AI 越用越聪明"的核心卖点</td><td style="color:var(--amber);font-weight:700">P1</td></tr>
+      <tr><td>云端同步 / 多设备</td><td>未规划</td><td>限制了专业作者跨设备工作流</td><td style="color:var(--red);font-weight:700">P0</td></tr>
+      <tr><td>支付集成</td><td>框架存在</td><td>无法变现，配额系统是空壳</td><td style="color:var(--red);font-weight:700">P0</td></tr>
+      <tr><td>自动更新机制</td><td>未实现</td><td>用户无法平滑升级，安全风险</td><td style="color:var(--amber);font-weight:700">P1</td></tr>
+      <tr><td>技能市场（Skill Marketplace）</td><td>未规划</td><td>失去网络效应机会</td><td style="color:var(--blue);font-weight:700">P2</td></tr>
+      <tr><td>移动端 / Web 端</td><td>未规划</td><td>触达受限</td><td style="color:var(--blue);font-weight:700">P2</td></tr>
+      <tr><td>多语言支持</td><td>未规划</td><td>限于中文网文市场</td><td style="color:var(--muted);font-weight:700">P3</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== 技术架构 ==================== -->
+<div class="section">
+  <h2>🏗️ 三、技术架构评估</h2>
+
+  <h3>架构全景</h3>
+  <table>
+    <thead>
+      <tr><th>层</th><th>技术栈</th><th>规模</th><th>健康度</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>前端</td><td>React 19 + Tailwind v4 + Zustand 5 + Radix UI</td><td>73 组件 · 21,769 行</td><td class="cell-strong">A（91/100）</td></tr>
+      <tr><td>服务端</td><td>Express + SQLite（better-sqlite3）+ SSE</td><td>12 路由文件 · 6,622 行 · 32 API</td><td class="cell-strong">A-（88/100）</td></tr>
+      <tr><td>共享库</td><td>TypeScript 纯逻辑（零依赖）</td><td>7,388 行 · 含 Slop Scorer / Ledger / Flywheel</td><td class="cell-strong">A（91/100）</td></tr>
+      <tr><td>AI 管线</td><td>三 Agent Soul + Prompt 治理 + 本地 Embedding</td><td>Planner/Writer/Critic 三 Soul · bge-small-zh-v1.5</td><td class="cell-strong">A-（87/100）</td></tr>
+      <tr><td>桌面</td><td>Electron 42 + electron-builder</td><td>macOS (arm64) + Windows (x64)</td><td>B+（83/100）</td></tr>
+      <tr><td>测试</td><td>node:test + Vitest + Playwright + axe-core</td><td>352 逻辑 + 3 前端 + 2 E2E</td><td class="cell-strong">A-（87/100）</td></tr>
+      <tr><td>安全</td><td>Helmet + Auth Middleware + Zod 校验</td><td>CSP/XSS/CSRF 防护 · 请求超时 120s</td><td>B+（85/100）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-good">
+    <div class="callout-title">架构亮点</div>
+    <ul>
+      <li><strong>三层分离干净</strong>：前端 / 服务端 / 共享库各司其职，shared/ 下 7,388 行纯逻辑可被前后端共享，零循环依赖</li>
+      <li><strong>本地 Embedding 管线</strong>：@xenova/transformers WASM 运行 bge-small-zh-v1.5（384 维），零云端依赖，有 LLM API fallback</li>
+      <li><strong>Soul 设定深度</strong>：三个 Agent 各有完整的"认知域 + 行为准则 + 思考模式"设定，不是简单的 system prompt</li>
+      <li><strong>Slop Scorer 零成本质检</strong>：7 类正则规则（AI 套话 / 网文陈词 / Tell-Don't-Show / 句式单调等）在 LLM 审计前先跑一遍，省 token</li>
+      <li><strong>配额系统已就位</strong>：quota-guard.ts 完整实现了免费/付费边界判定逻辑，只差支付对接</li>
+      <li><strong>17 张表 + 16 个索引</strong>：数据库 schema 设计合理，外键级联删除 + 索引覆盖所有查询路径</li>
+    </ul>
+  </div>
+
+  <div class="callout callout-warn">
+    <div class="callout-title">架构短板</div>
+    <ul>
+      <li><strong>单进程架构</strong>：AI 生成是 CPU+IO 密集型，当前 Express 单进程处理，重度生成时可能阻塞其他请求</li>
+      <li><strong>无数据备份机制</strong>：SQLite 单文件，损坏即丢失全部数据，需要自动备份或导出功能</li>
+      <li><strong>无遥测/分析</strong>：完全本地化意味着无法收集用户行为数据来指导产品迭代</li>
+      <li><strong>Electron 体积</strong>：安装包 ~200MB+，对非技术用户是下载门槛</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== 竞品对比 ==================== -->
+<div class="section">
+  <h2>⚔️ 四、竞争格局评估</h2>
+
+  <h3>竞品功能矩阵</h3>
+  <table>
+    <thead>
+      <tr><th>维度</th><th>Sudowrite</th><th>NovelCrafter</th><th>笔灵AI</th><th>蛙蛙写作</th><th>InkFlow</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>部署模式</td><td>云端 SaaS</td><td>云端 SaaS</td><td>网页端</td><td>全平台</td>
+        <td class="cell-winner">本地优先（Electron）</td>
+      </tr>
+      <tr>
+        <td>定价</td><td>$10-44/月</td><td>$8-20/月</td><td>~¥30-100/月</td><td>~¥30-80/月</td>
+        <td class="cell-winner">自带 Key（成本透明）</td>
+      </tr>
+      <tr>
+        <td>Agent 协同</td><td class="cell-weak">单次调用</td><td class="cell-weak">单次调用</td><td class="cell-weak">单次调用</td><td class="cell-weak">单次调用</td>
+        <td class="cell-winner">三 Agent + 重试循环</td>
+      </tr>
+      <tr>
+        <td>文风模仿</td><td>Muse 微调</td><td>Prompt 模板</td><td>模板生成</td><td>去 AI 味</td>
+        <td class="cell-winner">Skill 萃取 + 融合</td>
+      </tr>
+      <tr>
+        <td>连续性管控</td><td>Story Bible</td><td>Codex 语义搜索</td><td class="cell-weak">基础</td><td class="cell-weak">基础</td>
+        <td class="cell-winner">Ledger + Critic + RAG</td>
+      </tr>
+      <tr>
+        <td>去 AI 味</td><td class="cell-weak">无</td><td class="cell-weak">无</td><td>基础</td><td>去 AI 味</td>
+        <td class="cell-winner">Slop Scorer + Soul 红线</td>
+      </tr>
+      <tr>
+        <td>偏好学习</td><td class="cell-weak">无</td><td class="cell-weak">无</td><td class="cell-weak">无</td><td class="cell-weak">无</td>
+        <td class="cell-winner">Preference Flywheel</td>
+      </tr>
+      <tr>
+        <td>数据隐私</td><td class="cell-weak">云端存储</td><td class="cell-weak">云端存储</td><td class="cell-weak">云端存储</td><td class="cell-weak">云端存储</td>
+        <td class="cell-winner">完全本地</td>
+      </tr>
+      <tr>
+        <td>开源</td><td class="cell-weak">闭源</td><td class="cell-weak">闭源</td><td class="cell-weak">闭源</td><td class="cell-weak">闭源</td>
+        <td class="cell-winner">开源</td>
+      </tr>
+      <tr>
+        <td>用户规模</td><td>~50 万</td><td>~10 万</td><td>~500 万</td><td>~200 万</td>
+        <td class="cell-weak">极早期（GitHub）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <div class="callout-title">竞争判断</div>
+    <p>InkFlow 在<strong>技术深度</strong>上领先所有竞品——三 Agent 管线、Skill 萃取、Slop Scorer、Preference Flywheel、本地 RAG，每一项都是竞品没有的。但在<strong>用户规模和商业化</strong>上严重落后：竞品已有数万到数百万用户，InkFlow 仍在 GitHub 早期阶段。技术领先 ≠ 市场领先，窗口期约 12 个月。</p>
+  </div>
+</div>
+
+<!-- ==================== SWOT ==================== -->
+<div class="section">
+  <h2>🧭 五、SWOT 分析</h2>
+  <div class="swot-grid">
+    <div class="swot-box swot-s">
+      <h4>💪 Strengths</h4>
+      <ul>
+        <li>三 Agent 管线 + 重试循环，行业独有</li>
+        <li>Skill 萃取系统：从书籍提取文风卡牌</li>
+        <li>Slop Scorer：零成本机械去 AI 味</li>
+        <li>本地优先 + BYO Key：隐私 + 成本透明</li>
+        <li>Preference Flywheel：从用户行为学习</li>
+        <li>本地 RAG（WASM embedding）</li>
+        <li>开源，社区可审计</li>
+        <li>代码健康度 A（91/100）</li>
+        <li>17 表数据库 + 32 API + 357 测试</li>
+      </ul>
+    </div>
+    <div class="swot-box swot-w">
+      <h4>⚠️ Weaknesses</h4>
+      <ul>
+        <li>无支付集成，商业化是空壳</li>
+        <li>BYO Key 对非技术用户门槛高</li>
+        <li>无云端同步，跨设备困难</li>
+        <li>无自动更新机制</li>
+        <li>无数据备份</li>
+        <li>单开发者，bus factor = 1</li>
+        <li>概念密度高，学习曲线陡</li>
+        <li>无品牌认知，无营销渠道</li>
+        <li>无用户行为分析（纯本地）</li>
+      </ul>
+    </div>
+    <div class="swot-box swot-o">
+      <h4>🌐 Opportunities</h4>
+      <ul>
+        <li>中国网文作者 3,269 万，年增 149 万</li>
+        <li>AI 写作市场 CAGR 21.4%</li>
+        <li>作者对 AI 态度从"作弊"转向"工具"</li>
+        <li>竞品均未解决"长篇连贯性"痛点</li>
+        <li>BYO Key 模式可吸引成本敏感型作者</li>
+        <li>Skill 市场可成为平台化切入点</li>
+        <li>开源可吸引开发者社区贡献</li>
+        <li>向企业/工作室 B 端延伸</li>
+      </ul>
+    </div>
+    <div class="swot-box swot-t">
+      <h4>🔥 Threats</h4>
+      <ul>
+        <li>竞品可能复制 Agent 管线概念</li>
+        <li>大模型原生写作能力提升，工具价值被侵蚀</li>
+        <li>平台（起点/番茄）内置 AI 工具</li>
+        <li>BYO Key 模式被 "API 内置套餐" 挑战</li>
+        <li>12 个月窗口期后竞争加剧</li>
+        <li>开源项目难以持续投入</li>
+        <li>政策风险：AI 生成内容监管</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 商业模型 ==================== -->
+<div class="section">
+  <h2>💰 六、商业模型评估</h2>
+
+  <h3>当前状态</h3>
+  <table>
+    <thead>
+      <tr><th>组件</th><th>状态</th><th>完成度</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>配额系统（quota-guard.ts）</td><td>已实现 · 3 类限额（拆书 5 次 / 正文 10 次 / 审稿 5 次）</td><td class="cell-strong">90%</td></tr>
+      <tr><td>Premium 升级弹窗</td><td>已实现 · 含额度展示 + 升级引导</td><td class="cell-strong">80%</td></tr>
+      <tr><td>付费技能判定</td><td>已实现 · S-tier(≥90 分) + 传承链自动判定为付费</td><td class="cell-strong">100%</td></tr>
+      <tr><td>支付集成</td><td class="cell-weak">❌ 无</td><td class="cell-weak">0%</td></tr>
+      <tr><td>订阅管理</td><td class="cell-weak">❌ 无</td><td class="cell-weak">0%</td></tr>
+      <tr><td>License 验证</td><td class="cell-weak">❌ 无</td><td class="cell-weak">0%</td></tr>
+      <tr><td>用户账户系统</td><td class="cell-weak">❌ 无（本地 user_id = 'local-user'）</td><td class="cell-weak">0%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-danger">
+    <div class="callout-title">核心问题</div>
+    <p>配额系统和 Premium 弹窗都已经写好了，但<strong>没有支付集成就等于没有商业模式</strong>。用户碰壁后只能"无法使用"而非"付费解锁"，这直接流失潜在付费用户。当前是一个有锁但没有钥匙售卖系统的状态。</p>
+  </div>
+
+  <h3>推荐商业模型：BYO Key + Freemium 双轨</h3>
+  <table>
+    <thead>
+      <tr><th>层级</th><th>价格</th><th>包含</th><th>目标用户</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Free</strong></td>
+        <td>¥0</td>
+        <td>BYO Key · 全功能 · 配额限制（5/10/5）</td>
+        <td>尝鲜用户 / 技术型作者</td>
+      </tr>
+      <tr>
+        <td><strong>Pro</strong></td>
+        <td>¥39/月</td>
+        <td>BYO Key · 无配额 · Premium Skills · 优先支持</td>
+        <td>专业连载作者</td>
+      </tr>
+      <tr>
+        <td><strong>Studio</strong></td>
+        <td>¥99/月</td>
+        <td>内置 API 额度 · 多项目管理 · 数据云备份 · 团队协作</td>
+        <td>工作室 / 多产作者</td>
+      </tr>
+      <tr>
+        <td><strong>Skill Market</strong></td>
+        <td>¥9-29/卡</td>
+        <td>单次购买 · 社区创作技能卡</td>
+        <td>所有层级</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <div class="callout-title">关键决策点</div>
+    <p><strong>是否内置 API 额度？</strong>建议 Studio 层级内置——这是触达非技术用户的关键。BYO Key 适合 Free/Pro 层（成本透明），但 Studio 层通过批量采购 API 额度 + 加价转售，既降低用户门槛又创造收入。这需要后端账户系统和 API 代理层的投入。</p>
+  </div>
+</div>
+
+<!-- ==================== 风险评估 ==================== -->
+<div class="section">
+  <h2>🚨 七、风险评估</h2>
+
+  <table>
+    <thead>
+      <tr><th>风险</th><th>等级</th><th>影响</th><th>缓解措施</th><th>时间窗口</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>BYO Key 门槛</strong></td>
+        <td style="color:var(--red);font-weight:700">P0</td>
+        <td>90% 的目标用户不知道怎么获取 API Key，无法完成首次体验</td>
+        <td>提供"一键体验 Key"（限量免费额度）+ 图文教程 + Studio 层内置额度</td>
+        <td>立即</td>
+      </tr>
+      <tr>
+        <td><strong>无变现能力</strong></td>
+        <td style="color:var(--red);font-weight:700">P0</td>
+        <td>无法持续投入开发，项目可能停滞</td>
+        <td>接入微信支付 / Stripe · 先做 Pro 层订阅 · Skill 市场后行</td>
+        <td>4 周内</td>
+      </tr>
+      <tr>
+        <td><strong>单开发者风险</strong></td>
+        <td style="color:var(--red);font-weight:700">P0</td>
+        <td>Bus factor = 1，开发者停更则项目死亡</td>
+        <td>开源社区贡献 + 文档完善 + 寻找协作者</td>
+        <td>持续</td>
+      </tr>
+      <tr>
+        <td><strong>大模型原生能力提升</strong></td>
+        <td style="color:var(--amber);font-weight:700">P1</td>
+        <td>GPT-5/Gemini 3 可能直接内置长篇写作能力，工具价值被侵蚀</td>
+        <td>深耕"管线编排 + 质量管控 + 文风学习"——这些是模型层不会做的</td>
+        <td>12-24 月</td>
+      </tr>
+      <tr>
+        <td><strong>平台内置 AI</strong></td>
+        <td style="color:var(--amber);font-weight:700">P1</td>
+        <td>起点/番茄内置 AI 写作工具，借助平台流量碾压独立工具</td>
+        <td>差异化：本地隐私 + BYO Key + Skill 萃取——平台不会做这些</td>
+        <td>6-12 月</td>
+      </tr>
+      <tr>
+        <td><strong>无数据备份</strong></td>
+        <td style="color:var(--amber);font-weight:700">P1</td>
+        <td>SQLite 文件损坏 = 全部数据丢失</td>
+        <td>自动定时备份到 ~/.inkflow/backups/ + 一键导出全套数据</td>
+        <td>2 周内</td>
+      </tr>
+      <tr>
+        <td><strong>无自动更新</strong></td>
+        <td style="color:var(--amber);font-weight:700">P1</td>
+        <td>用户无法平滑升级，安全漏洞无法及时修复</td>
+        <td>electron-updater + GitHub Releases 签名</td>
+        <td>4 周内</td>
+      </tr>
+      <tr>
+        <td><strong>Electron 体积</strong></td>
+        <td style="color:var(--blue);font-weight:700">P2</td>
+        <td>~200MB 安装包可能劝退轻量用户</td>
+        <td>Tauri 迁移（长期）或 Web 版（中期）</td>
+        <td>6+ 月</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== 改善路线图 ==================== -->
+<div class="section">
+  <h2>🗺️ 八、改善路线图</h2>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="when">Phase 0 · 立即（1-2 周）</div>
+      <div class="what">生存线：降低门槛 + 数据安全</div>
+      <ul>
+        <li><strong>体验 Key</strong>：提供限量免费 API 额度，让用户 30 秒内开始第一次创作</li>
+        <li><strong>数据备份</strong>：SQLite 自动定时备份 + 一键导出全套项目数据（ZIP）</li>
+        <li><strong>Onboarding 简化</strong>：3 步引导（灵感 → 方案卡 → 开始创作），API Key 配置延后到需要时</li>
+      </ul>
+    </div>
+    <div class="timeline-item">
+      <div class="when">Phase 1 · 4 周内</div>
+      <div class="what">商业化启动：支付 + 订阅</div>
+      <ul>
+        <li><strong>支付集成</strong>：微信支付（国内）+ Stripe（海外），先做单次购买再做订阅</li>
+        <li><strong>Pro 订阅</strong>：解锁配额限制 + Premium Skills，¥39/月</li>
+        <li><strong>自动更新</strong>：electron-updater 集成，确保用户始终最新版</li>
+        <li><strong>Evolution Agent 原型</strong>：Diff 追踪用户修改 → 提炼规则 → 更新 Skill</li>
+      </ul>
+    </div>
+    <div class="timeline-item">
+      <div class="when">Phase 2 · 8 周内</div>
+      <div class="what">增长线：触达 + 留存</div>
+      <ul>
+        <li><strong>内容营销</strong>：B站/知乎/小红书教程——"如何用 AI 写一本网文"</li>
+        <li><strong>Skill 市场原型</strong>：用户上传/下载 Skill 卡牌，创作者获得分成</li>
+        <li><strong>Web 版</strong>：Vite preview 模式部署到 Vercel，降低试用门槛</li>
+        <li><strong>用户反馈通道</strong>：应用内反馈表单 + 匿名使用统计（可选开启）</li>
+      </ul>
+    </div>
+    <div class="timeline-item">
+      <div class="when">Phase 3 · 3-6 月</div>
+      <div class="what">平台化：网络效应 + B 端</div>
+      <ul>
+        <li><strong>Studio 层</strong>：内置 API 额度 + 多项目管理 + 团队协作</li>
+        <li><strong>云端同步</strong>：可选的端到端加密云同步（用户自选云存储）</li>
+        <li><strong>Skill 市场 v2</strong>：定价 + 评价 + 创作者分成体系</li>
+        <li><strong>企业版</strong>：写作工作室/出版社私有部署</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 总结 ==================== -->
+<div class="section">
+  <h2>📝 九、总结</h2>
+
+  <div class="callout callout-good">
+    <div class="callout-title">一句话判断</div>
+    <p>InkFlow 是目前<strong>技术深度最强</strong>的中文 AI 小说写作工具——三 Agent 管线、Skill 萃取、Slop Scorer、Preference Flywheel、本地 RAG，每一项都是竞品没有的。代码健康度 A（91/100），架构干净，功能覆盖完整。但<strong>商业化基建几乎为零</strong>，BYO Key 门槛限制了触达，单开发者风险高。<strong>技术领先 12 个月，但市场窗口也在 12 个月内关闭。</strong></p>
+  </div>
+
+  <h3>做得好的</h3>
+  <ul>
+    <li>三 Agent 管线（Planner → Writer → Critic + 重试循环）是行业独有的核心壁垒</li>
+    <li>Skill 萃取系统：从书籍提取文风卡牌，包括融合/版本/试驾——完整度远超竞品</li>
+    <li>Slop Scorer：7 类正则零成本去 AI 味，在 LLM 审计前先跑一遍，省 token 又提质量</li>
+    <li>Preference Flywheel：从用户行为学习偏好，AI 越用越懂你</li>
+    <li>本地 RAG：WASM embedding + 向量检索，零云端依赖</li>
+    <li>代码健康度 A（91/100），17 表数据库 + 32 API + 357 测试，工程质量扎实</li>
+    <li>开源 + BYO Key：隐私和成本透明，契合专业作者需求</li>
+    <li>配额系统 + Premium 弹窗已就位，只差支付对接</li>
+  </ul>
+
+  <h3>必须改善的</h3>
+  <ul>
+    <li><strong style="color:var(--red)">P0</strong>：BYO Key 门槛——提供"体验 Key"让用户 30 秒内开始创作</li>
+    <li><strong style="color:var(--red)">P0</strong>：支付集成——配额系统是空壳，必须接入支付才能变现</li>
+    <li><strong style="color:var(--red)">P0</strong>：单开发者风险——开源社区 + 文档 + 寻找协作者</li>
+    <li><strong style="color:var(--amber)">P1</strong>：数据备份——SQLite 损坏 = 全部丢失</li>
+    <li><strong style="color:var(--amber)">P1</strong>：自动更新——用户无法平滑升级</li>
+    <li><strong style="color:var(--amber)">P1</strong>：Evolution Agent——PRD Phase 6 核心卖点未实现</li>
+    <li><strong style="color:var(--blue)">P2</strong>：云端同步——专业作者跨设备需求</li>
+    <li><strong style="color:var(--blue)">P2</strong>：Skill 市场——网络效应机会</li>
+  </ul>
+
+  <div style="text-align:center;margin-top:32px;padding:24px;background:var(--bg);border-radius:16px;">
+    <div style="font-size:3rem;font-weight:800;color:var(--green);">7.8</div>
+    <div style="color:var(--muted);font-size:0.9rem;">B+ · 技术深度领先 · 商业化亟待突破</div>
+    <div style="margin-top:12px;color:var(--muted);font-size:0.85rem;">
+      完成 Phase 0+1（体验 Key + 支付 + 备份 + 自动更新）→ 预期达到 8.5+ (A-)<br>
+      完成 Phase 2（内容营销 + Skill 市场 + Web 版）→ 预期达到 9.0+ (A)<br>
+      完成 Phase 3（Studio + 云同步 + 企业版）→ 预期达到 9.5+ (A+)
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

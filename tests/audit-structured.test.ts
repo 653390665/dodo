@@ -1,0 +1,266 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  embedStructuredAudit,
+  evaluateAuditGate,
+  extractStructuredAudit,
+  parseStructuredAuditResponse,
+  renderStructuredAuditMarkdown,
+  stripEmbeddedStructuredAudit,
+  convertFiveDimToStructured,
+  AuditScores,
+} from '../src/lib/audit-structured';
+import { extractPolishTargetsFromCritique, selectRewriteTargetsForPatch } from '../src/lib/chapter-polish';
+
+test('structured audit roundtrip preserves exact issue metadata', () => {
+  const raw = JSON.stringify({
+    score: 82,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        explanation: '半截信息突然冒出，读者接不住。',
+        patchHint: '在前文补一个追问。',
+      },
+    ],
+    sceneChecks: [
+      { scene: '场景三：掌柜露破绽', status: 'weak', note: '关键信息落点偏突兀。' },
+    ],
+    surgerySuggestions: ['先补前因，再保留“三天”的迟疑感。'],
+  });
+
+  const structured = parseStructuredAuditResponse(raw);
+  assert.ok(structured);
+  const markdown = renderStructuredAuditMarkdown(structured!);
+  const embedded = embedStructuredAudit(markdown, structured!);
+  const extracted = extractStructuredAudit(embedded);
+
+  assert.deepEqual(extracted, structured);
+});
+
+test('chapter polish prefers structured audit snippets over markdown inference', () => {
+  const raw = JSON.stringify({
+    score: 82,
+    fatalIssues: [
+      {
+        issueType: 'duplicate',
+        issueSubtype: 'duplicate-rupture',
+        severity: 'critical',
+        snippet: '掌柜的脸色刷地白了一层。',
+        explanation: '重复导致节奏断裂。',
+        patchHint: '保留第一次，删除后续重复。',
+      },
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'major',
+        snippet: '“三……三天。”',
+        explanation: '信息突兀。',
+        patchHint: '补上前因追问。',
+      },
+    ],
+    sceneChecks: [],
+    surgerySuggestions: ['补前因。'],
+  });
+
+  const structured = parseStructuredAuditResponse(raw)!;
+  const critique = embedStructuredAudit(renderStructuredAuditMarkdown(structured), structured);
+  const targets = extractPolishTargetsFromCritique(critique);
+
+  assert.deepEqual(targets.duplicateTargets, ['掌柜的脸色刷地白了一层。']);
+  assert.deepEqual(targets.rewriteTargets, ['“三……三天。”']);
+
+  const selected = selectRewriteTargetsForPatch(
+    '掌柜的脸色刷地白了一层。\n\n“三……三天。”声音几乎是贴着桌面传过来的。',
+    targets.rewriteTargets,
+    3,
+    critique,
+  );
+  assert.equal(selected[0]?.issueType, 'dialogue-logic');
+  assert.equal(selected[0]?.issueSubtype, 'dialogue-abrupt-info');
+});
+
+test('structured audit parser repairs unescaped inner quotes in snippets', () => {
+  const raw = `{
+    "score": 2,
+    "fatalIssues": [
+      {
+        "issueType": "duplicate",
+        "issueSubtype": "duplicate-rupture",
+        "severity": "critical",
+        "snippet": "主角问"那您腰间那串钥匙，开的是什么？"掌柜回答"地窖、柴房、杂物间。"",
+        "explanation": "问答链出现未转义引号，但整体仍应被服务端修复并解析。",
+        "patchHint": "保留原意，后续统一转成可读报告。"
+      }
+    ],
+    "sceneChecks": [],
+    "surgerySuggestions": ["修复 JSON 字符串中的内层引号。"]
+  }`;
+
+  const structured = parseStructuredAuditResponse(raw);
+  assert.ok(structured);
+  assert.equal(structured?.fatalIssues[0]?.issueType, 'duplicate');
+  assert.match(structured?.fatalIssues[0]?.snippet || '', /那您腰间那串钥匙/);
+});
+
+// ── Audit Gate tests ────────────────────────────────────────────────
+
+test('evaluateAuditGate passes clean audit', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 7, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [],
+  );
+  assert.equal(result.pass, true);
+  assert.equal(result.blockReason, null);
+});
+
+test('evaluateAuditGate fails on low dimension', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 3, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [],
+  );
+  assert.equal(result.pass, false);
+  assert.match(result.blockReason || '', /分镜执行度/);
+});
+
+test('evaluateAuditGate fails on low total', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 4, '分镜执行度': 4, '冲突推进度': 4, '风格契合度': 4, '网文章节感': 4 },
+    [],
+  );
+  assert.equal(result.pass, false);
+  assert.match(result.blockReason || '', /总分/);
+});
+
+test('evaluateAuditGate fails on critical issues', () => {
+  const result = evaluateAuditGate(
+    { '可读性': 8, '分镜执行度': 7, '冲突推进度': 7, '风格契合度': 6, '网文章节感': 7 },
+    [{ dimension: '可读性', severity: 'critical' }],
+  );
+  assert.equal(result.pass, false);
+});
+
+// ── V10: Structured Audit Parse Tolerance Tests ─────────────────────────
+
+test('structured audit parser - handles dirty and missing array properties gracefully', () => {
+  const raw = JSON.stringify({
+    score: 85,
+    fatalIssues: 'not-an-array', // invalid type
+    sceneChecks: null,          // invalid type
+    surgerySuggestions: 123     // invalid type
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.score, 85);
+  assert.deepEqual(parsed.fatalIssues, []);
+  assert.deepEqual(parsed.sceneChecks, []);
+  assert.deepEqual(parsed.surgerySuggestions, []);
+});
+
+test('structured audit parser - filters invalid items and maps planation to explanation', () => {
+  const raw = JSON.stringify({
+    score: 90,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        planation: '使用了 planation 代替 explanation', // planation backup mapping
+        patchHint: '在前文补一个追问。'
+      },
+      {
+        issueType: 'syntax',
+        issueSubtype: 'syntax-invalid-phrase',
+        severity: 'invalid-severity', // should fallback to major
+        snippet: '有些重复的话',
+        explanation: '句子累赘',
+        patchHint: '修改'
+      },
+      {
+        snippet: '没有 explanation 和 patchHint 的垃圾数据' // should be filtered out
+      }
+    ],
+    sceneChecks: [
+      {
+        scene: '场景一',
+        status: 'invalid-status', // should fallback to weak
+        note: '测试备注'
+      },
+      {
+        note: '没有 scene 的无效项' // should be filtered out
+      }
+    ]
+  });
+
+  const parsed = parseStructuredAuditResponse(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.fatalIssues.length, 2);
+
+  // Verify planation mapping
+  assert.equal(parsed.fatalIssues[0]?.explanation, '使用了 planation 代替 explanation');
+
+  // Verify invalid severity fallback
+  assert.equal(parsed.fatalIssues[1]?.severity, 'major');
+
+  // Verify invalid status fallback
+  assert.equal(parsed.sceneChecks.length, 1);
+  assert.equal(parsed.sceneChecks[0]?.scene, '场景一');
+  assert.equal(parsed.sceneChecks[0]?.status, 'weak');
+});
+
+test('stripEmbeddedStructuredAudit removes embedded audit comment and preserves raw markdown', () => {
+  const markdown = '## Original Title\nThis is the critique content.';
+  const audit = {
+    score: 85,
+    fatalIssues: [],
+    sceneChecks: [],
+    surgerySuggestions: []
+  };
+  const embedded = embedStructuredAudit(markdown, audit);
+
+  // Verify comment exists
+  assert.match(embedded, /<!--\s*audit-structured:[A-Za-z0-9+/=]+\s*-->/);
+
+  // Strip comment
+  const stripped = stripEmbeddedStructuredAudit(embedded);
+  assert.equal(stripped, markdown);
+});
+
+test('convertFiveDimToStructured deep boundary conversion correctly scales score and preserves issues', () => {
+  const fiveDim: AuditScores = {
+    scores: {
+      prose: { score: 8, reason: 'Good prose' },
+      narrative: { score: 7, reason: 'Nice flow' },
+      character: { score: 9, reason: 'Deep characters' },
+      setting: { score: 6, reason: 'Basic setting' },
+      pacing: { score: 5, reason: 'A bit slow' }
+    },
+    totalScore: 35, // 35 out of 50 possible points (5 dimensions * 10) -> should scale to 70 out of 100
+    pass: true,
+    fatalIssues: [
+      {
+        issueType: 'dialogue-logic',
+        issueSubtype: 'dialogue-abrupt-info',
+        severity: 'critical',
+        snippet: '“三……三天。”',
+        explanation: '突兀信息',
+        patchHint: '前文补追问'
+      }
+    ],
+    surgerySuggestions: ['让掌柜多一些小动作']
+  };
+
+  const converted = convertFiveDimToStructured(fiveDim);
+  assert.ok(converted);
+  assert.equal(converted.score, 70); // 35 / 50 * 100 = 70
+  assert.equal(converted.fatalIssues.length, 1);
+  assert.equal(converted.fatalIssues[0]?.issueType, 'dialogue-logic');
+  assert.equal(converted.fatalIssues[0]?.snippet, '“三……三天。”');
+  assert.deepEqual(converted.surgerySuggestions, ['让掌柜多一些小动作']);
+  assert.deepEqual(converted.sceneChecks, []);
+});
+

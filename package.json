@@ -1,0 +1,185 @@
+{
+  "name": "inkflow",
+  "private": true,
+  "version": "1.2.0",
+  "description": "InkFlow — AI 协作小说写作工具",
+  "author": "InkFlow",
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist dist-electron release",
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_ENV=test node --test --import tsx tests/*.test.ts",
+    "test:watch": "NODE_ENV=test node --test --watch --import tsx tests/*.test.ts",
+    "test:frontend": "vitest -c vitest.config.frontend.ts run",
+    "test:frontend:watch": "vitest -c vitest.config.frontend.ts",
+    "lint": "eslint . --max-warnings=0",
+    "lint:any": "node scripts/lint-any.mjs",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server.ts\"",
+    "smoke:runtime": "node scripts/runtime-smoke.mjs",
+    "smoke:packaged-editor": "node scripts/packaged-editor-lifecycle.mjs",
+    "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
+    "package": "npm run build:electron && node scripts/package-electron.mjs",
+    "electron:dev": "node scripts/dev-electron.mjs",
+    "dev:web": "ELECTRON_RUN_AS_NODE=1 npx electron --import tsx server.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@radix-ui/react-alert-dialog": "^1.1.18",
+    "@radix-ui/react-scroll-area": "^1.2.13",
+    "@radix-ui/react-tabs": "^1.1.16",
+    "@radix-ui/react-tooltip": "^1.2.11",
+    "@tailwindcss/vite": "^4.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@xenova/transformers": "^2.17.2",
+    "better-sqlite3": "^12.9.0",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
+    "express": "^4.22.1",
+    "helmet": "^8.2.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.546.0",
+    "mammoth": "^1.12.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-markdown": "^10.1.0",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@axe-core/react": "^4.12.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.21",
+    "axe-core": "^4.12.1",
+    "electron": "^43.0.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.8.4",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.61.1",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "tar": "^7.5.19",
+    "protobufjs": "^7.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
+  },
+  "build": {
+    "appId": "com.inkflow.app",
+    "productName": "InkFlow",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*",
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
+      "node_modules/mammoth/**/*",
+      "node_modules/bindings/**/*",
+      "node_modules/file-uri-to-path/**/*",
+      "node_modules/prebuild-install/**/*",
+      "node_modules/tar-fs/**/*",
+      "node_modules/tunnel-agent/**/*",
+      "node_modules/simple-get/**/*",
+      "node_modules/napi-build-utils/**/*",
+      "node_modules/node-abi/**/*",
+      "node_modules/detect-libc/**/*",
+      "node_modules/expand-template/**/*",
+      "node_modules/github-from-package/**/*",
+      "node_modules/minimist/**/*",
+      "node_modules/mkdirp-classic/**/*",
+      "node_modules/npmlog/**/*",
+      "node_modules/pump/**/*",
+      "node_modules/rc/**/*",
+      "node_modules/simple-concat/**/*",
+      "node_modules/tar-stream/**/*",
+      "node_modules/are-we-there-yet/**/*",
+      "node_modules/deep-extend/**/*",
+      "node_modules/ini/**/*",
+      "node_modules/strip-json-comments/**/*"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.cjs"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "artifactName": "InkFlow-${version}-mac-${arch}.${ext}",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "InkFlow-${version}-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "asarUnpack": [
+      "dist-electron/server.cjs",
+      "dist-electron/better-sqlite3-shim.cjs",
+      "dist-electron/electron-preload.cjs",
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/color/**/*",
+      "node_modules/color-convert/**/*",
+      "node_modules/color-name/**/*",
+      "node_modules/color-string/**/*",
+      "node_modules/simple-swizzle/**/*",
+      "node_modules/is-arrayish/**/*",
+      "node_modules/detect-libc/**/*"
+    ]
+  }
+}
