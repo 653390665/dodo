@@ -43,3 +43,6 @@ test-results/
 .gemini/
 scratch/
 .scratch/
+CODE_AUDIT_REPORT.md
+EVALUATION_REPORT.md
+full-evaluation-report.html

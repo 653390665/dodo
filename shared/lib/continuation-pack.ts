@@ -3,6 +3,7 @@ import type {
   ContinuationSourceDocument,
   ContinuationSourceKind,
 } from '../types';
+import { isContinuationContradictionResolved } from './continuation-import-flow';
 
 export function classifyContinuationSource(filename: string, text: string): ContinuationSourceKind {
   const name = filename.toLowerCase();
@@ -126,6 +127,11 @@ export function buildContinuationContext(pack: ContinuationPack): string {
   const sourceMap = buildSourceMapContext(pack);
   const readingQuestions = buildReadingQuestionsContext(pack);
   const continuationGaps = buildContinuationGapsContext(pack);
+  const conflictResolutions = (pack.contradictions || [])
+    .filter(isContinuationContradictionResolved)
+    .slice(0, 10)
+    .map((contradiction) => `- ${contradiction.summary}：${contradiction.acceptedResolution}`)
+    .join('\n');
 
   return [
     `【资料包续写任务】${pack.continuationTask}`,
@@ -134,6 +140,7 @@ export function buildContinuationContext(pack: ContinuationPack): string {
     `【未解决伏笔】\n${hooks || '- 暂无'}`,
     `【人物当前状态】\n${characters || '- 暂无'}`,
     `【风格约束】\n${style}`,
+    conflictResolutions ? `【冲突裁决，优先遵循】\n${conflictResolutions}` : '',
     sourceMap,
     readingQuestions,
     continuationGaps,

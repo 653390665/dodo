@@ -57,7 +57,13 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     setSelectedContinuationPackId,
   } = useEditorContinuationPacks(novel.id, launchState);
 
-  const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
+  const approvedOutlinePackId = React.useMemo(() => {
+    if (!selectedContinuationPackId) return '';
+    const pack = continuationPacks.find((p) => p.id === selectedContinuationPackId);
+    if (pack?.status === 'approved') return selectedContinuationPackId;
+    return '';
+  }, [continuationPacks, selectedContinuationPackId]);
+
   const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
   const [userIntent, setUserIntent] = useState('');
 
@@ -108,6 +114,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     mountedSkillLoadout, setMountedSkillLoadout,
     relationships,
     projectPreferenceProfile, setProjectPreferenceProfile,
+    globalOutline, setGlobalOutline,
     isLoading: isEditorDataLoading,
   } = useEditorData(novel.id);
 
@@ -213,13 +220,18 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     activeEntityNames: sniffedEntities?.activeExisting || undefined,
   });
 
+  const liveNovel = React.useMemo(
+    () => ({ ...novel, globalOutline }),
+    [novel, globalOutline],
+  );
+
   const {
     mountedSkills,
     agentContext,
     copilotSuggestion,
     getCurrentFitScore,
   } = useEditorIntelligenceContext({
-    novel,
+    novel: liveNovel,
     chapters,
     currentChapter,
     characters,
@@ -285,7 +297,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     handlePolishChapterFromAudit,
     stopGenerationFlow,
   } = useEditorGenerationFlow({
-    novel,
+    novel: liveNovel,
     currentChapter,
     mountedSkills,
     userIntent,
@@ -293,6 +305,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
     expectedWordCount,
     contentRef,
     selectedContinuationPackId,
+    approvedOutlinePackId,
     buildAgentContext,
     handleUpdateContent,
     pushToUndoHistory,
@@ -732,6 +745,7 @@ export function EditorView({ novel, launchState = null, onBack, onOpenAssistant,
             relationships={relationships}
             isDocked={true}
             contentRef={contentRef}
+            onNavigate={onNavigate}
           />
         </>
       )}

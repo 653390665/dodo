@@ -196,6 +196,182 @@ test('continuation imports reject async results from an obsolete database genera
       assert.equal(retry.status, 404);
     });
 
+    await t.test('requires valid high-conflict resolutions and persists them for pending imports', async () => {
+      resetActiveDatabase();
+      const deferred = queueLlmResponse({
+        canonFacts: [{
+          priority: 'hard',
+          category: 'plot',
+          text: '主角已离开王城',
+          evidence: '第三章正文',
+        }],
+        contradictions: [{
+          severity: 'high',
+          summary: '主角位置冲突',
+          conflictingEvidence: ['第三章：已出城', '人物小传：仍在城内'],
+          suggestedResolution: '以第三章正文为准',
+        }],
+        continuationTask: '从主角出城后继续写',
+      });
+      const sessionResponse = await fetch(`${baseUrl}/api/continuation-packs/import-session`, { method: 'POST' });
+      assert.equal(sessionResponse.status, 201);
+      const session = await sessionResponse.json() as { novelId: string };
+
+      const parsePromise = fetch(`${baseUrl}/api/continuation-packs/parse`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          novelId: session.novelId,
+          title: '冲突资料',
+          documents: [{ filename: '资料.txt', filedata }],
+        }),
+      });
+      await deferred.started;
+      deferred.release();
+      const parseResponse = await parsePromise;
+      assert.equal(parseResponse.status, 200);
+      const parsed = await parseResponse.json() as {
+        pack: { id: string; contradictions: Array<{ id: string }> };
+      };
+      const contradictionId = parsed.pack.contradictions[0]?.id;
+      assert.ok(contradictionId);
+
+      const missing = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: parsed.pack.id,
+          mode: 'new',
+          newNovel: { title: '不应创建', summary: '' },
+          conflictResolutions: [],
+        }),
+      });
+      assert.equal(missing.status, 409);
+      assert.equal(db.listNovels().length, 1);
+
+      const forged = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: parsed.pack.id,
+          mode: 'new',
+          newNovel: { title: '仍不应创建', summary: '' },
+          conflictResolutions: [{ contradictionId: 'forged-conflict', resolution: '伪造裁决' }],
+        }),
+      });
+      assert.equal(forged.status, 400);
+      assert.equal(db.listNovels().length, 1);
+
+      for (const resolution of ['   ', 'A'.repeat(1001)]) {
+        const invalid = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            packId: parsed.pack.id,
+            mode: 'new',
+            newNovel: { title: '无效裁决不应创建', summary: '' },
+            conflictResolutions: [{ contradictionId, resolution }],
+          }),
+        });
+        assert.equal(invalid.status, 400);
+      }
+
+      const duplicate = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: parsed.pack.id,
+          mode: 'new',
+          newNovel: { title: '重复裁决不应创建', summary: '' },
+          conflictResolutions: [
+            { contradictionId, resolution: '方案 A' },
+            { contradictionId, resolution: '方案 B' },
+          ],
+        }),
+      });
+      assert.equal(duplicate.status, 400);
+      assert.equal(db.listNovels().length, 1);
+
+      const accepted = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: parsed.pack.id,
+          mode: 'new',
+          newNovel: { title: '冲突已裁决作品', summary: '' },
+          conflictResolutions: [{ contradictionId, resolution: '以第三章正文为准' }],
+        }),
+      });
+      assert.equal(accepted.status, 200);
+      const approved = await accepted.json() as { novel: { id: string }; pack: { id: string } };
+      const persisted = db.getContinuationPack(approved.pack.id);
+      assert.equal(persisted?.status, 'approved');
+      assert.equal(persisted?.contradictions[0]?.acceptedResolution, '以第三章正文为准');
+      assert.equal(typeof persisted?.contradictions[0]?.resolvedAt, 'number');
+
+      const replay = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: approved.pack.id,
+          mode: 'existing',
+          existingNovelId: approved.novel.id,
+          conflictResolutions: [{ contradictionId, resolution: '改用人物小传' }],
+        }),
+      });
+      assert.equal(replay.status, 409);
+      assert.equal(
+        db.getContinuationPack(approved.pack.id)?.contradictions[0]?.acceptedResolution,
+        '以第三章正文为准',
+      );
+    });
+
+    await t.test('persists conflict resolutions when approving a stored pack', async () => {
+      resetActiveDatabase('novel-a');
+      const now = Date.now();
+      db.createContinuationPack({
+        id: 'stored-conflict-pack',
+        novelId: 'novel-a',
+        title: 'stored conflict pack',
+        status: 'draft',
+        sourceDocuments: [],
+        canonFacts: [{ id: 'fact-1', priority: 'hard', category: 'plot', text: '主角已出城', evidence: '正文' }],
+        characterStates: [],
+        plotState: {
+          currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '',
+        },
+        styleProfile: {
+          pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '',
+        },
+        contradictions: [{
+          id: 'stored-conflict-1',
+          severity: 'high',
+          summary: '主角位置冲突',
+          conflictingEvidence: ['城内', '城外'],
+          suggestedResolution: '以正文为准',
+        }],
+        continuationTask: '继续写',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await fetch(`${baseUrl}/api/continuation-packs/approve-import`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          packId: 'stored-conflict-pack',
+          mode: 'existing',
+          existingNovelId: 'novel-a',
+          conflictResolutions: [{ contradictionId: 'stored-conflict-1', resolution: '以正文为准' }],
+        }),
+      });
+      assert.equal(response.status, 200);
+      const persisted = db.getContinuationPack('stored-conflict-pack');
+      assert.equal(persisted?.status, 'approved');
+      assert.equal(persisted?.contradictions[0]?.acceptedResolution, '以正文为准');
+      assert.equal(typeof persisted?.contradictions[0]?.resolvedAt, 'number');
+    });
+
     await t.test('rejects approving a stored continuation pack for another novel', async () => {
       resetActiveDatabase('novel-a');
       const now = Date.now();

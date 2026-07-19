@@ -64,7 +64,7 @@
     "axe-core": "^4.12.1",
     "electron": "^43.0.0",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.1",
     "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",

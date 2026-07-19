@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../lib/client-logger';
-import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Scroll, Shield, Upload, Users, Zap, GitBranch, Sparkles, Send, Trash2, X, ChevronRight } from 'lucide-react';
+import { BookOpen, Clock, FileText, Globe, Loader2, MapPin, Package, Scroll, Shield, Upload, Users, Zap, GitBranch, Sparkles, Send, Trash2, X, ChevronRight, Plus, Pen } from 'lucide-react';
 import { Character, Location, Item, Novel, TimelineEvent, Faction, PowerLevel, SetupTaskDraft, StoryIdeaCard, ContinuationPack, ProjectPreferenceProfile, EntityRelationship } from '../../shared/types';
 import { StoryContractPanel } from './StoryContractPanel';
 import {
@@ -14,7 +14,7 @@ import {
   importWorldExtraction,
 } from '../lib/world-client';
 import { listContinuationPacks } from '../lib/continuation-client';
-import { updateNovel } from '../lib/novel-client';
+import { getNovel, updateNovel } from '../lib/novel-client';
 import { requireResponseDatabaseGeneration, subscribeToChanges } from '../lib/db-transport';
 import { parseDocAsync } from '../lib/prompt-client';
 
@@ -33,7 +33,16 @@ import { TimelineTab } from './world-bible/TimelineTab';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction } from './ui/alert-dialog';
 import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
 import { RelationshipGraph } from './RelationshipGraph';
+import { RelationshipFormDialog } from './world-bible/RelationshipFormDialog';
 import { enqueueLatestCharacterBioCommit, streamCharacterBio } from '../lib/character-bio-stream';
+
+function getEntityName(type: string, id: string, characters: Character[], locations: Location[], items: Item[], factions: Faction[]): string {
+  if (type === 'character') return characters.find(c => c.id === id)?.name || id.slice(0, 8);
+  if (type === 'location') return locations.find(l => l.id === id)?.name || id.slice(0, 8);
+  if (type === 'item') return items.find(i => i.id === id)?.name || id.slice(0, 8);
+  if (type === 'faction') return factions.find(f => f.id === id)?.name || id.slice(0, 8);
+  return id.slice(0, 8);
+}
 
 export function WorldBibleView({
   novel,
@@ -79,6 +88,10 @@ export function WorldBibleView({
   const [requestedReviewPackId, setRequestedReviewPackId] = useState<string | null>(null);
   const [showRelationshipAlert, setShowRelationshipAlert] = useState(false);
 
+  const [relDialogOpen, setRelDialogOpen] = useState(false);
+  const [relDialogMode, setRelDialogMode] = useState<'create' | 'edit' | 'delete'>('create');
+  const [editingRel, setEditingRel] = useState<EntityRelationship | null>(null);
+
   const [characters, setCharacters] = useState<Character[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -87,6 +100,8 @@ export function WorldBibleView({
   const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
   const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
   const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
+
+  const totalEntities = characters.length + locations.length + items.length + factions.length;
 
   const [globalOutline, setGlobalOutline] = useState(novel.globalOutline || '');
   const [worldRules, setWorldRules] = useState(novel.worldRules || '');
@@ -114,32 +129,35 @@ export function WorldBibleView({
     data: any;
   } | null>(null);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      const [characters, locations, items, timelineEvents, factions, powerLevels, packs, relationships] = await Promise.all([
-        listCharacters(novel.id),
-        listLocations(novel.id),
-        listItems(novel.id),
-        listTimelineEvents(novel.id),
-        listFactions(novel.id),
-        listPowerLevels(novel.id),
-        listContinuationPacks(novel.id),
-        listEntityRelationshipsClient(novel.id),
-      ]);
-      setCharacters(characters);
-      setLocations(locations);
-      setItems(items);
-      setTimelineEvents(timelineEvents);
-      setFactions(factions);
-      setPowerLevels(powerLevels);
-      setContinuationPacks(packs);
-      setRelationships(relationships);
-      setGlobalOutline(novel.globalOutline || '');
-      setWorldRules(novel.worldRules || '');
-    };
-    fetchAll();
-    return subscribeToChanges(fetchAll);
+  const fetchAll = useCallback(async () => {
+    const [characters, locations, items, timelineEvents, factions, powerLevels, packs, relationships, freshNovel] = await Promise.all([
+      listCharacters(novel.id),
+      listLocations(novel.id),
+      listItems(novel.id),
+      listTimelineEvents(novel.id),
+      listFactions(novel.id),
+      listPowerLevels(novel.id),
+      listContinuationPacks(novel.id),
+      listEntityRelationshipsClient(novel.id),
+      getNovel(novel.id),
+    ]);
+    setCharacters(characters);
+    setLocations(locations);
+    setItems(items);
+    setTimelineEvents(timelineEvents);
+    setFactions(factions);
+    setPowerLevels(powerLevels);
+    setContinuationPacks(packs);
+    setRelationships(relationships);
+    const novelData = freshNovel || novel;
+    setGlobalOutline(novelData.globalOutline || '');
+    setWorldRules(novelData.worldRules || '');
   }, [novel]);
+
+  useEffect(() => {
+    fetchAll(); // eslint-disable-line react-hooks/set-state-in-effect
+    return subscribeToChanges(fetchAll);
+  }, [fetchAll]);
 
   useEffect(() => {
     if (helperOpen) {
@@ -670,7 +688,7 @@ JSON 格式规范：
               if (totalEntities < 2) {
                 setShowRelationshipAlert(true);
               } else {
-                setActiveTab('characters');
+                setActiveTab('graph');
               }
             }}
             className="flex flex-col items-center p-6 bg-theme-sidebar/60 rounded-3xl border border-theme-border hover:border-theme-accent hover:bg-theme-sidebar transition-all text-center group cursor-pointer"
@@ -867,7 +885,7 @@ JSON 格式规范：
 
               {activeTab === 'pack-management' && (
                 <div key="pack-management">
-                  <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} />
+                  <ContinuationPackView novel={novel} initialActivePackId={requestedReviewPackId} onSyncComplete={() => fetchAll()} />
                 </div>
               )}
 
@@ -911,13 +929,31 @@ JSON 格式规范：
 
               {activeTab === 'graph' && (
                 <div className="h-[calc(100vh-12rem)] bg-theme-sidebar/20 border border-theme-border/30 rounded-2xl p-6 overflow-hidden shadow-inner flex flex-col gap-4">
-                  <div className="flex flex-col">
-                    <h3 className="text-base font-bold text-theme-text flex items-center gap-2">
-                      <GitBranch size={16} className="text-theme-accent" />
-                      <span>全局实体关系图谱</span>
-                    </h3>
-                    <p className="text-xs text-theme-muted">支持拖拽节点与双击节点直接跳转至对应实体详细档案。</p>
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <h3 className="text-base font-bold text-theme-text flex items-center gap-2">
+                        <GitBranch size={16} className="text-theme-accent" />
+                        <span>全局实体关系图谱</span>
+                      </h3>
+                      <p className="text-xs text-theme-muted">点击节点跳转至对应实体，新增/编辑/删除关系维护世界观关联。</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setRelDialogMode('create');
+                        setEditingRel(null);
+                        setRelDialogOpen(true);
+                      }}
+                      disabled={totalEntities < 2}
+                      title={totalEntities < 2 ? '请先添加至少两个实体' : '新增关系'}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-theme-accent text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={14} />
+                      新增关系
+                    </button>
                   </div>
+
+                  {/* Graph */}
                   <div className="flex-1 min-h-0 relative rounded-xl border border-theme-border/40 bg-theme-sidebar/10 overflow-hidden">
                     <RelationshipGraph
                       relationships={relationships}
@@ -925,6 +961,7 @@ JSON 格式规范：
                       locations={locations}
                       items={items}
                       factions={factions}
+                      totalEntities={characters.length + locations.length + items.length + factions.length}
                       onSelectEntity={(type) => {
                         if (type === 'character') setActiveTab('characters');
                         else if (type === 'location') setActiveTab('locations');
@@ -933,6 +970,87 @@ JSON 格式规范：
                       }}
                     />
                   </div>
+
+                  {/* Relationship List */}
+                  <div className="shrink-0 max-h-48 overflow-y-auto rounded-xl border border-theme-border/30 bg-theme-sidebar/10">
+                    {relationships.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-theme-muted">
+                        暂无关系，点击上方按钮添加
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-theme-border/20">
+                        {relationships.map((rel) => {
+                          const srcName = getEntityName(rel.sourceType, rel.sourceId, characters, locations, items, factions);
+                          const tgtName = getEntityName(rel.targetType, rel.targetId, characters, locations, items, factions);
+                          return (
+                            <div key={rel.id} className="flex items-center justify-between px-4 py-2.5 gap-3 hover:bg-theme-sidebar/30 transition-colors">
+                              <div className="flex items-center gap-2 text-xs min-w-0">
+                                <span className="font-bold text-theme-text truncate">{srcName}</span>
+                                <span className="text-theme-muted shrink-0">→</span>
+                                <span className="text-theme-accent font-bold shrink-0">{rel.relationshipType}</span>
+                                <span className="text-theme-muted shrink-0">→</span>
+                                <span className="font-bold text-theme-text truncate">{tgtName}</span>
+                                {rel.description && (
+                                  <span className="text-theme-muted truncate hidden sm:inline">（{rel.description}）</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setRelDialogMode('edit');
+                                    setEditingRel(rel);
+                                    setRelDialogOpen(true);
+                                  }}
+                                  className="p-1.5 text-theme-muted hover:text-theme-accent rounded-lg hover:bg-theme-sidebar/50 transition-all"
+                                  title="编辑关系"
+                                >
+                                  <Pen size={13} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setRelDialogMode('delete');
+                                    setEditingRel(rel);
+                                    setRelDialogOpen(true);
+                                  }}
+                                  className="p-1.5 text-theme-muted hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-all"
+                                  title="删除关系"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Relationship Form Dialog */}
+                  <RelationshipFormDialog
+                    open={relDialogOpen}
+                    mode={relDialogMode}
+                    novelId={novel.id}
+                    characters={characters}
+                    locations={locations}
+                    items={items}
+                    factions={factions}
+                    existingRelationship={editingRel}
+                    onClose={() => setRelDialogOpen(false)}
+                    onSaved={(rel) => {
+                      setRelationships(prev => {
+                        const idx = prev.findIndex(r => r.id === rel.id);
+                        if (idx >= 0) {
+                          const next = [...prev];
+                          next[idx] = rel;
+                          return next;
+                        }
+                        return [...prev, rel];
+                      });
+                    }}
+                    onDeleted={(id) => {
+                      setRelationships(prev => prev.filter(r => r.id !== id));
+                    }}
+                  />
                 </div>
               )}
             </>

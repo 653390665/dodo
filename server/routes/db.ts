@@ -632,6 +632,9 @@ export function registerDbRoutes(app: Express) {
     if (!DB_WHITELIST.has(method)) {
       return res.status(400).json({ error: `Unknown method: ${method}` });
     }
+    if (method === 'updateContinuationPack' && args[1] && typeof args[1] === 'object' && 'status' in args[1]) {
+      return res.status(400).json({ error: '状态变更请使用 /api/continuation-packs/approve-import' });
+    }
     const fn = (db as unknown as Record<string, Function>)[method];
     if (typeof fn !== 'function') {
       return res.status(500).json({ error: `Method not a function: ${method}` });

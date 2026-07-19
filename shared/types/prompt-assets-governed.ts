@@ -193,6 +193,7 @@ export interface SkillSeriesFlowStep {
   qualityGate: string;     // 本步质量门栏标准
   nextStepId: string | null; // 下一步 ID，尾步骤为 null
   switchAllowed: boolean;  // 是否允许中途跳跃切换
+  navigateTo?: string;     // 完成本步后自动跳转的目标标签页 (如 'bible'/'outline'/'planning'/'production'/'quality')
 }
 
 export interface SkillSeriesFlow {

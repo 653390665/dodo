@@ -9,6 +9,7 @@ import { approveContinuationImport } from '../lib/continuation-client';
 import {
   buildImportedNovelDraft,
   canApproveContinuationImportPack,
+  isContinuationContradictionResolved,
   resolveContinuationImportTargetMode,
 } from '../lib/continuation-import-flow';
 import { buildCreationIntentDraft } from '../lib/continuation-pack';
@@ -55,6 +56,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
   const [parseStageText, setParseStageText] = useState('正在读取资料包并展开文档树...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [conflictResolutionDrafts, setConflictResolutionDrafts] = useState<Record<string, string>>({});
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +168,11 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
 
   const parsedPack = parsedState?.pack || null;
   const canConfirm = canApproveContinuationImportPack(parsedPack);
+  const hasCanonFacts = Boolean(parsedPack?.canonFacts.length);
+  const unresolvedHighConflictCount = parsedPack?.contradictions.filter((contradiction) => (
+    contradiction.severity === 'high'
+    && !isContinuationContradictionResolved(contradiction)
+  )).length || 0;
   const suggestedDraft = parsedPack ? buildImportedNovelDraft(parsedPack.title) : null;
   const uploadActionDisabled = files.length === 0 || isParsing || (targetMode === 'existing' && !selectedNovelId);
 
@@ -174,6 +181,46 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     setIsParsing(false);
     setParseProgress(0);
     setParseStageText('正在读取资料包并展开文档树...');
+    setConflictResolutionDrafts({});
+  };
+
+  const updateConflictResolutionDraft = (contradictionId: string, resolution: string) => {
+    setConflictResolutionDrafts((previous) => ({ ...previous, [contradictionId]: resolution }));
+    setParsedState((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        pack: {
+          ...previous.pack,
+          contradictions: previous.pack.contradictions.map((contradiction) => {
+            if (contradiction.id !== contradictionId) return contradiction;
+            const unresolvedContradiction = { ...contradiction };
+            delete unresolvedContradiction.acceptedResolution;
+            delete unresolvedContradiction.resolvedAt;
+            return unresolvedContradiction;
+          }),
+        },
+      };
+    });
+  };
+
+  const acceptConflictResolution = (contradictionId: string) => {
+    const resolution = conflictResolutionDrafts[contradictionId]?.trim();
+    if (!resolution) return;
+    setParsedState((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        pack: {
+          ...previous.pack,
+          contradictions: previous.pack.contradictions.map((contradiction) => (
+            contradiction.id === contradictionId
+              ? { ...contradiction, acceptedResolution: resolution, resolvedAt: Date.now() }
+              : contradiction
+          )),
+        },
+      };
+    });
   };
 
   async function fileToBase64(file: File): Promise<string> {
@@ -234,7 +281,14 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         targetModeAtParse: targetMode,
         selectedNovelIdAtParse: selectedNovelId,
       });
+      setConflictResolutionDrafts(Object.fromEntries(
+        pack.contradictions.map((contradiction) => [
+          contradiction.id,
+          contradiction.acceptedResolution || contradiction.suggestedResolution || '',
+        ]),
+      ));
       setStage('confirm');
+      setIsParsing(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setIsParsing(false);
@@ -263,6 +317,10 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         newNovel: parsedState.targetModeAtParse === 'new'
           ? { title: draft.title, summary: draft.summary }
           : undefined,
+        conflictResolutions: parsedPack.contradictions.flatMap((contradiction) => {
+          const resolution = contradiction.acceptedResolution?.trim();
+          return resolution ? [{ contradictionId: contradiction.id, resolution }] : [];
+        }),
       });
 
       onEnterEditor(
@@ -559,23 +617,83 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         </div>
 
         {parsedPack.contradictions.length > 0 && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <div className="flex items-center gap-2 font-bold">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="flex items-center justify-between gap-3 font-bold">
+              <div className="flex items-center gap-2">
               <AlertTriangle size={16} />
               发现资料冲突
+              </div>
+              {unresolvedHighConflictCount > 0 && (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] text-red-700">
+                  还有 {unresolvedHighConflictCount} 个高风险冲突待处理
+                </span>
+              )}
             </div>
-            <div className="mt-2 space-y-2 text-xs leading-5">
-              {parsedPack.contradictions.map((item) => (
-                <div key={item.id}>
-                  {item.summary}
-                  {item.suggestedResolution ? ` 建议：${item.suggestedResolution}` : ''}
-                </div>
-              ))}
+            <div className="mt-3 space-y-3 text-xs leading-5">
+              {parsedPack.contradictions.map((item) => {
+                const resolutionDraft = conflictResolutionDrafts[item.id] ?? item.suggestedResolution ?? '';
+                const acceptedResolution = item.acceptedResolution?.trim() || '';
+                const isAccepted = Boolean(acceptedResolution && acceptedResolution === resolutionDraft.trim());
+                const severityLabel = item.severity === 'high' ? '高风险' : item.severity === 'medium' ? '中风险' : '低风险';
+                const severityClass = item.severity === 'high'
+                  ? 'bg-red-100 text-red-700'
+                  : item.severity === 'medium'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-blue-100 text-blue-700';
+                return (
+                  <div key={item.id} className="rounded-xl border border-amber-200 bg-white/60 p-3 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${severityClass}`}>
+                        {severityLabel}
+                      </span>
+                      <div className="font-bold text-theme-text">{item.summary}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">冲突证据</div>
+                      {item.conflictingEvidence.length > 0 ? (
+                        <ul className="mt-1 space-y-1 text-theme-muted">
+                          {item.conflictingEvidence.map((evidence, index) => (
+                            <li key={`${item.id}-evidence-${index}`}>- {evidence}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="mt-1 text-theme-muted">未提供具体证据</div>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor={`conflict-resolution-${item.id}`} className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">
+                        裁决方案
+                      </label>
+                      <textarea
+                        id={`conflict-resolution-${item.id}`}
+                        aria-label={`冲突方案：${item.summary}`}
+                        value={resolutionDraft}
+                        onChange={(event) => updateConflictResolutionDraft(item.id, event.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        className="mt-1 w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-theme-text outline-none focus:border-theme-accent"
+                        placeholder="请填写本次续写应遵循的明确方案"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => acceptConflictResolution(item.id)}
+                        disabled={!resolutionDraft.trim() || isAccepted}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={13} />
+                        {isAccepted ? '已确认此方案' : '采用此方案'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {!canConfirm && parsedPack.contradictions.length === 0 && (
+        {!hasCanonFacts && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
             当前资料未提取出足够的关键硬设定，暂时不能确认导入。请返回上一步补充更完整的资料。
           </div>
@@ -685,7 +803,13 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-            {isSubmitting ? '正在进入编辑器...' : '确认并进入续写'}
+            {isSubmitting
+              ? '正在进入编辑器...'
+              : !hasCanonFacts
+                ? '需先补充关键硬设定'
+                : unresolvedHighConflictCount > 0
+                  ? `先处理 ${unresolvedHighConflictCount} 个高风险冲突`
+                  : '确认并进入续写'}
           </button>
         </div>
       </div>

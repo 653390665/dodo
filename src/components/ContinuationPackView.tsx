@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Trash2, Upload } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AlertTriangle, CheckCircle2, FileText, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react';
 
-import type { Novel, ContinuationPack } from '../../shared/types';
-import { deleteContinuationPack, listContinuationPacks, updateContinuationPack } from '../lib/continuation-client';
+import type { Novel, ContinuationPack, Character, Location, Item, Faction } from '../../shared/types';
+import type { ExtractionSnapshot } from '../lib/continuation-client';
+import { deleteContinuationPack, extractPackEntities, listContinuationPacks, syncPackToWorld, updateContinuationPack, approveContinuationImport } from '../lib/continuation-client';
+import { listCharacters, listLocations, listItems, listFactions } from '../lib/world-client';
 import { parseContinuationPack } from '../lib/prompt-client';
+import { SyncPreviewPanel } from './world-bible/SyncPreviewPanel';
 
 interface ContinuationPackViewProps {
   novel: Novel;
   initialActivePackId?: string | null;
+  onSyncComplete?: () => void;
 }
 
-export function ContinuationPackView({ novel, initialActivePackId = null }: ContinuationPackViewProps) {
+export function ContinuationPackView({ novel, initialActivePackId = null, onSyncComplete }: ContinuationPackViewProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [activePack, setActivePack] = useState<ContinuationPack | null>(null);
   const [packs, setPacks] = useState<ContinuationPack[]>([]);
@@ -20,10 +24,35 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   const [error, setError] = useState('');
   const [editingTask, setEditingTask] = useState(false);
   const [taskDraft, setTaskDraft] = useState('');
+  const [syncExtraction, setSyncExtraction] = useState<ExtractionSnapshot | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [existingEntities, setExistingEntities] = useState<{
+    characters: Character[];
+    locations: Location[];
+    items: Item[];
+    factions: Faction[];
+  }>({ characters: [], locations: [], items: [], factions: [] });
+
+  const extractSeqRef = useRef(0);
+  const extractAbortRef = useRef<AbortController | null>(null);
+
+  const cancelPendingExtraction = useCallback(() => {
+    extractSeqRef.current++;
+    extractAbortRef.current?.abort();
+    extractAbortRef.current = null;
+    setIsExtracting(false);
+    setSyncExtraction(null);
+    setError('');
+  }, []);
 
   useEffect(() => {
     listContinuationPacks(novel.id).then(setPacks);
   }, [novel.id]);
+
+  useEffect(() => {
+    return () => { cancelPendingExtraction(); };
+  }, [cancelPendingExtraction]);
 
   useEffect(() => {
     if (!initialActivePackId) return;
@@ -76,12 +105,18 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   };
 
   const handleApprovePack = async (pack: ContinuationPack) => {
-    if (!await updateContinuationPack(pack.id, { status: 'approved' })) {
-      setError('资料包已不存在，无法批准。');
-      return;
+    try {
+      const { pack: approved } = await approveContinuationImport({
+        packId: pack.id,
+        mode: 'existing',
+        existingNovelId: novel.id,
+        conflictResolutions: [],
+      });
+      setActivePack(approved);
+      setPacks(prev => prev.map(p => p.id === pack.id ? approved : p));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '批准失败');
     }
-    setActivePack({ ...pack, status: 'approved', updatedAt: Date.now() });
-    setPacks(prev => prev.map(p => p.id === pack.id ? { ...p, status: 'approved' } : p));
   };
 
   const handleDeletePack = async (packId: string) => {
@@ -112,6 +147,67 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
   };
 
   const canApprove = activePack && activePack.canonFacts.length > 0 && activePack.contradictions.length === 0;
+
+  const handleSyncEntities = useCallback(async (pack: ContinuationPack) => {
+    cancelPendingExtraction();
+    const seq = ++extractSeqRef.current;
+    const controller = new AbortController();
+    extractAbortRef.current = controller;
+    setIsExtracting(true);
+    setError('');
+    try {
+      const [snapshot, characters, locations, items, factions] = await Promise.all([
+        extractPackEntities(pack.id, novel.id, controller.signal),
+        listCharacters(novel.id),
+        listLocations(novel.id),
+        listItems(novel.id),
+        listFactions(novel.id),
+      ]);
+      if (seq !== extractSeqRef.current || snapshot.packId !== pack.id) return;
+      setSyncExtraction(snapshot);
+      setExistingEntities({ characters, locations, items, factions });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (seq !== extractSeqRef.current) return;
+      setError('提取失败：' + (e instanceof Error ? e.message : '未知错误'));
+    } finally {
+      if (seq === extractSeqRef.current) setIsExtracting(false);
+    }
+  }, [novel.id, cancelPendingExtraction]);
+
+  const handleSyncConfirm = async (selections: {
+    characters: ExtractionSnapshot['extraction']['characters'];
+    locations: ExtractionSnapshot['extraction']['locations'];
+    items: ExtractionSnapshot['extraction']['items'];
+    factions: ExtractionSnapshot['extraction']['factions'];
+    powerLevels: ExtractionSnapshot['extraction']['powerLevels'];
+    timelineEvents: ExtractionSnapshot['extraction']['timelineEvents'];
+    relationships: ExtractionSnapshot['extraction']['relationships'];
+    globalOutline?: string;
+    worldRules?: string;
+  }) => {
+    if (!syncExtraction) return;
+    setIsSyncing(true);
+    setError('');
+    try {
+      const result = await syncPackToWorld({
+        packId: syncExtraction.packId,
+        novelId: syncExtraction.novelId,
+        databaseGeneration: syncExtraction.databaseGeneration,
+        ...selections,
+      });
+      const skippedRels = result.skipped.relationships;
+      if (skippedRels > 0) {
+        setError(`同步完成，但有 ${skippedRels} 条关系因引用不存在的实体被跳过`);
+      }
+      setSyncExtraction(null);
+      onSyncComplete?.();
+    } catch (e) {
+      setError('同步失败：' + (e instanceof Error ? e.message : '未知错误'));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto p-8 max-w-4xl mx-auto space-y-8">
@@ -171,7 +267,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
       </div>
 
       {/* Active pack review */}
-      {activePack && (
+      {activePack && !syncExtraction && (
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -187,6 +283,16 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
                 className="px-4 py-2 rounded-xl bg-theme-accent text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
               >
                 <CheckCircle2 size={14} /> 确认并启用
+              </button>
+            )}
+            {activePack.status === 'approved' && (
+              <button
+                onClick={() => handleSyncEntities(activePack)}
+                disabled={isExtracting}
+                className="px-4 py-2 rounded-xl bg-theme-accent text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+              >
+                {isExtracting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                {isExtracting ? '正在提取...' : '同步到设定'}
               </button>
             )}
           </div>
@@ -309,6 +415,20 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
         </div>
       )}
 
+      {/* Sync preview panel */}
+      {syncExtraction && (
+        <SyncPreviewPanel
+          extraction={syncExtraction.extraction}
+          existingCharacters={existingEntities.characters}
+          existingLocations={existingEntities.locations}
+          existingItems={existingEntities.items}
+          existingFactions={existingEntities.factions}
+          onConfirm={handleSyncConfirm}
+          onCancel={() => setSyncExtraction(null)}
+          isSyncing={isSyncing}
+        />
+      )}
+
       {/* Pack history */}
       {packs.length > 0 && (
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-6 space-y-3">
@@ -316,7 +436,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null }: Cont
           {packs.map(pack => (
             <button
               key={pack.id}
-              onClick={() => setActivePack(pack)}
+              onClick={() => { cancelPendingExtraction(); setActivePack(pack); }}
               className={`block w-full text-left rounded-xl border px-4 py-3 text-xs ${
                 activePack?.id === pack.id ? 'border-theme-accent bg-theme-accent/5' : 'border-theme-border hover:bg-theme-sidebar/20'
               }`}

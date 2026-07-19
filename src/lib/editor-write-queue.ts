@@ -122,6 +122,12 @@ export function subscribeToEditorWrites(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+export function hasPendingWriteForExactKey(exactKey: string): boolean {
+  const entry = writes.get(exactKey);
+  if (!entry) return false;
+  return entry.pending !== null || entry.inFlight !== null || entry.failed;
+}
+
 export const __editorWriteQueueTestHooks = {
   reset(): void {
     for (const entry of writes.values()) {

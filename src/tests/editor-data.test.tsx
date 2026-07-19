@@ -132,4 +132,55 @@ describe('useEditorData full chapter loading', () => {
     await waitFor(() => expect(result.current.currentChapter?.content).toBe('数据库完整正文'));
     expect(result.current.isLoading).toBe(false);
   });
+
+  test('syncs globalOutline from database on fetch', async () => {
+    api.getNovel.mockResolvedValue({ ...novel, globalOutline: '数据库大纲' });
+    const { result } = renderHook(() => useEditorData(novel.id));
+
+    await waitFor(() => expect(result.current.globalOutline).toBe('数据库大纲'));
+  });
+
+  test('does not overwrite local globalOutline when pending write exists', async () => {
+    const spy = vi.spyOn(await import('../lib/editor-write-queue'), 'hasPendingWriteForExactKey');
+    spy.mockReturnValue(true);
+
+    api.getNovel.mockResolvedValue({ ...novel, globalOutline: '数据库大纲' });
+    const { result } = renderHook(() => useEditorData(novel.id));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.globalOutline).toBe('');
+
+    spy.mockRestore();
+  });
+
+  test('stale getNovel response does not overwrite local outline change (revision guard)', async () => {
+    const slowGetNovel = deferred<Novel | undefined>();
+    api.getNovel.mockImplementationOnce(() => slowGetNovel.promise);
+
+    const { result } = renderHook(() => useEditorData(novel.id));
+
+    expect(result.current.isLoading).toBe(true);
+
+    act(() => { result.current.setGlobalOutline('本地新大纲'); });
+    expect(result.current.globalOutline).toBe('本地新大纲');
+
+    await act(async () => slowGetNovel.resolve({ ...novel, globalOutline: '旧数据库大纲' }));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.globalOutline).toBe('本地新大纲');
+  });
+
+  test('fresh getNovel response applies when no local changes (revision unchanged)', async () => {
+    const slowGetNovel = deferred<Novel | undefined>();
+    api.getNovel.mockImplementationOnce(() => slowGetNovel.promise);
+
+    const { result } = renderHook(() => useEditorData(novel.id));
+
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => slowGetNovel.resolve({ ...novel, globalOutline: '新数据库大纲' }));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.globalOutline).toBe('新数据库大纲');
+  });
 });

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  applyContinuationConflictResolutions,
   buildImportedNovelDraft,
   canApproveContinuationImportPack,
   resolveContinuationImportTargetMode,
@@ -102,4 +103,86 @@ test('canApproveContinuationImportPack rejects packs with high contradictions', 
   });
 
   assert.equal(canApproveContinuationImportPack(pack), false);
+});
+
+test('canApproveContinuationImportPack allows resolved high contradictions', () => {
+  const pack = buildPack({
+    canonFacts: [
+      { id: 'fact-1', priority: 'hard', category: 'world', text: '设定', evidence: '原文' },
+    ],
+    contradictions: [{
+      id: 'contradiction-1',
+      severity: 'high',
+      summary: '人物去向冲突',
+      conflictingEvidence: ['A', 'B'],
+      suggestedResolution: '以 B 为准',
+    }],
+  });
+
+  const resolved = applyContinuationConflictResolutions(pack, [{
+    contradictionId: 'contradiction-1',
+    resolution: '  以第二份资料为准  ',
+  }], 123);
+
+  assert.equal(canApproveContinuationImportPack(resolved), true);
+  assert.equal(resolved.contradictions[0].acceptedResolution, '以第二份资料为准');
+  assert.equal(resolved.contradictions[0].resolvedAt, 123);
+});
+
+test('applyContinuationConflictResolutions rejects unknown contradiction ids', () => {
+  const pack = buildPack({
+    contradictions: [{
+      id: 'contradiction-1',
+      severity: 'high',
+      summary: '矛盾',
+      conflictingEvidence: ['A', 'B'],
+      suggestedResolution: '处理',
+    }],
+  });
+
+  assert.throws(
+    () => applyContinuationConflictResolutions(pack, [{ contradictionId: 'unknown', resolution: '处理' }]),
+    /未知的冲突裁决 ID/,
+  );
+});
+
+test('applyContinuationConflictResolutions rejects duplicate contradiction ids', () => {
+  const pack = buildPack({
+    contradictions: [{
+      id: 'contradiction-1',
+      severity: 'high',
+      summary: '矛盾',
+      conflictingEvidence: ['A', 'B'],
+      suggestedResolution: '处理',
+    }],
+  });
+
+  assert.throws(
+    () => applyContinuationConflictResolutions(pack, [
+      { contradictionId: 'contradiction-1', resolution: 'A' },
+      { contradictionId: 'contradiction-1', resolution: 'B' },
+    ]),
+    /重复的冲突裁决 ID/,
+  );
+});
+
+test('applyContinuationConflictResolutions rejects blank or oversized resolutions', () => {
+  const pack = buildPack({
+    contradictions: [{
+      id: 'contradiction-1',
+      severity: 'high',
+      summary: '矛盾',
+      conflictingEvidence: ['A', 'B'],
+      suggestedResolution: '处理',
+    }],
+  });
+
+  assert.throws(
+    () => applyContinuationConflictResolutions(pack, [{ contradictionId: 'contradiction-1', resolution: '   ' }]),
+    /冲突裁决内容无效/,
+  );
+  assert.throws(
+    () => applyContinuationConflictResolutions(pack, [{ contradictionId: 'contradiction-1', resolution: 'A'.repeat(1001) }]),
+    /冲突裁决内容无效/,
+  );
 });

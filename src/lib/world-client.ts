@@ -57,7 +57,7 @@ export async function deleteTimelineEvent(id: string): Promise<boolean> { return
 export async function listEntityRelationshipsClient(novelId: string): Promise<EntityRelationship[]> {
   return call('listEntityRelationships', novelId);
 }
-export async function createEntityRelationshipClient(rel: EntityRelationship): Promise<void> {
+export async function createEntityRelationshipClient(rel: EntityRelationship): Promise<boolean> {
   return call('createEntityRelationship', rel);
 }
 export async function updateEntityRelationshipClient(id: string, data: Partial<EntityRelationship>): Promise<boolean> {

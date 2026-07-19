@@ -102,10 +102,15 @@ export function useEditorPersistence({
   };
 
   const persistProjectPreferenceProfile = async (profile: ProjectPreferenceProfile) => {
-    setProjectPreferenceProfile(profile);
-    await updateNovel(novel.id, {
+    const result = await updateNovel(novel.id, {
       projectPreferenceProfile: profile,
     });
+    // Only update local React state after a confirmed successful DB write.
+    // false, undefined, or an exception means the write did not happen.
+    if (result !== true) {
+      throw new Error('保存设定失败：数据库写入未生效');
+    }
+    setProjectPreferenceProfile(profile);
   };
 
   const handleSaveVersion = async (author: 'user' | 'writer-agent' | 'editor-agent' | 'auto') => {
@@ -229,15 +234,18 @@ export function useEditorPersistence({
     }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'sceneBeats', value: newBeats });
   };
 
-  const handleUpdateGlobalOutline = (val: string) => {
+  const handleUpdateGlobalOutline = useCallback((val: string): boolean => {
     setGlobalOutline(val);
     setIsSyncing(true);
     setSyncSuccess(false);
     hasWriteActivityRef.current = true;
     queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
-      await updateNovel(novel.id, { globalOutline: val });
+      const saved = await updateNovel(novel.id, { globalOutline: val });
+      if (!saved) return false;
+      return true;
     }, 1000, { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val });
-  };
+    return true;
+  }, [novel.id, setGlobalOutline]);
 
   const handleAddChapter = async (targetVolumeName?: string) => {
     if (!await flushBeforeChangingEditorContext()) return;
