@@ -1090,7 +1090,7 @@ test('T3.2: FIFO novel fields — second sync does not overwrite first', async (
   const gen = getDatabaseGeneration();
 
   // Hold the write queue so we can enqueue operations in controlled order
-  const release = holdWriteQueue();
+  const queueHold = holdWriteQueue();
 
   // 1. Enqueue a "user save" that sets globalOutline and worldRules
   const userSavePromise = runInSerializedWriteForGeneration(gen, () => {
@@ -1127,7 +1127,8 @@ test('T3.2: FIFO novel fields — second sync does not overwrite first', async (
   });
 
   // Release — operations drain in FIFO order
-  release();
+  await queueHold.waitForQueued(3);
+  queueHold.release();
 
   const [userSaveResult, res1, res2] = await Promise.all([userSavePromise, sync1Promise, sync2Promise]);
   assert.ok(userSaveResult.executed, 'user save executed');
@@ -1169,7 +1170,7 @@ test('T3.3: concurrent syncs do not produce duplicate entities', async () => {
   };
 
   // Hold the queue so both syncs are guaranteed to be queued before either runs
-  const release = holdWriteQueue();
+  const queueHold = holdWriteQueue();
 
   const p1 = fetch(`${baseUrl}/api/continuation-packs/sync-to-world`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload1),
@@ -1178,11 +1179,9 @@ test('T3.3: concurrent syncs do not produce duplicate entities', async () => {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload2),
   });
 
-  // Small delay to ensure both HTTP requests are received and queued
-  await new Promise(r => setTimeout(r, 50));
-
   // Release — both syncs now run in FIFO order
-  release();
+  await queueHold.waitForQueued(2);
+  queueHold.release();
 
   const [res1, res2] = await Promise.all([p1, p2]);
 

@@ -118,7 +118,9 @@ describe('ContinuationPackView A/B late response', () => {
     let resolveB!: (v: unknown) => void;
 
     mockExtract
-      .mockImplementationOnce(() => new Promise(r => { resolveA = r; }))
+      // Deliberately ignore AbortSignal: this simulates a transport that cannot
+      // stop A after the user switches to B.
+      .mockImplementationOnce((_packId: string, _novelId: string, _signal: AbortSignal) => new Promise(r => { resolveA = r; }))
       .mockImplementationOnce(() => new Promise(r => { resolveB = r; }));
 
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A'), makePack('pack-b', 'Pack B')]);
@@ -133,20 +135,7 @@ describe('ContinuationPackView A/B late response', () => {
     fireEvent.click(screen.getByText('同步到设定'));
     expect(mockExtract).toHaveBeenCalledTimes(1);
 
-    // Let A resolve
-    await act(async () => {
-      resolveA({
-        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
-        extraction: {
-          characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
-        },
-      });
-    });
-    await waitFor(() => expect(screen.getByTestId('preview-char').textContent).toBe('PackA角色'));
-
-    // Start B's extraction — this increments seq, so A's seq is stale
+    // Switch to B while A is still pending, then start B.
     fireEvent.click(screen.getByText('Pack B'));
     await waitFor(() => expect(screen.getByText('同步到设定')).toBeDefined());
     fireEvent.click(screen.getByText('同步到设定'));
@@ -164,16 +153,48 @@ describe('ContinuationPackView A/B late response', () => {
       });
     });
 
-    // B's result should be shown
     await waitFor(() => expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色'));
 
-    // A's late response arrives — but seq changed, so it should be discarded
-    // (We can't easily trigger A's late response from outside since the promise already resolved)
-    // The seq check in handleSyncEntities ensures that if extractSeqRef.current changed,
-    // the old result is discarded. This is tested by the fact that B's result persists.
+    // A ignores the abort and returns after B: its stale result must be discarded.
+    await act(async () => {
+      resolveA({
+        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+        extraction: {
+          characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
+          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+          relationships: [], globalOutline: '', worldRules: '',
+        },
+      });
+    });
 
-    // Verify final state is pack B's extraction
     expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色');
     expect(screen.queryByText('PackA角色')).toBeNull();
+  });
+
+  test('T3.4c: late response after unmount does not update state', async () => {
+    let resolveA!: (v: unknown) => void;
+    mockExtract.mockImplementationOnce((_packId: string, _novelId: string, _signal: AbortSignal) => new Promise(r => { resolveA = r; }));
+    mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A')]);
+
+    const { unmount, container } = render(<ContinuationPackView novel={mockNovel} />);
+    await waitFor(() => expect(screen.getByText('Pack A')).toBeDefined());
+    fireEvent.click(screen.getByText('Pack A'));
+    await waitFor(() => expect(screen.getByText('同步到设定')).toBeDefined());
+    fireEvent.click(screen.getByText('同步到设定'));
+    expect(mockExtract).toHaveBeenCalledTimes(1);
+
+    unmount();
+    await act(async () => {
+      resolveA({
+        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+        extraction: {
+          characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
+          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+          relationships: [], globalOutline: '', worldRules: '',
+        },
+      });
+    });
+
+    expect(container.innerHTML).toBe('');
   });
 });

@@ -51,8 +51,17 @@ export function runInTransaction<T>(fn: () => T): T {
 class WriteQueue {
   private queue: Promise<unknown> = Promise.resolve();
   private latch: Promise<void> | null = null;
+  private enqueuedSinceHold = 0;
+  private queuedWaiters: Array<{ count: number; resolve: () => void }> = [];
 
   async run<T>(fn: () => Promise<T> | T): Promise<T> {
+    if (this.latch) {
+      this.enqueuedSinceHold += 1;
+      for (const waiter of this.queuedWaiters) {
+        if (this.enqueuedSinceHold >= waiter.count) waiter.resolve();
+      }
+      this.queuedWaiters = this.queuedWaiters.filter(({ count }) => this.enqueuedSinceHold < count);
+    }
     const next = this.queue.then(async () => {
       if (this.latch) await this.latch;
       return fn();
@@ -65,11 +74,25 @@ class WriteQueue {
     await this.queue;
   }
 
-  /** Test-only: hold the queue until the returned resolve function is called. */
-  hold(): () => void {
+  /** Test-only: hold the queue until released, with a signal for queued items. */
+  hold(): { release: () => void; waitForQueued: (count: number) => Promise<void> } {
+    if (this.latch) throw new Error('[db] Write queue is already held.');
+    this.enqueuedSinceHold = 0;
     let resolver: () => void;
     this.latch = new Promise<void>((resolve) => { resolver = resolve; });
-    return () => { this.latch = null; resolver(); };
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      this.latch = null;
+      this.queuedWaiters = [];
+      resolver();
+    };
+    const waitForQueued = (count: number) => {
+      if (this.enqueuedSinceHold >= count) return Promise.resolve();
+      return new Promise<void>((resolve) => this.queuedWaiters.push({ count, resolve }));
+    };
+    return { release, waitForQueued };
   }
 }
 
@@ -123,8 +146,9 @@ export async function drainWriteQueue(): Promise<void> {
   await writeQueue.drain();
 }
 
-/** Test-only: hold the write queue until the returned resolve function is called. */
-export function holdWriteQueue(): () => void {
+/** Test-only: hold the write queue until released. */
+export function holdWriteQueue(): { release: () => void; waitForQueued: (count: number) => Promise<void> } {
+  if (process.env.NODE_ENV !== 'test') throw new Error('[db] holdWriteQueue is only available in test environment.');
   return writeQueue.hold();
 }
 
