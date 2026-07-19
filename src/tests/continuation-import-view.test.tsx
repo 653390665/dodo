@@ -85,11 +85,36 @@ const approvedNovel: Novel = {
   updatedAt: Date.now(),
 };
 
-async function renderWithDocument() {
+const novelA: Novel = {
+  ...approvedNovel,
+  id: 'novel-a',
+  title: '作品 A',
+};
+
+const novelB: Novel = {
+  ...approvedNovel,
+  id: 'novel-b',
+  title: '作品 B',
+};
+
+const approvablePack: ContinuationPack = {
+  ...parsedPack,
+  canonFacts: [{
+    id: 'fact-1',
+    priority: 'hard',
+    category: 'plot',
+    text: '主角已经离开王城',
+    evidence: '第三章写明主角出城',
+  }],
+};
+
+async function renderWithDocument(novels: Novel[] = [], initialNovelId?: string) {
+  mocks.listNovels.mockResolvedValue(novels);
   render(
     <ContinuationImportView
       onBack={() => {}}
       onEnterEditor={() => {}}
+      initialNovelId={initialNovelId}
     />,
   );
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
@@ -101,12 +126,101 @@ async function renderWithDocument() {
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
 }
 
+async function parseWithTarget(novels: Novel[], targetNovel: Novel) {
+  mocks.parseContinuationPack.mockResolvedValue(approvablePack);
+  await renderWithDocument(novels);
+  fireEvent.click(screen.getByRole('button', { name: '导入到现有作品' }));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: targetNovel.id } });
+  fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
+  await waitFor(
+    () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
+    { timeout: 1_500 },
+  );
+}
+
 describe('ContinuationImportView parsing state', () => {
   beforeEach(() => {
     mocks.listNovels.mockReset().mockResolvedValue([]);
     mocks.createContinuationImportSession.mockReset().mockResolvedValue('draft-1');
     mocks.parseContinuationPack.mockReset();
     mocks.approveContinuationImport.mockReset();
+  });
+
+  test('shows every novel with the correct dropdown label and uses a manually selected B target', async () => {
+    mocks.parseContinuationPack.mockResolvedValue(approvablePack);
+    await renderWithDocument([novelA, novelB]);
+    const targetSelect = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(targetSelect.value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: '导入到现有作品' }));
+    fireEvent.change(targetSelect, { target: { value: novelB.id } });
+
+    expect(screen.getByRole('option', { name: '作品 A' })).toBeDefined();
+    expect(screen.getByRole('option', { name: '作品 B' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), { timeout: 1_500 });
+    expect(mocks.parseContinuationPack).toHaveBeenCalledWith(
+      expect.objectContaining({ novelId: 'novel-b', title: '作品 B 资料包' }),
+      expect.any(Function),
+    );
+  });
+
+  test('uses the cockpit context novel as the default target', async () => {
+    await renderWithDocument([novelA, novelB], novelB.id);
+
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('novel-b');
+    expect(screen.getByText('当前将导入到：《作品 B》')).toBeDefined();
+  });
+
+  test('automatically selects the only existing novel', async () => {
+    await renderWithDocument([novelA]);
+
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('novel-a');
+    expect(screen.getByText('当前将导入到：《作品 A》')).toBeDefined();
+  });
+
+  test('uses the selected novel ID for approval', async () => {
+    await parseWithTarget([novelA, novelB], novelB);
+    mocks.approveContinuationImport.mockResolvedValue({ novel: novelB, pack: approvablePack });
+
+    fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
+
+    await waitFor(() => expect(mocks.approveContinuationImport).toHaveBeenCalledTimes(1));
+    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'existing',
+      existingNovelId: 'novel-b',
+    }));
+  });
+
+  test('blocks confirmation when the selected target is deleted after parsing', async () => {
+    const novels = [novelA, novelB];
+    await parseWithTarget(novels, novelB);
+    novels.splice(1, 1);
+
+    fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
+
+    await waitFor(() => expect(screen.getByText('未找到要导入的目标作品，请返回上一步重新选择。')).toBeDefined());
+    expect(mocks.approveContinuationImport).not.toHaveBeenCalled();
+  });
+
+  test('automatically uses new-novel mode when there are no existing novels', async () => {
+    mocks.parseContinuationPack.mockResolvedValue(approvablePack);
+    mocks.approveContinuationImport.mockResolvedValue({ novel: approvedNovel, pack: approvablePack });
+    await renderWithDocument([]);
+
+    fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
+    await waitFor(
+      () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
+      { timeout: 1_500 },
+    );
+    fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
+
+    await waitFor(() => expect(mocks.approveContinuationImport).toHaveBeenCalledTimes(1));
+    expect(mocks.createContinuationImportSession).toHaveBeenCalledTimes(1);
+    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'new',
+      existingNovelId: undefined,
+      newNovel: expect.objectContaining({ title: '测试' }),
+    }));
   });
 
   test('leaves the 100% parsing screen after a successful parse', async () => {
@@ -117,10 +231,10 @@ describe('ContinuationImportView parsing state', () => {
     await renderWithDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    expect(screen.getByText('AI 灵感解析控制台')).toBeDefined();
+    expect(screen.getByText('智能解析控制台')).toBeDefined();
 
     await waitFor(
-      () => expect(screen.queryByText('AI 灵感解析控制台')).toBeNull(),
+      () => expect(screen.queryByText('智能解析控制台')).toBeNull(),
       { timeout: 1_500 },
     );
     expect(screen.getByText('确认导入并进入续写')).toBeDefined();
@@ -131,7 +245,7 @@ describe('ContinuationImportView parsing state', () => {
     await renderWithDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(() => expect(screen.queryByText('AI 灵感解析控制台')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('智能解析控制台')).toBeNull());
     expect(screen.getByText('模型解析失败')).toBeDefined();
     const retryButton = screen.getByRole('button', { name: '开始解析资料' }) as HTMLButtonElement;
     expect(retryButton.disabled).toBe(false);

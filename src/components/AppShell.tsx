@@ -191,6 +191,7 @@ export function AppShell() {
   const [loading, setLoading] = useState(false);
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
+  const [continuationImportNovelId, setContinuationImportNovelId] = useState<string | undefined>();
 
   const flushBeforeNavigation = useCallback(async (): Promise<boolean> => {
     try {
@@ -264,8 +265,9 @@ export function AppShell() {
     setCurrentView('editor');
   };
 
-  const handleStartContinuationImport = async () => {
+  const handleStartContinuationImport = async (initialNovelId?: string) => {
     if (!await flushBeforeNavigation()) return;
+    setContinuationImportNovelId(initialNovelId);
     setCurrentView('continuation-import');
   };
 
@@ -631,6 +633,7 @@ export function AppShell() {
               <ErrorBoundary>
                 <ContinuationImportView
                   onBack={() => { void handleNavigate('welcome'); }}
+                  initialNovelId={continuationImportNovelId}
                   onEnterEditor={(novel, approvedPackId, prefillIntent) =>
                     navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import', prefillIntent)
                   }
@@ -646,9 +649,11 @@ export function AppShell() {
               <ErrorBoundary>
                 <ProjectCockpitView
                   novel={selectedNovel}
-                  onNavigate={(view) => {
+                  onNavigate={(view, initialNovelId) => {
                     if (view === 'editor') {
                       navigateToEditor(selectedNovel);
+                    } else if (view === 'continuation-import') {
+                      void handleStartContinuationImport(initialNovelId);
                     } else {
                       void handleNavigate(view);
                     }

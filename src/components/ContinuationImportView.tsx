@@ -26,6 +26,7 @@ const sanitizePath = sanitizeArchivePath;
 interface ContinuationImportViewProps {
   onBack: () => void;
   onEnterEditor: (novel: Novel, approvedPackId: string, prefillIntent?: string) => void;
+  initialNovelId?: string;
 }
 
 type Stage = 'upload' | 'confirm';
@@ -38,12 +39,12 @@ type ParsedPackState = {
 
 const FLOW_STEPS = [
   { title: '上传资料', description: '世界观、大纲、任务单或正文片段一起丢进来。' },
-  { title: 'AI解析', description: '自动整理剧情位置、角色状态和关键硬设定。' },
+  { title: '智能解析', description: '自动整理剧情位置、角色状态和关键硬设定。' },
   { title: '人工确认', description: '你只看任务摘要与风险，不用手动管资料结构。' },
   { title: '进入续写', description: '确认后直接带着资料包进入编辑器继续写。' },
 ];
 
-export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationImportViewProps) {
+export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }: ContinuationImportViewProps) {
   const [stage, setStage] = useState<Stage>('upload');
   const [novels, setNovels] = useState<Novel[]>([]);
   const [targetMode, setTargetMode] = useState<ContinuationImportTargetMode>('new');
@@ -144,7 +145,12 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
         setNovels(loadedNovels);
         const defaultMode = resolveContinuationImportTargetMode(loadedNovels);
         setTargetMode(defaultMode);
-        setSelectedNovelId(loadedNovels[0]?.id || '');
+        const inheritedNovelId = initialNovelId && loadedNovels.some((novel) => novel.id === initialNovelId)
+          ? initialNovelId
+          : loadedNovels.length === 1
+            ? loadedNovels[0].id
+            : '';
+        setSelectedNovelId(inheritedNovelId);
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : String(e));
@@ -159,7 +165,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialNovelId]);
 
   const selectedNovel = useMemo(
     () => novels.find((novel) => novel.id === selectedNovelId) || null,
@@ -339,7 +345,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
     <div className="max-w-4xl mx-auto px-8 py-10 space-y-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.24em] text-theme-accent">Continuation Import</div>
+          <div className="text-xs font-bold tracking-[0.24em] text-theme-accent">资料续写</div>
           <h1 className="mt-2 text-3xl font-serif font-bold text-theme-text">导入资料续写</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-theme-muted">
             这不是资料管理页。你把世界观、大纲、任务说明或已有正文上传进来，系统先整理成续写任务包，再带你直接进入写作。
@@ -357,7 +363,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
       <div className="grid gap-3 md:grid-cols-4">
         {FLOW_STEPS.map((step, index) => (
           <div key={step.title} className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-theme-accent/70">STEP {index + 1}</div>
+            <div className="text-[11px] font-bold tracking-[0.2em] text-theme-accent/70">第 {index + 1} 步</div>
             <div className="mt-2 text-sm font-bold text-theme-text">{step.title}</div>
             <p className="mt-1 text-xs leading-5 text-theme-muted">{step.description}</p>
           </div>
@@ -504,18 +510,47 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
                 导入目标
               </div>
               <div className="mt-3 grid gap-2">
-                <button
-                  onClick={() => setTargetMode('existing')}
-                  disabled={novels.length === 0}
+                <div
                   className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                     targetMode === 'existing'
                       ? 'border-theme-accent bg-theme-accent/5'
                       : 'border-theme-border bg-theme-sidebar'
-                  } ${novels.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-theme-accent/40'}`}
+                    } ${novels.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-theme-accent/40'}`}
                 >
-                  <div className="text-sm font-bold text-theme-text">导入到现有作品</div>
+                  <button
+                    type="button"
+                    onClick={() => setTargetMode('existing')}
+                    disabled={novels.length === 0}
+                    className="text-sm font-bold text-theme-text disabled:cursor-not-allowed"
+                  >
+                    导入到现有作品
+                  </button>
                   <div className="mt-1 text-xs text-theme-muted">把解析结果接到已有项目里，直接继续写。</div>
-                </button>
+                  {novels.length > 0 && (
+                    <label className="mt-3 block text-xs font-bold text-theme-muted" htmlFor="continuation-import-target">
+                      目标作品
+                      <select
+                        id="continuation-import-target"
+                        aria-label="选择导入目标作品"
+                        value={selectedNovelId}
+                        onChange={(e) => {
+                          setSelectedNovelId(e.target.value);
+                          setTargetMode('existing');
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-2 w-full rounded-xl border border-theme-border bg-theme-sidebar px-3 py-3 text-sm font-normal text-theme-text outline-none"
+                      >
+                        {novels.length > 1 && <option value="">请选择目标作品</option>}
+                        {novels.map((novel) => (
+                          <option key={novel.id} value={novel.id}>{novel.title}</option>
+                        ))}
+                      </select>
+                      <span className="mt-2 block font-normal text-theme-text">
+                        当前将导入到：{selectedNovel ? `《${selectedNovel.title}》` : '请选择目标作品'}
+                      </span>
+                    </label>
+                  )}
+                </div>
                 <button
                   onClick={() => setTargetMode('new')}
                   className={`rounded-xl border px-4 py-3 text-left transition-colors ${
@@ -533,28 +568,9 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
               </div>
             </div>
 
-            {targetMode === 'existing' ? (
+            {targetMode === 'new' ? (
               <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-theme-muted">Target Novel</div>
-                {novels.length > 0 ? (
-                  <select
-                    value={selectedNovelId}
-                    onChange={(e) => setSelectedNovelId(e.target.value)}
-                    className="mt-3 w-full rounded-xl border border-theme-border bg-theme-sidebar px-3 py-3 text-sm text-theme-text outline-none"
-                  >
-                    {novels.map((novel) => (
-                      <option key={novel.id} value={novel.id}>{novel.title}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="mt-3 rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-3 text-xs text-theme-muted">
-                    当前没有现有作品，默认只能走新建作品。
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-theme-muted">New Novel Preview</div>
+                <div className="text-xs font-bold text-theme-muted">新建作品预览</div>
                 <div className="mt-3 text-sm font-bold text-theme-text">
                   {suggestedDraft?.title || '解析后会自动生成默认作品名'}
                 </div>
@@ -562,7 +578,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
                   {suggestedDraft?.summary || '确认时会根据资料包标题生成默认标题与摘要。'}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -582,7 +598,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             className="inline-flex items-center gap-2 rounded-xl bg-theme-text px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
             {isParsing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-            {isParsing ? 'AI 解析中...' : '开始解析资料'}
+            {isParsing ? '智能解析中...' : '开始解析资料'}
           </button>
         </div>
       </div>
@@ -601,7 +617,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
       <div className="max-w-4xl mx-auto px-8 py-10 space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.24em] text-theme-accent">Review Before Writing</div>
+            <div className="text-xs font-bold tracking-[0.24em] text-theme-accent">写作前确认</div>
             <h1 className="mt-2 text-3xl font-serif font-bold text-theme-text">确认导入并进入续写</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-theme-muted">
               这里只展示本次续写必需的任务摘要。确认后会将资料包标记为已启用，并直接把你送进编辑器。
@@ -831,7 +847,7 @@ export function ContinuationImportView({ onBack, onEnterEditor }: ContinuationIm
             </div>
 
             <h3 className="mb-2 text-xl font-bold tracking-tight text-theme-text">
-              AI 灵感解析控制台
+              智能解析控制台
             </h3>
             <p className="mb-8 text-xs text-theme-muted">
               正在对导入的文本文档进行多维语义提炼，构建断代设定时空底盘
