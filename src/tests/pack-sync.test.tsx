@@ -314,5 +314,20 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
     // After recheck, unresolvedCount should be 0 (entity exists now), but relationship is not checked
     // so confirm is not blocked by unresolvedCount — it's enabled
     expect(confirmBtnAfter.disabled).toBe(false);
+
+    // Check the relationship checkbox and click confirm
+    const relCheckbox = screen.getAllByRole('checkbox').find(
+      cb => !cb.closest('label')?.textContent?.includes('张三')
+    );
+    expect(relCheckbox).toBeDefined();
+    fireEvent.click(relCheckbox!);
+    fireEvent.click(confirmBtnAfter);
+
+    // Verify onConfirm was called with the relationship (skip cleared, relationship restored)
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const calledWith = onConfirm.mock.calls[0][0];
+    expect(calledWith.relationships).toHaveLength(1);
+    expect(calledWith.relationships[0].sourceName).toBe('张三');
+    expect(calledWith.relationships[0].targetName).toBe('未知角色');
   });
 });
