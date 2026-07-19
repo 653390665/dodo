@@ -71,7 +71,7 @@ describe('useEditorPersistence safety boundary', () => {
     Object.values(client).forEach((mock) => mock.mockReset());
     client.updateChapter.mockResolvedValue(true);
     client.deleteChapter.mockResolvedValue(true);
-    client.updateNovel.mockResolvedValue(undefined);
+    client.updateNovel.mockResolvedValue(true);
   });
 
   afterEach(() => {

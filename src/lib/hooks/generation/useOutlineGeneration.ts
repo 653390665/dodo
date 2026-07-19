@@ -14,6 +14,7 @@ interface UseOutlineGenerationArgs {
   abortControllerRef: { current: AbortController | null };
   setIsGeneratingOutline: (val: boolean) => void;
   setGlobalOutline: Dispatch<SetStateAction<string>>;
+  flushPendingEditorWrites: () => Promise<void>;
 }
 
 export function useOutlineGeneration({
@@ -27,6 +28,7 @@ export function useOutlineGeneration({
   abortControllerRef,
   setIsGeneratingOutline,
   setGlobalOutline,
+  flushPendingEditorWrites,
 }: UseOutlineGenerationArgs) {
   const handleGenerateOutline = async () => {
     const currentSeq = ++requestSeqRef.current;
@@ -39,6 +41,9 @@ export function useOutlineGeneration({
 
     setIsGeneratingOutline(true);
     try {
+      await flushPendingEditorWrites();
+      if (requestSeqRef.current !== currentSeq) return;
+
       const { result: data, databaseGeneration } = await startWorldJob<{ outline: string }>('/api/generate-outline', {
           novelId: novel.id,
           surface: planningPromptSurface,
@@ -52,9 +57,10 @@ export function useOutlineGeneration({
       if (requestSeqRef.current !== currentSeq) return;
 
       if (data.outline) {
-      const updated = await updateNovel(novel.id, { globalOutline: data.outline }, databaseGeneration);
-      if (!updated) throw new Error('作品已不存在，大纲未保存。');
-      setGlobalOutline(data.outline);
+        const updated = await updateNovel(novel.id, { globalOutline: data.outline }, databaseGeneration);
+        if (requestSeqRef.current !== currentSeq) return;
+        if (!updated) throw new Error('作品已不存在，大纲未保存。');
+        setGlobalOutline(data.outline);
       } else {
         throw new Error('大纲生成结果为空');
       }

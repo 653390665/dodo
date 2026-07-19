@@ -35,7 +35,7 @@ function createFirstChapterPayload(novelId: string): Chapter {
 
 interface ProjectCockpitViewProps {
   novel: Novel;
-  onNavigate: (view: 'welcome' | 'library' | 'editor' | 'world' | 'skills' | 'factory' | 'continuation-import') => void;
+  onNavigate: (view: 'welcome' | 'library' | 'editor' | 'world' | 'skills' | 'factory' | 'continuation-import', initialNovelId?: string) => void;
   onStartCockpitAction?: (action: 'planning' | 'production' | 'resume' | 'audit' | 'polish', targetChapterId?: string) => void;
   onSelectChapter?: (chapter: Chapter | null) => void;
   onStartContinuationWriting?: (packId: string) => void;
@@ -207,7 +207,7 @@ export function ProjectCockpitView({
           why: "缺乏前文记忆参考包，AI 续写的长效检索范围与语境连贯性受限",
           output: "上传或贴入已有的大纲或正文碎片，生成结构化知识索引",
           influence: "赋予 AI 长达数十万字的长效关联记忆，自动保持上下文叙事统一",
-          onClick: () => onNavigate('continuation-import')
+          onClick: () => onNavigate('continuation-import', novel.id)
         };
       case 'resume_editor':
         return {

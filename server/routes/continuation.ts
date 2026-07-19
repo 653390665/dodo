@@ -25,6 +25,7 @@ import type {
 } from '../../shared/types';
 import {
   getDatabaseGeneration,
+  getDb,
   runInSerializedWriteForGeneration,
 } from '../lib/db-instance';
 import {
@@ -38,6 +39,13 @@ import {
   DOCX_ARCHIVE_LIMITS,
   validateArchiveManifest,
 } from '../../shared/lib/archive-limits';
+import {
+  applyContinuationConflictResolutions,
+  canApproveContinuationImportPack,
+  isContinuationContradictionResolved,
+} from '../../shared/lib/continuation-import-flow';
+import { buildSyncExtractionPrompt } from '../../shared/lib/sync-extract-prompt';
+
 
 interface UploadedDocument {
   filename: string;
@@ -80,6 +88,109 @@ const approveContinuationImportSchema = z.object({
     title: z.string().min(1).max(500),
     summary: z.string().max(20_000).default(''),
   }).optional(),
+  conflictResolutions: z.array(z.object({
+    contradictionId: z.string().min(1).max(300),
+    resolution: z.string().trim().min(1).max(1_000),
+  })).max(10).default([]),
+});
+
+const syncToWorldSchema = z.object({
+  packId: z.string().min(1).max(300),
+  novelId: z.string().min(1).max(300),
+  databaseGeneration: z.number().int().nonnegative(),
+  characters: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    role: z.string().max(100).default('supporting'),
+    summary: z.string().max(2000).default(''),
+    bio: z.string().max(5000).default(''),
+    traits: z.array(z.string().max(100)).max(20).default([]),
+  })).max(50).default([]),
+  locations: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    region: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  items: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    type: z.string().max(100).default('other'),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  factions: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    leader: z.string().max(200).default(''),
+    territory: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  powerLevels: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    tier: z.number().int().min(0).max(100).default(0),
+    characteristics: z.string().max(2000).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(30).default([]),
+  timelineEvents: z.array(z.object({
+    title: z.string().trim().min(1).max(200),
+    timestamp: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+    order: z.number().int().min(0).max(10000).default(0),
+  })).max(50).default([]),
+  relationships: z.array(z.object({
+    sourceName: z.string().trim().min(1).max(200),
+    sourceType: z.enum(['character', 'location', 'item', 'faction']),
+    targetName: z.string().trim().min(1).max(200),
+    targetType: z.enum(['character', 'location', 'item', 'faction']),
+    relationshipType: z.string().trim().min(1).max(200),
+    description: z.string().max(2000).default(''),
+  })).max(100).default([]),
+  globalOutline: z.string().max(50_000).optional(),
+  worldRules: z.string().max(50_000).optional(),
+});
+
+const extractionResultSchema = z.object({
+  characters: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    role: z.string().max(100).default('supporting'),
+    summary: z.string().max(2000).default(''),
+    bio: z.string().max(5000).default(''),
+    traits: z.array(z.string().max(100)).max(20).default([]),
+  })).max(50).default([]),
+  locations: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    region: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  items: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    type: z.string().max(100).default('other'),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  factions: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    leader: z.string().max(200).default(''),
+    territory: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(50).default([]),
+  powerLevels: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    tier: z.number().int().min(0).max(100).default(0),
+    characteristics: z.string().max(2000).default(''),
+    description: z.string().max(2000).default(''),
+  })).max(30).default([]),
+  timelineEvents: z.array(z.object({
+    title: z.string().trim().min(1).max(200),
+    timestamp: z.string().max(200).default(''),
+    description: z.string().max(2000).default(''),
+    order: z.number().int().min(0).max(10000).default(0),
+  })).max(50).default([]),
+  relationships: z.array(z.object({
+    sourceName: z.string().trim().min(1).max(200),
+    sourceType: z.enum(['character', 'location', 'item', 'faction']),
+    targetName: z.string().trim().min(1).max(200),
+    targetType: z.enum(['character', 'location', 'item', 'faction']),
+    relationshipType: z.string().trim().min(1).max(200),
+    description: z.string().max(2000).default(''),
+  })).max(100).default([]),
+  globalOutline: z.string().max(50_000).default(''),
+  worldRules: z.string().max(50_000).default(''),
 });
 
 function pruneParseDocJobs(): void {
@@ -604,6 +715,26 @@ export function registerContinuationRoutes(app: Express) {
     const storedPack = db.getContinuationPack(input.packId);
     const sourcePack = pending?.pack || storedPack;
     if (!sourcePack) return res.status(404).json({ error: '续写资料包不存在或已过期' });
+    if (sourcePack.status === 'approved') {
+      return res.status(409).json({ error: '续写资料包已批准，不能重复修改冲突裁决' });
+    }
+
+    let resolvedPack: ContinuationPack;
+    try {
+      resolvedPack = applyContinuationConflictResolutions(sourcePack, input.conflictResolutions);
+    } catch (error) {
+      logger.warn('续写资料包冲突裁决无效:', error);
+      return res.status(400).json({ error: '冲突裁决无效，请检查冲突 ID 与方案内容' });
+    }
+    if (!canApproveContinuationImportPack(resolvedPack)) {
+      const error = resolvedPack.canonFacts.length === 0
+        ? '资料包缺少可确认的事实，无法批准'
+        : '资料包仍有未解决的高风险冲突，无法批准';
+      return res.status(409).json({ error });
+    }
+    if (resolvedPack.contradictions.filter(isContinuationContradictionResolved).length > 10) {
+      return res.status(409).json({ error: '冲突裁决数量超过上限，请精简后重试' });
+    }
 
     try {
       let approvedNovel: ReturnType<typeof db.getNovel>;
@@ -632,7 +763,7 @@ export function registerContinuationRoutes(app: Express) {
         }
 
         approvedPack = {
-          ...sourcePack,
+          ...resolvedPack,
           novelId: approvedNovel.id,
           status: 'approved',
           updatedAt: Date.now(),
@@ -640,7 +771,9 @@ export function registerContinuationRoutes(app: Express) {
         if (pending) {
           db.createContinuationPack(approvedPack);
         } else if (!db.updateContinuationPack(sourcePack.id, {
+          contradictions: approvedPack.contradictions,
           status: 'approved',
+          updatedAt: approvedPack.updatedAt,
         })) {
           throw new Error('Continuation pack disappeared during approval');
         }
@@ -650,6 +783,305 @@ export function registerContinuationRoutes(app: Express) {
     } catch (error) {
       logger.error('确认续写资料导入失败:', error);
       return res.status(409).json({ error: '确认导入失败，未写入作品或资料包' });
+    }
+  });
+
+  app.post('/api/continuation-packs/extract-entities', async (req, res) => {
+    if (!rateLimit('continuation-packs-extract')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
+    const { packId, novelId: reqNovelId, databaseGeneration: reqGeneration } = req.body;
+    if (!packId || typeof packId !== 'string') {
+      return res.status(400).json({ error: 'packId is required' });
+    }
+    const pack = db.getContinuationPack(packId);
+    if (!pack) {
+      return res.status(404).json({ error: '资料包不存在' });
+    }
+    if (pack.status !== 'approved') {
+      return res.status(400).json({ error: '仅已批准的资料包可以同步' });
+    }
+
+    const novelId = pack.novelId;
+    if (reqNovelId && reqNovelId !== novelId) {
+      return res.status(403).json({ error: '资料包不属于当前作品' });
+    }
+
+    const databaseGeneration = getDatabaseGeneration();
+    if (Number.isInteger(reqGeneration) && reqGeneration !== databaseGeneration) {
+      return res.status(409).json({ error: '数据已变更，请刷新后重试', code: 'GENERATION_MISMATCH' });
+    }
+
+    const sourceTexts = pack.sourceDocuments
+      .filter(doc => doc.text && doc.text.trim().length > 0)
+      .map(doc => `【${doc.filename}】\n${doc.text.slice(0, 30000)}`);
+
+    if (sourceTexts.length === 0) {
+      return res.status(400).json({ error: '资料包无有效文本内容' });
+    }
+
+    const llmConfig = getConfig();
+    const controller = new AbortController();
+    const disposeDisconnect = bindClientDisconnect(req, res, () => controller.abort());
+    const timeout = setTimeout(() => controller.abort(new Error('extract-entities timeout')), 120_000);
+    let execution: Awaited<ReturnType<typeof createLlmExecution>>;
+    try {
+      execution = await createLlmExecution({
+        operation: 'extract-pack-entities',
+        novelId: pack.novelId,
+        quotaType: 'advancedAudit',
+        timeoutMs: 120_000,
+        concurrency: 1,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof LlmExecutionRejectedError) {
+        return res.status(error.status).json({ error: error.message, quota: error.quota });
+      }
+      throw error;
+    }
+
+    try {
+      const result = await execution.run(async ({ signal }) => {
+        if (databaseGeneration !== getDatabaseGeneration()) {
+          throw new Error('GENERATION_MISMATCH');
+        }
+        const raw = await generateText(llmConfig, {
+          prompt: buildSyncExtractionPrompt(sourceTexts),
+          signal,
+          timeoutMs: 90_000,
+          maxAttempts: 3,
+          maxTokens: 8000,
+          responseMimeType: 'application/json',
+          disableThinking: true,
+        });
+        const parsed = parseModelJsonPayload<unknown>(raw);
+        const validated = extractionResultSchema.safeParse(parsed);
+        if (!validated.success) {
+          throw new Error('EXTRACTION_VALIDATION_FAILED');
+        }
+        return validated.data;
+      });
+      res.json({ packId, novelId, databaseGeneration, extraction: result });
+    } catch (error) {
+      logger.error('资料包实体提取失败:', error);
+      if (error instanceof LlmExecutionRejectedError) {
+        return res.status(error.status).json({ error: error.message, quota: error.quota });
+      }
+      if (error instanceof Error && error.message === 'GENERATION_MISMATCH') {
+        return res.status(409).json({ error: '数据已变更，请刷新后重试', code: 'GENERATION_MISMATCH' });
+      }
+      if (error instanceof Error && error.message === 'EXTRACTION_VALIDATION_FAILED') {
+        return res.status(422).json({ error: '提取结果校验失败，请重试' });
+      }
+      res.status(500).json({ error: '提取失败，请稍后重试' });
+    } finally {
+      clearTimeout(timeout);
+      disposeDisconnect();
+    }
+  });
+
+  app.post('/api/continuation-packs/sync-to-world', async (req, res) => {
+    if (!rateLimit('continuation-packs-sync')) {
+      return res.status(429).json({ error: 'Rate limited', retryAfter: 5 });
+    }
+
+    const parsed = syncToWorldSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: '参数校验失败', details: parsed.error.flatten().fieldErrors });
+    }
+
+    const { packId, novelId, databaseGeneration, characters, locations, items, factions, powerLevels, timelineEvents, relationships, globalOutline, worldRules } = parsed.data;
+
+    if (databaseGeneration !== getDatabaseGeneration()) {
+      return res.status(409).json({ error: '数据已变更，请刷新后重试', code: 'GENERATION_MISMATCH' });
+    }
+
+    const normalizeName = (name: string): string => name.trim().normalize('NFC').toLowerCase();
+    const now = Date.now();
+    const sqliteDb = getDb();
+
+    const created = { characters: 0, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 };
+    const skipped = { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 };
+
+    try {
+      const syncResult = await runInSerializedWriteForGeneration(databaseGeneration, () => {
+        return sqliteDb.transaction(() => {
+        // ── All reads inside the same transaction as writes ──
+        const pack = db.getContinuationPack(packId);
+        if (!pack) throw new Error('PACK_NOT_FOUND');
+        if (pack.status !== 'approved') throw new Error('PACK_NOT_APPROVED');
+        if (pack.novelId !== novelId) throw new Error('PACK_NOVEL_MISMATCH');
+
+        const novel = db.getNovel(novelId);
+        if (!novel) throw new Error('NOVEL_NOT_FOUND');
+
+        const existingChars = db.listCharacters(novelId);
+        const existingLocs = db.listLocations(novelId);
+        const existingItems = db.listItems(novelId);
+        const existingFactions = db.listFactions(novelId);
+        const existingPowerLevels = db.listPowerLevels(novelId);
+        const existingTimelineEvents = db.listTimelineEvents(novelId);
+
+        const existingCharNames = new Set(existingChars.map(c => normalizeName(c.name)));
+        const existingLocNames = new Set(existingLocs.map(l => normalizeName(l.name)));
+        const existingItemNames = new Set(existingItems.map(i => normalizeName(i.name)));
+        const existingFactionNames = new Set(existingFactions.map(f => normalizeName(f.name)));
+        const existingPowerLevelNames = new Set(existingPowerLevels.map(p => normalizeName(p.name)));
+        const existingTimelineTitles = new Set(existingTimelineEvents.map(t => normalizeName(t.title)));
+
+        const seenCharNames = new Set<string>();
+        const seenLocNames = new Set<string>();
+        const seenItemNames = new Set<string>();
+        const seenFactionNames = new Set<string>();
+        const seenPowerLevelNames = new Set<string>();
+        const seenTimelineTitles = new Set<string>();
+
+        const nameToId = new Map<string, { id: string; type: string }>();
+        for (const c of existingChars) {
+          nameToId.set(`character:${normalizeName(c.name)}`, { id: c.id, type: 'character' });
+        }
+        for (const l of existingLocs) {
+          nameToId.set(`location:${normalizeName(l.name)}`, { id: l.id, type: 'location' });
+        }
+        for (const i of existingItems) {
+          nameToId.set(`item:${normalizeName(i.name)}`, { id: i.id, type: 'item' });
+        }
+        for (const f of existingFactions) {
+          nameToId.set(`faction:${normalizeName(f.name)}`, { id: f.id, type: 'faction' });
+        }
+
+        // ── novel fields: only write if still empty at transaction time ──
+        if (globalOutline && !novel.globalOutline) {
+          sqliteDb.prepare('UPDATE novels SET global_outline = ? WHERE id = ?').run(globalOutline, novelId);
+        }
+        if (worldRules && !novel.worldRules) {
+          sqliteDb.prepare('UPDATE novels SET world_rules = ? WHERE id = ?').run(worldRules, novelId);
+        }
+
+        for (const c of characters || []) {
+          const key = normalizeName(c.name);
+          if (existingCharNames.has(key) || seenCharNames.has(key)) { skipped.characters++; continue; }
+          seenCharNames.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO characters (id, novel_id, name, role, summary, traits, bio, current_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, c.name, c.role || 'supporting', c.summary || '', JSON.stringify(c.traits || []), c.bio || '', '', now, now
+          );
+          nameToId.set(`character:${key}`, { id, type: 'character' });
+          created.characters++;
+        }
+
+        for (const l of locations || []) {
+          const key = normalizeName(l.name);
+          if (existingLocNames.has(key) || seenLocNames.has(key)) { skipped.locations++; continue; }
+          seenLocNames.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO locations (id, novel_id, name, region, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, l.name, l.region || '', l.description || '', now, now
+          );
+          nameToId.set(`location:${key}`, { id, type: 'location' });
+          created.locations++;
+        }
+
+        for (const i of items || []) {
+          const key = normalizeName(i.name);
+          if (existingItemNames.has(key) || seenItemNames.has(key)) { skipped.items++; continue; }
+          seenItemNames.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO items (id, novel_id, name, type, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, i.name, i.type || 'other', i.description || '', now, now
+          );
+          nameToId.set(`item:${key}`, { id, type: 'item' });
+          created.items++;
+        }
+
+        for (const f of factions || []) {
+          const key = normalizeName(f.name);
+          if (existingFactionNames.has(key) || seenFactionNames.has(key)) { skipped.factions++; continue; }
+          seenFactionNames.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO factions (id, novel_id, name, leader, territory, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, f.name, f.leader || '', f.territory || '', f.description || '', now, now
+          );
+          nameToId.set(`faction:${key}`, { id, type: 'faction' });
+          created.factions++;
+        }
+
+        for (const p of powerLevels || []) {
+          const key = normalizeName(p.name);
+          if (existingPowerLevelNames.has(key) || seenPowerLevelNames.has(key)) continue;
+          seenPowerLevelNames.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO power_levels (id, novel_id, name, tier, characteristics, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, p.name, p.tier ?? 0, p.characteristics || '', p.description || '', now, now
+          );
+          created.powerLevels++;
+        }
+
+        for (const t of timelineEvents || []) {
+          const key = normalizeName(t.title);
+          if (existingTimelineTitles.has(key) || seenTimelineTitles.has(key)) continue;
+          seenTimelineTitles.add(key);
+          const id = generateId();
+          sqliteDb.prepare('INSERT INTO timeline_events (id, novel_id, title, description, timestamp, status_tag, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+            id, novelId, t.title, t.description || '', t.timestamp || '', null, t.order ?? 0, now, now
+          );
+          created.timelineEvents++;
+        }
+
+        const seenRelKeys = new Set<string>();
+        const existingRels = sqliteDb.prepare('SELECT sourceType, sourceId, targetType, targetId, relationshipType FROM entity_relationships WHERE novelId = ?').all(novelId) as { sourceType: string; sourceId: string; targetType: string; targetId: string; relationshipType: string }[];
+        for (const rel of existingRels) {
+          seenRelKeys.add(`${rel.sourceType}:${rel.sourceId}:${rel.targetType}:${rel.targetId}:${rel.relationshipType || ''}`);
+        }
+
+        for (const r of relationships || []) {
+          const srcKey = `${r.sourceType}:${normalizeName(r.sourceName)}`;
+          const tgtKey = `${r.targetType}:${normalizeName(r.targetName)}`;
+          const srcEntry = nameToId.get(srcKey);
+          const tgtEntry = nameToId.get(tgtKey);
+          if (!srcEntry || !tgtEntry) {
+            skipped.relationships++;
+            continue;
+          }
+          if (srcEntry.type === tgtEntry.type && srcEntry.id === tgtEntry.id) {
+            skipped.relationships++;
+            continue;
+          }
+
+          const relKey = `${srcEntry.type}:${srcEntry.id}:${tgtEntry.type}:${tgtEntry.id}:${r.relationshipType || ''}`;
+          if (seenRelKeys.has(relKey)) {
+            skipped.relationships++;
+            continue;
+          }
+          seenRelKeys.add(relKey);
+
+          const relId = generateId();
+          sqliteDb.prepare('INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+            relId, novelId, srcEntry.type, srcEntry.id, tgtEntry.type, tgtEntry.id, r.relationshipType || '', r.description || '', now
+          );
+          created.relationships++;
+        }
+        return { created, skipped };
+      })();
+      });
+
+      if (!syncResult.executed) {
+        return res.status(409).json({ error: '数据已变更，请刷新后重试', code: 'GENERATION_MISMATCH' });
+      }
+
+      // Translate server errors to HTTP status codes
+      const result = syncResult.result;
+      res.json(result);
+    } catch (error) {
+      logger.error('同步写入失败:', error);
+      if (error instanceof Error) {
+        if (error.message === 'PACK_NOT_FOUND') return res.status(404).json({ error: '资料包不存在' });
+        if (error.message === 'PACK_NOT_APPROVED') return res.status(400).json({ error: '仅已批准的资料包可以同步' });
+        if (error.message === 'PACK_NOVEL_MISMATCH') return res.status(403).json({ error: '资料包不属于当前作品' });
+        if (error.message === 'NOVEL_NOT_FOUND') return res.status(404).json({ error: '作品不存在' });
+      }
+      res.status(500).json({ error: '同步写入失败，请稍后重试' });
     }
   });
 }

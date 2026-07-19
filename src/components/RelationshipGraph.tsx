@@ -27,7 +27,9 @@ interface RelationshipGraphProps {
   factions: Faction[];
   onSelectEntity?: (type: string, id: string) => void;
   activeEntityNames?: string[];
-  onGoToWorldBible?: () => void;
+  onGoToWorldBible?: (tab?: string) => void;
+  hasGlobalRelationships?: boolean;
+  totalEntities?: number;
 }
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -45,7 +47,7 @@ function getEntityName(type: string, id: string, characters: Character[], locati
   return id.slice(0, 8);
 }
 
-export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [], onGoToWorldBible }: RelationshipGraphProps) {
+export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [], onGoToWorldBible, hasGlobalRelationships, totalEntities }: RelationshipGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
@@ -144,17 +146,38 @@ export function RelationshipGraph({ relationships, characters, locations, items,
   }, [relationships, characters, locations, items, factions]);
 
   if (relationships.length === 0) {
+    const entityCount = totalEntities ?? 0;
+    let message: string;
+    let buttonText: string;
+    let buttonTab: string | undefined;
+
+    if (entityCount === 0) {
+      message = '尚未创建任何设定实体，请先添加人物或地点。';
+      buttonText = '去添加人物';
+      buttonTab = 'characters';
+    } else if (entityCount === 1) {
+      message = '还需要至少一个实体才能建立关系。';
+      buttonText = '去添加更多实体';
+      buttonTab = 'characters';
+    } else {
+      message = hasGlobalRelationships
+        ? '当前正文未提及已设定的实体关系'
+        : '已有实体，暂无关系数据';
+      buttonText = hasGlobalRelationships ? '查看全局关系图' : '去世界观补充关系';
+      buttonTab = 'graph';
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center p-5 border border-dashed border-theme-border/40 rounded-xl space-y-3 bg-theme-sidebar/10">
         <span className="text-[11px] text-theme-muted/80 leading-relaxed max-w-[220px]">
-          当前写作上下文匹配的实体暂无关系数据，或正文中未提及实体设定。
+          {message}
         </span>
         {onGoToWorldBible && (
           <button
-            onClick={onGoToWorldBible}
+            onClick={() => onGoToWorldBible(buttonTab)}
             className="px-3 py-1.5 rounded-xl bg-theme-accent text-white text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity active:scale-[0.98]"
           >
-            去世界观补充关系
+            {buttonText}
           </button>
         )}
       </div>
@@ -164,21 +187,37 @@ export function RelationshipGraph({ relationships, characters, locations, items,
   return (
     <svg ref={svgRef} viewBox="0 0 500 400" className="w-full h-80 bg-theme-sidebar/45 rounded-xl border border-theme-border/60 backdrop-blur-md">
       {/* Edges */}
-      {edges.map((edge) => (
-        <line
-          key={`${edge.source}-${edge.target}`}
-          x1={nodes.find((n) => n.id === edge.source)?.x || 0}
-          y1={nodes.find((n) => n.id === edge.source)?.y || 0}
-          x2={nodes.find((n) => n.id === edge.target)?.x || 0}
-          y2={nodes.find((n) => n.id === edge.target)?.y || 0}
-          stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--theme-muted)'}
-          strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
-          strokeWidth={1.5}
-          opacity={0.65}
-        >
-          <title>{edge.description || edge.type}</title>
-        </line>
-      ))}
+      {edges.map((edge) => {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+        const x1 = sourceNode?.x || 0;
+        const y1 = sourceNode?.y || 0;
+        const x2 = targetNode?.x || 0;
+        const y2 = targetNode?.y || 0;
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        return (
+          <g key={`${edge.source}-${edge.target}`}>
+            <line
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--theme-muted)'}
+              strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
+              strokeWidth={1.5}
+              opacity={0.65}
+            >
+              <title>{edge.description || edge.type}</title>
+            </line>
+            <text
+              x={midX} y={midY}
+              textAnchor="middle" dy={-4}
+              className="fill-theme-muted"
+              style={{ fontSize: '8px', fontFamily: 'sans-serif' }}
+            >
+              {edge.type}
+            </text>
+          </g>
+        );
+      })}
       {/* Nodes */}
       {nodes.map((node) => {
         const isActiveNode = activeEntityNames.includes(node.label);

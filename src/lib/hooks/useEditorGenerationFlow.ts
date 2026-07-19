@@ -15,6 +15,7 @@ interface UseEditorGenerationFlowArgs {
   expectedWordCount: number | '';
   contentRef: RefObject<HTMLTextAreaElement | null>;
   selectedContinuationPackId: string;
+  approvedOutlinePackId: string;
   buildAgentContext: () => AgentContext;
   handleUpdateContent: (newContent: string, isProgrammatic?: boolean) => void;
   pushToUndoHistory: (content: string) => void;
@@ -43,6 +44,7 @@ export function useEditorGenerationFlow({
   expectedWordCount,
   contentRef,
   selectedContinuationPackId,
+  approvedOutlinePackId,
   buildAgentContext,
   handleUpdateContent,
   pushToUndoHistory,
@@ -96,12 +98,13 @@ export function useEditorGenerationFlow({
     globalOutline,
     expectedWordCount,
     currentChapter,
-    selectedContinuationPackId,
+    selectedContinuationPackId: approvedOutlinePackId,
     planningPromptSurface,
     requestSeqRef,
     abortControllerRef,
     setIsGeneratingOutline,
     setGlobalOutline,
+    flushPendingEditorWrites,
   });
 
   // 2. 挂载正文与分镜生成子 Hook

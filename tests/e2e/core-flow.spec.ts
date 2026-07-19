@@ -216,4 +216,38 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
     expect(download.suggestedFilename()).toContain('epub');
     expect(download.suggestedFilename()).toContain('荒原黎明');
   });
+
+  test('模型发现 UI 交互 — 测试连接、输入框 ARIA 和设置关闭', async ({ page }) => {
+    // 1. Visit app and open settings
+    await page.goto('/');
+    const settingsButton = page.locator('button[aria-label="系统设置"]');
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const settingsDialog = page.locator('#settings-dialog-container');
+    await expect(settingsDialog).toBeVisible();
+
+    // 2. Verify Model input has correct ARIA attributes
+    const modelInput = settingsDialog.locator('#model-input');
+    await expect(modelInput).toBeVisible();
+    await expect(modelInput).toHaveAttribute('role', 'combobox');
+    await expect(modelInput).toHaveAttribute('aria-autocomplete', 'list');
+
+    // 3. Verify label is connected via htmlFor
+    const modelLabel = settingsDialog.locator('label[for="model-input"]');
+    await expect(modelLabel).toBeVisible();
+    await expect(modelLabel).toContainText('Model');
+
+    // 4. Click "测试连接" — in test env it may succeed or fail;
+    //    either way the UI should respond
+    const testBtn = settingsDialog.getByText('测试连接');
+    await testBtn.click();
+
+    // Wait for loading then completion
+    await page.waitForTimeout(3000);
+
+    // 5. Click outside (escape) should close settings
+    await page.keyboard.press('Escape');
+    await expect(settingsDialog).not.toBeVisible();
+  });
 });

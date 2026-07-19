@@ -16,6 +16,7 @@ import { AgentWorkspaceTracePanel } from './AgentWorkspaceTracePanel';
 import { AgentWorkspaceVersionsPanel } from './AgentWorkspaceVersionsPanel';
 import { CopilotHomePanel } from './copilot/CopilotHomePanel';
 import { RelationshipGraph } from './RelationshipGraph';
+import { filterRelationshipsByActiveEntities } from '../lib/relationship-filter';
 
 function isProductionAgentTab(tab: AgentTab): tab is Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'> {
   return tab === 'production' || tab === 'outline' || tab === 'planning' || tab === 'quality';
@@ -98,6 +99,7 @@ interface AgentWorkspaceProps {
   onStackDeconstructionCard?: (assetId: string) => Promise<void>;
   onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
   onSkipAsset?: (assetId: string) => Promise<void>;
+  onNavigate?: (view: 'welcome' | 'library' | 'editor' | 'world' | 'workspace' | 'ai' | 'skills' | 'factory' | 'continuation-import') => void;
 }
 
 export const AgentWorkspace = React.memo(function AgentWorkspace({
@@ -173,6 +175,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onStackDeconstructionCard,
   onUnstackDeconstructionCard,
   onSkipAsset,
+  onNavigate,
 }: AgentWorkspaceProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [bibleSearch, setBibleSearch] = React.useState('');
@@ -229,28 +232,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
 
 
   const filteredRelationships = React.useMemo(() => {
-    if (!relationships || !activeEntityNames || activeEntityNames.length === 0) return [];
-
-    const activeCharIds = characters.filter(c => activeEntityNames.includes(c.name)).map(c => c.id);
-    const activeLocIds = locations.filter(l => activeEntityNames.includes(l.name)).map(l => l.id);
-    const activeItemIds = items.filter(i => activeEntityNames.includes(i.name)).map(i => i.id);
-    const activeFactionIds = factions.filter(f => activeEntityNames.includes(f.name)).map(f => f.id);
-
-    return relationships.filter((rel) => {
-      const isSourceActive =
-        (rel.sourceType === 'character' && activeCharIds.includes(rel.sourceId)) ||
-        (rel.sourceType === 'location' && activeLocIds.includes(rel.sourceId)) ||
-        (rel.sourceType === 'item' && activeItemIds.includes(rel.sourceId)) ||
-        (rel.sourceType === 'faction' && activeFactionIds.includes(rel.sourceId));
-
-      const isTargetActive =
-        (rel.targetType === 'character' && activeCharIds.includes(rel.targetId)) ||
-        (rel.targetType === 'location' && activeLocIds.includes(rel.targetId)) ||
-        (rel.targetType === 'item' && activeItemIds.includes(rel.targetId)) ||
-        (rel.targetType === 'faction' && activeFactionIds.includes(rel.targetId));
-
-      return isSourceActive || isTargetActive;
-    });
+    return filterRelationshipsByActiveEntities(relationships, activeEntityNames, characters, locations, items, factions);
   }, [relationships, activeEntityNames, characters, locations, items, factions]);
 
   const matchedEntities = React.useMemo(() => {
@@ -440,15 +422,24 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                       </div>
                    </div>
 
-                   <RelationshipGraph
+                    <RelationshipGraph
                       relationships={filteredRelationships}
                       characters={characters}
                       locations={locations}
                       items={items}
                       factions={factions}
+                      totalEntities={characters.length + locations.length + items.length + factions.length}
                       onSelectEntity={() => {}}
                       activeEntityNames={activeEntityNames}
-                      onGoToWorldBible={() => setAgentTab('bible')}
+                        onGoToWorldBible={(tab) => {
+                            try { localStorage.setItem('inkflow-world-bible-active-tab', tab || 'graph'); } catch {}
+                            if (onNavigate) {
+                              onNavigate('world');
+                            } else {
+                              setAgentTab('bible');
+                            }
+                        }}
+                        hasGlobalRelationships={relationships.length > 0}
                    />
                 </div>
 
@@ -594,6 +585,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                 onUnstackDeconstructionCard={onUnstackDeconstructionCard}
                 onSkipAsset={onSkipAsset}
                 onSwitchTab={setAgentTab}
+                projectPreferenceProfile={projectPreferenceProfile}
                 onPreferenceProfileChange={onPreferenceProfileChange}
               />
             </div>
