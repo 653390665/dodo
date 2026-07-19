@@ -540,7 +540,7 @@ export function SyncPreviewPanel({
             新增实体默认勾选，已存在同名实体默认跳过。关系中引用不存在实体的标记为待确认。
           </div>
         </div>
-        <button onClick={onCancel} className="text-theme-muted hover:text-theme-text transition-colors">
+        <button onClick={onCancel} disabled={isSyncing} className="text-theme-muted hover:text-theme-text transition-colors disabled:opacity-50" aria-label="关闭同步预览">
           <X size={16} />
         </button>
       </div>

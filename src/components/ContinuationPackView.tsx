@@ -36,6 +36,15 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
 
   const extractSeqRef = useRef(0);
   const extractAbortRef = useRef<AbortController | null>(null);
+  const syncSeqRef = useRef(0);
+  const syncPackSnapshotRef = useRef<string | null>(null);
+  const syncInFlightRef = useRef(false);
+
+  const invalidateSync = useCallback(() => {
+    syncSeqRef.current++;
+    syncPackSnapshotRef.current = null;
+    syncInFlightRef.current = false;
+  }, []);
 
   const cancelPendingExtraction = useCallback(() => {
     extractSeqRef.current++;
@@ -51,8 +60,11 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
   }, [novel.id]);
 
   useEffect(() => {
-    return () => { cancelPendingExtraction(); };
-  }, [cancelPendingExtraction]);
+    return () => {
+      cancelPendingExtraction();
+      invalidateSync();
+    };
+  }, [cancelPendingExtraction, invalidateSync]);
 
   useEffect(() => {
     if (!initialActivePackId) return;
@@ -149,6 +161,8 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
   const canApprove = activePack && activePack.canonFacts.length > 0 && activePack.contradictions.length === 0;
 
   const handleSyncEntities = useCallback(async (pack: ContinuationPack) => {
+    if (syncInFlightRef.current) return;
+    invalidateSync();
     cancelPendingExtraction();
     const seq = ++extractSeqRef.current;
     const controller = new AbortController();
@@ -173,7 +187,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
     } finally {
       if (seq === extractSeqRef.current) setIsExtracting(false);
     }
-  }, [novel.id, cancelPendingExtraction]);
+  }, [novel.id, cancelPendingExtraction, invalidateSync]);
 
   const handleSyncConfirm = async (selections: {
     characters: ExtractionSnapshot['extraction']['characters'];
@@ -186,16 +200,21 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
     globalOutline?: string;
     worldRules?: string;
   }) => {
-    if (!syncExtraction) return;
+    if (!syncExtraction || syncInFlightRef.current) return;
+    const syncSnapshot = { ...syncExtraction };
+    const seq = ++syncSeqRef.current;
+    syncPackSnapshotRef.current = syncSnapshot.packId;
+    syncInFlightRef.current = true;
     setIsSyncing(true);
     setError('');
     try {
       const result = await syncPackToWorld({
-        packId: syncExtraction.packId,
-        novelId: syncExtraction.novelId,
-        databaseGeneration: syncExtraction.databaseGeneration,
+        packId: syncSnapshot.packId,
+        novelId: syncSnapshot.novelId,
+        databaseGeneration: syncSnapshot.databaseGeneration,
         ...selections,
       });
+      if (seq !== syncSeqRef.current || syncPackSnapshotRef.current !== syncSnapshot.packId) return;
       const skippedRels = result.skipped.relationships;
       if (skippedRels > 0) {
         setError(`同步完成，但有 ${skippedRels} 条关系因引用不存在的实体被跳过`);
@@ -203,9 +222,14 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
       setSyncExtraction(null);
       onSyncComplete?.();
     } catch (e) {
+      if (seq !== syncSeqRef.current || syncPackSnapshotRef.current !== syncSnapshot.packId) return;
       setError('同步失败：' + (e instanceof Error ? e.message : '未知错误'));
     } finally {
-      setIsSyncing(false);
+      if (seq === syncSeqRef.current && syncPackSnapshotRef.current === syncSnapshot.packId) {
+        syncInFlightRef.current = false;
+        syncPackSnapshotRef.current = null;
+        setIsSyncing(false);
+      }
     }
   };
 
@@ -424,7 +448,10 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
           existingItems={existingEntities.items}
           existingFactions={existingEntities.factions}
           onConfirm={handleSyncConfirm}
-          onCancel={() => setSyncExtraction(null)}
+          onCancel={() => {
+            if (isSyncing || syncInFlightRef.current) return;
+            setSyncExtraction(null);
+          }}
           isSyncing={isSyncing}
         />
       )}
@@ -436,7 +463,13 @@ export function ContinuationPackView({ novel, initialActivePackId = null, onSync
           {packs.map(pack => (
             <button
               key={pack.id}
-              onClick={() => { cancelPendingExtraction(); setActivePack(pack); }}
+              disabled={isSyncing}
+              onClick={() => {
+                if (isSyncing || syncInFlightRef.current) return;
+                invalidateSync();
+                cancelPendingExtraction();
+                setActivePack(pack);
+              }}
               className={`block w-full text-left rounded-xl border px-4 py-3 text-xs ${
                 activePack?.id === pack.id ? 'border-theme-accent bg-theme-accent/5' : 'border-theme-border hover:bg-theme-sidebar/20'
               }`}

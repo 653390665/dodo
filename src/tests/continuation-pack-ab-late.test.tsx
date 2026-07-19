@@ -4,11 +4,16 @@ import React from 'react';
 
 const mockExtract = vi.fn();
 const mockListPacks = vi.fn().mockResolvedValue([]);
+const mockSync = vi.fn();
+
+function makeSyncResult() {
+  return { created: { characters: 0, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 }, skipped: { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 } };
+}
 
 vi.mock('../lib/continuation-client', () => ({
   listContinuationPacks: (...args: unknown[]) => mockListPacks(...args),
   extractPackEntities: (...args: unknown[]) => mockExtract(...args),
-  syncPackToWorld: vi.fn().mockResolvedValue({ created: { characters: 0, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 }, skipped: { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 } }),
+  syncPackToWorld: (...args: unknown[]) => mockSync(...args),
   deleteContinuationPack: vi.fn().mockResolvedValue(true),
   updateContinuationPack: vi.fn().mockResolvedValue(true),
   approveContinuationImport: vi.fn(),
@@ -26,10 +31,17 @@ vi.mock('../lib/prompt-client', () => ({
 }));
 
 vi.mock('../components/world-bible/SyncPreviewPanel', () => ({
-  SyncPreviewPanel: ({ extraction, onConfirm }: { extraction: { characters: { name: string }[] }; onConfirm: (s: { characters: { name: string }[] }) => void }) => (
+  SyncPreviewPanel: ({ extraction, onConfirm, onCancel, isSyncing }: {
+    extraction: { characters: { name: string }[] };
+    onConfirm: (s: { characters: { name: string }[] }) => void;
+    onCancel: () => void;
+    isSyncing: boolean;
+  }) => (
     <div data-testid="sync-preview">
       <span data-testid="preview-char">{extraction.characters[0]?.name ?? 'none'}</span>
-      <button onClick={() => onConfirm({ characters: extraction.characters })}>确认同步</button>
+      <span data-testid="sync-loading">{isSyncing ? 'loading' : 'idle'}</span>
+      <button data-testid="close-preview" disabled={isSyncing} onClick={onCancel}>关闭预览</button>
+      <button data-testid="confirm-sync" disabled={isSyncing} onClick={() => onConfirm({ characters: extraction.characters })}>确认同步</button>
     </div>
   ),
 }));
@@ -46,6 +58,96 @@ describe('ContinuationPackView A/B late response', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListPacks.mockResolvedValue([]);
+    mockSync.mockReset().mockResolvedValue(makeSyncResult());
+  });
+
+  test.each([
+    ['成功', (resolveA: (value: unknown) => void) => resolveA({
+      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+      extraction: {
+        characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
+        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+        relationships: [], globalOutline: '', worldRules: '',
+      },
+    })],
+    ['失败', (_resolveA: (value: unknown) => void, rejectA: (reason?: unknown) => void) => rejectA(new Error('A late failure'))],
+  ])('T1: A 迟到%s不影响 B 的预览、错误和 loading', async (_label, settleA) => {
+    let resolveA!: (v: unknown) => void;
+    let rejectA!: (e?: unknown) => void;
+    let resolveB!: (v: unknown) => void;
+    let rejectB!: (e?: unknown) => void;
+    const pendingA = new Promise((resolve, reject) => { resolveA = resolve; rejectA = reject; });
+    const pendingB = new Promise(r => { resolveB = r; });
+
+    mockExtract
+      .mockImplementationOnce(() => pendingA)
+      .mockImplementationOnce(() => pendingB);
+    mockSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectB = reject; }));
+    mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A'), makePack('pack-b', 'Pack B')]);
+
+    render(<ContinuationPackView novel={mockNovel} />);
+    await waitFor(() => expect(screen.getByText('Pack A')).toBeDefined());
+
+    fireEvent.click(screen.getByText('Pack A'));
+    await waitFor(() => expect(screen.getByText('同步到设定')).toBeDefined());
+    fireEvent.click(screen.getByText('同步到设定'));
+    fireEvent.click(screen.getByText('Pack B'));
+    await waitFor(() => expect(screen.getByText('同步到设定')).toBeDefined());
+    fireEvent.click(screen.getByText('同步到设定'));
+
+    await act(async () => {
+      resolveB({
+        packId: 'pack-b', novelId: 'n1', databaseGeneration: 1,
+        extraction: {
+          characters: [{ name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] }],
+          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+          relationships: [], globalOutline: '', worldRules: '',
+        },
+      });
+    });
+    await waitFor(() => expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色'));
+
+    fireEvent.click(screen.getByTestId('confirm-sync'));
+    await waitFor(() => expect(screen.getByTestId('sync-loading').textContent).toBe('loading'));
+    expect((screen.getByTestId('close-preview') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('confirm-sync') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Pack A').closest('button') as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => { settleA(resolveA, rejectA); });
+    expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色');
+    expect(screen.getByTestId('sync-loading').textContent).toBe('loading');
+
+    await act(async () => { rejectB(new Error('B sync failure')); });
+    await waitFor(() => expect(screen.getByText('同步失败：B sync failure')).toBeDefined());
+    expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色');
+    expect(screen.getByTestId('sync-loading').textContent).toBe('idle');
+  });
+
+  test('T1: sync response after unmount does not update state', async () => {
+    let resolveSync!: (value: unknown) => void;
+    mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A')]);
+    mockExtract.mockResolvedValueOnce({
+      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+      extraction: {
+        characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
+        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+        relationships: [], globalOutline: '', worldRules: '',
+      },
+    });
+    mockSync.mockImplementationOnce(() => new Promise(resolve => { resolveSync = resolve; }));
+
+    const { unmount, container } = render(<ContinuationPackView novel={mockNovel} />);
+    await waitFor(() => expect(screen.getByText('Pack A')).toBeDefined());
+    fireEvent.click(screen.getByText('Pack A'));
+    await waitFor(() => expect(screen.getByText('同步到设定')).toBeDefined());
+    fireEvent.click(screen.getByText('同步到设定'));
+    await waitFor(() => expect(screen.getByTestId('preview-char').textContent).toBe('PackA角色'));
+    fireEvent.click(screen.getByTestId('confirm-sync'));
+    await waitFor(() => expect(screen.getByTestId('sync-loading').textContent).toBe('loading'));
+
+    unmount();
+    await act(async () => { resolveSync(makeSyncResult()); });
+    expect(container.innerHTML).toBe('');
   });
 
   test('T3.4: switching packs cancels pending extraction and starts new one', async () => {
