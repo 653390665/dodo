@@ -1,0 +1,272 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { logger } from '../logger';
+import crypto from 'crypto';
+import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
+import type { PromptTemplateKey } from '../../shared/types';
+
+function getConfigDir(): string {
+  if (process.env.INKFLOW_CONFIG_DIR) return process.env.INKFLOW_CONFIG_DIR;
+  if (process.env.NODE_ENV === 'test') {
+    return path.join(os.tmpdir(), 'inkflow-test-config', String(process.pid));
+  }
+  return path.join(os.homedir(), '.inkflow');
+}
+
+function getConfigPath(): string {
+  return path.join(getConfigDir(), 'config.json');
+}
+
+// Machine-derived key for API key encryption at rest.
+// Not as secure as OS keychain, but prevents casual inspection.
+function deriveKey(): Buffer {
+  const seed = `${os.hostname()}:${os.userInfo().username}:inkflow-v1`;
+  return crypto.createHash('sha256').update(seed).digest();
+}
+
+function encryptApiKey(plain: string): string {
+  if (!plain) return '';
+  const key = deriveKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+function decryptApiKey(encoded: string): string {
+  if (!encoded) return '';
+  if (!encoded.startsWith('enc:')) return encoded; // legacy plaintext — migrate on next save
+  const parts = encoded.split(':');
+  if (parts.length !== 4) return '';
+  const key = deriveKey();
+  const iv = Buffer.from(parts[1], 'hex');
+  const tag = Buffer.from(parts[2], 'hex');
+  const encrypted = Buffer.from(parts[3], 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return decipher.update(encrypted).toString('utf8') + decipher.final('utf8');
+}
+
+export interface AppConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  promptGuardLevel?: 'strict' | 'balanced' | 'disabled';
+  promptTemplates: PromptTemplates;
+}
+
+const defaults: AppConfig = {
+  apiKey: process.env.API_KEY || '',
+  baseUrl: process.env.API_BASE_URL || 'https://generativelanguage.googleapis.com',
+  model: process.env.API_MODEL || 'gemini-2.5-pro',
+  promptGuardLevel: 'strict',
+  promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+};
+
+const LEGACY_BUILTIN_PROMPTS: Partial<Record<PromptTemplateKey, string[]>> = {
+  inspirationSystem: [
+    '你是一个资深小说编辑和文学创作助手。你的回答应该具有文学性、逻辑性，并能激发作者的灵感。',
+  ],
+  storyCards: [
+    `你是一个资深网文策划编辑。请根据用户的灵感种子和上下文，生成 3 张差异明确、可继续写的故事方案卡。
+
+【灵感种子】
+{{ideaSeed}}
+
+【对话上下文】
+{{chatContext}}
+
+请严格输出 JSON：
+{
+  "cards": [
+    {
+      "id": "card-1",
+      "hook": "一句话卖点",
+      "protagonist": "主角设定摘要",
+      "coreConflict": "核心冲突",
+      "tone": "故事气质 / 文风",
+      "whyItWorks": "为什么值得写",
+      "starterSeeds": {
+        "worldSeed": "世界观或背景种子",
+        "relationshipSeed": "关键关系种子",
+        "chapterOneSeed": "第一章起点种子"
+      },
+      "riskNote": "最容易写崩的点",
+      "mixTags": ["标签1", "标签2"],
+      "signals": {
+        "tone": "grim | bright | lyrical | sharp",
+        "conflictType": "冲突类型短语",
+        "worldWeight": 0.7,
+        "characterWeight": 0.6,
+        "pacingPreference": "tight | balanced | slow-burn"
+      }
+    }
+  ]
+}
+
+要求：
+1. 三张卡必须方向不同，不能只是换同义词。
+2. 不要输出正文片段，不要写成大段散文。
+3. 每张卡都必须能直接映射到设定记忆页。`,
+  ],
+  editorAgent: [
+    `{{PLANNER_SOUL}}
+
+【当前任务】
+请利用以下小说的信息记忆库，根据用户的创作意图，拆解出这一章的场景分镜（Scene Beats）。
+包含3-5个场景，每个场景说明出场人物、核心冲突、道具运用和情绪转折。务必严格遵循全局大纲、人物设定和世界观，绝不偏离主线轨迹。
+
+{{contextStr}}
+
+【用户本章创作意图】
+{{userIntent}}`,
+  ],
+};
+
+function normalizePromptTemplate(text: string | undefined): string {
+  return (text || '').replace(/\r\n/g, '\n').trim();
+}
+
+export function migrateLegacyPromptTemplates(partial?: Partial<PromptTemplates>): Partial<PromptTemplates> | undefined {
+  if (!partial) return partial;
+
+  const next = { ...partial };
+  for (const key of Object.keys(LEGACY_BUILTIN_PROMPTS) as PromptTemplateKey[]) {
+    const currentValue = partial[key];
+    if (!currentValue) continue;
+
+    const legacyCandidates = LEGACY_BUILTIN_PROMPTS[key] || [];
+    const isLegacyBuiltin = legacyCandidates.some(
+      (candidate) => normalizePromptTemplate(candidate) === normalizePromptTemplate(currentValue),
+    );
+
+    if (isLegacyBuiltin) {
+      next[key] = DEFAULT_PROMPT_TEMPLATES[key];
+    }
+  }
+
+  return next;
+}
+
+function ensureDir() {
+  if (!fs.existsSync(getConfigDir())) {
+    fs.mkdirSync(getConfigDir(), { recursive: true });
+  }
+}
+
+let lastConfigError: string | null = null;
+
+export function getLastConfigError(): string | null {
+  return lastConfigError;
+}
+
+export function loadConfig(): AppConfig {
+  ensureDir();
+  lastConfigError = null;
+  const isElectronMode = process.env.INKFLOW_ELECTRON_MODE === 'true';
+  const secureKey = process.env.INKFLOW_SECURE_API_KEY || '';
+
+  try {
+    if (fs.existsSync(getConfigPath())) {
+      const raw = fs.readFileSync(getConfigPath(), 'utf-8');
+      const parsed = JSON.parse(raw);
+      // Repair permissions on legacy config files; new writes are 0600.
+      try { fs.chmodSync(getConfigPath(), 0o600); } catch { /* best effort */ }
+      // Decrypt API key or read from secure environment variable
+      if (isElectronMode) {
+        parsed.apiKey = secureKey;
+      } else if (parsed.apiKey) {
+        parsed.apiKey = decryptApiKey(parsed.apiKey);
+      }
+      const migratedPromptTemplates = migrateLegacyPromptTemplates(parsed.promptTemplates);
+      return {
+        ...defaults,
+        ...parsed,
+        promptTemplates: mergePromptTemplates(migratedPromptTemplates),
+      };
+    }
+  } catch (e) {
+    lastConfigError = e instanceof Error ? e.message : String(e);
+    logger.error('Config file corrupt, using defaults', lastConfigError);
+  }
+  const base = { ...defaults };
+  if (isElectronMode) {
+    base.apiKey = secureKey;
+  }
+  return base;
+}
+
+export function saveConfig(config: AppConfig): void {
+  ensureDir();
+  const isElectronMode = process.env.INKFLOW_ELECTRON_MODE === 'true';
+
+  if (isElectronMode) {
+    const finalApiKey = config.apiKey || process.env.INKFLOW_SECURE_API_KEY || '';
+    process.env.INKFLOW_SECURE_API_KEY = finalApiKey;
+    if (cached) {
+      cached.apiKey = finalApiKey;
+    }
+    const safeConfig = {
+      ...config,
+      apiKey: '',
+      hasApiKey: !!finalApiKey,
+      promptTemplates: mergePromptTemplates(config.promptTemplates),
+    };
+    fs.writeFileSync(getConfigPath(), JSON.stringify(safeConfig, null, 2), { mode: 0o600 });
+  } else {
+    let finalApiKey = config.apiKey;
+    if (!finalApiKey) {
+      try {
+        if (fs.existsSync(getConfigPath())) {
+          const raw = fs.readFileSync(getConfigPath(), 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed.apiKey) {
+            finalApiKey = decryptApiKey(parsed.apiKey);
+          }
+        }
+      } catch (readErr) {
+        logger.warn('Failed to read existing config for API key migration, will create fresh:', readErr);
+      }
+    }
+
+    const safeConfig = {
+      ...config,
+      apiKey: encryptApiKey(finalApiKey),
+      promptTemplates: mergePromptTemplates(config.promptTemplates),
+    };
+    fs.writeFileSync(getConfigPath(), JSON.stringify(safeConfig, null, 2), { mode: 0o600 });
+  }
+}
+
+export function updateCachedApiKey(key: string): void {
+  process.env.INKFLOW_SECURE_API_KEY = key;
+  if (cached) {
+    cached.apiKey = key;
+  }
+}
+
+let cached: AppConfig | null = null;
+
+export function getConfig(): AppConfig {
+  if (!cached) {
+    cached = loadConfig();
+  }
+  return cached;
+}
+
+export function reloadConfig(): AppConfig {
+  cached = null;
+  return getConfig();
+}
+
+let currentLivenessStatus: 'connected' | 'unknown' | 'disconnected' = 'unknown';
+
+export function getLivenessStatus(): 'connected' | 'unknown' | 'disconnected' {
+  return currentLivenessStatus;
+}
+
+export function setLivenessStatus(status: 'connected' | 'unknown' | 'disconnected'): void {
+  currentLivenessStatus = status;
+}

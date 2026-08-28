@@ -1,0 +1,183 @@
+import type { CardSourceKind } from './skills.js';
+export type ContinuationImportTargetMode = 'existing' | 'new';
+
+export interface ContinuationEditorLaunchState {
+  approvedPackId: string;
+  launchToken: number;
+  shouldOpenProductionPanel: true;
+  prefillIntent?: string;
+  source: 'continuation-import' | 'world-overview' | 'storyboard' | 'cockpit-planning' | 'cockpit-production' | 'cockpit-resume' | 'cockpit-audit' | 'cockpit-polish' | 'cockpit-complete-chapter' | 'cockpit-resolve-issues' | 'cockpit-confirm-facts' | 'cockpit-next-chapter' | 'capability-overlay';
+  targetChapterId?: string;
+  sessionCardIds?: string[];
+  novelId?: string;
+}
+
+export type ContinuationImportLaunchState = ContinuationEditorLaunchState;
+
+export type ContinuationSourceKind =
+  | 'world' | 'outline' | 'characters' | 'manuscript' | 'style_sample' | 'other';
+
+export type ContinuationFactPriority = 'hard' | 'soft';
+
+export interface ContinuationSourceDocument {
+  id: string; packId: string; filename: string;
+  kind: ContinuationSourceKind; text: string; excerpt: string; createdAt: number; sha256?: string;
+  role?: 'outline-candidate' | 'outline-reference' | 'report' | 'other';
+}
+
+export type ContinuationExtractionJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
+export interface ContinuationExtractionJob {
+  id: string; packId: string; novelId: string; status: ContinuationExtractionJobStatus;
+  progress: number; stageText: string; batchCursor: number; totalBatches: number;
+  resultJson?: string; checkpointJson?: string; errorCode?: string; errorMessage?: string;
+  databaseGeneration: number; createdAt: number; updatedAt: number;
+}
+
+export interface ContinuationCanonFact {
+  id: string; priority: ContinuationFactPriority;
+  category: 'world' | 'character' | 'plot' | 'timeline' | 'relationship' | 'style';
+  text: string; sourceDocumentId?: string; evidence: string;
+}
+
+export interface ContinuationCharacterState {
+  name: string; role: string; currentGoal: string; emotionalState: string;
+  secrets: string[]; relationshipNotes: string[]; evidence: string;
+}
+
+export interface ContinuationPlotState {
+  currentTimeline: string; latestScene: string; unresolvedHooks: string[];
+  immediateConflict: string; nextLikelyMove: string;
+}
+
+export interface ContinuationStyleProfile {
+  pov: string; tense: string; pacing: string; dialogueDensity: string;
+  proseTraits: string[]; avoidTraits: string[]; sampleEvidence: string;
+}
+
+export interface ContinuationContradiction {
+  id: string; severity: 'low' | 'medium' | 'high';
+  summary: string; conflictingEvidence: string[]; suggestedResolution: string;
+  acceptedResolution?: string; resolvedAt?: number;
+}
+
+export type ContinuationSyncStatus = 'not_started' | 'partial' | 'synced' | 'stale';
+
+export interface ContinuationSyncSummary {
+  characters: number;
+  locations: number;
+  items: number;
+  factions: number;
+  powerLevels: number;
+  timelineEvents: number;
+  relationships: number;
+}
+
+export interface ContinuationSyncState {
+  status: ContinuationSyncStatus;
+  contentHash: string;
+  lastSyncedAt?: number;
+  pendingRelationshipCount: number;
+  summary: ContinuationSyncSummary;
+}
+
+export interface ContinuationConflictResolution {
+  contradictionId: string;
+  resolution: string;
+}
+
+export interface ContinuationPack {
+  id: string; novelId: string; title: string; status: 'draft' | 'approved';
+  sourceDocuments: ContinuationSourceDocument[];
+  canonFacts: ContinuationCanonFact[];
+  characterStates: ContinuationCharacterState[];
+  plotState: ContinuationPlotState;
+  styleProfile: ContinuationStyleProfile;
+  contradictions: ContinuationContradiction[];
+  continuationTask: string; createdAt: number; updatedAt: number;
+  sourceMap?: ContinuationSourceMap;
+  readingQuestions?: ContinuationReadingQuestion[];
+  continuationGaps?: ContinuationGap[];
+  sourceBadge?: CardSourceKind;
+  syncState?: ContinuationSyncState;
+}
+
+export interface ContextReceipt {
+  actual: boolean;
+  packId?: string;
+  packUpdatedAt?: number;
+  sourceIds: string[];
+  runtimeSha256: string;
+  injectedChars: number;
+  itemCount: number;
+  truncated: boolean;
+  sources?: ContextReceiptSource[];
+  packTruncatedCount?: number;
+  packCharLimit?: number;
+}
+
+export interface ContextReceiptSource {
+  id: string;
+  label: string;
+  sha256?: string;
+  chars: number;
+  itemCount: number;
+  truncated: boolean;
+  version?: string;
+}
+
+export interface ContinuationSourceMap {
+  sections: Array<{
+    title: string;
+    summary: string;
+    sourceIds: string[];
+  }>;
+  keyConflicts: string[];
+}
+
+export interface ContinuationReadingQuestion {
+  id: string;
+  question: string;
+  context: string;
+  category: 'world' | 'character' | 'plot' | 'style' | 'continuity';
+}
+
+export interface ContinuationGap {
+  id: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  suggestedDirection: string;
+  relatedFacts: string[];
+}
+
+export type ContinuationOverviewStateKind = 'empty' | 'draft' | 'ready' | 'risk';
+
+export interface ContinuationOverviewState {
+  kind: ContinuationOverviewStateKind;
+  primaryPack: ContinuationPack | null;
+  draftPack: ContinuationPack | null;
+  approvedPack: ContinuationPack | null;
+  contradictionCount: number;
+  readingQuestionCount: number;
+  continuationGapCount: number;
+  highlightWarnings: string[];
+}
+
+declare global {
+  interface Window {
+    inkflow?: {
+      setTitle: (title: string) => void;
+      getAuthToken?: () => Promise<string>;
+      saveConfig?: (config: unknown) => Promise<{ success: boolean; error?: string }>;
+      onPrepareClose?: (callback: (attemptId: number) => void | Promise<void>) => () => void;
+      requestClose?: () => void;
+      readyToClose?: (attemptId: number) => Promise<boolean>;
+      reportCloseSnapshot?: (attemptId: number, snapshot: {
+        capturedAt: string;
+        location: string;
+        pendingWrites: Array<{ key: string; snapshot: unknown; failed: boolean }>;
+        visibleFields: Array<{ name: string; value: string }>;
+      }) => void;
+      closeSaveFailed?: (attemptId: number, details: { reason: string }) => void;
+    };
+  }
+}

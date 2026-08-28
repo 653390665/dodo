@@ -1,0 +1,142 @@
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import { getConfig } from '../server/lib/config.js';
+import { registerSimpleLlmRoutes } from '../server/routes/simple-llm.js';
+import { registerWorldRoutes } from '../server/routes/world.js';
+import { closeDb, createNovel, initDb } from '../server/lib/db.js';
+import { getDatabaseGeneration } from '../server/lib/db-instance.js';
+import { __quotaTestHooks } from '../server/helpers/quota-guard.js';
+
+const originalFetch = globalThis.fetch;
+const config = getConfig();
+const originalConfig = {
+  apiKey: config.apiKey,
+  baseUrl: config.baseUrl,
+  model: config.model,
+  promptGuardLevel: config.promptGuardLevel,
+};
+
+let server: ReturnType<express.Express['listen']>;
+let baseUrl: string;
+let dbPath: string;
+
+function mockUpstreamSse(content: string): Response {
+  const encoder = new TextEncoder();
+  const events = [
+    `data: {"choices":[{"delta":{"content":${JSON.stringify(content)}}}]}\n\n`,
+    'data: [DONE]\n\n',
+  ];
+  let index = 0;
+
+  return {
+    ok: true,
+    status: 200,
+    body: new ReadableStream({
+      pull(controller) {
+        if (index >= events.length) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(encoder.encode(events[index++]));
+      },
+    }),
+  } as Response;
+}
+
+async function readSse(response: Response): Promise<{ body: string; done: boolean }> {
+  const body = await response.text();
+  return { body, done: body.split('\n').some((line) => line.trim() === 'data: [DONE]') };
+}
+
+before(() => {
+  dbPath = path.join(os.tmpdir(), `inkflow-ordinary-sse-${process.pid}.db`);
+  closeDb();
+  initDb(dbPath);
+  createNovel({
+    id: 'sse-novel', title: 'SSE', authorId: 'local', summary: '', status: 'ongoing',
+    projectPreferenceProfile: {
+      tags: [],
+      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+      acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0,
+      commercialMode: 'paid',
+    },
+    createdAt: 1, updatedAt: 1,
+  });
+  config.apiKey = 'test-api-key';
+  config.baseUrl = 'https://api.openai.test/v1';
+  config.model = 'test-model';
+  config.promptGuardLevel = 'disabled';
+
+  globalThis.fetch = async (url, init) => {
+    if (String(url).startsWith(baseUrl)) {
+      return originalFetch(url, init);
+    }
+    return mockUpstreamSse('流式测试内容');
+  };
+
+  const app = express();
+  app.use(express.json());
+  registerWorldRoutes(app);
+  registerSimpleLlmRoutes(app);
+  server = app.listen(0);
+  const port = (server.address() as { port: number }).port;
+  baseUrl = `http://localhost:${port}`;
+});
+
+after(async () => {
+  globalThis.fetch = originalFetch;
+  Object.assign(config, originalConfig);
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  });
+  closeDb();
+  fs.rmSync(dbPath, { force: true });
+});
+
+test('人物简介生成正常完成时发送 token 和 [DONE]', async () => {
+  const response = await fetch(`${baseUrl}/api/generate-bio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ novelId: 'sse-novel', name: '叶半夏', databaseGeneration: getDatabaseGeneration() }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') || '', /text\/event-stream/);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
+  const sse = await readSse(response);
+  assert.match(sse.body, /"token":"流式测试内容"/);
+  assert.equal(sse.done, true);
+});
+
+test('人物简介拒绝过期 databaseGeneration 且不预占配额', async () => {
+  const before = [...__quotaTestHooks.quotaReservations.values()].filter((reservation) => reservation.novelId === 'sse-novel').length;
+  const response = await fetch(`${baseUrl}/api/generate-bio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ novelId: 'sse-novel', name: '叶半夏', databaseGeneration: getDatabaseGeneration() + 1 }),
+  });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: '数据库已切换，请刷新后重试', code: 'DATABASE_GENERATION_MISMATCH' });
+  const after = [...__quotaTestHooks.quotaReservations.values()].filter((reservation) => reservation.novelId === 'sse-novel').length;
+  assert.equal(after, before);
+});
+
+test('片段扩写正常完成时发送 token 和 [DONE]', async () => {
+  const response = await fetch(`${baseUrl}/api/expand-fragment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ novelId: 'sse-novel', content: '雨夜来客', type: '悬疑' }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') || '', /text\/event-stream/);
+  assert.match(response.headers.get('x-inkflow-database-generation') || '', /^\d+$/);
+  const sse = await readSse(response);
+  assert.match(sse.body, /"token":"流式测试内容"/);
+  assert.equal(sse.done, true);
+});

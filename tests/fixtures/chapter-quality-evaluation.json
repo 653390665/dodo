@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "chapters": [
+    {
+      "id": "slop-heavy",
+      "file": "chapter-slop-heavy.txt",
+      "label": "AI 腔重稿",
+      "expectedP0P1Codes": [],
+      "inputHasExpectedDefect": true,
+      "allowRewrite": true,
+      "requiresChange": true,
+      "minimumAppliedPatches": 1
+    },
+    {
+      "id": "action-weak",
+      "file": "chapter-action-weak.txt",
+      "label": "动作对白薄弱稿（含元数据污染）",
+      "expectedP0P1Codes": ["metadata"],
+      "inputHasExpectedDefect": true,
+      "allowRewrite": true,
+      "requiresChange": true,
+      "minimumAppliedPatches": 1
+    },
+    {
+      "id": "mature",
+      "file": "chapter-mature.txt",
+      "label": "成熟正文",
+      "expectedP0P1Codes": [],
+      "inputHasExpectedDefect": false,
+      "allowRewrite": false,
+      "requiresChange": false,
+      "minimumAppliedPatches": 0
+    }
+  ],
+  "contractCases": [
+    {
+      "id": "metadata-and-question",
+      "text": "作品：潮汐城。\n问题：主角为什么来到这里？\n林舟推开生锈的铁门。",
+      "expectedCodes": ["metadata", "instruction-residue"],
+      "expectedOk": false
+    },
+    {
+      "id": "mojibake",
+      "text": "雨水沿着窗框落下，墙角浮出Ã¥一样的脏痕。",
+      "expectedCodes": ["mojibake"],
+      "expectedOk": false
+    },
+    {
+      "id": "duplicate-paragraph-and-symbol-noise",
+      "text": "林舟把铜钥匙压进掌心。\n\n林舟把铜钥匙压进掌心。\n\n@@@@",
+      "expectedCodes": ["duplicate-paragraph", "symbol-noise"],
+      "expectedOk": false
+    },
+    {
+      "id": "p2-repeated-opening",
+      "text": "林舟推开木门，看见桌上压着一封信。林舟推开木门，听见楼上传来脚步。林舟推开木门，发现锁舌早已断裂。",
+      "expectedCodes": ["repeated-opening"],
+      "expectedOk": true
+    },
+    {
+      "id": "clean-mature-prose",
+      "text": "细雨落在青石板上。林舟收起伞，隔着面摊升起的热汽看向街角。更鼓敲过两声，摊主仍没有抬头。",
+      "expectedCodes": [],
+      "expectedOk": true
+    },
+    {
+      "id": "clean-dialogue-cadence",
+      "text": "“你去吗？”他问。\n\n“不去。”她说。\n\n“真不去？”他又问。",
+      "expectedCodes": [],
+      "expectedOk": true
+    }
+  ]
+}

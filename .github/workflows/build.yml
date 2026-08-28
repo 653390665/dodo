@@ -1,0 +1,298 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Audit production dependencies
+        run: |
+          set +e
+          npm audit --omit=dev --json > audit-report.json
+          AUDIT_STATUS=$?
+          set -e
+          export AUDIT_STATUS
+          node <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+          const vulnerabilities = Object.entries(report.vulnerabilities || {});
+          const exemptions = {
+            '@xenova/transformers': '2026-09-30',
+            sharp: '2026-09-30',
+          };
+          if (vulnerabilities.length === 0) {
+            console.log('Production dependency audit: 0 vulnerabilities.');
+            process.exit(0);
+          }
+          const today = new Date().toISOString().slice(0, 10);
+          const violations = [];
+          for (const [name, advisory] of vulnerabilities) {
+            const severity = advisory.severity || 'unknown';
+            const expires = exemptions[name];
+            if (expires && expires >= today) {
+              console.warn(`Allowed vulnerability: ${name} severity=${severity} exemption_expires=${expires}`);
+            } else {
+              violations.push(`${name} severity=${severity} exemption_expires=${expires || 'none'}`);
+            }
+          }
+          if (violations.length > 0) {
+            console.error('Production dependency audit failed:\n' + violations.join('\n'));
+            process.exit(1);
+          }
+          console.warn('All reported vulnerabilities are covered by time-bounded exemptions.');
+          if (process.env.AUDIT_STATUS !== '0') console.warn(`npm audit exited with status ${process.env.AUDIT_STATUS}; exemptions were evaluated explicitly.`);
+          NODE
+      - name: Upload production audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-audit-report
+          path: audit-report.json
+          if-no-files-found: error
+      - name: Run Unit Tests
+        run: npm run test
+      - name: Run Backend Coverage Gate
+        run: npm run test:coverage:backend
+      - name: Run Frontend Tests
+        run: npm run test:frontend
+      - name: Run Frontend Coverage Gate
+        run: npm run test:coverage:frontend
+      - name: Upload coverage summaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/**
+          if-no-files-found: warn
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium --with-deps
+      - name: Build production assets
+        run: npm run build
+      - name: Run E2E Tests
+        run: npx playwright test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/**
+            test-results/**/*.zip
+            test-results/**/*.png
+            test-results/**/*.webm
+            test-results/**/*.json
+            !test-results/inkflow-e2e.db
+            !test-results/inkflow-e2e.db-wal
+            !test-results/inkflow-e2e.db-shm
+            !test-results/e2e-config/**
+          if-no-files-found: warn
+      - name: Run Runtime Smoke Tests
+        run: |
+          PORT=3000 npm run dev &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          echo "Waiting for InkFlow server to start on port 3000..."
+          READY=0
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/config || true)
+            if [ "$STATUS" = "401" ]; then
+              echo "Server is ready (returned 401 as expected without token)."
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Server did not become ready for runtime smoke tests."
+            exit 1
+          fi
+          INKFLOW_BASE_URL=http://127.0.0.1:3000 npm run smoke:runtime
+
+  mac:
+    needs: [check]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Run packaged editor close/restart durability smoke
+        timeout-minutes: 5
+        run: |
+          APP_EXECUTABLE=$(find release -path "*/InkFlow.app/Contents/MacOS/InkFlow" -type f | head -1)
+          test -n "$APP_EXECUTABLE"
+          INKFLOW_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" npm run smoke:packaged-editor
+      - name: Verify DMG
+        run: |
+          DMG=$(ls release/InkFlow-*-mac-arm64.dmg)
+          SIZE=$(stat -f%z "$DMG")
+          echo "DMG: $DMG ($SIZE bytes)"
+          if [ "$SIZE" -lt 50000000 ]; then echo "DMG too small, build likely failed"; exit 1; fi
+          # Mount and verify contents
+          hdiutil attach "$DMG" -mountpoint /tmp/inkflow-mnt -nobrowse -quiet
+          ls -la /tmp/inkflow-mnt/
+          hdiutil detach /tmp/inkflow-mnt -quiet
+          echo "DMG verification OK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkFlow-mac-arm64
+          path: release/InkFlow-*-mac-*.dmg
+
+  win:
+    needs: [check]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Configure production toolchain
+        shell: pwsh
+        run: |
+          npm config set msvs_version 2022
+          npm install -g node-gyp@latest
+      - run: npm ci
+      - name: Hot-upgrade nested node-gyp for VS2022 compatibility
+        shell: pwsh
+        run: |
+          npm install --no-save node-gyp@latest
+          $targetGyp = (Resolve-Path node_modules/node-gyp).Path
+          $gypDirs = Get-ChildItem -Path node_modules -Filter node-gyp -Recurse -Directory | Where-Object { $_.FullName -ne $targetGyp -and $_.Parent.Name -eq 'node_modules' }
+          foreach ($dir in $gypDirs) {
+            Write-Host "Hot-upgrading nested node-gyp at: $($dir.FullName)"
+            Remove-Item -Path "$($dir.FullName)/*" -Recurse -Force -ErrorAction SilentlyContinue
+            Copy-Item -Path "node_modules/node-gyp/*" -Destination $dir.FullName -Recurse -Force
+          }
+      - run: npx tsx --test tests/electron-startup-contract.test.ts
+      - run: npm run package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run packaged editor close/restart durability smoke
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $appExecutable = (Get-ChildItem release -Filter InkFlow.exe -Recurse | Where-Object { $_.FullName -match 'win-unpacked' } | Select-Object -First 1).FullName
+          if (-not $appExecutable) { Write-Error "Packaged InkFlow.exe not found"; exit 1 }
+          $env:INKFLOW_PACKAGED_EXECUTABLE = $appExecutable
+          npm run smoke:packaged-editor
+      - name: Verify server.cjs has no unbundled runtime deps
+        shell: pwsh
+        run: |
+          $server = Get-Content dist-electron/server.cjs -Raw
+          $extReqs = [regex]::Matches($server, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $bad = @($extReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
+          if ($bad.Count -gt 0) {
+            Write-Error "server.cjs has bare external requires: $($bad -join ', ')"
+            exit 1
+          }
+          Write-Host "OK: $($extReqs.Count) unique external requires, none are vite/express/tsx"
+      - name: Verify packaged ZIP contents
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
+          Write-Host "ZIP: $($zip.Name) ($($zip.Length) bytes)"
+          Expand-Archive -Path $zip.FullName -DestinationPath release/verify-win-zip -Force
+          $base = "release/verify-win-zip"
+          $unpackedRoot = "$base/resources/app.asar.unpacked"
+          if (-not (Test-Path $unpackedRoot)) { Write-Error "app.asar.unpacked missing"; exit 1 }
+          Write-Host "app.asar.unpacked found"
+          $serverPath = "$unpackedRoot/dist-electron/server.cjs"
+          $shimPath = "$unpackedRoot/dist-electron/better-sqlite3-shim.cjs"
+          if (-not (Test-Path $serverPath)) { Write-Error "server.cjs missing"; exit 1 }
+          if (-not (Test-Path $shimPath)) { Write-Error "shim missing"; exit 1 }
+          Write-Host "All required files present"
+          $pkgServer = Get-Content $serverPath -Raw -ErrorAction Stop
+          $pkgReqs = [regex]::Matches($pkgServer, 'require\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $pkgBad = @($pkgReqs | Where-Object { $_ -eq 'vite' -or $_ -eq 'express' -or $_ -eq 'tsx' })
+          if ($pkgBad.Count -gt 0) {
+            Write-Error "packaged server.cjs has bare requires: $($pkgBad -join ', ')"
+            exit 1
+          }
+          Write-Host "packaged server.cjs OK ($($pkgReqs.Count) unique requires)"
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/InkFlow-*-win-x64.exe | Select-Object -First 1
+          $size = (Get-Item $exe).Length
+          Write-Host "EXE: $exe ($size bytes)"
+          if ($size -lt 50000000) { Write-Error "EXE too small, build likely failed"; exit 1 }
+          Write-Host "EXE verification OK"
+          $zip = Get-ChildItem release/InkFlow-*-win-x64.zip | Select-Object -First 1
+          if ($zip) { Write-Host "ZIP: $zip ($((Get-Item $zip).Length) bytes)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkFlow-win-x64
+          path: |
+            release/InkFlow-*-win-*.exe
+            release/InkFlow-*-win-*.zip
+
+  linux:
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install desktop runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64
+      - run: npm ci
+      - run: npm run package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run packaged editor close/restart durability smoke
+        timeout-minutes: 5
+        run: |
+          test -x release/linux-unpacked/inkflow
+          INKFLOW_PACKAGED_EXECUTABLE="$PWD/release/linux-unpacked/inkflow" xvfb-run -a npm run smoke:packaged-editor
+      - name: Verify AppImage
+        run: |
+          APPIMAGE=$(ls release/InkFlow-*-linux-x64.AppImage)
+          SIZE=$(stat -c%s "$APPIMAGE")
+          echo "AppImage: $APPIMAGE ($SIZE bytes)"
+          if [ "$SIZE" -lt 50000000 ]; then echo "AppImage too small, build likely failed"; exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkFlow-linux-x64
+          path: release/InkFlow-*-linux-x64.AppImage

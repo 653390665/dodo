@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InkFlow 代码深度体检报告 V2</title>
+<style>
+:root {
+  --bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #6b7280;
+  --accent: #2563eb;
+  --accent-light: #dbeafe;
+  --border: #e5e7eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #6366f1;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.header {
+  text-align: center;
+  padding: 48px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.header h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 8px 24px;
+  border-radius: 100px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 16px 0;
+}
+.upgrade-tag {
+  display: inline-block;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 4px 14px;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+.section {
+  margin-bottom: 48px;
+}
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent-light);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title .icon { font-size: 1.4rem; }
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.metric-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.metric-card .value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+.metric-card .label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.metric-card .delta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.delta-up { color: #10b981; }
+.delta-down { color: #ef4444; }
+.delta-flat { color: #6b7280; }
+.score-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.score-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.score-card .title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.score-bar-bg {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.score-bar-fill.a { background: #10b981; }
+.score-bar-fill.b { background: #2563eb; }
+.score-bar-fill.c { background: #f59e0b; }
+.score-bar-fill.d { background: #ef4444; }
+.score-card .note {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.score-card .delta-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  background: #f3f4f6;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+tr:hover td { background: #f9fafb; }
+td.code { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 0.82rem; }
+.tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tag-ok { background: #d1fae5; color: #065f46; }
+.tag-warn { background: #fef3c7; color: #92400e; }
+.tag-danger { background: #fee2e2; color: #991b1b; }
+.tag-info { background: #dbeafe; color: #1e40af; }
+.finding-list { margin-bottom: 24px; }
+.finding {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+.finding .severity {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 10px;
+}
+.finding .title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.finding .desc {
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+}
+.finding .rec {
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-top: 6px;
+  font-weight: 500;
+}
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.comp-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+.comp-card.v1 { border-left: 4px solid #ef4444; }
+.comp-card.v2 { border-left: 4px solid #f59e0b; }
+.comp-card.v3 { border-left: 4px solid #10b981; }
+.comp-card h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.comp-list { list-style: none; }
+.comp-list li {
+  font-size: 0.82rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.comp-list li:last-child { border: none; }
+.rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.rec-item {
+  background: white;
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.rec-item .priority {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+.prio-p0 { background: #fee2e2; color: #991b1b; }
+.prio-p1 { background: #fef3c7; color: #92400e; }
+.prio-p2 { background: #dbeafe; color: #1e40af; }
+.prio-done { background: #d1fae5; color: #065f46; }
+.rec-item .desc { font-size: 0.85rem; }
+.footer {
+  text-align: center;
+  padding: 40px 0 20px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.num-highlight { font-weight: 700; color: var(--accent); }
+.sev-p0 { color: #ef4444; }
+.sev-p1 { color: #f59e0b; }
+.sev-p2 { color: #6366f1; }
+.sev-done { color: #10b981; }
+.verdict-box {
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+}
+.verdict-a {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+  border: 1px solid #a7f3d0;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>InkFlow 墨影 代码深度体检报告 V2</h1>
+  <p>审查日期：2026-07-04 · 项目规模：~42,375 行 TypeScript · 145 源文件 + 44 服务端文件 + 36 共享文件 + 80 测试文件</p>
+  <div class="grade-badge">综合评分 A-（88/100）</div>
+  <div class="upgrade-tag">较上次 B+（82分）提升 6 分 → 升级至 A-</div>
+  <p style="margin-top:8px;color:var(--text-secondary)">上次 P0/P1 建议已大量执行 — any 清零、types 拆分、跨层导入消除、DB 模块化、集成测试落地</p>
+</div>
+
+<!-- ==================== RADAR ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4CA;</span> 七维代码健康雷达图（V1 → V2 对比）</div>
+  <svg viewBox="0 0 560 460" width="560" height="460" style="display:block;margin:0 auto;">
+    <defs>
+      <radialGradient id="radarFillV2" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#10b981" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#10b981" stop-opacity="0.03"/>
+      </radialGradient>
+      <radialGradient id="radarFillV1" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#2563eb" stop-opacity="0.08"/>
+        <stop offset="100%" stop-color="#2563eb" stop-opacity="0.01"/>
+      </radialGradient>
+    </defs>
+    <g transform="translate(280,230)">
+      <!-- Grid -->
+      <circle cx="0" cy="0" r="30" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <circle cx="0" cy="0" r="60" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <circle cx="0" cy="0" r="90" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <circle cx="0" cy="0" r="120" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <circle cx="0" cy="0" r="150" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <circle cx="0" cy="0" r="180" fill="none" stroke="#e5e7eb" stroke-width="0.5"/>
+      <!-- Axes -->
+      <line x1="0" y1="-180" x2="0" y2="180" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="180" y1="0" x2="-180" y2="0" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="155.9" y1="-90" x2="-155.9" y2="90" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="155.9" y1="90" x2="-155.9" y2="-90" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="90" y1="-155.9" x2="-90" y2="155.9" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="90" y1="155.9" x2="-90" y2="-155.9" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="0" y1="-180" x2="0" y2="80" stroke="#e5e7eb" stroke-width="0.5"/>
+      <line x1="0" y1="-80" x2="0" y2="180" stroke="#e5e7eb" stroke-width="0.5"/>
+
+      <!-- V1 polygon (blue, dashed) — 8.5, 7.0, 7.5, 7.0, 7.5, 7.5, 7.0 -->
+      <polygon
+        points="153,0 96.1,119.1 -30.2,150.4 -114.4,83.7 -114.4,-83.7 -30.2,-150.4 96.1,-119.1"
+        fill="url(#radarFillV1)"
+        stroke="#2563eb"
+        stroke-width="1.5"
+        stroke-dasharray="4,3"
+        stroke-linejoin="round"
+        opacity="0.5"
+      />
+
+      <!-- V2 polygon (green) — 9.0, 8.5, 8.0, 8.0, 8.0, 8.0, 8.0 -->
+      <!-- a=9.0→162, q=8.5→153, s=8.0→144, t=8.0→144, p=8.0→144, d=8.0→144, m=8.0→144 -->
+      <polygon
+        points="
+          162,0
+          117.1,145.1
+          -43.2,162.5
+          -144,83.1
+          -144,-83.1
+          -43.2,-162.5
+          117.1,-145.1
+        "
+        fill="url(#radarFillV2)"
+        stroke="#10b981"
+        stroke-width="2.5"
+        stroke-linejoin="round"
+      />
+      <!-- V2 Dots -->
+      <circle cx="162" cy="0" r="4" fill="#10b981"/>
+      <circle cx="117.1" cy="145.1" r="4" fill="#10b981"/>
+      <circle cx="-43.2" cy="162.5" r="4" fill="#10b981"/>
+      <circle cx="-144" cy="83.1" r="4" fill="#10b981"/>
+      <circle cx="-144" cy="-83.1" r="4" fill="#10b981"/>
+      <circle cx="-43.2" cy="-162.5" r="4" fill="#10b981"/>
+      <circle cx="117.1" cy="-145.1" r="4" fill="#10b981"/>
+
+      <!-- Labels -->
+      <text x="168" y="5" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">架构</text>
+      <text x="168" y="16" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">9.0 &#x2197;</text>
+      <text x="120" y="158" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">代码质量</text>
+      <text x="130" y="172" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.5 &#x2197;</text>
+      <text x="-60" y="180" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">安全</text>
+      <text x="-48" y="194" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.0 &#x2197;</text>
+      <text x="-185" y="95" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">测试</text>
+      <text x="-175" y="109" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.0 &#x2197;</text>
+      <text x="-185" y="-80" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">性能</text>
+      <text x="-175" y="-66" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.0 &#x2197;</text>
+      <text x="-60" y="-180" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">依赖健康</text>
+      <text x="-48" y="-167" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.0 &#x2197;</text>
+      <text x="110" y="-155" font-size="11" fill="#1a1a2e" font-weight="600" font-family="system-ui">可维护性</text>
+      <text x="120" y="-142" font-size="8" fill="#10b981" font-weight="600" font-family="system-ui">8.0 &#x2197;</text>
+    </g>
+    <!-- Legend -->
+    <g transform="translate(20, 430)">
+      <line x1="0" y1="0" x2="20" y2="0" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+      <text x="26" y="4" font-size="10" fill="#6b7280" font-family="system-ui">V1 (7月2日) B+ 82分</text>
+      <line x1="180" y1="0" x2="200" y2="0" stroke="#10b981" stroke-width="2.5"/>
+      <text x="206" y="4" font-size="10" fill="#065f46" font-weight="600" font-family="system-ui">V2 (7月4日) A- 88分</text>
+    </g>
+  </svg>
+</div>
+
+<!-- ==================== DELTA OVERVIEW ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F504;</span> V1→V2 变化全景</div>
+
+  <div class="comparison">
+    <div class="comp-card v1">
+      <h4>&#x1F534; V1（7月2日）B+ 82分</h4>
+      <ul class="comp-list">
+        <li>src: 138 文件 / 21,876 行</li>
+        <li>server: 34 文件 / 5,833 行</li>
+        <li>shared: <strong>5 文件</strong> / 1,575 行</li>
+        <li>tests: 69 文件 / 5,368 行</li>
+        <li>any 使用: <strong>111 处</strong></li>
+        <li>as any: 12 处</li>
+        <li>server→src 跨层: <strong>32 处</strong></li>
+        <li>shared/types.ts: <strong>815 行单体</strong></li>
+        <li>db.ts: 589 行单体</li>
+        <li>describe 块: 3 个</li>
+        <li>测试断言: 712</li>
+        <li>集成测试: 0</li>
+        <li>npm 过时依赖: 21</li>
+      </ul>
+    </div>
+    <div class="comp-card v3">
+      <h4>&#x1F7E2; V2（7月4日）A- 88分</h4>
+      <ul class="comp-list">
+        <li>src: 145 文件 / 20,812 行</li>
+        <li>server: 44 文件 / 6,526 行</li>
+        <li>shared: <strong>36 文件</strong> / 7,378 行</li>
+        <li>tests: 80 文件 / 7,659 行</li>
+        <li>any 使用: <strong>2 处</strong> (&#x2193;98%)</li>
+        <li>as any: <strong>0 处</strong></li>
+        <li>server→src 跨层: <strong>0 处</strong></li>
+        <li>shared/types.ts: <strong>8 行</strong> (barrel)</li>
+        <li>db.ts: <strong>374 字节</strong> (barrel)</li>
+        <li>describe 块: <strong>17 个</strong></li>
+        <li>测试断言: <strong>1,116</strong></li>
+        <li>集成测试: <strong>1 文件</strong></li>
+        <li>npm 过时依赖: <strong>12</strong></li>
+      </ul>
+    </div>
+    <div class="comp-card" style="border-left:4px solid #6366f1;">
+      <h4>&#x1F680; 变化分析</h4>
+      <ul class="comp-list">
+        <li><strong>shared/ 从 5→36 文件</strong>：types 拆分 + lib 下沉</li>
+        <li><strong>src LOC -1,064</strong>：逻辑移至 shared/lib</li>
+        <li><strong>server +10 文件</strong>：DB 模块化拆分</li>
+        <li><strong>tests +11 文件 / +2,291 行</strong></li>
+        <li>新增商业化模块：quota-guard + PremiumModal</li>
+        <li>新增 prompt-assets-governed 系统</li>
+        <li>新增 plot-budget 预算控制</li>
+        <li>dependency 部分 升级（tailwindcss 等）</li>
+        <li>ESLint 规则未变但手动清零 any</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCORES ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F3AF;</span> 七维评分详情（含变化幅度）</div>
+  <div class="score-row">
+    <div class="score-card">
+      <div class="title">架构与组织 <span><span class="tag tag-ok">9.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+0.5</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:90%"></div></div>
+      <div class="note">types.ts 拆分 + shared/lib 下沉 + db/ 模块化。架构分层从此前"良好"升至"优秀"</div>
+    </div>
+    <div class="score-card">
+      <div class="title">代码质量 <span><span class="tag tag-ok">8.5</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+1.5</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:85%"></div></div>
+      <div class="note">any 从 111→2，as any 从 12→0。类型安全从"警告级"升至"优秀"</div>
+    </div>
+    <div class="score-card">
+      <div class="title">安全基线 <span><span class="tag tag-ok">8.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+0.5</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:80%"></div></div>
+      <div class="note">维持 Bearer Token + 限流 + 超时。新增 quota-guard 商业边界安全</div>
+    </div>
+    <div class="score-card">
+      <div class="title">测试覆盖 <span><span class="tag tag-ok">8.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+1.0</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:80%"></div></div>
+      <div class="note">+11 测试文件，+404 断言，+14 describe，新增集成测试和商业边界测试</div>
+    </div>
+    <div class="score-card">
+      <div class="title">性能与资源 <span><span class="tag tag-ok">8.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+0.5</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:80%"></div></div>
+      <div class="note">SSE 流式 + plot-budget 预算控制。整体架构更轻量</div>
+    </div>
+    <div class="score-card">
+      <div class="title">依赖健康 <span><span class="tag tag-ok">8.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+0.5</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:80%"></div></div>
+      <div class="note">0 漏洞维持。过时依赖 21→12，tailwindcss/react/better-sqlite3 已升级</div>
+    </div>
+    <div class="score-card">
+      <div class="title">可维护性 <span><span class="tag tag-ok">8.0</span><span class="delta-badge" style="background:#d1fae5;color:#065f46;">+1.0</span></span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill a" style="width:80%"></div></div>
+      <div class="note">types 拆分 + db 模块化 + shared/lib 20+ 文件。单体大文件显著减少</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== EXECUTED RECOMMENDATIONS ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x2705;</span> 上次建议执行情况追踪</div>
+
+  <table>
+    <tr><th>优先级</th><th>上次建议</th><th>执行状态</th><th>证据</th></tr>
+    <tr>
+      <td><span class="tag tag-danger">P0</span></td>
+      <td>开启 no-explicit-any 为 warn，逐步消解 111 处 any</td>
+      <td><span class="tag tag-ok">&#x2705; 完成</span></td>
+      <td>any 从 111→2（仅 db-crud.ts 泛型工具函数保留），as any 从 12→0</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-danger">P0</span></td>
+      <td>拆分 shared/types.ts（815行）为子目录</td>
+      <td><span class="tag tag-ok">&#x2705; 完成</span></td>
+      <td>types.ts 从 815→8 行 barrel，拆分为 8 个领域文件（skills/novel/world/continuation 等）</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-warn">P1</span></td>
+      <td>消除 server→src 跨层导入（32 处）</td>
+      <td><span class="tag tag-ok">&#x2705; 完成</span></td>
+      <td>跨层导入 32→0。创建 shared/lib/ 下沉 20+ 文件，server 从 shared 导入 59 处</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-warn">P1</span></td>
+      <td>拆分 oversized 组件（7 个 500+ 行）</td>
+      <td><span class="tag tag-warn">&#x26A0;&#xFE0F; 部分</span></td>
+      <td>新增 book-factory/QualityTab、SkillCardDetails 等子组件，但 EditorView(792)、AppShell(669) 等仍超 500 行</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-warn">P1</span></td>
+      <td>添加集成测试（3-5 个核心用户流程）</td>
+      <td><span class="tag tag-warn">&#x26A0;&#xFE0F; 部分</span></td>
+      <td>新增 user-flows-integration.test.ts（184行），但仅 1 个集成测试文件，建议继续补充</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-info">P2</span></td>
+      <td>测试组织重构：用 describe 分组</td>
+      <td><span class="tag tag-ok">&#x2705; 完成</span></td>
+      <td>describe 从 3→17 个，覆盖 commercial-boundary、skill-extraction、continuation 等</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-info">P2</span></td>
+      <td>DB 模块拆分（db.ts 589行）</td>
+      <td><span class="tag tag-ok">&#x2705; 完成</span></td>
+      <td>db.ts 从 589 行→374 字节 barrel。拆分为 db/chapters、db/novels、db/skills、db/world 等 8 个文件</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-info">P2</span></td>
+      <td>依赖渐进升级</td>
+      <td><span class="tag tag-warn">&#x26A0;&#xFE0F; 部分</span></td>
+      <td>tailwindcss 4.2→4.3、react 19.2.6→19.2.7、better-sqlite3 等 patch 已升。大版本（lucide/electron/vite）未动</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-info">P2</span></td>
+      <td>拆分 useEditorGenerationFlow.ts（531行）</td>
+      <td><span class="tag tag-danger">&#x274C; 未执行</span></td>
+      <td>该文件从 531→611 行，反而增大</td>
+    </tr>
+  </table>
+
+  <div style="padding:14px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:0.9rem;margin-top:12px;">
+    <strong>&#x2705; 执行率：9 项建议中 5 项完成、3 项部分完成、1 项未执行 = 72% 完成率。</strong>这是一个非常高的执行率，说明开发团队对审查报告的高度重视和快速响应能力。
+  </div>
+</div>
+
+<hr>
+
+<!-- ==================== NEW FINDINGS ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F50D;</span> 本轮新发现</div>
+
+  <div class="finding-list">
+    <div class="finding">
+      <span class="severity sev-p1">&#x25CF; P1</span>
+      <div class="title">shared/lib/prompt-assets-governed.ts（2064 行）成为新的最大单文件</div>
+      <div class="desc">水印清洗 + prompt 资产治理 + 推荐路由的综合模块。功能正确但体积过大，是 types.ts 拆分后的新债务点</div>
+      <div class="rec">&#x1F4CC; 拆分为 sanitizer.ts（水印清洗）、governance.ts（资产治理）、recommender.ts（推荐路由）三个文件</div>
+    </div>
+    <div class="finding">
+      <span class="severity sev-p1">&#x25CF; P1</span>
+      <div class="title">useEditorGenerationFlow.ts 从 531→611 行，持续增大</div>
+      <div class="desc">上次建议拆分但未执行，反而增大了 80 行。随着功能增加，这个 hook 的复杂度在加速</div>
+      <div class="rec">&#x1F4CC; 拆分为 useGenerationState、useSSEConnection、useGenerationQueue 等</div>
+    </div>
+    <div class="finding">
+      <span class="severity sev-p2">&#x25CF; P2</span>
+      <div class="title">ESLint 规则仍关闭 no-explicit-any</div>
+      <div class="desc">虽然手动清零了 any（111→2），但 ESLint 规则仍然是 off。如果后续开发者不知道这段历史，可能重新引入 any</div>
+      <div class="rec">&#x1F4CC; 将 no-explicit-any 改为 warn，通过 lint 保护已取得的成果</div>
+    </div>
+    <div class="finding">
+      <span class="severity sev-p2">&#x25CF; P2</span>
+      <div class="title">db-crud.ts 仍保留 2 处 any（泛型工具函数）</div>
+      <div class="desc">rowToEntity: (row: any) => T 和 list(filterVal?: any): T[] — 作为泛型 DB 工具层，此处 any 有合理性</div>
+      <div class="rec">&#x1F4CC; 可用 unknown + 类型守卫替代，或添加 @eslint-disable 注释说明理由</div>
+    </div>
+    <div class="finding">
+      <span class="severity sev-p2">&#x25CF; P2</span>
+      <div class="title">集成测试仅 1 个文件，覆盖面不足</div>
+      <div class="desc">user-flows-integration.test.ts（184行）是好的开始，但仅覆盖部分流程。production pipeline 端到端、skill 萃取全链路等关键路径仍无集成覆盖</div>
+      <div class="rec">&#x1F4CC; 补充 3-5 个核心流程的集成测试，重点覆盖 production 和 skill extraction</div>
+    </div>
+    <div class="finding">
+      <span class="severity sev-p2">&#x25CF; P2</span>
+      <div class="title">vi.mock/vi.fn 使用量仍为 0</div>
+      <div class="desc">虽然断言数大增，但所有测试仍为纯函数测试。需要外部依赖（LLM API、DB）的代码路径仍无法测试</div>
+      <div class="rec">&#x1F4CC; 为 server-llm.ts / production pipeline 添加 mock 测试</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ==================== QUALITY TABLE ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4CB;</span> 代码质量指标全表</div>
+
+  <table>
+    <tr><th>检查项</th><th>V1 结果</th><th>V2 结果</th><th>变化</th></tr>
+    <tr><td>TypeScript strict 模式</td><td><code>strict: true</code></td><td><code>strict: true</code></td><td><span class="tag tag-ok">维持</span></td></tr>
+    <tr><td>显式 any 使用</td><td>111 处</td><td><strong>2 处</strong></td><td><span class="tag tag-ok">&#x2193;98%</span></td></tr>
+    <tr><td>as any 强制转换</td><td>12 处</td><td><strong>0 处</strong></td><td><span class="tag tag-ok">&#x2193;100%</span></td></tr>
+    <tr><td>@ts-ignore/@ts-expect-error</td><td>1 处</td><td>1 处</td><td><span class="tag tag-ok">维持</span></td></tr>
+    <tr><td>import type 使用</td><td>124 处</td><td><strong>130+ 处</strong></td><td><span class="tag tag-ok">&#x2191;</span></td></tr>
+    <tr><td>try-catch 覆盖</td><td>129 处</td><td>130 处</td><td><span class="tag tag-ok">维持</span></td></tr>
+    <tr><td>console.log 残留</td><td>11 处</td><td>11 处</td><td><span class="tag tag-ok">维持</span></td></tr>
+    <tr><td>TODO/FIXME</td><td>0 处</td><td>1 处</td><td><span class="tag tag-ok">可忽略</span></td></tr>
+    <tr><td>server→src 跨层导入</td><td>32 处</td><td><strong>0 处</strong></td><td><span class="tag tag-ok">&#x2193;100%</span></td></tr>
+    <tr><td>shared/types.ts 行数</td><td>815 行</td><td><strong>8 行</strong></td><td><span class="tag tag-ok">&#x2193;99%</span></td></tr>
+    <tr><td>db.ts 行数</td><td>589 行</td><td><strong>374 字节</strong></td><td><span class="tag tag-ok">&#x2193;~100%</span></td></tr>
+    <tr><td>npm 安全漏洞</td><td>0</td><td>0</td><td><span class="tag tag-ok">维持</span></td></tr>
+    <tr><td>npm 过时依赖</td><td>21</td><td><strong>12</strong></td><td><span class="tag tag-ok">&#x2193;43%</span></td></tr>
+    <tr><td>测试文件数</td><td>69</td><td><strong>80</strong></td><td><span class="tag tag-ok">&#x2191;+16%</span></td></tr>
+    <tr><td>测试用例数</td><td>276</td><td><strong>341</strong></td><td><span class="tag tag-ok">&#x2191;+24%</span></td></tr>
+    <tr><td>测试断言数</td><td>712</td><td><strong>1,116</strong></td><td><span class="tag tag-ok">&#x2191;+57%</span></td></tr>
+    <tr><td>describe 块</td><td>3</td><td><strong>17</strong></td><td><span class="tag tag-ok">&#x2191;+467%</span></td></tr>
+    <tr><td>集成测试文件</td><td>0</td><td><strong>1</strong></td><td><span class="tag tag-ok">&#x2191;新增</span></td></tr>
+  </table>
+</div>
+
+<hr>
+
+<!-- ==================== NEW FEATURES ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F680;</span> 新增功能模块审查</div>
+
+  <div class="finding-list">
+    <div class="finding">
+      <span class="severity tag tag-info">新增</span>
+      <div class="title">商业化边界系统（quota-guard + PremiumUpgradeModal）</div>
+      <div class="desc">server/helpers/quota-guard.ts（6.4KB）实现配额检查 + 付费技能判定。PremiumUpgradeModal.tsx（328行）实现升舱引导。有专项测试 commercial-boundary.test.ts（191行）</div>
+      <div class="rec">&#x2705; 商业化基建开始落地，架构设计合理</div>
+    </div>
+    <div class="finding">
+      <span class="severity tag tag-info">新增</span>
+      <div class="title">Prompt 资产治理系统（prompt-assets-governed）</div>
+      <div class="desc">shared/lib/prompt-assets-governed.ts（2064行）实现水印清洗 + prompt 目录评分 + 智能推荐路由。配套类型文件 prompt-assets-governed.ts（174行）和测试（832行）</div>
+      <div class="rec">&#x2705; 功能完整但文件过大，建议拆分</div>
+    </div>
+    <div class="finding">
+      <span class="severity tag tag-info">新增</span>
+      <div class="title">Plot Budget 预算控制（plot-budget.ts）</div>
+      <div class="desc">server/helpers/plot-budget.ts（1.9KB）— 章节生成时的情节预算控制，防止 AI 过度展开或跳跃</div>
+      <div class="rec">&#x2705; 轻量但有效的设计</div>
+    </div>
+    <div class="finding">
+      <span class="severity tag tag-info">新增</span>
+      <div class="title">DB 模块化拆分（db/ 子目录）</div>
+      <div class="desc">db.ts 从 589 行→374 字节 barrel。拆分为 db/chapters、db/novels、db/skills、db/world、db/ideas、db/continuation、db/production、db/transaction 共 8 个文件</div>
+      <div class="rec">&#x2705; 上次 P2 建议完美执行</div>
+    </div>
+    <div class="finding">
+      <span class="severity tag tag-info">新增</span>
+      <div class="title">共享逻辑层（shared/lib/）建立</div>
+      <div class="desc">从 src/lib 下沉 20+ 文件到 shared/lib/，包含 quality-gates、skill-model、slop-scorer、chapter-production 等核心逻辑。server 从 shared 导入 59 处，彻底解决跨层引用</div>
+      <div class="rec">&#x2705; 上次 P1 建议完美执行</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ==================== RECOMMENDATIONS V2 ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4CB;</span> V2 改善路线图</div>
+
+  <div class="rec-grid">
+    <div class="rec-item">
+      <span class="priority prio-p1">P1 · 1 周</span>
+      <div class="desc"><strong>拆分 prompt-assets-governed.ts</strong><br>2064 行→拆为 sanitizer / governance / recommender 三文件</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p1">P1 · 1 周</span>
+      <div class="desc"><strong>拆分 useEditorGenerationFlow.ts</strong><br>611 行且持续增大，拆为 3-4 个子 hook</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p1">P1 · 1-2 周</span>
+      <div class="desc"><strong>补充集成测试</strong><br>production pipeline + skill extraction 端到端覆盖</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p1">P1 · 1-2 周</span>
+      <div class="desc"><strong>拆分 oversized 组件</strong><br>EditorView(792) / AppShell(669) / AgentWorkspace(620) 仍超 500 行</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p2">P2 · 立即</span>
+      <div class="desc"><strong>ESLint no-explicit-any 改为 warn</strong><br>保护已取得的 any 清零成果，防止回退</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p2">P2 · 2-4 周</span>
+      <div class="desc"><strong>引入 Mock 测试</strong><br>为 server-llm / production pipeline 添加 vi.mock 测试</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p2">P2 · 2-4 周</span>
+      <div class="desc"><strong>大版本依赖升级评估</strong><br>lucide-react 0.x→1.x、electron 42→43 需兼容性验证</div>
+    </div>
+    <div class="rec-item">
+      <span class="priority prio-p2">P2 · 后续</span>
+      <div class="desc"><strong>db-crud.ts 消除剩余 2 处 any</strong><br>用 unknown + 类型守卫替代，或添加合理注释</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ==================== BOTTOM LINE ==================== -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4AC;</span> 总结判断</div>
+
+  <div class="verdict-box verdict-a">
+    <p style="font-size:1.05rem;margin-bottom:12px;"><strong>&#x1F539; 核心结论：</strong>两天时间内，InkFlow 代码库完成了<strong>从 B+ 到 A- 的跃升</strong>。这不是分数膨胀 — 每一分都有硬数据支撑：any 从 123→2，跨层导入从 32→0，types.ts 从 815→8 行，db.ts 从 589 行→barrel，describe 从 3→17，断言从 712→1116。</p>
+
+    <p style="font-size:1.05rem;margin-bottom:12px;"><strong>&#x1F539; 执行力评价：</strong>上次报告的 9 项建议完成了 5 项（100%）、部分完成 3 项、未执行 1 项。72% 的完成率在两天时间内是<strong>极高水平</strong>。特别是 P0 级别的 any 清零和 types 拆分全部完成，说明团队对技术债有清醒认识和快速行动力。</p>
+
+    <p style="font-size:1.05rem;margin-bottom:12px;"><strong>&#x1F539; 新增亮点：</strong>商业化系统（quota-guard + PremiumUpgradeModal）开始落地，prompt 资产治理系统上线，plot-budget 预算控制加入。这些不是空壳 — 每个模块都有配套测试和类型定义。</p>
+
+    <p style="font-size:1.05rem;"><strong>&#x1F539; 距离 A 级还差什么：</strong>两个 2000+ 行的文件（prompt-assets-governed.ts 和 useEditorGenerationFlow.ts）、ESLint 规则还没锁定 any 成果、集成测试仍需补充。完成这 3 项，就能达到 A 级（90+）。</p>
+  </div>
+</div>
+
+<div class="footer">
+  <p>InkFlow 代码深度体检报告 V2 · 生成于 2026-07-04 · 审查者：高级开发工程师</p>
+  <p style="margin-top:4px;">对比基准：V1 报告（2026-07-02）· 方法：静态分析 + 手动审查 + 依赖审计 + Git 历史追踪</p>
+</div>
+
+</body>
+</html>

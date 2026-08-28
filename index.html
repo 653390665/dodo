@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- CSP fallback for scenarios that bypass the Express server (which injects
+         the stricter helmet CSP in production). 'unsafe-inline' in script-src is
+         required by the Vite dev react-refresh preamble; production helmet CSP
+         still applies on top (multiple policies intersect). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fonts are self-hosted (public/fonts, wired via src/fonts.css): the app
+         makes zero third-party requests and works fully offline. -->
+    <title>InkFlow</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

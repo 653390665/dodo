@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-27T21:09:38.201Z",
+  "mode": "deterministic",
+  "overallStatus": "FALLBACK",
+  "modelConfigured": false,
+  "samples": [
+    {
+      "id": "slop-heavy",
+      "file": "chapter-slop-heavy.txt",
+      "label": "AI 腔重稿",
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 2,
+      "qualityFindings": [],
+      "expectedP0Codes": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": true,
+      "candidateProduced": true,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "unauthorizedRewrite": false,
+      "appliedCount": 3,
+      "accepted": true
+    },
+    {
+      "id": "action-weak",
+      "file": "chapter-action-weak.txt",
+      "label": "动作对白薄弱稿（含元数据污染）",
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 1,
+      "qualityFindings": [],
+      "expectedP0Codes": [
+        "metadata"
+      ],
+      "inputHasExpectedDefect": true,
+      "defectDetected": true,
+      "candidateProduced": true,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "unauthorizedRewrite": false,
+      "appliedCount": 2,
+      "accepted": true
+    },
+    {
+      "id": "mature",
+      "file": "chapter-mature.txt",
+      "label": "成熟正文",
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 2,
+      "qualityFindings": [],
+      "expectedP0Codes": [],
+      "inputHasExpectedDefect": false,
+      "defectDetected": false,
+      "candidateProduced": false,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "unauthorizedRewrite": false,
+      "appliedCount": 0,
+      "accepted": false
+    }
+  ],
+  "calls": [
+    {
+      "phase": "audit",
+      "sample": "slop-heavy",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": true,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0,
+      "parseMode": "structured",
+      "contractViolation": null,
+      "rawOutputChars": 580,
+      "rawIssueCount": 3,
+      "normalizedIssueCount": 3,
+      "responseShape": "json-object",
+      "hasAuditKeys": true,
+      "issueTypes": [
+        "style-slop"
+      ],
+      "issueSubtypes": [
+        "ai-cliche",
+        "exposition-dump",
+        "tell-dont-show"
+      ]
+    },
+    {
+      "phase": "rewrite",
+      "sample": "slop-heavy",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0
+    },
+    {
+      "phase": "rewrite",
+      "sample": "slop-heavy",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0
+    },
+    {
+      "phase": "rewrite",
+      "sample": "slop-heavy",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0
+    },
+    {
+      "phase": "re-audit",
+      "sample": "slop-heavy",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0,
+      "parseMode": "structured",
+      "contractViolation": null,
+      "rawOutputChars": 70,
+      "rawIssueCount": 0,
+      "normalizedIssueCount": 0,
+      "responseShape": "json-object",
+      "hasAuditKeys": true,
+      "issueTypes": [],
+      "issueSubtypes": []
+    },
+    {
+      "phase": "audit",
+      "sample": "action-weak",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": true,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0,
+      "parseMode": "structured",
+      "contractViolation": null,
+      "rawOutputChars": 503,
+      "rawIssueCount": 2,
+      "normalizedIssueCount": 2,
+      "responseShape": "json-object",
+      "hasAuditKeys": true,
+      "issueTypes": [
+        "action-chain"
+      ],
+      "issueSubtypes": [
+        "dialogue-without-beat",
+        "weak-action-chain"
+      ]
+    },
+    {
+      "phase": "rewrite",
+      "sample": "action-weak",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0
+    },
+    {
+      "phase": "rewrite",
+      "sample": "action-weak",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": true,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0
+    },
+    {
+      "phase": "re-audit",
+      "sample": "action-weak",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": true,
+      "defectDetected": false,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0,
+      "parseMode": "structured",
+      "contractViolation": null,
+      "rawOutputChars": 70,
+      "rawIssueCount": 0,
+      "normalizedIssueCount": 0,
+      "responseShape": "json-object",
+      "hasAuditKeys": true,
+      "issueTypes": [],
+      "issueSubtypes": []
+    },
+    {
+      "phase": "audit",
+      "sample": "mature",
+      "qualityFindings": [],
+      "inputHasExpectedDefect": false,
+      "defectDetected": false,
+      "rewriteChangedText": false,
+      "rewriteIntroducedP0P1": false,
+      "status": "FALLBACK",
+      "errorCode": null,
+      "durationMs": 0,
+      "parseMode": "structured",
+      "contractViolation": null,
+      "rawOutputChars": 70,
+      "rawIssueCount": 0,
+      "normalizedIssueCount": 0,
+      "responseShape": "json-object",
+      "hasAuditKeys": true,
+      "issueTypes": [],
+      "issueSubtypes": []
+    }
+  ],
+  "contractCases": [
+    {
+      "id": "metadata-and-question",
+      "expectedCodes": [
+        "metadata",
+        "instruction-residue"
+      ],
+      "actualCodes": [
+        "metadata",
+        "instruction-residue"
+      ],
+      "expectedOk": false,
+      "actualOk": false
+    },
+    {
+      "id": "mojibake",
+      "expectedCodes": [
+        "mojibake"
+      ],
+      "actualCodes": [
+        "mojibake"
+      ],
+      "expectedOk": false,
+      "actualOk": false
+    },
+    {
+      "id": "duplicate-paragraph-and-symbol-noise",
+      "expectedCodes": [
+        "duplicate-paragraph",
+        "symbol-noise"
+      ],
+      "actualCodes": [
+        "symbol-noise",
+        "duplicate-paragraph"
+      ],
+      "expectedOk": false,
+      "actualOk": false
+    },
+    {
+      "id": "p2-repeated-opening",
+      "expectedCodes": [
+        "repeated-opening"
+      ],
+      "actualCodes": [
+        "repeated-opening"
+      ],
+      "expectedOk": true,
+      "actualOk": true
+    },
+    {
+      "id": "clean-mature-prose",
+      "expectedCodes": [],
+      "actualCodes": [],
+      "expectedOk": true,
+      "actualOk": true
+    },
+    {
+      "id": "clean-dialogue-cadence",
+      "expectedCodes": [],
+      "actualCodes": [],
+      "expectedOk": true,
+      "actualOk": true
+    }
+  ],
+  "metrics": {
+    "p0EscapeRate": {
+      "value": 0,
+      "numerator": 0,
+      "denominator": 1
+    },
+    "p1MissRate": {
+      "value": 0,
+      "numerator": 0,
+      "denominator": 2
+    },
+    "polishAcceptanceRate": {
+      "value": 1,
+      "numerator": 2,
+      "denominator": 2
+    },
+    "harmfulRewriteRate": {
+      "value": 0,
+      "numerator": 0,
+      "denominator": 2
+    }
+  }
+}

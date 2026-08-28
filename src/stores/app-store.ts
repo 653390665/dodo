@@ -1,0 +1,99 @@
+import { create } from 'zustand';
+import type { AssistantMode, AssistantSurfaceContext, ViewType, WorkspaceFocus } from '../../shared/types';
+
+type Theme = 'light' | 'dark' | 'system';
+
+const THEME_KEY = 'inkflow-theme';
+
+function getStoredTheme(): Theme {
+  try {
+    // 增加 Node/SSR 环境的安全防线
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored === 'dark' || stored === 'light' || stored === 'system') return stored;
+    }
+  } catch {}
+  return 'system';
+}
+
+function applyTheme(theme: Theme) {
+  // 增加 Node/SSR 环境的安全防线，若在 headless/Node 运行环境中无 window 或 document，静默退场
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  
+  const resolved = theme === 'system'
+    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : theme;
+  document.documentElement.dataset.theme = resolved;
+}
+
+interface AppState {
+  currentView: ViewType;
+  workspaceFocus: WorkspaceFocus;
+  theme: Theme;
+  isSettingsOpen: boolean;
+  isAIAssistantOpen: boolean;
+  assistantMode: AssistantMode;
+  assistantSurfaceContext: AssistantSurfaceContext | null;
+  aiDrawerTab: 'cards' | 'chat';
+  setCurrentView: (v: ViewType) => void;
+  setWorkspaceFocus: (f: WorkspaceFocus) => void;
+  setTheme: (t: Theme) => void;
+  setSettingsOpen: (v: boolean) => void;
+  openAssistant: (mode: AssistantMode, context: AssistantSurfaceContext | null) => void;
+  closeAssistant: () => void;
+  setAIDrawerTab: (tab: 'cards' | 'chat') => void;
+}
+
+export const useAppStore = create<AppState>((set) => {
+  // 初始化主题
+  const initialTheme = getStoredTheme();
+  applyTheme(initialTheme);
+
+  // 恢复上次会话：自动侦测并加载用户停留的视图（带有非浏览器环境下的安全隔离）
+  let restoredView: ViewType = 'welcome';
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const savedView = localStorage.getItem('inkflow-last-view');
+      if (savedView) restoredView = savedView as ViewType;
+    }
+  } catch {}
+
+  return {
+    currentView: restoredView,
+    workspaceFocus: 'editor',
+    theme: initialTheme,
+    isSettingsOpen: false,
+    isAIAssistantOpen: false,
+    assistantMode: 'general',
+    assistantSurfaceContext: null,
+    aiDrawerTab: 'cards',
+    setCurrentView: (currentView) => {
+      try { 
+        // 增加非浏览器环境下的 LocalStorage 写入安全卫士
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('inkflow-last-view', currentView); 
+        }
+      } catch {}
+      set({ currentView });
+    },
+    setWorkspaceFocus: (workspaceFocus) => set({ workspaceFocus }),
+    setTheme: (theme) => {
+      applyTheme(theme);
+      try { 
+        // 增加非浏览器环境下的 LocalStorage 写入安全卫士
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(THEME_KEY, theme); 
+        }
+      } catch {}
+      set({ theme });
+    },
+    setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
+    openAssistant: (assistantMode, assistantSurfaceContext) => set({
+      isAIAssistantOpen: true,
+      assistantMode,
+      assistantSurfaceContext,
+    }),
+    closeAssistant: () => set({ isAIAssistantOpen: false, assistantSurfaceContext: null }),
+    setAIDrawerTab: (aiDrawerTab) => set({ aiDrawerTab }),
+  };
+});
