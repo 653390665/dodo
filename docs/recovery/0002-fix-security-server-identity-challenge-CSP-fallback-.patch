@@ -1,0 +1,473 @@
+From d084e2fdb422a4929c3acd0474a14ae94e112d85 Mon Sep 17 00:00:00 2001
+From: User <user@example.com>
+Date: Sat, 29 Aug 2026 00:12:33 +0800
+Subject: [PATCH 2/4] fix(security): server identity challenge, CSP fallback,
+ and hardening
+
+Close the local port-hijack chain: the server now writes a 0600 identity
+token when orchestrated by Electron and answers a timingSafeEqual challenge
+on GET /api/identity (404 otherwise); Electron probes health, watchdog, and
+Dock reuse through that challenge, gates all IPC behind a verified flag,
+and no longer trusts any responder on the port. Add a meta CSP fallback to
+index.html for server-bypass scenarios, sweep orphan .temp-export backups
+at startup, and validate world.ts route payloads with zod up front so
+malformed input fails before quota reservation (existing error contracts
+unchanged).
+---
+ electron-server-restart.cjs           | 17 +++++--
+ electron.cjs                          | 52 +++++++++++++++++----
+ index.html                            |  8 ++++
+ scripts/dev-electron.mjs              |  1 +
+ server.ts                             | 12 ++++-
+ server/lib/db-init.ts                 | 25 +++++++++-
+ server/middleware/auth.ts             | 35 ++++++++++++++
+ server/routes/world.ts                | 67 +++++++++++++++++++++++----
+ tests/electron-server-restart.test.ts |  6 +--
+ 9 files changed, 195 insertions(+), 28 deletions(-)
+
+diff --git a/electron-server-restart.cjs b/electron-server-restart.cjs
+index 65ee7dc..ebc281f 100644
+--- a/electron-server-restart.cjs
++++ b/electron-server-restart.cjs
+@@ -13,7 +13,7 @@ function createSingleFlight(operation) {
+   };
+ }
+ 
+-function probeHttp(get, url, timeoutMs = 2000) {
++function probeHttp(get, url, timeoutMs = 2000, headers) {
+   return new Promise((resolve, reject) => {
+     let settled = false;
+     let timer = null;
+@@ -26,10 +26,17 @@ function probeHttp(get, url, timeoutMs = 2000) {
+     };
+ 
+     try {
+-      request = get(url, (response) => {
+-        response.resume?.();
+-        finish(resolve, response.statusCode || 0);
+-      });
++      // Keep the two-argument call shape when no headers are needed so existing
++      // request-mock doubles in tests keep working.
++      request = headers
++        ? get(url, { headers }, (response) => {
++          response.resume?.();
++          finish(resolve, response.statusCode || 0);
++        })
++        : get(url, (response) => {
++          response.resume?.();
++          finish(resolve, response.statusCode || 0);
++        });
+       request.once('error', (error) => finish(reject, error));
+     } catch (error) {
+       finish(reject, error);
+diff --git a/electron.cjs b/electron.cjs
+index 857e5ce..97360e1 100644
+--- a/electron.cjs
++++ b/electron.cjs
+@@ -132,6 +132,7 @@ function getInitialServerPort() {
+ 
+ let serverPort = getInitialServerPort();
+ let currentAppOrigin = '';
++let serverIdentityVerified = false;
+ let watchdogTimer = null;
+ let isQuitting = false;
+ let restartAttemptCount = 0;
+@@ -273,6 +274,10 @@ function buildAppMenu() {
+ // ── IPC ───────────────────────────────────────────────────────────────
+ 
+ function rejectUntrustedIpc(event) {
++  if (!serverIdentityVerified) {
++    console.warn('[ipc] Rejected call before server identity was verified');
++    return true;
++  }
+   if (!isTrustedIpcSender(event, mainWindow, currentAppOrigin)) {
+     console.warn('[ipc] Rejected call from untrusted frame:', event.senderFrame?.url);
+     return true;
+@@ -326,11 +331,40 @@ ipcMain.on('request-close', (event) => {
+ 
+ // ── Server Lifecycle ─────────────────────────────────────────────────
+ 
++// The server persists a 0600 identity token (see server/middleware/auth.ts).
++// Probing /api/identity with it proves the responder on the port is the real
++// InkFlow server, not an unrelated process that grabbed the port after a crash.
++const IDENTITY_TOKEN_PATH = path.join(process.env.HOME || os.homedir(), '.inkflow', '.server-identity');
++const IDENTITY_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
++
++function readIdentityToken() {
++  try {
++    if (fs.existsSync(IDENTITY_TOKEN_PATH)) {
++      const value = fs.readFileSync(IDENTITY_TOKEN_PATH, 'utf-8').trim();
++      if (IDENTITY_TOKEN_PATTERN.test(value)) return value;
++    }
++  } catch {}
++  return '';
++}
++
++async function probeServerIdentity(port, timeoutMs = 2500) {
++  const token = readIdentityToken();
++  if (!token) throw new Error('identity token unavailable');
++  const headers = { 'x-inkflow-identity': token };
++  const statusCode = await probeHttp(http.get, `http://localhost:${port}/api/identity`, timeoutMs, headers);
++  if (statusCode !== 200) {
++    throw new Error(`identity probe rejected (status ${statusCode})`);
++  }
++}
++
+ function waitForServer(port, maxRetries = 50) {
+   return new Promise((resolve, reject) => {
+     let retries = 0;
+     const check = () => {
+-      probeHttp(http.get, `http://localhost:${port}`, 1500).then(resolve).catch(() => {
++      probeServerIdentity(port, 1500).then(() => {
++        serverIdentityVerified = true;
++        resolve();
++      }).catch(() => {
+         retries++;
+         if (retries >= maxRetries) {
+           reject(new Error(`Server not ready on port ${port} after ${maxRetries} retries`));
+@@ -509,8 +543,7 @@ async function performServerRestart() {
+ const restartServer = createSingleFlight(performServerRestart);
+ const runWatchdogCheck = createSingleFlight(async () => {
+   try {
+-    const statusCode = await probeHttp(http.get, `http://localhost:${serverPort}`, 2500);
+-    if (statusCode >= 500) await restartServer();
++    await probeServerIdentity(serverPort, 2500);
+   } catch {
+     await restartServer();
+   }
+@@ -529,13 +562,14 @@ async function performEnsurePackagedServer() {
+   const child = serverProcess;
+   const childAlive = !!child && child.exitCode === null;
+   if (childAlive) {
+-    // Probe the existing port. Accept any 2xx/3xx/4xx as "alive".
++    // Probe the existing port with the identity challenge. Only the real
++    // InkFlow server (holding the identity token) counts as healthy; a
++    // squatter answering 2xx on the bare port is treated as dead.
+     try {
+-      const statusCode = await probeHttp(http.get, `http://localhost:${serverPort}`, 2500);
+-      if (statusCode < 500) {
+-        // Healthy: reuse process, port, origin. Do NOT overwrite serverProcess.
+-        return serverPort;
+-      }
++      await probeServerIdentity(serverPort, 2500);
++      serverIdentityVerified = true;
++      // Healthy: reuse process, port, origin. Do NOT overwrite serverProcess.
++      return serverPort;
+     } catch {
+       // probe failed -> fall through to restart path
+     }
+diff --git a/index.html b/index.html
+index 7b93cb6..af634a1 100644
+--- a/index.html
++++ b/index.html
+@@ -2,6 +2,14 @@
+ <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
++    <!-- CSP fallback for scenarios that bypass the Express server (which injects
++         the stricter helmet CSP in production). 'unsafe-inline' in script-src is
++         required by the Vite dev react-refresh preamble; production helmet CSP
++         still applies on top (multiple policies intersect). -->
++    <meta
++      http-equiv="Content-Security-Policy"
++      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"
++    />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <link rel="preconnect" href="https://fonts.googleapis.com" />
+     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+diff --git a/scripts/dev-electron.mjs b/scripts/dev-electron.mjs
+index 0455788..6a72d86 100644
+--- a/scripts/dev-electron.mjs
++++ b/scripts/dev-electron.mjs
+@@ -14,6 +14,7 @@ const serverProc = spawn('npx', ['electron', '--import', 'tsx', 'server.ts'], {
+   env: {
+     ...process.env,
+     NODE_ENV: 'development',
++    INKFLOW_ELECTRON_MODE: 'true',
+     ELECTRON_RUN_AS_NODE: '1',
+   },
+   shell: true,
+diff --git a/server.ts b/server.ts
+index b3c9c62..0913c2c 100644
+--- a/server.ts
++++ b/server.ts
+@@ -2,7 +2,7 @@ import express from 'express';
+ import path from 'path';
+ import helmet from 'helmet';
+ import { initDb } from './server/lib/db.js';
+-import { authMiddleware, getAuthToken } from './server/middleware/auth';
++import { authMiddleware, getAuthToken, isIdentityTokenValid } from './server/middleware/auth';
+ import { registerRoutes } from './server/routes/index.js';
+ import { registerChapterCompletionRoutes } from './server/routes/chapter-completion.js';
+ import { closeDb, drainWriteQueue } from './server/lib/db-instance.js';
+@@ -72,6 +72,16 @@ async function startServer() {
+     });
+   }
+ 
++  // Identity challenge for the Electron main process: proves the responder on
++  // this port is the real InkFlow server before it is trusted or loaded.
++  // Without the header the endpoint answers 404 so it reveals nothing.
++  app.get('/api/identity', (req, res) => {
++    if (!isIdentityTokenValid(req.headers['x-inkflow-identity'])) {
++      return res.status(404).end();
++    }
++    res.json({ ok: true, name: 'inkflow-server' });
++  });
++
+   // Auth middleware for API routes
+   app.use('/api', authMiddleware);
+   // DB + SSE routes registered via registerRoutes()
+diff --git a/server/lib/db-init.ts b/server/lib/db-init.ts
+index d6ad386..218c171 100644
+--- a/server/lib/db-init.ts
++++ b/server/lib/db-init.ts
+@@ -1,6 +1,6 @@
+ import type BetterSqlite3 from 'better-sqlite3';
+ import path from 'path';
+-import { existsSync, mkdirSync, renameSync, unlinkSync } from 'fs';
++import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs';
+ import os from 'os';
+ import { createRequire } from 'module';
+ import { randomUUID } from 'crypto';
+@@ -124,6 +124,28 @@ function ensureColumn(table: string, column: string, definition: string) {
+ 
+ // --- Init ---
+ 
++// Export-route backups (`${basename}-<id>.temp-export`) are unlinked in the
++// res.download callback; if the process dies mid-transfer they linger in the
++// data directory. Sweep them on the next startup.
++function cleanupOrphanExportBackups(targetPath: string): void {
++  const dir = path.dirname(targetPath);
++  const prefix = `${path.basename(targetPath)}-`;
++  try {
++    if (!existsSync(dir)) return;
++    for (const entry of readdirSync(dir)) {
++      if (entry.startsWith(prefix) && entry.endsWith('.temp-export')) {
++        try {
++          unlinkSync(path.join(dir, entry));
++        } catch {
++          // best effort — retried on the next startup
++        }
++      }
++    }
++  } catch {
++    // best effort — a stale export file must never block startup
++  }
++}
++
+ export function initDb(dbPath?: string): void {
+   if (isDbInitialized()) return;
+ 
+@@ -141,6 +163,7 @@ export function initDb(dbPath?: string): void {
+   getDb().pragma('journal_mode = WAL');
+   getDb().pragma('foreign_keys = ON');
+   getDb().pragma('busy_timeout = 5000');
++  cleanupOrphanExportBackups(targetPath);
+ 
+   const baseName = path.basename(targetPath);
+   const isTestEnv =
+diff --git a/server/middleware/auth.ts b/server/middleware/auth.ts
+index a9d34fb..8a89b79 100644
+--- a/server/middleware/auth.ts
++++ b/server/middleware/auth.ts
+@@ -44,6 +44,41 @@ const AUTH_TOKEN = getOrCreateToken();
+ // Auth token is stored at ~/.inkflow/.auth-token (0600 permissions).
+ // Do NOT log the token — it would leak to startup logs in production.
+ 
++// Server identity token: lets the Electron main process verify that the process
++// answering on the port is the real InkFlow server, not an unrelated squatter
++// that bound the port after a crash. Written only when orchestrated by Electron
++// (INKFLOW_ELECTRON_MODE) so plain dev/test runs never touch the file.
++const IDENTITY_TOKEN_PATH = path.join(os.homedir(), '.inkflow', '.server-identity');
++const IDENTITY_TOKEN_PATTERN = TOKEN_PATTERN;
++
++function persistIdentityToken(token: string): void {
++  const dir = path.dirname(IDENTITY_TOKEN_PATH);
++  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
++  const tempPath = `${IDENTITY_TOKEN_PATH}.${process.pid}.tmp`;
++  fs.writeFileSync(tempPath, token, { mode: 0o600, flag: 'wx' });
++  fs.chmodSync(tempPath, 0o600);
++  fs.renameSync(tempPath, IDENTITY_TOKEN_PATH);
++}
++
++function getOrCreateIdentityToken(): string {
++  const token = crypto.randomBytes(32).toString('hex');
++  if (process.env.INKFLOW_ELECTRON_MODE !== 'true') return token;
++  try {
++    persistIdentityToken(token);
++  } catch {
++    try { fs.unlinkSync(`${IDENTITY_TOKEN_PATH}.${process.pid}.tmp`); } catch { /* best effort */ }
++  }
++  return token;
++}
++
++const IDENTITY_TOKEN = getOrCreateIdentityToken();
++
++export function isIdentityTokenValid(candidate: unknown): boolean {
++  if (typeof candidate !== 'string' || !IDENTITY_TOKEN_PATTERN.test(candidate)) return false;
++  return candidate.length === IDENTITY_TOKEN.length
++    && crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(IDENTITY_TOKEN));
++}
++
+ function pruneSseTokens(now = Date.now()): void {
+   for (const [token, expiresAt] of sseTokens) {
+     if (expiresAt <= now) sseTokens.delete(token);
+diff --git a/server/routes/world.ts b/server/routes/world.ts
+index 2f48d48..55f5ad3 100644
+--- a/server/routes/world.ts
++++ b/server/routes/world.ts
+@@ -306,6 +306,42 @@ export function commitWorldExtraction(
+   });
+ }
+ 
++// Per-route payload schemas: these fields were previously read ad hoc inside
++// background jobs where a malformed type could only fail late (after quota
++// reservation). novelId/databaseGeneration keep their dedicated checks so the
++// existing error contracts stay unchanged.
++const extractEntitiesPayloadSchema = z.object({
++  text: z.string().optional().default(''),
++  existingNames: z.array(z.string()).optional().default([]),
++});
++
++const detectForeshadowingPayloadSchema = z.object({
++  chapterContent: z.string().trim().min(1),
++  chapterTitle: z.string().optional().default(''),
++  existingForeshadowings: z.array(z.unknown()).optional(),
++});
++
++const pacingChapterSchema = z.object({
++  order: z.number().optional(),
++  title: z.string().optional(),
++  wordCount: z.number().optional(),
++  content: z.string().optional(),
++});
++const analyzePacingPayloadSchema = z.object({
++  chapters: z.array(pacingChapterSchema).min(1),
++});
++
++const generateEntityDetailsPayloadSchema = z.object({
++  name: z.string().min(1),
++  type: z.string().min(1),
++  context: z.string().optional().default(''),
++});
++
++const updateCharacterStatePayloadSchema = z.object({
++  novelId: z.string().min(1),
++  chapterContent: z.string().min(1),
++});
++
+ interface PacingInputChapter {
+   order?: number;
+   title?: string;
+@@ -790,6 +826,11 @@ ${genderConstraint}
+     if (databaseGeneration !== getDatabaseGeneration()) {
+       return res.status(409).json({ error: '数据库已切换，请重新嗅探实体' });
+     }
++    const payload = extractEntitiesPayloadSchema.safeParse(req.body);
++    if (!payload.success) {
++      return res.status(400).json({ error: '实体嗅探请求格式无效，请刷新后重试。' });
++    }
++    const { text, existingNames } = payload.data;
+     const jobController = new AbortController();
+     const execution = await prepareWorldLlmExecution(res, novelId, 'extract-entities', 'advancedAudit', {
+       signal: jobController.signal,
+@@ -802,7 +843,6 @@ ${genderConstraint}
+     (async () => {
+       try {
+         updateJob(jobId, { status: 'running', progress: 50 });
+-        const { text = '', existingNames = [] } = req.body;
+ 
+         const prompt = withExecutionStagePrompt(execution.executionContract, 'planner', `
+ 你是一个极为敏锐的设定集萃取 AI。请阅读下方的网文片段，从中提取所有的专有名词（包括：人物姓名、地点/据点/组织名称、特殊功法/道具/武器名称）。
+@@ -846,10 +886,12 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
+   });
+ 
+   app.post('/api/detect-foreshadowing', async (req, res) => {
+-    const { novelId, chapterContent, chapterTitle, existingForeshadowings, databaseGeneration } = req.body;
+-    if (!chapterContent || typeof chapterContent !== 'string' || !chapterContent.trim()) {
++    const { novelId, databaseGeneration } = req.body;
++    const foreshadowing = detectForeshadowingPayloadSchema.safeParse(req.body);
++    if (!foreshadowing.success) {
+       return res.status(400).json({ error: '请先提供章节正文，再检测伏笔。' });
+     }
++    const { chapterContent, chapterTitle, existingForeshadowings } = foreshadowing.data;
+     if (!Number.isInteger(databaseGeneration)) {
+       return res.status(400).json({ error: '请先刷新写作上下文，再检测伏笔。' });
+     }
+@@ -904,8 +946,9 @@ ${chapterContent.substring(0, 15000)}
+   });
+ 
+   app.post('/api/analyze-pacing', async (req, res) => {
+-    const { novelId, chapters, databaseGeneration } = req.body;
+-    if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
++    const { novelId, databaseGeneration } = req.body;
++    const pacing = analyzePacingPayloadSchema.safeParse(req.body);
++    if (!pacing.success) {
+       return res.status(400).json({ error: '请先提供章节列表，再分析节奏。' });
+     }
+     if (!Number.isInteger(databaseGeneration)) {
+@@ -928,7 +971,7 @@ ${chapterContent.substring(0, 15000)}
+         updateJob(jobId, { status: 'running', progress: 50 });
+         const config = getConfig();
+         const MAX_CHAPTERS = 50;
+-        const limited = (chapters as PacingInputChapter[]).slice(-MAX_CHAPTERS);
++        const limited = pacing.data.chapters.slice(-MAX_CHAPTERS);
+         const chapterList = limited.map((c) =>
+           `第${c.order ?? '?'}章「${c.title ?? '无标题'}」(字数:${c.wordCount ?? 0})：${(c.content || '').substring(0, 500)}...`
+         ).join('\n---\n');
+@@ -979,6 +1022,11 @@ ${chapterList}
+     if (databaseGeneration !== getDatabaseGeneration()) {
+       return res.status(409).json({ error: '数据库已切换，请重新嗅探实体' });
+     }
++    const entityDetails = generateEntityDetailsPayloadSchema.safeParse(req.body);
++    if (!entityDetails.success) {
++      return res.status(400).json({ error: '实体信息不完整，请重新嗅探实体。' });
++    }
++    const { name, type, context } = entityDetails.data;
+     const jobController = new AbortController();
+     const execution = await prepareWorldLlmExecution(res, novelId, 'generate-entity-details', 'generateProse', {
+       signal: jobController.signal,
+@@ -991,7 +1039,6 @@ ${chapterList}
+     (async () => {
+       try {
+         updateJob(jobId, { status: 'running', progress: 50 });
+-        const { name, type, context } = req.body;
+ 
+         const prompt = withExecutionStagePrompt(execution.executionContract, 'planner', `你是一个网文世界观架构师。系统在一个新章节中扫描到了一个新设定实体，请根据上下文为其生成一份初始的万物词典（World Bible）条目。
+ 
+@@ -1048,10 +1095,12 @@ ${chapterList}
+   // Update character state after chapter write (silently executed in background)
+   app.post('/api/update-character-state', async (req, res) => {
+     try {
+-      const { novelId, chapterContent, databaseGeneration } = req.body;
+-      if (!novelId || !chapterContent) {
++      const { databaseGeneration } = req.body;
++      const characterState = updateCharacterStatePayloadSchema.safeParse(req.body);
++      if (!characterState.success) {
+         return res.status(400).json({ error: '请先选择作品并提供章节正文，再更新角色状态。' });
+       }
++      const { novelId, chapterContent } = characterState.data;
+       if (!Number.isInteger(databaseGeneration)) {
+         return res.status(400).json({ error: '请先刷新写作上下文，再更新角色状态。' });
+       }
+diff --git a/tests/electron-server-restart.test.ts b/tests/electron-server-restart.test.ts
+index fe18dc6..d072901 100644
+--- a/tests/electron-server-restart.test.ts
++++ b/tests/electron-server-restart.test.ts
+@@ -137,10 +137,10 @@ test('ensurePackagedServerForWindow is single-flight and reuses a healthy backen
+     source.indexOf('const ensurePackagedServerForWindow'),
+   );
+ 
+-  // Must probe and reuse a healthy child WITHOUT overwriting serverProcess
++  // Must probe and reuse a healthy child WITHOUT overwriting serverProcess.
++  // Health is decided by the /api/identity challenge, not a bare port probe.
+   assert.match(ensureSource, /child\.exitCode === null/);
+-  assert.match(ensureSource, /probeHttp\(http\.get/);
+-  assert.match(ensureSource, /statusCode < 500/);
++  assert.match(ensureSource, /probeServerIdentity\(serverPort/);
+ 
+   // Must NOT call startServer() when child is alive and healthy
+   // The startServer call must only appear in the dead-child branch
+-- 
+2.39.5 (Apple Git-154)
+

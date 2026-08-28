@@ -1,0 +1,247 @@
+From 8656b67535d3bf5dbc9e496b5507485a77917ecb Mon Sep 17 00:00:00 2001
+From: User <user@example.com>
+Date: Sat, 29 Aug 2026 00:12:09 +0800
+Subject: [PATCH 1/4] docs: restructure AGENTS.md with progressive disclosure
+
+Move the four technical standards (SQLite WAL snapshot backup, LLM status
+honesty, cockpit routing closure, multi-agent workflow) to docs/specs/ with
+branch-triggered pointers; keep one-line invariants inline. Merge the
+duplicated Workflow/Karpathy sections, add trigger/exemption branches to the
+multi-agent mandate, drop the stale absolute path and the mermaid diagram
+from always-loaded context (98 -> 43 lines).
+---
+ AGENTS.md                          | 81 +++++-------------------------
+ docs/specs/cockpit-routing.md      | 13 +++++
+ docs/specs/llm-status-honesty.md   | 17 +++++++
+ docs/specs/multi-agent-workflow.md | 44 ++++++++++++++++
+ docs/specs/sqlite-backup.md        | 16 ++++++
+ 5 files changed, 103 insertions(+), 68 deletions(-)
+ create mode 100644 docs/specs/cockpit-routing.md
+ create mode 100644 docs/specs/llm-status-honesty.md
+ create mode 100644 docs/specs/multi-agent-workflow.md
+ create mode 100644 docs/specs/sqlite-backup.md
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 5877560..d3ef351 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,24 +1,16 @@
+ # InkFlow Repository Instructions
+ 
+ ## Scope
+-- This file defines repository-local working rules for `/Users/Zhuanz/Documents/dodo-inkflow`.
+ - Keep machine-wide preferences in `~/.codex/AGENTS.md`.
+ 
+ ## Workflow
+-- Start with read-only analysis when the project or requirement is unclear.
+-- Inspect the relevant code before editing and summarize the intended change.
+-- Keep diffs small, reviewable, and easy to roll back.
++- Start with read-only analysis when the project or requirement is unclear; inspect the relevant code before editing.
++- Think before coding: state assumptions, surface ambiguity, and ask when a risky choice cannot be inferred.
++- Make surgical changes: implement only what was requested, touch only the files and lines needed, preserve existing style, and keep diffs small, reviewable, and easy to roll back.
+ - Prefer one scoped task at a time instead of multi-feature rewrites.
++- Define a verifiable success condition for non-trivial changes and loop until the relevant check passes or the blocker is clear; every changed line should trace back to the user's request or to validation required by it.
+ - Preserve the existing React + TypeScript + Vite + Express + SQLite architecture unless there is a clear reason to change it.
+ 
+-## Karpathy Coding Guidelines
+-- Apply these guidelines by default when writing, reviewing, or refactoring code in this repository.
+-- Think before coding: state assumptions, surface ambiguity, and ask when a risky choice cannot be inferred.
+-- Prefer simplicity: implement only what was requested, avoid speculative features, and do not add abstractions for one-off code.
+-- Make surgical changes: touch only files and lines needed for the task, preserve existing style, and do not clean up unrelated code.
+-- Use goal-driven execution: define a verifiable success condition for non-trivial changes and loop until the relevant check passes or the blocker is clear.
+-- Every changed line should trace back to the user's request or to validation required by that request.
+-
+ ## Safety
+ - Do not modify secrets, shell profiles, system settings, SSH config, or Git remotes.
+ - Do not change migrations, infrastructure, deployment settings, or destructive scripts without explicit approval.
+@@ -30,64 +22,17 @@
+ - Run the smallest relevant validation after edits.
+ - If project metadata is incomplete, inspect the repository and infer the real commands before making changes.
+ 
+-## Technical & Architectural Standards (技术与架构规范)
+-对于本项目（InkFlow）中涉及的任何功能迭代、漏洞修复和架构重构，必须严格遵守以下工程规范：
+-
+-### 1. SQLite WAL 一致性快照备份规范
+-- **禁止直接物理拷贝**：当数据库启用 WAL 模式（`journal_mode = WAL`）时，绝对禁止在运行中直接调用物理文件拷贝、打包或通过 HTTP 接口下载 `data.db` 物理文件。因为最新数据极易滞留在 `data.db-wal` 临时日志中，直接导出物理文件不仅极易缺失用户最新的写作、设定内容，还可能在还原时引发严重的一致性错误或主库损坏。
+-- **强制使用原生备份 API**：必须统一通过 SQLite / `better-sqlite3` 原生提供的具有事务快照特性的 `db.backup(destination)` 接口生成一致性快照文件（如 `DB_PATH + '.temp-export'`），将快照导出至 HTTP 响应或暂存。
+-- **零残留垃圾清理**：在文件流传输完毕（或传输中途异常终止、下载失败）的回调钩子中，必须立即同步调用 `fs.unlinkSync` 进行物理抹除，保证宿主服务器不留下任何 `.temp` 后缀的磁盘垃圾。
+-- **降级容灾**：当数据库单例尚未完成初始化，无法调用 `db.backup` 时，方可优雅降级为直接物理传输，确保接口具备 100% 高可用弹性。
+-
+-### 2. LLM 连接性与 API Key 状态的诚实容灾规范
+-- **杜绝乐观状态伪装**：系统加载 API Key 或网络检测失败时，严禁使用盲目乐观的硬编码回退（例如 `.catch(() => setHasApiKey(true))`），以此对用户隐藏或伪装密钥状态、避而不报。
+-- **三态标记与琥珀色降级**：必须在密钥状态定义中引入独立的 `'unknown'` 字面量（即：未配置 / 配置状态未知）。在检测发生网络波动、抛错、异常捕获（catch）时，统一标记为 `'unknown'`。
+-- **UI 显性与温和指引**：在欢迎页及状态栏等状态指示器中，针对 `'unknown'` 状态必须显式渲染琥珀色 `STATE_UNKNOWN` 视觉（而非绿色 `CONNECTED` 或普通报错红色）。且页面必须附有专属保底状态横幅，说明网络情况、提供温和且诚实的本地离线大纲和全流程降级写作指引。
+-
+-### 3. 自适应工作流路由动作闭环规范
+-- **跨视图路由自适应深度追踪**：当用户在类似 ProjectCockpitView（项目驾驶舱）中点击具有特定意图的行动决策推荐（如“对本章进行审稿”或“一键精修局部润色”）时，跨视图跳转到 EditorView 后绝对不能仅仅做静态面板切换。
+-- **静默首发执行**：必须在 `launchState.source` 中通过拓展启动源（如：`'cockpit-audit'` 与 `'cockpit-polish'`）进行完整追踪。在 `EditorView` 组件和数据加载就绪后，直接静默触发核心动作方法（如自动调用深度审计 `handleRunAudit()` 或自动跑起润色 `handlePolishChapterFromAudit()`），减少不必要的重复人工点击，大幅缩短用户体验链路。
+-
+-### 4. 多 Agent 并发协同开发与校验机制
+-对于所有的开发、优化与缺陷治理任务，必须默认引入多 Agent 并行开发和守卫模型。该模式通过明确的三角色定义、物理边界隔离以及并发反馈闭环，彻底实现高吞吐和高可靠性交付：
+-
+-#### A. 三角色并发协同模型 (Three-Role Concurrency Model)
+-- **Coordinator Agent（总装/协调主 Agent）**：
+-  - 职责：理解原始需求，编写高精度的设计文档与实现计划（`implementation_plan.md`）。
+-  - 任务分配：根据物理边界将庞大任务切分为互不重叠的子任务（如前端与后端、UI 与逻辑），并发派发给 Implementer Agent。
+-  - 合并总装：在所有并发子任务完成后，主 Agent 统一在本地拉取、合并、编译，并拉起 Gatekeeper 进行终极总装。
+-- **Parallel Implementer Agents（并发实现子 Agent）**：
+-  - 职责：在绝对解耦的边界或临时 Workspace 中并行、独立地实现被指派的任务，并在完成后提交本地验证日志。
+-- **Gatekeeper Agents（并发质量守卫子 Agent）**：
+-  - 职责：无需串行等待，并发启动独立子 Agent 运行静态类型检查 (`npm run typecheck` / `lint`)、单元测试 (`npm test`)、端端测试 (`npx playwright test`)，将质量警报实时反哺给 Coordinator。
+-
+-```mermaid
+-graph TD
+-    User([用户需求/任务]) -->|1. 触发规划| Coordinator[Coordinator Agent <br/> 总装/协调主 Agent]
+-
+-    Coordinator -->|2. 并发分发解耦任务| ImpA[Implementer Agent A <br/> 前端UI/交互润色]
+-    Coordinator -->|2. 并发分发解耦任务| ImpB[Implementer Agent B <br/> 后端API/安全重构]
+-
+-    Coordinator -->|3. 并发启动质量守卫| GateA[Gatekeeper Agent X <br/> npm run typecheck / lint]
+-    Coordinator -->|3. 并发启动质量守卫| GateB[Gatekeeper Agent Y <br/> npm run test:frontend]
+-    Coordinator -->|3. 并发启动质量守卫| GateC[Gatekeeper Agent Z <br/> npx playwright test]
+-
+-    ImpA -->|4.1 提交代码审查| Coordinator
+-    ImpB -->|4.2 提交代码审查| Coordinator
+-
+-    GateA -.->|5.1 实时质量警报| Coordinator
+-    GateB -.->|5.2 实时质量警报| Coordinator
+-    GateC -.->|5.3 实时质量警报| Coordinator
++## Technical Invariants (技术不变式)
++改动以下领域时，先读对应规范文档再动手：
+ 
+-    Coordinator -->|6. 代码合并与最终总装| Merged[合并后完美代码]
+-    Merged -->|7. 全量测试通过闭环| Delivery([胜利交付给用户])
+-```
++- **SQLite 备份/导出/导入**（`server/routes/db.ts`）→ `docs/specs/sqlite-backup.md`。不变式：运行中禁止物理拷贝 `data.db`（WAL 下丢最新数据、可损坏主库）；一律 `db.backup()` 快照导出，流结束或异常时同步清理临时文件；仅单例未初始化时允许降级直传。
++- **LLM/API Key 状态展示**（`src/lib/llm-availability.ts` 及欢迎页、状态栏）→ `docs/specs/llm-status-honesty.md`。不变式：检测失败统一标记 `'unknown'` 并渲染琥珀色降级视觉与离线指引横幅，状态展示必须诚实。
++- **驾驶舱 → 编辑器跨视图路由**（`launchState`）→ `docs/specs/cockpit-routing.md`。不变式：带意图的推荐动作（如 `'cockpit-audit'`/`'cockpit-polish'`）在数据就绪后静默自动执行，而非停留静态面板切换。
+ 
+-#### B. 并发冲突防御与安全隔离 (Concurrency & Safety Isolation)
+-- **解耦任务边界**：禁止指派多个 Implementer Agent 并发修改同一源文件。如有业务修改交集，由 Coordinator 负责在总装期统一编排和外科手术式手工合并。
+-- **SQLite 物理隔离测试**：任何并发运行的 Gatekeeper 测试（如 Vitest 单元测试与 Playwright 仿真）绝对禁止同时对运行中的 `data.db` 生产库执行物理写入。测试环境必须使用内存库（内存中的 `:memory:`）或独立的 `test.db`，确保高并发无死锁。
+-- **凭证与 Secrets 安全**：子 Agent 一律通过继承 `inherit` 模式安全读取主会话凭证，禁止在子 Agent 的命令行中硬编码明文密钥。
+-- **资源与耗尽防护**：主 Agent 调用的脚本、或自动化测试命令中设置合理的超时阈值（如 Playwright 设定单例超时为 10s-15s，Vitest 启用并发池限额）。
++## Multi-Agent Development (多 Agent 并发)
++- 触发：跨物理边界的多文件 feature、高风险重构、或用户明确要求并发交付时，启用三角色并发模型（Coordinator / Implementer / Gatekeeper），完整流程见 `docs/specs/multi-agent-workflow.md`。
++- 豁免：单文件小修、文档、诊断评估类任务由单 Agent 完成，收尾跑一次最小校验（typecheck / 相关测试）。
++- 硬性隔离（任何模式适用）：并发测试禁止写入运行中的 `data.db` 生产库（用内存库或独立 `test.db`）；子 Agent 凭证一律继承主会话，命令行不得明文密钥；并发子任务不得修改同一源文件。
+ 
+ ## Output
+ - Communicate in Chinese unless the user explicitly asks otherwise.
+diff --git a/docs/specs/cockpit-routing.md b/docs/specs/cockpit-routing.md
+new file mode 100644
+index 0000000..d0f110b
+--- /dev/null
++++ b/docs/specs/cockpit-routing.md
+@@ -0,0 +1,13 @@
++# 自适应工作流路由动作闭环规范
++
++> 触发分支：改动项目驾驶舱（ProjectCockpitView）行动推荐、跨视图路由（`launchState`）或 EditorView 就绪后自动执行逻辑之前先读本文。
++
++## 为什么
++用户在驾驶舱点击带明确意图的行动推荐（如"对本章进行审稿""一键精修局部润色"）后，若 EditorView 只做静态面板切换、要求用户再点一次同义按钮，体验链路被无谓拉长。
++
++## 规范
++1. **启动源完整追踪**：通过扩展 `launchState.source` 记录跳转意图，如 `'cockpit-audit'`（审稿）与 `'cockpit-polish'`（润色）。
++2. **静默首发执行**：EditorView 组件与数据加载就绪后，直接静默触发对应核心动作（如自动调用深度审计 `handleRunAudit()`，或自动跑起润色 `handlePolishChapterFromAudit()`），而非停留静态面板切换。
++
++## 现有实现参照
++- 启动源类型：`shared/types/continuation.ts`；路由与消费：`src/components/AppShell.tsx`、`src/components/EditorView.tsx`。
+diff --git a/docs/specs/llm-status-honesty.md b/docs/specs/llm-status-honesty.md
+new file mode 100644
+index 0000000..bee948e
+--- /dev/null
++++ b/docs/specs/llm-status-honesty.md
+@@ -0,0 +1,17 @@
++# LLM 连接性与 API Key 状态的诚实容灾规范
++
++> 触发分支：改动 LLM 可用性检测、API Key 状态定义或状态指示 UI（欢迎页、编辑器头部、设置弹窗）之前先读本文。
++
++## 为什么
++检测失败时用乐观硬编码回退（如 `.catch(() => setHasApiKey(true))`）伪装"已连接"，会让用户在离线时误以为 AI 可用。状态展示必须诚实。
++
++## 规范
++1. **三态标记**：密钥状态类型保留独立的 `'unknown'` 字面量（未配置 / 配置状态未知）。网络波动、抛错、异常捕获（catch）时统一标记为 `'unknown'`，不得回落为 `'connected'`。
++2. **琥珀色降级视觉**：状态指示器对 `'unknown'` 渲染琥珀色视觉（而非绿色"已连接"或普通报错红色），文案使用 `LLM_AVAILABILITY_COPY.unknown`（"暂时无法确认" + 本地可继续写作的温和指引）。
++3. **保底状态横幅**：页面附专属横幅，说明网络情况，并提供本地离线大纲与全流程降级写作指引。
++4. **内部状态名不得直出**：`STATE_UNKNOWN`、`LOCAL_RESERVED` 等内部标识不得作为用户可见文案渲染（`src/tests/llm-availability.test.ts` 守护此点）。
++
++## 现有实现与守护测试
++- `src/lib/llm-availability.ts`：`LlmAvailabilityState = 'connected' | 'missing' | 'unknown'`；`deriveLlmAvailability` 在检测异常时映射为 `'unknown'`。
++- 消费方：`src/components/WelcomeView.tsx`、`src/components/EditorHeader.tsx`、`src/components/SettingsModal.tsx`。
++- 守护测试：`src/tests/llm-availability.test.ts`。
+diff --git a/docs/specs/multi-agent-workflow.md b/docs/specs/multi-agent-workflow.md
+new file mode 100644
+index 0000000..ec0a30e
+--- /dev/null
++++ b/docs/specs/multi-agent-workflow.md
+@@ -0,0 +1,44 @@
++# 多 Agent 并发协同开发与校验机制
++
++> 触发分支：跨物理边界的多文件 feature、高风险重构、或用户明确要求并发交付时，启用三角色模型。
++> 豁免：单文件小修、文档、诊断评估类任务由单 Agent 完成并在收尾跑一次最小校验（typecheck / 相关测试）。
++
++## 三角色并发协同模型（Three-Role Concurrency Model）
++
++- **Coordinator Agent（总装/协调主 Agent）**
++  - 理解原始需求，编写高精度设计文档与实现计划（`implementation_plan.md`）。
++  - 按物理边界把任务切分为互不重叠的子任务（如前端与后端、UI 与逻辑），并发派发给 Implementer Agent。
++  - 全部子任务完成后统一合并、编译，并拉起 Gatekeeper 终验。
++- **Parallel Implementer Agents（并发实现子 Agent）**
++  - 在解耦边界或临时 Workspace 中并行、独立实现被指派任务，完成后提交本地验证日志。
++- **Gatekeeper Agents（并发质量守卫子 Agent）**
++  - 不串行等待，并发启动独立子 Agent 运行 `npm run typecheck` / `lint`、`npm test`、`npx playwright test`，质量警报实时反哺 Coordinator。
++
++```mermaid
++graph TD
++    User([用户需求/任务]) -->|1. 触发规划| Coordinator[Coordinator Agent <br/> 总装/协调主 Agent]
++
++    Coordinator -->|2. 并发分发解耦任务| ImpA[Implementer Agent A <br/> 前端UI/交互润色]
++    Coordinator -->|2. 并发分发解耦任务| ImpB[Implementer Agent B <br/> 后端API/安全重构]
++
++    Coordinator -->|3. 并发启动质量守卫| GateA[Gatekeeper Agent X <br/> npm run typecheck / lint]
++    Coordinator -->|3. 并发启动质量守卫| GateB[Gatekeeper Agent Y <br/> npm run test:frontend]
++    Coordinator -->|3. 并发启动质量守卫| GateC[Gatekeeper Agent Z <br/> npx playwright test]
++
++    ImpA -->|4.1 提交代码审查| Coordinator
++    ImpB -->|4.2 提交代码审查| Coordinator
++
++    GateA -.->|5.1 实时质量警报| Coordinator
++    GateB -.->|5.2 实时质量警报| Coordinator
++    GateC -.->|5.3 实时质量警报| Coordinator
++
++    Coordinator -->|6. 代码合并与最终总装| Merged[合并后完美代码]
++    Merged -->|7. 全量测试通过闭环| Delivery([胜利交付给用户])
++```
++
++## 并发冲突防御与安全隔离（Concurrency & Safety Isolation）
++
++- **解耦任务边界**：多个 Implementer Agent 不得并发修改同一源文件；业务修改交集由 Coordinator 在总装期统一编排与手工合并。
++- **SQLite 物理隔离测试**：并发运行的测试（Vitest 单元测试与 Playwright 仿真）禁止同时对运行中的 `data.db` 生产库物理写入；测试环境必须使用内存库（`:memory:`）或独立 `test.db`。
++- **凭证与 Secrets 安全**：子 Agent 一律通过 `inherit` 模式继承主会话凭证，命令行不得硬编码明文密钥。
++- **资源与耗尽防护**：自动化测试设置合理超时阈值（Playwright 单例超时 10s–15s，Vitest 启用并发池限额）。
+diff --git a/docs/specs/sqlite-backup.md b/docs/specs/sqlite-backup.md
+new file mode 100644
+index 0000000..5209b20
+--- /dev/null
++++ b/docs/specs/sqlite-backup.md
+@@ -0,0 +1,16 @@
++# SQLite WAL 一致性快照备份规范
++
++> 触发分支：改动数据库备份、导出、导入功能（`server/routes/db.ts`、`server/lib/db-init.ts`）之前先读本文。
++
++## 为什么
++数据库启用 WAL 模式（`journal_mode = WAL`）后，最新写入滞留在 `data.db-wal` 临时日志中。对运行中的 `data.db` 做物理拷贝、打包或 HTTP 直传，会缺失用户最新写作与设定内容，还可能在还原时引发一致性错误或主库损坏。
++
++## 规范
++1. **强制快照导出**：统一通过 `better-sqlite3` 原生的事务快照接口 `db.backup(destination)` 生成一致性快照文件（如 `DB_PATH + '.temp-export'`），再导出至 HTTP 响应或暂存。
++2. **零残留清理**：文件流传输完毕、中途异常终止或下载失败的回调钩子中，立即同步 `fs.unlinkSync` 抹除临时文件，宿主机不残留任何 `.temp` 后缀垃圾。
++3. **降级容灾**：仅当数据库单例尚未初始化、无法调用 `db.backup` 时，才允许降级为直接物理传输。
++
++## 现有实现与守护测试
++- `server/routes/db.ts`：导出路由基于 `db.backup(backupPath)` 生成快照后流式返回。
++- `server/lib/db-init.ts`：数据库单例初始化。
++- `tests/export-route.test.ts`：覆盖 `.temp-export` 快照导出与临时文件清理。
+-- 
+2.39.5 (Apple Git-154)
+
