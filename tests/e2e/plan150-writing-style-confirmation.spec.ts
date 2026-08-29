@@ -34,19 +34,57 @@ async function installMocks(page: Page) {
   let draftCalls = 0;
   let auditCalls = 0;
   let productionRunCalls = 0;
+  // Expansion pools for the quality-gate-compliant fixture (plan 172): every
+  // sentence embeds a per-paragraph index so no complete sentence repeats.
   const draftExpansionOpenings = [
-    '雨幕压低了城墙', '灯影贴着石阶', '潮声撞过断桥', '铁牌硌住掌心', '门缝漏进冷光',
-    '水痕爬上台阶', '火把照亮泥印', '守门人收紧手指', '石壁落下一层灰', '旧纸卷过脚边',
     '追兵停在巷口', '锁舌退回暗槽', '铃声沉入地下', '冷风穿过袖口', '红线延向门后',
     '泥水遮住刻痕', '钥匙碰出轻响', '灯芯忽然一跳', '影子贴近墙角', '城门留下回声',
+    '瓦檐滴水未停', '更声隔了三街', '火折子在袖中熄了', '檐角铁马轻响', '雨声忽然稀了',
+    '茶面的白雾直起', '门钉比昨日多痕', '梁上灰簌未落', '信筒封蜡重压', '靴底泥浆未干',
+  ];
+  const draftExpansionClues = [
+    '一枚压在泥里的铜扣', '半张浸湿的布防图', '一道新凿的石缝', '封蜡上倒按的指印',
+    '梁头垂下的细线', '墙内侧的刮痕', '茶盏底部的刻字', '门闩上的新鲜汗渍',
+    '钟楼方向的火光', '藏在灯座里的纸捻',
+  ];
+  const draftExpansionPlaces = [
+    '门后的暗渠入口', '北墙的钟楼基座', '西厢的柴房夹层', '正厅的供桌下方',
+    '马厩最深的那格', '地窖的第二级石阶', '窗棂与墙的夹角', '院中枯井的边沿',
+  ];
+  const draftExpansionFindings = [
+    '纹章的缺口与档案记载互补', '刻痕的走向指向城北', '封蜡的重按方向刻意反了',
+    '细线的末端系着半截香头', '汗渍说明有人久候未离', '刻字是另一种密写法',
+  ];
+  const draftExpansionRisks = [
+    '雨停之前必须有人先露面', '更声再响两次城门就会换防', '梁上的旁观者随时可能先动',
+    '同伴的咳嗽声已是第二次警告', '火光每亮一次方位就移一里',
+  ];
+  // Resumed drafts must not reuse the non-resumed expansion text: the accepted
+  // first draft is already part of the editor baseline, so identical expansion
+  // paragraphs would trip the chapter quality gate's duplicate checks (plan 172).
+  const draftExpansionShapes = [
+    (i: number, n: number) => `${draftExpansionOpenings[i % draftExpansionOpenings.length]}。沈砚在第${n}次对照里停了停，把${draftExpansionClues[i % draftExpansionClues.length]}与${draftExpansionPlaces[(i * 3) % draftExpansionPlaces.length]}对在一起看。${draftExpansionFindings[i % draftExpansionFindings.length]}，这个判断不喧哗，却把方向钉住了。第${n}条警戒线画在明处：${draftExpansionRisks[i % draftExpansionRisks.length]}。`,
+    (i: number, n: number) => `${draftExpansionPlaces[(i * 5 + 2) % draftExpansionPlaces.length]}那边的动静先来。同伴压低声音，把第${n}条提示说了两遍：${draftExpansionRisks[i % draftExpansionRisks.length]}。沈砚摆手，示意第${n}处线索还没有核对完。他把${draftExpansionClues[(i * 2 + 1) % draftExpansionClues.length]}折进袖口，脚步没有停下。`,
+    (i: number, n: number) => `第${n}轮清点不是多余——${draftExpansionFindings[(i * 2) % draftExpansionFindings.length]}就摆在眼前。${draftExpansionRisks[(i * 7 + 1) % draftExpansionRisks.length]}，这话由同伴说出，分量翻了一倍。沈砚把注意力从${draftExpansionClues[(i * 3) % draftExpansionClues.length]}挪向${draftExpansionPlaces[(i * 5) % draftExpansionPlaces.length]}，像棋手提前让出一子。`,
+    (i: number, n: number) => `没有人催他，可第${n}处异样自己浮了上来。${draftExpansionClues[(i * 5 + 2) % draftExpansionClues.length]}是实据，${draftExpansionFindings[(i * 4) % draftExpansionFindings.length]}是推断，两者合上，${draftExpansionPlaces[(i * 2) % draftExpansionPlaces.length]}就成了必须走的一站。他在心里给${draftExpansionRisks[i % draftExpansionRisks.length]}留了位置。`,
+    (i: number, n: number) => `他在${draftExpansionPlaces[(i * 7 + 3) % draftExpansionPlaces.length]}停了很久。不是犹豫，是把第${n}轮观察重新过了一遍：${draftExpansionClues[(i * 6 + 1) % draftExpansionClues.length]}没有变，${draftExpansionRisks[(i * 2 + 1) % draftExpansionRisks.length]}也没有变。变的是他愿意为第${n}个判断付多少代价。`,
+    (i: number, n: number) => `${draftExpansionFindings[(i * 5) % draftExpansionFindings.length]}——写这种结论只需要一瞬间，证它却要从${draftExpansionClues[(i * 4) % draftExpansionClues.length]}一路磨到${draftExpansionPlaces[(i * 3 + 2) % draftExpansionPlaces.length]}。第${n}次对照结束时，沈砚把两条证据并排放好，像把两块碎瓷拼回原状，缺口对缺口。`,
   ];
   const completeDraft = (lead: string, resumed = false) => [
-    `${lead} 雨水从断裂的城墙边缘倾落，敲在石阶上，像有人在黑暗里一遍遍数着时间。沈砚没有立刻踏进城门，他先抬头确认风向，又把掌心贴在冰冷的门钉上，感到门后传来极轻的震动。那震动并不规律，却每隔三次呼吸便重新响起，仿佛沉睡的城市正在回应他的到来。远处的灯火被雨幕切成细碎的金线，照出街面上尚未干涸的车辙，也照出一枚压在泥里的铜扣。铜扣上的纹章与他记忆中的旧档案完全相同，这让他意识到，今晚的路线早已被某个看不见的人安排好了。旧档案里还记载着一条无人敢走的暗渠，入口就在城门后的第三块石板下面，而暗渠尽头通向废弃的钟楼。沈砚把这个线索默默记下，决定无论屋里等着什么，都不能让同伴先暴露身份。`,
+    `${lead} 雨水从断裂的城墙边缘倾落，敲在石阶上，像有人在黑暗中一遍遍数着时间。沈砚没有立刻踏进城门，他先抬头确认风向，又把掌心贴在冰冷的门钉上，感到门后传来极轻的震动。那震动并不规律，却每隔三次呼吸便重新响起，仿佛沉睡的城市正在回应他的到来。远处的灯火被雨幕切成细碎的金线，照出街面上尚未干涸的车辙，也照出一枚压在泥里的铜扣。铜扣上的纹章与他记忆中的旧档案完全相同，这让他意识到，今晚的路线早已被某个看不见的人安排好了。旧档案里还记载着一条无人敢走的暗渠，入口就在城门后的第三块石板下面，而暗渠尽头通向废弃的钟楼。沈砚把这个线索默默记下，决定无论屋里等着什么，都不能让同伴先暴露身份。`,
     `沈砚弯腰捡起铜扣，没有把它收入衣袋，而是用指尖擦去表面的泥水。纹章下方刻着一行几乎磨平的小字，只有在闪电照亮街口时才能辨清其中两个笔画。身后的同伴催他快走，声音隔着斗篷传来，带着掩饰不住的紧张。沈砚示意对方噤声，随后侧身贴近门缝，听见里面有杯盏轻碰的声音，接着是三下短促的敲击。那是他们约定过的暗号，可敲击的节奏被人故意改过，最后一下拖得很长。这个细节说明接头人仍然活着，却已经失去了主动选择的余地。更让他不安的是，杯盏碰撞的回声来自两个方向，说明屋里至少还有一名藏在梁上的旁观者。沈砚调整呼吸，给同伴做了一个等候的手势，又把匕首藏到袖口深处，准备先试探对方的底线。${resumed ? '他又检查了一遍铜扣的内侧，确认新出现的划痕并非雨水冲出的偶然痕迹。' : ''}`,
     `他把铜扣递给同伴，自己则推开半扇门，让一线冷风先进入屋内。屋里的炉火没有点燃，桌上却摆着两盏温热的茶，茶面浮着细小的白雾。最暗的角落里有人挪开杯盏，露出一截沾血的袖口，那人没有报出姓名，只说城北的钟已经停了。沈砚听懂了这句话背后的警告，停在门槛外重新观察每一处阴影。街上忽然传来马蹄声，越来越近，门内的人也在同一刻收紧手指。沈砚终于跨过门槛，把门后的闩条压下，决定先弄清楚谁在追踪他们，再寻找失踪的地图。门闩落下的声音惊动了梁上的人，一根细线从屋顶垂落，线端系着一只尚未点燃的信筒。沈砚没有伸手去碰，只将铜扣放在桌面中央，等着真正的接头人从阴影里做出选择。${resumed ? '这一次他没有靠近信筒，而是先记下线端指向的方向，等屋里的第三个人先露出破绽。' : ''}`,
-    ...Array.from({ length: 40 }, (_, index) => {
-      const opening = resumed ? `第${index + 1}处新痕` : draftExpansionOpenings[index % draftExpansionOpenings.length];
-      return `${opening}。第${index + 1}次确认时，沈砚没有重复先前的判断，而是沿着新的水痕调整站位，把眼前的异常和手里的铜扣逐一对照。守门人的沉默因此有了重量，门后的危险也被推近了一步。他让同伴记住墙上的刻痕，自己则把暗号拆成几段，在追兵的脚步声里寻找其中缺失的回音。`;
+    // Expansion paragraphs must satisfy the chapter quality gate (plan 172):
+    // every sentence unique, varied paragraph openings, no template structure.
+    ...Array.from({ length: 44 }, (_, index) => {
+      if (resumed) return draftExpansionShapes[index % draftExpansionShapes.length](index, index + 1);
+      const n = index + 1;
+      const o = draftExpansionOpenings[index % draftExpansionOpenings.length];
+      const c = draftExpansionClues[index % draftExpansionClues.length];
+      const p = draftExpansionPlaces[(index * 3 + 1) % draftExpansionPlaces.length];
+      const f = draftExpansionFindings[index % draftExpansionFindings.length];
+      const r = draftExpansionRisks[(index * 5 + 2) % draftExpansionRisks.length];
+      return `${o}。沈砚把第${n}处线索记进心里——${c}，位置对着${p}。他弯腰细看，指尖停在不属于雨水的痕迹上，得出${f}的判断。同伴用眼色问要不要动，他摇头，只把布防图的折痕对向更声传来的方向。${r}，这条界线之内，谁先伸手谁就先暴露。`;
     }),
   ].join('\n\n');
   await page.route('**/api/novels/*/writing-style/resolve', async (route) => {
