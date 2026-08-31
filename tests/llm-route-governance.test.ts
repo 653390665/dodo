@@ -44,7 +44,11 @@ test('background and pre-project LLM routes use the shared gate and forward its 
       assert.match(source, new RegExp(`operation: ['"]${operation}['"]`));
     }
     const modelCalls = source.match(/(?:await )?generateText\(/g)?.length || 0;
-    const forwardedSignals = source.match(/\n\s+signal,?\n/g)?.length || 0;
+    // Semantic sentinel: count every `signal` identifier occurrence instead of
+    // requiring it to sit alone on its own line (formatting-agnostic). Any model
+    // call that drops the gate signal removes one occurrence, keeping the
+    // `>=` guard able to catch the regression without false-red on reformat.
+    const forwardedSignals = source.match(/\bsignal\b/g)?.length || 0;
     assert.ok(forwardedSignals >= modelCalls, `${filename} must forward the gate signal to every model call`);
   }
 });

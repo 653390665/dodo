@@ -13,7 +13,7 @@ import {
   initDb,
   saveNarrativePromiseCoreInTransaction,
 } from '../server/lib/db.ts';
-import { buildServerStoryContext } from '../server/helpers/story-context.ts';
+import { buildServerStoryContext, buildServerStoryContextWithSemantic } from '../server/helpers/story-context.ts';
 
 let dbPath = '';
 
@@ -98,4 +98,20 @@ test('server story context rejects a chapter from another novel', () => {
     () => buildServerStoryContext({ novelId: 'novel-a', chapterId: 'chapter-b' }),
     /CHAPTER_SCOPE_MISMATCH/,
   );
+});
+
+test('semantic wrapper falls back to the base context when embedding is unavailable', async () => {
+  dbPath = path.join(os.tmpdir(), `inkflow-story-context-semantic-${Date.now()}.db`);
+  initDb(dbPath);
+  createNovel({ id: 'semantic-novel', title: 'S', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 });
+  createChapter({ id: 'semantic-chapter', novelId: 'semantic-novel', title: 'S1', content: '雨夜入店。', order: 1, wordCount: 5, createdAt: 1, updatedAt: 1 });
+
+  const context = await buildServerStoryContextWithSemantic({
+    novelId: 'semantic-novel',
+    chapterId: 'semantic-chapter',
+  });
+  // No vector chunks exist for this novel, so the semantic section must not
+  // appear and the base keyword-ledger context must be intact.
+  assert.doesNotMatch(context, /语义相关的过往章节片段/);
+  assert.match(context, /【服务端故事状态账本】/);
 });

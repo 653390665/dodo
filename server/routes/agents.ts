@@ -33,7 +33,7 @@ import { classifyCriticFeedback, UNKNOWN_CRITIC_FEEDBACK } from '../helpers/ai-p
 import { ProviderError, toProviderErrorEnvelope } from '../lib/server-llm';
 import { randomUUID } from 'node:crypto';
 import { requireWritingStyleConfirmation, resolveWritingStyleRequest, WritingStyleRequestError } from '../helpers/writing-style-service.js';
-import { buildServerStoryContext } from '../helpers/story-context.js';
+import { buildServerStoryContextWithSemantic } from '../helpers/story-context.js';
 import { resolveEffectiveMinDraftChars, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 
 const EDITOR_AGENT_CHAIN_MODULES = [
@@ -412,7 +412,7 @@ export function registerAgentsRoutes(app: Express) {
             const packContext = writingStyle.executionSnapshot.canon.pack?.context || '';
 
             const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
-            const serverContextStr = buildServerStoryContext({
+            const serverContextStr = await buildServerStoryContextWithSemantic({
               novelId,
               chapterId,
               clientContext: contextStr,

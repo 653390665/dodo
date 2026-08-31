@@ -42,7 +42,7 @@ import {
   WritingStyleRequestError,
   type ResolvedWritingStyleRequest,
 } from '../helpers/writing-style-service.js';
-import { buildServerStoryContext } from '../helpers/story-context.js';
+import { buildServerStoryContextWithSemantic } from '../helpers/story-context.js';
 import { validate, rewriteSchema } from '../validation';
 
 const GENERIC_CLIENT_ERROR = 'Internal server error';
@@ -211,7 +211,7 @@ async function runAuditJob(
 
     const skillsInfo = writingStyle.executionSnapshot.stagePrompts.critic;
 
-    const trimmedContextStr = truncateForAudit(buildServerStoryContext({
+    const trimmedContextStr = truncateForAudit(await buildServerStoryContextWithSemantic({
       novelId,
       chapterId: body.chapterId,
       clientContext: contextStr,
@@ -684,7 +684,7 @@ export function registerAuditRoutes(app: Express) {
       res.write(`data: ${JSON.stringify({ type: 'status', status: 'running', message: '正在生成精修预览…' })}\n\n`);
 
       const skillsInfo = writingStyle.executionSnapshot.stagePrompts.writer;
-      const resolvedContextStr = buildServerStoryContext({
+      const resolvedContextStr = await buildServerStoryContextWithSemantic({
         novelId,
         chapterId,
         clientContext: contextStr,

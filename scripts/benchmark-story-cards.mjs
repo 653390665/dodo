@@ -1,6 +1,6 @@
-import { getConfig } from '../src/lib/config';
-import { mergePromptTemplates } from '../src/config/prompt-templates';
-import { generateText } from '../src/lib/server-llm';
+import { getConfig } from '../server/lib/config';
+import { mergePromptTemplates } from '../shared/config/prompt-templates';
+import { generateText } from '../server/lib/server-llm';
 import { extractJsonPayload } from '../src/lib/extract-skill-json';
 import { classifyLatency, scoreInputAnchoring, evaluateFieldCompleteness, gradeOutput } from '../src/lib/prompt-quality';
 

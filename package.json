@@ -31,7 +31,9 @@
     "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
     "package": "npm run build:electron && node scripts/package-electron.mjs && npm run smoke:package-artifacts",
     "electron:dev": "node scripts/dev-electron.mjs",
-    "dev:web": "INKFLOW_ENABLE_DEV_AUTH_TOKEN=true ELECTRON_RUN_AS_NODE=1 npx electron --import tsx server.ts"
+    "dev:web": "INKFLOW_ENABLE_DEV_AUTH_TOKEN=true ELECTRON_RUN_AS_NODE=1 npx electron --import tsx server.ts",
+    "eval:chapter-mechanical": "node --import tsx scripts/run-chapter-mechanical-acceptance.ts",
+    "benchmark:story-cards": "node --import tsx scripts/benchmark-story-cards.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

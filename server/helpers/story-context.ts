@@ -1,5 +1,7 @@
 import * as db from '../lib/db.js';
 import { buildLedgerPromptFacts, buildStoryStateLedger } from '../../shared/lib/story-state-ledger.js';
+import { embedWithMetadata, getEmbeddingStatus } from '../embedding';
+import { getChunkCount, searchSimilar } from '../vector-store';
 
 const MAX_SERVER_CONTEXT_CHARS = 7_000;
 const MAX_CLIENT_CONTEXT_CHARS = 1_200;
@@ -77,4 +79,44 @@ export function buildServerStoryContext(input: {
   return clientContext
     ? `${serverContext}\n\n【客户端补充上下文（仅作临时补充）】\n${clientContext}`
     : serverContext;
+}
+
+
+/**
+ * Story context with semantic retrieval (DIR-01): embeds the current chapter
+ * and appends the top similar archived-chapter fragments, so long-form
+ * continuity depends on semantically related scenes rather than keyword
+ * overlap alone. Strictly additive — any failure falls back to the base
+ * keyword-ledger context, and the base context is never truncated further.
+ */
+export async function buildServerStoryContextWithSemantic(input: {
+  novelId: string;
+  chapterId: string;
+  clientContext?: string;
+}): Promise<string> {
+  const base = buildServerStoryContext(input);
+  try {
+    const novel = db.getNovel(input.novelId);
+    const chapter = db.getChapter(input.chapterId);
+    if (!novel || !chapter) return base;
+    if (getChunkCount(novel.id) <= 0) return base;
+    const embeddingStatus = getEmbeddingStatus();
+    if (embeddingStatus.status !== 'ready' && embeddingStatus.status !== 'fallback') return base;
+    const { values, modelId } = await embedWithMetadata(
+      `${chapter.title}\n${chapter.content || ''}`,
+      novel.id,
+    );
+    const hits = searchSimilar(values, novel.id, modelId, 2);
+    if (hits.length === 0) return base;
+    const semanticSection = hits
+      .map((hit) => hit.text.trim())
+      .filter(Boolean)
+      .join('\n---\n')
+      .slice(0, 1200);
+    if (!semanticSection) return base;
+    return `${base}\n\n【语义相关的过往章节片段】\n${semanticSection}`;
+  } catch {
+    // Embedding/search is best-effort; the keyword ledger stays the fallback.
+    return base;
+  }
 }

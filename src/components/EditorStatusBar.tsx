@@ -1,4 +1,5 @@
-import { Download } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
+import { exportChapterToPdf } from '../lib/pdf-export';
 import type { Chapter, ContinuationEditorLaunchState } from '../../shared/types';
 
 export type EditorSaveStatus = 'loading' | 'pending' | 'saved' | 'failed' | 'unknown';
@@ -91,6 +92,14 @@ export function EditorStatusBar({
           className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
         >
           <Download size={12} aria-hidden="true" /> 导出
+        </button>
+        <button
+          onClick={() => {
+            if (currentChapter) exportChapterToPdf(currentChapter, novelTitle);
+          }}
+          className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
+        >
+          <FileText size={12} aria-hidden="true" /> 导出 PDF
         </button>
       </div>
     </div>

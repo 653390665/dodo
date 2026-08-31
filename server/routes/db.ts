@@ -19,8 +19,8 @@ import { bindClientDisconnect } from '../helpers/stream-disconnect';
 import { clearEmbeddingCache } from '../vector-store';
 import { rebaseActiveQuotaReservationsAfterRollback } from '../helpers/quota-guard';
 import { authMiddleware, issueDbEventToken } from '../middleware/auth';
-import { CapabilityRoleAssignmentError, validateMountedSkillLoadout } from '../capabilities/manifest';
-import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile.js';
+import { CapabilityRoleAssignmentError } from '../capabilities/manifest';
+import { preflightNovelEntity, DbEntitlementBoundaryError } from '../lib/db/novel-entity-preflight';
 import { capabilityManifestFor, validateSkillCardForScope } from '../capabilities/manifest.js';
 
 function validateChapterCapabilityUpdate(chapterId: string, workflowMeta: unknown): void {
@@ -89,13 +89,6 @@ const DB_GENERATION_CONFLICT_MESSAGE = '数据库已变化，请刷新后重试'
 
 function databaseGenerationConflict(res: Response, message = DB_GENERATION_CONFLICT_MESSAGE) {
   return res.status(409).json({ code: DB_GENERATION_CONFLICT_CODE, message, error: message });
-}
-
-class DbEntitlementBoundaryError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DbEntitlementBoundaryError';
-  }
 }
 
 import { subscribe, setCurrentInitiator, runInSerializedWrite } from '../lib/db-instance';
@@ -1023,78 +1016,10 @@ export function registerDbRoutes(app: Express) {
           }
           if (method === 'createNovel' || method === 'updateNovel' || method === 'createNovelWithChapter') {
             const entity = (method === 'createNovel' || method === 'createNovelWithChapter' ? args[0] : args[1]) as Record<string, unknown>;
-            const mountedSkillLoadout = Array.isArray(entity?.mountedSkillLoadout)
-              ? entity.mountedSkillLoadout.map((entry) => {
-                if (!entry || typeof entry !== 'object') return entry;
-                const skillId = (entry as Record<string, unknown>).skillId;
-                if (typeof skillId !== 'string') return entry;
-                const skill = db.getSkill(skillId);
-                return skill?.parentSkillId
-                  ? { ...(entry as Record<string, unknown>), parentSkillId: skill.parentSkillId }
-                  : entry;
-              })
-              : entity?.mountedSkillLoadout;
-            validateMountedSkillLoadout(mountedSkillLoadout);
-            const rawProfile = entity?.projectPreferenceProfile;
-            const profile = rawProfile;
-            const hasQuotaLimits = profile && typeof profile === 'object'
-              && Object.prototype.hasOwnProperty.call(profile, 'quotaLimits');
-            const commercialMode = profile && typeof profile === 'object'
-              ? (profile as Record<string, unknown>).commercialMode
-              : undefined;
-            const quotaLimits = profile && typeof profile === 'object'
-              ? (profile as Record<string, unknown>).quotaLimits
-              : undefined;
-            const quotaLimitsEqual = (left: unknown, right: unknown): boolean => {
-              if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return left === right;
-              const leftRecord = left as Record<string, unknown>;
-              const rightRecord = right as Record<string, unknown>;
-              const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
-              return [...keys].every((key) => leftRecord[key] === rightRecord[key]);
-            };
-            if (method === 'createNovel' || method === 'createNovelWithChapter') {
-              if (profile && typeof profile === 'object') {
-                entity.projectPreferenceProfile = normalizeProjectPreferenceProfile(profile);
-              }
-              if (commercialMode === 'paid' || hasQuotaLimits) {
-                throw new DbEntitlementBoundaryError('客户端不得设置付费权益');
-              }
-            } else {
-              const existing = db.getNovel(args[0] as string);
-              const existingProfile = existing?.projectPreferenceProfile as Record<string, unknown> | undefined;
-              const existingIsPaid = existingProfile?.commercialMode === 'paid';
-              if (!existingIsPaid && commercialMode === 'paid') {
-                throw new DbEntitlementBoundaryError('客户端不得修改付费权益');
-              }
-              if (existingIsPaid && commercialMode !== undefined && commercialMode !== 'paid') {
-                throw new DbEntitlementBoundaryError('付费作品权益不可降级或覆盖');
-              }
-              if (hasQuotaLimits && !quotaLimitsEqual(quotaLimits, existingProfile?.quotaLimits)) {
-                throw new DbEntitlementBoundaryError(existingIsPaid
-                  ? '付费作品权益不可降级或覆盖'
-                  : '客户端不得修改付费权益');
-              }
-              if (profile && typeof profile === 'object') {
-                const incomingProfile = profile as Record<string, unknown>;
-                const mergedProfile: Record<string, unknown> = {
-                  ...existingProfile,
-                  ...incomingProfile,
-                  ...(existingIsPaid ? { commercialMode: 'paid' } : {}),
-                  ...(existingProfile && Object.prototype.hasOwnProperty.call(existingProfile, 'quotaLimits')
-                    ? { quotaLimits: existingProfile.quotaLimits }
-                    : {}),
-                };
-                if (incomingProfile.weights && typeof incomingProfile.weights === 'object') {
-                  mergedProfile.weights = {
-                    ...(existingProfile?.weights && typeof existingProfile.weights === 'object'
-                      ? existingProfile.weights as Record<string, unknown>
-                      : {}),
-                    ...incomingProfile.weights as Record<string, unknown>,
-                  };
-                }
-                entity.projectPreferenceProfile = normalizeProjectPreferenceProfile(mergedProfile);
-              }
-            }
+            preflightNovelEntity(method, entity, method === 'updateNovel' ? args[0] as string : undefined, {
+              getNovel: (id) => db.getNovel(id),
+              getSkill: (id) => db.getSkill(id),
+            });
           }
           return fn(...args);
         } finally {
