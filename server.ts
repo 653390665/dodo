@@ -1,3 +1,6 @@
+// Must be the first import: loads .env.local before config modules evaluate.
+import './env-bootstrap';
+import crypto from 'crypto';
 import express from 'express';
 import path from 'path';
 import helmet from 'helmet';
@@ -42,6 +45,25 @@ async function startServer() {
       res.setHeader('Connection', 'close');
       return res.status(503).json({ error: 'Server is shutting down' });
     }
+    next();
+  });
+
+  // Request correlation id + access log. Logs go to stderr so the stdout
+  // JSON port handshake (parsed by the Electron main process) stays clean.
+  app.use((req, res, next) => {
+    const reqId = crypto.randomUUID();
+    (req as express.Request & { id?: string }).id = reqId;
+    res.setHeader('X-Request-Id', reqId);
+    const startedAt = Date.now();
+    res.on('finish', () => {
+      console.error(`[ACCESS] ${JSON.stringify({
+        id: reqId,
+        method: req.method,
+        path: req.originalUrl,
+        status: res.statusCode,
+        ms: Date.now() - startedAt,
+      })}`);
+    });
     next();
   });
 

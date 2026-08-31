@@ -70,7 +70,7 @@ function migrateAndGetApiKey() {
             try {
               const encrypted = safeStorage.encryptString(decryptedKey);
               fs.mkdirSync(configDir, { recursive: true });
-              fs.writeFileSync(secureKeyPath, encrypted);
+              fs.writeFileSync(secureKeyPath, encrypted, { mode: 0o600 });
 
               // Clear apiKey from config.json and save it back
               parsed.apiKey = '';
@@ -97,6 +97,8 @@ function migrateAndGetApiKey() {
   if (!activeApiKey) {
     try {
       if (fs.existsSync(secureKeyPath)) {
+        // Repair permissions on legacy key files; new writes are 0600.
+        try { fs.chmodSync(secureKeyPath, 0o600); } catch {}
         if (safeStorage.isEncryptionAvailable()) {
           const encryptedData = fs.readFileSync(secureKeyPath);
           activeApiKey = safeStorage.decryptString(encryptedData);
@@ -858,7 +860,7 @@ ipcMain.handle('save-config', async (event, config) => {
       if (safeStorage.isEncryptionAvailable()) {
         const encrypted = safeStorage.encryptString(apiKey);
         fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(secureKeyPath, encrypted);
+        fs.writeFileSync(secureKeyPath, encrypted, { mode: 0o600 });
       } else {
         throw new Error('safeStorage encryption not available');
       }

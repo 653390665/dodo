@@ -753,13 +753,16 @@ describe('audit / rewrite route integration', () => {
     assert.ok(reader);
     await reader.read();
     controller.abort();
-    await new Promise((resolve) => setTimeout(resolve, 350));
 
-    await drainWriteQueue();
-    assert.equal(
-      getNovel('novel-rewrite-abort')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount,
-      0,
-    );
+    const deadline = Date.now() + 2000;
+    let quotaAfterAbort: number | undefined;
+    do {
+      await drainWriteQueue();
+      quotaAfterAbort = getNovel('novel-rewrite-abort')?.projectPreferenceProfile?.quotaLimits?.advancedAuditCount;
+      if (quotaAfterAbort === 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    } while (Date.now() < deadline);
+    assert.equal(quotaAfterAbort, 0);
   });
 
   test('rewrite empty result refunds quota', async () => {

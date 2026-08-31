@@ -1,3 +1,4 @@
+import { parseStoredJson } from '../parse-json';
 import type {
   ArtifactCandidate,
   ArtifactDiff,
@@ -165,11 +166,9 @@ function assertCandidateKind(value: unknown, stored = false): asserts value is G
 }
 
 function parseJson(raw: string, label: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return invalidData(`${label} is invalid JSON`);
-  }
+  const result = parseStoredJson(raw);
+  if (!result.ok) return invalidData(`${label} is invalid JSON`);
+  return result.value;
 }
 
 function parseObject(raw: string, label: string): Record<string, unknown> {

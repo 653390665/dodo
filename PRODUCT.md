@@ -38,4 +38,4 @@ InkFlow is an AI-assisted novel writing desktop application for serious fiction 
 ## Current Status
 - Version 1.2.0, Apache-2.0 license
 - Desktop app (Electron) with web dev mode
-- Active development with 87+ test files
+- Active development with 300+ test files (184 backend + 120 frontend)

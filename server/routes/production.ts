@@ -594,7 +594,11 @@ export function registerProductionRoutes(app: Express) {
 
       heartbeat = setInterval(() => {
         if (isResponseWritable(res)) {
-          res.write(':ping\n\n');
+          try {
+            res.write(':ping\n\n');
+          } catch {
+            if (heartbeat) clearInterval(heartbeat);
+          }
         }
       }, 30_000);
 

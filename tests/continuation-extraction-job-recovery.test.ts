@@ -584,8 +584,14 @@ test('running extraction does not write old job state into a new database genera
     advanceDatabaseGeneration();
     closeDb();
     initDb(replacementDbPath);
-    await new Promise(resolve => setTimeout(resolve, 250));
-    assert.equal(getContinuationExtractionJob(jobId), undefined);
+    const deadline = Date.now() + 2000;
+    let jobCleared = false;
+    do {
+      jobCleared = getContinuationExtractionJob(jobId) === undefined;
+      if (jobCleared) break;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } while (Date.now() < deadline);
+    assert.equal(jobCleared, true);
   } finally {
     server.close();
     globalThis.fetch = originalFetch;

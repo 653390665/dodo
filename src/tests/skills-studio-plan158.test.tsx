@@ -901,7 +901,6 @@ describe('Plan 158 capability center', () => {
     expect(within(onboardingDialog).getAllByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。').length).toBeGreaterThan(0);
     await act(async () => {
       fireEvent.click(within(onboardingDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
-      await new Promise<void>((resolve) => setTimeout(resolve, 450));
     });
     const onboardingCheckboxes = within(onboardingDialog).getAllByRole('checkbox');
     await waitFor(() => expect((onboardingCheckboxes[0] as HTMLInputElement).checked).toBe(true));
@@ -972,7 +971,6 @@ describe('Plan 158 capability center', () => {
     const dialog = await screen.findByRole('dialog', { name: '脑洞与角色构建包' });
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
-      await new Promise<void>((resolve) => setTimeout(resolve, 450));
     });
     const checkboxes = within(dialog).getAllByRole('checkbox');
     await waitFor(() => expect((checkboxes[0] as HTMLInputElement).checked).toBe(true));
@@ -1033,7 +1031,6 @@ describe('Plan 158 capability center', () => {
     expect(within(deckDialog).getAllByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。').length).toBeGreaterThan(0);
     await act(async () => {
       fireEvent.click(within(deckDialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' })[0]);
-      await new Promise<void>((resolve) => setTimeout(resolve, 450));
     });
     await waitFor(() => expect((within(deckDialog).getByRole('checkbox', { name: '选择 神作黄金高爽节奏与钩子拆书卡' }) as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(deckDialog).getByRole('button', { name: '加入本次配置候选' }));

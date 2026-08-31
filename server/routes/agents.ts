@@ -598,7 +598,11 @@ export function registerAgentsRoutes(app: Express) {
       req.socket.setTimeout(0);
       orchestrateHeartbeat = setInterval(() => {
         if (!res.writableEnded && !res.destroyed) {
-          res.write(':ping\n\n');
+          try {
+            res.write(':ping\n\n');
+          } catch {
+            cleanupStream();
+          }
         }
       }, 30_000);
 
@@ -842,7 +846,11 @@ export function registerAgentsRoutes(app: Express) {
       req.socket.setTimeout(0);
       orchestrateHeartbeat = setInterval(() => {
         if (!res.writableEnded && !res.destroyed) {
-          res.write(':ping\n\n');
+          try {
+            res.write(':ping\n\n');
+          } catch {
+            cleanupStream();
+          }
         }
       }, 30_000);
 

@@ -1,3 +1,4 @@
+import { parseStoredJson } from '../parse-json';
 import type {
   CreationFlowDefinition,
   CreationFlowDefinitionDraft,
@@ -82,11 +83,9 @@ function isArtifactKind(value: unknown): value is CreativeArtifactKind {
 }
 
 function parseJson(value: string, label: string): unknown {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return invalidData(`${label} JSON is invalid`);
-  }
+  const result = parseStoredJson(value);
+  if (!result.ok) return invalidData(`${label} JSON is invalid`);
+  return result.value;
 }
 
 function parseArtifactRef(value: unknown): CreativeArtifactRef {

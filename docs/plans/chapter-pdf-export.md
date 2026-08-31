@@ -1,12 +1,12 @@
 # 章节 PDF 导出 — 实施计划
 
-> 状态：待实施 | 创建：2026-05-15 | 目标：在编辑器工具栏增加 PDF 导出按钮，支持单章/全书导出
+> 状态：待实施 | 创建：2026-05-15 | 更新：2026-08-31（行号引用已对齐当前代码）| 目标：在编辑器工具栏增加 PDF 导出按钮，支持单章/全书导出
 
 ## 1. 现状分析
 
 ### 1.1 已有导出功能
 
-- **位置**：`EditorView.tsx` 底部状态栏（行 1394-1423），按钮名为"导出"
+- **位置**：`src/components/EditorStatusBar.tsx`（导出按钮座落在编辑器底部状态栏，`handleExport` 于 `:42`）
 - **格式**：EPUB（默认）、TXT
 - **端点**：`POST /api/export`，服务端生成，返回 blob 下载
 - **范围**：仅支持导出全书（`novelId` + 全部 chapters），不支持单章
@@ -18,7 +18,7 @@
 | `src/components/EditorHeader.tsx` | 编辑器顶部工具栏，PDF 按钮将加在此处 |
 | `src/components/EditorView.tsx` | 编辑器主容器，持有 chapters、currentChapter 状态 |
 | `src/types.ts` | Chapter 类型定义（title, content, order, volumeName 等） |
-| `server.ts` | 现有 /api/export 端点（行 1866-1968），可能需要扩展 |
+| `server/routes/export.ts` | 现有 /api/export 端点（`export.ts:86` 起），可能需要扩展 |
 | `electron.cjs` | Electron 主进程，若有 native PDF 路径可扩展 |
 | `electron-preload.cjs` | 仅暴露 setTitle，若走 Electron IPC 需扩展 |
 | `src/index.css` | 全局样式，可放 @media print 样式 |

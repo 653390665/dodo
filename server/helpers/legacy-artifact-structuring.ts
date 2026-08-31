@@ -1,3 +1,4 @@
+import { parseStoredJson } from '../lib/parse-json';
 import { generateId } from '../id.js';
 import { normalizeCharacterCore } from '../../shared/lib/character-core.js';
 import { fingerprintCreativeArtifact } from '../../shared/lib/creative-artifact-fingerprint.js';
@@ -75,12 +76,16 @@ export function buildLegacyStructuringPrompt(source: LegacyArtifactSource): stri
 }
 
 function parseJson(raw: string): Record<string, unknown> {
-  const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-  if (!trimmed) throw new Error('LEGACY_STRUCTURING_EMPTY_OUTPUT');
-  let parsed: unknown;
-  try { parsed = JSON.parse(trimmed); } catch { throw new Error('LEGACY_STRUCTURING_INVALID_JSON'); }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('LEGACY_STRUCTURING_INVALID_CORE');
-  return parsed as Record<string, unknown>;
+  const result = parseStoredJson(raw, { stripFences: true, requireObject: true });
+  if (!result.ok) {
+    const code = result.code === 'EMPTY'
+      ? 'LEGACY_STRUCTURING_EMPTY_OUTPUT'
+      : result.code === 'NOT_OBJECT'
+        ? 'LEGACY_STRUCTURING_INVALID_CORE'
+        : 'LEGACY_STRUCTURING_INVALID_JSON';
+    throw new Error(code);
+  }
+  return result.value as Record<string, unknown>;
 }
 
 function nonEmpty(kind: LegacyArtifactSource['artifactKind'], core: Record<string, unknown>): boolean {
