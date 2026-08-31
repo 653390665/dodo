@@ -6,7 +6,8 @@ export function countDraftChars(text: string) {
   return text.replace(/\s/g, '').length;
 }
 
-export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, contextStr: string) {
+export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, contextStr: string, minChars?: number) {
+  const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   const normalizedBeats = String(sceneBeats || '').trim();
   const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, ''));
   const isFallbackTemplate = /异动入场|试探加深|悬念收束/.test(normalizedBeats);
@@ -165,7 +166,7 @@ export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, cont
     '局面没有回到原点，所有人的选择都留下了痕迹。',
     '下一步已经逼到门口，沉默也不再提供遮掩。',
   ];
-  while (countDraftChars(draft) < MIN_CHAPTER_DRAFT_CHARS) {
+  while (countDraftChars(draft) < effectiveMin) {
     const cycle = Math.floor(index / paragraphTemplates.length);
     const hint = hints[index]
       || detailHints[(index - hints.length + cycle * 3) % (isFallbackTemplate ? 16 : detailHints.length)]
@@ -215,17 +216,18 @@ export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, cont
   return draft;
 }
 
-export function ensureMinimumDraftLength(draft: string, sceneBeats: string, contextStr: string) {
+export function ensureMinimumDraftLength(draft: string, sceneBeats: string, contextStr: string, minChars?: number) {
+  const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   // Long model output still must pass the deterministic gate; never silently
   // treat an oversized response containing prompt/context residue as valid.
-  if (countDraftChars(draft) >= MIN_CHAPTER_DRAFT_CHARS && validateDraftQuality(draft).ok) {
+  if (countDraftChars(draft) >= effectiveMin && validateDraftQuality(draft).ok) {
     return draft;
   }
-  if (countDraftChars(draft) >= MIN_CHAPTER_DRAFT_CHARS) return draft;
-  return expandDraftToMinimum(draft, sceneBeats, contextStr);
+  if (countDraftChars(draft) >= effectiveMin) return draft;
+  return expandDraftToMinimum(draft, sceneBeats, contextStr, effectiveMin);
 }
 
-export function buildFallbackDraft(sceneBeats: string, contextStr: string) {
+export function buildFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number) {
   const normalizedBeats = String(sceneBeats || '').trim();
   const intentHint = sanitizeFallbackContext(
     normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim() || '',
@@ -245,7 +247,7 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string) {
       ``,
       `他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻${hintText}。`,
       `空气里压着未说出口的消息，也压着即将逼近的危险。`,
-    ].join('\n'), sceneBeats, contextStr);
+    ].join('\n'), sceneBeats, contextStr, minChars);
   }
   const sceneBlocks = normalizedBeats
     .split(/\n\s*---\s*\n|(?=###\s*场景)/)
@@ -270,6 +272,7 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string) {
       '门轴轻轻一响，屋里的声音同时低了下去。\n\n他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻。空气里压着未说出口的消息，也压着即将逼近的危险。',
       sceneBeats,
       contextStr,
+      minChars,
     );
   }
 
@@ -281,7 +284,7 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string) {
     `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。${firstBeat}没有被摊开讲明，它先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
     `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。${secondBeat}，局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
     `${thirdBeat}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
-  ].join('\n\n'), sceneBeats, contextStr);
+  ].join('\n\n'), sceneBeats, contextStr, minChars);
 }
 
 export function buildFallbackSceneBeats(userIntent: string) {

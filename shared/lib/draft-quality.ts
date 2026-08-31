@@ -197,6 +197,35 @@ export const MIN_COMPLETE_SCENE_CHARS = 800;
 export const MIN_COMPLETE_CHAPTER_CHARS = 4000;
 /** Initial mechanical-quality release gate; tune only against reviewed samples. */
 export const MIN_COMPLETE_CHAPTER_SLOP_SCORE = 85;
+/** Floor for intent-declared short chapters; aligns with the complete-scene minimum. */
+export const MIN_INTENT_DRAFT_CHARS = 800;
+
+/**
+ * Parse the draft length a user declared in their intent (e.g. “约800字”/“1.5万字”).
+ * Returns null when no credible target is declared; callers then keep the
+ * full-chapter minimum.
+ */
+export function resolveDraftTargetChars(userIntent?: string | null): number | null {
+  const text = typeof userIntent === 'string' ? userIntent : '';
+  const wan = text.match(/(\d+(?:\.\d+)?)\s*万\s*字/);
+  if (wan) {
+    const value = Math.round(parseFloat(wan[1]) * 10000);
+    if (value >= MIN_INTENT_DRAFT_CHARS) return value;
+  }
+  const plain = text.match(/(\d{3,5})\s*字/);
+  if (plain) {
+    const value = parseInt(plain[1], 10);
+    if (value >= MIN_INTENT_DRAFT_CHARS) return value;
+  }
+  return null;
+}
+
+/** Effective draft floor for an intent: the declared length clamped to [scene-min, chapter-max]. */
+export function resolveEffectiveMinDraftChars(userIntent?: string | null): number {
+  const target = resolveDraftTargetChars(userIntent);
+  if (target === null) return MIN_COMPLETE_CHAPTER_CHARS;
+  return Math.min(Math.max(target, MIN_COMPLETE_SCENE_CHARS), MIN_COMPLETE_CHAPTER_CHARS);
+}
 
 function normalizeParagraph(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
@@ -338,14 +367,18 @@ export function validateChapterDraftQuality(
 export function validateCompleteChapterDraftQuality(
   text: string,
   semanticReview = DEFAULT_SEMANTIC_REVIEW,
+  options?: { minChars?: number },
 ): DraftQualityResult {
   const result = validateChapterDraftQuality(text, semanticReview);
   const findings = [...result.findings];
   const compactChars = text.replace(/\s/g, '').length;
-  if (compactChars < MIN_COMPLETE_CHAPTER_CHARS && !findings.some((finding) => finding.code === 'chapter-below-contract')) {
+  const effectiveMinChars = options?.minChars && options.minChars > 0
+    ? Math.min(Math.max(options.minChars, MIN_COMPLETE_SCENE_CHARS), MIN_COMPLETE_CHAPTER_CHARS)
+    : MIN_COMPLETE_CHAPTER_CHARS;
+  if (compactChars < effectiveMinChars && !findings.some((finding) => finding.code === 'chapter-below-contract')) {
     findings.push({
       code: 'chapter-below-contract',
-      message: `正文不足 ${MIN_COMPLETE_CHAPTER_CHARS} 个有效字符，未达到整章交付标准`,
+      message: `正文不足 ${effectiveMinChars} 个有效字符，未达到整章交付标准`,
       severity: 'P1',
       category: 'chapter-readiness',
     });
@@ -539,6 +572,13 @@ export function sanitizeFallbackContext(context: string): string[] {
     })
     .map((line) => line.replace(/\b(?:role|traits|region|type|leader|territory|tier|characteristics)\s*=\s*[^\s)；，。]+/gi, '').replace(/\s{2,}/g, ' ').trim())
     .map((line) => line.replace(/^(?:世界|角色|人物|伏笔|设定|道具|分镜|冲突)证据\s*[-—:：]\s*/i, '').trim())
+    .map((line) => (
+      line
+        .replace(/\*\*/g, '')
+        .replace(/[*#`>]/g, '')
+        .replace(/^\s*(?:-{3,}|={3,}|~{3,})\s*$/gm, '')
+        .trim()
+    ))
     .filter((line) => line.length > 8)
     .filter((line) => !/^(?:chapter|摘要|全局大纲|人物状态|地点状态|道具状态|势力状态|力量体系|场景\s*\d+)\s*[,，]?$/i.test(line))
     .filter((line) => line.length > 8)

@@ -34,7 +34,7 @@ import { ProviderError, toProviderErrorEnvelope } from '../lib/server-llm';
 import { randomUUID } from 'node:crypto';
 import { requireWritingStyleConfirmation, resolveWritingStyleRequest, WritingStyleRequestError } from '../helpers/writing-style-service.js';
 import { buildServerStoryContext } from '../helpers/story-context.js';
-import { validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import { resolveEffectiveMinDraftChars, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 
 const EDITOR_AGENT_CHAIN_MODULES = [
   'chainConcept',
@@ -535,6 +535,9 @@ export function registerAgentsRoutes(app: Express) {
       databaseGeneration,
     } = req.body;
 
+    // This endpoint has no user-declared length target; keep the full-chapter standard.
+    const targetChars = resolveEffectiveMinDraftChars(undefined);
+
     let writingStyle;
     try {
       if (!novelId) throw new WritingStyleRequestError(400, 'NOVEL_ID_REQUIRED', '必须绑定作品');
@@ -642,11 +645,11 @@ export function registerAgentsRoutes(app: Express) {
             concurrency: 2,
             signal: clientAbortController.signal,
           });
-          currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr);
+          currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr, targetChars);
         } catch (error) {
           if (clientAbortController.signal.aborted) throw error;
           logger.warn('Writer generation fell back to local draft', error);
-          currentDraft = buildFallbackDraft(sceneBeats, contextStr);
+          currentDraft = buildFallbackDraft(sceneBeats, contextStr, targetChars);
           writerSource = 'fallback';
           if (!res.writableEnded && !res.destroyed) {
             res.write(`data: ${JSON.stringify({
@@ -656,7 +659,7 @@ export function registerAgentsRoutes(app: Express) {
             })}\n\n`);
           }
         }
-        const draftQuality = validateCompleteChapterDraftQuality(currentDraft);
+        const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, { minChars: targetChars });
         if (!draftQuality.ok) throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
         if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
           throw new Error('Client disconnected before draft delivery');
@@ -761,6 +764,7 @@ export function registerAgentsRoutes(app: Express) {
     let orchestrateHeartbeat: NodeJS.Timeout | null = null;
     const clientAbortController = new AbortController();
     const { novelId } = req.body;
+    const targetChars = resolveEffectiveMinDraftChars((req.body as { userIntent?: string }).userIntent);
     let reservationId: string | undefined;
     let contentDelivered = false;
     let disposeDisconnect = () => {};
@@ -892,11 +896,11 @@ export function registerAgentsRoutes(app: Express) {
           concurrency: 2,
           signal: clientAbortController.signal,
         });
-        text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr);
+        text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr, targetChars);
       } catch (error) {
         if (clientAbortController.signal.aborted) throw error;
         logger.warn('Writer generation fell back to local draft', error);
-        text = buildFallbackDraft(sceneBeats, effectiveContextStr);
+        text = buildFallbackDraft(sceneBeats, effectiveContextStr, targetChars);
         draftSource = 'fallback';
         if (!res.writableEnded && !res.destroyed) {
           res.write(`data: ${JSON.stringify({
@@ -907,7 +911,7 @@ export function registerAgentsRoutes(app: Express) {
         }
       }
 
-      const draftQuality = validateCompleteChapterDraftQuality(text);
+      const draftQuality = validateCompleteChapterDraftQuality(text, undefined, { minChars: targetChars });
       if (!draftQuality.ok) throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
 
       if (

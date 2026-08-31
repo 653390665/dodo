@@ -11,7 +11,7 @@ import {
 } from './fallback-draft';
 import type { LearnedPreference } from '../../shared/lib/preference-flywheel';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
-import { validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import { resolveEffectiveMinDraftChars, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -84,9 +84,9 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
   throw error;
 }
 
-function buildValidatedFallbackDraft(sceneBeats: string, contextStr: string): string {
-  const fallbackDraft = buildFallbackDraft(sceneBeats, contextStr);
-  const quality = validateCompleteChapterDraftQuality(fallbackDraft);
+function buildValidatedFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number): string {
+  const fallbackDraft = buildFallbackDraft(sceneBeats, contextStr, minChars);
+  const quality = validateCompleteChapterDraftQuality(fallbackDraft, undefined, { minChars });
   if (!quality.ok) {
     throw new Error(`DRAFT_QUALITY_GATE_FAILED:${quality.violations.join('；')}`);
   }
@@ -110,6 +110,7 @@ export async function runProductionPipeline(params: {
   progress?: PipelineProgress;
 }): Promise<PipelineResult> {
   const { novelId, userIntent, contextStr, stageContexts, stagePrompts, learnedPreferences = [], progress = {} } = params;
+  const minDraftChars = resolveEffectiveMinDraftChars(userIntent);
 
   // Build learned preference context
   const learnedContext = learnedPreferences.length > 0
@@ -217,14 +218,18 @@ export async function runProductionPipeline(params: {
         concurrency: 2,
         signal: progress.signal,
       });
-      currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, augmentedContexts.writer);
-      const draftQuality = validateCompleteChapterDraftQuality(currentDraft);
+      currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, augmentedContexts.writer, minDraftChars);
+      const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, { minChars: minDraftChars });
       if (!draftQuality.ok) {
         logger.warn('Writer output failed the prose quality gate; using fallback draft', {
           novelId,
           violations: draftQuality.violations,
+          evidence: (draftQuality.findings || []).slice(0, 8).map((finding) => ({
+            code: finding.code,
+            snippets: (finding.evidence || []).slice(0, 3).map((entry) => entry.snippet),
+          })),
         });
-        currentDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer);
+        currentDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer, minDraftChars);
         draftSource = 'fallback';
       } else {
         const chunks = (streamedWriterText || currentDraft).match(/.{1,24}/gs) || [];

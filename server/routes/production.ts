@@ -26,7 +26,7 @@ import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel'
 import { runProductionPipeline } from '../helpers/ai-production-pipeline';
 import { finalizeContextReceipt } from '../../shared/lib/continuation-pack';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow';
-import { evaluateDraftAcceptance, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import { evaluateDraftAcceptance, resolveEffectiveMinDraftChars, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 import { convertFiveDimToStructured, parseAuditResponseWithDiagnostics } from '../../shared/lib/audit-structured';
 import { continuityToReviewIssues, deriveReviewGate } from '../../shared/lib/review-issues';
 import {
@@ -410,8 +410,8 @@ export function registerProductionRoutes(app: Express) {
       const { intent, writerContext, contextReceipt, executionReceipt, targetChapterBaselineHash } = initialization.result;
 
       const fallbackBeats = buildFallbackSceneBeats(intent);
-      const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext);
-      const fallbackQuality = validateCompleteChapterDraftQuality(fallbackDraft);
+      const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext, resolveEffectiveMinDraftChars(intent));
+      const fallbackQuality = validateCompleteChapterDraftQuality(fallbackDraft, undefined, { minChars: resolveEffectiveMinDraftChars(intent) });
       if (!fallbackQuality.ok) {
         throw new Error(`DRAFT_QUALITY_GATE_FAILED:${fallbackQuality.violations.join('；')}`);
       }
@@ -614,8 +614,8 @@ export function registerProductionRoutes(app: Express) {
       const fallbackBeats = buildFallbackSceneBeats(intent);
       sseWrite(res, { type: 'fallback_beats', content: fallbackBeats });
 
-      const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext);
-      const fallbackQuality = validateCompleteChapterDraftQuality(fallbackDraft);
+      const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext, resolveEffectiveMinDraftChars(intent));
+      const fallbackQuality = validateCompleteChapterDraftQuality(fallbackDraft, undefined, { minChars: resolveEffectiveMinDraftChars(intent) });
       const isTestEnv = process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST || getConfig().apiKey === '你的key' || !getConfig().apiKey;
       if (!fallbackQuality.ok) {
         // Keep the invalid fallback out of the manuscript and out of the

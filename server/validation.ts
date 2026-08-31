@@ -399,6 +399,7 @@ export const orchestrateDraftSchema = z.object({
   sessionCardIds: z.array(dbIdSchema).max(6).optional(),
   styleConfirmationFingerprint: z.string().length(64).optional(),
   writingStyleFingerprint: z.string().length(64).optional(),
+  userIntent: z.string().max(2000).optional(),
 }).strict();
 
 export const rewriteSchema = z.object({
