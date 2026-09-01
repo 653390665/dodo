@@ -53,6 +53,8 @@ export interface AppConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** Optional stronger model override for the chapter-writing stage (scheme C+A). */
+  writerModel?: string;
   promptGuardLevel?: 'strict' | 'balanced' | 'disabled';
   promptTemplates: PromptTemplates;
 }

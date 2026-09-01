@@ -1,5 +1,5 @@
 import { governedGenerateText as generateText } from './governed-llm';
-import { getConfig } from '../lib/config';
+import { getConfig, type AppConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { AUDIT_OUTPUT_CONTRACT, renderPromptTemplate, wrapUserInput } from './prompt-helpers';
@@ -70,6 +70,36 @@ const WRITER_LLM_OPTIONS = {
   maxAttempts: 1,
   maxTokens: 8192,
 } as const;
+
+// Per-scene budget for split-scene generation (scheme C): one scene is a few
+// hundred characters, so a fraction of the whole-chapter budget suffices and
+// slow upstreams can finish within the per-call window.
+const WRITER_SCENE_MAX_TOKENS = 2400;
+/** Minimum scene blocks for split generation; below this, single-shot the chapter. */
+const MIN_SCENES_FOR_SPLIT = 2;
+
+/**
+ * Split structured scene beats into per-scene blocks ("### 场景 N" headings —
+ * the format produced by both the planner and buildFallbackSceneBeats).
+ * Returns an empty array when there are fewer than two scenes; callers then
+ * keep the single-shot whole-chapter path.
+ */
+export function splitSceneBeats(beats: string): string[] {
+  const blocks = String(beats || '')
+    .split(/(?=###\s*场景)/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0 && /^###\s*场景/.test(block));
+  return blocks.length >= MIN_SCENES_FOR_SPLIT ? blocks : [];
+}
+
+/**
+ * Scheme C+A: the writing stage may use a stronger model than the global one.
+ * Precedence: INKFLOW_WRITER_MODEL env > config.writerModel > config.model.
+ */
+function resolveWriterConfig(base: AppConfig): AppConfig {
+  const writerModel = process.env.INKFLOW_WRITER_MODEL?.trim() || base.writerModel?.trim() || '';
+  return writerModel && writerModel !== base.model ? { ...base, model: writerModel } : base;
+}
 
 const CRITIC_LLM_OPTIONS = {
   timeoutMs: 35_000,
@@ -203,22 +233,77 @@ export async function runProductionPipeline(params: {
     draftSource = 'model';
     try {
       let streamedWriterText = '';
-      currentDraft = await generateText(getConfig(), {
-        prompt: writerPrompt,
-        ...WRITER_LLM_OPTIONS,
-        signal: progress.signal,
-        onToken: (token) => {
-          streamedWriterText += token;
-        },
-        novelId,
-      }, {
-        operation: 'production-pipeline-writer',
-        novelId,
-        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-        concurrency: 2,
-        signal: progress.signal,
-      });
+      const writerConfig = resolveWriterConfig(getConfig());
+      const sceneSections = splitSceneBeats(sceneBeats);
+
+      if (sceneSections.length >= MIN_SCENES_FOR_SPLIT) {
+        // Scheme C — split-scene generation: one model call per scene block,
+        // each seeded with the tail of the previous scene for continuity.
+        // A slow upstream only needs to finish a few hundred characters per
+        // call instead of a whole 4000-char chapter in one window.
+        const parts: string[] = [];
+        let previousTail = '';
+        for (let i = 0; i < sceneSections.length; i++) {
+          throwIfAborted(progress.signal);
+          const isFinalScene = i === sceneSections.length - 1;
+          const sectionPrompt = renderPromptTemplate(writerAsset.template, {
+            WRITER_SOUL,
+            contextStr: augmentedContexts.writer
+              + (previousTail ? `\n【上一场景结尾——保持人物、时间与节奏的衔接，不要复述】\n${previousTail}` : ''),
+            skillsInfo: writerSkillsInfo,
+            sceneBeats: sceneSections[i]
+              + (isFinalScene ? '\n\n（本章最终场景：按分镜收束本章悬念，给出章节结尾。）' : '\n\n（写完本场景即停，不要越到下一场景。）'),
+            criticFeedback: criticFeedback
+              || (i === 0 ? '初稿阶段，请全力输出。' : '继续本章的下一场景，保持人物与节奏连贯。'),
+          });
+          const sectionText = await generateText(writerConfig, {
+            prompt: sectionPrompt,
+            ...WRITER_LLM_OPTIONS,
+            maxTokens: WRITER_SCENE_MAX_TOKENS,
+            // Reasoning chains would eat the per-scene token budget and leave
+            // the prose truncated empty (finish_reason=length).
+            disableThinking: true,
+            signal: progress.signal,
+            onToken: (token) => {
+              streamedWriterText += token;
+            },
+            novelId,
+          }, {
+            operation: 'production-pipeline-writer',
+            novelId,
+            timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+            concurrency: 2,
+            signal: progress.signal,
+          });
+          const trimmed = String(sectionText).trim();
+          if (trimmed) {
+            parts.push(trimmed);
+            previousTail = trimmed.slice(-280);
+          }
+        }
+        if (parts.length === 0) throw new Error('empty_response');
+        currentDraft = parts.join('\n\n');
+      } else {
+        currentDraft = await generateText(writerConfig, {
+          prompt: writerPrompt,
+          ...WRITER_LLM_OPTIONS,
+          signal: progress.signal,
+          onToken: (token) => {
+            streamedWriterText += token;
+          },
+          novelId,
+        }, {
+          operation: 'production-pipeline-writer',
+          novelId,
+          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+          concurrency: 2,
+          signal: progress.signal,
+        });
+      }
       currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, augmentedContexts.writer, minDraftChars);
+      if (process.env.DEBUG_GATE_IN === '1') {
+        console.error('[DEBUG-gatein] len=' + String(currentDraft).length + ' head=' + JSON.stringify(String(currentDraft).slice(0, 150)));
+      }
       const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, { minChars: minDraftChars });
       if (!draftQuality.ok) {
         logger.warn('Writer output failed the prose quality gate; using fallback draft', {
