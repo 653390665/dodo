@@ -65,8 +65,12 @@ export interface PipelineResult {
   attempts: number;
 }
 
+// Stronger writer models (e.g. reasoning-heavy pro tiers) may need longer
+// windows; tune via INKFLOW_WRITER_TIMEOUT_MS without a code change.
 const WRITER_LLM_OPTIONS = {
-  timeoutMs: 90_000,
+  timeoutMs: Number(process.env.INKFLOW_WRITER_TIMEOUT_MS) > 0
+    ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
+    : 90_000,
   maxAttempts: 1,
   maxTokens: 8192,
 } as const;
@@ -243,6 +247,7 @@ export async function runProductionPipeline(params: {
         // call instead of a whole 4000-char chapter in one window.
         const parts: string[] = [];
         let previousTail = '';
+        let rejectedScenes = 0;
         for (let i = 0; i < sceneSections.length; i++) {
           throwIfAborted(progress.signal);
           const isFinalScene = i === sceneSections.length - 1;
@@ -256,33 +261,50 @@ export async function runProductionPipeline(params: {
             criticFeedback: criticFeedback
               || (i === 0 ? '初稿阶段，请全力输出。' : '继续本章的下一场景，保持人物与节奏连贯。'),
           });
-          const sectionText = await generateText(writerConfig, {
-            prompt: sectionPrompt,
-            ...WRITER_LLM_OPTIONS,
-            maxTokens: WRITER_SCENE_MAX_TOKENS,
-            // Reasoning chains would eat the per-scene token budget and leave
-            // the prose truncated empty (finish_reason=length).
-            disableThinking: true,
-            signal: progress.signal,
-            onToken: (token) => {
-              streamedWriterText += token;
-            },
-            novelId,
-          }, {
-            operation: 'production-pipeline-writer',
-            novelId,
-            timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-            concurrency: 2,
-            signal: progress.signal,
-          });
-          const trimmed = String(sectionText).trim();
-          if (trimmed) {
-            parts.push(trimmed);
-            previousTail = trimmed.slice(-280);
+          try {
+            const sectionText = await generateText(writerConfig, {
+              prompt: sectionPrompt,
+              ...WRITER_LLM_OPTIONS,
+              maxTokens: WRITER_SCENE_MAX_TOKENS,
+              // Reasoning chains would eat the per-scene token budget and leave
+              // the prose truncated empty (finish_reason=length).
+              disableThinking: true,
+              signal: progress.signal,
+              onToken: (token) => {
+                streamedWriterText += token;
+              },
+              novelId,
+            }, {
+              operation: 'production-pipeline-writer',
+              novelId,
+              timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+              concurrency: 2,
+              signal: progress.signal,
+            });
+            const trimmed = String(sectionText).trim();
+            if (trimmed) {
+              parts.push(trimmed);
+              previousTail = trimmed.slice(-280);
+            }
+          } catch (sceneErr) {
+            // Split-mode scene guard is a filter, not a hard gate: a single
+            // cliche hit in one scene must not kill the whole chapter. Skip
+            // the rejected scene, note it for the critic, and let the
+            // complete-chapter delivery gate make the final call.
+            if (progress.signal?.aborted) throw sceneErr;
+            const isQualityRejection = sceneErr instanceof Error
+              && sceneErr.message.includes('质量校验');
+            if (!isQualityRejection) throw sceneErr;
+            rejectedScenes += 1;
+            logger.warn(`[pipeline] scene ${i + 1}/${sceneSections.length} rejected by output guard; skipping`, sceneErr instanceof Error ? sceneErr.message : sceneErr);
+            previousTail = '';
           }
         }
         if (parts.length === 0) throw new Error('empty_response');
         currentDraft = parts.join('\n\n');
+        if (rejectedScenes > 0) {
+          criticFeedback = `${criticFeedback ? criticFeedback + '\n' : ''}【生成器提示】${rejectedScenes} 个场景因套话守卫被跳过，请检查成稿的场景覆盖与连贯性。`;
+        }
       } else {
         currentDraft = await generateText(writerConfig, {
           prompt: writerPrompt,
