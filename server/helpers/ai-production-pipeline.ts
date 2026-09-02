@@ -108,7 +108,11 @@ function resolveWriterConfig(base: AppConfig): AppConfig {
 const CRITIC_LLM_OPTIONS = {
   timeoutMs: 35_000,
   maxAttempts: 1,
-  maxTokens: 1200,
+  // Structured audit JSON (scores, fatalIssues, surgerySuggestions) needs
+  // headroom; reasoning-heavy models also burn tokens on chain-of-thought, so
+  // a tight budget truncates the JSON mid-field (diagnosed 'truncated').
+  maxTokens: 4000,
+  disableThinking: true,
 } as const;
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
@@ -185,7 +189,11 @@ export async function runProductionPipeline(params: {
       prompt: plannerPrompt,
       timeoutMs: 8_000,
       maxAttempts: 1,
-      maxTokens: 1600,
+      // Planner beats are structure, not prose: pin thinking off and give the
+      // budget headroom so reasoning-heavy models don't burn it on
+      // chain-of-thought and truncate the scene breakdown.
+      maxTokens: 2400,
+      disableThinking: true,
       signal: progress.signal,
       novelId,
     }, {

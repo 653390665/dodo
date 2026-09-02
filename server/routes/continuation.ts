@@ -919,6 +919,10 @@ ${text.substring(0, 30000)}
     responseMimeType: 'application/json',
     timeoutMs: 90_000,
     maxAttempts: 2,
+    // Document extraction must return parseable JSON; pin thinking off and
+    // give headroom so reasoning-heavy providers don't truncate it.
+    maxTokens: 8000,
+    disableThinking: true,
   });
   return parseModelJsonPayload<unknown>(rawText);
 }

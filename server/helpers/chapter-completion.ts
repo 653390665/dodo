@@ -59,6 +59,11 @@ async function defaultReview(novelId: string, content: string, sceneBeats: strin
       prompt: `你是章节完成审稿器。只审查以下已接受正文与场景节拍，严格输出 JSON：{"score":0-100,"fatalIssues":[],"sceneChecks":[],"surgerySuggestions":[]}。不要改写正文，不要写 Canon。\n场景节拍：${sceneBeats.slice(0, 4000)}\n正文：${buildAuditWindow(content)}`,
       outputMode: 'audit-json',
       responseMimeType: 'application/json',
+      // Completion audits are JSON that must close cleanly; reasoning-heavy
+      // providers burn budget on chain-of-thought, so pin thinking off and
+      // give the payload headroom to avoid a truncated review.
+      maxTokens: 4000,
+      disableThinking: true,
     }, { operation: 'chapter-completion-review', novelId, timeoutMs: 60_000, concurrency: 1, databaseGeneration: getDatabaseGeneration() });
     const parsed = parseAuditResponseWithDiagnostics(raw);
     const audit = parsed.structured;

@@ -185,7 +185,10 @@ export function registerOnboardingRoutes(app: Express) {
           signal,
           timeoutMs: 90_000,
           maxAttempts: 2,
-          maxTokens: 2048,
+          // Refine returns JSON that gets parsed; pin thinking off and give
+          // headroom so reasoning-heavy models don't truncate the payload.
+          maxTokens: 4000,
+          disableThinking: true,
         }));
       try {
         const parsed = JSON.parse(text);

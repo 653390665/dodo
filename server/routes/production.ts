@@ -1331,7 +1331,10 @@ ${final.substring(0, 3000)}
 
     const response = await generateText(getConfig(), {
       prompt,
-      maxTokens: 1024,
+      // Reflexion must return parseable JSON; pin thinking off and give the
+      // payload headroom so reasoning-heavy providers don't truncate it.
+      maxTokens: 4000,
+      disableThinking: true,
       responseMimeType: 'application/json',
       novelId,
     }, {

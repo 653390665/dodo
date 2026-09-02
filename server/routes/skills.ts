@@ -69,7 +69,10 @@ import {
 const SKILL_EXTRACTION_LLM_OPTIONS = {
   timeoutMs: 35_000,
   maxAttempts: 1,
-  maxTokens: 2048,
+  // Structured skill cards must parse as JSON; headroom + thinking off keeps
+  // reasoning-heavy providers from truncating the payload mid-card.
+  maxTokens: 4000,
+  disableThinking: true,
 } as const;
 
 const SKILL_EXTRACTION_FAILURE = {

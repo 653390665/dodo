@@ -99,6 +99,9 @@ const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
   maxAttempts: 1,
   maxTokens: 8192,
+  // Prose path: pin thinking off so reasoning-heavy models emit the chapter
+  // instead of spending the budget on chain-of-thought (matches production).
+  disableThinking: true,
 } as const;
 
 const inspirationRequestSchema = z.object({
@@ -147,7 +150,10 @@ function safeEditorAgentError(error: unknown, traceId: string) {
 const ORCHESTRATE_CRITIC_LLM_OPTIONS = {
   timeoutMs: 35_000,
   maxAttempts: 1,
-  maxTokens: 1200,
+  // Structured audit JSON must close cleanly; reasoning-heavy providers burn
+  // budget on chain-of-thought, so a tight budget truncates the review.
+  maxTokens: 4000,
+  disableThinking: true,
 } as const;
 
 // ---- Lightweight In-Memory Job Queue / Store ----
@@ -448,6 +454,7 @@ export function registerAgentsRoutes(app: Express) {
                     timeoutMs: 8_000,
                     maxAttempts: 1,
                     maxTokens: 1024,
+                    disableThinking: true,
                     novelId,
                     signal,
                   });
@@ -483,7 +490,10 @@ export function registerAgentsRoutes(app: Express) {
                   prompt,
                   timeoutMs: 8_000,
                   maxAttempts: 1,
-                  maxTokens: 1600,
+                  // Beats/planning output: pin thinking off and give headroom so
+                  // reasoning-heavy models don't burn the budget and truncate.
+                  maxTokens: 2400,
+                  disableThinking: true,
                   novelId,
                   signal,
                 });

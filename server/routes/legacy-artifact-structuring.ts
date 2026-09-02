@@ -96,6 +96,9 @@ export function registerLegacyArtifactStructuringRoutes(app: Express) {
         responseMimeType: 'application/json',
         maxTokens: 4_000,
         maxAttempts: 1,
+        // Structured legacy artifacts must parse as JSON; pin thinking off so
+        // reasoning-heavy providers don't truncate the payload.
+        disableThinking: true,
       }));
       let parsed: ReturnType<typeof parseLegacyStructuringOutput>;
       try {
