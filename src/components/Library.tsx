@@ -335,7 +335,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
           <BookMarked size={48} className="text-theme-muted/20 mb-6" />
           <h3 className="text-xl font-serif font-bold text-theme-text mb-2">还没有作品</h3>
           <p className="text-sm text-theme-muted mb-8 max-w-sm">
-            创建一本新书开始写作，或者去智能管家构思故事框架。
+            创建一本空白新书开始写作，或回到首页输入一句灵感，由 AI 生成立项候选。
           </p>
           <div className="flex gap-3">
             <button

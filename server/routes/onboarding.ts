@@ -109,7 +109,14 @@ export function registerOnboardingRoutes(app: Express) {
           signal,
           timeoutMs: STORY_CARD_MODEL_TIMEOUT_MS,
           maxAttempts: 2,
-          maxTokens: 2048,
+          // 推理模型（如 DeepSeek V4 系列）的 reasoning_content 会先吃掉输出预算，
+          // 2048 会导致 content 为空（reasoning_only 不可重试）；关闭思考并对齐
+          // world-extraction 的 4096 预算。
+          disableThinking: true,
+          maxTokens: 4096,
+          // 立项卡是结构化 JSON 数据而非散文：prose 质量守卫会把 JSON 字段误判为
+          // "对白突兀无前因"，用 audit-json 通道跳过散文守卫（与 audit.ts 一致）。
+          outputMode: 'audit-json',
         }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed)));
 
       const jobId = createStoryCardJob(modelTask, jobController);

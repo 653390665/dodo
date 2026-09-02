@@ -61,6 +61,22 @@ test('buildOpenAICompatibleChatRequest uses MiniMax-specific reasoning split and
   ]);
 });
 
+test('buildOpenAICompatibleChatRequest disables thinking and passes through max_tokens for DeepSeek', () => {
+  const request = buildOpenAICompatibleChatRequest(
+    { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash' },
+    {
+      prompt: '生成立项候选',
+      maxTokens: 4096,
+      disableThinking: true,
+    },
+  );
+
+  assert.equal(request.model, 'deepseek-v4-flash');
+  assert.equal(request.max_tokens, 4096);
+  assert.equal('max_completion_tokens' in request, false);
+  assert.deepEqual(request.thinking, { type: 'disabled' });
+});
+
 test('buildOpenAICompatibleChatRequest uses generic OpenAI json response format', () => {
   const request = buildOpenAICompatibleChatRequest(
     { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini' },

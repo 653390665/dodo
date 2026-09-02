@@ -23,6 +23,28 @@ type ApiKeyStatus = 'configured' | 'missing' | 'unknown';
 type ConfigLoadStatus = 'idle' | 'running' | 'ready' | 'error';
 type EmbeddingStatus = 'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown';
 
+const CONFIG_FIELD_LABELS: Record<string, string> = {
+  baseUrl: 'Base URL',
+  apiKey: 'API Key',
+  model: '模型名',
+};
+
+/** 把 /api/config 的校验失败（Validation failed + details）转成中文字段级错误。 */
+function formatConfigValidationError(data: unknown, fallback: string): string {
+  const rec = data as { error?: string; details?: Array<{ path?: string; message?: string }> } | null | undefined;
+  if (rec?.error === 'Validation failed' && Array.isArray(rec.details) && rec.details.length > 0) {
+    return rec.details
+      .map((d) => {
+        const key = String(d.path ?? '');
+        const label = CONFIG_FIELD_LABELS[key] ?? key;
+        const msg = /url/i.test(d.message ?? '') ? '格式无效（需以 http(s):// 开头的完整地址）' : (d.message ?? '格式无效');
+        return `${label}：${msg}`;
+      })
+      .join('；');
+  }
+  return rec?.error || fallback;
+}
+
 export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedNovelId }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void, selectedNovelId?: string }) {
   const monetizationEnabled = isMonetizationEnabled();
 
@@ -318,7 +340,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.error) {
-          throw new Error(data.error || '保存配置失败');
+          throw new Error(formatConfigValidationError(data, '保存配置失败'));
         }
       }
       setBaselineConfig(config);
@@ -431,7 +453,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         throw new Error('API Key 验证失败');
       }
       if (!response.ok) {
-        throw new Error(data.error || '测试连接失败');
+        throw new Error(formatConfigValidationError(data, '测试连接失败'));
       }
 
       // Save discovered models regardless of connection success

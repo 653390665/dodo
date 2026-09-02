@@ -225,7 +225,9 @@ export function useEditorPersistence({
     if (isContentLockedRef.current && !isProgrammatic) return;
     if (newContent === undefined || newContent === null) return;
 
-    const updatedChapter = { ...currentChapter, content: newContent };
+    // 手动输入也要同步 wordCount：字数指示器读取 store 的 currentChapter.wordCount，
+    // 缺了它手写字数永远显示 0。
+    const updatedChapter = { ...currentChapter, content: newContent, wordCount: newContent.replace(/\s/g, '').length };
     setCurrentChapter(updatedChapter);
     pushToUndoHistory(newContent);
     if (!isProgrammatic) {
@@ -240,7 +242,7 @@ export function useEditorPersistence({
     if (contentRef.current && currentChapter) {
       const latestValue = contentRef.current.value;
       if (latestValue !== (currentChapter.content || '')) {
-        const updatedChapter = { ...currentChapter, content: latestValue };
+        const updatedChapter = { ...currentChapter, content: latestValue, wordCount: latestValue.replace(/\s/g, '').length };
         setCurrentChapter(updatedChapter);
         pushToUndoHistory(latestValue);
         const chapterId = currentChapter.id;
