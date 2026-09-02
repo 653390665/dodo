@@ -309,6 +309,10 @@ export async function runProductionPipeline(params: {
         currentDraft = await generateText(writerConfig, {
           prompt: writerPrompt,
           ...WRITER_LLM_OPTIONS,
+          // Pin thinking off for the whole-chapter path too: reasoning-heavy
+          // models can burn the token budget on chain-of-thought and return a
+          // truncated/empty draft (length_exhausted) instead of prose.
+          disableThinking: true,
           signal: progress.signal,
           onToken: (token) => {
             streamedWriterText += token;

@@ -450,6 +450,10 @@ async function executeCall(input: {
       timeoutMs: 90_000,
       maxAttempts: isAuditPhase(input.phase) ? 1 : 2,
       disableThinking: true,
+      // Reasoning-heavy providers need headroom: a tight budget can be burned
+      // on chain-of-thought, truncating prose mid-sentence or cutting an
+      // audit JSON before it closes (diagnosed as `truncated`).
+      maxTokens: 8000,
       ...(isAuditPhase(input.phase)
         ? { outputMode: 'audit-json' as const, responseMimeType: 'application/json' }
         : {}),

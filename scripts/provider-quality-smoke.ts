@@ -52,7 +52,11 @@ export async function runProviderQualitySmoke(
       systemInstruction: '你是中文小说作者，只输出纯正文。',
       timeoutMs: 30_000,
       maxAttempts: 1,
-      maxTokens: 800,
+      // Reasoning-heavy providers (e.g. DeepSeek V4) can burn a tight token
+      // budget on chain-of-thought and return an empty draft (length_exhausted).
+      // Give the draft headroom and pin thinking off, matching production.
+      maxTokens: 4000,
+      disableThinking: true,
     });
     if (!text.trim()) {
       emit('FAIL: provider smoke (empty_response)');
