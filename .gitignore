@@ -43,6 +43,9 @@ test-results/
 .gemini/
 scratch/
 .scratch/
+
+# TencentDB Agent Memory local deployment (contains credentials & local data)
+.tdai/
 CODE_AUDIT_REPORT.md
 EVALUATION_REPORT.md
 full-evaluation-report.html
