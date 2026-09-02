@@ -110,8 +110,8 @@ test('orchestrateWriter provides word count guidance', () => {
 
 test('orchestrateWriter self-check checklist covers all critical items', () => {
   const prompt = mergePromptTemplates().orchestrateWriter;
-  // All 6 checklist items must be present
+  // All 8 checklist items must be present (incl. de-ai-tells guard items)
   const checks = prompt.match(/□/g);
   assert.ok(checks, 'checklist must exist');
-  assert.equal(checks.length, 6, 'checklist must have exactly 6 items');
+  assert.equal(checks.length, 8, 'checklist must have exactly 8 items');
 });

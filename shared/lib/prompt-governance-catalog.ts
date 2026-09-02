@@ -165,6 +165,37 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     isWhiteLabeled: false,
     isRuntimeReady: false,
     sourceType: 'plaza'
+  },
+  {
+    id: 'de-ai-tells-guard',
+    title: '去AI味痕迹规则卡',
+    stage: 'polish',
+    goal: '按公开语料实测出的高频 AI 痕迹清单约束正文句式：翻案腔、破折号揭晓、段首零主语评论、相邻句同构、提示性冒号与复述式总结。',
+    inputs: ['content'],
+    template: [
+      '在既有叙事纪律之上，执行以下去 AI 味痕迹规则：',
+      '1. 翻案腔：禁用“不是A，而是B”“看似A，实则B”“与其说A，不如说B”式对比解释句；人物动机与局势判断用动作、后果和他人的反应呈现。',
+      '2. 破折号揭晓：禁用破折号制造揭晓式停顿（如“他推开门——桌上摆着那封信”）；信息揭示让动作先落地，用句号分段呈现，全章破折号至多一次且不用于悬念。',
+      '3. 段首零主语评论：每段第一句必须有具体主语（人物、物件或环境实体），禁止以“值得注意的是”“听起来”“显然”“事实上”等无回指评论语开头。',
+      '4. 相邻句同构：相邻两句不得共用同一句法骨架；连排的同款句式改写成有差异的动作或细节。',
+      '5. 提示性冒号：不用冒号引出解释（如“只有一个解释：”），信息直接写进句子。',
+      '6. 复述式总结：禁用“这意味着”“也就是说”引出的复述句；信息释放一次即可，不替读者总结刚发生的事。'
+    ].join('\n'),
+    outputShape: 'plain-text',
+    riskNotes: ['内置护栏，规则提炼自公开语料实测结论，检测逻辑由 InkFlow 自行实现'],
+    successSignal: '高频 AI 痕迹句式在正文中显著减少，且信息量与画面感不下降。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'optional-style',
+    score: 95,
+    grade: 'A',
+    primaryCategory: 'quality-guardrail',
+    secondaryCategory: 'utility-tool',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in'
   }
 ];
 
