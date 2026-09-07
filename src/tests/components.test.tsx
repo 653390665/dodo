@@ -1599,7 +1599,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(onAcceptRecommendedSkills).not.toHaveBeenCalled();
     });
 
-    test('驾驶舱头部打开智能管家传递工作区上下文', async () => {
+    test('驾驶舱头部打开 AI 协作助手传递工作区上下文', async () => {
       const mockOpenAssistant = vi.fn();
       const novel = {
         id: 'test-novel-id',
@@ -1621,7 +1621,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         />
       );
 
-      const assistantButton = await screen.findByRole('button', { name: '打开智能管家' });
+      const assistantButton = await screen.findByRole('button', { name: '打开 AI 协作助手' });
       fireEvent.click(assistantButton);
 
       expect(mockOpenAssistant).toHaveBeenCalledWith('general', {

@@ -13,7 +13,7 @@ export const SHORTCUTS: Record<string, Shortcut> = {
   view2: { key: '2', mod: true, label: 'Cmd+2', desc: '我的书库' },
   view3: { key: '3', mod: true, label: 'Cmd+3', desc: '创作舞台' },
   view4: { key: '4', mod: true, label: 'Cmd+4', desc: '设定记忆' },
-  view5: { key: '5', mod: true, label: 'Cmd+5', desc: '智能管家' },
+  view5: { key: '5', mod: true, label: 'Cmd+5', desc: 'AI 协作助手' },
 };
 
 export function matchesShortcut(e: KeyboardEvent, s: Shortcut): boolean {

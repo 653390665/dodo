@@ -405,7 +405,7 @@ describe('ContinuationPackView A/B late response', () => {
 
     render(<ContinuationPackView novel={mockNovel} initialActivePackId="pack-gap" onOpenGapAssistant={onOpenGapAssistant} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: '交给智能管家处理：年轻外勤搭档细节未展开' }));
+    fireEvent.click(await screen.findByRole('button', { name: '交给 AI 协作助手处理：年轻外勤搭档细节未展开' }));
 
     expect(onOpenGapAssistant).toHaveBeenCalledWith(pack.continuationGaps[0], '缺口资料包', 'pack-gap');
     expect(screen.getByText('生成补充草稿，确认后再写入设定。')).toBeDefined();

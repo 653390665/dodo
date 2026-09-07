@@ -695,12 +695,12 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
                 {onOpenGapAssistantBatch && (
                   <button
                     type="button"
-                    aria-label="批量交给智能管家处理续写缺口"
+                    aria-label="批量交给 AI 协作助手处理续写缺口"
                     onClick={() => onOpenGapAssistantBatch(activePack.continuationGaps || [], activePack.title, activePack.id)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-theme-accent/40 px-2.5 py-1.5 text-[10px] font-bold text-theme-accent hover:bg-theme-accent/10"
                   >
                     <ListChecks size={12} />
-                    批量交给智能管家处理
+                    批量交给 AI 协作助手处理
                   </button>
                 )}
               </div>
@@ -720,11 +720,11 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
                       <span className="text-[10px] text-theme-muted">生成补充草稿，确认后再写入设定。</span>
                       <button
                         type="button"
-                        aria-label={`交给智能管家处理：${g.description}`}
+                        aria-label={`交给 AI 协作助手处理：${g.description}`}
                         onClick={() => onOpenGapAssistant(g, activePack.title, activePack.id)}
                         className="rounded-lg border border-theme-accent/40 px-2.5 py-1.5 text-[10px] font-bold text-theme-accent hover:bg-theme-accent/10"
                       >
-                        交给智能管家处理
+                        交给 AI 协作助手处理
                       </button>
                     </div>
                   )}

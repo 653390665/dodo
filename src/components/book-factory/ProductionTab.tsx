@@ -252,7 +252,7 @@ export function ProductionTab({
                           {onOpenBibleAssistant ? (
                             <button
                               type="button"
-                              aria-label={`让智能管家补齐：${gap.description}`}
+                              aria-label={`让 AI 协作助手补齐：${gap.description}`}
                               onClick={() => {
                                 const prompt = [
                                   `请补充资料缺口：${gap.description}`,
@@ -264,7 +264,7 @@ export function ProductionTab({
                               }}
                               className="shrink-0 rounded-lg border border-theme-border bg-theme-sidebar px-2 py-1 text-[10px] font-medium text-theme-text hover:bg-theme-border/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/30"
                             >
-                              让智能管家补齐
+                              让 AI 协作助手补齐
                             </button>
                           ) : null}
                         </div>

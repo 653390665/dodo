@@ -63,7 +63,7 @@ describe('WorldBible helper drawer', () => {
   test('opens the global assistant with world context and does not render a local drawer', () => {
     const onOpenAssistant = vi.fn();
     render(<WorldBibleView novel={novel} onOpenAssistant={onOpenAssistant} />);
-    fireEvent.click(screen.getByRole('button', { name: '打开智能管家' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开 AI 协作助手' }));
 
     expect(onOpenAssistant).toHaveBeenCalledTimes(1);
     expect(onOpenAssistant).toHaveBeenCalledWith('bible', {
@@ -83,7 +83,7 @@ describe('WorldBible helper drawer', () => {
     const onOpenAssistant = vi.fn();
     render(<WorldBibleView novel={novel} onOpenAssistant={onOpenAssistant} />);
     fireEvent.click(screen.getAllByRole('button', { name: '人物档案' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: '打开智能管家' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开 AI 协作助手' }));
 
     expect(onOpenAssistant).toHaveBeenCalledTimes(1);
     expect(onOpenAssistant).toHaveBeenCalledWith('bible', {

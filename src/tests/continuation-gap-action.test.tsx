@@ -120,13 +120,13 @@ describe('ProductionTab continuation gap actions', () => {
     );
 
     const button = screen.getByRole('button', {
-      name: '让智能管家补齐：顾铁峰与苏老板的年轻外勤搭档细节未展开',
+      name: '让 AI 协作助手补齐：顾铁峰与苏老板的年轻外勤搭档细节未展开',
     });
     expect(screen.getByRole('button', {
-      name: '让智能管家补齐：林啸的进化棋局规则细节未完整记录',
+      name: '让 AI 协作助手补齐：林啸的进化棋局规则细节未完整记录',
     })).toBeTruthy();
     expect(screen.queryByRole('button', {
-      name: '让智能管家补齐：不应展示的第三条缺口',
+      name: '让 AI 协作助手补齐：不应展示的第三条缺口',
     })).toBeNull();
 
     fireEvent.click(button);
@@ -155,7 +155,7 @@ describe('ProductionTab continuation gap actions', () => {
 
     expect(screen.getByText(description)).toBeTruthy();
     expect(screen.queryByRole('button', {
-      name: `让智能管家补齐：${description}`,
+      name: `让 AI 协作助手补齐：${description}`,
     })).toBeNull();
   });
 

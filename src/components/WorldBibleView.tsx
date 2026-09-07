@@ -969,8 +969,8 @@ export function WorldBibleView({
               novelId: novel.id,
               worldBibleTab: activeTab,
             })}
-            aria-label="打开智能管家"
-            title="打开智能管家"
+            aria-label="打开 AI 协作助手"
+            title="打开 AI 协作助手"
             className="size-10 inline-flex items-center justify-center border border-theme-border/80 bg-theme-bg text-theme-text rounded-xl shadow-sm hover:bg-theme-sidebar transition-all"
           >
             <Sparkles size={16} />

@@ -242,12 +242,12 @@ export function ProjectCockpitView({
           <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 shrink-0">
             <button
               type="button"
-              aria-label="打开智能管家"
+              aria-label="打开 AI 协作助手"
               onClick={() => onOpenAssistant?.('general', { surface: 'workspace', novelId: novel.id })}
               className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-theme-accent/40 text-xs text-theme-accent hover:bg-theme-accent/10 transition-colors font-medium cursor-pointer"
             >
               <Sparkles size={14} />
-              智能管家
+              AI 协作助手
             </button>
             <button
               type="button"

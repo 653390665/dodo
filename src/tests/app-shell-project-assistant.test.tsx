@@ -10,6 +10,7 @@ type MockDrawerProps = {
   selectedNovel?: Novel | null;
   assistantLaunchContext: AssistantLaunchContext | null;
   handleApplyAssistantToContent: (text: string) => void;
+  handleReplaceAssistantSelection: (text: string) => void;
   handleStartAssistantCreation: (plan: AssistantActionPlan, seedText?: string) => void;
   handleLaunchAssistantSettingCandidate: (plan: AssistantActionPlan, seedText: string) => void;
 };
@@ -67,6 +68,7 @@ vi.mock('../components/AIAssistantDrawer', () => ({
     mocks.drawerPropsHistory.push(props);
     return <>
       <button data-testid="apply-assistant" onClick={() => props.handleApplyAssistantToContent('generated text')}>apply</button>
+      <button data-testid="replace-assistant-selection" onClick={() => props.handleReplaceAssistantSelection('generated text')}>replace</button>
       <button data-testid="start-assistant-creation" onClick={() => props.handleStartAssistantCreation({
         intent: 'start-creation', label: '开始完整创作', userRequest: '写一个月蚀故事', novelId: 'novel-a',
         scope: 'project', executionMode: 'workflow', outputArtifact: 'creation-flow', recommendedCapabilityId: 'generic-novel-flow', requiresReview: false,
@@ -263,6 +265,29 @@ describe('AppShell project assistant wiring', () => {
 
     expect(mocks.listChapters).not.toHaveBeenCalled();
     expect(mocks.updateChapter).not.toHaveBeenCalled();
+  });
+
+  test('assistant selection replacement passes the chapter quality gate before saving', async () => {
+    const { toast } = await import('../lib/toast');
+    mocks.listChapters.mockResolvedValue([
+      { id: 'chapter-a', novelId: novelA.id, title: '第一章', content: '现有的短正文。', wordCount: 8, createdAt: 1, updatedAt: 1 },
+    ]);
+    useAppStore.setState({ isAIAssistantOpen: true, currentView: 'editor', workspaceFocus: 'editor' });
+    useNovelStore.setState({
+      assistantLaunchContext: {
+        source: 'editor', novelId: novelA.id, novelTitle: novelA.title, chapterId: 'chapter-a',
+        selectedText: '短正文', selectionStart: 3, selectionEnd: 6,
+      },
+    });
+    render(<AppShell />);
+    await waitFor(() => expect(mocks.drawerPropsHistory.at(-1)?.isOpen).toBe(true));
+    const drawer = mocks.drawerPropsHistory.at(-1)!;
+
+    await act(async () => drawer.handleReplaceAssistantSelection('generated text'));
+
+    // 替换后的整章未达交付标准：质量门拒绝直写
+    expect(mocks.updateChapter).not.toHaveBeenCalled();
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining('助手改写未通过质量门禁'), 'error', 6500));
   });
 
   test('inerts the sidebar and main content while the assistant is open', async () => {

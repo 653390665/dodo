@@ -1408,7 +1408,7 @@ export function WelcomeView({
                     <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                       🔮 补全世界观与角色
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">前往设定工坊，通过智能管家的设定模式逐步细化并锁定主角、世界背景与升级体系。</p>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">前往设定工坊，通过 AI 协作助手的设定模式逐步细化并锁定主角、世界背景与升级体系。</p>
                   </div>
                 </button>
 

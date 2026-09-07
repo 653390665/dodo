@@ -96,11 +96,11 @@ describe('ContinuationPackView batch gap action', () => {
 
     expect(await screen.findByText(pack.title)).toBeDefined();
     expect(await screen.findByText('续写缺口')).toBeDefined();
-    const batchButton = await screen.findByRole('button', { name: '批量交给智能管家处理续写缺口' });
+    const batchButton = await screen.findByRole('button', { name: '批量交给 AI 协作助手处理续写缺口' });
     fireEvent.click(batchButton);
     expect(onOpenGapAssistantBatch).toHaveBeenCalledWith(gaps, pack.title, pack.id);
 
-    fireEvent.click(screen.getByRole('button', { name: '交给智能管家处理：缺口 1' }));
+    fireEvent.click(screen.getByRole('button', { name: '交给 AI 协作助手处理：缺口 1' }));
     expect(onOpenGapAssistant).toHaveBeenCalledWith(gaps[0], pack.title, pack.id);
     await waitFor(() => expect(screen.queryByText('缺口 6')).toBeNull());
   });

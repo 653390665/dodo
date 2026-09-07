@@ -41,7 +41,7 @@ type PreparedSync = {
 
 const welcome: Message = {
   id: 'welcome', sender: 'assistant',
-  text: '你好！这里是智能管家的设定模式。你可以描述人物、地点、道具、势力、境界或时间线事件，我会生成可确认写入的设定。',
+  text: '你好！这里是 AI 协作助手的设定模式。你可以描述人物、地点、道具、势力、境界或时间线事件，我会生成可确认写入的设定。',
 };
 
 function cleanStreamingText(text: string) {
@@ -567,8 +567,8 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
   }, [preparedSync]);
   useEffect(() => { if (typeof endRef.current?.scrollIntoView === 'function') endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, isLoading]);
 
-  return <div role="complementary" aria-label="智能管家设定模式" className="bg-theme-sidebar/95 flex flex-col h-full min-h-0">
-    <div className="p-4 border-b border-theme-border/50 flex items-center justify-between"><div className="flex items-center gap-2"><Sparkles size={16} className="text-theme-accent" /><h3 className="text-xs font-bold text-theme-text">设定记忆</h3></div><div className="flex gap-1"><button aria-label="清空对话历史" title="清空对话历史" onClick={() => { cancelActiveRequest(); store.clearSession(novel.id, 'bible'); store.setMessages(novel.id, 'bible', [welcome]); }} className="size-7"><Trash2 size={14} /></button><button aria-label="关闭智能管家" title="关闭智能管家" onClick={onClose} className="size-7"><X size={14} /></button></div></div>
+  return <div role="complementary" aria-label="AI 协作助手设定模式" className="bg-theme-sidebar/95 flex flex-col h-full min-h-0">
+    <div className="p-4 border-b border-theme-border/50 flex items-center justify-between"><div className="flex items-center gap-2"><Sparkles size={16} className="text-theme-accent" /><h3 className="text-xs font-bold text-theme-text">设定记忆</h3></div><div className="flex gap-1"><button aria-label="清空对话历史" title="清空对话历史" onClick={() => { cancelActiveRequest(); store.clearSession(novel.id, 'bible'); store.setMessages(novel.id, 'bible', [welcome]); }} className="size-7"><Trash2 size={14} /></button><button aria-label="关闭 AI 协作" title="关闭 AI 协作" onClick={onClose} className="size-7"><X size={14} /></button></div></div>
     <div role="log" aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-4">{messages.map(message => <div key={message.id} className={message.sender === 'user' ? 'flex justify-end' : message.sender === 'system' ? 'text-center text-[10px] text-theme-muted' : ''}><div className={message.sender === 'user' ? 'bg-theme-accent text-theme-accent-contrast px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap' : 'bg-theme-bg/60 border border-theme-border/30 text-theme-text px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap'}>{message.text}</div></div>)}{isLoading && <div className="text-theme-muted text-[10px]"><Loader2 size={12} className="inline animate-spin" /> 助手正在思考并设计中...</div>}<div ref={endRef} /></div>
  {session.failure && <div role="alert" aria-label="助手请求失败" className="mx-4 mb-3 rounded-xl alert-warning p-3 text-[10px]"><div>{session.failure.reason === 'no_content' ? '模型未返回内容' : session.failure.reason === 'reasoning_only' ? '模型只返回了推理过程' : session.failure.reason === 'length_exhausted' ? '输出因长度限制结束' : session.failure.message}</div>{session.failure.reason && <div>原因：{session.failure.reason}</div>}{session.failure.finishReason && <div>finishReason: {session.failure.finishReason}</div>}{session.failure.traceId && <div>诊断编号：{session.failure.traceId}</div>}<div className="mt-2 flex flex-wrap gap-3">{(session.failure.retriable || session.failure.code === 'empty_response') && <button type="button" className="font-bold underline" onClick={() => void submit(true)}>重试本次请求</button>}{['configuration', 'authentication', 'billing'].includes(session.failure.code) && <button type="button" className="font-bold underline" onClick={() => window.dispatchEvent(new Event('open-settings'))}>打开设置</button>}</div></div>}
     {resolvedContinuationPackId && latestAssistantText && !lastReplyFailed && !isLoading && !preparedSync && !session.draft && (

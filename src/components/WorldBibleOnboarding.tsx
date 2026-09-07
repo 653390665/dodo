@@ -188,7 +188,7 @@ export function WorldBibleOnboarding({
             className="fixed bottom-8 right-8 z-40 flex items-center gap-2 rounded-full bg-theme-accent px-6 py-3 font-bold text-theme-accent-contrast shadow-xl transition-all hover:scale-105 active:scale-95 group"
           >
             <Sparkles size={18} className="group-hover:animate-pulse" />
-            智能管家
+            设定引导
           </button>
         )}
 

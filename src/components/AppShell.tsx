@@ -698,6 +698,12 @@ export function AppShell() {
       },
       text,
     );
+    // 与正文写入同语义：替换后的整章也要过质量门才能落库
+    const quality = validateCompleteChapterDraftQuality(nextContent);
+    if (!quality.ok) {
+      toast(`助手改写未通过质量门禁：${quality.violations.join('；')}`, 'error', 6500);
+      return;
+    }
 
     const saved = await updateChapter(target.id, {
       content: nextContent,
