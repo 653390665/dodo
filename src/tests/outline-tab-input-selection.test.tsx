@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { useProductionStore } from '../stores/production-store';
 import { describe, expect, test, vi } from 'vitest';
 import { OutlineTab } from '../components/book-factory/OutlineTab';
 
@@ -17,7 +18,8 @@ const pack = {
 
 describe('OutlineTab input selection', () => {
   test('keeps reports out of primary choices and limits references to five', () => {
-    render(<OutlineTab expectedWordCount={100} setExpectedWordCount={vi.fn()} onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={pack} />);
+    useProductionStore.setState({ expectedWordCount: 100 });
+    render(<OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={pack} />);
     expect(screen.queryByRole('radio', { name: /审稿报告/ })).toBeNull();
     const references = screen.getAllByRole('checkbox');
     expect(references.length).toBeGreaterThan(0);

@@ -34,6 +34,7 @@ import {
 } from '../../lib/outline-client';
 import { OutlineGovernancePanel } from './OutlineGovernancePanel';
 import { CURATED_PRODUCT_SKILLS } from '../../../shared/lib/public-skill-catalog';
+import { useProductionStore } from '../../stores/production-store';
 
 const SOURCE_KIND_LABELS: Record<ContinuationSourceKind, string> = {
   world: '世界设定',
@@ -60,8 +61,6 @@ const OUTLINE_REFERENCE_KINDS = new Set<ContinuationSourceKind>(['outline', 'wor
 
 interface OutlineTabProps {
   novelId?: string;
-  expectedWordCount: number | '';
-  setExpectedWordCount: (count: number | '') => void;
   projectTechniqueId?: string;
   onGenerateOutline: (outline?: string, options?: {
     techniqueId?: string;
@@ -86,8 +85,6 @@ interface OutlineTabProps {
 export function OutlineTab({
   novelId,
   projectTechniqueId,
-  expectedWordCount,
-  setExpectedWordCount,
   onGenerateOutline,
   onAdoptOutline,
   onCanonicalOutlineChange,
@@ -100,6 +97,9 @@ export function OutlineTab({
   onSelectChapter,
   selectedContinuationPack,
 }: OutlineTabProps) {
+  // 005-S4：期望字数直接订阅 store
+  const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
+  const setExpectedWordCount = useProductionStore((state) => state.setExpectedWordCount);
   const hasOutline = globalOutline.trim().length > 0;
   const hasApprovedPack = selectedContinuationPack?.status === 'approved';
   const outlineDocuments = React.useMemo(

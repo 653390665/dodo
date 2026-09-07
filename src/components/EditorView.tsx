@@ -126,7 +126,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     return launchState.prefillIntent?.trim() || buildCreationIntentDraft(selectedPack);
   }, [continuationPacks, launchState, selectedContinuationPackId]);
 
-  const [expectedWordCount, setExpectedWordCount] = useState<number | ''>('');
+  // 005-S4：期望字数入 store
+  const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
+  const setExpectedWordCount = useProductionStore((state) => state.setExpectedWordCount);
   const [userIntent, setUserIntent] = useState('');
   const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>('unknown');
   const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
@@ -2057,8 +2059,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onStopProductionRun={stopProductionFlow}
             onApplyProductionRun={handleApplyProductionRun}
             onOpenBibleAssistant={onOpenBibleAssistant}
-            expectedWordCount={expectedWordCount}
-            setExpectedWordCount={setExpectedWordCount}
             onGenerateOutline={handleGenerateOutline}
             onAdoptOutline={adoptGlobalOutline}
             onCanonicalOutlineChange={setGlobalOutline}
@@ -2115,7 +2115,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onQuickGenerate={handleQuickGenerate}
             quickGenerateDisabled={isGeneratingContent || !currentChapter?.sceneBeats}
             onOpenWritingStyle={handleOpenWritingStyle}
-            reviewIssues={currentChapter?.workflowMeta?.reviewState?.issues}
             onPreviewReviewIssue={handlePreviewReviewIssue}
             onFixReviewIssues={handleFixReviewIssues}
             onAcceptReviewIssueRisk={handleAcceptReviewIssueRisk}

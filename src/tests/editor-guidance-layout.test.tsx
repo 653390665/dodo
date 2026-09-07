@@ -92,8 +92,6 @@ function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
         setSelectedContinuationPackId: noop,
         onStartProductionRun: noopAsync,
         onApplyProductionRun: noopAsync,
-        expectedWordCount: '',
-        setExpectedWordCount: noop,
         onGenerateOutline: noopAsync,
         onAdoptOutline: vi.fn().mockResolvedValue(true),
         isGeneratingOutline: false,

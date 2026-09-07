@@ -17,7 +17,7 @@ import { toast } from '../lib/toast';
 import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
-import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isMonetizationEnabled } from '../lib/entitlements';
+import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isLicensedEnhancementGated, isMonetizationEnabled } from '../lib/entitlements';
 import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, getOptionalStyleAssets, getSanitizeRequiredAssets, isSanitizeRequiredAsset, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
 import {
   getAuthorFacingCapabilityActionHint,
@@ -1539,9 +1539,7 @@ export function SkillsStudioView({
       setConfigurationError('旧草稿只读，请先重新预览本次配置。');
       return null;
     }
-    const isLicensed = getCapabilityManifest(asset)?.sourceType === 'licensed';
-
-    if (isLicensed && isFreeNovel) {
+    if (isLicensedEnhancementGated(getCapabilityManifest(asset)?.sourceType, isFreeNovel)) {
       dispatchCapabilityUnavailable({
           limitType: 'extractSkill',
           count: 5,
@@ -1909,7 +1907,7 @@ export function SkillsStudioView({
         }
         if (type !== 'technique' && type !== 'skill-card') continue;
         const manifest = getCapabilityManifest(component.asset);
-        if (manifest.sourceType === 'licensed' && isFreeNovel) {
+        if (isLicensedEnhancementGated(manifest.sourceType, isFreeNovel)) {
           setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'unavailable' }));
           dispatchCapabilityUnavailable({
             limitType: 'extractSkill', count: 5, max: 5,
@@ -2336,8 +2334,7 @@ export function SkillsStudioView({
                     {SKILL_SERIES_FLOWS.filter((flow) => visibleFlowIds.includes(flow.id)).map((flow) => {
                       const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
                       const isActive = configurationDraft?.activeFlowId === flow.id;
-                      const isLicensed = getCatalogCapabilityManifest(flow.id)?.sourceType === 'licensed';
-                      const isLocked = isLicensed && isFreeNovel;
+                      const isLocked = isLicensedEnhancementGated(getCatalogCapabilityManifest(flow.id)?.sourceType, isFreeNovel);
 
                       return (
                         <div
@@ -2832,12 +2829,12 @@ export function SkillsStudioView({
                 }}
                 className={cn(
                   "flex-1 py-2.5 text-xs font-bold rounded-xl text-white transition-all flex items-center justify-center gap-1.5",
-                  (getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType === 'licensed' && isFreeNovel)
+                  isLicensedEnhancementGated(getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType, isFreeNovel)
                     ? "bg-amber-500 hover:bg-amber-600"
                     : "bg-theme-accent hover:opacity-90"
                 )}
               >
-                {(getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType === 'licensed' && isFreeNovel) && <Lock size={12} />}
+                {isLicensedEnhancementGated(getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType, isFreeNovel) && <Lock size={12} />}
                 激活该创作主流程
               </button>
             </div>

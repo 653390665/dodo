@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useProductionStore } from '../stores/production-store';
 import { afterEach, describe, expect, test, vi, beforeEach } from 'vitest';
 
 import type { ChapterMetadata, ContinuationPack, Skill, MountedSkillLoadoutItem, AggregatedSkillDeck } from '../../shared/types';
@@ -78,9 +79,11 @@ const makeSkill = (id: string, cardType?: Skill['deconstructionCardType']): Skil
 });
 
 describe('OutlineTab - Plan 135 Behavior Tests', () => {
+  beforeEach(() => {
+    // 状态条迁移后 OutlineTab 从全局 store 读期望字数；逐用例复位避免跨用例泄漏
+    useProductionStore.setState({ expectedWordCount: '' });
+  });
   const defaultProps = {
-    expectedWordCount: '' as number | '',
-    setExpectedWordCount: vi.fn(),
     onGenerateOutline: vi.fn(async () => {}),
     isGeneratingOutline: false,
     globalOutline: '',
@@ -124,20 +127,22 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('production AI generation receives the local draft', async () => {
+    useProductionStore.setState({ expectedWordCount: 1000 });
     const onGenerateOutline = vi.fn(async () => {});
-    render(<OutlineTab {...defaultProps} novelId="novel-1" expectedWordCount={100} selectedContinuationPack={null} onGenerateOutline={onGenerateOutline} globalOutline="旧主纲" />);
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGenerateOutline={onGenerateOutline} globalOutline="旧主纲" />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'AI 输入草稿' } });
     fireEvent.click(screen.getByRole('button', { name: 'AI 生成作品大纲' }));
     await waitFor(() => expect(onGenerateOutline).toHaveBeenCalledWith('AI 输入草稿'));
   });
 
   test('project technique generation sends structured source IDs without imported text', async () => {
+    useProductionStore.setState({ expectedWordCount: 1000 });
     const onGenerateOutline = vi.fn(async () => ({ candidateId: 'candidate-1', content: '候选细纲', databaseGeneration: 1 }));
     render(
       <OutlineTab
         {...defaultProps}
         novelId="novel-1"
-        expectedWordCount={100}
+        
         projectTechniqueId="opening-gold-three"
         selectedContinuationPack={approvedPackWithManuscript}
         onGenerateOutline={onGenerateOutline}
@@ -158,12 +163,13 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('regular imported-outline generation sends structured source IDs without a technique', async () => {
+    useProductionStore.setState({ expectedWordCount: 1000 });
     const onGenerateOutline = vi.fn(async () => ({ candidateId: 'candidate-1', content: '候选细纲', databaseGeneration: 1 }));
     render(
       <OutlineTab
         {...defaultProps}
         novelId="novel-1"
-        expectedWordCount={100}
+        
         selectedContinuationPack={approvedPackWithManuscript}
         onGenerateOutline={onGenerateOutline}
       />,
@@ -185,7 +191,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={100}
+        
         projectTechniqueId="opening-gold-three"
         selectedContinuationPack={null}
       />,
@@ -255,7 +261,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={100000}
+        
         selectedContinuationPack={approvedPackWithManuscript}
       />,
     );
@@ -267,7 +273,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={100000}
+        
         selectedContinuationPack={null}
       />,
     );
@@ -279,7 +285,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={100000}
+        
         selectedContinuationPack={reportOutlinePack}
       />,
     );
@@ -338,10 +344,11 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('button enabled with expectedWordCount', () => {
+    useProductionStore.setState({ expectedWordCount: 1000 });
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={100000}
+        
         selectedContinuationPack={approvedPackWithManuscript}
       />,
     );
@@ -381,7 +388,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        expectedWordCount={3000000}
+        
         selectedContinuationPack={approvedPackWithManuscript}
       />,
     );
@@ -453,12 +460,12 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('preserves 3000000 as a numeric UI value', () => {
-    const setExpectedWordCount = vi.fn();
-    render(<OutlineTab {...defaultProps} setExpectedWordCount={setExpectedWordCount} selectedContinuationPack={null} />);
+    useProductionStore.setState({ expectedWordCount: '' });
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={null} />);
 
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '3000000' } });
 
-    expect(setExpectedWordCount).toHaveBeenCalledWith(3000000);
+    expect(useProductionStore.getState().expectedWordCount).toBe(3000000);
   });
 
   test('deck mount plan preserves unrelated slots and requires an explicit dual-stage choice', () => {
@@ -491,7 +498,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     const pack = { ...approvedPackWithManuscript, id: 'pack-ordinary', sourceDocuments: [
       { id: 'ordinary', packId: 'pack-ordinary', filename: '主线大纲.txt', kind: 'outline' as const, text: `${'正文'.repeat(150)}评分 review`, excerpt: '主线大纲', createdAt: 1 },
     ] };
-    render(<OutlineTab {...defaultProps} expectedWordCount={100000} selectedContinuationPack={pack} />);
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={pack} />);
     expect(screen.getByText('主线大纲.txt')).toBeDefined();
   });
 

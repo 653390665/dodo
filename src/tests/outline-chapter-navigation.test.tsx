@@ -20,8 +20,7 @@ describe('outline chapter navigation', () => {
     const onSelectChapter = vi.fn(async () => {});
     render(
       <OutlineTab
-        expectedWordCount=""
-        setExpectedWordCount={vi.fn()}
+        
         onGenerateOutline={vi.fn(async () => {})}
         isGeneratingOutline={false}
         globalOutline=""

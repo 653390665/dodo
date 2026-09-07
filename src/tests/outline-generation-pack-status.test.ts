@@ -32,7 +32,6 @@ function createHookArgs(overrides: Partial<Parameters<typeof useOutlineGeneratio
   return {
     novel: mockNovel,
     globalOutline: '',
-    expectedWordCount: 100000,
     currentChapter: null,
     selectedContinuationPackId: '',
     planningPromptSurface: 'workspace-beats',
@@ -41,6 +40,7 @@ function createHookArgs(overrides: Partial<Parameters<typeof useOutlineGeneratio
     setIsGeneratingOutline: vi.fn(),
     setGlobalOutline: vi.fn(),
     flushPendingEditorWrites,
+    expectedWordCount: 500,
     ...overrides,
   };
 }
@@ -122,7 +122,7 @@ describe('useOutlineGeneration - pack status filtering', () => {
 
   test('uses selected outline as seed and reports failure without replacing it', async () => {
     startWorldJob.mockRejectedValueOnce(new Error('网络失败'));
-    const args = createHookArgs({ globalOutline: '旧大纲' });
+    const args = createHookArgs({ globalOutline: '旧大纲', expectedWordCount: 100000 });
     const { handleGenerateOutline } = useOutlineGeneration(args);
 
     await handleGenerateOutline('所选文件大纲');

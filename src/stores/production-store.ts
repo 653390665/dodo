@@ -19,6 +19,8 @@ export interface ProductionState {
   productionDraftSource: 'fallback' | 'model' | null;
   productionAuditSource: 'fallback' | 'model' | null;
   productionStatusMessage: string | null;
+  /** 005-S4：本章期望字数（生成面板用），number | '' 表示未设置。 */
+  expectedWordCount: number | '';
   setProductionIntent: (intent: string) => void;
   setActiveProductionRun: (
     run: ChapterProductionRun | null | ((current: ChapterProductionRun | null) => ChapterProductionRun | null),
@@ -30,6 +32,7 @@ export interface ProductionState {
   setProductionDraftSource: (source: 'fallback' | 'model' | null) => void;
   setProductionAuditSource: (source: 'fallback' | 'model' | null) => void;
   setProductionStatusMessage: (message: string | null) => void;
+  setExpectedWordCount: (value: number | '') => void;
   /** 章节/作品切换或一次性清空时使用；字段级更新仍走各自 setter。 */
   resetProductionFlow: () => void;
 }
@@ -44,6 +47,7 @@ const initialState = {
   productionDraftSource: null as 'fallback' | 'model' | null,
   productionAuditSource: null as 'fallback' | 'model' | null,
   productionStatusMessage: null as string | null,
+  expectedWordCount: '' as number | '',
 };
 
 export const useProductionStore = create<ProductionState>((set) => ({
@@ -61,5 +65,6 @@ export const useProductionStore = create<ProductionState>((set) => ({
   setProductionDraftSource: (source) => set({ productionDraftSource: source }),
   setProductionAuditSource: (source) => set({ productionAuditSource: source }),
   setProductionStatusMessage: (message) => set({ productionStatusMessage: message }),
+  setExpectedWordCount: (value) => set({ expectedWordCount: value }),
   resetProductionFlow: () => set({ ...initialState }),
 }));

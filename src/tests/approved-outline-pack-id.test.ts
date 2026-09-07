@@ -30,7 +30,7 @@ function createHookArgs(overrides: Partial<Parameters<typeof useOutlineGeneratio
   return {
     novel: mockNovel,
     globalOutline: '',
-    expectedWordCount: 100000,
+    expectedWordCount: 500,
     currentChapter: null,
     selectedContinuationPackId: '',
     planningPromptSurface: 'workspace-beats',

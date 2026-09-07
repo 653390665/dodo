@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useProductionStore } from '../stores/production-store';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { OutlineGovernancePanel } from '../components/book-factory/OutlineGovernancePanel';
 import { OutlineTab } from '../components/book-factory/OutlineTab';
@@ -35,6 +36,7 @@ describe('OutlineGovernancePanel', () => {
 
   test('marks one active master and candidate radio is single-select with activation', async () => {
     const adopt = vi.fn(async () => true);
+    useProductionStore.setState({ expectedWordCount: 100 });
     render(<OutlineGovernancePanel novelId="n1" onAdoptOutline={adopt} />);
     await screen.findByText('m-active');
     expect(screen.getAllByRole('radio')).toHaveLength(2);
@@ -123,7 +125,7 @@ describe('OutlineGovernancePanel', () => {
   });
 
   test('keeps semantic controls and narrow layout class', () => {
-    const { container } = render(<><OutlineGovernancePanel /><OutlineTab expectedWordCount={100} setExpectedWordCount={vi.fn()} onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={null} /></>);
+    const { container } = render(<><OutlineGovernancePanel /><OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={null} /></>);
     expect(screen.queryByRole('button', { name: '设为主纲' })).toBeNull();
     expect(container.querySelector('.sm\\:flex-row')).toBeTruthy();
   });

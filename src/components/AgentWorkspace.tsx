@@ -37,7 +37,6 @@ import {
   EntityRelationship,
   Faction,
   WritingStyleMode,
-  ReviewIssue,
   ViewType,
 } from '../../shared/types';
 import { cn } from '../lib/utils';
@@ -131,8 +130,6 @@ interface AgentWorkspaceProps {
   onStopProductionRun?: () => void;
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   onOpenBibleAssistant?: (prompt: string) => void;
-  expectedWordCount: number | '';
-  setExpectedWordCount: (count: number | '') => void;
   projectTechniqueId?: string;
   onGenerateOutline: (outline?: string, options?: {
     techniqueId?: string;
@@ -207,7 +204,6 @@ interface AgentWorkspaceProps {
     draftChars?: number;
     auditPassed?: boolean;
   };
-  reviewIssues?: ReviewIssue[];
   onPreviewReviewIssue?: (issueId: string) => void | Promise<void>;
   onFixReviewIssues?: (issueIds: string[], scope?: string) => void | Promise<void>;
   onAcceptReviewIssueRisk?: (issueId: string, reason?: string) => void | Promise<void>;
@@ -236,8 +232,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onStopProductionRun,
   onApplyProductionRun,
   onOpenBibleAssistant,
-  expectedWordCount,
-  setExpectedWordCount,
   onGenerateOutline,
   projectTechniqueId,
   onAdoptOutline,
@@ -296,7 +290,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onQuickGenerate,
   quickGenerateDisabled,
   stepEvidence,
-  reviewIssues,
   onPreviewReviewIssue,
   onFixReviewIssues,
   onAcceptReviewIssueRisk,
@@ -958,8 +951,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onStopProductionRun={onStopProductionRun}
               onApplyProductionRun={onApplyProductionRun}
               onOpenBibleAssistant={onOpenBibleAssistant}
-              expectedWordCount={expectedWordCount}
-              setExpectedWordCount={setExpectedWordCount}
               projectTechniqueId={projectTechniqueId}
               onGenerateOutline={onGenerateOutline}
               onAdoptOutline={onAdoptOutline}
@@ -1007,7 +998,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onQuickGenerate={onQuickGenerate}
               quickGenerateDisabled={quickGenerateDisabled}
               onOpenWritingStyle={onOpenWritingStyle}
-              reviewIssues={reviewIssues}
               onPreviewReviewIssue={onPreviewReviewIssue}
               onFixReviewIssues={onFixReviewIssues}
               onAcceptReviewIssueRisk={onAcceptReviewIssueRisk}

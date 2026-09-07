@@ -22,7 +22,7 @@
 | B1 | 005-S4 writingStyle 域入 store | ✅ 展示态完成（resolution/candidates/error 入 store、三层透传拆除、死 prop 清理）；hooks 参数收窄按计划边界后置 | 005 |
 | B2 | 005 profiler 手工取证：React DevTools 确认击键不重渲染 AgentWorkspace | 005 |
 | B3 | 006 术语渐进替换（按 glossary 高频旧词逐面收敛）+ 空状态 CTR（"暂无智能建议"→可点击） | 006 |
-| B4 | EditorView props 87→≤60：依赖 B1（writingStyle -4）+ outline/beats 域迁移（视余量另立） | 005 完成标准 |
+| B4 | EditorView props 87→≤60 | ◐ 进行中：现 81（S4 后又拆 reviewIssues/expectedWordCount）；剩余大头为 outline 内容域与 continuation 选包域（per-novel hook，需键控设计） | 005 完成标准 |
 
 ### C. 决策项（2026-09-07：推荐项已设为工作默认，标注"默认"，随时可改判）
 | 项 | 默认处置 | 改判条件 |

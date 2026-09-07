@@ -49,8 +49,6 @@ interface AgentWorkspaceProductionPanelProps {
   onStopProductionRun?: () => void;
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   onOpenBibleAssistant?: (prompt: string) => void;
-  expectedWordCount: number | '';
-  setExpectedWordCount: (count: number | '') => void;
   projectTechniqueId?: string;
   onGenerateOutline: (outline?: string, options?: {
     techniqueId?: string;
@@ -110,7 +108,6 @@ interface AgentWorkspaceProductionPanelProps {
   onConfirmWritingStyle?: (mode: WritingStyleMode) => Promise<string | void> | string | void;
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
-  reviewIssues?: ReviewIssue[];
   onPreviewReviewIssue?: (issueId: string) => void | Promise<void>;
   onFixReviewIssues?: (issueIds: string[], scope?: string) => void | Promise<void>;
   onAcceptReviewIssueRisk?: (issueId: string, reason?: string) => void | Promise<void>;
@@ -129,8 +126,6 @@ export function AgentWorkspaceProductionPanel({
   onStopProductionRun,
   onApplyProductionRun,
   onOpenBibleAssistant,
-  expectedWordCount,
-  setExpectedWordCount,
   onGenerateOutline,
   projectTechniqueId,
   onAdoptOutline,
@@ -174,12 +169,15 @@ export function AgentWorkspaceProductionPanel({
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
-  reviewIssues,
   onPreviewReviewIssue,
   onFixReviewIssues,
   onAcceptReviewIssueRisk,
   onDeferReviewIssue,
 }: AgentWorkspaceProductionPanelProps) {
+  // 005-S4：问题单从当前章完成审查结论派生
+  const reviewIssues = currentChapter?.workflowMeta?.reviewState?.issues;
+  // 005-S4：期望字数直接订阅 store
+  const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   // 005-S3：生产域状态直接订阅 production-store
   const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
   const selectedContinuationPack =
@@ -277,8 +275,6 @@ export function AgentWorkspaceProductionPanel({
     return (
       <OutlineTab
         novelId={novel.id}
-        expectedWordCount={expectedWordCount}
-        setExpectedWordCount={setExpectedWordCount}
         onGenerateOutline={onGenerateOutline}
         projectTechniqueId={projectTechniqueId}
         onAdoptOutline={onAdoptOutline}

@@ -75,3 +75,11 @@ export function dispatchCapabilityUnavailable(detail: CapabilityUnavailableEvent
     window.dispatchEvent(new CustomEvent('local-capability-unavailable', { detail }));
   }
 }
+
+/** 007 T6：授权增强门槛的唯一判定（licensed 资产且当前作品未开通增强）。 */
+export function isLicensedEnhancementGated(
+  sourceType: string | undefined | null,
+  isFreeNovel: boolean,
+): boolean {
+  return sourceType === 'licensed' && isFreeNovel;
+}
