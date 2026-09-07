@@ -37,9 +37,9 @@
 | J1 能力启用 → 生产注入 | 启用写 profile（卡组/技法/护栏）→ 三阶段消费 | plan158（apply 断言）+ writing-style-service（后端注入侧 48 例） | ✅ 有背书 |
 | J2 写法确认 → 生产流 | fingerprint 进 run/audit 载荷；确认要求 → 候选横幅 → 确认后 retry | continuation-autostart + writing-style-gates（后端）+ useAuditPolishActions 指纹路径 | ✅ 有背书 |
 | J3 生产 → 完成审查 → 门禁 → 精修回写 | complete → gate → risk → issue 修复 → reviewState 重算 | chapter-completion(13) + workflow-state + quality-review-journey + editor-completion-flow(9) | ✅ 有背书 |
-| J4 候选接受 → 质量门 → 写入 → **自动触发完成审查** | 接受链有门有测试；"接受成功后自动跑一次完成审查"这一跳无直接断言 | editor-candidate-acceptance（接受与门）+ editor-completion-flow（审查与门）各测半段 | ⚠️ 半覆盖 |
+| J4 候选接受 → 质量门 → 写入 → **自动触发完成审查** | 复核修正：polish 接受的定向重审已有完整背书（editor-candidate-acceptance:165/193/218），draft 接受按产品语义不触发完成审查 | editor-candidate-acceptance + editor-completion-flow | ✅ 有背书（矩阵修正） |
 | J5 续写包 → 缺口 → 助手 → 设定候选 | continuation-gap-assistant-bridge + app-shell-batch-gap-assistant + db-continuation-pack | ✅ 有背书 |
-| J6 消毒/授权 → 商店 → 启用落库 | 消毒端点+落库（后端 5 例）、启用→apply（plan158）；**"消毒后卡在商店可见并成功启用"的端到端一跳**无测试 | ⚠️ 半覆盖 |
+| J6 消毒/授权 → 商店 → 启用落库 | 端到端接缝测试已补（010），且暴露并修复了"消毒后启用被目录门槛拦下却谎报成功"的产品缺陷 | ✅ 已闭合（010） |
 | J7 状态条/各域 store 联动 | GenerationStatusBar 读 store + 各域写 store 的跨面传播 | generation-status-bar（组件级） | ⚠️ 仅组件级 |
 
 ### 联动缺口（建议立 010：三条接缝测试）
