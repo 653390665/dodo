@@ -60,6 +60,7 @@ import type { AiContentCandidate } from '../lib/generation-action-state';
 import { AiCandidateReview } from './AiCandidateReview';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
+import { useOutlineContentStore } from '../stores/outline-content-store';
 
 
 
@@ -141,7 +142,6 @@ interface AgentWorkspaceProps {
   onCanonicalOutlineChange?: (outline: string) => void;
   outlineError?: string | null;
   isGeneratingOutline: boolean;
-  globalOutline: string;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
   isGeneratingBeats: boolean;
@@ -232,7 +232,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onCanonicalOutlineChange,
   outlineError,
   isGeneratingOutline,
-  globalOutline,
   onGlobalOutlineChange,
   onGenerateBeats,
   isGeneratingBeats,
@@ -295,6 +294,8 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  // 011 Phase 2：主纲值订阅 store
+  const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   const [bibleSearch, setBibleSearch] = React.useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
   const [skillsPanelRevision, setSkillsPanelRevision] = React.useState(0);
@@ -952,7 +953,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onCanonicalOutlineChange={onCanonicalOutlineChange}
               outlineError={outlineError}
               isGeneratingOutline={isGeneratingOutline}
-              globalOutline={globalOutline}
               onGlobalOutlineChange={onGlobalOutlineChange}
               onGenerateBeats={onGenerateBeats}
               isGeneratingBeats={isGeneratingBeats}

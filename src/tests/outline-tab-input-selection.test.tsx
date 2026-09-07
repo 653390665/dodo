@@ -19,7 +19,7 @@ const pack = {
 describe('OutlineTab input selection', () => {
   test('keeps reports out of primary choices and limits references to five', () => {
     useProductionStore.setState({ expectedWordCount: 100 });
-    render(<OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={pack} />);
+    render(<OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={pack} />);
     expect(screen.queryByRole('radio', { name: /审稿报告/ })).toBeNull();
     const references = screen.getAllByRole('checkbox');
     expect(references.length).toBeGreaterThan(0);

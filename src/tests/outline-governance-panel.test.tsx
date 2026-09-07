@@ -125,7 +125,7 @@ describe('OutlineGovernancePanel', () => {
   });
 
   test('keeps semantic controls and narrow layout class', () => {
-    const { container } = render(<><OutlineGovernancePanel /><OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} globalOutline="" onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={null} /></>);
+    const { container } = render(<><OutlineGovernancePanel /><OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={null} /></>);
     expect(screen.queryByRole('button', { name: '设为主纲' })).toBeNull();
     expect(container.querySelector('.sm\\:flex-row')).toBeTruthy();
   });

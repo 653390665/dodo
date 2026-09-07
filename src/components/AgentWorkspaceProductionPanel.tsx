@@ -19,6 +19,7 @@ import type {
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { useProductionStore } from '../stores/production-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
+import { useOutlineContentStore } from '../stores/outline-content-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -59,7 +60,6 @@ interface AgentWorkspaceProductionPanelProps {
   onCanonicalOutlineChange?: (outline: string) => void;
   outlineError?: string | null;
   isGeneratingOutline: boolean;
-  globalOutline: string;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
   isGeneratingBeats: boolean;
@@ -126,7 +126,6 @@ export function AgentWorkspaceProductionPanel({
   onCanonicalOutlineChange,
   outlineError,
   isGeneratingOutline,
-  globalOutline,
   onGlobalOutlineChange,
   onGenerateBeats,
   isGeneratingBeats,
@@ -173,6 +172,7 @@ export function AgentWorkspaceProductionPanel({
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   // 005-S4：期望字数直接订阅 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   // 005-S3：生产域状态直接订阅 production-store
@@ -275,7 +275,6 @@ export function AgentWorkspaceProductionPanel({
         onCanonicalOutlineChange={onCanonicalOutlineChange}
         outlineError={outlineError}
         isGeneratingOutline={isGeneratingOutline}
-        globalOutline={globalOutline}
         onGlobalOutlineChange={onGlobalOutlineChange}
         chapters={chapters}
         currentChapter={currentChapter}

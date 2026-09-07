@@ -2060,7 +2060,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onCanonicalOutlineChange={setGlobalOutline}
             outlineError={outlineError}
             isGeneratingOutline={isGeneratingOutline}
-            globalOutline={globalOutline}
             onGlobalOutlineChange={handleUpdateGlobalOutline}
             onGenerateBeats={handleGenerateBeats}
             isGeneratingBeats={isGeneratingBeats}

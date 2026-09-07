@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useOutlineContentStore } from '../stores/outline-content-store';
 import { useProductionStore } from '../stores/production-store';
 import { afterEach, describe, expect, test, vi, beforeEach } from 'vitest';
 
@@ -80,13 +81,16 @@ const makeSkill = (id: string, cardType?: Skill['deconstructionCardType']): Skil
 
 describe('OutlineTab - Plan 135 Behavior Tests', () => {
   beforeEach(() => {
+    useProductionStore.setState({ expectedWordCount: 1000 });
+    useOutlineContentStore.setState({ globalOutline: '', outlineError: null });
+  });
+  beforeEach(() => {
     // 状态条迁移后 OutlineTab 从全局 store 读期望字数；逐用例复位避免跨用例泄漏
     useProductionStore.setState({ expectedWordCount: '' });
   });
   const defaultProps = {
     onGenerateOutline: vi.fn(async () => {}),
     isGeneratingOutline: false,
-    globalOutline: '',
     onGlobalOutlineChange: vi.fn(),
     chapters: [chapter],
     currentChapter: null,
@@ -107,7 +111,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   test('production draft input does not persist until save, then creates user candidate and syncs locally', async () => {
     const onGlobalOutlineChange = vi.fn();
     const onCanonicalOutlineChange = vi.fn();
-    render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧主纲" selectedContinuationPack={null} onGlobalOutlineChange={onGlobalOutlineChange} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGlobalOutlineChange={onGlobalOutlineChange} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '本地草稿' } });
     expect(onGlobalOutlineChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
@@ -119,7 +123,8 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   test('production save failure preserves Canon and does not call local callback', async () => {
     const onCanonicalOutlineChange = vi.fn();
     outlineClientMocks.activateOutline.mockRejectedValueOnce(new Error('conflict'));
-    render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧主纲" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    useOutlineContentStore.setState({ globalOutline: '旧主纲' });
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '失败草稿' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     await screen.findByRole('alert');
@@ -129,7 +134,8 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   test('production AI generation receives the local draft', async () => {
     useProductionStore.setState({ expectedWordCount: 1000 });
     const onGenerateOutline = vi.fn(async () => {});
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGenerateOutline={onGenerateOutline} globalOutline="旧主纲" />);
+    useOutlineContentStore.setState({ globalOutline: '旧主纲' });
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGenerateOutline={onGenerateOutline} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'AI 输入草稿' } });
     fireEvent.click(screen.getByRole('button', { name: 'AI 生成作品大纲' }));
     await waitFor(() => expect(onGenerateOutline).toHaveBeenCalledWith('AI 输入草稿'));
@@ -423,10 +429,10 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('canceling overwrite leaves the existing outline untouched', () => {
     const onGlobalOutlineChange = vi.fn();
+    useOutlineContentStore.setState({ globalOutline: '已有大纲' });
     render(
       <OutlineTab
         {...defaultProps}
-        globalOutline="已有大纲"
         onGlobalOutlineChange={onGlobalOutlineChange}
         selectedContinuationPack={approvedPackWithManuscript}
       />,
@@ -442,10 +448,10 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('shows a persistent save error and preserves the old outline when adoption fails', async () => {
     const onAdoptOutline = vi.fn(async () => false);
+    useOutlineContentStore.setState({ globalOutline: '已有大纲' });
     render(
       <OutlineTab
         {...defaultProps}
-        globalOutline="已有大纲"
         onAdoptOutline={onAdoptOutline}
         selectedContinuationPack={approvedPackWithManuscript}
       />,
@@ -523,7 +529,8 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'candidate-1', level: 'master', status: 'active', content: '本地草稿', scope: {}, novelId: 'novel-1', source: 'user' }]);
     const onCanonicalOutlineChange = vi.fn();
-    render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    useOutlineContentStore.setState({ globalOutline: '旧' });
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '本地草稿' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/确认响应中断/)).textContent).toContain('确认响应中断');
@@ -537,7 +544,8 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'old', level: 'master', status: 'active', content: '旧', scope: {}, novelId: 'novel-1', source: 'user' }]);
     const onCanonicalOutlineChange = vi.fn();
-    render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    useOutlineContentStore.setState({ globalOutline: '旧' });
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/当前主纲未变/)).textContent).toContain('当前主纲未变');
@@ -549,7 +557,8 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     outlineClientMocks.listOutlines
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('offline'));
-    render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧" selectedContinuationPack={null} onCanonicalOutlineChange={vi.fn()} />);
+    useOutlineContentStore.setState({ globalOutline: '旧' });
+    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={vi.fn()} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/保存状态未知/)).textContent).toContain('保存状态未知');
@@ -562,11 +571,13 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       .mockResolvedValueOnce([])
       .mockImplementationOnce(() => new Promise<OutlineArtifact[]>((resolve) => { resolveReadback = resolve; }));
     const onCanonicalOutlineChange = vi.fn();
-    const { rerender } = render(<OutlineTab {...defaultProps} novelId="novel-1" globalOutline="旧" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    useOutlineContentStore.setState({ globalOutline: '旧' });
+    const { rerender } = render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     await waitFor(() => expect(outlineClientMocks.listOutlines).toHaveBeenCalledTimes(2));
-    rerender(<OutlineTab {...defaultProps} novelId="novel-2" globalOutline="二" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    useOutlineContentStore.setState({ globalOutline: '二' });
+    rerender(<OutlineTab {...defaultProps} novelId="novel-2" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
     await waitFor(() => expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('二'));
     await act(async () => {
       resolveReadback([{ id: 'candidate-1', level: 'master', status: 'active', content: '新', scope: {}, novelId: 'novel-1', source: 'user' }]);

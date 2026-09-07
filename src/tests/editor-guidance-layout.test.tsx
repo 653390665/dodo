@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import type { ContinuationPack } from '../../shared/types';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -267,7 +268,7 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('本章正文为空时展示紧凑的作品全局关系预览', () => {
     const onNavigate = vi.fn();
-    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' }], selectedContinuationPackId: 'pack-approved' });
+    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' } as ContinuationPack], selectedContinuationPackId: 'pack-approved' });
     const relationships = Array.from({ length: 7 }, (_, index) => ({
       id: `rel-${index}`,
       sourceType: 'character', sourceId: 'char-a',
@@ -303,7 +304,7 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('approved pack sync CTA writes intent and navigates to world view', () => {
     const onNavigate = vi.fn();
-    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' }], selectedContinuationPackId: 'pack-approved' });
+    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' } as ContinuationPack], selectedContinuationPackId: 'pack-approved' });
     renderAgentWorkspace({
       currentChapter: {
         id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷',

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useOutlineContentStore } from '../../stores/outline-content-store';
 import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship, Foreshadowing } from '../../../shared/types';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
@@ -29,7 +30,8 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
   const [pendingSkillIds, setPendingSkillIds] = useState<string[]>([]);
   const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
   const [projectPreferenceProfile, setProjectPreferenceProfile] = useState<ProjectPreferenceProfile | undefined>(undefined);
-  const [globalOutline, setGlobalOutlineRaw] = useState<string>('');
+  // 011 Phase 2：主纲值入 outline-content-store；revision 自增/清零语义由 store 承担
+  const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   const [databaseGeneration, setDatabaseGeneration] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,12 +39,8 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
   const chapterRequestSeqRef = useRef(0);
   const selectedChapterIdRef = useRef<string | null>(initialChapterId || null);
   const currentChapterRef = useRef<Chapter | null>(null);
-  const globalOutlineRevisionRef = useRef(0);
-
-  const setGlobalOutline = useCallback((value: string | ((prev: string) => string)) => {
-    globalOutlineRevisionRef.current += 1;
-    setGlobalOutlineRaw(value);
-  }, []);
+  const setGlobalOutlineRaw = useOutlineContentStore((state) => state.setGlobalOutlineRaw);
+  const setGlobalOutline = useOutlineContentStore((state) => state.setGlobalOutline);
 
   const readGeneration = useCallback(async (): Promise<number | null> => {
     try {
@@ -166,7 +164,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
 
   const fetchAll = useCallback(async () => {
     const requestSeq = ++dataRequestSeqRef.current;
-    const revisionAtStart = globalOutlineRevisionRef.current;
+    const revisionAtStart = useOutlineContentStore.getState().outlineRevision;
 
     try {
       const generationBefore = await readGeneration();
@@ -199,7 +197,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         );
         if (
           freshNovel.globalOutline !== undefined
-          && revisionAtStart === globalOutlineRevisionRef.current
+          && revisionAtStart === useOutlineContentStore.getState().outlineRevision
           && !hasPendingWriteForExactKey(`novel:${novelId}:globalOutline`)
         ) {
           setGlobalOutlineRaw(freshNovel.globalOutline || '');
@@ -249,12 +247,11 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
     /* eslint-disable react-hooks/set-state-in-effect -- reset visible editor state before loading a different project */
     dataRequestSeqRef.current += 1;
     chapterRequestSeqRef.current += 1;
-    globalOutlineRevisionRef.current = 0;
     selectedChapterIdRef.current = initialChapterId || null;
     currentChapterRef.current = null;
     setSelectedChapterId(initialChapterId || null);
     setCurrentChapter(null);
-    setGlobalOutlineRaw('');
+    useOutlineContentStore.getState().resetOutlineContent();
     setDatabaseGeneration(null);
     setIsLoading(true);
     setChapterLoading(false);

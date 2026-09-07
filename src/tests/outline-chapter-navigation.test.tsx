@@ -23,7 +23,6 @@ describe('outline chapter navigation', () => {
         
         onGenerateOutline={vi.fn(async () => {})}
         isGeneratingOutline={false}
-        globalOutline=""
         onGlobalOutlineChange={vi.fn()}
         chapters={[chapter]}
         currentChapter={null}

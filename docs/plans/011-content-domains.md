@@ -44,6 +44,16 @@ if (
 被否决的方案：per-novelId 键控 map（状态生命周期与既有切换重置效应重复，双份失效逻辑易漂移）；
 把 useEditorData 整体改写为 store（竞态守卫重写风险高，违反"不动加载逻辑"）。
 
+## 执行状态
+
+| 阶段 | 状态 |
+|---|---|
+| Phase 1 续写选包域 | ✅（continuation-pack-store，props -3；测试改 store 预置） |
+| Phase 2 主纲内容域 | ✅（outline-content-store：globalOutline 值 + setGlobalOutline(revision++)/raw 分离 + setOutlineError；useEditorData 守卫逻辑逐行保留仅换后端；AW/Panel/OutlineTab 订阅；revision 留 store 供 fetch 守卫比较） |
+| Phase 3 十个辅助数据集 | 待做（同机械模式） |
+
+> 经验：OutlineTab 依赖 store 值做 hasOutline 分支——同文件测试需 beforeEach 重置 outline store，按用例语义补种子。
+
 ## 分阶段实施
 
 ### Phase 1 — 续写选包域（-3 props，风险低）
