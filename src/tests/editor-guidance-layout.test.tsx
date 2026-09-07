@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
-import type { ContinuationPack } from '../../shared/types';
+import { useEditorDataStore } from '../stores/editor-data-store';
+import type { Character, EntityRelationship, Faction, Item, Location, Skill, ContinuationPack } from '../../shared/types';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -61,6 +62,15 @@ function SyncedPackGuideHarness({ status }: { status: 'not_started' | 'partial' 
 }
 
 function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
+  // 011 Phase 3：AgentWorkspace 改读 store，测试数据须经编辑器数据 store 预置
+  useEditorDataStore.setState({
+    characters: (overrides.characters as Character[]) || [],
+    locations: (overrides.locations as Location[]) || [],
+    items: (overrides.items as Item[]) || [],
+    factions: (overrides.factions as Faction[]) || [],
+    librarySkills: (overrides.librarySkills as Skill[]) || [],
+    relationships: (overrides.relationships as EntityRelationship[]) || [],
+  });
   const noop = vi.fn();
   const noopAsync = vi.fn().mockResolvedValue(undefined);
 

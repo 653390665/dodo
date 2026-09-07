@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEditorDataStore } from '../../stores/editor-data-store';
 import { useOutlineContentStore } from '../../stores/outline-content-store';
 import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship, Foreshadowing } from '../../../shared/types';
 import {
@@ -17,18 +18,25 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(initialChapterId || null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [chapterLoading, setChapterLoading] = useState(false);
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [factions, setFactions] = useState<Faction[]>([]);
+  const characters = useEditorDataStore((state) => state.characters);
+  const setCharacters = useEditorDataStore((state) => state.setCharacters);
+  const locations = useEditorDataStore((state) => state.locations);
+  const setLocations = useEditorDataStore((state) => state.setLocations);
+  const items = useEditorDataStore((state) => state.items);
+  const setItems = useEditorDataStore((state) => state.setItems);
+  const factions = useEditorDataStore((state) => state.factions);
+  const setFactions = useEditorDataStore((state) => state.setFactions);
+  const librarySkills = useEditorDataStore((state) => state.librarySkills);
+  const setLibrarySkills = useEditorDataStore((state) => state.setLibrarySkills);
+  const skillUsageRecords = useEditorDataStore((state) => state.skillUsageRecords);
+  const setSkillUsageRecords = useEditorDataStore((state) => state.setSkillUsageRecords);
+  const relationships = useEditorDataStore((state) => state.relationships);
+  const setRelationships = useEditorDataStore((state) => state.setRelationships);
   const [powerLevels, setPowerLevels] = useState<PowerLevel[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [foreshadowings, setForeshadowings] = useState<Foreshadowing[]>([]);
-  const [librarySkills, setLibrarySkills] = useState<Skill[]>([]);
-  const [skillUsageRecords, setSkillUsageRecords] = useState<SkillUsageRecord[]>([]);
   const [mountedSkillLoadout, setMountedSkillLoadout] = useState<MountedSkillLoadoutItem[]>([]);
   const [pendingSkillIds, setPendingSkillIds] = useState<string[]>([]);
-  const [relationships, setRelationships] = useState<EntityRelationship[]>([]);
   const [projectPreferenceProfile, setProjectPreferenceProfile] = useState<ProjectPreferenceProfile | undefined>(undefined);
   // 011 Phase 2：主纲值入 outline-content-store；revision 自增/清零语义由 store 承担
   const globalOutline = useOutlineContentStore((state) => state.globalOutline);

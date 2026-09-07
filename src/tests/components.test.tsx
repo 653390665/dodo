@@ -11,6 +11,7 @@ import { EditorView } from '../components/EditorView';
 import { WorldBibleOnboarding } from '../components/WorldBibleOnboarding';
 import { downloadDbBackup } from '../lib/download-client';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow';
+import { useEditorDataStore } from '../stores/editor-data-store';
 
 const capabilityPreviewMocks = vi.hoisted(() => {
   const operationLog: string[] = [];
@@ -636,6 +637,8 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         { id: 'deconstruct-card-pacing', name: '节奏拆书卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1 },
         { id: 'chapter-style-card', name: '本章文风卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1 },
       ];
+      // 011 Phase 3：AgentWorkspace/Panel 改读 store，mock 数据需同步
+      useEditorDataStore.setState({ librarySkills: mockLibrarySkills });
       mockProjectPreferenceProfile = {
         tags: [],
         weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },

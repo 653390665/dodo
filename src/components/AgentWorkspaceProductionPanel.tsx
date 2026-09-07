@@ -19,6 +19,7 @@ import type {
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { useProductionStore } from '../stores/production-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
+import { useEditorDataStore } from '../stores/editor-data-store';
 import { useOutlineContentStore } from '../stores/outline-content-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
@@ -141,12 +142,6 @@ export function AgentWorkspaceProductionPanel({
   onPolishChapterFromAudit,
   onCreateChapter,
   mountedSkillLoadout,
-  librarySkills: _librarySkills,
-  relationships,
-  characters,
-  locations,
-  items,
-  factions,
   onSwitchTab,
   onRunRecommendedAsset,
   projectPreferenceProfile,
@@ -172,6 +167,13 @@ export function AgentWorkspaceProductionPanel({
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  // 011 Phase 3：辅助数据集订阅 store
+  const _librarySkills = useEditorDataStore((state) => state.librarySkills);
+  const relationships = useEditorDataStore((state) => state.relationships);
+  const characters = useEditorDataStore((state) => state.characters);
+  const locations = useEditorDataStore((state) => state.locations);
+  const items = useEditorDataStore((state) => state.items);
+  const factions = useEditorDataStore((state) => state.factions);
   const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   // 005-S4：期望字数直接订阅 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);

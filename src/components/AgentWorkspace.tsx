@@ -20,12 +20,7 @@ import {
   Novel,
   Chapter,
   ChapterMetadata,
-  Character,
-  Item,
-  Location,
   ChapterVersion,
-  Skill,
-  SkillUsageRecord,
   MountedSkillLoadoutItem,
   ProjectPreferenceProfile,
   ChapterProductionRun,
@@ -33,8 +28,6 @@ import {
   CopilotSuggestion,
   CopilotActionKey,
   SniffedEntities,
-  EntityRelationship,
-  Faction,
   WritingStyleMode,
   ViewType,
 } from '../../shared/types';
@@ -60,6 +53,7 @@ import type { AiContentCandidate } from '../lib/generation-action-state';
 import { AiCandidateReview } from './AiCandidateReview';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
+import { useEditorDataStore } from '../stores/editor-data-store';
 import { useOutlineContentStore } from '../stores/outline-content-store';
 
 
@@ -156,12 +150,6 @@ interface AgentWorkspaceProps {
   isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
   onCreateChapter?: () => Promise<void>;
-  characters: Character[];
-  locations: Location[];
-  items: Item[];
-  factions: Faction[];
-  librarySkills: Skill[];
-  skillUsageRecords: SkillUsageRecord[];
   mountedSkillLoadout: MountedSkillLoadoutItem[];
   pendingSkillIds?: string[];
   onResolvePendingSkill?: (skillId: string, slot: number) => void;
@@ -177,7 +165,6 @@ interface AgentWorkspaceProps {
   onSniffEntities: () => Promise<void>;
   onAddSniffedEntity: (ent: { name: string; type: string; context: string }) => Promise<void>;
   addingEntityNames: string[];
-  relationships: EntityRelationship[];
   isDocked?: boolean;
   activeEntityNames?: string[];
   contentRef?: React.RefObject<HTMLTextAreaElement | null>;
@@ -246,11 +233,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   isGeneratingCritique,
   onPolishChapterFromAudit,
   onCreateChapter,
-  characters,
-  locations,
-  items,
-  librarySkills,
-  skillUsageRecords,
   mountedSkillLoadout,
   pendingSkillIds,
   onResolvePendingSkill,
@@ -266,11 +248,9 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onSniffEntities,
   onAddSniffedEntity,
   addingEntityNames,
-  relationships,
   isDocked = false,
   activeEntityNames: propActiveEntityNames,
   contentRef,
-  factions,
   skippedAssetIds,
   stackedDeconstructionCardIds,
   onStackDeconstructionCard,
@@ -291,6 +271,14 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onAcceptAiContentCandidate,
   onDiscardAiContentCandidate,
 }: AgentWorkspaceProps) {
+  // 011 Phase 3：辅助数据集订阅 store
+  const characters = useEditorDataStore((state) => state.characters);
+  const locations = useEditorDataStore((state) => state.locations);
+  const items = useEditorDataStore((state) => state.items);
+  const factions = useEditorDataStore((state) => state.factions);
+  const librarySkills = useEditorDataStore((state) => state.librarySkills);
+  const skillUsageRecords = useEditorDataStore((state) => state.skillUsageRecords);
+  const relationships = useEditorDataStore((state) => state.relationships);
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
