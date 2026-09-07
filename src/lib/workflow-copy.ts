@@ -18,3 +18,25 @@ export const WORKFLOW_ACTION_LABELS = {
 } as const;
 
 export type WorkflowActionKey = keyof typeof WORKFLOW_ACTION_LABELS;
+
+/** 章节工作流 primaryAction 的唯一动作文案（原 WritingSurface 本地映射收编）。 */
+export function getWorkflowPrimaryActionLabel(
+  action: string | null,
+): string | null {
+  switch (action) {
+    case 'review': return '审核资料包';
+    case 'sync': return '接入本章上下文';
+    case 'planning':
+    case 'generate-plan': return WORKFLOW_ACTION_LABELS.plan;
+    case 'drafting':
+    case 'generate-prose': return '生成一章预览';
+    case 'complete-chapter': return '完成本章';
+    case 'audit': return '审计正文';
+    case 'polish':
+    case 'resolve-issues': return '处理审阅问题';
+    case 'next_chapter':
+    case 'create-next-chapter': return '创建下一章';
+    case 'confirm-facts': return '确认事实';
+    default: return null;
+  }
+}

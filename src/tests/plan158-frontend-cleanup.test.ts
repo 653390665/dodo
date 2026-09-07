@@ -166,6 +166,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     const continuationPackView = readSource('src/components/ContinuationPackView.tsx');
     const continuationImportView = readSource('src/components/ContinuationImportView.tsx');
     const writingSurface = readSource('src/components/WritingSurface.tsx');
+const workflowCopy = readSource('src/lib/workflow-copy.ts');
     const productionRunReview = readSource('src/components/ProductionRunReview.tsx');
     const settingsModal = readSource('src/components/SettingsModal.tsx');
     const aiAssistant = readSource('src/components/AIAssistant.tsx');
@@ -241,7 +242,8 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(studio).not.toContain('不自动应用');
     expect(studio).toContain('能力配置尚未应用');
     expect(studio).toContain('未应用的能力配置');
-    expect(writingSurface).toContain('生成一章预览');
+    expect(workflowCopy).toContain('生成一章预览');
+    expect(writingSurface).toContain('getWorkflowPrimaryActionLabel');
     expect(writingSurface).toContain('在下面主编辑器手写正文');
     expect(productionRunReview).toContain('生成一章预览');
     expect(productionRunReview).toContain('结果只会进入预览，点击接受后才写入章节和状态账本');

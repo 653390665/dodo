@@ -9,8 +9,8 @@
 | # | 项 | 出处 |
 |---|---|---|
 | A1 | git push 备份未完成：github.com:443 不可达（无代理配置）；已用 `git bundle` 做本地备份 `../inkflow-backup-20260907.bundle` | 网络环境 |
-| A2 | workflow-copy 动作词表还有 4 处表面未接（WritingSurface 主按钮、EditorGuideBanners、AgentWorkspace 区、QualityTab 推荐区按钮） | 007 T4 |
-| A3 | glossary.ts 零消费——保持规范性文档定位即可，若要落地可加"高频旧词 copy-conformance 测试" | 006 |
+| A2 | ~~词表接入~~ ✅（2026-09-07）：AiCandidateReview（到工作台处理）与 WritingSurface（primaryAction 9 动作映射收编为 getWorkflowPrimaryActionLabel）已接；EditorGuideBanners 的动作横幅此前已删，ProductionTab:233 是内容标签非动作词——T4 可关 | 007 T4 |
+| A3 | ✅ 实测术语收敛已完成：职责卡/偏好技法/技能系列/流程卡 在组件层均为 0 命中（plan158-frontend-cleanup 的禁词表长期强制）；glossary.ts 保持规范性文档定位 | 006 |
 | A4 | 状态条 quick 模式 quickWritten 瞬态未跟踪（接受后候选横幅消失、状态条随之消失，观感可接受） | 006/008 |
 | A5 | 测试下界断言 ≥45/≥73 偏弱（有意为之，防脆弱；记录不修） | 评审 P2 |
 | A6 | EditorView 2 处 console.error 系 2026-08-29 既有日志（非本批，不修） | 复核扫描 |

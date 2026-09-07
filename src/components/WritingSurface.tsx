@@ -7,6 +7,7 @@ import {
 import { cn } from '../lib/utils';
 import { deriveProjectWorkflowState, type WorkflowSyncState } from '../lib/workflow-state';
 import { writeContinuationSyncIntent } from '../lib/continuation-sync-intent';
+import { getWorkflowPrimaryActionLabel } from '../lib/workflow-copy';
 
 interface WritingSurfaceProps {
   novel: Novel;
@@ -107,16 +108,8 @@ export const WritingSurface = React.memo(function WritingSurface({
     return () => clearTimeout(timer);
   }, [localContent, onUpdateContent, currentChapter]);
 
-  const primaryActionLabel = workflowState.primaryAction === 'review' ? '审核资料包'
-    : workflowState.primaryAction === 'sync' ? '接入本章上下文'
-        : workflowState.primaryAction === 'planning' || workflowState.primaryAction === 'generate-plan' ? '生成分镜'
-        : workflowState.primaryAction === 'drafting' || workflowState.primaryAction === 'generate-prose' ? '生成一章预览'
-          : workflowState.primaryAction === 'complete-chapter' ? '完成本章'
-            : workflowState.primaryAction === 'audit' ? '审计正文'
-            : workflowState.primaryAction === 'polish' || workflowState.primaryAction === 'resolve-issues' ? '处理审阅问题'
-              : workflowState.primaryAction === 'next_chapter' || workflowState.primaryAction === 'create-next-chapter' ? '创建下一章'
-                : workflowState.primaryAction === 'confirm-facts' ? '确认事实'
-              : null;
+  // 007 T4：动作文案统一走 workflow-copy 词表
+  const primaryActionLabel = getWorkflowPrimaryActionLabel(workflowState.primaryAction);
 
   const runPrimaryAction = () => {
     switch (workflowState.primaryAction) {
