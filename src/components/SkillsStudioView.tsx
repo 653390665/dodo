@@ -113,15 +113,17 @@ function getPackageResultLabel(
   capabilityType: GovernanceCapabilityType | string | undefined,
   resultCandidateInDeck = false,
 ): string {
-  const isPolishPreview = manifest?.output === 'transform-preview';
-  const isRunTool = manifest?.action === 'run-diagnostic' || manifest?.kind === 'utility';
-  const isProjectTechnique = capabilityType === 'technique' && step.scope === 'project';
-  const projectTechniqueResult = isWorldCandidateArtifact(manifest?.outputArtifact)
-    ? '下一步：应用配置后前往世界观设定'
-    : isOutlineCandidateOutput(manifest?.output)
-      ? '下一步：应用配置后前往大纲面板'
-      : '下一步：应用配置后写入作品';
-  if (status === 'configured') return '下一步：应用配置后写入作品';
+    const isPolishPreview = manifest?.output === 'transform-preview';
+    const isRunTool = manifest?.action === 'run-diagnostic' || manifest?.kind === 'utility';
+    const isProjectTechnique = capabilityType === 'technique' && step.scope === 'project';
+    // Destination-aware result copy mirrors packageApplyDestination's manifest
+    // logic so applied rows point at the same panel the apply path launches.
+    const destinationResult = isWorldCandidateArtifact(manifest?.outputArtifact)
+      ? '下一步：应用配置后前往世界观设定'
+      : isOutlineCandidateOutput(manifest?.output) && !isWorldCandidateArtifact(manifest?.outputArtifact)
+        ? '下一步：应用配置后前往大纲面板'
+        : '下一步：应用配置后写入作品';
+    if (status === 'configured') return destinationResult;
   if (status === 'scheduled') return isPolishPreview ? '下一步：应用配置后写入本章规则' : '下一步：应用配置后写入写前提醒';
   if (status === 'run') {
     if (isPolishPreview) return '下一步：精修预览待生成';
@@ -134,7 +136,7 @@ function getPackageResultLabel(
     if (step.mode === 'run-now' && isPolishPreview) return '下一步：精修预览待生成';
     if (step.mode === 'run-now' && manifest?.action === 'run-diagnostic') return '下一步：审稿诊断待运行';
     if (step.mode === 'run-now' && isRunTool) return '下一步：辅助动作待运行';
-    if (isProjectTechnique) return projectTechniqueResult;
+    if (isProjectTechnique) return destinationResult;
     if (capabilityType === 'flow') return '下一步：应用配置后写入创作流程';
     if (capabilityType === 'skill-card') return resultCandidateInDeck ? '下一步：应用配置后写入作品卡组' : '下一步：选择卡组位置后应用';
     return '下一步：应用配置后写入作品';
@@ -707,6 +709,10 @@ export function SkillsStudioView({
   const [leavePromptOpen, setLeavePromptOpen] = useState(false);
   const studioScrollRef = useRef<HTMLDivElement | null>(null);
   const sessionContextRef = useRef<string | null>(null);
+  // Set when a context change (baseline token / generation) was caused by our
+  // own successful apply, so the session effect re-anchors instead of treating
+  // it as external drift and resetting the open package dialog.
+  const selfAppliedContextRef = useRef(false);
   const configurationSessionIdRef = useRef<string | null>(null);
   const capabilityViewStateRef = useRef<string | null>(null);
   const packageResultActionRef = useRef<HTMLButtonElement | null>(null);
@@ -1121,6 +1127,11 @@ export function SkillsStudioView({
     const contextKey = `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`;
     const hadSessionContext = sessionContextRef.current !== null;
     const contextChanged = sessionContextRef.current !== contextKey;
+    if (contextChanged && selfAppliedContextRef.current) {
+      selfAppliedContextRef.current = false;
+      sessionContextRef.current = contextKey;
+      return;
+    }
     const latest = loadLatestCapabilityConfigurationSession(selectedNovel.id);
     const restored = loadCapabilityConfigurationSession(selectedNovel.id, databaseGeneration, baselineToken);
     const stale = Boolean(latest && isCapabilityConfigurationSessionStale(latest, databaseGeneration, baselineToken));
@@ -1298,6 +1309,9 @@ export function SkillsStudioView({
         ...(step.dependsOn ? { dependsOn: [...step.dependsOn] } : {}),
       }));
       const applied = await applyCapabilityConfiguration(selectedNovel.id, databaseGeneration, preview.previewToken, nextProfile.capabilityProfile!, selectedPackageSteps, targetChapterId);
+      // Our own apply will move the baseline the session effect watches; let it
+      // re-anchor instead of resetting the open dialog as external drift.
+      selfAppliedContextRef.current = true;
       const appliedProfile = { ...nextProfile, capabilityProfile: applied.profile };
       const appliedNovel = { ...selectedNovel, projectPreferenceProfile: appliedProfile };
       setUserNovels((prev) => prev.map((entry) => entry.id === selectedNovel.id ? { ...entry, projectPreferenceProfile: appliedProfile } : entry));
@@ -1696,7 +1710,6 @@ export function SkillsStudioView({
   };
 
   const handleLaunchPackageResult = (asset: CuratedProductSkill) => {
-    console.error('DEBUG handleLaunchPackageResult called, asset=' + asset?.id);
     const launchAction = getDirectExecLaunchAction(asset);
     if (!selectedNovel?.id || !launchAction || !onLaunchCapability) {
       handleDirectExec(asset);
@@ -2563,12 +2576,15 @@ export function SkillsStudioView({
                 const built = await handleApplyPackage();
                 if (!built || !selectedNovel) return;
                 try {
+                  // Derive the outline launch from the just-staged steps, not
+                  // from packageApplyDestination: result statuses (and thus the
+                  // destination) only exist AFTER applyConfiguration resolves.
                   const outlineLaunchAssetId = built.steps?.find((step) => {
                     const manifest = getCatalogCapabilityManifest(step.assetId);
-                    return isOutlineCandidateOutput(manifest?.output);
+                    return isOutlineCandidateOutput(manifest?.output) && !isWorldCandidateArtifact(manifest?.outputArtifact);
                   })?.assetId;
-                  const launchOutline = packageApplyDestination === 'outline';
-                  await applyConfiguration(launchOutline, packageApplyDestination, built.capabilityProfile, outlineLaunchAssetId, undefined, built.steps);
+                  const launchOutline = Boolean(outlineLaunchAssetId);
+                  await applyConfiguration(launchOutline, launchOutline ? 'outline' : packageApplyDestination, built.capabilityProfile, outlineLaunchAssetId, undefined, built.steps);
                 } catch {
                   // applyConfiguration already toasts the failure; the draft
                   // stays staged so the user can retry from the dialog.

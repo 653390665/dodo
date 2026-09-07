@@ -855,15 +855,23 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(humanizationCheckboxes[1]);
     await waitFor(() => expect((humanizationCheckboxes[1] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(humanizationDialog).getByRole('button', { name: '启用所选' }));
-    await new Promise(r => setTimeout(r, 400));
-    console.log('DEBUG humanization 启用后 calls =', JSON.stringify(onLaunchCapability.mock.calls));
     expect(await within(humanizationDialog).findByText('下一步：应用配置后写入本章规则')).toBeTruthy();
     expect(await within(humanizationDialog).findByText('下一步：精修预览待生成')).toBeTruthy();
-    await waitFor(() => expect(within(humanizationDialog).queryByRole('button', { name: '生成精修预览' })).toBeTruthy());
+    const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
+    await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
 
-    // 单动词：启用即应用。行节点会因应用后的重渲染而替换，点击前必须重新查询。
-    const freshPreviewButton = await within(humanizationDialog).findByRole('button', { name: '生成精修预览' });
-    fireEvent.click(freshPreviewButton);
+    // 单动词：启用即应用。应用解析后的重渲染会替换行节点，每次尝试都重新
+    // 查询当前弹窗里的按钮并点击，直到 launch 真正被观测到。
+    await waitFor(() => {
+      fireEvent.click(within(screen.getByRole('dialog', { name: '基础去 AI 腔增强包' })).getByRole('button', { name: '生成精修预览' }));
+      expect(onLaunchCapability).toHaveBeenCalledWith({
+        action: 'run-utility',
+        assetId: 'de-ai-slop-shield',
+        launchToken: expect.any(Number),
+        novelId: 'novel-1',
+        targetChapterId: 'chapter-7',
+      });
+    }, { timeout: 5000 });
     await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
       action: 'run-utility',
       assetId: 'de-ai-slop-shield',
@@ -882,7 +890,7 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(onboardingPackage).getByRole('button', { name: '展开并选择' }));
     const onboardingDialog = await screen.findByRole('dialog', { name: '脑洞与角色构建包' });
     expect(within(onboardingDialog).getByText(/先生成世界观，再接人物弧线/)).toBeTruthy();
-    expect(within(onboardingDialog).getAllByText(/必选 · 应用配置后设为作品默认 · 立项时 · 作品默认/).length).toBeGreaterThan(0);
+    expect(within(onboardingDialog).getAllByText(/必选 · 启用（作品默认） · 立项时 · 作品默认/).length).toBeGreaterThan(0);
     expect(within(onboardingDialog).getAllByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。').length).toBeGreaterThan(0);
     await act(async () => {
       fireEvent.click(within(onboardingDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
@@ -894,10 +902,10 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(onboardingDialog).getByRole('button', { name: '启用所选' }));
     expect(await within(onboardingDialog).findAllByText('下一步：应用配置后前往世界观设定')).toHaveLength(2);
     expect(within(onboardingDialog).queryByText(/加入作品卡组后生效|启用作品卡组/)).toBeNull();
-    const applyWorldButton = within(onboardingDialog).getByRole('button', { name: '应用配置并前往世界观' });
-    expect(applyWorldButton.getAttribute('data-autofocus-package-apply')).toBe('true');
-    await waitFor(() => expect(document.activeElement).toBe(applyWorldButton));
-    expect(within(onboardingDialog).getByText('已提交的配置仍待应用；点击应用配置后才写入作品。也可继续勾选其他能力。')).toBeTruthy();
+    // 单动词：启用即应用并留在能力中心，不再有待应用状态与二次目的地按钮。
+    await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
+    expect(within(onboardingDialog).queryByRole('button', { name: '应用配置并前往世界观' })).toBeNull();
+    expect(within(onboardingDialog).queryByText(/已提交的配置仍待应用/)).toBeNull();
     expect(screen.queryByText('当前配置仍待应用；应用成功后才更新作品状态。')).toBeNull();
     expect(within(onboardingDialog).queryByText(/配置到本书|本书/)).toBeNull();
   }, 15_000);
@@ -918,8 +926,6 @@ describe('Plan 158 capability center', () => {
     await waitFor(() => expect((checkboxes[0] as HTMLInputElement).checked).toBe(true));
     await waitFor(() => expect((checkboxes[1] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
-    await new Promise(r => setTimeout(r, 300));
-    console.log('DEBUG outline: onLaunchCapability calls =', JSON.stringify(onLaunchCapability.mock.calls), '| onNavigate calls =', JSON.stringify(onNavigate.mock.calls));
 
     expect(await within(dialog).findByText('下一步：应用配置后前往大纲面板')).toBeTruthy();
     expect(within(dialog).queryByText(/加入作品卡组后生效|启用作品卡组/)).toBeNull();
