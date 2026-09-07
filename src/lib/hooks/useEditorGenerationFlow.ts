@@ -75,13 +75,16 @@ export function useEditorGenerationFlow({
   flushPendingEditorWrites,
   databaseGeneration,
 }: UseEditorGenerationFlowArgs) {
-  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const isGeneratingContent = useEditorGenerationStore((state) => state.isGeneratingContent);
+  const setIsGeneratingContent = useEditorGenerationStore((state) => state.setIsGeneratingContent);
   // 005-S4：生成旗标入 store；outline 旗标 setter 不再作为参数穿线
   const isGeneratingOutline = useEditorGenerationStore((state) => state.isGeneratingOutline);
   const setIsGeneratingOutline = useEditorGenerationStore((state) => state.setIsGeneratingOutline);
   const [outlineError, setOutlineError] = useState<string | null>(null);
-  const [isGeneratingBeats, setIsGeneratingBeats] = useState(false);
-  const [isGeneratingCritique, setIsGeneratingCritique] = useState(false);
+  const isGeneratingBeats = useEditorGenerationStore((state) => state.isGeneratingBeats);
+  const setIsGeneratingBeats = useEditorGenerationStore((state) => state.setIsGeneratingBeats);
+  const isGeneratingCritique = useEditorGenerationStore((state) => state.isGeneratingCritique);
+  const setIsGeneratingCritique = useEditorGenerationStore((state) => state.setIsGeneratingCritique);
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [auditStatus, setAuditStatus] = useState<string | null>(null);
   const [auditUnknownState, setAuditUnknownState] = useState<{ chapterId: string; feedback: string } | null>(null);
@@ -318,10 +321,6 @@ export function useEditorGenerationFlow({
     requestSeqRef,
     abortControllerRef,
     latestChapterIdRef,
-    isGeneratingContent,
-    setIsGeneratingContent,
-    setIsGeneratingBeats,
-    setIsGeneratingCritique,
     setAuditStatus,
     setGenerationStatus,
     setAiActionState,
@@ -349,9 +348,6 @@ export function useEditorGenerationFlow({
     requestSeqRef,
     abortControllerRef,
     latestChapterIdRef,
-    setIsGeneratingContent,
-    setIsGeneratingCritique,
-    setIsGeneratingBeats,
     setIsGeneratingOutline,
     setGenerationStatus,
     setAuditStatus,

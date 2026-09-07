@@ -1,4 +1,5 @@
 import { type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEditorGenerationStore } from '../../../stores/editor-generation-store';
 import type { Novel, Chapter, ChapterWorkflowMeta, Skill, WritingStyleCandidate, WritingStyleResolution } from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { buildContextPrompt } from '../../agents';
@@ -43,8 +44,6 @@ interface UseAuditPolishActionsArgs {
   requestSeqRef: { current: number };
   abortControllerRef: { current: AbortController | null };
   latestChapterIdRef: { current: string | null };
-  setIsGeneratingContent: (val: boolean) => void;
-  setIsGeneratingCritique: (val: boolean) => void;
   setIsGeneratingBeats?: (val: boolean) => void;
   setIsGeneratingOutline?: (val: boolean) => void;
   setGenerationStatus: (val: string | null) => void;
@@ -90,8 +89,6 @@ export function useAuditPolishActions({
   requestSeqRef,
   abortControllerRef,
   latestChapterIdRef,
-  setIsGeneratingContent,
-  setIsGeneratingCritique,
   setIsGeneratingBeats,
   setIsGeneratingOutline,
   setGenerationStatus,
@@ -110,6 +107,8 @@ export function useAuditPolishActions({
   getCandidate,
   setRetryContext,
 }: UseAuditPolishActionsArgs) {
+  // 005-S4：生成旗标写 store
+  const { setIsGeneratingContent, setIsGeneratingCritique } = useEditorGenerationStore.getState();
   const setAiActionState = providedSetAiActionState ?? (() => undefined);
 
   interface AuditRequestOptions {

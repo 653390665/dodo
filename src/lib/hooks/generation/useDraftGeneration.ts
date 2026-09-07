@@ -1,4 +1,5 @@
 import { type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEditorGenerationStore } from '../../../stores/editor-generation-store';
 import type { Novel, Chapter, WritingStyleCandidate, WritingStyleResolution } from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
@@ -31,10 +32,6 @@ interface UseDraftGenerationArgs {
   requestSeqRef: { current: number };
   abortControllerRef: { current: AbortController | null };
   latestChapterIdRef: { current: string | null };
-  isGeneratingContent: boolean;
-  setIsGeneratingContent: (val: boolean) => void;
-  setIsGeneratingBeats: (val: boolean) => void;
-  setIsGeneratingCritique?: (val: boolean) => void;
   setAuditStatus?: (val: string | null) => void;
   setGenerationStatus: (val: string | null) => void;
   setAiActionState?: Dispatch<SetStateAction<AiActionState>>;
@@ -65,10 +62,6 @@ export function useDraftGeneration({
   requestSeqRef,
   abortControllerRef,
   latestChapterIdRef,
-  isGeneratingContent,
-  setIsGeneratingContent,
-  setIsGeneratingBeats,
-  setIsGeneratingCritique,
   setAuditStatus,
   setGenerationStatus,
   setAiActionState: providedSetAiActionState,
@@ -82,6 +75,8 @@ export function useDraftGeneration({
   flushPendingEditorWrites,
   setCandidate,
 }: UseDraftGenerationArgs) {
+  // 005-S4：生成旗标写 store（写用 getState，读用 fresh getter，保持可作普通函数测试）
+  const { setIsGeneratingContent, setIsGeneratingBeats, setIsGeneratingCritique } = useEditorGenerationStore.getState();
   const setAiActionState = providedSetAiActionState ?? (() => undefined);
   const setAiActionStateForRequest = (
     startingChapterId: string | undefined,
@@ -195,7 +190,7 @@ export function useDraftGeneration({
 
   const handleGenerateContent = async (fingerprintOverride?: string) => {
     const startingChapterId = currentChapter?.id;
-    if (!currentChapter || !currentChapter.sceneBeats || isGeneratingContent) return;
+    if (!currentChapter || !currentChapter.sceneBeats || useEditorGenerationStore.getState().isGeneratingContent) return;
 
     const currentSeq = ++requestSeqRef.current;
     void recordProductEvent({

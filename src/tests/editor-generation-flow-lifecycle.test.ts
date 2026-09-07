@@ -15,14 +15,12 @@ type RunningAction = {
 
 type DraftHookArgs = {
   requestSeqRef: { current: number };
-  setIsGeneratingContent: (value: boolean) => void;
   setGenerationStatus: (value: string | null) => void;
   setAiActionState: (value: RunningAction) => void;
 };
 
 type AuditHookArgs = {
   requestSeqRef: { current: number };
-  setIsGeneratingCritique: (value: boolean) => void;
   setAuditStatus: (value: string | null) => void;
   setAiActionState: (value: RunningAction) => void;
 };
@@ -32,7 +30,7 @@ vi.mock('../lib/hooks/generation/useDraftGeneration', () => ({
     handleGenerateBeats: vi.fn(),
     handleGenerateContent: vi.fn(async () => {
       args.requestSeqRef.current += 1;
-      args.setIsGeneratingContent(true);
+      useEditorGenerationStore.getState().setIsGeneratingContent(true);
       args.setGenerationStatus('正在生成正文');
       args.setAiActionState({ status: 'running', operation: 'draft', message: '正在生成正文' });
     }),
@@ -43,7 +41,7 @@ vi.mock('../lib/hooks/generation/useAuditPolishActions', () => ({
   useAuditPolishActions: (args: AuditHookArgs) => ({
     handleRunAudit: vi.fn(async () => {
       args.requestSeqRef.current += 1;
-      args.setIsGeneratingCritique(true);
+      useEditorGenerationStore.getState().setIsGeneratingCritique(true);
       args.setAuditStatus('正在审稿');
       args.setAiActionState({ status: 'running', operation: 'audit', message: '正在审稿' });
     }),
@@ -53,6 +51,7 @@ vi.mock('../lib/hooks/generation/useAuditPolishActions', () => ({
 }));
 
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 
 const novel: Novel = {
   id: 'novel-1', title: 'Novel', authorId: 'user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,

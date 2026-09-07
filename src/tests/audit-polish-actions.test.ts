@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
@@ -114,8 +115,6 @@ function renderRewriteHook(options: {
     requestSeqRef,
     abortControllerRef,
     latestChapterIdRef,
-    setIsGeneratingContent: vi.fn(),
-    setIsGeneratingCritique: vi.fn(),
     setGenerationStatus: vi.fn(),
     setAuditStatus: vi.fn(),
     setAuditUnknownFeedback: vi.fn(),
