@@ -18,7 +18,7 @@ import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } fr
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isMonetizationEnabled } from '../lib/entitlements';
-import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
+import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, getOptionalStyleAssets, getSanitizeRequiredAssets, isSanitizeRequiredAsset, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
 import {
   getAuthorFacingCapabilityActionHint,
   getAuthorFacingCapabilityActionLabel,
@@ -270,6 +270,7 @@ function PlazaAssetCard({
   onUseTechnique,
   onUseProjectTechnique,
   onDirectExec,
+  onSanitize,
 }: {
   asset: CuratedProductSkill;
   isImported: boolean;
@@ -282,6 +283,7 @@ function PlazaAssetCard({
   onUseTechnique: () => void;
   onUseProjectTechnique: () => void;
   onDirectExec: () => void;
+  onSanitize?: () => void;
 }) {
   const isLicensed = getCapabilityManifest(asset)?.sourceType === 'licensed';
   const cleanTitle = sanitizeWhiteLabelText(asset.title);
@@ -392,8 +394,19 @@ function PlazaAssetCard({
             {isFavorited ? '移出系统检查候选' : defaultActionLabel || '保存为系统检查候选'}
           </button>
         ) : unavailable ? (
-          <div className="w-full py-2 text-center text-xs font-bold text-theme-muted border border-theme-border/40 rounded">
-            暂不可运行
+          <div className="space-y-1.5">
+            <div className="w-full py-2 text-center text-xs font-bold text-theme-muted border border-theme-border/40 rounded">
+              暂不可运行
+            </div>
+            {onSanitize && isSanitizeRequiredAsset(asset.id) && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSanitize(); }}
+                className="w-full py-2 rounded text-xs font-bold bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent/20 transition-all"
+              >
+                消毒并启用
+              </button>
+            )}
           </div>
         ) : isPreviewOnlyTransform && isTechniqueManifest ? (
           <div className="space-y-2">
@@ -843,7 +856,7 @@ export function SkillsStudioView({
     }
   };
 
-  type StoreTab = GovernanceCapabilityType | 'diagnostic-tools' | 'packages';
+  type StoreTab = GovernanceCapabilityType | 'diagnostic-tools' | 'packages' | 'optional-style';
   const getInitialCapabilityTab = React.useCallback((stage?: GovernanceStage): StoreTab => (
     stage === 'style-polish' ? 'diagnostic-tools' : 'flow'
   ), []);
@@ -868,6 +881,8 @@ export function SkillsStudioView({
   const filteredCuratedSkills = useMemo(() => {
     if (selectedCapability === 'packages') return [];
     const stage = selectedCategory === 'all' ? undefined : selectedCategory;
+    // 004：文风与正文分组——74 张 optional-style 治理资产从目录投影上货架
+    if (selectedCapability === 'optional-style') return getOptionalStyleAssets(stage);
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
       return manifest.runtimeStatus === 'active'
@@ -891,11 +906,16 @@ export function SkillsStudioView({
     return assets;
   }, [selectedCapability, selectedCategory]);
   // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
+  // 004：待消毒候选卡也投影进该分组，提供"消毒并启用"入口。
   const availableCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus === 'active');
-  const lockedCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus !== 'active');
+  const lockedCuratedSkills = [
+    ...filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'),
+    ...getSanitizeRequiredAssets(),
+  ];
   const capabilityTabCount = (id: StoreTab) => {
     if (id === 'flow') return visibleFlowCount;
     if (id === 'packages') return visiblePackageCount;
+    if (id === 'optional-style') return getOptionalStyleAssets().length;
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
       return manifest.runtimeStatus === 'active'
@@ -1643,6 +1663,41 @@ export function SkillsStudioView({
     handleDirectExec(asset);
   };
 
+  // 004 消毒并启用：调服务端消毒端点落库脱敏副本，再走既有装配链路
+  // （handleImportAsset 的去重会命中 sanitized- 副本，不会重复落库）。
+  const handleSanitizeAndEnable = async (asset: CuratedProductSkill) => {
+    if (!selectedNovel) {
+      toast('请先选择一个作品再配置能力。', 'error');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/skills/sanitize/${encodeURIComponent(asset.id)}`, { method: 'POST' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast(body.error || '消毒失败，请重试。', 'error');
+        return;
+      }
+      const sanitizedSkill: Skill = {
+        id: `sanitized-${asset.id}`,
+        name: asset.title,
+        sourceCardId: asset.id,
+        parentSkillId: asset.id,
+        sourceType: 'plaza',
+        version: 1,
+        isRuntimeReady: true,
+        sanitizationStatus: 'runtime-ready',
+        runtimeStatus: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as unknown as Skill;
+      setSavedSkills((current) => current.some((skill) => skill.id === sanitizedSkill.id) ? current : [...current, sanitizedSkill]);
+      await handleEquipAsset(asset);
+      toast('已消毒并启用该能力卡（原作者署名与私有引用已剥离）。', 'success', 5000);
+    } catch {
+      toast('消毒失败，请重试。', 'error');
+    }
+  };
+
   const handleDirectExec = (asset: CuratedProductSkill) => {
     if (!selectedNovel?.id) {
       toast('请先选择一个作品再使用该能力。', 'error');
@@ -2130,7 +2185,7 @@ export function SkillsStudioView({
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
             <div role="tablist" aria-label="能力治理类别" className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-3">
               {([
-                ['flow', '创作流程'], ['technique', '写作技法'], ['skill-card', '拆书卡'], ['diagnostic-tools', '审稿与精修'],
+                ['flow', '创作流程'], ['technique', '写作技法'], ['skill-card', '拆书卡'], ['diagnostic-tools', '审稿与精修'], ['optional-style', '文风与正文'],
               ] as const).map(([id, label]) => (
                 <button key={id} role="tab" aria-selected={selectedCapability === id} type="button" onClick={() => setSelectedCapability(id)} className={cn('px-3 py-2 rounded-lg text-xs font-bold border', selectedCapability === id ? 'bg-theme-sidebar border-theme-accent text-theme-text' : 'border-transparent text-theme-muted hover:text-theme-text')}>
                   {label} <span className="ml-1 text-[10px]">{capabilityTabCount(id)}</span>
@@ -2376,6 +2431,7 @@ export function SkillsStudioView({
                               onUseTechnique={() => handleUseTechnique(asset)}
                               onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
                               onDirectExec={() => handleDirectExec(asset)}
+                              onSanitize={() => void handleSanitizeAndEnable(asset)}
                             />
                           ))}
                         </div>

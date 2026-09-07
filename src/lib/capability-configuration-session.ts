@@ -12,7 +12,8 @@ export type CapabilitySessionStoreTab =
   | 'utility'
   | 'guardrail'
   | 'diagnostic-tools'
-  | 'packages';
+  | 'packages'
+  | 'optional-style';
 export type CapabilitySessionCategory =
   | 'all'
   | 'creative-setup'

@@ -59,7 +59,8 @@ import {
 import { buildBookEvidenceSegments } from '../../shared/lib/book-skill-segmentation';
 import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregation';
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
-import type { SegmentSkillEvidence } from '../../shared/types';
+import type { SegmentSkillEvidence, Skill } from '../../shared/types';
+import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
 import { validate, extractSkillSchema } from '../validation';
 import {
   createLlmExecution,
@@ -224,6 +225,47 @@ async function processModelSkillExtraction(
 }
 
 export function registerSkillsRoutes(app: Express) {
+  // 004 消毒管线：把待消毒（sanitize-required）的治理资产卡清洗后落库为可运行卡。
+  // 运行中的静态目录不可变；消毒 = 以脱敏副本写入 skills 表（runtime-ready + active），
+  // 原始 sourceRef 保留在目录中可追溯。
+  app.post('/api/skills/sanitize/:assetId', (req, res) => {
+    if (!rateLimit('sanitize-skill')) return res.status(429).json({ error: '消毒请求过于频繁，请稍后再试。', retryAfter: 10 });
+    const { assetId } = req.params;
+    const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === assetId);
+    if (!asset) return res.status(404).json({ code: 'ASSET_NOT_FOUND', error: '治理资产不存在' });
+    if (asset.runtimeStatus !== 'candidate' || asset.sanitizationStatus !== 'needs-sanitization') {
+      return res.status(409).json({ code: 'ASSET_NOT_SANITIZABLE', error: '该资产不是待消毒的候选卡' });
+    }
+    const skillId = `sanitized-${asset.id}`;
+    const existing = db.getSkill(skillId);
+    if (existing) {
+      return res.json({ skillId, alreadySanitized: true, sanitizationHits: asset.sanitizationHits, runtimeStatus: 'active' });
+    }
+    const skill: Skill = {
+      id: skillId,
+      name: sanitizeWhiteLabelText(asset.title),
+      description: sanitizeWhiteLabelText(asset.goal || ''),
+      style: sanitizeWhiteLabelText(asset.template || ''),
+      sourceCardId: asset.id,
+      parentSkillId: asset.id,
+      sourceType: 'plaza',
+      version: 1,
+      isRuntimeReady: true,
+      sanitizationStatus: 'runtime-ready',
+      runtimeStatus: 'active',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as unknown as Skill;
+    try {
+      db.createSkill(skill);
+    } catch (error) {
+      logger.error('sanitize: failed to persist sanitized skill', { assetId, error });
+      return res.status(500).json({ code: 'SANITIZE_PERSIST_FAILED', error: '消毒结果保存失败，请重试。' });
+    }
+    logger.info('sanitize: skill sanitized', { assetId });
+    return res.json({ skillId, alreadySanitized: false, sanitizationHits: asset.sanitizationHits, runtimeStatus: 'active' });
+  });
+
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
     if (!rateLimit('extract-skill')) return res.status(429).json({ error: '拆书请求过于频繁，请稍后再试。', retryAfter: 5 });
     const { novelId } = req.body;

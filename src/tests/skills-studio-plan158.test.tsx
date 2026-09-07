@@ -628,9 +628,10 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(screen.getByText('④ 过签与平台检查'));
     expect(screen.getByRole('heading', { name: '番茄爽文爆款完读率诊断评分仪' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '海外主流网文海外通吃爽点自检仪' })).toBeTruthy();
-    // 001 目标 5：不可用卡折叠进"需解锁"分组，不再与可用卡同屏混排
-    expect(screen.getAllByText('暂不可运行')).toHaveLength(2);
-    expect(screen.getByText(/需解锁（2）/)).toBeTruthy();
+    // 001 目标 5 + 004：不可用卡折叠进"需解锁"分组；45 张待消毒候选带"消毒并启用"
+    expect(screen.getAllByText('暂不可运行').length).toBeGreaterThanOrEqual(47);
+    expect(screen.getAllByText('消毒并启用').length).toBeGreaterThanOrEqual(45);
+    expect(screen.getByText(/需解锁（\d+/)).toBeTruthy();
     expect(screen.queryByText('该航道暂无精品卡，敬请期待')).toBeNull();
   });
 
@@ -1210,5 +1211,28 @@ describe('Plan 158 capability center', () => {
     expect(screen.getByText('这里还没有可配置到作品的专属 AI 写作能力。先生成或挑选能力卡，再选择卡组位置或应用配置；使用范围会在卡片上标明。')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: '黄金三章核心冲突大纲展开器' })).toBeNull();
   });
+
+  test('004 surfaces the optional-style prose shelf group with the full inventory', async () => {
+    render(<SkillsStudioView selectedNovel={novel} />);
+    await settleStudio();
+    fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /文风与正文/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('tab', { name: /文风与正文/ }));
+
+    // 研究口径 74 张 optional-style，其中 1 张 test-fixture 不上货架 → 73
+    const headings = await screen.findAllByRole('heading');
+    const cardHeadings = headings.filter((heading) => heading.closest('div.grid'));
+    expect(cardHeadings.length).toBeGreaterThanOrEqual(73);
+  }, 15_000);
+
+  test('004 offers sanitize-and-enable for locked candidate cards', async () => {
+    render(<SkillsStudioView selectedNovel={novel} />);
+    await openPlaza();
+
+    expect(await screen.findByText(/需解锁（\d+/)).toBeTruthy();
+    const sanitizeButtons = screen.getAllByRole('button', { name: '消毒并启用' });
+    // 46 张 sanitize-required 候选中 1 张 test-fixture 不上货架 → 45
+    expect(sanitizeButtons.length).toBeGreaterThanOrEqual(45);
+  }, 15_000);
 
 });

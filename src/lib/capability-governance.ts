@@ -228,3 +228,92 @@ export function getCoreDefaultGuardrailCount(): number {
     asset.placementTier === 'core-default' && asset.primaryCategory === 'quality-guardrail'
   )).length;
 }
+
+/** 004：文风与正文卡（optional-style 且运行就绪），从沉睡目录投影到货架。 */
+export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductSkill[] {
+  const stageMap: Record<string, CapabilityStage> = { discovery: 'planner', foundation: 'planner', planning: 'planner', drafting: 'writer', polish: 'writer', review: 'critic' };
+  const displayMap: Record<string, GovernanceStage[]> = {
+    discovery: ['creative-setup'], foundation: ['creative-setup'], planning: ['creative-setup'],
+    drafting: ['active-drafting'], polish: ['style-polish'], review: ['style-polish'],
+  };
+  return PROMPT_GOVERNANCE_CATALOG
+    .filter((asset) => asset.placementTier === 'optional-style'
+      && asset.runtimeStatus === 'active'
+      && asset.isRuntimeReady === true
+      && asset.sanitizationStatus === 'runtime-ready'
+      && asset.sourceGroup !== 'test-fixture'
+      && (!stage || (displayMap[asset.stage] || ['style-polish']).includes(stage)))
+    .map((asset) => ({
+      id: asset.id,
+      title: asset.title,
+      curatedCategory: 'style' as const,
+      goal: asset.goal,
+      successSignal: asset.successSignal,
+      score: asset.score || 0,
+      grade: asset.grade || 'B',
+      sourceType: asset.sourceType || 'built-in',
+      primaryCategory: asset.primaryCategory || 'style-reference',
+      inputs: asset.inputs || ['content'],
+      actionType: 'equip' as const,
+      capabilityManifest: {
+        id: asset.id,
+        version: 'catalog',
+        kind: 'technique' as const,
+        stages: [stageMap[asset.stage] || 'writer'],
+        input: 'text',
+        output: 'configuration',
+        action: 'use-technique',
+        allowedScopes: ['project', 'chapter'],
+        persistence: 'project',
+        sideEffect: 'configuration',
+        runtimeStatus: 'active',
+        sourceType: asset.sourceType || 'built-in',
+        displayStages: displayMap[asset.stage] || ['style-polish'],
+      },
+    }));
+}
+
+/** 004：待消毒卡（sanitize-required candidate）投影，只进"需解锁"分组。 */
+export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
+  return PROMPT_GOVERNANCE_CATALOG
+    .filter((asset) => asset.placementTier === 'sanitize-required'
+      && asset.runtimeStatus === 'candidate'
+      && asset.sanitizationStatus === 'needs-sanitization'
+      && asset.sourceGroup !== 'test-fixture')
+    .map((asset) => ({
+      id: asset.id,
+      title: asset.title,
+      curatedCategory: 'style' as const,
+      goal: asset.goal,
+      successSignal: asset.successSignal,
+      score: asset.score || 0,
+      grade: asset.grade || 'B',
+      sourceType: (asset.sourceType || 'plaza') as 'built-in' | 'plaza' | 'licensed',
+      primaryCategory: asset.primaryCategory || 'style-reference',
+      inputs: asset.inputs || ['content'],
+      actionType: 'equip' as const,
+      capabilityManifest: {
+        id: asset.id,
+        version: 'catalog',
+        kind: 'technique' as const,
+        stages: ['writer'],
+        input: 'text',
+        output: 'configuration',
+        action: 'use-technique',
+        allowedScopes: ['project', 'chapter'],
+        persistence: 'project',
+        sideEffect: 'configuration',
+        runtimeStatus: 'unavailable',
+        sourceType: (asset.sourceType || 'plaza') as 'built-in' | 'plaza' | 'licensed',
+        displayStages: ['style-polish'],
+      },
+    }));
+}
+
+/** 004：该资产是否为待消毒候选（决定货架卡是否展示"消毒并启用"）。 */
+export function isSanitizeRequiredAsset(assetId: string): boolean {
+  const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === assetId);
+  return Boolean(asset
+    && asset.runtimeStatus === 'candidate'
+    && asset.sanitizationStatus === 'needs-sanitization');
+}

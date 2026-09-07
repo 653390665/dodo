@@ -10,9 +10,10 @@ import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow
 import { DRAFT_QUALITY_SEMANTIC_LABELS } from '../../../shared/lib/quality-contract';
 import { findPatchWindow } from '../../lib/chapter-polish';
 import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile, getAssetEnhancementPackage, isPackageRestricted } from '../../../shared/lib/prompt-assets-governed';
-import type { PromptAssetActionKind } from '../../../shared/types/prompt-assets-governed';
+import type { GovernedPromptAsset, PromptAssetActionKind } from '../../../shared/types/prompt-assets-governed';
 import { toast } from '../../lib/toast';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, filterLicensedAssetsByEntitlement, getEffectiveCommercialMode } from '../../lib/entitlements';
+import { getOptionalStyleAssets } from '../../lib/capability-governance';
 
 interface QualityTabProps {
   currentChapter: Chapter | null;
@@ -211,8 +212,26 @@ export function QualityTab({
       commercialMode: getEffectiveCommercialMode(novel.projectPreferenceProfile?.commercialMode),
       excludeAssetIds: skippedAssetIds,
     });
-    return filterLicensedAssetsByEntitlement(recommendations, novel.projectPreferenceProfile?.commercialMode);
-  }, [novel, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
+    const licensed = filterLicensedAssetsByEntitlement(recommendations, novel.projectPreferenceProfile?.commercialMode);
+    // 004：文风与正文卡按写作上下文浮现，最多 2 张——章节文本命中卡目标/成效
+    // 关键词的优先，其余按库存评分排序，去重后追加在治理推荐之后。
+    const seen = new Set(licensed.map((asset) => asset.id));
+    const content = currentChapter?.content || '';
+    const styleMatches = getOptionalStyleAssets()
+      .map((asset) => {
+        const tokens = `${asset.title}|${asset.goal}|${asset.successSignal}`
+          .split(/[^\u4e00-\u9fa5A-Za-z0-9]+/)
+          .filter((token) => token.length >= 2);
+        const hits = tokens.reduce((count, token) => (content.includes(token) ? count + 1 : count), 0);
+        return { asset, hits };
+      })
+      .sort((a, b) => b.hits - a.hits || b.asset.score - a.asset.score)
+      .slice(0, 2)
+      .map(({ asset }) => asset)
+      .filter((asset) => !seen.has(asset.id))
+      .map((asset) => ({ ...asset, placementTier: 'optional-style' }) as unknown as GovernedPromptAsset);
+    return [...licensed, ...styleMatches];
+  }, [novel, currentChapter, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
 
   // 渲染尚未审查状态（002：空态语义对齐完成审查——接受正文后自动运行）
   if (!hasQualityReport) {
