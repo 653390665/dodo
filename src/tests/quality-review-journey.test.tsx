@@ -103,4 +103,67 @@ describe('QualityTab review issue journey', () => {
     expect(screen.getByText('当前正文尚无有效语义审阅，或正文已在审稿后变化，请重新审稿。')).toBeTruthy();
     expect(screen.queryByText('人物一致性：需处理')).toBeNull();
   });
+
+  test('shows completion-review conclusions and polish entry with zero capability configuration', () => {
+    // 002：无 critique 文本、无任何能力配置时，完成审查结论（reviewState）
+    // 仍是质量报告的渲染源，精修入口不要求预配置精修卡。
+    const contentHash = computeChapterWorkflowHash(chapter.content, chapter.sceneBeats);
+    const reviewedChapter: Chapter = {
+      ...chapter,
+      critique: '',
+      workflowMeta: {
+        version: 1,
+        reviewState: {
+          schemaVersion: 1,
+          contentHash,
+          gate: 'needs-action',
+          issues: [{
+            id: 'issue-1', source: 'utility', severity: 'major', status: 'open',
+            explanation: '动作断裂', suggestedFix: '补足动作链',
+            recommendedCapabilityIds: [], contentHash, createdAt: 1, updatedAt: 1,
+          }],
+        },
+      },
+    };
+    const onFix = vi.fn();
+    render(
+      <QualityTab
+        currentChapter={reviewedChapter}
+        novel={novel}
+        onRunAudit={vi.fn().mockResolvedValue(undefined)}
+        isGeneratingCritique={false}
+        onPolishChapterFromAudit={vi.fn().mockResolvedValue(undefined)}
+        isGeneratingContent={false}
+        reviewIssues={[{
+          id: 'issue-1', source: 'utility', severity: 'major', status: 'open',
+          explanation: '动作断裂', suggestedFix: '补足动作链',
+          recommendedCapabilityIds: [], contentHash, createdAt: 1, updatedAt: 1,
+        }]}
+        onFixReviewIssues={onFix}
+      />
+    );
+    expect(screen.getByText('质量报告')).toBeTruthy();
+    expect(screen.getByText('动作断裂')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '修正并复审：动作断裂' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '修正并复审：动作断裂' }));
+    expect(onFix).toHaveBeenCalledWith(['issue-1'], '本章');
+  });
+
+  test('shows the not-reviewed empty state aligned with completion-review semantics', () => {
+    // 002：无结论时空态说明"接受正文后自动运行"，按钮为"立即审查"。
+    const unreviewedChapter: Chapter = { ...chapter, critique: '' };
+    render(
+      <QualityTab
+        currentChapter={unreviewedChapter}
+        novel={novel}
+        onRunAudit={vi.fn().mockResolvedValue(undefined)}
+        isGeneratingCritique={false}
+        onPolishChapterFromAudit={vi.fn().mockResolvedValue(undefined)}
+        isGeneratingContent={false}
+      />
+    );
+    expect(screen.getByText('尚未审查')).toBeTruthy();
+    expect(screen.getByText(/接受正文后会自动运行完成审查/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '立即审查' })).toBeTruthy();
+  });
 });

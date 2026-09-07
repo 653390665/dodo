@@ -238,6 +238,11 @@ export function ProductionRunReview({
             </div>
           ) : null}
 
+          {/* 002：生产期审稿只服务于流水线内迭代，不与章内权威结论混淆 */}
+          <div role="note" className="mt-3 rounded-xl border border-theme-border/60 bg-theme-bg/50 px-3 py-2 text-[10px] leading-4 text-theme-muted">
+            生产期审稿（迭代用）：这里的审计结果用于流水线内的重写反馈；章节交付的权威审稿结论以接受正文后的完成审查为准。
+          </div>
+
           {unknownAuditSource ? (
  <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               正文版本来源未知，不能直接接受并写入。请重新生成模型版本。

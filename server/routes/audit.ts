@@ -512,6 +512,10 @@ function attachStreamAbortGuard(
 }
 
 export function registerAuditRoutes(app: Express) {
+  // 002 口径说明：/api/audit（manualAudit 模板）不再是独立的"第二份审稿结论"。
+  // 前端主路径已把本审计结果写入 chapter.workflowMeta.reviewState（与完成审查
+  // 同一权威存储），工作台"质量报告"以 reviewState 为渲染源。保留此 API 仅作
+  // 兼容与按需重审入口；章内交付结论以完成审查（chapter-completion）为准。
   app.get('/api/audit/jobs/:jobId', (req, res) => {
     const { jobId } = req.params;
     const job = auditJobs.get(jobId);

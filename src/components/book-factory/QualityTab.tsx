@@ -92,13 +92,16 @@ export function QualityTab({
   const structuredAudit = React.useMemo(() => {
     return extractStructuredAudit(critiqueText);
   }, [critiqueText]);
-  const semanticReview = React.useMemo(() => {
+  // 002：完成审查结论（workflowMeta.reviewState）是唯一权威审稿源。
+  // 只有内容哈希仍匹配时结论才视为有效。
+  const freshReviewState = React.useMemo(() => {
     const reviewState = currentChapter?.workflowMeta?.reviewState;
     if (!currentChapter || !reviewState) return null;
     return reviewState.contentHash === computeChapterWorkflowHash(currentChapter.content, currentChapter.sceneBeats)
-      ? reviewState.semanticReview || null
+      ? reviewState
       : null;
   }, [currentChapter]);
+  const semanticReview = React.useMemo(() => freshReviewState?.semanticReview || null, [freshReviewState]);
 
   const cleanCritiqueText = React.useMemo(() => {
     return stripEmbeddedStructuredAudit(critiqueText);
@@ -151,6 +154,7 @@ export function QualityTab({
   }, [structuredAudit, currentChapter]);
 
   const hasCritique = Boolean(critiqueText);
+  const hasQualityReport = hasCritique || Boolean(freshReviewState);
   const hasCapabilityDetails = Boolean(
     capabilityEffectSummary?.projectCardNames.length
       || capabilityEffectSummary?.favoriteTechniqueNames.length
@@ -210,8 +214,8 @@ export function QualityTab({
     return filterLicensedAssetsByEntitlement(recommendations, novel.projectPreferenceProfile?.commercialMode);
   }, [novel, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
 
-  // 渲染尚未审计状态
-  if (!hasCritique) {
+  // 渲染尚未审查状态（002：空态语义对齐完成审查——接受正文后自动运行）
+  if (!hasQualityReport) {
     return (
       <div className="space-y-6">
         {renderCapabilitySummary('本次审稿能力配置', '还没有配置作品默认卡或常用技法，审稿会先按当前章节与作品上下文继续。')}
@@ -220,9 +224,9 @@ export function QualityTab({
           <div className="flex items-center justify-center rounded-2xl w-14 h-14 bg-theme-accent/10 text-theme-accent mb-4">
             <Bot size={28} className="opacity-90" aria-hidden="true" />
           </div>
-          <h3 className="text-sm font-bold text-theme-text mb-1">AI 章节批判审计</h3>
+          <h3 className="text-sm font-bold text-theme-text mb-1">尚未审查</h3>
           <p className="text-xs text-theme-muted mb-6 max-w-[240px] leading-relaxed">
-            深入诊断当前章节的逻辑漏洞、干瘪对白、AI机械腔调及节奏硬伤，获得可确认的局部精修预览。
+            接受正文后会自动运行完成审查，问题单与语义审阅会显示在这里；也可以现在立即审查。
           </p>
           <button
             onClick={() => void onRunAudit()}
@@ -232,12 +236,12 @@ export function QualityTab({
             {isGeneratingCritique ? (
               <>
                 <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                <span>审计诊断中... (约需30s)</span>
+                <span>审查进行中... (约需30s)</span>
               </>
             ) : (
               <>
                 <MessageSquareWarning size={16} aria-hidden="true" />
-                <span>开始 AI 审计</span>
+                <span>立即审查</span>
               </>
             )}
           </button>
@@ -284,8 +288,8 @@ export function QualityTab({
           <div className="flex items-center gap-3">
             <Bot size={20} className="text-theme-accent" aria-hidden="true" />
             <div>
-              <h4 className="text-xs font-bold text-theme-text">AI 审稿报告</h4>
-              <p className="text-[10px] text-theme-muted">诊断已就绪，可在下方生成精修预览</p>
+              <h4 className="text-xs font-bold text-theme-text">质量报告</h4>
+              <p className="text-[10px] text-theme-muted">完成审查的问题单与语义审阅在下方，可逐项处理</p>
             </div>
           </div>
           <button
@@ -294,7 +298,7 @@ export function QualityTab({
             className="px-3 py-1.5 border border-theme-border text-xs font-bold rounded-lg hover:bg-theme-border/40 transition-colors shrink-0 flex items-center gap-1 disabled:opacity-50"
           >
             {isGeneratingCritique ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={12} aria-hidden="true" />}
-            重新审计
+            重新审查
           </button>
         </div>
       )}
