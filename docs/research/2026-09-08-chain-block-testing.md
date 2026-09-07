@@ -25,3 +25,26 @@
 ## 结论
 
 六条核心业务链路（生成、能力、写法确认、审稿、候选助手、续写持久化）在本轮分块测试中**全部通过，未发现回归或缺陷**。链路级健康度与全量套件结论一致。
+
+## 链路联动（接缝）测试与覆盖矩阵（同日追加）
+
+**联动块实跑**（跨域联合测试，oracle 数字）：后端 `chapter-completion` + `capability-recommendation` + `workflow-state` = **17/17**；前端 `editor-completion-flow` + `book-factory-equip-sync` + `workflow-state` + `capability-client-boundary` + `agent-workspace-knowledge-panel` = **40/40**。合计 **57/57，0 失败**。
+
+### 接缝覆盖矩阵
+
+| 接缝 | 联动内容 | 背书测试 | 判定 |
+|---|---|---|---|
+| J1 能力启用 → 生产注入 | 启用写 profile（卡组/技法/护栏）→ 三阶段消费 | plan158（apply 断言）+ writing-style-service（后端注入侧 48 例） | ✅ 有背书 |
+| J2 写法确认 → 生产流 | fingerprint 进 run/audit 载荷；确认要求 → 候选横幅 → 确认后 retry | continuation-autostart + writing-style-gates（后端）+ useAuditPolishActions 指纹路径 | ✅ 有背书 |
+| J3 生产 → 完成审查 → 门禁 → 精修回写 | complete → gate → risk → issue 修复 → reviewState 重算 | chapter-completion(13) + workflow-state + quality-review-journey + editor-completion-flow(9) | ✅ 有背书 |
+| J4 候选接受 → 质量门 → 写入 → **自动触发完成审查** | 接受链有门有测试；"接受成功后自动跑一次完成审查"这一跳无直接断言 | editor-candidate-acceptance（接受与门）+ editor-completion-flow（审查与门）各测半段 | ⚠️ 半覆盖 |
+| J5 续写包 → 缺口 → 助手 → 设定候选 | continuation-gap-assistant-bridge + app-shell-batch-gap-assistant + db-continuation-pack | ✅ 有背书 |
+| J6 消毒/授权 → 商店 → 启用落库 | 消毒端点+落库（后端 5 例）、启用→apply（plan158）；**"消毒后卡在商店可见并成功启用"的端到端一跳**无测试 | ⚠️ 半覆盖 |
+| J7 状态条/各域 store 联动 | GenerationStatusBar 读 store + 各域写 store 的跨面传播 | generation-status-bar（组件级） | ⚠️ 仅组件级 |
+
+### 联动缺口（建议立 010：三条接缝测试）
+
+1. J4：候选接受成功 → 断言完成审查被调度/运行一次；
+2. J6：消毒成功 → savedSkills 刷新 → 卡移出需解锁 → 走启用链路落库断言；
+3. J7：production-store 写入 → GenerationStatusBar 四段在多组件间同步的传播断言。
+
