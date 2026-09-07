@@ -86,10 +86,10 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(output).toContain('结果就绪后会展示最新候选，保存后才进入我的能力');
     expect(equip).toContain('请选择目标作品');
     expect(quality).toContain('本章使用');
-    expect(quality).toContain('获得可确认的局部精修预览');
+    expect(quality).toContain('接受正文后会自动运行完成审查');
     expect(quality).toContain('手术精修预览片段');
     expect(quality).toContain('本轮预览');
-    expect(quality).toContain('可在下方生成精修预览');
+    expect(quality).toContain('完成审查的问题单与语义审阅在下方');
     expect(quality).toContain('生成精修预览');
     expect(quality).toContain('执行局部手术精修');
     expect(quality).not.toContain('获得可一键局部精修的手术方案');
