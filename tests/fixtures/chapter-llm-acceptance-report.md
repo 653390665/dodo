@@ -3,7 +3,7 @@
 - 模式：`deterministic`
 - 总体状态：`FALLBACK`
 - 模型配置：`missing`
-- 生成时间：`2026-09-07T11:07:17.214Z`
+- 生成时间：`2026-09-07T13:04:18.860Z`
 
 ## 样本
 
@@ -30,7 +30,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | slop-heavy | audit | FALLBACK | - | structured | - | - | - | style-slop, ai-cliche, exposition-dump, tell-dont-show | json-object | yes | 3 | 0 |
 | slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |
-| slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |
+| slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 1 |
 | slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |
 | slop-heavy | re-audit | FALLBACK | - | structured | - | - | - | - | json-object | yes | 0 | 0 |
 | action-weak | audit | FALLBACK | - | structured | - | - | - | action-chain, dialogue-without-beat, weak-action-chain | json-object | yes | 2 | 0 |

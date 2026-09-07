@@ -932,7 +932,13 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                 onAction={(key) => void runCopilotAction(key)}
               />
             ) : (
-              <div className="text-center py-12 text-theme-muted text-xs">暂无智能建议</div>
+              <button
+                type="button"
+                onClick={() => setAgentTab('planning')}
+                className="mx-auto block rounded-lg border border-dashed border-theme-border px-4 py-3 text-xs text-theme-muted hover:border-theme-accent hover:text-theme-text transition-colors"
+              >
+                暂无智能建议——去生成分镜，开启本章创作
+              </button>
             )}
           </div>
         )}

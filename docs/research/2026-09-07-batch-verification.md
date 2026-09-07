@@ -151,3 +151,69 @@
 ## 5. 总体结论
 
 本批次 16 个提交的**功能声明与代码事实高度吻合**：001/003/004 全部证实，002/008 主体证实，007 T1/T3/T5 证实（含曾出过接线事故的 T5——旧 JSX、IIFE、重复实现清理干净，全仓仅剩一份 `getCandidateQualityState`），四条验证命令实测全绿（tsc 0 / eslint 0 / 前端 839 / 后端 1153 / 专项 2），工作区干净无调试残留。信息错误集中在**文档数字与状态行的陈旧化**：基线 1151 vs 实测 1153、props 起点 109 vs 批次实测 97、007 T4 与 008 关于 workflow-copy.ts 的互相矛盾（该文件实为零引用死代码，连同 glossary.ts 共两处死文件）、以及 incomplete-task-audit 研究文档未随批次回写——无一是"声称完成但功能不存在"级别的虚假声明，属可在半小时内清完的文档回写债。
+
+---
+
+## 第二轮复核（2026-09-07，提交范围 8eaf51b..2218653，共 21 个提交）
+
+> 方法同第一轮：所有文档声明视为被审对象，逐条回到代码/命令/git 一手证据。本轮覆盖 abb6efa 的修正生效性、其后 4 个新提交（ecfe229 / 62d8ee0 / de1d5e4 / 2218653）的声明、以及对本报告 §1-§4 结论的抽查重验。全程只读，未触碰 `data.db`。
+
+### 1. fresh 命令（全部重跑，不引用历史输出）
+
+| 命令 | 实测结果 |
+|---|---|
+| `npx tsc --noEmit` | exit 0，0 错误 |
+| `npx eslint <16 个本批触及文件>` | exit 0，**0 errors / 2 warnings**（ProductionTab.tsx:7 `WritingStyleCandidate`/`WritingStyleResolution` 导入未使用，系 62d8ee0 迁移残留；README:6 基线行"0 问题"口径对当前 HEAD 不再严格成立） |
+| `npx vitest -c vitest.config.frontend.ts run` | Test Files **121 passed (121)**；Tests **839 passed (839)**，0 skipped / 0 todo，388.9s |
+| `npm test` | `# tests 1153 # pass 1153 # fail 0 # skipped 0 # todo 0`（29 suites，116s） |
+
+### 2. 本报告（第一轮）可信度抽查——5 条全部复核成立
+
+- `getCandidateQualityState` 全仓唯一定义 `src/lib/candidate-quality.ts:7`，引用仅 AiCandidateReview ✅
+- `getOptionalStyleAssets().length = 73`、`getSanitizeRequiredAssets().length = 45`（tsx 实跑）✅
+- equip 撤销 toast 5000ms（SkillsStudioView :1603、:2720；:1659 的 6500 系"卡组已满"错误提示）✅
+- 能力卡徽章恰 2 枚（作用范围 + 只读/改正文，:382-393）✅
+- 旧文案"加入本次配置候选"组件层 0 命中（命中均在测试自身的 mock/反向断言）✅
+
+### 3. abb6efa 修正生效性
+
+| 项 | 实际 | 判定 |
+|---|---|---|
+| docs/plans/README.md 旧数字（1151/838/109→87） | 0 残留；:6 现为 839/839、1153/1153；:19 005 行为 97→85 | ✅ |
+| 007 T2 行分镜豁免决策 | :75 记录"分镜写入有意豁免——结构素材，整章门会误杀，待 T5 系候选管道覆盖" | ✅ |
+| 007 T4 行"待做" | :77 改为"已建并由 AiCandidateReview 消费；其余表面渐进替换"（de1d5e4 后 WritingSurface 亦消费） | ✅ |
+| SkillsStudioView 74 张注释 | :61 加注"研究口径 74 含 1 张 test-fixture，实际投影 73"；**但第一轮 H 项点名的 :914 注释仍孤立写着"74 张"，未改** | ⚠️ 修正不彻底 |
+| 004 计划文档（≥74 完成标准 / 执行状态节缺失） | 未改：:57 仍"[ ] 文风分组 ≥74 张可见"、标题仍"74 张文风卡浮现"、无执行状态节 | ❌ 未执行 |
+| incomplete-task-audit 消解附录 | 文末新增"附：执行批次对本报告结论的消解"对照表，与 git 历史一致 | ✅ |
+| 提交纯净性 | 自称 docs 提交但夹带 `tests/fixtures/chapter-llm-acceptance-report.{json,md}` 重生成（时间戳 + durationMs），提交信息未声明；该 fixture 测试为反向断言（doesNotMatch），重生成无害，npm test 全绿 | ⚠️ 夹带未声明 |
+
+### 4. 新提交声明核对
+
+| 声明 | 实际 | 判定 | 证据 |
+|---|---|---|---|
+| **62d8ee0** store 只含 resolution/candidates/error 三态 | 属实（3 态 + 3 setter，无多余状态） | ✅ | src/stores/writing-style-store.ts:14-30 |
+| EditorView writingStyle useState 消失、改 store 订阅 | useState grep = 0；:134-138 直接订阅 | ✅ | EditorView.tsx:30,134-138 |
+| 三层透传 `writingStyleResolution=`/`writingStyleCandidates=` = 0 | 全仓 src/components 0 命中 | ✅ | grep 实测 |
+| ProductionTab 无 writingStyleConfirmed | 全仓（src+server）0 命中，死 prop 已删 | ✅ | grep 实测 |
+| 四守卫 refs 留在 EditorView | writingStyleRequestSeqRef :161、confirmedWritingStyleFingerprintRef :162、requiredWritingStyleFingerprintsRef :163、pendingWritingStyleActionRef :349，无搬走痕迹 | ✅ | EditorView.tsx:161-163,349 |
+| AgentWorkspace props 97→85 | 属性行 2041-2127 精确清点 = 85 | ✅ | 实测 |
+| （附注）ProductionTab.tsx:7 未使用类型导入 | 62d8ee0 迁移后残留，eslint 2 warnings | ⚠️ 残留 | ProductionTab.tsx:7 |
+| **de1d5e4** getWorkflowPrimaryActionLabel 存在且 WritingSurface 真实调用 | workflow-copy.ts:23-42 定义；WritingSurface.tsx:10 导入、:112 调用 | ✅ | 同左 |
+| AiCandidateReview 用词表非硬编码 | :5 导入 WORKFLOW_ACTION_LABELS，:139 渲染 `WORKFLOW_ACTION_LABELS.handleInWorkbench` | ✅ | AiCandidateReview.tsx:5,139 |
+| 术语（职责卡/偏好技法/技能系列/流程卡）组件层 0 命中 | 0 命中，且 plan158-frontend-cleanup.test.ts:242-249 断言词表归属与 WritingSurface 消费 | ✅ | grep + 测试 diff |
+| 提交标题 "B3" | **B3 的"空状态 CTR（暂无智能建议→可点击）"未做**：AgentWorkspace.tsx:935 仍为纯文本 div；B3 仅完成术语验证子项（009 B3 行自身未标 ✅，计划文档诚实，提交标题半格夸大） | ⚠️ 半格 | AgentWorkspace.tsx:935 |
+| **2218653** 009 C 表含"默认"标注与改判条件 | :27-33 四项决策均为"⏸ 默认暂缓/保留现状/维持现状"+ 各自改判条件 | ✅ | 009-closing-batch.md:27-33 |
+| **ecfe229** 009 计划落地 | 任务盘点（A1-A7/B1-B4/C 表）与代码现状一致；A2/B1 状态回写与实现吻合 | ✅ | 009-closing-batch.md 全文 |
+| `git rev-list --count 8eaf51b..HEAD` = "20+2"即 22 | **实测 21**（16 执行 + abb6efa + 4 新提交）；"22"口径差 1；docs/plans/README.md:3 头部仍写"共 16 个提交"（abb6efa 时点口径，现已过时） | ⚠️ 口径漂移 | git 实测 |
+| `../inkflow-backup-20260907.bundle` 存在非空 | 存在，5,983,740 字节；push 确实未完成（`ahead 23`），与 A1/de1d5e4 声明一致 | ✅ | ls + git branch -vv |
+
+### 5. 反向排查
+
+- 本批 5 个新文件（AiCandidateReview / candidate-quality / writing-style-store / workflow-copy / GenerationStatusBar）`console.log|debugger|console.debug` = 0；EditorView 仅 2 处既有 console.error（:1124、:1600，2026-08-29 既有）。
+- vitest 121 文件 / 839 用例与 npm test 1153 用例输出均 **0 skipped / 0 todo / 无 .only**，无"假通过"。
+- AgentWorkspace 无 IIFE 孤儿 JSX、"正文候选待确认"旧文案 0 命中；:688 与 EditorView:1950 为两处干净的 AiCandidateReview 调用（T5 无接线事故残留）。
+- 测试真实性：writing-style-control.test.tsx 4 用例断言真实（确认回调参数、错误 alert、入口跳转、指纹过期不复用）。**覆盖缺口（非虚报）**：src/tests 中无任何测试消费 `useWritingStyleStore` 或向 store 注入状态断言 ProductionTab/EditorView 的写法展示——62d8ee0 的 store 订阅行为仅靠组件级测试 + 839 全绿回归兜底，无直接锁定测试；62d8ee0 提交信息亦未声称补测试，与 009 计划边界一致。
+
+### 6. 第二轮结论
+
+abb6efa 的修正**大部分真实生效**（README 数字、007 T2/T4、audit 附录均可验证），但留有两处尾巴：第一轮点名的 SkillsStudioView:914 "74 张"注释与 004 计划文档"≥74"完成标准未回写。4 个新提交中 62d8ee0、2218653、ecfe229 声明与代码事实完全吻合，de1d5e4 的 A2 部分完全属实、B3 为半格完成（空状态 CTR 未做）。**未发现"声称完成但功能不存在"级别的虚报**；遗留为文档回写尾巴（004 计划、README:3 提交数）、de1d5e4 的 B3 残项、ProductionTab:7 未使用导入（2 warnings）与 S4 store 订阅无锁定测试四项，均为小颗粒可清项。

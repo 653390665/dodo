@@ -1,6 +1,6 @@
 # InkFlow 实施计划索引
 
-> 更新：2026-09-07 第二轮（001~007 批次执行，001~006 与 007 的 T1/T2/T3/T5 完成；T4 部分完成、T6 licensed 残留；见 git log 8eaf51b..HEAD 共 16 个提交，独立复核见 docs/research/2026-09-07-batch-verification.md）
+> 更新：2026-09-07 第二轮（001~007 批次执行，001~006 与 007 的 T1/T2/T3/T5 完成；T4 部分完成、T6 licensed 残留；提交清单见 git log 8eaf51b..HEAD，独立复核（两轮）见 docs/research/2026-09-07-batch-verification.md）
 > 执行批次摘要：007 T3 基线修复 + T1/T2 残留收尾；001 收尾（徽章≤2/需解锁折叠/5s 撤销）；002 审稿三合一（reviewState 单一权威源）；003 护栏面板化（质量标准面板 + 流程排他清单）；004 消毒管线 + 文风与正文货架（73 张可见 + 消毒并启用）；005 步骤 1-2（production-store 落地，签名不变）；006 状态条组件 + 词汇表（术语全局替换仍渐进）。
 > 执行者须知：本仓库**是 git 仓库**（分支 `codex/plan169-checkpoint`），每完成一个计划即提交一次作为漂移检测锚点，勿让成果滞留工作区；验证基线命令：
 > `npx tsc --noEmit`（0 错误）、`npx eslint <改动文件>`（0 问题）、`npx vitest -c vitest.config.frontend.ts run`（全绿基线随用例增长，2026-09-07 批次后实测 839/839）、`npm test`（2026-09-07 批次后实测 1153/1153）。

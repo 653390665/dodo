@@ -4,7 +4,7 @@ import type { AgentTab, ContinuationPack, Novel, ChapterProductionRun } from '..
 import { ProductionRunReview } from '../ProductionRunReview';
 import { cn } from '../../lib/utils';
 import { WritingStyleControl } from '../WritingStyleControl';
-import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../lib/writing-style-client';
+import type { WritingStyleMode } from '../../lib/writing-style-client';
 import { GenerationStatusBar } from '../GenerationStatusBar';
 import { useProductionStore } from '../../stores/production-store';
 import { useWritingStyleStore } from '../../stores/writing-style-store';

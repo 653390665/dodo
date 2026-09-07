@@ -911,7 +911,7 @@ export function SkillsStudioView({
   const filteredCuratedSkills = useMemo(() => {
     if (selectedCapability === 'packages') return [];
     const stage = selectedCategory === 'all' ? undefined : selectedCategory;
-    // 004：文风与正文分组——74 张 optional-style 治理资产从目录投影上货架
+    // 004：文风与正文分组——optional-style 治理资产投影上货架（实测 73 张；研究口径 74 含 1 张 test-fixture）
     if (selectedCapability === 'optional-style') return getOptionalStyleAssets(stage);
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
