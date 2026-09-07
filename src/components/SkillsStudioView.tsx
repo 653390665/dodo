@@ -58,7 +58,7 @@ type DatabaseGenerationReader = () => Promise<number>;
 type SkillsStudioNavigateContext = { capabilityApplied?: boolean; targetFocus?: 'workspace-world'; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
 type CapabilityApplyDestination = 'return' | 'world' | 'outline';
 
-// 004：文风与正文货架总数（目录静态，模块级只算一次）。
+// 004：文风与正文货架总数（目录静态，模块级只算一次）。研究口径 74 含 1 张 test-fixture，实际投影 73。
 const OPTIONAL_STYLE_SHELF_COUNT = getOptionalStyleAssets().length;
 
 const CAPABILITY_RETURN_EFFECT_HINT = '应用配置后，主卡与辅卡影响作品后续正文；常用技法作为作品偏好；本章使用规则只影响当前章；系统护栏参与生成与审稿检查。';

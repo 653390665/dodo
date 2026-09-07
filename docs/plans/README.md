@@ -1,9 +1,9 @@
 # InkFlow 实施计划索引
 
-> 更新：2026-09-07 第二轮（001~007 全批次执行完毕，见各计划执行状态与 git log 8eaf51b..HEAD）
+> 更新：2026-09-07 第二轮（001~007 批次执行，001~006 与 007 的 T1/T2/T3/T5 完成；T4 部分完成、T6 licensed 残留；见 git log 8eaf51b..HEAD 共 16 个提交，独立复核见 docs/research/2026-09-07-batch-verification.md）
 > 执行批次摘要：007 T3 基线修复 + T1/T2 残留收尾；001 收尾（徽章≤2/需解锁折叠/5s 撤销）；002 审稿三合一（reviewState 单一权威源）；003 护栏面板化（质量标准面板 + 流程排他清单）；004 消毒管线 + 文风与正文货架（73 张可见 + 消毒并启用）；005 步骤 1-2（production-store 落地，签名不变）；006 状态条组件 + 词汇表（术语全局替换仍渐进）。
 > 执行者须知：本仓库**是 git 仓库**（分支 `codex/plan169-checkpoint`），每完成一个计划即提交一次作为漂移检测锚点，勿让成果滞留工作区；验证基线命令：
-> `npx tsc --noEmit`（0 错误）、`npx eslint <改动文件>`（0 问题）、`npx vitest -c vitest.config.frontend.ts run`（全绿基线随用例增长，2026-09-07 批次后 838/838+）、`npm test`（1151/1151）。
+> `npx tsc --noEmit`（0 错误）、`npx eslint <改动文件>`（0 问题）、`npx vitest -c vitest.config.frontend.ts run`（全绿基线随用例增长，2026-09-07 批次后实测 839/839）、`npm test`（2026-09-07 批次后实测 1153/1153）。
 
 ## 状态表
 
@@ -15,8 +15,8 @@
 | 002 | 审稿三合一与精修按需触发 | P0 | 无 | ✅ 完成（2026-09-07）：QualityTab 以 reviewState 为渲染源；/api/audit 降级注释；生产期审稿标注迭代用；零配置精修测试锁定；口径表落档 research 文档 §6 |
 | 003 | 护栏策略面板化 + 流程排他确认 | P1 | 无 | ✅ 完成（2026-09-07）：GuardrailPolicyPanel（core 只读『已自动生效』+ 增强开关）；系统护栏页签删除；流程切换确认含新旧流程名与重置清单 |
 | 004 | 启用即落位 + 消毒管线 + 74 张文风卡浮现 | P1 | 001 | ✅ 完成（2026-09-07）：落位由 001 的 addCardToProjectDeck+候选替换承担；POST /api/skills/sanitize/:assetId（幂等/限频/落库脱敏副本）；需解锁分组带『消毒并启用』；『文风与正文』页签 73 张可见（研究口径 74 含 1 张 test-fixture）；编辑器推荐位 ≤2 张按章节关键词 |
-| 005 | EditorView 领域状态入 store | P1 | 无 | ◐ 大部分完成（2026-09-07 第二轮）：步骤 1-3、5 完成——production 域 props 三层透传已清零（验收门 grep=0），AgentWorkspace props 109→87，完成章双写收敛为 setCompletionInFlight 唯一同步点；剩余 S4 writingStyle 域入 store（侦察结论：12-15 处中转引用、fingerprint 参与生产流参数、紧邻留存化敏感面，需单独一批）与 profiler 验证 |
-| 006 | 统一状态条 + 术语收敛 | P2 | 005、001 | ◐ 进行中（2026-09-07）：GenerationStatusBar 落地并挂载 ProductionTab（full），quick 模式组件已支持待接线；glossary.ts 词汇表建立；高频 UI 术语全局替换为渐进项 |
+| 005 | EditorView 领域状态入 store | P1 | 无 | ◐ 大部分完成（2026-09-07 第二轮）：步骤 1-3、5 完成——production 域 props 三层透传已清零（验收门 grep=0），AgentWorkspace props 97→87（批次起点实测 97；历史审计口径 109），完成章双写收敛为 setCompletionInFlight 唯一同步点；剩余 S4 writingStyle 域入 store（侦察结论：12-15 处中转引用、fingerprint 参与生产流参数、紧邻留存化敏感面，需单独一批）与 profiler 验证 |
+| 006 | 统一状态条 + 术语收敛 | P2 | 005、001 | ◐ 进行中（2026-09-07）：GenerationStatusBar 落地并挂载 ProductionTab（full）与编辑器 quick 位（008 接线）；glossary.ts 为规范性词汇表（渐进采用，尚无代码消费）；高频 UI 术语全局替换为渐进项 |
 
 ## 执行顺序与依赖
 

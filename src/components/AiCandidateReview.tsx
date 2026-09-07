@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react';
 import type { AiContentCandidate } from '../lib/generation-action-state';
 import { DRAFT_QUALITY_SEMANTIC_LABELS } from '../../shared/lib/quality-contract';
 import { getCandidateQualityState } from '../lib/candidate-quality';
+import { WORKFLOW_ACTION_LABELS } from '../lib/workflow-copy';
 import { cn } from '../lib/utils';
 
 /**
@@ -135,7 +136,7 @@ export function AiCandidateReview({
           onClick={() => onWorkbenchJump()}
           className="inline-flex h-7 items-center border border-theme-border px-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 disabled:opacity-50"
         >
-          到工作台处理
+          {WORKFLOW_ACTION_LABELS.handleInWorkbench}
         </button>
       ) : null}
       <button

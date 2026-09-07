@@ -72,9 +72,9 @@
 | 任务 | 状态 |
 |---|---|
 | T1 双 AI 入口命名区分 | ✅ 已完成：侧边栏“智能管家”→“AI 协作”，抽屉 aria-label 同步，编辑器按钮保留“智能管家”（工作台专属名） |
-| T2 全局助手写入接入质量门 | ✅ 已完成：AppShell.handleApplyAssistantToContent 写入前跑 validateCompleteChapterDraftQuality，不通过则 toast 违规详情并拒绝写入 |
+| T2 全局助手写入接入质量门 | ✅ 已完成（三条路径中两条有门）：正文写入（AppShell:637-642）与替换选区（:698-706）过 validateCompleteChapterDraftQuality；**分镜写入（:652-670）有意豁免**——分镜是结构素材，整章正文门会误杀，待 T5 系候选管道覆盖时一并收敛 |
 | T3 修复 2 个深流测试 | ✅ 完成（2026-09-07 第二轮）：根因是会话重置副作用把自家 apply 误判为外部漂移、关闭了打开的能力包弹窗（组件级修复，见 commit 22b1406）；plan158 35/37→37/37，前端基线恢复全绿 |
-| T4 动作词表收敛 | ⏸ 部分完成："下一步动作"横幅已删（与主按钮重复）；动作词表常量化（workflow-copy.ts）待做 |
+| T4 动作词表收敛 | ◐ 部分完成：`src/lib/workflow-copy.ts` 已建并由 AiCandidateReview 消费（"到工作台处理"）；其余表面动作词渐进替换 |
 | T5 候选确认 UI 去重 | ✅ 完成（2026-09-07 第二轮）：单一 `AiCandidateReview` 组件两端接入（editor/workbench 双 variant）；质量门判定 `getCandidateQualityState` 三份重复收敛到 `src/lib/candidate-quality.ts`；表面差异（标题/精修动作/工作台跳转）全部 props 化 |
 | T6 技法动词改名 | ✅ 已完成：技法"启用"误用改为"收藏为常用技法"语义；licensed 限额收敛未做 |
 

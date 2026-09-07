@@ -50,7 +50,7 @@ useAuditPolishActions.ts:29-60  以 30+ 参数接收 15 个 setter/ref/callback
 
 ## 完成标准
 
-- [ ] EditorView props 总数 ≤ 60（现 109）
+- [ ] EditorView props 总数 ≤ 60（批次起点实测 97，历史审计口径 109）
 - [ ] production 域 props 跨层透传 = 0
 - [ ] 击键不触发 AgentWorkspace 重渲染（profiler 证据）
 - [ ] 全量测试绿
@@ -60,7 +60,7 @@ useAuditPolishActions.ts:29-60  以 30+ 参数接收 15 个 setter/ref/callback
 | 步骤 | 状态 |
 |---|---|
 | 1-2 store + hook 迁移 | ✅（b508b22：签名不变 + 冷挂载守卫 + 卸载中止） |
-| 3 production props 链拆除 | ✅（9a4af0d 后续批）：ProductionTab/Panel/AgentWorkspace 改订阅 store，EditorView 删 10+1 透传；AgentWorkspace props 109→87；验收门 grep `productionError\|activeProductionRun` 透传 = 0 |
+| 3 production props 链拆除 | ✅（9a4af0d 后续批）：ProductionTab/Panel/AgentWorkspace 改订阅 store，EditorView 删 10+1 透传；AgentWorkspace props 97→87（批次起点实测 97；109 为计划编写时的历史审计口径）；验收门 grep `productionError\|activeProductionRun` 透传 = 0 |
 | 5 双写收敛 | ✅：completionRequestInFlightRef 三组散写收敛为 `setCompletionInFlight` 唯一同步点（ref=守卫、state=UI 投影，注释已声明）；isGeneratingContent 已是渲染投影唯一同步点（注释已声明） |
 | 4 writingStyle 域入 store | ⏸ 侦察后缓行：EditorView 持 3 state + 派生 fingerprint 参与生产流参数；三层 12-15 处引用、紧邻写法确认留存化敏感面，需独立一批 |
 | 6 profiler 验证 | ⏸ 待手工（React DevTools，无法在自动化环境取证）；839/839 全绿作为回归安全网 |
