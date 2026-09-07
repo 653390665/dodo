@@ -7,13 +7,11 @@ import { WritingStyleControl } from '../WritingStyleControl';
 import type { WritingStyleMode } from '../../lib/writing-style-client';
 import { GenerationStatusBar } from '../GenerationStatusBar';
 import { useProductionStore } from '../../stores/production-store';
+import { useContinuationPackStore } from '../../stores/continuation-pack-store';
 import { useWritingStyleStore } from '../../stores/writing-style-store';
 
 interface ProductionTabProps {
   novel: Novel;
-  continuationPacks: ContinuationPack[];
-  selectedContinuationPackId: string;
-  setSelectedContinuationPackId: (packId: string) => void;
   selectedContinuationPack: ContinuationPack | null;
   onStartProductionRun: () => Promise<void>;
   onStopProductionRun?: () => void;
@@ -37,9 +35,6 @@ interface ProductionTabProps {
 
 export function ProductionTab({
   novel,
-  continuationPacks,
-  selectedContinuationPackId,
-  setSelectedContinuationPackId,
   selectedContinuationPack,
   onStartProductionRun,
   onStopProductionRun,
@@ -69,6 +64,10 @@ export function ProductionTab({
   const productionStatusMessage = useProductionStore((state) => state.productionStatusMessage);
   const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
   // 005-S4：写法确认展示态直接订阅 store
+  // 011 Phase 1：选包域订阅 store
+  const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
+  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  const setSelectedContinuationPackId = useContinuationPackStore((state) => state.setSelectedContinuationPackId);
   const writingStyleResolution = useWritingStyleStore((state) => state.resolution);
   const writingStyleCandidates = useWritingStyleStore((state) => state.candidates);
   const hasCapabilityDetails = Boolean(

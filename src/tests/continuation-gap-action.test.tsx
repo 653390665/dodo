@@ -1,4 +1,5 @@
 import React from 'react';
+import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -62,12 +63,10 @@ function renderTab(
   const onStartProductionRun = vi.fn(async () => undefined);
   const onApplyProductionRun = vi.fn(async () => undefined);
 
+  useContinuationPackStore.setState({ continuationPacks: [pack], selectedContinuationPackId: pack.id });
   render(
     <ProductionTab
       novel={novel}
-      continuationPacks={[pack]}
-      selectedContinuationPackId={pack.id}
-      setSelectedContinuationPackId={vi.fn()}
       selectedContinuationPack={pack}
       onStartProductionRun={onStartProductionRun}
       onApplyProductionRun={onApplyProductionRun}

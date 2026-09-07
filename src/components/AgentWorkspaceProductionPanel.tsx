@@ -5,7 +5,6 @@ import type {
   Chapter,
   ChapterMetadata,
   ChapterProductionRun,
-  ContinuationPack,
   Novel,
   Skill,
   MountedSkillLoadoutItem,
@@ -19,6 +18,7 @@ import type {
 } from '../../shared/types';
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { useProductionStore } from '../stores/production-store';
+import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -42,9 +42,6 @@ interface AgentWorkspaceProductionPanelProps {
   productionDraftSource?: 'fallback' | 'model' | null;
   productionAuditSource?: 'fallback' | 'model' | null;
   productionStatusMessage?: string | null;
-  continuationPacks: ContinuationPack[];
-  selectedContinuationPackId: string;
-  setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
   onStopProductionRun?: () => void;
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
@@ -119,9 +116,6 @@ export function AgentWorkspaceProductionPanel({
   chapters,
   currentChapter,
   onSelectChapter,
-  continuationPacks,
-  selectedContinuationPackId,
-  setSelectedContinuationPackId,
   onStartProductionRun,
   onStopProductionRun,
   onApplyProductionRun,
@@ -176,6 +170,9 @@ export function AgentWorkspaceProductionPanel({
 }: AgentWorkspaceProductionPanelProps) {
   // 005-S4：问题单从当前章完成审查结论派生
   const reviewIssues = currentChapter?.workflowMeta?.reviewState?.issues;
+  // 011 Phase 1：选包域订阅 store
+  const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
+  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
   // 005-S4：期望字数直接订阅 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   // 005-S3：生产域状态直接订阅 production-store
@@ -250,9 +247,6 @@ export function AgentWorkspaceProductionPanel({
     return (
       <ProductionTab
         novel={novel}
-        continuationPacks={continuationPacks}
-        selectedContinuationPackId={selectedContinuationPackId}
-        setSelectedContinuationPackId={setSelectedContinuationPackId}
         selectedContinuationPack={selectedContinuationPack}
         onStartProductionRun={onStartProductionRun}
         onStopProductionRun={onStopProductionRun}

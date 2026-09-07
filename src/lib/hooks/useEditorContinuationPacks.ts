@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { ContinuationPack, ContinuationEditorLaunchState } from '../../../shared/types';
 import { listContinuationPacks } from '../continuation-client';
 import { sortContinuationPacksByRecency, getPreferredContinuationPackId } from '../continuation-pack-selection';
 import { subscribeToChanges } from '../db-transport';
+import { useContinuationPackStore } from '../../stores/continuation-pack-store';
 
 /**
  * Custom hook managing the fetched continuation packs and current pack selection.
@@ -14,8 +15,12 @@ export function useEditorContinuationPacks(
   novelId: string,
   launchState: ContinuationEditorLaunchState | null | undefined
 ) {
-  const [continuationPacks, setContinuationPacks] = useState<ContinuationPack[]>([]);
-  const [selectedContinuationPackId, setSelectedContinuationPackId] = useState('');
+  // 011 Phase 1：状态后端换 store；加载与同步逻辑逐行保留
+  const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
+  const setContinuationPacks = useContinuationPackStore((state) => state.setContinuationPacks);
+  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  const setSelectedContinuationPackId = useContinuationPackStore((state) => state.setSelectedContinuationPackId);
+  const setSelectedContinuationPackIdUpdatable = useContinuationPackStore((state) => state.setSelectedContinuationPackIdUpdatable);
   const hasConsumedContinuationPackSelectionRef = useRef(false);
 
   // Reset pack selection consumed state on launch token or novel change
@@ -28,7 +33,7 @@ export function useEditorContinuationPacks(
     const refreshContinuationPacks = async () => {
       const packs = sortContinuationPacksByRecency(await listContinuationPacks(novelId));
       setContinuationPacks(packs);
-      setSelectedContinuationPackId((current) => {
+      setSelectedContinuationPackIdUpdatable((current) => {
         if (
           !hasConsumedContinuationPackSelectionRef.current &&
           launchState?.approvedPackId &&

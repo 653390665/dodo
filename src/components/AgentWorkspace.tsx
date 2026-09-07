@@ -28,7 +28,6 @@ import {
   SkillUsageRecord,
   MountedSkillLoadoutItem,
   ProjectPreferenceProfile,
-  ContinuationPack,
   ChapterProductionRun,
   AgentTab,
   CopilotSuggestion,
@@ -60,6 +59,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import type { AiContentCandidate } from '../lib/generation-action-state';
 import { AiCandidateReview } from './AiCandidateReview';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
+import { useContinuationPackStore } from '../stores/continuation-pack-store';
 
 
 
@@ -124,9 +124,6 @@ interface AgentWorkspaceProps {
   productionDraftSource?: 'fallback' | 'model' | null;
   productionAuditSource?: 'fallback' | 'model' | null;
   productionStatusMessage?: string | null;
-  continuationPacks: ContinuationPack[];
-  selectedContinuationPackId: string;
-  setSelectedContinuationPackId: (packId: string) => void;
   onStartProductionRun: () => Promise<void>;
   onStopProductionRun?: () => void;
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
@@ -225,9 +222,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   setAgentTab,
   copilotSuggestion,
   runCopilotAction,
-  continuationPacks,
-  selectedContinuationPackId,
-  setSelectedContinuationPackId,
   onStartProductionRun,
   onStopProductionRun,
   onApplyProductionRun,
@@ -298,6 +292,9 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onAcceptAiContentCandidate,
   onDiscardAiContentCandidate,
 }: AgentWorkspaceProps) {
+  // 011 Phase 1：选包域订阅 store
+  const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
+  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
   const [bibleSearch, setBibleSearch] = React.useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
   const [skillsPanelRevision, setSkillsPanelRevision] = React.useState(0);
@@ -945,9 +942,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               currentChapter={currentChapter}
               onSelectChapter={onSelectChapter}
               stepEvidence={stepEvidence}
-              continuationPacks={continuationPacks}
-              selectedContinuationPackId={selectedContinuationPackId}
-              setSelectedContinuationPackId={setSelectedContinuationPackId}
               onStartProductionRun={onStartProductionRun}
               onStopProductionRun={onStopProductionRun}
               onApplyProductionRun={onApplyProductionRun}

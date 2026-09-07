@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { AgentWorkspace } from '../components/AgentWorkspace';
 import { EditorGuideBanners } from '../components/EditorGuideBanners';
@@ -87,9 +88,6 @@ function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
         isProductionRunning: false,
         isApplyingProductionRun: false,
         productionError: null,
-        continuationPacks: [],
-        selectedContinuationPackId: '',
-        setSelectedContinuationPackId: noop,
         onStartProductionRun: noopAsync,
         onApplyProductionRun: noopAsync,
         onGenerateOutline: noopAsync,
@@ -135,6 +133,9 @@ function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
 }
 
 describe('编辑器引导与智能管家布局', () => {
+  beforeEach(() => {
+    useContinuationPackStore.setState({ continuationPacks: [], selectedContinuationPackId: '' });
+  });
   test('未知资料状态不应宣称需要同步', () => {
     render(
       <EditorGuideBanners
@@ -266,6 +267,7 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('本章正文为空时展示紧凑的作品全局关系预览', () => {
     const onNavigate = vi.fn();
+    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' }], selectedContinuationPackId: 'pack-approved' });
     const relationships = Array.from({ length: 7 }, (_, index) => ({
       id: `rel-${index}`,
       sourceType: 'character', sourceId: 'char-a',
@@ -301,13 +303,12 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('approved pack sync CTA writes intent and navigates to world view', () => {
     const onNavigate = vi.fn();
+    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' }], selectedContinuationPackId: 'pack-approved' });
     renderAgentWorkspace({
       currentChapter: {
         id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷',
         content: '正文', wordCount: 2, order: 1, createdAt: 1, updatedAt: 1,
       },
-      continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' }],
-      selectedContinuationPackId: '',
       onNavigate,
     });
 
