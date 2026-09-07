@@ -63,7 +63,8 @@ useAuditPolishActions.ts:29-60  以 30+ 参数接收 15 个 setter/ref/callback
 | 3 production props 链拆除 | ✅（9a4af0d 后续批）：ProductionTab/Panel/AgentWorkspace 改订阅 store，EditorView 删 10+1 透传；AgentWorkspace props 97→82（批次起点实测 97；109 为计划编写时的历史审计口径；第三轮再拆 reviewIssues/expectedWordCount）；验收门 grep `productionError\|activeProductionRun` 透传 = 0 |
 | 5 双写收敛 | ✅：completionRequestInFlightRef 三组散写收敛为 `setCompletionInFlight` 唯一同步点（ref=守卫、state=UI 投影，注释已声明）；isGeneratingContent 已是渲染投影唯一同步点（注释已声明） |
 | 4 writingStyle 域入 store | ✅ 展示态完成（2026-09-07 第三轮）：resolution/candidates/error 入 writing-style-store，三层透传拆除（handler props 按副作用归属保留），死 prop writingStyleConfirmed 清理，ProductionTab 改订阅 store。留存化守卫 refs（请求序号/confirmed 指纹/必需指纹集/pendingAction）按设计保留 EditorView 本地；hooks 的 writingStyleFingerprint 参数收窄可后置（涉 continuation-autostart 测试改造） |
-| 6 profiler 验证 | ⏸ 待手工（React DevTools，无法在自动化环境取证）；839/839 全绿作为回归安全网 |
+| 6 profiler 验证 | ⏸ 待手工（React DevTools，无法在自动化环境取证）；841/841 全绿作为回归安全网 |
+| 7 生成旗标切片 | ✅ 第四轮：editor-generation-store 落地，isGeneratingOutline 全链收编（useOutlineGeneration 以 getState 非响应式写、流 hook 响应式订阅、setter 不再穿线）；其余 isGenerating* 按同模式机械复制 |
 
 ## 维护提示
 
