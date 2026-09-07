@@ -49,7 +49,6 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
 }) {
   const isProductionRunning = useProductionStore((state) => state.isProductionRunning);
   const isApplyingProductionRun = useProductionStore((state) => state.isApplyingProductionRun);
-  const productionError = useProductionStore((state) => state.productionError);
   const beatsSource = useProductionStore((state) => state.productionBeatsSource);
   const draftSource = useProductionStore((state) => state.productionDraftSource);
   const auditSource = useProductionStore((state) => state.productionAuditSource);
@@ -59,12 +58,17 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
   if (mode === 'full') {
     segments.push(sourceSegment('beats', '① 分镜', beatsSource, isProductionRunning));
     segments.push(sourceSegment('draft', '② 正文', draftSource, isProductionRunning));
-    if (productionError && isProductionRunning) {
-      segments.push({ key: 'audit', label: '③ 审稿', tone: 'failed', detail: '未通过' });
-    } else if (auditSource === 'model') {
+    // 评审 P2：审稿段只反映真实审计结论（run 的 auditMeta），不把任意生产
+    // 错误（如连接失败）误标成"审稿未通过"。
+    const runAuditStatus = activeRun?.continuityReport?.auditMeta?.status;
+    if (runAuditStatus === 'pass' || auditSource === 'model') {
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'done', detail: '完成' });
-    } else if (auditSource === 'fallback') {
-      segments.push({ key: 'audit', label: '③ 审稿', tone: 'warn', detail: '降级' });
+    } else if (runAuditStatus === 'fail') {
+      segments.push({ key: 'audit', label: '③ 审稿', tone: 'failed', detail: '未通过' });
+    } else if (runAuditStatus === 'unknown' || auditSource === 'fallback') {
+      segments.push({ key: 'audit', label: '③ 审稿', tone: 'warn', detail: runAuditStatus === 'unknown' ? '状态未知' : '降级' });
+    } else if (isProductionRunning) {
+      segments.push({ key: 'audit', label: '③ 审稿', tone: 'active', detail: '进行中' });
     } else {
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'pending', detail: '未运行' });
     }

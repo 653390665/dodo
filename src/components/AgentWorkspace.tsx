@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Activity,
   Bot,
-  Check,
   Brain,
   ChevronDown,
   Eye,
@@ -62,35 +61,9 @@ import { getProjectCapabilityCardIds } from '../lib/capability-card-count';
 import { resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
 import { ErrorBoundary } from './ErrorBoundary';
 import type { AiContentCandidate } from '../lib/generation-action-state';
-import { DRAFT_QUALITY_SEMANTIC_LABELS } from '../../shared/lib/quality-contract';
-import { MIN_COMPLETE_CHAPTER_CHARS } from '../../shared/lib/draft-quality';
+import { AiCandidateReview } from './AiCandidateReview';
 
-type CandidateQualityStatus = 'eligible' | 'blocked' | 'review-required' | 'fallback';
 
-function getCandidateQualityState(candidate: AiContentCandidate): {
-  status: CandidateQualityStatus;
-  label: string;
-  detail: string;
-} {
-  const quality = candidate.quality;
-  const source = candidate.source;
-  if (source === 'fallback') {
-    return { status: 'fallback', label: '保底结果', detail: '当前结果来自保底流程，不能冒充模型审阅结果。' };
-  }
-  if (!quality) {
-    return { status: 'review-required', label: '待复核', detail: '尚未取得完整质量报告，暂不能写入。' };
-  }
-  if (!quality.ok || quality.mechanicalReview?.status === 'needs-action') {
-    return { status: 'blocked', label: '质量阻断', detail: '存在硬性或机械质量问题，需精修后重新审阅。' };
-  }
-  if (candidate.operation === 'rewrite' && candidate.content.replace(/\s/g, '').length < MIN_COMPLETE_CHAPTER_CHARS) {
-    return { status: 'eligible', label: '可写入片段', detail: '局部改写通过确定性检查，可写入选区；整章质量仍需单独审阅。' };
-  }
-  if (quality.semanticReview.status !== 'pass') {
-    return { status: 'review-required', label: '待复核', detail: quality.semanticReview.status === 'needs-action' ? '语义审阅发现问题，需处理后重新审阅。' : '语义审阅尚未完成，暂不能确认写入。' };
-  }
-  return { status: 'eligible', label: '可写入', detail: '硬性、机械和语义审阅均已通过。' };
-}
 
 function isProductionAgentTab(
   tab: AgentTab
@@ -717,122 +690,21 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
       </div>
 
       {aiContentCandidate && aiContentCandidate.chapterId === currentChapter?.id ? (
-        <section aria-label="智能管家正文候选" className="shrink-0 border-b border-theme-accent/30 bg-theme-accent/5 px-4 py-3">
-          {(() => {
-            const qualityState = getCandidateQualityState(aiContentCandidate);
-            const canAccept = qualityState.status === 'eligible';
-            const canPolish = qualityState.status !== 'eligible';
-            return (
-              <>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-bold text-theme-text">正文候选待确认</span>
-            <span className="min-w-0 flex-1 text-theme-muted">当前正文尚未修改，确认后才会写入。</span>
-            <span className={qualityState.status === 'eligible' ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700' : qualityState.status === 'fallback' ? 'rounded alert-warning px-2 py-0.5 text-[10px] font-bold' : 'rounded alert-danger px-2 py-0.5 text-[10px] font-bold'} role="status">{qualityState.label}</span>
-            <span className="basis-full text-[10px] text-theme-muted">{qualityState.detail}</span>
-            {aiContentCandidate.quality?.semanticReview.status === 'unknown' ? (
-              <span className="basis-full text-[10px] text-amber-700" role="status">
-                硬性格式检查已通过；人物、世界规则和章节目标仍需语义审阅。
-              </span>
-            ) : null}
-            {aiContentCandidate.quality && aiContentCandidate.quality.findings.some((finding) => finding.severity === 'P2') ? (
-              <span className="basis-full text-[10px] text-amber-700" role="status">
-                还有 {aiContentCandidate.quality.findings.filter((finding) => finding.severity === 'P2').length} 项文风建议，可在审稿后精修。
-              </span>
-            ) : null}
-            {aiContentCandidate.quality?.mechanicalReview?.status === 'needs-action' ? (
-              <span className="basis-full text-[10px] text-red-700" role="alert">
-                机械审查 {aiContentCandidate.quality.mechanicalReview.score.toFixed(1)}/{aiContentCandidate.quality.mechanicalReview.threshold}：{aiContentCandidate.quality.mechanicalReview.summary}，需精修后才能写入。
-              </span>
-            ) : null}
-            {aiContentCandidate.quality?.semanticReview ? (
-              <details className="basis-full rounded border border-theme-border/70 bg-theme-sidebar/50 px-2 py-1">
-                <summary className="cursor-pointer text-[10px] font-semibold text-theme-text">
-                  语义审阅：{aiContentCandidate.quality.semanticReview.status === 'pass' ? '已通过' : aiContentCandidate.quality.semanticReview.status === 'needs-action' ? '需要处理' : '尚未运行'}
-                </summary>
-                <ul className="mt-1 grid gap-1 text-[10px] text-theme-muted sm:grid-cols-2">
-                  {aiContentCandidate.quality.semanticReview.checks.map((check) => (
-                    <li key={check.id} className={check.status === 'needs-action' ? 'text-amber-700' : undefined}>
-                      <div>{DRAFT_QUALITY_SEMANTIC_LABELS[check.id]}：{check.status === 'pass' ? '通过' : check.status === 'needs-action' ? '需处理' : '未知'}。{check.reason}</div>
-                      {check.evidence?.map((evidence) => (
-                        <div key={`${check.id}:${evidence.quote}`} className="mt-1 border-l-2 border-theme-border pl-2 text-[10px] text-theme-muted">
-                          “{evidence.quote}”{evidence.location ? `（${evidence.location}）` : ''}：{evidence.explanation} 建议：{evidence.suggestedFix}
-                        </div>
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            {aiContentCandidate.quality?.findings.length ? (
-              <details className="basis-full rounded border border-theme-border/70 bg-theme-sidebar/50 px-2 py-1">
-                <summary className="cursor-pointer text-[10px] font-semibold text-theme-text">硬性检查证据（{aiContentCandidate.quality.findings.length}）</summary>
-                <ul className="mt-1 grid gap-1 text-[10px] text-theme-muted">
-                  {aiContentCandidate.quality.findings.map((finding) => (
-                    <li key={finding.code}>
-                      <div>[{finding.severity}] {finding.message}</div>
-                      {finding.evidence?.map((evidence, index) => (
-                        <div key={`${finding.code}:${index}`} className="mt-1 border-l-2 border-theme-border pl-2 text-theme-muted">
-                          {evidence.line ? `第 ${evidence.line} 行：` : ''}“{evidence.snippet}”{evidence.suggestion ? ` 建议：${evidence.suggestion}` : ''}
-                        </div>
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            <button
-              type="button"
-              disabled={isAcceptingAiContentCandidate || !canAccept}
-              onClick={() => {
-                const pending = onAcceptAiContentCandidate?.();
-                if (pending) void pending.catch(() => undefined);
-              }}
-              className="inline-flex h-7 items-center gap-1 border border-theme-accent px-2 font-bold text-theme-text hover:bg-theme-accent/10 disabled:opacity-50"
-            >
-              <Check size={13} aria-hidden="true" />接受并写入
-            </button>
-            {canPolish ? (
-              <button
-                type="button"
-                disabled={isAcceptingAiContentCandidate}
-                onClick={() => {
-                  const issueIds = aiContentCandidate.reviewIssueIds || [];
-                  const pending = issueIds.length && onFixReviewIssues
-                    ? onFixReviewIssues(issueIds, '本章')
-                    : onPolishChapterFromAudit?.();
-                  if (pending) void Promise.resolve(pending).catch(() => undefined);
-                }}
-                className="inline-flex h-7 items-center border border-theme-accent px-2 text-theme-accent hover:bg-theme-accent/10 disabled:opacity-50"
-              >
-                {qualityState.status === 'fallback' ? '重新审阅' : '前往精修'}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              disabled={isAcceptingAiContentCandidate}
-              onClick={onDiscardAiContentCandidate}
-              className="inline-flex h-7 items-center border border-theme-border px-2 text-theme-muted hover:bg-theme-border/30 disabled:opacity-50"
-            >
-              放弃预览
-            </button>
-          </div>
-          <details className="mt-2 rounded-lg border border-theme-border/70 bg-theme-sidebar/60">
-            <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-theme-text">查看候选正文预览</summary>
-            <div role="region" aria-label="智能管家正文候选预览" className="grid max-h-64 gap-2 overflow-y-auto border-t border-theme-border/60 p-2 text-[11px] leading-5 md:grid-cols-2">
-              <div className="min-w-0">
-                <div className="mb-1 font-bold text-theme-muted">当前正文（未修改）</div>
-                <pre className="whitespace-pre-wrap break-words font-sans text-theme-muted">{aiContentCandidate.baselineContent}</pre>
-              </div>
-              <div className="min-w-0">
-                <div className="mb-1 font-bold text-theme-text">候选正文</div>
-                <pre className="whitespace-pre-wrap break-words font-sans text-theme-text">{aiContentCandidate.content}</pre>
-              </div>
-            </div>
-          </details>
-              </>
-            );
-          })()}
-        </section>
+        <div className="shrink-0 border-b border-theme-accent/30 bg-theme-accent/5 px-4 py-3">
+          <AiCandidateReview
+            candidate={aiContentCandidate}
+            variant="workbench"
+            isAccepting={isAcceptingAiContentCandidate}
+            onAccept={() => onAcceptAiContentCandidate?.()}
+            onDiscard={() => onDiscardAiContentCandidate?.()}
+            onPolish={() => {
+              const issueIds = aiContentCandidate.reviewIssueIds || [];
+              return issueIds.length && onFixReviewIssues
+                ? onFixReviewIssues(issueIds, '本章')
+                : onPolishChapterFromAudit?.();
+            }}
+          />
+        </div>
       ) : null}
 
       {/* Content */}
