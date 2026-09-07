@@ -92,11 +92,49 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
       if (e.key === 'Escape') {
         if (showSaveModal) setShowSaveModal(null);
         if (showExtractModal) setShowExtractModal(null);
+        if (pendingCandidate) setPendingCandidate(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSaveModal, showExtractModal]);
+  }, [showSaveModal, showExtractModal, pendingCandidate]);
+
+  // The three custom dialogs above predate the Radix AlertDialog set: wire up
+  // the a11y baseline they lack (focus trap + focus restore) without a rewrite.
+  const dialogOpen = Boolean(pendingCandidate || showSaveModal || showExtractModal);
+  useEffect(() => {
+    if (!dialogOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).at(-1) as HTMLElement | null;
+    const focusables = dialog
+      ? Array.from(dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+      : [];
+    focusables[0]?.focus();
+    return () => {
+      previouslyFocused?.focus();
+    };
+  }, [dialogOpen]);
+  useEffect(() => {
+    if (!dialogOpen) return;
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const dialog = Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).at(-1);
+      if (!dialog) return;
+      const focusables = Array.from(dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleTab);
+    return () => window.removeEventListener('keydown', handleTab);
+  }, [dialogOpen]);
 
   useEffect(() => {
     if (!launchContext) return;
@@ -359,7 +397,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
         {onClose && (
           <button
             onClick={onClose}
-            aria-label="关闭智能管家"
+            aria-label="关闭 AI 协作助手"
             className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text transition-all"
           >
             <X size={20} aria-hidden="true" />
@@ -439,7 +477,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                 "flex flex-col gap-2 p-4 rounded-2xl",
                 msg.role === 'assistant'
                   ? "bg-theme-sidebar/10 border border-theme-border/40"
-                  : "bg-theme-accent text-white shadow-md ml-4"
+                  : "bg-theme-accent text-theme-accent-contrast shadow-md ml-4"
               )}
             >
               <div className="flex-1 min-w-0 overflow-hidden">
@@ -486,7 +524,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all",
                                 primary 
-                                  ? "bg-theme-accent text-white shadow-sm hover:opacity-90" 
+                                  ? "bg-theme-accent text-theme-accent-contrast shadow-sm hover:opacity-90" 
                                   : "border border-theme-border/60 bg-theme-sidebar text-theme-muted hover:border-theme-accent hover:text-theme-accent"
                               )}
                               title={label}
@@ -557,7 +595,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
                     </div>
                   </div>
                 ) : (
-                  <p className="text-white m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
+                  <p className="text-theme-accent-contrast m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
                 )}
               </div>
             </div>
@@ -574,7 +612,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
             </div>
           )}
           {session.failure && (
-            <div role="alert" aria-label="助手请求失败" className="flex flex-col gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+ <div role="alert" aria-label="助手请求失败" className="flex flex-col gap-2 rounded-2xl alert-warning p-3 text-xs">
               <div>{failureReasonText || session.failure.message}</div>
               {session.failure.reason && <div className="text-[10px]">原因：{session.failure.reason}</div>}
               {session.failure.finishReason && <div className="text-[10px]">finishReason: {session.failure.finishReason}</div>}
@@ -645,7 +683,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
           <button
             type="submit"
             disabled={session.isLoading}
-            className="p-2.5 bg-theme-accent text-white rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 shadow-sm"
+            className="p-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 shadow-sm"
             aria-label="发送消息"
           >
             <Send size={14} aria-hidden="true" />

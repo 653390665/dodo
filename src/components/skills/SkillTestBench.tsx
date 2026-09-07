@@ -150,7 +150,7 @@ export function SkillTestBench({
             type="button"
             disabled={!input.trim() || !novelId || !chapterId || databaseGeneration === undefined || runningMode !== null}
             onClick={() => handleRun('single')}
-            className="flex-1 rounded-xl bg-theme-text text-white px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-theme-text text-theme-bg px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {runningMode === 'single' ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
             运行当前版本
@@ -159,7 +159,7 @@ export function SkillTestBench({
             type="button"
             disabled={!input.trim() || !novelId || !chapterId || databaseGeneration === undefined || !candidateSkill || runningMode !== null}
             onClick={() => handleRun('compare')}
-            className="flex-1 rounded-xl bg-theme-accent text-white px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-theme-accent text-theme-accent-contrast px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {runningMode === 'compare' ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
             对比试跑

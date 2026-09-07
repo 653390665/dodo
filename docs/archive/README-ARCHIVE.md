@@ -49,3 +49,13 @@
 - [2026-05-09-development-archive.md](/Users/Zhuanz/Documents/dodo-inkflow/docs/archive/2026-05-09-development-archive.md)
 - [2026-05-09-chat-log.md](/Users/Zhuanz/Documents/dodo-inkflow/docs/archive/2026-05-09-chat-log.md)
 - [2026-05-09-resume-prompt.md](/Users/Zhuanz/Documents/dodo-inkflow/docs/archive/2026-05-09-resume-prompt.md)
+
+## 2026-09-05 文档整理归入
+
+- baseline-2026-08-11-beta-stabilization.md（Beta 收口基线）
+- dependency-upgrade-evaluation.md（依赖升级评估）
+- impeccable-review.md（代码评审报告）
+- monetization-boundary.md（商业化边界）
+- release-readiness.md（发布就绪检查）
+
+> 以上从 docs/ 根目录移入；文档总体索引见 [docs/README.md](../README.md)。

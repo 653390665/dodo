@@ -102,7 +102,7 @@ export const AlertDialogAction = React.forwardRef<
   <AlertDialogPrimitive.Action
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98] outline-none shadow-sm cursor-pointer",
+      "inline-flex h-10 items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98] shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg",
       className
     )}
     {...props}
@@ -117,7 +117,7 @@ export const AlertDialogCancel = React.forwardRef<
   <AlertDialogPrimitive.Cancel
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl border border-theme-border bg-transparent px-4 py-2 text-sm font-bold text-theme-text transition-colors hover:bg-theme-sidebar/50 active:scale-[0.98] outline-none cursor-pointer",
+      "inline-flex h-10 items-center justify-center rounded-xl border border-theme-border bg-transparent px-4 py-2 text-sm font-bold text-theme-text transition-colors hover:bg-theme-sidebar/50 active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg",
       className
     )}
     {...props}

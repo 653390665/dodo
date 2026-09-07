@@ -1,5 +1,7 @@
+import React from 'react';
 import { Download, FileText } from 'lucide-react';
 import { exportChapterToPdf } from '../lib/pdf-export';
+import { toast } from '../lib/toast';
 import type { Chapter, ContinuationEditorLaunchState } from '../../shared/types';
 
 export type EditorSaveStatus = 'loading' | 'pending' | 'saved' | 'failed' | 'unknown';
@@ -40,9 +42,28 @@ export function EditorStatusBar({
     : resolvedSaveStatus === 'loading' || resolvedSaveStatus === 'pending' ? 'bg-amber-500'
       : resolvedSaveStatus === 'saved' ? 'bg-green-600'
         : 'bg-gray-400';
-  const handleExport = async () => {
+  const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
+  const exportMenuRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExportMenuOpen(false);
+    };
+    const onClick = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onClick);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onClick);
+    };
+  }, [exportMenuOpen]);
+  const handleExport = async (format: 'epub' | 'txt') => {
+    setExportMenuOpen(false);
     if (!novelId) return;
-    const format = confirm('导出为 EPUB？（确定=EPUB，取消=TXT）') ? 'epub' : 'txt';
     try {
       const res = await fetch('/api/export', {
         method: 'POST',
@@ -61,7 +82,7 @@ export function EditorStatusBar({
       a.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (e) {
-      alert('导出失败: ' + (e instanceof Error ? e.message : String(e)));
+      toast('导出失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
     }
   };
 
@@ -87,12 +108,36 @@ export function EditorStatusBar({
           </span>
         </div>
         <div className="hidden sm:block h-3 w-px bg-theme-border/50" />
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
-        >
-          <Download size={12} aria-hidden="true" /> 导出
-        </button>
+        <div ref={exportMenuRef} className="relative">
+          <button
+            onClick={() => setExportMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={exportMenuOpen}
+            className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
+          >
+            <Download size={12} aria-hidden="true" /> 导出
+          </button>
+          {exportMenuOpen ? (
+            <div role="menu" className="absolute bottom-full right-0 z-30 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => void handleExport('epub')}
+                className="flex w-full items-center rounded-lg px-3 py-2 text-left text-[11px] text-theme-text hover:bg-theme-border/30"
+              >
+                导出 EPUB
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => void handleExport('txt')}
+                className="flex w-full items-center rounded-lg px-3 py-2 text-left text-[11px] text-theme-text hover:bg-theme-border/30"
+              >
+                导出 TXT
+              </button>
+            </div>
+          ) : null}
+        </div>
         <button
           onClick={() => {
             if (currentChapter) exportChapterToPdf(currentChapter, novelTitle);

@@ -21,7 +21,7 @@ export function LocationsTab({
         <h2 className="text-xl font-bold text-theme-text font-serif">地点与副本</h2>
         <button
           onClick={() => addEntity('location')}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-theme-bg rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
         >
           <Plus size={16} />
           新增地点

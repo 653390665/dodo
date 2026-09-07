@@ -52,6 +52,15 @@ export function ProductionRunReview({
 }: ProductionRunReviewProps) {
   const [history, setHistory] = useState<ChapterProductionRun[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [selectedHistoryRun, setSelectedHistoryRun] = useState<ChapterProductionRun | null>(null);
+  useEffect(() => {
+    // A new production run takes over the report; clear any history selection.
+    // Deferred (setState-in-effect suppression) because this is UI-state reset.
+    if (!running) return;
+    const timer = window.setTimeout(() => setSelectedHistoryRun(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [running]);
   const [confirmingRunId, setConfirmingRunId] = useState<string | null>(null);
   const [factCandidate, setFactCandidate] = useState<ChapterFactCandidate | null>(null);
   const [loadingFactCandidate, setLoadingFactCandidate] = useState(false);
@@ -61,7 +70,8 @@ export function ProductionRunReview({
   const recoveredRun = !running && run?.status === 'running' && !run.draftContent.trim()
     ? history.find((item) => item.status === 'review_required' && Boolean(item.draftContent.trim()))
     : undefined;
-  const displayRun = recoveredRun || run;
+  const viewingHistory = Boolean(selectedHistoryRun);
+  const displayRun = selectedHistoryRun || recoveredRun || run;
   const displayRunning = running;
   const issues = displayRun?.continuityReport.issues || [];
   const timelineEvents = displayRun?.continuityReport.proposedPatch.timelineEventsToCreate || [];
@@ -73,11 +83,14 @@ export function ProductionRunReview({
   const fallbackAudit = auditSource === 'fallback';
   const unknownAuditSource = Boolean(displayRun) && !auditSource;
   const failedAudit = auditStatus === 'fail';
+  const qualityRejected = displayRun?.continuityReport.degradation?.qualityRejected === true;
   const auditSourceLabel = auditSource === 'fallback' ? '保底流程' : auditSource === 'model' ? '模型' : '未知';
+  // A quality-rejected run is delivered on purpose (user keeps the material);
+  // acceptance stays possible but always goes through the explicit override confirm.
   const canApply = !running
     && displayRun?.status === 'review_required'
-    && displayRun.id === run?.id
-    && Boolean(draftQuality?.ok)
+    && (viewingHistory || displayRun.id === run?.id)
+    && (Boolean(draftQuality?.ok) || qualityRejected)
     && !fallbackAudit
     && !unknownAuditSource
     && !failedAudit;
@@ -95,8 +108,10 @@ export function ProductionRunReview({
     try {
       const runs = await listChapterProductionRuns(novelId);
       setHistory(runs.sort((a, b) => b.createdAt - a.createdAt));
+      setHistoryError(false);
     } catch {
-      // Silently fail history load
+      // Surface the failure — an empty list would read as "no runs ever".
+      setHistoryError(true);
     } finally {
       setLoadingHistory(false);
     }
@@ -159,7 +174,7 @@ export function ProductionRunReview({
           </div>
         ) : null}
         {visibleError ? (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+ <div className="mt-3 flex items-center gap-2 rounded-xl alert-danger px-3 py-2 text-xs">
             <XCircle size={14} />
             {visibleError}
           </div>
@@ -174,7 +189,7 @@ export function ProductionRunReview({
           <button
             onClick={onStart}
             disabled={displayRunning}
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-theme-text px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-theme-text px-4 py-2 text-sm font-bold text-theme-bg disabled:opacity-50"
           >
             {displayRunning ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
             {displayRunning ? '生产中...' : '开始生产一章'}
@@ -210,7 +225,7 @@ export function ProductionRunReview({
                 onApply(displayRun);
               }}
               disabled={applying || !canApply}
-              className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
             >
               {applying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               接受并写入
@@ -218,42 +233,48 @@ export function ProductionRunReview({
           </div>
 
           {fallbackAudit ? (
-            <div role="alert" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+ <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               保底草稿未经过模型审稿，不能直接接受并写入。请重试生成模型版本。
             </div>
           ) : null}
 
           {unknownAuditSource ? (
-            <div role="alert" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+ <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               正文版本来源未知，不能直接接受并写入。请重新生成模型版本。
             </div>
           ) : null}
 
+          {canApply && !applying && !displayRunning ? (
+            <div role="status" className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              正文已就绪。点击「接受并写入」后才会保存到章节和状态账本；在那之前内容只存在于预览。
+            </div>
+          ) : null}
+
           {failedAudit ? (
-            <div role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+ <div role="alert" className="mt-3 rounded-xl alert-danger px-3 py-2 text-xs">
               审稿未通过，当前正文需要精修后重新审阅，不能直接写入。
             </div>
           ) : null}
 
           {auditNeedsConfirmation && confirmingRunId === displayRun.id && !fallbackAudit ? (
-            <div role="alert" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-              本次审计{auditStatus === 'not_run' ? '未运行' : '状态未知'}（来源：{auditSourceLabel}），没有可验证评分。仍要接受预览并写入吗？
+ <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-3 text-xs">
+              {qualityRejected ? '正文未通过质量门禁，写入即代表接受当前质量风险。' : ''}本次审计{auditStatus === 'not_run' ? '未运行' : '状态未知'}（来源：{auditSourceLabel}），没有可验证评分。仍要接受预览并写入吗？
               <div className="mt-2 flex gap-2">
                 <button type="button" className="rounded-lg border border-theme-border px-2 py-1" onClick={() => setConfirmingRunId(null)}>取消</button>
-                <button type="button" className="rounded-lg bg-theme-accent px-2 py-1 text-white" onClick={() => onApply(displayRun)}>确认写入</button>
+                <button type="button" className="rounded-lg bg-theme-accent px-2 py-1 text-theme-accent-contrast" onClick={() => onApply(displayRun)}>确认写入</button>
               </div>
             </div>
           ) : null}
 
           {auditNeedsConfirmation && confirmingRunId !== displayRun.id && !fallbackAudit ? (
-            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+ <div className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               审计{auditStatus === 'not_run' ? '未运行' : '状态未知'} · 来源：{auditSourceLabel}
             </div>
           ) : null}
 
           <div className="mt-4 space-y-3">
             {visibleRunError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+ <div className="rounded-xl alert-danger px-3 py-2 text-xs">
                 失败原因：{visibleRunError}
               </div>
             ) : null}
@@ -261,7 +282,7 @@ export function ProductionRunReview({
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 分镜
                 {beatsSource === 'fallback' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">保底分镜</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">⚠️ 分镜降级</span>
                 )}
                 {beatsSource === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 分镜</span>
@@ -270,12 +291,17 @@ export function ProductionRunReview({
               <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 text-xs leading-5 text-theme-text">
                 {displayRun.sceneBeats}
               </pre>
+              {beatsSource === 'fallback' && !displayRunning ? (
+ <div role="alert" className="mt-2 rounded-xl alert-warning px-3 py-2 text-xs leading-5">
+                  ⚠️ 智能分镜失败，以上是基础模板而非按本章剧情生成的分镜，正文贴合度可能下降。可先到「分镜」重新生成分镜，再生成正文。
+                </div>
+              ) : null}
             </section>
             <section>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 正文预览
                 {draftSource === 'fallback' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">保底草稿</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">⚠️ 草稿降级</span>
                 )}
                 {draftSource === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 正文</span>
@@ -291,8 +317,12 @@ export function ProductionRunReview({
                 {displayRun.draftContent}
               </pre>
               {draftQuality && !draftQuality.ok ? (
-                <div role="alert" className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
-                  正文候选未通过质量门禁，暂不能写入：{draftQuality.violations.join('；')}
+ <div role="alert" className="mt-2 rounded-xl alert-danger px-3 py-2 text-xs leading-5">
+                  {qualityRejected
+                    ? '正文未通过质量门禁，已按“待改进草稿”保留：'
+                    : '正文候选未通过质量门禁，暂不能写入：'}
+                  {draftQuality.violations.join('；')}
+                  {qualityRejected ? '。可在此阅读或复制后自行修改；如坚持原样写入，点击「接受并写入」并确认覆盖。' : ''}
                   {draftQuality.findings.flatMap((finding) => finding.evidence || []).slice(0, 3).map((evidence, index) => (
                     <div key={`quality-evidence-${index}`} className="mt-1 border-l-2 border-red-300 pl-2">
                       {evidence.line ? `第 ${evidence.line} 行：` : ''}“{evidence.snippet}”{evidence.suggestion ? ` 建议：${evidence.suggestion}` : ''}
@@ -310,7 +340,7 @@ export function ProductionRunReview({
               <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">连续性问题</div>
               <div className="mt-2 space-y-2">
                 {issues.length ? issues.map((issue, index) => (
-                  <div key={`${issue.category}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+ <div key={`${issue.category}-${index}`} className="rounded-xl alert-warning px-3 py-2 text-xs">
                     <div className="flex items-center gap-2 font-bold">
                       <AlertTriangle size={13} />
                       {issue.severity} / {issue.category}
@@ -346,7 +376,7 @@ export function ProductionRunReview({
               </div>
             </section>
             {loadingFactCandidate ? <div className="text-xs text-theme-muted">正在加载章节事实候选...</div> : null}
-            {factCandidateError ? <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-2 text-xs text-amber-800">{factCandidateError}</div> : null}
+ {factCandidateError ? <div role="alert" className="rounded-lg alert-warning px-2 py-2 text-xs">{factCandidateError}</div> : null}
             {factCandidate ? <ChapterFactCandidateReview candidate={factCandidate} canConfirm={displayRun?.status === 'applied'} submitting={submittingFactCandidate} onConfirm={(selection) => {
               if (submittingFactCandidateRef.current) return;
               submittingFactCandidateRef.current = true;
@@ -380,22 +410,48 @@ export function ProductionRunReview({
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs font-bold text-theme-text uppercase tracking-wider">生产历史</div>
-            <button
-              onClick={loadHistory}
-              disabled={loadingHistory}
-              className="text-[10px] text-theme-muted hover:text-theme-text transition-colors"
-            >
-              {loadingHistory ? '刷新中...' : '刷新'}
-            </button>
+            <div className="flex items-center gap-2">
+              {viewingHistory ? (
+                <button
+                  onClick={() => setSelectedHistoryRun(null)}
+                  className="text-[10px] text-theme-accent hover:opacity-80 transition-opacity"
+                >
+                  返回当前报告
+                </button>
+              ) : null}
+              <button
+                onClick={loadHistory}
+                disabled={loadingHistory}
+                className="text-[10px] text-theme-muted hover:text-theme-text transition-colors"
+              >
+                {loadingHistory ? '刷新中...' : '刷新'}
+              </button>
+            </div>
           </div>
-          {history.length === 0 ? (
+          {historyError ? (
+            <div className="mt-3 rounded-xl border alert-danger px-3 py-2 text-xs">生产历史加载失败。<button type="button" className="font-bold underline" onClick={() => void loadHistory()}>重试</button></div>
+          ) : history.length === 0 ? (
             <div className="mt-3 text-xs text-theme-muted">尚无生产记录。输入意图后点击"开始生产一章"。</div>
           ) : (
             <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-2 text-xs"
+                  role="button"
+                  tabIndex={0}
+                  title="点击查看该次生产内容"
+                  onClick={() => setSelectedHistoryRun(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedHistoryRun(item);
+                    }
+                  }}
+                  className={`rounded-xl border px-3 py-2 text-xs cursor-pointer transition-colors ${
+                    selectedHistoryRun?.id === item.id
+                      ? 'border-theme-accent bg-theme-accent/10'
+                      : 'border-theme-border bg-theme-sidebar/20 hover:bg-theme-border/20'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -411,6 +467,11 @@ export function ProductionRunReview({
                       }`}>
                         {STATUS_LABELS[item.status] || item.status}
                       </span>
+                      {item.continuityReport.degradation && (item.continuityReport.degradation.beatsSource === 'fallback' || item.continuityReport.degradation.draftSource === 'fallback') ? (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700" title="该次生产中部分阶段降级为基础模板">
+                          ⚠️ 含降级
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-theme-muted">
                       {(item.continuityReport.auditMeta?.status === 'pass' || item.continuityReport.auditMeta?.status === 'fail')

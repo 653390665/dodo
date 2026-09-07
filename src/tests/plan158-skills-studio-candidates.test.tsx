@@ -113,12 +113,13 @@ describe('Plan 158 capability candidates', () => {
     const checkboxes = within(dialog).getAllByRole('checkbox');
     expect(checkboxes).toHaveLength(1);
     fireEvent.click(checkboxes[0]);
-    expect(within(dialog).getByRole('button', { name: '加入本次配置候选' }).hasAttribute('disabled')).toBe(false);
-    fireEvent.click(within(dialog).getByRole('button', { name: '加入本次配置候选' }));
+    expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
     expect(onNavigate).not.toHaveBeenCalledWith('editor');
   });
 
   test('keeps skill-card-only package selections in the staged profile', async () => {
+    const onNovelUpdated = vi.fn();
     const packageNovel = {
       ...novel,
       projectPreferenceProfile: {
@@ -129,7 +130,7 @@ describe('Plan 158 capability candidates', () => {
         },
       },
     };
-    render(<SkillsStudioView selectedNovel={packageNovel} />);
+    render(<SkillsStudioView selectedNovel={packageNovel} onNovelUpdated={onNovelUpdated} />);
     await openPackages();
 
     const packageCard = screen.getByText('跨章连贯性增强包').closest('div.rounded-xl');
@@ -140,24 +141,17 @@ describe('Plan 158 capability candidates', () => {
     const selectable = within(dialog).getAllByRole('checkbox').filter((checkbox) => !checkbox.hasAttribute('disabled'));
     expect(selectable.length).toBeGreaterThan(0);
     fireEvent.click(selectable[0]);
-    fireEvent.click(within(dialog).getByRole('button', { name: '加入本次配置候选' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
 
-    expect(await screen.findByText('本次配置')).toBeTruthy();
-    expect(screen.getByText('仅拆书卡占用：一张主卡，最多两张辅卡')).toBeTruthy();
-    expect(await within(dialog).findByText('下一步：应用配置后写入作品卡组')).toBeTruthy();
-    expect(within(dialog).queryByRole('button', { name: '设为主卡' })).toBeNull();
-    const deckSummary = screen.getByText('作品卡组').closest('div.rounded-2xl') as HTMLElement;
-    expect(within(deckSummary).getByText('主卡：')).toBeTruthy();
-    expect(within(deckSummary).getByText(/黄金三章候选卡 · 用途：节奏/)).toBeTruthy();
-    expect(within(deckSummary).getByText('还可添加 2 张辅卡')).toBeTruthy();
-    const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    fireEvent.click(screen.getByRole('button', { name: '应用配置并返回写作' }));
-    await screen.findByText('作品卡组');
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].capabilityMemberships).toContainEqual(expect.objectContaining({
+    // 单动词：启用即写入作品卡组（主卡槽位）
+    const { applyCapabilityConfiguration: applyMock } = await import('../lib/capability-configuration-client');
+    await waitFor(() => expect(vi.mocked(applyMock).mock.calls.length).toBeGreaterThan(0));
+    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].capabilityMemberships).toContainEqual(expect.objectContaining({
       sourceId: 'deconstruct-golden-climax',
       persistedSkillId: 'candidate-card',
     }));
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId).toBe('candidate-card');
+    expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: 'novel-1' }));
+    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId).toBe('candidate-card');
     expect(screen.queryByText(/本次已选 \d+ 项（暂存）/)).toBeNull();
     expect(screen.queryByText(/待加入候选 \d+ 项/)).toBeNull();
   });
@@ -179,7 +173,7 @@ describe('Plan 158 capability candidates', () => {
     expect(within(dialog).getByText('已勾选 1 项，待提交')).toBeTruthy();
     expect(within(dialog).getByText('已勾选，待提交到本次配置')).toBeTruthy();
     expect(within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: '加入本次配置候选' }).getAttribute('aria-describedby')).toBe('capability-package-submit-help');
+    expect(within(dialog).getByRole('button', { name: '启用所选' }).getAttribute('aria-describedby')).toBe('capability-package-submit-help');
   });
 
 });

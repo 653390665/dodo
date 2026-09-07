@@ -308,7 +308,7 @@ export function registerAgentsRoutes(app: Express) {
           maxAttempts: 2,
           maxTokens: purpose === 'sync-extraction' || purpose === 'world-bible' ? 8192 : 2048,
           ...(purpose === 'sync-extraction'
-            ? { responseMimeType: 'application/json', disableThinking: true }
+            ? { responseMimeType: 'application/json', disableThinking: true, outputMode: 'audit-json' }
             : purpose === 'world-bible' ? { disableThinking: true } : {}),
           onToken: (token) => {
             if (databaseGeneration !== getDatabaseGeneration()) {

@@ -62,7 +62,31 @@ export interface PipelineResult {
   auditStatus: 'pass' | 'fail' | 'unknown';
   /** Provider provenance. A deterministic fallback can never be a normal model apply. */
   source: 'model' | 'fallback';
+  /** Whether the planner produced real beats or the deterministic template. */
+  beatsSource: 'model' | 'fallback';
   attempts: number;
+}
+
+/**
+ * Every writer attempt (and the deterministic fallback) failed the quality
+ * gate. Carries the best model draft so the caller can still hand it to the
+ * user as a clearly-labelled, override-gated preview instead of discarding
+ * minutes of paid generation.
+ */
+export class DraftQualityRejectionError extends Error {
+  readonly draft: string;
+  readonly violations: string[];
+  readonly mechanicalScore?: number;
+  readonly beatsSource: 'model' | 'fallback';
+
+  constructor(draft: string, violations: string[], mechanicalScore?: number, beatsSource: 'model' | 'fallback' = 'fallback') {
+    super(`DRAFT_QUALITY_REJECTED:${violations.join('；')}`);
+    this.name = 'DraftQualityRejectionError';
+    this.draft = draft;
+    this.violations = violations;
+    this.mechanicalScore = mechanicalScore;
+    this.beatsSource = beatsSource;
+  }
 }
 
 // Stronger writer models (e.g. reasoning-heavy pro tiers) may need longer
@@ -120,6 +144,19 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
   const error = new Error('Production pipeline aborted');
   error.name = 'AbortError';
   throw error;
+}
+
+const WRITER_RETRY_STYLE_RULE = '重写要求：段首句式必须多样化，禁止连续段落以相同词语或相同结构开头；避免套话与保底句式，用具体动作和细节推进情节。';
+
+// Both the model draft and the deterministic fallback were unusable. Seed the
+// next writer attempt with the violations instead of killing the whole run.
+function buildWriterRetryFeedback(violations: string[]): string {
+  const detail = violations.length ? `具体问题：${violations.join('；')}。` : '';
+  return `【上一稿未通过质量门禁，请重写整章】${detail}${WRITER_RETRY_STYLE_RULE}`;
+}
+
+function truncateFeedback(message: string): string[] {
+  return [message.slice(0, 200)];
 }
 
 function buildValidatedFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number): string {
@@ -184,6 +221,7 @@ export async function runProductionPipeline(params: {
   });
 
   let sceneBeats: string;
+  let beatsSource: PipelineResult['beatsSource'];
   try {
     sceneBeats = await generateText(getConfig(), {
       prompt: plannerPrompt,
@@ -203,10 +241,12 @@ export async function runProductionPipeline(params: {
       concurrency: 2,
       signal: progress.signal,
     });
+    beatsSource = 'model';
   } catch (err) {
     throwIfAborted(progress.signal);
     logger.warn('Planner fell back to deterministic beats', err);
     sceneBeats = buildFallbackSceneBeats(userIntent);
+    beatsSource = 'fallback';
   }
 
   // ================================================================
@@ -221,6 +261,9 @@ export async function runProductionPipeline(params: {
   let draftSource: PipelineResult['source'] = 'model';
   let criticAvailable: boolean;
   let attempts = 0;
+  let lastModelDraft = '';
+  let lastViolations: string[] = [];
+  let lastMechanicalScore: number | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     attempts = attempt + 1;
@@ -348,7 +391,26 @@ export async function runProductionPipeline(params: {
             snippets: (finding.evidence || []).slice(0, 3).map((entry) => entry.snippet),
           })),
         });
-        currentDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer, minDraftChars);
+        if (currentDraft.trim()) {
+          lastModelDraft = currentDraft;
+          lastViolations = draftQuality.violations;
+          lastMechanicalScore = draftQuality.mechanicalReview?.score;
+        }
+        let fallbackDraft: string;
+        try {
+          fallbackDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer, minDraftChars);
+        } catch (fallbackErr) {
+          if (attempt < MAX_RETRIES) {
+            criticFeedback = buildWriterRetryFeedback(draftQuality.violations);
+            progress.onPhase?.('retry');
+            continue;
+          }
+          if (lastModelDraft.trim()) {
+            throw new DraftQualityRejectionError(lastModelDraft, lastViolations.length ? lastViolations : draftQuality.violations, lastMechanicalScore, beatsSource);
+          }
+          throw fallbackErr;
+        }
+        currentDraft = fallbackDraft;
         draftSource = 'fallback';
       } else {
         const chunks = (streamedWriterText || currentDraft).match(/.{1,24}/gs) || [];
@@ -363,7 +425,32 @@ export async function runProductionPipeline(params: {
         throw err;
       }
       logger.warn('Writer fell back to deterministic draft', err);
-      currentDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer);
+      // Keep the last usable model draft for the rejection handoff below.
+      if (currentDraft.trim() && draftSource === 'model') {
+        lastModelDraft = currentDraft;
+      }
+      let fallbackDraft: string;
+      try {
+        fallbackDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer);
+      } catch (fallbackErr) {
+        if (attempt < MAX_RETRIES) {
+          criticFeedback = buildWriterRetryFeedback(
+            err instanceof Error ? truncateFeedback(err.message) : [],
+          );
+          progress.onPhase?.('retry');
+          continue;
+        }
+        if (lastModelDraft.trim()) {
+          throw new DraftQualityRejectionError(
+            lastModelDraft,
+            lastViolations.length ? lastViolations : truncateFeedback(err instanceof Error ? err.message : String(err)),
+            lastMechanicalScore,
+            beatsSource,
+          );
+        }
+        throw fallbackErr;
+      }
+      currentDraft = fallbackDraft;
       draftSource = 'fallback';
       // Emit tokens for fallback draft
       const chunks = currentDraft.match(/.{1,24}/gs) || [];
@@ -442,6 +529,7 @@ export async function runProductionPipeline(params: {
     score: auditStatus === 'unknown' ? undefined : auditScore,
     auditStatus,
     source: draftSource,
+    beatsSource,
     attempts,
   };
 }

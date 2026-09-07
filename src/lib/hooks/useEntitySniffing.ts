@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Chapter, Character, Item, Location, SniffedEntities } from '../../../shared/types';
 import { createCharacter, createItem, createLocation } from '../world-client';
 import { startWorldJob } from '../world-job-client';
+import { toast } from '../toast';
 import { generateClientId } from '../id';
 
 interface UseEntitySniffingArgs {
@@ -150,7 +151,7 @@ export function useEntitySniffing({
         };
       });
     } catch (error) {
-      alert(`添加失败：${error instanceof Error ? error.message : String(error)}`);
+      toast(`添加失败：${error instanceof Error ? error.message : String(error)}`, 'error');
     } finally {
       setAddingEntityNames((prev) => prev.filter((name) => name !== entity.name));
     }
@@ -181,7 +182,7 @@ export function useEntitySniffing({
       setSniffedEntities(data);
     } catch {
       if (controller.signal.aborted) return;
-      alert('嗅探失败');
+      toast('嗅探失败', 'error');
     } finally {
       if (sniffControllerRef.current === controller) {
         sniffControllerRef.current = null;

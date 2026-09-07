@@ -416,7 +416,6 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('canceling overwrite leaves the existing outline untouched', () => {
     const onGlobalOutlineChange = vi.fn();
-    vi.stubGlobal('confirm', vi.fn(() => false));
     render(
       <OutlineTab
         {...defaultProps}
@@ -429,12 +428,12 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     fireEvent.click(screen.getAllByRole('radio')[0]);
     fireEvent.click(screen.getByRole('button', { name: '确认采用此大纲' }));
 
-    expect(window.confirm).toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
     expect(onGlobalOutlineChange).not.toHaveBeenCalled();
   });
 
   test('shows a persistent save error and preserves the old outline when adoption fails', async () => {
-    vi.stubGlobal('confirm', vi.fn(() => true));
     const onAdoptOutline = vi.fn(async () => false);
     render(
       <OutlineTab
@@ -447,6 +446,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
     fireEvent.click(screen.getAllByRole('radio')[0]);
     fireEvent.click(screen.getByRole('button', { name: '确认采用此大纲' }));
+    fireEvent.click(screen.getByRole('button', { name: '确认覆盖' }));
 
     expect(onAdoptOutline).toHaveBeenCalledWith('第一卷：起势');
     expect((await screen.findByRole('alert')).textContent).toContain('原大纲未被修改');

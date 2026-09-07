@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+@page {
+    size: A4;
+    margin: 25mm 20mm 20mm 20mm;
+
+    @top-center {
+        content: "InkFlow 墨影：一个人的 AI 写作工具进化史  |  横纵分析法深度研究报告";
+        font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #95a5a6;
+        border-bottom: 0.5pt solid #ecf0f1;
+        padding-bottom: 3mm;
+    }
+
+    @bottom-center {
+        content: "第 " counter(page) " 页";
+        font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #95a5a6;
+        border-top: 0.8pt solid #1a5276;
+        padding-top: 2mm;
+    }
+}
+
+@page :first {
+    @top-center { content: none; }
+    @bottom-center { content: none; }
+}
+
+body {
+    font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.75;
+    color: #2c3e50;
+    text-align: justify;
+}
+
+/* 封面 */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 45%;
+}
+.cover h1 {
+    font-size: 28pt;
+    color: #1a5276;
+    margin-bottom: 8mm;
+    font-weight: bold;
+    letter-spacing: 2pt;
+}
+.cover .subtitle {
+    font-size: 14pt;
+    color: #95a5a6;
+    margin-bottom: 6mm;
+}
+.cover .meta {
+    font-size: 11pt;
+    color: #95a5a6;
+    margin-bottom: 4mm;
+}
+.cover .divider {
+    width: 60%;
+    margin: 8mm auto;
+    border: none;
+    border-top: 1.5pt solid #1a5276;
+}
+
+/* 一级标题 */
+h1 {
+    font-size: 20pt;
+    color: #1a5276;
+    margin-top: 16mm;
+    margin-bottom: 6mm;
+    padding-bottom: 3mm;
+    border-bottom: 2pt solid #1a5276;
+    page-break-before: always;
+    font-weight: bold;
+}
+
+/* 二级标题 */
+h2 {
+    font-size: 14pt;
+    color: #1e8449;
+    margin-top: 10mm;
+    margin-bottom: 5mm;
+    font-weight: bold;
+}
+
+/* 三级标题 */
+h3 {
+    font-size: 12pt;
+    color: #2e86c1;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    font-weight: bold;
+}
+
+h4 {
+    font-size: 11pt;
+    color: #5b2c6f;
+    margin-top: 5mm;
+    margin-bottom: 2mm;
+    font-weight: bold;
+}
+
+/* 段落 */
+p {
+    margin-top: 1.5mm;
+    margin-bottom: 1.5mm;
+    orphans: 3;
+    widows: 3;
+}
+
+/* 引用块 */
+blockquote {
+    margin: 4mm 0;
+    padding: 4mm 4mm 4mm 10mm;
+    background: #f8f9fa;
+    border-left: 3pt solid #1a5276;
+    color: #5d6d7e;
+    font-size: 10pt;
+}
+blockquote p {
+    margin: 1mm 0;
+}
+
+/* 粗体 */
+strong, b {
+    font-weight: bold;
+    color: #1a252f;
+}
+
+/* 行内代码 */
+code {
+    font-family: "Courier New", Courier, monospace;
+    background: #fdf2e9;
+    color: #c0392b;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2pt;
+    font-size: 9.5pt;
+}
+
+/* 表格 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+}
+thead th {
+    background: #1a5276;
+    color: white;
+    padding: 3mm;
+    text-align: left;
+    font-weight: bold;
+}
+tbody td {
+    padding: 2.5mm 3mm;
+    border-bottom: 0.5pt solid #bdc3c7;
+}
+tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+/* 分隔线 */
+hr {
+    border: none;
+    border-top: 0.5pt solid #bdc3c7;
+    margin: 4mm 0;
+}
+
+/* 列表 */
+ul, ol {
+    margin: 2mm 0;
+    padding-left: 8mm;
+}
+li {
+    margin-bottom: 1mm;
+}
+
+/* 链接 */
+a {
+    color: #2e86c1;
+    text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+    <div class="cover">
+        <h1 style="page-break-before: avoid; border: none;">InkFlow 墨影：一个人的 AI 写作工具进化史</h1>
+        <div class="subtitle">横纵分析法深度研究报告</div>
+        <div class='meta'>研究时间：2026-09-02 | 所属领域：AI 辅助创作工具 | 研究对象类型：私有产品（同一产品的两个阶段）</div>
+        <hr class="divider">
+        <div class="meta">作者: 数字生命卡兹克</div>
+    </div>
+    
+
+<blockquote>
+<p>研究时间：2026-09-02 | 所属领域：AI 辅助创作工具 | 研究对象类型：私有产品（同一产品的两个阶段）</p>
+</blockquote>
+<h2>一、一句话定义</h2>
+<p>InkFlow 墨影是一款由单人开发者耗时四个月、经历一次仓库灾难后仍存活下来的本地优先 AI 小说写作工具——它的前半生叫"小说写作软件"，信奉 AI 直接生成；它的后半生叫"墨影"，信奉 AI 只配提议、作者才有裁决权。</p>
+<h2>二、纵向分析：从诞生到当下</h2>
+<h3>2.1 起点不是一个产品，是一次押注（2026-05-05）</h3>
+<p>2026 年 5 月 5 日凌晨 1 点 01 分，一个叫 <code>Initial commit</code> 的提交落在了后来的 <code>inkflow-src</code> 仓库里。四天后，这个仓库将完成它一生中最重要的架构决定——而做出这个决定只用了不到 24 小时。</p>
+<p>要理解这次押注，得看当时的初始依赖清单：<code>firebase ^12.12.1</code>、<code>@google/genai ^1.29.0</code>、<code>react 19</code>、<code>vite 6</code>、<code>tailwindcss 4</code>。这是一个标准的"云端优先"组合——数据放 Firebase，AI 走 Google Gemini，典型的 2025 年风做法：快速起步，不必操心本地存储和同步。</p>
+<p>但 5 月 6 日，也就是项目诞生的<strong>第二天</strong>，一系列提交密集出现了：<code>feat: add SQLite data layer replacing Firebase</code>（00:16）、<code>refactor: remove Firebase auth, use SQLite with local user</code>（00:34）、两条 Firestore → SQLite 的视图迁移（00:43）。Firebase 只活了不到 24 小时。</p>
+<p>这不是一次跟风的技术选型，而是一次立场的选择。对一个写作工具来说，"作者的手稿放在谁的硬盘上"是个根本问题——后来的整个产品哲学，包括本地优先、WAL 快照、BYOK（用户自带 API Key），都是从这 24 小时里长出来的。回头看，如果当时 Firebase 留下来了，后面所有"本地优先"的故事都不会发生。</p>
+<p>还有一个容易被忽略的细节：初始依赖里没有 langchain。而 5 月 15 日的 mission.md 特意记了一笔"移除 <code>workflow.ts</code>、<code>gemini.ts</code>、langchain 依赖"。这说明项目早期曾经试过 langchain 的编排路线，然后在第一周就主动放弃了——AI 链路最终收敛为 <code>@google/genai</code> 直连 + 自建的 AgentContext 提示词系统。对一个后来要以"提示词治理"为核心竞争力的产品来说，这个"第一天就不把灵魂交给框架"的决定，几乎预言了它的路径。</p>
+<h3>2.2 第一个月：跑完一个产品的完整生命周期（2026-05）</h3>
+<p>2026 年 5 月是这个项目密度最高的月份——68 个提交，从零一路干到 v1.0.0。</p>
+<p>5 月 6 日，SkillsStudioView 和 BookFactoryView（技能工作室、书籍工厂）就已经存在。这两个概念后来演化成产品的核心商业卖点，但注意它们出现的时间比"写作体验"还早——作者的直觉是先把"生产体系"搭起来，再打磨"写作手感"。</p>
+<p>5 月 13 日，<code>feat: improve Electron desktop shell</code>——产品从网页变成桌面应用。5 月 14 日，面向用户的 README 和 CI 跨平台构建上线。5 月 15 日凌晨，<code>v1.0.0</code> tag 打下。</p>
+<p>同一天的 <code>docs/mission.md</code>（"最后更新：2026-05-15"，状态"全部完成"）记录了一次完整的体验收口，分五个阶段：WelcomeView 替代书库成为默认入口（容纳"模糊灵感输入"）、编辑器保存状态指示器、3 秒防抖自动保存加 50 步撤销栈、暗色模式与全局快捷键、SSE 心跳与断网重连。还有两个后来成为产品骨架的东西：WorldBibleView 的 7 个 tab（全局设定、时间线、人物、地点、道具、势力、境界），和 AgentContext 的 <code>sceneType + detectSceneType()</code>——场景感知的提示词系统。</p>
+<p>值得一提的是 mission.md 里那行"移除 <code>workflow.ts</code>、<code>gemini.ts</code>、langchain 依赖"。第一版为了赶进度留下的抽象层，在体验收口时被主动拆掉了。这类"建了又拆"的决策在这个项目里反复出现，它不是折腾，而是单人开发者在没有团队评审的情况下，用代码库本身做思考草稿纸的方式。</p>
+<h3>2.3 转折点：从"工具"到"治理"（2026-06 ~ 2026-07 上旬）</h3>
+<p>6 月是可恢复提交史上最安静的月份——只有 8 个提交。但表面上安静的这个月，发生了一次产品哲学的胎动：<strong>plans/ 目录下的审计计划体系启动了</strong>。从 6 月 18 日的轮次 1 开始，到 8 月 10 日的轮次 29，这个体系最终滚动了 29 轮、171 份编号计划。它的含义是：开发者开始用"计划-审计-收口"的工程化流程来约束自己的开发，每一轮有编号、有依赖、有完成判定。</p>
+<p>为什么一个单人项目需要这种东西？因为 7 月的提交量炸了——仅 7 月上半月（至 14 日）就有 117 个提交，是 6 月的 15 倍。7 月 4 日，<code>feat(prompt-governance)</code> 落地，提示词治理 V2 上线；7 月 7 日傍晚，一个打包提交一口气把产品的未来形态全部铺上了桌面：<code>feat(product): welcome guide, project cockpit suggestions, writing companion radar, zero-friction entity capture and quality guard center UI</code>——欢迎向导、项目驾驶舱、写作伴写雷达、零摩擦实体补录、质量体检中心，五个后来在 README 里各占一节的模块，同一天进主。</p>
+<p>这批东西的共同点值得注意：它们全都不是"帮你写更多"，而是"帮你写得像人、写得一致、心里有数"。记忆雷达解决设定遗忘，零摩擦补录解决设定沉淀，质量体检中心解决"AI 写的东西到底行不行"。产品开始从"生成工具"转向"治理工具"。</p>
+<p>7 月 1 日还有一个不起眼但极重要的提交：<code>refactor: stabilize server routes and runtime validation</code> 里首次出现 SQLite WAL（<code>journal_mode</code>）的代码触点。这个当时为了稳定性做的选择，八月在灾难中救了整个项目一命——这是后话。</p>
+<h3>2.4 高危狂奔与第一次 catastrophe（2026-07 中旬 ~ 08-29）</h3>
+<p>7 月 14 日，<code>Close Plans 129-132 release blockers (#5)</code>——这是旧 git 链上最后一个可恢复的提交。此后到 8 月 29 日的 444 个本地提交，连同它们的 git 对象，在后来的仓库事故中部分损坏了。</p>
+<p>但这段"黑暗期"的活动痕迹以另一种方式留了下来：文件名自带日期的评估文档（<code>PRODUCT_EVALUATION_2026-08-09.md</code>、<code>PROJECT_EVALUATION_2026-08-09.md</code>、<code>PRODUCT_DEEP_EVALUATION_2026-08-15.md</code>、<code>TEST_REPORT_2026-08-17.md</code>）、<code>docs/release-readiness.md</code> 里 2026-08-17 的发布证据（macOS 签名与公证配置、打包烟测记录）、以及 plans/README.md 里 8 月 8 日至 10 日连滚三轮的审计记录（轮次 26、27、28、29——最后两轮是同一天打的，强度可见一斑）。</p>
+<p>从这些残骸可以拼出 8 月发生的事：产品在冲 Beta。8 月 9 日的 <code>docs/monetization-boundary.md</code> 定义了后来写进 README 的权益边界——<code>basic-byok</code>（本地写作、数据管理、用户自带 API Key）与 <code>enhanced-workflow</code>（增强工作流与授权技能）分离，并写明"不接受客户端请求字段覆盖"。8 月 17 日，发布验证通过。8 月 23 日，Plan 166"反 AI 文学结构循环"标记 DONE——"去 AI 味"从口号变成了有契约（literary-quality-contract）、有单测的工程能力。</p>
+<p>然后是 8 月 29 日之前某个时刻的仓库灾难：中段 git 对象损坏（176 处 tree→blob 断链），本地 444 个提交无法推送。2026-08-29 落款的 <code>docs/recovery/RECOVERY.md</code> 记录了这场自救：远端 main 停在 7 月，本地历史推不上去，最终选择<strong>全量工作树快照</strong>——<code>salvage: full working-tree snapshot of InkFlow (2026-08-29)</code>，新仓库的第一个提交。</p>
+<p>这里有一个几乎没有人会注意到的英雄细节：<strong>SQLite WAL 救了这个项目</strong>。因为数据层的稳定性建设（7 月 1 日起步），到 8 月 29 日时，产品的数据文件是自洽的——工作树快照里带出来的不只是代码，还有一个完整的、可用的产品数据。git 历史丢了 444 个提交的"叙事"，但产品的"事实"被 WAL 的一致性保证保住了。一个月前为稳定性做的投资，在灾难当天变成了保险。</p>
+<p>顺便一提，8 月 25 日旧工作区（codex 外层）还有 4 个 docs 提交：产品策略评估、题材研究、"containment battles"恢复——这印证了旧工作区在最后阶段承担的角色：它既是产品仓库，也是开发者的战略思考草稿本。</p>
+<h3>2.5 新生与冲刺（2026-08-29 ~ 09-02）</h3>
+<p>新仓库 <code>dodo-inkflow</code> 的历史只有 10 个提交，但密度惊人：</p>
+<ul>
+<li>8 月 29 日凌晨：salvage 快照 + 恢复文档（把最后 4 个补丁、仓库状态说明全部存档——连灾难本身都被工程化地归档了）；</li>
+<li>8 月 31 日：三个提交，修复草稿长度阈值、两批审计收口（加固、DX、覆盖率、架构子集）；</li>
+<li>9 月 1 日：分场景生成与写手模型覆盖（scheme C+A）；</li>
+<li>9 月 2 日：场景护栏作为过滤器、可调写手超时，以及当天最后一个提交——<code>feat(polish): de-ai-tells-guard quality guardrail (corpus-backed)</code>，基于语料库的去 AI 味护栏。</li>
+</ul>
+<p>三天半，10 个提交，全部围绕一件事：把 Beta 的质量地基打牢。注意"corpus-backed"这个词——去 AI 味护栏不再只是规则，而是用真实语料反推出来的判别标准。产品对"什么才是人写的"这件事，开始有了数据驱动的判断。</p>
+<h3>2.6 阶段总结：一条清晰的演化弧线</h3>
+<p>四个半月，四个阶段，每次跃迁都有明确的标志物：</p>
+<ol>
+<li><strong>押注期</strong>（5 月上旬）：Firebase → SQLite 的 24 小时转向，定下本地优先的立场；v1.0.0 桌面化；</li>
+<li><strong>成型期</strong>（5 月中 ~ 6 月）：写作体验收口，审计计划体系启动，产品从 Demo 变成软件；</li>
+<li><strong>转向期</strong>（7 月）：提示词治理 V2、雷达/体检/驾驶舱上线，产品从"生成工具"转向"治理工具"；</li>
+<li><strong>成熟期</strong>（8 月 ~ 9 月）：Beta 发布门禁、去 AI 味工程化、权益边界定义——以及一次被 WAL 快照救回来的仓库灾难。</li>
+</ol>
+<p>到 2026 年 9 月 2 日，这个产品的代码规模是 494 个 ts/tsx 文件、104,451 行 TypeScript，四个 git 身份（其中三个是同一 GitHub 账号的不同签名），一个 GitHub 远端（<code>653390665/dodo</code>），以及一个刚部署完成的多 Agent 共享记忆中枢。</p>
+<p>最后修正一个容易产生的误解：旧工作区（codex 目录）不是"废弃的旧版本"。它的外层至今还有 2026 年 8 月 25 日的战略文档提交，内层的 inkflow-src 工作树与当前主线<strong>逐字节一致</strong>（diff 为零）。它是同一台机器上的"作战指挥部"——研究文档、抓取存档、密钥、开发链路配置都堆在那里，而真正的产品源码从一开始就在 GitHub 远端 <code>dodo.git</code> 的引力范围内。所谓"两个项目"，从头到尾都是一个项目的两条影子。</p>
+<h3>2.7 第四天的大脑：从产品到生态（2026-09-02）</h3>
+<p>报告完稿的这一天，这个产品的历史上多了一个此前不存在的东西：<strong>多 Agent 共享记忆中枢</strong>。9 月 2 日，开发者把 Tencent 开源的 TencentDB-Agent Memory Gateway 部署到本机，配上 MCP 适配器，让 Codex、ZCode、OpenSquilla 三个编程 Agent 共享同一份项目记忆；同一天，四个项目团队的记忆、201 个技能、四座 Wiki 知识库全部入库。</p>
+<p>把它放进时间线里看，这不是一次功能开发，而是产品开发方式的升级：此前四个月，所有的"进度存档"都躺在 markdown 文件和 git 提交信息里，换一个 Agent 就要重新对齐上下文；从这一天起，开发者的多个 AI 协作者开始共享同一个大脑。39 页自动生成的项目知识库、被语料反推的去 AI 味护栏、正在消化的 625 批次记忆语料——产品的作者和产品的 AI 之间，第一次有了共同记忆。</p>
+<p>这段历史还没到总结的时候。但有一个模式已经足够清晰：这个项目四次关键跃迁（Firebase 转 SQLite、治理模式转向、WAL 快照自救、记忆中枢上线），每次都是同一个动作——<strong>把控制权从外部拿回到本地</strong>。</p>
+<h2>三、横向分析：竞争图谱</h2>
+<h3>3.1 赛道判断：AI 写作工具已经分裂成两个阵营</h3>
+<p>把 2025-2026 年的 AI 小说写作工具摊开看，会发现市场不是在"从差到好"地排队，而是沿着一条清晰的断层裂开了：</p>
+<p><strong>一边是全自动生成阵营</strong>。国内代表是墨狐AI（宣传"5 分钟生成万字小说"）、笔灵AI（小说生成器、水文助手）、蛙蛙写作（AI 工作流把多个工具串联成全自动流水线，一键拆书生成模板）。它们的共同假设是：作者要的是产量，工具的使命是把人的介入降到最低。</p>
+<p><strong>另一边是辅助治理阵营</strong>。国外的 NovelCrafter（口号"Not locked in, ever"）、Raptor Write（本地浏览器存储 + 用户自带 OpenRouter Key）、Sudowrite 的 Story Bible 路线。它们的共同假设是：作者要的是控制权，工具的使命是放大作者而不是替代作者。</p>
+<p>这条断层不是产品经理发明的，是被三股外力硬生生撕开的：网文平台的 AI 检测与处罚（起点被曝要求核心剧情人类原创、AI 内容深度改写超 30% 才合规，具体数字待核实官方原文）；番茄小说 2024 年 7 月的 AI 训练协议风波（作者联合抵制，257 条回答、80 万浏览的知乎讨论）；以及 2025 年 9 月 1 日施行的《人工智能生成合成内容标识办法》——AI 生成内容从此需要标识，"写得多快"不再是唯一的竞争力，"写得多像人"成了生死线。</p>
+<p>通用大模型（ChatGPT/Claude 直接写作）作为间接替代方案，暴露的痛点恰好是这个赛道的入场券：长文本设定遗忘（CSDN 实测五万字项目里第三章的旧伤设定到第十二章被遗忘）、"塑料感"AI 味、卡文与世界观管理繁琐。谁解决这三个问题，谁就有资格留在牌桌上。</p>
+<h3>3.2 主要竞品逐个看</h3>
+<p><strong>笔灵AI（ibiling.cn）</strong>：泛写作平台打法，200+ 场景模板铺满学生、教师、职场、网文全人群。它对网文作者的杀手锏是"降 AI"功能线——分五个版本，宣称"2 分钟降至安全线"、支持知网/维普/万方检测、"检测不过全额退款"，号称累计服务 85 万人次。注意这个功能的本质：它不是帮你写得好，而是帮你<strong>在平台检测下活下来</strong>。这从一个侧面承认了全自动阵营的原罪——先批量生成，再洗掉 AI 味。云服务，无本地化说明，定价未公开。</p>
+<p><strong>蛙蛙写作（wawawriter.com）</strong>：国内功能覆盖最全的网文向产品——长篇管理、拆书、小说转剧本、漫剧视频、AI 工作流、提示词市场，背后是自研 Weaver 大模型，宣称 30 万创作者。它和 InkFlow 的相似度最高（都有拆书、都有世界观设定、都有技能/模板体系），但路线相反：蛙蛙的拆书是"一键生成模板供复用"，InkFlow 的拆书是"生成技能卡供作者装配裁决"；蛙蛙做云端全家桶，InkFlow 做本地单机。它代表了"如果大厂来做这个产品会长成什么样"。</p>
+<p><strong>彩云小梦</strong>：老牌 AI 续写社区，玩法是输入开头生成多个分支供选择。第三方渠道的价格是月会员 28 元上下，核心功能宣称免费。社区口碑很能说明这类产品的天花板：贴吧用户惊叹它"似乎看过凤逆知道设定"（设定记忆），但写作者的评价是"如果是写文的话小梦还是蛮鸡肋的"。设定记忆是卖点，但对真写长篇的人不够用——这恰好是 InkFlow 记忆雷达瞄准的空档。</p>
+<p><strong>Sudowrite</strong>：英文市场的标杆，"不评判的 AI 写作伙伴"，获《纽约客》报道，$10-44/月信用点制。Story Bible（想法→大纲→节拍→成稿，按用户风格）、每次 300 词的多选自动补全、学习用户偏好的 Brainstorm、1000+ 插件。它证明了一件事：AI 写作工具可以做到"放大作者"而不是"替代作者"，并且这个定位撑得起一个成熟商业产品。</p>
+<p><strong>NovelCrafter</strong>：值得单独一提，因为它和 InkFlow 的相似度是所有竞品里最高的——The Codex（故事圣经维基，自动追踪角色地点）≈ InkFlow 的世界观设定记忆；自定义提示系统 ≈ AgentContext/提示词治理；$4-20/月 + BYOK（兼容 GPT-5、Claude、Gemini，甚至 LM Studio 和 Ollama 本地模型）≈ InkFlow 的 BYOK 多渠道。区别在于形态（网页 vs 桌面）和市场（英文 vs 中文），以及一个关键差异：NovelCrafter 是 22 万作者的社区产品，InkFlow 目前是一个人的产品。</p>
+<p><strong>Raptor Write</strong>：Future Fiction Academy 出品的免费工具，本地浏览器存储 + OpenRouter 多模型接入 + 变量化提示词系统。它和 InkFlow 的技术选型几乎互为镜像，但 SourceForge 上"缺少重型平台的深层结构工具"的标注，也点出了轻量工具的天花板。</p>
+<h3>3.3 生态位分析：一个空档，两面夹击</h3>
+<p>把这些摆到一起，InkFlow 的生态位变得非常清晰：</p>
+<p><strong>中国市场检索范围内，没有发现明确宣传 BYOK 或本地存储的国产网文 AI 工具</strong>（基于本次调研范围）。国内产品清一色云端订阅制——这既是因为云服务便于收费和风控，也是因为"数据在谁手里"这个问题在国内网文语境下是平台方而非作者的立场。而 InkFlow 从诞生的第二天起就选了另一边。</p>
+<p>这个空档正好撞上两股需求的交汇：平台 AI 检测趋严（作者需要"内容在我手里、由我裁决"的安全感）和数据主权意识觉醒（番茄协议风波就是导火索）。去 AI 味这个能力在国内被笔灵做成了"事后漂洗"，在 InkFlow 这里是"事前治理"——一个是洗衣服，一个是少弄脏。</p>
+<p>风险同样明显：云端阵营的门槛是"打开就能用"，本地 BYOK 产品的门槛是"先去买个 API Key"。对小白作者，前者的吸引力是碾压性的；InkFlow 的 Beta 权益边界（基础能力免费 + 增强工作流开放、无支付系统）说明开发者清楚这一点，但还没有给出答案。</p>
+<h2>四、横纵交汇洞察</h2>
+<h3>4.1 历史如何塑造了竞争力</h3>
+<p>把纵向时间线和横向格局叠在一起，会看到三个"当天种下、后来开花"的决策：</p>
+<p><strong>5 月 6 日的 Firebase 清除 → 今天的产品定位。</strong>市场上没有国产竞品做本地存储，不是因为它们想不到，而是因为云端商业模式不允许。InkFlow 能选这条路，恰恰因为它从第一天就不打算靠订阅收费——一个不需要为云端成本负责的产品，才有资格把"数据不出你的硬盘"写进口号。</p>
+<p><strong>5 月 5 日的"不用 langchain" → 7 月的提示词治理 V2。</strong>放弃框架意味着所有 AI 链路都要自己写，但也意味着提示词成了第一公民。当市场上其他工具还在拼模型接入数量时，这个产品在拼"提示词的可治理性"——场景检测、动态排序、语料反推的护栏，全部建立在自建提示词系统的地基上。</p>
+<p><strong>6 月的审计计划体系 → 8 月的 Beta 发布门禁。</strong>29 轮审计、171 份计划，单人项目用这套东西对冲了"没有团队评审"的风险。8 月 17 日能拿出带签名公证配置的发布证据，靠的就是这台自我约束的机器。</p>
+<p><strong>7 月 1 日的 WAL → 8 月 29 日的灾难幸存。</strong>这是最戏剧性的一环：git 历史丢了 444 个提交，但 SQLite 数据层的一致性保证让产品事实完好。一个"数据可靠性" feature 在灾难当天变成了保险。很难想象这个故事发生在一个 Firebase 产品上——云端数据库会替你兜底，但那时丢的就不是本地历史，而是数据主权本身。</p>
+<h3>4.2 竞品的纵向对比：两种起源，两条路</h3>
+<p>有意思的是，两个阵营的代表产品连起源都截然不同。Sudowrite 的创始人是写作者（Amit Gupta、James Yu），产品从"服务作者"出发；国内的蛙蛙写作背靠公司和大模型，产品从"占领场景"出发。InkFlow 的起源最特殊：它诞生于一个作者的开发实践（ codex 工作区里那些题材研究、产品策略评估、拆书文档），先有"我自己写小说时需要什么"，再有产品。这种起源决定了它对"AI 味"的痛感最真—— Plan 166 的名字就叫"反 AI 文学结构循环"，这不是竞品分析得来的需求，是被 AI 味恶心过之后的长出来的执念。</p>
+<h3>4.3 两个阶段的产品，到底差在哪里</h3>
+<p>回到最初的问题——"小说写作软件"和"InkFlow 墨影"的差异化。放在市场坐标系里看，答案变得立体：</p>
+<p>5 月的 v1.0.0 是一款<strong>合格的生成工具</strong>——如果当时发布，它会和彩云小梦、墨狐AI 挤在同一条赛道上，靠功能清单竞争，且没有云服务成本优势，大概率泯然众人。</p>
+<p>8 月的 Beta 是一款<strong>无人区里的治理工具</strong>——本地优先（国内无对标）、去 AI 味工程化（国内仅有的竞品是"事后漂洗"路线）、作者裁决制（直接回应平台 AI 整治和番茄协议风波背后的作者焦虑）。它不再和生成阵营拼产量，而是给"被 AI 检测和 AI 协议吓怕了的作者"提供一个立场性选择。</p>
+<p>换句话说，<strong>差异化不是做出来的，是站位出来的</strong>。两次转向（本地化、治理化）每一次都放弃了更大众的市场，换来了一个无人竞争的生态位。494 个文件、10 万行代码的体量在竞品面前不算什么，但"单人 + 本地优先 + 治理化"这个组合，2026 年 9 月的市场上找不出第二个。</p>
+<h3>4.4 三个剧本</h3>
+<p><strong>最可能的剧本：深耕者的护城河。</strong>开发者继续以"自我使用 + 小范围 Beta"的节奏迭代，记忆中枢（多 Agent 共享）让开发效率持续放大，去 AI 味护栏随语料积累越来越准。产品保持小众但不可替代——"认真写长篇、在乎数据主权、懂一点技术配置的作者"这个细分人群会稳定增长（NovelCrafter 用 22 万作者证明了这群人在英文市场的规模）。风险是 BYOK 门槛限制了破圈，产品停留在"高手自用"。</p>
+<p><strong>最危险的剧本：平台政策收网。</strong>如果起点/番茄的 AI 检测进一步收紧到"任何 AI 参与"层面，或者网文平台全面扶持自有 AI 工具（阅文妙笔已经在做"既卖铲子又罚挖矿"的事），独立工具的生存空间会被两头挤压：作者不敢用（平台风险），用了也上不了架。同时云端大厂若推出"治理型"功能（AI 痕迹控制内置于平台工具），InkFlow 的核心卖点被平台收编。这个剧本里，产品最好的归宿是像 Raptor Write 一样作为社区工具存在。</p>
+<p><strong>最乐观的剧本：数据主权成为卖点。</strong>《标识办法》施行后，AI 内容标识成为合规常态，作者开始认真对待"我的手稿和我的 AI 使用记录在谁手里"。本地优先 + 治理审计（InkFlow 的 plans 体系天然就是"AI 参与度台账"）恰好构成一套"作者合规工具箱"。若产品补上分发短板（签名发布、社区运营），有机会成为中文世界的 NovelCrafter——一个立场鲜明的小而美，靠细分人群的信任而非流量取胜。</p>
+<p>三个剧本的共同变量只有一个：<strong>单人开发者能否持续投入</strong>。四个月 350+ 提交、一次仓库灾难、一套 29 轮审计体系，这个项目最不缺的是执念。历史上所有的单人作品都面临同一个问题——不是能不能做出来，而是作者的那口气能撑多久。这个项目用 WAL 快照和 salvage 提交证明了一件事：连灾难都没能让它断更。</p>
+<h2>五、信息来源</h2>
+<p><strong>一手来源（本地磁盘）：</strong><br>
+- 仓库 A：/Users/Zhuanz/Documents-local/codex（外层 git 历史、tag v1.0.0、docs/mission.md 2026-05-15、小说写作软件/inkflow-src 内层仓库及其 193 提交旧链、PRODUCT.md、CLAUDE.md、DEEPSEEK_CACHE_FOR_CLAUDE_CODE.md）——访问时间 2026-09-02<br>
+- 仓库 B：/Users/Zhuanz/Documents-local/dodo-inkflow（10 提交历史、README.md 状态表、docs/recovery/RECOVERY.md、docs/baseline-2026-08-11-beta-stabilization.md、docs/release-readiness.md、docs/monetization-boundary.md、docs/specs/、plans/ 目录 109-171 号计划、PRD.md / PRD_V2.md）——访问时间 2026-09-02</p>
+<p><strong>联网来源（访问时间 2026-09-02）：</strong><br>
+- Sudowrite 官网及定价页：https://www.sudowrite.com/ 、https://www.sudowrite.com/pricing<br>
+- NovelCrafter 官网及定价页：https://www.novelcrafter.com/ 、https://www.novelcrafter.com/pricing<br>
+- 笔灵AI 官网：https://ibiling.cn/<br>
+- 蛙蛙写作官网：https://wawawriter.com/home/ ；第三方介绍页 https://wawawriter.gongke.net/<br>
+- Raptor Write：https://sourceforge.net/software/product/Raptor-Write/ ；raptorwrite.com Web App 实抓<br>
+- 墨狐AI：https://ai-bot.cn/sites/15321.html ；百度百科词条<br>
+- 彩云小梦定价：PartnerShare（2025-12）、映技派 yjpoo.com（2026-08），均经 360 检索<br>
+- 阅文妙笔发布：腾讯网（2023-07-19，经搜狗检索）<br>
+- 番茄小说 AI 协议风波：IT之家（2024-07-22/23）、TechWeb（2024-07-23）、光明网（2024-07-27），经搜狗检索<br>
+- 起点 AI 整治：ai.so.com 聚合条目（经 360 检索，原文待核实）<br>
+- 《人工智能生成合成内容标识办法》：www.gov.cn（2025-03-07）；新华网报道（2025-09-09，经 360 检索）<br>
+- 通用 LLM 写作痛点：CSDN 实测（2026-05-29、2026-08-14）、新浪财经（2026-08-09）、头条（2026-04-02）、网易测评（2026-03-27），均经 360 检索<br>
+- 社区口碑：知乎《彩云小梦给你的体验如何？》、百度贴吧凤逆天下吧、知乎番茄 AI 协议话题（经搜狗/360 检索摘要）</p>
+<p><strong>诚实声明</strong>：NovelAI 定价、部分国内产品价格数字、起点公告原文、Sudowrite 社区口碑等信息因访问受限标注"暂缺"；起点 AI 整治的"30% 深度改写"等数字来自聚合搜索摘要，未经官方原文核实。</p>
+<hr>
+<p><strong>方法论说明</strong>：横纵分析法（Horizontal-Vertical Analysis）由数字生命卡兹克（Khazix）提出，融合语言学历时-共时分析、社会科学纵向-横截面研究设计与竞争战略分析：纵向追时间深度以还原决策逻辑，横向追同期广度以定位竞争生态，最终在两者交汇处产出综合判断。</p>
+</body>
+</html>

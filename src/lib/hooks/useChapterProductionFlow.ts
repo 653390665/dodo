@@ -104,6 +104,13 @@ export function useChapterProductionFlow({
     const resolvedIntent = intentOverride ?? productionIntent;
     const startedAt = nowMs();
     setProductionIntent(resolvedIntent);
+    void recordProductEvent({
+      eventName: 'generation_entry_used',
+      stage: 'drafting',
+      result: 'success',
+      novelId,
+      action: 'unified_panel',
+    }).catch(() => undefined);
 
     setIsProductionRunning(true);
     setProductionError(null);
@@ -320,11 +327,17 @@ export function useChapterProductionFlow({
     try {
       await flushPendingEditorWrites?.();
       const auditStatus = runToApply.continuityReport.auditMeta?.status;
+      const targetChapterId = runToApply.targetChapterId || currentChapterId || '';
+      // Capture pre-apply emptiness so metrics can attribute "first accept".
+      const preChapter = targetChapterId
+        ? await getChapter(targetChapterId).catch(() => null)
+        : null;
+      const chapterWasEmpty = !preChapter?.content?.trim();
       const result = await applyChapterProductionRun(
         runToApply.id,
         {
           novelId,
-          chapterId: runToApply.targetChapterId || currentChapterId || '',
+          chapterId: targetChapterId,
           databaseGeneration: runToApply.continuityReport.databaseGeneration
             ?? productionDatabaseGenerationRef.current
             ?? await getDatabaseGenerationSnapshot(),
@@ -350,6 +363,12 @@ export function useChapterProductionFlow({
         eventName: 'draft_accept', stage: 'drafting', result: 'success',
         novelId, chapterId: result.chapterId, objectId: runToApply.id,
       }).catch(() => undefined);
+      if (chapterWasEmpty) {
+        void recordProductEvent({
+          eventName: 'first_chapter_accepted', stage: 'drafting', result: 'success',
+          novelId, chapterId: result.chapterId, objectId: runToApply.id,
+        }).catch(() => undefined);
+      }
     } catch (error) {
       void recordProductEvent({
         eventName: 'draft_accept', stage: 'drafting', result: 'failure',

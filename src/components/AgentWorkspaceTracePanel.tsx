@@ -36,7 +36,7 @@ export function AgentWorkspaceTracePanel({
         <button
           onClick={onSniffEntities}
           disabled={!currentChapter || isSniffing}
-          className="w-full py-2 bg-theme-accent text-white rounded-xl text-[10px] font-bold shadow-sm hover:bg-theme-accent/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-2 bg-theme-accent text-theme-accent-contrast rounded-xl text-[10px] font-bold shadow-sm hover:bg-theme-accent/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isSniffing ? <Loader2 size={14} className="animate-spin" /> : <Radar size={14} />}
           {isSniffing ? '设定正在巡航中...' : '立即识别本章设定'}

@@ -23,7 +23,7 @@ import { recordChapterDecision } from '../../shared/lib/preference-flywheel';
 import { addChunk } from '../vector-store';
 import { EmbeddingUnavailableError } from '../embedding';
 import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel';
-import { runProductionPipeline } from '../helpers/ai-production-pipeline';
+import { runProductionPipeline, DraftQualityRejectionError } from '../helpers/ai-production-pipeline';
 import { finalizeContextReceipt } from '../../shared/lib/continuation-pack';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow';
 import { evaluateDraftAcceptance, resolveEffectiveMinDraftChars, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
@@ -855,7 +855,7 @@ export function registerProductionRoutes(app: Express) {
                 sceneBeats: result.sceneBeats,
                 draftContent: result.draft,
                 styleAudit: result.audit,
-                continuityReport: { ...db.getChapterProductionRun(runId!)!.continuityReport, contextReceipt: finalContextReceipt, auditMeta: { status: result.auditStatus, source: result.source, ...((result.auditStatus === 'pass' || result.auditStatus === 'fail') && typeof result.score === 'number' && Number.isFinite(result.score) ? { score: result.score } : {}) } },
+                continuityReport: { ...db.getChapterProductionRun(runId!)!.continuityReport, contextReceipt: finalContextReceipt, auditMeta: { status: result.auditStatus, source: result.source, ...((result.auditStatus === 'pass' || result.auditStatus === 'fail') && typeof result.score === 'number' && Number.isFinite(result.score) ? { score: result.score } : {}) }, degradation: { beatsSource: result.beatsSource, draftSource: result.source } },
                 status: 'review_required',
               });
               createProductionVersion(db.getChapterProductionRun(runId!)!, result.source);
@@ -937,6 +937,47 @@ export function registerProductionRoutes(app: Express) {
     } catch (e) {
       cleanupStream();
       logger.error('Chapter production stream fatal error:', e);
+
+      // ── Quality-rejection handoff ──
+      // All writer attempts (and the fallback) failed the gate, but a model
+      // draft exists. Persist it as a review_required preview so the user
+      // keeps the paid-for material and can make an informed override
+      // decision, instead of receiving nothing.
+      if (e instanceof DraftQualityRejectionError && runId) {
+        try {
+          if (streamDatabaseGeneration !== undefined) {
+            await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
+              db.updateChapterProductionRun(runId!, {
+                status: 'review_required',
+                draftContent: e.draft,
+                styleAudit: `未通过质量门禁${typeof e.mechanicalScore === 'number' ? `（机械审查 ${e.mechanicalScore.toFixed(1)}）` : ''}：${e.violations.join('；')}`,
+                continuityReport: {
+                  ...db.getChapterProductionRun(runId!)!.continuityReport,
+                  auditMeta: { status: 'unknown', source: 'model' },
+                  degradation: {
+                    beatsSource: e.beatsSource,
+                    draftSource: 'model',
+                    qualityRejected: true,
+                  },
+                },
+              });
+              createProductionVersion(db.getChapterProductionRun(runId!)!, 'model');
+            });
+          }
+          commitQuotaReservation(reservationId);
+          contentDelivered = true;
+          if (isResponseWritable(res) && !clientAbortController.signal.aborted) {
+            sseWrite(res, { type: 'status', message: '正文未通过质量门禁，已作为待改进草稿保存在预览中。' });
+            sseWrite(res, { type: 'done', run: attachReviewVersion(db.getChapterProductionRun(runId!)) });
+            res.end();
+          }
+          return;
+        } catch (persistError) {
+          logger.error('Quality-rejection handoff failed:', persistError);
+          // fall through to the generic failure handling below
+        }
+      }
+
       const message = e instanceof Error ? e.message : String(e);
       const qualityFailure = e instanceof Error && message.startsWith('DRAFT_QUALITY_GATE_FAILED:')
         ? message.slice('DRAFT_QUALITY_GATE_FAILED:'.length).trim().split('；').filter(Boolean)
@@ -1336,6 +1377,7 @@ ${final.substring(0, 3000)}
       maxTokens: 4000,
       disableThinking: true,
       responseMimeType: 'application/json',
+      outputMode: 'audit-json',
       novelId,
     }, {
       operation: 'production-reflexion',

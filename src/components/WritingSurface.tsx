@@ -220,7 +220,7 @@ export const WritingSurface = React.memo(function WritingSurface({
                         || ((workflowState.primaryAction === 'polish' || workflowState.primaryAction === 'resolve-issues') && isGeneratingContent)
                         || ((workflowState.primaryAction === 'complete-chapter' || workflowState.primaryAction === 'confirm-facts') && isCompletingChapter)
                         || ((workflowState.primaryAction === 'review' || workflowState.primaryAction === 'sync') && !packId)}
-                      className="px-3.5 py-2 rounded-xl bg-theme-accent text-white hover:opacity-95 transition-opacity text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                      className="px-3.5 py-2 rounded-xl bg-theme-accent text-theme-accent-contrast hover:opacity-95 transition-opacity text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {workflowState.primaryAction === 'planning' ? <Radar size={13} />
                         : workflowState.primaryAction === 'drafting' ? <Bot size={13} />
@@ -285,7 +285,7 @@ export const WritingSurface = React.memo(function WritingSurface({
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <button
                   onClick={onAddFirstChapter}
-                  className="px-8 py-4 bg-theme-accent text-white hover:bg-theme-accent/90 rounded-2xl flex items-center gap-3 transition-[transform,background-color,box-shadow] duration-200 hover:scale-105 font-bold shadow-lg text-lg"
+                  className="px-8 py-4 bg-theme-accent text-theme-accent-contrast hover:bg-theme-accent/90 rounded-2xl flex items-center gap-3 transition-[transform,background-color,box-shadow] duration-200 hover:scale-105 font-bold shadow-lg text-lg"
                 >
                   <Plus size={22} />
                   新建章节并写作

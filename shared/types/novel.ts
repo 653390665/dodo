@@ -180,6 +180,13 @@ export interface ContinuityReport {
     source: 'fallback' | 'model';
     score?: number;
   };
+  /** Stage-level provenance so the history can surface silent degradations. */
+  degradation?: {
+    beatsSource: 'fallback' | 'model';
+    draftSource: 'fallback' | 'model';
+    /** True when the model draft was delivered despite failing the quality gate. */
+    qualityRejected?: boolean;
+  };
   contextReceipt?: import('./continuation.js').ContextReceipt;
   executionReceipt?: ProductionExecutionReceipt;
 }

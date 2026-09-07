@@ -164,7 +164,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
         {(['all', 'planted', 'hinted', 'payoff'] as const).map(s => (
           <button key={s} onClick={() => setFilter(s)}
             className={`text-[10px] px-2.5 py-1 rounded-full font-bold transition-all ${
-              filter === s ? 'bg-theme-text text-white' : 'bg-theme-sidebar border border-theme-border text-theme-muted hover:bg-theme-sidebar'
+              filter === s ? 'bg-theme-text text-theme-bg' : 'bg-theme-sidebar border border-theme-border text-theme-muted hover:bg-theme-sidebar'
             }`}>
             {s === 'all' ? `全部 ${items.length}` : `${STATUS_CONFIG[s].label} ${stats[s]}`}
           </button>
@@ -194,7 +194,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
                   取消
                 </button>
                 <button type="button" onClick={() => void handleConfirmDetection()} disabled={confirmingDetection}
-                  className="flex-1 rounded-lg bg-theme-accent py-1.5 text-[10px] font-bold text-white disabled:opacity-50">
+                  className="flex-1 rounded-lg bg-theme-accent py-1.5 text-[10px] font-bold text-theme-accent-contrast disabled:opacity-50">
                   {confirmingDetection ? '恢复中...' : `确认恢复 ${pendingDetection.entries.length} 条`}
                 </button>
               </div>
@@ -219,7 +219,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
           <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="伏笔描述..."
             className="w-full text-xs px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent resize-none h-20" />
           <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={!newTitle.trim()} className="flex-1 py-2 bg-theme-accent text-white rounded-lg text-xs font-bold disabled:opacity-50">添加</button>
+            <button onClick={handleAdd} disabled={!newTitle.trim()} className="flex-1 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-xs font-bold disabled:opacity-50">添加</button>
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 border border-theme-border rounded-lg text-xs text-theme-muted">取消</button>
           </div>
         </div>

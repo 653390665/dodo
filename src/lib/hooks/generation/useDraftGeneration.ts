@@ -4,6 +4,8 @@ import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
 import { updateChapter } from '../../chapter-client';
 import { readDraftStream } from '../../draft-stream';
+import { SseError } from '../../sse-client';
+import { recordProductEvent } from '../../product-events-client';
 import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
 import {
   createAiActionError,
@@ -196,6 +198,14 @@ export function useDraftGeneration({
     if (!currentChapter || !currentChapter.sceneBeats || isGeneratingContent) return;
 
     const currentSeq = ++requestSeqRef.current;
+    void recordProductEvent({
+      eventName: 'generation_entry_used',
+      stage: 'drafting',
+      result: 'success',
+      novelId: novel.id,
+      chapterId: currentChapter.id,
+      action: 'quick_mode',
+    }).catch(() => undefined);
     const controller = new AbortController();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -322,7 +332,12 @@ export function useDraftGeneration({
       const message = error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED'
         ? '正文生成暂不可用，请检查当前能力额度后重试。'
         : formatAiFailure(error, '连续写作');
-      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message));
+      const violations = error instanceof SseError && error.violations?.length
+        ? error.violations
+        : error instanceof Error && error.message.startsWith('正文候选未通过质量门禁：')
+          ? error.message.slice('正文候选未通过质量门禁：'.length).split('；').filter(Boolean)
+          : undefined;
+      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message, Date.now(), true, undefined, violations));
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
     } finally {
       if (requestSeqRef.current === currentSeq) {

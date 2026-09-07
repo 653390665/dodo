@@ -34,6 +34,9 @@ interface ProductionTabProps {
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
   writingStyleConfirmed?: boolean;
+  /** Quick mode: continuous-writing draft without the audit pipeline. */
+  onQuickGenerate?: () => Promise<void> | void;
+  quickGenerateDisabled?: boolean;
   capabilityEffectSummary?: {
     projectCardNames: string[];
     favoriteTechniqueNames: string[];
@@ -69,6 +72,8 @@ export function ProductionTab({
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
+  onQuickGenerate,
+  quickGenerateDisabled,
   writingStyleConfirmed,
   capabilityEffectSummary,
   onSwitchTab,
@@ -132,6 +137,16 @@ export function ProductionTab({
           confirmed={Boolean(writingStyleConfirmed ?? writingStyleResolution?.confirmed)}
           disabled={isProductionRunning || isApplyingProductionRun}
         />
+      ) : null}
+      {onQuickGenerate ? (
+        <button
+          type="button"
+          onClick={() => void onQuickGenerate()}
+          disabled={quickGenerateDisabled || isProductionRunning || isApplyingProductionRun}
+          className="rounded-lg border border-theme-border px-2.5 py-1.5 text-[11px] font-semibold text-theme-muted transition-colors hover:bg-theme-border/30 hover:text-theme-text disabled:opacity-50"
+        >
+          快速模式：跳过审稿，直接生成草稿
+        </button>
       ) : null}
       <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
         <div className="flex items-center gap-2">

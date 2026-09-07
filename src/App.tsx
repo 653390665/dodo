@@ -9,6 +9,7 @@ import { useAppStore } from './stores/app-store';
 import { useNovelStore } from './stores/novel-store';
 import { AppShell } from './components/AppShell';
 import { TooltipProvider } from './components/ui/tooltip';
+import { AppDialogHost } from './components/ui/app-confirm';
 import { bindEditorCloseSafety } from './lib/editor-close-handshake';
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
   return (
     <TooltipProvider>
       <AppShell />
+      <AppDialogHost />
     </TooltipProvider>
   );
 }

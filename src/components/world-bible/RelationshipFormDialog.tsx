@@ -339,7 +339,7 @@ export function RelationshipFormDialog({
                       onClick={() => setRelationshipType(preset)}
                       className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
                         relationshipType === preset
-                          ? 'bg-theme-accent text-white border-theme-accent shadow-sm'
+                          ? 'bg-theme-accent text-theme-accent-contrast border-theme-accent shadow-sm'
                           : 'border-theme-border/50 text-theme-text hover:bg-theme-sidebar/50'
                       }`}
                     >
@@ -379,7 +379,7 @@ export function RelationshipFormDialog({
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit || saving}
-                className="px-5 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all disabled:opacity-50"
+                className="px-5 py-2 text-sm bg-theme-text text-theme-bg rounded-xl hover:bg-theme-text/90 shadow-md transition-all disabled:opacity-50"
               >
                 {saving ? '保存中...' : mode === 'create' ? '创建关系' : '保存修改'}
               </button>

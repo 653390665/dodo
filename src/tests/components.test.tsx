@@ -805,7 +805,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       await waitFor(() => expect(screen.queryByText('已确认写法')).toBeNull());
       expect(screen.getAllByText('新写法待确认').length).toBeGreaterThan(0);
-      expect(screen.getByRole('button', { name: '确认并生成' })).toBeDefined();
+      expect(screen.getByRole('button', { name: '生成本章正文' })).toBeDefined();
     });
 
     test('EditorView 应用能力预览前先创建章节版本，再写入正文', async () => {

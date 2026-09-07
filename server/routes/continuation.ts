@@ -563,6 +563,7 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
               traceId: job.traceId,
               responseMimeType: 'application/json',
               disableThinking: true,
+              outputMode: 'audit-json',
             });
             const normalized = normalizeExtractionPayload(parseModelJsonPayloadStrict<unknown>(raw, { expectedRoot: 'object' }));
             const validated = extractionResultSchema.safeParse(normalized.value);
@@ -923,6 +924,7 @@ ${text.substring(0, 30000)}
     // give headroom so reasoning-heavy providers don't truncate it.
     maxTokens: 8000,
     disableThinking: true,
+    outputMode: 'audit-json',
   });
   return parseModelJsonPayload<unknown>(rawText);
 }
@@ -1108,6 +1110,9 @@ export function registerContinuationRoutes(app: Express) {
               maxTokens: attempt.maxTokens,
               responseMimeType: 'application/json',
               disableThinking: true,
+              // Extraction output is data, not prose: skip the creative-writing
+              // quality gate that would otherwise reject valid JSON payloads.
+              outputMode: 'audit-json',
             });
             modelResult = parseModelJsonPayload<unknown>(raw);
             break;
@@ -1218,6 +1223,9 @@ export function registerContinuationRoutes(app: Express) {
       }
       if (/API.?[Kk]ey|未配置|unauthorized/i.test(message)) {
         return res.status(401).json({ error: '未配置 AI API Key，请在设置中配置后重试。' });
+      }
+      if (/质量校验|quality_rejected/i.test(message)) {
+        return res.status(502).json({ error: 'AI 输出未通过质量校验，请重试；若持续失败请减少资料文件数量。' });
       }
       return res.status(500).json({ error: '解析服务异常，请稍后重试。' });
     } finally {
@@ -1509,6 +1517,7 @@ export function registerContinuationRoutes(app: Express) {
         maxTokens: 8_000,
         responseMimeType: 'application/json',
         disableThinking: true,
+        outputMode: 'audit-json',
         traceId,
       }).then(raw => parseModelJsonPayloadStrict<unknown>(raw)));
       if (databaseGeneration !== getDatabaseGeneration()) {
@@ -1645,6 +1654,7 @@ export function registerContinuationRoutes(app: Express) {
                   timeoutMs: 90_000, maxAttempts: 1, maxTokens: 8000,
                   traceId: job.traceId,
                   responseMimeType: 'application/json', disableThinking: true,
+                  outputMode: 'audit-json',
                   onComplete: metadata => {
                     truncated = metadata.truncated;
                     lastFinishReason = metadata.finishReason;

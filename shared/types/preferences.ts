@@ -76,6 +76,8 @@ export interface WritingStyleConfirmation {
   mode: WritingStyleMode;
   fingerprint: string;
   confirmedAt: number;
+  /** Pack remembered at confirm time; resolves without an explicit pack reuse it. */
+  continuationPackId?: string;
 }
 
 export type WritingStyleSourceKind = 'default' | 'project-tone' | 'skill-deck' | 'writer-skill' | 'continuation-pack' | 'writer-session' | 'technique';

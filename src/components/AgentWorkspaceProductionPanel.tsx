@@ -94,6 +94,18 @@ interface AgentWorkspaceProductionPanelProps {
   items?: Item[];
   factions?: Faction[];
   onSwitchTab?: (tab: AgentTab) => void;
+  /** Quick mode: continuous-writing draft without the audit pipeline. */
+  onQuickGenerate?: () => Promise<void> | void;
+  quickGenerateDisabled?: boolean;
+  /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
+  stepEvidence?: {
+    ideaChars?: number;
+    worldEntityCount?: number;
+    outlineChars?: number;
+    sceneBeatsChars?: number;
+    draftChars?: number;
+    auditPassed?: boolean;
+  };
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
   projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
@@ -175,6 +187,9 @@ export function AgentWorkspaceProductionPanel({
   onStackDeconstructionCard,
   onUnstackDeconstructionCard,
   onSkipAsset,
+  onQuickGenerate,
+  quickGenerateDisabled,
+  stepEvidence,
   writingStyleResolution,
   writingStyleCandidates,
   onConfirmWritingStyle,
@@ -280,9 +295,11 @@ export function AgentWorkspaceProductionPanel({
         onSwitchTab={onSwitchTab}
         writingStyleResolution={writingStyleResolution}
         writingStyleCandidates={writingStyleCandidates}
-        onConfirmWritingStyle={onConfirmWritingStyle}
-        onGenerateWithWritingStyle={onGenerateWithWritingStyle}
-        onOpenWritingStyle={onOpenWritingStyle}
+              onConfirmWritingStyle={onConfirmWritingStyle}
+              onGenerateWithWritingStyle={onGenerateWithWritingStyle}
+              onQuickGenerate={onQuickGenerate}
+              quickGenerateDisabled={quickGenerateDisabled}
+              onOpenWritingStyle={onOpenWritingStyle}
       />
     );
   }
@@ -328,6 +345,7 @@ export function AgentWorkspaceProductionPanel({
         projectPreferenceProfile={projectPreferenceProfile}
         onPreferenceProfileChange={onPreferenceProfileChange}
         onSwitchTab={onSwitchTab ?? undefined}
+        stepEvidence={stepEvidence}
       />
     );
   }

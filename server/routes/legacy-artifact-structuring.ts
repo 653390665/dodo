@@ -94,6 +94,7 @@ export function registerLegacyArtifactStructuringRoutes(app: Express) {
         novelId: novelId.data,
         signal,
         responseMimeType: 'application/json',
+        outputMode: 'audit-json',
         maxTokens: 4_000,
         maxAttempts: 1,
         // Structured legacy artifacts must parse as JSON; pin thinking off so

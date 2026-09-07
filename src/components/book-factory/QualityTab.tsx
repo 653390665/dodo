@@ -227,7 +227,7 @@ export function QualityTab({
           <button
             onClick={() => void onRunAudit()}
             disabled={isGeneratingCritique || !currentChapter}
-            className="w-full py-3 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-95 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold shadow-sm hover:opacity-95 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isGeneratingCritique ? (
               <>
@@ -450,7 +450,7 @@ export function QualityTab({
                         className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all duration-200 shadow-sm border cursor-pointer select-none shrink-0 ${
                           isStacked
                             ? 'bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-theme-accent/10 hover:bg-theme-accent text-theme-accent hover:text-white border-theme-accent/20'
+                            : 'bg-theme-accent/10 hover:bg-theme-accent text-theme-accent hover:text-theme-accent-contrast border-theme-accent/20'
                         }`}
                       >
                         {actionKind === 'polish-rewrite' || actionKind === 'audit-enhance' ? '生成精修预览' :

@@ -319,7 +319,7 @@ export function BookFactoryOutput({
                   <button
                     onClick={onSaveDeck}
                     disabled={isSaving || persistenceBlocked || savedDeckIds.length > 0}
-                    className="px-4 py-2 rounded-xl bg-theme-accent text-white text-[11px] font-bold hover:bg-theme-accent/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-theme-accent text-theme-accent-contrast text-[11px] font-bold hover:bg-theme-accent/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <Save size={12} aria-hidden="true" /> {savedDeckIds.length > 0 ? '卡组草稿已保存' : '保存卡组草稿'}
                   </button>
@@ -450,7 +450,7 @@ export function BookFactoryOutput({
             <button
               onClick={onSaveSelectedSkill}
               disabled={isSaving || persistenceBlocked || Boolean(deck && savedDeckIds.length > 0)}
-              className="w-full py-4 mt-4 bg-theme-text text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:translate-y-[-2px] flex justify-center items-center gap-2 transition-all disabled:opacity-50 active:translate-y-0"
+              className="w-full py-4 mt-4 bg-theme-text text-theme-bg font-bold rounded-xl shadow-lg hover:shadow-xl hover:translate-y-[-2px] flex justify-center items-center gap-2 transition-all disabled:opacity-50 active:translate-y-0"
             >
               <CheckCircle2 size={18} aria-hidden="true" />
               {deck ? '仅保存当前拆书卡到我的能力' : selectedSavedSkillId ? '已保存到我的能力' : '保存当前拆书卡为能力卡'}

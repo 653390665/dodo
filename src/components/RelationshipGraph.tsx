@@ -168,7 +168,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
             <button
               type="button"
               onClick={onSyncFromContinuationPack}
-              className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-xl bg-theme-accent text-white text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-xl bg-theme-accent text-theme-accent-contrast text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity"
             >
               <RefreshCw size={12} aria-hidden="true" />
               <span className="truncate">从资料包同步</span>
@@ -188,7 +188,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           <button
             type="button"
             onClick={() => onGoToWorldBible(buttonTab)}
-            className="inline-flex items-center max-w-full px-3 py-1.5 rounded-xl bg-theme-accent text-white text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+            className="inline-flex items-center max-w-full px-3 py-1.5 rounded-xl bg-theme-accent text-theme-accent-contrast text-[10px] font-bold shadow-sm hover:opacity-90 transition-opacity"
           >
             <span className="truncate">{buttonText}</span>
           </button>
@@ -198,6 +198,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
   }
 
   return (
+    <>
     <svg ref={svgRef} viewBox="0 0 500 400" role="img" aria-label="故事记忆关系图谱" className="w-full h-80 bg-theme-sidebar/45 rounded-xl border border-theme-border/60 backdrop-blur-md">
       {/* Edges */}
       {edges.map((edge) => {
@@ -213,7 +214,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           <g key={edge.id}>
             <line
               x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--theme-muted)'}
+              stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--color-theme-muted)'}
               strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
               strokeWidth={1.5}
               opacity={0.65}
@@ -252,7 +253,7 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           >
             <circle
               r={selectedNode === node.id ? 14 : 11}
-              fill={ENTITY_COLORS[node.type] || 'var(--theme-muted)'}
+              fill={ENTITY_COLORS[node.type] || 'var(--color-theme-muted)'}
               stroke={isActiveNode ? '#38bdf8' : (selectedNode === node.id ? '#fff' : 'none')}
               strokeWidth={isActiveNode ? 3 : (selectedNode === node.id ? 2 : 0)}
               opacity={selectedNode === node.id || isActiveNode ? 1 : 0.85}
@@ -270,6 +271,15 @@ export function RelationshipGraph({ relationships, characters, locations, items,
         );
       })}
     </svg>
+      {/* Screen-reader alternative: the SVG above is purely visual. */}
+      <ul className="sr-only">
+        {relationships.map((relationship) => (
+          <li key={relationship.id}>
+            {relationship.description || `${relationship.sourceType} 与 ${relationship.targetType} 关联（${relationship.relationshipType}）`}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

@@ -3,8 +3,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SettingsModal } from '../components/SettingsModal';
 
-const { getProductMetrics, exportProductEvents, clearProductEvents } = vi.hoisted(() => ({ getProductMetrics: vi.fn(), exportProductEvents: vi.fn().mockResolvedValue(undefined), clearProductEvents: vi.fn().mockResolvedValue(undefined) }));
+const { getProductMetrics, exportProductEvents, clearProductEvents, appConfirm } = vi.hoisted(() => ({ getProductMetrics: vi.fn(), exportProductEvents: vi.fn().mockResolvedValue(undefined), clearProductEvents: vi.fn().mockResolvedValue(undefined), appConfirm: vi.fn(async () => false) }));
 vi.mock('../lib/product-events-client', () => ({ getProductMetrics, exportProductEvents, clearProductEvents }));
+vi.mock('../components/ui/app-confirm', () => ({ appConfirm }));
 vi.mock('../lib/download-client', () => ({ downloadDbBackup: vi.fn().mockResolvedValue(undefined) }));
 type TabsContextValue = { value: string; onValueChange: (value: string) => void };
 type TabsProps = React.PropsWithChildren<TabsContextValue>;
@@ -36,7 +37,7 @@ describe('Settings local metrics', () => {
 
   test('exports and confirms clear before refreshing', async () => {
     getProductMetrics.mockResolvedValue({ rangeDays: 7, sampleSize: 4, northStar: { acceptedChapters: 1 }, rates: { previewAcceptance: { value: .5, numerator: 1, denominator: 2 }, syncCompletion: { value: 1, numerator: 1, denominator: 1 }, criticUnknown: { value: 0, numerator: 0, denominator: 2 }, conflict: { value: null, numerator: 0, denominator: 0 } }, generationLatencyMs: { p50: 10, p95: 20 }, stageCompletions: [{ stage: 'drafting', count: 2 }], advancedAdoption: [{ eventName: 'factory_start', count: 1 }] });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    appConfirm.mockResolvedValue(false);
     render(<SettingsModal isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getAllByText('数据备份与管理')[0]);
     await waitFor(() => expect(screen.getByText('已接受章节')).toBeTruthy());
@@ -48,10 +49,10 @@ describe('Settings local metrics', () => {
     expect(screen.getByText('factory_start')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '清除本地创作指标' }));
     expect(clearProductEvents).not.toHaveBeenCalled();
-    confirm.mockReturnValue(true);
+    appConfirm.mockResolvedValue(true);
     fireEvent.click(screen.getByRole('button', { name: '清除本地创作指标' }));
     await waitFor(() => expect(clearProductEvents).toHaveBeenCalled());
-    confirm.mockRestore();
+    appConfirm.mockResolvedValue(false);
   });
 
   test('shows writing activation counts and conversion rates', async () => {

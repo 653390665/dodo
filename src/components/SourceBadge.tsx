@@ -13,7 +13,7 @@ interface SourceBadgeProps {
 
 const SOURCE_CONFIG: Record<ContentSource, { label: string; className: string }> = {
   model:   { label: 'AI',   className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-  fallback:{ label: '保底', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+ fallback:{ label: '保底', className: 'alert-warning' },
   cached:  { label: '缓存', className: 'border-slate-200 bg-slate-50 text-slate-500' },
 };
 

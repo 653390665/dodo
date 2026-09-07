@@ -45,7 +45,7 @@ export const SetupTaskCard = memo(function SetupTaskCard({ task, active, onSelec
         </button>
         <button
           onClick={onConfirm}
-          className="rounded-full bg-theme-accent px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
+          className="rounded-full bg-theme-accent px-4 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-60"
           disabled={task.status === 'confirmed'}
         >
           {task.status === 'confirmed' ? '已确认' : '确认这项'}

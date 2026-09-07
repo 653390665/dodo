@@ -11,6 +11,8 @@ interface WritingStyleControlProps {
   onManageSkills?: () => void;
   disabled?: boolean;
   confirmed?: boolean;
+  /** Result-oriented CTA copy; defaults to the full-pipeline label. */
+  generateLabel?: string;
 }
 
 function getSourceScopeLabel(kind: WritingStyleResolution['sources'][number]['kind']) {
@@ -31,7 +33,7 @@ function getSourceScopeLabel(kind: WritingStyleResolution['sources'][number]['ki
   }
 }
 
-export function WritingStyleControl({ resolution, candidates = [], onConfirm, onGenerate, onOpenWritingStyle, onManageSkills, disabled = false, confirmed = false }: WritingStyleControlProps) {
+export function WritingStyleControl({ resolution, candidates = [], onConfirm, onGenerate, onOpenWritingStyle, onManageSkills, disabled = false, confirmed = false, generateLabel = '生成本章正文（含审稿）' }: WritingStyleControlProps) {
   const [selection, setSelection] = React.useState<{ fingerprint?: string; mode: WritingStyleMode }>({
     fingerprint: resolution?.fingerprint,
     mode: resolution?.mode || candidates[0]?.mode || 'default',
@@ -100,7 +102,7 @@ export function WritingStyleControl({ resolution, candidates = [], onConfirm, on
       {candidates.length > 0 ? <div role="group" aria-label="写法模式" className="flex flex-wrap gap-1">
         {candidates.map((candidate) => <button key={candidate.mode} type="button" aria-pressed={mode === candidate.mode} disabled={disabled || confirming} onClick={() => setSelection({ fingerprint: candidate.fingerprint, mode: candidate.mode })} className="rounded border border-theme-border px-2 py-1 text-[11px] text-theme-text hover:bg-theme-border/30">{candidate.summary || candidate.mode}</button>)}
       </div> : null}
-      <button ref={triggerRef} type="button" disabled={disabled || confirming} onClick={() => (confirmed && !selectionIsStale) ? void confirmAndGenerate() : setConfirmOpen(true)} className="inline-flex items-center gap-1 rounded border border-theme-accent bg-theme-accent px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"><Sparkles size={12} aria-hidden="true" />{confirmed && !selectionIsStale ? `按「${resolution?.summary || '当前写法'}」扩写正文` : '确认并生成'}</button>
+      <button ref={triggerRef} type="button" disabled={disabled || confirming} onClick={() => (confirmed && !selectionIsStale) ? void confirmAndGenerate() : setConfirmOpen(true)} title={confirmed && !selectionIsStale ? `本次写法：${resolution?.summary || '当前写法'}` : undefined} className="inline-flex items-center gap-1 rounded border border-theme-accent bg-theme-accent px-2.5 py-1 text-[11px] font-semibold text-theme-accent-contrast disabled:opacity-50"><Sparkles size={12} aria-hidden="true" />{confirmed && !selectionIsStale ? generateLabel : '生成本章正文'}</button>
       {error ? <div role="alert" className="basis-full text-rose-700">{error}</div> : null}
       {confirmOpen ? <div role="dialog" aria-modal="true" aria-labelledby="writing-style-confirm-title" tabIndex={-1} ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
         <div className="w-full max-w-md rounded-lg border border-theme-border bg-theme-bg p-4 shadow-xl">
@@ -108,7 +110,7 @@ export function WritingStyleControl({ resolution, candidates = [], onConfirm, on
           <p className="mb-3 whitespace-normal break-words text-xs text-theme-muted">{summary}</p>
           <div className="flex justify-end gap-2">
             <button type="button" disabled={confirming} onClick={() => { setConfirmOpen(false); triggerRef.current?.focus(); }} className="rounded border border-theme-border px-3 py-1.5 text-xs">取消</button>
-            <button type="button" disabled={confirming} onClick={() => void confirmAndGenerate()} className="rounded bg-theme-accent px-3 py-1.5 text-xs font-semibold text-white">{confirming ? '确认中…' : '确认并生成'}</button>
+            <button type="button" disabled={confirming} onClick={() => void confirmAndGenerate()} className="rounded bg-theme-accent px-3 py-1.5 text-xs font-semibold text-theme-accent-contrast">{confirming ? '确认中…' : '确认并生成'}</button>
           </div>
         </div>
       </div> : null}

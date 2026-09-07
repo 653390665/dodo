@@ -782,6 +782,9 @@ ${genderConstraint}
           // models emit the beats instead of burning budget on reasoning
           // (keeps the truncated-outline detector from firing spuriously).
           disableThinking: true,
+          // Governed candidates parse as JSON; bypass the prose quality gate
+          // that would flag structural lines like `"core": {` as AI slop.
+          outputMode: 'audit-json',
         }));
         const normalizedOutline = outline.trim();
         if (!normalizedOutline) {
@@ -873,7 +876,7 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
         `);
 
         const parsed = await execution.run(async ({ signal }) => {
-          let rawText = await generateText(getConfig(), { prompt, signal, novelId, maxTokens: 4000, disableThinking: true });
+          let rawText = await generateText(getConfig(), { prompt, signal, novelId, maxTokens: 4000, disableThinking: true, outputMode: 'audit-json' });
           rawText = rawText.replace(/```(json)?/g, '').trim();
           try {
             return JSON.parse(rawText) as unknown;
@@ -933,7 +936,7 @@ ${chapterContent.substring(0, 15000)}
 [{"title": "...", "description": "...", "type": "planted", "relatedTo": ""}]`);
 
         const parsed = await execution.run(async ({ signal }) => {
-          let raw = (await generateText(config, { prompt, signal, novelId, maxTokens: 4000, disableThinking: true })).trim();
+          let raw = (await generateText(config, { prompt, signal, novelId, maxTokens: 4000, disableThinking: true, outputMode: 'audit-json' })).trim();
           raw = raw.replace(/```(json)?/g, '').trim();
           try {
             return JSON.parse(raw) as unknown;
@@ -998,7 +1001,7 @@ ${chapterList}
 严格只输出 JSON 数组，不要包含 markdown 标记。`);
 
         const chapterResults = await execution.run(async ({ signal }) => {
-          let raw = (await generateText(config, { prompt, signal, novelId, maxTokens: 4000, disableThinking: true })).trim();
+          let raw = (await generateText(config, { prompt, signal, novelId, maxTokens: 4000, disableThinking: true, outputMode: 'audit-json' })).trim();
           raw = raw.replace(/```(json)?/g, '').trim();
           try {
             return JSON.parse(raw) as unknown;
@@ -1080,7 +1083,7 @@ ${chapterList}
 `);
 
         const parsed = await execution.run(async ({ signal }) => {
-          let rawText = await generateText(getConfig(), { prompt, signal, novelId, maxTokens: 4000, disableThinking: true });
+          let rawText = await generateText(getConfig(), { prompt, signal, novelId, maxTokens: 4000, disableThinking: true, outputMode: 'audit-json' });
           rawText = rawText.replace(/```(json)?/g, '').trim();
           try {
             return JSON.parse(rawText) as unknown;
@@ -1149,7 +1152,7 @@ ${wrapUserInput(chapterContent.slice(0, 8000))}
 {"characters":[{"name":"必须与已有角色姓名完全一致","changes":{"状态字段":"最新状态"}}]}`);
 
           const updatedCount = await execution.run(async ({ signal }) => {
-            const raw = await generateText(getConfig(), { prompt, maxTokens: 4000, disableThinking: true, signal, novelId });
+            const raw = await generateText(getConfig(), { prompt, maxTokens: 4000, disableThinking: true, signal, novelId, outputMode: 'audit-json' });
             const cleaned = raw.replace(/```(json)?/g, '').trim();
             let result: unknown;
             try {

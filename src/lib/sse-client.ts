@@ -11,6 +11,7 @@ export type SseErrorFields = {
   retriable?: boolean;
   finishReason?: string;
   reason?: 'no_content' | 'reasoning_only' | 'length_exhausted';
+  violations?: string[];
 };
 
 export class SseError extends Error {
@@ -19,6 +20,7 @@ export class SseError extends Error {
   readonly retriable?: boolean;
   readonly finishReason?: string;
   readonly reason?: SseErrorFields['reason'];
+  readonly violations?: string[];
 
   constructor(message: string, fields: SseErrorFields = {}) {
     super(message);
@@ -28,6 +30,7 @@ export class SseError extends Error {
     this.retriable = fields.retriable;
     this.finishReason = fields.finishReason;
     this.reason = fields.reason;
+    this.violations = fields.violations;
   }
 }
 
@@ -78,6 +81,9 @@ export async function readSseEvents<T extends Record<string, unknown>>(
         retriable: typeof parsed.retriable === 'boolean' ? parsed.retriable : undefined,
         finishReason: typeof parsed.finishReason === 'string' ? parsed.finishReason : undefined,
         reason: parsed.reason === 'no_content' || parsed.reason === 'reasoning_only' || parsed.reason === 'length_exhausted' ? parsed.reason : undefined,
+        violations: Array.isArray(parsed.violations)
+          ? parsed.violations.filter((item): item is string => typeof item === 'string')
+          : undefined,
       });
     }
     if (onEvent(parsed) === 'done') sawDone = true;

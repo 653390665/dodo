@@ -213,7 +213,7 @@ test('legacy manual skills remain writable', () => {
   } finally { closeDb(); }
 });
 
-test('incomplete skill cards are rejected at persistence', () => {
+test('incomplete skill payloads are rejected at persistence', () => {
   closeDb();
   initDb(':memory:');
   try {
@@ -224,7 +224,7 @@ test('incomplete skill cards are rejected at persistence', () => {
   } finally { closeDb(); }
 });
 
-test('runtime-ready skill cards round-trip through create and update', () => {
+test('runtime-ready skill payloads round-trip through create and update', () => {
   closeDb();
   initDb(':memory:');
   try {

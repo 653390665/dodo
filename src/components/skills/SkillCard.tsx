@@ -46,7 +46,7 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
             <div className="relative">
               <button
                 type="button"
-                aria-label={`加入本次配置候选 ${skill.name}`}
+                aria-label={`启用 `}
                 onClick={(event) => {
                   event.stopPropagation();
                   if (userNovels.length === 1) {

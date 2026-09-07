@@ -112,7 +112,9 @@ export function OutlineGovernancePanel({
       if (currentNovelRef.current === capturedNovel && opSeq.current === operation) setBusy(null);
     }
   };
-  const isReportArtifact = React.useCallback((artifact: OutlineArtifact) => /报告|审稿|审计|评分|问题清单|report|audit|review|score/i.test(`${artifact.id} ${artifact.content}`), []);
+  // Only inspect the title band of the content: full-body scanning let common
+  // words inside novel prose (e.g. 「评分4.9」) classify real outlines as reports.
+  const isReportArtifact = React.useCallback((artifact: OutlineArtifact) => /报告|审稿|审计|评分|问题清单|report|audit|review|score/i.test(`${artifact.id} ${artifact.content.slice(0, 60)}`), []);
   const visibleArtifacts = artifacts.filter((artifact) => showReportCandidates || !isReportArtifact(artifact));
   const reportCandidates = artifacts.filter(isReportArtifact);
   const masters = visibleArtifacts.filter((a) => a.level === 'master' && a.status !== 'archived');

@@ -21,7 +21,7 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => onAction(suggestion.primaryAction.key)}
-            className="rounded-xl bg-theme-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-theme-accent/90 transition-colors"
+            className="rounded-xl bg-theme-accent px-3.5 py-2 text-sm font-medium text-theme-accent-contrast hover:bg-theme-accent/90 transition-colors"
           >
             {suggestion.primaryAction.label}
           </button>

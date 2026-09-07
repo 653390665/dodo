@@ -583,7 +583,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+ <div className="rounded-2xl alert-danger px-4 py-3 text-xs">
             {error}
           </div>
         )}
@@ -595,7 +595,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           <button
             onClick={handleParse}
             disabled={uploadActionDisabled}
-            className="inline-flex items-center gap-2 rounded-xl bg-theme-text px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-theme-text px-5 py-3 text-sm font-bold text-theme-bg disabled:opacity-50"
           >
             {isParsing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
             {isParsing ? '智能解析中...' : '开始解析资料'}
@@ -633,7 +633,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         </div>
 
         {parsedPack.contradictions.length > 0 && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+ <div className="rounded-2xl alert-warning p-4 text-sm">
             <div className="flex items-center justify-between gap-3 font-bold">
               <div className="flex items-center gap-2">
               <AlertTriangle size={16} />
@@ -710,7 +710,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         )}
 
         {!hasCanonFacts && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+ <div className="rounded-2xl alert-warning p-4 text-xs">
             当前资料未提取出关键硬设定，仍可确认导入。建议先检查资料完整性，后续可在设定集中补充。
           </div>
         )}
@@ -794,7 +794,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         </section>
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+ <div className="rounded-2xl alert-danger px-4 py-3 text-xs">
             {error}
           </div>
         )}
@@ -816,7 +816,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || isSubmitting}
-            className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-5 py-3 text-sm font-bold text-theme-accent-contrast disabled:opacity-50"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             {isSubmitting

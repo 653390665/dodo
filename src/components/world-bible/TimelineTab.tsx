@@ -21,7 +21,7 @@ export function TimelineTab({
         <h2 className="text-xl font-bold text-theme-text font-serif">纪元与时间线</h2>
         <button
           onClick={() => addEntity('timeline')}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-theme-bg rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
         >
           <Plus size={16} />
           新增时间节点
@@ -34,7 +34,7 @@ export function TimelineTab({
             className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group border-none"
           >
             {/* Timeline Dot */}
-            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-theme-accent text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 mx-auto absolute left-0 md:left-1/2 transform -translate-x-0 cursor-move">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-theme-accent text-theme-accent-contrast shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 mx-auto absolute left-0 md:left-1/2 transform -translate-x-0 cursor-move">
               <span className="text-xs font-bold">{idx + 1}</span>
             </div>
 

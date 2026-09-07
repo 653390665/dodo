@@ -17,6 +17,16 @@ import type {
 } from '../../../shared/types';
 import { cn } from '../../lib/utils';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import {
   createOutline,
   activateOutline,
   getDatabaseGenerationSnapshot,
@@ -122,6 +132,7 @@ export function OutlineTab({
   } | null>(null);
   const [adoptError, setAdoptError] = React.useState<string | null>(null);
   const [adoptNotice, setAdoptNotice] = React.useState<string | null>(null);
+  const [adoptConfirmOpen, setAdoptConfirmOpen] = React.useState(false);
   const [draftOutline, setDraftOutline] = React.useState(globalOutline);
   const [draftDirty, setDraftDirty] = React.useState(false);
   const currentNovelRef = React.useRef(novelId);
@@ -231,10 +242,21 @@ export function OutlineTab({
     }
   };
 
-  const handleAdoptOutline = async () => {
+  const handleAdoptOutline = () => {
     if (!selectedOutline) return;
-    if (hasOutline && !window.confirm('已有大纲，确认采用此候选会覆盖当前大纲。确定继续吗？'))
+    setAdoptError(null);
+    setAdoptNotice(null);
+    if (hasOutline) {
+      // In-app confirmation instead of window.confirm: embedded browsers and
+      // Electron may suppress or auto-dismiss native modals.
+      setAdoptConfirmOpen(true);
       return;
+    }
+    void performAdopt();
+  };
+
+  const performAdopt = async () => {
+    if (!selectedOutline) return;
     setAdoptError(null);
     setAdoptNotice(null);
     const capturedNovel = novelId || '';
@@ -413,7 +435,7 @@ export function OutlineTab({
               <div className="rounded-lg border border-theme-border/50 p-3">
                 <div className="text-[10px] font-bold text-theme-text">参考资料（最多选择 5 份）</div>
                 <div className="mt-2 space-y-1.5">
-                  {referenceDocuments.map((document, index) => {
+                  {referenceDocuments.map((document) => {
                     const checked = selectedReferenceIds.includes(document.id);
                     return (
                       <label key={document.id} className="flex items-center gap-2 text-[9px] text-theme-muted">
@@ -421,9 +443,9 @@ export function OutlineTab({
                           type="checkbox"
                           aria-label={`参考资料：${document.filename}`}
                           checked={checked}
-                          disabled={!checked && (selectedReferenceIds.length >= 5 || index >= 5)}
+                          disabled={!checked && selectedReferenceIds.length >= 5}
                           onChange={() => setSelectedReferenceIds((current) => {
-                            if (!checked && (current.length >= 5 || index >= 5)) return current;
+                            if (!checked && current.length >= 5) return current;
                             return checked ? current.filter((id) => id !== document.id) : [...current, document.id];
                           })}
                         />
@@ -471,6 +493,7 @@ export function OutlineTab({
           <div className="flex-1 relative">
             <input
               type="number"
+              aria-label="预计总字数"
               placeholder="预计总字数 (如: 1000000)"
               value={expectedWordCount}
               onChange={(e) =>
@@ -493,7 +516,7 @@ export function OutlineTab({
                   ? '请先选择主大纲'
                   : undefined
             }
-            className="px-3 py-1.5 bg-theme-accent text-white text-[10px] font-bold rounded-lg hover:bg-theme-accent/90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200 flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-theme-accent text-theme-accent-contrast text-[10px] font-bold rounded-lg hover:bg-theme-accent/90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200 flex items-center gap-1.5"
           >
             {isGeneratingOutline ? (
               <Loader2 size={12} className="animate-spin" aria-hidden="true" />
@@ -605,6 +628,24 @@ export function OutlineTab({
           ))}
         </div>
       </div>
+      {adoptConfirmOpen && (
+        <AlertDialog open={adoptConfirmOpen} onOpenChange={setAdoptConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>覆盖当前大纲？</AlertDialogTitle>
+              <AlertDialogDescription>
+                已有大纲，确认采用此候选会覆盖当前大纲。确定继续吗？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void performAdopt()}>
+                确认覆盖
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

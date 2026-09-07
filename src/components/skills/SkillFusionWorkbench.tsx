@@ -118,7 +118,7 @@ export function SkillFusionWorkbench({
           const resolved = buildResolvedFusionDraft(baseSkill, supportSkill, Date.now(), { confirmConflicts: conflictsConfirmed });
           onPreview(resolved.draft || null);
         }}
-        className="w-full rounded-2xl bg-theme-accent text-white px-4 py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+        className="w-full rounded-2xl bg-theme-accent text-theme-accent-contrast px-4 py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
       >
         <Sparkles size={16} />
         生成融合候选

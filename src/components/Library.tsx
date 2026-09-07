@@ -8,6 +8,7 @@ import { listChapters, listChaptersMetadata } from '../lib/chapter-client';
 import { callBatch } from '../lib/db-transport';
 import { listContinuationPacks } from '../lib/continuation-client';
 import { logger } from '../lib/client-logger';
+import { toast } from '../lib/toast';
 import { subscribeToChanges } from '../lib/db-transport';
 import { getProjectCapabilityCardCount } from '../lib/capability-card-count';
 import { Novel, ViewType, ChapterMetadata, ContinuationPack } from '../../shared/types';
@@ -163,7 +164,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
         setIsSelectionMode(false);
       } catch (err) {
         logger.error('Failed to delete novels:', err);
-        alert(`删除小说失败: ${err instanceof Error ? err.message : String(err)}`);
+        toast(`删除小说失败: ${err instanceof Error ? err.message : String(err)}`, 'error');
       } finally {
         if (mountedRef.current) setNovelsToDelete([]);
       }
@@ -194,7 +195,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
           const writable = await fileHandle.createWritable();
           await writable.write(exportText);
           await writable.close();
-          alert(`已成功导出至选择的文件夹：${novel.title}.txt`);
+          toast(`已成功导出至选择的文件夹：${novel.title}.txt`, 'success');
           return;
         } catch (err) {
           // Fallback if user cancels or permission denied
@@ -210,7 +211,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert('导出失败');
+      toast('导出失败', 'error');
     }
   };
 
@@ -323,7 +324,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       </div>
 
       {metadataError && (
-        <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+ <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-xs">
           <span>{metadataError}</span>
           <button type="button" className="font-semibold underline" onClick={() => setRefreshNonce((value) => value + 1)}>重试刷新</button>
         </div>
@@ -340,7 +341,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
           <div className="flex gap-3">
             <button
               onClick={() => setIsAdding(true)}
-              className="rounded-xl bg-theme-text text-white px-5 py-2.5 text-sm font-bold hover:opacity-90 transition-opacity"
+              className="rounded-xl bg-theme-text text-theme-bg px-5 py-2.5 text-sm font-bold hover:opacity-90 transition-opacity"
             >
               创建空白作品
             </button>
@@ -429,7 +430,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                       className={cn(
                         "absolute top-4 left-4 z-10 w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-sm transition-all duration-300 shadow-md",
                         isSelected
-                          ? "bg-theme-accent border-theme-accent text-white scale-110"
+                          ? "bg-theme-accent border-theme-accent text-theme-accent-contrast scale-110"
                           : "bg-black/5 hover:bg-black/10 border-white/40 text-transparent"
                       )}
                     >
@@ -580,7 +581,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   </button>
                   <button
                     type="submit"
-                    className="bg-theme-text text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all"
+                    className="bg-theme-text text-theme-bg px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all"
                   >
                     立即创建
                   </button>

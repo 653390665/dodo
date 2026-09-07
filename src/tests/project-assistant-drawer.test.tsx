@@ -50,7 +50,7 @@ describe('Project assistant drawer', () => {
     expect(generalButton.getAttribute('aria-pressed')).toBe('true');
     expect(bibleButton.getAttribute('aria-pressed')).toBe('false');
     expect(generalButton.className).toContain('bg-theme-text');
-    expect(generalButton.className).toContain('text-white');
+    expect(generalButton.className).toContain('text-theme-bg');
     expect(bibleButton.className).toContain('text-theme-muted');
     expect(bibleButton.className).not.toContain('bg-theme-text');
     expect(screen.getByText('作品助手内容')).toBeDefined();

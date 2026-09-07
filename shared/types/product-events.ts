@@ -13,6 +13,7 @@ export const PRODUCT_EVENT_NAMES = [
   'capability_config_cancelled', 'fusion_previewed', 'fusion_saved', 'chapter_overlay_used',
   'diagnostic_run', 'capability_returned_to_editor', 'technique_used',
   'capability_package_expanded', 'capability_package_component_selected', 'capability_package_result_launched',
+  'generation_entry_used', 'generation_retry_self_served', 'first_chapter_accepted',
 ] as const;
 export type ProductEventName = typeof PRODUCT_EVENT_NAMES[number];
 

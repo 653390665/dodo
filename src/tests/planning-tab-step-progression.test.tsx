@@ -4,6 +4,11 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, screen, act } from '@testing-library/react';
 import { PlanningTab } from '../components/book-factory/PlanningTab';
 
+vi.mock('../components/ui/app-confirm', () => ({
+  appConfirm: vi.fn(async () => true),
+  appPrompt: vi.fn(async () => ''),
+}));
+
 // ── Mocks ────────────────────────────────────────────────────────
 
 const mockNovel = {

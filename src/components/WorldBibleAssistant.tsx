@@ -569,8 +569,8 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
 
   return <div role="complementary" aria-label="智能管家设定模式" className="bg-theme-sidebar/95 flex flex-col h-full min-h-0">
     <div className="p-4 border-b border-theme-border/50 flex items-center justify-between"><div className="flex items-center gap-2"><Sparkles size={16} className="text-theme-accent" /><h3 className="text-xs font-bold text-theme-text">设定记忆</h3></div><div className="flex gap-1"><button aria-label="清空对话历史" title="清空对话历史" onClick={() => { cancelActiveRequest(); store.clearSession(novel.id, 'bible'); store.setMessages(novel.id, 'bible', [welcome]); }} className="size-7"><Trash2 size={14} /></button><button aria-label="关闭智能管家" title="关闭智能管家" onClick={onClose} className="size-7"><X size={14} /></button></div></div>
-    <div role="log" aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-4">{messages.map(message => <div key={message.id} className={message.sender === 'user' ? 'flex justify-end' : message.sender === 'system' ? 'text-center text-[10px] text-theme-muted' : ''}><div className={message.sender === 'user' ? 'bg-theme-accent text-white px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap' : 'bg-theme-bg/60 border border-theme-border/30 text-theme-text px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap'}>{message.text}</div></div>)}{isLoading && <div className="text-theme-muted text-[10px]"><Loader2 size={12} className="inline animate-spin" /> 助手正在思考并设计中...</div>}<div ref={endRef} /></div>
-    {session.failure && <div role="alert" aria-label="助手请求失败" className="mx-4 mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-900"><div>{session.failure.reason === 'no_content' ? '模型未返回内容' : session.failure.reason === 'reasoning_only' ? '模型只返回了推理过程' : session.failure.reason === 'length_exhausted' ? '输出因长度限制结束' : session.failure.message}</div>{session.failure.reason && <div>原因：{session.failure.reason}</div>}{session.failure.finishReason && <div>finishReason: {session.failure.finishReason}</div>}{session.failure.traceId && <div>诊断编号：{session.failure.traceId}</div>}<div className="mt-2 flex flex-wrap gap-3">{(session.failure.retriable || session.failure.code === 'empty_response') && <button type="button" className="font-bold underline" onClick={() => void submit(true)}>重试本次请求</button>}{['configuration', 'authentication', 'billing'].includes(session.failure.code) && <button type="button" className="font-bold underline" onClick={() => window.dispatchEvent(new Event('open-settings'))}>打开设置</button>}</div></div>}
+    <div role="log" aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-4">{messages.map(message => <div key={message.id} className={message.sender === 'user' ? 'flex justify-end' : message.sender === 'system' ? 'text-center text-[10px] text-theme-muted' : ''}><div className={message.sender === 'user' ? 'bg-theme-accent text-theme-accent-contrast px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap' : 'bg-theme-bg/60 border border-theme-border/30 text-theme-text px-3 py-2 rounded-2xl text-xs max-w-[85%] whitespace-pre-wrap'}>{message.text}</div></div>)}{isLoading && <div className="text-theme-muted text-[10px]"><Loader2 size={12} className="inline animate-spin" /> 助手正在思考并设计中...</div>}<div ref={endRef} /></div>
+ {session.failure && <div role="alert" aria-label="助手请求失败" className="mx-4 mb-3 rounded-xl alert-warning p-3 text-[10px]"><div>{session.failure.reason === 'no_content' ? '模型未返回内容' : session.failure.reason === 'reasoning_only' ? '模型只返回了推理过程' : session.failure.reason === 'length_exhausted' ? '输出因长度限制结束' : session.failure.message}</div>{session.failure.reason && <div>原因：{session.failure.reason}</div>}{session.failure.finishReason && <div>finishReason: {session.failure.finishReason}</div>}{session.failure.traceId && <div>诊断编号：{session.failure.traceId}</div>}<div className="mt-2 flex flex-wrap gap-3">{(session.failure.retriable || session.failure.code === 'empty_response') && <button type="button" className="font-bold underline" onClick={() => void submit(true)}>重试本次请求</button>}{['configuration', 'authentication', 'billing'].includes(session.failure.code) && <button type="button" className="font-bold underline" onClick={() => window.dispatchEvent(new Event('open-settings'))}>打开设置</button>}</div></div>}
     {resolvedContinuationPackId && latestAssistantText && !lastReplyFailed && !isLoading && !preparedSync && !session.draft && (
       <div className="mx-4 mb-3 rounded-xl border border-theme-accent/30 bg-theme-accent/5 p-3 space-y-2">
         <div className="text-[11px] font-bold text-theme-text">批量草稿尚未写入</div>
@@ -580,13 +580,13 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
           aria-label="检查冲突并准备写入"
           onClick={() => void prepareSyncFromLatestReply()}
           disabled={isPreparingSync}
-          className="w-full rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
         >
           {isPreparingSync ? '正在提取并检查冲突...' : '检查冲突并准备写入'}
         </button>
       </div>
     )}
-    {syncError && <div className="mx-4 mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-800">
+ {syncError && <div className="mx-4 mb-3 rounded-xl alert-warning p-3 text-[10px]">
       <div>{syncError}</div>
       {(syncErrorCode === 'configuration' || syncErrorCode === 'authentication' || syncErrorCode === 'billing') && (
         <button type="button" className="mt-2 font-bold underline" onClick={() => window.dispatchEvent(new Event('open-settings'))}>打开设置检查模型配置</button>
@@ -599,7 +599,7 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
           <div className="text-xs font-bold text-theme-text">冲突检查与同步预览</div>
           <button type="button" aria-label="取消同步预览" onClick={() => setPreparedSync(null)} className="text-[10px] text-theme-muted hover:text-theme-text">取消</button>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800">
+ <div className="rounded-lg alert-warning p-2 text-[10px]">
           <div className="font-bold">语义冲突状态：待人工确认</div>
           <div className="mt-1">系统只自动识别同名重复、已有全局文本和关系端点；无法证明语义完全一致，重复项默认保留旧设定。</div>
           {directConflicts.length > 0 && <ul className="mt-1 list-disc pl-4 space-y-0.5">{directConflicts.map(item => <li key={item}>{item}</li>)}</ul>}
@@ -619,7 +619,7 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
         />
       </div>
     )}
-    {session.draft && <div className="mx-4 mb-4 p-4 border border-theme-border rounded-2xl space-y-3"><div className="text-xs font-bold">新设定确认单</div><div className="space-y-2 max-h-56 overflow-y-auto">{renderDraftFields(session.draft)}</div><div className="flex gap-2"><button onClick={() => setDraft(null)} className="flex-1 text-xs border rounded py-2">放弃</button><button aria-label="确认写入设定" onClick={commit} className="flex-1 text-xs bg-theme-accent text-white rounded py-2">确认写入设定 <ChevronRight size={12} className="inline" /></button></div></div>}
-    <div className="p-4 border-t border-theme-border/50"><textarea aria-label="输入设定灵感" value={session.input || ''} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="在此输入您的灵感..." className="w-full bg-theme-bg border border-theme-border rounded-xl px-3 py-2 text-xs text-theme-text resize-none" /><button aria-label="发送设定灵感" onClick={() => void submit()} disabled={isLoading} className="mt-2 w-full bg-theme-accent text-white rounded-xl py-2 text-xs"><Send size={13} className="inline mr-1" />发送</button></div>
+    {session.draft && <div className="mx-4 mb-4 p-4 border border-theme-border rounded-2xl space-y-3"><div className="text-xs font-bold">新设定确认单</div><div className="space-y-2 max-h-56 overflow-y-auto">{renderDraftFields(session.draft)}</div><div className="flex gap-2"><button onClick={() => setDraft(null)} className="flex-1 text-xs border rounded py-2">放弃</button><button aria-label="确认写入设定" onClick={commit} className="flex-1 text-xs bg-theme-accent text-theme-accent-contrast rounded py-2">确认写入设定 <ChevronRight size={12} className="inline" /></button></div></div>}
+    <div className="p-4 border-t border-theme-border/50"><textarea aria-label="输入设定灵感" value={session.input || ''} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="在此输入您的灵感..." className="w-full bg-theme-bg border border-theme-border rounded-xl px-3 py-2 text-xs text-theme-text resize-none" /><button aria-label="发送设定灵感" onClick={() => void submit()} disabled={isLoading} className="mt-2 w-full bg-theme-accent text-theme-accent-contrast rounded-xl py-2 text-xs"><Send size={13} className="inline mr-1" />发送</button></div>
   </div>;
 }

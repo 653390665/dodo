@@ -56,10 +56,13 @@ async function startServer() {
     res.setHeader('X-Request-Id', reqId);
     const startedAt = Date.now();
     res.on('finish', () => {
+      // SSE endpoints carry short-lived tokens in the query string — never log them.
+      const [pathWithoutQuery, query] = req.originalUrl.split('?');
+      const safeQuery = query ? `?${query.replace(/([?&]token=)[^&]+/g, '$1<redacted>')}` : '';
       console.error(`[ACCESS] ${JSON.stringify({
         id: reqId,
         method: req.method,
-        path: req.originalUrl,
+        path: pathWithoutQuery + safeQuery,
         status: res.statusCode,
         ms: Date.now() - startedAt,
       })}`);

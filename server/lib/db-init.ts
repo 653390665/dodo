@@ -1,6 +1,6 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import path from 'path';
-import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync } from 'fs';
 import os from 'os';
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
@@ -98,11 +98,42 @@ export async function createValidatedStartupBackup(
     await database.backup(tempBackupPath);
     validateStartupBackup(tempBackupPath);
     removeTempBackupSidecars();
+    chmodSync(tempBackupPath, 0o600);
     renameSync(tempBackupPath, backupPath);
     return backupPath;
   } catch (error) {
     removeTempBackupFiles();
     throw error;
+  }
+}
+
+/**
+ * Snapshots contain the user's full manuscript, so they must be as private as
+ * the main database. `database.backup()` follows the umask (0644), and files
+ * created before this fix stay world-readable — repair both at startup.
+ */
+function repairDataFilePermissions(targetPath: string): void {
+  const dir = path.dirname(targetPath);
+  try {
+    if (!existsSync(dir)) return;
+    const baseName = path.basename(targetPath);
+    for (const entry of readdirSync(dir)) {
+      const isBackup = entry === `${baseName}.bak`
+        || entry.startsWith(`${baseName}.bak.`)
+        || entry.startsWith(`${baseName}.pre-import-`);
+      const isKeyFile = entry === 'secure-key.bin';
+      if (!isBackup && !isKeyFile) continue;
+      try {
+        const full = path.join(dir, entry);
+        if (existsSync(full) && (statSync(full).mode & 0o077) !== 0) {
+          chmodSync(full, 0o600);
+        }
+      } catch {
+        // best effort — retried on the next startup
+      }
+    }
+  } catch {
+    // best effort — a permission repair must never block startup
   }
 }
 
@@ -146,6 +177,28 @@ function cleanupOrphanExportBackups(targetPath: string): void {
   }
 }
 
+// Startup backups (`${basename}.bak.<pid>-<uuid>.temp`) are unlinked by the
+// backup flow's catch/finally; if the process dies mid-backup they linger and
+// were never swept. Sweep them alongside the export-temp cleanup.
+function cleanupOrphanStartupBackupTemps(targetPath: string): void {
+  const dir = path.dirname(targetPath);
+  const prefix = `${path.basename(targetPath)}.bak.`;
+  try {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      if (entry.startsWith(prefix) && (entry.endsWith('.temp') || entry.endsWith('.temp-wal') || entry.endsWith('.temp-shm') || entry.endsWith('.temp-journal'))) {
+        try {
+          unlinkSync(path.join(dir, entry));
+        } catch {
+          // best effort — retried on the next startup
+        }
+      }
+    }
+  } catch {
+    // best effort — a stale backup temp must never block startup
+  }
+}
+
 export function initDb(dbPath?: string): void {
   if (isDbInitialized()) return;
 
@@ -163,7 +216,11 @@ export function initDb(dbPath?: string): void {
   getDb().pragma('journal_mode = WAL');
   getDb().pragma('foreign_keys = ON');
   getDb().pragma('busy_timeout = 5000');
+  // Refresh planner statistics so hot queries pick up indexes as data grows.
+  getDb().pragma('optimize');
   cleanupOrphanExportBackups(targetPath);
+  cleanupOrphanStartupBackupTemps(targetPath);
+  repairDataFilePermissions(targetPath);
 
   const baseName = path.basename(targetPath);
   const isTestEnv =

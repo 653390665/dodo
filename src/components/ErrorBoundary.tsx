@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.state.error?.message || '未知渲染错误'}
           </p>
           <div className="flex gap-3 mt-4">
-            <button onClick={this.handleRetry} className="px-6 py-2 bg-theme-accent text-white font-bold rounded-xl hover:bg-theme-accent/90 transition-colors">重试</button>
+            <button onClick={this.handleRetry} className="px-6 py-2 bg-theme-accent text-theme-accent-contrast font-bold rounded-xl hover:bg-theme-accent/90 transition-colors">重试</button>
             <button onClick={() => window.location.reload()} className="px-6 py-2 border border-theme-border text-theme-text font-bold rounded-xl hover:bg-theme-sidebar/40 transition-colors">刷新页面</button>
           </div>
         </div>

@@ -17,6 +17,11 @@ import { WritingStyleControl } from './WritingStyleControl';
 import { EditorModals, EditorModalsHandle } from './EditorModals';
 import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
+import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
+
+// Memo-stable fallback so the AgentWorkspace prop never creates a new object
+// identity per render.
+const DEFAULT_PROJECT_PROFILE = { contract: {}, tags: [] as string[], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], rejectedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], notes: [] as string[], evidenceCount: 0 };
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendationCards';
 import { useEditorIntelligenceContext } from '../lib/hooks/useEditorIntelligenceContext';
@@ -373,14 +378,15 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       sessionCardIds: writingStyleSessionCardIds.length ? writingStyleSessionCardIds : undefined,
     });
     if (!response.resolution) throw new Error('写法确认响应不完整');
-    setWritingStyleResolution(response.resolution);
+    const confirmedResolution = response.resolution;
+    setWritingStyleResolution(confirmedResolution);
     setWritingStyleCandidates(response.candidates || []);
     setWritingStyleError(null);
     setProjectPreferenceProfile((current) => current ? {
       ...current,
       writingStyleConfirmation: {
-        mode: response.resolution!.mode,
-        fingerprint: response.resolution!.fingerprint,
+        mode: confirmedResolution.mode,
+        fingerprint: confirmedResolution.fingerprint,
         confirmedAt: Date.now(),
       },
     } : current);
@@ -602,6 +608,28 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     activeEntityNames: sniffedEntities?.activeExisting || undefined,
   });
 
+  // PRD (follow-ups A3): badge chapters whose generated preview is not yet accepted.
+  const [previewRunChapterIds, setPreviewRunChapterIds] = React.useState<ReadonlySet<string>>(new Set());
+  const previewRunStatus = activeProductionRun?.status;
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const runs = await listChapterProductionRuns(novel.id);
+        if (cancelled) return;
+        setPreviewRunChapterIds(new Set(
+          runs
+            .filter((run) => run.status === 'review_required' && run.targetChapterId)
+            .map((run) => run.targetChapterId as string),
+        ));
+      } catch {
+        // Badge is advisory; a failed load just means no badge.
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [novel.id, previewRunStatus]);
+
   const liveNovel = React.useMemo(
     () => ({ ...novel, globalOutline, projectPreferenceProfile }),
     [novel, globalOutline, projectPreferenceProfile],
@@ -726,6 +754,39 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     flushPendingEditorWrites,
     databaseGeneration,
   });
+
+  // Stable callbacks/objects for AgentWorkspace's React.memo — inline arrows
+  // and object literals were defeating memoization on every render. Declared
+  // here because they close over the generation/production hooks above.
+  const stepEvidence = React.useMemo(() => ({
+    ideaChars: userIntent.trim().length,
+    worldEntityCount: characters.length + locations.length + items.length + factions.length,
+    outlineChars: globalOutline.trim().length,
+    sceneBeatsChars: currentChapter?.sceneBeats?.length ?? 0,
+    draftChars: currentChapter?.wordCount ?? 0,
+  }), [userIntent, characters, locations, items, factions, globalOutline, currentChapter?.sceneBeats, currentChapter?.wordCount]);
+  const handlePolishFromAuditCallback = React.useCallback(async () => {
+    await handlePolishChapterFromAudit();
+  }, [handlePolishChapterFromAudit]);
+  const handleResolvePendingSkill = React.useCallback((skillId: string, slot: number) => {
+    if (!librarySkills.some((skill) => skill.id === skillId)) {
+      toast('该历史能力卡已不存在，仍保留为待整理状态', 'error');
+      return;
+    }
+    void assignSkillToSlot(slot, skillId)
+      .then(() => setPendingSkillIds((ids) => ids.filter((id) => id !== skillId)))
+      .catch(() => toast('能力卡配置失败，请重试', 'error'));
+  }, [librarySkills, assignSkillToSlot, setPendingSkillIds]);
+  const handleGenerateWithWritingStyle = React.useCallback((fingerprint?: string) => {
+    void startProductionRun(undefined, fingerprint);
+  }, [startProductionRun]);
+  const handleQuickGenerate = React.useCallback(() => {
+    void handleGenerateContent();
+  }, [handleGenerateContent]);
+  const handleOpenWritingStyle = React.useCallback(() => {
+    setAgentTab('skills');
+    setIsAgentSidebarOpen(true);
+  }, [setAgentTab, setIsAgentSidebarOpen]);
 
   const handleContextRewriteFromCapability = React.useCallback(async () => {
     if (!currentChapter || capabilityUtilityResult?.kind !== 'transform-preview' || capabilityUtilityResult.contextRewrite?.status !== 'required' || !capabilityUtilityResult.structureSignals?.length) return;
@@ -863,6 +924,29 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     }
   }, [currentChapter, flushPendingEditorWrites, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]);
 
+  // When a fact-candidate panel appears for a chapter whose completion gate
+  // hasn't been evaluated yet (e.g. right after accepting a production run),
+  // run the completion review once so the gate — and with it the fact
+  // confirm button — becomes actionable instead of permanently disabled.
+  const factPanelNeedsGate = Boolean(
+    completionFactCandidate
+      && completionChapterId === currentChapter?.id
+      && currentChapter
+      && currentChapter.workflowMeta?.completionGate !== 'ready'
+      && currentChapter.workflowMeta?.completionGate !== 'accepted-risk',
+  );
+  React.useEffect(() => {
+    if (!factPanelNeedsGate || isCompletingChapter) return;
+    // handleCompleteChapter flips completionRequestInFlightRef/setIsCompletingChapter
+    // synchronously; defer so the effect body isn't a direct setState-in-effect.
+    const timer = window.setTimeout(() => {
+      if (!factPanelNeedsGate || isCompletingChapter) return;
+      void handleCompleteChapter();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the pending panel or busy flag changes
+  }, [factPanelNeedsGate, isCompletingChapter]);
+
   const handleOpenCompletionFacts = React.useCallback(async () => {
     const runId = currentChapter?.workflowMeta?.factCandidateRunId;
     if (!currentChapter || !runId || completionRequestInFlightRef.current) return;
@@ -994,8 +1078,13 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       await pending(fingerprint);
       return;
     }
-    await handleGenerateContent(fingerprint);
-  }, [handleGenerateContent]);
+    // Entry consolidation (PRD: generation-entry-consolidation Story 1): the
+    // top banner routes to the unified production panel; quick generation
+    // (continuous writing without audit) remains available inside the panel.
+    void fingerprint;
+    setAgentTab('production');
+    setIsAgentSidebarOpen(true);
+  }, [setAgentTab, setIsAgentSidebarOpen]);
 
   // eslint-disable-next-line react-hooks/refs -- syncing value to ref for use in callbacks
   isGeneratingContentRef.current = isGeneratingContent;
@@ -1584,6 +1673,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         onBack={onBack}
         expandedVolumes={expandedVolumes}
         onToggleVolume={toggleVolume}
+        previewChapterIds={previewRunChapterIds}
       />
 
       {/* Editor Content Area */}
@@ -1684,7 +1774,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                       </button>
                     )}
                     {capabilityUtilityResult.quality ? (
-                      <div className={`mt-2 rounded border px-2 py-1 text-[11px] ${capabilityUtilityResult.quality.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+ <div className={`mt-2 rounded border px-2 py-1 text-[11px] ${capabilityUtilityResult.quality.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'alert-danger'}`}>
                         {capabilityUtilityResult.quality.ok ? '质量门禁通过，可确认写入。' : `质量门禁阻断：${capabilityUtilityResult.quality.violations.join('；')}`}
                       </div>
                     ) : null}
@@ -1782,7 +1872,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
               'mx-3 mb-2 flex flex-wrap items-center gap-2 border px-3 py-2 text-xs sm:mx-5',
               aiActionState.status === 'running' && 'border-theme-accent/30 bg-theme-accent/5 text-theme-text',
               aiActionState.status === 'success' && 'border-emerald-300 bg-emerald-50 text-emerald-800',
-              aiActionState.status === 'error' && 'border-red-300 bg-red-50 text-red-800',
+ aiActionState.status === 'error' && 'alert-danger',
             )}
           >
             <span className="font-bold">
@@ -1811,6 +1901,27 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                 重试
               </button>
             ) : null}
+            {aiActionState.status === 'error' && aiActionState.violations?.length ? (
+              <button
+                type="button"
+                onClick={() => { setAgentTab('skills'); setIsAgentSidebarOpen(true); }}
+                className="inline-flex h-7 items-center border border-theme-border px-2 text-[11px] font-bold hover:bg-theme-border/30"
+              >
+                调整写法
+              </button>
+            ) : null}
+            {aiActionState.status === 'error' && aiActionState.violations?.length ? (
+              <details className="basis-full">
+                <summary className="cursor-pointer text-[11px] underline underline-offset-2">
+                  查看未通过原因（{aiActionState.violations.length} 项）
+                </summary>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                  {aiActionState.violations.map((violation, index) => (
+                    <li key={`ai-action-violation-${index}`}>{violation}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </section>
         )}
         {writingStyleResolution ? (
@@ -1822,12 +1933,13 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
               disabled={isGeneratingContent || !currentChapter?.sceneBeats}
               onConfirm={handleConfirmWritingStyle}
               onGenerate={handleWritingStyleGenerate}
+              generateLabel="去生成本章正文"
               onOpenWritingStyle={() => { setAgentTab('skills'); setIsAgentSidebarOpen(true); }}
               onManageSkills={() => handleWorkspaceNavigate('skills')}
             />
           </div>
         ) : writingStyleError ? (
-          <div role="status" className="mx-3 mb-2 border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-5">
+ <div role="status" className="mx-3 mb-2 alert-warning px-3 py-2 text-xs sm:mx-5">
             {writingStyleError}
           </div>
         ) : null}
@@ -1840,7 +1952,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                 <>
             <span className="font-bold">AI {aiContentCandidate.operation === 'draft' ? '正文扩写' : aiContentCandidate.operation === 'rewrite' ? '选中改写' : '审稿精修'}候选</span>
             <span className="min-w-0 flex-1 text-theme-muted">正文尚未修改，接受后才会保存。</span>
-            <span className={qualityState.status === 'eligible' ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700' : qualityState.status === 'fallback' ? 'rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700' : 'rounded border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700'} role="status">{qualityState.label}</span>
+ <span className={qualityState.status === 'eligible' ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700' : qualityState.status === 'fallback' ? 'rounded alert-warning px-2 py-0.5 text-[10px] font-bold' : 'rounded border px-2 py-0.5 text-[10px] font-bold'} role="status">{qualityState.label}</span>
             <span className="basis-full text-[10px] text-theme-muted">{qualityState.detail}</span>
             {aiContentCandidate.quality?.semanticReview.status === 'unknown' ? (
               <span className="basis-full text-[10px] text-amber-700" role="status">
@@ -1965,7 +2077,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           </div>
         ) : null}
 
-        {completionError && completionChapterId === currentChapter?.id ? <div role="alert" className="mx-3 mb-3 border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 sm:mx-5">{completionError}</div> : null}
+ {completionError && completionChapterId === currentChapter?.id ? <div role="alert" className="mx-3 mb-3 alert-danger px-3 py-2 text-xs sm:mx-5">{completionError}</div> : null}
 
         <EditorStatusBar
           currentChapter={currentChapter}
@@ -2032,6 +2144,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onGenerateBeats={handleGenerateBeats}
             isGeneratingBeats={isGeneratingBeats}
             userIntent={userIntent}
+            stepEvidence={stepEvidence}
             setUserIntent={setUserIntent}
             isGeneratingContent={isGeneratingContent}
             generationStatus={generationStatus}
@@ -2040,9 +2153,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onUpdateChapterBeats={handleUpdateChapterBeats}
             onRunAudit={handleManualAudit}
             isGeneratingCritique={isGeneratingCritique}
-            onPolishChapterFromAudit={async () => {
-              await handlePolishChapterFromAudit();
-            }}
+            onPolishChapterFromAudit={handlePolishFromAuditCallback}
             onCreateChapter={handleCreateChapter}
             characters={characters}
             locations={locations}
@@ -2052,15 +2163,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             skillUsageRecords={skillUsageRecords}
             mountedSkillLoadout={mountedSkillLoadout}
             pendingSkillIds={pendingSkillIds}
-            onResolvePendingSkill={(skillId, slot) => {
-              if (!librarySkills.some((skill) => skill.id === skillId)) {
-                toast('该历史能力卡已不存在，仍保留为待整理状态', 'error');
-                return;
-              }
-              void assignSkillToSlot(slot, skillId)
-                .then(() => setPendingSkillIds((ids) => ids.filter((id) => id !== skillId)))
-                .catch(() => toast('能力卡配置失败，请重试', 'error'));
-            }}
+            onResolvePendingSkill={handleResolvePendingSkill}
             onAssignSkill={assignSkillToSlot}
             onRemoveSkill={removeSkillFromSlot}
             skippedAssetIds={skippedAssetIds}
@@ -2068,11 +2171,11 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onStackDeconstructionCard={handleStackDeconstructionCard}
             onUnstackDeconstructionCard={handleUnstackDeconstructionCard}
             onSkipAsset={handleSkipAsset}
-            projectPreferenceProfile={projectPreferenceProfile || { contract: {}, tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0 }}
+            projectPreferenceProfile={projectPreferenceProfile || DEFAULT_PROJECT_PROFILE}
             onPreferenceProfileChange={persistProjectPreferenceProfile}
             versions={versions}
             onSaveVersion={handleSaveVersion}
-            onRestoreVersion={(version) => modalsRef.current?.confirmRestoreVersion(version)}
+            onRestoreVersion={handleRestoreVersion}
             isSniffing={isSniffing}
             sniffedEntities={sniffedEntities}
             onSniffEntities={handleSniffEntities}
@@ -2085,8 +2188,10 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             writingStyleResolution={writingStyleResolution}
             writingStyleCandidates={writingStyleCandidates}
             onConfirmWritingStyle={handleConfirmWritingStyle}
-            onGenerateWithWritingStyle={(fingerprint) => startProductionRun(undefined, fingerprint)}
-            onOpenWritingStyle={() => { setAgentTab('skills'); setIsAgentSidebarOpen(true); }}
+            onGenerateWithWritingStyle={handleGenerateWithWritingStyle}
+            onQuickGenerate={handleQuickGenerate}
+            quickGenerateDisabled={isGeneratingContent || !currentChapter?.sceneBeats}
+            onOpenWritingStyle={handleOpenWritingStyle}
             reviewIssues={currentChapter?.workflowMeta?.reviewState?.issues}
             onPreviewReviewIssue={handlePreviewReviewIssue}
             onFixReviewIssues={handleFixReviewIssues}

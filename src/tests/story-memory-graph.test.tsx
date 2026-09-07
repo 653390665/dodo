@@ -66,7 +66,8 @@ describe('RelationshipGraph story memory', () => {
     const { container } = render(<RelationshipGraph relationships={[relationship]} characters={[]} locations={[]} items={[]} factions={[]} storyMemory={memory} />);
 
     expect(screen.getAllByText('enemy')).toHaveLength(1);
-    expect(screen.getByText('旧怨')).toBeDefined();
+    // “旧怨”同时出现在 SVG <title> 与 sr-only 列表中。
+    expect(screen.getAllByText('旧怨').length).toBeGreaterThanOrEqual(1);
     const line = container.querySelector('line');
     expect(line?.getAttribute('stroke')).toBe('#ef4444');
     expect(line?.getAttribute('stroke-dasharray')).toBe('4 2');

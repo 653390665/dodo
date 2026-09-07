@@ -825,7 +825,24 @@ export function resolveWritingStyleRequest(novelId: string, input: WritingStyleR
   const chapterTechniqueIds = chapterState.techniqueIds;
   const writerSkill = stageSkills.writer[0];
   const projectDeck = resolveProjectSkillDeck(novel);
-  const pack = input.continuationPackId ? db.getContinuationPack(input.continuationPackId) : undefined;
+  // Resolve without an explicit pack falls back to the pack remembered at
+  // confirm time. Without this, any call that omits the id silently flips to
+  // the default mode, churning the fingerprint and invalidating the stored
+  // confirmation (the 171:1 STYLE_CONFIRMATION_REQUIRED friction).
+  // Legacy confirmations predate the stored id: if they confirmed a
+  // continuation-pack mode, fall back to the novel's latest approved pack.
+  const storedConfirmation = novel.projectPreferenceProfile?.writingStyleConfirmation;
+  const fallbackContinuationPackId = storedConfirmation?.continuationPackId
+    ?? (storedConfirmation?.mode === 'continuation-pack'
+      ? db.listContinuationPacks(novelId)
+          .filter((item) => item.status === 'approved')
+          .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id
+      : undefined);
+  const pack = input.continuationPackId
+    ? db.getContinuationPack(input.continuationPackId)
+    : fallbackContinuationPackId
+      ? db.getContinuationPack(fallbackContinuationPackId)
+      : undefined;
   if (input.continuationPackId && !pack) throw new WritingStyleRequestError(404, 'CONTINUATION_PACK_NOT_FOUND', '资料包不存在');
   if (pack && pack.novelId !== novelId) throw new WritingStyleRequestError(409, 'CONTINUATION_PACK_OWNERSHIP_MISMATCH', '资料包不属于当前作品');
   if (input.sessionCardIds !== undefined && !Array.isArray(input.sessionCardIds)) {

@@ -37,7 +37,7 @@ export function StoryCardPreview({
         </div>
       </div>
       <div className="mt-4 flex gap-2">
-        <button onClick={onSelect} className="rounded-full bg-theme-accent px-4 py-2 text-xs font-bold text-white">
+        <button onClick={onSelect} className="rounded-full bg-theme-accent px-4 py-2 text-xs font-bold text-theme-accent-contrast">
           选这个
         </button>
         <button onClick={onMix} className="rounded-full border border-theme-border px-4 py-2 text-xs font-bold text-theme-text">

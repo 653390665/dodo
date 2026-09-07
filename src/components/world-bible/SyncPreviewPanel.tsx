@@ -564,7 +564,7 @@ export function SyncPreviewPanel({
                               if (!tgtKnown) return;
                               setSelectedRelationships(prev => { const next = new Set(prev); next.add(i); return next; });
                             }}
-                            className="px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-xs text-amber-700 font-bold max-w-[140px]"
+ className="px-1.5 py-0.5 rounded alert-warning text-xs font-bold max-w-[140px]"
                           >
                             <option value={r.sourceName}>{r.sourceName} (未匹配)</option>
                             {srcOptions.map(n => <option key={n} value={n}>{n}</option>)}
@@ -584,7 +584,7 @@ export function SyncPreviewPanel({
                               if (!srcKnown) return;
                               setSelectedRelationships(prev => { const next = new Set(prev); next.add(i); return next; });
                             }}
-                            className="px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-xs text-amber-700 font-bold max-w-[140px]"
+ className="px-1.5 py-0.5 rounded alert-warning text-xs font-bold max-w-[140px]"
                           >
                             <option value={r.targetName}>{r.targetName} (未匹配)</option>
                             {tgtOptions.map(n => <option key={n} value={n}>{n}</option>)}
@@ -735,7 +735,7 @@ export function SyncPreviewPanel({
           <button onClick={onCancel} disabled={isSyncing} className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl border border-theme-border text-theme-text text-xs font-bold hover:bg-theme-sidebar/20 transition-colors">
             取消
           </button>
-          <button onClick={handleConfirm} disabled={isSyncing} className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-theme-accent px-4 py-2 text-xs font-bold text-white disabled:opacity-50" title={unresolvedCount > 0 ? `先导入可确认项，再逐条处理 ${unresolvedCount} 条关系` : ''}>
+          <button onClick={handleConfirm} disabled={isSyncing} className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-theme-accent px-4 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50" title={unresolvedCount > 0 ? `先导入可确认项，再逐条处理 ${unresolvedCount} 条关系` : ''}>
             {isSyncing && <Loader2 size={12} className="animate-spin" />}
             {isSyncing ? '同步中...' : unresolvedCount > 0 ? `导入可确认项并处理 ${unresolvedCount} 条关系` : '确认同步'}
           </button>

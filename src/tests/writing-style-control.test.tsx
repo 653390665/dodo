@@ -10,7 +10,7 @@ describe('WritingStyleControl', () => {
 
     expect(screen.getByText(/克制短句/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '资料包优先' }));
-    fireEvent.click(screen.getByRole('button', { name: '确认并生成' }));
+    fireEvent.click(screen.getByRole('button', { name: '生成本章正文' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.click(screen.getByRole('dialog').querySelector('button:last-child')!);
     expect(onConfirm).toHaveBeenCalledWith('continuation-pack');
@@ -21,7 +21,7 @@ describe('WritingStyleControl', () => {
     const trigger = vi.fn();
     const onConfirm = vi.fn().mockRejectedValue(new Error('服务暂不可用'));
     render(<WritingStyleControl candidates={[{ mode: 'default', fingerprint: 'fp', summary: '系统默认', sources: [] }]} onConfirm={onConfirm} onGenerate={trigger} />);
-    const button = screen.getByRole('button', { name: '确认并生成' });
+    const button = screen.getByRole('button', { name: '生成本章正文' });
     fireEvent.click(button);
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -69,8 +69,8 @@ describe('WritingStyleControl', () => {
     const onGenerate = vi.fn().mockResolvedValue(undefined);
     render(<WritingStyleControl confirmed resolution={{ resolverVersion: 1, fingerprint: 'fp-old', mode: 'writer-skill', summary: '旧写法', sources: [], allowedModes: ['writer-skill', 'blend'], warnings: [], confirmed: true }} candidates={[{ mode: 'writer-skill', fingerprint: 'fp-old', summary: '主笔', sources: [] }, { mode: 'blend', fingerprint: 'fp-new-candidate', summary: '融合', sources: [] }]} onConfirm={onConfirm} onGenerate={onGenerate} />);
     fireEvent.click(screen.getByRole('button', { name: '融合' }));
-    expect(screen.getByRole('button', { name: '确认并生成' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '确认并生成' }));
+    expect(screen.getByRole('button', { name: '生成本章正文' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '生成本章正文' }));
     fireEvent.click(screen.getByRole('dialog').querySelector('button:last-child')!);
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith('blend'));
     await waitFor(() => expect(onGenerate).toHaveBeenCalledWith('fp-new'));

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "./fonts.css";
 
+/* Map Tailwind's dark: variant to the in-app data-theme attribute instead of
+   prefers-color-scheme, so manual theme switching keeps these colors in sync. */
+@custom-variant dark (&:where([data-theme="dark"] *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Merriweather", serif;
@@ -13,6 +17,8 @@
   --color-theme-text: oklch(0.20 0.010 60);
   --color-theme-muted: oklch(0.55 0.010 60);
   --color-theme-accent: oklch(0.40 0.12 35);
+  /* Readable text on accent/primary fills (light accent is dark → white text) */
+  --color-theme-accent-contrast: oklch(0.99 0.003 60);
   --color-paper: oklch(0.99 0.003 60);
   --color-parchment: oklch(0.99 0.003 60);
 }
@@ -22,8 +28,11 @@
   --color-theme-sidebar: oklch(0.17 0.008 60);
   --color-theme-border: oklch(0.24 0.008 60);
   --color-theme-text: oklch(0.88 0.005 60);
-  --color-theme-muted: oklch(0.52 0.005 60);
+  /* Lifted from 0.52: muted text must clear AA (4.5:1) against theme-bg at 9-11px */
+  --color-theme-muted: oklch(0.62 0.005 60);
   --color-theme-accent: oklch(0.78 0.08 45);
+  /* Dark accent is light → contrast text must be dark */
+  --color-theme-accent-contrast: oklch(0.20 0.04 45);
   --color-paper: oklch(0.17 0.008 60);
   --color-parchment: oklch(0.17 0.008 60);
 }
@@ -33,6 +42,7 @@
     @apply bg-theme-bg text-theme-text font-sans antialiased;
     letter-spacing: -0.015em;
   }
+
 }
 
 /* 写作区域基础样式 (Writing Surface) */
@@ -78,7 +88,7 @@
 /* 2. 紧凑型按钮与非 Bouncy 微交互 (Compact Buttons & Flat Active States) */
 .natural-btn-primary {
   /* 将 px-4 py-2 调整为紧凑的创作者面板规格 px-3.5 py-1.5，字号调整为较密的 text-xs */
-  @apply px-3.5 py-1.5 bg-theme-accent text-white rounded-md text-xs font-semibold shadow-sm transition-all duration-150;
+  @apply px-3.5 py-1.5 bg-theme-accent text-theme-accent-contrast rounded-md text-xs font-semibold shadow-sm transition-all duration-150;
   /* 消除 active:scale-95 等 bouncy 缩放，采用更克制的亮度或不透明度微调 */
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -158,5 +168,19 @@
     scroll-behavior: auto !important;
     transition-delay: 0s !important;
     transition-duration: 0s !important;
+  }
+}
+
+/* Semantic alert blocks — theme-aware replacements for hardcoded
+   bg-*-50/text-*-700 pairs that glare in dark mode. */
+@layer components {
+  .alert-warning {
+    @apply border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300;
+  }
+  .alert-danger {
+    @apply border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300;
+  }
+  .alert-success {
+    @apply border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300;
   }
 }

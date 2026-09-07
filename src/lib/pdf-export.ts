@@ -2,6 +2,8 @@
 // docs/plans/chapter-pdf-export.md): zero dependencies, native CJK rendering.
 // The user saves to PDF from the system print dialog.
 
+import { toast } from './toast';
+
 interface PdfSource {
   title: string;
   content: string;
@@ -42,7 +44,7 @@ function escapeHtml(value: string): string {
 function printHtml(html: string): void {
   const printWindow = window.open('', '_blank', 'width=800,height=900');
   if (!printWindow) {
-    window.alert('浏览器拦截了打印窗口，请允许弹窗后重试。');
+    toast('浏览器拦截了打印窗口，请允许弹窗后重试。', 'error');
     return;
   }
   printWindow.document.open();

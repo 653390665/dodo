@@ -68,7 +68,7 @@ export function ChapterFactCandidateReview({ candidate, canConfirm, submitting, 
       <button
         type="button"
         disabled={!canConfirm || submitting}
-        className="mt-3 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-white"
+        className="mt-3 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast"
         onClick={() => onConfirm({ factDecisions: decisions })}
       >
         {submitting ? '提交中...' : canConfirm ? '确认事实并写入' : '接受正文后确认事实'}

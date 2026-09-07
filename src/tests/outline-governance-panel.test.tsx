@@ -88,6 +88,19 @@ describe('OutlineGovernancePanel', () => {
     expect(reportRow?.querySelector('button')).toBeNull();
   });
 
+  test('does not classify outlines as reports when report-like words appear only in the body', async () => {
+    mocks.listOutlines.mockResolvedValue([
+      {
+        ...master('m-clean', 'active'),
+        content: '# 《左道指南》逐章细纲数据库\n' + '设定与剧情正文。'.repeat(20) + '骑手的店铺页面评分4.9，两千多单。',
+      },
+    ]);
+    render(<OutlineGovernancePanel novelId="n1" />);
+    await screen.findByText(/逐章细纲数据库/);
+    expect(screen.queryByText(/报告候选/)).toBeNull();
+    expect(screen.getByRole('radio')).toBeDefined();
+  });
+
   test('shows stale baseline guidance and provides refresh entry', async () => {
     render(<OutlineGovernancePanel novelId="n1" />);
     await screen.findByText(/Canon 基线已变化/);

@@ -74,7 +74,7 @@ export function PacingDashboard({ novelId }: Props) {
     <div className="space-y-4">
       {/* Summary card */}
       {pacing.length > 0 && (
-        <div className="bg-theme-text text-white p-4 rounded-2xl shadow-lg">
+        <div className="bg-theme-text text-theme-bg p-4 rounded-2xl shadow-lg">
           <div className="flex items-center gap-2 mb-3">
             <Activity size={16} className="text-theme-accent" />
             <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">节奏总览</span>
@@ -100,7 +100,7 @@ export function PacingDashboard({ novelId }: Props) {
 
       {/* Analyze button */}
       <button onClick={handleAnalyze} disabled={loading}
-        className="w-full py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+        className="w-full py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
         {loading ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} />}
         {loading ? '分析中...' : pacing.length > 0 ? '重新分析节奏' : 'AI 节奏诊断'}
       </button>

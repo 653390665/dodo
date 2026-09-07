@@ -11,6 +11,8 @@ import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
+import { appConfirm } from './ui/app-confirm';
+import { toast } from '../lib/toast';
 import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
@@ -72,14 +74,14 @@ function isWorldCandidateArtifact(outputArtifact: string | undefined): boolean {
 }
 
 function getPackageSubmitButtonLabel(hasResults: boolean, selectionCount: number): string {
-  if (hasResults && selectionCount === 0) return '勾选新能力后可提交';
-  return '加入本次配置候选';
+  if (hasResults && selectionCount === 0) return '先勾选要启用的能力';
+  return '启用所选';
 }
 
 function getPackageEmptySelectionHint(hasResults: boolean, selectionCount: number, hasPendingConfiguration: boolean): string | null {
   if (!hasResults || selectionCount > 0) return null;
-  if (hasPendingConfiguration) return '已提交的配置仍待应用；点击应用配置后才写入作品。也可继续勾选其他能力。';
-  return '已提交的运行项可立即执行；请点击结果里的运行按钮。也可继续勾选其他能力。';
+  if (hasPendingConfiguration) return null;
+  return '勾选后点击「启用所选」即生效，可撤销。';
 }
 
 function getDatabaseGenerationReader(): DatabaseGenerationReader | null {
@@ -96,11 +98,11 @@ async function getDatabaseGenerationSafe(): Promise<number> {
 }
 
 function getPackageModeLabel(mode: EnhancementPackageStep['mode'], manifest?: ReturnType<typeof getCatalogCapabilityManifest>): string {
-  if (mode === 'configure') return '应用配置后设为作品默认';
-  if (mode === 'schedule' && manifest?.output === 'transform-preview') return '应用配置后写入本章规则';
+  if (mode === 'configure') return '启用（作品默认）';
+  if (mode === 'schedule' && manifest?.output === 'transform-preview') return '启用（写入本章规则）';
   if (mode === 'schedule') return '写到这里时提醒';
-  if (mode === 'run-now' && manifest) return getAuthorFacingCapabilityActionLabel(manifest, 'single-run') || '运行一次，不保存配置';
-  if (mode === 'run-now') return '运行一次，不保存配置';
+  if (mode === 'run-now' && manifest) return getAuthorFacingCapabilityActionLabel(manifest, 'single-run') || '运行（一次性）';
+  if (mode === 'run-now') return '运行（一次性）';
   return '稍后选择';
 }
 
@@ -169,23 +171,21 @@ function getPackageUseLabel(packageId: string): string {
 }
 
 function getPackageNextStepHint(packageId: string): string {
-  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '加入本次配置候选后点运行诊断';
-  if (packageId.includes('humanization') || packageId.includes('patch')) return '加入本次配置候选后点生成预览';
-  if (packageId.includes('onboarding')) return '加入本次配置候选后点应用配置';
-  if (packageId.includes('continuity') || packageId.includes('deconstruction')) return '加入本次配置候选后先选卡组位置';
-  if (packageId.includes('chapter')) return '加入本次配置候选后点应用配置';
-  return '加入本次配置候选后确认下一步';
+  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '勾选后点「启用所选」，诊断立即运行';
+  if (packageId.includes('humanization') || packageId.includes('patch')) return '勾选后点「启用所选」，预览生成后确认应用';
+  if (packageId.includes('continuity') || packageId.includes('deconstruction')) return '勾选拆书卡，启用后自动放入卡组空位';
+  return '勾选后点「启用所选」即生效，可撤销';
 }
 
 function getPackageRecommendedPath(packageId: string): string {
-  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '先勾必选审稿项，加入本次配置候选后点运行诊断。';
+  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '先勾必选审稿项，启用后诊断立即运行。';
   if (packageId.includes('humanization') || packageId.includes('patch')) return '先勾写前规则，再按需勾写后预览项。';
   if (packageId.includes('onboarding')) return '建议两个设定项一起勾选，先生成世界观，再接人物弧线。';
   if (packageId.includes('first-chapter')) return '先勾开篇结构，再按需选择正文表达技法。';
-  if (packageId.includes('continuity')) return '按当前作品短板选择一张节奏卡或悬念卡，加入本次配置候选后先选主卡或辅卡位置。';
+  if (packageId.includes('continuity')) return '按当前作品短板选择一张节奏卡或悬念卡，启用后自动放入卡组空位。';
   if (packageId.includes('deconstruction')) return '先选主笔文风卡，再补一张节奏或钩子卡。';
   if (packageId.includes('platform')) return '先运行开篇钩子诊断，再按目标平台补充检查项。';
-  return '先勾当前阶段最需要的一项，加入本次配置候选后再确认下一步。';
+  return '先勾当前阶段最需要的一项，启用后即生效。';
 }
 
 function getPackageStageSummary(pkg: EnhancementPackage): string {
@@ -768,7 +768,7 @@ export function SkillsStudioView({
 
   const handleActivateFlow = async (flowId: string) => {
     if (!selectedNovel) {
-      alert('请先选择或创建一个小说作品。');
+      toast('请先选择或创建一个小说作品。', 'error');
       return;
     }
     if (staleConfigurationSession) {
@@ -779,8 +779,9 @@ export function SkillsStudioView({
     const isLicensedFlow = getCatalogCapabilityManifest(flowId)?.sourceType === 'licensed';
 
     const activeFlowId = effectiveNovel?.projectPreferenceProfile?.capabilityProfile?.activeFlowId;
-    if (activeFlowId && activeFlowId !== flowId && typeof window !== 'undefined' && !window.confirm('当前作品已有创作流程。确认替换为该流程吗？')) {
-      return;
+    if (activeFlowId && activeFlowId !== flowId && typeof window !== 'undefined') {
+      const confirmedReplace = await appConfirm('替换当前创作流程？', '当前作品已有创作流程，确认替换为该流程吗？', { confirmLabel: '确认替换' });
+      if (!confirmedReplace) return;
     }
 
     if (isLicensedFlow && isFreeNovel) {
@@ -1056,9 +1057,9 @@ export function SkillsStudioView({
     .map(getPackageComponentLabel);
   const packageMissingRequiredSelection = missingRequiredPackageLabels.length > 0;
   const packageSubmitDisabledReason = !selectedNovel
-    ? packageSelections.length > 0 ? '请先在书库选择作品后再加入本次配置候选' : '请先在书库选择作品'
+    ? packageSelections.length > 0 ? '请先在书库选择作品后再启用所选能力' : '请先在书库选择作品'
     : selectedPackageRestricted && packageSelections.length > 0
-      ? '当前作品未开通授权增强；可查看步骤，需授权后再加入本次配置候选。'
+      ? '当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。'
       : packageSelections.length === 0
       ? packageHasResults ? '如需继续提交，请先勾选新能力' : '至少选择一项能力'
       : packageMissingRequiredSelection
@@ -1267,6 +1268,7 @@ export function SkillsStudioView({
     profileOverride?: CapabilityProfileDraft | null,
     projectLaunchAssetId?: string,
     worldCapabilityLaunch?: WorldCapabilityLaunchIntent,
+    packageStepsOverride?: EnhancementPackageStep[],
   ) => {
     const draft = profileOverride || configurationDraft;
     if (!selectedNovel || !draft || applyingConfigurationRef.current) return;
@@ -1285,7 +1287,7 @@ export function SkillsStudioView({
         setConfigurationDirty(true);
         return;
       }
-      const selectedPackageSteps = pendingPackageSteps.map((step) => ({
+      const selectedPackageSteps = (packageStepsOverride ?? pendingPackageSteps).map((step) => ({
         stepId: step.id,
         assetId: step.assetId,
         mode: step.mode,
@@ -1351,6 +1353,9 @@ export function SkillsStudioView({
         } else {
           onNavigate?.(returnView, { capabilityApplied: true });
         }
+      } else {
+        // Single-verb enable from the capability center: stay put, surface a
+        // non-navigating success signal (undo toast is fired by the caller).
       }
     } catch (error) {
       setConfigurationError(error instanceof Error ? error.message : '配置保存失败，请重试。');
@@ -1487,7 +1492,7 @@ export function SkillsStudioView({
     try {
       const newSkill = cloneAssetToSkill(asset);
       if (!newSkill) {
-        alert('该能力尚未评测，暂不能导入。');
+        toast('该能力尚未评测，暂不能导入。', 'error');
         return null;
       }
       await createSkill(newSkill);
@@ -1516,9 +1521,24 @@ export function SkillsStudioView({
     }
   };
 
+  // Single-verb enable (plan 001): staging is an implementation detail — every
+  // equip action applies immediately and offers a 5s undo via toast.
+  const applyStagedProfileImmediately = async (capabilityProfile: CapabilityProfileDraft, assetTitle: string) => {
+    const preProfile = selectedNovel?.projectPreferenceProfile
+      ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile))
+      : null;
+    await applyConfiguration(false, 'return', capabilityProfile);
+    toast(`已启用「${assetTitle}」`, 'success', 6500, {
+      label: '撤销',
+      onClick: () => {
+        if (preProfile) void applyConfiguration(false, 'return', preProfile as CapabilityProfileDraft);
+      },
+    });
+  };
+
   const handleEquipAsset = async (asset: CuratedProductSkill) => {
     if (!selectedNovel) {
-      alert('请先选择一个作品再配置能力。');
+      toast('请先选择一个作品再配置能力。', 'error');
       return;
     }
     if (staleConfigurationSession) {
@@ -1549,6 +1569,7 @@ export function SkillsStudioView({
         capabilityMemberships: current.capabilityMemberships,
       });
       stageConfiguration(nextProfile.capabilityProfile);
+      await applyStagedProfileImmediately(nextProfile.capabilityProfile, asset.title);
       void recordCapabilityEvent({ eventName: 'technique_favorited', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: asset.id, sourceType: asset.sourceType });
       return;
     }
@@ -1558,7 +1579,17 @@ export function SkillsStudioView({
       const persistedId = await handleImportAsset(asset);
       if (!persistedId) return;
       stageAssetMembership(asset, persistedId);
-      if (!projectDeckIds.includes(persistedId)) setCandidateCardIds((ids) => ids.includes(persistedId) ? ids : [...ids, persistedId]);
+      const base = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+      const deckResult = addCardToProjectDeck(base, persistedId);
+      if (deckResult.requiresReplacement) {
+        // Deck full: keep the old candidate flow — replacement needs a choice.
+        setCandidateCardIds((ids) => ids.includes(persistedId) ? ids : [...ids, persistedId]);
+        toast('作品卡组已满：已加入候选，替换主/辅卡后生效。', 'error', 6500);
+        return;
+      }
+      const nextProfile = buildV3CapabilityProfile(effectiveNovel, deckResult.profile).capabilityProfile;
+      stageConfiguration(nextProfile);
+      await applyStagedProfileImmediately(nextProfile, asset.title);
       return;
     }
     if (type === 'guardrail') {
@@ -1577,6 +1608,7 @@ export function SkillsStudioView({
         guardrailIds: nextIds,
       });
       stageConfiguration(nextProfile.capabilityProfile);
+      await applyStagedProfileImmediately(nextProfile.capabilityProfile, asset.title);
       void recordCapabilityEvent({
         eventName: 'capability_viewed',
         stage: 'advanced',
@@ -1591,7 +1623,7 @@ export function SkillsStudioView({
     if (type === 'role-skill' || type === 'overlay') {
       // v2 records are shown for organization only. They must not silently
       // become a v3 role slot or navigate away from the capability center.
-      alert('该历史能力待整理，暂不参与新配置。');
+      toast('该历史能力待整理，暂不参与新配置。', 'error');
       return;
     }
     handleDirectExec(asset);
@@ -1599,7 +1631,7 @@ export function SkillsStudioView({
 
   const handleDirectExec = (asset: CuratedProductSkill) => {
     if (!selectedNovel?.id) {
-      alert('请先选择一个作品再使用该能力。');
+      toast('请先选择一个作品再使用该能力。', 'error');
       return;
     }
     const manifest = getCapabilityManifest(asset);
@@ -1608,7 +1640,7 @@ export function SkillsStudioView({
       && !manifest.stages.includes('writer')
       && !manifest.stages.includes('critic');
     if (plannerOnly && (Boolean(targetChapterId) || (launchStage && launchStage !== 'creative-setup'))) {
-      alert('该能力仅支持设定与大纲阶段，请切换到“① 立设定与大纲”后再运行。');
+      toast('该能力仅支持设定与大纲阶段，请切换到「① 立设定与大纲」后再运行。', 'error');
       setSelectedCategory('creative-setup');
       return;
     }
@@ -1619,7 +1651,7 @@ export function SkillsStudioView({
     if (getGovernanceCapabilityType(asset) === 'overlay' || canUseAsChapterSkillCard) {
       const savedSkill = savedSkills.find((skill) => skill.id === asset.id || skill.parentSkillId === asset.id);
       const sessionCardIds = getTrustedSessionCardIds([asset.id, savedSkill?.id || ''], savedSkills);
-      if (!sessionCardIds.length) { alert('该卡暂不可作为本章使用卡运行。'); return; }
+      if (!sessionCardIds.length) { toast('该卡暂不可作为本章使用卡运行。', 'error'); return; }
       // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       onLaunchCapability?.({
@@ -1664,6 +1696,7 @@ export function SkillsStudioView({
   };
 
   const handleLaunchPackageResult = (asset: CuratedProductSkill) => {
+    console.error('DEBUG handleLaunchPackageResult called, asset=' + asset?.id);
     const launchAction = getDirectExecLaunchAction(asset);
     if (!selectedNovel?.id || !launchAction || !onLaunchCapability) {
       handleDirectExec(asset);
@@ -1693,7 +1726,7 @@ export function SkillsStudioView({
 
   const launchTechnique = (asset: CuratedProductSkill, scope: 'project' | 'chapter') => {
     if (!selectedNovel?.id) {
-      alert('请先选择一个作品再使用该能力。');
+      toast('请先选择一个作品再使用该能力。', 'error');
       return;
     }
     if (getGovernanceCapabilityType(asset) !== 'technique') return;
@@ -1717,20 +1750,23 @@ export function SkillsStudioView({
   const handleUseTechnique = (asset: CuratedProductSkill) => launchTechnique(asset, 'chapter');
   const handleUseProjectTechnique = (asset: CuratedProductSkill) => launchTechnique(asset, 'project');
 
-  const handleApplyPackage = async () => {
+  // Single-verb enable: stage the selected steps AND apply them in one action.
+  // Returns the built profile so the caller (dialog button) can hand it to
+  // applyConfiguration; returns null when staging produced nothing usable.
+  const handleApplyPackage = async (): Promise<{ capabilityProfile: CapabilityProfileDraft; steps: EnhancementPackageStep[] } | null | undefined> => {
     setPackageResultLaunchFeedbackAssetId(null);
     if (!selectedPackage || !selectedNovel) {
-      setConfigurationError('请先选择作品，再加入本次配置候选。');
-      return;
+      setConfigurationError('请先选择作品，再启用能力包。');
+      return null;
     }
     const selected = packageComponents.filter(isPackageStepSelected);
     if (selected.length === 0) {
       setConfigurationError('至少选择一项能力。');
-      return;
+      return null;
     }
     if (staleConfigurationSession && selected.some(isConfigurationPackageComponent)) {
       setConfigurationError('旧草稿只读，请先重新预览本次配置。');
-      return;
+      return null;
     }
     const selectedFlows = selected.filter((component) => component.flow);
     if (selectedFlows.length > 1) {
@@ -1750,9 +1786,12 @@ export function SkillsStudioView({
     for (const component of selected) {
       if (component.flow) {
         const activeFlowId = nextProfile.activeFlowId;
-        if (activeFlowId && activeFlowId !== component.flow.id && typeof window !== 'undefined' && !window.confirm('当前作品已有创作流程。确认替换为能力包中的流程吗？')) {
-          setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'conflict' }));
-          continue;
+        if (activeFlowId && activeFlowId !== component.flow.id && typeof window !== 'undefined') {
+          const confirmedReplace = await appConfirm('替换当前创作流程？', '当前作品已有创作流程，确认替换为能力包中的流程吗？', { confirmLabel: '确认替换' });
+          if (!confirmedReplace) {
+            setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'conflict' }));
+            continue;
+          }
         }
         nextProfile = { ...nextProfile, activeFlowId: component.flow.id };
         profileChanged = true;
@@ -1826,6 +1865,11 @@ export function SkillsStudioView({
       return rest;
     });
     void recordCapabilityEvent({ eventName: 'capability_package_expanded', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: selectedPackage.id });
+    if (!profileChanged) return null;
+    return {
+      capabilityProfile: buildV3CapabilityProfile(effectiveNovel, nextProfile).capabilityProfile,
+      steps: nextPendingSteps,
+    };
   };
 
   return (
@@ -1987,7 +2031,7 @@ export function SkillsStudioView({
                   </div>
                 </div>
               )}
-              <button type="button" onClick={() => void applyConfiguration(true)} disabled={!selectedNovel || isApplyingConfiguration} className="rounded-lg bg-theme-text px-4 py-2 text-xs font-bold text-theme-bg disabled:opacity-50">
+              <button type="button" onClick={() => void applyConfiguration(true)} disabled={!selectedNovel || isApplyingConfiguration} className="rounded-lg bg-theme-text px-4 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50">
                 {staleConfigurationSession ? '重新预览本次配置' : configurationApplyFailed ? '重试应用配置并返回写作' : '应用配置并返回写作'}
               </button>
             </div>
@@ -2014,7 +2058,7 @@ export function SkillsStudioView({
                       userNovels={userNovels}
                       onEquip={isRuntimeReadySkillCard(s) ? (novelId) => {
                         if (novelId !== selectedNovel?.id) {
-                          setConfigurationError('请先切换到目标作品，再加入本次配置候选。');
+                          setConfigurationError('请先切换到目标作品，再启用所选能力。');
                           return;
                         }
                         addCandidateSkill(s.id);
@@ -2107,7 +2151,7 @@ export function SkillsStudioView({
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <h2 id="capability-packages-title" className="text-sm font-bold text-theme-text">能力包</h2>
-                  <p className="mt-1 text-[11px] text-theme-muted">能力包会把流程、技法、拆书卡和辅助动作拆成可勾选步骤；先勾选待提交，再加入本次配置候选并按每步结果确认下一步。</p>
+                  <p className="mt-1 text-[11px] text-theme-muted">能力包会把流程、技法、拆书卡和辅助动作拆成可勾选步骤；勾选后点「启用所选」即生效，可撤销。</p>
                 </div>
                 <span className="shrink-0 text-[10px] text-theme-muted">勾选待提交</span>
               </div>
@@ -2303,7 +2347,7 @@ export function SkillsStudioView({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="capability-package-title" className="text-base font-bold text-theme-text">{selectedPackage.name}</h2>
-                <p className="mt-1 text-xs leading-5 text-theme-muted">只把已勾选步骤提交到本次配置候选；配置类提交后仍待应用，点击应用配置后才写入作品；运行类提交后再点运行按钮。</p>
+                <p className="mt-1 text-xs leading-5 text-theme-muted">勾选要启用的能力，点「启用所选」即生效；运行类启用后可点击对应运行按钮。</p>
                 <div className="mt-2 rounded-lg border border-theme-border/60 bg-theme-bg/60 p-2 text-[10px] leading-4 text-theme-muted">
                   {selectedPackage.intendedOutcome && <p><span className="font-bold text-theme-text">目标：</span>{selectedPackage.intendedOutcome}</p>}
                   <p><span className="font-bold text-theme-text">优先：</span>{getPackageRecommendedPath(selectedPackage.id)}</p>
@@ -2311,7 +2355,7 @@ export function SkillsStudioView({
                 </div>
                 {selectedPackageRestricted && (
                   <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] leading-4 text-amber-700" role="status">
-                    当前作品未开通授权增强；你可以先查看步骤，授权后再加入本次配置候选。
+                    当前作品未开通授权增强；你可以先查看步骤，授权后再启用所选能力。
                   </div>
                 )}
                 {packageSelections.length > 0 && <p className="mt-1 text-[10px] font-bold text-theme-accent" role="status">已勾选 {packageSelections.length} 项，待提交</p>}
@@ -2508,13 +2552,36 @@ export function SkillsStudioView({
                   ref={packageApplyActionRef}
                   data-autofocus-package-apply="true"
                   disabled={!selectedNovel || isApplyingConfiguration}
-                  className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-bg shadow-sm hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast shadow-sm hover:opacity-90 disabled:opacity-50"
                   onClick={() => void applyConfiguration(true, packageApplyDestination)}
                 >
                   {packageApplyButtonLabel}
                 </button>
               )}
-              <button type="button" className="flex-1 rounded-lg bg-theme-text px-3 py-2 text-xs font-bold text-theme-bg disabled:opacity-50" aria-describedby={packageSubmitDisabledReason && packageSelections.length > 0 ? 'capability-package-submit-help' : undefined} title={packageSubmitDisabledReason || undefined} disabled={Boolean(packageSubmitDisabledReason) || isApplyingConfiguration} onClick={() => void handleApplyPackage()}>{packageSubmitButtonLabel}</button>
+              <button type="button" className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50" aria-describedby={packageSubmitDisabledReason && packageSelections.length > 0 ? 'capability-package-submit-help' : undefined} title={packageSubmitDisabledReason || undefined} disabled={Boolean(packageSubmitDisabledReason) || isApplyingConfiguration} onClick={async () => {
+                const preProfile = selectedNovel?.projectPreferenceProfile ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile)) : null;
+                const built = await handleApplyPackage();
+                if (!built || !selectedNovel) return;
+                try {
+                  const outlineLaunchAssetId = built.steps?.find((step) => {
+                    const manifest = getCatalogCapabilityManifest(step.assetId);
+                    return isOutlineCandidateOutput(manifest?.output);
+                  })?.assetId;
+                  const launchOutline = packageApplyDestination === 'outline';
+                  await applyConfiguration(launchOutline, packageApplyDestination, built.capabilityProfile, outlineLaunchAssetId, undefined, built.steps);
+                } catch {
+                  // applyConfiguration already toasts the failure; the draft
+                  // stays staged so the user can retry from the dialog.
+                }
+                const title = selectedPackage?.name || '所选能力';
+                toast(`已启用「${title}」`, 'success', 6500, {
+                  label: '撤销',
+                  onClick: () => {
+                    if (!preProfile) return;
+                    void applyConfiguration(false, 'return', preProfile);
+                  },
+                });
+              }}>{packageSubmitButtonLabel}</button>
             </div>
           </div>
         </div>

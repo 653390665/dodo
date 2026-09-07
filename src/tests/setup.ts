@@ -31,3 +31,9 @@ window.ResizeObserver = ResizeObserver;
 
 // Mock standard fetch API if needed
 window.fetch = window.fetch || (() => Promise.resolve(new Response()));
+
+// toasts inject directly into document.body and survive afterEach cleanup,
+// polluting role="alert" queries in later tests. Sweep them between tests.
+afterEach(() => {
+  document.querySelectorAll('[data-inkflow-toasts]').forEach((node) => node.remove());
+});

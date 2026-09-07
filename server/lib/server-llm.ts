@@ -791,7 +791,12 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     // fails to terminate the connection (observed with some API providers).
     let raceTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const raceTimeoutPromise = new Promise<never>((_, reject) => {
-      raceTimeoutId = setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`)), timeoutMs + 2000);
+      raceTimeoutId = setTimeout(() => {
+        // The race rejection alone leaves the underlying fetch hanging if the
+        // AbortController path ever fails — abort it for real as well.
+        controller.abort(new Error(`LLM request timed out after ${timeoutMs / 1000}s`));
+        reject(new Error(`LLM request timed out after ${timeoutMs / 1000}s`));
+      }, timeoutMs + 2000);
     });
 
     try {
@@ -1021,7 +1026,6 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       options.signal?.removeEventListener('abort', onExternalAbort);
       if (raceTimeoutId !== null) clearTimeout(raceTimeoutId);
     }
-    attempt += 1;
   }
 
   setLivenessStatus('unknown');

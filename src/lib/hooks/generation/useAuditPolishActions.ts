@@ -4,6 +4,8 @@ import type { AgentContext } from '../../agents';
 import { buildContextPrompt } from '../../agents';
 import { updateChapter } from '../../chapter-client';
 import { readSseStream } from '../../sse-client';
+import { toast } from '../../toast';
+import { appPrompt } from '../../../components/ui/app-confirm';
 import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
 import { recordProductEvent } from '../../product-events-client';
 import { computeChapterWorkflowHash } from '../../../../shared/lib/chapter-workflow';
@@ -461,10 +463,15 @@ export function useAuditPolishActions({
     const start = retryInput?.start ?? contentRef.current.selectionStart;
     const end = retryInput?.end ?? contentRef.current.selectionEnd;
     if (start === end) {
-      alert('请先在右侧区域选中一段您需要改写的文字，然后再点击此按钮。');
+      toast('请先在右侧区域选中一段您需要改写的文字，然后再点击此按钮。', 'error');
       return;
     }
-    const instruction = retryInput?.instruction ?? prompt('请输入改写要求（如：更加通俗易懂，或者更有文学色彩），留空则由 AI 自动润色：');
+    const instruction = retryInput?.instruction
+      ?? await appPrompt('改写要求', {
+        description: '例如：更加通俗易懂，或者更有文学色彩。留空则由 AI 自动润色。',
+        placeholder: '输入改写要求（可选）',
+        confirmLabel: '开始改写',
+      });
     if (instruction === null) return;
     setRetryContext?.({ operation: 'rewrite', input: { start, end, instruction, fingerprint: retryInput?.fingerprint } });
 
@@ -653,7 +660,7 @@ export function useAuditPolishActions({
       : null;
     const auditFeedback = candidateForPolish?.auditFeedback || currentChapter?.critique || '';
     if (!currentChapter?.content || !auditFeedback) {
-      alert('请先生成正文并完成一次 AI 审计，再执行精修。');
+      toast('请先生成正文并完成一次 AI 审计，再执行精修。', 'error');
       return;
     }
     const startedAt = Date.now();

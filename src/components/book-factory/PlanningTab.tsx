@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { Chapter, Novel, ProjectPreferenceProfile, AgentTab } from '../../../shared/types';
 import { cn } from '../../lib/utils';
+import { appConfirm } from '../ui/app-confirm';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable } from '../../lib/entitlements';
 import {
   SKILL_SERIES_FLOWS,
@@ -40,6 +41,15 @@ interface PlanningTabProps {
   projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
   onSwitchTab?: (tab: AgentTab) => void;
+  /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
+  stepEvidence?: {
+    ideaChars?: number;
+    worldEntityCount?: number;
+    outlineChars?: number;
+    sceneBeatsChars?: number;
+    draftChars?: number;
+    auditPassed?: boolean;
+  };
 }
 
 export function PlanningTab({
@@ -59,6 +69,7 @@ export function PlanningTab({
   projectPreferenceProfile,
   onPreferenceProfileChange,
   onSwitchTab,
+  stepEvidence,
 }: PlanningTabProps) {
   const liveProfile = projectPreferenceProfile || novel.projectPreferenceProfile;
   const novelWithLiveProfile = { ...novel, projectPreferenceProfile: liveProfile };
@@ -90,6 +101,27 @@ export function PlanningTab({
   const currentStep = currentStepIndex !== -1 ? flow.steps[currentStepIndex] : flow.steps[0];
   const displayStepNumber = currentStepIndex !== -1 ? currentStepIndex + 1 : 1;
   const isLastStep = !currentStep.nextStepId;
+
+  // PRD Story 5: verify wizard progress against real artifacts. Evidence is
+  // keyed by the step's declared `output`; `undefined` means "cannot verify".
+  const stepEvidenceByOutput: Record<string, boolean | undefined> | null = stepEvidence ? {
+    idea: (stepEvidence.ideaChars ?? 0) > 0,
+    setting: (stepEvidence.worldEntityCount ?? 0) > 0,
+    outline: (stepEvidence.outlineChars ?? 0) > 0,
+    'scene-outline': (stepEvidence.sceneBeatsChars ?? 0) > 0,
+    draft: (stepEvidence.draftChars ?? 0) > 0,
+    'polished-draft': stepEvidence.auditPassed === true,
+  } : null;
+  const currentStepTagCompleted = completedStepIds.includes(currentStep.id) || (isFlowCompleted && isLastStep);
+  const currentStepVerified = stepEvidenceByOutput
+    ? stepEvidenceByOutput[currentStep.output] === true
+    : true;
+  const currentStepUnverifiable = stepEvidenceByOutput
+    ? stepEvidenceByOutput[currentStep.output] === undefined
+    : false;
+  const flowArtifactsVerified = stepEvidenceByOutput
+    ? flow.steps.every((step) => stepEvidenceByOutput[step.output] === true)
+    : true;
 
   const [isSavingStep, setIsSavingStep] = React.useState(false);
   const [stepError, setStepError] = React.useState<string | null>(null);
@@ -166,6 +198,8 @@ export function PlanningTab({
   };
 
   const handleResetFlow = async () => {
+    if (isSavingStep) return;
+    if (!(await appConfirm('重置流程进度？', '所有创作步骤的完成标记将被清空并回到第 1 步，不影响已创作的内容。', { confirmLabel: '重置' }))) return;
     if (!onPreferenceProfileChange) return;
     const profile = liveProfile || {
       tags: [],
@@ -237,6 +271,17 @@ export function PlanningTab({
               </div>
             </div>
 
+            {currentStepTagCompleted && stepEvidenceByOutput && !currentStepVerified && !currentStepUnverifiable ? (
+              <div role="status" className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 max-w-[55ch]">
+                <span className="text-[11px] leading-5 text-amber-600 dark:text-amber-400 block">
+                  此步骤已被标记为完成，但当前未检测到对应产物。建议补齐后再继续下一步。
+                </span>
+              </div>
+            ) : null}
+            {currentStepUnverifiable ? (
+              <p className="mt-1 text-[10px] text-theme-muted">此步骤暂无法自动验证产物，请自行确认已完成。</p>
+            ) : null}
+
             {stepError && (
               <div className="mt-3 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-600 dark:text-red-400">
                 {stepError}
@@ -249,7 +294,7 @@ export function PlanningTab({
 <button
                 onClick={handleNextStep}
                 disabled={isSavingStep}
-                className="w-full min-w-0 whitespace-normal px-4 py-2.5 text-center leading-relaxed bg-gradient-to-r from-theme-accent to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full min-w-0 whitespace-normal px-4 py-2.5 text-center leading-relaxed bg-gradient-to-r from-theme-accent to-indigo-600 text-theme-accent-contrast rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSavingStep ? (
                   <>
@@ -281,10 +326,19 @@ export function PlanningTab({
             )}
           </div>
         </div>
-        {isFlowCompleted && (
+        {isFlowCompleted && (flowArtifactsVerified || !stepEvidenceByOutput) && (
           <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
             <CheckCircle2 size={14} className="shrink-0" />
             <span>🎉 全流程已完成！所有创作步骤均已标记完成。</span>
+          </div>
+        )}
+        {isFlowCompleted && stepEvidenceByOutput && !flowArtifactsVerified && (
+          <div role="status" className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
+            <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+            <span>
+              流程曾被标记为完成，但部分步骤未检测到真实产物（灵感、设定、大纲、分镜、正文或审稿）。
+              可点击「重置流程进度」重新校准，或直接继续写作。
+            </span>
           </div>
         )}
       </div>
@@ -310,7 +364,7 @@ export function PlanningTab({
               {onCreateChapter && (
                 <button
                   onClick={() => void onCreateChapter()}
-                  className="w-full py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2"
                 >
                   <Plus size={16} aria-hidden="true" /> 创建第一章并开始分镜
                 </button>
@@ -321,7 +375,7 @@ export function PlanningTab({
               <button
                 onClick={() => void onGenerateBeats()}
                 disabled={isGeneratingBeats}
-                className="w-full mt-3 py-2.5 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full mt-3 py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isGeneratingBeats ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
                 {isGeneratingBeats ? '规划中...' : '生成场景分镜（快捷操作）'}
@@ -345,7 +399,7 @@ export function PlanningTab({
                   <button
                     onClick={() => void onGenerateContent()}
                     disabled={isGeneratingContent || !currentChapter.sceneBeats}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-theme-accent text-white rounded-lg text-[10px] font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-theme-accent text-theme-accent-contrast rounded-lg text-[10px] font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200"
                   >
                     {isGeneratingContent ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <Feather size={10} aria-hidden="true" />}
                     {isGeneratingContent ? '扩写中…' : 'AI 扩写正文'}

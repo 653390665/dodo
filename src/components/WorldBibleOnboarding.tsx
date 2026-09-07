@@ -154,7 +154,7 @@ export function WorldBibleOnboarding({
                   <button
                     onClick={onboarding.onAcceptRecommendedSkills}
                     disabled={onboarding.acceptedRecommendedSkills}
-                    className="mt-4 w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+                    className="mt-4 w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-theme-accent-contrast disabled:opacity-60"
                   >
                     {onboarding.acceptedRecommendedSkills ? '已加入待确认配置' : '加入待确认配置'}
                   </button>
@@ -172,7 +172,7 @@ export function WorldBibleOnboarding({
                 </div>
                 <button
                   onClick={onboarding.onEnterEditor}
-                  className="rounded-full bg-theme-accent px-5 py-3 text-sm font-bold text-white"
+                  className="rounded-full bg-theme-accent px-5 py-3 text-sm font-bold text-theme-accent-contrast"
                 >
                   {onboarding.canEnterEditor ? '进入创作舞台' : '先写正文'}
                 </button>
@@ -185,7 +185,7 @@ export function WorldBibleOnboarding({
         {!isAssistantOpen && !isGlobalAssistantOpen && (
           <button
             onClick={() => setIsAssistantOpen(true)}
-            className="fixed bottom-8 right-8 z-40 flex items-center gap-2 rounded-full bg-theme-accent px-6 py-3 font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 group"
+            className="fixed bottom-8 right-8 z-40 flex items-center gap-2 rounded-full bg-theme-accent px-6 py-3 font-bold text-theme-accent-contrast shadow-xl transition-all hover:scale-105 active:scale-95 group"
           >
             <Sparkles size={18} className="group-hover:animate-pulse" />
             智能管家

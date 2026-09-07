@@ -264,6 +264,16 @@ export function useEditorGenerationFlow({
         chapterId: chapter.id,
         action: candidate.operation,
       });
+      if (!candidate.baselineContent.trim()) {
+        void recordProductEvent({
+          eventName: 'first_chapter_accepted',
+          stage: 'drafting',
+          result: 'success',
+          novelId: novel.id,
+          chapterId: chapter.id,
+          action: candidate.operation,
+        }).catch(() => undefined);
+      }
     } catch (error) {
       if (candidateInvalidated) setAiContentCandidate(null);
       const message = error instanceof Error ? error.message : '候选保存失败，请重试。';
@@ -378,13 +388,23 @@ export function useEditorGenerationFlow({
 
   const retryLastAiAction = useCallback(async () => {
     if (aiActionState.status !== 'error' || !aiActionState.retryable) return;
+    if (aiActionState.violations?.length) {
+      void recordProductEvent({
+        eventName: 'generation_retry_self_served',
+        stage: 'drafting',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: currentChapter?.id,
+        action: 'quality_gate_retry',
+      }).catch(() => undefined);
+    }
     if (aiActionState.operation === 'draft') await handleGenerateContent();
     else if (aiActionState.operation === 'beats') await handleGenerateBeats();
     else if (aiActionState.operation === 'audit') await handleRunAudit();
     else if (aiActionState.operation === 'polish') await handlePolishChapterFromAudit(retryContextRef.current?.fingerprint);
     else if (aiActionState.operation === 'rewrite') await handleRewriteSelectedText(retryContextRef.current?.input);
     else if (aiActionState.operation === 'outline') await handleGenerateOutline();
-  }, [aiActionState, handleGenerateBeats, handleGenerateContent, handleGenerateOutline, handlePolishChapterFromAudit, handleRewriteSelectedText, handleRunAudit]);
+  }, [aiActionState, novel.id, currentChapter?.id, handleGenerateBeats, handleGenerateContent, handleGenerateOutline, handlePolishChapterFromAudit, handleRewriteSelectedText, handleRunAudit]);
 
   return {
     isGeneratingContent,

@@ -17,6 +17,16 @@ vi.mock('../lib/db-transport', async (importOriginal) => ({
   getDatabaseGenerationSnapshot: dbTransportMocks.getDatabaseGenerationSnapshot,
 }));
 
+const appDialogMocks = vi.hoisted(() => ({
+  appConfirm: vi.fn(async () => true),
+  appPrompt: vi.fn(async () => '润色'),
+}));
+
+vi.mock('../components/ui/app-confirm', () => ({
+  appConfirm: appDialogMocks.appConfirm,
+  appPrompt: appDialogMocks.appPrompt,
+}));
+
 import { useAuditPolishActions } from '../lib/hooks/generation/useAuditPolishActions';
 
 function makeNovel(): Novel {
@@ -139,7 +149,10 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     chapterClientMocks.updateChapter.mockClear();
     chapterClientMocks.createChapterVersion.mockClear();
     dbTransportMocks.getDatabaseGenerationSnapshot.mockClear();
-    vi.stubGlobal('prompt', vi.fn(() => '润色'));
+    appDialogMocks.appConfirm.mockClear();
+    appDialogMocks.appConfirm.mockResolvedValue(true);
+    appDialogMocks.appPrompt.mockClear();
+    appDialogMocks.appPrompt.mockResolvedValue('润色');
     vi.stubGlobal('alert', vi.fn());
   });
 

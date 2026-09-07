@@ -61,7 +61,7 @@ export function ContinuationOverviewPanel({
             primary: {
               label: '审核资料包',
               icon: CheckCircle2,
-              onClick: () => onReviewDraft(state.draftPack!.id),
+              onClick: () => { if (state.draftPack) onReviewDraft(state.draftPack.id); },
             },
             secondary: {
               label: '重新导入资料',
@@ -78,7 +78,7 @@ export function ContinuationOverviewPanel({
               primary: {
                 label: '开始按资料续写',
                 icon: ArrowRight,
-                onClick: () => onStartWriting(state.approvedPack!.id, buildCreationIntentDraft(state.approvedPack!)),
+                onClick: () => { if (state.approvedPack) onStartWriting(state.approvedPack.id, buildCreationIntentDraft(state.approvedPack)); },
               },
               secondary: {
                 label: '更换资料包',
@@ -99,7 +99,7 @@ export function ContinuationOverviewPanel({
                 },
                 secondary: {
                   label: '仍然开始续写',
-                  onClick: () => onStartWriting(state.approvedPack!.id, buildCreationIntentDraft(state.approvedPack!)),
+                  onClick: () => { if (state.approvedPack) onStartWriting(state.approvedPack.id, buildCreationIntentDraft(state.approvedPack)); },
                   tone: 'warning' as const,
                 },
               }
@@ -107,7 +107,7 @@ export function ContinuationOverviewPanel({
   const actionToneClasses =
     actionConfig?.accent === 'warning'
       ? {
-          shell: 'border-amber-300 bg-amber-50/80',
+ shell: 'alert-warning',
           badge: 'border-amber-300 bg-theme-sidebar text-amber-800',
           accent: 'bg-amber-500/10 text-amber-800',
           outcome: 'border-amber-200 bg-theme-sidebar/80 text-amber-800',
@@ -185,7 +185,7 @@ export function ContinuationOverviewPanel({
           <div className="mt-4 space-y-2">
             {state.highlightWarnings.length > 0 ? (
               state.highlightWarnings.map((warning) => (
-                <div key={warning} className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+ <div key={warning} className="rounded-2xl alert-warning px-3 py-2 text-xs">
                   {warning}
                 </div>
               ))
@@ -199,7 +199,7 @@ export function ContinuationOverviewPanel({
             <button
               type="button"
               onClick={() => onOpenPackManagement(primaryPack.id)}
-              className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100"
+ className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-xl alert-warning px-3 py-2 text-xs font-bold hover:bg-amber-100"
             >
               <Eye size={14} />
               {state.contradictionCount > 0 ? '查看并处理' : '查看详情'}
@@ -226,7 +226,7 @@ export function ContinuationOverviewPanel({
               </div>
               <button
                 onClick={() => actionConfig.primary.onClick()}
-                className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-theme-text px-5 py-4 text-sm font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5 sm:w-auto sm:min-w-[240px]"
+                className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-theme-text px-5 py-4 text-sm font-bold text-theme-bg shadow-sm transition-transform hover:-translate-y-0.5 sm:w-auto sm:min-w-[240px]"
               >
                 <actionConfig.primary.icon size={16} />
                 {actionConfig.primary.label}
@@ -244,7 +244,7 @@ export function ContinuationOverviewPanel({
                 onClick={() => actionConfig.secondary.onClick()}
                 className={
                   actionConfig.secondary.tone === 'warning'
-                    ? 'mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800'
+ ? 'mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl alert-warning px-5 py-3 text-sm font-bold'
                     : 'mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-theme-border px-5 py-3 text-sm font-bold text-theme-text'
                 }
               >
@@ -268,7 +268,7 @@ export function ContinuationOverviewPanel({
             </button>
             <button
               onClick={() => onStartStoryboard?.(primaryPack.id, buildCreationIntentDraft(primaryPack))}
-              className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold hover:opacity-90 transition-opacity"
+              className="px-3 py-1.5 rounded-lg bg-theme-accent text-theme-accent-contrast text-[10px] font-bold hover:opacity-90 transition-opacity"
             >
               进入分镜准备
             </button>

@@ -82,7 +82,7 @@ export function SetupAssistantPanel({
         <button
           onClick={onSubmit}
           disabled={!selectedTask || !textareaValue.trim() || submitting}
-          className="w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-white shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-60 disabled:shadow-none disabled:active:scale-100"
+          className="w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-theme-accent-contrast shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-60 disabled:shadow-none disabled:active:scale-100"
         >
           {submitting ? (
             <div className="flex items-center justify-center gap-2">

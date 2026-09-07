@@ -185,10 +185,11 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(studio).toContain('你还没有保存能力卡');
     expect(studio).toContain('辅助写作推荐能力卡');
     expect(studio).toContain('能力卡如何影响写作');
-    expect(studio).toContain('加入本次配置候选');
+    expect(studio).toContain('启用所选');
+    expect(studio).toContain('应用配置并返回写作');
     expect(studio).toContain('重新预览本次配置');
     expect(studio).toContain('本次配置仍待应用；应用成功后才更新作品状态。');
-    expect(studio).toContain('点击应用配置后才写入作品');
+    expect(studio).toContain('点击应用配置才会写入作品卡组');
     expect(studio).toContain('请再次点击应用配置以写入作品');
     expect(knowledgePanel).toContain('本章使用规则只影响当前章节');
     expect(knowledgePanel).not.toContain('本章技法已作为本章使用规则显示');
@@ -201,7 +202,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(stageCards).toContain('应用配置后设为作品默认');
     expect(stageCards).toContain('应用配置后写入本章规则');
     expect(stageCards).toContain('应用配置后可写入本章规则');
-    expect(studio).toContain('先勾选待提交，再加入本次配置候选并按每步结果确认下一步');
+    expect(studio).toContain('勾选后点「启用所选」即生效，可撤销。');
     expect(studio).toContain('先勾开篇结构，再按需选择正文表达技法');
     expect(studio).not.toContain('先加入本次配置候选，再按每步结果确认下一步');
     expect(studio).not.toContain('先勾开篇结构，再按需启用正文表达技法');
@@ -366,7 +367,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(welcome).toContain('爽点大纲规则');
     expect(welcome).not.toContain('爽点大纲规约');
     expect(skillCard).toContain('打开能力卡');
-    expect(skillCard).toContain('加入本次配置候选');
+    expect(skillCard).toContain('启用');
     expect(skillCard).not.toContain('当前配置候选');
     expect(studio).not.toContain('再加入候选');
     expect(`${studio}\n${preference}\n${loadout}\n${drawer}\n${mapPanel}\n${testBench}\n${skillCard}\n${welcome}\n${appShell}\n${governance}`).not.toMatch(/技能库|技能卡组|项目技能卡组|待分配技能卡|拆书技能卡|装配 Skill|装配能力|旧装配待整理|确认删除这个技能|技能库中删除|已装配|加入技能卡组|未命名 Skill|拆书技能|拆书生成技能|辅助写作推荐技能卡|技能如何影响写作|提交所选组件|当前组件暂不可运行|选择一张技能卡|技能卡牌有哪些能力|对应技能|技能融合|本章临时使用|临时配置|关闭技能详情|技能名称|技能描述|使用当前技能|深度挂载已有资产大纲|自适应挂载分析|挂载至第一章主角人设卡|自动挂载高连贯性升级限制|挂载 \$\{bubbleData|Skill 地图|技能总数|有使用反馈的 Skill|技能试驾|当前技能版本|当前职责卡|组合职责卡|对比职责卡|职责权重|主职责|职责画像|打开技能|删除技能|进行装备/);

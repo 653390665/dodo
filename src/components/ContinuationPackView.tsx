@@ -553,7 +553,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
               <button
                 onClick={() => handleApprovePack(activePack)}
                 disabled={!canApprove}
-                className="px-4 py-2 rounded-xl bg-theme-accent text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-theme-accent text-theme-accent-contrast text-sm font-bold disabled:opacity-50 flex items-center gap-2"
               >
                 <CheckCircle2 size={14} /> 确认资料包
               </button>
@@ -563,7 +563,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
                 <button
                   onClick={() => handleSyncEntities(activePack)}
                   disabled={isExtracting}
-                  className="px-4 py-2 rounded-xl bg-theme-accent text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-theme-accent text-theme-accent-contrast text-sm font-bold disabled:opacity-50 flex items-center gap-2"
                 >
                   {isExtracting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   {isExtracting ? '正在提取...' : '提取并预览'}
@@ -591,7 +591,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
           {error?.code && errorAlert}
 
           {activePack.contradictions.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+ <div className="rounded-xl alert-warning p-3 text-xs">
               <div className="font-bold flex items-center gap-1"><AlertTriangle size={12} />发现资料冲突</div>
               {activePack.contradictions.map((c) => {
                 const resolutionDraft = activePack.status === 'approved'
@@ -650,7 +650,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
           )}
 
           {activePack.canonFacts.length === 0 && activePack.status === 'draft' && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+ <div className="rounded-xl alert-warning p-3 text-xs">
               未识别到硬设定事实，但仍可确认资料包。建议先检查上传资料是否包含世界观或设定信息。
             </div>
           )}
@@ -758,7 +758,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
                   className="w-full h-20 bg-theme-sidebar border border-theme-border rounded-xl p-3 text-xs text-theme-text placeholder:text-theme-muted/50 resize-none shadow-sm focus-visible:outline-none focus-visible:border-theme-accent focus-visible:ring-2 focus-visible:ring-theme-accent/20"
                 />
                 <div className="flex gap-2">
-                  <button onClick={handleSaveTask} className="px-3 py-1.5 rounded-lg bg-theme-accent text-white text-[10px] font-bold">
+                  <button onClick={handleSaveTask} className="px-3 py-1.5 rounded-lg bg-theme-accent text-theme-accent-contrast text-[10px] font-bold">
                     保存
                   </button>
                   <button onClick={() => setEditingTask(false)} className="px-3 py-1.5 rounded-lg bg-theme-sidebar text-theme-text text-[10px] font-bold border border-theme-border">

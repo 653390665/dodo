@@ -9,19 +9,18 @@ export function validate(schema: z.ZodSchema) {
     if (!result.success) {
       console.error('[Validation Failed] Path:', req.path, 'Issues:', JSON.stringify(result.error.issues, null, 2));
 
-      // Write detailed validation log only when INKFLOW_VALIDATION_DEBUG=true
-      if (process.env.INKFLOW_VALIDATION_DEBUG === 'true') {
+      // Write detailed validation log only when INKFLOW_VALIDATION_DEBUG=1.
+      // The body can contain full manuscripts — always truncate long strings
+      // before persisting, and never enable this in production.
+      if (process.env.INKFLOW_VALIDATION_DEBUG === '1' && process.env.NODE_ENV !== 'production') {
         try {
-            const _errorLogPath = path.join(process.cwd(), 'validation-debug.log');
-            const safeBody = JSON.parse(JSON.stringify(req.body, (key, value) => {
-              if (key === 'filedata' && typeof value === 'string') return value.slice(0, 200) + '...[TRUNCATED]';
-              return value;
-            }));
-            const logContent = `\n=========================================\n[${new Date().toISOString()}] Validation Failed\nPath: ${req.path}\nIssues: ${JSON.stringify(result.error.issues, null, 2)}\nBody: ${JSON.stringify(safeBody, null, 2)}\n=========================================\n`;
-            // Validation debug logging disabled in production — enable via INKFLOW_DEBUG_VALIDATION=1
-            if (process.env.INKFLOW_DEBUG_VALIDATION === '1') {
-              fs.appendFileSync(_errorLogPath, logContent, 'utf8');
-            }
+          const errorLogPath = path.join(process.cwd(), 'validation-debug.log');
+          const safeBody = JSON.parse(JSON.stringify(req.body, (key, value) => {
+            if (typeof value === 'string' && value.length > 200) return value.slice(0, 200) + '...[TRUNCATED]';
+            return value;
+          }));
+          const logContent = `\n=========================================\n[${new Date().toISOString()}] Validation Failed\nPath: ${req.path}\nIssues: ${JSON.stringify(result.error.issues, null, 2)}\nBody: ${JSON.stringify(safeBody, null, 2)}\n=========================================\n`;
+          fs.appendFileSync(errorLogPath, logContent, 'utf8');
         } catch (_err) { /* ignore */ }
       }
 
@@ -286,9 +285,15 @@ export const dbSchema = z.object({
   }
 });
 
+// LLM endpoints must be http(s): the server forwards the user's API key as a
+// Bearer header, so exotic schemes (file:, data:, etc.) are rejected outright.
+const llmBaseUrlSchema = z.string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), '仅支持 http(s) 地址');
+
 export const configSchema = z.object({
   apiKey: z.string().optional(),
-  baseUrl: z.string().url().optional().or(z.literal('')),
+  baseUrl: llmBaseUrlSchema.optional().or(z.literal('')),
   model: z.string().optional(),
   promptGuardLevel: z.enum(['strict', 'balanced', 'disabled']).optional(),
   promptTemplates: z.record(z.string(), z.unknown()).optional(),
@@ -296,7 +301,7 @@ export const configSchema = z.object({
 
 export const configConnectionSchema = z.object({
   apiKey: z.string().max(20_000).optional(),
-  baseUrl: z.string().url().max(2_000).optional().or(z.literal('')),
+  baseUrl: llmBaseUrlSchema.max(2_000).optional().or(z.literal('')),
   model: z.string().max(500).optional(),
 });
 

@@ -13,6 +13,8 @@ import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { clearProductEvents, exportProductEvents, getProductMetrics } from '../lib/product-events-client';
 import type { ProductEventMetrics } from '../../shared/types/product-events';
 import { isMonetizationEnabled } from '../lib/entitlements';
+import { appConfirm } from './ui/app-confirm';
+import { toast } from '../lib/toast';
 
 const formatRate = (rate?: ProductEventMetrics['rates']['previewAcceptance'] | null) => {
   if (!rate || rate.denominator === 0 || rate.value == null) return '暂无';
@@ -138,18 +140,18 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   }, [isOpen, settingsTab, loadProductMetrics]);
 
   const handleExportProductEvents = async () => {
-    try { await exportProductEvents(); } catch (error) { alert(`导出指标失败: ${error instanceof Error ? error.message : '未知错误'}`); }
+    try { await exportProductEvents(); } catch (error) { toast(`导出指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error'); }
   };
   const handleClearProductEvents = async () => {
-    if (!window.confirm('确定清除本机创作指标吗？此操作不可撤销。')) return;
-    try { await clearProductEvents(); await loadProductMetrics(); } catch (error) { alert(`清除指标失败: ${error instanceof Error ? error.message : '未知错误'}`); }
+    if (!(await appConfirm('清除本机创作指标？', '此操作不可撤销。', { confirmLabel: '清除' }))) return;
+    try { await clearProductEvents(); await loadProductMetrics(); } catch (error) { toast(`清除指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error'); }
   };
 
   const handleExportData = async () => {
     try {
       await downloadDbBackup();
     } catch (err) {
-      alert(`❌ 导出备份失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      toast(`导出备份失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error');
     }
   };
 
@@ -160,7 +162,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const confirmRestore = window.confirm("⚠️ 警告：导入旧数据会完全覆盖当前系统的所有小说、设定和章节，且无法撤销。系统在覆盖前会自动为您创建一份安全灾难备份。您确定要执行覆盖恢复吗？");
+    const confirmRestore = await appConfirm('覆盖恢复旧数据？', '导入旧数据会完全覆盖当前系统的所有小说、设定和章节，且无法撤销。系统在覆盖前会自动为您创建一份安全灾难备份。确定执行覆盖恢复吗？', { confirmLabel: '覆盖恢复' });
     if (!confirmRestore) {
       e.target.value = '';
       return;
@@ -175,10 +177,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.error) throw new Error(data.error || '恢复数据失败');
-      alert("🎉 数据恢复成功！页面即将自动刷新加载最新数据。");
-      window.location.reload();
+      toast('🎉 数据恢复成功！页面即将自动刷新加载最新数据。', 'success', 2500);
+      window.setTimeout(() => window.location.reload(), 2200);
     } catch (err) {
-      alert(`❌ 恢复数据失败，当前数据库未被替换: ${err instanceof Error ? err.message : '未知错误'}`);
+      toast(`恢复数据失败，当前数据库未被替换: ${err instanceof Error ? err.message : '未知错误'}`, 'error', 5000);
     } finally {
       setSaving(false);
       e.target.value = '';
@@ -581,7 +583,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
 
                   {configLoadStatus === 'error' && (
-                    <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+ <div role="alert" className="flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-[11px]">
                       <span>配置状态暂时无法确认{configLoadError ? `：${configLoadError}` : ''}</span>
                       <button type="button" onClick={() => void loadConfig()} className="shrink-0 border border-amber-400 px-2 py-1 font-bold">重新加载配置</button>
                     </div>
@@ -984,7 +986,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   <div className="flex flex-wrap gap-2">
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${
                       hasUnsavedChanges
-                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+ ? 'alert-warning'
                         : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                     }`}>
                       {hasUnsavedChanges ? '存在未保存修改' : '当前修改已保存'}
@@ -1050,7 +1052,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                             )}
                           </div>
                           {missingVariables.length > 0 && (
-                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] text-amber-700 leading-relaxed">
+ <div className="mt-3 rounded-xl alert-warning px-3 py-3 text-[11px] leading-relaxed">
                               缺少关键变量：
                               <span className="font-mono"> {missingVariables.map((item) => `{{${item}}}`).join('、')}</span>
                               。删掉它们后，这条链路会丢上下文。

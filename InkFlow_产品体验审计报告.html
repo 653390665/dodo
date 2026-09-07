@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+@page {
+    size: A4;
+    margin: 25mm 20mm 20mm 20mm;
+
+    @top-center {
+        content: "InkFlow 墨影 产品体验审计  |  横纵分析法深度研究报告";
+        font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #95a5a6;
+        border-bottom: 0.5pt solid #ecf0f1;
+        padding-bottom: 3mm;
+    }
+
+    @bottom-center {
+        content: "第 " counter(page) " 页";
+        font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #95a5a6;
+        border-top: 0.8pt solid #1a5276;
+        padding-top: 2mm;
+    }
+}
+
+@page :first {
+    @top-center { content: none; }
+    @bottom-center { content: none; }
+}
+
+body {
+    font-family: "Droid Sans Fallback", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.75;
+    color: #2c3e50;
+    text-align: justify;
+}
+
+/* 封面 */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 45%;
+}
+.cover h1 {
+    font-size: 28pt;
+    color: #1a5276;
+    margin-bottom: 8mm;
+    font-weight: bold;
+    letter-spacing: 2pt;
+}
+.cover .subtitle {
+    font-size: 14pt;
+    color: #95a5a6;
+    margin-bottom: 6mm;
+}
+.cover .meta {
+    font-size: 11pt;
+    color: #95a5a6;
+    margin-bottom: 4mm;
+}
+.cover .divider {
+    width: 60%;
+    margin: 8mm auto;
+    border: none;
+    border-top: 1.5pt solid #1a5276;
+}
+
+/* 一级标题 */
+h1 {
+    font-size: 20pt;
+    color: #1a5276;
+    margin-top: 16mm;
+    margin-bottom: 6mm;
+    padding-bottom: 3mm;
+    border-bottom: 2pt solid #1a5276;
+    page-break-before: always;
+    font-weight: bold;
+}
+
+/* 二级标题 */
+h2 {
+    font-size: 14pt;
+    color: #1e8449;
+    margin-top: 10mm;
+    margin-bottom: 5mm;
+    font-weight: bold;
+}
+
+/* 三级标题 */
+h3 {
+    font-size: 12pt;
+    color: #2e86c1;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    font-weight: bold;
+}
+
+h4 {
+    font-size: 11pt;
+    color: #5b2c6f;
+    margin-top: 5mm;
+    margin-bottom: 2mm;
+    font-weight: bold;
+}
+
+/* 段落 */
+p {
+    margin-top: 1.5mm;
+    margin-bottom: 1.5mm;
+    orphans: 3;
+    widows: 3;
+}
+
+/* 引用块 */
+blockquote {
+    margin: 4mm 0;
+    padding: 4mm 4mm 4mm 10mm;
+    background: #f8f9fa;
+    border-left: 3pt solid #1a5276;
+    color: #5d6d7e;
+    font-size: 10pt;
+}
+blockquote p {
+    margin: 1mm 0;
+}
+
+/* 粗体 */
+strong, b {
+    font-weight: bold;
+    color: #1a252f;
+}
+
+/* 行内代码 */
+code {
+    font-family: "Courier New", Courier, monospace;
+    background: #fdf2e9;
+    color: #c0392b;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2pt;
+    font-size: 9.5pt;
+}
+
+/* 表格 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+}
+thead th {
+    background: #1a5276;
+    color: white;
+    padding: 3mm;
+    text-align: left;
+    font-weight: bold;
+}
+tbody td {
+    padding: 2.5mm 3mm;
+    border-bottom: 0.5pt solid #bdc3c7;
+}
+tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+/* 分隔线 */
+hr {
+    border: none;
+    border-top: 0.5pt solid #bdc3c7;
+    margin: 4mm 0;
+}
+
+/* 列表 */
+ul, ol {
+    margin: 2mm 0;
+    padding-left: 8mm;
+}
+li {
+    margin-bottom: 1mm;
+}
+
+/* 链接 */
+a {
+    color: #2e86c1;
+    text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+    <div class="cover">
+        <h1 style="page-break-before: avoid; border: none;">InkFlow 墨影 产品体验审计</h1>
+        <div class="subtitle">横纵分析法深度研究报告</div>
+        <div class='meta'>研究时间：2026-09-03 | 审计对象：InkFlow 墨影 v1.2.0（dev 模式实测）| 方法：横纵分析法 · 实测走查</div>
+        <hr class="divider">
+        <div class="meta">作者: 横纵分析法 · 实测走查</div>
+    </div>
+    
+
+<blockquote>
+<p>研究时间：2026-09-03 | 审计对象：InkFlow 墨影 v1.2.0（dev 模式实测）| 方法：横纵分析法 · 实测走查</p>
+</blockquote>
+<h2>一、审计结论（TL;DR）</h2>
+<p><strong>设计上的产品链路是完整的，但真实模型下的第一步 AI 交互就被一个兼容性缺陷阻断。</strong>用 e2e 测试的确定性夹具跑，全旅程（开书→生成→审校→导出）都能走通；换上真实的 DeepSeek V4 Flash 模型，"开书立项"这一步连续失败两次，且失败后用户输入被清空。这是"功能跑通"与"真实可用"之间的核心差距。此外实测确认了两个体验断点（失败后状态回退、空状态循环指引）和两个疑似缺陷（字数统计不更新、自动保存未触发）。</p>
+<h2>二、审计范围与方法</h2>
+<ul>
+<li><strong>静态图谱</strong>：从 <code>tests/e2e/core-flow.spec.ts</code>（含"full novel happy path"）、<code>full-browser-click-journey.spec.ts</code>、README 工作流图、plans/ 审计记录反推设计旅程。</li>
+<li><strong>动态走查</strong>：以隔离数据目录（<code>INKFLOW_CONFIG_DIR</code> 指向临时目录，不触碰真实数据）启动 dev 服务，用真实浏览器以"新作者第一次使用"视角走查全部主链路，服务端日志交叉验证。</li>
+<li><strong>模型配置</strong>：DeepSeek V4 Flash（<code>https://api.deepseek.com/v1</code>），连接测试通过（发现 3 个模型）。</li>
+</ul>
+<h2>三、链路走查结果与评分</h2>
+<table>
+<thead>
+<tr>
+<th>链路</th>
+<th>评分</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首启与引导</td>
+<td>4.5 / 5</td>
+<td>✅ 优秀</td>
+</tr>
+<tr>
+<td>BYOK 模型配置</td>
+<td>3.5 / 5</td>
+<td>✅ 可走通，有摩擦</td>
+</tr>
+<tr>
+<td>开书立项（真实模型）</td>
+<td><strong>1.5 / 5</strong></td>
+<td>❌ P1 阻断</td>
+</tr>
+<tr>
+<td>本地建书与编辑器</td>
+<td>3.5 / 5</td>
+<td>⚠️ 可用，疑似缺陷</td>
+</tr>
+<tr>
+<td>正文导出</td>
+<td>4 / 5</td>
+<td>✅ 触发成功</td>
+</tr>
+<tr>
+<td>导航与空状态</td>
+<td>4 / 5</td>
+<td>✅ 良好，一处循环指引</td>
+</tr>
+</tbody>
+</table>
+<h3>3.1 首启与引导（4.5 / 5）——产品的门面担当</h3>
+<p>首屏同时呈现四层信息且互不打架：左侧"AI 创作状态监视器"（AI 引擎连接、语义索引、数据保护三项诚实标注，语义索引明确写"不可用（不影响保存）"）；琥珀色"本地无缝降级指引"横幅；"新手启航指南"弹条（说清书库为空、两条起步路径、去哪里配 API Key）；三步开书向导（题材→平台→篇幅文风）完整展开，未完成的步骤按钮呈禁用态。</p>
+<p>对照竞品基准：NovelCrafter/Sudowrite 的首启都要用户先读文档才能找到 Key 配置入口，InkFlow 把"状态诚实 + 下一步指引"做在了首屏，这是实测中体验最好的部分。扣 0.5 分的原因见 4.2 的占位符问题。</p>
+<h3>3.2 BYOK 模型配置（3.5 / 5）——能走通，但踩了两脚</h3>
+<p>正向：设置弹窗分区明确（"默认只处理模型接入；提示词实验室适合需要精修 AI 行为时再进入"）；"生效验证链"三步说明；质量守卫三档（严格纠错/前置规则/关闭守卫）把成本与质量的选择权交给用户；"测试连接"成功后会列出发现的模型数。</p>
+<p>实测踩到的两脚：<br>
+1. <strong>Base URL 留空时，报错是英文 "Validation failed"</strong>，中文排查建议只泛泛说"检查 Base URL 格式"，不指明"该字段为空"。用户在三栏里猜哪个错了。<br>
+2. <strong>全新安装时 API Key 输入框的占位符就是"已配置；留空保留，输入新 Key 替换"</strong>——首启并未配置任何 Key，这个占位符会让用户以为已经配置好了。</p>
+<h3>3.3 开书立项（1.5 / 5）——P1 阻断，本次审计最重要发现</h3>
+<p>三步向导本身流畅（题材/平台/篇幅/文风全是可视化卡片选择，"番茄平台=黄金三章爆发"这类文案把平台规则翻译成了创作语言，是好的产品设计）。点击"唤醒灵感，智能开书立项"后，真实模型下<strong>连续两次失败</strong>：</p>
+<ul>
+<li>第一次：<code>模型输出未通过质量校验，请重试</code></li>
+<li>第二次：<code>模型服务返回空结果</code></li>
+</ul>
+<p><strong>根因已定位到代码</strong>（<code>server/lib/server-llm.ts</code>）：应用对 OpenAI 兼容渠道硬性封顶 <code>max_completion_tokens = min(maxTokens, 2048)</code>。DeepSeek V4 Flash 是推理模型，响应含 <code>reasoning_content</code>——复杂立项提示词下推理就耗尽了 2048 token 预算，<code>content</code> 返回为空（第二次错误的来源）；偶尔挤出的部分内容又被严格质量守卫拒绝（第一次错误的来源）。代码里其实已经有 <code>reasoning_only</code>、<code>length_exhausted</code> 的错误分类（说明作者预见过这类模型），但 2048 上限没有为推理模型留出预算。<strong>作者自己最常用的就是 DeepSeek——这个兼容性问题会打在最常用的模型上。</strong></p>
+<p>更糟的是失败之后的表现：<strong>向导回退到第一步，灵感输入框被清空</strong>，立项按钮回到禁用态。用户写下的创意 seed 直接丢失，必须完整重填。对创作工具来说，"用户输入的创意文本"是最不该丢的东西。</p>
+<h3>3.4 本地建书与编辑器（3.5 / 5）</h3>
+<p>"创建空白作品"绕过 AI 直接建书成功，验证了"本地无缝降级"的承诺。编辑器信息密度出色：写法来源面板（作品默认/本章/技法/系统护栏 12 条）、空章节指引（"当前阶段主动作：生成分镜，也可以直接在编辑器中起笔"）、"索引 降级"诚实标记、导出入口。</p>
+<p><strong>疑似缺陷（P1，建议人工复验）</strong>：在正文 textarea（占位符"在这里开始书写这一章……"）输入 43 字后——包括用 <code>execCommand insertText</code> 的真实输入路径复测——顶部"字数 0"始终不更新，且 10 秒以上未见自动保存触发（产品宣称 3 秒防抖自动保存）。e2e 用 Playwright <code>fill()</code> 填充后只断言了 textarea 的 value 和导出成功，<strong>没有断言字数统计和保存指示器</strong>，所以这个缺陷从测试网里漏了过去。保留意见：审计环境跳过了"选择推荐创作流程"模态（实测未出现），不排除该模态承担了编辑器状态初始化的职责；需要按 e2e 的完整路径人工复验。</p>
+<h3>3.5 导出与导航（4 / 5）</h3>
+<p>导出按钮触发 PDF 导出模块执行成功。导航走查：我的书库空状态干净（两条创建路径）；创作工作台的"暂未开启"预览态把四象限价值讲清楚了；资料续写页用 4 步说清了"这不是资料管理页"的定位。两个小问题：① 书库空状态引导"去智能管家构思故事框架"，但智能管家页在无作品时显示的是工作台占位（"先选择或创建作品"）——<strong>循环指引</strong>，新用户被绕回原地；② 侧边栏"高级工具"点击后落在"资料续写"页，指向与命名不符。</p>
+<h2>四、断点清单（按优先级）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>严重度</th>
+<th>位置</th>
+<th>现象</th>
+<th>修复建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>P1</strong></td>
+<td>server-llm.ts L278</td>
+<td>推理模型（V4 Flash）被 2048 token 上限掐断，立项/生成必失败</td>
+<td>按模型是否为推理型动态放宽 max_completion_tokens（DeepSeek 官方支持 8k+），或对 reasoning_content 单独预算</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>P1</strong></td>
+<td>开书向导</td>
+<td>立项失败后回退第一步、灵感文本清空</td>
+<td>失败保留全部向导状态与输入，就地提供"重试"</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>P1(疑似)</strong></td>
+<td>编辑器</td>
+<td>手写 43 字后字数统计 0、自动保存未触发</td>
+<td>先人工复验；若确认，检查 onChange → store 的绑定</td>
+</tr>
+<tr>
+<td>4</td>
+<td>P2</td>
+<td>设置弹窗</td>
+<td>Base URL 为空时错误文案是英文 Validation failed，未指明字段</td>
+<td>校验错误映射为中文字段级提示</td>
+</tr>
+<tr>
+<td>5</td>
+<td>P2</td>
+<td>设置弹窗</td>
+<td>全新安装时 Key 占位符显示"已配置"</td>
+<td>按真实配置态切换占位符</td>
+</tr>
+<tr>
+<td>6</td>
+<td>P2</td>
+<td>书库/管家空状态</td>
+<td>"去智能管家构思"→管家页要求"先创建作品"循环指引</td>
+<td>无作品时智能管家应提供独立的构思入口</td>
+</tr>
+<tr>
+<td>7</td>
+<td>P3</td>
+<td>侧边栏</td>
+<td>"高级工具"落在"资料续写"页</td>
+<td>核对导航指向</td>
+</tr>
+<tr>
+<td>8</td>
+<td>P3</td>
+<td>设置弹窗</td>
+<td>弹窗对失焦/标签切换敏感（自动化环境观察，疑似）</td>
+<td>复验是否误关</td>
+</tr>
+</tbody>
+</table>
+<h2>五、功能完成度地图（README 宣称 vs 实测）</h2>
+<table>
+<thead>
+<tr>
+<th>README 宣称</th>
+<th>实测</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一句话开书（智能立项）</td>
+<td>❌ 真实模型下阻断（#1）</td>
+</tr>
+<tr>
+<td>本地无缝降级写作</td>
+<td>✅ 兑现（建书/编辑/导出全程无 AI 可用）</td>
+</tr>
+<tr>
+<td>状态诚实展示</td>
+<td>✅ 兑现（监视器/索引降级横幅）</td>
+</tr>
+<tr>
+<td>设定记忆/记忆雷达</td>
+<td>⏳ 未实测（依赖生成链路，被 #1 阻断）</td>
+</tr>
+<tr>
+<td>去AI味审稿</td>
+<td>⏳ 未实测（同上）；守卫三档 UI 已就绪</td>
+</tr>
+<tr>
+<td>3 秒防抖自动保存 + 实时字数</td>
+<td>⚠️ 疑似失效（#3）</td>
+</tr>
+<tr>
+<td>导出</td>
+<td>✅ 兑现</td>
+</tr>
+</tbody>
+</table>
+<h2>六、给下一步的建议</h2>
+<ol>
+<li><strong>先修 #1</strong>：这是所有 AI 链路的总闸门。修好后立项、分镜、正文、审校四条链路可能一并恢复——建议同时把"推理模型 max_tokens"加进 e2e 的真实模型冒烟用例（现有 fixture 测不出这类问题）。</li>
+<li><strong>再修 #2 和 #3</strong>：用户输入丢失和数据保存是创作工具的信任底线。</li>
+<li>体验层面，这个产品的"诚实降级"设计（状态监视器 + 琥珀横幅 + 本地可写）是竞品（Sudowrite/NovelCrafter 均为纯云端）没有的差异化资产，值得作为产品叙事保持下去。</li>
+</ol>
+<hr>
+<p><strong>方法论说明</strong>：横纵分析法由数字生命卡兹克（Khazix）提出；本报告在其框架下以"静态图谱还原 + 真实环境实测走查"执行，竞品基准取自 2026-09-02 的市场调研（Sudowrite、NovelCrafter、笔灵、蛙蛙写作、彩云小梦等，详见同目录《InkFlow墨影_横纵分析报告.pdf》）。</p>
+</body>
+</html>

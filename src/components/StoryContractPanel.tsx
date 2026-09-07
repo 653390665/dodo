@@ -107,7 +107,7 @@ export function StoryContractPanel({ contract, onSave, onClose }: StoryContractP
           <button
             onClick={addRule}
             aria-label="添加约束"
-            className="px-3 py-2 bg-theme-accent text-white rounded-xl text-xs font-bold"
+            className="px-3 py-2 bg-theme-accent text-theme-accent-contrast rounded-xl text-xs font-bold"
           >
             <Plus size={14} />
           </button>
@@ -139,7 +139,7 @@ export function StoryContractPanel({ contract, onSave, onClose }: StoryContractP
       {/* Save */}
       <button
         onClick={() => onSave(draft)}
-        className="w-full py-3 bg-theme-accent text-white rounded-xl text-sm font-bold shadow-sm hover:bg-theme-accent/90"
+        className="w-full py-3 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold shadow-sm hover:bg-theme-accent/90"
       >
         保存合同
       </button>

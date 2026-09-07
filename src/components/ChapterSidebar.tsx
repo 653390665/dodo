@@ -16,6 +16,8 @@ interface ChapterSidebarProps {
   onBack: () => void;
   expandedVolumes: string[];
   onToggleVolume: (volumeName: string) => void;
+  /** Chapters with a generated-but-not-accepted production preview (PRD Story 4). */
+  previewChapterIds?: ReadonlySet<string>;
 }
 
 export const ChapterSidebar = React.memo(function ChapterSidebar({
@@ -30,6 +32,7 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
   onBack,
   expandedVolumes,
   onToggleVolume,
+  previewChapterIds,
 }: ChapterSidebarProps) {
 
   const groupedChapters = React.useMemo(() => {
@@ -52,7 +55,13 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
       {!isFullscreen && isSidebarOpen && (
         <div
           id="chapter-sidebar-panel"
-          className="flex flex-col border-r border-theme-border bg-transparent overflow-hidden"
+          className={cn(
+            'flex flex-col overflow-hidden',
+            // Small screens: float over the content instead of squeezing the
+            // editor down to a sliver (mirrors the AgentWorkspace drawer).
+            'max-md:absolute max-md:inset-y-3 max-md:left-3 max-md:z-30 max-md:w-[min(280px,calc(100%-1.5rem))] max-md:rounded-3xl max-md:border max-md:border-theme-border max-md:bg-theme-sidebar/95 max-md:shadow-2xl max-md:backdrop-blur-sm',
+            'md:relative md:border-r md:border-theme-border',
+          )}
         >
           <div className="p-4 border-b border-theme-border bg-transparent sticky top-0 z-10 flex items-center justify-between">
             <button
@@ -66,7 +75,7 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
             <h2 className="text-sm font-bold uppercase tracking-widest text-theme-muted truncate max-w-[120px]">{novel.title}</h2>
             <button
               onClick={() => onAddChapter()}
-              className="p-2 hover:opacity-90 bg-theme-accent text-white rounded-lg transition-[background-color,opacity,box-shadow] duration-200"
+              className="p-2 hover:opacity-90 bg-theme-accent text-theme-accent-contrast rounded-lg transition-[background-color,opacity,box-shadow] duration-200"
               title="新建章节"
               aria-label="新建章节"
             >
@@ -124,7 +133,17 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
                             aria-label={`打开章节：${chapter.title}`}
                             className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/50 rounded"
                           >
-                            <span className="text-sm font-medium truncate">{chapter.title}</span>
+                            <span className="text-sm font-medium truncate flex items-center gap-1.5">
+                              {chapter.title}
+                              {previewChapterIds?.has(chapter.id) ? (
+                                <span
+                                  className="shrink-0 px-1 py-0.5 rounded text-[8px] font-bold bg-amber-100 text-amber-700"
+                                  title="该章节有已生成、尚未接受的正文预览"
+                                >
+                                  预览
+                                </span>
+                              ) : null}
+                            </span>
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); onDeleteChapter(chapter.id); }}

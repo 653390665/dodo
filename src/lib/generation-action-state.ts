@@ -43,6 +43,8 @@ export interface AiActionState {
   elapsedMs?: number;
   retryable?: boolean;
   errorCode?: string;
+  /** Quality-gate violation details; rendered so users can self-serve a retry. */
+  violations?: string[];
 }
 
 const RUNNING_COPY: Record<AiActionOperation, string> = {
@@ -87,6 +89,7 @@ export function createAiActionError(
   finishedAt = Date.now(),
   retryable = true,
   errorCode?: string,
+  violations?: string[],
 ): AiActionState {
   return {
     ...current,
@@ -95,5 +98,6 @@ export function createAiActionError(
     elapsedMs: Math.max(0, finishedAt - (current.startedAt ?? finishedAt)),
     retryable,
     ...(errorCode ? { errorCode } : {}),
+    ...(violations?.length ? { violations } : {}),
   };
 }

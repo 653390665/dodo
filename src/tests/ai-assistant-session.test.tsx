@@ -197,8 +197,8 @@ describe('AIAssistant general session', () => {
     fireEvent.change(screen.getByPlaceholderText('创作困惑？'), { target: { value: '请求灵感' } });
     fireEvent.click(screen.getByRole('button', { name: '发送消息' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('模型未返回内容'));
-    expect(screen.getByRole('alert').textContent).toContain('no_content');
+    await waitFor(() => expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('模型未返回内容'));
+    expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('no_content');
   });
 
   test('服务端 reason、finishReason、traceId 在告警中可见且不暴露 prompt', async () => {
@@ -209,8 +209,8 @@ describe('AIAssistant general session', () => {
     fireEvent.change(screen.getByPlaceholderText('创作困惑？'), { target: { value: '私密提示词' } });
     fireEvent.click(screen.getByRole('button', { name: '发送消息' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('输出因长度限制结束'));
-    const alert = screen.getByRole('alert').textContent || '';
+    await waitFor(() => expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('输出因长度限制结束'));
+    const alert = screen.getByRole('alert', { name: '助手请求失败' }).textContent || '';
     expect(alert).toContain('finishReason: length');
     expect(alert).toContain('诊断编号：trace-ai-1');
     expect(alert).not.toContain('私密提示词');

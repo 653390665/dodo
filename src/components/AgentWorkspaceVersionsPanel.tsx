@@ -24,7 +24,7 @@ export function AgentWorkspaceVersionsPanel({
           <button
             onClick={() => onSaveVersion('user')}
             disabled={!currentChapter || !currentChapter.content}
-            className="text-[10px] bg-theme-text text-white px-2 py-1 rounded shadow-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1"
+            className="text-[10px] bg-theme-text text-theme-bg px-2 py-1 rounded shadow-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1"
           >
             <Save size={10} /> 存为快照
           </button>

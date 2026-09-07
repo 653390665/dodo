@@ -193,9 +193,10 @@ export function registerOnboardingRoutes(app: Express) {
           timeoutMs: 90_000,
           maxAttempts: 2,
           // Refine returns JSON that gets parsed; pin thinking off and give
-          // headroom so reasoning-heavy models don't truncate the payload.
+          // headroom so reasoning-heavy providers don't truncate the payload.
           maxTokens: 4000,
           disableThinking: true,
+          outputMode: 'audit-json',
         }));
       try {
         const parsed = JSON.parse(text);
@@ -313,6 +314,7 @@ ${slicedText}
           maxTokens: 4096,
           responseMimeType: 'application/json',
           disableThinking: true,
+          outputMode: 'audit-json',
           novelId,
         }));
 

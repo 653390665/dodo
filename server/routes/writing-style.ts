@@ -34,6 +34,9 @@ async function handle(req: Request, res: Response, confirm: boolean) {
             mode: result.resolution.mode,
             fingerprint: result.resolution.fingerprint,
             confirmedAt: Date.now(),
+            // Remember the pack so resolves that omit it keep the confirmed
+            // fingerprint stable instead of flipping to the default mode.
+            ...(req.body.continuationPackId ? { continuationPackId: req.body.continuationPackId } : {}),
           },
         } });
       }

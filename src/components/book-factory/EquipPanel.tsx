@@ -80,7 +80,7 @@ export function EquipPanel({
         <button
           onClick={() => deck ? onEquipDeck() : onEquipSkill()}
           disabled={!equipNovelId || isSaving || Boolean(disabledReason)}
-          className="rounded-xl bg-theme-accent text-white px-4 py-2 text-sm font-bold disabled:opacity-40 transition-opacity"
+          className="rounded-xl bg-theme-accent text-theme-accent-contrast px-4 py-2 text-sm font-bold disabled:opacity-40 transition-opacity"
         >
           {isSaving ? '处理中...' : disabledReason || (deck ? (savedDeckIds.length > 0 ? '提交到作品卡组待选' : '保存草稿，并提交到作品卡组待选') : '提交到作品卡组待选')}
         </button>

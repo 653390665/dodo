@@ -54,7 +54,7 @@ export function GlobalSetupTab({
           <button
             onClick={() => onSave(globalOutline, worldRules)}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-white rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm"
           >
             {isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}
           </button>

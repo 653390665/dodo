@@ -39,7 +39,7 @@ export function ContextReceipt({
             {receipt.sources?.map((source) => <div key={source.id}>{source.label} · {source.sha256 ? source.sha256.slice(0, 8) : 'legacy/unknown'} · {source.chars} 字符 · {source.itemCount} 条{source.truncated ? ' · 已截断' : ''}</div>)}
           </div>
         ) : (
-          <div className="col-span-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-800">
+ <div className="col-span-full rounded-lg alert-warning px-2 py-1.5">
             尚无实际运行凭证 · 来源版本未知
           </div>
         )}

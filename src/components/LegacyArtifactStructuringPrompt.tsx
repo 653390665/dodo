@@ -151,7 +151,7 @@ export function LegacyArtifactStructuringPrompt({ novelId }: { novelId: string }
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void confirm()} disabled={busy !== null} className="inline-flex min-h-9 items-center gap-2 rounded-md bg-theme-accent px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60">
+                    <button type="button" onClick={() => void confirm()} disabled={busy !== null} className="inline-flex min-h-9 items-center gap-2 rounded-md bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:cursor-wait disabled:opacity-60">
                       <Check size={14} aria-hidden="true" />{busy === 'confirm' ? '确认中' : '确认结构化版本'}
                     </button>
                     <button type="button" onClick={() => { setPreview(null); setError(null); }} disabled={busy !== null} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-theme-border px-3 py-2 text-xs font-bold text-theme-text disabled:opacity-60">

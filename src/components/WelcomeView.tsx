@@ -634,7 +634,7 @@ export function WelcomeView({
                           type="button"
                           disabled={!input.trim() && !selectedGenre}
                           onClick={() => setGuideStep(1)}
-                          className="px-4 py-2 rounded-lg bg-theme-text text-white hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          className="px-4 py-2 rounded-lg bg-theme-text text-theme-bg hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
                           下一步：选择发布平台
                           <ArrowRight size={12} />
@@ -723,7 +723,7 @@ export function WelcomeView({
                           type="button"
                           disabled={!selectedPlatform}
                           onClick={() => setGuideStep(2)}
-                          className="px-4 py-2 rounded-lg bg-theme-text text-white hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          className="px-4 py-2 rounded-lg bg-theme-text text-theme-bg hover:opacity-90 disabled:opacity-20 transition-all font-sans text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
                           下一步：篇幅与文风
                           <ArrowRight size={12} />
@@ -882,7 +882,7 @@ export function WelcomeView({
                           type="button"
                           disabled={!input.trim() || isWaiting}
                           onClick={handleSubmit}
-                          className="px-5 py-2.5 rounded-xl bg-theme-text text-white hover:opacity-95 disabled:opacity-20 transition-all font-sans text-xs font-black tracking-wide flex items-center gap-1.5 shadow-lg cursor-pointer"
+                          className="px-5 py-2.5 rounded-xl bg-theme-text text-theme-bg hover:opacity-95 disabled:opacity-20 transition-all font-sans text-xs font-black tracking-wide flex items-center gap-1.5 shadow-lg cursor-pointer"
                         >
                           {isWaiting ? (
                             <div className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1178,7 +1178,7 @@ export function WelcomeView({
                     });
                     setShowConfirmDetailsModal(true);
                   }}
-                  className="px-3 py-2 rounded bg-theme-text text-white hover:opacity-90 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
+                  className="px-3 py-2 rounded bg-theme-text text-theme-bg hover:opacity-90 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
                 >
                   <Sparkles size={11} />
                   接受治理规划立项

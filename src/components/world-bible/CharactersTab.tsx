@@ -48,7 +48,7 @@ export function CharactersTab({
         <h2 className="text-xl font-bold text-theme-text font-serif">登场人物</h2>
         <button
           onClick={() => addEntity('character')}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-white rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-text text-theme-bg rounded-xl hover:bg-theme-text/90 shadow-md transition-all"
         >
           <Plus size={16} />
           新增角色
@@ -101,7 +101,7 @@ export function CharactersTab({
               <button
                 onClick={() => handleGenerateBio(char)}
                 disabled={generatingBioIds.includes(char.id)}
-                className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-theme-sidebar border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-white transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-theme-sidebar border border-theme-border/50 text-theme-accent text-xs font-bold rounded-lg shadow-sm hover:bg-theme-accent hover:text-theme-accent-contrast transition-all opacity-0 group-hover/bio:opacity-100 disabled:opacity-50"
                 title="AI 生成背景故事"
               >
                 {generatingBioIds.includes(char.id) ? (

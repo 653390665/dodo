@@ -232,6 +232,18 @@ interface AgentWorkspaceProps {
   onConfirmWritingStyle?: (mode: WritingStyleMode) => Promise<string | void> | string | void;
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
+  /** Quick mode: continuous-writing draft without the audit pipeline. */
+  onQuickGenerate?: () => Promise<void> | void;
+  quickGenerateDisabled?: boolean;
+  /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
+  stepEvidence?: {
+    ideaChars?: number;
+    worldEntityCount?: number;
+    outlineChars?: number;
+    sceneBeatsChars?: number;
+    draftChars?: number;
+    auditPassed?: boolean;
+  };
   reviewIssues?: ReviewIssue[];
   onPreviewReviewIssue?: (issueId: string) => void | Promise<void>;
   onFixReviewIssues?: (issueIds: string[], scope?: string) => void | Promise<void>;
@@ -330,6 +342,9 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
+  onQuickGenerate,
+  quickGenerateDisabled,
+  stepEvidence,
   reviewIssues,
   onPreviewReviewIssue,
   onFixReviewIssues,
@@ -607,7 +622,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           className={cn(
             'min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
             agentTab === 'context' || agentTab === 'copilot-home'
-              ? 'bg-theme-text text-white'
+              ? 'bg-theme-text text-theme-bg'
               : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
           )}
         >
@@ -620,7 +635,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           className={cn(
             'min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
             agentTab === 'planning'
-              ? 'bg-theme-text text-white'
+              ? 'bg-theme-text text-theme-bg'
               : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
           )}
         >
@@ -633,7 +648,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           className={cn(
             'min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
             agentTab === 'production'
-              ? 'bg-theme-text text-white'
+              ? 'bg-theme-text text-theme-bg'
               : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
           )}
         >
@@ -646,7 +661,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           className={cn(
             'min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
             agentTab === 'quality'
-              ? 'bg-theme-text text-white'
+              ? 'bg-theme-text text-theme-bg'
               : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
           )}
         >
@@ -659,7 +674,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           className={cn(
             'min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
             agentTab === 'bible' || agentTab === 'trace'
-              ? 'bg-theme-text text-white'
+              ? 'bg-theme-text text-theme-bg'
               : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
           )}
         >
@@ -675,7 +690,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
             className={cn(
               'w-full min-w-0 py-1.5 px-2 rounded-full text-[11px] font-medium transition-[background-color,color,box-shadow] duration-200 flex items-center justify-center gap-1',
               isMoreMenuOpen || activeMoreItem
-                ? 'bg-theme-text text-white'
+                ? 'bg-theme-text text-theme-bg'
                 : 'text-theme-muted hover:bg-theme-sidebar hover:text-theme-text'
             )}
           >
@@ -728,7 +743,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="font-bold text-theme-text">正文候选待确认</span>
             <span className="min-w-0 flex-1 text-theme-muted">当前正文尚未修改，确认后才会写入。</span>
-            <span className={qualityState.status === 'eligible' ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700' : qualityState.status === 'fallback' ? 'rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700' : 'rounded border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700'} role="status">{qualityState.label}</span>
+            <span className={qualityState.status === 'eligible' ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700' : qualityState.status === 'fallback' ? 'rounded alert-warning px-2 py-0.5 text-[10px] font-bold' : 'rounded alert-danger px-2 py-0.5 text-[10px] font-bold'} role="status">{qualityState.label}</span>
             <span className="basis-full text-[10px] text-theme-muted">{qualityState.detail}</span>
             {aiContentCandidate.quality?.semanticReview.status === 'unknown' ? (
               <span className="basis-full text-[10px] text-amber-700" role="status">
@@ -911,9 +926,13 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                     {currentChapter.sceneBeats}
                   </div>
                 ) : (
-                  <div className="text-[11px] text-theme-muted/50 italic">
-                    暂无本章分镜。可前往「大纲」或「分镜」生成。
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAgentTab('planning')}
+                    className="w-full text-left text-[11px] text-theme-muted/70 italic hover:text-theme-accent transition-colors"
+                  >
+                    暂无本章分镜。点击前往「分镜」生成 →
+                  </button>
                 )}
               </div>
 
@@ -1081,6 +1100,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               isProductionRunning={isProductionRunning}
               isApplyingProductionRun={isApplyingProductionRun}
               productionError={productionError}
+              stepEvidence={stepEvidence}
               productionBeatsSource={productionBeatsSource}
               productionDraftSource={productionDraftSource}
               productionAuditSource={productionAuditSource}
@@ -1140,6 +1160,8 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               writingStyleCandidates={writingStyleCandidates}
               onConfirmWritingStyle={onConfirmWritingStyle}
               onGenerateWithWritingStyle={onGenerateWithWritingStyle}
+              onQuickGenerate={onQuickGenerate}
+              quickGenerateDisabled={quickGenerateDisabled}
               onOpenWritingStyle={onOpenWritingStyle}
               reviewIssues={reviewIssues}
               onPreviewReviewIssue={onPreviewReviewIssue}
@@ -1179,7 +1201,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                 });
               } : undefined}
               fallback={agentTab === 'skills' ? (
-                <div role="alert" className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900">
+ <div role="alert" className="space-y-3 rounded-xl alert-warning p-4 text-xs">
                   <p>写法面板暂时不可用，正文仍可继续编辑。</p>
                   <div className="flex flex-wrap gap-2">
                     <button

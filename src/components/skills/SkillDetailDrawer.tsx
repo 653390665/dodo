@@ -424,7 +424,7 @@ export function SkillDetailDrawer({
               <div className="space-y-3 text-xs">
                 <div>
                   <div className="text-[10px] font-bold text-red-600 mb-1">● 通用模型语气 (未使用)</div>
-                  <p className="text-[11px] text-theme-muted leading-relaxed pl-3 border-l border-red-200 bg-red-50/5 py-1.5 rounded-r">
+ <p className="text-[11px] text-theme-muted leading-relaxed pl-3 border-l alert-danger py-1.5 rounded-r">
                     平铺直叙，词风倾向大众套路；缺少当前角色情感滤镜；AI 倾向于快速收尾剧情，没有文风专项审计约束。
                   </p>
                 </div>
@@ -512,7 +512,7 @@ export function SkillDetailDrawer({
               type="button"
               onClick={() => handleSave('update')}
               disabled={savingMode !== null}
-              className="rounded-2xl bg-theme-text text-white px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className="rounded-2xl bg-theme-text text-theme-bg px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
               {savingMode === 'update' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               保存当前能力卡
@@ -521,7 +521,7 @@ export function SkillDetailDrawer({
               type="button"
               onClick={() => handleSave('fork')}
               disabled={savingMode !== null}
-              className="rounded-2xl bg-theme-accent text-white px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className="rounded-2xl bg-theme-accent text-theme-accent-contrast px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
               {savingMode === 'fork' ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
               {fusionPreview ? '保存融合为新版本' : '保存为新版本'}

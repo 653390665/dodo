@@ -115,7 +115,7 @@ export function AIAssistantDrawer({
         id="ai-assistant-drawer-container"
         role="dialog"
         aria-modal="true"
-        aria-label="智能管家"
+        aria-label="AI 协作助手"
         className="fixed right-0 top-0 z-[70] flex h-full min-h-0 w-[420px] max-w-[90vw] flex-col border-l border-theme-border bg-theme-sidebar shadow-2xl"
       >
         {showOnboardingDraft && onboardingDraft ? (
@@ -125,7 +125,7 @@ export function AIAssistantDrawer({
                 <button
                   onClick={() => setAIDrawerTab('cards')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'cards' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'
+                    aiDrawerTab === 'cards' ? 'bg-theme-text text-theme-bg' : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >
                   方案卡
@@ -133,7 +133,7 @@ export function AIAssistantDrawer({
                 <button
                   onClick={() => setAIDrawerTab('chat')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'chat' ? 'bg-theme-text text-white' : 'text-theme-muted hover:bg-theme-sidebar'
+                    aiDrawerTab === 'chat' ? 'bg-theme-text text-theme-bg' : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >
                   灵感对话
@@ -141,7 +141,7 @@ export function AIAssistantDrawer({
               </div>
               <button
                 onClick={onClose}
-                aria-label="关闭智能管家"
+                aria-label="关闭 AI 协作助手"
                 className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all"
               >
                 <X size={20} />
@@ -203,7 +203,7 @@ export function AIAssistantDrawer({
                   onClick={() => onAssistantModeChange('general')}
                   className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-md ${
                     assistantMode === 'general'
-                      ? 'bg-theme-text text-white'
+                      ? 'bg-theme-text text-theme-bg'
                       : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >
@@ -215,7 +215,7 @@ export function AIAssistantDrawer({
                   onClick={() => onAssistantModeChange('bible')}
                   className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-md ${
                     assistantMode === 'bible'
-                      ? 'bg-theme-text text-white'
+                      ? 'bg-theme-text text-theme-bg'
                       : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >

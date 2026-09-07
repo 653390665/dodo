@@ -4,6 +4,7 @@ import { PremiumUpgradeModal } from './commercial/PremiumUpgradeModal';
 import { WelcomeView } from './WelcomeView';
 import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from '../lib/toast';
+import { validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 
 const Library = lazy(() => import('./Library').then(m => ({ default: m.Library })));
 const AIAssistantDrawer = lazy(() => import('./AIAssistantDrawer').then(m => ({ default: m.AIAssistantDrawer })));
@@ -632,6 +633,12 @@ export function AppShell() {
     if (!target) return;
 
     const nextContent = appendAssistantTextToChapterContent(target.content || '', text);
+    // 质量门与智能管家同级：全局助手的正文写入也必须通过整章质量校验
+    const quality = validateCompleteChapterDraftQuality(nextContent);
+    if (!quality.ok) {
+      toast(`助手正文未通过质量门禁：${quality.violations.join('；')}`, 'error', 6500);
+      return;
+    }
     const saved = await updateChapter(target.id, {
       content: nextContent,
       wordCount: nextContent.replace(/\s/g, '').length,

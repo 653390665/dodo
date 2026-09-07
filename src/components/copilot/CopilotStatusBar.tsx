@@ -21,7 +21,7 @@ export function CopilotStatusBar({ suggestion, onPrimaryAction, onOpen }: Copilo
         <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => onPrimaryAction(suggestion.primaryAction.key)}
-            className="rounded-xl bg-theme-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-theme-accent/90 transition-colors"
+            className="rounded-xl bg-theme-accent px-3.5 py-2 text-sm font-medium text-theme-accent-contrast hover:bg-theme-accent/90 transition-colors"
           >
             {suggestion.primaryAction.label}
           </button>

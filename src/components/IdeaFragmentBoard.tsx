@@ -157,7 +157,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
               key={t}
               onClick={() => setNewType(t)}
               className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all flex items-center gap-1 ${
-                newType === t ? 'bg-theme-accent text-white' : 'bg-theme-sidebar text-theme-muted hover:bg-theme-border'
+                newType === t ? 'bg-theme-accent text-theme-accent-contrast' : 'bg-theme-sidebar text-theme-muted hover:bg-theme-border'
               }`}
             >
               {TYPE_ICONS[t]} {compact ? '' : TYPE_LABELS[t]}
@@ -172,7 +172,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
             placeholder="随手记下一个灵感碎片..."
             className="flex-1 text-sm px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent transition-colors"
           />
-          <button onClick={handleAdd} disabled={!newContent.trim()} className="px-4 py-2 bg-theme-accent text-white rounded-lg text-sm font-bold disabled:opacity-50 hover:opacity-90 transition-all">
+          <button onClick={handleAdd} disabled={!newContent.trim()} className="px-4 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-sm font-bold disabled:opacity-50 hover:opacity-90 transition-all">
             <Plus size={16} />
           </button>
         </div>

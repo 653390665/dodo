@@ -738,7 +738,7 @@ export function WorldBibleView({
     try {
       acceptedGeneration = requireAcceptedGeneration();
     } catch (error) {
-      alert(error instanceof Error ? error.message : '导入失败，请刷新后重试。');
+      toast(error instanceof Error ? error.message : '导入失败，请刷新后重试。', 'error');
       return;
     }
 
@@ -813,7 +813,7 @@ export function WorldBibleView({
           }, 800);
         } catch (err) {
           logger.error('WorldBibleView error:', err);
-          alert(err instanceof Error ? err.message : "导入失败，文档格式不正确或解析出错");
+          toast(err instanceof Error ? err.message : '导入失败，文档格式不正确或解析出错', 'error');
           setIsImporting(false);
         } finally {
           if (importControllerRef.current === importController) importControllerRef.current = null;
@@ -823,7 +823,7 @@ export function WorldBibleView({
       reader.readAsDataURL(file);
     } catch (err) {
       logger.error('WorldBibleView error:', err);
-      alert("导入失败，文档格式不正确或解析出错");
+      toast('导入失败，文档格式不正确或解析出错', 'error');
       setIsImporting(false);
     }
   };
@@ -988,7 +988,7 @@ export function WorldBibleView({
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm",
                 activeTab === tab.id
-                  ? "bg-theme-accent text-white shadow-md shadow-theme-accent/20"
+                  ? "bg-theme-accent text-theme-accent-contrast shadow-md shadow-theme-accent/20"
                   : "text-theme-muted hover:bg-theme-sidebar/50 hover:text-theme-text hover:translate-x-1"
               )}
               >
@@ -1011,7 +1011,7 @@ export function WorldBibleView({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 relative">
           {worldDataError ? (
-            <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-y border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+ <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 border-y alert-warning px-4 py-3 text-sm">
               <span>{worldDataError}</span>
               <button
                 type="button"
@@ -1131,7 +1131,7 @@ export function WorldBibleView({
                     onAcceptCandidate={(candidate) => void decideCharacterCandidate(candidate, 'accept')}
                     onRejectCandidate={(candidate) => void decideCharacterCandidate(candidate, 'reject')}
                     recommendationsByCharacterId={characterRecommendations}
-                    onDismissRecommendation={(_character, result) => { void dismissCharacterRecommendation(result).catch((error) => alert(error instanceof Error ? error.message : '暂时无法忽略该推荐')); }}
+                    onDismissRecommendation={(_character, result) => { void dismissCharacterRecommendation(result).catch((error) => toast(error instanceof Error ? error.message : '暂时无法忽略该推荐', 'error')); }}
                     onOpenCapabilityStore={onOpenCapabilityStore}
                   />
                 </div>
@@ -1244,7 +1244,7 @@ export function WorldBibleView({
                       }}
                       disabled={totalEntities < 2}
                       title={totalEntities < 2 ? '请先添加至少两个实体' : '新增关系'}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-theme-accent text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-theme-accent text-theme-accent-contrast rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus size={14} />
                       新增关系
