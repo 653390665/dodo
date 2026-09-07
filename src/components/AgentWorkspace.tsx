@@ -54,7 +54,6 @@ import { AiCandidateReview } from './AiCandidateReview';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorDataStore } from '../stores/editor-data-store';
-import { useOutlineContentStore } from '../stores/outline-content-store';
 
 
 
@@ -282,8 +281,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
-  // 011 Phase 2：主纲值订阅 store
-  const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   const [bibleSearch, setBibleSearch] = React.useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
   const [skillsPanelRevision, setSkillsPanelRevision] = React.useState(0);
