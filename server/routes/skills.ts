@@ -246,7 +246,14 @@ export function registerSkillsRoutes(app: Express) {
       name: sanitizeWhiteLabelText(asset.title),
       description: sanitizeWhiteLabelText(asset.goal || ''),
       style: sanitizeWhiteLabelText(asset.template || ''),
-      sourceCardId: asset.id,
+      pacing: '',
+      vocabulary: [],
+      imagery: [],
+      fewShots: [],
+      corePatterns: [],
+      bannedElements: [],
+      stabilityScore: 0,
+      evaluationFeedback: '消毒导入',
       parentSkillId: asset.id,
       sourceType: 'plaza',
       version: 1,
@@ -255,7 +262,7 @@ export function registerSkillsRoutes(app: Express) {
       runtimeStatus: 'active',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    } as unknown as Skill;
+    };
     try {
       db.createSkill(skill);
     } catch (error) {

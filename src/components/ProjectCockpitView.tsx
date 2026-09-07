@@ -35,7 +35,7 @@ function getStageRecommendationLabel(capability: GovernanceCapabilityType, asset
   if (capability === 'skill-card') return '拆书卡';
   if (capability === 'diagnostic') return '审稿卡';
   if (capability === 'utility') return '辅助动作';
-  if (capability === 'guardrail') return '系统护栏';
+  if (capability === 'guardrail') return '质量标准';
   if (capability === 'overlay') return '本章使用';
   if (capability === 'technique') return getCapabilityManifest(asset).output === 'transform-preview' ? '精修卡' : '写作技法';
   return '能力卡';

@@ -58,7 +58,37 @@ type DatabaseGenerationReader = () => Promise<number>;
 type SkillsStudioNavigateContext = { capabilityApplied?: boolean; targetFocus?: 'workspace-world'; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
 type CapabilityApplyDestination = 'return' | 'world' | 'outline';
 
+// 004：文风与正文货架总数（目录静态，模块级只算一次）。
+const OPTIONAL_STYLE_SHELF_COUNT = getOptionalStyleAssets().length;
+
 const CAPABILITY_RETURN_EFFECT_HINT = '应用配置后，主卡与辅卡影响作品后续正文；常用技法作为作品偏好；本章使用规则只影响当前章；系统护栏参与生成与审稿检查。';
+
+// 004：消毒落库副本的前端占位（真实持久化以服务端消毒端点为准）。
+// 模块级纯数据构造，避免组件体内 Date.now() 触发 react-hooks/purity。
+function buildSanitizedSkillStub(asset: CuratedProductSkill, timestamp: number): Skill {
+  return {
+    id: `sanitized-${asset.id}`,
+    name: asset.title,
+    description: asset.goal || '',
+    style: '',
+    pacing: '',
+    vocabulary: [],
+    imagery: [],
+    fewShots: [],
+    corePatterns: [],
+    bannedElements: [],
+    stabilityScore: 0,
+    evaluationFeedback: '消毒导入',
+    version: 1,
+    parentSkillId: asset.id,
+    sourceType: 'plaza',
+    isRuntimeReady: true,
+    sanitizationStatus: 'runtime-ready',
+    runtimeStatus: 'active',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  } as Skill;
+}
 
 function getCapabilityApplyButtonLabel(destination: CapabilityApplyDestination): string {
   if (destination === 'world') return '应用配置并前往世界观';
@@ -719,7 +749,7 @@ export function SkillsStudioView({
   // Set when a context change (baseline token / generation) was caused by our
   // own successful apply, so the session effect re-anchors instead of treating
   // it as external drift and resetting the open package dialog.
-  const selfAppliedContextRef = useRef(false);
+  const selfAppliedContextRef = useRef(0);
   const configurationSessionIdRef = useRef<string | null>(null);
   const capabilityViewStateRef = useRef<string | null>(null);
   const packageResultActionRef = useRef<HTMLButtonElement | null>(null);
@@ -908,14 +938,17 @@ export function SkillsStudioView({
   // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
   // 004：待消毒候选卡也投影进该分组，提供"消毒并启用"入口。
   const availableCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus === 'active');
+  // 已消毒（落库存在 sanitized- 副本）的候选不再出现在"需解锁"分组；
+  // 消毒副本本身可在"我的能力"中查看与使用。
+  const sanitizedCloneIds = new Set(savedSkills.filter((skill) => String(skill.id).startsWith('sanitized-')).map((skill) => skill.parentSkillId || skill.id));
   const lockedCuratedSkills = [
     ...filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'),
-    ...getSanitizeRequiredAssets(),
+    ...getSanitizeRequiredAssets().filter((asset) => !sanitizedCloneIds.has(asset.id)),
   ];
   const capabilityTabCount = (id: StoreTab) => {
     if (id === 'flow') return visibleFlowCount;
     if (id === 'packages') return visiblePackageCount;
-    if (id === 'optional-style') return getOptionalStyleAssets().length;
+    if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
       return manifest.runtimeStatus === 'active'
@@ -1147,8 +1180,12 @@ export function SkillsStudioView({
     const contextKey = `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`;
     const hadSessionContext = sessionContextRef.current !== null;
     const contextChanged = sessionContextRef.current !== contextKey;
-    if (contextChanged && selfAppliedContextRef.current) {
-      selfAppliedContextRef.current = false;
+    // 自家 apply 造成的上下文变化只在短暂窗口内被豁免一次；超过窗口的
+    // flag 视为残留（如幂等应用未改变 baseline），避免吞掉真正的外部漂移。
+    // eslint-disable-next-line react-hooks/purity
+    const flagAge = selfAppliedContextRef.current ? Date.now() - selfAppliedContextRef.current : Number.POSITIVE_INFINITY;
+    if (contextChanged && flagAge < 5000) {
+      selfAppliedContextRef.current = 0;
       sessionContextRef.current = contextKey;
       return;
     }
@@ -1331,7 +1368,8 @@ export function SkillsStudioView({
       const applied = await applyCapabilityConfiguration(selectedNovel.id, databaseGeneration, preview.previewToken, nextProfile.capabilityProfile!, selectedPackageSteps, targetChapterId);
       // Our own apply will move the baseline the session effect watches; let it
       // re-anchor instead of resetting the open dialog as external drift.
-      selfAppliedContextRef.current = true;
+      // eslint-disable-next-line react-hooks/purity
+      selfAppliedContextRef.current = Date.now();
       const appliedProfile = { ...nextProfile, capabilityProfile: applied.profile };
       const appliedNovel = { ...selectedNovel, projectPreferenceProfile: appliedProfile };
       setUserNovels((prev) => prev.map((entry) => entry.id === selectedNovel.id ? { ...entry, projectPreferenceProfile: appliedProfile } : entry));
@@ -1677,21 +1715,15 @@ export function SkillsStudioView({
         toast(body.error || '消毒失败，请重试。', 'error');
         return;
       }
-      const sanitizedSkill: Skill = {
-        id: `sanitized-${asset.id}`,
-        name: asset.title,
-        sourceCardId: asset.id,
-        parentSkillId: asset.id,
-        sourceType: 'plaza',
-        version: 1,
-        isRuntimeReady: true,
-        sanitizationStatus: 'runtime-ready',
-        runtimeStatus: 'active',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      } as unknown as Skill;
-      setSavedSkills((current) => current.some((skill) => skill.id === sanitizedSkill.id) ? current : [...current, sanitizedSkill]);
-      await handleEquipAsset(asset);
+      const cloneId = `sanitized-${asset.id}`;
+      const alreadyFavorited = ((configurationDraft || getProjectCapabilityProfile(effectiveNovel))?.favoriteTechniqueIds || []).includes(cloneId);
+      // eslint-disable-next-line react-hooks/purity
+      const sanitizedSkill = buildSanitizedSkillStub(asset, Date.now());
+      setSavedSkills((current) => current.some((skill) => skill.id === cloneId) ? current : [...current, sanitizedSkill]);
+      if (!alreadyFavorited) {
+        // 技法分支是 toggle：仅当尚未启用时调用，避免二次点击反被移除。
+        await handleEquipAsset(asset);
+      }
       toast('已消毒并启用该能力卡（原作者署名与私有引用已剥离）。', 'success', 5000);
     } catch {
       toast('消毒失败，请重试。', 'error');

@@ -79,6 +79,11 @@ export function useChapterProductionFlow({
       resetProductionFlow();
     }
   }, [resetProductionFlow]);
+  // 卸载即中止在途流：否则僵尸 SSE 会继续写 store 并烧 token，
+  // 冷挂载守卫的"本实例无在途流"前提也不再成立。
+  useEffect(() => () => {
+    productionAbortRef.current?.abort();
+  }, []);
   useEffect(() => {
     const previous = productionScopeRef.current;
     if (previous.novelId === novelId && previous.chapterId === currentChapterId && previous.databaseGeneration === databaseGeneration) return;

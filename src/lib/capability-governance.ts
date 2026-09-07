@@ -150,7 +150,8 @@ export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
 }
 
 /** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关。 */
-export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {  return PROMPT_GOVERNANCE_CATALOG
+export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
+  return PROMPT_GOVERNANCE_CATALOG
     .filter((asset) => asset.primaryCategory === 'quality-guardrail'
       && asset.runtimeStatus === 'active'
       && asset.isRuntimeReady === true

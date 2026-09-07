@@ -226,10 +226,10 @@ export function QualityTab({
         return { asset, hits };
       })
       .sort((a, b) => b.hits - a.hits || b.asset.score - a.asset.score)
-      .slice(0, 2)
       .map(({ asset }) => asset)
       .filter((asset) => !seen.has(asset.id))
-      .map((asset) => ({ ...asset, placementTier: 'optional-style' }) as unknown as GovernedPromptAsset);
+      .slice(0, 2)
+      .map((asset) => ({ ...asset, placementTier: 'optional-style', recommendationReason: asset.successSignal }) as unknown as GovernedPromptAsset);
     return [...licensed, ...styleMatches];
   }, [novel, currentChapter, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
 

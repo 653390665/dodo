@@ -6,8 +6,10 @@ import { registerSkillsRoutes } from '../server/routes/skills';
 import * as db from '../server/lib/db';
 import { initDb } from '../server/lib/db';
 import { PROMPT_GOVERNANCE_CATALOG } from '../shared/lib/prompt-governance-catalog';
+import { sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer';
 
-initDb();
+// 与仓库其余 DB 测试一致：显式内存库，单跑本文件也绝不触碰生产库。
+initDb(':memory:');
 
 function buildApp() {
   const app = express();
@@ -66,7 +68,7 @@ test('sanitize endpoint persists a runtime-ready clone for a candidate asset', a
     assert.equal(stored.parentSkillId, candidate.id);
     assert.equal(stored.runtimeStatus, 'active');
     assert.equal(stored.sanitizationStatus, 'runtime-ready');
-    assert.ok(!stored.name.includes(candidate.title.split('·')[0]) || stored.name.length > 0);
+    assert.equal(stored.name, sanitizeWhiteLabelText(candidate.title));
 
     // 幂等：重复消毒不再新建
     const repeat = await fetch(`${baseUrl}/api/skills/sanitize/${candidate.id}`, { method: 'POST' });

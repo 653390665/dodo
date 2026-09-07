@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T02:22:18.764Z",
+  "generatedAt": "2026-09-07T05:10:24.673Z",
   "mode": "deterministic",
   "overallStatus": "FALLBACK",
   "modelConfigured": false,
@@ -11,7 +11,7 @@
       "label": "AI 腔重稿",
       "status": "FALLBACK",
       "errorCode": null,
-      "durationMs": 1,
+      "durationMs": 2,
       "qualityFindings": [],
       "expectedP0Codes": [],
       "inputHasExpectedDefect": true,
@@ -29,7 +29,7 @@
       "label": "动作对白薄弱稿（含元数据污染）",
       "status": "FALLBACK",
       "errorCode": null,
-      "durationMs": 0,
+      "durationMs": 1,
       "qualityFindings": [],
       "expectedP0Codes": [
         "metadata"
@@ -73,7 +73,7 @@
       "rewriteIntroducedP0P1": false,
       "status": "FALLBACK",
       "errorCode": null,
-      "durationMs": 0,
+      "durationMs": 1,
       "parseMode": "structured",
       "contractViolation": null,
       "rawOutputChars": 580,
