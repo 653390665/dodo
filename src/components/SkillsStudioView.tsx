@@ -1136,7 +1136,6 @@ export function SkillsStudioView({
     const restored = loadCapabilityConfigurationSession(selectedNovel.id, databaseGeneration, baselineToken);
     const stale = Boolean(latest && isCapabilityConfigurationSessionStale(latest, databaseGeneration, baselineToken));
     sessionContextRef.current = contextKey;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStaleConfigurationSession(stale);
     const sessionToRestore = restored || latest;
     const sessionPrefix = `capability:${selectedNovel.id}:`;
@@ -1167,6 +1166,7 @@ export function SkillsStudioView({
       return;
     }
     // Hydrate the draft from the persisted session after the external snapshot is available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConfigurationDraft(sessionToRestore.configurationDraft || capabilityProfile);
     setCandidateCardIds(sessionToRestore.candidateCardIds);
     setPendingPackageSteps(sessionToRestore.pendingPackageSteps || []);
