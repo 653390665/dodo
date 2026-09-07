@@ -25,6 +25,7 @@ const DEFAULT_PROJECT_PROFILE = { contract: {}, tags: [] as string[], weights: {
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendationCards';
 import { GenerationStatusBar } from './GenerationStatusBar';
+import { useProductionStore } from '../stores/production-store';
 import { WORKFLOW_ACTION_LABELS } from '../lib/workflow-copy';
 import { useEditorIntelligenceContext } from '../lib/hooks/useEditorIntelligenceContext';
 import { useEntitySniffing } from '../lib/hooks/useEntitySniffing';
@@ -163,6 +164,12 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
   const [isConfirmingFacts, setIsConfirmingFacts] = useState(false);
   const completionRequestInFlightRef = useRef(false);
+  // 005-S5 双写收敛：ref=重入守卫（事件处理器内同步读写），state=UI 投影。
+  // 两者只能通过 setCompletionInFlight 一起写——这是唯一同步点，禁止散落直写。
+  const setCompletionInFlight = React.useCallback((value: boolean) => {
+    completionRequestInFlightRef.current = value;
+    setIsCompletingChapter(value);
+  }, []);
   const factConfirmationInFlightRef = useRef(false);
   const writingStyleRequestSeqRef = useRef(0);
   const confirmedWritingStyleFingerprintRef = useRef<string | null>(null);
@@ -584,16 +591,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   }, [buildCapabilityUtilityEventMetadata, capabilityUtilityResult, capabilityUtilitySelection, currentChapter, flushPendingEditorWrites, handleUpdateContent, novel.id, requireEditorDatabaseGeneration]);
 
   const {
-    productionIntent,
-    setProductionIntent,
-    activeProductionRun,
-    isProductionRunning,
-    isApplyingProductionRun,
-    productionError,
-    productionBeatsSource,
-    productionDraftSource,
-    productionAuditSource,
-    productionStatusMessage,
     handleStartProductionRun: startProductionRun,
     handleApplyProductionRun,
     stopProductionFlow,
@@ -613,6 +610,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   // PRD (follow-ups A3): badge chapters whose generated preview is not yet accepted.
   const [previewRunChapterIds, setPreviewRunChapterIds] = React.useState<ReadonlySet<string>>(new Set());
+  // 005-S3：编辑器只订阅还需要的生产域状态
+  const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
+  const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
   const previewRunStatus = activeProductionRun?.status;
   React.useEffect(() => {
     let cancelled = false;
@@ -873,9 +873,8 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   const handleCompleteChapter = React.useCallback(async (retryUnavailable = false) => {
     if (!currentChapter || completionRequestInFlightRef.current) return;
-    completionRequestInFlightRef.current = true;
+    setCompletionInFlight(true);
     setCompletionChapterId(currentChapter.id);
-    setIsCompletingChapter(true);
     setCompletionError(null);
     try {
       await flushPendingEditorWrites();
@@ -922,10 +921,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       setCompletionError(message);
       toast(message, 'error');
     } finally {
-      completionRequestInFlightRef.current = false;
-      setIsCompletingChapter(false);
+      setCompletionInFlight(false);
     }
-  }, [currentChapter, flushPendingEditorWrites, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]);
+  }, [currentChapter, flushPendingEditorWrites, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter, setCompletionInFlight]);
 
   // When a fact-candidate panel appears for a chapter whose completion gate
   // hasn't been evaluated yet (e.g. right after accepting a production run),
@@ -953,9 +951,8 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const handleOpenCompletionFacts = React.useCallback(async () => {
     const runId = currentChapter?.workflowMeta?.factCandidateRunId;
     if (!currentChapter || !runId || completionRequestInFlightRef.current) return;
-    completionRequestInFlightRef.current = true;
+    setCompletionInFlight(true);
     setCompletionChapterId(currentChapter.id);
-    setIsCompletingChapter(true);
     setCompletionError(null);
     try {
       const databaseGeneration = requireEditorDatabaseGeneration();
@@ -965,10 +962,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       setCompletionError(message);
       toast(message, 'error');
     } finally {
-      completionRequestInFlightRef.current = false;
-      setIsCompletingChapter(false);
+      setCompletionInFlight(false);
     }
-  }, [currentChapter, novel.id, requireEditorDatabaseGeneration]);
+  }, [currentChapter, novel.id, requireEditorDatabaseGeneration, setCompletionInFlight]);
 
   const handleConfirmCompletionFacts = React.useCallback(async (selection: { factDecisions: Record<string, 'accepted' | 'pending' | 'rejected'> }) => {
     if (!currentChapter || !completionFactCandidate || factConfirmationInFlightRef.current) return;
@@ -1037,9 +1033,8 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   const handleAcceptCompletionRisk = React.useCallback(async (): Promise<boolean> => {
     if (!currentChapter || !completionResult || completionRequestInFlightRef.current) return false;
-    completionRequestInFlightRef.current = true;
+    setCompletionInFlight(true);
     setCompletionChapterId(currentChapter.id);
-    setIsCompletingChapter(true);
     setCompletionError(null);
     try {
       const writeGeneration = requireEditorDatabaseGeneration();
@@ -1065,10 +1060,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       toast(message, 'error');
       return false;
     } finally {
-      completionRequestInFlightRef.current = false;
-      setIsCompletingChapter(false);
+      setCompletionInFlight(false);
     }
-  }, [completionResult, currentChapter, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]);
+  }, [completionResult, currentChapter, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter, setCompletionInFlight]);
   const handleDeferReviewIssue = React.useCallback(async (issueId: string) => {
     await updateReviewIssueStatus(issueId, 'deferred');
   }, [updateReviewIssueStatus]);
@@ -1089,6 +1083,8 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     setIsAgentSidebarOpen(true);
   }, [setAgentTab, setIsAgentSidebarOpen]);
 
+  // 005-S5 双写收敛：state=UI 投影，ref=跨异步守卫。
+  // 此行是 isGeneratingContent 的唯一同步点；ref 禁止在别处直写。
   // eslint-disable-next-line react-hooks/refs -- syncing value to ref for use in callbacks
   isGeneratingContentRef.current = isGeneratingContent;
 
@@ -2141,16 +2137,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             projectTechniqueId={projectTechniqueId || undefined}
             copilotSuggestion={copilotSuggestion}
             runCopilotAction={runCopilotAction}
-            activeProductionRun={activeProductionRun}
-            productionIntent={productionIntent}
-            setProductionIntent={setProductionIntent}
-            isProductionRunning={isProductionRunning}
-            isApplyingProductionRun={isApplyingProductionRun}
-            productionError={productionError}
-            productionBeatsSource={productionBeatsSource}
-            productionDraftSource={productionDraftSource}
-            productionAuditSource={productionAuditSource}
-            productionStatusMessage={productionStatusMessage}
             continuationPacks={continuationPacks}
             selectedContinuationPackId={selectedContinuationPackId}
             setSelectedContinuationPackId={setSelectedContinuationPackId}

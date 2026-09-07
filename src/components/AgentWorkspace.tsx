@@ -149,12 +149,6 @@ interface AgentWorkspaceProps {
   setAgentTab: (tab: AgentTab) => void;
   copilotSuggestion: CopilotSuggestion | null;
   runCopilotAction: (key: CopilotActionKey) => Promise<void>;
-  activeProductionRun: ChapterProductionRun | null;
-  productionIntent: string;
-  setProductionIntent: (intent: string) => void;
-  isProductionRunning: boolean;
-  isApplyingProductionRun: boolean;
-  productionError: string | null;
   productionBeatsSource?: 'fallback' | 'model' | null;
   productionDraftSource?: 'fallback' | 'model' | null;
   productionAuditSource?: 'fallback' | 'model' | null;
@@ -266,16 +260,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   setAgentTab,
   copilotSuggestion,
   runCopilotAction,
-  activeProductionRun,
-  productionIntent,
-  setProductionIntent,
-  isProductionRunning,
-  isApplyingProductionRun,
-  productionError,
-  productionBeatsSource,
-  productionDraftSource,
-  productionAuditSource,
-  productionStatusMessage,
   continuationPacks,
   selectedContinuationPackId,
   setSelectedContinuationPackId,
@@ -1094,17 +1078,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               chapters={chapters}
               currentChapter={currentChapter}
               onSelectChapter={onSelectChapter}
-              activeProductionRun={activeProductionRun}
-              productionIntent={productionIntent}
-              setProductionIntent={setProductionIntent}
-              isProductionRunning={isProductionRunning}
-              isApplyingProductionRun={isApplyingProductionRun}
-              productionError={productionError}
               stepEvidence={stepEvidence}
-              productionBeatsSource={productionBeatsSource}
-              productionDraftSource={productionDraftSource}
-              productionAuditSource={productionAuditSource}
-              productionStatusMessage={productionStatusMessage}
               continuationPacks={continuationPacks}
               selectedContinuationPackId={selectedContinuationPackId}
               setSelectedContinuationPackId={setSelectedContinuationPackId}

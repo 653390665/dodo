@@ -15,7 +15,7 @@
 | 002 | 审稿三合一与精修按需触发 | P0 | 无 | ✅ 完成（2026-09-07）：QualityTab 以 reviewState 为渲染源；/api/audit 降级注释；生产期审稿标注迭代用；零配置精修测试锁定；口径表落档 research 文档 §6 |
 | 003 | 护栏策略面板化 + 流程排他确认 | P1 | 无 | ✅ 完成（2026-09-07）：GuardrailPolicyPanel（core 只读『已自动生效』+ 增强开关）；系统护栏页签删除；流程切换确认含新旧流程名与重置清单 |
 | 004 | 启用即落位 + 消毒管线 + 74 张文风卡浮现 | P1 | 001 | ✅ 完成（2026-09-07）：落位由 001 的 addCardToProjectDeck+候选替换承担；POST /api/skills/sanitize/:assetId（幂等/限频/落库脱敏副本）；需解锁分组带『消毒并启用』；『文风与正文』页签 73 张可见（研究口径 74 含 1 张 test-fixture）；编辑器推荐位 ≤2 张按章节关键词 |
-| 005 | EditorView 领域状态入 store | P1 | 无 | ◐ 进行中（2026-09-07）：步骤 1-2 完成——production-store 落地、useChapterProductionFlow 状态迁入 store（签名不变 + 冷挂载守卫）；步骤 3-6（props 链拆除、writingStyle 域、双写收敛、profiler 验证）待续，见计划文档执行状态 |
+| 005 | EditorView 领域状态入 store | P1 | 无 | ◐ 大部分完成（2026-09-07 第二轮）：步骤 1-3、5 完成——production 域 props 三层透传已清零（验收门 grep=0），AgentWorkspace props 109→87，完成章双写收敛为 setCompletionInFlight 唯一同步点；剩余 S4 writingStyle 域入 store（侦察结论：12-15 处中转引用、fingerprint 参与生产流参数、紧邻留存化敏感面，需单独一批）与 profiler 验证 |
 | 006 | 统一状态条 + 术语收敛 | P2 | 005、001 | ◐ 进行中（2026-09-07）：GenerationStatusBar 落地并挂载 ProductionTab（full），quick 模式组件已支持待接线；glossary.ts 词汇表建立；高频 UI 术语全局替换为渐进项 |
 
 ## 执行顺序与依赖

@@ -18,6 +18,7 @@ import type {
   ReviewIssue,
 } from '../../shared/types';
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
+import { useProductionStore } from '../stores/production-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -39,12 +40,6 @@ interface AgentWorkspaceProductionPanelProps {
   chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
   onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
-  activeProductionRun: ChapterProductionRun | null;
-  productionIntent: string;
-  setProductionIntent: (intent: string) => void;
-  isProductionRunning: boolean;
-  isApplyingProductionRun: boolean;
-  productionError: string | null;
   productionBeatsSource?: 'fallback' | 'model' | null;
   productionDraftSource?: 'fallback' | 'model' | null;
   productionAuditSource?: 'fallback' | 'model' | null;
@@ -131,16 +126,6 @@ export function AgentWorkspaceProductionPanel({
   chapters,
   currentChapter,
   onSelectChapter,
-  activeProductionRun,
-  productionIntent,
-  setProductionIntent,
-  isProductionRunning,
-  isApplyingProductionRun,
-  productionError,
-  productionBeatsSource,
-  productionDraftSource,
-  productionAuditSource,
-  productionStatusMessage,
   continuationPacks,
   selectedContinuationPackId,
   setSelectedContinuationPackId,
@@ -201,6 +186,8 @@ export function AgentWorkspaceProductionPanel({
   onAcceptReviewIssueRisk,
   onDeferReviewIssue,
 }: AgentWorkspaceProductionPanelProps) {
+  // 005-S3：生产域状态直接订阅 production-store
+  const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
   const selectedContinuationPack =
     continuationPacks.find((pack) => pack.id === selectedContinuationPackId) || null;
   const packTimeFormatter = React.useMemo(
@@ -275,16 +262,6 @@ export function AgentWorkspaceProductionPanel({
         selectedContinuationPackId={selectedContinuationPackId}
         setSelectedContinuationPackId={setSelectedContinuationPackId}
         selectedContinuationPack={selectedContinuationPack}
-        activeProductionRun={activeProductionRun}
-        productionIntent={productionIntent}
-        isProductionRunning={isProductionRunning}
-        isApplyingProductionRun={isApplyingProductionRun}
-        productionError={productionError}
-        productionBeatsSource={productionBeatsSource}
-        productionDraftSource={productionDraftSource}
-        productionAuditSource={productionAuditSource}
-        productionStatusMessage={productionStatusMessage}
-        setProductionIntent={setProductionIntent}
         onStartProductionRun={onStartProductionRun}
         onStopProductionRun={onStopProductionRun}
         onApplyProductionRun={onApplyProductionRun}

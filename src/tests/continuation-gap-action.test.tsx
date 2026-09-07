@@ -69,12 +69,6 @@ function renderTab(
       selectedContinuationPackId={pack.id}
       setSelectedContinuationPackId={vi.fn()}
       selectedContinuationPack={pack}
-      activeProductionRun={null}
-      productionIntent=""
-      isProductionRunning={false}
-      isApplyingProductionRun={false}
-      productionError={null}
-      setProductionIntent={vi.fn()}
       onStartProductionRun={onStartProductionRun}
       onApplyProductionRun={onApplyProductionRun}
       onOpenBibleAssistant={onOpenBibleAssistant}

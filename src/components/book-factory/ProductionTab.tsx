@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 import { WritingStyleControl } from '../WritingStyleControl';
 import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../lib/writing-style-client';
 import { GenerationStatusBar } from '../GenerationStatusBar';
+import { useProductionStore } from '../../stores/production-store';
 
 interface ProductionTabProps {
   novel: Novel;
@@ -13,16 +14,6 @@ interface ProductionTabProps {
   selectedContinuationPackId: string;
   setSelectedContinuationPackId: (packId: string) => void;
   selectedContinuationPack: ContinuationPack | null;
-  activeProductionRun: ChapterProductionRun | null;
-  productionIntent: string;
-  isProductionRunning: boolean;
-  isApplyingProductionRun: boolean;
-  productionError: string | null;
-  productionBeatsSource?: 'fallback' | 'model' | null;
-  productionDraftSource?: 'fallback' | 'model' | null;
-  productionAuditSource?: 'fallback' | 'model' | null;
-  productionStatusMessage?: string | null;
-  setProductionIntent: (intent: string) => void;
   onStartProductionRun: () => Promise<void>;
   onStopProductionRun?: () => void;
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
@@ -52,16 +43,6 @@ export function ProductionTab({
   selectedContinuationPackId,
   setSelectedContinuationPackId,
   selectedContinuationPack,
-  activeProductionRun,
-  productionIntent,
-  isProductionRunning,
-  isApplyingProductionRun,
-  productionError,
-  productionBeatsSource,
-  productionDraftSource,
-  productionAuditSource,
-  productionStatusMessage,
-  setProductionIntent,
   onStartProductionRun,
   onStopProductionRun,
   onApplyProductionRun,
@@ -81,6 +62,17 @@ export function ProductionTab({
 }: ProductionTabProps) {
   // 008：状态条「④ 写入」点击后滚动到接受区
   const runReviewAnchorRef = React.useRef<HTMLDivElement | null>(null);
+  // 005-S3：生产域状态直接订阅 production-store，不再经 props 钻孔
+  const productionIntent = useProductionStore((state) => state.productionIntent);
+  const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
+  const isProductionRunning = useProductionStore((state) => state.isProductionRunning);
+  const isApplyingProductionRun = useProductionStore((state) => state.isApplyingProductionRun);
+  const productionError = useProductionStore((state) => state.productionError);
+  const productionBeatsSource = useProductionStore((state) => state.productionBeatsSource);
+  const productionDraftSource = useProductionStore((state) => state.productionDraftSource);
+  const productionAuditSource = useProductionStore((state) => state.productionAuditSource);
+  const productionStatusMessage = useProductionStore((state) => state.productionStatusMessage);
+  const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
   const hasCapabilityDetails = Boolean(
     capabilityEffectSummary?.projectCardNames.length
       || capabilityEffectSummary?.favoriteTechniqueNames.length
