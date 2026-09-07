@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
 import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent, ProductionStyleConfirmationRequiredError } from '../production-client';
 import { getChapter } from '../chapter-client';
 import { getDatabaseGenerationSnapshot } from '../db-transport';
 import { recordProductEvent } from '../product-events-client';
+import { useProductionStore } from '../../stores/production-store';
 
 const nowMs = () => Date.now();
 
@@ -37,15 +38,28 @@ export function useChapterProductionFlow({
   setCurrentChapter,
   activeEntityNames,
 }: UseChapterProductionFlowArgs) {
-  const [productionIntent, setProductionIntent] = useState('');
-  const [activeProductionRun, setActiveProductionRun] = useState<ChapterProductionRun | null>(null);
-  const [isProductionRunning, setIsProductionRunning] = useState(false);
-  const [isApplyingProductionRun, setIsApplyingProductionRun] = useState(false);
-  const [productionError, setProductionError] = useState<string | null>(null);
-  const [productionBeatsSource, setProductionBeatsSource] = useState<'fallback' | 'model' | null>(null);
-  const [productionDraftSource, setProductionDraftSource] = useState<'fallback' | 'model' | null>(null);
-  const [productionAuditSource, setProductionAuditSource] = useState<'fallback' | 'model' | null>(null);
-  const [productionStatusMessage, setProductionStatusMessage] = useState<string | null>(null);
+  // 005：状态归属 production-store（"hooks 管副作用，store 管状态"）。
+  // 本 hook 只保留流程副作用（LLM 流、中断、重试）并继续以原签名对外；
+  // 子面板与 006 状态条可改为直接订阅 store，无需再经 props 钻孔。
+  const productionIntent = useProductionStore((state) => state.productionIntent);
+  const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
+  const isProductionRunning = useProductionStore((state) => state.isProductionRunning);
+  const isApplyingProductionRun = useProductionStore((state) => state.isApplyingProductionRun);
+  const productionError = useProductionStore((state) => state.productionError);
+  const productionBeatsSource = useProductionStore((state) => state.productionBeatsSource);
+  const productionDraftSource = useProductionStore((state) => state.productionDraftSource);
+  const productionAuditSource = useProductionStore((state) => state.productionAuditSource);
+  const productionStatusMessage = useProductionStore((state) => state.productionStatusMessage);
+  const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
+  const setActiveProductionRun = useProductionStore((state) => state.setActiveProductionRun);
+  const setIsProductionRunning = useProductionStore((state) => state.setIsProductionRunning);
+  const setIsApplyingProductionRun = useProductionStore((state) => state.setIsApplyingProductionRun);
+  const setProductionError = useProductionStore((state) => state.setProductionError);
+  const setProductionBeatsSource = useProductionStore((state) => state.setProductionBeatsSource);
+  const setProductionDraftSource = useProductionStore((state) => state.setProductionDraftSource);
+  const setProductionAuditSource = useProductionStore((state) => state.setProductionAuditSource);
+  const setProductionStatusMessage = useProductionStore((state) => state.setProductionStatusMessage);
+  const resetProductionFlow = useProductionStore((state) => state.resetProductionFlow);
 
   const productionAbortRef = useRef<AbortController | null>(null);
   const productionDraftSourceRef = useRef<'fallback' | 'model' | null>(null);
@@ -55,26 +69,29 @@ export function useChapterProductionFlow({
   const modelDraftRef = useRef('');
 
   const productionScopeRef = useRef({ novelId, chapterId: currentChapterId, databaseGeneration });
+  // 005：运行态迁入 store 后跨挂载存续；旧实现里这些标记随组件卸载丢弃。
+  // 冷挂载（本实例没有在途流）时清掉遗留标记，避免"卡在生产中"的僵尸状态。
+  const coldMountGuardRef = useRef(false);
+  useEffect(() => {
+    if (coldMountGuardRef.current) return;
+    coldMountGuardRef.current = true;
+    if (useProductionStore.getState().isProductionRunning && !productionAbortRef.current) {
+      resetProductionFlow();
+    }
+  }, [resetProductionFlow]);
   useEffect(() => {
     const previous = productionScopeRef.current;
     if (previous.novelId === novelId && previous.chapterId === currentChapterId && previous.databaseGeneration === databaseGeneration) return;
     productionScopeRef.current = { novelId, chapterId: currentChapterId, databaseGeneration };
     productionAbortRef.current?.abort();
     productionAbortRef.current = null;
-    setIsProductionRunning(false);
-    setIsApplyingProductionRun(false);
-    setActiveProductionRun(null);
-    setProductionError(null);
-    setProductionStatusMessage(null);
-    setProductionBeatsSource(null);
-    setProductionDraftSource(null);
-    setProductionAuditSource(null);
+    resetProductionFlow();
     productionDraftSourceRef.current = null;
     productionCompletedRef.current = false;
     productionDatabaseGenerationRef.current = null;
     fallbackDraftRef.current = '';
     modelDraftRef.current = '';
-  }, [currentChapterId, databaseGeneration, novelId]);
+  }, [currentChapterId, databaseGeneration, novelId, resetProductionFlow]);
 
   const stopProductionFlow = useCallback(() => {
     if (productionAbortRef.current) {
@@ -88,7 +105,7 @@ export function useChapterProductionFlow({
     setActiveProductionRun((current) => current?.status === 'running'
       ? { ...current, status: 'failed', errorMessage: message }
       : current);
-  }, []);
+  }, [setActiveProductionRun, setIsProductionRunning, setProductionError, setProductionStatusMessage]);
 
   const handleStartProductionRun = async (
     intentOverride?: string,
