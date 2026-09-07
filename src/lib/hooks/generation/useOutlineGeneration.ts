@@ -1,4 +1,5 @@
 import { type Dispatch, type SetStateAction } from 'react';
+import { useEditorGenerationStore } from '../../../stores/editor-generation-store';
 import type { Novel, Chapter } from '../../../../shared/types';
 import { createOutline } from '../../outline-client';
 import { startWorldJob } from '../../world-job-client';
@@ -14,7 +15,6 @@ interface UseOutlineGenerationArgs {
   planningPromptSurface: string;
   requestSeqRef: { current: number };
   abortControllerRef: { current: AbortController | null };
-  setIsGeneratingOutline: (val: boolean) => void;
   setOutlineError?: (message: string | null) => void;
   setAiActionState?: Dispatch<SetStateAction<AiActionState>>;
   setGlobalOutline: Dispatch<SetStateAction<string>>;
@@ -48,11 +48,12 @@ export function useOutlineGeneration({
   planningPromptSurface,
   requestSeqRef,
   abortControllerRef,
-  setIsGeneratingOutline,
   setOutlineError,
   setAiActionState: providedSetAiActionState,
   flushPendingEditorWrites,
 }: UseOutlineGenerationArgs) {
+  // 仅写旗标，无响应式订阅——保持可被测试作为普通函数调用
+  const { setIsGeneratingOutline } = useEditorGenerationStore.getState();
   const setAiActionState = providedSetAiActionState ?? (() => undefined);
   const setAiActionStateForRequest = (requestSeq: number, state: SetStateAction<AiActionState>) => {
     if (requestSeqRef.current === requestSeq) setAiActionState(state);

@@ -17,6 +17,7 @@ import { acceptChapterContentCandidate } from '../chapter-client';
 import { recordProductEvent } from '../product-events-client';
 import { evaluateDraftAcceptance } from '../../../shared/lib/draft-quality';
 import { deriveReviewGate } from '../../../shared/lib/review-issues';
+import { useEditorGenerationStore } from '../../stores/editor-generation-store';
 
 interface UseEditorGenerationFlowArgs {
   novel: Novel;
@@ -75,7 +76,9 @@ export function useEditorGenerationFlow({
   databaseGeneration,
 }: UseEditorGenerationFlowArgs) {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
-  const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
+  // 005-S4：生成旗标入 store；outline 旗标 setter 不再作为参数穿线
+  const isGeneratingOutline = useEditorGenerationStore((state) => state.isGeneratingOutline);
+  const setIsGeneratingOutline = useEditorGenerationStore((state) => state.setIsGeneratingOutline);
   const [outlineError, setOutlineError] = useState<string | null>(null);
   const [isGeneratingBeats, setIsGeneratingBeats] = useState(false);
   const [isGeneratingCritique, setIsGeneratingCritique] = useState(false);
@@ -145,7 +148,7 @@ export function useEditorGenerationFlow({
       if (requestSeqRef.current !== invalidatedSeq) return;
       setAiActionState(idleAiAction());
     });
-  }, [databaseGeneration, novel.id]);
+  }, [databaseGeneration, novel.id, setIsGeneratingOutline]);
 
   useEffect(() => {
     return () => {
@@ -295,7 +298,6 @@ export function useEditorGenerationFlow({
     planningPromptSurface,
     requestSeqRef,
     abortControllerRef,
-    setIsGeneratingOutline,
     setOutlineError,
     setAiActionState,
     setGlobalOutline,

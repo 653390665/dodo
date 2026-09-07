@@ -13,6 +13,7 @@ vi.mock('../lib/world-job-client', () => ({ startWorldJob }));
 vi.mock('../lib/outline-client', () => ({ createOutline, activateOutline }));
 vi.mock('../lib/toast', () => ({ toast }));
 
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { useOutlineGeneration } from '../lib/hooks/generation/useOutlineGeneration';
 
 const mockNovel: Novel = {
@@ -99,13 +100,16 @@ describe('useOutlineGeneration - pack status filtering', () => {
   test('flush failure prevents outline generation', async () => {
     flushPendingEditorWrites.mockRejectedValueOnce(new Error('flush failed'));
     const args = createHookArgs({ selectedContinuationPackId: 'pack-approved-1' });
+    // 005-S4：旗标入 store 后，对 store setter 断言（须在 hook 解构前安装 spy）
+    const setFlagSpy = vi.spyOn(useEditorGenerationStore.getState(), 'setIsGeneratingOutline');
     const { handleGenerateOutline } = useOutlineGeneration(args);
 
     await handleGenerateOutline();
 
     expect(startWorldJob).not.toHaveBeenCalled();
-    expect(args.setIsGeneratingOutline).toHaveBeenCalledWith(true);
-    expect(args.setIsGeneratingOutline).toHaveBeenCalledWith(false);
+    expect(setFlagSpy).toHaveBeenCalledWith(true);
+    expect(setFlagSpy).toHaveBeenCalledWith(false);
+    setFlagSpy.mockRestore();
   });
 
   test('generated outline stays a candidate and does not replace the displayed master', async () => {
