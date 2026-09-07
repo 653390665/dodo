@@ -5,6 +5,7 @@ import { ProductionRunReview } from '../ProductionRunReview';
 import { cn } from '../../lib/utils';
 import { WritingStyleControl } from '../WritingStyleControl';
 import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../lib/writing-style-client';
+import { GenerationStatusBar } from '../GenerationStatusBar';
 
 interface ProductionTabProps {
   novel: Novel;
@@ -87,6 +88,8 @@ export function ProductionTab({
 
   return (
     <div className="space-y-4">
+      {/* 006：统一状态条——完整生产四段流转，直接订阅 production-store */}
+      <GenerationStatusBar mode="full" />
       {renderContextReceipt()}
       {shouldShowCapabilitySummary ? (
         <section className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs" aria-label="本次生成能力配置">
