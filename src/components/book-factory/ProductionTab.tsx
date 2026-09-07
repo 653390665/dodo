@@ -7,6 +7,7 @@ import { WritingStyleControl } from '../WritingStyleControl';
 import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../lib/writing-style-client';
 import { GenerationStatusBar } from '../GenerationStatusBar';
 import { useProductionStore } from '../../stores/production-store';
+import { useWritingStyleStore } from '../../stores/writing-style-store';
 
 interface ProductionTabProps {
   novel: Novel;
@@ -20,12 +21,9 @@ interface ProductionTabProps {
   onOpenBibleAssistant?: (prompt: string) => void;
   packTimeFormatter: Intl.DateTimeFormat;
   renderContextReceipt: () => React.ReactNode;
-  writingStyleResolution?: WritingStyleResolution | null;
-  writingStyleCandidates?: WritingStyleCandidate[];
   onConfirmWritingStyle?: (mode: WritingStyleMode) => Promise<string | void> | string | void;
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
-  writingStyleConfirmed?: boolean;
   /** Quick mode: continuous-writing draft without the audit pipeline. */
   onQuickGenerate?: () => Promise<void> | void;
   quickGenerateDisabled?: boolean;
@@ -49,14 +47,11 @@ export function ProductionTab({
   onOpenBibleAssistant,
   packTimeFormatter,
   renderContextReceipt,
-  writingStyleResolution,
-  writingStyleCandidates,
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
   onQuickGenerate,
   quickGenerateDisabled,
-  writingStyleConfirmed,
   capabilityEffectSummary,
   onSwitchTab,
 }: ProductionTabProps) {
@@ -73,6 +68,9 @@ export function ProductionTab({
   const productionAuditSource = useProductionStore((state) => state.productionAuditSource);
   const productionStatusMessage = useProductionStore((state) => state.productionStatusMessage);
   const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
+  // 005-S4：写法确认展示态直接订阅 store
+  const writingStyleResolution = useWritingStyleStore((state) => state.resolution);
+  const writingStyleCandidates = useWritingStyleStore((state) => state.candidates);
   const hasCapabilityDetails = Boolean(
     capabilityEffectSummary?.projectCardNames.length
       || capabilityEffectSummary?.favoriteTechniqueNames.length
@@ -127,14 +125,14 @@ export function ProductionTab({
           </p>
         </section>
       ) : null}
-      {(writingStyleResolution || writingStyleCandidates?.length) ? (
+      {(writingStyleResolution || writingStyleCandidates.length) ? (
         <WritingStyleControl
           resolution={writingStyleResolution}
           candidates={writingStyleCandidates}
           onConfirm={onConfirmWritingStyle}
           onGenerate={onGenerateWithWritingStyle}
           onOpenWritingStyle={onOpenWritingStyle}
-          confirmed={Boolean(writingStyleConfirmed ?? writingStyleResolution?.confirmed)}
+          confirmed={Boolean(writingStyleResolution?.confirmed)}
           disabled={isProductionRunning || isApplyingProductionRun}
         />
       ) : null}

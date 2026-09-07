@@ -19,7 +19,7 @@
 ### B. 未完成（计划内主力）
 | # | 项 | 说明 |
 |---|---|---|
-| B1 | **005-S4 writingStyle 域入 store**：EditorView 3 state + 派生 fingerprint 进 writing-style-store；三层 12-15 处引用拆除；**含 useAuditPolishActions 30+ 参数收窄**。约束：紧邻写法确认留存化敏感面，动前先读 `docs/specs/` 相关与 resolveWritingStyleRequest 调用链 | 005 |
+| B1 | 005-S4 writingStyle 域入 store | ✅ 展示态完成（resolution/candidates/error 入 store、三层透传拆除、死 prop 清理）；hooks 参数收窄按计划边界后置 | 005 |
 | B2 | 005 profiler 手工取证：React DevTools 确认击键不重渲染 AgentWorkspace | 005 |
 | B3 | 006 术语渐进替换（按 glossary 高频旧词逐面收敛）+ 空状态 CTR（"暂无智能建议"→可点击） | 006 |
 | B4 | EditorView props 87→≤60：依赖 B1（writingStyle -4）+ outline/beats 域迁移（视余量另立） | 005 完成标准 |

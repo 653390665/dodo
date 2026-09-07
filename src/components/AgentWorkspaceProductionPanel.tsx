@@ -27,9 +27,7 @@ import { QualityTab } from './book-factory/QualityTab';
 import { getProjectCapabilityCardCount } from '../lib/capability-card-count';
 import { resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
 import type {
-  WritingStyleCandidate,
   WritingStyleMode,
-  WritingStyleResolution,
 } from '../lib/writing-style-client';
 
 type ProductionAgentTab = Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'>;
@@ -109,8 +107,6 @@ interface AgentWorkspaceProductionPanelProps {
   onStackDeconstructionCard?: (assetId: string) => Promise<void>;
   onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
   onSkipAsset?: (assetId: string) => Promise<void>;
-  writingStyleResolution?: WritingStyleResolution | null;
-  writingStyleCandidates?: WritingStyleCandidate[];
   onConfirmWritingStyle?: (mode: WritingStyleMode) => Promise<string | void> | string | void;
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
@@ -175,8 +171,6 @@ export function AgentWorkspaceProductionPanel({
   onQuickGenerate,
   quickGenerateDisabled,
   stepEvidence,
-  writingStyleResolution,
-  writingStyleCandidates,
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
@@ -270,8 +264,6 @@ export function AgentWorkspaceProductionPanel({
         renderContextReceipt={renderContextReceipt}
         capabilityEffectSummary={capabilityEffectSummary}
         onSwitchTab={onSwitchTab}
-        writingStyleResolution={writingStyleResolution}
-        writingStyleCandidates={writingStyleCandidates}
               onConfirmWritingStyle={onConfirmWritingStyle}
               onGenerateWithWritingStyle={onGenerateWithWritingStyle}
               onQuickGenerate={onQuickGenerate}

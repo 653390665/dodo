@@ -27,6 +27,7 @@ import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendati
 import { GenerationStatusBar } from './GenerationStatusBar';
 import { AiCandidateReview } from './AiCandidateReview';
 import { useProductionStore } from '../stores/production-store';
+import { useWritingStyleStore } from '../stores/writing-style-store';
 import { useEditorIntelligenceContext } from '../lib/hooks/useEditorIntelligenceContext';
 import { useEntitySniffing } from '../lib/hooks/useEntitySniffing';
 import { useChapterVersions } from '../lib/hooks/useChapterVersions';
@@ -129,9 +130,13 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const [userIntent, setUserIntent] = useState('');
   const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>('unknown');
   const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
-  const [writingStyleResolution, setWritingStyleResolution] = useState<WritingStyleResolution | null>(null);
-  const [writingStyleCandidates, setWritingStyleCandidates] = useState<WritingStyleCandidate[]>([]);
-  const [writingStyleError, setWritingStyleError] = useState<string | null>(null);
+  // 005-S4：写法确认展示态入 store；留存化守卫 refs（下方）保留本地。
+  const writingStyleResolution = useWritingStyleStore((state) => state.resolution);
+  const setWritingStyleResolution = useWritingStyleStore((state) => state.setWritingStyleResolution);
+  const writingStyleCandidates = useWritingStyleStore((state) => state.candidates);
+  const setWritingStyleCandidates = useWritingStyleStore((state) => state.setWritingStyleCandidates);
+  const writingStyleError = useWritingStyleStore((state) => state.error);
+  const setWritingStyleError = useWritingStyleStore((state) => state.setWritingStyleError);
   const [capabilityUtilityResult, setCapabilityUtilityResult] = useState<CapabilityUtilityResult | null>(null);
   const [capabilityUtilityError, setCapabilityUtilityError] = useState<string | null>(null);
   const [isCapabilityUtilityRunning, setIsCapabilityUtilityRunning] = useState(false);
@@ -340,7 +345,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       setWritingStyleResolution(null);
       setWritingStyleError('本章使用卡已变化，请重新确认本次写法。');
     });
-  }, [isSessionStateLoaded, writingStyleResolution?.confirmed, writingStyleSessionCardSignature]);
+  }, [isSessionStateLoaded, setWritingStyleError, setWritingStyleResolution, writingStyleResolution?.confirmed, writingStyleSessionCardSignature]);
   const pendingWritingStyleActionRef = React.useRef<((fingerprint: string) => Promise<void>) | null>(null);
   const applyWritingStyleRequirement = React.useCallback((data: {
     resolution?: WritingStyleResolution;
@@ -357,7 +362,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         novelId: novel.id, chapterId: currentChapter?.id, objectId: data.resolution.fingerprint,
       });
     }
-  }, [currentChapter?.id, novel.id]);
+  }, [currentChapter?.id, novel.id, setWritingStyleCandidates, setWritingStyleError, setWritingStyleResolution]);
   const handleConfirmWritingStyle = React.useCallback(async (mode: WritingStyleMode) => {
     if (!currentChapter) throw new Error('当前章节不存在');
     const startedAt = Date.now();
@@ -389,7 +394,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       objectId: response.resolution.fingerprint,
     });
     return response.resolution.fingerprint;
-  }, [currentChapter, novel.id, requireEditorDatabaseGeneration, selectedContinuationPackId, writingStyleSessionCardIds, setProjectPreferenceProfile]);
+  }, [currentChapter, novel.id, requireEditorDatabaseGeneration, selectedContinuationPackId, setWritingStyleCandidates, setWritingStyleError, setWritingStyleResolution, writingStyleSessionCardIds, setProjectPreferenceProfile]);
 
   useEffect(() => {
     confirmedWritingStyleFingerprintRef.current = null;
@@ -447,6 +452,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     novel.id,
     projectPreferenceProfile?.contract?.styleAnchors,
     selectedContinuationPackId,
+    setWritingStyleCandidates,
+    setWritingStyleError,
+    setWritingStyleResolution,
     writingStyleSessionCardIds,
     removeStackedDeconstructionCard,
     requireEditorDatabaseGeneration,
@@ -1460,6 +1468,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     runCapabilityUtility,
     setAgentTab,
     setIsAgentSidebarOpen,
+    setWritingStyleResolution,
   ]);
 
   useEffect(() => {
@@ -2101,8 +2110,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             isDocked={true}
             contentRef={contentRef}
             onNavigate={handleWorkspaceNavigate}
-            writingStyleResolution={writingStyleResolution}
-            writingStyleCandidates={writingStyleCandidates}
             onConfirmWritingStyle={handleConfirmWritingStyle}
             onGenerateWithWritingStyle={handleGenerateWithWritingStyle}
             onQuickGenerate={handleQuickGenerate}

@@ -36,9 +36,7 @@ import {
   SniffedEntities,
   EntityRelationship,
   Faction,
-  WritingStyleCandidate,
   WritingStyleMode,
-  WritingStyleResolution,
   ReviewIssue,
   ViewType,
 } from '../../shared/types';
@@ -194,8 +192,6 @@ interface AgentWorkspaceProps {
   onUnstackDeconstructionCard?: (assetId: string) => Promise<void>;
   onSkipAsset?: (assetId: string) => Promise<void>;
   onNavigate?: (view: ViewType, context?: { targetChapterId?: string }) => void;
-  writingStyleResolution?: WritingStyleResolution | null;
-  writingStyleCandidates?: WritingStyleCandidate[];
   onConfirmWritingStyle?: (mode: WritingStyleMode) => Promise<string | void> | string | void;
   onGenerateWithWritingStyle?: (fingerprint?: string) => Promise<void> | void;
   onOpenWritingStyle?: () => void;
@@ -294,8 +290,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onUnstackDeconstructionCard,
   onSkipAsset,
   onNavigate,
-  writingStyleResolution,
-  writingStyleCandidates,
   onConfirmWritingStyle,
   onGenerateWithWritingStyle,
   onOpenWritingStyle,
@@ -1002,8 +996,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onSwitchTab={setAgentTab}
               projectPreferenceProfile={projectPreferenceProfile}
               onPreferenceProfileChange={onPreferenceProfileChange}
-              writingStyleResolution={writingStyleResolution}
-              writingStyleCandidates={writingStyleCandidates}
               onConfirmWritingStyle={onConfirmWritingStyle}
               onGenerateWithWritingStyle={onGenerateWithWritingStyle}
               onQuickGenerate={onQuickGenerate}
