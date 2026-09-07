@@ -90,7 +90,9 @@ export function useEditorGenerationFlow({
   const [auditUnknownState, setAuditUnknownState] = useState<{ chapterId: string; feedback: string } | null>(null);
   const [aiActionState, setAiActionState] = useState<AiActionState>(idleAiAction);
   const [aiContentCandidate, setAiContentCandidate] = useState<AiContentCandidate | null>(null);
-  const [isAcceptingAiCandidate, setIsAcceptingAiCandidate] = useState(false);
+  // 005-S4：候选接受旗标入 store（AgentWorkspace 订阅，不再透传）
+  const isAcceptingAiCandidate = useEditorGenerationStore((state) => state.isAcceptingAiCandidate);
+  const setIsAcceptingAiCandidate = useEditorGenerationStore((state) => state.setIsAcceptingAiCandidate);
   const aiContentCandidateRef = useRef<AiContentCandidate | null>(null);
 
   useEffect(() => {

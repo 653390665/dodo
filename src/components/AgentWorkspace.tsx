@@ -59,6 +59,7 @@ import { resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
 import { ErrorBoundary } from './ErrorBoundary';
 import type { AiContentCandidate } from '../lib/generation-action-state';
 import { AiCandidateReview } from './AiCandidateReview';
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 
 
 
@@ -211,7 +212,6 @@ interface AgentWorkspaceProps {
   aiContentCandidate?: AiContentCandidate | null;
   onAcceptAiContentCandidate?: () => Promise<void>;
   onDiscardAiContentCandidate?: () => void;
-  isAcceptingAiContentCandidate?: boolean;
 }
 
 export const AgentWorkspace = React.memo(function AgentWorkspace({
@@ -297,7 +297,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   aiContentCandidate,
   onAcceptAiContentCandidate,
   onDiscardAiContentCandidate,
-  isAcceptingAiContentCandidate = false,
 }: AgentWorkspaceProps) {
   const [bibleSearch, setBibleSearch] = React.useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
@@ -450,6 +449,8 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
 
   const activeEntityNames = propActiveEntityNames ?? localActiveEntityNames;
   const activeMoreItem = MORE_MENU_ITEMS.find(([tab]) => tab === agentTab);
+  // 005-S4：候选接受旗标订阅 store
+  const isAcceptingAiContentCandidate = useEditorGenerationStore((state) => state.isAcceptingAiCandidate);
 
   React.useEffect(() => {
     if (!isMoreMenuOpen) return;

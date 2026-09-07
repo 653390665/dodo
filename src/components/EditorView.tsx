@@ -128,7 +128,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   // 005-S4：期望字数入 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
-  const setExpectedWordCount = useProductionStore((state) => state.setExpectedWordCount);
   const [userIntent, setUserIntent] = useState('');
   const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>('unknown');
   const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
@@ -2120,7 +2119,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onAcceptReviewIssueRisk={handleAcceptReviewIssueRisk}
             onDeferReviewIssue={handleDeferReviewIssue}
             aiContentCandidate={aiContentCandidate}
-            isAcceptingAiContentCandidate={isAcceptingAiCandidate}
             onAcceptAiContentCandidate={acceptAiContentCandidate}
             onDiscardAiContentCandidate={discardAiContentCandidate}
           />
