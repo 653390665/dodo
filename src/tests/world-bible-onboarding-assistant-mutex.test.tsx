@@ -51,7 +51,7 @@ describe('WorldBible onboarding assistant mutex', () => {
       <WorldBibleOnboarding onboarding={onboarding} isGlobalAssistantOpen={false} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '智能管家' }));
+    fireEvent.click(screen.getByRole('button', { name: '设定引导' }));
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: '保留这段设定' } });
 
@@ -60,11 +60,11 @@ describe('WorldBible onboarding assistant mutex', () => {
     );
 
     expect(screen.queryByRole('textbox')).toBeNull();
-    expect(screen.queryByRole('button', { name: '智能管家' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '设定引导' })).toBeNull();
 
     view.rerender(
       <WorldBibleOnboarding onboarding={{ ...onboarding, assistantInput: '保留这段设定' }} isGlobalAssistantOpen={false} />,
     );
-    expect(screen.getByRole('button', { name: '智能管家' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '设定引导' })).toBeTruthy();
   });
 });

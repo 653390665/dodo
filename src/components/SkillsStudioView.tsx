@@ -17,7 +17,7 @@ import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } fr
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isMonetizationEnabled } from '../lib/entitlements';
-import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getCapabilityRuntimeLabel, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
+import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
 import {
   getAuthorFacingCapabilityActionHint,
   getAuthorFacingCapabilityActionLabel,
@@ -62,7 +62,7 @@ const CAPABILITY_RETURN_EFFECT_HINT = '应用配置后，主卡与辅卡影响�
 function getCapabilityApplyButtonLabel(destination: CapabilityApplyDestination): string {
   if (destination === 'world') return '应用配置并前往世界观';
   if (destination === 'outline') return '应用配置并前往大纲';
-  return '应用所选配置并返回写作';
+  return '应用并返回写作';
 }
 
 function isOutlineCandidateOutput(output: string | undefined): boolean {
@@ -346,25 +346,17 @@ function PlazaAssetCard({
           </div>
         )}
 
+        {/* 徽章瘦身（001 目标 4）：只保留 作用范围 + 改正文/只读 两枚，
+            其余元数据（类别、运行态、输入）由 useHint/actionHint 文案承载。 */}
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {cardCategory && (
-            <span className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] font-medium text-theme-muted border border-theme-border/30 font-sans">
-              {cardCategory}
+          {scopeLabel && (
+            <span className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] text-theme-muted border border-theme-border/30">
+              {scopeLabel}
             </span>
           )}
-          {manifest && <>
-            <span className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] text-theme-muted border border-theme-border/30">{getCapabilityRuntimeLabel(manifest.runtimeStatus)}</span>
-            {scopeLabel && (
-              <span className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] text-theme-muted border border-theme-border/30">
-                {scopeLabel}
-              </span>
-            )}
-          </>}
-          {asset.inputs && asset.inputs.map(input => (
-            <span key={input} className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] font-medium text-theme-muted border border-theme-border/30 font-sans">
-              接收: {input === 'content' ? '正文' : input === 'outline' ? '大纲' : '设定'}
-            </span>
-          ))}
+          <span className="px-1.5 py-0.5 bg-theme-bg rounded text-[9px] text-theme-muted border border-theme-border/30">
+            {canRunOneShot || governanceType === 'guardrail' ? '只读' : '改正文'}
+          </span>
         </div>
         {(useHint || entryHint) && (
           <div className="space-y-0.5 text-[10px] leading-4 text-theme-muted">
@@ -893,6 +885,9 @@ export function SkillsStudioView({
     }
     return assets;
   }, [selectedCapability, selectedCategory]);
+  // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
+  const availableCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus === 'active');
+  const lockedCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus !== 'active');
   const capabilityTabCount = (id: StoreTab) => {
     if (id === 'flow') return visibleFlowCount;
     if (id === 'packages') return visiblePackageCount;
@@ -1542,7 +1537,7 @@ export function SkillsStudioView({
       ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile))
       : null;
     await applyConfiguration(false, 'return', capabilityProfile);
-    toast(`已启用「${assetTitle}」`, 'success', 6500, {
+    toast(`已启用「${assetTitle}」`, 'success', 5000, {
       label: '撤销',
       onClick: () => {
         if (preProfile) void applyConfiguration(false, 'return', preProfile as CapabilityProfileDraft);
@@ -2181,7 +2176,6 @@ export function SkillsStudioView({
                               <div className="mt-1 flex flex-wrap gap-1.5">
                                 <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] font-bold text-theme-text">{getPackageUseLabel(pkg.id)}</span>
                                 <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] text-theme-muted">{getPackageStageSummary(pkg)}</span>
-                                <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] text-theme-muted">{getPackageNextStepHint(pkg.id)}</span>
                               </div>
                               <p className="mt-1 text-[10px] leading-4 text-theme-muted">{pkg.intendedOutcome || pkg.description}</p>
                               {(packageSelectionDrafts[pkg.id]?.length || 0) > 0 && <p className="mt-1 text-[10px] font-bold text-theme-accent">已勾选 {packageSelectionDrafts[pkg.id].length} 项，待提交</p>}
@@ -2325,24 +2319,53 @@ export function SkillsStudioView({
                 )}
 
                 {filteredCuratedSkills.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCuratedSkills.map((asset) => (
-                      <PlazaAssetCard
-                        key={asset.id}
-                        asset={asset}
-                        isImported={isAssetPersisted(asset)}
-                        isFavorited={isTechniqueFavorited(asset) || isGuardrailCandidate(asset)}
-                        isCloning={cloningAssetId === asset.id}
-                        selectedNovel={selectedNovel || null}
-                        isFreeNovel={isFreeNovel}
-                        onImport={() => handleImportAsset(asset)}
-                        onEquip={() => handleEquipAsset(asset)}
-                        onUseTechnique={() => handleUseTechnique(asset)}
-                        onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
-                        onDirectExec={() => handleDirectExec(asset)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    {availableCuratedSkills.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {availableCuratedSkills.map((asset) => (
+                          <PlazaAssetCard
+                            key={asset.id}
+                            asset={asset}
+                            isImported={isAssetPersisted(asset)}
+                            isFavorited={isTechniqueFavorited(asset) || isGuardrailCandidate(asset)}
+                            isCloning={cloningAssetId === asset.id}
+                            selectedNovel={selectedNovel || null}
+                            isFreeNovel={isFreeNovel}
+                            onImport={() => handleImportAsset(asset)}
+                            onEquip={() => handleEquipAsset(asset)}
+                            onUseTechnique={() => handleUseTechnique(asset)}
+                            onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
+                            onDirectExec={() => handleDirectExec(asset)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {lockedCuratedSkills.length > 0 && (
+                      <details className="rounded-xl border border-theme-border/60 bg-theme-bg/40">
+                        <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
+                          需解锁（{lockedCuratedSkills.length}）· 消毒或授权后可用
+                        </summary>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 pb-4">
+                          {lockedCuratedSkills.map((asset) => (
+                            <PlazaAssetCard
+                              key={asset.id}
+                              asset={asset}
+                              isImported={isAssetPersisted(asset)}
+                              isFavorited={isTechniqueFavorited(asset) || isGuardrailCandidate(asset)}
+                              isCloning={cloningAssetId === asset.id}
+                              selectedNovel={selectedNovel || null}
+                              isFreeNovel={isFreeNovel}
+                              onImport={() => handleImportAsset(asset)}
+                              onEquip={() => handleEquipAsset(asset)}
+                              onUseTechnique={() => handleUseTechnique(asset)}
+                              onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
+                              onDirectExec={() => handleDirectExec(asset)}
+                            />
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </>
                 ) : (
                   <div className="py-12 text-center text-theme-muted text-xs border border-dashed border-theme-border rounded-lg">
                     该航道暂无精品卡，敬请期待
@@ -2590,7 +2613,7 @@ export function SkillsStudioView({
                   // stays staged so the user can retry from the dialog.
                 }
                 const title = selectedPackage?.name || '所选能力';
-                toast(`已启用「${title}」`, 'success', 6500, {
+                toast(`已启用「${title}」`, 'success', 5000, {
                   label: '撤销',
                   onClick: () => {
                     if (!preProfile) return;

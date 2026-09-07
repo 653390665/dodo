@@ -172,15 +172,18 @@ describe('Plan 158 capability center', () => {
     expect(screen.queryByText('授权范围')).toBeNull();
     expect(screen.getAllByText('审稿包').length).toBeGreaterThan(0);
     expect(screen.getAllByText('写后处理').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('勾选后点「启用所选」，诊断立即运行').length).toBeGreaterThan(0);
+    // 001 徽章瘦身：下一步提示不再上货架卡片，只在能力包弹窗内出现
+    expect(screen.queryByText('勾选后点「启用所选」，诊断立即运行')).toBeNull();
     expect(screen.getAllByText('精修包').length).toBeGreaterThan(0);
     expect(screen.getAllByText('写前到写后').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('勾选后点「启用所选」，预览生成后确认应用').length).toBeGreaterThan(0);
+    // 001 徽章瘦身：下一步提示不再上货架卡片，只在能力包弹窗内出现
+    expect(screen.queryByText('勾选后点「启用所选」，预览生成后确认应用')).toBeNull();
     expect(screen.getByText('设定包')).toBeTruthy();
     expect(screen.getAllByText('立项配置').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('勾选后点「启用所选」即生效，可撤销').length).toBeGreaterThan(0);
+    // 001 徽章瘦身：下一步提示不再上货架卡片，只在能力包弹窗内出现
+    expect(screen.queryByText('勾选后点「启用所选」即生效，可撤销')).toBeNull();
     expect(screen.getAllByText('拆书包').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('勾选拆书卡，启用后自动放入卡组空位').length).toBeGreaterThan(0);
+    expect(screen.queryByText('勾选拆书卡，启用后自动放入卡组空位')).toBeNull();
     expect(screen.queryByText('加入候选后加入作品卡组')).toBeNull();
     expect(screen.getByText('建立可确认的世界观和人物设定候选')).toBeTruthy();
     expect(screen.getByText('先优化开篇结构，再安排第一章正文表达技法')).toBeTruthy();
@@ -568,7 +571,8 @@ describe('Plan 158 capability center', () => {
 
     await openPlaza();
     const outlineCard = screen.getByRole('heading', { name: '黄金三章核心冲突大纲展开器' }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(outlineCard).getByText('结构卡')).toBeTruthy();
+    // 001 徽章瘦身：类别徽章撤下，只留 作用范围 + 改正文/只读
+    expect(within(outlineCard).getByText('改正文')).toBeTruthy();
     expect(within(outlineCard).getByText('适合：拆解结构、节奏与钩子')).toBeTruthy();
     expect(within(outlineCard).getByText('入口：应用配置后设为作品默认，用于开篇和节奏')).toBeTruthy();
     expect(within(outlineCard).getByText('作品默认')).toBeTruthy();
@@ -576,13 +580,13 @@ describe('Plan 158 capability center', () => {
     expect(within(outlineCard).getByRole('button', { name: '应用配置后设为作品默认' })).toBeTruthy();
 
     const worldCard = screen.getByRole('heading', { name: '核心角色人设卡与成长弧光生成' }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(worldCard).getByText('世界观卡')).toBeTruthy();
+    expect(within(worldCard).getByText('改正文')).toBeTruthy();
     expect(within(worldCard).getByText('适合：大纲、人设与世界观设定')).toBeTruthy();
     expect(within(worldCard).getByText('作品默认')).toBeTruthy();
     expect(within(worldCard).getByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。')).toBeTruthy();
 
     const proseCard = screen.getByRole('heading', { name: '超强口语化推进剧情正文器' }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(proseCard).getByText('文风卡')).toBeTruthy();
+    expect(within(proseCard).getByText('改正文')).toBeTruthy();
     expect(within(proseCard).getByText('入口：可设为作品默认统一全文，也可点「用于本章」配置章节表达')).toBeTruthy();
     expect(within(proseCard).getByText('作品默认 / 本章使用')).toBeTruthy();
     expect(within(proseCard).getByText('可设为作品默认统一全文，也可只用于当前章节。')).toBeTruthy();
@@ -592,7 +596,7 @@ describe('Plan 158 capability center', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /拆书卡/ }));
     const deconstructionCard = screen.getByRole('heading', { name: /克苏鲁不可名状寒风氛围风格增色包/ }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(deconstructionCard).getByText('文风卡')).toBeTruthy();
+    expect(within(deconstructionCard).getByText('改正文')).toBeTruthy();
     expect(within(deconstructionCard).getByText('入口：先选主卡或辅卡位置，应用配置后用于拆书')).toBeTruthy();
     expect(within(deconstructionCard).getByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。')).toBeTruthy();
     expect(within(deconstructionCard).getByText('作品默认 / 本章使用')).toBeTruthy();
@@ -601,7 +605,7 @@ describe('Plan 158 capability center', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /审稿与精修/ }));
     const polishCard = screen.getByRole('heading', { name: '深度AI句式与套话物理抹除器' }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(polishCard).getByText('精修卡')).toBeTruthy();
+    expect(within(polishCard).getByText('只读')).toBeTruthy();
     expect(within(polishCard).getByText('适合：审稿后生成局部精修预览')).toBeTruthy();
     expect(within(polishCard).getByText('入口：收藏后可点「应用配置后写入本章规则」或「生成精修预览」')).toBeTruthy();
     expect(within(polishCard).getByText('应用配置后可写入本章规则；运行一次只生成精修预览。')).toBeTruthy();
@@ -611,7 +615,7 @@ describe('Plan 158 capability center', () => {
     expect(within(polishCard).queryByText(/作用域:|作者流程|质量防线|项目 \/ 章节|单次运行/)).toBeNull();
 
     const diagnosticCard = screen.getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' }).closest('div.bg-theme-sidebar') as HTMLElement;
-    expect(within(diagnosticCard).getByText('审稿卡')).toBeTruthy();
+    expect(within(diagnosticCard).getByText('只读')).toBeTruthy();
     expect(within(diagnosticCard).getByText('适合：写后检查跑偏、重复与逻辑问题')).toBeTruthy();
     expect(within(diagnosticCard).getByText('入口：写后直接运行审稿诊断')).toBeTruthy();
     expect(within(diagnosticCard).getByText('运行一次：只生成诊断或辅助结果，不改正文。')).toBeTruthy();
@@ -622,8 +626,9 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(screen.getByText('④ 过签与平台检查'));
     expect(screen.getByRole('heading', { name: '番茄爽文爆款完读率诊断评分仪' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '海外主流网文海外通吃爽点自检仪' })).toBeTruthy();
+    // 001 目标 5：不可用卡折叠进"需解锁"分组，不再与可用卡同屏混排
     expect(screen.getAllByText('暂不可运行')).toHaveLength(2);
-    expect(screen.getAllByText('暂不可用')).toHaveLength(2);
+    expect(screen.getByText(/需解锁（2）/)).toBeTruthy();
     expect(screen.queryByText('该航道暂无精品卡，敬请期待')).toBeNull();
   });
 
