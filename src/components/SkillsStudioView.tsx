@@ -12,12 +12,13 @@ import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
 import { appConfirm } from './ui/app-confirm';
+import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
 import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isMonetizationEnabled } from '../lib/entitlements';
-import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
+import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
 import {
   getAuthorFacingCapabilityActionHint,
   getAuthorFacingCapabilityActionLabel,
@@ -687,6 +688,7 @@ export function SkillsStudioView({
   const [cloningAssetId, setCloningAssetId] = useState<string | null>(null);
   const [selectedFlowDetail, setSelectedFlowDetail] = useState<SkillSeriesFlow | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [guardrailPolicyOpen, setGuardrailPolicyOpen] = useState(false);
   const [packageSelections, setPackageSelections] = useState<string[]>([]);
   const [pendingPackageSteps, setPendingPackageSteps] = useState<EnhancementPackageStep[]>([]);
   const [packageSelectionDrafts, setPackageSelectionDrafts] = useState<Record<string, string[]>>({});
@@ -778,7 +780,10 @@ export function SkillsStudioView({
 
     const activeFlowId = effectiveNovel?.projectPreferenceProfile?.capabilityProfile?.activeFlowId;
     if (activeFlowId && activeFlowId !== flowId && typeof window !== 'undefined') {
-      const confirmedReplace = await appConfirm('替换当前创作流程？', '当前作品已有创作流程，确认替换为该流程吗？', { confirmLabel: '确认替换' });
+      // 003：排他确认带对比清单，说明替换的是哪个流程、会重置什么。
+      const previousFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === activeFlowId);
+      const nextFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === flowId);
+      const confirmedReplace = await appConfirm('替换当前创作流程？', `切换到「${nextFlow?.name || flowId}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`, { confirmLabel: '确认替换' });
       if (!confirmedReplace) return;
     }
 
@@ -1795,7 +1800,9 @@ export function SkillsStudioView({
       if (component.flow) {
         const activeFlowId = nextProfile.activeFlowId;
         if (activeFlowId && activeFlowId !== component.flow.id && typeof window !== 'undefined') {
-          const confirmedReplace = await appConfirm('替换当前创作流程？', '当前作品已有创作流程，确认替换为能力包中的流程吗？', { confirmLabel: '确认替换' });
+          // 003：包内流程切换同样给出替换清单。
+          const previousFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === activeFlowId);
+          const confirmedReplace = await appConfirm('替换当前创作流程？', `切换到「${component.flow.name || component.flow.id}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`, { confirmLabel: '确认替换' });
           if (!confirmedReplace) {
             setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'conflict' }));
             continue;
@@ -1917,9 +1924,18 @@ export function SkillsStudioView({
             </div>
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
-            <div className="text-xs font-bold text-theme-text">护栏状态</div>
-            <p className="mt-2 text-sm font-semibold text-amber-600">系统检查候选</p>
-            <p className="mt-1 text-[11px] text-theme-muted">默认护栏自动启用；已选增强 {currentGuardrailIds.length} 条。</p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-bold text-theme-text">护栏状态</div>
+              <button
+                type="button"
+                onClick={() => setGuardrailPolicyOpen(true)}
+                className="shrink-0 rounded-lg border border-theme-border px-2 py-1 text-[10px] font-bold text-theme-text hover:bg-theme-border/30"
+              >
+                管理
+              </button>
+            </div>
+            <p className="mt-2 text-sm font-semibold text-emerald-600">默认 {getCoreDefaultGuardrailCount()} 条已自动生效</p>
+            <p className="mt-1 text-[11px] text-theme-muted">增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。</p>
           </div>
         </div>
 
@@ -2114,7 +2130,7 @@ export function SkillsStudioView({
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
             <div role="tablist" aria-label="能力治理类别" className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-3">
               {([
-                ['flow', '创作流程'], ['technique', '写作技法'], ['skill-card', '拆书卡'], ['diagnostic-tools', '审稿与精修'], ['guardrail', '系统护栏'],
+                ['flow', '创作流程'], ['technique', '写作技法'], ['skill-card', '拆书卡'], ['diagnostic-tools', '审稿与精修'],
               ] as const).map(([id, label]) => (
                 <button key={id} role="tab" aria-selected={selectedCapability === id} type="button" onClick={() => setSelectedCapability(id)} className={cn('px-3 py-2 rounded-lg text-xs font-bold border', selectedCapability === id ? 'bg-theme-sidebar border-theme-accent text-theme-text' : 'border-transparent text-theme-muted hover:text-theme-text')}>
                   {label} <span className="ml-1 text-[10px]">{capabilityTabCount(id)}</span>
@@ -2624,6 +2640,15 @@ export function SkillsStudioView({
             </div>
           </div>
         </div>
+      )}
+
+      {guardrailPolicyOpen && selectedNovel && (
+        <GuardrailPolicyPanel
+          enhancedGuardrails={getConfigurableGuardrailAssets()}
+          enabledIds={currentGuardrailIds}
+          onToggle={(asset) => { void handleEquipAsset(asset); }}
+          onClose={() => setGuardrailPolicyOpen(false)}
+        />
       )}
 
       {selectedFlowDetail && (

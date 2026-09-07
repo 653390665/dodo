@@ -124,7 +124,8 @@ describe('Plan 158 capability center', () => {
     expect(within(deckSummary).getByText('空位：')).toBeTruthy();
     expect(within(deckSummary).getByText('可添加 1 张主卡、2 张辅卡')).toBeTruthy();
     expect(screen.getByText('护栏状态')).toBeTruthy();
-    expect(screen.getByText('系统检查候选')).toBeTruthy();
+    // 003：护栏状态卡如实标注默认护栏已自动生效，不再叫"系统检查候选"
+    expect(screen.getByText(/已自动生效/)).toBeTruthy();
     expect(screen.queryByText('自动参与检查')).toBeNull();
     expect(screen.queryByText(/Planner（规划）|Writer（写作）|Critic（审稿）/)).toBeNull();
   });
@@ -273,15 +274,16 @@ describe('Plan 158 capability center', () => {
     expect(screen.getByText('0 张已收藏')).toBeTruthy();
   }, 15_000);
 
-  test('enables system guardrails from the capability shelf and applies them as guardrail ids', async () => {
+  test('manages guardrails from the quality policy panel and applies them as guardrail ids', async () => {
     render(<SkillsStudioView selectedNovel={novel} />);
 
-    await openPlaza();
-    fireEvent.click(screen.getByRole('tab', { name: /系统护栏/ }));
-    const guardrailButtons = await screen.findAllByRole('button', { name: '保存为系统检查候选' });
-    fireEvent.click(guardrailButtons[0]);
+    // 003：护栏不再作为商店页签，改由"护栏状态"卡进入质量标准面板。
+    fireEvent.click(await screen.findByRole('button', { name: '管理' }));
+    const policyDialog = await screen.findByRole('dialog', { name: '质量标准' });
+    expect(within(policyDialog).getAllByText('已自动生效').length).toBeGreaterThan(0);
+    fireEvent.click(within(policyDialog).getAllByRole('button', { name: /开启增强护栏：/ })[0]);
 
-    await waitFor(() => expect(screen.getByText('默认护栏自动启用；已选增强 1 条。')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/增强护栏已开启 1 条/)).toBeTruthy());
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].guardrailIds).toHaveLength(1);

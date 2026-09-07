@@ -149,8 +149,8 @@ export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
   }));
 }
 
-function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
-  return PROMPT_GOVERNANCE_CATALOG
+/** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关。 */
+export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {  return PROMPT_GOVERNANCE_CATALOG
     .filter((asset) => asset.primaryCategory === 'quality-guardrail'
       && asset.runtimeStatus === 'active'
       && asset.isRuntimeReady === true
@@ -220,4 +220,11 @@ function getAssetCapabilityManifest(asset: CuratedProductSkill | GovernedPromptA
     sourceType: asset.sourceType || 'built-in',
     displayStages: ['active-drafting', 'style-polish'],
   };
+}
+
+/** 003：core-default 护栏数量（运行时无条件注入全部三阶段，UI 只读展示）。 */
+export function getCoreDefaultGuardrailCount(): number {
+  return PROMPT_GOVERNANCE_CATALOG.filter((asset) => (
+    asset.placementTier === 'core-default' && asset.primaryCategory === 'quality-guardrail'
+  )).length;
 }
