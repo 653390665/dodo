@@ -1623,24 +1623,7 @@ export function SkillsStudioView({
     if (type === 'technique') {
       const persistedId = getCapabilityManifest(asset)?.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
       if (!persistedId) return;
-      const current = upsertCapabilityMembership(configurationDraft || getProjectCapabilityProfile(effectiveNovel), {
-        sourceId: asset.parentSkillId || asset.id,
-        sourceVersion: getCapabilityManifest(asset)?.version || '1',
-        sourceType: getCapabilityManifest(asset)?.sourceType || asset.sourceType,
-        persistedSkillId: persistedId,
-      });
-      const favorites = current?.favoriteTechniqueIds || [];
-      const nextFavorites = favorites.includes(persistedId)
-        ? favorites.filter((id) => id !== persistedId)
-        : [...favorites, persistedId];
-      const nextProfile = buildV3CapabilityProfile(effectiveNovel, {
-        ...current,
-        favoriteTechniqueIds: nextFavorites,
-        capabilityMemberships: current.capabilityMemberships,
-      });
-      stageConfiguration(nextProfile.capabilityProfile);
-      await applyStagedProfileImmediately(nextProfile.capabilityProfile, asset.title);
-      void recordCapabilityEvent({ eventName: 'technique_favorited', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: asset.id, sourceType: asset.sourceType });
+      await equipPersistedTechnique(asset, persistedId);
       return;
     }
     if (type === 'skill-card') {
@@ -1699,6 +1682,30 @@ export function SkillsStudioView({
     handleDirectExec(asset);
   };
 
+  // 010/J6：把已落库的技法卡装配进作品（收藏 + 即时应用）。
+  // 供目录克隆与消毒副本两条路径共用，避免消毒后启用被目录克隆门槛拦下。
+  const equipPersistedTechnique = async (asset: CuratedProductSkill, persistedId: string) => {
+    const manifest = getCapabilityManifest(asset);
+    const current = upsertCapabilityMembership(configurationDraft || getProjectCapabilityProfile(effectiveNovel), {
+      sourceId: asset.parentSkillId || asset.id,
+      sourceVersion: manifest?.version || '1',
+      sourceType: manifest?.sourceType || asset.sourceType,
+      persistedSkillId: persistedId,
+    });
+    const favorites = current?.favoriteTechniqueIds || [];
+    const nextFavorites = favorites.includes(persistedId)
+      ? favorites.filter((id) => id !== persistedId)
+      : [...favorites, persistedId];
+    const nextProfile = buildV3CapabilityProfile(effectiveNovel, {
+      ...current,
+      favoriteTechniqueIds: nextFavorites,
+      capabilityMemberships: current.capabilityMemberships,
+    });
+    stageConfiguration(nextProfile.capabilityProfile);
+    await applyStagedProfileImmediately(nextProfile.capabilityProfile, asset.title);
+    void recordCapabilityEvent({ eventName: 'technique_favorited', stage: 'advanced', result: 'success', novelId: selectedNovel?.id || '', objectId: asset.id, sourceType: asset.sourceType });
+  };
+
   // 004 消毒并启用：调服务端消毒端点落库脱敏副本，再走既有装配链路
   // （handleImportAsset 的去重会命中 sanitized- 副本，不会重复落库）。
   const handleSanitizeAndEnable = async (asset: CuratedProductSkill) => {
@@ -1719,8 +1726,8 @@ export function SkillsStudioView({
       const sanitizedSkill = buildSanitizedSkillStub(asset, Date.now());
       setSavedSkills((current) => current.some((skill) => skill.id === cloneId) ? current : [...current, sanitizedSkill]);
       if (!alreadyFavorited) {
-        // 技法分支是 toggle：仅当尚未启用时调用，避免二次点击反被移除。
-        await handleEquipAsset(asset);
+        // 直接装配已落库的消毒副本：目录克隆门槛（candidate 状态/证据分）不适用于显式消毒
+        await equipPersistedTechnique(asset, cloneId);
       }
       toast('已消毒并启用该能力卡（原作者署名与私有引用已剥离）。', 'success', 5000);
     } catch {

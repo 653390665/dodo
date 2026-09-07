@@ -1225,6 +1225,40 @@ describe('Plan 158 capability center', () => {
     expect(cardHeadings.length).toBeGreaterThanOrEqual(73);
   }, 15_000);
 
+  test('010 J6 sanitize-and-enable runs the full seam: endpoint -> savedSkills -> enable -> fold exit', async () => {
+    // 端点 mock：返回消毒成功
+    const sanitizeCalls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => {
+      const assetId = String(url).split('/').pop() || '';
+      sanitizeCalls.push(assetId);
+      return {
+        ok: true,
+        json: async () => ({ skillId: `sanitized-${assetId}`, alreadySanitized: false, sanitizationHits: { contacts: 1, authors: 1, brands: 0, watermarks: 0 }, runtimeStatus: 'active' }),
+      } as Response;
+    }));
+
+    render(<SkillsStudioView selectedNovel={novel} />);
+    await openPlaza();
+
+    const before = screen.getAllByRole('button', { name: '消毒并启用' }).length;
+    const btns = screen.getAllByRole('button', { name: '消毒并启用' });
+    fireEvent.click(btns[0]);
+    const { toast } = await import('../lib/toast');
+    const { applyCapabilityConfiguration: applyMock } = await import('../lib/capability-configuration-client');
+
+    // 端点被以候选 assetId 调用
+    await waitFor(() => expect(sanitizeCalls.length).toBeGreaterThan(0));
+    const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
+    // 启用链路走通：消毒后立即应用配置
+    await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
+    // 该卡移出需解锁分组（消毒按钮总数减少 1）
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '消毒并启用' }).length).toBe(before - 1));
+    // 撤销 toast 出现（启用链路的既有语义保持）
+    // toast 被 mock，断言调用而非渲染
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('已消毒并启用该能力卡（原作者署名与私有引用已剥离）。', 'success', 5000));
+    vi.unstubAllGlobals();
+  }, 15_000);
+
   test('004 offers sanitize-and-enable for locked candidate cards', async () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();

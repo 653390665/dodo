@@ -61,6 +61,43 @@ describe('GenerationStatusBar', () => {
     expect(screen.getByText(/已写入/)).toBeTruthy();
   });
 
+  test('010 J7 store writes propagate to two mounted surfaces in lockstep', () => {
+    // 模拟工作台与编辑器两个表面同时挂载
+    const probe = render(
+      <div>
+        <GenerationStatusBar mode="full" />
+        <GenerationStatusBar mode="full" />
+      </div>,
+    );
+    const bars = () => probe.container.querySelectorAll('[role="status"]');
+    expect(bars().length).toBe(2);
+
+    // 一处写入（模拟生产流 hook 的 store 更新）
+    act(() => {
+      useProductionStore.setState({
+        isProductionRunning: true,
+        productionBeatsSource: 'model',
+        activeProductionRun: run({ status: 'running' }),
+      });
+    });
+    // 两个表面四段同步流转：无"未生成"，出现"待写入"
+    bars().forEach((bar) => {
+      expect(bar.textContent).toContain('分镜');
+      expect(bar.textContent).not.toContain('未生成');
+      expect(bar.textContent).toContain('待写入');
+    });
+
+    act(() => {
+      useProductionStore.setState({
+        isProductionRunning: false,
+        activeProductionRun: run({ status: 'applied', targetChapterId: 'chapter-1' }),
+      });
+    });
+    bars().forEach((bar) => {
+      expect(bar.textContent).toContain('已写入');
+    });
+  });
+
   test('write segment becomes clickable with a pending run and fires the seek callback', () => {
     const onWriteClick = vi.fn();
     useProductionStore.setState({
