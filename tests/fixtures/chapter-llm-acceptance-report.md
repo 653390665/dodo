@@ -3,7 +3,7 @@
 - 模式：`deterministic`
 - 总体状态：`FALLBACK`
 - 模型配置：`missing`
-- 生成时间：`2026-09-07T05:10:24.673Z`
+- 生成时间：`2026-09-07T05:21:56.616Z`
 
 ## 样本
 
@@ -28,7 +28,7 @@
 
 | 样本 | 阶段 | 状态 | 错误码 | 解析模式 | 契约问题 | 诊断码 | 诊断摘要 | 问题类别 | 响应形状 | 含审稿键 | 规范化问题数 | 耗时 ms |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| slop-heavy | audit | FALLBACK | - | structured | - | - | - | style-slop, ai-cliche, exposition-dump, tell-dont-show | json-object | yes | 3 | 1 |
+| slop-heavy | audit | FALLBACK | - | structured | - | - | - | style-slop, ai-cliche, exposition-dump, tell-dont-show | json-object | yes | 3 | 0 |
 | slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |
 | slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |
 | slop-heavy | rewrite | FALLBACK | - | - | - | - | - | - | - | no | - | 0 |

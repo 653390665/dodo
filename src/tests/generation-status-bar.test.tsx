@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, test } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { GenerationStatusBar } from '../components/GenerationStatusBar';
 import { useProductionStore } from '../stores/production-store';
 import type { ChapterProductionRun } from '../../shared/types';
@@ -59,6 +59,27 @@ describe('GenerationStatusBar', () => {
     });
     rerender(<GenerationStatusBar mode="full" />);
     expect(screen.getByText(/已写入/)).toBeTruthy();
+  });
+
+  test('write segment becomes clickable with a pending run and fires the seek callback', () => {
+    const onWriteClick = vi.fn();
+    useProductionStore.setState({
+      activeProductionRun: run({ status: 'running' }),
+      productionBeatsSource: 'model',
+      productionDraftSource: 'model',
+    });
+    render(<GenerationStatusBar mode="full" onWriteClick={onWriteClick} />);
+
+    const writeButton = screen.getByRole('button', { name: /④ 写入/ });
+    expect(writeButton.getAttribute('title')).toBe('滚动到接受区');
+    fireEvent.click(writeButton);
+    expect(onWriteClick).toHaveBeenCalledTimes(1);
+
+    // 已写入后不再可点击
+    act(() => {
+      useProductionStore.setState({ activeProductionRun: run({ status: 'applied', targetChapterId: 'chapter-1' }) });
+    });
+    expect(screen.queryByRole('button', { name: /④ 写入/ })).toBeNull();
   });
 
   test('quick mode marks review as skipped and follows draft readiness', () => {

@@ -73,7 +73,7 @@
 |---|---|
 | T1 双 AI 入口命名区分 | ✅ 已完成：侧边栏“智能管家”→“AI 协作”，抽屉 aria-label 同步，编辑器按钮保留“智能管家”（工作台专属名） |
 | T2 全局助手写入接入质量门 | ✅ 已完成：AppShell.handleApplyAssistantToContent 写入前跑 validateCompleteChapterDraftQuality，不通过则 toast 违规详情并拒绝写入 |
-| T3 修复 2 个深流测试 | ⏸ **用户决定暂缓**：skills-studio-plan158.test.tsx "uses author-facing"（865）与 "explains outline"（931）——断言旧三段式 launch 时序，单动词后时序改变；已部分改写（freshPreviewButton 重查询、resultLaunchLabel 断言更新），剩余为 fireEvent 与异步状态更新的竞态，需浏览器 devtools 逐帧调试 |
+| T3 修复 2 个深流测试 | ✅ 完成（2026-09-07 第二轮）：根因是会话重置副作用把自家 apply 误判为外部漂移、关闭了打开的能力包弹窗（组件级修复，见 commit 22b1406）；plan158 35/37→37/37，前端基线恢复全绿 |
 | T4 动作词表收敛 | ⏸ 部分完成："下一步动作"横幅已删（与主按钮重复）；动作词表常量化（workflow-copy.ts）待做 |
 | T5 候选确认 UI 去重 | ⏸ **用户决定暂缓**：EditorView.tsx:1946-2026 与 AgentWorkspace.tsx:735-852 两份候选确认实现待合并为单一组件 |
 | T6 技法动词改名 | ✅ 已完成：技法"启用"误用改为"收藏为常用技法"语义；licensed 限额收敛未做 |

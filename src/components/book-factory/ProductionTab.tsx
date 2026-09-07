@@ -79,6 +79,8 @@ export function ProductionTab({
   capabilityEffectSummary,
   onSwitchTab,
 }: ProductionTabProps) {
+  // 008：状态条「④ 写入」点击后滚动到接受区
+  const runReviewAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const hasCapabilityDetails = Boolean(
     capabilityEffectSummary?.projectCardNames.length
       || capabilityEffectSummary?.favoriteTechniqueNames.length
@@ -89,7 +91,10 @@ export function ProductionTab({
   return (
     <div className="space-y-4">
       {/* 006：统一状态条——完整生产四段流转，直接订阅 production-store */}
-      <GenerationStatusBar mode="full" />
+      <GenerationStatusBar
+        mode="full"
+        onWriteClick={() => runReviewAnchorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })}
+      />
       {renderContextReceipt()}
       {shouldShowCapabilitySummary ? (
         <section className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs" aria-label="本次生成能力配置">
@@ -285,7 +290,8 @@ export function ProductionTab({
         )}
       </div>
 
-      <ProductionRunReview
+      <div ref={runReviewAnchorRef} data-production-run-review="true">
+        <ProductionRunReview
         run={activeProductionRun}
         userIntent={productionIntent}
         running={isProductionRunning}
@@ -302,6 +308,7 @@ export function ProductionTab({
         onApply={(runOverride) => void onApplyProductionRun(runOverride)}
         showStartAction={!onGenerateWithWritingStyle}
       />
+      </div>
     </div>
   );
 }

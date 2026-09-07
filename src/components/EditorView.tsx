@@ -24,6 +24,8 @@ import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
 const DEFAULT_PROJECT_PROFILE = { contract: {}, tags: [] as string[], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], rejectedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], notes: [] as string[], evidenceCount: 0 };
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendationCards';
+import { GenerationStatusBar } from './GenerationStatusBar';
+import { WORKFLOW_ACTION_LABELS } from '../lib/workflow-copy';
 import { useEditorIntelligenceContext } from '../lib/hooks/useEditorIntelligenceContext';
 import { useEntitySniffing } from '../lib/hooks/useEntitySniffing';
 import { useChapterVersions } from '../lib/hooks/useChapterVersions';
@@ -180,6 +182,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const hasSyncedTargetChapterRef = useRef(false);
   const autoStartedProductionLaunchTokenRef = useRef<number | null>(null);
   const prevTargetChapterIdRef = useRef<string | undefined>(undefined);
+  const candidateBannerRef = React.useRef<HTMLDivElement | null>(null);
   const autoPolishAfterAuditRef = useRef<{ chapterId: string; launchToken: number; previousAuditCompletedAt: number } | null>(null);
   const autoPolishAuditStartedRef = useRef(false);
   const restoredLaunchSessionCardsRef = useRef<number | null>(null);
@@ -1943,8 +1946,20 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             {writingStyleError}
           </div>
         ) : null}
+        {/* 008：快速模式与完整生产共用同一状态条（④ 待写入可点击滚动到候选区） */}
+        {aiContentCandidate && aiContentCandidate.chapterId === currentChapter?.id && !isAgentSidebarOpen && (
+          <div className="mx-3 mb-2 sm:mx-5">
+            <GenerationStatusBar
+              mode="quick"
+              quickDraftReady
+              onWriteClick={() => {
+                candidateBannerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }}
+            />
+          </div>
+        )}
         {aiContentCandidate && aiContentCandidate.chapterId === currentChapter?.id && !isAgentSidebarOpen ? (
-          <section aria-label="AI 正文候选" className="mx-3 mb-2 flex flex-wrap items-center gap-2 border border-theme-accent/40 bg-theme-accent/5 px-3 py-2 text-xs sm:mx-5">
+          <section ref={candidateBannerRef} aria-label="AI 正文候选" className="mx-3 mb-2 flex flex-wrap items-center gap-2 border border-theme-accent/40 bg-theme-accent/5 px-3 py-2 text-xs sm:mx-5">
             {(() => {
               const qualityState = getCandidateQualityState(aiContentCandidate);
               const canAccept = qualityState.status === 'eligible';
@@ -2009,6 +2024,17 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
               <Check size={14} aria-hidden="true" />接受并写入
             </button>
             {!canAccept ? <button type="button" disabled={isAcceptingAiCandidate} onClick={handleOpenPolishCards} className="inline-flex h-7 items-center border border-theme-accent px-2 text-theme-accent hover:bg-theme-accent/10 disabled:opacity-50">{qualityState.status === 'fallback' ? '重新审阅' : '前往精修'}</button> : null}
+            {/* 008：问题处理一跳直达工作台质量页签 */}
+            {!canAccept ? (
+              <button
+                type="button"
+                disabled={isAcceptingAiCandidate}
+                onClick={() => { setAgentTab('quality'); setIsAgentSidebarOpen(true); }}
+                className="inline-flex h-7 items-center border border-theme-border px-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 disabled:opacity-50"
+              >
+                {WORKFLOW_ACTION_LABELS.handleInWorkbench}
+              </button>
+            ) : null}
             <button type="button" disabled={isAcceptingAiCandidate} className="inline-flex h-7 items-center gap-1 border border-theme-border px-2 text-theme-muted hover:bg-theme-border/30 disabled:opacity-50" onClick={discardAiContentCandidate}>
               <X size={14} aria-hidden="true" />放弃预览
             </button>

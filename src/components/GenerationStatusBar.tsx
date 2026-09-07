@@ -38,12 +38,14 @@ function sourceSegment(key: string, label: string, source: 'fallback' | 'model' 
  * 完整生产从 production-store 推导四段；快速模式（无 run 记录）由
  * 候选/写入状态覆盖后两段。两种模式共用同一组件、同一套说法。
  */
-export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, quickWritten = false }: {
+export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, quickWritten = false, onWriteClick }: {
   mode?: 'full' | 'quick';
   /** 快速模式：草稿候选已就绪（覆盖②④段推导）。 */
   quickDraftReady?: boolean;
   /** 快速模式：正文已接受写入。 */
   quickWritten?: boolean;
+  /** 008：点击"④ 写入"时的引导跳转（滚动到接受区）。 */
+  onWriteClick?: () => void;
 }) {
   const isProductionRunning = useProductionStore((state) => state.isProductionRunning);
   const isApplyingProductionRun = useProductionStore((state) => state.isApplyingProductionRun);
@@ -96,16 +98,33 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
 
   return (
     <div role="status" aria-label="生成进度" className="flex flex-wrap items-center gap-2">
-      {segments.map((segment, index) => (
-        <span key={segment.key} className="flex items-center gap-2">
-          {index > 0 && <span aria-hidden="true" className="text-theme-border">→</span>}
-          <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold', toneStyles[segment.tone])}>
-            {toneIcon(segment.tone)}
-            {segment.label}
-            <span className="font-medium opacity-80">· {segment.detail}</span>
+      {segments.map((segment, index) => {
+        const isWriteSegment = segment.key === 'write';
+        const clickable = Boolean(onWriteClick) && isWriteSegment && segment.tone === 'active';
+        return (
+          <span key={segment.key} className="flex items-center gap-2">
+            {index > 0 && <span aria-hidden="true" className="text-theme-border">→</span>}
+            {clickable ? (
+              <button
+                type="button"
+                onClick={onWriteClick}
+                title="滚动到接受区"
+                className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold underline decoration-dotted underline-offset-2 cursor-pointer', toneStyles[segment.tone])}
+              >
+                {toneIcon(segment.tone)}
+                {segment.label}
+                <span className="font-medium opacity-80">· {segment.detail} ›</span>
+              </button>
+            ) : (
+              <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold', toneStyles[segment.tone])}>
+                {toneIcon(segment.tone)}
+                {segment.label}
+                <span className="font-medium opacity-80">· {segment.detail}</span>
+              </span>
+            )}
           </span>
-        </span>
-      ))}
+        );
+      })}
     </div>
   );
 }
