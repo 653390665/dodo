@@ -2497,6 +2497,7 @@ export function SkillsStudioView({
                     })),
                   );
                   const handlers = {
+                    // eslint-disable-next-line react-hooks/refs -- click-time closures, not render-time ref reads
                     onImport: handleImportAsset,
                     onEquip: handleEquipAsset,
                     onUseTechnique: handleUseTechnique,
