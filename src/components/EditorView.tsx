@@ -2041,7 +2041,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           />
           <AgentWorkspace
             novel={novel}
-            chapters={chapters}
             currentChapter={currentChapter}
             onSelectChapter={handleSelectChapter}
             isAgentSidebarOpen={isAgentSidebarOpen}
@@ -2085,7 +2084,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onStackDeconstructionCard={handleStackDeconstructionCard}
             onUnstackDeconstructionCard={handleUnstackDeconstructionCard}
             onSkipAsset={handleSkipAsset}
-            projectPreferenceProfile={projectPreferenceProfile || DEFAULT_PROJECT_PROFILE}
             onPreferenceProfileChange={persistProjectPreferenceProfile}
             versions={versions}
             onSaveVersion={handleSaveVersion}

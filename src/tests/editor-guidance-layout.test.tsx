@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { useEditorDataStore } from '../stores/editor-data-store';
-import type { Character, EntityRelationship, Faction, Item, Location, Skill, ContinuationPack } from '../../shared/types';
+import type { Character, EntityRelationship, Faction, Item, Location, ProjectPreferenceProfile, Skill, ContinuationPack } from '../../shared/types';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -70,6 +70,7 @@ function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
     factions: (overrides.factions as Faction[]) || [],
     librarySkills: (overrides.librarySkills as Skill[]) || [],
     relationships: (overrides.relationships as EntityRelationship[]) || [],
+    projectPreferenceProfile: overrides.projectPreferenceProfile as ProjectPreferenceProfile | undefined,
   });
   const noop = vi.fn();
   const noopAsync = vi.fn().mockResolvedValue(undefined);

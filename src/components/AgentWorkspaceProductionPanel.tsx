@@ -20,7 +20,6 @@ import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-gov
 import { useProductionStore } from '../stores/production-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorDataStore } from '../stores/editor-data-store';
-import { useOutlineContentStore } from '../stores/outline-content-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -37,7 +36,6 @@ type ProductionAgentTab = Extract<AgentTab, 'production' | 'outline' | 'planning
 interface AgentWorkspaceProductionPanelProps {
   agentTab: ProductionAgentTab;
   novel: Novel;
-  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
   onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
   productionBeatsSource?: 'fallback' | 'model' | null;
@@ -96,7 +94,6 @@ interface AgentWorkspaceProductionPanelProps {
     auditPassed?: boolean;
   };
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
-  projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
   skippedAssetIds?: string[];
   stackedDeconstructionCardIds?: string[];
@@ -114,7 +111,6 @@ interface AgentWorkspaceProductionPanelProps {
 export function AgentWorkspaceProductionPanel({
   agentTab,
   novel,
-  chapters,
   currentChapter,
   onSelectChapter,
   onStartProductionRun,
@@ -144,7 +140,6 @@ export function AgentWorkspaceProductionPanel({
   mountedSkillLoadout,
   onSwitchTab,
   onRunRecommendedAsset,
-  projectPreferenceProfile,
   onPreferenceProfileChange,
   skippedAssetIds,
   stackedDeconstructionCardIds,
@@ -174,7 +169,8 @@ export function AgentWorkspaceProductionPanel({
   const locations = useEditorDataStore((state) => state.locations);
   const items = useEditorDataStore((state) => state.items);
   const factions = useEditorDataStore((state) => state.factions);
-  const globalOutline = useOutlineContentStore((state) => state.globalOutline);
+  const chapters = useEditorDataStore((state) => state.chapters);
+  const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
   // 005-S4：期望字数直接订阅 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   // 005-S3：生产域状态直接订阅 production-store
@@ -270,6 +266,7 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'outline') {
     return (
       <OutlineTab
+        chapters={chapters}
         novelId={novel.id}
         onGenerateOutline={onGenerateOutline}
         projectTechniqueId={projectTechniqueId}
@@ -278,7 +275,6 @@ export function AgentWorkspaceProductionPanel({
         outlineError={outlineError}
         isGeneratingOutline={isGeneratingOutline}
         onGlobalOutlineChange={onGlobalOutlineChange}
-        chapters={chapters}
         currentChapter={currentChapter}
         onSelectChapter={onSelectChapter}
         selectedContinuationPack={selectedContinuationPack}
@@ -302,7 +298,6 @@ export function AgentWorkspaceProductionPanel({
         onUpdateChapterBeats={onUpdateChapterBeats}
         generationStatus={generationStatus}
         novel={novel}
-        projectPreferenceProfile={projectPreferenceProfile}
         onPreferenceProfileChange={onPreferenceProfileChange}
         onSwitchTab={onSwitchTab ?? undefined}
         stepEvidence={stepEvidence}

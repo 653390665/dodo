@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type {
+  ChapterMetadata,
   Character,
+  ProjectPreferenceProfile,
   EntityRelationship,
   Faction,
   Item,
@@ -24,6 +26,10 @@ export interface EditorDataState {
   librarySkills: Skill[];
   skillUsageRecords: SkillUsageRecord[];
   relationships: EntityRelationship[];
+  chapters: ChapterMetadata[];
+  projectPreferenceProfile: ProjectPreferenceProfile | undefined;
+  setChapters: (value: ChapterMetadata[] | ((cur: ChapterMetadata[]) => ChapterMetadata[])) => void;
+  setProjectPreferenceProfile: (value: ProjectPreferenceProfile | undefined | ((cur: ProjectPreferenceProfile | undefined) => ProjectPreferenceProfile | undefined)) => void;
   setCharacters: (value: Character[]) => void;
   setLocations: (value: Location[]) => void;
   setItems: (value: Item[]) => void;
@@ -41,6 +47,10 @@ export const useEditorDataStore = create<EditorDataState>((set) => ({
   librarySkills: [],
   skillUsageRecords: [],
   relationships: [],
+  chapters: [],
+  projectPreferenceProfile: undefined,
+  setChapters: (value) => set((state) => ({ chapters: typeof value === 'function' ? value(state.chapters) : value })),
+  setProjectPreferenceProfile: (value) => set((state) => ({ projectPreferenceProfile: typeof value === 'function' ? value(state.projectPreferenceProfile) : value })),
   setCharacters: (value) => set({ characters: value }),
   setLocations: (value) => set({ locations: value }),
   setItems: (value) => set({ items: value }),

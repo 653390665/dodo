@@ -105,7 +105,6 @@ function hashEntityScanInput(value: string): string {
 
 interface AgentWorkspaceProps {
   novel: Novel;
-  chapters: ChapterMetadata[];
   currentChapter: Chapter | null;
   onSelectChapter: (chapter: ChapterMetadata) => void | Promise<void>;
   isAgentSidebarOpen: boolean;
@@ -154,7 +153,6 @@ interface AgentWorkspaceProps {
   onResolvePendingSkill?: (skillId: string, slot: number) => void;
   onAssignSkill: (slot: number, skillId: string) => Promise<void>;
   onRemoveSkill: (slot: number) => Promise<void>;
-  projectPreferenceProfile: ProjectPreferenceProfile;
   onPreferenceProfileChange: (profile: ProjectPreferenceProfile) => Promise<void>;
   versions: ChapterVersion[];
   onSaveVersion: (author: 'user' | 'writer-agent') => Promise<void>;
@@ -199,7 +197,6 @@ interface AgentWorkspaceProps {
 
 export const AgentWorkspace = React.memo(function AgentWorkspace({
   novel,
-  chapters,
   currentChapter,
   onSelectChapter,
   isAgentSidebarOpen: _isAgentSidebarOpen,
@@ -237,7 +234,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onResolvePendingSkill,
   onAssignSkill,
   onRemoveSkill,
-  projectPreferenceProfile,
   onPreferenceProfileChange,
   versions,
   onSaveVersion,
@@ -278,6 +274,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   const librarySkills = useEditorDataStore((state) => state.librarySkills);
   const skillUsageRecords = useEditorDataStore((state) => state.skillUsageRecords);
   const relationships = useEditorDataStore((state) => state.relationships);
+  const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
@@ -295,7 +292,9 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
     setSkillsProfileOverride(null);
   }, [novel.id]);
 
-  const profileForSkills = skillsProfileOverride || projectPreferenceProfile;
+  // 与 EditorView 既有语义一致：加载未完成时回退默认画像
+  const DEFAULT_PROJECT_PROFILE = { contract: {} as never, tags: [] as string[], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [] as never[], rejectedDimensions: [] as never[], notes: [] as string[], evidenceCount: 0 } as never;
+  const profileForSkills = skillsProfileOverride || projectPreferenceProfile || DEFAULT_PROJECT_PROFILE;
 
   const reloadWritingProfile = React.useCallback(async () => {
     const requestContext = `${novel.id}:${currentChapter?.id || ''}`;
@@ -924,7 +923,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
             <AgentWorkspaceProductionPanel
               agentTab={agentTab}
               novel={novel}
-              chapters={chapters}
               currentChapter={currentChapter}
               onSelectChapter={onSelectChapter}
               stepEvidence={stepEvidence}
@@ -971,7 +969,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onUnstackDeconstructionCard={onUnstackDeconstructionCard}
               onSkipAsset={onSkipAsset}
               onSwitchTab={setAgentTab}
-              projectPreferenceProfile={projectPreferenceProfile}
               onPreferenceProfileChange={onPreferenceProfileChange}
               onConfirmWritingStyle={onConfirmWritingStyle}
               onGenerateWithWritingStyle={onGenerateWithWritingStyle}

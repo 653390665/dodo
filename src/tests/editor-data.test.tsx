@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { useEditorDataStore } from '../stores/editor-data-store';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
@@ -84,6 +85,18 @@ describe('useEditorData full chapter loading', () => {
     api.listSkillUsageRecords.mockResolvedValue([]);
     api.listEntityRelationshipsClient.mockResolvedValue([]);
     api.subscribeToChanges.mockReturnValue(() => {});
+    // 011 Phase 3：状态后端为共享 store，逐用例复位保证实例隔离
+    useEditorDataStore.setState({
+      chapters: [],
+      characters: [],
+      locations: [],
+      items: [],
+      factions: [],
+      librarySkills: [],
+      skillUsageRecords: [],
+      relationships: [],
+      projectPreferenceProfile: undefined,
+    });
   });
 
   test('loads the complete persisted chapter instead of metadata placeholders', async () => {

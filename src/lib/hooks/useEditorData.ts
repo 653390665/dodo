@@ -14,7 +14,8 @@ import { getDatabaseGenerationSnapshot } from '../db-transport';
 import { listForeshadowings } from '../foreshadowing-client';
 
 export function useEditorData(novelId: string, initialChapterId?: string) {
-  const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
+  const chapters = useEditorDataStore((state) => state.chapters);
+  const setChapters = useEditorDataStore((state) => state.setChapters);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(initialChapterId || null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [chapterLoading, setChapterLoading] = useState(false);
@@ -37,7 +38,8 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
   const [foreshadowings, setForeshadowings] = useState<Foreshadowing[]>([]);
   const [mountedSkillLoadout, setMountedSkillLoadout] = useState<MountedSkillLoadoutItem[]>([]);
   const [pendingSkillIds, setPendingSkillIds] = useState<string[]>([]);
-  const [projectPreferenceProfile, setProjectPreferenceProfile] = useState<ProjectPreferenceProfile | undefined>(undefined);
+  const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
+  const setProjectPreferenceProfile = useEditorDataStore((state) => state.setProjectPreferenceProfile);
   // 011 Phase 2：主纲值入 outline-content-store；revision 自增/清零语义由 store 承担
   const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   const [databaseGeneration, setDatabaseGeneration] = useState<number | null>(null);
