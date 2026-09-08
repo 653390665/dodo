@@ -67,22 +67,20 @@
 - 006 的状态条依赖 005（领域状态入 store），本包不含（仍待立项）
 
 
-## 执行状态（2026-09-07 更新）
+## 执行状态（2026-09-08 关账复核：T1-T6 全部关闭）
 
 | 任务 | 状态 |
 |---|---|
 | T1 双 AI 入口命名区分 | ✅ 已完成：侧边栏“智能管家”→“AI 协作”，抽屉 aria-label 同步，编辑器按钮保留“智能管家”（工作台专属名） |
 | T2 全局助手写入接入质量门 | ✅ 已完成（三条路径中两条有门）：正文写入（AppShell:637-642）与替换选区（:698-706）过 validateCompleteChapterDraftQuality；**分镜写入（:652-670）有意豁免**——分镜是结构素材，整章正文门会误杀，待 T5 系候选管道覆盖时一并收敛 |
 | T3 修复 2 个深流测试 | ✅ 完成（2026-09-07 第二轮）：根因是会话重置副作用把自家 apply 误判为外部漂移、关闭了打开的能力包弹窗（组件级修复，见 commit 22b1406）；plan158 35/37→37/37，前端基线恢复全绿 |
-| T4 动作词表收敛 | ◐ 部分完成：`src/lib/workflow-copy.ts` 已建并由 AiCandidateReview 消费（"到工作台处理"）；其余表面动作词渐进替换 |
+| T4 动作词表收敛 | ✅ 关账（2026-09-08 复核）：workflow-copy 由 AiCandidateReview（"到工作台处理"）与 WritingSurface:113（getWorkflowPrimaryActionLabel 收编 9 动作映射）消费；EditorGuideBanners 动作横幅此前已删；009-A2 实测无残留动作词面 |
 | T5 候选确认 UI 去重 | ✅ 完成（2026-09-07 第二轮）：单一 `AiCandidateReview` 组件两端接入（editor/workbench 双 variant）；质量门判定 `getCandidateQualityState` 三份重复收敛到 `src/lib/candidate-quality.ts`；表面差异（标题/精修动作/工作台跳转）全部 props 化 |
-| T6 技法动词改名 | ✅ 已完成：技法"启用"误用改为"收藏为常用技法"语义；licensed 限额收敛未做 |
+| T6 技法动词改名 | ✅ 完全关闭（2026-09-08 复核）：改名语义此前已落地；"licensed 限额收敛未做"系陈旧记录——增强门槛已归一至 `src/lib/entitlements.ts` 唯一判定（isLicensedEnhancementGated / filterLicensedAssetsByEntitlement，代码注释即标注 007 T6），组件层仅剩 sourceType 标签与类型守卫管线 |
 
-### 暂缓原因与重启条件
+### 关账说明（原"暂缓原因与重启条件"已失效）
 
-- T3/T5：不影响用户实际使用（产品功能正常），影响的是测试信号质量与长期维护成本。建议在下一轮功能开发**开始前**清掉——常红测试会污染回归判断。
-- 重启 T3 时：用浏览器 devtools 对 humanization/outline 包流逐帧追踪 fireEvent 与异步 apply 的竞态；断言按新单动词时序重写。
-- 重启 T5 时：先读 EditorView 与 AgentWorkspace 两份实现的 diff，确认行为一致后再抽组件。
+- T3/T5 已于 09-07 第二轮完成，原暂缓条件不再适用；T4/T6 经 2026-09-08 实测复核关账（证据见上表）。本计划无遗留项。
 
 ### 已修复的同类回归（供参考）
 

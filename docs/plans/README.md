@@ -1,5 +1,6 @@
 # InkFlow 实施计划索引
 
+> 更新：2026-09-08 晚（007 关账 T1-T6 全闭；011 状态直传值迁移 props 97→62、Phase 5b 评估已出（推荐方案 A）；006/009 复核：术语实测 0 命中、空状态已可点；补录 010 行）
 > 更新：2026-09-07 第二轮（001~007 批次执行，001~006 与 007 的 T1/T2/T3/T5 完成；T4 部分完成、T6 licensed 残留；提交清单见 git log 8eaf51b..HEAD，独立复核（两轮）见 docs/research/2026-09-07-batch-verification.md）
 > 执行批次摘要：007 T3 基线修复 + T1/T2 残留收尾；001 收尾（徽章≤2/需解锁折叠/5s 撤销）；002 审稿三合一（reviewState 单一权威源）；003 护栏面板化（质量标准面板 + 流程排他清单）；004 消毒管线 + 文风与正文货架（73 张可见 + 消毒并启用）；005 步骤 1-2（production-store 落地，签名不变）；006 状态条组件 + 词汇表（术语全局替换仍渐进）。
 > 执行者须知：本仓库**是 git 仓库**（分支 `codex/plan169-checkpoint`），每完成一个计划即提交一次作为漂移检测锚点，勿让成果滞留工作区；验证基线命令：
@@ -9,17 +10,17 @@
 
 | # | 计划 | 优先级 | 依赖 | 状态 |
 |---|---|---|---|---|
-| [007](007-dual-ai-and-followups.md) | 双 AI 入口收敛 + 遗留项任务包 | P0/P1 | T1/T2 ✅；T3/T5 暂缓 | **进行中** |
+| [007](007-dual-ai-and-followups.md) | 双 AI 入口收敛 + 遗留项任务包 | P0/P1 | — | ✅ 完成（2026-09-08 关账）：T1-T6 全闭；T4 动作词经 009-A2 实测收编；T6 licensed 门槛已归一至 entitlements 唯一判定 |
 | [008](008-entry-consolidation.md) | 接受断点引导 + 生成呈现收拢 | P1 | 006 | ✅ 核心完成（2026-09-07）：quick 状态条接线、④可点击滚动接受区、横幅一跳工作台；页签收敛经复查取消；workflow-copy 全量替换渐进 |
-| [009](009-closing-batch.md) | 收尾批次：005-S4、文案收敛与挂起项清零 | P1/P2 | 005、006 | ◐ 大部分完成（B1/B2 旗标与写法域完成、A2/B3 文案收敛完成；剩 A1 补推随网络、B2 profiler 人工） |
+| [009](009-closing-batch.md) | 收尾批次：005-S4、文案收敛与挂起项清零 | P1/P2 | 005、006 | ◐ 大部分完成（B1/B2 旗标与写法域完成、A2/B3 文案收敛完成，B3 空状态 CTR 经复核已在代码中落地——AW 空状态本即可点；剩 A1 补推随网络、B2 profiler 人工） |
 | [010](010-seam-tests.md) | 接缝测试补齐（J6 消毒链端到端 + J7 store 传播） | — | — | ✅ 完成（2026-09-08）：J6 端到端抓到并修复真产品缺陷（新增 equipPersistedTechnique）；J7 双表面 store 传播断言；vitest 全绿 839→841+（注：57/57 出自前置联动块矩阵实跑，见 docs/research/2026-09-08-chain-block-testing.md） |
-| [011](011-content-domains.md) | 内容域键控（loader 保留 + 状态后端 store 化） | P1 | 005 | ✅ Phase1-4 + 5a 完成（2026-09-08）：props 97→66（5a 四个生成旗标改 Panel 订阅）；≤60 需 Phase 5b（handler 归组/EditorView 拆分，另立评估） |
+| [011](011-content-domains.md) | 内容域键控（loader 保留 + 状态后端 store 化） | P1 | 005 | ✅ Phase 1-4 + 5a + 状态直传值迁移 完成（2026-09-08）：props 97→62（≤65 达标；outlineError/generationStatus/userIntent 已入 store）；≤60 需 Phase 5b——评估已出（推荐方案 A：41 handler 按域归组，预计 ~28，方案 B EditorView 拆分否决），尚未实施 |
 | 001 | 能力卡单动词交互收敛 | P0 | 无 | ✅ 完成（2026-09-07 第二轮）：徽章 ≤2、需解锁折叠、5s 撤销、旧文案 grep=0；草稿机整体退役有意缓行——仅服务暂存式多步流（待替换候选/拆书卡落位/编辑器保留草稿，有绿测试锁定） |
 | 002 | 审稿三合一与精修按需触发 | P0 | 无 | ✅ 完成（2026-09-07）：QualityTab 以 reviewState 为渲染源；/api/audit 降级注释；生产期审稿标注迭代用；零配置精修测试锁定；口径表落档 research 文档 §6 |
 | 003 | 护栏策略面板化 + 流程排他确认 | P1 | 无 | ✅ 完成（2026-09-07）：GuardrailPolicyPanel（core 只读『已自动生效』+ 增强开关）；系统护栏页签删除；流程切换确认含新旧流程名与重置清单 |
 | 004 | 启用即落位 + 消毒管线 + 74 张文风卡浮现 | P1 | 001 | ✅ 完成（2026-09-07）：落位由 001 的 addCardToProjectDeck+候选替换承担；POST /api/skills/sanitize/:assetId（幂等/限频/落库脱敏副本）；需解锁分组带『消毒并启用』；『文风与正文』页签 73 张可见（研究口径 74 含 1 张 test-fixture）；编辑器推荐位 ≤2 张按章节关键词 |
 | 005 | EditorView 领域状态入 store | P1 | 无 | ◐ 大部分完成（2026-09-07 第二轮）：步骤 1-3、5 完成——production 域 props 三层透传已清零（验收门 grep=0），AgentWorkspace props 97→82（第三轮含 reviewIssues 派生下放、expectedWordCount 入 store、licensed 判定收敛），完成章双写收敛为 setCompletionInFlight 唯一同步点；S4 展示态已入 writing-style-store；第三轮另完成 licensed 判定收敛（5 处归一）、expectedWordCount 入 store（含 OutlineTab）、reviewIssues 派生下放；剩余 profiler 验证与 hooks 参数收窄（可后置） |
-| 006 | 统一状态条 + 术语收敛 | P2 | 005、001 | ◐ 进行中（2026-09-07）：GenerationStatusBar 落地并挂载 ProductionTab（full）与编辑器 quick 位（008 接线）；glossary.ts 为规范性词汇表（渐进采用，尚无代码消费）；高频 UI 术语全局替换为渐进项 |
+| 006 | 统一状态条 + 术语收敛 | P2 | 005、001 | ◐ 进行中（2026-09-08 复核）：GenerationStatusBar 落地并挂载 ProductionTab（full）与编辑器 quick 位（008 接线）；glossary.ts 为规范性词汇表（渐进采用，尚无代码消费）；高频 UI 术语经 009-A3 实测组件层禁词 0 命中；空状态 CTR 已落地（可点按钮） |
 
 ## 执行顺序与依赖
 

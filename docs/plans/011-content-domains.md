@@ -144,9 +144,9 @@ if (
 
 ## 完成标准
 
-- [ ] 三阶段合并后 AgentWorkspace props ≤ 65（Phase 3 后）
-- [ ] grep `globalOutline={|continuationPacks={|characters={` 于 EditorView→AgentWorkspace 透传 = 0
-- [ ] 全量测试绿；作品切换无数据串扰（手工确认）
+- [x] 三阶段合并后 AgentWorkspace props ≤ 65（Phase 3 后）——状态直传值迁移后账目 62（接口实测 65 字段，口径差 3）
+- [x] grep `globalOutline={|continuationPacks={|characters={` 于 EditorView→AgentWorkspace 透传 = 0（2026-09-08 实测 0）
+- [ ] 全量测试绿；作品切换无数据串扰（手工确认）——前端 841/841 + 后端 1153/1153 全绿（2026-09-08）；editor-data.test 已覆盖逐作品 store 重置；仅剩人工抽查待用户
 
 ## 维护提示
 
