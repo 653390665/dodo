@@ -50,7 +50,8 @@ if (
 |---|---|
 | Phase 1 续写选包域 | ✅（continuation-pack-store，props -3；测试改 store 预置） |
 | Phase 2 主纲内容域 | ✅（outline-content-store：globalOutline 值 + setGlobalOutline(revision++)/raw 分离 + setOutlineError；useEditorData 守卫逻辑逐行保留仅换后端；AW/Panel/OutlineTab 订阅；revision 留 store 供 fetch 守卫比较） |
-| Phase 3 十个辅助数据集 | 待做（同机械模式） |
+| Phase 3 十个辅助数据集 | ✅（7 个 drilled 域入 store + AW/Panel 订阅；powerLevels/timelineEvents/foreshadowings 仅 EditorView 自用，保留在 hook 内） |
+| Phase 4 收尾 | ✅（chapters + projectPreferenceProfile 入 store；Profile 回退语义保持；editor-data.test 补逐用例 store 重置） |
 
 > 经验：OutlineTab 依赖 store 值做 hasOutline 分支——同文件测试需 beforeEach 重置 outline store，按用例语义补种子。
 
@@ -92,8 +93,8 @@ if (
 | 现状 | — | 81 |
 | Phase 1 | -3（packs/selected/setter） | 78 |
 | Phase 2 | -3（globalOutline/onGlobalOutlineChange/outlineError） | 75 |
-| Phase 3 | -10（十个辅助数据集） | **65** |
-| 附带清理 | mountedSkillLoadout（@deprecated 无人传）等 | ≈ **63** |
+| 实际 Phase 3+4 | -11（7 个 drilled 数据集 + chapters + profile；powerLevels/timelineEvents/foreshadowings 为 EditorView 自用保留） | **70** |
+| 剩余 | mountedSkillLoadout（@deprecated）、userIntent/contentRef/generationStatus 等 hook 直传值 | 70；≤60 需 Phase 5（outline 回调/handler 归组或 EditorView 拆分，另立批次评估） |
 
 > ≤60 的最后 3 个：`chapters`（novel-store 化）、`projectPreferenceProfile`（随 Phase 3 的 profile 切片）、
 > `stepEvidence`（派生下放）。已在账目内留位，属 Phase 4。
