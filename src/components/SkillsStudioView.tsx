@@ -2496,6 +2496,7 @@ export function SkillsStudioView({
                       fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
                     })),
                   );
+                  // eslint-disable-next-line react-hooks/refs -- handlers are click-time closures, not render-time ref reads
                   const handlers = {
                     onImport: handleImportAsset,
                     onEquip: handleEquipAsset,
