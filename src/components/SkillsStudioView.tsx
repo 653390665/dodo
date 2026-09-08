@@ -289,6 +289,53 @@ function getPackageGroupId(packageId: string): PackageGroupId {
   return 'other';
 }
 
+interface StyleShelfCardWithFitness {
+  asset: CuratedProductSkill;
+  fitness: { score: number; reasons: string[] };
+  isImported: boolean;
+  isFavorited: boolean;
+  isCloning: boolean;
+}
+
+interface StyleShelfGridProps {
+  cards: StyleShelfCardWithFitness[];
+  isFreeNovel: boolean;
+  handlers: {
+    onImport: (card: CuratedProductSkill) => void;
+    onEquip: (card: CuratedProductSkill) => void;
+    onUseTechnique: (card: CuratedProductSkill) => void;
+    onUseProjectTechnique: (card: CuratedProductSkill) => void;
+    onDirectExec: (card: CuratedProductSkill) => void;
+    onSanitize: (card: CuratedProductSkill) => void;
+  };
+}
+
+/** 013：文风与正文货架单组网格（独立组件——事件闭包属于本组件的渲染，规则不穿透 props）。 */
+function StyleShelfGrid({ cards, isFreeNovel, handlers }: StyleShelfGridProps) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {cards.map(({ asset, fitness, isImported, isFavorited, isCloning }) => (
+        <PlazaAssetCard
+          key={asset.id}
+          asset={asset}
+          isImported={isImported}
+          isFavorited={isFavorited}
+          isCloning={isCloning}
+          selectedNovel={null}
+          isFreeNovel={isFreeNovel}
+          onImport={() => handlers.onImport(asset)}
+          onEquip={() => handlers.onEquip(asset)}
+          onUseTechnique={() => handlers.onUseTechnique(asset)}
+          onUseProjectTechnique={() => handlers.onUseProjectTechnique(asset)}
+          onDirectExec={() => handlers.onDirectExec(asset)}
+          onSanitize={isSanitizeRequiredAsset(asset.id) ? () => handlers.onSanitize(asset) : undefined}
+          fitnessChip={{ score: fitness.score, reasons: fitness.reasons }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function PlazaAssetCard({
   asset,
   isImported,
@@ -2442,39 +2489,27 @@ export function SkillsStudioView({
                   const shelf = groupStyleShelf(
                     availableCuratedSkills.map((asset) => ({
                       ...asset,
+                      isFavorited: isTechniqueFavorited(asset) || isGuardrailCandidate(asset),
+                      isCloning: cloningAssetId === asset.id,
+                      isImported: isAssetPersisted(asset),
+                      asset,
                       fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
                     })),
                   );
-                  const renderShelfCards = (
-                    assets: Array<CuratedProductSkill & { fitness: { score: number; reasons: string[] } }>,
-                  ) => (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {assets.map((card) => (
-                        <PlazaAssetCard
-                          key={card.id}
-                          asset={card}
-                          isImported={isAssetPersisted(card)}
-                          isFavorited={isTechniqueFavorited(card) || isGuardrailCandidate(card)}
-                          isCloning={cloningAssetId === card.id}
-                          selectedNovel={selectedNovel || null}
-                          isFreeNovel={isFreeNovel}
-                          onImport={() => handleImportAsset(card)}
-                          onEquip={() => handleEquipAsset(card)}
-                          onUseTechnique={() => handleUseTechnique(card)}
-                          onUseProjectTechnique={() => handleUseProjectTechnique(card)}
-                          onDirectExec={() => handleDirectExec(card)}
-                          onSanitize={isSanitizeRequiredAsset(card.id) ? () => void handleSanitizeAndEnable(card) : undefined}
-                          fitnessChip={{ score: card.fitness.score, reasons: card.fitness.reasons }}
-                        />
-                      ))}
-                    </div>
-                  );
+                  const handlers = {
+                    onImport: handleImportAsset,
+                    onEquip: handleEquipAsset,
+                    onUseTechnique: handleUseTechnique,
+                    onUseProjectTechnique: handleUseProjectTechnique,
+                    onDirectExec: handleDirectExec,
+                    onSanitize: handleSanitizeAndEnable,
+                  };
                   return (
                     <div className="space-y-4">
                       {shelf.functional.map((group) => (
                         <div key={group.key} className="space-y-2">
                           <h3 className="text-xs font-bold text-theme-text">{group.label}（{group.assets.length}）</h3>
-                          {renderShelfCards(group.assets)}
+                          <StyleShelfGrid cards={group.assets} isFreeNovel={isFreeNovel} handlers={handlers} />
                         </div>
                       ))}
                       {shelf.series.map((group) => (
@@ -2482,7 +2517,9 @@ export function SkillsStudioView({
                           <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
                             系列 {group.label}（{group.assets.length}）
                           </summary>
-                          <div className="px-4 pb-4">{renderShelfCards(group.assets)}</div>
+                          <div className="px-4 pb-4">
+                            <StyleShelfGrid cards={group.assets} isFreeNovel={isFreeNovel} handlers={handlers} />
+                          </div>
                         </details>
                       ))}
                     </div>
