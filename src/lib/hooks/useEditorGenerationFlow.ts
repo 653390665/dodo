@@ -18,6 +18,7 @@ import { recordProductEvent } from '../product-events-client';
 import { evaluateDraftAcceptance } from '../../../shared/lib/draft-quality';
 import { deriveReviewGate } from '../../../shared/lib/review-issues';
 import { useEditorGenerationStore } from '../../stores/editor-generation-store';
+import { useOutlineContentStore } from '../../stores/outline-content-store';
 
 interface UseEditorGenerationFlowArgs {
   novel: Novel;
@@ -36,7 +37,8 @@ interface UseEditorGenerationFlowArgs {
   pushToUndoHistory: (content: string) => void;
   setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
   setGlobalOutline: Dispatch<SetStateAction<string>>;
-  setUserIntent: Dispatch<SetStateAction<string>>;
+  /** 011：userIntent 后端为 user-intent-store，仅整值赋值（全仓库无函数式更新调用）。 */
+  setUserIntent: (intent: string) => void;
   getCurrentFitScore: (skillsOverride?: Skill[]) => number;
   recordSkillUsage: (
     userAction: 'accepted' | 'revised' | 'rejected',
@@ -80,12 +82,16 @@ export function useEditorGenerationFlow({
   // 005-S4：生成旗标入 store；outline 旗标 setter 不再作为参数穿线
   const isGeneratingOutline = useEditorGenerationStore((state) => state.isGeneratingOutline);
   const setIsGeneratingOutline = useEditorGenerationStore((state) => state.setIsGeneratingOutline);
-  const [outlineError, setOutlineError] = useState<string | null>(null);
+  // 011 状态直传值迁移：outlineError 后端换 outline-content-store（1:1 语义，随 resetOutlineContent 按作品重置）
+  const outlineError = useOutlineContentStore((state) => state.outlineError);
+  const setOutlineError = useOutlineContentStore((state) => state.setOutlineError);
   const isGeneratingBeats = useEditorGenerationStore((state) => state.isGeneratingBeats);
   const setIsGeneratingBeats = useEditorGenerationStore((state) => state.setIsGeneratingBeats);
   const isGeneratingCritique = useEditorGenerationStore((state) => state.isGeneratingCritique);
   const setIsGeneratingCritique = useEditorGenerationStore((state) => state.setIsGeneratingCritique);
-  const [generationStatus, setGenerationStatus] = useState<string | null>(null);
+  // 011 状态直传值迁移：generationStatus 后端换 editor-generation-store（1:1 语义）
+  const generationStatus = useEditorGenerationStore((state) => state.generationStatus);
+  const setGenerationStatus = useEditorGenerationStore((state) => state.setGenerationStatus);
   const [auditStatus, setAuditStatus] = useState<string | null>(null);
   const [auditUnknownState, setAuditUnknownState] = useState<{ chapterId: string; feedback: string } | null>(null);
   const [aiActionState, setAiActionState] = useState<AiActionState>(idleAiAction);
@@ -127,7 +133,7 @@ export function useEditorGenerationFlow({
       retryContextRef.current = null;
     }
     latestChapterIdRef.current = nextChapterId;
-  }, [currentChapter?.id]);
+  }, [currentChapter?.id, setIsGeneratingBeats, setIsGeneratingContent, setIsGeneratingCritique, setGenerationStatus, setIsAcceptingAiCandidate]);
 
   useEffect(() => {
     const previousScope = generationScopeRef.current;
@@ -153,7 +159,7 @@ export function useEditorGenerationFlow({
       if (requestSeqRef.current !== invalidatedSeq) return;
       setAiActionState(idleAiAction());
     });
-  }, [databaseGeneration, novel.id, setIsGeneratingOutline]);
+  }, [databaseGeneration, novel.id, setIsGeneratingOutline, setIsGeneratingBeats, setIsGeneratingContent, setIsGeneratingCritique, setGenerationStatus, setIsAcceptingAiCandidate]);
 
   useEffect(() => {
     return () => {
@@ -183,7 +189,7 @@ export function useEditorGenerationFlow({
     setIsAcceptingAiCandidate(false);
     pendingAuditRecheckRef.current = null;
     retryContextRef.current = null;
-  }, []);
+  }, [setIsGeneratingBeats, setIsGeneratingContent, setIsGeneratingCritique, setGenerationStatus, setIsAcceptingAiCandidate]);
 
   const acceptAiContentCandidate = useCallback(async () => {
     if (acceptingCandidateRef.current) return;
@@ -291,7 +297,7 @@ export function useEditorGenerationFlow({
       acceptingCandidateRef.current = false;
       setIsAcceptingAiCandidate(false);
     }
-  }, [aiContentCandidate, contentRef, currentChapter, databaseGeneration, novel.id, pushToUndoHistory, setCurrentChapter]);
+  }, [aiContentCandidate, contentRef, currentChapter, databaseGeneration, novel.id, pushToUndoHistory, setCurrentChapter, setIsAcceptingAiCandidate]);
 
   // 1. 挂载大纲生成子 Hook
   const { handleGenerateOutline } = useOutlineGeneration({

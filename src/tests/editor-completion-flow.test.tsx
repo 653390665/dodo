@@ -40,7 +40,7 @@ function renderWritingSurface(currentChapter: Chapter, actions: {
   return render(<WritingSurface
     novel={novel} currentChapter={currentChapter}
     isGeneratingBeats={false} isGeneratingCritique={false} isGeneratingContent={false}
-    generationStatus={null} auditStatus={null} isChapterEmpty={false} mountedSkillsCount={0}
+    auditStatus={null} isChapterEmpty={false} mountedSkillsCount={0}
     runCopilotAction={noop} contentRef={React.createRef()} onGenerateBeats={noop} onRunAudit={actions.audit || noop}
     onCompleteChapter={actions.complete || noop} onConfirmFacts={actions.facts || noop}
     onUpdateContent={vi.fn()} onQueueContentWrite={vi.fn()} onAddFirstChapter={noop} onAddChapter={noop}

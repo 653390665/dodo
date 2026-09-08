@@ -73,7 +73,6 @@ interface OutlineTabProps {
   }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline?: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
-  outlineError?: string | null;
   isGeneratingOutline: boolean;
   onGlobalOutlineChange: (outline: string) => void;
   chapters: ChapterMetadata[];
@@ -88,7 +87,6 @@ export function OutlineTab({
   onGenerateOutline,
   onAdoptOutline,
   onCanonicalOutlineChange,
-  outlineError,
   isGeneratingOutline,
   onGlobalOutlineChange,
   chapters,
@@ -100,6 +98,8 @@ export function OutlineTab({
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   const setExpectedWordCount = useProductionStore((state) => state.setExpectedWordCount);
   const globalOutline = useOutlineContentStore((state) => state.globalOutline);
+  // 011 状态直传值迁移：outlineError 订阅 outline-content-store（与 globalOutline 同切片，随作品切换重置）
+  const outlineError = useOutlineContentStore((state) => state.outlineError);
   const hasOutline = globalOutline.trim().length > 0;
   const hasApprovedPack = selectedContinuationPack?.status === 'approved';
   const outlineDocuments = React.useMemo(

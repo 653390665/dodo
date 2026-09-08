@@ -13,11 +13,14 @@ export interface EditorGenerationState {
   isGeneratingCritique: boolean;
   /** AI 候选接受请求防重入（005-S4 同族瞬态旗标）。 */
   isAcceptingAiCandidate: boolean;
+  /** 生成过程瞬态文案（011 状态直传值迁移：1:1 自 useEditorGenerationFlow 的 useState 换后端）。 */
+  generationStatus: string | null;
   setIsGeneratingOutline: (value: boolean) => void;
   setIsGeneratingContent: (value: boolean) => void;
   setIsGeneratingBeats: (value: boolean) => void;
   setIsGeneratingCritique: (value: boolean) => void;
   setIsAcceptingAiCandidate: (value: boolean) => void;
+  setGenerationStatus: (value: string | null) => void;
 }
 
 export const useEditorGenerationStore = create<EditorGenerationState>((set) => ({
@@ -26,9 +29,11 @@ export const useEditorGenerationStore = create<EditorGenerationState>((set) => (
   isGeneratingBeats: false,
   isGeneratingCritique: false,
   isAcceptingAiCandidate: false,
+  generationStatus: null,
   setIsGeneratingOutline: (value) => set({ isGeneratingOutline: value }),
   setIsGeneratingContent: (value) => set({ isGeneratingContent: value }),
   setIsGeneratingBeats: (value) => set({ isGeneratingBeats: value }),
   setIsGeneratingCritique: (value) => set({ isGeneratingCritique: value }),
   setIsAcceptingAiCandidate: (value) => set({ isAcceptingAiCandidate: value }),
+  setGenerationStatus: (value) => set({ generationStatus: value }),
 }));

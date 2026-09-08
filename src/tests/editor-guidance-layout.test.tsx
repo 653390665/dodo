@@ -173,7 +173,7 @@ describe('编辑器引导与智能管家布局', () => {
         novel={{ id: 'novel-1', title: '测试作品', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 }}
         currentChapter={{ id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷', content: '', wordCount: 0, order: 1, createdAt: 1, updatedAt: 1 }}
         isGeneratingBeats={false} isGeneratingCritique={false} isGeneratingContent={false}
-        generationStatus={null} auditStatus={null} isChapterEmpty mountedSkillsCount={0}
+        auditStatus={null} isChapterEmpty mountedSkillsCount={0}
         runCopilotAction={noop} contentRef={React.createRef()} onGenerateBeats={noop} onRunAudit={noop}
         onUpdateContent={vi.fn()} onQueueContentWrite={vi.fn()} onAddFirstChapter={noop} onAddChapter={noop}
         setAgentTab={vi.fn()} setIsAgentSidebarOpen={vi.fn()} packStatus="none" syncState="not-required"

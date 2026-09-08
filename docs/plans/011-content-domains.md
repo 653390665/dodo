@@ -52,6 +52,8 @@ if (
 | Phase 2 主纲内容域 | ✅（outline-content-store：globalOutline 值 + setGlobalOutline(revision++)/raw 分离 + setOutlineError；useEditorData 守卫逻辑逐行保留仅换后端；AW/Panel/OutlineTab 订阅；revision 留 store 供 fetch 守卫比较） |
 | Phase 3 十个辅助数据集 | ✅（7 个 drilled 域入 store + AW/Panel 订阅；powerLevels/timelineEvents/foreshadowings 仅 EditorView 自用，保留在 hook 内） |
 | Phase 4 收尾 | ✅（chapters + projectPreferenceProfile 入 store；Profile 回退语义保持；editor-data.test 补逐用例 store 重置） |
+| Phase 5a 旗标透传 | ✅（isGeneratingOutline/Beats/Content/Critique 四 props 改由 Panel 订阅） |
+| 状态直传值迁移 | ✅（2026-09-08：outlineError→outline-content-store 且随 resetOutlineContent 按作品重置；generationStatus→editor-generation-store；userIntent/setUserIntent→新建 user-intent-store；WritingSurface/OutlineTab/PlanningTab 改订阅，EditorView/AW/Panel 删透传；前端 841/841 绿） |
 
 > 经验：OutlineTab 依赖 store 值做 hasOutline 分支——同文件测试需 beforeEach 重置 outline store，按用例语义补种子。
 
@@ -95,10 +97,35 @@ if (
 | Phase 2 | -3（globalOutline/onGlobalOutlineChange/outlineError） | 75 |
 | 实际 Phase 3+4 | -11（7 个 drilled 数据集 + chapters + profile；powerLevels/timelineEvents/foreshadowings 为 EditorView 自用保留） | **70** |
 | Phase 5a 旗标透传 | ✅ isGeneratingOutline/Beats/Content/Critique 四 props 改由 Panel 订阅（generationStatus/outlineError 待迁 store 后同法） | **66** |
-| 剩余 | mountedSkillLoadout（遗留待清，非已废弃：@deprecated 仅在 book-factory QualityTab 同名可选 prop 上，AW 侧仍被 getProjectCapabilityCardIds 活跃消费）、userIntent/contentRef/generationStatus/outlineError 等 hook 直传值；handler 43 个按归属保留 | 66；≤60 需 handler 归组或 EditorView 拆分（Phase 5b，另立评估） |
+| 状态直传值迁移 | ✅ -4（outlineError/generationStatus/userIntent/setUserIntent，编辑器生成流签名不变）；contentRef 为稳定 ref 惯用留任（不破坏 memo）；mountedSkillLoadout 遗留待清（能力卡计算行为相关，不擅删） | **62** |
+| 剩余 | mountedSkillLoadout（遗留待清，非已废弃：@deprecated 仅在 book-factory QualityTab 同名可选 prop 上，AW 侧仍被 getProjectCapabilityCardIds 活跃消费）、contentRef（留任）；handler 41 个按归属保留 | 62；≤60 需 handler 归组或 EditorView 拆分（Phase 5b，评估见下节，推荐方案 A） |
 
 > ≤60 的最后 3 个：`chapters`（novel-store 化）、`projectPreferenceProfile`（随 Phase 3 的 profile 切片）、
 > `stepEvidence`（派生下放）。已在账目内留位，属 Phase 4。
+
+## Phase 5b 评估：handler 归组（方案 A）vs EditorView 拆分（方案 B）
+
+现状（2026-09-08，HEAD 实测）：AW 剩 41 个 handler 型 props，按域归属：
+
+| 域 | handler |
+|---|---|
+| 大纲 | onGenerateOutline / onAdoptOutline / onCanonicalOutlineChange / onGlobalOutlineChange |
+| 章节生成 | onGenerateBeats / onGenerateContent / onRewriteSelectedText / onUpdateChapterBeats / onRunAudit / onPolishChapterFromAudit / onQuickGenerate |
+| 候选与审稿 | onAcceptAiContentCandidate / onDiscardAiContentCandidate / onPreviewReviewIssue / onFixReviewIssues / onAcceptReviewIssueRisk / onDeferReviewIssue |
+| 生产运行 | onStartProductionRun / onStopProductionRun / onApplyProductionRun / onPreferenceProfileChange |
+| 技能装配 | onResolvePendingSkill / onAssignSkill / onRemoveSkill / onSkipAsset / onStackDeconstructionCard / onUnstackDeconstructionCard |
+| 写法域 | onConfirmWritingStyle / onGenerateWithWritingStyle / onOpenWritingStyle |
+| 实体与版本 | onSniffEntities / onAddSniffedEntity / onSaveVersion / onRestoreVersion |
+| UI 导航 | onSelectChapter / setAgentTab / setIsAgentSidebarOpen / onNavigate / onCreateChapter / onOpenBibleAssistant / runCopilotAction |
+
+**方案 A（推荐）：handler 按域归组。** EditorView 侧将各组 handler 收进 `useMemo` 域对象
+（全部成员本就是 useCallback 稳定引用，域对象身份恒定），AW/子组件改收域对象。
+预计 AW props 62 → 数据 ~12 + 域对象 ~8 + UI 旗标 ~8 ≈ **28 上下**，远优于 ≤60。
+优点：EditorView 不拆、可逐域渐进、行为等价由现有前端用例锁定；缺点：域对象成员新增时需
+同步 useMemo 依赖（lint 强制）。
+**方案 B（否决）：EditorView 物理拆分。** 2200+ 行、hook 网状耦合，一次拆分风险高、
+测试面大，违反 005"加载器签名不变"边界。
+**执行注意**：归组对象必须 useMemo；逐域提交，每批跑 tsc + eslint + 前端全量。
 
 ## 每阶段验证门
 

@@ -23,11 +23,11 @@ import {
   getFlowEnhancementPackage,
   isPackageRestricted
 } from '../../../shared/lib/prompt-assets-governed.js';
+import { useEditorGenerationStore } from '../../stores/editor-generation-store';
+import { useUserIntentStore } from '../../stores/user-intent-store';
 
 interface PlanningTabProps {
   renderContextReceipt: () => React.ReactNode;
-  userIntent: string;
-  setUserIntent: (intent: string) => void;
   currentChapter: Chapter | null;
   onCreateChapter?: () => Promise<void>;
   onGenerateBeats: () => Promise<void>;
@@ -36,7 +36,6 @@ interface PlanningTabProps {
   isGeneratingContent: boolean;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
-  generationStatus: string | null;
   novel: Novel;
   projectPreferenceProfile?: ProjectPreferenceProfile;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
@@ -54,8 +53,6 @@ interface PlanningTabProps {
 
 export function PlanningTab({
   renderContextReceipt,
-  userIntent,
-  setUserIntent,
   currentChapter,
   onCreateChapter,
   onGenerateBeats,
@@ -64,13 +61,16 @@ export function PlanningTab({
   isGeneratingContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
-  generationStatus,
   novel,
   projectPreferenceProfile,
   onPreferenceProfileChange,
   onSwitchTab,
   stepEvidence,
 }: PlanningTabProps) {
+  // 011 状态直传值迁移：userIntent 与 generationStatus 改订阅 store
+  const userIntent = useUserIntentStore((state) => state.userIntent);
+  const setUserIntent = useUserIntentStore((state) => state.setUserIntent);
+  const generationStatus = useEditorGenerationStore((state) => state.generationStatus);
   const liveProfile = projectPreferenceProfile || novel.projectPreferenceProfile;
   const novelWithLiveProfile = { ...novel, projectPreferenceProfile: liveProfile };
 

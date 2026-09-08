@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { deriveProjectWorkflowState, type WorkflowSyncState } from '../lib/workflow-state';
 import { writeContinuationSyncIntent } from '../lib/continuation-sync-intent';
 import { getWorkflowPrimaryActionLabel } from '../lib/workflow-copy';
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 
 interface WritingSurfaceProps {
   novel: Novel;
@@ -19,7 +20,6 @@ interface WritingSurfaceProps {
   isGeneratingCritique: boolean;
   isGeneratingContent: boolean;
   isCompletingChapter?: boolean;
-  generationStatus: string | null;
   auditStatus: string | null;
   auditUnknownFeedback?: string | null;
   isChapterEmpty: boolean;
@@ -57,7 +57,6 @@ export const WritingSurface = React.memo(function WritingSurface({
   isGeneratingCritique,
   isGeneratingContent,
   isCompletingChapter = false,
-  generationStatus,
   auditStatus: _auditStatus,
   auditUnknownFeedback = null,
   isChapterEmpty,
@@ -79,6 +78,8 @@ export const WritingSurface = React.memo(function WritingSurface({
   syncState = 'not-required',
   packId
 }: WritingSurfaceProps) {
+  // 011 状态直传值迁移：generationStatus 订阅 editor-generation-store
+  const generationStatus = useEditorGenerationStore((state) => state.generationStatus);
   const [prevChapterId, setPrevChapterId] = React.useState(currentChapter?.id);
   const [prevChapterContent, setPrevChapterContent] = React.useState(currentChapter?.content);
   const [localContent, setLocalContent] = React.useState(currentChapter?.content || '');

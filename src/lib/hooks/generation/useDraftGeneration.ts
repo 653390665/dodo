@@ -35,7 +35,8 @@ interface UseDraftGenerationArgs {
   setAuditStatus?: (val: string | null) => void;
   setGenerationStatus: (val: string | null) => void;
   setAiActionState?: Dispatch<SetStateAction<AiActionState>>;
-  setUserIntent: Dispatch<SetStateAction<string>>;
+  /** 011：userIntent 后端为 user-intent-store，仅整值赋值（全仓库无函数式更新调用）。 */
+  setUserIntent: (intent: string) => void;
   setCurrentChapter: Dispatch<SetStateAction<Chapter | null>>;
   buildAgentContext: () => AgentContext;
   pushToUndoHistory: (content: string) => void;

@@ -19,15 +19,13 @@ import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
 import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
 
-// Memo-stable fallback so the AgentWorkspace prop never creates a new object
-// identity per render.
-const DEFAULT_PROJECT_PROFILE = { contract: {}, tags: [] as string[], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], rejectedDimensions: [] as ('style' | 'character' | 'world' | 'power' | 'plot' | 'pacing')[], notes: [] as string[], evidenceCount: 0 };
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendationCards';
 import { GenerationStatusBar } from './GenerationStatusBar';
 import { AiCandidateReview } from './AiCandidateReview';
 import { useProductionStore } from '../stores/production-store';
 import { useWritingStyleStore } from '../stores/writing-style-store';
+import { useUserIntentStore } from '../stores/user-intent-store';
 import { useEditorIntelligenceContext } from '../lib/hooks/useEditorIntelligenceContext';
 import { useEntitySniffing } from '../lib/hooks/useEntitySniffing';
 import { useChapterVersions } from '../lib/hooks/useChapterVersions';
@@ -104,7 +102,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const {
     continuationPacks,
     selectedContinuationPackId,
-    setSelectedContinuationPackId,
   } = useEditorContinuationPacks(novel.id, launchState);
 
   const approvedOutlinePackId = React.useMemo(() => {
@@ -128,7 +125,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   // 005-S4：期望字数入 store
   const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
-  const [userIntent, setUserIntent] = useState('');
+  // 011 状态直传值迁移：创作意图入 user-intent-store（AW/PlanningTab 改订阅，透传消亡）
+  const userIntent = useUserIntentStore((state) => state.userIntent);
+  const setUserIntent = useUserIntentStore((state) => state.setUserIntent);
   const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>('unknown');
   const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
   // 005-S4：写法确认展示态入 store；留存化守卫 refs（下方）保留本地。
@@ -215,7 +214,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     timelineEvents,
     foreshadowings,
     librarySkills,
-    skillUsageRecords,
     mountedSkillLoadout, setMountedSkillLoadout, pendingSkillIds, setPendingSkillIds,
     relationships,
     projectPreferenceProfile, setProjectPreferenceProfile,
@@ -704,10 +702,8 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const {
     isGeneratingContent,
     isGeneratingOutline,
-    outlineError,
     isGeneratingBeats,
     isGeneratingCritique,
-    generationStatus,
     auditStatus,
     auditUnknownFeedback,
     handleRunAudit,
@@ -1558,7 +1554,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, chapterLoading, handleAddChapter, handleAddFirstChapter, handleCompleteChapter, handleOpenCompletionFacts, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, onLaunchConsumed, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
+  }, [chapters.length, chapterLoading, handleAddChapter, handleAddFirstChapter, handleCompleteChapter, handleOpenCompletionFacts, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, onLaunchConsumed, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, setUserIntent, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
 
   useEffect(() => {
     if (
@@ -1581,7 +1577,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     setAgentTab('production');
     void startProductionRun(launchProductionIntent);
     onLaunchConsumed?.(launchState.launchToken);
-  }, [chapterLoading, chapters.length, currentChapter, isEditorDataLoading, launchProductionIntent, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.source, onLaunchConsumed, selectedContinuationPackId, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, startProductionRun]);
+  }, [chapterLoading, chapters.length, currentChapter, isEditorDataLoading, launchProductionIntent, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.source, onLaunchConsumed, selectedContinuationPackId, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, setUserIntent, startProductionRun]);
 
   // Synchronize target chapter ID from cockpit / launch state
   useEffect(() => {
@@ -1968,7 +1964,6 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           isGeneratingCritique={isGeneratingCritique}
           isGeneratingContent={isGeneratingContent}
           isCompletingChapter={isCompletingChapter}
-          generationStatus={generationStatus}
           auditStatus={auditStatus}
           auditUnknownFeedback={auditUnknownFeedback}
           isChapterEmpty={isChapterEmpty}
@@ -2057,13 +2052,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onGenerateOutline={handleGenerateOutline}
             onAdoptOutline={adoptGlobalOutline}
             onCanonicalOutlineChange={setGlobalOutline}
-            outlineError={outlineError}
             onGlobalOutlineChange={handleUpdateGlobalOutline}
             onGenerateBeats={handleGenerateBeats}
-            userIntent={userIntent}
             stepEvidence={stepEvidence}
-            setUserIntent={setUserIntent}
-            generationStatus={generationStatus}
             onGenerateContent={handleGenerateContent}
             onRewriteSelectedText={handleRewriteSelectedText}
             onUpdateChapterBeats={handleUpdateChapterBeats}

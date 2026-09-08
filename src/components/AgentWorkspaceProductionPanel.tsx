@@ -14,7 +14,6 @@ import type {
   Item,
   Faction,
   ProjectPreferenceProfile,
-  ReviewIssue,
 } from '../../shared/types';
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
 import { useProductionStore } from '../stores/production-store';
@@ -58,12 +57,8 @@ interface AgentWorkspaceProductionPanelProps {
   }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
-  outlineError?: string | null;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
-  userIntent: string;
-  setUserIntent: (intent: string) => void;
-  generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
@@ -118,12 +113,8 @@ export function AgentWorkspaceProductionPanel({
   projectTechniqueId,
   onAdoptOutline,
   onCanonicalOutlineChange,
-  outlineError,
   onGlobalOutlineChange,
   onGenerateBeats,
-  userIntent,
-  setUserIntent,
-  generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
@@ -169,8 +160,6 @@ export function AgentWorkspaceProductionPanel({
   const isGeneratingCritique = useEditorGenerationStore((state) => state.isGeneratingCritique);
   const chapters = useEditorDataStore((state) => state.chapters);
   const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
-  // 005-S4：期望字数直接订阅 store
-  const expectedWordCount = useProductionStore((state) => state.expectedWordCount);
   // 005-S3：生产域状态直接订阅 production-store
   const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
   const selectedContinuationPack =
@@ -271,7 +260,6 @@ export function AgentWorkspaceProductionPanel({
         projectTechniqueId={projectTechniqueId}
         onAdoptOutline={onAdoptOutline}
         onCanonicalOutlineChange={onCanonicalOutlineChange}
-        outlineError={outlineError}
         onGlobalOutlineChange={onGlobalOutlineChange}
         currentChapter={currentChapter}
         onSelectChapter={onSelectChapter}
@@ -286,15 +274,12 @@ export function AgentWorkspaceProductionPanel({
         isGeneratingBeats={isGeneratingBeats}
         isGeneratingContent={isGeneratingContent}
         renderContextReceipt={renderContextReceipt}
-        userIntent={userIntent}
-        setUserIntent={setUserIntent}
         currentChapter={currentChapter}
         onCreateChapter={onCreateChapter}
         onGenerateBeats={onGenerateBeats}
         onGenerateContent={onGenerateContent}
         onRewriteSelectedText={onRewriteSelectedText}
         onUpdateChapterBeats={onUpdateChapterBeats}
-        generationStatus={generationStatus}
         novel={novel}
         onPreferenceProfileChange={onPreferenceProfileChange}
         onSwitchTab={onSwitchTab ?? undefined}

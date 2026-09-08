@@ -132,12 +132,8 @@ interface AgentWorkspaceProps {
   }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
-  outlineError?: string | null;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
-  userIntent: string;
-  setUserIntent: (intent: string) => void;
-  generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
@@ -209,12 +205,8 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   projectTechniqueId,
   onAdoptOutline,
   onCanonicalOutlineChange,
-  outlineError,
   onGlobalOutlineChange,
   onGenerateBeats,
-  userIntent,
-  setUserIntent,
-  generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
@@ -927,12 +919,8 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onGenerateOutline={onGenerateOutline}
               onAdoptOutline={onAdoptOutline}
               onCanonicalOutlineChange={onCanonicalOutlineChange}
-              outlineError={outlineError}
               onGlobalOutlineChange={onGlobalOutlineChange}
               onGenerateBeats={onGenerateBeats}
-              userIntent={userIntent}
-              setUserIntent={setUserIntent}
-              generationStatus={generationStatus}
               onGenerateContent={async () => {
                 setIsAgentSidebarOpen(false);
                 requestAnimationFrame(() => {
