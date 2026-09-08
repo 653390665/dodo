@@ -2496,7 +2496,8 @@ export function SkillsStudioView({
                       fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
                     })),
                   );
-                                  const handlers = {
+                                  // eslint-disable-next-line react-hooks/refs -- click-time closures; rule false-positive on transitive analysis
+                  const handlers = {
                     onImport: handleImportAsset,
                     onEquip: handleEquipAsset,
                     onUseTechnique: handleUseTechnique,
