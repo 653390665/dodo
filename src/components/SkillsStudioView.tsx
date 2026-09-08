@@ -2496,8 +2496,8 @@ export function SkillsStudioView({
                       fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
                     })),
                   );
+                  /* eslint-disable react-hooks/refs -- click-time closures, not render-time ref reads */
                   const handlers = {
-                    // eslint-disable-next-line react-hooks/refs -- click-time closures, not render-time ref reads
                     onImport: handleImportAsset,
                     onEquip: handleEquipAsset,
                     onUseTechnique: handleUseTechnique,
@@ -2505,6 +2505,7 @@ export function SkillsStudioView({
                     onDirectExec: handleDirectExec,
                     onSanitize: handleSanitizeAndEnable,
                   };
+                  /* eslint-enable react-hooks/refs */
                   return (
                     <div className="space-y-4">
                       {shelf.functional.map((group) => (
