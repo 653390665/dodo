@@ -12,7 +12,8 @@
 | [007](007-dual-ai-and-followups.md) | 双 AI 入口收敛 + 遗留项任务包 | P0/P1 | T1/T2 ✅；T3/T5 暂缓 | **进行中** |
 | [008](008-entry-consolidation.md) | 接受断点引导 + 生成呈现收拢 | P1 | 006 | ✅ 核心完成（2026-09-07）：quick 状态条接线、④可点击滚动接受区、横幅一跳工作台；页签收敛经复查取消；workflow-copy 全量替换渐进 |
 | [009](009-closing-batch.md) | 收尾批次：005-S4、文案收敛与挂起项清零 | P1/P2 | 005、006 | ◐ 大部分完成（B1/B2 旗标与写法域完成、A2/B3 文案收敛完成；剩 A1 补推随网络、B2 profiler 人工） |
-| [011](011-content-domains.md) | 内容域键控（loader 保留 + 状态后端 store 化） | P1 | 005 | ✅ Phase1-4 完成（2026-09-08）：props 97→70；≤60 需 Phase5（handler 归组/EditorView 拆分，另立评估） |
+| [010](010-seam-tests.md) | 接缝测试补齐（J6 消毒链端到端 + J7 store 传播） | — | — | ✅ 完成（2026-09-08）：J6 端到端抓到并修复真产品缺陷（新增 equipPersistedTechnique）；J7 双表面 store 传播断言；vitest 全绿 839→841+（注：57/57 出自前置联动块矩阵实跑，见 docs/research/2026-09-08-chain-block-testing.md） |
+| [011](011-content-domains.md) | 内容域键控（loader 保留 + 状态后端 store 化） | P1 | 005 | ✅ Phase1-4 + 5a 完成（2026-09-08）：props 97→66（5a 四个生成旗标改 Panel 订阅）；≤60 需 Phase 5b（handler 归组/EditorView 拆分，另立评估） |
 | 001 | 能力卡单动词交互收敛 | P0 | 无 | ✅ 完成（2026-09-07 第二轮）：徽章 ≤2、需解锁折叠、5s 撤销、旧文案 grep=0；草稿机整体退役有意缓行——仅服务暂存式多步流（待替换候选/拆书卡落位/编辑器保留草稿，有绿测试锁定） |
 | 002 | 审稿三合一与精修按需触发 | P0 | 无 | ✅ 完成（2026-09-07）：QualityTab 以 reviewState 为渲染源；/api/audit 降级注释；生产期审稿标注迭代用；零配置精修测试锁定；口径表落档 research 文档 §6 |
 | 003 | 护栏策略面板化 + 流程排他确认 | P1 | 无 | ✅ 完成（2026-09-07）：GuardrailPolicyPanel（core 只读『已自动生效』+ 增强开关）；系统护栏页签删除；流程切换确认含新旧流程名与重置清单 |
