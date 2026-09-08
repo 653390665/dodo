@@ -15,6 +15,7 @@
 | [009](009-closing-batch.md) | 收尾批次：005-S4、文案收敛与挂起项清零 | P1/P2 | 005、006 | ◐ 大部分完成（B1/B2 旗标与写法域完成、A2/B3 文案收敛完成，B3 空状态 CTR 经复核已在代码中落地——AW 空状态本即可点；剩 A1 补推随网络、B2 profiler 人工） |
 | [010](010-seam-tests.md) | 接缝测试补齐（J6 消毒链端到端 + J7 store 传播） | — | — | ✅ 完成（2026-09-08）：J6 端到端抓到并修复真产品缺陷（新增 equipPersistedTechnique）；J7 双表面 store 传播断言；vitest 全绿 839→841+（注：57/57 出自前置联动块矩阵实跑，见 docs/research/2026-09-08-chain-block-testing.md） |
 | [011](011-content-domains.md) | 内容域键控（loader 保留 + 状态后端 store 化） | P1 | 005 | ✅ Phase 1-4 + 5a + 状态直传值迁移 完成（2026-09-08）：props 97→62（≤65 达标；outlineError/generationStatus/userIntent 已入 store）；≤60 需 Phase 5b——评估已出（推荐方案 A：41 handler 按域归组，预计 ~28，方案 B EditorView 拆分否决），尚未实施 |
+| [013](013-capability-census.md) | 能力卡普查：货架分类学 + 适合度评分 + 消重标记 | P1 | 011 | ✅ 完成（2026-09-08）：capability-shelf 纯函数 + 二级分组渲染 + 适合度 chip；冲突面（双注入待验证/陈旧桥接）已记录待另立 |
 | 001 | 能力卡单动词交互收敛 | P0 | 无 | ✅ 完成（2026-09-07 第二轮）：徽章 ≤2、需解锁折叠、5s 撤销、旧文案 grep=0；草稿机整体退役有意缓行——仅服务暂存式多步流（待替换候选/拆书卡落位/编辑器保留草稿，有绿测试锁定） |
 | 002 | 审稿三合一与精修按需触发 | P0 | 无 | ✅ 完成（2026-09-07）：QualityTab 以 reviewState 为渲染源；/api/audit 降级注释；生产期审稿标注迭代用；零配置精修测试锁定；口径表落档 research 文档 §6 |
 | 003 | 护栏策略面板化 + 流程排他确认 | P1 | 无 | ✅ 完成（2026-09-07）：GuardrailPolicyPanel（core 只读『已自动生效』+ 增强开关）；系统护栏页签删除；流程切换确认含新旧流程名与重置清单 |

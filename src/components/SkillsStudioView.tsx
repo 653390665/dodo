@@ -19,6 +19,7 @@ import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, S
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isLicensedEnhancementGated, isMonetizationEnabled } from '../lib/entitlements';
 import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, getOptionalStyleAssets, getSanitizeRequiredAssets, isSanitizeRequiredAsset, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
+import { computeCardFitness, deriveNovelGenreTokens, groupStyleShelf } from '../lib/capability-shelf';
 import {
   getAuthorFacingCapabilityActionHint,
   getAuthorFacingCapabilityActionLabel,
@@ -301,6 +302,7 @@ function PlazaAssetCard({
   onUseProjectTechnique,
   onDirectExec,
   onSanitize,
+  fitnessChip,
 }: {
   asset: CuratedProductSkill;
   isImported: boolean;
@@ -314,6 +316,7 @@ function PlazaAssetCard({
   onUseProjectTechnique: () => void;
   onDirectExec: () => void;
   onSanitize?: () => void;
+  fitnessChip?: { score: number; reasons: string[] };
 }) {
   const isLicensed = getCapabilityManifest(asset)?.sourceType === 'licensed';
   const cleanTitle = sanitizeWhiteLabelText(asset.title);
@@ -362,6 +365,11 @@ function PlazaAssetCard({
             <span>{Number.isFinite(asset.score) ? `冷启动证据 ${asset.score}` : '证据待积累'}</span>
             <span className="text-theme-border/60">·</span>
             <span className="text-[9px] px-1 py-0.2 bg-theme-bg rounded text-theme-muted">{manifest ? getCapabilitySourceLabel(manifest.sourceType) : '来源未知'}</span>
+            {fitnessChip && (
+              <span className="text-[9px] px-1 py-0.2 bg-theme-accent/10 rounded text-theme-accent font-bold" title={fitnessChip.reasons.join('；') || undefined}>
+                适合度 {fitnessChip.score}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -2425,7 +2433,62 @@ export function SkillsStudioView({
                   </div>
                 )}
 
-                {filteredCuratedSkills.length > 0 ? (
+                {selectedCapability === 'optional-style' && filteredCuratedSkills.length > 0 && (() => {
+                  // 013：文风与正文货架二级分组 + 适合度排序
+                  const novelText = [selectedNovel?.title, selectedNovel?.summary].filter(Boolean).join('\n');
+                  const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
+                  const novelGenreTokens = deriveNovelGenreTokens(novelText, novelTags);
+                  const novelPlatform = novelText.includes('番茄') ? 'tomato' : undefined;
+                  const shelf = groupStyleShelf(
+                    availableCuratedSkills.map((asset) => ({
+                      ...asset,
+                      fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
+                    })),
+                  );
+                  const renderShelfCards = (
+                    assets: Array<CuratedProductSkill & { fitness: { score: number; reasons: string[] } }>,
+                  ) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {assets.map((card) => (
+                        <PlazaAssetCard
+                          key={card.id}
+                          asset={card}
+                          isImported={isAssetPersisted(card)}
+                          isFavorited={isTechniqueFavorited(card) || isGuardrailCandidate(card)}
+                          isCloning={cloningAssetId === card.id}
+                          selectedNovel={selectedNovel || null}
+                          isFreeNovel={isFreeNovel}
+                          onImport={() => handleImportAsset(card)}
+                          onEquip={() => handleEquipAsset(card)}
+                          onUseTechnique={() => handleUseTechnique(card)}
+                          onUseProjectTechnique={() => handleUseProjectTechnique(card)}
+                          onDirectExec={() => handleDirectExec(card)}
+                          onSanitize={isSanitizeRequiredAsset(card.id) ? () => void handleSanitizeAndEnable(card) : undefined}
+                          fitnessChip={{ score: card.fitness.score, reasons: card.fitness.reasons }}
+                        />
+                      ))}
+                    </div>
+                  );
+                  return (
+                    <div className="space-y-4">
+                      {shelf.functional.map((group) => (
+                        <div key={group.key} className="space-y-2">
+                          <h3 className="text-xs font-bold text-theme-text">{group.label}（{group.assets.length}）</h3>
+                          {renderShelfCards(group.assets)}
+                        </div>
+                      ))}
+                      {shelf.series.map((group) => (
+                        <details key={group.key} className="rounded-xl border border-theme-border/60 bg-theme-bg/40">
+                          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
+                            系列 {group.label}（{group.assets.length}）
+                          </summary>
+                          <div className="px-4 pb-4">{renderShelfCards(group.assets)}</div>
+                        </details>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {selectedCapability !== 'optional-style' && filteredCuratedSkills.length > 0 ? (
                   <>
                     {availableCuratedSkills.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
