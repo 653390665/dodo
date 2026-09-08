@@ -133,19 +133,15 @@ interface AgentWorkspaceProps {
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
   outlineError?: string | null;
-  isGeneratingOutline: boolean;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
-  isGeneratingBeats: boolean;
   userIntent: string;
   setUserIntent: (intent: string) => void;
-  isGeneratingContent: boolean;
   generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
   onRunAudit: () => Promise<void>;
-  isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
   onCreateChapter?: () => Promise<void>;
   mountedSkillLoadout: MountedSkillLoadoutItem[];
@@ -214,19 +210,15 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   onAdoptOutline,
   onCanonicalOutlineChange,
   outlineError,
-  isGeneratingOutline,
   onGlobalOutlineChange,
   onGenerateBeats,
-  isGeneratingBeats,
   userIntent,
   setUserIntent,
-  isGeneratingContent,
   generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
   onRunAudit,
-  isGeneratingCritique,
   onPolishChapterFromAudit,
   onCreateChapter,
   mountedSkillLoadout,
@@ -273,6 +265,7 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   const factions = useEditorDataStore((state) => state.factions);
   const librarySkills = useEditorDataStore((state) => state.librarySkills);
   const skillUsageRecords = useEditorDataStore((state) => state.skillUsageRecords);
+  // 011 Phase 5：生成旗标订阅 editor-generation-store
   const relationships = useEditorDataStore((state) => state.relationships);
   const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
   // 011 Phase 1：选包域订阅 store
@@ -935,13 +928,10 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onAdoptOutline={onAdoptOutline}
               onCanonicalOutlineChange={onCanonicalOutlineChange}
               outlineError={outlineError}
-              isGeneratingOutline={isGeneratingOutline}
               onGlobalOutlineChange={onGlobalOutlineChange}
               onGenerateBeats={onGenerateBeats}
-              isGeneratingBeats={isGeneratingBeats}
               userIntent={userIntent}
               setUserIntent={setUserIntent}
-              isGeneratingContent={isGeneratingContent}
               generationStatus={generationStatus}
               onGenerateContent={async () => {
                 setIsAgentSidebarOpen(false);
@@ -953,7 +943,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
               onRewriteSelectedText={onRewriteSelectedText}
               onUpdateChapterBeats={onUpdateChapterBeats}
               onRunAudit={onRunAudit}
-              isGeneratingCritique={isGeneratingCritique}
               onPolishChapterFromAudit={onPolishChapterFromAudit}
               onCreateChapter={onCreateChapter}
               mountedSkillLoadout={mountedSkillLoadout}

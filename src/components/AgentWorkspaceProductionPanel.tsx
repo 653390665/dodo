@@ -20,6 +20,7 @@ import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-gov
 import { useProductionStore } from '../stores/production-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorDataStore } from '../stores/editor-data-store';
+import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { ContextReceipt } from './book-factory/ContextReceipt';
 import { ProductionTab } from './book-factory/ProductionTab';
 import { OutlineTab } from './book-factory/OutlineTab';
@@ -58,19 +59,15 @@ interface AgentWorkspaceProductionPanelProps {
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
   outlineError?: string | null;
-  isGeneratingOutline: boolean;
   onGlobalOutlineChange: (outline: string) => void;
   onGenerateBeats: () => Promise<void>;
-  isGeneratingBeats: boolean;
   userIntent: string;
   setUserIntent: (intent: string) => void;
-  isGeneratingContent: boolean;
   generationStatus: string | null;
   onGenerateContent: () => Promise<void>;
   onRewriteSelectedText: () => Promise<void>;
   onUpdateChapterBeats: (beats: string) => void;
   onRunAudit: () => Promise<void>;
-  isGeneratingCritique: boolean;
   onPolishChapterFromAudit: () => Promise<void>;
   onCreateChapter?: () => Promise<void>;
   mountedSkillLoadout?: MountedSkillLoadoutItem[];
@@ -122,19 +119,15 @@ export function AgentWorkspaceProductionPanel({
   onAdoptOutline,
   onCanonicalOutlineChange,
   outlineError,
-  isGeneratingOutline,
   onGlobalOutlineChange,
   onGenerateBeats,
-  isGeneratingBeats,
   userIntent,
   setUserIntent,
-  isGeneratingContent,
   generationStatus,
   onGenerateContent,
   onRewriteSelectedText,
   onUpdateChapterBeats,
   onRunAudit,
-  isGeneratingCritique,
   onPolishChapterFromAudit,
   onCreateChapter,
   mountedSkillLoadout,
@@ -169,6 +162,11 @@ export function AgentWorkspaceProductionPanel({
   const locations = useEditorDataStore((state) => state.locations);
   const items = useEditorDataStore((state) => state.items);
   const factions = useEditorDataStore((state) => state.factions);
+  // 011 Phase 5：生成旗标订阅 store
+  const isGeneratingOutline = useEditorGenerationStore((state) => state.isGeneratingOutline);
+  const isGeneratingBeats = useEditorGenerationStore((state) => state.isGeneratingBeats);
+  const isGeneratingContent = useEditorGenerationStore((state) => state.isGeneratingContent);
+  const isGeneratingCritique = useEditorGenerationStore((state) => state.isGeneratingCritique);
   const chapters = useEditorDataStore((state) => state.chapters);
   const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
   // 005-S4：期望字数直接订阅 store
@@ -266,6 +264,7 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'outline') {
     return (
       <OutlineTab
+        isGeneratingOutline={isGeneratingOutline}
         chapters={chapters}
         novelId={novel.id}
         onGenerateOutline={onGenerateOutline}
@@ -273,7 +272,6 @@ export function AgentWorkspaceProductionPanel({
         onAdoptOutline={onAdoptOutline}
         onCanonicalOutlineChange={onCanonicalOutlineChange}
         outlineError={outlineError}
-        isGeneratingOutline={isGeneratingOutline}
         onGlobalOutlineChange={onGlobalOutlineChange}
         currentChapter={currentChapter}
         onSelectChapter={onSelectChapter}
@@ -285,15 +283,15 @@ export function AgentWorkspaceProductionPanel({
   if (agentTab === 'planning') {
     return (
       <PlanningTab
+        isGeneratingBeats={isGeneratingBeats}
+        isGeneratingContent={isGeneratingContent}
         renderContextReceipt={renderContextReceipt}
         userIntent={userIntent}
         setUserIntent={setUserIntent}
         currentChapter={currentChapter}
         onCreateChapter={onCreateChapter}
         onGenerateBeats={onGenerateBeats}
-        isGeneratingBeats={isGeneratingBeats}
         onGenerateContent={onGenerateContent}
-        isGeneratingContent={isGeneratingContent}
         onRewriteSelectedText={onRewriteSelectedText}
         onUpdateChapterBeats={onUpdateChapterBeats}
         generationStatus={generationStatus}

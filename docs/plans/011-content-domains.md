@@ -94,7 +94,8 @@ if (
 | Phase 1 | -3（packs/selected/setter） | 78 |
 | Phase 2 | -3（globalOutline/onGlobalOutlineChange/outlineError） | 75 |
 | 实际 Phase 3+4 | -11（7 个 drilled 数据集 + chapters + profile；powerLevels/timelineEvents/foreshadowings 为 EditorView 自用保留） | **70** |
-| 剩余 | mountedSkillLoadout（@deprecated）、userIntent/contentRef/generationStatus 等 hook 直传值 | 70；≤60 需 Phase 5（outline 回调/handler 归组或 EditorView 拆分，另立批次评估） |
+| Phase 5a 旗标透传 | ✅ isGeneratingOutline/Beats/Content/Critique 四 props 改由 Panel 订阅（generationStatus/outlineError 待迁 store 后同法） | **66** |
+| 剩余 | mountedSkillLoadout（@deprecated）、userIntent/contentRef/generationStatus/outlineError 等 hook 直传值；handler 43 个按归属保留 | 66；≤60 需 handler 归组或 EditorView 拆分（Phase 5b，另立评估） |
 
 > ≤60 的最后 3 个：`chapters`（novel-store 化）、`projectPreferenceProfile`（随 Phase 3 的 profile 切片）、
 > `stepEvidence`（派生下放）。已在账目内留位，属 Phase 4。
