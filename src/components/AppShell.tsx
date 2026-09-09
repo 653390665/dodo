@@ -41,6 +41,14 @@ const LOCAL_USER = { uid: 'local-user' };
 type NavigationContext = { targetChapterId?: string; stage?: CapabilityLaunchContext['stage']; capabilityApplied?: boolean; targetFocus?: WorkspaceNavKey; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
 const CAPABILITY_APPLIED_TOAST = '能力配置已应用：作品卡组与常用技法影响后续正文，本章使用规则只影响当前章。';
 
+// 工作台家族三段切换：总览（驾驶舱）/ 写作（编辑器）/ 设定（World Bible）。
+// 总览与写作共用 currentView='workspace'，仅 workspaceFocus 不同；设定是独立视图。
+const WORKSPACE_FAMILY_TABS: Array<{ key: 'cockpit' | 'editor' | 'world'; label: string }> = [
+  { key: 'cockpit', label: '总览' },
+  { key: 'editor', label: '写作' },
+  { key: 'world', label: '设定' },
+];
+
 function WorkspacePreviewEmptyState({
   title,
   description,
@@ -493,7 +501,7 @@ export function AppShell() {
       view1: { view: 'welcome' },
       view2: { view: 'library' },
       view3: { view: 'workspace', navKey: 'workspace-editor' },
-      view4: { view: 'workspace', navKey: 'workspace-world' },
+      view4: { view: 'workspace', navKey: 'workspace-cockpit' },
       view5: { view: 'ai' },
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -968,7 +976,7 @@ export function AppShell() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-paper" data-testid="app-ready" data-ready-state="false">
         <div className="text-xl font-serif italic text-gray-400">
-          InkFlow Starting...
+          正在启动 InkFlow…
         </div>
       </div>
     );
@@ -998,6 +1006,37 @@ export function AppShell() {
         data-testid="app-shell-main"
         inert={isAIAssistantOpen}
       >
+        {(currentView === 'workspace' || currentView === 'world') && selectedNovel && (
+          <div className="hidden sm:flex shrink-0 justify-center pt-3" data-testid="workspace-family-switcher">
+            <div className="flex items-center gap-1 rounded-full border border-theme-border bg-theme-sidebar/70 p-1 shadow-sm">
+              {WORKSPACE_FAMILY_TABS.map((tab) => {
+                const isActive = (currentView === 'world' ? 'world' : workspaceFocus) === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => {
+                      if (tab.key === 'world') {
+                        void handleNavigate('world');
+                        return;
+                      }
+                      setWorkspaceFocus(tab.key);
+                      setCurrentView('workspace');
+                    }}
+                    className={`rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
+                      isActive
+                        ? 'bg-theme-accent text-theme-bg'
+                        : 'text-theme-muted hover:text-theme-text'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div key={currentView} className="flex-1 overflow-hidden h-full">
           <Suspense fallback={<div className="flex items-center justify-center h-full text-sm opacity-50">加载中...</div>}>
             {currentView === 'welcome' && (
@@ -1027,7 +1066,7 @@ export function AppShell() {
                 <Library onSelectNovel={navigateToEditor} onNavigate={(view) => { void handleNavigate(view); }} userId={'local-user'} />
               </ErrorBoundary>
             )}
-            {currentView === 'workspace' && selectedNovel && workspaceFocus !== 'editor' && (
+            {currentView === 'workspace' && selectedNovel && workspaceFocus === 'cockpit' && (
               <ErrorBoundary>
                 <ProjectCockpitView
                   novel={selectedNovel}
@@ -1162,7 +1201,7 @@ export function AppShell() {
             )}
             {currentView === 'editor' && !selectedNovel && (
               <WorkspacePreviewEmptyState
-                title="创作舞台等待作品"
+                title="创作工作台等待作品"
                 description="选中作品后，编辑器会展示章节、分镜、世界观与能力卡配置，并用于正文生成、打磨与质量中心。"
                 onGoLibrary={() => { void handleNavigate('library'); }}
                 onCreateNovel={() => { void handleNavigate('library'); }}

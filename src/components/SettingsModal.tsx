@@ -10,6 +10,7 @@ import {
 } from '../../shared/config/prompt-templates';
 import { downloadDbBackup } from '../lib/download-client';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
+import { SHORTCUTS } from '../lib/keyboard-shortcuts';
 import { clearProductEvents, exportProductEvents, getProductMetrics } from '../lib/product-events-client';
 import type { ProductEventMetrics } from '../../shared/types/product-events';
 import { isMonetizationEnabled } from '../lib/entitlements';
@@ -940,6 +941,20 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                     <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后写入本地配置，并同步到当前服务端内存。</div>
                     <div><span className="font-bold text-theme-text">3.</span> 后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。</div>
                   </div>
+                </div>
+
+                <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5">
+                  <details>
+                    <summary className="cursor-pointer select-none text-sm font-bold text-theme-text">键盘快捷键</summary>
+                    <dl className="mt-3 space-y-2">
+                      {Object.entries(SHORTCUTS).map(([id, shortcut]) => (
+                        <div key={id} className="flex items-center justify-between gap-3 text-[11px]">
+                          <dt className="shrink-0 font-mono font-bold text-theme-text">{shortcut.label}</dt>
+                          <dd className="text-right text-theme-muted">{shortcut.desc}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
                 </div>
               </div>
             </div>

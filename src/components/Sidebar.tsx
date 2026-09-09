@@ -3,7 +3,7 @@ import { BookOpen, BookTemplate, ChevronDown, ChevronLeft, ChevronRight, Lightbu
 
 import { ViewType, WorkspaceNavKey } from '../../shared/types';
 import { cn } from '../lib/utils';
-import { getSidebarMainItems, isWorkspaceFamilyView } from '../lib/workspace-nav';
+import { getSidebarMainItems } from '../lib/workspace-nav';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { ScrollArea } from './ui/scroll-area';
 import { recordProductEvent } from '../lib/product-events-client';
@@ -60,10 +60,10 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
   ];
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = item.id === 'ai' 
-      ? isAIAssistantOpen 
+    const isActive = item.id === 'ai'
+      ? isAIAssistantOpen
       : item.id === 'workspace'
-        ? isWorkspaceFamilyView(currentView)
+        ? currentView === 'workspace' || currentView === 'editor'
         : currentView === item.id;
     const key = item.navKey || item.id;
     const button = (
@@ -188,7 +188,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
             className="w-full flex items-center gap-3 px-3 py-2 text-theme-muted hover:text-theme-text hover:bg-theme-border/30 rounded-lg transition-[background-color,color] duration-200"
           >
             <Settings size={16} />
-            <span className="text-xs font-semibold">设置 (Settings)</span>
+            <span className="text-xs font-semibold">设置</span>
           </button>
         )}
       </div>

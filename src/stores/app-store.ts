@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { VIEW_TYPES } from '../../shared/types';
 import type { AssistantMode, AssistantSurfaceContext, ViewType, WorkspaceFocus } from '../../shared/types';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -54,7 +55,10 @@ export const useAppStore = create<AppState>((set) => {
   try {
     if (typeof localStorage !== 'undefined') {
       const savedView = localStorage.getItem('inkflow-last-view');
-      if (savedView) restoredView = savedView as ViewType;
+      // 白名单校验：localStorage 可能存有已废弃/非法的视图值，非法值回落 welcome
+      if (savedView && (VIEW_TYPES as readonly string[]).includes(savedView)) {
+        restoredView = savedView as ViewType;
+      }
     }
   } catch {}
 

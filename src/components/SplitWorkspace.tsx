@@ -20,6 +20,7 @@ interface SplitWorkspaceProps {
 const FOCUS_SPLIT_RATIOS: Record<WorkspaceFocus, number> = {
   editor: 0.62,
   world: 0.42,
+  cockpit: 0.62,
 };
 
 export function SplitWorkspace({

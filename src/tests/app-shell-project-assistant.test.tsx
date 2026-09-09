@@ -196,7 +196,7 @@ describe('AppShell project assistant wiring', () => {
   });
 
   test('project cockpit opens the general assistant with its workspace context', async () => {
-    useAppStore.setState({ currentView: 'workspace', workspaceFocus: 'world' });
+    useAppStore.setState({ currentView: 'workspace', workspaceFocus: 'cockpit' });
     render(<AppShell />);
     await waitFor(() => expect(screen.getByTestId('open-cockpit-assistant')).toBeDefined());
     fireEvent.click(screen.getByTestId('open-cockpit-assistant'));

@@ -14,6 +14,7 @@ const SIDEBAR_MAIN_ITEMS: SidebarNavItem[] = [
 ];
 
 const SIDEBAR_SECONDARY_ITEMS: SidebarNavItem[] = [
+  { id: 'world', label: '设定与续写' },
   { id: 'continuation-import', label: '资料续写' },
 ];
 
@@ -35,6 +36,7 @@ export function deriveWorkspaceFocus(
   previousFocus: WorkspaceFocus = 'editor',
 ): WorkspaceFocus {
   if (navKey === 'workspace-editor' || view === 'editor') return 'editor';
+  if (navKey === 'workspace-cockpit') return 'cockpit';
   if (navKey === 'workspace-world' || view === 'world') return 'world';
   return previousFocus;
 }

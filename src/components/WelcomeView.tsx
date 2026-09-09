@@ -585,7 +585,7 @@ export function WelcomeView({
                           <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
                             02 / 激发脑洞创意灵感
                           </span>
-                          <span className="text-[9px] text-theme-muted font-sans font-bold">支持 Enter 快捷保存</span>
+                          <span className="text-[9px] text-theme-muted font-sans font-bold">按 Enter 进入下一步</span>
                         </div>
                         <div className="relative">
                           <textarea

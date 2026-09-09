@@ -81,7 +81,7 @@ vi.mock('../components/WelcomeView', () => ({
 }));
 vi.mock('../components/AIAssistantDrawer', () => ({ AIAssistantDrawer: () => null }));
 vi.mock('../components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('../components/ProjectCockpitView', () => ({ ProjectCockpitView: () => null }));
+vi.mock('../components/ProjectCockpitView', () => ({ ProjectCockpitView: () => <div>COCKPIT_OVERVIEW</div> }));
 vi.mock('../components/SettingsModal', () => ({ SettingsModal: () => null }));
 vi.mock('../components/Library', () => ({ Library: () => null }));
 vi.mock('../components/WorldBibleView', () => ({
@@ -409,6 +409,23 @@ describe('AppShell capability launch', () => {
 
     await waitFor(() => expect(screen.getByText(/EDITOR:use-overlay:overlay-1:.*CAP_TARGET:chapter-2:CARDS:persisted-card-1/)).toBeDefined());
     expect(useNovelStore.getState().capabilityLaunchState?.targetChapterId).toBe('chapter-2');
+  });
+
+  test('renders the project cockpit when the workspace focuses the cockpit', async () => {
+    useAppStore.setState({ currentView: 'workspace', workspaceFocus: 'cockpit' });
+    render(<AppShell />);
+
+    await waitFor(() => expect(screen.getByText('COCKPIT_OVERVIEW')).toBeDefined());
+    expect(screen.queryByText(/EDITOR:/)).toBeNull();
+  });
+
+  test('keeps the cockpit out of the workspace when the focus stays on world', async () => {
+    useAppStore.setState({ currentView: 'workspace', workspaceFocus: 'world' });
+    render(<AppShell />);
+
+    await waitFor(() => expect(screen.getByTestId('workspace-family-switcher')).toBeDefined());
+    expect(screen.queryByText('COCKPIT_OVERVIEW')).toBeNull();
+    expect(screen.queryByText(/EDITOR:/)).toBeNull();
   });
 
 });

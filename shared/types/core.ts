@@ -132,9 +132,11 @@ export interface SniffedEntities {
   }>;
 }
 
-export type ViewType = 'welcome' | 'library' | 'editor' | 'world' | 'workspace' | 'ai' | 'skills' | 'factory' | 'continuation-import';
-export type WorkspaceFocus = 'editor' | 'world';
-export type WorkspaceNavKey = 'workspace-editor' | 'workspace-world';
+/** 运行时白名单：localStorage 恢复视图等场景用它校验合法性，类型从数组派生避免双源漂移。 */
+export const VIEW_TYPES = ['welcome', 'library', 'editor', 'world', 'workspace', 'ai', 'skills', 'factory', 'continuation-import'] as const;
+export type ViewType = (typeof VIEW_TYPES)[number];
+export type WorkspaceFocus = 'editor' | 'world' | 'cockpit';
+export type WorkspaceNavKey = 'workspace-editor' | 'workspace-world' | 'workspace-cockpit';
 export type CopilotStage =
   | 'missing-setup'
   | 'missing-beats'

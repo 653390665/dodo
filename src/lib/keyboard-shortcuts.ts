@@ -11,8 +11,8 @@ export const SHORTCUTS: Record<string, Shortcut> = {
   redo: { key: 'z', mod: true, shift: true, label: 'Cmd+Shift+Z', desc: '重做' },
   view1: { key: '1', mod: true, label: 'Cmd+1', desc: '开始创作' },
   view2: { key: '2', mod: true, label: 'Cmd+2', desc: '我的书库' },
-  view3: { key: '3', mod: true, label: 'Cmd+3', desc: '创作舞台' },
-  view4: { key: '4', mod: true, label: 'Cmd+4', desc: '设定记忆' },
+  view3: { key: '3', mod: true, label: 'Cmd+3', desc: '创作工作台' },
+  view4: { key: '4', mod: true, label: 'Cmd+4', desc: '作品驾驶舱' },
   view5: { key: '5', mod: true, label: 'Cmd+5', desc: 'AI 协作助手' },
 };
 
