@@ -15,6 +15,8 @@ const listMocks = vi.hoisted(() => ({
 }));
 vi.mock('../lib/world-client', () => listMocks);
 vi.mock('../lib/product-events-client', () => ({ recordProductEvent: vi.fn().mockResolvedValue(undefined) }));
+const confirmMocks = vi.hoisted(() => ({ appConfirm: vi.fn() }));
+vi.mock('../components/ui/app-confirm', () => ({ appConfirm: confirmMocks.appConfirm }));
 
 describe('WorldBibleAssistant request lifecycle', () => {
   const novelA = { id: 'novel-a', title: 'A' } as Novel;
@@ -23,6 +25,7 @@ describe('WorldBibleAssistant request lifecycle', () => {
   let readPending: Promise<never>;
 
   beforeEach(() => {
+    confirmMocks.appConfirm.mockResolvedValue(true);
     useNovelStore.setState({ selectedNovel: novelA });
     useAssistantSessionStore.getState().clearSession(novelA.id, 'bible');
     useAssistantSessionStore.getState().clearSession(novelB.id, 'bible');
@@ -86,7 +89,8 @@ describe('WorldBibleAssistant request lifecycle', () => {
 
     const signal = fetchMock.mock.calls.find((call) => call[0] === '/api/inspiration')?.[1].signal as AbortSignal;
     fireEvent.click(screen.getByRole('button', { name: '清空对话历史' }));
-    expect(signal.aborted).toBe(true);
+    // appConfirm 确认后清空流程异步执行，等待中止生效
+    await waitFor(() => expect(signal.aborted).toBe(true));
     expect(useAssistantSessionStore.getState().getSession(novelA.id, 'bible').isLoading).toBe(false);
 
     releaseRead?.({
@@ -115,6 +119,8 @@ describe('WorldBibleAssistant request lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: '发送设定灵感' }));
     await waitFor(() => expect(useAssistantSessionStore.getState().getSession(novelA.id, 'bible').isLoading).toBe(true));
     fireEvent.click(screen.getByRole('button', { name: '清空对话历史' }));
+    // appConfirm 确认后清空流程异步执行：等清空完成，再放行迟到的列表响应
+    await waitFor(() => expect(useAssistantSessionStore.getState().getSession(novelA.id, 'bible').isLoading).toBe(false));
     releaseLists?.();
     await waitFor(() => expect(useAssistantSessionStore.getState().getSession(novelA.id, 'bible').isLoading).toBe(false));
     expect(fetchMock).not.toHaveBeenCalled();

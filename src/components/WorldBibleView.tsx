@@ -48,10 +48,13 @@ import { buildCapabilityRecommendationDismissal, buildCapabilityRecommendations 
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import { toast } from '../lib/toast';
 import { generateClientId } from '../lib/id';
+import { appConfirm } from './ui/app-confirm';
 
 type EditableWorldEntityType = 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel';
 
 const WORLD_GENERATION_CONFLICT_MESSAGE = '数据库已变化，已保留本地输入。请刷新后重试。';
+
+const ENTITY_TYPE_LABELS = { character: '角色', location: '地点', item: '物品', timeline: '时间线事件', faction: '势力', powerLevel: '力量体系' } as const;
 
 function entityDraftKey(type: EditableWorldEntityType, id: string): string {
   return `${type}:${id}`;
@@ -491,6 +494,11 @@ export function WorldBibleView({
   };
 
   const deleteEntity = async (type: 'character' | 'location' | 'item' | 'timeline' | 'faction' | 'powerLevel', id: string) => {
+    if (!(await appConfirm(
+      `删除该${ENTITY_TYPE_LABELS[type]}条目？`,
+      '该条目将被永久删除（含其参与的关系数据），不可撤销。',
+      { confirmLabel: '删除' },
+    ))) return;
     try {
       const generation = requireAcceptedGeneration();
       let deleted = false;

@@ -8,6 +8,7 @@ import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteFor
 import { startWorldJob } from '../lib/world-job-client';
 import { toast } from '../lib/toast';
 import { generateClientId } from '../lib/id';
+import { appConfirm } from './ui/app-confirm';
 
 const STATUS_CONFIG = {
   planted: { label: '已埋设', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -69,6 +70,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   };
 
   const handleDelete = async (id: string) => {
+    if (!(await appConfirm('删除该伏笔？', '删除后不可撤销。', { confirmLabel: '删除' }))) return;
     await deleteForeshadowing(id);
     refresh();
   };

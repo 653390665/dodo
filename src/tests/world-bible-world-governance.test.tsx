@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   parseDocAsync: vi.fn(),
   requireResponseDatabaseGeneration: vi.fn(),
   getDatabaseGenerationSnapshot: vi.fn(),
+  appConfirm: vi.fn(),
 }));
 
 const novel = { id: 'n1', title: '测试小说', authorId: 'local', summary: '', status: 'ongoing' as const, createdAt: 1, updatedAt: 1 };
@@ -85,6 +86,7 @@ vi.mock('../lib/character-bio-stream', async (importOriginal) => {
 vi.mock('../components/ContinuationOverviewPanel', () => ({ ContinuationOverviewPanel: () => <div>概览</div> }));
 vi.mock('../components/ContinuationPackView', () => ({ ContinuationPackView: () => <div>资料包</div> }));
 vi.mock('../components/WorldBibleOnboarding', () => ({ WorldBibleOnboarding: () => <div>引导</div> }));
+vi.mock('../components/ui/app-confirm', () => ({ appConfirm: mocks.appConfirm }));
 vi.mock('../components/world-bible/GlobalSetupTab', () => ({
   GlobalSetupTab: ({ onSave }: { onSave: (outline: string, rules: string) => Promise<void> }) => (
     <button type="button" onClick={() => void onSave('新大纲', '新规则')}>保存全局设定</button>
@@ -116,6 +118,7 @@ describe('WorldBibleView world capability governance', () => {
     mocks.updateCharacter.mockResolvedValue(true);
     mocks.deleteCharacter.mockResolvedValue(true);
     mocks.updateNovel.mockResolvedValue(true);
+    mocks.appConfirm.mockResolvedValue(true);
     mocks.importWorldExtraction.mockResolvedValue(undefined);
     mocks.parseDocAsync.mockResolvedValue({ databaseGeneration: 8 });
     mocks.requireResponseDatabaseGeneration.mockReturnValue(7);

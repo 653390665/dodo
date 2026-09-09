@@ -8,6 +8,7 @@ import { listCharacters, listLocations, listItems, listFactions } from '../lib/w
 import { parseContinuationPack } from '../lib/prompt-client';
 import { SyncPreviewPanel } from './world-bible/SyncPreviewPanel';
 import { isContinuationContradictionResolved } from '../../shared/lib/continuation-import-flow';
+import { appConfirm } from './ui/app-confirm';
 
 type ViewError = { code?: string; message: string; detailMessage?: string; batch?: number; totalBatches?: number; traceId?: string; jobId?: string; databaseGeneration?: number; attempt?: number; issues?: Array<{ path: string; code: string; message: string }>; outputDiagnostic?: OutputDiagnostic };
 
@@ -176,6 +177,7 @@ export function ContinuationPackView({ novel, initialActivePackId = null, initia
   };
 
   const handleDeletePack = async (packId: string) => {
+    if (!(await appConfirm('删除该资料包？', '将永久删除资料包及其全部提取实体与矛盾清单；删除后需重新上传并解析。', { confirmLabel: '删除' }))) return;
     if (!await deleteContinuationPack(packId)) {
       setError({ message: '资料包已不存在，删除未生效。' });
       return;

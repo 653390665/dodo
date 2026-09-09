@@ -8,6 +8,7 @@ import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFr
 import { requireResponseDatabaseGeneration, subscribeToChanges } from '../lib/db-transport';
 import { streamIdeaFragment } from '../lib/idea-fragment-stream';
 import { generateClientId } from '../lib/id';
+import { appConfirm } from './ui/app-confirm';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scene: <Crosshair size={14} />,
@@ -135,6 +136,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   };
 
   const handleDelete = async (id: string) => {
+    if (!(await appConfirm('删除该灵感碎片？', '删除后不可撤销。', { confirmLabel: '删除' }))) return;
     expansionRequestsRef.current.get(id)?.controller.abort();
     expansionRequestsRef.current.delete(id);
     expansionSequenceRef.current.set(id, (expansionSequenceRef.current.get(id) || 0) + 1);
