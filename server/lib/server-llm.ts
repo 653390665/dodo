@@ -521,6 +521,11 @@ function buildCharacterRelationshipContext(novelId: string): string {
   }
 }
 
+// The strict prompt guard keeps the provider in streaming mode while swallowing
+// chunks until the output gate passes. This shared sink marks that deferred
+// mode so generateTextRaw can tell it apart from a client-bound onToken.
+const deferredTokenSink = () => undefined;
+
 export async function generateText(config: AppConfig, options: GenerateTextOptions): Promise<string> {
   const outputMode = options.outputMode || 'prose';
   if (outputMode === 'audit-json') {
@@ -557,7 +562,7 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
     systemInstruction: guarded.systemInstruction,
     // Keep the provider in streaming mode for latency/backpressure semantics,
     // but swallow raw chunks until the complete draft passes the output gate.
-    ...(deferQualityGuardedTokens ? { onToken: () => undefined } : {}),
+    ...(deferQualityGuardedTokens ? { onToken: deferredTokenSink } : {}),
   };
 
   // 2. Execute raw generation
@@ -770,6 +775,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
   let compatibilityMode: CompatibilityMode = 'none';
   let providerRequestCount = 0;
   let attempt = 1;
+  // Tokens already delivered to the client cannot be unsent; a retry would
+  // re-send the full text through the same onToken and duplicate content.
+  let everEmittedTokens = false;
 
   while (attempt <= maxAttempts) {
     const controller = new AbortController();
@@ -843,9 +851,13 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             let finishReason: string | undefined;
             let reasoningContentPresent = false;
             let emittedContent = false;
+            // In strict prompt-guard defer mode onToken is a sink that swallows
+            // chunks; only emissions that actually reach the client count.
+            const tokensReachClient = onToken !== deferredTokenSink;
             const reasoningFilter = createReasoningStreamFilter((token) => {
               onToken(token);
               emittedContent = true;
+              if (tokensReachClient) everEmittedTokens = true;
             });
 
             const processSseLine = (line: string) => {
@@ -918,7 +930,10 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
                 retriable: emptyOutputReason(fullText, reasoningContentPresent || sanitized.reasoningContentPresent, finishReason) === 'no_content',
               });
             }
-            if (!emittedContent) onToken(sanitized.text);
+            if (!emittedContent) {
+              onToken(sanitized.text);
+              if (tokensReachClient) everEmittedTokens = true;
+            }
             options.onComplete?.({
               truncated: false,
               outputDiagnostic: {
@@ -989,6 +1004,10 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       }
 
       if (options.signal?.aborted) throw options.signal.reason || error;
+
+      // Tokens already reached the client on a previous attempt — a retry would
+      // re-send the full text through the same onToken and duplicate content.
+      if (everEmittedTokens) throw error;
 
       // Do not retry if request was explicitly aborted or timed out to prevent compounding delays.
       const isRetryable = !controller.signal.aborted && !isAbort && (
