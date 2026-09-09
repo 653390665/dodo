@@ -1179,7 +1179,7 @@ export function registerProductionRoutes(app: Express) {
           draftContent: applyRun.draftContent,
           sceneBeats: applyRun.sceneBeats,
           databaseGeneration,
-          targetChapterId: chapterId || `${now}`,
+          targetChapterId: chapterId || generateId(),
           proposedPatch: applyRun.continuityReport.proposedPatch,
         });
         const workflowMeta = {
@@ -1217,7 +1217,7 @@ export function registerProductionRoutes(app: Express) {
           });
         } else {
           const nextOrder = getNextChapterOrder(chapters);
-          chapterId = `${now}`;
+          chapterId = generateId();
           db.createChapter({
             id: chapterId,
             novelId: run.novelId,
@@ -1235,7 +1235,7 @@ export function registerProductionRoutes(app: Express) {
         }
 
         db.createChapterVersion({
-          id: `${now + 1}`,
+          id: generateId(),
           chapterId,
           content: applyRun.draftContent,
           wordCount: applyRun.draftContent.replace(/\s/g, '').length,
