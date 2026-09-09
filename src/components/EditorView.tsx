@@ -1191,12 +1191,18 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   // --- 4. Side Effects (useEffect) ---
 
-  // Reset undo history when chapter changes
+  // Reset undo history when the chapter identity changes (not on every content update)
+  const lastUndoChapterIdRef = React.useRef<string | null>(null);
   useEffect(() => {
-    if (currentChapter) {
-      resetUndoHistory(currentChapter.content);
+    const chapterId = currentChapter?.id ?? null;
+    if (!currentChapter || !chapterId) {
+      lastUndoChapterIdRef.current = null;
+      return;
     }
-  }, [currentChapter, currentChapter?.id, resetUndoHistory]);
+    if (lastUndoChapterIdRef.current === chapterId) return;
+    lastUndoChapterIdRef.current = chapterId;
+    resetUndoHistory(currentChapter.content);
+  }, [currentChapter, resetUndoHistory]);
 
   useEffect(() => {
     window.inkflow?.setTitle(novel?.title || '');
