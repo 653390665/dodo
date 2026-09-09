@@ -43,6 +43,7 @@ test-results/
 .gemini/
 scratch/
 .scratch/
+validation-debug.log
 
 # TencentDB Agent Memory local deployment (contains credentials & local data)
 .tdai/

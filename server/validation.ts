@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
@@ -14,7 +15,7 @@ export function validate(schema: z.ZodSchema) {
       // before persisting, and never enable this in production.
       if (process.env.INKFLOW_VALIDATION_DEBUG === '1' && process.env.NODE_ENV !== 'production') {
         try {
-          const errorLogPath = path.join(process.cwd(), 'validation-debug.log');
+          const errorLogPath = path.join(os.tmpdir(), 'validation-debug.log');
           const safeBody = JSON.parse(JSON.stringify(req.body, (key, value) => {
             if (typeof value === 'string' && value.length > 200) return value.slice(0, 200) + '...[TRUNCATED]';
             return value;
