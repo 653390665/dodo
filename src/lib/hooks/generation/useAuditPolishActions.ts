@@ -243,8 +243,11 @@ export function useAuditPolishActions({
       const databaseGeneration = auditDatabaseGeneration as number;
       if (databaseGeneration !== requestDatabaseGeneration) throw new Error('数据库已在审稿启动期间切换');
 
+      const AUDIT_POLL_MAX_RETRIES = 120; // 120 × 1.5s ≈ 3 分钟，与服务端任务超时同量级
+      let pollRetries = 0;
       let jobResult: Record<string, unknown> | null = null;
-      while (true) {
+      while (pollRetries < AUDIT_POLL_MAX_RETRIES) {
+        pollRetries += 1;
         if (controller.signal.aborted) throw new Error('AbortError');
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
@@ -280,7 +283,7 @@ export function useAuditPolishActions({
         }
       }
 
-      if (!jobResult) throw new Error('AI Audit returned no result');
+      if (!jobResult) throw new Error('智能审稿等待超时，请稍后重试。');
 
       if (jobResult.status === 'unknown') {
         const category = typeof jobResult.errorCategory === 'string' ? jobResult.errorCategory : 'invalid_json';

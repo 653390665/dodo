@@ -9,6 +9,7 @@ import { authMiddleware, getAuthToken, isIdentityTokenValid } from './server/mid
 import { registerRoutes } from './server/routes/index.js';
 import { registerChapterCompletionRoutes } from './server/routes/chapter-completion.js';
 import { closeDb, drainWriteQueue } from './server/lib/db-instance.js';
+import { createRequestTimeoutMiddleware } from './server/lib/request-timeout.js';
 import type { Server } from 'http';
 
 let activeHttpServer: Server | null = null;
@@ -73,18 +74,9 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' })); // Increase limit for text upload
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // Global request timeout safety net — prevents hung requests from blocking the server
-  app.use((_req, res, next) => {
-    const timeoutMs = 120_000; // 2 minutes max for any request
-    const timer = setTimeout(() => {
-      if (!res.headersSent) {
-        res.status(504).json({ error: 'Request timed out — server took too long to respond' });
-      }
-    }, timeoutMs);
-    res.on('finish', () => clearTimeout(timer));
-    res.on('close', () => clearTimeout(timer));
-    next();
-  });
+  // Global request timeout safety net — prevents hung requests from blocking the server.
+  // Long synchronous LLM routes opt out via LONG_REQUEST_TIMEOUT_ROUTES (see server/lib/request-timeout.ts).
+  app.use(createRequestTimeoutMiddleware());
 
   // Development token bootstrap is opt-in and remains loopback-only.
   if (process.env.NODE_ENV !== 'production' && process.env.INKFLOW_ENABLE_DEV_AUTH_TOKEN === 'true') {
