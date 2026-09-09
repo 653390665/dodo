@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import { z } from 'zod';
 import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
+import { generateId } from '../id';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { renderPromptTemplate, resolveChainPrompt, wrapUserInput } from '../helpers/prompt-helpers';
 import { rateLimit } from '../middleware/rate-limit';
@@ -191,7 +192,7 @@ setInterval(pruneJobs, 60 * 1000).unref();
 
 function createJob(databaseGeneration: number): string {
   pruneJobs();
-  const id = 'job_' + Math.random().toString(36).substring(2, 15);
+  const id = `job_${generateId()}`;
   jobs.set(id, {
     id,
     status: 'queueing',

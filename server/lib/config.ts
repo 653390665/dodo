@@ -59,6 +59,22 @@ export interface AppConfig {
   promptTemplates: PromptTemplates;
 }
 
+// Legacy onboarding flows saved this literal placeholder as if it were a real
+// key; treat it (and whitespace variants) as "not configured" at load time.
+const LEGACY_API_KEY_PLACEHOLDER = '你的key';
+
+function normalizeLegacyApiKey(config: AppConfig): AppConfig {
+  if (config.apiKey?.trim() === LEGACY_API_KEY_PLACEHOLDER) {
+    return { ...config, apiKey: '' };
+  }
+  return config;
+}
+
+/** True only when a real API key is configured (the legacy placeholder counts as unconfigured). */
+export function isLlmConfigured(config: AppConfig = getConfig()): boolean {
+  return Boolean(config.apiKey) && config.apiKey.trim() !== LEGACY_API_KEY_PLACEHOLDER;
+}
+
 const defaults: AppConfig = {
   apiKey: process.env.API_KEY || '',
   baseUrl: process.env.API_BASE_URL || 'https://generativelanguage.googleapis.com',
@@ -183,11 +199,11 @@ export function loadConfig(): AppConfig {
         parsed.apiKey = decryptApiKey(parsed.apiKey);
       }
       const migratedPromptTemplates = migrateLegacyPromptTemplates(parsed.promptTemplates);
-      return {
+      return normalizeLegacyApiKey({
         ...defaults,
         ...parsed,
         promptTemplates: mergePromptTemplates(migratedPromptTemplates),
-      };
+      });
     }
   } catch (e) {
     lastConfigError = e instanceof Error ? e.message : String(e);
@@ -197,7 +213,7 @@ export function loadConfig(): AppConfig {
   if (isElectronMode) {
     base.apiKey = secureKey;
   }
-  return base;
+  return normalizeLegacyApiKey(base);
 }
 
 export function saveConfig(config: AppConfig): void {

@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express';
 import type { Skill } from '../../shared/types';
 import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
+import { generateId } from '../id';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import {
   AUDIT_OUTPUT_CONTRACT,
@@ -80,7 +81,7 @@ setInterval(pruneAuditJobs, 60 * 1000).unref();
 
 function createAuditJob(controller: AbortController, databaseGeneration: number): string {
   pruneAuditJobs();
-  const id = 'audit_' + Math.random().toString(36).substring(2, 15);
+  const id = `audit_${generateId()}`;
   auditJobs.set(id, {
     id,
     status: 'pending',

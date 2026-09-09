@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getConfig } from '../lib/config.js';
+import { getConfig, isLlmConfigured } from '../lib/config.js';
 import { governedGenerateText } from './governed-llm.js';
 import { parseAuditResponseWithDiagnostics } from '../../shared/lib/audit-structured.js';
 import { buildAuditWindow } from '../helpers/prompt-helpers.js';
@@ -53,7 +53,7 @@ async function persist(
 
 async function defaultReview(novelId: string, content: string, sceneBeats: string, reviewProvider = governedGenerateText): Promise<ReviewResult> {
   const config = getConfig();
-  if (reviewProvider === governedGenerateText && (!config.apiKey || config.apiKey === '你的key')) return { status: 'unavailable' };
+  if (reviewProvider === governedGenerateText && !isLlmConfigured(config)) return { status: 'unavailable' };
   try {
     const raw = await reviewProvider(config, {
       prompt: `你是章节完成审稿器。只审查以下已接受正文与场景节拍，严格输出 JSON：{"score":0-100,"fatalIssues":[],"sceneChecks":[],"surgerySuggestions":[]}。不要改写正文，不要写 Canon。\n场景节拍：${sceneBeats.slice(0, 4000)}\n正文：${buildAuditWindow(content)}`,

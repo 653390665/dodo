@@ -4,7 +4,7 @@ import { rateLimit } from '../middleware/rate-limit';
 import type { Express } from 'express';
 import { generateId } from '../id';
 import { governedGenerateText as generateText } from '../helpers/governed-llm';
-import { getConfig } from '../lib/config';
+import { getConfig, isLlmConfigured } from '../lib/config';
 import {
   buildChapterProductionTitle,
   buildProductionExecutionReceipt,
@@ -620,7 +620,7 @@ export function registerProductionRoutes(app: Express) {
 
       const fallbackDraft = buildFallbackDraft(fallbackBeats, writerContext, resolveEffectiveMinDraftChars(intent));
       const fallbackQuality = validateCompleteChapterDraftQuality(fallbackDraft, undefined, { minChars: resolveEffectiveMinDraftChars(intent) });
-      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST || getConfig().apiKey === '你的key' || !getConfig().apiKey;
+      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST || !isLlmConfigured();
       if (!fallbackQuality.ok) {
         // Keep the invalid fallback out of the manuscript and out of the
         // stream. The real pipeline may still produce a valid model draft.

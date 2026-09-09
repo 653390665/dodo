@@ -392,7 +392,7 @@ setInterval(pruneJobs, 60 * 1000).unref();
 
 function createJob(controller: AbortController, databaseGeneration: number): string {
   pruneJobs();
-  const id = 'job_' + Math.random().toString(36).substring(2, 15);
+  const id = `job_${generateId()}`;
   jobs.set(id, {
     id,
     status: 'queueing',
