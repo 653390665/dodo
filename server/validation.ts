@@ -35,7 +35,7 @@ export function validate(schema: z.ZodSchema) {
   };
 }
 
-const dbIdSchema = z.string().min(1).max(200);
+export const dbIdSchema = z.string().min(1).max(200);
 const dbTextSchema = z.string().max(1_000_000);
 const dbShortTextSchema = z.string().max(500);
 const dbTimestampSchema = z.number().int().nonnegative().finite();

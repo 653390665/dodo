@@ -12,7 +12,7 @@ import { parseModelJsonPayload, parseModelJsonPayloadStrict, ModelJsonSyntaxErro
 import * as db from '../lib/db';
 import { computeContinuationPackContentHash } from '../lib/db-mappers';
 import { classifyContinuationSource } from '../../shared/lib/continuation-pack';
-import { validate, parseDocSchema, continuationParseSchema } from '../validation';
+import { validate, parseDocSchema, continuationParseSchema, dbIdSchema } from '../validation';
 import type {
   ContinuationCanonFact,
   ContinuationCharacterState,
@@ -163,6 +163,12 @@ const resolveContinuationPackConflictsSchema = z.object({
     resolution: z.string().trim().min(1).max(1_000),
   })).min(1).max(10),
 });
+
+const extractEntitiesRequestSchema = z.object({
+  packId: dbIdSchema,
+  novelId: dbIdSchema.optional(),
+  databaseGeneration: z.number().int().nonnegative().optional(),
+}).strict();
 
 const MAX_SYNC_ENTITY_COUNT = 50 * SYNC_EXTRACTION_MAX_CHUNKS;
 const MAX_SYNC_POWER_LEVEL_COUNT = 30 * SYNC_EXTRACTION_MAX_CHUNKS;
@@ -1558,10 +1564,11 @@ export function registerContinuationRoutes(app: Express) {
     if (!rateLimit('continuation-packs-extract')) {
       return res.status(429).json({ error: '资料设定提取请求过于频繁，请稍后再试。', retryAfter: 5 });
     }
-    const { packId, novelId: reqNovelId, databaseGeneration: reqGeneration } = req.body;
-    if (!packId || typeof packId !== 'string') {
+    const parsedBody = extractEntitiesRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
       return res.status(400).json({ error: '请先选择要同步的续写资料包。' });
     }
+    const { packId, novelId: reqNovelId, databaseGeneration: reqGeneration } = parsedBody.data;
     const pack = db.getContinuationPack(packId);
     if (!pack) {
       return res.status(404).json({ error: '资料包不存在' });
