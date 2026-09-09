@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, 
 import { appConfirm } from './ui/app-confirm';
 import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
-import { CURATED_PRODUCT_SKILLS, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
+import { CURATED_PRODUCT_SKILLS, ENHANCEMENT_PACKAGES, getEnhancementPackageSteps, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isLicensedEnhancementGated, isMonetizationEnabled } from '../lib/entitlements';
@@ -31,7 +31,6 @@ import {
 } from '../lib/capability-stage-cards';
 import type { CapabilityLaunchState, WorldCapabilityLaunchIntent } from '../../shared/types/capability-manifest';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
-import { ENHANCEMENT_PACKAGES, getEnhancementPackageSteps } from '../../shared/lib/enhancement-packages';
 import type { CapabilityApplicationStatus } from '../../shared/types/capability-execution';
 import {
   getCapabilityDisplayText,

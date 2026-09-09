@@ -1,6 +1,6 @@
 import { CheckCircle2, ShieldAlert, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/prompt-governance-catalog';
+import { PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill } from '../../../shared/types';
 
 interface GuardrailPolicyPanelProps {

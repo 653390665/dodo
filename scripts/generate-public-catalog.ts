@@ -121,7 +121,7 @@ function generate() {
 // THE GENERATION SCRIPT OR THE SOURCE GOVERNANCE CATALOG.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { GovernedPromptAsset, EnhancementPackage, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
+import type { GovernedPromptAsset, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
 import type { Novel } from '../types.js';
 
 export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = ${JSON.stringify(cleanedAssetsRegistry, null, 2)};
@@ -227,6 +227,17 @@ export function getFlowEnhancementPackage(flowId: string): EnhancementPackage | 
     return ENHANCEMENT_PACKAGES.find(p => p.id === 'paid-author-flows') || null;
   }
   return null;
+}
+
+/**
+ * 返回包的步骤配方；对仅有 assets 的旧包保持可读性。
+ */
+export function getEnhancementPackageSteps(pkg: EnhancementPackage): readonly EnhancementPackageStep[] {
+  if (pkg.steps?.length) return pkg.steps;
+  return (pkg.assets || []).map((assetId, index) => ({
+    id: \`\${pkg.id}-step-\${index + 1}\`, assetId, mode: 'recommend' as const, trigger: 'milestone' as const,
+    scope: 'single-run' as const, order: index + 1, required: false,
+  }));
 }
 
 /**

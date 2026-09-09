@@ -5,7 +5,7 @@
 // THE GENERATION SCRIPT OR THE SOURCE GOVERNANCE CATALOG.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { GovernedPromptAsset, EnhancementPackage, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
+import type { GovernedPromptAsset, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
 import type { Novel } from '../types.js';
 
 export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
@@ -201,6 +201,38 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "plaza"
+  },
+  {
+    "id": "de-ai-tells-guard",
+    "title": "去AI味痕迹规则卡",
+    "stage": "polish",
+    "goal": "按公开语料实测出的高频 AI 痕迹清单约束正文句式：翻案腔、破折号揭晓、段首零主语评论、相邻句同构、提示性冒号与复述式总结。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "内置护栏，规则提炼自公开语料实测结论，检测逻辑由 InkFlow 自行实现"
+    ],
+    "successSignal": "高频 AI 痕迹句式在正文中显著减少，且信息量与画面感不下降。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 95,
+    "grade": "A",
+    "primaryCategory": "quality-guardrail",
+    "secondaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
   }
 ];
 
@@ -5390,6 +5422,7 @@ export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
     "sourceGroup": "built-in",
     "evidenceLevel": "scored-from-source",
     "processDecision": "adopt"
@@ -5846,6 +5879,17 @@ export function getFlowEnhancementPackage(flowId: string): EnhancementPackage | 
     return ENHANCEMENT_PACKAGES.find(p => p.id === 'paid-author-flows') || null;
   }
   return null;
+}
+
+/**
+ * 返回包的步骤配方；对仅有 assets 的旧包保持可读性。
+ */
+export function getEnhancementPackageSteps(pkg: EnhancementPackage): readonly EnhancementPackageStep[] {
+  if (pkg.steps?.length) return pkg.steps;
+  return (pkg.assets || []).map((assetId, index) => ({
+    id: `${pkg.id}-step-${index + 1}`, assetId, mode: 'recommend' as const, trigger: 'milestone' as const,
+    scope: 'single-run' as const, order: index + 1, required: false,
+  }));
 }
 
 /**
