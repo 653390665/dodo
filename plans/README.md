@@ -2,6 +2,8 @@
 
 > [!NOTE]
 > **所有历史和新建计划的状态、执行结果均以本 README.md 主表记录为准**。旧的单独 plan 文件若存在未标注状态，皆为历史存底，不再单独维护。
+>
+> **账目分工**：本表登记历史轮次（1–29，计划 001–171；其中 172 为无独立计划文件的已收口账面行）与 2026-09-10 起的第 30 轮（计划 173+）。当前「能力卡整合」轮（001–014，2026-09）的执行账目在 `docs/plans/README.md`——两账并行，引用时先确认轮次（双账本问题本身登记为本轮 191 的 DOCS-3 项）。
 
 ## 审计历史
 
@@ -36,8 +38,22 @@
 | 27 | `dff4445 + local changes` | 2026-08-09 | improve + 产品经理 + 八刀法：Plan 150 后剩余任务重排 | 4 | 151–154 |
 | 28 | `dff4445 + local changes` | 2026-08-10 | improve reconcile + 多 Agent 复核：151–154 剩余任务再规划 | 4 | 152–155 |
 | 29 | `dff4445 + local changes` | 2026-08-10 | improve + 产品经理 + 八刀法：能力商店连续配置、技法与拆书卡生命周期复核 | 1 | 158 |
+| 30 | `0dfbbcf` | 2026-09-10 | improve deep 全仓审计（7 只读子代理：前端正确性/后端正确性+安全/性能/测试覆盖/架构+依赖/UX 交互+按钮+链路/文档+DX+方向；发现全部经主控亲读复核） | 84 条发现 → 23 计划 | 173–195 |
 
 ## 执行顺序 & 依赖图
+
+```
+轮次 30 (2026-09-10 improve deep 全仓审计：计划 173–195)
+
+P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱入口 / 176 超时治理
+177 审稿链路正确性 → 178 编辑器数据流互斥（同文件 useDraftGeneration，先后执行）
+186 HTTP/持久层测试安全网 → 189 服务端架构收敛 → 190 依赖升级（xenova 豁免 2026-09-30 到期，190 内 Step 1 最优先）
+187 E2E/CI 独立；182 全量加载 → 183 SSE 节流（建议顺序，非硬依赖）
+185 消毒边界独立；181 UX 一致性依赖 175（全屏文案若 175 已处理则跳过该子步）
+191 文档 DX 独立；192/193/194 方向 spike 待产品决策；195 SkillsStudio 分解独立
+```
+
+历史依赖图（存底）：
 
 ```
 轮次 12 & 13 (深度性能与安全架构全面筑防)
@@ -221,6 +237,29 @@
 | 170 | 统一评测端审稿 JSON 解析，消除中文引号误判 | DONE（定向门禁通过；live-only 真实失败保持可见） | 169 |
 | 171 | 收口 Critic 严格合同、fallback 接受边界与章节完成审阅 | DONE（隔离分支 `codex/plan171-executor`，最终提交 `11c870d`；后端 1112/1112、前端 13/13、typecheck/lint/diff check 通过） | 170 |
 | 172 | 正文文学质量硬门禁与去 AI 腔闭环 | DONE（后端 1128/1128、前端 827/827、Playwright 24/24、deterministic 评测通过；live `quality_mismatch` 保持失败可见，后续需单独优化 Provider/Prompt） | 165, 166, 169–171 |
+| 173 | 修复编辑器撤销栈——只在切换章节时 reset，恢复 Cmd+Z | TODO | — |
+| 174 | 破坏性删除统一接入 appConfirm（世界书六类实体/资料包/伏笔/灵感碎片/对话历史） | TODO | — |
+| 175 | 工作台家族导航：驾驶舱可见入口 + 快捷键与命名对齐 | TODO | — |
+| 176 | 长任务超时治理：解析路由白名单 + 审稿轮询上限 | TODO | — |
+| 177 | 审稿/润色链路三处正确性（409 单次消费/重试保留范围/改写选区防漂移） | TODO | — |
+| 178 | 编辑器数据流与生成互斥收口（旗标互斥/packs 竞态/isLoading 兜底/换书清空/监听器异常） | TODO | 177 |
+| 179 | 后端 LLM 流式与输入卫生（流中重试不重发/UUID 主键/prompt 上限/jobId/哨兵归一） | TODO | — |
+| 180 | 用户动作失败反馈补全（删章节/建书/刷一批） | TODO | — |
+| 181 | UX 反馈一致性（弹窗 Esc/导入可取消/失败面板人话/toast 语义/文案清理） | TODO | 175 |
+| 182 | 消灭 O(全量正文) 路径（故事上下文/生产 runs/面板/AppShell） | TODO | — |
+| 183 | SSE 变更广播节流 + chapter_versions 投影 | TODO | 182（建议） |
+| 184 | 渲染与数据生命周期性能（消息 memo/事件保留策略/checkpoint 降频/向量缓存上限） | TODO | — |
+| 185 | 技能目录消毒边界单源化（渲染层只消费生成副本 + 全量新鲜度守卫；含 014 账 #11 收口） | TODO | — |
+| 186 | 测试补强一期：HTTP 契约与持久层危险区（config 空键/deleteChapter/错误映射/EditorView 特征） | TODO | — |
+| 187 | 测试补强二期：四大视图 E2E + 真实管线旅程 + CI 去重与覆盖率棘轮 | TODO | — |
+| 188 | 前端传输收敛（统一 request/config-client/组件裸 fetch 入 client/compat shim 清理） | TODO | — |
+| 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | TODO | 186 |
+| 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | TODO | 186, 187 |
+| 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | TODO | — |
+| 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | TODO | — |
+| 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | TODO | — |
+| 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | TODO | 175 |
+| 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | TODO | — |
 
 ### Plan 166 复核（2026-08-23）
 
@@ -364,3 +403,16 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 将 reasoning/thinking 直接展示为答案：会泄露模型内部推理，且不能保证是可用最终输出。
 - 直接增加所有助手的 token 上限：空响应原因尚未分类，先扩预算会增加成本并掩盖兼容性问题。
 - 当轮不升级 `body-parser`、`sharp`、`postcss` 等依赖：当时告警与助手故障无关；相关锁文件治理已完成，2026-08-09 生产 audit 为 0。
+
+### 第 30 轮审计排除（2026-09-10，improve deep）
+
+- **API Key 静态加密密钥由 hostname+username 派生**（`server/lib/config.ts:23-26`）：代码注释已明示弱于 OS keychain 的既定权衡，Electron 模式已迁 safeStorage——设计如此。
+- **dev 模式 `INKFLOW_ENABLE_DEV_AUTH_TOKEN`**：`NODE_ENV!=='production'` 门控 + loopback 校验，打包路径（build-server/package-electron）不携带该 flag——非发现。
+- **SSE query token**（`auth.ts:118-124`）：访问日志已脱敏、5 分钟 TTL、64 连接上限——已治理。
+- **CSRF 面**：Bearer 头 + 无 CORS 中间件 + 仅绑定 127.0.0.1 覆盖——本地单机应用可接受。
+- **`express.json` 50mb / 导入 100MB body 上限**：单机本地应用量级可接受。
+- **`wrapUserInput` 防注入包裹的全量推广**（5 处裸插值进 prompt）：涉及多 prompt 模板质量回归，输出已有 zod schema 校验兜底——本轮不纳入，列为潜在后续项。
+- **LLM baseUrl 的 SSRF 残余面**（`validation.ts:290` 仅校验 scheme）：BYOK 架构既定权衡（用户自持 key、自配网关含 127.0.0.1 本地模型属合法用法）——仅记录，不立计划。
+- **sqlite-vec/向量检索索引化**：当前量级（≤数千 chunk）无实证瓶颈；Plan 184 Step 4 仅埋点调查，超阈值另立计划。
+- **全量依赖大版本扫荡**（React 19 等已当前；非核心滞后项）：无证据支撑收益，仅处理有硬 deadline 的 @xenova/transformers（Plan 190）。
+- **「驾驶舱点击自动执行无确认」类上报**：`docs/specs/cockpit-routing.md` 既定设计，不作为发现。
