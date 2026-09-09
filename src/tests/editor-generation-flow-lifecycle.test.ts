@@ -13,6 +13,13 @@ type RunningAction = {
   message: string;
 };
 
+type PolishingErrorAction = {
+  status: 'error';
+  operation: 'polish';
+  message: string;
+  retryable: true;
+};
+
 type DraftHookArgs = {
   requestSeqRef: { current: number };
   setGenerationStatus: (value: string | null) => void;
@@ -22,8 +29,15 @@ type DraftHookArgs = {
 type AuditHookArgs = {
   requestSeqRef: { current: number };
   setAuditStatus: (value: string | null) => void;
-  setAiActionState: (value: RunningAction) => void;
+  setAiActionState: (value: RunningAction | PolishingErrorAction) => void;
+  setRetryContext?: (context: unknown) => void;
 };
+
+const auditPolishMocks = vi.hoisted(() => ({
+  handleRewriteSelectedText: vi.fn(async () => {}),
+  handlePolishChapterFromAudit: vi.fn(async () => {}),
+  hookArgs: null as null | AuditHookArgs,
+}));
 
 vi.mock('../lib/hooks/generation/useDraftGeneration', () => ({
   useDraftGeneration: (args: DraftHookArgs) => ({
@@ -38,16 +52,19 @@ vi.mock('../lib/hooks/generation/useDraftGeneration', () => ({
 }));
 
 vi.mock('../lib/hooks/generation/useAuditPolishActions', () => ({
-  useAuditPolishActions: (args: AuditHookArgs) => ({
-    handleRunAudit: vi.fn(async () => {
-      args.requestSeqRef.current += 1;
-      useEditorGenerationStore.getState().setIsGeneratingCritique(true);
-      args.setAuditStatus('正在审稿');
-      args.setAiActionState({ status: 'running', operation: 'audit', message: '正在审稿' });
-    }),
-    handleRewriteSelectedText: vi.fn(),
-    handlePolishChapterFromAudit: vi.fn(),
-  }),
+  useAuditPolishActions: (args: AuditHookArgs) => {
+    auditPolishMocks.hookArgs = args;
+    return {
+      handleRunAudit: vi.fn(async () => {
+        args.requestSeqRef.current += 1;
+        useEditorGenerationStore.getState().setIsGeneratingCritique(true);
+        args.setAuditStatus('正在审稿');
+        args.setAiActionState({ status: 'running', operation: 'audit', message: '正在审稿' });
+      }),
+      handleRewriteSelectedText: auditPolishMocks.handleRewriteSelectedText,
+      handlePolishChapterFromAudit: auditPolishMocks.handlePolishChapterFromAudit,
+    };
+  },
 }));
 
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
@@ -127,5 +144,25 @@ describe('editor generation flow invalidation', () => {
     expect(result.current.isGeneratingCritique).toBe(false);
     expect(result.current.isGeneratingContent).toBe(true);
     expect(result.current.aiActionState).toMatchObject({ status: 'running', operation: 'draft' });
+  });
+
+  test('polish retry dispatch passes the saved review options back to the polish handler', async () => {
+    const { result } = renderFlow();
+    await act(async () => Promise.resolve());
+    auditPolishMocks.handlePolishChapterFromAudit.mockReset();
+    auditPolishMocks.handlePolishChapterFromAudit.mockImplementation(async () => {
+      const args = auditPolishMocks.hookArgs;
+      if (!args) return;
+      args.requestSeqRef.current += 1;
+      args.setRetryContext?.({ operation: 'polish', fingerprint: 'fp-style', reviewOptions: { previewOnly: true, issueIds: ['i1'] } });
+      args.setAiActionState({ status: 'error', operation: 'polish', message: '精修失败', retryable: true });
+    });
+
+    await act(async () => result.current.handlePolishChapterFromAudit('fp-style', { previewOnly: true, issueIds: ['i1'] }));
+    auditPolishMocks.handlePolishChapterFromAudit.mockClear();
+    await act(async () => result.current.retryLastAiAction());
+
+    expect(auditPolishMocks.handlePolishChapterFromAudit).toHaveBeenCalledTimes(1);
+    expect(auditPolishMocks.handlePolishChapterFromAudit).toHaveBeenCalledWith('fp-style', { previewOnly: true, issueIds: ['i1'] });
   });
 });

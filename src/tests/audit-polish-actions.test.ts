@@ -1,5 +1,4 @@
 import { act, renderHook } from '@testing-library/react';
-import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
@@ -90,6 +89,8 @@ function renderRewriteHook(options: {
   recordSkillUsage?: () => Promise<void>;
   flushPendingEditorWrites?: () => Promise<void>;
   onStyleConfirmationRequired?: (data: { retry?: (fingerprint: string) => Promise<void> }) => void;
+  formatAiFailure?: (error: unknown, actionLabel: string) => string;
+  setRetryContext?: (context: unknown) => void;
 } = {}) {
   const novel = makeNovel();
   const chapter = options.chapter ?? makeChapter();
@@ -125,8 +126,9 @@ function renderRewriteHook(options: {
     handleUpdateContent,
     getCurrentFitScore: () => 80,
     recordSkillUsage,
-    formatAiFailure: () => '审稿失败，请重试。',
+    formatAiFailure: options.formatAiFailure ?? (() => '审稿失败，请重试。'),
     flushPendingEditorWrites,
+    setRetryContext: options.setRetryContext,
   }));
 
   return {
@@ -140,6 +142,7 @@ function renderRewriteHook(options: {
     setCandidate,
     flushPendingEditorWrites,
     contentElement,
+    setRetryContext: options.setRetryContext,
   };
 }
 
@@ -525,5 +528,82 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  test('a non-style 409 rewrite failure surfaces the server error message after a single body read', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ error: '数据库已切换，请刷新后重试' }, { status: 409 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, setAiActionState } = renderRewriteHook({
+      formatAiFailure: (error) => String(error instanceof Error ? error.message : error),
+    });
+
+    await result.current.handleRewriteSelectedText();
+
+    const runningState = setAiActionState.mock.calls[0]?.[0];
+    const errorUpdater = setAiActionState.mock.calls[1]?.[0];
+    expect(errorUpdater).toBeTypeOf('function');
+    expect(errorUpdater(runningState)).toMatchObject({
+      status: 'error',
+      operation: 'rewrite',
+      message: expect.stringContaining('数据库'),
+    });
+  });
+
+  test('a style-required audit initiation reports the confirmation data without re-reading the body', async () => {
+    let received: { retry?: (fingerprint: string) => Promise<void>; candidates?: unknown[] } | undefined;
+    const fetchMock = vi.fn(async () => Response.json(
+      { code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [{ id: 'style-1' }] },
+      { status: 409 },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, setAiActionState } = renderRewriteHook({
+      onStyleConfirmationRequired: (data) => { received = data as typeof received; },
+    });
+
+    await result.current.handleRunAudit();
+
+    expect(received?.retry).toBeTypeOf('function');
+    expect(received?.candidates).toEqual([{ id: 'style-1' }]);
+    expect(setAiActionState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'idle' }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('polish failure saves the review options for the unified retry entry', async () => {
+    const original = '他做出了明确反应，然后转身离去。';
+    const chapter = {
+      ...makeChapter(original),
+      critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
+    };
+    const setRetryContext = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('polish upstream failed'); }));
+    const { result } = renderRewriteHook({ chapter, setRetryContext });
+
+    await result.current.handlePolishChapterFromAudit(undefined, { previewOnly: true, issueIds: ['i1'] });
+
+    expect(setRetryContext).toHaveBeenCalledWith({
+      operation: 'polish',
+      fingerprint: undefined,
+      reviewOptions: { previewOnly: true, issueIds: ['i1'] },
+    });
+  });
+
+  test('editor input landing before the flush invalidates the captured rewrite selection', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, contentElement, setAiActionState } = renderRewriteHook({
+      flushPendingEditorWrites: async () => { contentElement.value = '作者在窗口期内打了新字'; },
+    });
+
+    await result.current.handleRewriteSelectedText();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const runningState = setAiActionState.mock.calls[0]?.[0];
+    const errorUpdater = setAiActionState.mock.calls[1]?.[0];
+    expect(errorUpdater).toBeTypeOf('function');
+    expect(errorUpdater(runningState)).toMatchObject({
+      status: 'error',
+      operation: 'rewrite',
+      message: '选区内容已变化，请重新选择后再改写。',
+    });
   });
 });

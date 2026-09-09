@@ -30,6 +30,17 @@ import {
   validatePolishCandidate,
 } from '../../chapter-polish.js';
 
+/** Read a non-2xx body exactly once and parse it leniently. */
+export async function readErrorBodyOnce(response: Response): Promise<Record<string, unknown> | null> {
+  const raw = await response.text().catch(() => '');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 interface UseAuditPolishActionsArgs {
   novel: Novel;
   currentChapter: Chapter | null;
@@ -63,7 +74,7 @@ interface UseAuditPolishActionsArgs {
   setCandidate?: (candidate: AiContentCandidate | null) => void;
   aiContentCandidate?: AiContentCandidate | null;
   getCandidate?: () => AiContentCandidate | null;
-  setRetryContext?: (context: { operation: 'rewrite' | 'polish'; input?: { start: number; end: number; instruction: string; fingerprint?: string }; fingerprint?: string } | null) => void;
+  setRetryContext?: (context: { operation: 'rewrite' | 'polish'; input?: { start: number; end: number; instruction: string; fingerprint?: string }; fingerprint?: string; reviewOptions?: { issueIds?: string[]; recheck?: boolean; previewOnly?: boolean } } | null) => void;
 }
 
 export interface ContextRewriteCandidateInput {
@@ -130,12 +141,12 @@ export function useAuditPolishActions({
     if (isRequestCurrent(startingChapterId, requestSeq)) setAiActionState(state);
   };
 
-  const handleStyleConfirmationResponse = async (response: Response, retry?: (fingerprint: string) => Promise<void>): Promise<boolean> => {
-    if (response.status !== 409) return false;
-    const data = await response.json().catch(() => null);
-    if (data?.code !== 'STYLE_CONFIRMATION_REQUIRED') return false;
-    onStyleConfirmationRequired?.({ ...data, retry });
-    return true;
+  const handleStyleConfirmationResponse = async (response: Response, retry?: (fingerprint: string) => Promise<void>): Promise<{ handled: boolean; data: Record<string, unknown> | null }> => {
+    if (response.status !== 409) return { handled: false, data: null };
+    const data = await readErrorBodyOnce(response);
+    if (data?.code !== 'STYLE_CONFIRMATION_REQUIRED') return { handled: false, data };
+    onStyleConfirmationRequired?.({ ...(data as { resolution?: WritingStyleResolution; candidates?: WritingStyleCandidate[] }), retry });
+    return { handled: true, data };
   };
 
   const restorePreviewIfCurrent = (
@@ -226,19 +237,25 @@ export function useAuditPolishActions({
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-      if (await handleStyleConfirmationResponse(response, (fingerprint) => handleRunAudit({ ...options, styleConfirmationFingerprint: fingerprint }))) {
+      const styleOutcome = await handleStyleConfirmationResponse(response, (fingerprint) => handleRunAudit({ ...options, styleConfirmationFingerprint: fingerprint }));
+      if (styleOutcome.handled) {
         setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
         return;
       }
-      const initData = await response.json();
+      const initData = (styleOutcome.data ?? await readErrorBodyOnce(response)) as {
+        jobId?: string;
+        databaseGeneration?: number;
+        quotaExceeded?: boolean;
+        error?: string;
+      } | null;
 
       if (initData && initData.quotaExceeded) {
         throw new Error('QUOTA_LIMIT_EXCEEDED');
       }
 
-      if (initData.error) throw new Error(initData.error);
-      auditJobId = initData.jobId;
-      auditDatabaseGeneration = initData.databaseGeneration;
+      if (initData?.error) throw new Error(initData.error);
+      auditJobId = initData?.jobId ?? null;
+      auditDatabaseGeneration = typeof initData?.databaseGeneration === 'number' ? initData.databaseGeneration : null;
       if (!auditJobId || !Number.isInteger(auditDatabaseGeneration)) throw new Error('Failed to initiate audit job');
       const databaseGeneration = auditDatabaseGeneration as number;
       if (databaseGeneration !== requestDatabaseGeneration) throw new Error('数据库已在审稿启动期间切换');
@@ -464,6 +481,7 @@ export function useAuditPolishActions({
     const currentSeq = ++requestSeqRef.current;
     const start = retryInput?.start ?? contentRef.current.selectionStart;
     const end = retryInput?.end ?? contentRef.current.selectionEnd;
+    const selectedTextAtCapture = (contentRef.current?.value ?? '').substring(start, end);
     if (start === end) {
       toast('请先在右侧区域选中一段您需要改写的文字，然后再点击此按钮。', 'error');
       return;
@@ -494,6 +512,11 @@ export function useAuditPolishActions({
     try {
       await flushPendingEditorWrites();
       baselineContent = contentRef.current?.value ?? currentChapter.content;
+      if (baselineContent.substring(start, end) !== selectedTextAtCapture) {
+        setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, '选区内容已变化，请重新选择后再改写。'));
+        setIsGeneratingContent(false);
+        return;
+      }
       const requestDatabaseGeneration = await getDatabaseGenerationSnapshot(controller.signal);
       const response = await fetch('/api/rewrite', {
         method: 'POST',
@@ -514,20 +537,17 @@ export function useAuditPolishActions({
 
       if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-      if (await handleStyleConfirmationResponse(response, (fingerprint) => handleRewriteSelectedText({ start, end, instruction, fingerprint }))) {
+      const styleOutcome = await handleStyleConfirmationResponse(response, (fingerprint) => handleRewriteSelectedText({ start, end, instruction, fingerprint }));
+      if (styleOutcome.handled) {
         setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
         return;
       }
-      if (response.status === 403) {
-        const data = await response.json().catch(() => ({}));
-        if (data && data.quotaExceeded) {
+      if (!response.ok) {
+        const errorData = (styleOutcome.data ?? await readErrorBodyOnce(response)) as { error?: string; quotaExceeded?: boolean } | null;
+        if (response.status === 403 && errorData?.quotaExceeded) {
           throw new Error('QUOTA_LIMIT_EXCEEDED');
         }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Rewrite failed.');
+        throw new Error(errorData?.error || 'Rewrite failed.');
       }
       const databaseGeneration = requireResponseDatabaseGeneration(response);
       if (databaseGeneration !== requestDatabaseGeneration) throw new Error('数据库已在改写启动期间切换');
@@ -653,7 +673,7 @@ export function useAuditPolishActions({
     fingerprintOverride?: string,
     reviewOptions?: { issueIds?: string[]; recheck?: boolean; previewOnly?: boolean },
   ) => {
-    setRetryContext?.({ operation: 'polish', fingerprint: fingerprintOverride });
+    setRetryContext?.({ operation: 'polish', fingerprint: fingerprintOverride, reviewOptions });
     const startingChapterId = currentChapter?.id;
     const candidateSnapshot = getCandidate?.() ?? aiContentCandidate;
     const candidateForPolish = currentChapter && candidateSnapshot
@@ -747,22 +767,19 @@ export function useAuditPolishActions({
 
         if (!isRequestCurrent(startingChapterId, currentSeq)) return;
 
-        if (await handleStyleConfirmationResponse(response, async (fingerprint) => {
+        const styleOutcome = await handleStyleConfirmationResponse(response, async (fingerprint) => {
           await handlePolishChapterFromAudit(fingerprint, reviewOptions);
-        })) {
+        });
+        if (styleOutcome.handled) {
           setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
           return;
         }
-        if (response.status === 403) {
-          const data = await response.json().catch(() => ({}));
-          if (data && data.quotaExceeded) {
+        if (!response.ok) {
+          const errorData = (styleOutcome.data ?? await readErrorBodyOnce(response)) as { error?: string; quotaExceeded?: boolean } | null;
+          if (response.status === 403 && errorData?.quotaExceeded) {
             throw new Error('QUOTA_LIMIT_EXCEEDED');
           }
-        }
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP ${response.status}`);
+          throw new Error(errorData?.error || `HTTP ${response.status}`);
         }
         const responseGeneration = requireResponseDatabaseGeneration(response);
         if (responseGeneration !== databaseGeneration) {

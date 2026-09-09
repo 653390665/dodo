@@ -109,7 +109,7 @@ export function useEditorGenerationFlow({
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
   const generationScopeRef = useRef({ databaseGeneration, novelId: novel.id });
-  const retryContextRef = useRef<{ operation: 'rewrite' | 'polish'; input?: { start: number; end: number; instruction: string; fingerprint?: string }; fingerprint?: string } | null>(null);
+  const retryContextRef = useRef<{ operation: 'rewrite' | 'polish'; input?: { start: number; end: number; instruction: string; fingerprint?: string }; fingerprint?: string; reviewOptions?: { issueIds?: string[]; recheck?: boolean; previewOnly?: boolean } } | null>(null);
   const acceptingCandidateRef = useRef(false);
   const pendingAuditRecheckRef = useRef<{ chapterId: string; issueIds: string[]; contentHash: string } | null>(null);
   const auditHandlerRef = useRef<((options?: { reviewIssueIds?: string[]; reviewScope?: 'affected' | 'full'; reviewContentHash?: string; baseWorkflowMeta?: ChapterWorkflowMeta }) => Promise<void>) | null>(null);
@@ -407,7 +407,7 @@ export function useEditorGenerationFlow({
     if (aiActionState.operation === 'draft') await handleGenerateContent();
     else if (aiActionState.operation === 'beats') await handleGenerateBeats();
     else if (aiActionState.operation === 'audit') await handleRunAudit();
-    else if (aiActionState.operation === 'polish') await handlePolishChapterFromAudit(retryContextRef.current?.fingerprint);
+    else if (aiActionState.operation === 'polish') await handlePolishChapterFromAudit(retryContextRef.current?.fingerprint, retryContextRef.current?.reviewOptions);
     else if (aiActionState.operation === 'rewrite') await handleRewriteSelectedText(retryContextRef.current?.input);
     else if (aiActionState.operation === 'outline') await handleGenerateOutline();
   }, [aiActionState, novel.id, currentChapter?.id, handleGenerateBeats, handleGenerateContent, handleGenerateOutline, handlePolishChapterFromAudit, handleRewriteSelectedText, handleRunAudit]);

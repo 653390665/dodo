@@ -18,6 +18,7 @@ import {
 } from '../../generation-action-state';
 import { computeChapterWorkflowHash } from '../../../../shared/lib/chapter-workflow';
 import { validateCompleteChapterDraftQuality } from '../../../../shared/lib/draft-quality';
+import { readErrorBodyOnce } from './useAuditPolishActions';
 
 interface UseDraftGenerationArgs {
   novel: Novel;
@@ -249,29 +250,16 @@ export function useDraftGeneration({
       if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
 
       if (!response.ok) {
-        if (response.status === 409) {
-          const styleData = await response.json().catch(() => null);
-          if (styleData?.code === 'STYLE_CONFIRMATION_REQUIRED') {
-            onStyleConfirmationRequired?.(styleData);
-            setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
-            return;
-          }
+        const errorData = await readErrorBodyOnce(response);
+        if (response.status === 409 && errorData?.code === 'STYLE_CONFIRMATION_REQUIRED') {
+          onStyleConfirmationRequired?.(errorData as { resolution?: WritingStyleResolution; candidates?: WritingStyleCandidate[] });
+          setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
+          return;
         }
-        if (response.status === 403) {
-          const initData = await response.json().catch(() => null);
-          if (initData && initData.quotaExceeded) {
-            /* window.dispatchEvent(new CustomEvent('local-capability-unavailable', {
-              detail: {
-                limitType: initData.limitType,
-                count: initData.count,
-                max: initData.max,
-                error: initData.error,
-              }
-            })); */
-            throw new Error('QUOTA_LIMIT_EXCEEDED');
-          }
+        if (response.status === 403 && errorData?.quotaExceeded) {
+          throw new Error('QUOTA_LIMIT_EXCEEDED');
         }
-        const errText = await response.text();
+        const errText = typeof errorData?.error === 'string' ? errorData.error : '';
         throw new Error(errText || `HTTP ${response.status}`);
       }
 
