@@ -124,7 +124,13 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       createdAt: now,
       updatedAt: now,
     };
-    await createNovelWithChapter(novel, firstChapter);
+    try {
+      await createNovelWithChapter(novel, firstChapter);
+    } catch (error) {
+      console.error('[Library] Failed to create novel:', error);
+      toast('创建作品失败，请稍后重试', 'error');
+      return; // 保留输入与展开状态，用户可重试
+    }
 
     setNewNovelTitle('');
     setIsAdding(false);

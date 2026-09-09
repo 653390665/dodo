@@ -218,7 +218,7 @@ export function AppShell() {
   );
 
   const [user] = useState(LOCAL_USER);
-  const [loading, setLoading] = useState(false);
+  const [storyCardsLoading, setStoryCardsLoading] = useState(false);
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
@@ -760,7 +760,7 @@ export function AppShell() {
     planning: StoryPlanningInput;
     isRefresh?: boolean;
   }) => {
-    setLoading(true);
+    setStoryCardsLoading(true);
     const batch = isRefresh ? batchCounter + 1 : 0;
     const prevHooks = isRefresh ? (onboardingDraft?.cards || []).map(c => c.hook) : [];
     try {
@@ -783,11 +783,11 @@ export function AppShell() {
         warnings,
       });
       openAssistant('general', { surface: 'welcome' });
-    } // eslint-disable-next-line no-useless-catch
-    catch (e) {
-      throw e;
+    } catch (error) {
+      console.error('[AppShell] Failed to generate story cards:', error);
+      toast('生成方案卡失败，请稍后重试', 'error');
     } finally {
-      setLoading(false);
+      setStoryCardsLoading(false);
     }
   };
 
@@ -971,16 +971,6 @@ export function AppShell() {
         : prev,
     );
   };
-
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-paper" data-testid="app-ready" data-ready-state="false">
-        <div className="text-xl font-serif italic text-gray-400">
-          正在启动 InkFlow…
-        </div>
-      </div>
-    );
-  }
 
   if (isRestoringSelectedNovel) {
     return (
@@ -1240,6 +1230,7 @@ export function AppShell() {
           setAIDrawerTab={setAIDrawerTab}
           handleSelectStoryCard={handleSelectStoryCard}
           handleCreateDraftFromIdea={handleCreateDraftFromIdea}
+          isRefreshingBatch={storyCardsLoading}
           assistantLaunchContext={assistantLaunchContext}
           continuationPackId={assistantSurfaceContext?.continuationPackId}
           handleApplyAssistantToContent={handleApplyAssistantToContent}

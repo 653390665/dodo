@@ -8,6 +8,7 @@ export function StoryCardDeck({
   onMixCard,
   onRefreshBatch,
   source,
+  isRefreshingBatch,
 }: {
   cards: StoryIdeaCard[];
   selectedCardId?: string;
@@ -15,6 +16,7 @@ export function StoryCardDeck({
   onMixCard: (card: StoryIdeaCard) => void;
   onRefreshBatch: () => void;
   source?: 'model' | 'fallback';
+  isRefreshingBatch?: boolean;
 }) {
   return (
     <section className="space-y-6">
@@ -25,8 +27,12 @@ export function StoryCardDeck({
             {source === 'fallback' ? '模型较慢，当前显示本地保底草案。可刷新重试。' : '先选方向，再进入设定记忆立骨架。'}
           </p>
         </div>
-        <button onClick={onRefreshBatch} className="rounded-full border border-theme-border px-4 py-2 text-xs font-bold text-theme-text">
-          继续刷一批
+        <button
+          onClick={onRefreshBatch}
+          disabled={isRefreshingBatch}
+          className="rounded-full border border-theme-border px-4 py-2 text-xs font-bold text-theme-text disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isRefreshingBatch ? '生成中…' : '继续刷一批'}
         </button>
       </div>
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">

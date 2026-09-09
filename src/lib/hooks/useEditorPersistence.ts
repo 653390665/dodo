@@ -429,7 +429,14 @@ export function useEditorPersistence({
 
   const handleDeleteChapter = async (id: string) => {
     if (!await flushBeforeChangingEditorContext()) return;
-    const deleted = await deleteChapterForEditor(id);
+    let deleted: boolean;
+    try {
+      deleted = await deleteChapterForEditor(id);
+    } catch (error) {
+      console.error('[useEditorPersistence] Failed to delete chapter:', error);
+      toast('删除章节失败，请重试', 'error');
+      return;
+    }
     if (!deleted) {
       toast('删除章节失败，章节可能已不存在', 'error');
       return;

@@ -14,6 +14,7 @@ export function AIAssistantDrawer({
   setAIDrawerTab,
   handleSelectStoryCard,
   handleCreateDraftFromIdea,
+  isRefreshingBatch,
   assistantLaunchContext,
   continuationPackId,
   handleApplyAssistantToContent,
@@ -37,6 +38,7 @@ export function AIAssistantDrawer({
     planning: StoryPlanningInput;
     isRefresh?: boolean;
   }) => void;
+  isRefreshingBatch?: boolean;
   assistantLaunchContext: AssistantLaunchContext | null;
   continuationPackId?: string;
   handleApplyAssistantToContent: (text: string) => void;
@@ -153,6 +155,7 @@ export function AIAssistantDrawer({
                   cards={onboardingDraft.cards}
                   selectedCardId={onboardingDraft.selectedCardId}
                   source={onboardingDraft.source}
+                  isRefreshingBatch={isRefreshingBatch}
                   onSelectCard={handleSelectStoryCard}
                   onMixCard={() => {
                     if (onboardingDraft.cards.length >= 2) {

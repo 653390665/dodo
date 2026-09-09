@@ -41,7 +41,7 @@ export const EditorModals = forwardRef<EditorModalsHandle, EditorModalsProps>(
               <AlertDialogAction
                 onClick={() => {
                   if (chapterToDeleteId) {
-                    onDeleteChapter(chapterToDeleteId);
+                    void onDeleteChapter(chapterToDeleteId);
                     setChapterToDeleteId(null);
                   }
                 }}
