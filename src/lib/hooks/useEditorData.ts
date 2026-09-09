@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditorDataStore } from '../../stores/editor-data-store';
 import { useOutlineContentStore } from '../../stores/outline-content-store';
-import { Chapter, ChapterMetadata, Character, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, SkillUsageRecord, MountedSkillLoadoutItem, ProjectPreferenceProfile, EntityRelationship, Foreshadowing } from '../../../shared/types';
+import { Chapter, PowerLevel, TimelineEvent, MountedSkillLoadoutItem, ProjectPreferenceProfile, Foreshadowing } from '../../../shared/types';
 import {
   listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
@@ -118,7 +118,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         setChapterLoading(false);
       }
     }
-  }, [readGeneration]);
+  }, [readGeneration, setChapters]);
 
   const loadAuxiliaryData = useCallback(async (requestSeq: number) => {
     const generationBefore = await readGeneration();
@@ -170,7 +170,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         console.warn('[useEditorData] Auxiliary editor data unavailable:', result.reason);
       }
     });
-  }, [novelId, readGeneration]);
+  }, [novelId, readGeneration, setCharacters, setFactions, setItems, setLibrarySkills, setLocations, setRelationships, setSkillUsageRecords]);
 
   const fetchAll = useCallback(async () => {
     const requestSeq = ++dataRequestSeqRef.current;
@@ -251,7 +251,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         setIsLoading(false);
       }
     }
-  }, [loadAuxiliaryData, novelId, readGeneration, selectChapter]);
+  }, [loadAuxiliaryData, novelId, readGeneration, selectChapter, setChapters, setGlobalOutlineRaw, setProjectPreferenceProfile]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- reset visible editor state before loading a different project */

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ContinuationPack, ContinuationEditorLaunchState } from '../../../shared/types';
+import type { ContinuationEditorLaunchState } from '../../../shared/types';
 import { listContinuationPacks } from '../continuation-client';
 import { sortContinuationPacksByRecency, getPreferredContinuationPackId } from '../continuation-pack-selection';
 import { subscribeToChanges } from '../db-transport';
@@ -50,7 +50,7 @@ export function useEditorContinuationPacks(
     return subscribeToChanges(() => {
       void refreshContinuationPacks();
     });
-  }, [launchState?.approvedPackId, launchState?.launchToken, novelId]);
+  }, [launchState?.approvedPackId, launchState?.launchToken, novelId, setContinuationPacks, setSelectedContinuationPackIdUpdatable]);
 
   return {
     continuationPacks,
