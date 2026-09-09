@@ -348,6 +348,25 @@ test('applying prose returns narrative promise candidates without mutating fores
   assert.equal(db.getForeshadowing('foreshadowing-local')?.notes, 'unchanged');
 });
 
+test('two consecutive applies persist distinct UUID chapter version ids', async () => {
+  createRun('apply-ids-run-1', chapterDraft('first apply draft'));
+  createRun('apply-ids-run-2', chapterDraft('second apply draft'));
+  const idsBefore = new Set(db.listChapterVersions('chapter-v').map(v => v.id));
+
+  const first = await apply('apply-ids-run-1');
+  assert.equal(first.status, 200);
+  const second = await apply('apply-ids-run-2');
+  assert.equal(second.status, 200);
+
+  assert.equal(db.getChapter('chapter-v')?.id, 'chapter-v');
+  const newVersionIds = db.listChapterVersions('chapter-v').map(v => v.id).filter(id => !idsBefore.has(id));
+  assert.equal(newVersionIds.length, 2);
+  for (const id of newVersionIds) {
+    assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  }
+  assert.notEqual(newVersionIds[0], newVersionIds[1]);
+});
+
 test.after(() => {
   server.close();
   db.closeDb();

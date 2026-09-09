@@ -233,6 +233,16 @@ test('extract-entities: missing packId returns 400', async () => {
   assert.deepEqual(await res.json(), { error: '请先选择要同步的续写资料包。' });
 });
 
+test('extract-entities: unknown extra fields rejected with 400', async () => {
+  const res = await fetch(`${baseUrl}/api/continuation-packs/extract-entities`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ packId: 'whatever-pack', unexpectedField: true }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: '请先选择要同步的续写资料包。' });
+});
+
 // ─── sync-to-world 验证 ──────────────────────────────────────────
 
 test('sync-to-world: draft pack rejected', async () => {
