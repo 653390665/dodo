@@ -11,6 +11,7 @@ import { closeDb, createCharacter, createNovel, getCharacter, initDb } from '../
 import { advanceDatabaseGeneration, getDatabaseGeneration } from '../server/lib/db-instance';
 import { __rateLimitTestHooks } from '../server/middleware/rate-limit';
 import { registerWorldRoutes } from '../server/routes/world';
+import { waitFor } from './helpers/wait-for';
 
 test('queued character-state work cannot write after the database generation changes', async () => {
   const originalFetch = globalThis.fetch;
@@ -52,10 +53,6 @@ test('queued character-state work cannot write after the database generation cha
   let releaseProviders!: () => void;
   const providerBlocker = new Promise<void>((resolve) => { releaseProviders = resolve; });
   let providerCalls = 0;
-  let resolveThirdProviderCall!: () => void;
-  const thirdProviderCall = new Promise<void>((resolve) => {
-    resolveThirdProviderCall = resolve;
-  });
 
   try {
     config.apiKey = 'test-api-key';
@@ -66,7 +63,6 @@ test('queued character-state work cannot write after the database generation cha
       if (String(input).startsWith(baseUrl)) return originalFetch(input, init);
       providerCalls += 1;
       if (providerCalls <= 2) await providerBlocker;
-      if (providerCalls === 3) resolveThirdProviderCall();
       return Response.json({
         choices: [{ message: { content: JSON.stringify({
           characters: [{ name: '叶半夏', changes: { mood: '不应跨代写入' } }],
@@ -96,11 +92,17 @@ test('queued character-state work cannot write after the database generation cha
     releaseProviders();
 
     // A queued job may be rejected by the generation gate before it reaches the provider.
-    // Wait briefly for the queue to settle, but do not require a third upstream call.
-    await Promise.race([
-      thirdProviderCall,
-      new Promise<void>((resolve) => setTimeout(resolve, 250)),
-    ]);
+    // Wait for the queue to settle (every stale job ends up rejected by the status
+    // endpoint) instead of sleeping a fixed 250ms; a third upstream call is not required.
+    await waitFor(async () => {
+      for (const job of startedJobs) {
+        const status = await fetch(
+          `${baseUrl}/api/world/jobs/${job.jobId}?databaseGeneration=${job.databaseGeneration}`,
+        );
+        if (status.status !== 409) return false;
+      }
+      return true;
+    }, 5_000, 'stale character-state jobs to settle at 409');
     for (const job of startedJobs) {
       const status = await fetch(
         `${baseUrl}/api/world/jobs/${job.jobId}?databaseGeneration=${job.databaseGeneration}`,

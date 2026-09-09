@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { confirmWritingStyleForTest } from './helpers/confirm-writing-style.js';
+import { waitFor } from './helpers/wait-for.js';
 
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-prod-disconnect-'));
 const databasePath = path.join(testDir, 'production-disconnect.test.db');
@@ -124,14 +125,14 @@ async function waitForReservation(
   expected: 'committed' | 'refunded',
 ): Promise<string> {
   const { __quotaTestHooks } = await import('../server/helpers/quota-guard');
-  const deadline = Date.now() + 2_000;
-  while (Date.now() < deadline) {
+  let reservationId: string | undefined;
+  await waitFor(() => {
     const r = Array.from(__quotaTestHooks.quotaReservations.values())
       .find((c) => c.novelId === novelId && c.status === expected);
-    if (r) return r.id;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error(`Timed out waiting for reservation ${expected} for ${novelId}`);
+    if (r) reservationId = r.id;
+    return !!r;
+  }, 2_000, `reservation ${expected} for ${novelId}`);
+  return reservationId!;
 }
 
 test('start-stream rejects a mechanical fallback without exposing or persisting prose', async () => {

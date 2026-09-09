@@ -21,6 +21,7 @@ import {
   listEntityRelationships,
 } from '../server/lib/db/world.js';
 import type { ContinuationPack, Novel } from '../shared/types.js';
+import { waitFor } from './helpers/wait-for.js';
 
 const NOVEL_ID = 'test-sync-novel';
 const OTHER_NOVEL_ID = 'other-novel';
@@ -90,17 +91,24 @@ beforeEach(() => {
 async function waitForExtractionJob(startResponse: Response, allowFailure = false): Promise<any> {
   assert.equal(startResponse.status, 202);
   const started = await startResponse.json() as { jobId: string; databaseGeneration: number };
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  let jobResult: any;
+  await waitFor(async () => {
     const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
     const job = await status.json() as any;
-    if (job.status === 'completed') return job.result;
+    if (job.status === 'completed') {
+      jobResult = job.result;
+      return true;
+    }
     if (job.status === 'failed') {
-      if (allowFailure) return job;
+      if (allowFailure) {
+        jobResult = job;
+        return true;
+      }
       throw new Error(`${job.code || 'EXTRACTION_FAILED'}: ${job.error || ''}`);
     }
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-  throw new Error('extraction job did not finish');
+    return false;
+  }, 5_000, 'extraction job to finish');
+  return jobResult;
 }
 
 async function runExtractionWithMock(pack: ContinuationPack, content: string | string[], finishReason?: string): Promise<any> {
@@ -174,12 +182,11 @@ async function runDeepSeekProviderResponses(
     assert.equal(startedResponse.status, 202);
     const started = await startedResponse.json() as { jobId: string; databaseGeneration: number };
     let job: any;
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    await waitFor(async () => {
       const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
       job = await status.json();
-      if (job.status === 'completed' || job.status === 'failed') break;
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
+      return job.status === 'completed' || job.status === 'failed';
+    }, 5_000, 'deepseek extraction job to settle');
     job.jobId = started.jobId;
     return { job, requestBodies };
   } finally {
@@ -963,12 +970,11 @@ test('Plan 143: resume repairs only the failed batch and preserves its trace', a
     assert.equal(startedResponse.status, 202);
     const traceId = started.traceId;
     let failed: any;
-    for (let i = 0; i < 100; i += 1) {
+    await waitFor(async () => {
       const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
       failed = await status.json();
-      if (failed.status === 'failed') break;
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
+      return failed.status === 'failed';
+    }, 5_000, 'extraction job to fail');
     assert.equal(failed.code, 'EXTRACTION_SCHEMA_MISMATCH');
     assert.equal(failed.traceId, traceId);
     assert.equal(failed.completedResults, undefined);
@@ -978,17 +984,17 @@ test('Plan 143: resume repairs only the failed batch and preserves its trace', a
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ databaseGeneration: started.databaseGeneration }),
     });
     assert.equal(resumedResponse.status, 202);
-    for (let i = 0; i < 100; i += 1) {
+    await waitFor(async () => {
       const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
       const job = await status.json();
       if (job.status === 'completed') {
         assert.equal(job.traceId, traceId);
         assert.equal(job.result.extraction.characters[0].name, '林默');
-        break;
+        return true;
       }
       if (job.status === 'failed') throw new Error(`${job.code}: ${job.error}`);
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
+      return false;
+    }, 5_000, 'resumed extraction job to complete');
     assert.equal(modelCalls, 3);
   } finally {
     globalThis.fetch = originalFetch;
@@ -1044,12 +1050,11 @@ test('entity extraction keeps an old job alive through recent failure and resume
     assert.equal(startedResponse.status, 202);
     const started = await startedResponse.json() as { jobId: string; databaseGeneration: number };
     let failed: any;
-    for (let i = 0; i < 100; i += 1) {
+    await waitFor(async () => {
       const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
       failed = await status.json();
-      if (failed.status === 'failed') break;
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
+      return failed.status === 'failed';
+    }, 5_000, 'ttl extraction job to fail');
     assert.equal(failed.status, 'failed');
     assert.equal(failed.code, 'EXTRACTION_INVALID_JSON');
 
@@ -1062,13 +1067,12 @@ test('entity extraction keeps an old job alive through recent failure and resume
     assert.equal(resumedResponse.status, 202);
 
     let completed: any;
-    for (let i = 0; i < 100; i += 1) {
+    await waitFor(async () => {
       const status = await fetch(`${baseUrl}/api/continuation-packs/jobs/${started.jobId}?databaseGeneration=${started.databaseGeneration}`);
       completed = await status.json();
-      if (completed.status === 'completed') break;
       if (completed.status === 'failed') throw new Error(`${completed.code}: ${completed.error}`);
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
+      return completed.status === 'completed';
+    }, 5_000, 'resumed ttl extraction job to complete');
     assert.equal(completed.status, 'completed');
     assert.equal(completed.result.extraction.characters[0].name, '张三');
     assert.equal(modelCalls, 3);
