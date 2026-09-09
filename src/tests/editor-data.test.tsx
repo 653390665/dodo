@@ -119,7 +119,8 @@ describe('useEditorData full chapter loading', () => {
     await waitFor(() => expect(dbTransport.getDatabaseGenerationSnapshot).toHaveBeenCalledTimes(2));
     expect(result.current.chapters).toEqual([]);
     expect(result.current.databaseGeneration).toBeNull();
-    expect(result.current.isLoading).toBe(true);
+    // Plan 178：代际不一致提前退出也会解除 loading（否则首挂载遇抖动无限 spinner）。
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   test('does not treat an unavailable database generation as a consistent read', async () => {
@@ -130,7 +131,8 @@ describe('useEditorData full chapter loading', () => {
     await waitFor(() => expect(dbTransport.getDatabaseGenerationSnapshot).toHaveBeenCalled());
     expect(result.current.currentChapter).toBeNull();
     expect(result.current.chapters).toEqual([]);
-    expect(result.current.isLoading).toBe(true);
+    // Plan 178：读取代际不可用同样走提前退出路径，loading 必须被解除。
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   test('discards a chapter when the database generation changes during the read', async () => {

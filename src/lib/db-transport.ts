@@ -135,11 +135,9 @@ async function connectEventSource(): Promise<void> {
         }
       }
       globalListeners.forEach((fn) => {
-        try {
-          fn();
-        } catch (e) {
-          console.warn('SSE listener error:', e);
-        }
+        // 178：监听器可能返回 promise（如组件内 async 刷新），同步 try/catch 接不住；
+        // 统一经 Promise.resolve 兜底，防止 SSE 广播时反复 unhandled rejection。
+        Promise.resolve(fn()).catch((e) => console.warn('SSE listener error:', e));
       });
     };
 

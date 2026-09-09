@@ -78,7 +78,12 @@ export function useDraftGeneration({
   setCandidate,
 }: UseDraftGenerationArgs) {
   // 005-S4：生成旗标写 store（写用 getState，读用 fresh getter，保持可作普通函数测试）
-  const { setIsGeneratingContent, setIsGeneratingBeats, setIsGeneratingCritique } = useEditorGenerationStore.getState();
+  const { setIsGeneratingContent, setIsGeneratingBeats } = useEditorGenerationStore.getState();
+  // 178：生成互斥——任一 isGenerating* 在途即拒绝新入口，不做隐式顶替（需先手动停止）。
+  const isAnyGenerationFlagRaised = () => {
+    const state = useEditorGenerationStore.getState();
+    return state.isGeneratingOutline || state.isGeneratingContent || state.isGeneratingBeats || state.isGeneratingCritique;
+  };
   const setAiActionState = providedSetAiActionState ?? (() => undefined);
   const setAiActionStateForRequest = (
     startingChapterId: string | undefined,
@@ -92,7 +97,7 @@ export function useDraftGeneration({
 
   const handleGenerateBeats = async () => {
     const startingChapterId = currentChapter?.id;
-    if (!currentChapter) return;
+    if (!currentChapter || isAnyGenerationFlagRaised()) return;
 
     const currentSeq = ++requestSeqRef.current;
     const controller = new AbortController();
@@ -102,8 +107,6 @@ export function useDraftGeneration({
     abortControllerRef.current = controller;
 
     setIsGeneratingBeats(true);
-    setIsGeneratingContent(false);
-    setIsGeneratingCritique?.(false);
     setAuditStatus?.(null);
     setGenerationStatus('正在根据创作意图和世界观拆解本章分镜…');
     setAiActionState(createAiActionRunning('beats'));
@@ -180,8 +183,9 @@ export function useDraftGeneration({
       const message = formatAiFailure(error, '分镜生成');
       setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message));
     } finally {
+      // 178：自己持有的旗标无条件复位，防止被顶掉后永久卡 true。
+      setIsGeneratingBeats(false);
       if (requestSeqRef.current === currentSeq) {
-        setIsGeneratingBeats(false);
         setGenerationStatus(null);
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
@@ -192,7 +196,7 @@ export function useDraftGeneration({
 
   const handleGenerateContent = async (fingerprintOverride?: string) => {
     const startingChapterId = currentChapter?.id;
-    if (!currentChapter || !currentChapter.sceneBeats || useEditorGenerationStore.getState().isGeneratingContent) return;
+    if (!currentChapter || !currentChapter.sceneBeats || isAnyGenerationFlagRaised()) return;
 
     const currentSeq = ++requestSeqRef.current;
     void recordProductEvent({
@@ -210,8 +214,6 @@ export function useDraftGeneration({
     abortControllerRef.current = controller;
 
     setIsGeneratingContent(true);
-    setIsGeneratingBeats(false);
-    setIsGeneratingCritique?.(false);
     setAuditStatus?.(null);
     setGenerationStatus('正在整理世界观、人物与分镜…');
     setAiActionState(createAiActionRunning('draft'));
@@ -324,8 +326,9 @@ export function useDraftGeneration({
       setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message, Date.now(), true, undefined, violations));
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
     } finally {
+      // 178：自己持有的旗标无条件复位，防止被顶掉后永久卡 true。
+      setIsGeneratingContent(false);
       if (requestSeqRef.current === currentSeq) {
-        setIsGeneratingContent(false);
         if (completedContent) {
           const completedSeq = currentSeq;
           setTimeout(() => {

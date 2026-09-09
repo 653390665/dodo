@@ -82,7 +82,7 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
   }, [sessionKey]);
 
   useEffect(() => {
-    const refreshNovels = () => listNovels().then(setUserNovels);
+    const refreshNovels = () => listNovels().then(setUserNovels).catch(() => {/* 刷新失败保留旧列表 */});
     refreshNovels();
     return subscribeToChanges(refreshNovels);
   }, []);

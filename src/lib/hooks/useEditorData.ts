@@ -110,6 +110,9 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         return null;
       }
 
+      // 178：属主校验——竞态窗口内取回的章节不属于当前小说时拒绝装入（setCurrentChapter 之前比对）。
+      if (fullChapter.novelId !== novelId) return null;
+
       currentChapterRef.current = fullChapter;
       setCurrentChapter(fullChapter);
       return fullChapter;
@@ -118,7 +121,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         setChapterLoading(false);
       }
     }
-  }, [readGeneration, setChapters]);
+  }, [novelId, readGeneration, setChapters]);
 
   const loadAuxiliaryData = useCallback(async (requestSeq: number) => {
     const generationBefore = await readGeneration();
@@ -187,7 +190,12 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
       if (
         requestSeq !== dataRequestSeqRef.current
         || !hasConsistentGeneration(generationBefore, generationResult)
-      ) return;
+      ) {
+        // 178：代际不一致提前退出前也要解除 loading（仅最新请求有权解除，与 catch 分支口径一致），
+        // 否则首挂载遇抖动会无限转角落 spinner。
+        if (requestSeq === dataRequestSeqRef.current) setIsLoading(false);
+        return;
+      }
 
       setChapters(freshChapters);
       if (generationResult !== null) setDatabaseGeneration(generationResult);
@@ -262,6 +270,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
     setSelectedChapterId(initialChapterId || null);
     setCurrentChapter(null);
     useOutlineContentStore.getState().resetOutlineContent();
+    useEditorDataStore.getState().resetForNovelSwitch();
     setDatabaseGeneration(null);
     setIsLoading(true);
     setChapterLoading(false);

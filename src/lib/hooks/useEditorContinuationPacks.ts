@@ -30,26 +30,37 @@ export function useEditorContinuationPacks(
 
   // Synchronize continuation packs and selection from db & launch state
   useEffect(() => {
+    // 178：换书过期守卫——慢响应到达时若 effect 已清理（换书）则丢弃，防止 A 书资料包写入 B 书。
+    let cancelled = false;
     const refreshContinuationPacks = async () => {
-      const packs = sortContinuationPacksByRecency(await listContinuationPacks(novelId));
-      setContinuationPacks(packs);
-      setSelectedContinuationPackIdUpdatable((current) => {
-        if (
-          !hasConsumedContinuationPackSelectionRef.current &&
-          launchState?.approvedPackId &&
-          packs.some((pack) => pack.id === launchState.approvedPackId)
-        ) {
-          hasConsumedContinuationPackSelectionRef.current = true;
-          return launchState.approvedPackId;
-        }
-        return getPreferredContinuationPackId(packs, current);
-      });
+      try {
+        const packs = sortContinuationPacksByRecency(await listContinuationPacks(novelId));
+        if (cancelled) return;
+        setContinuationPacks(packs);
+        setSelectedContinuationPackIdUpdatable((current) => {
+          if (
+            !hasConsumedContinuationPackSelectionRef.current &&
+            launchState?.approvedPackId &&
+            packs.some((pack) => pack.id === launchState.approvedPackId)
+          ) {
+            hasConsumedContinuationPackSelectionRef.current = true;
+            return launchState.approvedPackId;
+          }
+          return getPreferredContinuationPackId(packs, current);
+        });
+      } catch {
+        /* 列表刷新失败保留现值 */
+      }
     };
 
     void refreshContinuationPacks();
-    return subscribeToChanges(() => {
+    const unsubscribe = subscribeToChanges(() => {
       void refreshContinuationPacks();
     });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [launchState?.approvedPackId, launchState?.launchToken, novelId, setContinuationPacks, setSelectedContinuationPackIdUpdatable]);
 
   return {

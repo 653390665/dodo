@@ -37,6 +37,8 @@ export interface EditorDataState {
   setLibrarySkills: (value: Skill[]) => void;
   setSkillUsageRecords: (value: SkillUsageRecord[]) => void;
   setRelationships: (value: EntityRelationship[]) => void;
+  /** 178：换书时清空全部列表类数据，防止旧书章节/实体短暂泄漏进新书编辑器。 */
+  resetForNovelSwitch: () => void;
 }
 
 export const useEditorDataStore = create<EditorDataState>((set) => ({
@@ -58,4 +60,15 @@ export const useEditorDataStore = create<EditorDataState>((set) => ({
   setLibrarySkills: (value) => set({ librarySkills: value }),
   setSkillUsageRecords: (value) => set({ skillUsageRecords: value }),
   setRelationships: (value) => set({ relationships: value }),
+  // 注意：新增实体列表字段时必须同步进本 reset 集合；只清列表类，不清 projectPreferenceProfile（随 fetchAll 覆盖）。
+  resetForNovelSwitch: () => set({
+    chapters: [],
+    characters: [],
+    locations: [],
+    items: [],
+    factions: [],
+    librarySkills: [],
+    skillUsageRecords: [],
+    relationships: [],
+  }),
 }));
