@@ -237,13 +237,13 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 170 | 统一评测端审稿 JSON 解析，消除中文引号误判 | DONE（定向门禁通过；live-only 真实失败保持可见） | 169 |
 | 171 | 收口 Critic 严格合同、fallback 接受边界与章节完成审阅 | DONE（隔离分支 `codex/plan171-executor`，最终提交 `11c870d`；后端 1112/1112、前端 13/13、typecheck/lint/diff check 通过） | 170 |
 | 172 | 正文文学质量硬门禁与去 AI 腔闭环 | DONE（后端 1128/1128、前端 827/827、Playwright 24/24、deterministic 评测通过；live `quality_mismatch` 保持失败可见，后续需单独优化 Provider/Prompt） | 165, 166, 169–171 |
-| 173 | 修复编辑器撤销栈——只在切换章节时 reset，恢复 Cmd+Z | TODO | — |
-| 174 | 破坏性删除统一接入 appConfirm（世界书六类实体/资料包/伏笔/灵感碎片/对话历史） | TODO | — |
-| 175 | 工作台家族导航：驾驶舱可见入口 + 快捷键与命名对齐 | TODO | — |
+| 173 | 修复编辑器撤销栈——只在切换章节时 reset，恢复 Cmd+Z | DONE（提交 30926c5 波次内与 174 同验；全量前端 856/856、tsc 0 错误、新增 3 用例） | — |
+| 174 | 破坏性删除统一接入 appConfirm（世界书六类实体/资料包/伏笔/灵感碎片/对话历史） | DONE（提交 30926c5；5 组件接入确认 + 2 个既有测试适配 + 新增 2 用例，全量前端 856/856） | — |
+| 175 | 工作台家族导航：驾驶舱可见入口 + 快捷键与命名对齐 | DONE（全量前端绿；审查中还原了误再生 fixtures；SplitWorkspace 类型补键为批准偏差） | — |
 | 176 | 长任务超时治理：解析路由白名单 + 审稿轮询上限 | TODO | — |
 | 177 | 审稿/润色链路三处正确性（409 单次消费/重试保留范围/改写选区防漂移） | TODO | — |
 | 178 | 编辑器数据流与生成互斥收口（旗标互斥/packs 竞态/isLoading 兜底/换书清空/监听器异常） | TODO | 177 |
-| 179 | 后端 LLM 流式与输入卫生（流中重试不重发/UUID 主键/prompt 上限/jobId/哨兵归一） | TODO | — |
+| 179 | 后端 LLM 流式与输入卫生（流中重试不重发/UUID 主键/prompt 上限/jobId/哨兵归一） | DONE（7 提交 0beaf45..c52857d；后端 1157/1157；strict 模式 deferredTokenSink 与 isLlmConfigured(config?) 为批准偏差；db.ts:1084 临时文件名 Math.random 为范围外残留） | — |
 | 180 | 用户动作失败反馈补全（删章节/建书/刷一批） | TODO | — |
 | 181 | UX 反馈一致性（弹窗 Esc/导入可取消/失败面板人话/toast 语义/文案清理） | TODO | 175 |
 | 182 | 消灭 O(全量正文) 路径（故事上下文/生产 runs/面板/AppShell） | TODO | — |
@@ -257,7 +257,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | TODO | 186, 187 |
 | 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | TODO | — |
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | TODO | — |
-| 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | TODO | — |
+| 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | TODO | 175 |
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | TODO | — |
 
