@@ -312,13 +312,13 @@ export function commitWorldExtraction(
 // existing error contracts stay unchanged.
 const extractEntitiesPayloadSchema = z.object({
   text: z.string().optional().default(''),
-  existingNames: z.array(z.string()).optional().default([]),
+  existingNames: z.array(z.string().max(200)).max(200).optional().default([]),
 });
 
 const detectForeshadowingPayloadSchema = z.object({
   chapterContent: z.string().trim().min(1),
   chapterTitle: z.string().optional().default(''),
-  existingForeshadowings: z.array(z.unknown()).optional(),
+  existingForeshadowings: z.array(z.unknown()).max(200).optional(),
 });
 
 const pacingChapterSchema = z.object({
@@ -860,7 +860,7 @@ ${text.substring(0, 15000)}
 """
 
 当前数据库中已经存在的实体名称列表（Existing Entities）：
-${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
+${existingNames && existingNames.length > 0 ? existingNames.join(', ').substring(0, 8000) : '无'}
 
 请仔细比对：
 1. 本次片段中出现的名称，如果在"当前存在的实体名称"中，请归入 activeExisting。
@@ -920,7 +920,7 @@ ${existingNames && existingNames.length > 0 ? existingNames.join(', ') : '无'}
         const config = getConfig();
         const prompt = withExecutionStagePrompt(execution.executionContract, 'critic', `你是一个小说伏笔分析专家。请阅读以下章节内容，找出其中可能的伏笔埋设点和伏笔回收点。
 
-【已有伏笔列表】：${existingForeshadowings ? JSON.stringify(existingForeshadowings) : '无'}
+【已有伏笔列表】：${existingForeshadowings ? JSON.stringify(existingForeshadowings).substring(0, 8000) : '无'}
 
 【章节标题】：${chapterTitle}
 【章节内容】：
