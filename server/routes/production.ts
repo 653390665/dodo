@@ -43,7 +43,7 @@ import {
   commitQuotaReservation,
   quotaFailureHttpStatus,
 } from '../helpers/quota-guard.js';
-import { bindClientDisconnect } from '../helpers/stream-disconnect';
+import { openSseStream, type SseStreamHandle } from '../helpers/sse';
 import {
   getDatabaseGeneration,
   runInSerializedWriteForGeneration,
@@ -463,18 +463,10 @@ export function registerProductionRoutes(app: Express) {
       return res.status(429).json({ error: PRODUCTION_RATE_LIMIT_ERROR, retryAfter: 30 });
     }
     let runId: string | null = null;
-    let heartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
-    let disposeDisconnect = () => {};
-    let streamCleanedUp = false;
+    let sse: SseStreamHandle | undefined;
     const cleanupStream = () => {
-      if (streamCleanedUp) return;
-      streamCleanedUp = true;
-      if (heartbeat) {
-        clearInterval(heartbeat);
-        heartbeat = null;
-      }
-      disposeDisconnect();
+      sse?.cleanup();
     };
     const { novelId = '', databaseGeneration: requestDatabaseGeneration } = req.body;
     let reservationId: string | undefined;
@@ -587,27 +579,11 @@ export function registerProductionRoutes(app: Express) {
       runEvolutionReflexion(novelId, requestDatabaseGeneration, writingStyle.executionSnapshot).catch(err => logger.error('Reflexion background task error:', err));
 
       // SSE setup
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.flushHeaders();
-      req.socket.setTimeout(0);
-
-      heartbeat = setInterval(() => {
-        if (isResponseWritable(res)) {
-          try {
-            res.write(':ping\n\n');
-          } catch {
-            if (heartbeat) clearInterval(heartbeat);
-          }
-        }
-      }, 30_000);
-
-      disposeDisconnect = bindClientDisconnect(req, res, () => {
-        clientAbortController.abort();
-        __productionTestHooks.disconnectObservedHook?.();
-        cleanupStream();
+      sse = openSseStream(req, res, {
+        onAbort: () => {
+          clientAbortController.abort();
+          __productionTestHooks.disconnectObservedHook?.();
+        },
       });
 
       sseWrite(res, { type: 'run_created', runId });

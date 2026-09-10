@@ -51,6 +51,11 @@ import type { SyncExtractionResult } from '../../shared/lib/sync-extract-prompt'
 import { ProviderError } from '../lib/server-llm';
 import type { ProviderErrorCode } from '../lib/server-llm';
 import { safeJobError } from '../helpers/job-error';
+import {
+  ENTITY_EXTRACTION_JOB_TTL_MS,
+  extractionJobs,
+  type EntityExtractionJob,
+} from '../helpers/continuation-extraction-jobs';
 import { createHash } from 'node:crypto';
 import type { OutputDiagnostic } from '../lib/server-llm';
 import {
@@ -90,34 +95,6 @@ interface ParseDocJob {
 const parseDocJobs = new Map<string, ParseDocJob>();
 const parseDocJobAbortControllers = new Map<string, AbortController>();
 const PARSE_DOC_JOB_TTL_MS = 30 * 60 * 1000;
-interface EntityExtractionJob {
-  id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
-  progress: number;
-  stageText: string;
-  result?: { packId: string; novelId: string; databaseGeneration: number; extraction: SyncExtractionResult };
-  error?: string;
-  code?: string;
-  createdAt: number;
-  lastActivityAt: number;
-  databaseGeneration: number;
-  packId: string;
-  novelId: string;
-  totalChunks: number;
-  currentChunk: number;
-  traceId?: string;
-  outputDiagnostic?: OutputDiagnostic;
-  failedChunk?: { index: number; code: string; traceId?: string; attempt: number; providerRequestCount?: number };
-  schemaIssues?: Array<{ path: string; code: string; message: string }>;
-  warnings?: string[];
-  completedResults?: SyncExtractionResult[];
-  completedChunkIndexes?: number[];
-  chunkMeta?: Array<{ index: number; filename: string; charCount: number; sha256?: string }>;
-  splitCheckpoint?: { chunkIndex: number; splitAt: number; leftResults: SyncExtractionResult[] };
-}
-const entityExtractionJobs = new Map<string, EntityExtractionJob>();
-const entityExtractionAbortControllers = new Map<string, AbortController>();
-const entityExtractionRerunners = new Map<string, () => void>();
 const entityExtractionResumeContexts = new Map<string, {
   chunkIndex: number;
   schemaIssues?: Array<{ path: string; code: string; message: string }>;
@@ -125,8 +102,6 @@ const entityExtractionResumeContexts = new Map<string, {
   splitAt?: number;
   leftResults?: SyncExtractionResult[];
 }>();
-const entityExtractionActiveRuns = new Set<string>();
-const ENTITY_EXTRACTION_JOB_TTL_MS = 30 * 60 * 1000;
 const pendingContinuationImports = new Map<string, {
   pack: ContinuationPack;
   createdAt: number;
@@ -315,18 +290,7 @@ function pruneParseDocJobs(): void {
     }
   }
   const extractionCutoff = Date.now() - ENTITY_EXTRACTION_JOB_TTL_MS;
-  if (isDbInitialized()) {
-    db.pruneStaleContinuationExtractionJobs(extractionCutoff);
-  }
-  for (const [id, job] of entityExtractionJobs) {
-    if (job.lastActivityAt < extractionCutoff) {
-      entityExtractionAbortControllers.get(id)?.abort(new Error('Entity extraction job expired'));
-      entityExtractionAbortControllers.delete(id);
-      entityExtractionRerunners.delete(id);
-      entityExtractionResumeContexts.delete(id);
-      entityExtractionJobs.delete(id);
-    }
-  }
+  extractionJobs.prune(extractionCutoff, (id) => entityExtractionResumeContexts.delete(id));
   for (const [id, pending] of pendingContinuationImports) {
     if (pending.createdAt < cutoff) pendingContinuationImports.delete(id);
   }
@@ -410,7 +374,7 @@ function hydratePersistedExtractionJob(stored: ReturnType<typeof db.getContinuat
   if (stored.status === 'completed' && !result) markProtocolError('已完成任务缺少有效结果快照');
   const job: EntityExtractionJob = { id: stored.id, status: protocolError ? 'failed' : stored.status, progress: stored.progress, stageText: protocolError ? '提取任务检查点损坏' : stored.stageText, createdAt: stored.createdAt, lastActivityAt: stored.updatedAt, databaseGeneration: stored.databaseGeneration, packId: stored.packId, novelId: stored.novelId, totalChunks: stored.totalBatches, currentChunk: stored.batchCursor, traceId: typeof checkpoint.traceId === 'string' ? checkpoint.traceId : undefined, completedResults: Array.isArray(checkpoint.completedResults) ? checkpoint.completedResults as SyncExtractionResult[] : [], completedChunkIndexes: Array.isArray(checkpoint.completedChunkIndexes) ? checkpoint.completedChunkIndexes as number[] : [], splitCheckpoint: checkpoint.splitCheckpoint as EntityExtractionJob['splitCheckpoint'], failedChunk: checkpoint.failedChunk as EntityExtractionJob['failedChunk'], schemaIssues: checkpoint.schemaIssues as EntityExtractionJob['schemaIssues'], warnings: checkpoint.warnings as string[], chunkMeta: checkpoint.chunkMeta as EntityExtractionJob['chunkMeta'], outputDiagnostic: checkpoint.outputDiagnostic as OutputDiagnostic, code: protocolError ? 'EXTRACTION_PROTOCOL_ERROR' : stored.errorCode, error: protocolError ? '提取任务检查点损坏，无法恢复，请从头重新提取' : stored.errorMessage, result };
   if (protocolError) {
-    void touchEntityExtractionJob(job, 'protocol-recovery').catch(error => {
+    void extractionJobs.touch(job, 'protocol-recovery').catch(error => {
       logger.error(`协议错误任务 ${job.id} 无法持久化失败状态:`, error);
     });
   }
@@ -418,38 +382,11 @@ function hydratePersistedExtractionJob(stored: ReturnType<typeof db.getContinuat
 }
 
 function getCachedOrPersistedEntityExtractionJob(jobId: string): EntityExtractionJob | undefined {
-  const cached = entityExtractionJobs.get(jobId);
+  const cached = extractionJobs.get(jobId);
   if (cached) return cached;
   const persisted = hydratePersistedExtractionJob(db.getContinuationExtractionJob(jobId));
-  if (persisted) entityExtractionJobs.set(persisted.id, persisted);
+  if (persisted) extractionJobs.set(persisted);
   return persisted;
-}
-
-function buildEntityExtractionCheckpoint(job: EntityExtractionJob): Record<string, unknown> {
-  return {
-    completedResults: job.completedResults || [], completedChunkIndexes: job.completedChunkIndexes || [], splitCheckpoint: job.splitCheckpoint,
-    failedChunk: job.failedChunk, schemaIssues: job.schemaIssues, warnings: job.warnings, chunkMeta: job.chunkMeta, outputDiagnostic: job.outputDiagnostic,
-    traceId: job.traceId,
-  };
-}
-
-function createEntityExtractionJob(job: EntityExtractionJob): void {
-  db.createContinuationExtractionJob({
-    id: job.id, packId: job.packId, novelId: job.novelId, status: job.status,
-    progress: job.progress, stageText: job.stageText, batchCursor: job.currentChunk, totalBatches: job.totalChunks,
-    checkpointJson: JSON.stringify(buildEntityExtractionCheckpoint(job)),
-    databaseGeneration: job.databaseGeneration, createdAt: job.createdAt, updatedAt: job.lastActivityAt,
-  });
-  entityExtractionJobs.set(job.id, job);
-}
-
-function clearEntityExtractionRuntimeHandles(jobId: string, status?: EntityExtractionJob['status']): void {
-  entityExtractionActiveRuns.delete(jobId);
-  entityExtractionAbortControllers.delete(jobId);
-  if (status === 'completed') {
-    entityExtractionRerunners.delete(jobId);
-    entityExtractionResumeContexts.delete(jobId);
-  }
 }
 
 function extractionCodeForProviderError(error: ProviderError): string {
@@ -504,35 +441,6 @@ function entityExtractionErrorMessage(code: string): string {
                               : '提取失败，请重试';
 }
 
-async function touchEntityExtractionJob(job: EntityExtractionJob, reason = 'state-change', options?: { persist?: boolean }): Promise<void> {
-  job.lastActivityAt = Date.now();
-  // persist:false 仅刷新内存活动时间（TTL 依赖 lastActivityAt），不序列化 checkpoint、不写库。
-  // 断点粒度由 batch-completed 落盘的 completedChunkIndexes 决定，收窄后恢复语义不变。
-  if (options?.persist === false) return;
-  const checkpoint = buildEntityExtractionCheckpoint(job);
-  let checkpointJson: string;
-  let resultJson: string | undefined;
-  try {
-    checkpointJson = JSON.stringify(checkpoint);
-    resultJson = job.result ? JSON.stringify(job.result) : undefined;
-  } catch (error) {
-    logger.error(`提取任务 ${job.id} 检查点序列化失败，保留上一个可靠检查点:`, error);
-    throw new Error('EXTRACTION_CHECKPOINT_PERSIST_FAILED');
-  }
-  const persistedStatus = job.status;
-  const persistedCurrentChunk = job.currentChunk;
-  const persistedTotalChunks = job.totalChunks;
-  const outcome = await runInSerializedWriteForGeneration(job.databaseGeneration, () => db.updateContinuationExtractionJob(job.id, {
-    status: job.status, progress: job.progress, stageText: job.stageText, batchCursor: job.currentChunk,
-    totalBatches: job.totalChunks, checkpointJson, errorCode: job.code, errorMessage: job.error,
-    databaseGeneration: job.databaseGeneration, resultJson,
-  }));
-  if (!outcome.executed || !outcome.result) {
-    throw new Error('EXTRACTION_CHECKPOINT_PERSIST_FAILED');
-  }
-  logger.info('提取任务检查点已持久化', { jobId: job.id, status: persistedStatus, currentChunk: persistedCurrentChunk, totalChunks: persistedTotalChunks, reason });
-}
-
 async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: ReturnType<typeof buildSyncExtractionChunks>, resumeContext: {
   chunkIndex: number;
   splitAt?: number;
@@ -540,13 +448,11 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
   schemaIssues?: Array<{ path: string; code: string; message: string }>;
   repairKind?: 'json_syntax' | 'schema';
 }): Promise<void> {
-  if (entityExtractionActiveRuns.has(job.id)) return;
-  entityExtractionActiveRuns.add(job.id);
-  const controller = new AbortController();
-  entityExtractionAbortControllers.set(job.id, controller);
+  const controller = extractionJobs.beginRun(job.id);
+  if (!controller) return;
   try {
     job.status = 'running';
-    await touchEntityExtractionJob(job, 'started');
+    await extractionJobs.touch(job, 'started');
     const execution = await createLlmExecution({ operation: 'extract-pack-entities', novelId: job.novelId, timeoutMs: Math.max(120_000, chunks.length * 120_000), concurrency: 1, signal: controller.signal });
     const result = await execution.run(async ({ signal }) => {
       const partials = [...(job.completedResults || [])];
@@ -556,7 +462,7 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
         job.currentChunk = chunk.index + 1;
         job.progress = Math.floor((chunk.index / chunks.length) * 90);
         job.stageText = `正在分析第 ${chunk.index + 1}/${chunks.length} 批`;
-        await touchEntityExtractionJob(job, 'batch-start', { persist: false });
+        await extractionJobs.touch(job, 'batch-start', { persist: false });
         const resumed = resumeContext.chunkIndex === chunk.index;
         const text = resumed && resumeContext.splitAt !== undefined ? chunk.text.slice(resumeContext.splitAt) : chunk.text;
         let parsed: z.infer<typeof extractionResultSchema> | undefined;
@@ -594,14 +500,14 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
         job.completedResults = partials.slice();
         job.completedChunkIndexes = [...(job.completedChunkIndexes || []), chunk.index];
         job.splitCheckpoint = undefined;
-        await touchEntityExtractionJob(job, 'batch-completed');
+        await extractionJobs.touch(job, 'batch-completed');
       }
       return mergeSyncExtractionResults(partials);
     });
     if (job.databaseGeneration !== getDatabaseGeneration()) throw new Error('GENERATION_MISMATCH');
     job.result = { packId: job.packId, novelId: job.novelId, databaseGeneration: job.databaseGeneration, extraction: result };
     job.status = 'completed'; job.progress = 100; job.stageText = '提取完成';
-    await touchEntityExtractionJob(job, 'completed');
+    await extractionJobs.touch(job, 'completed');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'EXTRACTION_FAILED';
     job.status = 'failed';
@@ -627,13 +533,13 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
     }
     if (job.databaseGeneration === getDatabaseGeneration()) {
       try {
-        await touchEntityExtractionJob(job, 'failed');
+        await extractionJobs.touch(job, 'failed');
       } catch (persistError) {
         logger.error(`提取任务 ${job.id} 失败状态无法持久化:`, persistError);
       }
     }
   } finally {
-    clearEntityExtractionRuntimeHandles(job.id, job.status);
+    extractionJobs.clearRuntimeHandles(job.id, job.status, (id) => entityExtractionResumeContexts.delete(id));
   }
 }
 
@@ -1383,13 +1289,13 @@ export function registerContinuationRoutes(app: Express) {
     const job = getCachedOrPersistedEntityExtractionJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: '提取任务不存在', code: 'EXTRACTION_JOB_NOT_FOUND' });
     if (job.databaseGeneration !== getDatabaseGeneration()) {
-      entityExtractionAbortControllers.get(req.params.jobId)?.abort(new Error('GENERATION_MISMATCH'));
+      extractionJobs.abort(req.params.jobId, 'GENERATION_MISMATCH');
       job.status = 'failed';
       job.code = 'GENERATION_MISMATCH';
       job.error = '数据已变更，请刷新后重试';
       job.progress = 100;
       try {
-        await touchEntityExtractionJob(job, 'generation-mismatch');
+        await extractionJobs.touch(job, 'generation-mismatch');
       } catch (error) {
         logger.error(`提取任务 ${job.id} 的代次失败状态无法持久化:`, error);
       }
@@ -1403,17 +1309,14 @@ export function registerContinuationRoutes(app: Express) {
     if (!job) return res.status(404).json({ error: '提取任务不存在', code: 'EXTRACTION_JOB_NOT_FOUND' });
     let cancelled = false;
     if (job.status === 'queued' || job.status === 'running') {
-      entityExtractionAbortControllers.get(req.params.jobId)?.abort(new Error('EXTRACTION_CANCELLED'));
-      entityExtractionAbortControllers.delete(req.params.jobId);
-      entityExtractionRerunners.delete(req.params.jobId);
-      entityExtractionResumeContexts.delete(req.params.jobId);
+      extractionJobs.abortAndDetach(req.params.jobId, 'EXTRACTION_CANCELLED', (id) => entityExtractionResumeContexts.delete(id));
       job.status = 'failed';
       job.code = 'EXTRACTION_CANCELLED';
       job.error = '提取已取消';
       job.progress = 100;
       cancelled = true;
       try {
-        await touchEntityExtractionJob(job, 'cancelled');
+        await extractionJobs.touch(job, 'cancelled');
       } catch (error) {
         logger.error(`提取任务 ${job.id} 的取消状态无法持久化:`, error);
       }
@@ -1426,7 +1329,7 @@ export function registerContinuationRoutes(app: Express) {
     const job = getCachedOrPersistedEntityExtractionJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: '提取任务不存在', code: 'EXTRACTION_JOB_NOT_FOUND' });
     if (job.status === 'queued') return res.status(202).json({ jobId: job.id, databaseGeneration: job.databaseGeneration, traceId: job.traceId });
-    if (entityExtractionActiveRuns.has(job.id)) return res.status(202).json({ jobId: job.id, databaseGeneration: job.databaseGeneration, traceId: job.traceId });
+    if (extractionJobs.isActive(job.id)) return res.status(202).json({ jobId: job.id, databaseGeneration: job.databaseGeneration, traceId: job.traceId });
     const failedCode = job.code;
     if (!['failed', 'interrupted'].includes(job.status) || (job.status === 'failed' && !job.failedChunk) || ['GENERATION_MISMATCH', 'EXTRACTION_CANCELLED', 'EXTRACTION_PROVIDER_PARAMETER', 'EXTRACTION_PROTOCOL_ERROR', 'EXTRACTION_CHECKPOINT_PERSIST_FAILED'].includes(failedCode || '')) {
       return res.status(409).json({ error: '该任务没有可续跑的失败批次，请从头重新提取', code: 'EXTRACTION_RESUME_UNAVAILABLE', traceId: job.traceId });
@@ -1434,7 +1337,7 @@ export function registerContinuationRoutes(app: Express) {
     if (job.databaseGeneration !== getDatabaseGeneration()) {
       return res.status(409).json({ error: '数据已变更，请刷新后重试', code: 'GENERATION_MISMATCH', traceId: job.traceId });
     }
-    if (entityExtractionActiveRuns.has(job.id)) {
+    if (extractionJobs.isActive(job.id)) {
       return res.status(202).json({ jobId: job.id, databaseGeneration: job.databaseGeneration, traceId: job.traceId });
     }
     const pack = db.getContinuationPack(job.packId);
@@ -1467,7 +1370,7 @@ export function registerContinuationRoutes(app: Express) {
     job.splitCheckpoint = undefined;
     job.failedChunk = undefined;
     try {
-      await touchEntityExtractionJob(job, 'resume-queued');
+      await extractionJobs.touch(job, 'resume-queued');
     } catch (error) {
       job.status = 'failed';
       job.code = 'EXTRACTION_CHECKPOINT_PERSIST_FAILED';
@@ -1476,13 +1379,10 @@ export function registerContinuationRoutes(app: Express) {
       return res.status(409).json({ error: job.error, code: job.code, traceId: job.traceId });
     }
     entityExtractionResumeContexts.set(req.params.jobId, resumeContext);
-    const rerunner = entityExtractionRerunners.get(req.params.jobId);
-    if (rerunner) {
-      rerunner();
-    } else {
+    if (!extractionJobs.rerun(req.params.jobId)) {
       const context = entityExtractionResumeContexts.get(job.id);
-      entityExtractionRerunners.set(job.id, () => { void runPersistedExtractionJob(job, persistedChunks!, context || { chunkIndex: job.failedChunk?.index ?? Math.max(0, job.currentChunk - 1) }); });
-      entityExtractionRerunners.get(job.id)?.();
+      extractionJobs.registerRerunner(job.id, () => { void runPersistedExtractionJob(job, persistedChunks!, context || { chunkIndex: job.failedChunk?.index ?? Math.max(0, job.currentChunk - 1) }); });
+      extractionJobs.rerun(job.id);
     }
     return res.status(202).json({ jobId: req.params.jobId, databaseGeneration: job.databaseGeneration, traceId: job.traceId });
   });
@@ -1613,12 +1513,10 @@ export function registerContinuationRoutes(app: Express) {
       completedChunkIndexes: [],
       chunkMeta: chunks.map(chunk => ({ index: chunk.index, filename: chunk.filename, charCount: chunk.text.length, sha256: createHash('sha256').update(chunk.text).digest('hex') })),
     };
-    createEntityExtractionJob(job);
+    extractionJobs.create(job);
     const runEntityExtraction = async () => {
-      if (entityExtractionActiveRuns.has(jobId)) return;
-      entityExtractionActiveRuns.add(jobId);
-      const controller = new AbortController();
-      entityExtractionAbortControllers.set(jobId, controller);
+      const controller = extractionJobs.beginRun(jobId);
+      if (!controller) return;
       const resumeContext = entityExtractionResumeContexts.get(jobId);
       entityExtractionResumeContexts.delete(jobId);
       let generationChanged = false;
@@ -1637,7 +1535,7 @@ export function registerContinuationRoutes(app: Express) {
       let lastOutputDiagnostic: OutputDiagnostic | undefined;
       try {
         job.status = 'running';
-        await touchEntityExtractionJob(job, 'started');
+        await extractionJobs.touch(job, 'started');
         const execution = await createLlmExecution({
           operation: 'extract-pack-entities', novelId,
           timeoutMs: Math.max(120_000, chunks.length * 120_000), concurrency: 1,
@@ -1725,13 +1623,13 @@ export function registerContinuationRoutes(app: Express) {
             job.currentChunk = chunk.index + 1;
             job.progress = Math.floor((chunk.index / chunks.length) * 90);
             job.stageText = `正在分析第 ${chunk.index + 1}/${chunks.length} 批`;
-            await touchEntityExtractionJob(job, 'batch-start', { persist: false });
+            await extractionJobs.touch(job, 'batch-start', { persist: false });
             const isResumedChunk = resumeContext?.chunkIndex === chunk.index;
             const resumedText = isResumedChunk && resumeContext.splitAt !== undefined ? chunk.text.slice(resumeContext.splitAt) : chunk.text;
             partials.push(...await extractChunk(resumedText, chunk.filename, chunk.sourceDocumentId, !isResumedChunk, isResumedChunk ? resumeContext.schemaIssues : undefined, isResumedChunk ? resumeContext.repairKind : undefined));
             job.completedResults = partials.slice();
             job.completedChunkIndexes = [...(job.completedChunkIndexes || []), chunk.index];
-            await touchEntityExtractionJob(job, 'batch-completed');
+            await extractionJobs.touch(job, 'batch-completed');
           }
           job.stageText = '正在准备预览';
           job.progress = 95;
@@ -1741,7 +1639,7 @@ export function registerContinuationRoutes(app: Express) {
         if (controller.signal.aborted) throw new Error('EXTRACTION_CANCELLED');
         job.result = { packId, novelId, databaseGeneration, extraction: result };
         job.status = 'completed'; job.progress = 100; job.stageText = '提取完成';
-        await touchEntityExtractionJob(job, 'completed');
+        await extractionJobs.touch(job, 'completed');
       } catch (error) {
         const message = error instanceof Error ? error.message : 'EXTRACTION_FAILED';
         const code = error instanceof LlmExecutionRejectedError
@@ -1813,16 +1711,16 @@ export function registerContinuationRoutes(app: Express) {
           issues: job.schemaIssues,
         });
         try {
-          await touchEntityExtractionJob(job, 'failed');
+          await extractionJobs.touch(job, 'failed');
         } catch (persistError) {
           logger.error(`提取任务 ${job.id} 的失败状态无法持久化:`, persistError);
         }
       } finally {
         clearInterval(generationWatch);
-        clearEntityExtractionRuntimeHandles(jobId, job.status);
+        extractionJobs.clearRuntimeHandles(jobId, job.status, (id) => entityExtractionResumeContexts.delete(id));
       }
     };
-    entityExtractionRerunners.set(jobId, () => { void runEntityExtraction(); });
+    extractionJobs.registerRerunner(jobId, () => { void runEntityExtraction(); });
     void runEntityExtraction();
     return res.status(202).json({ jobId, databaseGeneration, traceId: job.traceId });
   });

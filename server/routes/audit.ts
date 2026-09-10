@@ -33,6 +33,7 @@ import {
   quotaFailureHttpStatus,
 } from '../helpers/quota-guard.js';
 import { isStreamDisconnected } from '../helpers/stream-disconnect.js';
+import { openSseStream, SSE_CONTENT_TYPE, type SseStreamHandle } from '../helpers/sse.js';
 import * as db from '../lib/db.js';
 import { inferNovelGovernanceProfile, getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 import { getDatabaseGeneration } from '../lib/db-instance.js';
@@ -672,6 +673,7 @@ export function registerAuditRoutes(app: Express) {
     }
     let completed = false;
     const controller = new AbortController();
+    let sse: SseStreamHandle | undefined;
 
     const clearGuard = attachStreamAbortGuard(req, res, controller, () => {
       if (!completed) {
@@ -680,12 +682,8 @@ export function registerAuditRoutes(app: Express) {
     });
 
     try {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
-      req.socket.setTimeout(0);
-      res.flushHeaders();
+      sse = openSseStream(req, res);
       res.write(`data: ${JSON.stringify({ type: 'status', status: 'running', message: '正在生成精修预览…' })}\n\n`);
 
       const skillsInfo = writingStyle.executionSnapshot.stagePrompts.writer;
@@ -755,7 +753,7 @@ export function registerAuditRoutes(app: Express) {
       }
       if (!res.headersSent) {
         res.status(500);
-        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Content-Type', SSE_CONTENT_TYPE);
         res.setHeader('Cache-Control', 'no-cache');
       }
       if (!res.writableEnded) {
@@ -763,6 +761,7 @@ export function registerAuditRoutes(app: Express) {
         res.end();
       }
     } finally {
+      sse?.cleanup();
       clearGuard();
     }
   });

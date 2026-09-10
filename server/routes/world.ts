@@ -7,7 +7,8 @@ import { renderPromptTemplate, wrapUserInput } from '../helpers/prompt-helpers';
 import * as db from '../lib/db';
 import { logger } from '../logger';
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
-import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import { isStreamDisconnected } from '../helpers/stream-disconnect';
+import { openSseStream, type SseStreamHandle } from '../helpers/sse';
 import {
   getDatabaseGeneration,
   runInSerializedWriteForGeneration,
@@ -519,7 +520,7 @@ export function registerWorldRoutes(app: Express) {
     if (!rateLimit('generate-bio')) {
       return res.status(429).json({ error: '人物小传生成请求过于频繁，请稍后再试。', retryAfter: 5 });
     }
-    let disposeDisconnect = () => {};
+    let sse: SseStreamHandle | undefined;
     const generateBioSchema = z.object({
       novelId: z.string().trim().min(1).max(200),
       name: z.string().min(1, '角色名称不能为空'),
@@ -589,14 +590,13 @@ ${genderConstraint}
 5. 直接输出故事内容，不要包含任何前导词（如"好的，这是为您生成的..."）。
       `);
 
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
-      req.socket.setTimeout(0);
-
-      disposeDisconnect = bindClientDisconnect(req, res, () => {
-        controller.abort();
+      // flush:false 保留原有错误契约：流开启前的失败仍以 JSON 状态码返回。
+      sse = openSseStream(req, res, {
+        flush: false,
+        onAbort: () => {
+          controller.abort();
+        },
       });
 
       await execution.run(async ({ signal }) => {
@@ -635,7 +635,7 @@ ${genderConstraint}
         res.end();
       }
     } finally {
-      disposeDisconnect();
+      sse?.cleanup();
     }
   });
 

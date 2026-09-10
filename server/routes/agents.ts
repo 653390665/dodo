@@ -26,6 +26,7 @@ import {
 import { getPlotBudgetGuidelines } from '../helpers/plot-budget';
 import { getActiveDimensionSignals } from '../../shared/lib/prompt-assets-governed.js';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import { openSseStream, type SseStreamHandle } from '../helpers/sse';
 import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
 import type { Skill } from '../../shared/types';
 import { consumeOnboardingLlmSession } from '../helpers/onboarding-llm-session';
@@ -250,6 +251,7 @@ export function registerAgentsRoutes(app: Express) {
     if (!rateLimit('inspiration')) return res.status(429).json({ error: '灵感请求过于频繁，请稍后再试。', retryAfter: 5 });
     const controller = new AbortController();
     let inspirationTraceId = `llm_${randomUUID()}`;
+    let sse: SseStreamHandle | undefined;
     const disposeDisconnect = bindClientDisconnect(req, res, () => {
       controller.abort();
     });
@@ -293,11 +295,10 @@ export function registerAgentsRoutes(app: Express) {
         preferredTemplateKey: 'inspirationSystem',
       });
 
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
-      req.socket.setTimeout(0);
+      // Keep headers unflushed so pre-stream LLM failures can still answer
+      // with their original JSON error status instead of a 200 SSE stream.
+      sse = openSseStream(req, res, { flush: false });
 
       await execution.run(async ({ signal }) => {
         await generateText(getConfig(), {
@@ -358,6 +359,7 @@ export function registerAgentsRoutes(app: Express) {
       }
     } finally {
       disposeDisconnect();
+      sse?.cleanup();
     }
   });
 
@@ -585,41 +587,18 @@ export function registerAgentsRoutes(app: Express) {
 
     const reservationId = reserve.reservationId;
     const maxIter = Math.min(Math.max(1, Number(maxIterations) || 2), 5);
-    let orchestrateHeartbeat: ReturnType<typeof setInterval> | null = null;
     const clientAbortController = new AbortController();
     let contentDelivered = false;
-    let disposeDisconnect = () => {};
-    let streamCleanedUp = false;
+    let sse: SseStreamHandle | undefined;
     const cleanupStream = () => {
-      if (streamCleanedUp) return;
-      streamCleanedUp = true;
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
-      }
-      disposeDisconnect();
+      sse?.cleanup();
     };
 
     try {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.flushHeaders();
-
-      req.socket.setTimeout(0);
-      orchestrateHeartbeat = setInterval(() => {
-        if (!res.writableEnded && !res.destroyed) {
-          try {
-            res.write(':ping\n\n');
-          } catch {
-            cleanupStream();
-          }
-        }
-      }, 30_000);
-
-      disposeDisconnect = bindClientDisconnect(req, res, () => {
-        clientAbortController.abort();
-        cleanupStream();
+      sse = openSseStream(req, res, {
+        onAbort: () => {
+          clientAbortController.abort();
+        },
       });
 
       const { writer: writerSkillsInfo, critic: criticSkillsInfo } = writingStyle.executionSnapshot.stagePrompts;
@@ -776,22 +755,14 @@ export function registerAgentsRoutes(app: Express) {
     if (!rateLimit('orchestrate-draft')) {
       return res.status(429).json({ error: '正文生成请求过于频繁，请稍后再试。', retryAfter: 5 });
     }
-    let orchestrateHeartbeat: NodeJS.Timeout | null = null;
     const clientAbortController = new AbortController();
     const { novelId } = req.body;
     const targetChars = resolveEffectiveMinDraftChars((req.body as { userIntent?: string }).userIntent);
     let reservationId: string | undefined;
     let contentDelivered = false;
-    let disposeDisconnect = () => {};
-    let streamCleanedUp = false;
+    let sse: SseStreamHandle | undefined;
     const cleanupStream = () => {
-      if (streamCleanedUp) return;
-      streamCleanedUp = true;
-      if (orchestrateHeartbeat) {
-        clearInterval(orchestrateHeartbeat);
-        orchestrateHeartbeat = null;
-      }
-      disposeDisconnect();
+      sse?.cleanup();
     };
 
     try {
@@ -848,26 +819,11 @@ export function registerAgentsRoutes(app: Express) {
         return res.status(409).json({ error: '数据库已在正文生成前切换，请刷新后重试。' });
       }
 
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-InkFlow-Database-Generation', String(executionDatabaseGeneration));
-      res.flushHeaders();
-
-      req.socket.setTimeout(0);
-      orchestrateHeartbeat = setInterval(() => {
-        if (!res.writableEnded && !res.destroyed) {
-          try {
-            res.write(':ping\n\n');
-          } catch {
-            cleanupStream();
-          }
-        }
-      }, 30_000);
-
-      disposeDisconnect = bindClientDisconnect(req, res, () => {
-        clientAbortController.abort();
-        cleanupStream();
+      sse = openSseStream(req, res, {
+        onAbort: () => {
+          clientAbortController.abort();
+        },
       });
 
       const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';

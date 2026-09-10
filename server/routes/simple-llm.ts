@@ -4,6 +4,7 @@ import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import { logger } from '../logger';
 import { bindClientDisconnect, isStreamDisconnected } from '../helpers/stream-disconnect';
+import { openSseStream, type SseStreamHandle } from '../helpers/sse';
 import { rateLimit } from '../middleware/rate-limit';
 import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
 import { getDatabaseGeneration } from '../lib/db-instance';
@@ -37,6 +38,7 @@ export function registerSimpleLlmRoutes(app: Express) {
       return res.status(429).json({ error: '片段扩写请求过于频繁，请稍后再试。', retryAfter: 5 });
     }
     const controller = new AbortController();
+    let sse: SseStreamHandle | undefined;
     const disposeDisconnect = bindClientDisconnect(req, res, () => {
       controller.abort();
     });
@@ -75,11 +77,9 @@ export function registerSimpleLlmRoutes(app: Express) {
       }
 
       // 设置 SSE 响应头，确保数据实时下发且无缓存
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-InkFlow-Database-Generation', String(databaseGeneration));
-      req.socket.setTimeout(0);
+      // flush:false 保留原有错误契约：流开启前的失败仍以 JSON 状态码返回。
+      sse = openSseStream(req, res, { flush: false });
 
       let prompt = '';
       if (type) {
@@ -128,6 +128,7 @@ export function registerSimpleLlmRoutes(app: Express) {
       }
     } finally {
       disposeDisconnect();
+      sse?.cleanup();
     }
   });
 
