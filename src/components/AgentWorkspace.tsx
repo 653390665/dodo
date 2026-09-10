@@ -20,7 +20,6 @@ import {
   Novel,
   Chapter,
   ChapterMetadata,
-  ChapterVersion,
   MountedSkillLoadoutItem,
   ProjectPreferenceProfile,
   ChapterProductionRun,
@@ -31,6 +30,7 @@ import {
   WritingStyleMode,
   ViewType,
 } from '../../shared/types';
+import type { ChapterVersionMeta } from '../lib/chapter-client';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
@@ -146,9 +146,9 @@ interface AgentWorkspaceProps {
   onAssignSkill: (slot: number, skillId: string) => Promise<void>;
   onRemoveSkill: (slot: number) => Promise<void>;
   onPreferenceProfileChange: (profile: ProjectPreferenceProfile) => Promise<void>;
-  versions: ChapterVersion[];
+  versions: ChapterVersionMeta[];
   onSaveVersion: (author: 'user' | 'writer-agent') => Promise<void>;
-  onRestoreVersion: (version: ChapterVersion) => void;
+  onRestoreVersion: (version: ChapterVersionMeta) => void;
   isSniffing: boolean;
   sniffedEntities: SniffedEntities | null;
   onSniffEntities: () => Promise<void>;

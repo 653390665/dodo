@@ -93,6 +93,40 @@ let reconnectDelay = 3000;
 let connectPromise: Promise<void> | null = null;
 let connectionEpoch = 0;
 
+// 183：外部写事件的 trailing 合并窗口——窗口内多条 SSE 只触发一次分发，
+// 抑制实体抽取等批量写引发的「每事件 × 全订阅者」全量刷新风暴。
+const LISTENER_FLUSH_DELAY_MS = 500;
+let notifyFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function dispatchListeners(): void {
+  globalListeners.forEach((fn) => {
+    // 178：监听器可能返回 promise（如组件内 async 刷新），同步 try/catch 接不住；
+    // 统一经 Promise.resolve 兜底，防止 SSE 广播时反复 unhandled rejection。
+    Promise.resolve(fn()).catch((e) => console.warn('SSE listener error:', e));
+  });
+}
+
+function scheduleListenerFlush(): void {
+  if (notifyFlushTimer) return; // trailing：窗口内只排一次
+  notifyFlushTimer = setTimeout(() => {
+    notifyFlushTimer = null;
+    dispatchListeners();
+  }, LISTENER_FLUSH_DELAY_MS);
+}
+
+function cancelPendingListenerFlush(): void {
+  if (notifyFlushTimer) {
+    clearTimeout(notifyFlushTimer);
+    notifyFlushTimer = null;
+  }
+}
+
+/** 清掉挂起的合并窗口并立即分发一次——供「需要立即刷新」的调用点与测试使用。 */
+export function flushPendingNotifications(): void {
+  cancelPendingListenerFlush();
+  dispatchListeners();
+}
+
 function scheduleReconnect() {
   if (reconnectTimer || globalListeners.size === 0) return;
   reconnectTimer = setTimeout(() => {
@@ -134,14 +168,11 @@ async function connectEventSource(): Promise<void> {
           // Fall back to notifying if parsing fails
         }
       }
-      globalListeners.forEach((fn) => {
-        // 178：监听器可能返回 promise（如组件内 async 刷新），同步 try/catch 接不住；
-        // 统一经 Promise.resolve 兜底，防止 SSE 广播时反复 unhandled rejection。
-        Promise.resolve(fn()).catch((e) => console.warn('SSE listener error:', e));
-      });
+      scheduleListenerFlush();
     };
 
     es.onerror = () => {
+      cancelPendingListenerFlush();
       es.close();
       if (globalEventSource === es) globalEventSource = null;
       scheduleReconnect();
@@ -171,6 +202,7 @@ export function subscribeToChanges(onChange: () => void, _entityType?: string): 
       connectionEpoch += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       reconnectTimer = null;
+      cancelPendingListenerFlush();
       globalEventSource?.close();
       globalEventSource = null;
     }
@@ -178,11 +210,13 @@ export function subscribeToChanges(onChange: () => void, _entityType?: string): 
 }
 
 export const __dbTransportTestHooks = {
+  clientId: CLIENT_ID,
   hasReconnectTimer: () => reconnectTimer !== null,
   reset: () => {
     connectionEpoch += 1;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = null;
+    cancelPendingListenerFlush();
     connectPromise = null;
     globalEventSource?.close();
     globalEventSource = null;

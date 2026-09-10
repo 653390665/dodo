@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SkillsStudioView } from '../components/SkillsStudioView';
 import { toast } from '../lib/toast';
+import type { ProjectCapabilityProfile } from '../../shared/types';
 
 vi.mock('../lib/toast', () => ({ toast: vi.fn() }));
 import { addCardToProjectDeck } from '../lib/skills-studio-governance';
@@ -14,7 +15,6 @@ import {
 } from '../lib/capability-configuration-session';
 
 const skillMock = vi.hoisted(() => ({ created: null as Record<string, unknown> | null }));
-const applyMock = vi.hoisted(() => ({ fn: undefined as unknown as any }));
 const novelClientMock = vi.hoisted(() => ({
   listNovels: vi.fn(),
 }));
@@ -42,7 +42,7 @@ vi.mock('../lib/db-transport', () => ({
 
 vi.mock('../lib/capability-configuration-client', () => ({
   previewCapabilityConfiguration: vi.fn().mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 }),
-  applyCapabilityConfiguration: vi.fn().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: any) => ({ profile, databaseGeneration: 8 })),
+  applyCapabilityConfiguration: vi.fn().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: ProjectCapabilityProfile) => ({ profile, databaseGeneration: 8 })),
 }));
 
 vi.mock('../lib/capability-migration-client', () => {
@@ -109,7 +109,7 @@ describe('Plan 158 capability center', () => {
     sessionStorage.clear();
     const { applyCapabilityConfiguration, previewCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     vi.mocked(previewCapabilityConfiguration).mockReset().mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 });
-    vi.mocked(applyCapabilityConfiguration).mockReset().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: any) => ({ profile, databaseGeneration: 8 }));
+    vi.mocked(applyCapabilityConfiguration).mockReset().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: ProjectCapabilityProfile) => ({ profile, databaseGeneration: 8 }));
     novelClientMock.listNovels.mockReset().mockResolvedValue([novel]);
   });
   test('uses flow, techniques, deck and guardrail summaries instead of role equipment slots', async () => {
@@ -1245,7 +1245,6 @@ describe('Plan 158 capability center', () => {
     const btns = screen.getAllByRole('button', { name: '消毒并启用' });
     fireEvent.click(btns[0]);
     const { toast } = await import('../lib/toast');
-    const { applyCapabilityConfiguration: applyMock } = await import('../lib/capability-configuration-client');
 
     // 端点被以候选 assetId 调用
     await waitFor(() => expect(sanitizeCalls.length).toBeGreaterThan(0));

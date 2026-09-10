@@ -22,6 +22,18 @@ export async function deleteChapter(id: string, databaseGeneration?: number): Pr
 }
 
 export async function listChapterVersions(chapterId: string): Promise<ChapterVersion[]> { return call('listChapterVersions', chapterId); }
+
+/** 版本列表投影（不含整章 content），与服务端 ChapterVersionMeta 结构对齐。 */
+export interface ChapterVersionMeta {
+  id: string;
+  wordCount: number;
+  author: string;
+  createdAt: number;
+  preview: string;
+}
+
+export async function listChapterVersionMetas(chapterId: string): Promise<ChapterVersionMeta[]> { return call('listChapterVersionMetas', chapterId); }
+export async function getChapterVersion(id: string): Promise<ChapterVersion | undefined> { return call('getChapterVersion', id); }
 export async function createChapterVersion(cv: ChapterVersion, databaseGeneration?: number): Promise<void> {
   if (databaseGeneration === undefined) await call('createChapterVersion', cv);
   else await callForGeneration(databaseGeneration, 'createChapterVersion', cv);

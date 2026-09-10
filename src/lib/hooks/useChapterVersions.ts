@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ChapterVersion } from '../../../shared/types';
-import { listChapterVersions } from '../chapter-client';
+import { listChapterVersionMetas, type ChapterVersionMeta } from '../chapter-client';
 import { subscribeToChanges } from '../db-transport';
 
 export function useChapterVersions(currentChapterId?: string) {
-  const [versions, setVersions] = useState<ChapterVersion[]>([]);
+  const [versions, setVersions] = useState<ChapterVersionMeta[]>([]);
   const requestSequenceRef = useRef(0);
 
   const refreshVersions = useCallback(async () => {
@@ -16,7 +15,8 @@ export function useChapterVersions(currentChapterId?: string) {
       return;
     }
     try {
-      const nextVersions = await listChapterVersions(chapterId);
+      // 183：列表只拉投影（不含整章 content），正文在回滚时按 id 单条取。
+      const nextVersions = await listChapterVersionMetas(chapterId);
       if (requestSequence === requestSequenceRef.current) {
         setVersions(nextVersions);
       }

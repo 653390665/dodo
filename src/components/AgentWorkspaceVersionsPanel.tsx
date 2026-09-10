@@ -1,13 +1,14 @@
 import React from 'react';
 import { Save } from 'lucide-react';
 
-import type { Chapter, ChapterVersion } from '../../shared/types';
+import type { Chapter } from '../../shared/types';
+import type { ChapterVersionMeta } from '../lib/chapter-client';
 
 interface AgentWorkspaceVersionsPanelProps {
   currentChapter: Chapter | null;
-  versions: ChapterVersion[];
+  versions: ChapterVersionMeta[];
   onSaveVersion: (author: 'user' | 'writer-agent') => Promise<void>;
-  onRestoreVersion: (version: ChapterVersion) => void;
+  onRestoreVersion: (version: ChapterVersionMeta) => void;
 }
 
 export function AgentWorkspaceVersionsPanel({
@@ -55,7 +56,7 @@ export function AgentWorkspaceVersionsPanel({
               </button>
             </div>
             <div className="text-[10px] text-theme-muted line-clamp-3 leading-relaxed bg-theme-sidebar/10 p-2 rounded italic">
-              {version.content.substring(0, 150)}...
+              {version.preview}
             </div>
             <div className="mt-2 text-[9px] font-medium text-theme-muted/60">
               字数: {version.wordCount}

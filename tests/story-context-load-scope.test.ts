@@ -50,11 +50,9 @@ test('buildServerStoryContext loads only the recent chapter window, never the wh
 
   // Wrap better-sqlite3 prepare to observe how the chapters table is read.
   const db = getDb();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const originalPrepare = db.prepare.bind(db) as (...args: any[]) => any;
   const chapterReads: string[] = [];
   type PrepareFn = typeof db.prepare;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wrappedPrepare: any = (sql: string, ...rest: any[]) => {
     if (/FROM chapters\b/.test(sql)) chapterReads.push(sql.replace(/\s+/g, ' '));
     return originalPrepare(sql, ...rest);
