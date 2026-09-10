@@ -239,7 +239,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
         <h1 className="text-3xl font-serif font-black tracking-tight text-theme-text">
           我的书库 <span className="text-theme-muted font-light px-2 hidden sm:inline">|</span>{' '}
           <span className="text-lg font-sans font-normal text-theme-muted hidden sm:inline">
-            {isSelectionMode ? '批量管理模式' : 'Recent Works'}
+            {isSelectionMode ? '批量管理模式' : '最近作品'}
           </span>
         </h1>
 
@@ -424,7 +424,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   gradientClass
                 )}>
                   <BookMarked size={56} className="text-theme-text/10 mb-2" />
-                  <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">Inspiration Vault</div>
+                  <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">灵感库</div>
                   <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
 
                   {/* Visual texture */}

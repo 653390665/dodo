@@ -68,7 +68,7 @@ const DB_WHITELIST = new Set([
   'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
   'createNovelWithChapter', 'createForeshadowingsBatch', 'createSkillsBatch',
   'listChapters', 'listChaptersMetadata', 'listLibraryMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter',
-  'listChapterVersions', 'createChapterVersion', 'acceptChapterContentCandidate',
+  'listChapterVersions', 'listChapterVersionMetas', 'getChapterVersion', 'createChapterVersion', 'acceptChapterContentCandidate',
   'listCharacters', 'getCharacter', 'createCharacter', 'updateCharacter', 'deleteCharacter',
   'listLocations', 'createLocation', 'updateLocation', 'deleteLocation',
   'listItems', 'getItem', 'createItem', 'updateItem', 'deleteItem',
@@ -79,7 +79,7 @@ const DB_WHITELIST = new Set([
   'listSkillUsageRecords', 'syncSkillFeedbackScores', 'createSkillUsageRecord',
   'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
   'listForeshadowings', 'getForeshadowing', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
-  'listChapterProductionRuns', 'getChapterProductionRun',
+  'listChapterProductionRuns', 'listChapterProductionRunBadges', 'getChapterProductionRun',
   'listContinuationPacks', 'getContinuationPack', 'updateContinuationPack', 'deleteContinuationPack',
   'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
 ]);

@@ -17,7 +17,8 @@ import { WritingStyleControl } from './WritingStyleControl';
 import { EditorModals, EditorModalsHandle } from './EditorModals';
 import { useEditorData } from '../lib/hooks/useEditorData';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
-import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
+import { listChapterProductionRunBadges } from '../lib/chapter-production-db-client';
+import { getChapterVersion, type ChapterVersionMeta } from '../lib/chapter-client';
 
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorRecommendationCards } from '../lib/hooks/useEditorRecommendationCards';
@@ -516,6 +517,20 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     handleUpdateContentRef.current = handleUpdateContent;
   }, [handleUpdateContent]);
 
+  // 183：版本列表只含投影，回滚时按 id 单条取全文再走原有恢复流程。
+  const handleRestoreVersionFromMeta = React.useCallback(async (meta: ChapterVersionMeta) => {
+    try {
+      const fullVersion = await getChapterVersion(meta.id);
+      if (!fullVersion) {
+        toast('未找到该版本的正文，可能已被清理', 'error');
+        return;
+      }
+      handleRestoreVersion(fullVersion);
+    } catch {
+      toast('版本正文加载失败，请重试', 'error');
+    }
+  }, [handleRestoreVersion]);
+
   const buildCapabilityUtilityEventMetadata = React.useCallback((result: CapabilityUtilityResult) => {
     const sourceType: ProductEventSourceType = getCatalogCapabilityManifest(result.capabilityId)?.sourceType || 'unknown';
     const sessionKind = result.kind === 'transform-preview' ? 'capability-preview' : 'capability-diagnostic';
@@ -607,7 +622,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     let cancelled = false;
     const load = async () => {
       try {
-        const runs = await listChapterProductionRuns(novel.id);
+        const runs = await listChapterProductionRunBadges(novel.id);
         if (cancelled) return;
         setPreviewRunChapterIds(new Set(
           runs
@@ -2080,7 +2095,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             onPreferenceProfileChange={persistProjectPreferenceProfile}
             versions={versions}
             onSaveVersion={handleSaveVersion}
-            onRestoreVersion={handleRestoreVersion}
+            onRestoreVersion={handleRestoreVersionFromMeta}
             isSniffing={isSniffing}
             sniffedEntities={sniffedEntities}
             onSniffEntities={handleSniffEntities}

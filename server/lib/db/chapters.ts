@@ -20,6 +20,18 @@ export function listChapters(novelId: string): Chapter[] {
   return chapterCrud.list(novelId);
 }
 
+/**
+ * Loads only the most recent `limit` chapters (highest `order`), returned in
+ * ascending order. Story-context consumers (ledger etc.) only read the tail of
+ * the book, so this avoids pulling full content for every chapter.
+ */
+export function listRecentChapterContents(novelId: string, limit: number): Chapter[] {
+  const rows = getDb().prepare(
+    `SELECT * FROM chapters WHERE novel_id = ? ORDER BY "order" DESC LIMIT ?`
+  ).all(novelId, limit) as Parameters<typeof rowToChapter>[0][];
+  return rows.map(rowToChapter).reverse();
+}
+
 export function listChaptersMetadata(novelId: string): ChapterMetadata[] {
   const db = getDb();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,6 +77,33 @@ const chapterVersionCrud = createCrudHelpers<ChapterVersion, ReturnType<typeof c
 
 export function listChapterVersions(chapterId: string): ChapterVersion[] {
   return chapterVersionCrud.list(chapterId);
+}
+
+/** 版本列表投影：不含整章 content，preview 只截前 150 字符供列表卡片预览。 */
+export interface ChapterVersionMeta {
+  id: string;
+  wordCount: number;
+  author: string;
+  createdAt: number;
+  preview: string;
+}
+
+export function listChapterVersionMetas(chapterId: string): ChapterVersionMeta[] {
+  const rows = getDb().prepare(
+    `SELECT id, word_count, author, created_at, substr(content, 1, 150) AS preview
+     FROM chapter_versions WHERE chapter_id = ? ORDER BY created_at DESC`
+  ).all(chapterId) as Array<{ id: string; word_count: number; author: string; created_at: number; preview: string | null }>;
+  return rows.map((r) => ({
+    id: r.id,
+    wordCount: r.word_count,
+    author: r.author,
+    createdAt: r.created_at,
+    preview: r.preview || '',
+  }));
+}
+
+export function getChapterVersion(id: string): ChapterVersion | undefined {
+  return chapterVersionCrud.get(id);
 }
 
 export function createChapterVersion(cv: ChapterVersion): void {

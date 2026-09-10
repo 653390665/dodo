@@ -219,7 +219,10 @@ function initializeProductionRun(
   );
   if (ownershipIssue) return { ok: false as const, issue: ownershipIssue };
 
-  const chapters = db.listChapters(novelId);
+  // Order lookups only need metadata; the ledger reads at most the last 5
+  // chapters, so never pull full-book content inside the serialized write queue.
+  const chapterMetas = db.listChaptersMetadata(novelId);
+  const recentChapters = db.listRecentChapterContents(novelId, 5);
   const characters = db.listCharacters(novelId).filter(c => !activeEntityNames || activeEntityNames.includes(c.name) || c.role === 'protagonist');
   const locations = db.listLocations(novelId).filter(l => !activeEntityNames || activeEntityNames.includes(l.name));
   const items = db.listItems(novelId).filter(i => !activeEntityNames || activeEntityNames.includes(i.name));
@@ -230,7 +233,7 @@ function initializeProductionRun(
   const executionSnapshot = writingStyle.executionSnapshot;
   const ledger = buildStoryStateLedger({
     novel,
-    chapters,
+    chapters: recentChapters,
     characters,
     locations,
     items,
@@ -239,8 +242,8 @@ function initializeProductionRun(
     timelineEvents,
     foreshadowings,
     currentChapterOrder: targetChapterId
-      ? chapters.find((chapter) => chapter.id === targetChapterId)?.order
-      : getNextChapterOrder(chapters),
+      ? chapterMetas.find((chapter) => chapter.id === targetChapterId)?.order
+      : getNextChapterOrder(chapterMetas),
   });
   const intent = normalizeProductionIntent(userIntent);
   const rawPlannerContext = buildProductionPlannerContext(ledger);
@@ -260,7 +263,7 @@ function initializeProductionRun(
   const contextReceipt = executionSnapshot.canon.pack?.receipt;
   const targetChapterBaselineHash = targetChapterId
     ? (() => {
-      const targetChapter = chapters.find((chapter) => chapter.id === targetChapterId);
+      const targetChapter = db.getChapter(targetChapterId);
       return targetChapter ? computeChapterWorkflowHash(targetChapter.content, targetChapter.sceneBeats) : undefined;
     })()
     : undefined;
@@ -284,7 +287,6 @@ function initializeProductionRun(
     ok: true as const,
     runId,
     novel,
-    chapters,
     characters,
     executionSnapshot,
     packContext,
@@ -1158,7 +1160,9 @@ export function registerProductionRoutes(app: Express) {
       }
 
       const guarded = await runInSerializedWriteForGeneration(databaseGeneration, () => {
-        const chapters = db.listChapters(run.novelId);
+        // Only volume name and next order are needed here — metadata avoids a
+        // full-content scan inside the serialized write queue.
+        const chapters = db.listChaptersMetadata(run.novelId);
         const now = Date.now();
         let chapterId = run.targetChapterId;
         const resolvedAuditStatus = applyRun.continuityReport.auditMeta?.status ?? 'not_run';

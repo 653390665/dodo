@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 
-import { Foreshadowing, Chapter } from '../../shared/types';
-import { listChapters } from '../lib/chapter-client';
+import { Foreshadowing, ChapterMetadata } from '../../shared/types';
+import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
 import { startWorldJob } from '../lib/world-job-client';
@@ -29,7 +29,7 @@ interface PendingDetection {
 
 export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const [items, setItems] = useState<Foreshadowing[]>([]);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -41,7 +41,7 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
 
   const refresh = useCallback(async () => {
     setItems(await listForeshadowings(novelId));
-    setChapters(await listChapters(novelId));
+    setChapters(await listChaptersMetadata(novelId));
   }, [novelId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
@@ -76,9 +76,11 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   };
 
   const handleDetect = async () => {
-    const targetChapter = currentChapterId
+    // Metadata only picks the target chapter; the draft body is fetched on demand.
+    const targetMeta = currentChapterId
       ? chapters.find(c => c.id === currentChapterId)
-      : chapters.find(c => c.content && c.content.trim().length > 0);
+      : chapters.find(c => c.wordCount > 0);
+    const targetChapter = targetMeta ? await getChapter(targetMeta.id) : undefined;
     if (!targetChapter || !targetChapter.content?.trim()) {
       toast('没有可分析的章节内容', 'info');
       return;

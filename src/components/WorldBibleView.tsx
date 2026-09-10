@@ -820,6 +820,12 @@ export function WorldBibleView({
             setIsImporting(false);
           }, 800);
         } catch (err) {
+          if (importController.signal.aborted) {
+            // 用户主动取消导入：静默收尾，不作为错误提示
+            setIsImporting(false);
+            setImportProgress(0);
+            return;
+          }
           logger.error('WorldBibleView error:', err);
           toast(err instanceof Error ? err.message : '导入失败，文档格式不正确或解析出错', 'error');
           setIsImporting(false);
@@ -1404,12 +1410,20 @@ export function WorldBibleView({
                 <span className="font-mono font-bold text-theme-text text-sm">{importProgress}%</span>
               </div>
               <div className="h-2 w-full bg-theme-border/30 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-theme-accent rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${importProgress}%` }}
                 />
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => { importControllerRef.current?.abort(); }}
+              className="mt-1 px-4 py-1.5 rounded-lg border border-theme-border text-xs text-theme-muted hover:text-theme-text hover:bg-theme-border/20 transition-colors"
+            >
+              取消导入
+            </button>
 
             <div className="text-[10px] text-theme-muted leading-relaxed pt-1 border-t border-theme-border/20">
               ⚡ 基于 SQLite WAL 事务快照一致性架构

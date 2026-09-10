@@ -165,7 +165,13 @@ export async function completeChapter(input: CompleteChapterInput, deps: Complet
     if (currentHashes.contentHash !== hashes.contentHash || currentHashes.planHash !== hashes.planHash) {
       throw new Error('CHAPTER_COMPLETION_STALE');
     }
-    const sourceRun = db.listChapterProductionRuns(input.novelId).find((run) => run.targetChapterId === chapter.id && run.status === 'applied' && run.continuityReport.databaseGeneration === input.databaseGeneration && run.draftContent === chapter.content && run.sceneBeats === (chapter.sceneBeats || ''));
+    // Compare draft content only against the few applied runs that target this
+    // chapter (id projection + per-candidate full read), never every run's
+    // draft for the whole novel. `currentBeforeWrite.novelId` is already
+    // verified against input.novelId above.
+    const sourceRun = db.listAppliedChapterProductionRunIds(input.novelId, chapter.id)
+      .map((id) => db.getChapterProductionRun(id))
+      .find((run) => run && run.continuityReport.databaseGeneration === input.databaseGeneration && run.draftContent === chapter.content && run.sceneBeats === (chapter.sceneBeats || ''));
     const factCandidate = sourceRun
       ? previewChapterFactCandidate({ novelId: input.novelId, runId: sourceRun.id, databaseGeneration: input.databaseGeneration })
       : buildChapterFactCandidate({

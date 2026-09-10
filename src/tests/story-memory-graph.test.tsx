@@ -4,11 +4,11 @@ import { describe, expect, test, vi } from 'vitest';
 import type { StoryMemoryProjection } from '../../shared/types/story-memory';
 import { RelationshipGraph } from '../components/RelationshipGraph';
 import { ForeshadowingPanel } from '../components/ForeshadowingPanel';
-import { listChapters } from '../lib/chapter-client';
+import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
 import { createForeshadowing, listForeshadowings } from '../lib/foreshadowing-client';
 import { startWorldJob } from '../lib/world-job-client';
 
-vi.mock('../lib/chapter-client', () => ({ listChapters: vi.fn() }));
+vi.mock('../lib/chapter-client', () => ({ listChapters: vi.fn(), listChaptersMetadata: vi.fn(), getChapter: vi.fn() }));
 vi.mock('../lib/foreshadowing-client', () => ({
   createForeshadowing: vi.fn(),
   listForeshadowings: vi.fn(),
@@ -76,9 +76,12 @@ describe('RelationshipGraph story memory', () => {
 
 describe('ForeshadowingPanel legacy recovery', () => {
   test('keeps scan results pending until the author confirms recovery', async () => {
-    vi.mocked(listChapters).mockResolvedValue([{
-      id: 'chapter-1', novelId: 'n1', title: '第一章', content: '戒指亮起', order: 1, wordCount: 4, createdAt: 1, updatedAt: 1,
+    vi.mocked(listChaptersMetadata).mockResolvedValue([{
+      id: 'chapter-1', novelId: 'n1', title: '第一章', order: 1, wordCount: 4, createdAt: 1, updatedAt: 1,
     }]);
+    vi.mocked(getChapter).mockResolvedValue({
+      id: 'chapter-1', novelId: 'n1', title: '第一章', content: '戒指亮起', order: 1, wordCount: 4, createdAt: 1, updatedAt: 1,
+    });
     vi.mocked(listForeshadowings).mockResolvedValue([]);
     vi.mocked(createForeshadowing).mockResolvedValue();
     vi.mocked(startWorldJob).mockResolvedValue({
@@ -87,7 +90,7 @@ describe('ForeshadowingPanel legacy recovery', () => {
     });
 
     render(<ForeshadowingPanel novelId="n1" currentChapterId="chapter-1" />);
-    await waitFor(() => expect(listChapters).toHaveBeenCalledWith('n1'));
+    await waitFor(() => expect(listChaptersMetadata).toHaveBeenCalledWith('n1'));
     fireEvent.click(screen.getByRole('button', { name: 'AI 扫描当前章节伏笔' }));
 
     await waitFor(() => expect(startWorldJob).toHaveBeenCalled());

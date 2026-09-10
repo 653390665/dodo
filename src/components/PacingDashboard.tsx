@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Activity, Loader2 } from 'lucide-react';
 
-import { Chapter, PacingData } from '../../shared/types';
-import { listChapters } from '../lib/chapter-client';
+import { ChapterMetadata, PacingData } from '../../shared/types';
+import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
 import { startWorldJob } from '../lib/world-job-client';
 import { toast } from '../lib/toast';
@@ -12,18 +12,20 @@ interface Props {
 }
 
 export function PacingDashboard({ novelId }: Props) {
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ChapterMetadata[]>([]);
   const [pacing, setPacing] = useState<PacingData[]>([]);
   const [loading, setLoading] = useState(false);
   const analyzeControllerRef = useRef<AbortController | null>(null);
 
-  const refresh = useCallback(async () => setChapters(await listChapters(novelId)), [novelId]);
+  const refresh = useCallback(async () => setChapters(await listChaptersMetadata(novelId)), [novelId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
   useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
   useEffect(() => () => analyzeControllerRef.current?.abort(), []);
 
   const handleAnalyze = async () => {
-    const withContent = chapters.filter(c => c.content && c.content.trim().length > 0);
+    // wordCount > 0 ⟺ the chapter has non-whitespace content; full bodies are
+    // fetched per chapter only for the analyzed slice.
+    const withContent = chapters.filter(c => c.wordCount > 0);
     if (withContent.length === 0) {
       toast('没有可分析的章节内容', 'info');
       return;
@@ -35,9 +37,15 @@ export function PacingDashboard({ novelId }: Props) {
     try {
       const MAX_CHAPTERS = 50;
       const slice = withContent.slice(-MAX_CHAPTERS);
+      // The server only reads the first 500 chars per chapter, so upload just
+      // that window instead of whole-chapter bodies.
+      const trimmed = await Promise.all(slice.map(async (c) => {
+        const full = await getChapter(c.id);
+        return { id: c.id, order: c.order, title: c.title, wordCount: c.wordCount, content: (full?.content || '').slice(0, 500) };
+      }));
       const { result } = await startWorldJob<{ chapters: Partial<PacingData>[] }>(
         '/api/analyze-pacing',
-        { novelId, chapters: slice },
+        { novelId, chapters: trimmed },
         {},
         controller.signal,
       );

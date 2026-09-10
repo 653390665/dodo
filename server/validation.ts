@@ -156,10 +156,10 @@ const itemEntitySchema = z.object({
 }).strict();
 
 const DB_LIST_WITH_ID = [
-  'listChapters', 'listChaptersMetadata', 'listChapterVersions',
+  'listChapters', 'listChaptersMetadata', 'listChapterVersions', 'listChapterVersionMetas',
   'listCharacters', 'listLocations', 'listItems', 'listFactions',
   'listPowerLevels', 'listTimelineEvents', 'listSkillVersions',
-  'listForeshadowings', 'listChapterProductionRuns',
+  'listForeshadowings', 'listChapterProductionRuns', 'listChapterProductionRunBadges',
   'listContinuationPacks', 'listEntityRelationships',
 ] as const;
 const DB_OPTIONAL_LIST = ['listSkillUsageRecords', 'listIdeaFragments'] as const;
@@ -168,7 +168,7 @@ const DB_GET_OR_DELETE = [
   'getSkill', 'deleteSkill', 'getCharacter', 'deleteCharacter',
   'deleteLocation', 'getItem', 'deleteItem', 'deleteFaction',
   'deletePowerLevel', 'deleteTimelineEvent', 'getForeshadowing',
-  'deleteForeshadowing', 'getChapterProductionRun',
+  'deleteForeshadowing', 'getChapterProductionRun', 'getChapterVersion',
   'getContinuationPack', 'deleteContinuationPack', 'deleteEntityRelationship',
 ] as const;
 const DB_CREATE = [

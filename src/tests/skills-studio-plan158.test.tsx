@@ -563,8 +563,9 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(diagnosticCard as HTMLElement).getByRole('button', { name: '运行审稿诊断' }));
 
     expect(toast).toHaveBeenCalledTimes(2);
-    expect(toast).toHaveBeenCalledWith(expect.any(String), 'error');
-    expect(toast).toHaveBeenCalledWith('请先选择一个作品再使用该能力。', 'error');
+    // 引导性守卫提示走 info 级（Plan 181 toast 语义分级），仍保证不静默忽略
+    expect(toast).toHaveBeenCalledWith(expect.any(String), 'info');
+    expect(toast).toHaveBeenCalledWith('请先选择一个作品再使用该能力。', 'info');
     expect(onLaunchCapability).not.toHaveBeenCalled();
   });
 

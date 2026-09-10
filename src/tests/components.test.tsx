@@ -132,9 +132,13 @@ vi.mock('../lib/novel-client', () => ({
 }));
 
 // Mock hook useStoryCards to prevent external dependencies and network requests
+// cards 提升为可变数组，供弹窗交互用例注入固定卡片；默认保持为空，不影响既有用例
+const storyCardsMockState = vi.hoisted(() => ({
+  cards: [] as any[],
+}));
 vi.mock('../hooks/useStoryCards', () => ({
   useStoryCards: () => ({
-    cards: [],
+    get cards() { return storyCardsMockState.cards; },
     source: null,
     isWaiting: false,
     isModelPending: false,
@@ -1528,6 +1532,47 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       // Confirm preference persists in localStorage and banner disappears
       expect(localStorage.getItem('inkflow_welcome_empty_guide_closed')).toBe('true');
       expect(screen.queryByText('新手启航指南')).toBeNull();
+    });
+
+    test('WelcomeView 智能开书推荐弹窗按 Escape 关闭', () => {
+      const mockSelectStoryCard = vi.fn();
+      const mockJumpToLibrary = vi.fn();
+      const mockSelectNovel = vi.fn();
+      const mockStartContinuationImport = vi.fn();
+
+      storyCardsMockState.cards = [{
+        id: 'card-esc-1',
+        hook: '雨夜酒馆里的复仇刀客',
+        protagonist: '沉默刀客',
+        coreConflict: '复仇与真相的拉扯',
+        tone: '冷峻悬疑',
+        whyItWorks: '强冲突开局，悬念驱动。',
+        starterSeeds: {},
+        planningFit: { recommendedLength: '', recommendedFocus: '', recommendedPacing: '', reason: '' },
+        riskNote: '',
+        mixTags: [],
+        signals: {},
+      }];
+      try {
+        render(
+          <WelcomeView
+            onSelectStoryCard={mockSelectStoryCard}
+            onJumpToLibrary={mockJumpToLibrary}
+            onSelectNovel={mockSelectNovel}
+            onStartContinuationImport={mockStartContinuationImport}
+          />
+        );
+
+        // 点击立项卡片 → 打开「智能开书配置推荐」弹窗
+        fireEvent.click(screen.getByRole('button', { name: /雨夜酒馆里的复仇刀客/ }));
+        expect(screen.getByText('智能开书配置推荐')).toBeTruthy();
+
+        // Escape 关闭弹窗（Plan 181：弹层统一支持 Esc）
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByText('智能开书配置推荐')).toBeNull();
+      } finally {
+        storyCardsMockState.cards = [];
+      }
     });
 
     test('空作品时, ProjectCockpitView 仅展示资料概览且不提供章节动作', async () => {

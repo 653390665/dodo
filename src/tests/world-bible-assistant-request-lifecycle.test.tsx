@@ -192,7 +192,9 @@ describe('WorldBibleAssistant request lifecycle', () => {
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('只返回了推理过程'));
     const alert = screen.getByRole('alert').textContent || '';
-    expect(alert).toContain('finishReason: stop');
+    // Plan 181：结束方式以人话展示，内部枚举不直出
+    expect(alert).toContain('结束方式：正常结束');
+    expect(alert).not.toContain('finishReason:');
     expect(alert).toContain('诊断编号：trace-bible-1');
     expect(alert).not.toContain('私密设定提示');
     expect(screen.getByRole('button', { name: '重试本次请求' })).toBeTruthy();

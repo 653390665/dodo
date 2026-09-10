@@ -61,6 +61,27 @@ describe('AIAssistant general session', () => {
     expect(screen.getByText('默认响应')).toBeTruthy();
   });
 
+  test('失败面板对人话展示原因与结束方式，不直出内部枚举', () => {
+    act(() => {
+      useAssistantSessionStore.getState().setFailure(novelA.id, 'general', {
+        code: 'empty_response',
+        message: '本次未生成内容，请重试。',
+        prompt: '测试提示词',
+        failedAt: Date.now(),
+        requestId: 'req-failure-copy',
+        retriable: true,
+        reason: 'reasoning_only',
+        finishReason: 'stop',
+      });
+    });
+    render(<AIAssistant activeNovel={novelA} />);
+    const panel = screen.getByRole('alert', { name: '助手请求失败' });
+    expect(panel.textContent).toContain('推理过程');
+    expect(panel.textContent).toContain('结束方式：正常结束');
+    expect(panel.textContent).not.toContain('finishReason:');
+    expect(panel.textContent).not.toContain('reasoning_only');
+  });
+
   test('作品切换或卸载会取消请求，迟到结果不会写入新作品', async () => {
     const resolvers: Array<(value: string) => void> = [];
     mocks.generateInspiration.mockImplementation(() => new Promise<string>((resolve) => { resolvers.push(resolve); }));
@@ -191,14 +212,15 @@ describe('AIAssistant general session', () => {
     expect(screen.queryByText(/已解析/)).toBeNull();
   });
 
-  test('空字符串响应显示结构化 no_content 诊断信息', async () => {
+  test('空字符串响应显示结构化的人话诊断信息', async () => {
     mocks.generateInspiration.mockResolvedValueOnce('');
     render(<AIAssistant activeNovel={novelA} />);
     fireEvent.change(screen.getByPlaceholderText('创作困惑？'), { target: { value: '请求灵感' } });
     fireEvent.click(screen.getByRole('button', { name: '发送消息' }));
 
     await waitFor(() => expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('模型未返回内容'));
-    expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('no_content');
+    // Plan 181：内部枚举不得直出主文案
+    expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).not.toContain('no_content');
   });
 
   test('服务端 reason、finishReason、traceId 在告警中可见且不暴露 prompt', async () => {
@@ -211,7 +233,8 @@ describe('AIAssistant general session', () => {
 
     await waitFor(() => expect(screen.getByRole('alert', { name: '助手请求失败' }).textContent).toContain('输出因长度限制结束'));
     const alert = screen.getByRole('alert', { name: '助手请求失败' }).textContent || '';
-    expect(alert).toContain('finishReason: length');
+    expect(alert).toContain('结束方式：达到长度上限');
+    expect(alert).not.toContain('finishReason:');
     expect(alert).toContain('诊断编号：trace-ai-1');
     expect(alert).not.toContain('私密提示词');
     expect(screen.getByRole('button', { name: '重试本次请求' })).toBeTruthy();

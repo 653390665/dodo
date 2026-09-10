@@ -48,7 +48,9 @@ export function buildServerStoryContext(input: {
 
   const ledger = buildStoryStateLedger({
     novel,
-    chapters: db.listChapters(novel.id),
+    // The ledger only reads the last `recentChapterLimit` chapters — loading
+    // just those rows avoids a full-book content scan per request.
+    chapters: db.listRecentChapterContents(novel.id, 5),
     characters: prioritizeNamed(db.listCharacters(novel.id), chapterText, (entry) => entry.role === 'protagonist'),
     locations: prioritizeNamed(db.listLocations(novel.id), chapterText),
     items: prioritizeNamed(db.listItems(novel.id), chapterText),

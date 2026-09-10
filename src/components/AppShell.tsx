@@ -21,7 +21,7 @@ import { useAppStore } from '../stores/app-store';
 import { isEditorCapabilityLaunchAction } from '../lib/capability-launch';
 import { useAssistantSessionStore } from '../stores/assistant-session-store';
 import { clearStoredSelectedNovelId, getStoredSelectedNovelId, useNovelStore } from '../stores/novel-store';
-import { createCharacter, generateStoryCards, getNovel, listChapters, listSkills, refineSetupTask, updateChapter, updateNovel, updateCharacter } from '../lib/api';
+import { createCharacter, generateStoryCards, getChapter, getNovel, listChaptersMetadata, listSkills, refineSetupTask, updateChapter, updateNovel, updateCharacter } from '../lib/api';
 import { createNovelWithChapter } from '../lib/novel-client';
 import { listCharacters, listTimelineEvents } from '../lib/world-client';
 import { listForeshadowings } from '../lib/foreshadowing-client';
@@ -635,10 +635,9 @@ export function AppShell() {
     if (!context?.chapterId || selectedNovel?.id !== context.novelId) return;
     if (!await flushBeforeNavigation()) return;
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const chapters = await listChapters(context.novelId);
+    const target = await getChapter(context.chapterId);
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const target = chapters.find((chapter) => chapter.id === context.chapterId);
-    if (!target) return;
+    if (!target || target.novelId !== context.novelId) return;
 
     const nextContent = appendAssistantTextToChapterContent(target.content || '', text);
     // 质量门与智能管家同级：全局助手的正文写入也必须通过整章质量校验
@@ -662,10 +661,9 @@ export function AppShell() {
     if (!context?.chapterId || selectedNovel?.id !== context.novelId) return;
     if (!await flushBeforeNavigation()) return;
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const chapters = await listChapters(context.novelId);
+    const target = await getChapter(context.chapterId);
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const target = chapters.find((chapter) => chapter.id === context.chapterId);
-    if (!target) return;
+    if (!target || target.novelId !== context.novelId) return;
 
     const nextBeats = appendAssistantTextToSceneBeats(target.sceneBeats || '', text);
     const saved = await updateChapter(target.id, {
@@ -692,10 +690,9 @@ export function AppShell() {
     if (!await flushBeforeNavigation()) return;
 
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const chapters = await listChapters(context.novelId);
+    const target = await getChapter(context.chapterId);
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
-    const target = chapters.find((chapter) => chapter.id === context.chapterId);
-    if (!target) return;
+    if (!target || target.novelId !== context.novelId) return;
 
     const nextContent = replaceAssistantTextInSelection(
       target.content || '',
@@ -932,7 +929,9 @@ export function AppShell() {
       } else if (activeSetupTaskKey === 'core-conflict') {
         await updateNovel(selectedNovel.id, { globalOutline: text });
       } else if (activeSetupTaskKey === 'chapter-one') {
-        const firstChapter = (await listChapters(selectedNovel.id)).sort((a, b) => a.order - b.order)[0];
+        // Metadata is ordered by chapter order; only the first chapter id is needed.
+        const chapterMetadata = await listChaptersMetadata(selectedNovel.id);
+        const firstChapter = chapterMetadata[0];
         if (firstChapter) await updateChapter(firstChapter.id, { sceneBeats: text });
       } else if (activeSetupTaskKey === 'protagonist') {
         const protagonist = (await listCharacters(selectedNovel.id)).find((character) => character.role === 'protagonist');

@@ -865,7 +865,7 @@ export function SkillsStudioView({
 
   const handleActivateFlow = async (flowId: string) => {
     if (!selectedNovel) {
-      toast('请先选择或创建一个小说作品。', 'error');
+      toast('请先选择或创建一个小说作品。', 'info');
       return;
     }
     if (staleConfigurationSession) {
@@ -1616,7 +1616,7 @@ export function SkillsStudioView({
     try {
       const newSkill = cloneAssetToSkill(asset);
       if (!newSkill) {
-        toast('该能力尚未评测，暂不能导入。', 'error');
+        toast('该能力尚未评测，暂不能导入。', 'info');
         return null;
       }
       await createSkill(newSkill);
@@ -1662,7 +1662,7 @@ export function SkillsStudioView({
 
   const handleEquipAsset = async (asset: CuratedProductSkill) => {
     if (!selectedNovel) {
-      toast('请先选择一个作品再配置能力。', 'error');
+      toast('请先选择一个作品再配置能力。', 'info');
       return;
     }
     if (staleConfigurationSession) {
@@ -1691,7 +1691,7 @@ export function SkillsStudioView({
       if (deckResult.requiresReplacement) {
         // Deck full: keep the old candidate flow — replacement needs a choice.
         setCandidateCardIds((ids) => ids.includes(persistedId) ? ids : [...ids, persistedId]);
-        toast('作品卡组已满：已加入候选，替换主/辅卡后生效。', 'error', 6500);
+        toast('作品卡组已满：已加入候选，替换主/辅卡后生效。', 'info', 6500);
         return;
       }
       const nextProfile = buildV3CapabilityProfile(effectiveNovel, deckResult.profile).capabilityProfile;
@@ -1730,7 +1730,7 @@ export function SkillsStudioView({
     if (type === 'role-skill' || type === 'overlay') {
       // v2 records are shown for organization only. They must not silently
       // become a v3 role slot or navigate away from the capability center.
-      toast('该历史能力待整理，暂不参与新配置。', 'error');
+      toast('该历史能力待整理，暂不参与新配置。', 'info');
       return;
     }
     handleDirectExec(asset);
@@ -1764,7 +1764,7 @@ export function SkillsStudioView({
   // （handleImportAsset 的去重会命中 sanitized- 副本，不会重复落库）。
   const handleSanitizeAndEnable = async (asset: CuratedProductSkill) => {
     if (!selectedNovel) {
-      toast('请先选择一个作品再配置能力。', 'error');
+      toast('请先选择一个作品再配置能力。', 'info');
       return;
     }
     try {
@@ -1791,7 +1791,7 @@ export function SkillsStudioView({
 
   const handleDirectExec = (asset: CuratedProductSkill) => {
     if (!selectedNovel?.id) {
-      toast('请先选择一个作品再使用该能力。', 'error');
+      toast('请先选择一个作品再使用该能力。', 'info');
       return;
     }
     const manifest = getCapabilityManifest(asset);
@@ -1800,7 +1800,7 @@ export function SkillsStudioView({
       && !manifest.stages.includes('writer')
       && !manifest.stages.includes('critic');
     if (plannerOnly && (Boolean(targetChapterId) || (launchStage && launchStage !== 'creative-setup'))) {
-      toast('该能力仅支持设定与大纲阶段，请切换到「① 立设定与大纲」后再运行。', 'error');
+      toast('该能力仅支持设定与大纲阶段，请切换到「① 立设定与大纲」后再运行。', 'info');
       setSelectedCategory('creative-setup');
       return;
     }
@@ -1811,7 +1811,7 @@ export function SkillsStudioView({
     if (getGovernanceCapabilityType(asset) === 'overlay' || canUseAsChapterSkillCard) {
       const savedSkill = savedSkills.find((skill) => skill.id === asset.id || skill.parentSkillId === asset.id);
       const sessionCardIds = getTrustedSessionCardIds([asset.id, savedSkill?.id || ''], savedSkills);
-      if (!sessionCardIds.length) { toast('该卡暂不可作为本章使用卡运行。', 'error'); return; }
+      if (!sessionCardIds.length) { toast('该卡暂不可作为本章使用卡运行。', 'info'); return; }
       // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       onLaunchCapability?.({
@@ -1885,7 +1885,7 @@ export function SkillsStudioView({
 
   const launchTechnique = (asset: CuratedProductSkill, scope: 'project' | 'chapter') => {
     if (!selectedNovel?.id) {
-      toast('请先选择一个作品再使用该能力。', 'error');
+      toast('请先选择一个作品再使用该能力。', 'info');
       return;
     }
     if (getGovernanceCapabilityType(asset) !== 'technique') return;

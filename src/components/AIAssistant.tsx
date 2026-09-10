@@ -19,6 +19,18 @@ import { classifyAssistantSuggestion, getPrimaryAssistantAction } from '../lib/a
 import { recordProductEvent } from '../lib/product-events-client';
 import { buildAssistantActionPlan, getAssistantQuickActions } from '../lib/assistant-action-plan';
 
+// 失败面板人话映射：内部枚举不得直出给作者（对齐 docs/specs/llm-status-honesty.md 的诚实展示精神）
+const FAILURE_REASON_COPY: Record<string, string> = {
+  no_content: '模型未返回内容',
+  reasoning_only: '模型只返回了推理过程，没有可用答案',
+  length_exhausted: '输出因长度限制中断',
+};
+const FINISH_REASON_COPY: Record<string, string> = {
+  stop: '正常结束',
+  length: '达到长度上限',
+  content_filter: '内容安全拦截',
+};
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -614,8 +626,8 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
           {session.failure && (
  <div role="alert" aria-label="助手请求失败" className="flex flex-col gap-2 rounded-2xl alert-warning p-3 text-xs">
               <div>{failureReasonText || session.failure.message}</div>
-              {session.failure.reason && <div className="text-[10px]">原因：{session.failure.reason}</div>}
-              {session.failure.finishReason && <div className="text-[10px]">finishReason: {session.failure.finishReason}</div>}
+              {session.failure.reason && <div className="text-[10px]">原因：{FAILURE_REASON_COPY[session.failure.reason] ?? '未知原因'}</div>}
+              {session.failure.finishReason && <div className="text-[10px]">结束方式：{FINISH_REASON_COPY[session.failure.finishReason] ?? session.failure.finishReason}</div>}
               {session.failure.traceId && <div className="text-[10px]">诊断编号：{session.failure.traceId}</div>}
               <div className="flex flex-wrap gap-3">
                 {(session.failure.retriable || session.failure.code === 'empty_response') && (

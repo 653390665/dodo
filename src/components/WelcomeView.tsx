@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Sliders, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Sliders, Sparkles, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { deriveLlmAvailability, LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
 
@@ -124,6 +124,29 @@ export function WelcomeView({
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isPersistingStory, setIsPersistingStory] = useState(false);
   const [persistStoryError, setPersistStoryError] = useState<string | null>(null);
+
+  // 弹窗 Esc 关闭（对齐 SettingsModal 先例）
+  useEffect(() => {
+    if (!(selectedCardForRec && recResult)) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setSelectedCardForRec(null); setRecResult(null); } };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedCardForRec, recResult]);
+
+  // 「生成设定确认单」为确认单类弹窗，防误触：仅支持 Esc，不做遮罩点击关闭
+  useEffect(() => {
+    if (!(showConfirmDetailsModal && confirmModalData)) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowConfirmDetailsModal(false); setConfirmModalData(null); } };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showConfirmDetailsModal, confirmModalData]);
+
+  useEffect(() => {
+    if (!(showGuidedBubble && bubbleData)) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowGuidedBubble(false); setConfirmBubbleData(null); } };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showGuidedBubble, bubbleData]);
 
   // 加载自定义卡片检索钩子
   const { cards, source, isWaiting, isModelPending, warnings, submit } = useStoryCards({
@@ -1059,7 +1082,10 @@ export function WelcomeView({
 
         {/* ==================== 智能开书治理配置推荐磨砂面板 ==================== */}
         {selectedCardForRec && recResult && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/60 backdrop-blur-md p-4 animate-fade-in">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/60 backdrop-blur-md p-4 animate-fade-in"
+            onClick={(e) => { if (e.target === e.currentTarget) { setSelectedCardForRec(null); setRecResult(null); } }}
+          >
             <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-lg p-5 shadow-xl relative overflow-hidden flex flex-col gap-4 animate-scale-in max-h-[85vh] overflow-y-auto">
 
               {/* 高级控制台色边彩条 design */}
@@ -1359,8 +1385,19 @@ export function WelcomeView({
 
         {/* ==================== 2. 智能引导气泡弹窗 (Smart Onboarding Guide Bubble) ==================== */}
         {showGuidedBubble && bubbleData && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/85 backdrop-blur-md p-4 animate-fade-in">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/85 backdrop-blur-md p-4 animate-fade-in"
+            onClick={(e) => { if (e.target === e.currentTarget) { setShowGuidedBubble(false); setConfirmBubbleData(null); } }}
+          >
             <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5 animate-scale-in text-left">
+              <button
+                aria-label="关闭引导"
+                title="关闭"
+                onClick={() => { setShowGuidedBubble(false); setConfirmBubbleData(null); }}
+                className="absolute top-3 right-3 flex size-7 items-center justify-center rounded text-theme-muted hover:text-theme-text transition-colors"
+              >
+                <X size={14} />
+              </button>
               {/* Gold gradient top border */}
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500" />
 
