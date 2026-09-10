@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from '../lib/toast';
 
 import { extractWorldSetupPhase } from '../lib/agents';
@@ -38,6 +38,179 @@ interface Message {
   actionPlan?: AssistantActionPlan;
 }
 
+const KIND_LABELS: Record<AssistantSuggestionKind, string> = {
+  prose: '正文候选',
+  'scene-beat': '分镜候选',
+  setting: '设定候选',
+  fragment: '碎片候选',
+};
+
+interface AssistantMessageRowProps {
+  msg: Message;
+  launchContext?: AssistantLaunchContext | null;
+  onCopy: (text: string) => void;
+  onPreviewCandidate: (plan: AssistantActionPlan, content: string) => void;
+  onLaunchSettingCandidate?: (plan: AssistantActionPlan, seedText: string) => void;
+  onStartCreation?: (plan: AssistantActionPlan, seedText?: string) => void;
+  onReplaceSelection?: (text: string) => void;
+  onApplyToContent?: (text: string) => void;
+  onApplyToSceneBeats?: (text: string) => void;
+  onExtractToCurrentNovel: (content: string) => void;
+  onSaveAsIdeaFragment: (content: string) => void;
+  onSaveToOtherNovel: (messageId: string) => void;
+  onExtractToOtherNovel: (messageId: string) => void;
+}
+
+// 单条消息行 memo：打字/输入等无关更新时跳过 ReactMarkdown 与按钮行的重渲染。
+// 回调必须引用稳定（父组件以 useCallback + ref 模式传入），否则 memo 失效。
+const AssistantMessageRow = React.memo(function AssistantMessageRow({
+  msg,
+  launchContext,
+  onCopy,
+  onPreviewCandidate,
+  onLaunchSettingCandidate,
+  onStartCreation,
+  onReplaceSelection,
+  onApplyToContent,
+  onApplyToSceneBeats,
+  onExtractToCurrentNovel,
+  onSaveAsIdeaFragment,
+  onSaveToOtherNovel,
+  onExtractToOtherNovel,
+}: AssistantMessageRowProps) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2 p-4 rounded-2xl",
+        msg.role === 'assistant'
+          ? "bg-theme-sidebar/10 border border-theme-border/40"
+          : "bg-theme-accent text-theme-accent-contrast shadow-md ml-4"
+      )}
+    >
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {msg.role === 'assistant' ? (
+          <div className="flex flex-col gap-3">
+            {msg.id !== 'welcome' && launchContext ? (() => {
+              const suggestionKind: AssistantSuggestionKind = msg.actionPlan?.intent === 'plan-scene'
+                ? 'scene-beat'
+                : msg.actionPlan?.intent === 'build-setting'
+                  ? 'setting'
+                  : msg.actionPlan?.intent === 'save-fragment'
+                    ? 'fragment'
+                    : msg.actionPlan ? 'prose' : classifyAssistantSuggestion(msg.content, launchContext);
+              return (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-0.5 text-[9px] font-bold text-theme-accent border border-theme-accent/20">
+                    {KIND_LABELS[suggestionKind]}
+                  </span>
+                </div>
+              );
+            })() : null}
+            <div className="prose prose-xs max-w-none text-theme-text leading-relaxed font-serif">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-theme-border/20 pt-2">
+              <button
+                onClick={() => onCopy(msg.content)}
+                className="p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
+                title="复制"
+                aria-label="复制"
+              >
+                <Copy size={12} aria-hidden="true" />
+              </button>
+
+              {msg.id !== 'welcome' && launchContext ? (
+                (() => {
+                  const actionPlan = msg.actionPlan;
+                  const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
+                  const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
+
+                  const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: React.ComponentType<{size?: number, className?: string}>, primary?: boolean }) => (
+                    <button
+                      onClick={action}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all",
+                        primary
+                          ? "bg-theme-accent text-theme-accent-contrast shadow-sm hover:opacity-90"
+                          : "border border-theme-border/60 bg-theme-sidebar text-theme-muted hover:border-theme-accent hover:text-theme-accent"
+                      )}
+                      title={label}
+                    >
+                      <Icon size={10} aria-hidden="true" />
+                      {label.replace('主动作：', '').replace('直接', '')}
+                    </button>
+                  );
+
+                  return (
+                    <>
+                      {actionPlan?.intent === 'draft-prose' && launchContext.selectedText && (
+                        <ActionButton primary action={() => onPreviewCandidate(actionPlan, msg.content)} label="预览选区候选" icon={Sparkles} />
+                      )}
+                      {actionPlan?.intent === 'draft-prose' && !launchContext.selectedText && (
+                        <ActionButton primary action={() => onPreviewCandidate(actionPlan, msg.content)} label="预览正文候选" icon={ArrowRight} />
+                      )}
+                      {actionPlan?.intent === 'plan-scene' && (
+                        <ActionButton primary action={() => onPreviewCandidate(actionPlan, msg.content)} label="预览分镜候选" icon={Globe} />
+                      )}
+                      {actionPlan?.intent === 'build-setting' && (
+                        <ActionButton primary action={() => onLaunchSettingCandidate?.(actionPlan, msg.content)} label="使用推荐能力生成设定候选" icon={Globe} />
+                      )}
+                      {actionPlan?.intent === 'plan-structure' && (
+                        <ActionButton primary action={() => onStartCreation?.(actionPlan, msg.content)} label="进入完整创作流程" icon={BrainCircuit} />
+                      )}
+                      {!actionPlan && primaryAction === 'extract-setting' && (
+                        <ActionButton primary action={() => onExtractToCurrentNovel(msg.content)} label="提设定" icon={Globe} />
+                      )}
+                      {(actionPlan?.intent === 'save-fragment' || (!actionPlan && primaryAction === 'save-fragment')) && (
+                        <ActionButton primary action={() => onSaveAsIdeaFragment(msg.content)} label="存碎片" icon={FolderOpen} />
+                      )}
+                      {!actionPlan && primaryAction === 'replace-selection' && launchContext.selectedText && (
+                        <ActionButton primary action={() => onReplaceSelection?.(msg.content)} label="替换选区" icon={Sparkles} />
+                      )}
+                      {!actionPlan && primaryAction === 'append-content' && (
+                        <ActionButton primary action={() => onApplyToContent?.(msg.content)} label="插到末尾" icon={ArrowRight} />
+                      )}
+                      {!actionPlan && primaryAction === 'append-scene-beat' && (
+                        <ActionButton primary action={() => onApplyToSceneBeats?.(msg.content)} label="补分镜" icon={Globe} />
+                      )}
+
+                      <details className="group relative">
+                        <summary
+                          className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
+                          aria-label="更多操作"
+                        >
+                          <MoreVertical size={12} aria-hidden="true" />
+                        </summary>
+                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-theme-sidebar rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
+                          <button onClick={() => onSaveToOtherNovel(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
+                            <FolderOpen size={12} aria-hidden="true" /> 保存到其他作品
+                          </button>
+                          <button onClick={() => onExtractToOtherNovel(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
+                            <Globe size={12} aria-hidden="true" /> 提取到其他作品
+                          </button>
+                          {primaryAction !== 'save-fragment' && (
+                            <button onClick={() => onSaveAsIdeaFragment(msg.content)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
+                              <FolderOpen size={12} aria-hidden="true" /> 保存为灵感碎片
+                            </button>
+                          )}
+                        </div>
+                      </details>
+                    </>
+                  );
+                })()
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <p className="text-theme-accent-contrast m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
+        )}
+      </div>
+    </div>
+  );
+});
+
+export default AssistantMessageRow;
+
 interface AIAssistantProps {
   launchContext?: AssistantLaunchContext | null;
   activeNovel?: Novel | null;
@@ -51,19 +224,22 @@ interface AIAssistantProps {
 
 export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onApplyToSceneBeats, onReplaceSelection, onLaunchSettingCandidate, onStartCreation, onClose }: AIAssistantProps) {
   const sessionKey = activeNovel?.id ?? 'welcome';
-  const sessionState = useAssistantSessionStore();
-  const session = sessionState.getSession(sessionKey, 'general');
+  // selector 收窄：只订阅当前 session 切片（store 以 Map 持有 session，跨渲染引用稳定，
+  // 写入时才替换引用），避免无 selector 全量订阅导致任意 session 更新都重渲染本组件。
+  const session = useAssistantSessionStore((s) => s.getSession(sessionKey, 'general'));
   const sessionStore = useAssistantSessionStore.getState();
   const promptSurface = activeNovel ? 'workspace-draft' : 'welcome';
   const hasProjectContext = Boolean(launchContext || activeNovel);
   const assistantTitle = hasProjectContext ? '作品协作助手' : '灵感启动助手';
   const assistantSubtitle = hasProjectContext ? 'PROJECT COPILOT' : 'IDEA STARTER';
-  const messages: Message[] = session.messages.map((message) => ({
+  // 依赖 session.messages 的引用而非整个 session：输入框打字只更新 session.input，
+  // messages 数组引用不变，映射结果与每个 msg 对象保持稳定，消息行 memo 才能命中。
+  const messages: Message[] = useMemo(() => session.messages.map((message) => ({
     id: message.id,
     role: message.sender === 'user' ? 'user' : 'assistant',
     content: message.text,
     actionPlan: message.actionPlan,
-  }));
+  })), [session.messages]);
   const input = session.input;
   const [showSaveModal, setShowSaveModal] = useState<string | null>(null);
   const [showExtractModal, setShowExtractModal] = useState<string | null>(null);
@@ -374,6 +550,60 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
     await handleExtractToWorldBible(novel, content);
   };
 
+  // 消息行稳定回调：latest-ref 持有最新实现，对外暴露引用恒定的包装，
+  // 保证 AssistantMessageRow 的 React.memo 不会因回调重建而失效。
+  // ref 同步放在 effect 中（react-hooks/refs 禁止渲染期写 ref）。
+  const launchSettingCandidateRef = useRef(onLaunchSettingCandidate);
+  const startCreationRef = useRef(onStartCreation);
+  const replaceSelectionRef = useRef(onReplaceSelection);
+  const applyToContentRef = useRef(onApplyToContent);
+  const applyToSceneBeatsRef = useRef(onApplyToSceneBeats);
+  const saveAsIdeaFragmentRef = useRef(handleSaveAsIdeaFragment);
+  const extractToCurrentNovelRef = useRef(handleExtractToCurrentNovel);
+  useEffect(() => {
+    launchSettingCandidateRef.current = onLaunchSettingCandidate;
+    startCreationRef.current = onStartCreation;
+    replaceSelectionRef.current = onReplaceSelection;
+    applyToContentRef.current = onApplyToContent;
+    applyToSceneBeatsRef.current = onApplyToSceneBeats;
+    saveAsIdeaFragmentRef.current = handleSaveAsIdeaFragment;
+    extractToCurrentNovelRef.current = handleExtractToCurrentNovel;
+  });
+
+  const handleCopyMessage = useCallback((text: string) => {
+    navigator.clipboard.writeText(text);
+  }, []);
+  const handlePreviewCandidate = useCallback((plan: AssistantActionPlan, content: string) => {
+    setPendingCandidate({ plan, content });
+  }, []);
+  const handleSaveToOtherNovel = useCallback((messageId: string) => {
+    setShowSaveModal(messageId);
+  }, [setShowSaveModal]);
+  const handleExtractToOtherNovel = useCallback((messageId: string) => {
+    setShowExtractModal(messageId);
+  }, [setShowExtractModal]);
+  const handleRowLaunchSettingCandidate = useCallback((plan: AssistantActionPlan, seedText: string) => {
+    launchSettingCandidateRef.current?.(plan, seedText);
+  }, []);
+  const handleRowStartCreation = useCallback((plan: AssistantActionPlan, seedText?: string) => {
+    startCreationRef.current?.(plan, seedText);
+  }, []);
+  const handleRowReplaceSelection = useCallback((text: string) => {
+    replaceSelectionRef.current?.(text);
+  }, []);
+  const handleRowApplyToContent = useCallback((text: string) => {
+    applyToContentRef.current?.(text);
+  }, []);
+  const handleRowApplyToSceneBeats = useCallback((text: string) => {
+    applyToSceneBeatsRef.current?.(text);
+  }, []);
+  const handleRowSaveAsIdeaFragment = useCallback((content: string) => {
+    saveAsIdeaFragmentRef.current(content);
+  }, []);
+  const handleRowExtractToCurrentNovel = useCallback((content: string) => {
+    extractToCurrentNovelRef.current(content);
+  }, []);
+
   const iconByIntent = {
     'draft-prose': Sparkles,
     'plan-scene': BrainCircuit,
@@ -385,13 +615,6 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
     hasNovel: Boolean(activeNovel),
     hasChapter: Boolean(launchContext?.chapterId),
   }).map((action) => ({ ...action, icon: iconByIntent[action.intent] }));
-
-  const KIND_LABELS: Record<AssistantSuggestionKind, string> = {
-    prose: '正文候选',
-    'scene-beat': '分镜候选',
-    setting: '设定候选',
-    fragment: '碎片候选',
-  };
 
   return (
     <div className="h-full flex flex-col bg-theme-sidebar">
@@ -483,134 +706,22 @@ export function AIAssistant({ launchContext, activeNovel, onApplyToContent, onAp
         {/* Chat Messages */}
         <div className="flex flex-col gap-4 pb-4">
           {messages.map((msg) => (
-            <div
+            <AssistantMessageRow
               key={msg.id}
-              className={cn(
-                "flex flex-col gap-2 p-4 rounded-2xl",
-                msg.role === 'assistant'
-                  ? "bg-theme-sidebar/10 border border-theme-border/40"
-                  : "bg-theme-accent text-theme-accent-contrast shadow-md ml-4"
-              )}
-            >
-              <div className="flex-1 min-w-0 overflow-hidden">
-                {msg.role === 'assistant' ? (
-                  <div className="flex flex-col gap-3">
-                    {msg.id !== 'welcome' && launchContext ? (() => {
-                      const suggestionKind: AssistantSuggestionKind = msg.actionPlan?.intent === 'plan-scene'
-                        ? 'scene-beat'
-                        : msg.actionPlan?.intent === 'build-setting'
-                          ? 'setting'
-                          : msg.actionPlan?.intent === 'save-fragment'
-                            ? 'fragment'
-                            : msg.actionPlan ? 'prose' : classifyAssistantSuggestion(msg.content, launchContext);
-                      return (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-0.5 text-[9px] font-bold text-theme-accent border border-theme-accent/20">
-                            {KIND_LABELS[suggestionKind]}
-                          </span>
-                        </div>
-                      );
-                    })() : null}
-                    <div className="prose prose-xs max-w-none text-theme-text leading-relaxed font-serif">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 border-t border-theme-border/20 pt-2">
-                      <button
-                        onClick={() => navigator.clipboard.writeText(msg.content)}
-                        className="p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
-                        title="复制"
-                        aria-label="复制"
-                      >
-                        <Copy size={12} aria-hidden="true" />
-                      </button>
-                      
-                      {msg.id !== 'welcome' && launchContext ? (
-                        (() => {
-                          const actionPlan = msg.actionPlan;
-                          const suggestionKind = classifyAssistantSuggestion(msg.content, launchContext);
-                          const primaryAction = getPrimaryAssistantAction(suggestionKind, launchContext);
-
-                          const ActionButton = ({ action, label, icon: Icon, primary }: { action: () => void, label: string, icon: React.ComponentType<{size?: number, className?: string}>, primary?: boolean }) => (
-                            <button
-                              onClick={action}
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all",
-                                primary 
-                                  ? "bg-theme-accent text-theme-accent-contrast shadow-sm hover:opacity-90" 
-                                  : "border border-theme-border/60 bg-theme-sidebar text-theme-muted hover:border-theme-accent hover:text-theme-accent"
-                              )}
-                              title={label}
-                            >
-                              <Icon size={10} aria-hidden="true" />
-                              {label.replace('主动作：', '').replace('直接', '')}
-                            </button>
-                          );
-
-                          return (
-                            <>
-                              {actionPlan?.intent === 'draft-prose' && launchContext.selectedText && (
-                                <ActionButton primary action={() => setPendingCandidate({ plan: actionPlan, content: msg.content })} label="预览选区候选" icon={Sparkles} />
-                              )}
-                              {actionPlan?.intent === 'draft-prose' && !launchContext.selectedText && (
-                                <ActionButton primary action={() => setPendingCandidate({ plan: actionPlan, content: msg.content })} label="预览正文候选" icon={ArrowRight} />
-                              )}
-                              {actionPlan?.intent === 'plan-scene' && (
-                                <ActionButton primary action={() => setPendingCandidate({ plan: actionPlan, content: msg.content })} label="预览分镜候选" icon={Globe} />
-                              )}
-                              {actionPlan?.intent === 'build-setting' && (
-                                <ActionButton primary action={() => onLaunchSettingCandidate?.(actionPlan, msg.content)} label="使用推荐能力生成设定候选" icon={Globe} />
-                              )}
-                              {actionPlan?.intent === 'plan-structure' && (
-                                <ActionButton primary action={() => onStartCreation?.(actionPlan, msg.content)} label="进入完整创作流程" icon={BrainCircuit} />
-                              )}
-                              {!actionPlan && primaryAction === 'extract-setting' && (
-                                <ActionButton primary action={() => handleExtractToCurrentNovel(msg.content)} label="提设定" icon={Globe} />
-                              )}
-                              {(actionPlan?.intent === 'save-fragment' || (!actionPlan && primaryAction === 'save-fragment')) && (
-                                <ActionButton primary action={() => handleSaveAsIdeaFragment(msg.content)} label="存碎片" icon={FolderOpen} />
-                              )}
-                              {!actionPlan && primaryAction === 'replace-selection' && launchContext.selectedText && (
-                                <ActionButton primary action={() => onReplaceSelection?.(msg.content)} label="替换选区" icon={Sparkles} />
-                              )}
-                              {!actionPlan && primaryAction === 'append-content' && (
-                                <ActionButton primary action={() => onApplyToContent?.(msg.content)} label="插到末尾" icon={ArrowRight} />
-                              )}
-                              {!actionPlan && primaryAction === 'append-scene-beat' && (
-                                <ActionButton primary action={() => onApplyToSceneBeats?.(msg.content)} label="补分镜" icon={Globe} />
-                              )}
-
-                              <details className="group relative">
-                                <summary
-                                  className="list-none cursor-pointer p-1.5 rounded-lg border border-theme-border/40 bg-theme-sidebar text-theme-muted transition-colors hover:text-theme-accent"
-                                  aria-label="更多操作"
-                                >
-                                  <MoreVertical size={12} aria-hidden="true" />
-                                </summary>
-                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-theme-sidebar rounded-xl shadow-xl border border-theme-border p-2 flex flex-col gap-1 z-30">
-                                  <button onClick={() => setShowSaveModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                    <FolderOpen size={12} aria-hidden="true" /> 保存到其他作品
-                                  </button>
-                                  <button onClick={() => setShowExtractModal(msg.id)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                    <Globe size={12} aria-hidden="true" /> 提取到其他作品
-                                  </button>
-                                  {primaryAction !== 'save-fragment' && (
-                                    <button onClick={() => handleSaveAsIdeaFragment(msg.content)} className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-sidebar/50 rounded-lg">
-                                      <FolderOpen size={12} aria-hidden="true" /> 保存为灵感碎片
-                                    </button>
-                                  )}
-                                </div>
-                              </details>
-                            </>
-                          );
-                        })()
-                      ) : null}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-theme-accent-contrast m-0 text-xs leading-relaxed font-sans">{msg.content}</p>
-                )}
-              </div>
-            </div>
+              msg={msg}
+              launchContext={launchContext}
+              onCopy={handleCopyMessage}
+              onPreviewCandidate={handlePreviewCandidate}
+              onLaunchSettingCandidate={handleRowLaunchSettingCandidate}
+              onStartCreation={handleRowStartCreation}
+              onReplaceSelection={handleRowReplaceSelection}
+              onApplyToContent={handleRowApplyToContent}
+              onApplyToSceneBeats={handleRowApplyToSceneBeats}
+              onExtractToCurrentNovel={handleRowExtractToCurrentNovel}
+              onSaveAsIdeaFragment={handleRowSaveAsIdeaFragment}
+              onSaveToOtherNovel={handleSaveToOtherNovel}
+              onExtractToOtherNovel={handleExtractToOtherNovel}
+            />
           ))}
 
           {session.isLoading && (

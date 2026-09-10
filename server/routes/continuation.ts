@@ -504,8 +504,11 @@ function entityExtractionErrorMessage(code: string): string {
                               : '提取失败，请重试';
 }
 
-async function touchEntityExtractionJob(job: EntityExtractionJob, reason = 'state-change'): Promise<void> {
+async function touchEntityExtractionJob(job: EntityExtractionJob, reason = 'state-change', options?: { persist?: boolean }): Promise<void> {
   job.lastActivityAt = Date.now();
+  // persist:false 仅刷新内存活动时间（TTL 依赖 lastActivityAt），不序列化 checkpoint、不写库。
+  // 断点粒度由 batch-completed 落盘的 completedChunkIndexes 决定，收窄后恢复语义不变。
+  if (options?.persist === false) return;
   const checkpoint = buildEntityExtractionCheckpoint(job);
   let checkpointJson: string;
   let resultJson: string | undefined;
@@ -553,7 +556,7 @@ async function runPersistedExtractionJob(job: EntityExtractionJob, chunks: Retur
         job.currentChunk = chunk.index + 1;
         job.progress = Math.floor((chunk.index / chunks.length) * 90);
         job.stageText = `正在分析第 ${chunk.index + 1}/${chunks.length} 批`;
-        await touchEntityExtractionJob(job, 'batch-start');
+        await touchEntityExtractionJob(job, 'batch-start', { persist: false });
         const resumed = resumeContext.chunkIndex === chunk.index;
         const text = resumed && resumeContext.splitAt !== undefined ? chunk.text.slice(resumeContext.splitAt) : chunk.text;
         let parsed: z.infer<typeof extractionResultSchema> | undefined;
@@ -1722,7 +1725,7 @@ export function registerContinuationRoutes(app: Express) {
             job.currentChunk = chunk.index + 1;
             job.progress = Math.floor((chunk.index / chunks.length) * 90);
             job.stageText = `正在分析第 ${chunk.index + 1}/${chunks.length} 批`;
-            await touchEntityExtractionJob(job, 'batch-start');
+            await touchEntityExtractionJob(job, 'batch-start', { persist: false });
             const isResumedChunk = resumeContext?.chunkIndex === chunk.index;
             const resumedText = isResumedChunk && resumeContext.splitAt !== undefined ? chunk.text.slice(resumeContext.splitAt) : chunk.text;
             partials.push(...await extractChunk(resumedText, chunk.filename, chunk.sourceDocumentId, !isResumedChunk, isResumedChunk ? resumeContext.schemaIssues : undefined, isResumedChunk ? resumeContext.repairKind : undefined));

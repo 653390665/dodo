@@ -8,6 +8,7 @@ import {
 } from './lib/db-instance';
 import { createHash } from 'node:crypto';
 import { embedWithMetadata, cosineSimilarity } from './embedding';
+import { logger } from './logger';
 
 interface StoredEmbedding {
   values: number[];
@@ -16,8 +17,19 @@ interface StoredEmbedding {
   contentHash: string;
 }
 
-// 常驻内存向量解析 Cache，避免高频相似度计算下的重复 JSON.parse 消耗
+// 常驻内存向量解析 Cache，避免高频相似度计算下的重复 JSON.parse 消耗。
+// 以 Map 插入序近似 FIFO 淘汰（get 不提升位次），防止无界增长；未来需要真实 LRU 再替换。
+const EMBEDDING_CACHE_MAX_ENTRIES = 5_000;
 const embeddingCache = new Map<string, StoredEmbedding>();
+
+function setCachedEmbedding(id: string, stored: StoredEmbedding): void {
+  embeddingCache.set(id, stored);
+  while (embeddingCache.size > EMBEDDING_CACHE_MAX_ENTRIES) {
+    const oldest = embeddingCache.keys().next().value;
+    if (oldest === undefined) break;
+    embeddingCache.delete(oldest);
+  }
+}
 
 export class VectorIndexGenerationMismatchError extends Error {
   readonly code = 'VECTOR_INDEX_GENERATION_MISMATCH';
@@ -46,7 +58,7 @@ export async function addChunk(
   const id = `${novelId}_${chapterId}_${index}`;
 
   const guarded = await runInSerializedWriteForGeneration(generation, () => {
-    embeddingCache.set(id, embedding);
+    setCachedEmbedding(id, embedding);
     const db = getDb();
     db.prepare(`
       INSERT INTO vector_chunks (id, novel_id, chapter_id, chunk_index, text, embedding)
@@ -75,6 +87,11 @@ export function searchSimilar(
   const rows = db.prepare(`
     SELECT id, text, embedding FROM vector_chunks WHERE novel_id = ?
   `).all(novelId) as Array<{ id: string; text: string; embedding: string }>;
+  // 调查项（Plan 184）：检索当前为全表扫描线性余弦。chunk 超过阈值时记录一次，
+  // 积累数据后另立计划决定是否引入 sqlite-vec/分块；不做算法替换。
+  if (rows.length >= 1_000) {
+    logger.info('searchSimilar 全表扫描规模达到调查阈值', { novelId, chunks: rows.length, topK });
+  }
 
   const scored = rows.map((row) => {
     let stored = embeddingCache.get(row.id);
@@ -84,7 +101,7 @@ export function searchSimilar(
       stored = Array.isArray(parsed)
         ? { values, modelId: 'legacy:unknown', dimensions: values.length, contentHash: '' }
         : parsed;
-      embeddingCache.set(row.id, stored);
+      setCachedEmbedding(row.id, stored);
     }
     const compatible = stored.modelId !== 'legacy:unknown'
       && stored.modelId === queryModelId

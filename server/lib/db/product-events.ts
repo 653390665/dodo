@@ -96,10 +96,19 @@ export function createProductEvent(input: ProductEventInput): ProductEvent {
   return event;
 }
 
-export function listProductEvents(): ProductEvent[] {
-  return (getDb().prepare('SELECT * FROM product_events ORDER BY created_at ASC').all() as ProductEventRow[]).map(toEvent);
+export function listProductEvents(days?: number): ProductEvent[] {
+  if (days === undefined) {
+    return (getDb().prepare('SELECT * FROM product_events ORDER BY created_at ASC').all() as ProductEventRow[]).map(toEvent);
+  }
+  const cutoff = Date.now() - days * 86400000;
+  return (getDb().prepare('SELECT * FROM product_events WHERE created_at >= ? ORDER BY created_at ASC').all(cutoff) as ProductEventRow[]).map(toEvent);
 }
 export function clearProductEvents(): void { getDb().prepare('DELETE FROM product_events').run(); }
+
+/** Delete events older than the retention window. Returns removed row count. */
+export function pruneProductEvents(olderThanMs = 90 * 86400000): number {
+  return getDb().prepare('DELETE FROM product_events WHERE created_at < ?').run(Date.now() - olderThanMs).changes;
+}
 
 function percentile(values: number[], p: number): number | null {
   if (!values.length) return null;

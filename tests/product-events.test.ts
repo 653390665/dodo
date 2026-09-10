@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { closeDb, getDb } from '../server/lib/db-instance.js';
 import { initDb } from '../server/lib/db-init.js';
 import { validateDatabaseImportFile } from '../server/routes/db.js';
-import { clearProductEvents, createProductEvent, getProductEventMetrics, listProductEvents } from '../server/lib/db/product-events.js';
+import { clearProductEvents, createProductEvent, getProductEventMetrics, listProductEvents, pruneProductEvents } from '../server/lib/db/product-events.js';
 import { productEventSchema } from '../server/routes/product-events.js';
 
 test('product event HTTP schema accepts all assistant values and rejects unknown fields', () => {
@@ -77,6 +77,21 @@ test('product metrics use the Plan 158 thirty-day window by default', () => {
   initDb(':memory:');
   clearProductEvents();
   assert.equal(getProductEventMetrics().rangeDays, 30);
+  closeDb();
+});
+
+test('pruneProductEvents removes only events older than the retention window', () => {
+  closeDb();
+  initDb(':memory:');
+  clearProductEvents();
+  const now = Date.now();
+  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-stale', occurredAt: now - 100 * 86400000 });
+  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-fresh', occurredAt: now - 10 * 86400000 });
+  assert.equal(listProductEvents().length, 2);
+  assert.equal(pruneProductEvents(), 1);
+  const remaining = listProductEvents();
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].novelId, 'novel-fresh');
   closeDb();
 });
 

@@ -1,7 +1,9 @@
 import type { Express } from 'express';
 import { z } from 'zod';
 import { validate } from '../validation.js';
-import { clearProductEvents, createProductEvent, getProductEventMetrics, listProductEvents } from '../lib/db/product-events.js';
+import { clearProductEvents, createProductEvent, getProductEventMetrics, listProductEvents, pruneProductEvents } from '../lib/db/product-events.js';
+import { isDbInitialized } from '../lib/db-instance.js';
+import { logger } from '../logger';
 import { PRODUCT_EVENT_NAMES, PRODUCT_EVENT_STAGES } from '../../shared/types/product-events.js';
 
 export const productEventSchema = z.object({
@@ -25,6 +27,16 @@ export const productEventSchema = z.object({
 }).strict();
 
 export function registerProductEventRoutes(app: Express) {
+  // 启动期保留策略：清理超出 90 天窗口的埋点。失败仅记日志，不阻断启动。
+  // 与 registerContinuationRoutes 开头的 markRunningInterrupted() 同属路由注册期启动维护。
+  try {
+    if (isDbInitialized()) {
+      const pruned = pruneProductEvents();
+      if (pruned > 0) logger.info(`已清理 ${pruned} 条超出保留窗口的产品埋点`);
+    }
+  } catch (error) {
+    logger.error('清理产品埋点保留窗口失败（不影响启动）:', error);
+  }
   app.post('/api/product-events', validate(productEventSchema), (req, res) => {
     try { return res.status(201).json(createProductEvent(req.body)); }
     catch { return res.status(500).json({ error: 'Failed to record product event' }); }
@@ -35,8 +47,10 @@ export function registerProductEventRoutes(app: Express) {
     try { return res.json(getProductEventMetrics(parsed.data ?? 30)); }
     catch { return res.status(500).json({ error: 'Failed to load product event metrics' }); }
   });
-  app.get('/api/product-events/export', (_req, res) => {
-    try { res.attachment('inkflow-product-events.json').type('application/json').send(JSON.stringify(listProductEvents())); }
+  app.get('/api/product-events/export', (req, res) => {
+    const parsed = z.coerce.number().int().min(1).max(365).optional().safeParse(req.query.days);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid days' });
+    try { res.attachment('inkflow-product-events.json').type('application/json').send(JSON.stringify(listProductEvents(parsed.data ?? 90))); }
     catch { res.status(500).json({ error: 'Failed to export product events' }); }
   });
   app.delete('/api/product-events', (_req, res) => {
