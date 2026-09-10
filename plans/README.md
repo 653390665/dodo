@@ -253,7 +253,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 186 | 测试补强一期：HTTP 契约与持久层危险区（config 空键/deleteChapter/错误映射/EditorView 特征） | DONE（4 新文件+3 改造；后端全量 1170/1170；附带发现 config/sync 疑似无调用方，待另立） | — |
 | 187 | 测试补强二期：四大视图 E2E + 真实管线旅程 + CI 去重与覆盖率棘轮 | TODO | — |
 | 188 | 前端传输收敛（统一 request/config-client/组件裸 fetch 入 client/compat shim 清理） | DONE（22 shim 全删；裸 fetch 22→12 白名单 8 文件有据；HttpApiError payload 为批准偏差） | — |
-| 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | TODO | 186 |
+| 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | DONE（db.ts 1136→283；flush 契约以 flush:false 保留；边界矩阵 1 处现行违规显式豁免待产品定夺） | 186 |
 | 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | TODO | 186, 187 |
 | 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | DONE（13 项归档；pre-commit node 直调+prepare；CI format 门已加——全仓 format 在收尾统一执行后转绿；env 实为 11 个 INKFLOW_*） | — |
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | TODO | — |
