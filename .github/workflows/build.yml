@@ -33,10 +33,10 @@ jobs:
           const fs = require('fs');
           const report = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
           const vulnerabilities = Object.entries(report.vulnerabilities || {});
-          const exemptions = {
-            '@xenova/transformers': '2026-09-30',
-            sharp: '2026-09-30',
-          };
+          // Time-bounded audit exemptions. Empty as of 2026-09: @xenova/transformers
+          // was replaced by @huggingface/transformers and sharp is overridden to
+          // ^0.35.4 (see Plan 190). Add entries only with an expiry date and a plan.
+          const exemptions = {};
           if (vulnerabilities.length === 0) {
             console.log('Production dependency audit: 0 vulnerabilities.');
             process.exit(0);

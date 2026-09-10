@@ -38,13 +38,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@huggingface/transformers": "^3.8.1",
     "@radix-ui/react-alert-dialog": "^1.1.18",
     "@radix-ui/react-scroll-area": "^1.2.13",
     "@radix-ui/react-tabs": "^1.1.16",
     "@radix-ui/react-tooltip": "^1.2.11",
     "@tailwindcss/vite": "^4.2.4",
     "@vitejs/plugin-react": "^5.2.0",
-    "@xenova/transformers": "^2.17.2",
     "better-sqlite3": "^12.9.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
@@ -89,14 +89,13 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "@xenova/transformers": {
-      "sharp": "0.35.3"
+    "@huggingface/transformers": {
+      "sharp": "^0.35.4"
     },
     "body-parser": "^1.20.6",
     "nanoid": "^3.3.18",
     "postcss": "^8.5.26",
-    "tar": "^7.5.19",
-    "protobufjs": "^7.6.5"
+    "tar": "^7.5.19"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -119,12 +118,7 @@
       "node_modules/onnxruntime-common/**/*",
       "node_modules/sharp/**/*",
       "node_modules/@img/**/*",
-      "node_modules/color/**/*",
-      "node_modules/color-convert/**/*",
-      "node_modules/color-name/**/*",
-      "node_modules/color-string/**/*",
-      "node_modules/simple-swizzle/**/*",
-      "node_modules/is-arrayish/**/*",
+      "node_modules/detect-libc/**/*",
       "node_modules/mammoth/**/*",
       "node_modules/bindings/**/*",
       "node_modules/file-uri-to-path/**/*",
@@ -134,17 +128,14 @@
       "node_modules/simple-get/**/*",
       "node_modules/napi-build-utils/**/*",
       "node_modules/node-abi/**/*",
-      "node_modules/detect-libc/**/*",
       "node_modules/expand-template/**/*",
       "node_modules/github-from-package/**/*",
       "node_modules/minimist/**/*",
       "node_modules/mkdirp-classic/**/*",
-      "node_modules/npmlog/**/*",
       "node_modules/pump/**/*",
       "node_modules/rc/**/*",
       "node_modules/simple-concat/**/*",
       "node_modules/tar-stream/**/*",
-      "node_modules/are-we-there-yet/**/*",
       "node_modules/deep-extend/**/*",
       "node_modules/ini/**/*",
       "node_modules/strip-json-comments/**/*"
@@ -207,12 +198,6 @@
       "node_modules/onnxruntime-common/**/*",
       "node_modules/sharp/**/*",
       "node_modules/@img/**/*",
-      "node_modules/color/**/*",
-      "node_modules/color-convert/**/*",
-      "node_modules/color-name/**/*",
-      "node_modules/color-string/**/*",
-      "node_modules/simple-swizzle/**/*",
-      "node_modules/is-arrayish/**/*",
       "node_modules/detect-libc/**/*"
     ]
   },

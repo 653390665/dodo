@@ -10,7 +10,10 @@ test('packaged server includes and unpacks the complete ONNX runtime pair', () =
   for (const dependency of ['onnxruntime-node', 'onnxruntime-common']) {
     const pattern = `node_modules/${dependency}/**/*`;
     assert.ok(packageJson.build.files.includes(pattern), `${dependency} must be packaged`);
-    assert.ok(packageJson.build.asarUnpack.includes(pattern), `${dependency} must be unpacked beside its runtime peer`);
+    assert.ok(
+      packageJson.build.asarUnpack.includes(pattern),
+      `${dependency} must be unpacked beside its runtime peer`
+    );
   }
 });
 
@@ -18,21 +21,20 @@ test('packaged server includes sharp with its nested runtime dependencies', () =
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8')) as {
     build: { files: string[]; asarUnpack: string[] };
   };
-  const runtimePackages = [
-    'sharp',
-    'color',
-    'color-convert',
-    'color-name',
-    'color-string',
-    'simple-swizzle',
-    'is-arrayish',
-    'detect-libc',
-  ];
+  // sharp >= 0.34 replaced the `color`/`simple-swizzle` family with `@img/*`
+  // platform packages (libvips + colour); detect-libc stays a runtime dependency.
+  const runtimePackages = ['sharp', '@img', 'detect-libc'];
 
   for (const dependency of runtimePackages) {
     const pattern = `node_modules/${dependency}/**/*`;
-    assert.ok(packageJson.build.files.includes(pattern), `${dependency} must be packaged for sharp`);
-    assert.ok(packageJson.build.asarUnpack.includes(pattern), `${dependency} must be unpacked beside sharp`);
+    assert.ok(
+      packageJson.build.files.includes(pattern),
+      `${dependency} must be packaged for sharp`
+    );
+    assert.ok(
+      packageJson.build.asarUnpack.includes(pattern),
+      `${dependency} must be unpacked beside sharp`
+    );
   }
 });
 
@@ -47,14 +49,24 @@ test('package command runs artifact smoke check after electron-builder', () => {
     scripts: Record<string, string>;
     build: {
       mac: Record<string, unknown>;
-      linux: { target: Array<{ target: string; arch: string[] }>; artifactName: string; executableName: string };
+      linux: {
+        target: Array<{ target: string; arch: string[] }>;
+        artifactName: string;
+        executableName: string;
+      };
     };
   };
   const artifactCheckScript = fs.readFileSync('scripts/check-package-artifacts.mjs', 'utf8');
   const buildWorkflow = fs.readFileSync('.github/workflows/build.yml', 'utf8');
 
-  assert.equal(packageJson.scripts['smoke:package-artifacts'], 'node scripts/check-package-artifacts.mjs');
-  assert.match(packageJson.scripts.package, /node scripts\/package-electron\.mjs && npm run smoke:package-artifacts/);
+  assert.equal(
+    packageJson.scripts['smoke:package-artifacts'],
+    'node scripts/check-package-artifacts.mjs'
+  );
+  assert.match(
+    packageJson.scripts.package,
+    /node scripts\/package-electron\.mjs && npm run smoke:package-artifacts/
+  );
   assert.equal(packageJson.build.mac.identity, undefined);
   assert.equal(packageJson.build.mac.hardenedRuntime, true);
   assert.equal(packageJson.build.mac.notarize, true);
