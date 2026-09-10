@@ -255,7 +255,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 188 | 前端传输收敛（统一 request/config-client/组件裸 fetch 入 client/compat shim 清理） | TODO | — |
 | 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | TODO | 186 |
 | 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | TODO | 186, 187 |
-| 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | TODO | — |
+| 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | DONE（13 项归档；pre-commit node 直调+prepare；CI format 门已加——全仓 format 在收尾统一执行后转绿；env 实为 11 个 INKFLOW_*） | — |
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | TODO | — |
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | TODO | 175 |
