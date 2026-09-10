@@ -18,6 +18,7 @@ type MockDrawerProps = {
 const mocks = vi.hoisted(() => ({
   getNovel: vi.fn(),
   listChapters: vi.fn(),
+  getChapter: vi.fn(),
   updateChapter: vi.fn(),
   drawerPropsHistory: [] as MockDrawerProps[],
   worldPropsHistory: [] as Array<{ capabilityLaunchIntent?: WorldCapabilityLaunchIntent | null }>,
@@ -29,6 +30,7 @@ vi.mock('../lib/api', () => ({
   createNovel: vi.fn(),
   generateStoryCards: vi.fn(),
   getNovel: mocks.getNovel,
+  getChapter: mocks.getChapter,
   listChapters: mocks.listChapters,
   listSkills: vi.fn().mockResolvedValue([]),
   refineSetupTask: vi.fn(),
@@ -136,6 +138,8 @@ describe('AppShell project assistant wiring', () => {
     mocks.getNovel.mockReset();
     mocks.listChapters.mockReset();
     mocks.listChapters.mockResolvedValue([]);
+    mocks.getChapter.mockReset();
+    mocks.getChapter.mockResolvedValue(undefined);
     mocks.updateChapter.mockReset();
     mocks.drawerPropsHistory.length = 0;
     mocks.worldPropsHistory.length = 0;
@@ -269,9 +273,10 @@ describe('AppShell project assistant wiring', () => {
 
   test('assistant selection replacement passes the chapter quality gate before saving', async () => {
     const { toast } = await import('../lib/toast');
-    mocks.listChapters.mockResolvedValue([
+    // AppShell locates the target chapter via getChapter (single-row read).
+    mocks.getChapter.mockResolvedValue(
       { id: 'chapter-a', novelId: novelA.id, title: '第一章', content: '现有的短正文。', wordCount: 8, createdAt: 1, updatedAt: 1 },
-    ]);
+    );
     useAppStore.setState({ isAIAssistantOpen: true, currentView: 'editor', workspaceFocus: 'editor' });
     useNovelStore.setState({
       assistantLaunchContext: {
