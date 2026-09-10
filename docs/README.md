@@ -14,6 +14,10 @@
 
 - [2026-09-05 首章生成体验整合](prd/2026-09-05-generation-entry-consolidation.md) — P0/P1 已实施；遗留 3 项验收子项与后续 PRD 见 [2026-09-05 生成链路遗留项](prd/2026-09-05-generation-follow-ups.md)
 
+## archive/ 索引
+
+- `archive/2026-08-reports/` — 2026-08 根目录历史评估报告（产品体验审计 md/html/pdf、横纵分析 md/html/pdf、PRODUCT/PROJECT 评估、测试审计/报告、implementation_plan）及 `.github` CI build-trigger 记录，2026-09-10 自根目录归档。
+
 ## 维护规则
 
 1. 新 PRD 一律放 `prd/`，根目录不再散落 md；

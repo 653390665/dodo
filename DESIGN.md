@@ -21,13 +21,14 @@ All colors use OKLCH. Warm-tinted neutrals (hue 60) with a single accent hue (35
 | `theme-sidebar` | `oklch(0.17 0.008 60)` | Sidebar, cards |
 | `theme-border` | `oklch(0.24 0.008 60)` | Borders, dividers |
 | `theme-text` | `oklch(0.88 0.005 60)` | Primary text |
-| `theme-muted` | `oklch(0.52 0.005 60)` | Secondary text |
+| `theme-muted` | `oklch(0.62 0.005 60)` | Secondary text |
 | `theme-accent` | `oklch(0.78 0.08 45)` | Primary accent (lighter warm) |
 
 ### Rules
 - Never use pure `#000` or `#fff` — all neutrals are warm-tinted
 - Chroma reduces as lightness approaches 0 or 100
 - Accent is used sparingly (≤10% of surface area)
+- Dark `theme-muted` 从 0.52 提亮至 0.62 以满足 AA（4.5:1）对比度（2026-08 前后的对比度修复，见 src/index.css 注释）
 
 ## Typography
 

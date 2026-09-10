@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - name: Check formatting
+        run: npx prettier --check "src/**/*.{ts,tsx,css,json}" "server/**/*.ts" "shared/**/*.ts" "server.ts"
       - name: Audit production dependencies
         run: |
           set +e
