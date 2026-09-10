@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolvePromptAssetForSurface } from '../src/lib/prompt-runtime';
+import { resolvePromptAssetForSurface } from '../shared/lib/prompt-runtime';
 
 test('resolvePromptAssetForSurface maps welcome to the story card discovery asset', () => {
   const asset = resolvePromptAssetForSurface({

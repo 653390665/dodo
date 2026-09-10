@@ -6,7 +6,7 @@ import {
   getSkillRoleTags,
   normalizeRoleKey,
   collectSkillRoleKeys,
-} from '../src/lib/skill-language';
+} from '../shared/lib/skill-language';
 
 describe("skill-extraction", () => {
 test('getSkillRoleLabel maps primary dimension to writing-role language', () => {

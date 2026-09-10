@@ -4,7 +4,7 @@ import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaun
 import type { CapabilityLaunchState, CapabilityUtilityResult, WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../shared/types';
 import type { ProductEventSourceType } from '../../shared/types/product-events';
 import { cn } from '../lib/utils';
-import { deriveLlmAvailability } from '../lib/llm-availability';
+import { fetchLlmConfig } from '../lib/config-client';
 import type { AgentContext } from '../lib/agents';
 import { Check, Loader2, X } from 'lucide-react';
 import { ChapterSidebar } from './ChapterSidebar';
@@ -36,7 +36,7 @@ import { useChapterUndo } from '../lib/hooks/useChapterUndo';
 import { useEditorUiState } from '../lib/hooks/useEditorUiState';
 import { useEditorContinuationPacks } from '../lib/hooks/useEditorContinuationPacks';
 import { toast } from '../lib/toast';
-import { buildCreationIntentDraft } from '../lib/continuation-pack';
+import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 import { confirmWritingStyle, resolveWritingStyle, WritingStyleRequestError } from '../lib/writing-style-client';
 import { recordProductEvent } from '../lib/product-events-client';
 import { getTrustedSessionCardIds, type GovernanceStage } from '../lib/capability-governance';
@@ -1225,15 +1225,11 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/config', { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
+    fetchLlmConfig({ signal: controller.signal })
+      .then(({ config, availability }) => {
         if (controller.signal.aborted) return;
-        setConnectionState(deriveLlmAvailability(data));
-        setEmbeddingStatus(data.embeddingStatus?.status || 'unknown');
+        setConnectionState(availability);
+        setEmbeddingStatus(config.embeddingStatus?.status || 'unknown');
       })
       .catch((error) => {
         if (!(error instanceof Error && error.name === 'AbortError')) setConnectionState('unknown');

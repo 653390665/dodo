@@ -1,5 +1,5 @@
 import type { ChapterProductionRun } from '../../shared/types';
-import type { PromptSurface } from './prompt-stage-routing';
+import type { PromptSurface } from '../../shared/lib/prompt-stage-routing';
 import { readSseEvents, SseParseError } from './sse-client';
 import type { WritingStyleResolution, WritingStyleCandidate } from './writing-style-client';
 

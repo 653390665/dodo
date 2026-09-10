@@ -4,7 +4,7 @@ import {
   buildStoryStateLedger,
   summarizeStoryStateLedger,
   buildLedgerPromptFacts,
-} from '../src/lib/story-state-ledger';
+} from '../shared/lib/story-state-ledger';
 import type {
   Chapter,
   Character,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildContinuationOverviewState } from '../src/lib/continuation-overview';
-import { buildCreationIntentDraft } from '../src/lib/continuation-pack';
+import { buildCreationIntentDraft } from '../shared/lib/continuation-pack';
 import { ContinuationOverviewPanel } from '../src/components/ContinuationOverviewPanel';
 import type { ContinuationPack } from '../shared/types';
 

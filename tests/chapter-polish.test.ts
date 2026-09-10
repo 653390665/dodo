@@ -10,10 +10,10 @@ import {
   selectRewriteTargetsForPatch,
   validatePolishCandidate,
 } from '../src/lib/chapter-polish';
-import { buildRewritePrompt } from '../src/lib/rewrite-prompt';
-import { scoreSlop, slopSummary } from '../src/lib/slop-scorer';
-import { buildCapabilityPolishPreview, buildSlopContextRewritePrompt, buildSlopRewritePreview } from '../src/lib/slop-rewriter';
-import { StructuredAuditIssue } from '../src/lib/audit-structured';
+import { buildRewritePrompt } from '../shared/lib/rewrite-prompt';
+import { scoreSlop, slopSummary } from '../shared/lib/slop-scorer';
+import { buildCapabilityPolishPreview, buildSlopContextRewritePrompt, buildSlopRewritePreview } from '../shared/lib/slop-rewriter';
+import { StructuredAuditIssue } from '../shared/lib/audit-structured';
 import { embedStructuredAudit } from '../shared/lib/audit-structured';
 import { SAMPLE_MOCKS } from '../scripts/run-chapter-acceptance';
 import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile } from '../shared/lib/prompt-assets-governed';

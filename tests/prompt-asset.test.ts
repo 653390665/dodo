@@ -5,7 +5,7 @@ import {
   PROMPT_STAGE_ORDER,
   buildPromptAssetMap,
   getPromptAssetsByStage,
-} from '../src/lib/prompt-assets';
+} from '../shared/lib/prompt-assets';
 
 test('prompt asset map exposes all six stages in stable order', () => {
   assert.deepEqual(PROMPT_STAGE_ORDER, [

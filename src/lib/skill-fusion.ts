@@ -5,8 +5,8 @@ import type {
   SkillUsageRecord,
   SkillDimension,
 } from '../../shared/types';
-import { getAcceptedPreferenceRoles, getRejectedPreferenceRoles } from './preference-flywheel';
-import { collectSkillRoleKeys } from './skill-language';
+import { getAcceptedPreferenceRoles, getRejectedPreferenceRoles } from '../../shared/lib/preference-flywheel';
+import { collectSkillRoleKeys } from '../../shared/lib/skill-language';
 
 export interface FusionSuggestionPair {
   mainSkill: Skill;

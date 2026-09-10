@@ -1,8 +1,8 @@
 import { Sparkles } from 'lucide-react';
 
-import { getSkillRoleLabel } from '../../lib/skill-language';
+import { getSkillRoleLabel } from '../../../shared/lib/skill-language';
 import type { Skill } from '../../../shared/types';
-import type { SkillFitResult } from '../../lib/skill-model';
+import type { SkillFitResult } from '../../../shared/lib/skill-model';
 
 interface FusionSuggestionBannerProps {
   mainSkill: Skill;

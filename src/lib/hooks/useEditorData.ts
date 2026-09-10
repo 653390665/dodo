@@ -7,7 +7,7 @@ import {
   listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
   getNovel, subscribeToChanges, listEntityRelationshipsClient
 } from '../api';
-import { resolveSkillLoadout } from '../skill-model';
+import { resolveSkillLoadout } from '../../../shared/lib/skill-model';
 import { clearStaleEditorWrites, hasPendingWriteForExactKey } from '../editor-write-queue';
 import { normalizeProjectPreferenceProfile } from '../../../shared/lib/project-preference-profile';
 import { getDatabaseGenerationSnapshot } from '../db-transport';

@@ -23,10 +23,11 @@ import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration, subsc
 import type { ArtifactCandidate, CharacterCore, StructuredWorldCore } from '../../shared/types/creative-artifacts';
 import { parseDocAsync } from '../lib/prompt-client';
 import { startWorldJob } from '../lib/world-job-client';
+import { decideArtifactCandidate, dismissCapabilityRecommendation, fetchArtifactGovernance, fetchCapabilityRecommendationDismissed } from '../lib/world-governance-client';
 
 import { cn } from '../lib/utils';
 import { buildContinuationOverviewState } from '../lib/continuation-overview';
-import { buildCreationIntentDraft } from '../lib/continuation-pack';
+import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 import { WorldBibleOnboarding } from './WorldBibleOnboarding';
 import { ContinuationOverviewPanel } from './ContinuationOverviewPanel';
 import { ContinuationPackView } from './ContinuationPackView';
@@ -251,13 +252,8 @@ export function WorldBibleView({
     if (pending.length === 0) return () => { cancelled = true; };
     void getDatabaseGenerationSnapshot().then(async (databaseGeneration) => {
       const dismissed = await Promise.all(pending.map(async (result) => {
-        const response = await fetch('/api/capability-recommendations/dismissed', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildCapabilityRecommendationDismissal(result, novel.id, databaseGeneration)),
-        });
-        if (!response.ok) return undefined;
-        const body = await response.json() as { dismissed?: boolean };
-        return body.dismissed ? result.fingerprint : undefined;
+        const isDismissed = await fetchCapabilityRecommendationDismissed(buildCapabilityRecommendationDismissal(result, novel.id, databaseGeneration));
+        return isDismissed ? result.fingerprint : undefined;
       }));
       if (!cancelled) setDismissedCharacterRecommendations((current) => new Set([...current, ...dismissed.filter((value): value is string => Boolean(value))]));
     }).catch(() => {});
@@ -266,12 +262,7 @@ export function WorldBibleView({
 
   const dismissCharacterRecommendation = async (result: ReturnType<typeof buildCapabilityRecommendations>) => {
     const databaseGeneration = await getDatabaseGenerationSnapshot();
-    const response = await fetch('/api/capability-recommendations/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildCapabilityRecommendationDismissal(result, novel.id, databaseGeneration)),
-    });
-    if (!response.ok) throw new Error('暂时无法忽略该推荐');
+    await dismissCapabilityRecommendation(buildCapabilityRecommendationDismissal(result, novel.id, databaseGeneration));
     setDismissedCharacterRecommendations((current) => new Set(current).add(result.fingerprint));
   };
 
@@ -280,20 +271,11 @@ export function WorldBibleView({
     try {
       const beforeGeneration = await getDatabaseGenerationSnapshot();
       if (!Number.isInteger(beforeGeneration)) throw new Error('设定读取缺少有效数据库代次，请刷新后重试。');
-      const fetchGovernance = async <T,>(url: string, label: string): Promise<T> => {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`${label}读取失败（${response.status}），请刷新后重试。`);
-        try {
-          return await response.json() as T;
-        } catch {
-          throw new Error(`${label}响应无效，请刷新后重试。`);
-        }
-      };
-      const characterGovernancePromise = fetchGovernance<{
+      const characterGovernancePromise = fetchArtifactGovernance<{
         cores: Array<{ artifactId: string; version: number; core: CharacterCore }>;
         candidates: Array<ArtifactCandidate<CharacterCore>>;
       }>(`/api/novels/${encodeURIComponent(novel.id)}/artifacts?kind=character&status=pending`, '角色治理');
-      const worldGovernancePromise = fetchGovernance<{
+      const worldGovernancePromise = fetchArtifactGovernance<{
         cores: Array<{ artifactId: string; version: number; core: StructuredWorldCore }>;
         candidates: Array<ArtifactCandidate<StructuredWorldCore>>;
       }>(`/api/novels/${encodeURIComponent(novel.id)}/artifacts?kind=world&status=pending`, '世界治理');
@@ -664,11 +646,7 @@ export function WorldBibleView({
   const decideCharacterCandidate = async (candidate: ArtifactCandidate<CharacterCore>, action: 'accept' | 'reject') => {
     try {
       const databaseGeneration = await getDatabaseGenerationSnapshot();
-      const response = await fetch(`/api/novels/${encodeURIComponent(novel.id)}/artifacts/candidates/${encodeURIComponent(candidate.id)}/${action}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ databaseGeneration }),
-      });
-      const result = await response.json() as { error?: string; core?: { core: CharacterCore; version: number } };
-      if (!response.ok) throw new Error(result.error || '角色候选处理失败');
+      const result = await decideArtifactCandidate<CharacterCore>(novel.id, candidate.id, action, databaseGeneration);
       setCharacterCandidatesById((current) => {
         const next = { ...current };
         delete next[candidate.target.id];
@@ -688,11 +666,7 @@ export function WorldBibleView({
     try {
       setWorldCandidateError(null);
       const databaseGeneration = await getDatabaseGenerationSnapshot();
-      const response = await fetch(`/api/novels/${encodeURIComponent(novel.id)}/artifacts/candidates/${encodeURIComponent(candidate.id)}/${action}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ databaseGeneration }),
-      });
-      const result = await response.json() as { error?: string; core?: { core: StructuredWorldCore; version: number } };
-      if (!response.ok) throw new Error(result.error || '世界观候选处理失败');
+      const result = await decideArtifactCandidate<StructuredWorldCore>(novel.id, candidate.id, action, databaseGeneration);
       setWorldCandidate(null);
       if (action === 'accept' && result.core) setWorldCore(result.core);
     } catch (error) {

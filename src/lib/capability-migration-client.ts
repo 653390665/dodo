@@ -1,5 +1,10 @@
-export class CapabilityMigrationError extends Error {
-  constructor(public readonly code: string, public readonly status: number, message: string) { super(message); this.name = 'CapabilityMigrationError'; }
+import { HttpApiError, request as requestHttp } from './http';
+
+export class CapabilityMigrationError extends HttpApiError {
+  constructor(public readonly code: string, public readonly status: number, message: string) {
+    super(message, status, code);
+    this.name = 'CapabilityMigrationError';
+  }
 }
 
 export type CapabilityMigrationPreview = {
@@ -16,12 +21,16 @@ export type CapabilityMigrationPreview = {
   databaseGeneration: number;
 };
 
-async function request<T>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const payload = await response.json().catch(() => ({})) as { code?: string; error?: string } & T;
-  if (!response.ok) throw new CapabilityMigrationError(payload.code || `HTTP_${response.status}`, response.status, payload.error || '能力迁移失败');
-  return payload;
-}
+const request = async <T>(url: string, body: unknown): Promise<T> => {
+  try {
+    return await requestHttp<T>(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new CapabilityMigrationError(error.code || `HTTP_${error.status}`, error.status, error.message);
+    }
+    throw error;
+  }
+};
 
 export function previewCapabilityMigration(novelId: string, databaseGeneration: number): Promise<CapabilityMigrationPreview> {
   return request(`/api/novels/${encodeURIComponent(novelId)}/capabilities/migration/preview`, { databaseGeneration });

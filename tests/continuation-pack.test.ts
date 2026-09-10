@@ -4,7 +4,7 @@ import {
   buildContinuationContext,
   buildCreationIntentDraft,
   classifyContinuationSource,
-} from '../src/lib/continuation-pack';
+} from '../shared/lib/continuation-pack';
 import type { ContinuationPack } from '../shared/types';
 
 describe("continuation", () => {

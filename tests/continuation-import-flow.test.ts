@@ -6,7 +6,7 @@ import {
   buildImportedNovelDraft,
   canApproveContinuationImportPack,
   resolveContinuationImportTargetMode,
-} from '../src/lib/continuation-import-flow';
+} from '../shared/lib/continuation-import-flow';
 import type { ContinuationPack, Novel } from '../shared/types';
 
 function buildNovel(id: string): Novel {

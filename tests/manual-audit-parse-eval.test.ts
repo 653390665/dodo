@@ -9,7 +9,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAuditFiveDim, parseAuditResponseWithDiagnostics } from '../src/lib/audit-structured';
+import { parseAuditFiveDim, parseAuditResponseWithDiagnostics } from '../shared/lib/audit-structured';
 
 // ── Evaluation cases ──────────────────────────────────────────────────
 

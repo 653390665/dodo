@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildSkillDeckFromEvidence } from '../src/lib/book-skill-aggregation';
+import { buildSkillDeckFromEvidence } from '../shared/lib/book-skill-aggregation';
 
 test('buildSkillDeckFromEvidence outputs one main card and bounded support cards with evidence coverage', () => {
   const deck = buildSkillDeckFromEvidence([

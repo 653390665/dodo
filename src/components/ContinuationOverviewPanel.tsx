@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, FileWarning, Upload, Eye } from 'lucide-react';
 
-import { buildCreationIntentDraft } from '../lib/continuation-pack';
+import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 
 import type { ContinuationOverviewState } from '../../shared/types';
 

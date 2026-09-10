@@ -9,7 +9,7 @@ import {
   resolveSkillLoadout,
   summarizeUsageStats,
   evaluateSkillGovernance,
-} from '../src/lib/skill-model';
+} from '../shared/lib/skill-model';
 import type { SkillUsageRecord } from '../shared/types';
 
 describe("skill-extraction", () => {

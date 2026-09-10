@@ -4,7 +4,7 @@ import test, { describe } from 'node:test';
 import {
   buildContinuationPackParseAttempts,
   buildContinuationPackPrompt,
-} from '../src/lib/continuation-pack-parse';
+} from '../shared/lib/continuation-pack-parse';
 
 describe("continuation", () => {
 test('buildContinuationPackParseAttempts uses an aggressive shrinking ladder for MiniMax', () => {

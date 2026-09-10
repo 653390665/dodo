@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ModelJsonSyntaxError, ModelJsonTruncatedError, parseModelJsonPayload, parseModelJsonPayloadStrict } from '../src/lib/model-json';
+import { ModelJsonSyntaxError, ModelJsonTruncatedError, parseModelJsonPayload, parseModelJsonPayloadStrict } from '../shared/lib/model-json';
 
 test('parseModelJsonPayload parses clean json wrapped in markdown fences', () => {
   const payload = parseModelJsonPayload<any>(`

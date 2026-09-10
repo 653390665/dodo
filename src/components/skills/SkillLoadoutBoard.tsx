@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 
 import { deriveSkillFitNeeds } from '../../lib/skill-fit-language';
-import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
-import { calculateSkillFitScore, getSkillScoreChannels } from '../../lib/skill-model';
+import { getSkillRoleLabel, getSkillRoleTags } from '../../../shared/lib/skill-language';
+import { calculateSkillFitScore, getSkillScoreChannels } from '../../../shared/lib/skill-model';
 import { normalizeProjectPreferenceProfile } from '../../../shared/lib/project-preference-profile';
 import type {
   Chapter,

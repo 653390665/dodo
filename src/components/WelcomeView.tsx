@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Sliders, Sparkles, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { deriveLlmAvailability, LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
+import { LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
+import { fetchLlmConfig } from '../lib/config-client';
 
 import { listNovels } from '../lib/novel-client';
 import { useStoryCards } from '../hooks/useStoryCards';
@@ -160,14 +161,10 @@ export function WelcomeView({
       setTotalNovelCount(novels.length);
       setRecentNovels(novels.slice().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3));
     });
-    fetch('/api/config')
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`config:${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        setLlmAvailability(deriveLlmAvailability(data));
-        setEmbeddingStatus(data.embeddingStatus?.status || 'unknown');
+    fetchLlmConfig()
+      .then(({ config, availability }) => {
+        setLlmAvailability(availability);
+        setEmbeddingStatus(config.embeddingStatus?.status || 'unknown');
       })
       .catch(() => setLlmAvailability('unknown'));
   }, []);

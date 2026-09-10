@@ -13,7 +13,7 @@ import {
   diagnoseAuditContract,
   parseAuditResponseWithDiagnostics,
   AuditScores,
-} from '../src/lib/audit-structured';
+} from '../shared/lib/audit-structured';
 import { buildAuditWindow } from '../server/helpers/prompt-helpers';
 import { extractPolishTargetsFromCritique, selectRewriteTargetsForPatch } from '../src/lib/chapter-polish';
 

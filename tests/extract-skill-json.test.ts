@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractJsonPayload } from '../src/lib/extract-skill-json';
+import { extractJsonPayload } from '../shared/lib/extract-skill-json';
 
 test('extract skill JSON parser should ignore markdown fences and leading chatter', () => {
   const payload = extractJsonPayload(`

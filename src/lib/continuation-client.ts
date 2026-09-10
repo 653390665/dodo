@@ -3,6 +3,7 @@ import type { SyncExtractionResult } from '../../shared/lib/sync-extract-prompt'
 import type { RelationshipRecommendation, RelationshipRepairInput, RelationshipEntityType } from '../../shared/lib/relationship-repair';
 import { call, getDatabaseGenerationSnapshot } from './db-transport';
 import { recordProductEvent } from './product-events-client';
+import { HttpApiError, request } from './http';
 
 export type RelationshipRepairRecommendation = RelationshipRecommendation;
 
@@ -24,13 +25,20 @@ export async function recommendRelationshipRepairs(payload: {
   relationships: RelationshipRepairInput[];
   candidates: Record<RelationshipEntityType, string[]>;
 }): Promise<{ recommendations: RelationshipRepairRecommendation[] }> {
-  const response = await fetch('/api/continuation-packs/recommend-relationship-repairs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({})) as { recommendations?: RelationshipRepairRecommendation[]; error?: string };
-  if (!response.ok || !Array.isArray(data.recommendations)) throw new Error(data.error || `推荐失败（HTTP ${response.status}）`);
+  let data: { recommendations?: RelationshipRepairRecommendation[]; error?: string } | null;
+  try {
+    data = await request<typeof data>('/api/continuation-packs/recommend-relationship-repairs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (error instanceof HttpApiError && error.message === `HTTP ${error.status}`) {
+      throw new Error(`推荐失败（HTTP ${error.status}）`, { cause: error });
+    }
+    throw error;
+  }
+  if (!Array.isArray(data?.recommendations)) throw new Error(data?.error || '推荐失败（HTTP 200）');
   return { recommendations: data.recommendations };
 }
 

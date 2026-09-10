@@ -1,4 +1,4 @@
-import { extractStructuredAudit } from './audit-structured';
+import { extractStructuredAudit } from '../../shared/lib/audit-structured';
 
 export interface PolishTargetWindow {
   start: number;

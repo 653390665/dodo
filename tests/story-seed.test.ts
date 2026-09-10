@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessStorySeedQuality, sanitizeIdeaSeed } from '../src/lib/story-seed';
+import { assessStorySeedQuality, sanitizeIdeaSeed } from '../shared/lib/story-seed';
 
 test('sanitizeIdeaSeed strips author-intent prefixes', () => {
   assert.equal(sanitizeIdeaSeed('我想写一个雨夜酒馆里的复仇故事'), '雨夜酒馆里的复仇故事');

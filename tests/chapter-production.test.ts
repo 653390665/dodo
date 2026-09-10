@@ -8,7 +8,7 @@ import {
   buildProductionExecutionReceipt,
   getNextChapterOrder,
   normalizeProductionIntent,
-} from '../src/lib/chapter-production';
+} from '../shared/lib/chapter-production';
 import type { Chapter, StoryStateLedger } from '../shared/types';
 
 describe("production", () => {

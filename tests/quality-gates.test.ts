@@ -9,7 +9,7 @@ import {
   scoreSkillOutputAnchoring,
   evaluateSkillFieldCompleteness,
   evaluateSkillOutputQuality,
-} from '../src/lib/quality-gates';
+} from '../shared/lib/quality-gates';
 
 // ============================================================================
 // Layer 1: Input Gate tests

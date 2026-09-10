@@ -1,24 +1,27 @@
 import type { CapabilityManifestEntry, CapabilityUtilityExecuteInput, CapabilityUtilityResult } from '../../shared/types';
+import { HttpApiError, request as requestHttp } from './http';
 
-export class CapabilityRequestError extends Error {
+export class CapabilityRequestError extends HttpApiError {
   constructor(
     public readonly code: string,
     public readonly status: number,
     message: string,
   ) {
-    super(message);
+    super(message, status, code);
     this.name = 'CapabilityRequestError';
   }
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  const payload = await response.json().catch(() => ({})) as T & { code?: string; error?: string };
-  if (!response.ok) {
-    throw new CapabilityRequestError(payload.code || 'CAPABILITY_REQUEST_FAILED', response.status, payload.error || '能力执行失败');
+const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  try {
+    return await requestHttp<T>(url, init);
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new CapabilityRequestError(error.code || 'CAPABILITY_REQUEST_FAILED', error.status, error.message);
+    }
+    throw error;
   }
-  return payload;
-}
+};
 
 export function executeCapability(
   novelId: string,

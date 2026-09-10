@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectPromptStageForSurface } from '../src/lib/prompt-stage-routing';
+import { selectPromptStageForSurface } from '../shared/lib/prompt-stage-routing';
 
 test('selectPromptStageForSurface routes onboarding to discovery or foundation', () => {
   assert.equal(selectPromptStageForSurface('welcome'), 'discovery');

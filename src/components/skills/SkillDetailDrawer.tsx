@@ -3,8 +3,8 @@ import { BookOpen, Cpu, GitBranch, Layers, Loader2, Save, Sparkles, X } from 'lu
 
 import { subscribeToChanges } from '../../lib/db-transport';
 import { createSkill, listSkillUsageRecords, listSkillVersions, updateSkill } from '../../lib/skill-client';
-import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
-import { summarizeUsageStats } from '../../lib/skill-model';
+import { getSkillRoleLabel, getSkillRoleTags } from '../../../shared/lib/skill-language';
+import { summarizeUsageStats } from '../../../shared/lib/skill-model';
 import { cn } from '../../lib/utils';
 import type { Skill, SkillDimension, SkillUsageStats } from '../../../shared/types';
 import { SkillFusionWorkbench } from './SkillFusionWorkbench';

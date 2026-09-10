@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Trash2, Zap } from 'lucide-react';
 
-import { getSkillRoleLabel, getSkillRoleTags } from '../../lib/skill-language';
+import { getSkillRoleLabel, getSkillRoleTags } from '../../../shared/lib/skill-language';
 import { cn } from '../../lib/utils';
 import type { Skill, Novel } from '../../../shared/types';
 

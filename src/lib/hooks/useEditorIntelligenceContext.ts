@@ -22,7 +22,7 @@ import type { AgentContext, SceneType } from '../agents';
 import { buildCopilotSuggestion } from '../copilot-stage';
 import { getPreferredContinuationPack } from '../continuation-pack-selection';
 import { getProjectCapabilityCardIds } from '../capability-card-count';
-import { calculateSkillFitScore } from '../skill-model';
+import { calculateSkillFitScore } from '../../../shared/lib/skill-model';
 import { deriveSkillFitNeeds } from '../skill-fit-language';
 
 interface UseEditorIntelligenceContextArgs {

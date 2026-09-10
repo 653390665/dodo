@@ -13,7 +13,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { scoreSlop, slopSummary } from '../src/lib/slop-scorer';
+import { scoreSlop, slopSummary } from '../shared/lib/slop-scorer';
 import {
   extractPolishTargetsFromCritique,
   selectRewriteTargetsForPatch,

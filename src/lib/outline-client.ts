@@ -1,10 +1,11 @@
 import type { CanonPatch, OutlineArtifact, OutlineArtifactLevel, OutlineArtifactScope, OutlineArtifactSource, OutlineArtifactStatus, CanonPatchOperation } from '../../shared/types/outline-governance';
 import type { CreativeArtifactRef } from '../../shared/types/creative-artifacts';
+import { HttpApiError, request as requestHttp } from './http';
 export { getDatabaseGenerationSnapshot } from './db-transport';
 
-export class OutlineClientError extends Error {
+export class OutlineClientError extends HttpApiError {
   constructor(public readonly code: string, public readonly status: number, message: string) {
-    super(message);
+    super(message, status, code);
     this.name = 'OutlineClientError';
   }
 }
@@ -19,12 +20,16 @@ function emit(novelId: string) {
   listeners.forEach((listener) => listener({ type: 'outline-governance-change', novelId }));
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  const payload = await response.json().catch(() => ({})) as T & { code?: string; error?: string };
-  if (!response.ok) throw new OutlineClientError(payload.code || 'OUTLINE_REQUEST_FAILED', response.status, payload.error || `Request failed with status ${response.status}`);
-  return payload as T;
-}
+const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  try {
+    return await requestHttp<T>(url, init);
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new OutlineClientError(error.code || 'OUTLINE_REQUEST_FAILED', error.status, error.message);
+    }
+    throw error;
+  }
+};
 const json = (body: unknown): RequestInit => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 export function listOutlines(novelId: string, filters: { level?: OutlineArtifactLevel; status?: OutlineArtifactStatus } = {}, databaseGeneration?: number) {

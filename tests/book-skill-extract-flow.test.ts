@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { collectSegmentEvidence } from '../src/lib/book-skill-evidence';
+import { collectSegmentEvidence } from '../shared/lib/book-skill-evidence';
 
 test('collectSegmentEvidence merges signals from all extracted skills in one segment', () => {
   const segment = collectSegmentEvidence(

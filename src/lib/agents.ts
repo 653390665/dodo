@@ -1,5 +1,5 @@
 import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, Foreshadowing } from "../../shared/types";
-import type { PromptSurface } from './prompt-stage-routing';
+import type { PromptSurface } from '../../shared/lib/prompt-stage-routing';
 import { pollJob } from './poll-client';
 
 export type SceneType = 'dialogue' | 'action' | 'politics' | 'emotional';

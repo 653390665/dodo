@@ -9,6 +9,7 @@ import {
   type PromptTemplates,
 } from '../../shared/config/prompt-templates';
 import { downloadDbBackup } from '../lib/download-client';
+import { fetchLlmConfig, saveLlmConfig, HttpApiError } from '../lib/config-client';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { SHORTCUTS } from '../lib/keyboard-shortcuts';
 import { clearProductEvents, exportProductEvents, getProductMetrics } from '../lib/product-events-client';
@@ -192,9 +193,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
     setConfigLoadStatus('running');
     setConfigLoadError(null);
     try {
-      const response = await fetch('/api/config');
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || '配置读取失败');
+      const { config: data } = await fetchLlmConfig();
           const nextConfig = {
             apiKey: '',
             baseUrl: data.baseUrl || '',
@@ -336,14 +335,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
           throw new Error(res.error || '保存配置失败');
         }
       } else {
-        const response = await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(config)
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.error) {
-          throw new Error(formatConfigValidationError(data, '保存配置失败'));
+        try {
+          await saveLlmConfig(config);
+        } catch (error) {
+          const data = error instanceof HttpApiError ? error.payload : undefined;
+          throw new Error(formatConfigValidationError(data, '保存配置失败'), { cause: error });
         }
       }
       setBaselineConfig(config);

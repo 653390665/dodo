@@ -1,5 +1,5 @@
 import type { Chapter, Novel, SkillDimension } from '../../shared/types';
-import { getSkillRoleLabel } from './skill-language';
+import { getSkillRoleLabel } from '../../shared/lib/skill-language';
 
 export interface SkillFitNeeds {
   requiredDimensions: SkillDimension[];

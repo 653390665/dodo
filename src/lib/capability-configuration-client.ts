@@ -1,13 +1,14 @@
 import type { ProjectCapabilityProfile } from '../../shared/types';
 import type { CapabilityApplicationItemResult, CapabilityPackageStep } from '../../shared/types/capability-execution';
+import { HttpApiError, request as requestHttp } from './http';
 
-export class CapabilityConfigurationError extends Error {
+export class CapabilityConfigurationError extends HttpApiError {
   constructor(
     public readonly code: string,
     public readonly status: number,
     message: string,
   ) {
-    super(message);
+    super(message, status, code);
     this.name = 'CapabilityConfigurationError';
   }
 }
@@ -17,18 +18,20 @@ type ConfigurationPayload = {
   capabilityProfile: ProjectCapabilityProfile;
 };
 
-async function request<T>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const payload = await response.json().catch(() => ({})) as { code?: string; error?: string } & T;
-  if (!response.ok) {
-    throw new CapabilityConfigurationError(payload.code || `HTTP_${response.status}`, response.status, payload.error || '能力配置失败');
+const request = async <T>(url: string, body: unknown): Promise<T> => {
+  try {
+    return await requestHttp<T>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new CapabilityConfigurationError(error.code || `HTTP_${error.status}`, error.status, error.message);
+    }
+    throw error;
   }
-  return payload;
-}
+};
 
 export function previewCapabilityConfiguration(
   novelId: string,

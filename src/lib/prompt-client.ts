@@ -6,7 +6,7 @@ import type {
   AggregatedSkillDeck,
   BookEvidenceSegment,
 } from '../../shared/types';
-import type { PromptSurface } from './prompt-stage-routing';
+import type { PromptSurface } from '../../shared/lib/prompt-stage-routing';
 import { recordProductEvent } from './product-events-client';
 import { readSseStream, SseError } from './sse-client';
 import { getDatabaseGenerationSnapshot } from './db-transport';

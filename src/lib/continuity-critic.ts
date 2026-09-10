@@ -6,7 +6,7 @@ import type {
   ProposedLedgerPatch,
   StoryStateLedger,
 } from '../../shared/types';
-import { summarizeStoryStateLedger } from './story-state-ledger';
+import { summarizeStoryStateLedger } from '../../shared/lib/story-state-ledger';
 
 const VALID_SEVERITIES: ContinuityIssueSeverity[] = ['low', 'medium', 'high'];
 const VALID_CATEGORIES: ContinuityIssueCategory[] = [

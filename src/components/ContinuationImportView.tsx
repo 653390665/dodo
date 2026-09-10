@@ -11,8 +11,8 @@ import {
   canApproveContinuationImportPack,
   isContinuationContradictionResolved,
   resolveContinuationImportTargetMode,
-} from '../lib/continuation-import-flow';
-import { buildCreationIntentDraft } from '../lib/continuation-pack';
+} from '../../shared/lib/continuation-import-flow';
+import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 import { expandContinuationZip } from '../lib/continuation-zip-client';
 import { isSupportedContinuationDocument, sanitizeArchivePath } from '../../shared/lib/archive-limits';
 

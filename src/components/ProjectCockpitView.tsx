@@ -17,7 +17,8 @@ import { getCapabilityManifest, getGovernanceStageForWorkflowPhase, getGovernedS
 import { sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import { getWorkflowDisplay } from '../lib/workflow-display-registry';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
-import { deriveLlmAvailability, LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
+import { LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
+import { fetchLlmConfig } from '../lib/config-client';
 
 interface ProjectCockpitViewProps {
   novel: Novel;
@@ -132,13 +133,9 @@ export function ProjectCockpitView({
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/config', { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
-        if (!controller.signal.aborted) setLlmAvailability(deriveLlmAvailability(data));
+    fetchLlmConfig({ signal: controller.signal })
+      .then(({ availability }) => {
+        if (!controller.signal.aborted) setLlmAvailability(availability);
       })
       .catch((reason) => {
         if (!(reason instanceof Error && reason.name === 'AbortError')) setLlmAvailability('unknown');

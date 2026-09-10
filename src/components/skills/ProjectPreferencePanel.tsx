@@ -1,7 +1,7 @@
 import { Target, TrendingUp } from 'lucide-react';
 
 
-import { getSkillRoleLabel } from '../../lib/skill-language';
+import { getSkillRoleLabel } from '../../../shared/lib/skill-language';
 import type { ProjectPreferenceProfile, SkillDimension } from '../../../shared/types';
 import { normalizeProjectPreferenceProfile } from '../../../shared/lib/project-preference-profile';
 
