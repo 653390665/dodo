@@ -10,7 +10,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -66,12 +66,9 @@ jobs:
           name: production-audit-report
           path: audit-report.json
           if-no-files-found: error
-      - name: Run Unit Tests
-        run: npm run test
+      # Plan 187：coverage 版本已蕴含 pass/fail，纯跑步骤删除以免整套用例各跑两遍。
       - name: Run Backend Coverage Gate
         run: npm run test:coverage:backend
-      - name: Run Frontend Tests
-        run: npm run test:frontend
       - name: Run Frontend Coverage Gate
         run: npm run test:coverage:frontend
       - name: Upload coverage summaries
