@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { listNovels, subscribeToChanges, updateNovel } from '../src/lib/db-client';
-import { DbTransportError, __dbTransportTestHooks } from '../src/lib/db-transport';
+import { DbTransportError, __dbTransportTestHooks, flushPendingNotifications } from '../src/lib/db-transport';
 
 class MockEventSource {
   static OPEN = 1;
@@ -122,6 +122,8 @@ test('subscribeToChanges authorizes and shares one EventSource until the last un
     assert.equal(instance.url, `/api/db/events?token=${'a'.repeat(64)}`);
 
     instance.onmessage?.({} as MessageEvent);
+    // 183：通知经 500ms trailing 窗口合并分发；测试直接冲掉挂起窗口再断言
+    flushPendingNotifications();
     assert.equal(firstCount, 1);
     assert.equal(secondCount, 1);
 

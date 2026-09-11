@@ -16,10 +16,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text-summary', 'json', 'html'],
       thresholds: {
-        statements: 40,
-        branches: 33,
-        functions: 32,
-        lines: 42,
+        // Plan 187 棘轮基线（2026-09-11 实测：59.27/52.5/55.33/61.64，向下取整）
+        statements: 59,
+        branches: 52,
+        functions: 55,
+        lines: 61,
       },
     },
   },

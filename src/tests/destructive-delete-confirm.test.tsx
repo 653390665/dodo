@@ -21,6 +21,9 @@ vi.mock('../lib/foreshadowing-client', () => ({
 
 vi.mock('../lib/chapter-client', () => ({
   listChapters: vi.fn().mockResolvedValue([]),
+  // ForeshadowingPanel.refresh 会并发调用 listChaptersMetadata；
+  // 缺这个导出会变成 unhandled rejection 拖红整个 coverage 跑批。
+  listChaptersMetadata: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../lib/db-transport', () => ({

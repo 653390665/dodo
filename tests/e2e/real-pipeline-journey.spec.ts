@@ -29,6 +29,19 @@ test('真实生产管线：start-stream → 保底 run → apply → 章节回�
   await page.goto('/');
   await waitForAppReady(page);
 
+  // 向导前快照：用于识别本次向导新建的书（套件共享数据库，可能已有其他书）
+  const knownNovelIds = await page.evaluate(async () => {
+    const tokenResponse = await fetch('/api/dev-auth-token');
+    const { token } = await tokenResponse.json() as { token: string };
+    const rpcResponse = await fetch('/api/db', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'listNovels', args: [] }),
+    });
+    const payload = await rpcResponse.json() as { result?: Array<{ id: string }> };
+    return (payload.result || []).map((entry) => entry.id);
+  });
+
   // ── UI：开书向导（真实本地保底路径）──
   const seedInput = page.locator('#story-seed-input');
   await expect(seedInput).toBeVisible();
@@ -59,7 +72,7 @@ test('真实生产管线：start-stream → 保底 run → apply → 章节回�
   await saveSettled;
 
   // ── 管线：页面会话驱动真实 HTTP 链路 ──
-  const pipeline = await page.evaluate(async () => {
+  const pipeline = await page.evaluate(async (knownIds: string[]) => {
     const tokenResponse = await fetch('/api/dev-auth-token');
     const { token } = await tokenResponse.json() as { token: string };
     const auth = { Authorization: `Bearer ${token}` };
@@ -74,8 +87,9 @@ test('真实生产管线：start-stream → 保底 run → apply → 章节回�
       return payload.result as T;
     };
 
+    // 同套件其他旅程可能已建书：取本次向导新建的那本（不在向导前 id 集合里）
     const novels = await rpc<Array<{ id: string; title: string }>>('listNovels');
-    const novel = novels[novels.length - 1];
+    const novel = novels.find((entry) => !knownIds.includes(entry.id));
     if (!novel) throw new Error('no novel after onboarding');
 
     const generationResponse = await fetch('/api/db/generation', { headers: auth });
@@ -178,7 +192,7 @@ test('真实生产管线：start-stream → 保底 run → apply → 章节回�
       applyCode: applyPayload.code,
       finalContent: finalChapter.content || '',
     };
-  });
+  }, knownNovelIds);
 
   // ── 断言 ──
   expect(pipeline.sawFallbackBeats).toBe(true);

@@ -251,7 +251,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 184 | 渲染与数据生命周期性能（消息 memo/事件保留策略/checkpoint 降频/向量缓存上限） | DONE（变异验证 memo 测试；1.3 input 下沉因计划落点误判跳过为批准偏差；启动钩子置路由注册函数） | — |
 | 185 | 技能目录消毒边界单源化（渲染层只消费生成副本 + 全量新鲜度守卫；含 014 账 #11 收口） | BLOCKED（部分落地已提交：GuardrailPolicyPanel/增强包切副本+新鲜度守卫；capability-governance 切换需产品决策——45 张 sanitize-required 候选是「消毒并启用」特性数据源，副本过滤器刻意剔除；出路 a 砍特性 b 改生成脚本过滤器扩 SANITIZE_REQUIRED_CATALOG） | — |
 | 186 | 测试补强一期：HTTP 契约与持久层危险区（config 空键/deleteChapter/错误映射/EditorView 特征） | DONE（4 新文件+3 改造；后端全量 1170/1170；附带发现 config/sync 疑似无调用方，待另立） | — |
-| 187 | 测试补强二期：四大视图 E2E + 真实管线旅程 + CI 去重与覆盖率棘轮 | TODO | — |
+| 187 | 测试补强二期：四大视图 E2E + 真实管线旅程 + CI 去重与覆盖率棘轮 | DONE（6 步全落：4 视图 journey spec 全真实无 stub——world 走 reload 会话恢复、agent 走「生成本章正文」+「确认本次写法」弹窗链、factory 保底萃取同步返回、cockpit 主推荐卡；real-pipeline HTTP 驱动 3/3 稳定；CI 去重 + timeout 25；前端棘轮 40/33/32/42→59/52/55/61（实测 59.27/52.5/55.33/61.64）；后端口径：24 路由 3 个零挂载（capability-recommendations/chapter-completion/legacy-artifact-structuring），node 原生报告以测试文件为分母、换 c8 仅结论不实施；池韧性实测 threads+1worker RSS 495MB 无 OOM，不换 forks，3 个 unhandled rejection 系 mock 缺 export 已修）。附带发现：①默认章长 4000 字下无 Key 保底草稿必挂质量门（模板重复密度）→ run failed，全链路到 review_required 需意图声明低字数；②Plan 183 的 500ms 合并窗口破坏 db-client 同步断言，测试改用 flushPendingNotifications()（本计划修复）；③生产页签同名按钮 aria 态翻转仍是 UI 驱动脆弱点，管线段按计划降级 HTTP 契约 | 186 |
 | 188 | 前端传输收敛（统一 request/config-client/组件裸 fetch 入 client/compat shim 清理） | DONE（22 shim 全删；裸 fetch 22→12 白名单 8 文件有据；HttpApiError payload 为批准偏差） | — |
 | 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | DONE（db.ts 1136→283；flush 契约以 flush:false 保留；边界矩阵 1 处现行违规显式豁免待产品定夺） | 186 |
 | 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | TODO | 186, 187 |

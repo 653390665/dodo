@@ -13,6 +13,7 @@
 - **Depends on**: none（真实管线 E2E 建议在 Plan 182/182 落地后验收体验）
 - **Category**: tests + dx
 - **Planned at**: commit `0dfbbcf`, 2026-09-10
+- **Executed**: 2026-09-11，6 步全部落地（DONE）。要点与附带发现见 `plans/README.md` 行 187：四视图 journey 全真实无 stub；real-pipeline 按 STOP 前降级条款改 HTTP 契约驱动；前端覆盖率棘轮 59/52/55/61；后端口径 3 个零挂载路由；池韧性实测无需换 forks；顺带修复 Plan 183 合并窗口对 db-client 同步断言的破坏。
 
 ## Why this matters
 
