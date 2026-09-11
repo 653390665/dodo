@@ -14,6 +14,8 @@ export const SHORTCUTS: Record<string, Shortcut> = {
   view3: { key: '3', mod: true, label: 'Cmd+3', desc: '创作工作台' },
   view4: { key: '4', mod: true, label: 'Cmd+4', desc: '作品驾驶舱' },
   view5: { key: '5', mod: true, label: 'Cmd+5', desc: 'AI 协作助手' },
+  // 搜索在输入框聚焦时也必须可唤起（命令面板语义），AppShell 在输入豁免之前处理
+  search: { key: 'k', mod: true, label: 'Cmd+K', desc: '全局语义搜索' },
 };
 
 export function matchesShortcut(e: KeyboardEvent, s: Shortcut): boolean {

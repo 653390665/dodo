@@ -44,6 +44,8 @@ test('vectorStore operations add, search, count, and delete correctly', async ()
     );
     assert.ok(results.length > 0);
     assert.equal(results[0].text, 'first chunk text');
+    // Plan 194：命中需携带 chapterId 供 Cmd+K 检索跳章
+    assert.equal(results[0].chapterId, 'chap-1');
 
     // Delete novel chunks
     deleteNovel(novelId);

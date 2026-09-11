@@ -82,11 +82,11 @@ export function searchSimilar(
   novelId: string,
   queryModelId: string,
   topK: number = 5,
-): Array<{ text: string; score: number }> {
+): Array<{ text: string; score: number; chapterId: string }> {
   const db = getDb();
   const rows = db.prepare(`
-    SELECT id, text, embedding FROM vector_chunks WHERE novel_id = ?
-  `).all(novelId) as Array<{ id: string; text: string; embedding: string }>;
+    SELECT id, chapter_id, text, embedding FROM vector_chunks WHERE novel_id = ?
+  `).all(novelId) as Array<{ id: string; chapter_id: string; text: string; embedding: string }>;
   // 调查项（Plan 184）：检索当前为全表扫描线性余弦。chunk 超过阈值时记录一次，
   // 积累数据后另立计划决定是否引入 sqlite-vec/分块；不做算法替换。
   if (rows.length >= 1_000) {
@@ -109,6 +109,7 @@ export function searchSimilar(
     return {
       text: row.text,
       score: compatible ? cosineSimilarity(queryEmbedding, stored.values) : Number.NEGATIVE_INFINITY,
+      chapterId: row.chapter_id,
     };
   }).filter((row) => Number.isFinite(row.score));
   scored.sort((a, b) => b.score - a.score);

@@ -36,6 +36,7 @@ import { recordProductEvent } from '../lib/product-events-client';
 import type { CapabilityLaunchContext } from '../lib/capability-governance';
 import { getDatabaseGenerationSnapshot } from '../lib/db-transport';
 import { buildV3CapabilityProfile } from '../lib/skills-studio-governance';
+import { QuickSearchOverlay } from './QuickSearchOverlay';
 
 const LOCAL_USER = { uid: 'local-user' };
 type NavigationContext = { targetChapterId?: string; stage?: CapabilityLaunchContext['stage']; capabilityApplied?: boolean; targetFocus?: WorkspaceNavKey; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
@@ -226,6 +227,7 @@ export function AppShell() {
   const [worldCapabilityLaunch, setWorldCapabilityLaunch] = useState<WorldCapabilityLaunchIntent | null>(null);
   const [skillsReturnTarget, setSkillsReturnTarget] = useState<{ view: 'editor' | 'workspace'; targetChapterId?: string }>({ view: 'workspace' });
   const [editorReturnTarget, setEditorReturnTarget] = useState<{ novelId: string; chapterId?: string } | null>(null);
+  const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [editorChapterContext, setEditorChapterContext] = useState<{
     novelId: string;
     chapterId?: string;
@@ -363,6 +365,16 @@ export function AppShell() {
     setContinuationLaunchState(null);
     setCapabilityLaunchState(null);
     setSelectedNovel(novel);
+    setWorkspaceFocus('editor');
+    setCurrentView('editor');
+  };
+
+  // Plan 194 spike：Cmd+K 检索命中 → 定位章节并进入编辑器
+  const jumpToSearchHit = (chapterId: string) => {
+    setIsQuickSearchOpen(false);
+    const novel = useNovelStore.getState().selectedNovel;
+    if (!novel) return;
+    setEditorReturnTarget({ novelId: novel.id, chapterId });
     setWorkspaceFocus('editor');
     setCurrentView('editor');
   };
@@ -505,6 +517,12 @@ export function AppShell() {
       view5: { view: 'ai' },
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      // Cmd+K 命令面板语义：输入框聚焦时也可唤起，必须在输入豁免之前处理
+      if (matchesShortcut(event, SHORTCUTS.search)) {
+        event.preventDefault();
+        setIsQuickSearchOpen(true);
+        return;
+      }
       if (
         event.target instanceof HTMLInputElement
         || event.target instanceof HTMLTextAreaElement
@@ -1246,6 +1264,13 @@ export function AppShell() {
       <Suspense fallback={null}>
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} selectedNovelId={selectedNovel?.id} />
       </Suspense>
+      {isQuickSearchOpen && selectedNovel && (
+        <QuickSearchOverlay
+          novel={selectedNovel}
+          onClose={() => setIsQuickSearchOpen(false)}
+          onJump={jumpToSearchHit}
+        />
+      )}
       <Suspense fallback={null}>
         <PremiumUpgradeModal />
       </Suspense>

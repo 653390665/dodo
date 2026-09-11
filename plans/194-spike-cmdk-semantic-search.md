@@ -10,6 +10,7 @@
 - **Depends on**: Plan 175（快捷键体系与 SettingsModal 快捷键列表已就位）
 - **Category**: direction（design/spike）
 - **Planned at**: commit `0dfbbcf`, 2026-09-10
+- **Executed**: 2026-09-11，DONE（spike 竖切片落地 + 设计文档）。服务端 searchSimilar 仅做 chapterId 投影扩展（story-context 消费点不受影响，vector-store 测试补断言）。关键事实与开放问题见 docs/prd/2026-09-cmdk-semantic-search.md。验证：tsc 0 错误；eslint 0 警告；前端全量 884/884；vector-store 3/3。
 
 ## Why this matters
 

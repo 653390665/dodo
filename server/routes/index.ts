@@ -21,6 +21,7 @@ import { registerCreativeArtifactRoutes } from './creative-artifacts';
 import { registerCreationFlowRoutes } from './creation-flows';
 import { registerCapabilityRecommendationRoutes } from './capability-recommendations';
 import { registerLegacyArtifactStructuringRoutes } from './legacy-artifact-structuring';
+import { registerSearchRoutes } from './search';
 
 /**
  * 注册所有已提取的 API 路由。
@@ -51,4 +52,5 @@ export function registerRoutes(app: Express) {
   registerCreationFlowRoutes(app);
   registerCapabilityRecommendationRoutes(app);
   registerLegacyArtifactStructuringRoutes(app);
+  registerSearchRoutes(app);
 }

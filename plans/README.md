@@ -258,7 +258,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | DONE（13 项归档；pre-commit node 直调+prepare；CI format 门已加——全仓 format 在收尾统一执行后转绿；env 实为 11 个 INKFLOW_*） | — |
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | DONE（设计文档+原型 14 断言；实测发现 schema 缺口 deck_group_id 不落库——实施前置；开放问题见 PRD §6 待产品拍板） | — |
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
-| 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | TODO | 175 |
+| 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | DONE（竖切片落地：`/api/search-similar` + `searchSimilar` 投影扩展 chapterId + QuickSearchOverlay + Cmd+K 快捷键（输入豁免前处理）+ editorReturnTarget 跳章；琥珀色诚实降级 unavailable/unindexed 两态；README:238 宣称回填。关键事实：向量索引唯一写入点是生产 apply 且每章 1 chunk，手写正文不入索引——检索面只是「AI 写过的章」；换模型后旧索引被静默排除。开放问题 6 项见 `docs/prd/2026-09-cmdk-semantic-search.md` §6） | 175 |
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
 
 ### Plan 166 复核（2026-08-23）
