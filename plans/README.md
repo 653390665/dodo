@@ -245,7 +245,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 178 | 编辑器数据流与生成互斥收口（旗标互斥/packs 竞态/isLoading 兜底/换书清空/监听器异常） | DONE（6 新用例；死代码解锁行清理与 2 条旧断言更新为批准偏差） | 177 |
 | 179 | 后端 LLM 流式与输入卫生（流中重试不重发/UUID 主键/prompt 上限/jobId/哨兵归一） | DONE（7 提交 0beaf45..c52857d；后端 1157/1157；strict 模式 deferredTokenSink 与 isLlmConfigured(config?) 为批准偏差；db.ts:1084 临时文件名 Math.random 为范围外残留） | — |
 | 180 | 用户动作失败反馈补全（删章节/建书/刷一批） | DONE（3 新用例；全屏 loading 分支删除；AIAssistantDrawer 透传为批准偏差） | 177 |
-| 181 | UX 反馈一致性（弹窗 Esc/导入可取消/失败面板人话/toast 语义/文案清理） | TODO | 175 |
+| 181 | UX 反馈一致性（弹窗 Esc/导入可取消/失败面板人话/toast 语义/文案清理） | DONE（63b18f8：WelcomeView 三弹窗 Esc、导入遮罩可取消、失败面板枚举映射、toast 分级、Library 文案；含回归测试。本行此前误留 TODO——8bf7455 只改了 182/183 两行，2026-09-11 收尾核对时补正） | 175 |
 | 182 | 消灭 O(全量正文) 路径（故事上下文/生产 runs/面板/AppShell） | DONE（守卫测试 30 章断言有界读取；badges/applied 投影；1 轮 REVISE 修 mock 与 disable） | — |
 | 183 | SSE 变更广播节流 + chapter_versions 投影 | DONE（500ms 合并 + 6 用例；Step 3 generation 抑制经论证推迟——正确性回归风险，建议随 notify 负载化另立） | 182（建议） |
 | 184 | 渲染与数据生命周期性能（消息 memo/事件保留策略/checkpoint 降频/向量缓存上限） | DONE（变异验证 memo 测试；1.3 input 下沉因计划落点误判跳过为批准偏差；启动钩子置路由注册函数） | — |
