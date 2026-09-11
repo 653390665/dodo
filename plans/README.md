@@ -259,7 +259,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | DONE（设计文档+原型 14 断言；实测发现 schema 缺口 deck_group_id 不落库——实施前置；开放问题见 PRD §6 待产品拍板） | — |
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | TODO | 175 |
-| 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | TODO | — |
+| 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
 
 ### Plan 166 复核（2026-08-23）
 
