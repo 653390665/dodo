@@ -11,12 +11,19 @@ test('audit unknown contract redacts raw feedback without persistence', () => {
   const hook = fs.readFileSync('src/lib/hooks/generation/useAuditPolishActions.ts', 'utf8');
   assert.match(hook, /setAuditUnknownFeedback\(`审稿结果未确认/);
   assert.doesNotMatch(hook, /jobResult\.rawFeedback/);
-  const unknownBlock = hook.slice(hook.indexOf("error.name === 'AuditUnknownError'"), hook.indexOf("void recordProductEvent({", hook.indexOf("error.name === 'AuditUnknownError'") + 1));
+  const unknownBlock = hook.slice(
+    hook.indexOf("error.name === 'AuditUnknownError'"),
+    hook.indexOf(
+      'void recordProductEvent({',
+      hook.indexOf("error.name === 'AuditUnknownError'") + 1
+    )
+  );
   assert.doesNotMatch(unknownBlock, /updateChapter\(/);
 });
 
 test('audit appends the shared JSON contract and disables thinking', () => {
   const route = fs.readFileSync('server/routes/audit.ts', 'utf8');
-  assert.match(route, /evidenceContract \+ AUDIT_OUTPUT_CONTRACT/);
+  // prettier 会把二元拼接折行；允许任意空白
+  assert.match(route, /evidenceContract\s*\+\s*AUDIT_OUTPUT_CONTRACT/);
   assert.match(route, /disableThinking: true/);
 });

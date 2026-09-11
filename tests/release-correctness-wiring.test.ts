@@ -15,7 +15,11 @@ test('application shortcuts use the guarded navigation entry point', () => {
 test('editor world navigation and Electron about version are wired to live sources', () => {
   const shellSource = readSource('src/components/AppShell.tsx');
   const electronSource = readSource('electron.cjs');
-  assert.match(shellSource, /onNavigate=\{\(view\) => \{ void handleNavigate\(view\); \}\}/);
+  // prettier 会把箭头体折行；匹配两种形态
+  assert.match(
+    shellSource,
+    /onNavigate=\{\(view\) => \{ void handleNavigate\(view\); \}\}|onNavigate=\{\(view\) => \{\s*void handleNavigate\(view\);\s*\}\}/
+  );
   assert.match(electronSource, /版本 \$\{app\.getVersion\(\)\}/);
   assert.doesNotMatch(electronSource, /版本 1\.0\.0/);
 });

@@ -21,8 +21,9 @@ describe('WritingSurface audit surface', () => {
 
   test('keeps one state-driven audit action guarded for empty chapters', () => {
     expect(source.match(/void onRunAudit\(\)/g)).toHaveLength(1);
-    expect(source).toContain(
-      "workflowState.primaryAction === 'audit' && (isGeneratingCritique || isChapterEmpty)"
+    // prettier 会把二元表达式折行；用空白容忍断言代替精确子串
+    expect(source).toMatch(
+      /workflowState\.primaryAction === 'audit' &&\s*\(isGeneratingCritique \|\| isChapterEmpty\)/
     );
     expect(source).toContain('正文为空，暂不能审计。');
     expect(source).toContain('readOnly={false}');
