@@ -20,8 +20,8 @@ interface ErrorPayload {
 }
 
 async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
-  const payload = await response.json().catch(() => ({})) as unknown;
-  return payload && typeof payload === 'object' ? payload as ErrorPayload : {};
+  const payload = (await response.json().catch(() => ({}))) as unknown;
+  return payload && typeof payload === 'object' ? (payload as ErrorPayload) : {};
 }
 
 function errorMessage(payload: ErrorPayload, fallback: string): string {
@@ -46,9 +46,19 @@ export function requireResponseDatabaseGeneration(response: Response): number {
 
 export async function getDatabaseGenerationSnapshot(signal?: AbortSignal): Promise<number> {
   const response = await fetch('/api/db/generation', { signal });
-  const payload = await parseErrorPayload(response) as ErrorPayload & { databaseGeneration?: number };
-  if (!response.ok || !Number.isInteger(payload.databaseGeneration) || (payload.databaseGeneration as number) < 0) {
-    throw new DbTransportError(errorMessage(payload, 'Unable to read database generation'), response.status, typeof payload.code === 'string' ? payload.code : undefined);
+  const payload = (await parseErrorPayload(response)) as ErrorPayload & {
+    databaseGeneration?: number;
+  };
+  if (
+    !response.ok ||
+    !Number.isInteger(payload.databaseGeneration) ||
+    (payload.databaseGeneration as number) < 0
+  ) {
+    throw new DbTransportError(
+      errorMessage(payload, 'Unable to read database generation'),
+      response.status,
+      typeof payload.code === 'string' ? payload.code : undefined
+    );
   }
   return payload.databaseGeneration as number;
 }
@@ -69,18 +79,30 @@ export async function callBatch<T = unknown>(method: string, args: unknown[]): P
   return callWithGeneration<T>(undefined, method, args);
 }
 
-async function callWithGeneration<T>(databaseGeneration: number | undefined, method: string, ...args: unknown[]): Promise<T> {
+async function callWithGeneration<T>(
+  databaseGeneration: number | undefined,
+  method: string,
+  ...args: unknown[]
+): Promise<T> {
   const res = await fetch('/api/db', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-client-id': CLIENT_ID,
     },
-    body: JSON.stringify({ method, args, ...(databaseGeneration === undefined ? {} : { databaseGeneration }) }),
+    body: JSON.stringify({
+      method,
+      args,
+      ...(databaseGeneration === undefined ? {} : { databaseGeneration }),
+    }),
   });
   if (!res.ok) {
     const err = await parseErrorPayload(res);
-    throw new DbTransportError(errorMessage(err, 'API error'), res.status, typeof err.code === 'string' ? err.code : undefined);
+    throw new DbTransportError(
+      errorMessage(err, 'API error'),
+      res.status,
+      typeof err.code === 'string' ? err.code : undefined
+    );
   }
   const data = await res.json();
   return data.result as T;
@@ -148,7 +170,7 @@ async function connectEventSource(): Promise<void> {
   const epoch = connectionEpoch;
   const pending = (async () => {
     const response = await fetch('/api/db/events-token', { method: 'POST' });
-    const payload = await response.json().catch(() => ({})) as { token?: string };
+    const payload = (await response.json().catch(() => ({}))) as { token?: string };
     if (!response.ok || !payload.token || !/^[0-9a-f]{64}$/.test(payload.token)) {
       throw new Error('Unable to authorize database event stream');
     }

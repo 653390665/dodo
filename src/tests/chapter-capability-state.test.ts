@@ -53,8 +53,10 @@ describe('chapter capability state', () => {
       overlayVersions: { card: 2 },
     });
     expect(next.capabilityState).toMatchObject({
-      novelId: 'novel-1', databaseGeneration: 7,
-      techniqueVersions: { gold: '3' }, overlayVersions: { card: 2 },
+      novelId: 'novel-1',
+      databaseGeneration: 7,
+      techniqueVersions: { gold: '3' },
+      overlayVersions: { card: 2 },
     });
   });
 });

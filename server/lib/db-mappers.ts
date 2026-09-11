@@ -2,13 +2,38 @@
 import { logger } from '../logger';
 import { createHash } from 'node:crypto';
 import type {
-  Novel, Character, Location, Item, Faction, PowerLevel, TimelineEvent,
-  Chapter, ChapterVersion, Skill, SkillUsageRecord, IdeaFragment,
-  Foreshadowing, ChapterProductionRun, ChapterProductionRunVersion, ContinuationPack, ContinuationSyncState, ContinuationExtractionJob,
-  SkillCompositionProfile, SkillFusionMeta, SkillMethodChain, SkillUsageStats,
-  ContinuityReport, ContinuationCanonFact, ContinuationCharacterState, ContinuationContradiction,
-  ContinuationGap, ContinuationPlotState, ContinuationReadingQuestion, ContinuationSourceDocument,
-  ContinuationSourceMap, ContinuationStyleProfile
+  Novel,
+  Character,
+  Location,
+  Item,
+  Faction,
+  PowerLevel,
+  TimelineEvent,
+  Chapter,
+  ChapterVersion,
+  Skill,
+  SkillUsageRecord,
+  IdeaFragment,
+  Foreshadowing,
+  ChapterProductionRun,
+  ChapterProductionRunVersion,
+  ContinuationPack,
+  ContinuationSyncState,
+  ContinuationExtractionJob,
+  SkillCompositionProfile,
+  SkillFusionMeta,
+  SkillMethodChain,
+  SkillUsageStats,
+  ContinuityReport,
+  ContinuationCanonFact,
+  ContinuationCharacterState,
+  ContinuationContradiction,
+  ContinuationGap,
+  ContinuationPlotState,
+  ContinuationReadingQuestion,
+  ContinuationSourceDocument,
+  ContinuationSourceMap,
+  ContinuationStyleProfile,
 } from '../../shared/types';
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile.js';
 
@@ -22,7 +47,9 @@ function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
   try {
     return JSON.parse(raw);
   } catch {
-    logger.warn(`[db-mappers] Malformed JSON in column, using fallback. Value starts with: ${raw.slice(0, 80)}`);
+    logger.warn(
+      `[db-mappers] Malformed JSON in column, using fallback. Value starts with: ${raw.slice(0, 80)}`
+    );
     return fallback;
   }
 }
@@ -32,42 +59,82 @@ type SafeAny = any;
 export type DbRow = SafeAny;
 
 export interface NovelRow {
-  id: string; title: string; author_id: string; summary: string;
-  cover_image: string | null; status: string; world_rules: string | null;
-  global_outline: string | null; mounted_skill_ids: string;
-  mounted_skill_loadout: string | null; project_preference_profile: string | null;
-  created_at: number; updated_at: number;
+  id: string;
+  title: string;
+  author_id: string;
+  summary: string;
+  cover_image: string | null;
+  status: string;
+  world_rules: string | null;
+  global_outline: string | null;
+  mounted_skill_ids: string;
+  mounted_skill_loadout: string | null;
+  project_preference_profile: string | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CharacterRow {
-  id: string; novel_id: string; name: string; role: string;
-  summary: string; traits: string; bio: string; current_state: string;
-  created_at: number; updated_at: number;
+  id: string;
+  novel_id: string;
+  name: string;
+  role: string;
+  summary: string;
+  traits: string;
+  bio: string;
+  current_state: string;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface ChapterRow {
-  id: string; novel_id: string; volume_name: string | null; title: string;
-  content: string; order: number; word_count: number;
-  scene_beats: string | null; critique: string | null;
+  id: string;
+  novel_id: string;
+  volume_name: string | null;
+  title: string;
+  content: string;
+  order: number;
+  word_count: number;
+  scene_beats: string | null;
+  critique: string | null;
   workflow_meta: string | null;
-  created_at: number; updated_at: number;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface SkillRow {
-  id: string; name: string; description: string | null; style: string | null;
-  pacing: string | null; vocabulary: string | null; sentence_structure: string | null;
-  imagery: string | null; banned_words: string | null; few_shots: string | null;
-  character_traits: string | null; world_building: string | null;
-  foreshadowing: string | null; plot_pattern: string | null;
-  core_patterns: string | null; banned_elements: string | null;
-  stability_score: number | null; evaluation_feedback: string | null;
-  version: number | null; parent_skill_id: string | null;
-  lineage_root_id: string | null; primary_dimension: Skill['primaryDimension'] | null;
-  dimension_tags: string | null; composition_profile: string | null;
-  usage_stats: string | null; feedback_score: number | null;
-  fusion_meta: string | null; method_chain: string | null;
-  why_this_skill_works: string | null; source_badge: Skill['sourceBadge'] | null;
-  created_at: number; updated_at: number | null;
+  id: string;
+  name: string;
+  description: string | null;
+  style: string | null;
+  pacing: string | null;
+  vocabulary: string | null;
+  sentence_structure: string | null;
+  imagery: string | null;
+  banned_words: string | null;
+  few_shots: string | null;
+  character_traits: string | null;
+  world_building: string | null;
+  foreshadowing: string | null;
+  plot_pattern: string | null;
+  core_patterns: string | null;
+  banned_elements: string | null;
+  stability_score: number | null;
+  evaluation_feedback: string | null;
+  version: number | null;
+  parent_skill_id: string | null;
+  lineage_root_id: string | null;
+  primary_dimension: Skill['primaryDimension'] | null;
+  dimension_tags: string | null;
+  composition_profile: string | null;
+  usage_stats: string | null;
+  feedback_score: number | null;
+  fusion_meta: string | null;
+  method_chain: string | null;
+  why_this_skill_works: string | null;
+  source_badge: Skill['sourceBadge'] | null;
+  created_at: number;
+  updated_at: number | null;
 }
 
 export function rowToNovel(row: DbRow): Novel {
@@ -79,7 +146,9 @@ export function rowToNovel(row: DbRow): Novel {
     globalOutline: row.global_outline,
     mountedSkillIds: safeJsonParse(row.mounted_skill_ids, []),
     mountedSkillLoadout: safeJsonParse(row.mounted_skill_loadout, []),
-    projectPreferenceProfile: normalizeProjectPreferenceProfile(safeJsonParse(row.project_preference_profile, {})),
+    projectPreferenceProfile: normalizeProjectPreferenceProfile(
+      safeJsonParse(row.project_preference_profile, {})
+    ),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -113,17 +182,41 @@ export function rowToPowerLevel(row: DbRow): PowerLevel {
 }
 
 export function rowToTimelineEvent(row: DbRow): TimelineEvent {
-  return { ...row, novelId: row.novel_id, statusTag: row.status_tag, createdAt: row.created_at, updatedAt: row.updated_at };
+  return {
+    ...row,
+    novelId: row.novel_id,
+    statusTag: row.status_tag,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function rowToChapter(row: DbRow): Chapter {
   let workflowMeta;
-  try { workflowMeta = row.workflow_meta ? JSON.parse(row.workflow_meta) : undefined; } catch { logger.warn('[db-mappers] Malformed JSON in workflow_meta, using empty state'); }
-  return { ...row, novelId: row.novel_id, volumeName: row.volume_name, wordCount: row.word_count, sceneBeats: row.scene_beats, workflowMeta, createdAt: row.created_at, updatedAt: row.updated_at };
+  try {
+    workflowMeta = row.workflow_meta ? JSON.parse(row.workflow_meta) : undefined;
+  } catch {
+    logger.warn('[db-mappers] Malformed JSON in workflow_meta, using empty state');
+  }
+  return {
+    ...row,
+    novelId: row.novel_id,
+    volumeName: row.volume_name,
+    wordCount: row.word_count,
+    sceneBeats: row.scene_beats,
+    workflowMeta,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function rowToChapterVersion(row: DbRow): ChapterVersion {
-  return { ...row, chapterId: row.chapter_id, wordCount: row.word_count, createdAt: row.created_at };
+  return {
+    ...row,
+    chapterId: row.chapter_id,
+    wordCount: row.word_count,
+    createdAt: row.created_at,
+  };
 }
 
 export function rowToSkill(row: SkillRow): Skill {
@@ -152,7 +245,10 @@ export function rowToSkill(row: SkillRow): Skill {
     lineageRootId: row.lineage_root_id || undefined,
     primaryDimension: row.primary_dimension || undefined,
     dimensionTags: safeJsonParse<Skill['dimensionTags']>(row.dimension_tags, []),
-    compositionProfile: safeJsonParse<SkillCompositionProfile>(row.composition_profile, {} as SkillCompositionProfile),
+    compositionProfile: safeJsonParse<SkillCompositionProfile>(
+      row.composition_profile,
+      {} as SkillCompositionProfile
+    ),
     usageStats: safeJsonParse<SkillUsageStats>(row.usage_stats, {} as SkillUsageStats),
     feedbackScore: row.feedback_score ?? undefined,
     fusionMeta,
@@ -218,7 +314,10 @@ export function rowToChapterProductionRun(row: DbRow): ChapterProductionRun {
     sceneBeats: row.scene_beats || '',
     draftContent: row.draft_content || '',
     styleAudit: row.style_audit || '',
-    continuityReport: safeJsonParse<ContinuityReport>(row.continuity_report, {} as ContinuityReport),
+    continuityReport: safeJsonParse<ContinuityReport>(
+      row.continuity_report,
+      {} as ContinuityReport
+    ),
     errorMessage: row.error_message || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -226,24 +325,92 @@ export function rowToChapterProductionRun(row: DbRow): ChapterProductionRun {
 }
 
 export function rowToChapterProductionRunVersion(row: DbRow): ChapterProductionRunVersion {
-  return { id: row.id, runId: row.run_id, novelId: row.novel_id, targetChapterId: row.target_chapter_id || undefined, source: row.source, sceneBeats: row.scene_beats || '', draftContent: row.draft_content || '', styleAudit: row.style_audit || '', continuityReport: safeJsonParse<ContinuityReport>(row.continuity_report, {} as ContinuityReport), contentHash: row.content_hash || '', createdAt: row.created_at };
+  return {
+    id: row.id,
+    runId: row.run_id,
+    novelId: row.novel_id,
+    targetChapterId: row.target_chapter_id || undefined,
+    source: row.source,
+    sceneBeats: row.scene_beats || '',
+    draftContent: row.draft_content || '',
+    styleAudit: row.style_audit || '',
+    continuityReport: safeJsonParse<ContinuityReport>(
+      row.continuity_report,
+      {} as ContinuityReport
+    ),
+    contentHash: row.content_hash || '',
+    createdAt: row.created_at,
+  };
 }
 
 export function chapterProductionRunVersionToRow(version: ChapterProductionRunVersion): DbRow {
-  return { id: version.id, run_id: version.runId, novel_id: version.novelId, target_chapter_id: version.targetChapterId || null, source: version.source, scene_beats: version.sceneBeats, draft_content: version.draftContent, style_audit: version.styleAudit, continuity_report: JSON.stringify(version.continuityReport), content_hash: version.contentHash, created_at: version.createdAt };
+  return {
+    id: version.id,
+    run_id: version.runId,
+    novel_id: version.novelId,
+    target_chapter_id: version.targetChapterId || null,
+    source: version.source,
+    scene_beats: version.sceneBeats,
+    draft_content: version.draftContent,
+    style_audit: version.styleAudit,
+    continuity_report: JSON.stringify(version.continuityReport),
+    content_hash: version.contentHash,
+    created_at: version.createdAt,
+  };
 }
 
 export function rowToContinuationExtractionJob(row: DbRow): ContinuationExtractionJob {
-  const statuses = new Set(['queued', 'running', 'completed', 'failed', 'interrupted', 'cancelled']);
-  const validStatus = statuses.has(row.status) ? row.status as ContinuationExtractionJob['status'] : 'failed';
+  const statuses = new Set([
+    'queued',
+    'running',
+    'completed',
+    'failed',
+    'interrupted',
+    'cancelled',
+  ]);
+  const validStatus = statuses.has(row.status)
+    ? (row.status as ContinuationExtractionJob['status'])
+    : 'failed';
   const invalidStatus = validStatus === 'failed' && !statuses.has(row.status);
-  return { id: row.id, packId: row.pack_id, novelId: row.novel_id, status: validStatus, progress: row.progress || 0, stageText: row.stage_text || '', batchCursor: row.batch_cursor || 0, totalBatches: row.total_batches || 0, resultJson: row.result_json || undefined, checkpointJson: row.checkpoint_json || undefined, errorCode: row.error_code || (invalidStatus ? 'INVALID_JOB_STATUS' : undefined), errorMessage: row.error_message || (invalidStatus ? `非法提取任务状态：${String(row.status)}` : undefined), databaseGeneration: row.database_generation, createdAt: row.created_at, updatedAt: row.updated_at };
+  return {
+    id: row.id,
+    packId: row.pack_id,
+    novelId: row.novel_id,
+    status: validStatus,
+    progress: row.progress || 0,
+    stageText: row.stage_text || '',
+    batchCursor: row.batch_cursor || 0,
+    totalBatches: row.total_batches || 0,
+    resultJson: row.result_json || undefined,
+    checkpointJson: row.checkpoint_json || undefined,
+    errorCode: row.error_code || (invalidStatus ? 'INVALID_JOB_STATUS' : undefined),
+    errorMessage:
+      row.error_message || (invalidStatus ? `非法提取任务状态：${String(row.status)}` : undefined),
+    databaseGeneration: row.database_generation,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function continuationExtractionJobToRow(job: ContinuationExtractionJob): DbRow {
-  return { id: job.id, pack_id: job.packId, novel_id: job.novelId, status: job.status, progress: job.progress, stage_text: job.stageText, batch_cursor: job.batchCursor, total_batches: job.totalBatches, result_json: job.resultJson || null, checkpoint_json: job.checkpointJson || null, error_code: job.errorCode || null, error_message: job.errorMessage || null, database_generation: job.databaseGeneration, created_at: job.createdAt, updated_at: job.updatedAt };
+  return {
+    id: job.id,
+    pack_id: job.packId,
+    novel_id: job.novelId,
+    status: job.status,
+    progress: job.progress,
+    stage_text: job.stageText,
+    batch_cursor: job.batchCursor,
+    total_batches: job.totalBatches,
+    result_json: job.resultJson || null,
+    checkpoint_json: job.checkpointJson || null,
+    error_code: job.errorCode || null,
+    error_message: job.errorMessage || null,
+    database_generation: job.databaseGeneration,
+    created_at: job.createdAt,
+    updated_at: job.updatedAt,
+  };
 }
-
 
 // --- Serializers: TS → DB row ---
 
@@ -281,31 +448,95 @@ export function characterToRow(c: Character): DbRow {
 }
 
 export function locationToRow(l: Location): DbRow {
-  return { id: l.id, novel_id: l.novelId, name: l.name, description: l.description, region: l.region, created_at: l.createdAt, updated_at: l.updatedAt };
+  return {
+    id: l.id,
+    novel_id: l.novelId,
+    name: l.name,
+    description: l.description,
+    region: l.region,
+    created_at: l.createdAt,
+    updated_at: l.updatedAt,
+  };
 }
 
 export function itemToRow(i: Item): DbRow {
-  return { id: i.id, novel_id: i.novelId, name: i.name, description: i.description, type: i.type, created_at: i.createdAt, updated_at: i.updatedAt };
+  return {
+    id: i.id,
+    novel_id: i.novelId,
+    name: i.name,
+    description: i.description,
+    type: i.type,
+    created_at: i.createdAt,
+    updated_at: i.updatedAt,
+  };
 }
 
 export function factionToRow(f: Faction): DbRow {
-  return { id: f.id, novel_id: f.novelId, name: f.name, description: f.description, leader: f.leader, territory: f.territory, created_at: f.createdAt, updated_at: f.updatedAt };
+  return {
+    id: f.id,
+    novel_id: f.novelId,
+    name: f.name,
+    description: f.description,
+    leader: f.leader,
+    territory: f.territory,
+    created_at: f.createdAt,
+    updated_at: f.updatedAt,
+  };
 }
 
 export function powerLevelToRow(p: PowerLevel): DbRow {
-  return { id: p.id, novel_id: p.novelId, name: p.name, description: p.description, tier: p.tier, characteristics: p.characteristics, created_at: p.createdAt, updated_at: p.updatedAt };
+  return {
+    id: p.id,
+    novel_id: p.novelId,
+    name: p.name,
+    description: p.description,
+    tier: p.tier,
+    characteristics: p.characteristics,
+    created_at: p.createdAt,
+    updated_at: p.updatedAt,
+  };
 }
 
 export function timelineEventToRow(t: TimelineEvent): DbRow {
-  return { id: t.id, novel_id: t.novelId, title: t.title, description: t.description, timestamp: t.timestamp, status_tag: t.statusTag, order: t.order, created_at: t.createdAt, updated_at: t.updatedAt };
+  return {
+    id: t.id,
+    novel_id: t.novelId,
+    title: t.title,
+    description: t.description,
+    timestamp: t.timestamp,
+    status_tag: t.statusTag,
+    order: t.order,
+    created_at: t.createdAt,
+    updated_at: t.updatedAt,
+  };
 }
 
 export function chapterToRow(c: Chapter): DbRow {
-  return { id: c.id, novel_id: c.novelId, volume_name: c.volumeName, title: c.title, content: c.content, order: c.order, word_count: c.wordCount, scene_beats: c.sceneBeats, critique: c.critique, workflow_meta: JSON.stringify(c.workflowMeta || {}), created_at: c.createdAt, updated_at: c.updatedAt };
+  return {
+    id: c.id,
+    novel_id: c.novelId,
+    volume_name: c.volumeName,
+    title: c.title,
+    content: c.content,
+    order: c.order,
+    word_count: c.wordCount,
+    scene_beats: c.sceneBeats,
+    critique: c.critique,
+    workflow_meta: JSON.stringify(c.workflowMeta || {}),
+    created_at: c.createdAt,
+    updated_at: c.updatedAt,
+  };
 }
 
 export function chapterVersionToRow(cv: ChapterVersion): DbRow {
-  return { id: cv.id, chapter_id: cv.chapterId, content: cv.content, word_count: cv.wordCount, author: cv.author, created_at: cv.createdAt };
+  return {
+    id: cv.id,
+    chapter_id: cv.chapterId,
+    content: cv.content,
+    word_count: cv.wordCount,
+    author: cv.author,
+    created_at: cv.createdAt,
+  };
 }
 
 export function skillToRow(s: Skill): DbRow {
@@ -323,7 +554,8 @@ export function skillToRow(s: Skill): DbRow {
   for (const key of ['sourceType', 'isRuntimeReady', 'sanitizationStatus', 'runtimeStatus']) {
     if (extended[key] !== undefined) fusionMeta[key] = extended[key];
   }
-  const serializedFusionMeta = Object.keys(fusionMeta).length > 0 ? JSON.stringify(fusionMeta) : null;
+  const serializedFusionMeta =
+    Object.keys(fusionMeta).length > 0 ? JSON.stringify(fusionMeta) : null;
 
   return {
     id: s.id,
@@ -440,12 +672,19 @@ export function mapContinuationPackRow(row: DbRow): ContinuationPack {
 
   const rawSyncState = safeJsonParse<Partial<ContinuationSyncState>>(row.sync_state, {});
   const syncState: ContinuationSyncState = {
-    status: rawSyncState.status === 'partial' || rawSyncState.status === 'synced' || rawSyncState.status === 'stale'
-      ? rawSyncState.status
-      : 'not_started',
+    status:
+      rawSyncState.status === 'partial' ||
+      rawSyncState.status === 'synced' ||
+      rawSyncState.status === 'stale'
+        ? rawSyncState.status
+        : 'not_started',
     contentHash: typeof rawSyncState.contentHash === 'string' ? rawSyncState.contentHash : '',
-    lastSyncedAt: typeof rawSyncState.lastSyncedAt === 'number' ? rawSyncState.lastSyncedAt : undefined,
-    pendingRelationshipCount: typeof rawSyncState.pendingRelationshipCount === 'number' ? rawSyncState.pendingRelationshipCount : 0,
+    lastSyncedAt:
+      typeof rawSyncState.lastSyncedAt === 'number' ? rawSyncState.lastSyncedAt : undefined,
+    pendingRelationshipCount:
+      typeof rawSyncState.pendingRelationshipCount === 'number'
+        ? rawSyncState.pendingRelationshipCount
+        : 0,
     summary: {
       characters: Number(rawSyncState.summary?.characters) || 0,
       locations: Number(rawSyncState.summary?.locations) || 0,
@@ -482,7 +721,10 @@ export function mapContinuationPackRow(row: DbRow): ContinuationPack {
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   if (value && typeof value === 'object') {
-    return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+      .join(',')}}`;
   }
   return JSON.stringify(value);
 }

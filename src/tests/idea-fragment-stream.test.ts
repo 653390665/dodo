@@ -2,12 +2,14 @@ import { describe, expect, test, vi } from 'vitest';
 import { IncompleteIdeaFragmentStreamError, streamIdeaFragment } from '../lib/idea-fragment-stream';
 
 function sseResponse(payload: string): Response {
-  return new Response(new ReadableStream({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(payload));
-      controller.close();
-    },
-  }));
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(payload));
+        controller.close();
+      },
+    })
+  );
 }
 
 describe('streamIdeaFragment', () => {
@@ -35,13 +37,17 @@ describe('streamIdeaFragment', () => {
     ]) {
       const previews: string[] = [];
       const commit = vi.fn();
-      await expect(streamIdeaFragment({
-        response: sseResponse(payload),
-        originalExpansion: 'original',
-        isCurrent: () => true,
-        onPreview: (text) => previews.push(text),
-        onCommit: commit,
-      })).rejects.toBeInstanceOf(payload.includes('model failed') ? Error : IncompleteIdeaFragmentStreamError);
+      await expect(
+        streamIdeaFragment({
+          response: sseResponse(payload),
+          originalExpansion: 'original',
+          isCurrent: () => true,
+          onPreview: (text) => previews.push(text),
+          onCommit: commit,
+        })
+      ).rejects.toBeInstanceOf(
+        payload.includes('model failed') ? Error : IncompleteIdeaFragmentStreamError
+      );
       expect(previews.at(-1)).toBe('original');
       expect(commit).not.toHaveBeenCalled();
     }
@@ -49,44 +55,54 @@ describe('streamIdeaFragment', () => {
 
   test('a stale request cannot commit over a newer request', async () => {
     const commit = vi.fn();
-    await expect(streamIdeaFragment({
-      response: sseResponse('data: {"token":"stale"}\n\ndata: [DONE]\n\n'),
-      originalExpansion: 'original',
-      isCurrent: () => false,
-      onPreview: vi.fn(),
-      onCommit: commit,
-    })).resolves.toBe(false);
+    await expect(
+      streamIdeaFragment({
+        response: sseResponse('data: {"token":"stale"}\n\ndata: [DONE]\n\n'),
+        originalExpansion: 'original',
+        isCurrent: () => false,
+        onPreview: vi.fn(),
+        onCommit: commit,
+      })
+    ).resolves.toBe(false);
     expect(commit).not.toHaveBeenCalled();
   });
 
   test('Abort restores the original expansion and never commits', async () => {
-    const response = new Response(new ReadableStream({
-      start(controller) {
-        controller.error(new DOMException('aborted', 'AbortError'));
-      },
-    }));
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.error(new DOMException('aborted', 'AbortError'));
+        },
+      })
+    );
     const preview = vi.fn();
     const commit = vi.fn();
-    await expect(streamIdeaFragment({
-      response,
-      originalExpansion: 'original',
-      isCurrent: () => true,
-      onPreview: preview,
-      onCommit: commit,
-    })).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(
+      streamIdeaFragment({
+        response,
+        originalExpansion: 'original',
+        isCurrent: () => true,
+        onPreview: preview,
+        onCommit: commit,
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
     expect(preview).toHaveBeenLastCalledWith('original');
     expect(commit).not.toHaveBeenCalled();
   });
 
   test('a failed final database update restores the original expansion', async () => {
     const preview = vi.fn();
-    await expect(streamIdeaFragment({
-      response: sseResponse('data: {"token":"expanded"}\n\ndata: [DONE]\n\n'),
-      originalExpansion: 'original',
-      isCurrent: () => true,
-      onPreview: preview,
-      onCommit: async () => { throw new Error('fragment no longer exists'); },
-    })).rejects.toThrow('fragment no longer exists');
+    await expect(
+      streamIdeaFragment({
+        response: sseResponse('data: {"token":"expanded"}\n\ndata: [DONE]\n\n'),
+        originalExpansion: 'original',
+        isCurrent: () => true,
+        onPreview: preview,
+        onCommit: async () => {
+          throw new Error('fragment no longer exists');
+        },
+      })
+    ).rejects.toThrow('fragment no longer exists');
     expect(preview).toHaveBeenLastCalledWith('original');
   });
 });

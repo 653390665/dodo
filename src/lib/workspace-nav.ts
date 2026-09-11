@@ -33,7 +33,7 @@ export function isWorkspaceFamilyView(view: ViewType): boolean {
 export function deriveWorkspaceFocus(
   view: ViewType,
   navKey?: WorkspaceNavKey,
-  previousFocus: WorkspaceFocus = 'editor',
+  previousFocus: WorkspaceFocus = 'editor'
 ): WorkspaceFocus {
   if (navKey === 'workspace-editor' || view === 'editor') return 'editor';
   if (navKey === 'workspace-cockpit') return 'cockpit';

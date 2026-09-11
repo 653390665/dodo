@@ -28,7 +28,7 @@ await esbuild.build({
   define: {
     'process.env.NODE_ENV': '"production"',
     'import.meta.url': '__inkflow_import_meta_url__',
-    '__CJS_BUNDLE__': 'true',
+    __CJS_BUNDLE__: 'true',
   },
   minify: false,
   sourcemap: false,

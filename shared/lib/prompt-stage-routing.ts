@@ -1,10 +1,5 @@
 export type PromptStage =
-  | 'discovery'
-  | 'foundation'
-  | 'planning'
-  | 'drafting'
-  | 'polish'
-  | 'review';
+  'discovery' | 'foundation' | 'planning' | 'drafting' | 'polish' | 'review';
 
 export type PromptSurface =
   | 'welcome'

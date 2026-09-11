@@ -26,7 +26,13 @@ vi.mock('../lib/world-client', () => worldClient);
 
 describe('作品助手设定安全边界', () => {
   const novel: Novel = {
-    id: 'novel-1', title: '测试作品', authorId: 'local', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+    id: 'novel-1',
+    title: '测试作品',
+    authorId: 'local',
+    summary: '',
+    status: 'ongoing',
+    createdAt: 1,
+    updatedAt: 1,
   };
 
   beforeEach(() => {
@@ -56,7 +62,10 @@ describe('作品助手设定安全边界', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认写入设定' }));
 
     expect(worldClient.createCharacter).toHaveBeenCalledTimes(1);
-    expect(worldClient.createCharacter).toHaveBeenCalledWith(expect.objectContaining({ novelId: novel.id }), 0);
+    expect(worldClient.createCharacter).toHaveBeenCalledWith(
+      expect.objectContaining({ novelId: novel.id }),
+      0
+    );
     expect(worldClient.importWorldExtraction).not.toHaveBeenCalled();
   });
 
@@ -79,7 +88,8 @@ describe('作品助手设定安全边界', () => {
 
 function renderAssistantWithDraft(novel: Novel, overrides: { databaseGeneration?: number }) {
   useAssistantSessionStore.getState().setDraft(novel.id, 'bible', {
-    type: 'character', databaseGeneration: overrides.databaseGeneration,
+    type: 'character',
+    databaseGeneration: overrides.databaseGeneration,
     data: { name: '林', role: 'protagonist' },
   });
   return render(<WorldBibleAssistant novel={novel} onClose={vi.fn()} />);

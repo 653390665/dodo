@@ -55,12 +55,11 @@ function normalizeIssue(raw: unknown): ContinuityIssue {
     category: normalizeCategory(obj.category),
     message: stringValue(obj.message).trim() || '未提供问题描述',
     evidence: obj.evidence != null ? stringValue(obj.evidence) : undefined,
-    suggestedFix:
-      obj.suggestedFix
-        ? stringValue(obj.suggestedFix)
-        : obj.suggestion
-          ? stringValue(obj.suggestion)
-          : undefined,
+    suggestedFix: obj.suggestedFix
+      ? stringValue(obj.suggestedFix)
+      : obj.suggestion
+        ? stringValue(obj.suggestion)
+        : undefined,
   };
 }
 
@@ -130,7 +129,9 @@ export function normalizeContinuityReport(raw: unknown): ContinuityReport {
     .map((item) => {
       const entry = asRecord(item);
       const notesAppend = stringValue(entry.notesAppend || entry.notes).trim();
-      const status = (entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted') as 'planted' | 'hinted' | 'payoff';
+      const status = (
+        entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted'
+      ) as 'planted' | 'hinted' | 'payoff';
       return {
         foreshadowingId: stringValue(entry.foreshadowingId || entry.id).trim(),
         status,
@@ -155,39 +156,53 @@ export function normalizeContinuityReport(raw: unknown): ContinuityReport {
   normalizedPatch.foreshadowingsToCreate = asArray(patch.foreshadowingsToCreate)
     .map((item) => {
       const entry = asRecord(item);
-      const status = (entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted') as 'planted' | 'hinted' | 'payoff';
+      const status = (
+        entry.status === 'hinted' || entry.status === 'payoff' ? entry.status : 'planted'
+      ) as 'planted' | 'hinted' | 'payoff';
       return {
         title: stringValue(entry.title).trim(),
         description: stringValue(entry.description).trim(),
         status,
-        plantedChapterId: entry.plantedChapterId ? stringValue(entry.plantedChapterId).trim() : undefined,
+        plantedChapterId: entry.plantedChapterId
+          ? stringValue(entry.plantedChapterId).trim()
+          : undefined,
       };
     })
     .filter((entry) => entry.title && entry.description);
 
   normalizedPatch.narrativePromiseCandidates = asArray(patch.narrativePromiseCandidates)
-    .map((item): NonNullable<ProposedLedgerPatch['narrativePromiseCandidates']>[number] | undefined => {
-      const entry = asRecord(item);
-      const targetType = entry.targetType === 'existing' || entry.targetType === 'discovered'
-        ? entry.targetType
-        : undefined;
-      const action = entry.action === 'hint' || entry.action === 'payoff' ? entry.action : entry.action === 'plant' ? 'plant' : undefined;
-      const foreshadowingId = stringValue(entry.foreshadowingId).trim() || undefined;
-      const title = stringValue(entry.title).trim() || undefined;
-      const description = stringValue(entry.description).trim() || undefined;
-      const evidenceQuote = stringValue(entry.evidenceQuote || entry.quote).trim();
-      if (!targetType || !action || !evidenceQuote) return undefined;
-      if (targetType === 'existing' ? !foreshadowingId : !title || !description) return undefined;
-      return {
-        targetType,
-        foreshadowingId,
-        title,
-        description,
-        action,
-        evidenceQuote,
-        location: stringValue(entry.location).trim() || undefined,
-      };
-    })
+    .map(
+      (
+        item
+      ): NonNullable<ProposedLedgerPatch['narrativePromiseCandidates']>[number] | undefined => {
+        const entry = asRecord(item);
+        const targetType =
+          entry.targetType === 'existing' || entry.targetType === 'discovered'
+            ? entry.targetType
+            : undefined;
+        const action =
+          entry.action === 'hint' || entry.action === 'payoff'
+            ? entry.action
+            : entry.action === 'plant'
+              ? 'plant'
+              : undefined;
+        const foreshadowingId = stringValue(entry.foreshadowingId).trim() || undefined;
+        const title = stringValue(entry.title).trim() || undefined;
+        const description = stringValue(entry.description).trim() || undefined;
+        const evidenceQuote = stringValue(entry.evidenceQuote || entry.quote).trim();
+        if (!targetType || !action || !evidenceQuote) return undefined;
+        if (targetType === 'existing' ? !foreshadowingId : !title || !description) return undefined;
+        return {
+          targetType,
+          foreshadowingId,
+          title,
+          description,
+          action,
+          evidenceQuote,
+          location: stringValue(entry.location).trim() || undefined,
+        };
+      }
+    )
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   return {

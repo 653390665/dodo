@@ -98,7 +98,11 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(quality).not.toContain('推荐使用下方一键精修');
     expect(quality).not.toContain('一键执行局部手术精修');
     expect(workflow).toContain('作品卡组最多');
-    expect(`${output}\n${input}\n${view}\n${details}\n${equip}\n${quality}\n${outline}\n${workflow}\n${packages}`).not.toMatch(/萃取结果 \(Skill Deck\)|Deck 已保存|保存整组 Deck|开始拆书与萃取 Skill|为什么这张 Skill 成立|另存 Deck|项目 Deck|作品 Flow|启用一条 Flow|一键提炼成主笔文风|系统直接智能融合|强力融合成写作指令|自动替换当前卡片|正在后台深度分析文本风格|开始拆书与萃取技能卡|专属拆书技能卡|为什么这张技能卡成立|当前拆书卡已保存|保存只是入库|保存整组卡组|技能库|作品技能卡组|项目技能卡组|项目卡组|项目候选卡组|提交到卡组待选|装配到作品|需装配后计算|建议装配位|已叠加|撤销叠加|叠加拆书卡|当前配置候选|加入目标作品卡组|加入作品卡组候选|加入卡组候选|保存并加入目标作品卡组|应用到目标作品才影响写作|只保存能力卡，不加入作品|直接采用此大纲/);
+    expect(
+      `${output}\n${input}\n${view}\n${details}\n${equip}\n${quality}\n${outline}\n${workflow}\n${packages}`
+    ).not.toMatch(
+      /萃取结果 \(Skill Deck\)|Deck 已保存|保存整组 Deck|开始拆书与萃取 Skill|为什么这张 Skill 成立|另存 Deck|项目 Deck|作品 Flow|启用一条 Flow|一键提炼成主笔文风|系统直接智能融合|强力融合成写作指令|自动替换当前卡片|正在后台深度分析文本风格|开始拆书与萃取技能卡|专属拆书技能卡|为什么这张技能卡成立|当前拆书卡已保存|保存只是入库|保存整组卡组|技能库|作品技能卡组|项目技能卡组|项目卡组|项目候选卡组|提交到卡组待选|装配到作品|需装配后计算|建议装配位|已叠加|撤销叠加|叠加拆书卡|当前配置候选|加入目标作品卡组|加入作品卡组候选|加入卡组候选|保存并加入目标作品卡组|应用到目标作品才影响写作|只保存能力卡，不加入作品|直接采用此大纲/
+    );
   });
 
   test('pre-writing entry points use capability-card copy', () => {
@@ -118,19 +122,21 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(workspace).toContain('getProjectCapabilityCardIds(novel, mountedSkillLoadout)');
     expect(workspace).toContain('有助于关系网图谱在写作时识别并高亮');
     expect(workspace).not.toContain('能自动提取高亮');
-    expect(intelligenceContext).toContain('getProjectCapabilityCardIds(novel, mountedSkillLoadout)');
+    expect(intelligenceContext).toContain(
+      'getProjectCapabilityCardIds(novel, mountedSkillLoadout)'
+    );
     expect(receipt).toContain('能力卡:');
     expect(onboarding).toContain('推荐的角色写作配置');
     expect(onboarding).toContain('可稍后在作品能力中心调整');
     const createOnboardingDraftStart = appShell.indexOf('ideaSeed: onboardingDraft?.ideaSeed');
     const createOnboardingDraftBlock = appShell.slice(
       createOnboardingDraftStart,
-      appShell.indexOf('setActiveSetupTaskKey', createOnboardingDraftStart),
+      appShell.indexOf('setActiveSetupTaskKey', createOnboardingDraftStart)
     );
     expect(createOnboardingDraftBlock).toContain('acceptedSkillIds: []');
     const acceptRecommendedSkillsBlock = appShell.slice(
       appShell.indexOf('const handleAcceptRecommendedSkills'),
-      appShell.indexOf('if (loading)'),
+      appShell.indexOf('if (loading)')
     );
     expect(acceptRecommendedSkillsBlock).toContain('acceptedRecommendedSkills: true');
     expect(acceptRecommendedSkillsBlock).not.toContain('updateNovel(');
@@ -145,7 +151,9 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(receipt).not.toContain('装配技能:');
     expect(onboarding).toContain('不会自动应用');
     expect(onboarding).not.toContain('可稍后在能力商店调整');
-    expect(onboarding).not.toMatch(/推荐 Role Skill|接受推荐 Role Skill|Overlay（可选）|暂无阶段 Overlay|不会自动装配/);
+    expect(onboarding).not.toMatch(
+      /推荐 Role Skill|接受推荐 Role Skill|Overlay（可选）|暂无阶段 Overlay|不会自动装配/
+    );
   });
 
   test('capability center and writing style use author-facing card copy', () => {
@@ -166,7 +174,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     const continuationPackView = readSource('src/components/ContinuationPackView.tsx');
     const continuationImportView = readSource('src/components/ContinuationImportView.tsx');
     const writingSurface = readSource('src/components/WritingSurface.tsx');
-const workflowCopy = readSource('src/lib/workflow-copy.ts');
+    const workflowCopy = readSource('src/lib/workflow-copy.ts');
     const productionRunReview = readSource('src/components/ProductionRunReview.tsx');
     const settingsModal = readSource('src/components/SettingsModal.tsx');
     const aiAssistant = readSource('src/components/AIAssistant.tsx');
@@ -301,7 +309,9 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(welcome).not.toContain('自动纳入高连贯性升级检查');
     expect(appShell).toContain('能力卡配置');
     expect(bookFactoryUse).toContain('提交到作品卡组待选');
-    expect(bookFactoryUse).toContain('已提交到作品卡组待选，请前往作品能力中心选择主卡或辅卡并应用配置。');
+    expect(bookFactoryUse).toContain(
+      '已提交到作品卡组待选，请前往作品能力中心选择主卡或辅卡并应用配置。'
+    );
     expect(bookFactoryUse).not.toContain('后续写作会读取');
     expect(bookFactoryUse).not.toContain('被写作读取');
     expect(appShell).not.toContain('助手会读取当前作品与章节上下文');
@@ -372,7 +382,11 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(skillCard).toContain('启用');
     expect(skillCard).not.toContain('当前配置候选');
     expect(studio).not.toContain('再加入候选');
-    expect(`${studio}\n${preference}\n${loadout}\n${drawer}\n${mapPanel}\n${testBench}\n${skillCard}\n${welcome}\n${appShell}\n${governance}`).not.toMatch(/技能库|技能卡组|项目技能卡组|待分配技能卡|拆书技能卡|装配 Skill|装配能力|旧装配待整理|确认删除这个技能|技能库中删除|已装配|加入技能卡组|未命名 Skill|拆书技能|拆书生成技能|辅助写作推荐技能卡|技能如何影响写作|提交所选组件|当前组件暂不可运行|选择一张技能卡|技能卡牌有哪些能力|对应技能|技能融合|本章临时使用|临时配置|关闭技能详情|技能名称|技能描述|使用当前技能|深度挂载已有资产大纲|自适应挂载分析|挂载至第一章主角人设卡|自动挂载高连贯性升级限制|挂载 \$\{bubbleData|Skill 地图|技能总数|有使用反馈的 Skill|技能试驾|当前技能版本|当前职责卡|组合职责卡|对比职责卡|职责权重|主职责|职责画像|打开技能|删除技能|进行装备/);
+    expect(
+      `${studio}\n${preference}\n${loadout}\n${drawer}\n${mapPanel}\n${testBench}\n${skillCard}\n${welcome}\n${appShell}\n${governance}`
+    ).not.toMatch(
+      /技能库|技能卡组|项目技能卡组|待分配技能卡|拆书技能卡|装配 Skill|装配能力|旧装配待整理|确认删除这个技能|技能库中删除|已装配|加入技能卡组|未命名 Skill|拆书技能|拆书生成技能|辅助写作推荐技能卡|技能如何影响写作|提交所选组件|当前组件暂不可运行|选择一张技能卡|技能卡牌有哪些能力|对应技能|技能融合|本章临时使用|临时配置|关闭技能详情|技能名称|技能描述|使用当前技能|深度挂载已有资产大纲|自适应挂载分析|挂载至第一章主角人设卡|自动挂载高连贯性升级限制|挂载 \$\{bubbleData|Skill 地图|技能总数|有使用反馈的 Skill|技能试驾|当前技能版本|当前职责卡|组合职责卡|对比职责卡|职责权重|主职责|职责画像|打开技能|删除技能|进行装备/
+    );
   });
 
   test('runtime card messages avoid stack and skill-card wording', () => {
@@ -384,7 +398,9 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(recommendations).toContain('已移出本章使用卡');
     expect(packages).toContain('拆书卡候选');
     expect(extraction).toContain('保底拆书卡');
-    expect(`${recommendations}\n${packages}\n${extraction}`).not.toMatch(/叠加拆书卡|已成功叠加|撤销叠加|拆书技能卡候选|保底技能卡/);
+    expect(`${recommendations}\n${packages}\n${extraction}`).not.toMatch(
+      /叠加拆书卡|已成功叠加|撤销叠加|拆书技能卡候选|保底技能卡/
+    );
   });
 
   test('runtime prompts and errors avoid legacy mount wording', () => {
@@ -436,7 +452,9 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(promptTemplates).toContain('预期能力卡规则');
     expect(promptTemplates).toContain('当前启用的能力卡规则');
     expect(promptTemplates).not.toMatch(/写作卡牌规约|叙事 DNA 规约|Narrative DNA/);
-    expect(promptTemplates).not.toMatch(/Skill约束|Skills DNA|Skill 插件|Skill Card|Skill 中|Skill规定/);
+    expect(promptTemplates).not.toMatch(
+      /Skill约束|Skills DNA|Skill 插件|Skill Card|Skill 中|Skill规定/
+    );
     expect(promptCatalog).toContain('生成后需保存并配置到作品卡组');
     expect(promptCatalog).not.toContain('自动应用至写作中');
     expect(promptCatalog).toContain('可用于写作的节奏拆书卡');
@@ -460,7 +478,9 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(continuationPackParse).not.toContain('你是小说项目接管编辑');
     expect(promptHelpers).toContain('当前启用的写作能力卡组');
     expect(promptHelpers).toContain('当前启用的拆书卡规则');
-    expect(promptHelpers).not.toMatch(/Flavor Overlays|Deconstruction Card Injector|White-Label Transfer|Composite Narrative Signature/);
+    expect(promptHelpers).not.toMatch(
+      /Flavor Overlays|Deconstruction Card Injector|White-Label Transfer|Composite Narrative Signature/
+    );
     expect(writingStyleService).toContain('本章使用卡当前不可运行');
     expect(writingStyleService).toContain('作品卡组能力卡不能重复');
     expect(writingStyleService).toContain('本章写法卡规则');
@@ -471,7 +491,9 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(qualityGates).toContain('张能力卡为模板化输出');
     expect(bookSkillAggregation).toContain('规则约束时配置到本次写作');
     expect(auditRoute).toContain('自适应启用了以下高级审读维度');
-    expect(auditRoute).not.toMatch(/Audit job not found|Audit job is not cancellable|Audit job cancelled|Audit job expired|Audit job database generation mismatch|Rate limited|novelId is required|chapterId and databaseGeneration are required|Database changed|Database changed during rewrite|error: 'Cancelled'/);
+    expect(auditRoute).not.toMatch(
+      /Audit job not found|Audit job is not cancellable|Audit job cancelled|Audit job expired|Audit job database generation mismatch|Rate limited|novelId is required|chapterId and databaseGeneration are required|Database changed|Database changed during rewrite|error: 'Cancelled'/
+    );
     expect(rewritePrompt).toContain('当前启用的能力卡');
     expect(rewritePrompt).toContain('当前启用的能力卡规则');
     expect(promptHelpers).toContain('检测到已启用');
@@ -500,36 +522,64 @@ const workflowCopy = readSource('src/lib/workflow-copy.ts');
     expect(productionRoute).toContain('请先选择要生成正文的作品。');
     expect(productionRoute).toContain('生成任务来自旧版本数据库，请刷新后重试。');
     expect(productionRoute).toContain('这版正文尚未完成审稿确认，请先确认风险后再应用。');
-    expect(productionRoute).not.toMatch(/planner stage prompt|writer stage prompt|critic stage prompt|character state|learned preferences|Rate limited|novelId is required|Novel not found|Internal server error|Production run database generation mismatch|Production version database generation mismatch|Audit confirmation required/);
+    expect(productionRoute).not.toMatch(
+      /planner stage prompt|writer stage prompt|critic stage prompt|character state|learned preferences|Rate limited|novelId is required|Novel not found|Internal server error|Production run database generation mismatch|Production version database generation mismatch|Audit confirmation required/
+    );
     expect(utilityRoute).toContain('审稿卡：');
     expect(utilityRoute).toContain('精修卡：');
     expect(utilityRoute).toContain('当前章节正文');
     expect(utilityRoute).toContain('选中正文片段');
     expect(utilityRoute).toContain('数据库已变化，请刷新后重新运行能力工具。');
     expect(utilityRoute).toContain('选中文本已变化，请重新选择后再运行能力工具。');
-    expect(utilityRoute).not.toMatch(/chapterId and databaseGeneration are required|invalid capability request|database generation changed|novel not found|chapter not found|chapter does not belong to novel|selection is outside chapter content|utility request failed/);
+    expect(utilityRoute).not.toMatch(
+      /chapterId and databaseGeneration are required|invalid capability request|database generation changed|novel not found|chapter not found|chapter does not belong to novel|selection is outside chapter content|utility request failed/
+    );
     expect(outlinesRoute).toContain('数据库已变化，请刷新大纲后重试。');
     expect(canonPatchesRoute).toContain('数据库已变化，请刷新大纲变更后重试。');
-    expect(`${outlinesRoute}\n${canonPatchesRoute}`).not.toMatch(/invalid outline request|outline request failed|OUTLINE_GENERATION_STALE: database generation changed|novel not found|outline not found|invalid canon patch request|canon patch request failed|CANON_PATCH_GENERATION_STALE: database generation changed|patch not found|CANON_PATCH_STALE: canon patch base is stale/);
+    expect(`${outlinesRoute}\n${canonPatchesRoute}`).not.toMatch(
+      /invalid outline request|outline request failed|OUTLINE_GENERATION_STALE: database generation changed|novel not found|outline not found|invalid canon patch request|canon patch request failed|CANON_PATCH_GENERATION_STALE: database generation changed|patch not found|CANON_PATCH_STALE: canon patch base is stale/
+    );
     expect(exportRoute).toContain('作品导出失败，请稍后重试。');
     expect(dbRoute).toContain('数据库操作失败，请稍后重试。');
     expect(`${exportRoute}\n${dbRoute}`).not.toMatch(/Novel not found|Internal server error/);
     expect(simpleLlmRoute).toContain('片段扩写请求过于频繁，请稍后再试。');
     expect(simpleLlmRoute).toContain('请先输入要扩写的片段。');
-    expect(simpleLlmRoute).not.toMatch(/Rate limited|Database changed during fragment expansion|Content is required|Fragment input exceeds the cost limit|Client disconnected before fragment completion|Internal server error/);
+    expect(simpleLlmRoute).not.toMatch(
+      /Rate limited|Database changed during fragment expansion|Content is required|Fragment input exceeds the cost limit|Client disconnected before fragment completion|Internal server error/
+    );
     expect(promptTestRoute).toContain('提示词试跑请求过于频繁，请稍后再试。');
-    expect(promptTestRoute).not.toMatch(/Rate limited|Invalid prompt template test request|Unknown template key|Template rendered to empty prompt|Internal server error/);
+    expect(promptTestRoute).not.toMatch(
+      /Rate limited|Invalid prompt template test request|Unknown template key|Template rendered to empty prompt|Internal server error/
+    );
 
     expect(worldRoute).toContain('规划阶段能力卡与流程');
-    expect(worldRoute).not.toMatch(/Job not found|Job is not cancellable|World job cancelled|World job expired|World job database generation is invalid|Database replaced during world job|novelId is required|Rate limited|databaseGeneration is required|Chapter content is required|Chapters array is required|Character state update queued in background|Database changed during bio generation|Internal server error|error: 'Cancelled'/);
-    expect(`${worldRoute}\n${outlineSource}`).not.toMatch(/Planner 技法|Only approved packs can be used for outline generation|source belongs to another novel|continuation pack is not approved|document selection is invalid|document is not in the pack|primary document appears to be a report|primary document is not an outline candidate|document role cannot become an outline source|source exceeds the configured budget/);
-    expect(agentsRoute).not.toMatch(/Job not found|Job is not cancellable|Editor-agent job cancelled|Editor-agent job expired|Editor-agent job database generation mismatch|Invalid editor-agent request|Continuation pack not found|Continuation pack does not belong to editor-agent novel|novelId is required outside onboarding|Rate limited|Database changed during inspiration|Database changed before draft completion|error: 'Database changed'|error: 'Cancelled'/);
+    expect(worldRoute).not.toMatch(
+      /Job not found|Job is not cancellable|World job cancelled|World job expired|World job database generation is invalid|Database replaced during world job|novelId is required|Rate limited|databaseGeneration is required|Chapter content is required|Chapters array is required|Character state update queued in background|Database changed during bio generation|Internal server error|error: 'Cancelled'/
+    );
+    expect(`${worldRoute}\n${outlineSource}`).not.toMatch(
+      /Planner 技法|Only approved packs can be used for outline generation|source belongs to another novel|continuation pack is not approved|document selection is invalid|document is not in the pack|primary document appears to be a report|primary document is not an outline candidate|document role cannot become an outline source|source exceeds the configured budget/
+    );
+    expect(agentsRoute).not.toMatch(
+      /Job not found|Job is not cancellable|Editor-agent job cancelled|Editor-agent job expired|Editor-agent job database generation mismatch|Invalid editor-agent request|Continuation pack not found|Continuation pack does not belong to editor-agent novel|novelId is required outside onboarding|Rate limited|Database changed during inspiration|Database changed before draft completion|error: 'Database changed'|error: 'Cancelled'/
+    );
     expect(continuationRoute).toContain('资料设定提取请求过于频繁，请稍后再试。');
     expect(continuationRoute).toContain('同步到世界观请求过于频繁，请稍后再试。');
-    expect(continuationRoute).not.toMatch(/Rate limited|Parse-doc job cancelled|error: 'Cancelled'|novelId is required|At least one document is required|packId is required/);
-    expect(`${onboardingRoute}\n${storyCardsHelper}\n${readSource('server/helpers/onboarding-llm-session.ts')}`).not.toMatch(/Story card job not found|Story-card job expired|Job not found|Job is not cancellable|Story-card job cancelled|World-setup job cancelled|World-setup job expired|World-setup job database generation mismatch|Onboarding model session|Invalid onboarding model operation|ideaSeed is required|taskTitle is required|documentText is required|Internal server error|Rate limited|error: 'Cancelled'/);
-    expect(`${skillRoutes}\n${readSource('server/helpers/skill-extraction.ts')}`).not.toMatch(/Skill extraction job|Skill extraction aborted|Job is not cancellable|Rate limited/);
-    expect(`${skillRoutes}\n${validation}\n${copilotStage}\n${promptAssets}\n${promptTemplates}\n${promptCatalog}\n${publicCatalog}\n${promptHelpers}\n${writingStyleService}\n${capabilityManifest}\n${skillFusion}\n${dbSkills}\n${qualityGates}\n${bookSkillAggregation}\n${auditRoute}\n${rewritePrompt}\n${promptRecommender}\n${editorView}\n${simpleLlmRoute}\n${promptTestRoute}\n${worldRoute}\n${outlineSource}\n${outlinesRoute}\n${canonPatchesRoute}\n${agentsRoute}\n${continuationRoute}\n${onboardingRoute}`).not.toMatch(/暂时未能解析为技能卡|最多只能挂载 3 个技能卡|查看技能挂载|可直接挂载|当前挂载的写作卡牌规约|写作卡牌规约|叙事 DNA 规约|Narrative DNA|当前挂载的复合叙事 DNA|当前挂载的叙事 DNA|叙事 DNA 插件|检测到挂载了|推荐挂载长篇商业连载流程|动态挂载至写作中|可挂载节奏拆书卡|挂载 [^，。\n]*提高完读率|挂载 \$\{su\.title\}|mounted skill|mounted skills|no mounted skills|调整技能|该历史技能|技能放置失败|阶段技能与流程卡|该临时卡已失效|scene beats|chapter draft|audit critique|low fit score|new entities not synced|正在运行能力\.\.\.|应用预览|可直接用于写作的职责卡|Skill 卡组|skill 卡组|skill cards|职责单一|单职责|临时卡|本章技能卡|项目技能卡|技能需要|技能卡不允许|技能卡当前|章节临时卡|临时写法卡|临时规划卡|当前作品无权使用该临时卡|本地技能|已持久化技能|付费技能卡|技能卡版本|技能卡缺少|主笔技能|Writer overlay|技能插件|虚构的 skill|技能卡为模板化输出|技能卡必要字段|两个不同且存在的技能卡|已授权的技能卡融合|规则约束时挂载|自适应挂载/);
+    expect(continuationRoute).not.toMatch(
+      /Rate limited|Parse-doc job cancelled|error: 'Cancelled'|novelId is required|At least one document is required|packId is required/
+    );
+    expect(
+      `${onboardingRoute}\n${storyCardsHelper}\n${readSource('server/helpers/onboarding-llm-session.ts')}`
+    ).not.toMatch(
+      /Story card job not found|Story-card job expired|Job not found|Job is not cancellable|Story-card job cancelled|World-setup job cancelled|World-setup job expired|World-setup job database generation mismatch|Onboarding model session|Invalid onboarding model operation|ideaSeed is required|taskTitle is required|documentText is required|Internal server error|Rate limited|error: 'Cancelled'/
+    );
+    expect(`${skillRoutes}\n${readSource('server/helpers/skill-extraction.ts')}`).not.toMatch(
+      /Skill extraction job|Skill extraction aborted|Job is not cancellable|Rate limited/
+    );
+    expect(
+      `${skillRoutes}\n${validation}\n${copilotStage}\n${promptAssets}\n${promptTemplates}\n${promptCatalog}\n${publicCatalog}\n${promptHelpers}\n${writingStyleService}\n${capabilityManifest}\n${skillFusion}\n${dbSkills}\n${qualityGates}\n${bookSkillAggregation}\n${auditRoute}\n${rewritePrompt}\n${promptRecommender}\n${editorView}\n${simpleLlmRoute}\n${promptTestRoute}\n${worldRoute}\n${outlineSource}\n${outlinesRoute}\n${canonPatchesRoute}\n${agentsRoute}\n${continuationRoute}\n${onboardingRoute}`
+    ).not.toMatch(
+      /暂时未能解析为技能卡|最多只能挂载 3 个技能卡|查看技能挂载|可直接挂载|当前挂载的写作卡牌规约|写作卡牌规约|叙事 DNA 规约|Narrative DNA|当前挂载的复合叙事 DNA|当前挂载的叙事 DNA|叙事 DNA 插件|检测到挂载了|推荐挂载长篇商业连载流程|动态挂载至写作中|可挂载节奏拆书卡|挂载 [^，。\n]*提高完读率|挂载 \$\{su\.title\}|mounted skill|mounted skills|no mounted skills|调整技能|该历史技能|技能放置失败|阶段技能与流程卡|该临时卡已失效|scene beats|chapter draft|audit critique|low fit score|new entities not synced|正在运行能力\.\.\.|应用预览|可直接用于写作的职责卡|Skill 卡组|skill 卡组|skill cards|职责单一|单职责|临时卡|本章技能卡|项目技能卡|技能需要|技能卡不允许|技能卡当前|章节临时卡|临时写法卡|临时规划卡|当前作品无权使用该临时卡|本地技能|已持久化技能|付费技能卡|技能卡版本|技能卡缺少|主笔技能|Writer overlay|技能插件|虚构的 skill|技能卡为模板化输出|技能卡必要字段|两个不同且存在的技能卡|已授权的技能卡融合|规则约束时挂载|自适应挂载/
+    );
     expect(`${fusionTests}\n${dbSkillVersioningTests}`).not.toContain('叠加世界观型 Skill');
   });
 });

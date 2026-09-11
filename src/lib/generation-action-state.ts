@@ -63,7 +63,7 @@ export function idleAiAction(): AiActionState {
 export function createAiActionRunning(
   operation: AiActionOperation,
   startedAt = Date.now(),
-  message = RUNNING_COPY[operation],
+  message = RUNNING_COPY[operation]
 ): AiActionState {
   return { status: 'running', operation, startedAt, elapsedMs: 0, retryable: false, message };
 }
@@ -71,7 +71,7 @@ export function createAiActionRunning(
 export function createAiActionSuccess(
   current: AiActionState,
   message: string,
-  finishedAt = Date.now(),
+  finishedAt = Date.now()
 ): AiActionState {
   return {
     ...current,
@@ -89,7 +89,7 @@ export function createAiActionError(
   finishedAt = Date.now(),
   retryable = true,
   errorCode?: string,
-  violations?: string[],
+  violations?: string[]
 ): AiActionState {
   return {
     ...current,

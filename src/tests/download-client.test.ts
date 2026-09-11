@@ -55,10 +55,13 @@ describe('downloadAuthenticatedFile', () => {
   });
 
   test('rejects non-2xx responses without creating a Blob URL', async () => {
-    globalThis.fetch = vi.fn(async () => new Response(
-      JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )) as typeof fetch;
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+    ) as typeof fetch;
 
     await expect(downloadAuthenticatedFile('/api/db/export-file')).rejects.toThrow('Unauthorized');
     expect(createObjectURL).not.toHaveBeenCalled();
@@ -68,7 +71,9 @@ describe('downloadAuthenticatedFile', () => {
   test('revokes the Blob URL even when triggering the download throws', async () => {
     globalThis.fetch = vi.fn(async () => new Response('database-bytes')) as typeof fetch;
     const anchor = {
-      click: vi.fn(() => { throw new Error('click failed'); }),
+      click: vi.fn(() => {
+        throw new Error('click failed');
+      }),
       href: '',
       download: '',
     } as unknown as HTMLAnchorElement;

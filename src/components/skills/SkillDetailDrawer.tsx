@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Cpu, GitBranch, Layers, Loader2, Save, Sparkles, X } from 'lucide-react';
 
 import { subscribeToChanges } from '../../lib/db-transport';
-import { createSkill, listSkillUsageRecords, listSkillVersions, updateSkill } from '../../lib/skill-client';
+import {
+  createSkill,
+  listSkillUsageRecords,
+  listSkillVersions,
+  updateSkill,
+} from '../../lib/skill-client';
 import { getSkillRoleLabel, getSkillRoleTags } from '../../../shared/lib/skill-language';
 import { summarizeUsageStats } from '../../../shared/lib/skill-model';
 import { cn } from '../../lib/utils';
@@ -14,7 +19,10 @@ import { createProductEventId, recordProductEvent } from '../../lib/product-even
 import type { ProductEventSourceType } from '../../../shared/types/product-events';
 
 function eventSourceType(value: unknown): ProductEventSourceType {
-  return value === 'built-in' || value === 'plaza' || value === 'licensed' || value === 'book-extracted'
+  return value === 'built-in' ||
+    value === 'plaza' ||
+    value === 'licensed' ||
+    value === 'book-extracted'
     ? value
     : 'unknown';
 }
@@ -98,11 +106,7 @@ export function SkillDetailDrawer({
         ]);
         const nextUsageStats = summarizeUsageStats(records);
         setVersions(nextVersions);
-        setUsageStats(
-          hasUsageData(nextUsageStats)
-            ? nextUsageStats
-            : skill.usageStats || null,
-        );
+        setUsageStats(hasUsageData(nextUsageStats) ? nextUsageStats : skill.usageStats || null);
       } catch {
         setVersions([]);
         setUsageStats(skill.usageStats || null);
@@ -114,19 +118,16 @@ export function SkillDetailDrawer({
 
   const selectedDimensionSet = useMemo(
     () => new Set(draft?.dimensionTags || []),
-    [draft?.dimensionTags],
+    [draft?.dimensionTags]
   );
-  const fusionCandidates = useMemo(
-    () => {
-      if (!draft) return [];
-      return allSkills.filter((candidate) => {
-        if (candidate.id === draft.id) return false;
-        if (!candidate.primaryDimension) return true;
-        return candidate.primaryDimension !== draft.primaryDimension || candidate.id !== draft.id;
-      });
-    },
-    [allSkills, draft],
-  );
+  const fusionCandidates = useMemo(() => {
+    if (!draft) return [];
+    return allSkills.filter((candidate) => {
+      if (candidate.id === draft.id) return false;
+      if (!candidate.primaryDimension) return true;
+      return candidate.primaryDimension !== draft.primaryDimension || candidate.id !== draft.id;
+    });
+  }, [allSkills, draft]);
   const testBenchCandidates = useMemo(() => {
     if (!fusionPreview) return versions;
     return [fusionPreview, ...versions.filter((version) => version.id !== fusionPreview.id)];
@@ -142,7 +143,9 @@ export function SkillDetailDrawer({
         </div>
 
         <div className="flex-1 py-6 space-y-5 text-left">
-          <div className="text-xs font-bold text-theme-text uppercase tracking-wider text-theme-muted/80">能力卡有哪些能力：</div>
+          <div className="text-xs font-bold text-theme-text uppercase tracking-wider text-theme-muted/80">
+            能力卡有哪些能力：
+          </div>
 
           <div className="flex gap-3 items-start">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
@@ -151,7 +154,8 @@ export function SkillDetailDrawer({
             <div>
               <h4 className="text-xs font-bold text-theme-text">核心写作用途 (Purpose)</h4>
               <p className="text-[11px] text-theme-muted leading-relaxed mt-1">
-                限制 AI 写作的叙事边界、字数节奏及描写密度，在不同场景（如打斗、悬疑）下使用对应能力卡。
+                限制 AI
+                写作的叙事边界、字数节奏及描写密度，在不同场景（如打斗、悬疑）下使用对应能力卡。
               </p>
             </div>
           </div>
@@ -239,7 +243,9 @@ export function SkillDetailDrawer({
           objectId: nextId,
           sourceType: eventSourceType(source.sourceType),
           sessionId: novelId ? `skill:${novelId}` : undefined,
-          eventId: novelId ? createProductEventId(`fusion_saved:${nextId}`, `skill:${novelId}`) : undefined,
+          eventId: novelId
+            ? createProductEventId(`fusion_saved:${nextId}`, `skill:${novelId}`)
+            : undefined,
           action: 'save-fusion',
         });
       }
@@ -268,14 +274,14 @@ export function SkillDetailDrawer({
       <div
         className={cn(
           'fixed inset-0 bg-black/20 transition-opacity xl:hidden',
-          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}
       />
       <aside
         className={cn(
           'fixed xl:static inset-y-0 right-0 z-30 w-full max-w-[460px] shrink-0 border-l border-theme-border bg-theme-sidebar/95 backdrop-blur-sm transition-transform duration-300',
-          open ? 'translate-x-0' : 'translate-x-full xl:translate-x-0',
+          open ? 'translate-x-0' : 'translate-x-full xl:translate-x-0'
         )}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-theme-border">
@@ -297,7 +303,9 @@ export function SkillDetailDrawer({
 
         <div className="h-[calc(100%-73px)] overflow-y-auto p-5 space-y-6">
           <section className="space-y-3">
-            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">基础信息</div>
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+              基础信息
+            </div>
             <input
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
@@ -350,7 +358,9 @@ export function SkillDetailDrawer({
           </section>
 
           <section className="space-y-3">
-            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">能力画像</div>
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+              能力画像
+            </div>
             <div className="flex flex-wrap gap-2">
               {SKILL_DIMENSIONS.map((dimension) => (
                 <button
@@ -361,7 +371,7 @@ export function SkillDetailDrawer({
                     'px-3 py-1.5 rounded-full border text-xs font-bold transition-colors',
                     selectedDimensionSet.has(dimension.value)
                       ? 'border-theme-accent bg-theme-accent/10 text-theme-accent'
-                      : 'border-theme-border bg-theme-sidebar text-theme-muted hover:bg-theme-sidebar/20',
+                      : 'border-theme-border bg-theme-sidebar text-theme-muted hover:bg-theme-sidebar/20'
                   )}
                 >
                   {dimension.label}
@@ -405,7 +415,9 @@ export function SkillDetailDrawer({
           </section>
 
           <section className="space-y-3">
-            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">版本谱系</div>
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+              版本谱系
+            </div>
             <SkillVersionTimeline
               versions={versions}
               activeId={skill.id}
@@ -414,33 +426,50 @@ export function SkillDetailDrawer({
           </section>
 
           <section className="space-y-3">
-            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">价值证明 (Before / After 效果对比)</div>
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+              价值证明 (Before / After 效果对比)
+            </div>
             <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-3">
               <div className="flex items-center justify-between text-xs border-b border-theme-border/50 pb-2">
                 <span className="font-bold text-theme-text">影响维度对比</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">静态预览</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  静态预览
+                </span>
               </div>
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <div className="text-[10px] font-bold text-red-600 mb-1">● 通用模型语气 (未使用)</div>
- <p className="text-[11px] text-theme-muted leading-relaxed pl-3 border-l alert-danger py-1.5 rounded-r">
-                    平铺直叙，词风倾向大众套路；缺少当前角色情感滤镜；AI 倾向于快速收尾剧情，没有文风专项审计约束。
+                  <div className="text-[10px] font-bold text-red-600 mb-1">
+                    ● 通用模型语气 (未使用)
+                  </div>
+                  <p className="text-[11px] text-theme-muted leading-relaxed pl-3 border-l alert-danger py-1.5 rounded-r">
+                    平铺直叙，词风倾向大众套路；缺少当前角色情感滤镜；AI
+                    倾向于快速收尾剧情，没有文风专项审计约束。
                   </p>
                 </div>
 
                 <div>
-                  <div className="text-[10px] font-bold text-emerald-600 mb-1">● 使用当前能力卡 (效果预览)</div>
+                  <div className="text-[10px] font-bold text-emerald-600 mb-1">
+                    ● 使用当前能力卡 (效果预览)
+                  </div>
                   <div className="text-[11px] text-theme-text leading-relaxed pl-3 border-l-2 border-emerald-500 bg-emerald-500/5 py-1.5 rounded-r space-y-2">
                     <p className="font-bold text-[10px] text-emerald-700">分镜/正文将深度影响：</p>
                     <div className="space-y-1">
                       <p className="text-theme-muted">
                         <strong className="text-theme-text font-semibold">文风渲染：</strong>
-                        {draft.style ? (draft.style.length > 70 ? draft.style.slice(0, 70) + '...' : draft.style) : '严格按卡牌文风生成，深度定制字词张力。'}
+                        {draft.style
+                          ? draft.style.length > 70
+                            ? draft.style.slice(0, 70) + '...'
+                            : draft.style
+                          : '严格按卡牌文风生成，深度定制字词张力。'}
                       </p>
                       <p className="text-theme-muted">
                         <strong className="text-theme-text font-semibold">节奏大纲：</strong>
-                        {draft.pacing ? (draft.pacing.length > 70 ? draft.pacing.slice(0, 70) + '...' : draft.pacing) : '场景冲突按卡牌节奏规则陡峭推进或舒缓。'}
+                        {draft.pacing
+                          ? draft.pacing.length > 70
+                            ? draft.pacing.slice(0, 70) + '...'
+                            : draft.pacing
+                          : '场景冲突按卡牌节奏规则陡峭推进或舒缓。'}
                       </p>
                     </div>
                   </div>
@@ -450,7 +479,9 @@ export function SkillDetailDrawer({
           </section>
 
           <section className="space-y-3">
-            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">使用反馈摘要</div>
+            <div className="text-xs font-bold text-theme-muted uppercase tracking-wider">
+              使用反馈摘要
+            </div>
             <div className="rounded-2xl border border-theme-border p-4 bg-theme-sidebar/20">
               {usageStats ? (
                 <>
@@ -487,7 +518,12 @@ export function SkillDetailDrawer({
                     objectId: nextPreview.id,
                     sourceType: eventSourceType(nextPreview.sourceType),
                     sessionId: novelId ? `skill:${novelId}` : undefined,
-                    eventId: novelId ? createProductEventId(`fusion_previewed:${nextPreview.id}`, `skill:${novelId}`) : undefined,
+                    eventId: novelId
+                      ? createProductEventId(
+                          `fusion_previewed:${nextPreview.id}`,
+                          `skill:${novelId}`
+                        )
+                      : undefined,
                     action: 'preview-fusion',
                   });
                 }
@@ -514,7 +550,11 @@ export function SkillDetailDrawer({
               disabled={savingMode !== null}
               className="rounded-2xl bg-theme-text text-theme-bg px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              {savingMode === 'update' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {savingMode === 'update' ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
               保存当前能力卡
             </button>
             <button
@@ -523,7 +563,11 @@ export function SkillDetailDrawer({
               disabled={savingMode !== null}
               className="rounded-2xl bg-theme-accent text-theme-accent-contrast px-4 py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              {savingMode === 'fork' ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {savingMode === 'fork' ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Sparkles size={16} />
+              )}
               {fusionPreview ? '保存融合为新版本' : '保存为新版本'}
             </button>
           </section>

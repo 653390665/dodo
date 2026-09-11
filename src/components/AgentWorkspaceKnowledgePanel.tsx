@@ -14,7 +14,10 @@ import type {
   SkillUsageRecord,
 } from '../../shared/types';
 import { buildKnowledgeSearchEntries } from '../lib/agent-workspace-knowledge';
-import { buildEffectiveCapabilitySummary, resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
+import {
+  buildEffectiveCapabilitySummary,
+  resolveCapabilityDisplayName,
+} from '../lib/capability-stage-cards';
 import { ProjectPreferencePanel } from './skills/ProjectPreferencePanel';
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile';
 import { SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
@@ -121,7 +124,10 @@ export function AgentWorkspaceKnowledgePanel({
         <div className="sticky top-0 bg-theme-sidebar/50 backdrop-blur z-10 pb-2">
           <div className="flex items-center gap-2">
             <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" size={14} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted"
+                size={14}
+              />
               <input
                 type="text"
                 placeholder="检索资料包、角色、地点、道具..."
@@ -132,7 +138,11 @@ export function AgentWorkspaceKnowledgePanel({
               />
             </div>
             {onOpenTrace && (
-              <button type="button" onClick={onOpenTrace} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-theme-border px-2 py-2 text-[10px] text-theme-muted hover:bg-theme-border/20">
+              <button
+                type="button"
+                onClick={onOpenTrace}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-theme-border px-2 py-2 text-[10px] text-theme-muted hover:bg-theme-border/20"
+              >
                 <ScanSearch size={12} /> 扫描本章实体
               </button>
             )}
@@ -140,7 +150,10 @@ export function AgentWorkspaceKnowledgePanel({
         </div>
         <div className="space-y-3 pb-8">
           {knowledgeEntries.map((entry) => (
-            <div key={entry.id} className="bg-theme-sidebar p-4 rounded-xl border border-theme-border/40 shadow-sm transition-hover hover:border-theme-accent/50">
+            <div
+              key={entry.id}
+              className="bg-theme-sidebar p-4 rounded-xl border border-theme-border/40 shadow-sm transition-hover hover:border-theme-accent/50"
+            >
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <div className="text-sm font-bold text-theme-text">{entry.title}</div>
                 <div className="text-[10px] bg-theme-sidebar px-1.5 py-0.5 rounded text-theme-muted font-medium tracking-wide">
@@ -153,8 +166,14 @@ export function AgentWorkspaceKnowledgePanel({
                 ) : null}
                 <div className="text-[10px] text-theme-muted">{entry.sourceLabel}</div>
               </div>
-              {entry.summary ? <div className="text-xs font-semibold text-theme-accent mb-2">{entry.summary}</div> : null}
-              {entry.detail ? <div className="text-xs text-theme-muted/80 leading-relaxed whitespace-pre-wrap">{entry.detail}</div> : null}
+              {entry.summary ? (
+                <div className="text-xs font-semibold text-theme-accent mb-2">{entry.summary}</div>
+              ) : null}
+              {entry.detail ? (
+                <div className="text-xs text-theme-muted/80 leading-relaxed whitespace-pre-wrap">
+                  {entry.detail}
+                </div>
+              ) : null}
             </div>
           ))}
           {knowledgeEntries.length === 0 ? (
@@ -184,40 +203,66 @@ export function AgentWorkspaceKnowledgePanel({
         </div>
         <ProjectPreferencePanel profile={normalizedProfile} />
         <section className="border-y border-theme-border/60 py-2" aria-label="本章能力来源摘要">
-          <div className="text-[11px] font-semibold text-theme-text">{effectiveCapabilitySummary.summaryText}</div>
+          <div className="text-[11px] font-semibold text-theme-text">
+            {effectiveCapabilitySummary.summaryText}
+          </div>
           {effectiveCapabilitySummary.names.length > 0 ? (
             <p className="mt-1 text-[11px] leading-5 text-theme-muted">
               {effectiveCapabilitySummary.names.join('、')}
-              {effectiveCapabilitySummary.overflowCount > 0 ? ` 等 ${effectiveCapabilitySummary.overflowCount} 项` : ''}
+              {effectiveCapabilitySummary.overflowCount > 0
+                ? ` 等 ${effectiveCapabilitySummary.overflowCount} 项`
+                : ''}
             </p>
           ) : null}
         </section>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-6">
-        <section className="border-y border-theme-border/60 py-3" aria-labelledby="chapter-capability-flow">
-          <h3 id="chapter-capability-flow" className="text-[11px] font-semibold text-theme-muted">当前流程</h3>
+        <section
+          className="border-y border-theme-border/60 py-3"
+          aria-labelledby="chapter-capability-flow"
+        >
+          <h3 id="chapter-capability-flow" className="text-[11px] font-semibold text-theme-muted">
+            当前流程
+          </h3>
           <p className="mt-1 text-sm text-theme-text">{activeFlowLabel}</p>
         </section>
 
-        <section className="border-b border-theme-border/60 pb-3" aria-labelledby="chapter-capability-deck">
-          <h3 id="chapter-capability-deck" className="text-[11px] font-semibold text-theme-muted">作品默认卡</h3>
+        <section
+          className="border-b border-theme-border/60 pb-3"
+          aria-labelledby="chapter-capability-deck"
+        >
+          <h3 id="chapter-capability-deck" className="text-[11px] font-semibold text-theme-muted">
+            作品默认卡
+          </h3>
           <p className="mt-1 text-[11px] leading-5 text-theme-muted">
             主卡决定后续正文的主导口吻与节奏；辅卡补充世界观、人物或钩子约束。
           </p>
           <dl className="mt-2 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs">
             <dt className="text-theme-muted">作品主卡</dt>
-            <dd className="min-w-0 break-words text-theme-text">{skillName(capabilityProfile?.projectSkillDeck.mainCardId)}</dd>
+            <dd className="min-w-0 break-words text-theme-text">
+              {skillName(capabilityProfile?.projectSkillDeck.mainCardId)}
+            </dd>
             <dt className="text-theme-muted">辅助卡</dt>
             <dd className="min-w-0 break-words text-theme-text">
               {capabilityProfile?.projectSkillDeck.supportCardIds.length
-                ? capabilityProfile.projectSkillDeck.supportCardIds.map((id) => skillName(id)).join('、')
+                ? capabilityProfile.projectSkillDeck.supportCardIds
+                    .map((id) => skillName(id))
+                    .join('、')
                 : '未设置'}
             </dd>
           </dl>
         </section>
 
-        <section className="border-b border-theme-border/60 pb-3" aria-labelledby="chapter-capability-techniques">
-          <h3 id="chapter-capability-techniques" className="text-[11px] font-semibold text-theme-muted">常用技法</h3>
+        <section
+          className="border-b border-theme-border/60 pb-3"
+          aria-labelledby="chapter-capability-techniques"
+        >
+          <h3
+            id="chapter-capability-techniques"
+            className="text-[11px] font-semibold text-theme-muted"
+          >
+            常用技法
+          </h3>
           <p className="mt-1 text-xs leading-5 text-theme-text">
             {favoriteTechniqueNames.length ? favoriteTechniqueNames.join('、') : '未收藏常用技法'}
           </p>
@@ -226,8 +271,16 @@ export function AgentWorkspaceKnowledgePanel({
           </p>
         </section>
 
-        <section className="border-b border-theme-border/60 pb-3" aria-labelledby="chapter-capability-overlays">
-          <h3 id="chapter-capability-overlays" className="text-[11px] font-semibold text-theme-muted">本章使用卡</h3>
+        <section
+          className="border-b border-theme-border/60 pb-3"
+          aria-labelledby="chapter-capability-overlays"
+        >
+          <h3
+            id="chapter-capability-overlays"
+            className="text-[11px] font-semibold text-theme-muted"
+          >
+            本章使用卡
+          </h3>
           <p className="mt-1 text-xs leading-5 text-theme-text">
             {chapterCapabilityState?.overlayCardIds.length
               ? chapterCapabilityState.overlayCardIds.map((id) => skillName(id)).join('、')
@@ -238,8 +291,16 @@ export function AgentWorkspaceKnowledgePanel({
           </p>
         </section>
 
-        <section className="border-b border-theme-border/60 pb-3" aria-labelledby="chapter-capability-guardrails">
-          <h3 id="chapter-capability-guardrails" className="text-[11px] font-semibold text-theme-muted">系统检查规则</h3>
+        <section
+          className="border-b border-theme-border/60 pb-3"
+          aria-labelledby="chapter-capability-guardrails"
+        >
+          <h3
+            id="chapter-capability-guardrails"
+            className="text-[11px] font-semibold text-theme-muted"
+          >
+            系统检查规则
+          </h3>
           <p className="mt-1 text-xs leading-5 text-theme-text">
             {effectiveCapabilitySummary.guardrailIds.length
               ? effectiveCapabilitySummary.guardrailIds.map((id) => skillName(id)).join('、')
@@ -247,10 +308,20 @@ export function AgentWorkspaceKnowledgePanel({
           </p>
         </section>
 
-        <section className="border-b border-theme-border/60 pb-3" aria-labelledby="chapter-capability-confirmation">
-          <h3 id="chapter-capability-confirmation" className="text-[11px] font-semibold text-theme-muted">写法确认</h3>
+        <section
+          className="border-b border-theme-border/60 pb-3"
+          aria-labelledby="chapter-capability-confirmation"
+        >
+          <h3
+            id="chapter-capability-confirmation"
+            className="text-[11px] font-semibold text-theme-muted"
+          >
+            写法确认
+          </h3>
           <p className="mt-1 text-xs text-theme-text">
-            {normalizedProfile.writingStyleConfirmation ? '已有确认记录' : '首次 AI 正文生成前需确认'}
+            {normalizedProfile.writingStyleConfirmation
+              ? '已有确认记录'
+              : '首次 AI 正文生成前需确认'}
           </p>
         </section>
 

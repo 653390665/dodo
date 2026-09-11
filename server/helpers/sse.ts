@@ -41,7 +41,11 @@ function isSseWritable(res: Response): boolean {
  * Routes keep ownership of their event payloads and abort semantics and
  * only hand the byte-transport concerns to this helper.
  */
-export function openSseStream(req: Request, res: Response, options: OpenSseStreamOptions = {}): SseStreamHandle {
+export function openSseStream(
+  req: Request,
+  res: Response,
+  options: OpenSseStreamOptions = {}
+): SseStreamHandle {
   const { heartbeatMs = 30_000, flush = true, onAbort, onCleanup } = options;
 
   let cleanedUp = false;

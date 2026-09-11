@@ -8,9 +8,9 @@ describe('skill client usage records request contract', () => {
   });
 
   it('omits the optional skill id when it is not provided', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ result: [] }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ result: [] }), { status: 200 }));
 
     await listSkillUsageRecords();
 
@@ -21,9 +21,9 @@ describe('skill client usage records request contract', () => {
   });
 
   it('sends the skill id when it is provided', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ result: [] }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ result: [] }), { status: 200 }));
 
     await listSkillUsageRecords('skill-v2');
 

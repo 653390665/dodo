@@ -35,7 +35,7 @@ export const CONTINUATION_DOCUMENTS_MAX_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 
 
 export function validateArchiveManifest(
   entries: ArchiveEntrySize[],
-  limits: ArchiveResourceLimits,
+  limits: ArchiveResourceLimits
 ): number {
   if (entries.length > limits.maxEntries) {
     throw new Error(`压缩包条目数量超过 ${limits.maxEntries} 个上限`);
@@ -47,19 +47,24 @@ export function validateArchiveManifest(
     const compressed = entry.compressedSize;
     const uncompressed = entry.uncompressedSize;
     if (
-      !Number.isSafeInteger(compressed)
-      || compressed === undefined
-      || compressed < 0
-      || !Number.isSafeInteger(uncompressed)
-      || uncompressed === undefined
-      || uncompressed < 0
+      !Number.isSafeInteger(compressed) ||
+      compressed === undefined ||
+      compressed < 0 ||
+      !Number.isSafeInteger(uncompressed) ||
+      uncompressed === undefined ||
+      uncompressed < 0
     ) {
       throw new Error(`无法验证压缩条目大小：${entry.name}`);
     }
     if (uncompressed > limits.maxSingleUncompressedBytes) {
       throw new Error(`压缩条目解压后过大：${entry.name}`);
     }
-    const ratio = uncompressed === 0 ? 0 : compressed === 0 ? Number.POSITIVE_INFINITY : uncompressed / compressed;
+    const ratio =
+      uncompressed === 0
+        ? 0
+        : compressed === 0
+          ? Number.POSITIVE_INFINITY
+          : uncompressed / compressed;
     if (ratio > limits.maxCompressionRatio) {
       throw new Error(`压缩比异常：${entry.name}`);
     }
@@ -74,7 +79,12 @@ export function validateArchiveManifest(
 export function isSupportedContinuationDocument(filename: string): boolean {
   const name = filename.toLowerCase().replace(/\\/g, '/');
   if (name.includes('__macosx') || name.startsWith('.') || name.includes('/.')) return false;
-  return name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.docx');
+  return (
+    name.endsWith('.txt') ||
+    name.endsWith('.md') ||
+    name.endsWith('.json') ||
+    name.endsWith('.docx')
+  );
 }
 
 export function sanitizeArchivePath(input: string): string {

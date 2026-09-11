@@ -27,22 +27,28 @@ export function EditorGuideBanners({
   packStatus = 'none',
   syncState = 'not-required',
 }: EditorGuideBannersProps) {
-  const workflow = deriveProjectWorkflowState({ loading: false, chapter: currentChapter, packStatus, syncState });
-  const nextAction = workflow.phase === 'planning'
-    ? '生成本章分镜'
-    : workflow.phase === 'drafting'
-      ? '根据分镜扩写正文'
-      : workflow.phase === 'audit'
-        ? '启动本章质量审计'
-        : workflow.phase === 'polish'
-          ? '按审计意见局部润色'
-          : workflow.phase === 'sync'
-            ? '接入本章上下文'
-            : workflow.phase === 'review'
-              ? '审核资料包'
-              : workflow.phase === 'next_chapter'
-                ? '创建下一章'
-                : '开始本章写作';
+  const workflow = deriveProjectWorkflowState({
+    loading: false,
+    chapter: currentChapter,
+    packStatus,
+    syncState,
+  });
+  const nextAction =
+    workflow.phase === 'planning'
+      ? '生成本章分镜'
+      : workflow.phase === 'drafting'
+        ? '根据分镜扩写正文'
+        : workflow.phase === 'audit'
+          ? '启动本章质量审计'
+          : workflow.phase === 'polish'
+            ? '按审计意见局部润色'
+            : workflow.phase === 'sync'
+              ? '接入本章上下文'
+              : workflow.phase === 'review'
+                ? '审核资料包'
+                : workflow.phase === 'next_chapter'
+                  ? '创建下一章'
+                  : '开始本章写作';
   return (
     <>
       {currentChapter && isChapterEmpty && !showEmptyChapterGuide && (

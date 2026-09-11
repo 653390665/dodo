@@ -34,10 +34,16 @@ function emit(request: AppDialogRequest | null): void {
 export function appConfirm(
   title: string,
   description?: string,
-  options?: { confirmLabel?: string; cancelLabel?: string },
+  options?: { confirmLabel?: string; cancelLabel?: string }
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    emit({ kind: 'confirm', title, description, ...options, resolve: (value) => resolve(value === true) });
+    emit({
+      kind: 'confirm',
+      title,
+      description,
+      ...options,
+      resolve: (value) => resolve(value === true),
+    });
   });
 }
 
@@ -48,10 +54,20 @@ export function appConfirm(
  */
 export function appPrompt(
   title: string,
-  options?: { description?: string; defaultValue?: string; placeholder?: string; confirmLabel?: string },
+  options?: {
+    description?: string;
+    defaultValue?: string;
+    placeholder?: string;
+    confirmLabel?: string;
+  }
 ): Promise<string | null> {
   return new Promise((resolve) => {
-    emit({ kind: 'prompt', title, ...options, resolve: (value) => resolve(typeof value === 'string' ? value : null) });
+    emit({
+      kind: 'prompt',
+      title,
+      ...options,
+      resolve: (value) => resolve(typeof value === 'string' ? value : null),
+    });
   });
 }
 
@@ -79,7 +95,12 @@ export function AppDialogHost() {
   };
   if (!request) return null;
   return (
-    <AlertDialog open onOpenChange={(open) => { if (!open) settle(null); }}>
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) settle(null);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{request.title}</AlertDialogTitle>
@@ -104,7 +125,9 @@ export function AppDialogHost() {
           />
         ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => settle(null)}>{request.cancelLabel ?? '取消'}</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => settle(null)}>
+            {request.cancelLabel ?? '取消'}
+          </AlertDialogCancel>
           <AlertDialogAction onClick={() => settle(request.kind === 'prompt' ? inputValue : true)}>
             {request.confirmLabel ?? '确定'}
           </AlertDialogAction>

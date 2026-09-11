@@ -6,17 +6,27 @@ import type { Skill } from '../../shared/types';
 import { resolveRuntimeCuratedPrompts } from './curated-skill-runtime.js';
 
 export function buildSkillsPrompt(skills: Skill[]) {
-  if (!skills || skills.length === 0) return "";
+  if (!skills || skills.length === 0) return '';
 
   const resolvedSkills = resolveRuntimeCuratedPrompts(skills);
 
-  const allBannedElements = Array.from(new Set(resolvedSkills.flatMap(s => [
-    ...(Array.isArray(s.bannedWords) ? s.bannedWords : []),
-    ...(Array.isArray(s.bannedElements) ? s.bannedElements : [])
-  ])));
-  const allImagery = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.imagery) ? s.imagery : [])));
-  const allVocabulary = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.vocabulary) ? s.vocabulary : [])));
-  const allCorePatterns = Array.from(new Set(resolvedSkills.flatMap(s => Array.isArray(s.corePatterns) ? s.corePatterns : [])));
+  const allBannedElements = Array.from(
+    new Set(
+      resolvedSkills.flatMap((s) => [
+        ...(Array.isArray(s.bannedWords) ? s.bannedWords : []),
+        ...(Array.isArray(s.bannedElements) ? s.bannedElements : []),
+      ])
+    )
+  );
+  const allImagery = Array.from(
+    new Set(resolvedSkills.flatMap((s) => (Array.isArray(s.imagery) ? s.imagery : [])))
+  );
+  const allVocabulary = Array.from(
+    new Set(resolvedSkills.flatMap((s) => (Array.isArray(s.vocabulary) ? s.vocabulary : [])))
+  );
+  const allCorePatterns = Array.from(
+    new Set(resolvedSkills.flatMap((s) => (Array.isArray(s.corePatterns) ? s.corePatterns : [])))
+  );
 
   const primarySkill = resolvedSkills[0];
   const secondarySkills = resolvedSkills.slice(1);
@@ -28,15 +38,17 @@ export function buildSkillsPrompt(skills: Skill[]) {
   prompt += `- 基于《${primarySkill.name}》：${primarySkill.style}\n`;
   if (primarySkill.sentenceStructure) prompt += `  句法要求："${primarySkill.sentenceStructure}"\n`;
   prompt += `  节奏推进遵循："${primarySkill.pacing}"\n`;
-  if (primarySkill.characterTraits) prompt += `  核心人物特征模版："${primarySkill.characterTraits}"\n`;
-  if (primarySkill.worldBuilding) prompt += `  世界观/力量体系感："${primarySkill.worldBuilding}"\n`;
+  if (primarySkill.characterTraits)
+    prompt += `  核心人物特征模版："${primarySkill.characterTraits}"\n`;
+  if (primarySkill.worldBuilding)
+    prompt += `  世界观/力量体系感："${primarySkill.worldBuilding}"\n`;
   if (primarySkill.plotPattern) prompt += `  剧情/爽点套路结构："${primarySkill.plotPattern}"\n`;
   if (primarySkill.foreshadowing) prompt += `  悬念及伏笔手法："${primarySkill.foreshadowing}"\n`;
   prompt += `\n`;
 
   if (secondarySkills.length > 0) {
     prompt += `辅助能力卡：\n`;
-    secondarySkills.forEach(s => {
+    secondarySkills.forEach((s) => {
       prompt += `- 融合《${s.name}》：在描写层引入其"${s.style}"的色彩。`;
       if (s.characterTraits) prompt += `引入人物特征：${s.characterTraits}。`;
       if (s.plotPattern) prompt += `借鉴剧情节奏：${s.plotPattern}。`;
@@ -46,25 +58,29 @@ export function buildSkillsPrompt(skills: Skill[]) {
   }
 
   prompt += `全局语法规约 (Global Constraints):\n`;
-  if (allImagery.length > 0) prompt += `- 【核心意象群】：${allImagery.join("、")} (在描写中高频出现这些符号)\n`;
-  if (allVocabulary.length > 0) prompt += `- 【标志性词汇】：${allVocabulary.join("、")} (优先使用这些具有辨识度的词汇)\n`;
-  if (allCorePatterns.length > 0) prompt += `- 【核心行文套路】：${allCorePatterns.join("、")} (在构建桥段时，请采纳这些模式)\n`;
-  if (allBannedElements.length > 0) prompt += `- 【绝对禁忌红线】：${allBannedElements.join("、")} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
+  if (allImagery.length > 0)
+    prompt += `- 【核心意象群】：${allImagery.join('、')} (在描写中高频出现这些符号)\n`;
+  if (allVocabulary.length > 0)
+    prompt += `- 【标志性词汇】：${allVocabulary.join('、')} (优先使用这些具有辨识度的词汇)\n`;
+  if (allCorePatterns.length > 0)
+    prompt += `- 【核心行文套路】：${allCorePatterns.join('、')} (在构建桥段时，请采纳这些模式)\n`;
+  if (allBannedElements.length > 0)
+    prompt += `- 【绝对禁忌红线】：${allBannedElements.join('、')} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
 
   prompt += `风格对标样例 (Composite Few-Shots):\n`;
-  resolvedSkills.forEach(s => {
+  resolvedSkills.forEach((s) => {
     (Array.isArray(s.fewShots) ? s.fewShots : []).slice(0, 2).forEach((fs: string) => {
       prompt += `  * "${fs}" (来自 ${s.name})\n`;
     });
   });
 
   // ---- Deconstruction Card Runtime Rules ----
-  const deconstructionCards = resolvedSkills.filter(s => s.deconstructionCardType);
+  const deconstructionCards = resolvedSkills.filter((s) => s.deconstructionCardType);
   if (deconstructionCards.length > 0) {
     prompt += `\n【当前启用的拆书卡规则】\n`;
     prompt += `检测到已启用 ${deconstructionCards.length} 张专业拆书卡。请严格遵循以下卡牌规约：只吸收其交互规律、描写规律、信息铺垫方法与语言手感，绝对不能直接套用任何原有小说中的角色名、专有名词、地点等实体，避免产生冲突性污染。\n\n`;
 
-    deconstructionCards.forEach(s => {
+    deconstructionCards.forEach((s) => {
       const type = s.deconstructionCardType!;
       prompt += `<deconstruction_${type} name="${s.name}">\n`;
       prompt += `  <card_scope>${s.description}</card_scope>\n`;
@@ -126,7 +142,10 @@ export function getPromptTemplate(key: PromptTemplateKey): string {
   return mergePromptTemplates(getConfig().promptTemplates)[key];
 }
 
-export function renderPromptTemplate(template: string, values: Record<string, string | number | undefined>): string {
+export function renderPromptTemplate(
+  template: string,
+  values: Record<string, string | number | undefined>
+): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_match, rawKey) => {
     const key = rawKey as keyof typeof values;
     const value = values[key];
@@ -165,14 +184,22 @@ export function buildAuditWindow(text: string | undefined, maxChars = 7800): str
   const sections = [
     { label: 'opening', start: 0, end: openingLength },
     { label: 'middle', start: middleStart, end: middleEnd },
-    { label: 'ending', start: Math.max(0, normalized.length - endingLength), end: normalized.length },
+    {
+      label: 'ending',
+      start: Math.max(0, normalized.length - endingLength),
+      end: normalized.length,
+    },
   ];
   return sections
-    .map(({ label, start, end }) => `【审稿窗口 ${label} chars=${start}-${end}】\n${normalized.slice(start, end)}`)
+    .map(
+      ({ label, start, end }) =>
+        `【审稿窗口 ${label} chars=${start}-${end}】\n${normalized.slice(start, end)}`
+    )
     .join('\n\n【审稿窗口分隔：非连续原文，禁止补写省略段】\n\n');
 }
 
-const AUDIT_RESIDUE_LINE = /^(?:作品|作者|摘要|章节标题|提纲|全局大纲|关键人物|关键道具|开放伏笔|人物状态|地点状态|道具状态|势力状态|力量体系|时间线|问题|答案|问|答|说明|注释|analysis|answer|question)\s*[:：]/i;
+const AUDIT_RESIDUE_LINE =
+  /^(?:作品|作者|摘要|章节标题|提纲|全局大纲|关键人物|关键道具|开放伏笔|人物状态|地点状态|道具状态|势力状态|力量体系|时间线|问题|答案|问|答|说明|注释|analysis|answer|question)\s*[:：]/i;
 
 /** Return exact source lines that must be reported as blocking audit issues. */
 export function findAuditResidueSnippets(text: string | undefined): string[] {
@@ -193,14 +220,16 @@ export function buildAuditResidueContract(text: string | undefined): string {
 /** Check that a structured result contains evidence for every deterministic residue hit. */
 export function auditCoversResidueSnippets(
   text: string | undefined,
-  issues: Array<{ snippet?: string }>,
+  issues: Array<{ snippet?: string }>
 ): boolean {
   const snippets = findAuditResidueSnippets(text);
   if (snippets.length === 0) return true;
-  return snippets.every((source) => issues.some((issue) => {
-    const reported = String(issue.snippet || '').trim();
-    return Boolean(reported) && (reported.includes(source) || source.includes(reported));
-  }));
+  return snippets.every((source) =>
+    issues.some((issue) => {
+      const reported = String(issue.snippet || '').trim();
+      return Boolean(reported) && (reported.includes(source) || source.includes(reported));
+    })
+  );
 }
 
 export function truncateForAudit(text: string | undefined, maxChars: number) {
@@ -217,7 +246,7 @@ export function truncateForAudit(text: string | undefined, maxChars: number) {
  */
 export function resolveChainPrompt(
   module: string,
-  context: Record<string, string>,
+  context: Record<string, string>
 ): { template: string; prompt: string } {
   const key = module as PromptTemplateKey;
   const template = getPromptTemplate(key);
@@ -236,7 +265,10 @@ export function wrapUserInput(text: string): string {
   return `<user_input>\n${escaped}\n</user_input>`;
 }
 
-export function buildPromptTemplateTest(key: PromptTemplateKey, template: string): { prompt?: string; systemInstruction?: string } {
+export function buildPromptTemplateTest(
+  key: PromptTemplateKey,
+  template: string
+): { prompt?: string; systemInstruction?: string } {
   const sampleValues = {
     PLANNER_SOUL,
     WRITER_SOUL,

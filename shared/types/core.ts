@@ -97,7 +97,13 @@ export interface AssistantActionPlan {
   chapterId?: string;
   scope: 'project' | 'chapter' | 'single-run';
   executionMode: 'single-run' | 'workflow' | 'memory';
-  outputArtifact: 'chapter-prose-candidate' | 'scene-beat-candidate' | 'world-candidate' | 'outline-candidate' | 'idea-fragment' | 'creation-flow';
+  outputArtifact:
+    | 'chapter-prose-candidate'
+    | 'scene-beat-candidate'
+    | 'world-candidate'
+    | 'outline-candidate'
+    | 'idea-fragment'
+    | 'creation-flow';
   recommendedCapabilityId?: string;
   requiresReview: boolean;
 }
@@ -133,7 +139,17 @@ export interface SniffedEntities {
 }
 
 /** 运行时白名单：localStorage 恢复视图等场景用它校验合法性，类型从数组派生避免双源漂移。 */
-export const VIEW_TYPES = ['welcome', 'library', 'editor', 'world', 'workspace', 'ai', 'skills', 'factory', 'continuation-import'] as const;
+export const VIEW_TYPES = [
+  'welcome',
+  'library',
+  'editor',
+  'world',
+  'workspace',
+  'ai',
+  'skills',
+  'factory',
+  'continuation-import',
+] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
 export type WorkspaceFocus = 'editor' | 'world' | 'cockpit';
 export type WorkspaceNavKey = 'workspace-editor' | 'workspace-world' | 'workspace-cockpit';
@@ -190,12 +206,7 @@ export type PromptTemplateKey =
   | 'generateOutline';
 
 export type PromptStage =
-  | 'discovery'
-  | 'foundation'
-  | 'planning'
-  | 'drafting'
-  | 'polish'
-  | 'review';
+  'discovery' | 'foundation' | 'planning' | 'drafting' | 'polish' | 'review';
 
 export type PromptOutputShape = 'json' | 'markdown' | 'plain-text';
 

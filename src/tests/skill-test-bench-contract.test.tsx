@@ -41,10 +41,12 @@ describe('SkillTestBench request contract', () => {
         chapterId="chapter-1"
         databaseGeneration={7}
         styleConfirmationFingerprint="confirmed-style"
-      />,
+      />
     );
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '林舟推开城门，门后传来一声不属于人的低语。' } });
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '林舟推开城门，门后传来一声不属于人的低语。' },
+    });
     fireEvent.click(screen.getByRole('button', { name: '运行当前版本' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));

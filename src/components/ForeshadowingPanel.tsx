@@ -4,7 +4,12 @@ import { Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { Foreshadowing, ChapterMetadata } from '../../shared/types';
 import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
 import { subscribeToChanges } from '../lib/db-transport';
-import { listForeshadowings, createForeshadowing, updateForeshadowing, deleteForeshadowing } from '../lib/foreshadowing-client';
+import {
+  listForeshadowings,
+  createForeshadowing,
+  updateForeshadowing,
+  deleteForeshadowing,
+} from '../lib/foreshadowing-client';
 import { startWorldJob } from '../lib/world-job-client';
 import { toast } from '../lib/toast';
 import { generateClientId } from '../lib/id';
@@ -43,8 +48,11 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
     setItems(await listForeshadowings(novelId));
     setChapters(await listChaptersMetadata(novelId));
   }, [novelId]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
+    refresh();
+    return subscribeToChanges(refresh);
+  }, [novelId, refresh]);
   useEffect(() => () => detectControllerRef.current?.abort(), []);
 
   const handleAdd = async () => {
@@ -59,12 +67,18 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    setNewTitle(''); setNewDesc(''); setShowAdd(false);
+    setNewTitle('');
+    setNewDesc('');
+    setShowAdd(false);
     refresh();
   };
 
   const handleStatusCycle = async (f: Foreshadowing) => {
-    const next: Record<string, Foreshadowing['status']> = { planted: 'hinted', hinted: 'payoff', payoff: 'planted' };
+    const next: Record<string, Foreshadowing['status']> = {
+      planted: 'hinted',
+      hinted: 'payoff',
+      payoff: 'planted',
+    };
     await updateForeshadowing(f.id, { status: next[f.status] });
     refresh();
   };
@@ -78,8 +92,8 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const handleDetect = async () => {
     // Metadata only picks the target chapter; the draft body is fetched on demand.
     const targetMeta = currentChapterId
-      ? chapters.find(c => c.id === currentChapterId)
-      : chapters.find(c => c.wordCount > 0);
+      ? chapters.find((c) => c.id === currentChapterId)
+      : chapters.find((c) => c.wordCount > 0);
     const targetChapter = targetMeta ? await getChapter(targetMeta.id) : undefined;
     if (!targetChapter || !targetChapter.content?.trim()) {
       toast('没有可分析的章节内容', 'info');
@@ -90,22 +104,28 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
     const controller = new AbortController();
     detectControllerRef.current = controller;
     try {
-      const { result: detected, databaseGeneration } = await startWorldJob<Array<{ title: string; description: string; type: string }>>(
+      const { result: detected, databaseGeneration } = await startWorldJob<
+        Array<{ title: string; description: string; type: string }>
+      >(
         '/api/detect-foreshadowing',
         {
           novelId,
           chapterContent: targetChapter.content,
           chapterTitle: targetChapter.title,
-          existingForeshadowings: items.map(i => ({ title: i.title, status: i.status })),
+          existingForeshadowings: items.map((i) => ({ title: i.title, status: i.status })),
         },
         {},
-        controller.signal,
+        controller.signal
       );
-      setPendingDetection(Array.isArray(detected) ? {
-        entries: detected,
-        chapterId: targetChapter.id,
-        databaseGeneration,
-      } : null);
+      setPendingDetection(
+        Array.isArray(detected)
+          ? {
+              entries: detected,
+              chapterId: targetChapter.id,
+              databaseGeneration,
+            }
+          : null
+      );
     } catch (e) {
       if (controller.signal.aborted) return;
       toast('AI 扫描失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
@@ -134,7 +154,8 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
         createdAt: now,
         updatedAt: now,
       }));
-      let createBatch: typeof import('../lib/foreshadowing-client').createForeshadowingsBatch | undefined;
+      let createBatch:
+        typeof import('../lib/foreshadowing-client').createForeshadowingsBatch | undefined;
       try {
         createBatch = (await import('../lib/foreshadowing-client')).createForeshadowingsBatch;
       } catch {
@@ -143,7 +164,8 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       if (createBatch) {
         await createBatch(entries, pendingDetection.databaseGeneration);
       } else {
-        for (const entry of entries) await createForeshadowing(entry, pendingDetection.databaseGeneration);
+        for (const entry of entries)
+          await createForeshadowing(entry, pendingDetection.databaseGeneration);
       }
       setPendingDetection(null);
       refresh();
@@ -154,32 +176,42 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
     }
   };
 
-  const filtered = filter === 'all' ? items : items.filter(i => i.status === filter);
+  const filtered = filter === 'all' ? items : items.filter((i) => i.status === filter);
   const stats = {
-    planted: items.filter(i => i.status === 'planted').length,
-    hinted: items.filter(i => i.status === 'hinted').length,
-    payoff: items.filter(i => i.status === 'payoff').length,
+    planted: items.filter((i) => i.status === 'planted').length,
+    hinted: items.filter((i) => i.status === 'hinted').length,
+    payoff: items.filter((i) => i.status === 'payoff').length,
   };
 
   return (
     <div className="space-y-4">
       {/* Stats bar */}
       <div className="flex gap-2">
-        {(['all', 'planted', 'hinted', 'payoff'] as const).map(s => (
-          <button key={s} onClick={() => setFilter(s)}
+        {(['all', 'planted', 'hinted', 'payoff'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
             className={`text-[10px] px-2.5 py-1 rounded-full font-bold transition-all ${
-              filter === s ? 'bg-theme-text text-theme-bg' : 'bg-theme-sidebar border border-theme-border text-theme-muted hover:bg-theme-sidebar'
-            }`}>
+              filter === s
+                ? 'bg-theme-text text-theme-bg'
+                : 'bg-theme-sidebar border border-theme-border text-theme-muted hover:bg-theme-sidebar'
+            }`}
+          >
             {s === 'all' ? `全部 ${items.length}` : `${STATUS_CONFIG[s].label} ${stats[s]}`}
           </button>
         ))}
       </div>
 
       <details className="rounded-xl border border-theme-border/40 bg-theme-sidebar/20">
-        <summary className="cursor-pointer px-3 py-2 text-[10px] font-bold text-theme-muted">高级维护：旧稿伏笔恢复</summary>
+        <summary className="cursor-pointer px-3 py-2 text-[10px] font-bold text-theme-muted">
+          高级维护：旧稿伏笔恢复
+        </summary>
         <div className="space-y-1 px-3 pb-3">
-          <button onClick={handleDetect} disabled={detecting}
-            className="w-full py-2 bg-theme-accent/10 text-theme-accent rounded-xl text-xs font-bold hover:bg-theme-accent/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+          <button
+            onClick={handleDetect}
+            disabled={detecting}
+            className="w-full py-2 bg-theme-accent/10 text-theme-accent rounded-xl text-xs font-bold hover:bg-theme-accent/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
             {detecting ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
             {detecting ? '扫描中...' : 'AI 扫描当前章节伏笔'}
           </button>
@@ -188,18 +220,32 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
           </p>
           {pendingDetection && (
             <div className="space-y-2 rounded-lg border border-theme-border/50 p-2">
-              <p className="text-[10px] text-theme-muted">待确认恢复结果：{pendingDetection.entries.length} 条</p>
+              <p className="text-[10px] text-theme-muted">
+                待确认恢复结果：{pendingDetection.entries.length} 条
+              </p>
               {pendingDetection.entries.map((entry, index) => (
-                <p key={`${entry.title}-${index}`} className="text-[10px] text-theme-text">{entry.title}</p>
+                <p key={`${entry.title}-${index}`} className="text-[10px] text-theme-text">
+                  {entry.title}
+                </p>
               ))}
               <div className="flex gap-2">
-                <button type="button" onClick={() => setPendingDetection(null)} disabled={confirmingDetection}
-                  className="flex-1 rounded-lg border border-theme-border py-1.5 text-[10px] font-bold text-theme-muted disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => setPendingDetection(null)}
+                  disabled={confirmingDetection}
+                  className="flex-1 rounded-lg border border-theme-border py-1.5 text-[10px] font-bold text-theme-muted disabled:opacity-50"
+                >
                   取消
                 </button>
-                <button type="button" onClick={() => void handleConfirmDetection()} disabled={confirmingDetection}
-                  className="flex-1 rounded-lg bg-theme-accent py-1.5 text-[10px] font-bold text-theme-accent-contrast disabled:opacity-50">
-                  {confirmingDetection ? '恢复中...' : `确认恢复 ${pendingDetection.entries.length} 条`}
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmDetection()}
+                  disabled={confirmingDetection}
+                  className="flex-1 rounded-lg bg-theme-accent py-1.5 text-[10px] font-bold text-theme-accent-contrast disabled:opacity-50"
+                >
+                  {confirmingDetection
+                    ? '恢复中...'
+                    : `确认恢复 ${pendingDetection.entries.length} 条`}
                 </button>
               </div>
             </div>
@@ -209,8 +255,10 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
 
       {/* Add button */}
       {!showAdd && (
-        <button onClick={() => setShowAdd(true)}
-          className="w-full py-2 border-2 border-dashed border-theme-border rounded-xl text-xs text-theme-muted hover:border-theme-accent hover:text-theme-accent transition-colors flex items-center justify-center gap-2">
+        <button
+          onClick={() => setShowAdd(true)}
+          className="w-full py-2 border-2 border-dashed border-theme-border rounded-xl text-xs text-theme-muted hover:border-theme-accent hover:text-theme-accent transition-colors flex items-center justify-center gap-2"
+        >
           <Plus size={14} /> 手动添加伏笔
         </button>
       )}
@@ -218,35 +266,63 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
       {/* Add form */}
       {showAdd && (
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
-          <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="伏笔标题（如：主角身世之谜）"
-            className="w-full text-sm px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent" />
-          <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="伏笔描述..."
-            className="w-full text-xs px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent resize-none h-20" />
+          <input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="伏笔标题（如：主角身世之谜）"
+            className="w-full text-sm px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent"
+          />
+          <textarea
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            placeholder="伏笔描述..."
+            className="w-full text-xs px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent resize-none h-20"
+          />
           <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={!newTitle.trim()} className="flex-1 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-xs font-bold disabled:opacity-50">添加</button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 border border-theme-border rounded-lg text-xs text-theme-muted">取消</button>
+            <button
+              onClick={handleAdd}
+              disabled={!newTitle.trim()}
+              className="flex-1 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-xs font-bold disabled:opacity-50"
+            >
+              添加
+            </button>
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-2 border border-theme-border rounded-lg text-xs text-theme-muted"
+            >
+              取消
+            </button>
           </div>
         </div>
       )}
 
       {/* Foreshadowing list */}
       <div className="space-y-2">
-        {filtered.map(f => (
-          <div key={f.id}
-            className="bg-theme-sidebar rounded-xl border border-theme-border/40 shadow-sm p-3 group">
+        {filtered.map((f) => (
+          <div
+            key={f.id}
+            className="bg-theme-sidebar rounded-xl border border-theme-border/40 shadow-sm p-3 group"
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-bold text-theme-text truncate">{f.title}</span>
-                  <button onClick={() => handleStatusCycle(f)}
+                  <button
+                    onClick={() => handleStatusCycle(f)}
                     className={`text-[9px] px-1.5 py-0.5 rounded-full border font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_CONFIG[f.status].color}`}
-                    title="点击切换状态">
+                    title="点击切换状态"
+                  >
                     {STATUS_CONFIG[f.status].label} ↻
                   </button>
                 </div>
-                {f.description && <p className="text-[10px] text-theme-muted line-clamp-2 leading-relaxed">{f.description}</p>}
+                {f.description && (
+                  <p className="text-[10px] text-theme-muted line-clamp-2 leading-relaxed">
+                    {f.description}
+                  </p>
+                )}
               </div>
-              <button onClick={() => handleDelete(f.id)}
+              <button
+                onClick={() => handleDelete(f.id)}
                 className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-all shrink-0"
                 aria-label="删除伏笔"
               >

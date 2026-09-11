@@ -11,15 +11,36 @@ const mocks = vi.hoisted(() => ({
   subscribeToChanges: vi.fn((_callback: () => void) => () => {}),
 }));
 
-vi.mock('../lib/novel-client', () => ({ listNovels: mocks.listNovels, createNovel: vi.fn(), deleteNovel: mocks.deleteNovel }));
-vi.mock('../lib/chapter-client', () => ({ createChapter: vi.fn(), listChapters: vi.fn(), listChaptersMetadata: mocks.listChaptersMetadata }));
-vi.mock('../lib/continuation-client', () => ({ listContinuationPacks: mocks.listContinuationPacks }));
-vi.mock('../lib/db-transport', () => ({ callBatch: mocks.callBatch, subscribeToChanges: mocks.subscribeToChanges }));
+vi.mock('../lib/novel-client', () => ({
+  listNovels: mocks.listNovels,
+  createNovel: vi.fn(),
+  deleteNovel: mocks.deleteNovel,
+}));
+vi.mock('../lib/chapter-client', () => ({
+  createChapter: vi.fn(),
+  listChapters: vi.fn(),
+  listChaptersMetadata: mocks.listChaptersMetadata,
+}));
+vi.mock('../lib/continuation-client', () => ({
+  listContinuationPacks: mocks.listContinuationPacks,
+}));
+vi.mock('../lib/db-transport', () => ({
+  callBatch: mocks.callBatch,
+  subscribeToChanges: mocks.subscribeToChanges,
+}));
 vi.mock('../lib/client-logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
 import { Library } from '../components/Library';
 
-const novel = (id: string) => ({ id, title: `作品 ${id}`, authorId: 'local', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 });
+const novel = (id: string) => ({
+  id,
+  title: `作品 ${id}`,
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
+});
 
 describe('Library metadata refresh', () => {
   beforeEach(() => {
@@ -39,10 +60,18 @@ describe('Library metadata refresh', () => {
     let resolveDeleteList!: (value: unknown[]) => void;
     const oldNovel = novel('old');
     const freshNovel = novel('fresh');
-    mocks.subscribeToChanges.mockImplementation((callback: () => void) => { notify = callback; return () => {}; });
+    mocks.subscribeToChanges.mockImplementation((callback: () => void) => {
+      notify = callback;
+      return () => {};
+    });
     mocks.listNovels
       .mockResolvedValueOnce([oldNovel])
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveDeleteList = resolve; }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveDeleteList = resolve;
+          })
+      )
       .mockResolvedValueOnce([freshNovel]);
     mocks.deleteNovel.mockResolvedValue(undefined);
     mocks.listChaptersMetadata.mockResolvedValue([]);
@@ -56,10 +85,14 @@ describe('Library metadata refresh', () => {
     await waitFor(() => expect(mocks.deleteNovel).toHaveBeenCalledWith('old'));
     await waitFor(() => expect(mocks.listNovels).toHaveBeenCalledTimes(2));
 
-    await act(async () => { notify?.(); });
+    await act(async () => {
+      notify?.();
+    });
     await waitFor(() => expect(screen.getByText('作品 fresh')).toBeDefined());
 
-    await act(async () => { resolveDeleteList([oldNovel]); });
+    await act(async () => {
+      resolveDeleteList([oldNovel]);
+    });
     expect(screen.queryByText('作品 old')).toBeNull();
     expect(screen.getByText('作品 fresh')).toBeDefined();
   });
@@ -72,7 +105,10 @@ describe('Library metadata refresh', () => {
     const freshNovel = novel('fresh');
     let chapterCall = 0;
     let packCall = 0;
-    mocks.subscribeToChanges.mockImplementation((callback: () => void) => { notify = callback; return () => {}; });
+    mocks.subscribeToChanges.mockImplementation((callback: () => void) => {
+      notify = callback;
+      return () => {};
+    });
     mocks.listNovels
       .mockResolvedValueOnce([oldNovel])
       .mockResolvedValueOnce([oldNovel])
@@ -81,13 +117,17 @@ describe('Library metadata refresh', () => {
     mocks.listChaptersMetadata.mockImplementation(() => {
       chapterCall += 1;
       return chapterCall === 2
-        ? new Promise((resolve) => { resolveDeleteChapter = resolve; })
+        ? new Promise((resolve) => {
+            resolveDeleteChapter = resolve;
+          })
         : Promise.resolve([]);
     });
     mocks.listContinuationPacks.mockImplementation(() => {
       packCall += 1;
       return packCall === 2
-        ? new Promise((resolve) => { resolveDeletePack = resolve; })
+        ? new Promise((resolve) => {
+            resolveDeletePack = resolve;
+          })
         : Promise.resolve([]);
     });
 
@@ -99,7 +139,9 @@ describe('Library metadata refresh', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
     await waitFor(() => expect(chapterCall).toBe(2));
 
-    await act(async () => { notify?.(); });
+    await act(async () => {
+      notify?.();
+    });
     await waitFor(() => {
       expect(screen.getByText('作品 fresh')).toBeDefined();
       expect(chapterCall).toBe(3);
@@ -113,38 +155,46 @@ describe('Library metadata refresh', () => {
     expect(screen.getByRole('button', { name: '退出' })).toBeDefined();
   });
 
-  test.each([10, 50, 100])('falls back to two metadata requests per %i novels on older servers', async (count) => {
-    const novels = Array.from({ length: count }, (_, index) => novel(String(index)));
-    let serializedBytes = 0;
-    mocks.listNovels.mockResolvedValue(novels);
-    mocks.listChaptersMetadata.mockImplementation(async () => {
-      const value = [{ id: 'chapter', title: '章节', order: 1 }];
-      serializedBytes += JSON.stringify(value).length;
-      return value;
-    });
-    mocks.listContinuationPacks.mockImplementation(async () => {
-      const value = [{ id: 'pack', title: '资料包' }];
-      serializedBytes += JSON.stringify(value).length;
-      return value;
-    });
-    render(<Library userId="local" onSelectNovel={vi.fn()} />);
-    await waitFor(() => {
-      expect(mocks.listChaptersMetadata).toHaveBeenCalledTimes(count);
-      expect(mocks.listContinuationPacks).toHaveBeenCalledTimes(count);
-      expect(screen.getAllByText('章节总数:')).toHaveLength(count);
-    });
-    const measurement = { novels: count, requests: count * 2, serializedBytes };
-    console.info('library measurement', measurement);
-    expect(measurement.requests).toBe(count * 2);
-    const expectedBytesPerNovel = JSON.stringify([{ id: 'chapter', title: '章节', order: 1 }]).length
-      + JSON.stringify([{ id: 'pack', title: '资料包' }]).length;
-    expect(measurement.serializedBytes).toBe(count * expectedBytesPerNovel);
-  });
+  test.each([10, 50, 100])(
+    'falls back to two metadata requests per %i novels on older servers',
+    async (count) => {
+      const novels = Array.from({ length: count }, (_, index) => novel(String(index)));
+      let serializedBytes = 0;
+      mocks.listNovels.mockResolvedValue(novels);
+      mocks.listChaptersMetadata.mockImplementation(async () => {
+        const value = [{ id: 'chapter', title: '章节', order: 1 }];
+        serializedBytes += JSON.stringify(value).length;
+        return value;
+      });
+      mocks.listContinuationPacks.mockImplementation(async () => {
+        const value = [{ id: 'pack', title: '资料包' }];
+        serializedBytes += JSON.stringify(value).length;
+        return value;
+      });
+      render(<Library userId="local" onSelectNovel={vi.fn()} />);
+      await waitFor(() => {
+        expect(mocks.listChaptersMetadata).toHaveBeenCalledTimes(count);
+        expect(mocks.listContinuationPacks).toHaveBeenCalledTimes(count);
+        expect(screen.getAllByText('章节总数:')).toHaveLength(count);
+      });
+      const measurement = { novels: count, requests: count * 2, serializedBytes };
+      console.info('library measurement', measurement);
+      expect(measurement.requests).toBe(count * 2);
+      const expectedBytesPerNovel =
+        JSON.stringify([{ id: 'chapter', title: '章节', order: 1 }]).length +
+        JSON.stringify([{ id: 'pack', title: '资料包' }]).length;
+      expect(measurement.serializedBytes).toBe(count * expectedBytesPerNovel);
+    }
+  );
 
   test('loads all library metadata through one batch request when supported', async () => {
     const novels = Array.from({ length: 100 }, (_, index) => novel(String(index)));
-    const chapters = Object.fromEntries(novels.map((item) => [item.id, [{ id: `${item.id}-chapter`, title: '章节', order: 1 }]]));
-    const packs = Object.fromEntries(novels.map((item) => [item.id, [{ id: `${item.id}-pack`, title: '资料包' }]]));
+    const chapters = Object.fromEntries(
+      novels.map((item) => [item.id, [{ id: `${item.id}-chapter`, title: '章节', order: 1 }]])
+    );
+    const packs = Object.fromEntries(
+      novels.map((item) => [item.id, [{ id: `${item.id}-pack`, title: '资料包' }]])
+    );
     mocks.listNovels.mockResolvedValue(novels);
     mocks.callBatch.mockResolvedValue({ chapters, packs });
 
@@ -154,7 +204,10 @@ describe('Library metadata refresh', () => {
       expect(mocks.callBatch).toHaveBeenCalledTimes(1);
       expect(screen.getAllByText('章节总数:')).toHaveLength(novels.length);
     });
-    expect(mocks.callBatch).toHaveBeenCalledWith('listLibraryMetadata', novels.map((item) => item.id));
+    expect(mocks.callBatch).toHaveBeenCalledWith(
+      'listLibraryMetadata',
+      novels.map((item) => item.id)
+    );
     expect(mocks.listChaptersMetadata).not.toHaveBeenCalled();
     expect(mocks.listContinuationPacks).not.toHaveBeenCalled();
     expect(screen.getAllByText(/包: .*资料包/)).toHaveLength(novels.length);
@@ -162,7 +215,10 @@ describe('Library metadata refresh', () => {
 
   test('does not commit late metadata after a newer refresh', async () => {
     let notify: (() => void) | undefined;
-    mocks.subscribeToChanges.mockImplementation((callback: () => void) => { notify = callback; return () => {}; });
+    mocks.subscribeToChanges.mockImplementation((callback: () => void) => {
+      notify = callback;
+      return () => {};
+    });
     const sameNovel = novel('same');
     let resolveFirstChapter!: (value: unknown[]) => void;
     let resolveFirstPack!: (value: unknown[]) => void;
@@ -172,7 +228,9 @@ describe('Library metadata refresh', () => {
     mocks.listChaptersMetadata.mockImplementation(() => {
       chapterCall += 1;
       return chapterCall === 1
-        ? new Promise((resolve) => { resolveFirstChapter = resolve; })
+        ? new Promise((resolve) => {
+            resolveFirstChapter = resolve;
+          })
         : Promise.resolve([
             { id: 'new-chapter-1', title: '新章节', order: 1, updatedAt: 1 },
             { id: 'new-chapter-2', title: '新章节（最新）', order: 2, updatedAt: 2 },
@@ -181,7 +239,9 @@ describe('Library metadata refresh', () => {
     mocks.listContinuationPacks.mockImplementation(() => {
       packCall += 1;
       return packCall === 1
-        ? new Promise((resolve) => { resolveFirstPack = resolve; })
+        ? new Promise((resolve) => {
+            resolveFirstPack = resolve;
+          })
         : Promise.resolve([{ id: 'new-pack', title: '新资料包', createdAt: 2 }]);
     });
     render(<Library userId="local" onSelectNovel={vi.fn()} />);
@@ -190,7 +250,9 @@ describe('Library metadata refresh', () => {
       expect(packCall).toBe(1);
     });
     expect(notify).toBeTypeOf('function');
-    await act(async () => { notify?.(); });
+    await act(async () => {
+      notify?.();
+    });
     await waitFor(() => {
       expect(chapterCall).toBe(2);
       expect(packCall).toBe(2);
@@ -211,13 +273,18 @@ describe('Library metadata refresh', () => {
 
   test('shows retryable error and keeps cached metadata when refresh fails', async () => {
     let notify: (() => void) | undefined;
-    mocks.subscribeToChanges.mockImplementation((callback: () => void) => { notify = callback; return () => {}; });
+    mocks.subscribeToChanges.mockImplementation((callback: () => void) => {
+      notify = callback;
+      return () => {};
+    });
     mocks.listNovels.mockResolvedValue([novel('one')]);
     mocks.listChaptersMetadata
       .mockResolvedValueOnce([{ id: 'old', title: '旧章节', order: 1 }])
       .mockRejectedValueOnce(new Error('offline'));
     mocks.listContinuationPacks
-      .mockResolvedValueOnce([{ id: 'old-pack', title: '旧资料包', createdAt: 1, sourceDocuments: [] }])
+      .mockResolvedValueOnce([
+        { id: 'old-pack', title: '旧资料包', createdAt: 1, sourceDocuments: [] },
+      ])
       .mockRejectedValueOnce(new Error('offline'));
     render(<Library userId="local" onSelectNovel={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('旧章节')).toBeDefined());
@@ -236,7 +303,12 @@ describe('Library metadata refresh', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks.subscribeToChanges.mockImplementation(() => unsubscribe);
     mocks.listNovels.mockResolvedValue([novel('one')]);
-    mocks.listChaptersMetadata.mockImplementation(() => new Promise((resolve) => { resolveMetadata = resolve; }));
+    mocks.listChaptersMetadata.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMetadata = resolve;
+        })
+    );
     mocks.listContinuationPacks.mockResolvedValue([]);
     const view = render(<Library userId="local" onSelectNovel={vi.fn()} />);
     await waitFor(() => expect(mocks.listChaptersMetadata).toHaveBeenCalled());
@@ -252,22 +324,24 @@ describe('Library metadata refresh', () => {
   });
 
   test('counts v3 project deck cards in readiness chips', async () => {
-    mocks.listNovels.mockResolvedValue([{
-      ...novel('v3'),
-      mountedSkillIds: [],
-      projectPreferenceProfile: {
-        capabilityModelVersion: 3,
-        capabilityProfile: {
-          version: 3,
-          projectSkillDeck: {
-            mainCardId: 'main-card',
-            supportCardIds: ['support-one', 'support-two'],
-            updatedAt: 1,
+    mocks.listNovels.mockResolvedValue([
+      {
+        ...novel('v3'),
+        mountedSkillIds: [],
+        projectPreferenceProfile: {
+          capabilityModelVersion: 3,
+          capabilityProfile: {
+            version: 3,
+            projectSkillDeck: {
+              mainCardId: 'main-card',
+              supportCardIds: ['support-one', 'support-two'],
+              updatedAt: 1,
+            },
+            favoriteTechniqueIds: [],
           },
-          favoriteTechniqueIds: [],
         },
       },
-    }]);
+    ]);
     mocks.listChaptersMetadata.mockResolvedValue([]);
     mocks.listContinuationPacks.mockResolvedValue([]);
 

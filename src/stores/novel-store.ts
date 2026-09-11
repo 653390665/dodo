@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { Novel, OnboardingDraftState, SetupTaskKey, AssistantLaunchContext, ContinuationEditorLaunchState, CapabilityLaunchState } from '../../shared/types';
+import type {
+  Novel,
+  OnboardingDraftState,
+  SetupTaskKey,
+  AssistantLaunchContext,
+  ContinuationEditorLaunchState,
+  CapabilityLaunchState,
+} from '../../shared/types';
 
 type Updater<T> = T | ((prev: T) => T);
 
@@ -7,9 +14,7 @@ const SELECTED_NOVEL_ID_KEY = 'inkflow-selected-novel-id';
 
 export function getStoredSelectedNovelId(): string | null {
   try {
-    return typeof localStorage !== 'undefined'
-      ? localStorage.getItem(SELECTED_NOVEL_ID_KEY)
-      : null;
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(SELECTED_NOVEL_ID_KEY) : null;
   } catch {
     return null;
   }
@@ -60,22 +65,25 @@ export const useNovelStore = create<NovelState>((set) => ({
   assistantLaunchContext: null,
   continuationLaunchState: null,
   capabilityLaunchState: null,
-  setSelectedNovel: (value) => set((s) => {
-    const selectedNovel = typeof value === 'function' ? value(s.selectedNovel) : value;
-    storeSelectedNovelId(selectedNovel);
-    return { selectedNovel };
-  }),
-  setOnboardingDraft: (value) => set((s) => ({
-    onboardingDraft: typeof value === 'function' ? value(s.onboardingDraft) : value,
-  })),
+  setSelectedNovel: (value) =>
+    set((s) => {
+      const selectedNovel = typeof value === 'function' ? value(s.selectedNovel) : value;
+      storeSelectedNovelId(selectedNovel);
+      return { selectedNovel };
+    }),
+  setOnboardingDraft: (value) =>
+    set((s) => ({
+      onboardingDraft: typeof value === 'function' ? value(s.onboardingDraft) : value,
+    })),
   setActiveSetupTaskKey: (activeSetupTaskKey) => set({ activeSetupTaskKey }),
   incrementBatchCounter: () => set((s) => ({ batchCounter: s.batchCounter + 1 })),
   setAssistantLaunchContext: (assistantLaunchContext) => set({ assistantLaunchContext }),
   setContinuationLaunchState: (continuationLaunchState) => set({ continuationLaunchState }),
   setCapabilityLaunchState: (capabilityLaunchState) => set({ capabilityLaunchState }),
-  consumeCapabilityLaunch: (launchToken) => set((state) => (
-    state.capabilityLaunchState?.launchToken === launchToken
-      ? { capabilityLaunchState: null }
-      : state
-  )),
+  consumeCapabilityLaunch: (launchToken) =>
+    set((state) =>
+      state.capabilityLaunchState?.launchToken === launchToken
+        ? { capabilityLaunchState: null }
+        : state
+    ),
 }));

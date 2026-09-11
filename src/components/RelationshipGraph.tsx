@@ -48,7 +48,14 @@ const ENTITY_COLORS: Record<string, string> = {
   'narrative-promise': '#f97316',
 };
 
-function getEntityName(type: string, id: string, characters: Character[], locations: Location[], items: Item[], factions: Faction[]): string {
+function getEntityName(
+  type: string,
+  id: string,
+  characters: Character[],
+  locations: Location[],
+  items: Item[],
+  factions: Faction[]
+): string {
   if (type === 'character') return characters.find((c) => c.id === id)?.name || id.slice(0, 8);
   if (type === 'location') return locations.find((l) => l.id === id)?.name || id.slice(0, 8);
   if (type === 'item') return items.find((i) => i.id === id)?.name || id.slice(0, 8);
@@ -56,12 +63,27 @@ function getEntityName(type: string, id: string, characters: Character[], locati
   return id.slice(0, 8);
 }
 
-export function RelationshipGraph({ relationships, characters, locations, items, factions, onSelectEntity, activeEntityNames = [], onGoToWorldBible, onSyncFromContinuationPack, hasGlobalRelationships, totalEntities, storyMemory }: RelationshipGraphProps) {
+export function RelationshipGraph({
+  relationships,
+  characters,
+  locations,
+  items,
+  factions,
+  onSelectEntity,
+  activeEntityNames = [],
+  onGoToWorldBible,
+  onSyncFromContinuationPack,
+  hasGlobalRelationships,
+  totalEntities,
+  storyMemory,
+}: RelationshipGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   const { nodes, edges } = useMemo(() => {
-    const relationshipById = new Map(relationships.map((relationship) => [relationship.id, relationship]));
+    const relationshipById = new Map(
+      relationships.map((relationship) => [relationship.id, relationship])
+    );
     const nodeMap = new Map<string, GraphNode>();
     if (storyMemory?.nodes.length) {
       storyMemory.nodes.forEach((node, index) => {
@@ -70,8 +92,8 @@ export function RelationshipGraph({ relationships, characters, locations, items,
           label: node.label,
           type: node.kind,
           entityId: node.source.id,
-          x: 100 + (index * 77) % 300,
-          y: 80 + (index * 53) % 240,
+          x: 100 + ((index * 77) % 300),
+          y: 80 + ((index * 53) % 240),
           vx: 0,
           vy: 0,
         });
@@ -96,10 +118,17 @@ export function RelationshipGraph({ relationships, characters, locations, items,
         const index = nodeMap.size;
         nodeMap.set(sKey, {
           id: sKey,
-          label: getEntityName(rel.sourceType, rel.sourceId, characters, locations, items, factions),
+          label: getEntityName(
+            rel.sourceType,
+            rel.sourceId,
+            characters,
+            locations,
+            items,
+            factions
+          ),
           type: rel.sourceType,
-          x: 100 + (index * 77) % 300,
-          y: 80 + (index * 53) % 240,
+          x: 100 + ((index * 77) % 300),
+          y: 80 + ((index * 53) % 240),
           vx: 0,
           vy: 0,
         });
@@ -109,10 +138,17 @@ export function RelationshipGraph({ relationships, characters, locations, items,
         const index = nodeMap.size;
         nodeMap.set(tKey, {
           id: tKey,
-          label: getEntityName(rel.targetType, rel.targetId, characters, locations, items, factions),
+          label: getEntityName(
+            rel.targetType,
+            rel.targetId,
+            characters,
+            locations,
+            items,
+            factions
+          ),
           type: rel.targetType,
-          x: 100 + (index * 77) % 300,
-          y: 80 + (index * 53) % 240,
+          x: 100 + ((index * 77) % 300),
+          y: 80 + ((index * 53) % 240),
           vx: 0,
           vy: 0,
         });
@@ -199,83 +235,101 @@ export function RelationshipGraph({ relationships, characters, locations, items,
 
   return (
     <>
-    <svg ref={svgRef} viewBox="0 0 500 400" role="img" aria-label="故事记忆关系图谱" className="w-full h-80 bg-theme-sidebar/45 rounded-xl border border-theme-border/60 backdrop-blur-md">
-      {/* Edges */}
-      {edges.map((edge) => {
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        const targetNode = nodes.find((n) => n.id === edge.target);
-        const x1 = sourceNode?.x || 0;
-        const y1 = sourceNode?.y || 0;
-        const x2 = targetNode?.x || 0;
-        const y2 = targetNode?.y || 0;
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        return (
-          <g key={edge.id}>
-            <line
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={edge.type === 'enemy' || edge.type === 'rival' ? '#ef4444' : 'var(--color-theme-muted)'}
-              strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
-              strokeWidth={1.5}
-              opacity={0.65}
+      <svg
+        ref={svgRef}
+        viewBox="0 0 500 400"
+        role="img"
+        aria-label="故事记忆关系图谱"
+        className="w-full h-80 bg-theme-sidebar/45 rounded-xl border border-theme-border/60 backdrop-blur-md"
+      >
+        {/* Edges */}
+        {edges.map((edge) => {
+          const sourceNode = nodes.find((n) => n.id === edge.source);
+          const targetNode = nodes.find((n) => n.id === edge.target);
+          const x1 = sourceNode?.x || 0;
+          const y1 = sourceNode?.y || 0;
+          const x2 = targetNode?.x || 0;
+          const y2 = targetNode?.y || 0;
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          return (
+            <g key={edge.id}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={
+                  edge.type === 'enemy' || edge.type === 'rival'
+                    ? '#ef4444'
+                    : 'var(--color-theme-muted)'
+                }
+                strokeDasharray={edge.type === 'enemy' ? '4 2' : 'none'}
+                strokeWidth={1.5}
+                opacity={0.65}
+              >
+                <title>{edge.description || edge.type}</title>
+              </line>
+              <text
+                x={midX}
+                y={midY}
+                textAnchor="middle"
+                dy={-4}
+                className="fill-theme-muted"
+                style={{ fontSize: '8px', fontFamily: 'sans-serif' }}
+              >
+                {edge.type}
+              </text>
+            </g>
+          );
+        })}
+        {/* Nodes */}
+        {nodes.map((node) => {
+          const isActiveNode = activeEntityNames.includes(node.label);
+          return (
+            <g
+              key={node.id}
+              transform={`translate(${node.x},${node.y})`}
+              onClick={() => {
+                setSelectedNode(node.id);
+                if (['character', 'location', 'item', 'faction'].includes(node.type))
+                  onSelectEntity?.(node.type, node.entityId || node.id.split(':').at(-1) || '');
+              }}
+              className="cursor-pointer"
+              aria-label={`${node.type === 'chapter' ? '章节' : node.type === 'narrative-promise' ? '叙事承诺' : node.type}：${node.label}`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ')
+                  event.currentTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              }}
             >
-              <title>{edge.description || edge.type}</title>
-            </line>
-            <text
-              x={midX} y={midY}
-              textAnchor="middle" dy={-4}
-              className="fill-theme-muted"
-              style={{ fontSize: '8px', fontFamily: 'sans-serif' }}
-            >
-              {edge.type}
-            </text>
-          </g>
-        );
-      })}
-      {/* Nodes */}
-      {nodes.map((node) => {
-        const isActiveNode = activeEntityNames.includes(node.label);
-        return (
-          <g
-            key={node.id}
-            transform={`translate(${node.x},${node.y})`}
-            onClick={() => {
-              setSelectedNode(node.id);
-              if (['character', 'location', 'item', 'faction'].includes(node.type)) onSelectEntity?.(node.type, node.entityId || node.id.split(':').at(-1) || '');
-            }}
-            className="cursor-pointer"
-            aria-label={`${node.type === 'chapter' ? '章节' : node.type === 'narrative-promise' ? '叙事承诺' : node.type}：${node.label}`}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.currentTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            }}
-          >
-            <circle
-              r={selectedNode === node.id ? 14 : 11}
-              fill={ENTITY_COLORS[node.type] || 'var(--color-theme-muted)'}
-              stroke={isActiveNode ? '#38bdf8' : (selectedNode === node.id ? '#fff' : 'none')}
-              strokeWidth={isActiveNode ? 3 : (selectedNode === node.id ? 2 : 0)}
-              opacity={selectedNode === node.id || isActiveNode ? 1 : 0.85}
-              className={isActiveNode ? "animate-pulse" : ""}
-            />
-            <text
-              textAnchor="middle"
-              dy={22}
-              className="fill-theme-text font-bold"
-              style={{ fontSize: '10px', fontFamily: 'sans-serif' }}
-            >
-              {node.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+              <circle
+                r={selectedNode === node.id ? 14 : 11}
+                fill={ENTITY_COLORS[node.type] || 'var(--color-theme-muted)'}
+                stroke={isActiveNode ? '#38bdf8' : selectedNode === node.id ? '#fff' : 'none'}
+                strokeWidth={isActiveNode ? 3 : selectedNode === node.id ? 2 : 0}
+                opacity={selectedNode === node.id || isActiveNode ? 1 : 0.85}
+                className={isActiveNode ? 'animate-pulse' : ''}
+              />
+              <text
+                textAnchor="middle"
+                dy={22}
+                className="fill-theme-text font-bold"
+                style={{ fontSize: '10px', fontFamily: 'sans-serif' }}
+              >
+                {node.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
       {/* Screen-reader alternative: the SVG above is purely visual. */}
       <ul className="sr-only">
         {relationships.map((relationship) => (
           <li key={relationship.id}>
-            {relationship.description || `${relationship.sourceType} 与 ${relationship.targetType} 关联（${relationship.relationshipType}）`}
+            {relationship.description ||
+              `${relationship.sourceType} 与 ${relationship.targetType} 关联（${relationship.relationshipType}）`}
           </li>
         ))}
       </ul>
@@ -296,8 +350,10 @@ function layoutGraph(simNodes: GraphNode[], edgeList: GraphEdge[]) {
           const force = (100 - dist) * 0.05;
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
-          n1.vx -= fx; n1.vy -= fy;
-          n2.vx += fx; n2.vy += fy;
+          n1.vx -= fx;
+          n1.vy -= fy;
+          n2.vx += fx;
+          n2.vy += fy;
         }
       }
     }
@@ -312,14 +368,17 @@ function layoutGraph(simNodes: GraphNode[], edgeList: GraphEdge[]) {
         const force = (dist - 80) * 0.02;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
-        source.vx += fx; source.vy += fy;
-        target.vx -= fx; target.vy -= fy;
+        source.vx += fx;
+        source.vy += fy;
+        target.vx -= fx;
+        target.vy -= fy;
       }
     }
     for (const node of simNodes) {
       node.x += node.vx * 0.3 + (250 - node.x) * 0.01;
       node.y += node.vy * 0.3 + (200 - node.y) * 0.01;
-      node.vx *= 0.85; node.vy *= 0.85;
+      node.vx *= 0.85;
+      node.vy *= 0.85;
     }
   }
   return { nodes: simNodes, edges: edgeList };

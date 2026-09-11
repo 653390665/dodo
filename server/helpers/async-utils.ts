@@ -4,7 +4,7 @@ export async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
   message: string,
-  options: { controller?: AbortController } = {},
+  options: { controller?: AbortController } = {}
 ): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   try {
@@ -26,7 +26,7 @@ export async function withTimeout<T>(
 export async function emitTextAsTokens(
   res: Response,
   text: string,
-  options: { signal?: AbortSignal; onFirstWrite?: () => void } = {},
+  options: { signal?: AbortSignal; onFirstWrite?: () => void } = {}
 ) {
   const chunks = text.match(/.{1,24}/gs) || [];
   let hasWritten = false;

@@ -16,7 +16,9 @@ export function BookFactoryView(context: BookFactoryChapterContext = {}) {
             <BookTemplate size={28} className="text-theme-accent" aria-hidden="true" />
             拆书工厂
           </h1>
-          <p className="text-theme-muted mt-2">上传爆款小说样本，生成可保存的专属拆书卡候选，拆解文风、句法与爽点套路。</p>
+          <p className="text-theme-muted mt-2">
+            上传爆款小说样本，生成可保存的专属拆书卡候选，拆解文风、句法与爽点套路。
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

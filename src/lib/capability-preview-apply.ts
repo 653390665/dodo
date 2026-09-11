@@ -7,14 +7,25 @@ export function buildCapabilityPreviewApplication(input: {
   selection?: { start: number; end: number };
   baselineHash: string;
   preview: string;
-}): { ok: true; nextContent: string } | { ok: false; code: 'CAPABILITY_PREVIEW_STALE' | 'CAPABILITY_PREVIEW_INVALID_SELECTION' | 'CAPABILITY_PREVIEW_NO_CHANGES' | 'CAPABILITY_PREVIEW_EMPTY_CHAPTER' | 'CAPABILITY_PREVIEW_QUALITY_GATE_FAILED'; violations?: string[] } {
+}):
+  | { ok: true; nextContent: string }
+  | {
+      ok: false;
+      code:
+        | 'CAPABILITY_PREVIEW_STALE'
+        | 'CAPABILITY_PREVIEW_INVALID_SELECTION'
+        | 'CAPABILITY_PREVIEW_NO_CHANGES'
+        | 'CAPABILITY_PREVIEW_EMPTY_CHAPTER'
+        | 'CAPABILITY_PREVIEW_QUALITY_GATE_FAILED';
+      violations?: string[];
+    } {
   if (
-    input.selection
-    && (!Number.isInteger(input.selection.start)
-      || !Number.isInteger(input.selection.end)
-      || input.selection.start < 0
-      || input.selection.end <= input.selection.start
-      || input.selection.end > input.content.length)
+    input.selection &&
+    (!Number.isInteger(input.selection.start) ||
+      !Number.isInteger(input.selection.end) ||
+      input.selection.start < 0 ||
+      input.selection.end <= input.selection.start ||
+      input.selection.end > input.content.length)
   ) {
     return { ok: false, code: 'CAPABILITY_PREVIEW_INVALID_SELECTION' };
   }
@@ -33,8 +44,13 @@ export function buildCapabilityPreviewApplication(input: {
   const nextContent = input.selection
     ? `${input.content.slice(0, input.selection.start)}${input.preview}${input.content.slice(input.selection.end)}`
     : input.preview;
-  const wholeChapter = !input.selection || (input.selection.start === 0 && input.selection.end === input.content.length);
-  const quality = validateCandidateDraftQuality(nextContent, wholeChapter ? input.content : baselineContent);
+  const wholeChapter =
+    !input.selection ||
+    (input.selection.start === 0 && input.selection.end === input.content.length);
+  const quality = validateCandidateDraftQuality(
+    nextContent,
+    wholeChapter ? input.content : baselineContent
+  );
   if (!quality.ok) {
     return {
       ok: false,

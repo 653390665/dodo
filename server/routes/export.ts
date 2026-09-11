@@ -22,19 +22,22 @@ async function buildEpub(novel: Novel, chapters: Chapter[]): Promise<Buffer> {
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
 
   // container.xml
-  zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    'META-INF/container.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>`);
+</container>`
+  );
 
   const sorted = [...chapters].sort((a, b) => a.order - b.order);
 
   // content.opf
-  const manifestItems = sorted.map((_, i) =>
-    `<item id="ch${i}" href="ch${i}.xhtml" media-type="application/xhtml+xml"/>`
-  ).join('\n');
+  const manifestItems = sorted
+    .map((_, i) => `<item id="ch${i}" href="ch${i}.xhtml" media-type="application/xhtml+xml"/>`)
+    .join('\n');
   const spineItems = sorted.map((_, i) => `<itemref idref="ch${i}"/>`).join('\n');
   const opf = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
@@ -53,9 +56,11 @@ async function buildEpub(novel: Novel, chapters: Chapter[]): Promise<Buffer> {
   zip.file('OEBPS/content.opf', opf);
 
   // Navigation
-  const navLinks = sorted.map((ch, i) =>
-    `<li><a href="ch${i}.xhtml">第${ch.order ?? '?'}章 ${escXml(ch.title)}</a></li>`
-  ).join('\n');
+  const navLinks = sorted
+    .map(
+      (ch, i) => `<li><a href="ch${i}.xhtml">第${ch.order ?? '?'}章 ${escXml(ch.title)}</a></li>`
+    )
+    .join('\n');
   const nav = `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>目录</title></head>
@@ -67,9 +72,10 @@ async function buildEpub(novel: Novel, chapters: Chapter[]): Promise<Buffer> {
   for (let i = 0; i < sorted.length; i++) {
     const ch = sorted[i];
     const escChapterTitle = escXml(ch.title);
-    const paragraphs = (ch.content || '').split('\n').map((line: string) =>
-      `<p>${line ? escXml(line) : '&nbsp;'}</p>`
-    ).join('\n');
+    const paragraphs = (ch.content || '')
+      .split('\n')
+      .map((line: string) => `<p>${line ? escXml(line) : '&nbsp;'}</p>`)
+      .join('\n');
     const html = `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><title>第${ch.order ?? '?'}章 ${escChapterTitle}</title></head>
@@ -96,7 +102,10 @@ export function registerExportRoutes(app: Express) {
         const buf = await buildEpub(novel, chapters);
         res.setHeader('Content-Type', 'application/epub+zip');
         res.setHeader('Content-Length', String(buf.length));
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.epub"`);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(novel.title)}.epub"`
+        );
         res.send(buf);
       } else {
         const lines: string[] = [];
@@ -113,7 +122,10 @@ export function registerExportRoutes(app: Express) {
         }
         const content = lines.join('\n');
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(novel.title)}.txt"`);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(novel.title)}.txt"`
+        );
         res.send(content);
       }
     } catch (e) {

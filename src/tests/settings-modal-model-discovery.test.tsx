@@ -51,13 +51,14 @@ if (typeof Element !== 'undefined') {
 function makeConfigResponse(overrides?: Record<string, unknown>) {
   return Promise.resolve({
     ok: true,
-    json: () => Promise.resolve({
-      baseUrl: 'https://api.example.com/v1',
-      model: '',
-      hasApiKey: true,
-      promptTemplates: {},
-      ...overrides,
-    }),
+    json: () =>
+      Promise.resolve({
+        baseUrl: 'https://api.example.com/v1',
+        model: '',
+        hasApiKey: true,
+        promptTemplates: {},
+        ...overrides,
+      }),
   } as Response);
 }
 
@@ -65,16 +66,17 @@ function makeTestConnectionResponse(overrides?: Record<string, unknown>) {
   return Promise.resolve({
     ok: true,
     status: 200,
-    json: () => Promise.resolve({
-      models: ['gpt-4o', 'gpt-4o-mini', 'claude-3', 'gemini-2.5-pro'],
-      modelDiscovery: 'available',
-      selectedModelValid: true,
-      modelTested: true,
-      connectionOk: true,
-      ok: true,
-      message: 'OK',
-      ...overrides,
-    }),
+    json: () =>
+      Promise.resolve({
+        models: ['gpt-4o', 'gpt-4o-mini', 'claude-3', 'gemini-2.5-pro'],
+        modelDiscovery: 'available',
+        selectedModelValid: true,
+        modelTested: true,
+        connectionOk: true,
+        ok: true,
+        message: 'OK',
+        ...overrides,
+      }),
   } as Response);
 }
 
@@ -83,7 +85,6 @@ const DEFAULT_FETCH = window.fetch;
 // ── Suite ────────────────────────────────────────────────────────
 
 describe('SettingsModal Model Discovery', () => {
-
   beforeEach(() => {
     localStorage.clear();
     // Default: config fetch works, everything else falls through
@@ -137,24 +138,37 @@ describe('SettingsModal Model Discovery', () => {
         attempts += 1;
         return Promise.resolve({
           ok: false,
-          json: () => Promise.resolve({
-            error: '提示词试跑超时，请稍后重试。',
-            code: 'PROMPT_TEST_TIMEOUT',
-            promptPreview: 'preview sentinel',
-          }),
+          json: () =>
+            Promise.resolve({
+              error: '提示词试跑超时，请稍后重试。',
+              code: 'PROMPT_TEST_TIMEOUT',
+              promptPreview: 'preview sentinel',
+            }),
         } as Response);
       }
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen selectedNovelId="novel-1" onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal
+        isOpen
+        selectedNovelId="novel-1"
+        onClose={() => {}}
+        theme="dark"
+        onThemeChange={() => {}}
+      />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     fireEvent.click(screen.getByRole('button', { name: '提示词实验室' }));
     fireEvent.click(screen.getByRole('button', { name: '试跑当前模板' }));
     expect(await screen.findByText('模型响应超时，请稍后重试。')).toBeDefined();
     expect(screen.getByText('preview sentinel')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '重试试跑' }));
-    await act(async () => { await new Promise(r => setTimeout(r, 20)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
     expect(attempts).toBe(2);
   });
 
@@ -174,8 +188,18 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen selectedNovelId="novel-1" onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal
+        isOpen
+        selectedNovelId="novel-1"
+        onClose={() => {}}
+        theme="dark"
+        onThemeChange={() => {}}
+      />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     fireEvent.click(screen.getByRole('button', { name: '提示词实验室' }));
     fireEvent.click(screen.getByRole('button', { name: '试跑当前模板' }));
     expect(attempts).toBe(1);
@@ -184,10 +208,20 @@ describe('SettingsModal Model Discovery', () => {
     fireEvent.click(screen.getByRole('button', { name: '试跑当前模板' }));
     expect(attempts).toBe(2);
 
-    resolveSecond?.(new Response(JSON.stringify({ text: 'new-template-result', promptPreview: 'new-preview' }), { status: 200 }));
+    resolveSecond?.(
+      new Response(JSON.stringify({ text: 'new-template-result', promptPreview: 'new-preview' }), {
+        status: 200,
+      })
+    );
     expect(await screen.findByText('new-template-result')).toBeDefined();
-    resolveFirst?.(new Response(JSON.stringify({ text: 'old-template-result', promptPreview: 'old-preview' }), { status: 200 }));
-    await act(async () => { await new Promise(r => setTimeout(r, 20)); });
+    resolveFirst?.(
+      new Response(JSON.stringify({ text: 'old-template-result', promptPreview: 'old-preview' }), {
+        status: 200,
+      })
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
     expect(screen.queryByText('old-template-result')).toBeNull();
     expect(screen.getByText('new-template-result')).toBeDefined();
   });
@@ -202,10 +236,14 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
 
     // Wait for initial config fetch
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Click test connection
     const testBtn = screen.getByText('测试连接');
@@ -221,7 +259,9 @@ describe('SettingsModal Model Discovery', () => {
     fireEvent.change(apiInput, { target: { value: 'new-key' } });
 
     // Wait for React state to settle
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Button should be re-enabled
     expect(screen.queryByText('测试中...')).toBeNull();
@@ -235,19 +275,27 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     const testBtn = screen.getByText('测试连接');
     fireEvent.click(testBtn);
     expect((testBtn as HTMLButtonElement).disabled).toBe(true);
 
     // Change Base URL
-    const baseUrlInput = document.querySelector('input[placeholder*="api.deepseek"]') as HTMLInputElement;
+    const baseUrlInput = document.querySelector(
+      'input[placeholder*="api.deepseek"]'
+    ) as HTMLInputElement;
     expect(baseUrlInput).not.toBeNull();
     fireEvent.change(baseUrlInput, { target: { value: 'https://new-api.example.com/v1' } });
 
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     expect(screen.queryByText('测试中...')).toBeNull();
     expect((screen.getByText('测试连接') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -259,8 +307,12 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    const { rerender } = render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    const { rerender } = render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     const testBtn = screen.getByText('测试连接');
     fireEvent.click(testBtn);
@@ -268,7 +320,9 @@ describe('SettingsModal Model Discovery', () => {
 
     // Close modal
     rerender(<></>);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Re-open
     window.fetch = vi.fn().mockImplementation((url: string) => {
@@ -276,8 +330,12 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    rerender(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    rerender(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Button should not be in loading state
     expect(screen.queryByText('测试中...')).toBeNull();
@@ -293,13 +351,19 @@ describe('SettingsModal Model Discovery', () => {
     window.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/config') return makeConfigResponse();
       if (url === '/api/config/test-connection') {
-        return new Promise<Response>(resolve => { resolveTestConnection = resolve; });
+        return new Promise<Response>((resolve) => {
+          resolveTestConnection = resolve;
+        });
       }
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Start a test
     fireEvent.click(screen.getByText('测试连接'));
@@ -309,13 +373,15 @@ describe('SettingsModal Model Discovery', () => {
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     expect(modelInput).not.toBeNull();
     fireEvent.change(modelInput, { target: { value: 'new-model' } });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Now resolve the OLD request
     await act(async () => {
       const oldResponse = await makeTestConnectionResponse({ models: ['old-model'] });
       resolveTestConnection?.(oldResponse);
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     });
 
     // The old response should NOT have set the discovered models
@@ -333,23 +399,31 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    const { container } = render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    const { container } = render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Click test
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Should show model count in help text (below the input, not in result banner)
     const allPs = container.querySelectorAll('p');
-    const helpP = Array.from(allPs).find(p => p.textContent?.includes('已发现'));
+    const helpP = Array.from(allPs).find((p) => p.textContent?.includes('已发现'));
     expect(helpP).toBeDefined();
     expect(helpP!.textContent).toMatch(/4/);
 
     // Open dropdown
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.focus(modelInput);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Should see model list items
     const listbox = document.getElementById('model-listbox');
@@ -366,17 +440,25 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Type to filter
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.focus(modelInput);
     fireEvent.change(modelInput, { target: { value: 'gpt' } });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Should show only GPT models
     const listbox = document.getElementById('model-listbox');
@@ -393,11 +475,17 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.change(modelInput, { target: { value: 'gpt' } });
@@ -425,17 +513,25 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Type something that matches nothing
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.focus(modelInput);
     fireEvent.change(modelInput, { target: { value: 'zzzz-not-found' } });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Should show fallback message + full list
     expect(screen.getByText(/当前输入未匹配，展示全部模型/)).toBeDefined();
@@ -453,20 +549,30 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Open dropdown and click a model
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.focus(modelInput);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     const option = screen.getByText('claude-3');
     fireEvent.mouseDown(option); // uses onMouseDown
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Input should now show the selected model
     expect(modelInput.value).toBe('claude-3');
@@ -479,24 +585,36 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     // Focus and open dropdown
     fireEvent.focus(modelInput);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Arrow down to first item
     fireEvent.keyDown(modelInput, { key: 'ArrowDown' });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Enter to select
     fireEvent.keyDown(modelInput, { key: 'Enter' });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // First model should be selected
     expect(modelInput.value).toBe('gpt-4o');
@@ -513,23 +631,33 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={mockClose} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={mockClose} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     fireEvent.click(screen.getByText('测试连接'));
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
 
     // Open dropdown
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     fireEvent.focus(modelInput);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Dropdown should be visible
     expect(document.getElementById('model-listbox')).not.toBeNull();
 
     // Press Escape on model input
     fireEvent.keyDown(modelInput, { key: 'Escape' });
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // Dropdown should close
     expect(document.getElementById('model-listbox')).toBeNull();
@@ -548,8 +676,12 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     const modelInput = document.getElementById('model-input') as HTMLInputElement;
     expect(modelInput).not.toBeNull();
@@ -561,13 +693,15 @@ describe('SettingsModal Model Discovery', () => {
 
     // Label should have htmlFor pointing to model-input
     const labels = document.querySelectorAll('label');
-    const modelLabel = Array.from(labels).find(l => l.textContent?.trim() === 'Model');
+    const modelLabel = Array.from(labels).find((l) => l.textContent?.trim() === 'Model');
     expect(modelLabel).not.toBeNull();
     expect(modelLabel?.getAttribute('for')).toBe('model-input');
 
     // Open dropdown and check listbox ARIA
     fireEvent.focus(modelInput);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // The dropdown doesn't automatically open on focus for the first time if models are already discovered
     // It should open because discoveredModels.length > 0
@@ -585,8 +719,12 @@ describe('SettingsModal Model Discovery', () => {
       return DEFAULT_FETCH(url);
     });
 
-    render(<SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    render(
+      <SettingsModal isOpen={true} onClose={() => {}} theme="dark" onThemeChange={() => {}} />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     // The aria-live region should exist in the DOM
     const liveRegion = document.querySelector('[role="status"][aria-live="polite"]');

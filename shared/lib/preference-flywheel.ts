@@ -16,7 +16,9 @@ const DEFAULT_WEIGHTS = {
 };
 
 function uniqueDimensions(skills: Skill[]): SkillDimension[] {
-  return Array.from(new Set(skills.flatMap((skill) => skill.dimensionTags || []))) as SkillDimension[];
+  return Array.from(
+    new Set(skills.flatMap((skill) => skill.dimensionTags || []))
+  ) as SkillDimension[];
 }
 
 function uniqueRoles(skills: Skill[]): SkillRoleKey[] {
@@ -73,7 +75,9 @@ export function buildProjectPreferenceSnapshot({
     ].filter(Boolean),
     weights: {
       styleWeight: acceptedRoles.includes('lead-style') ? 0.8 : DEFAULT_WEIGHTS.styleWeight,
-      characterWeight: acceptedRoles.includes('character-drive') ? 0.8 : DEFAULT_WEIGHTS.characterWeight,
+      characterWeight: acceptedRoles.includes('character-drive')
+        ? 0.8
+        : DEFAULT_WEIGHTS.characterWeight,
       worldWeight: rejectedRoles.includes('world-rule') ? 0.3 : DEFAULT_WEIGHTS.worldWeight,
       plotWeight: acceptedRoles.includes('plot-advance') ? 0.8 : DEFAULT_WEIGHTS.plotWeight,
       pacingWeight: rejectedRoles.includes('pace-control') ? 0.3 : DEFAULT_WEIGHTS.pacingWeight,
@@ -112,7 +116,7 @@ export function applyPreferenceFeedback(
     action: PreferenceFeedbackAction;
     dimension?: SkillDimension;
     note?: string;
-  },
+  }
 ): ProjectPreferenceProfile {
   const next: ProjectPreferenceProfile = {
     ...profile,
@@ -123,11 +127,19 @@ export function applyPreferenceFeedback(
     evidenceCount: profile.evidenceCount + 1,
   };
 
-  if (input.action === 'more-like-me' && input.dimension && !next.acceptedDimensions.includes(input.dimension)) {
+  if (
+    input.action === 'more-like-me' &&
+    input.dimension &&
+    !next.acceptedDimensions.includes(input.dimension)
+  ) {
     next.acceptedDimensions.push(input.dimension);
   }
 
-  if (input.action === 'not-for-me' && input.dimension && !next.rejectedDimensions.includes(input.dimension)) {
+  if (
+    input.action === 'not-for-me' &&
+    input.dimension &&
+    !next.rejectedDimensions.includes(input.dimension)
+  ) {
     next.rejectedDimensions.push(input.dimension);
   }
 
@@ -180,7 +192,7 @@ export interface LearnedPreference {
  */
 export function recordChapterDecision(
   profile: ProjectPreferenceProfile,
-  decision: ChapterDecision,
+  decision: ChapterDecision
 ): ProjectPreferenceProfile {
   const decisions = [...(profile.decisions || []), decision];
   // Keep last 20 decisions only (sliding window)
@@ -188,7 +200,10 @@ export function recordChapterDecision(
   return {
     ...profile,
     evidenceCount: profile.evidenceCount + 1,
-    notes: [...profile.notes, `[ChapterDecision] ${decision.action} on chapter ${decision.chapterId}`],
+    notes: [
+      ...profile.notes,
+      `[ChapterDecision] ${decision.action} on chapter ${decision.chapterId}`,
+    ],
     decisions: trimmed,
   };
 }
@@ -197,28 +212,27 @@ export function recordChapterDecision(
  * Analyze recent chapter decisions for patterns.
  * Returns learned preferences that can be injected into generation.
  */
-export function summarizeChapterDecisions(
-  profile: ProjectPreferenceProfile,
-): LearnedPreference[] {
+export function summarizeChapterDecisions(profile: ProjectPreferenceProfile): LearnedPreference[] {
   const decisions: ChapterDecision[] = profile.decisions || [];
   if (decisions.length < 3) return []; // Not enough data
 
   const preferences: LearnedPreference[] = [];
 
   // Pattern 1: Frequent rewrites → user is picky about drafts
-  const rewriteCount = decisions.filter((d) => d.action === 'manual_rewrite' || d.action === 'edit_then_accept').length;
+  const rewriteCount = decisions.filter(
+    (d) => d.action === 'manual_rewrite' || d.action === 'edit_then_accept'
+  ).length;
   if (rewriteCount >= 3) {
     preferences.push({
-      pattern: '你倾向于在 AI 草稿基础上进行修改，而非直接接受。后续生成将提供更简练的初稿以便编辑。',
+      pattern:
+        '你倾向于在 AI 草稿基础上进行修改，而非直接接受。后续生成将提供更简练的初稿以便编辑。',
       confidence: Math.min(rewriteCount / decisions.length, 1),
       source: 'chapter_decisions',
     });
   }
 
   // Pattern 2: Common rejection reasons
-  const rejectReasons = decisions
-    .filter((d) => d.rejectedReason)
-    .map((d) => d.rejectedReason!);
+  const rejectReasons = decisions.filter((d) => d.rejectedReason).map((d) => d.rejectedReason!);
   if (rejectReasons.length >= 2) {
     const reasonText = rejectReasons.slice(-3).join('；');
     preferences.push({
@@ -229,9 +243,7 @@ export function summarizeChapterDecisions(
   }
 
   // Pattern 3: Consistent rewrites with instructions
-  const instructions = decisions
-    .filter((d) => d.instruction)
-    .map((d) => d.instruction!);
+  const instructions = decisions.filter((d) => d.instruction).map((d) => d.instruction!);
   if (instructions.length >= 2) {
     preferences.push({
       pattern: `你近期的改写指令：${instructions.slice(-2).join('；')}`,

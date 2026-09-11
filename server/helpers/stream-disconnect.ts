@@ -16,7 +16,7 @@ export function isStreamDisconnected(req: Request, res: Response): boolean {
 export function bindClientDisconnect(
   req: Request,
   res: Response,
-  onDisconnect: ClientDisconnectHandler,
+  onDisconnect: ClientDisconnectHandler
 ): () => void {
   let disposed = false;
   let handled = false;

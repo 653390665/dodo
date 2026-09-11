@@ -20,14 +20,18 @@ const PDF_STYLE = `
 `;
 
 function buildPdfHtml(novelTitle: string, chapters: PdfSource[], bookMode: boolean): string {
-  const body = chapters.map((chapter) => {
-    const heading = bookMode ? `<h2>${escapeHtml(chapter.title)}</h2>` : `<h1>${escapeHtml(chapter.title)}</h1>`;
-    const paragraphs = chapter.content
-      .split(/\n\s*\n/)
-      .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br/>')}</p>`)
-      .join('');
-    return `<section class="chapter">${heading}${paragraphs}</section>`;
-  }).join('');
+  const body = chapters
+    .map((chapter) => {
+      const heading = bookMode
+        ? `<h2>${escapeHtml(chapter.title)}</h2>`
+        : `<h1>${escapeHtml(chapter.title)}</h1>`;
+      const paragraphs = chapter.content
+        .split(/\n\s*\n/)
+        .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br/>')}</p>`)
+        .join('');
+      return `<section class="chapter">${heading}${paragraphs}</section>`;
+    })
+    .join('');
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/>
 <title>${escapeHtml(novelTitle)}</title><style>${PDF_STYLE}</style></head>
 <body>${bookMode ? `<h1>${escapeHtml(novelTitle)}</h1>` : ''}${body}</body></html>`;

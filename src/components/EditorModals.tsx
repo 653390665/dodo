@@ -1,6 +1,15 @@
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { ChapterVersion } from '../../shared/types';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './ui/alert-dialog';
 
 export interface EditorModalsHandle {
   confirmDeleteChapter: (chapterId: string) => void;
@@ -28,7 +37,10 @@ export const EditorModals = forwardRef<EditorModalsHandle, EditorModalsProps>(
 
     return (
       <>
-        <AlertDialog open={Boolean(chapterToDeleteId)} onOpenChange={(open) => !open && setChapterToDeleteId(null)}>
+        <AlertDialog
+          open={Boolean(chapterToDeleteId)}
+          onOpenChange={(open) => !open && setChapterToDeleteId(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>确定要删除这一章吗？</AlertDialogTitle>
@@ -53,7 +65,10 @@ export const EditorModals = forwardRef<EditorModalsHandle, EditorModalsProps>(
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={Boolean(versionToRestore)} onOpenChange={(open) => !open && setVersionToRestore(null)}>
+        <AlertDialog
+          open={Boolean(versionToRestore)}
+          onOpenChange={(open) => !open && setVersionToRestore(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>确定要回滚到此版本吗？</AlertDialogTitle>

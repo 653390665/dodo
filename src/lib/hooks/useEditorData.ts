@@ -1,11 +1,28 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditorDataStore } from '../../stores/editor-data-store';
 import { useOutlineContentStore } from '../../stores/outline-content-store';
-import { Chapter, PowerLevel, TimelineEvent, MountedSkillLoadoutItem, ProjectPreferenceProfile, Foreshadowing } from '../../../shared/types';
 import {
-  listChaptersMetadata, getChapter, listCharacters, listLocations, listItems, listFactions,
-  listPowerLevels, listTimelineEvents, syncSkillFeedbackScores, listSkillUsageRecords,
-  getNovel, subscribeToChanges, listEntityRelationshipsClient
+  Chapter,
+  PowerLevel,
+  TimelineEvent,
+  MountedSkillLoadoutItem,
+  ProjectPreferenceProfile,
+  Foreshadowing,
+} from '../../../shared/types';
+import {
+  listChaptersMetadata,
+  getChapter,
+  listCharacters,
+  listLocations,
+  listItems,
+  listFactions,
+  listPowerLevels,
+  listTimelineEvents,
+  syncSkillFeedbackScores,
+  listSkillUsageRecords,
+  getNovel,
+  subscribeToChanges,
+  listEntityRelationshipsClient,
 } from '../api';
 import { resolveSkillLoadout } from '../../../shared/lib/skill-model';
 import { clearStaleEditorWrites, hasPendingWriteForExactKey } from '../editor-write-queue';
@@ -16,7 +33,9 @@ import { listForeshadowings } from '../foreshadowing-client';
 export function useEditorData(novelId: string, initialChapterId?: string) {
   const chapters = useEditorDataStore((state) => state.chapters);
   const setChapters = useEditorDataStore((state) => state.setChapters);
-  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(initialChapterId || null);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
+    initialChapterId || null
+  );
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [chapterLoading, setChapterLoading] = useState(false);
   const characters = useEditorDataStore((state) => state.characters);
@@ -39,7 +58,9 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
   const [mountedSkillLoadout, setMountedSkillLoadout] = useState<MountedSkillLoadoutItem[]>([]);
   const [pendingSkillIds, setPendingSkillIds] = useState<string[]>([]);
   const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
-  const setProjectPreferenceProfile = useEditorDataStore((state) => state.setProjectPreferenceProfile);
+  const setProjectPreferenceProfile = useEditorDataStore(
+    (state) => state.setProjectPreferenceProfile
+  );
   // 011 Phase 2：主纲值入 outline-content-store；revision 自增/清零语义由 store 承担
   const globalOutline = useOutlineContentStore((state) => state.globalOutline);
   const [databaseGeneration, setDatabaseGeneration] = useState<number | null>(null);
@@ -72,108 +93,125 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
     }
   }, [currentChapter]);
 
-  const selectChapter = useCallback(async (chapterId: string): Promise<Chapter | null> => {
-    const requestSeq = ++chapterRequestSeqRef.current;
-    const previousChapter = currentChapterRef.current;
-    const previousSelectedChapterId = selectedChapterIdRef.current;
-    selectedChapterIdRef.current = chapterId;
-    setSelectedChapterId(chapterId);
-    currentChapterRef.current = null;
-    setCurrentChapter(null);
-    setChapterLoading(true);
+  const selectChapter = useCallback(
+    async (chapterId: string): Promise<Chapter | null> => {
+      const requestSeq = ++chapterRequestSeqRef.current;
+      const previousChapter = currentChapterRef.current;
+      const previousSelectedChapterId = selectedChapterIdRef.current;
+      selectedChapterIdRef.current = chapterId;
+      setSelectedChapterId(chapterId);
+      currentChapterRef.current = null;
+      setCurrentChapter(null);
+      setChapterLoading(true);
 
-    try {
+      try {
+        const generationBefore = await readGeneration();
+        const fullChapter = await getChapter(chapterId);
+        const generationAfter = await readGeneration();
+        if (
+          requestSeq !== chapterRequestSeqRef.current ||
+          selectedChapterIdRef.current !== chapterId
+        ) {
+          return null;
+        }
+
+        if (!hasConsistentGeneration(generationBefore, generationAfter)) {
+          selectedChapterIdRef.current = previousSelectedChapterId;
+          setSelectedChapterId(previousSelectedChapterId);
+          currentChapterRef.current = previousChapter;
+          setCurrentChapter(previousChapter);
+          return null;
+        }
+
+        if (!fullChapter) {
+          selectedChapterIdRef.current = null;
+          setSelectedChapterId(null);
+          currentChapterRef.current = null;
+          setCurrentChapter(null);
+          setChapters((previous) => previous.filter((chapter) => chapter.id !== chapterId));
+          return null;
+        }
+
+        // 178：属主校验——竞态窗口内取回的章节不属于当前小说时拒绝装入（setCurrentChapter 之前比对）。
+        if (fullChapter.novelId !== novelId) return null;
+
+        currentChapterRef.current = fullChapter;
+        setCurrentChapter(fullChapter);
+        return fullChapter;
+      } finally {
+        if (requestSeq === chapterRequestSeqRef.current) {
+          setChapterLoading(false);
+        }
+      }
+    },
+    [novelId, readGeneration, setChapters]
+  );
+
+  const loadAuxiliaryData = useCallback(
+    async (requestSeq: number) => {
       const generationBefore = await readGeneration();
-      const fullChapter = await getChapter(chapterId);
+      const results = await Promise.allSettled([
+        listCharacters(novelId),
+        listLocations(novelId),
+        listItems(novelId),
+        listFactions(novelId),
+        listPowerLevels(novelId),
+        listTimelineEvents(novelId),
+        listForeshadowings(novelId),
+        syncSkillFeedbackScores(),
+        listSkillUsageRecords(),
+        listEntityRelationshipsClient(novelId),
+      ] as const);
       const generationAfter = await readGeneration();
+
       if (
-        requestSeq !== chapterRequestSeqRef.current
-        || selectedChapterIdRef.current !== chapterId
-      ) {
-        return null;
-      }
+        requestSeq !== dataRequestSeqRef.current ||
+        !hasConsistentGeneration(generationBefore, generationAfter)
+      )
+        return;
 
-      if (!hasConsistentGeneration(generationBefore, generationAfter)) {
-        selectedChapterIdRef.current = previousSelectedChapterId;
-        setSelectedChapterId(previousSelectedChapterId);
-        currentChapterRef.current = previousChapter;
-        setCurrentChapter(previousChapter);
-        return null;
-      }
+      const [
+        characterResult,
+        locationResult,
+        itemResult,
+        factionResult,
+        powerLevelResult,
+        timelineResult,
+        foreshadowingResult,
+        skillResult,
+        usageResult,
+        relationshipResult,
+      ] = results;
 
-      if (!fullChapter) {
-        selectedChapterIdRef.current = null;
-        setSelectedChapterId(null);
-        currentChapterRef.current = null;
-        setCurrentChapter(null);
-        setChapters((previous) => previous.filter((chapter) => chapter.id !== chapterId));
-        return null;
-      }
+      if (characterResult.status === 'fulfilled') setCharacters(characterResult.value);
+      if (locationResult.status === 'fulfilled') setLocations(locationResult.value);
+      if (itemResult.status === 'fulfilled') setItems(itemResult.value);
+      if (factionResult.status === 'fulfilled') setFactions(factionResult.value);
+      if (powerLevelResult.status === 'fulfilled') setPowerLevels(powerLevelResult.value);
+      if (timelineResult.status === 'fulfilled') setTimelineEvents(timelineResult.value);
+      if (foreshadowingResult.status === 'fulfilled') setForeshadowings(foreshadowingResult.value);
+      if (skillResult.status === 'fulfilled') setLibrarySkills(skillResult.value);
+      if (usageResult.status === 'fulfilled') setSkillUsageRecords(usageResult.value);
+      if (relationshipResult.status === 'fulfilled') setRelationships(relationshipResult.value);
 
-      // 178：属主校验——竞态窗口内取回的章节不属于当前小说时拒绝装入（setCurrentChapter 之前比对）。
-      if (fullChapter.novelId !== novelId) return null;
-
-      currentChapterRef.current = fullChapter;
-      setCurrentChapter(fullChapter);
-      return fullChapter;
-    } finally {
-      if (requestSeq === chapterRequestSeqRef.current) {
-        setChapterLoading(false);
-      }
-    }
-  }, [novelId, readGeneration, setChapters]);
-
-  const loadAuxiliaryData = useCallback(async (requestSeq: number) => {
-    const generationBefore = await readGeneration();
-    const results = await Promise.allSettled([
-      listCharacters(novelId),
-      listLocations(novelId),
-      listItems(novelId),
-      listFactions(novelId),
-      listPowerLevels(novelId),
-      listTimelineEvents(novelId),
-      listForeshadowings(novelId),
-      syncSkillFeedbackScores(),
-      listSkillUsageRecords(),
-      listEntityRelationshipsClient(novelId),
-    ] as const);
-    const generationAfter = await readGeneration();
-
-    if (
-      requestSeq !== dataRequestSeqRef.current
-      || !hasConsistentGeneration(generationBefore, generationAfter)
-    ) return;
-
-    const [
-      characterResult,
-      locationResult,
-      itemResult,
-      factionResult,
-      powerLevelResult,
-      timelineResult,
-      foreshadowingResult,
-      skillResult,
-      usageResult,
-      relationshipResult,
-    ] = results;
-
-    if (characterResult.status === 'fulfilled') setCharacters(characterResult.value);
-    if (locationResult.status === 'fulfilled') setLocations(locationResult.value);
-    if (itemResult.status === 'fulfilled') setItems(itemResult.value);
-    if (factionResult.status === 'fulfilled') setFactions(factionResult.value);
-    if (powerLevelResult.status === 'fulfilled') setPowerLevels(powerLevelResult.value);
-    if (timelineResult.status === 'fulfilled') setTimelineEvents(timelineResult.value);
-    if (foreshadowingResult.status === 'fulfilled') setForeshadowings(foreshadowingResult.value);
-    if (skillResult.status === 'fulfilled') setLibrarySkills(skillResult.value);
-    if (usageResult.status === 'fulfilled') setSkillUsageRecords(usageResult.value);
-    if (relationshipResult.status === 'fulfilled') setRelationships(relationshipResult.value);
-
-    results.forEach((result) => {
-      if (result.status === 'rejected') {
-        console.warn('[useEditorData] Auxiliary editor data unavailable:', result.reason);
-      }
-    });
-  }, [novelId, readGeneration, setCharacters, setFactions, setItems, setLibrarySkills, setLocations, setRelationships, setSkillUsageRecords]);
+      results.forEach((result) => {
+        if (result.status === 'rejected') {
+          console.warn('[useEditorData] Auxiliary editor data unavailable:', result.reason);
+        }
+      });
+    },
+    [
+      novelId,
+      readGeneration,
+      setCharacters,
+      setFactions,
+      setItems,
+      setLibrarySkills,
+      setLocations,
+      setRelationships,
+      setSkillUsageRecords,
+    ]
+  );
 
   const fetchAll = useCallback(async () => {
     const requestSeq = ++dataRequestSeqRef.current;
@@ -188,8 +226,8 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
       const generationResult = await readGeneration();
 
       if (
-        requestSeq !== dataRequestSeqRef.current
-        || !hasConsistentGeneration(generationBefore, generationResult)
+        requestSeq !== dataRequestSeqRef.current ||
+        !hasConsistentGeneration(generationBefore, generationResult)
       ) {
         // 178：代际不一致提前退出前也要解除 loading（仅最新请求有权解除，与 catch 分支口径一致），
         // 否则首挂载遇抖动会无限转角落 spinner。
@@ -202,7 +240,10 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
       if (generationResult !== null) clearStaleEditorWrites();
       if (freshNovel) {
         const resolved = resolveSkillLoadout({
-          profileVersion: (freshNovel.projectPreferenceProfile as (ProjectPreferenceProfile & { skillLoadoutSchemaVersion?: number }) | undefined)?.skillLoadoutSchemaVersion,
+          profileVersion: (
+            freshNovel.projectPreferenceProfile as
+              (ProjectPreferenceProfile & { skillLoadoutSchemaVersion?: number }) | undefined
+          )?.skillLoadoutSchemaVersion,
           mountedSkillLoadout: freshNovel.mountedSkillLoadout,
           mountedSkillIds: freshNovel.mountedSkillIds,
         });
@@ -211,12 +252,12 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         setProjectPreferenceProfile(
           freshNovel.projectPreferenceProfile
             ? normalizeProjectPreferenceProfile(freshNovel.projectPreferenceProfile)
-            : undefined,
+            : undefined
         );
         if (
-          freshNovel.globalOutline !== undefined
-          && revisionAtStart === useOutlineContentStore.getState().outlineRevision
-          && !hasPendingWriteForExactKey(`novel:${novelId}:globalOutline`)
+          freshNovel.globalOutline !== undefined &&
+          revisionAtStart === useOutlineContentStore.getState().outlineRevision &&
+          !hasPendingWriteForExactKey(`novel:${novelId}:globalOutline`)
         ) {
           setGlobalOutlineRaw(freshNovel.globalOutline || '');
         }
@@ -226,7 +267,7 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
       const selectedStillExists = selectedId
         ? freshChapters.some((chapter) => chapter.id === selectedId)
         : false;
-      const targetChapterId = selectedStillExists ? selectedId : freshChapters[0]?.id ?? null;
+      const targetChapterId = selectedStillExists ? selectedId : (freshChapters[0]?.id ?? null);
 
       if (!targetChapterId) {
         chapterRequestSeqRef.current += 1;
@@ -259,7 +300,15 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
         setIsLoading(false);
       }
     }
-  }, [loadAuxiliaryData, novelId, readGeneration, selectChapter, setChapters, setGlobalOutlineRaw, setProjectPreferenceProfile]);
+  }, [
+    loadAuxiliaryData,
+    novelId,
+    readGeneration,
+    selectChapter,
+    setChapters,
+    setGlobalOutlineRaw,
+    setProjectPreferenceProfile,
+  ]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- reset visible editor state before loading a different project */
@@ -322,6 +371,6 @@ export function useEditorData(novelId: string, initialChapterId?: string) {
     setGlobalOutline,
     databaseGeneration,
     isLoading,
-    refreshEditorData: fetchAll
+    refreshEditorData: fetchAll,
   };
 }

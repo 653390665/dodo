@@ -24,7 +24,9 @@ describe('authenticated fetch origin boundary', () => {
   });
 
   test('merges Request and init headers before adding auth for same-origin API calls', async () => {
-    const originalFetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => new Response('{}'));
+    const originalFetchMock = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) => new Response('{}')
+    );
     const originalFetch = originalFetchMock as unknown as typeof fetch;
     const authenticatedFetch = createAuthenticatedFetch({
       originalFetch,

@@ -23,7 +23,7 @@ const builderBin = resolve(
   root,
   process.platform === 'win32'
     ? 'node_modules/.bin/electron-builder.cmd'
-    : 'node_modules/.bin/electron-builder',
+    : 'node_modules/.bin/electron-builder'
 );
 
 const PLATFORM_MAP = { darwin: 'mac', win32: 'win', linux: 'linux' };

@@ -50,11 +50,7 @@ export type PromptCategoryV2 =
  * 推荐卡片可执行动作分类 (Prompt Asset Action Kind)
  */
 export type PromptAssetActionKind =
-  | 'audit-enhance'
-  | 'polish-rewrite'
-  | 'mount-skill'
-  | 'open-flow-step'
-  | 'deconstruction-card';
+  'audit-enhance' | 'polish-rewrite' | 'mount-skill' | 'open-flow-step' | 'deconstruction-card';
 
 /**
  * 敏感词物理抹除清洗命中报告 (Sanitization Hits Report)
@@ -77,46 +73,46 @@ export interface SanitizationHits {
 export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
   /** 唯一标识符，可包含内置键值或外部定制 UUID */
   id: string;
-  
+
   /** 作者或贡献者标识 */
   author?: string;
-  
+
   /** 关联的特定作者创作流 ID */
   authorFlowId?: string;
-  
+
   /** 平台兼容性标签 */
   platformTags?: string[];
-  
+
   /** 小说题材/风格标签 */
   genreTags?: string[];
-  
+
   /** 适用任务标签 */
   taskTags?: string[];
-  
+
   /** 预警及安全风险标签 */
   riskFlags?: string[];
-  
+
   /** 授权合规状态 */
   licenseStatus: 'user-authorized' | 'public' | 'built-in' | 'unknown';
-  
+
   /** 白标清洗状态 */
   sanitizationStatus: SanitizationStatus;
-  
+
   /** 清洗命中统计 */
   sanitizationHits?: SanitizationHits;
 
   /** 资产大类分流判定: 审稿、去 AI 腔为内置(built-in); 流派题材包等为可选(optional) */
   promptCategory?: 'built-in' | 'optional';
-  
+
   /** 运行时生命周期状态 */
   runtimeStatus: 'candidate' | 'direct-use-test' | 'active' | 'deprecated' | 'rejected';
-  
+
   /** 产品化放置等级 */
   placementTier: PlacementTier;
-  
+
   /** 提示词质量评分 (0 - 100) */
   score?: number;
-  
+
   /** 治理分级 */
   grade?: 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -158,10 +154,18 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
   sourceRef?: string;
 
   /** 来源大组 */
-  sourceGroup?: 'built-in' | 'square' | 'private' | 'tool' | 'fanqie-supplement' | 'webnovel-writer' | 'test-fixture';
+  sourceGroup?:
+    | 'built-in'
+    | 'square'
+    | 'private'
+    | 'tool'
+    | 'fanqie-supplement'
+    | 'webnovel-writer'
+    | 'test-fixture';
 
   /** 证据链置信等级 */
-  evidenceLevel?: 'scored-from-source' | 'summarized-source' | 'placeholder-for-import' | 'test-fixture';
+  evidenceLevel?:
+    'scored-from-source' | 'summarized-source' | 'placeholder-for-import' | 'test-fixture';
 
   /** 推荐原因（由路由引擎动态组装） */
   recommendationReason?: string;
@@ -209,17 +213,17 @@ export type PackageStep = EnhancementPackageStep;
 export type EnhancementPackageV2 = EnhancementPackage;
 
 export interface SkillSeriesFlowStep {
-  id: string;              // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
-  stepNumber: number;      // 序号 (1-based)
-  name: string;            // 步骤展示名称 (如 '脑洞灵感闪耀')
-  description: string;     // 步骤具体执行说明
-  input: string;           // 阶段输入特征
-  output: string;          // 阶段输出特征
-  assetId: string;         // 关联的真实治理资产 ID
-  qualityGate: string;     // 本步质量门栏标准
+  id: string; // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
+  stepNumber: number; // 序号 (1-based)
+  name: string; // 步骤展示名称 (如 '脑洞灵感闪耀')
+  description: string; // 步骤具体执行说明
+  input: string; // 阶段输入特征
+  output: string; // 阶段输出特征
+  assetId: string; // 关联的真实治理资产 ID
+  qualityGate: string; // 本步质量门栏标准
   nextStepId: string | null; // 下一步 ID，尾步骤为 null
-  switchAllowed: boolean;  // 是否允许中途跳跃切换
-  navigateTo?: string;     // 完成本步后自动跳转的目标标签页 (如 'bible'/'outline'/'planning'/'production'/'quality')
+  switchAllowed: boolean; // 是否允许中途跳跃切换
+  navigateTo?: string; // 完成本步后自动跳转的目标标签页 (如 'bible'/'outline'/'planning'/'production'/'quality')
 }
 
 export interface SkillSeriesFlow {
@@ -232,7 +236,8 @@ export interface SkillSeriesFlow {
 export interface CuratedProductSkill {
   id: string;
   title: string;
-  curatedCategory: 'opening' | 'bible' | 'prose' | 'audit' | 'de-ai' | 'platform' | 'style' | 'deconstruct';
+  curatedCategory:
+    'opening' | 'bible' | 'prose' | 'audit' | 'de-ai' | 'platform' | 'style' | 'deconstruct';
   goal: string;
   successSignal: string;
   score: number;

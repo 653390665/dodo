@@ -20,14 +20,23 @@ const novelClientMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/skill-client', () => ({
-  syncSkillFeedbackScores: vi.fn().mockImplementation(async () => skillMock.created ? [skillMock.created] : []),
+  syncSkillFeedbackScores: vi
+    .fn()
+    .mockImplementation(async () => (skillMock.created ? [skillMock.created] : [])),
   deleteSkill: vi.fn(),
-  createSkill: vi.fn().mockImplementation(async (skill) => { skillMock.created = { ...skill, id: 'persisted-skill-1' }; }),
+  createSkill: vi.fn().mockImplementation(async (skill) => {
+    skillMock.created = { ...skill, id: 'persisted-skill-1' };
+  }),
 }));
 
 const novel = {
-  id: 'novel-1', title: '作品', authorId: 'local', summary: '', status: 'ongoing' as const,
-  createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: '作品',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing' as const,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 vi.mock('../lib/novel-client', () => ({
@@ -41,13 +50,28 @@ vi.mock('../lib/db-transport', () => ({
 }));
 
 vi.mock('../lib/capability-configuration-client', () => ({
-  previewCapabilityConfiguration: vi.fn().mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 }),
-  applyCapabilityConfiguration: vi.fn().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: ProjectCapabilityProfile) => ({ profile, databaseGeneration: 8 })),
+  previewCapabilityConfiguration: vi
+    .fn()
+    .mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 }),
+  applyCapabilityConfiguration: vi
+    .fn()
+    .mockImplementation(
+      async (
+        _novelId: unknown,
+        _gen: unknown,
+        _token: unknown,
+        profile: ProjectCapabilityProfile
+      ) => ({ profile, databaseGeneration: 8 })
+    ),
 }));
 
 vi.mock('../lib/capability-migration-client', () => {
   class CapabilityMigrationError extends Error {
-    constructor(public code: string, public status: number, message: string) {
+    constructor(
+      public code: string,
+      public status: number,
+      message: string
+    ) {
       super(message);
     }
   }
@@ -62,13 +86,21 @@ vi.mock('../lib/capability-migration-client', () => {
       mainCard: { id: 'migrated-main', source: 'legacy' },
       conflicts: [],
       migrationPendingIds: [],
-      migratedProfile: { version: 3, projectSkillDeck: { mainCardId: 'migrated-main', supportCardIds: [], updatedAt: 1 }, favoriteTechniqueIds: [] },
+      migratedProfile: {
+        version: 3,
+        projectSkillDeck: { mainCardId: 'migrated-main', supportCardIds: [], updatedAt: 1 },
+        favoriteTechniqueIds: [],
+      },
       warnings: [],
       sourceSummary: { legacySkillIds: ['legacy-skill'], mountedSkillIds: [] },
     }),
     applyCapabilityMigration: vi.fn().mockResolvedValue({
       applied: true,
-      profile: { version: 3, projectSkillDeck: { mainCardId: 'migrated-main', supportCardIds: [], updatedAt: 1 }, favoriteTechniqueIds: [] },
+      profile: {
+        version: 3,
+        projectSkillDeck: { mainCardId: 'migrated-main', supportCardIds: [], updatedAt: 1 },
+        favoriteTechniqueIds: [],
+      },
       databaseGeneration: 8,
     }),
   };
@@ -76,7 +108,9 @@ vi.mock('../lib/capability-migration-client', () => {
 
 vi.mock('../lib/product-events-client', () => ({
   createProductEventSessionId: vi.fn((scope = 'session') => `${scope}:test-session`),
-  createProductEventId: vi.fn((action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`),
+  createProductEventId: vi.fn(
+    (action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`
+  ),
   recordProductEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -107,9 +141,21 @@ describe('Plan 158 capability center', () => {
     skillMock.created = null;
     localStorage.clear();
     sessionStorage.clear();
-    const { applyCapabilityConfiguration, previewCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    vi.mocked(previewCapabilityConfiguration).mockReset().mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 });
-    vi.mocked(applyCapabilityConfiguration).mockReset().mockImplementation(async (_novelId: unknown, _gen: unknown, _token: unknown, profile: ProjectCapabilityProfile) => ({ profile, databaseGeneration: 8 }));
+    const { applyCapabilityConfiguration, previewCapabilityConfiguration } =
+      await import('../lib/capability-configuration-client');
+    vi.mocked(previewCapabilityConfiguration)
+      .mockReset()
+      .mockResolvedValue({ previewToken: 'preview-1', databaseGeneration: 7 });
+    vi.mocked(applyCapabilityConfiguration)
+      .mockReset()
+      .mockImplementation(
+        async (
+          _novelId: unknown,
+          _gen: unknown,
+          _token: unknown,
+          profile: ProjectCapabilityProfile
+        ) => ({ profile, databaseGeneration: 8 })
+      );
     novelClientMock.listNovels.mockReset().mockResolvedValue([novel]);
   });
   test('uses flow, techniques, deck and guardrail summaries instead of role equipment slots', async () => {
@@ -135,7 +181,13 @@ describe('Plan 158 capability center', () => {
       ...novel,
       projectPreferenceProfile: {
         tags: [],
-        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+        weights: {
+          styleWeight: 1,
+          characterWeight: 1,
+          worldWeight: 1,
+          plotWeight: 1,
+          pacingWeight: 1,
+        },
         acceptedDimensions: [],
         rejectedDimensions: [],
         notes: [],
@@ -207,35 +259,57 @@ describe('Plan 158 capability center', () => {
 
   test('marks paid packages as gated when monetization is enabled', async () => {
     vi.stubEnv('VITE_INKFLOW_ENABLE_MONETIZATION', 'true');
-    render(<SkillsStudioView selectedNovel={{
-      ...novel,
-      projectPreferenceProfile: {
-        commercialMode: 'free',
-        tags: [],
-        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
-        acceptedDimensions: [],
-        rejectedDimensions: [],
-        notes: [],
-        evidenceCount: 0,
-      },
-    }} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={{
+          ...novel,
+          projectPreferenceProfile: {
+            commercialMode: 'free',
+            tags: [],
+            weights: {
+              styleWeight: 1,
+              characterWeight: 1,
+              worldWeight: 1,
+              plotWeight: 1,
+              pacingWeight: 1,
+            },
+            acceptedDimensions: [],
+            rejectedDimensions: [],
+            notes: [],
+            evidenceCount: 0,
+          },
+        }}
+      />
+    );
     await openPackages();
 
     expect(screen.getAllByText('需授权').length).toBeGreaterThan(0);
-    const restrictedPackage = screen.getByText('跨章连贯性增强包').closest('div.rounded-xl') as HTMLElement;
+    const restrictedPackage = screen
+      .getByText('跨章连贯性增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     expect(within(restrictedPackage).getByRole('button', { name: '查看受限步骤' })).toBeTruthy();
     expect(screen.queryByText('Beta 开放')).toBeNull();
     expect(screen.queryByText('授权范围')).toBeNull();
     fireEvent.click(within(restrictedPackage).getByRole('button', { name: '查看受限步骤' }));
     const restrictedDialog = await screen.findByRole('dialog', { name: '跨章连贯性增强包' });
-    expect(within(restrictedDialog).getByText('当前作品未开通授权增强；你可以先查看步骤，授权后再启用所选能力。')).toBeTruthy();
+    expect(
+      within(restrictedDialog).getByText(
+        '当前作品未开通授权增强；你可以先查看步骤，授权后再启用所选能力。'
+      )
+    ).toBeTruthy();
     const checkbox = within(restrictedDialog).getAllByRole('checkbox')[0];
     fireEvent.click(checkbox);
     await waitFor(() => expect((checkbox as HTMLInputElement).checked).toBe(true));
     const submit = within(restrictedDialog).getByRole('button', { name: '启用所选' });
     expect(submit.hasAttribute('disabled')).toBe(true);
-    expect(within(restrictedDialog).getByText('当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。')).toBeTruthy();
-    expect(submit.getAttribute('title')).toBe('当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。');
+    expect(
+      within(restrictedDialog).getByText(
+        '当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。'
+      )
+    ).toBeTruthy();
+    expect(submit.getAttribute('title')).toBe(
+      '当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。'
+    );
   }, 15_000);
 
   test('records a real capability view-change action after the initial view', async () => {
@@ -243,34 +317,55 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await settleStudio();
     fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
-    await waitFor(() => expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'capability_viewed', action: 'view-change', novelId: 'novel-1',
-    })));
+    await waitFor(() =>
+      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'capability_viewed',
+          action: 'view-change',
+          novelId: 'novel-1',
+        })
+      )
+    );
   });
 
   test('capability-center technique actions apply immediately and stay in place', async () => {
     const onLaunchCapability = vi.fn();
     const onNavigate = vi.fn();
     const onNovelUpdated = vi.fn();
-    render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} onLaunchCapability={onLaunchCapability} onNovelUpdated={onNovelUpdated} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        onNavigate={onNavigate}
+        onLaunchCapability={onLaunchCapability}
+        onNovelUpdated={onNovelUpdated}
+      />
+    );
 
     await openPlaza();
-    const techniqueAction = (await screen.findAllByRole('button', { name: /收藏为常用技法|取消收藏/ }))[0];
+    const techniqueAction = (
+      await screen.findAllByRole('button', { name: /收藏为常用技法|取消收藏/ })
+    )[0];
     fireEvent.click(techniqueAction);
 
     await waitFor(() => expect(screen.getByRole('button', { name: '取消收藏' })).toBeTruthy());
     expect(screen.getByText('1 张已收藏')).toBeTruthy();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds.length).toBeGreaterThan(0);
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds.length
+    ).toBeGreaterThan(0);
     expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: 'novel-1' }));
     // 单动词：启用后留在能力中心，不再出现“应用配置并返回写作”二段按钮
     expect(screen.queryByRole('button', { name: '应用配置并返回写作' })).toBeNull();
     expect(onNavigate).not.toHaveBeenCalledWith('workspace', { capabilityApplied: true });
 
     fireEvent.click(screen.getByRole('button', { name: '取消收藏' }));
-    await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration).mock.calls.length).toBeGreaterThanOrEqual(2));
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds.length).toBe(0);
+    await waitFor(() =>
+      expect(vi.mocked(applyCapabilityConfiguration).mock.calls.length).toBeGreaterThanOrEqual(2)
+    );
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds.length
+    ).toBe(0);
     expect(screen.getByText('0 张已收藏')).toBeTruthy();
   }, 15_000);
 
@@ -286,7 +381,9 @@ describe('Plan 158 capability center', () => {
     await waitFor(() => expect(screen.getByText(/增强护栏已开启 1 条/)).toBeTruthy());
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].guardrailIds).toHaveLength(1);
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].guardrailIds
+    ).toHaveLength(1);
   }, 15_000);
 
   test('persists a planner technique before opening the project outline', async () => {
@@ -298,41 +395,65 @@ describe('Plan 158 capability center', () => {
         targetChapterId="chapter-7"
         onLaunchCapability={onLaunchCapability}
         onNavigate={onNavigate}
-      />,
+      />
     );
 
     await openPlaza();
-    const card = screen.getByRole('heading', { name: '黄金三章核心冲突大纲展开器' }).closest('div.bg-theme-sidebar');
+    const card = screen
+      .getByRole('heading', { name: '黄金三章核心冲突大纲展开器' })
+      .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' }));
+    fireEvent.click(
+      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+    );
 
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds).toContain('opening-gold-three');
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds).not.toContain('opening-gold-three');
-    await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
-      action: 'use-project-technique',
-      assetId: 'opening-gold-three',
-      launchToken: expect.any(Number),
-      novelId: 'novel-1',
-    }));
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds
+    ).toContain('opening-gold-three');
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds
+    ).not.toContain('opening-gold-three');
+    await waitFor(() =>
+      expect(onLaunchCapability).toHaveBeenCalledWith({
+        action: 'use-project-technique',
+        assetId: 'opening-gold-three',
+        launchToken: expect.any(Number),
+        novelId: 'novel-1',
+      })
+    );
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
   test('persists a writer technique as the full-book default before returning to writing', async () => {
     const onLaunchCapability = vi.fn();
     const onNavigate = vi.fn();
-    render(<SkillsStudioView selectedNovel={novel} onLaunchCapability={onLaunchCapability} onNavigate={onNavigate} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        onLaunchCapability={onLaunchCapability}
+        onNavigate={onNavigate}
+      />
+    );
 
     await openPlaza();
-    const card = screen.getByRole('heading', { name: '场景肢体动作与画面张力正文器' }).closest('div.bg-theme-sidebar');
+    const card = screen
+      .getByRole('heading', { name: '场景肢体动作与画面张力正文器' })
+      .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' }));
+    fireEvent.click(
+      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+    );
 
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds).toContain('prose-action-booster');
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds).not.toContain('prose-action-booster');
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds
+    ).toContain('prose-action-booster');
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].favoriteTechniqueIds
+    ).not.toContain('prose-action-booster');
     expect(onLaunchCapability).not.toHaveBeenCalled();
   });
 
@@ -340,22 +461,31 @@ describe('Plan 158 capability center', () => {
     const onLaunchCapability = vi.fn();
     const onNavigate = vi.fn();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    let resolveApply: ((value: {
-      profile: Parameters<typeof applyCapabilityConfiguration>[3];
-      databaseGeneration: number;
-    }) => void) | undefined;
-    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(async (_novelId, _generation, _previewToken, profile) => (
-      new Promise((resolve) => {
-        resolveApply = () => resolve({ profile, databaseGeneration: 8 });
-      })
-    ));
+    let resolveApply:
+      | ((value: {
+          profile: Parameters<typeof applyCapabilityConfiguration>[3];
+          databaseGeneration: number;
+        }) => void)
+      | undefined;
+    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(
+      async (_novelId, _generation, _previewToken, profile) =>
+        new Promise((resolve) => {
+          resolveApply = () => resolve({ profile, databaseGeneration: 8 });
+        })
+    );
     render(
       <SkillsStudioView
         selectedNovel={{
           ...novel,
           projectPreferenceProfile: {
             tags: [],
-            weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+            weights: {
+              styleWeight: 0.5,
+              characterWeight: 0.5,
+              worldWeight: 0.5,
+              plotWeight: 0.5,
+              pacingWeight: 0.5,
+            },
             acceptedDimensions: [],
             rejectedDimensions: [],
             notes: [],
@@ -365,31 +495,41 @@ describe('Plan 158 capability center', () => {
         }}
         onLaunchCapability={onLaunchCapability}
         onNavigate={onNavigate}
-      />,
+      />
     );
 
     await openPlaza();
-    const card = screen.getByRole('heading', { name: /长篇超宏大世界观设定器/ }).closest('div.bg-theme-sidebar');
+    const card = screen
+      .getByRole('heading', { name: /长篇超宏大世界观设定器/ })
+      .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' }));
+    fireEvent.click(
+      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+    );
 
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     expect(onNavigate).not.toHaveBeenCalled();
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds).toContain('persisted-skill-1');
-    await act(async () => resolveApply?.({
-      profile: vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)![3],
-      databaseGeneration: 8,
-    }));
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('world', {
-      capabilityApplied: true,
-      targetFocus: 'workspace-world',
-      worldCapabilityLaunch: {
-        novelId: 'novel-1',
-        launchToken: expect.any(Number),
-        capabilityId: 'bible-world-builder',
-        artifactKind: 'world',
-      },
-    }));
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds
+    ).toContain('persisted-skill-1');
+    await act(async () =>
+      resolveApply?.({
+        profile: vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)![3],
+        databaseGeneration: 8,
+      })
+    );
+    await waitFor(() =>
+      expect(onNavigate).toHaveBeenCalledWith('world', {
+        capabilityApplied: true,
+        targetFocus: 'workspace-world',
+        worldCapabilityLaunch: {
+          novelId: 'novel-1',
+          launchToken: expect.any(Number),
+          capabilityId: 'bible-world-builder',
+          artifactKind: 'world',
+        },
+      })
+    );
     expect(onLaunchCapability).not.toHaveBeenCalled();
   });
 
@@ -400,8 +540,12 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} />);
 
     await openPlaza();
-    const card = screen.getByRole('heading', { name: /长篇超宏大世界观设定器/ }).closest('div.bg-theme-sidebar');
-    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' }));
+    const card = screen
+      .getByRole('heading', { name: /长篇超宏大世界观设定器/ })
+      .closest('div.bg-theme-sidebar');
+    fireEvent.click(
+      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+    );
 
     expect(await screen.findByText('配置写入失败')).toBeTruthy();
     expect(onNavigate).not.toHaveBeenCalled();
@@ -416,18 +560,26 @@ describe('Plan 158 capability center', () => {
         targetChapterId="chapter-7"
         onLaunchCapability={onLaunchCapability}
         onNavigate={onNavigate}
-      />,
+      />
     );
 
     await openPlaza();
     fireEvent.click(screen.getByRole('tab', { name: /审稿与精修/ }));
-    const polishCard = screen.getByRole('heading', { name: '深度AI句式与套话物理抹除器' }).closest('div.bg-theme-sidebar');
+    const polishCard = screen
+      .getByRole('heading', { name: '深度AI句式与套话物理抹除器' })
+      .closest('div.bg-theme-sidebar');
     expect(polishCard).not.toBeNull();
-    fireEvent.click(within(polishCard as HTMLElement).getByRole('button', { name: '生成精修预览' }));
+    fireEvent.click(
+      within(polishCard as HTMLElement).getByRole('button', { name: '生成精修预览' })
+    );
 
-    const diagnosticCard = screen.getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' }).closest('div.bg-theme-sidebar');
+    const diagnosticCard = screen
+      .getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' })
+      .closest('div.bg-theme-sidebar');
     expect(diagnosticCard).not.toBeNull();
-    fireEvent.click(within(diagnosticCard as HTMLElement).getByRole('button', { name: '运行审稿诊断' }));
+    fireEvent.click(
+      within(diagnosticCard as HTMLElement).getByRole('button', { name: '运行审稿诊断' })
+    );
 
     await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledTimes(2));
     expect(onLaunchCapability).toHaveBeenNthCalledWith(1, {
@@ -450,12 +602,26 @@ describe('Plan 158 capability center', () => {
   });
 
   test('opens polish stage in the capability store when launched from editor diagnostics', async () => {
-    render(<SkillsStudioView selectedNovel={novel} initialStage="style-polish" targetChapterId="chapter-7" />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        initialStage="style-polish"
+        targetChapterId="chapter-7"
+      />
+    );
 
     await settleStudio();
 
-    expect(screen.getByText('从审稿问题进入：选择精修卡后点「生成精修预览」，会回到刚才章节生成只读预览。')).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole('tab', { name: /审稿与精修/ }).getAttribute('aria-selected')).toBe('true'));
+    expect(
+      screen.getByText(
+        '从审稿问题进入：选择精修卡后点「生成精修预览」，会回到刚才章节生成只读预览。'
+      )
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /审稿与精修/ }).getAttribute('aria-selected')).toBe(
+        'true'
+      )
+    );
     expect(screen.getByRole('heading', { name: '③ 审稿与精修' })).toBeTruthy();
     expect(screen.getByText('写完后先跑审稿卡，再用精修卡处理套话、逻辑和局部润色。')).toBeTruthy();
     expect(await screen.findByRole('heading', { name: '深度AI句式与套话物理抹除器' })).toBeTruthy();
@@ -484,12 +650,22 @@ describe('Plan 158 capability center', () => {
       updatedAt: 1,
     });
 
-    render(<SkillsStudioView selectedNovel={novel} initialStage="style-polish" targetChapterId="chapter-7" />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        initialStage="style-polish"
+        targetChapterId="chapter-7"
+      />
+    );
 
     await settleStudio();
 
     expect(await screen.findByText('candidate-card')).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole('tab', { name: /审稿与精修/ }).getAttribute('aria-selected')).toBe('true'));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /审稿与精修/ }).getAttribute('aria-selected')).toBe(
+        'true'
+      )
+    );
     expect(screen.getByRole('heading', { name: '③ 审稿与精修' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '深度AI句式与套话物理抹除器' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' })).toBeTruthy();
@@ -507,7 +683,17 @@ describe('Plan 158 capability center', () => {
       databaseGeneration: 7,
       baselineToken: getCapabilityConfigurationBaselineToken(profile),
       configurationDraft: profile,
-      pendingPackageSteps: [{ id: 'free-first-chapter-prose', assetId: 'prose-action-booster', mode: 'schedule', trigger: 'before-draft', scope: 'chapter', order: 2, required: false }],
+      pendingPackageSteps: [
+        {
+          id: 'free-first-chapter-prose',
+          assetId: 'prose-action-booster',
+          mode: 'schedule',
+          trigger: 'before-draft',
+          scope: 'chapter',
+          order: 2,
+          required: false,
+        },
+      ],
       candidateCardIds: [],
       pendingCandidateId: null,
       activeTab: 'mySkills',
@@ -520,14 +706,20 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} targetChapterId="chapter-7" />);
 
     await settleStudio();
-    const { applyCapabilityConfiguration, previewCapabilityConfiguration } = await import('../lib/capability-configuration-client');
+    const { applyCapabilityConfiguration, previewCapabilityConfiguration } =
+      await import('../lib/capability-configuration-client');
     const previewButton = await screen.findByRole('button', { name: '重新预览本次配置' });
     fireEvent.click(previewButton);
     await waitFor(() => expect(vi.mocked(previewCapabilityConfiguration)).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole('button', { name: /应用配置并返回写作/ }));
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[4]).toEqual([
-      expect.objectContaining({ stepId: 'free-first-chapter-prose', assetId: 'prose-action-booster', scope: 'chapter', mode: 'schedule' }),
+      expect.objectContaining({
+        stepId: 'free-first-chapter-prose',
+        assetId: 'prose-action-booster',
+        scope: 'chapter',
+        mode: 'schedule',
+      }),
     ]);
   }, 15_000);
 
@@ -538,12 +730,16 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} />);
     await openPlaza();
     fireEvent.click((await screen.findAllByRole('button', { name: /收藏为常用技法|取消收藏/ }))[0]);
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('generation changed'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('generation changed')
+    );
     expect(onNavigate).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '重试应用配置并返回写作' }));
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalledTimes(2));
     // 单动词：重试成功后返回写作
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('workspace', { capabilityApplied: true }));
+    await waitFor(() =>
+      expect(onNavigate).toHaveBeenCalledWith('workspace', { capabilityApplied: true })
+    );
   }, 15_000);
 
   test('alerts instead of silently ignoring capability actions without a selected work', async () => {
@@ -553,14 +749,22 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={null} onLaunchCapability={onLaunchCapability} />);
 
     await openPlaza();
-    const techniqueCard = screen.getByRole('heading', { name: '黄金三章核心冲突大纲展开器' }).closest('div.bg-theme-sidebar');
+    const techniqueCard = screen
+      .getByRole('heading', { name: '黄金三章核心冲突大纲展开器' })
+      .closest('div.bg-theme-sidebar');
     expect(techniqueCard).not.toBeNull();
-    fireEvent.click(within(techniqueCard as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' }));
+    fireEvent.click(
+      within(techniqueCard as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+    );
 
     fireEvent.click(screen.getByRole('tab', { name: /审稿与精修/ }));
-    const diagnosticCard = screen.getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' }).closest('div.bg-theme-sidebar');
+    const diagnosticCard = screen
+      .getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' })
+      .closest('div.bg-theme-sidebar');
     expect(diagnosticCard).not.toBeNull();
-    fireEvent.click(within(diagnosticCard as HTMLElement).getByRole('button', { name: '运行审稿诊断' }));
+    fireEvent.click(
+      within(diagnosticCard as HTMLElement).getByRole('button', { name: '运行审稿诊断' })
+    );
 
     expect(toast).toHaveBeenCalledTimes(2);
     // 引导性守卫提示走 info 级（Plan 181 toast 语义分级），仍保证不静默忽略
@@ -573,55 +777,93 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} />);
 
     await openPlaza();
-    const outlineCard = screen.getByRole('heading', { name: '黄金三章核心冲突大纲展开器' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const outlineCard = screen
+      .getByRole('heading', { name: '黄金三章核心冲突大纲展开器' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     // 001 徽章瘦身：类别徽章撤下，只留 作用范围 + 改正文/只读
     expect(within(outlineCard).getByText('改正文')).toBeTruthy();
     expect(within(outlineCard).getByText('适合：拆解结构、节奏与钩子')).toBeTruthy();
-    expect(within(outlineCard).getByText('入口：应用配置后设为作品默认，用于开篇和节奏')).toBeTruthy();
+    expect(
+      within(outlineCard).getByText('入口：应用配置后设为作品默认，用于开篇和节奏')
+    ).toBeTruthy();
     expect(within(outlineCard).getByText('作品默认')).toBeTruthy();
-    expect(within(outlineCard).getByText('配置到作品：应用配置后写入大纲技法，并前往大纲继续使用。')).toBeTruthy();
-    expect(within(outlineCard).getByRole('button', { name: '应用配置后设为作品默认' })).toBeTruthy();
+    expect(
+      within(outlineCard).getByText('配置到作品：应用配置后写入大纲技法，并前往大纲继续使用。')
+    ).toBeTruthy();
+    expect(
+      within(outlineCard).getByRole('button', { name: '应用配置后设为作品默认' })
+    ).toBeTruthy();
 
-    const worldCard = screen.getByRole('heading', { name: '核心角色人设卡与成长弧光生成' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const worldCard = screen
+      .getByRole('heading', { name: '核心角色人设卡与成长弧光生成' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     expect(within(worldCard).getByText('改正文')).toBeTruthy();
     expect(within(worldCard).getByText('适合：大纲、人设与世界观设定')).toBeTruthy();
     expect(within(worldCard).getByText('作品默认')).toBeTruthy();
-    expect(within(worldCard).getByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。')).toBeTruthy();
+    expect(
+      within(worldCard).getByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。')
+    ).toBeTruthy();
 
-    const proseCard = screen.getByRole('heading', { name: '超强口语化推进剧情正文器' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const proseCard = screen
+      .getByRole('heading', { name: '超强口语化推进剧情正文器' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     expect(within(proseCard).getByText('改正文')).toBeTruthy();
-    expect(within(proseCard).getByText('入口：可设为作品默认统一全文，也可点「用于本章」配置章节表达')).toBeTruthy();
+    expect(
+      within(proseCard).getByText('入口：可设为作品默认统一全文，也可点「用于本章」配置章节表达')
+    ).toBeTruthy();
     expect(within(proseCard).getByText('作品默认 / 本章使用')).toBeTruthy();
-    expect(within(proseCard).getByText('可设为作品默认统一全文，也可只用于当前章节。')).toBeTruthy();
+    expect(
+      within(proseCard).getByText('可设为作品默认统一全文，也可只用于当前章节。')
+    ).toBeTruthy();
     expect(within(proseCard).getByRole('button', { name: '用于本章' })).toBeTruthy();
     expect(within(proseCard).queryByRole('button', { name: '仅运行一次' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '深度AI句式与套话物理抹除器' })).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: /拆书卡/ }));
-    const deconstructionCard = screen.getByRole('heading', { name: /克苏鲁不可名状寒风氛围风格增色包/ }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const deconstructionCard = screen
+      .getByRole('heading', { name: /克苏鲁不可名状寒风氛围风格增色包/ })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     expect(within(deconstructionCard).getByText('改正文')).toBeTruthy();
-    expect(within(deconstructionCard).getByText('入口：先选主卡或辅卡位置，应用配置后用于拆书')).toBeTruthy();
-    expect(within(deconstructionCard).getByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。')).toBeTruthy();
+    expect(
+      within(deconstructionCard).getByText('入口：先选主卡或辅卡位置，应用配置后用于拆书')
+    ).toBeTruthy();
+    expect(
+      within(deconstructionCard).getByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。')
+    ).toBeTruthy();
     expect(within(deconstructionCard).getByText('作品默认 / 本章使用')).toBeTruthy();
-    expect(within(deconstructionCard).getByRole('button', { name: '应用配置后设为作品默认' })).toBeTruthy();
+    expect(
+      within(deconstructionCard).getByRole('button', { name: '应用配置后设为作品默认' })
+    ).toBeTruthy();
     expect(within(deconstructionCard).getByRole('button', { name: '用于本章' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: /审稿与精修/ }));
-    const polishCard = screen.getByRole('heading', { name: '深度AI句式与套话物理抹除器' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const polishCard = screen
+      .getByRole('heading', { name: '深度AI句式与套话物理抹除器' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     expect(within(polishCard).getByText('只读')).toBeTruthy();
     expect(within(polishCard).getByText('适合：审稿后生成局部精修预览')).toBeTruthy();
-    expect(within(polishCard).getByText('入口：收藏后可点「应用配置后写入本章规则」或「生成精修预览」')).toBeTruthy();
-    expect(within(polishCard).getByText('应用配置后可写入本章规则；运行一次只生成精修预览。')).toBeTruthy();
+    expect(
+      within(polishCard).getByText('入口：收藏后可点「应用配置后写入本章规则」或「生成精修预览」')
+    ).toBeTruthy();
+    expect(
+      within(polishCard).getByText('应用配置后可写入本章规则；运行一次只生成精修预览。')
+    ).toBeTruthy();
     expect(within(polishCard).getByRole('button', { name: '收藏为常用精修卡' })).toBeTruthy();
     expect(within(polishCard).getByRole('button', { name: '应用配置后写入本章规则' })).toBeTruthy();
     expect(within(polishCard).getByRole('button', { name: '生成精修预览' })).toBeTruthy();
-    expect(within(polishCard).queryByText(/作用域:|作者流程|质量防线|项目 \/ 章节|单次运行/)).toBeNull();
+    expect(
+      within(polishCard).queryByText(/作用域:|作者流程|质量防线|项目 \/ 章节|单次运行/)
+    ).toBeNull();
 
-    const diagnosticCard = screen.getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const diagnosticCard = screen
+      .getByRole('heading', { name: '去AI腔腔调与废话净化质检仪' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     expect(within(diagnosticCard).getByText('只读')).toBeTruthy();
     expect(within(diagnosticCard).getByText('适合：写后检查跑偏、重复与逻辑问题')).toBeTruthy();
     expect(within(diagnosticCard).getByText('入口：写后直接运行审稿诊断')).toBeTruthy();
-    expect(within(diagnosticCard).getByText('运行一次：只生成诊断或辅助结果，不改正文。')).toBeTruthy();
+    expect(
+      within(diagnosticCard).getByText('运行一次：只生成诊断或辅助结果，不改正文。')
+    ).toBeTruthy();
     expect(within(diagnosticCard).getByText('仅运行一次')).toBeTruthy();
     expect(within(diagnosticCard).getByRole('button', { name: '运行审稿诊断' })).toBeTruthy();
     expect(within(diagnosticCard).queryByText(/作用域:|质量防线|单次运行/)).toBeNull();
@@ -638,21 +880,31 @@ describe('Plan 158 capability center', () => {
 
   test('launches active catalog skill-cards as chapter overlays without importing a clone', async () => {
     const onLaunchCapability = vi.fn();
-    render(<SkillsStudioView selectedNovel={novel} targetChapterId="chapter-7" onLaunchCapability={onLaunchCapability} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        targetChapterId="chapter-7"
+        onLaunchCapability={onLaunchCapability}
+      />
+    );
 
     await openPlaza();
     fireEvent.click(screen.getByRole('tab', { name: /拆书卡/ }));
-    const card = screen.getByRole('heading', { name: '古言华美辞藻典雅国风参考包' }).closest('div.bg-theme-sidebar') as HTMLElement;
+    const card = screen
+      .getByRole('heading', { name: '古言华美辞藻典雅国风参考包' })
+      .closest('div.bg-theme-sidebar') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: '用于本章' }));
 
-    await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
-      action: 'use-overlay',
-      assetId: 'style-ancient-elegance',
-      launchToken: expect.any(Number),
-      novelId: 'novel-1',
-      targetChapterId: 'chapter-7',
-      sessionCardIds: ['style-ancient-elegance'],
-    }));
+    await waitFor(() =>
+      expect(onLaunchCapability).toHaveBeenCalledWith({
+        action: 'use-overlay',
+        assetId: 'style-ancient-elegance',
+        launchToken: expect.any(Number),
+        novelId: 'novel-1',
+        targetChapterId: 'chapter-7',
+        sessionCardIds: ['style-ancient-elegance'],
+      })
+    );
     const { createSkill } = await import('../lib/skill-client');
     expect(vi.mocked(createSkill)).not.toHaveBeenCalled();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
@@ -663,40 +915,64 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();
 
-    const card = screen.getByRole('heading', { name: '超强口语化推进剧情正文器' }).closest('div.bg-theme-sidebar');
+    const card = screen
+      .getByRole('heading', { name: '超强口语化推进剧情正文器' })
+      .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
     fireEvent.click(within(card as HTMLElement).getByRole('button', { name: '收藏为常用技法' }));
 
-    await waitFor(() => expect(within(card as HTMLElement).getByRole('button', { name: '取消收藏' })).toBeTruthy(), { timeout: 5_000 });
+    await waitFor(
+      () =>
+        expect(within(card as HTMLElement).getByRole('button', { name: '取消收藏' })).toBeTruthy(),
+      { timeout: 5_000 }
+    );
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     const appliedProfile = vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3];
     expect(appliedProfile?.favoriteTechniqueIds).toContain('persisted-skill-1');
-    expect(appliedProfile?.capabilityMemberships).toContainEqual(expect.objectContaining({
-      sourceId: 'prose-mouth-flavor',
-      sourceVersion: '3',
-      sourceType: 'plaza',
-      persistedSkillId: 'persisted-skill-1',
-    }));
+    expect(appliedProfile?.capabilityMemberships).toContainEqual(
+      expect.objectContaining({
+        sourceId: 'prose-mouth-flavor',
+        sourceVersion: '3',
+        sourceType: 'plaza',
+        persistedSkillId: 'persisted-skill-1',
+      })
+    );
   }, 15_000);
 
   test('routes a full deck replacement through the reachable pending candidate dialog', async () => {
     const fullDeck = {
       version: 3 as const,
-      projectSkillDeck: { mainCardId: 'style-ancient-elegance', supportCardIds: ['deconstruct-golden-climax', 'deconstruct-suspense-hook'], updatedAt: 1 },
+      projectSkillDeck: {
+        mainCardId: 'style-ancient-elegance',
+        supportCardIds: ['deconstruct-golden-climax', 'deconstruct-suspense-hook'],
+        updatedAt: 1,
+      },
       favoriteTechniqueIds: [],
     };
     const blocked = addCardToProjectDeck(fullDeck, 'style-cthulhu-mystique', 'main');
     expect(blocked.requiresReplacement).toBe(true);
-    const replaced = addCardToProjectDeck(fullDeck, 'style-cthulhu-mystique', undefined, 'style-ancient-elegance');
+    const replaced = addCardToProjectDeck(
+      fullDeck,
+      'style-cthulhu-mystique',
+      undefined,
+      'style-ancient-elegance'
+    );
     expect(replaced.requiresReplacement).toBe(false);
     expect(replaced.profile.projectSkillDeck.mainCardId).toBe('style-cthulhu-mystique');
   });
 
   test('uses manifest source for flow gating and leaves generic flow available to free works', async () => {
     expect(getCatalogCapabilityManifest('generic-novel-flow')?.sourceType).toBe('built-in');
-    expect(canUseEnhancedCapability({ commercialMode: 'free', env: { VITE_INKFLOW_ENABLE_MONETIZATION: 'true' } })).toBe(false);
-    expect(getCatalogCapabilityManifest('generic-novel-flow')?.sourceType === 'licensed').toBe(false);
+    expect(
+      canUseEnhancedCapability({
+        commercialMode: 'free',
+        env: { VITE_INKFLOW_ENABLE_MONETIZATION: 'true' },
+      })
+    ).toBe(false);
+    expect(getCatalogCapabilityManifest('generic-novel-flow')?.sourceType === 'licensed').toBe(
+      false
+    );
   });
 
   test('records cancellation only after explicitly abandoning dirty configuration', async () => {
@@ -705,17 +981,24 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} />);
     const returnButton = await screen.findByRole('button', { name: '回到当前作品工作台' });
     fireEvent.click(returnButton);
-    expect(vi.mocked(recordProductEvent)).not.toHaveBeenCalledWith(expect.objectContaining({ eventName: 'capability_config_cancelled' }));
+    expect(vi.mocked(recordProductEvent)).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'capability_config_cancelled' })
+    );
 
     await openPlaza();
     fireEvent.click((await screen.findAllByRole('button', { name: /收藏为常用技法|取消收藏/ }))[0]);
     fireEvent.click(screen.getByRole('button', { name: '回到当前作品工作台' }));
     fireEvent.click(await screen.findByRole('button', { name: '放弃变更' }));
-    await waitFor(() => expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'capability_config_cancelled' })));
+    await waitFor(() =>
+      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: 'capability_config_cancelled' })
+      )
+    );
   }, 15_000);
 
   test('shows an old-generation draft as read-only and previews before allowing apply', async () => {
-    const { applyCapabilityConfiguration, previewCapabilityConfiguration } = await import('../lib/capability-configuration-client');
+    const { applyCapabilityConfiguration, previewCapabilityConfiguration } =
+      await import('../lib/capability-configuration-client');
     const draft = {
       version: 3 as const,
       projectSkillDeck: { mainCardId: undefined, supportCardIds: [], updatedAt: 1 },
@@ -753,7 +1036,8 @@ describe('Plan 158 capability center', () => {
   }, 15_000);
 
   test('allows a diagnostic-only package to run from a stale configuration session', async () => {
-    const { previewCapabilityConfiguration } = await import('../lib/capability-configuration-client');
+    const { previewCapabilityConfiguration } =
+      await import('../lib/capability-configuration-client');
     const draft = {
       version: 3 as const,
       projectSkillDeck: { mainCardId: undefined, supportCardIds: [], updatedAt: 1 },
@@ -780,14 +1064,18 @@ describe('Plan 158 capability center', () => {
     await openPackages();
     const auditPackage = screen.getByText('基础审稿增强包').closest('div.rounded-xl');
     expect(auditPackage).not.toBeNull();
-    fireEvent.click(within(auditPackage as HTMLElement).getByRole('button', { name: '展开并选择' }));
+    fireEvent.click(
+      within(auditPackage as HTMLElement).getByRole('button', { name: '展开并选择' })
+    );
 
     const dialog = await screen.findByRole('dialog', { name: '基础审稿增强包' });
     const checkbox = within(dialog).getByRole('checkbox') as HTMLInputElement;
     expect(checkbox.disabled).toBe(false);
     expect(within(dialog).getByRole('button', { name: '重新预览本次配置' })).toBeTruthy();
     fireEvent.click(checkbox);
-    expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(false);
+    expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(
+      false
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: '重新预览本次配置' }));
     await waitFor(() => expect(vi.mocked(previewCapabilityConfiguration)).toHaveBeenCalled());
     const refreshedDialog = screen.getByRole('dialog', { name: '基础审稿增强包' });
@@ -801,10 +1089,18 @@ describe('Plan 158 capability center', () => {
   test('uses author-facing action and scope labels inside package components', async () => {
     const onLaunchCapability = vi.fn();
     const { recordProductEvent } = await import('../lib/product-events-client');
-    render(<SkillsStudioView selectedNovel={novel} targetChapterId="chapter-7" onLaunchCapability={onLaunchCapability} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        targetChapterId="chapter-7"
+        onLaunchCapability={onLaunchCapability}
+      />
+    );
     await openPackages();
 
-    const auditPackage = screen.getByText('基础审稿增强包').closest('div.rounded-xl') as HTMLElement;
+    const auditPackage = screen
+      .getByText('基础审稿增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(auditPackage).getByRole('button', { name: '展开并选择' }));
     const auditDialog = await screen.findByRole('dialog', { name: '基础审稿增强包' });
     expect(within(auditDialog).getByText('目标：')).toBeTruthy();
@@ -813,50 +1109,97 @@ describe('Plan 158 capability center', () => {
     expect(within(auditDialog).getByText(/先勾必选审稿项/)).toBeTruthy();
     expect(within(auditDialog).getByText('提交后：')).toBeTruthy();
     expect(within(auditDialog).getByText('勾选后点「启用所选」，诊断立即运行')).toBeTruthy();
-    expect(within(auditDialog).getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/)).toBeTruthy();
-    expect(within(auditDialog).getByText('运行一次：只生成诊断或辅助结果，不改正文。')).toBeTruthy();
-    const auditRow = within(auditDialog).getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/).closest('div.rounded-lg') as HTMLElement;
+    expect(
+      within(auditDialog).getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/)
+    ).toBeTruthy();
+    expect(
+      within(auditDialog).getByText('运行一次：只生成诊断或辅助结果，不改正文。')
+    ).toBeTruthy();
+    const auditRow = within(auditDialog)
+      .getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/)
+      .closest('div.rounded-lg') as HTMLElement;
     expect(within(auditRow).getByText('必选')).toBeTruthy();
     expect(within(auditDialog).queryByText(/配置到本书|可手动运行|仅提供工具/)).toBeNull();
     const auditCheckbox = within(auditDialog).getByRole('checkbox') as HTMLInputElement;
     if (!auditCheckbox.checked) fireEvent.click(auditCheckbox);
-    await waitFor(() => expect((within(screen.getByRole('dialog', { name: '基础审稿增强包' })).getByRole('checkbox') as HTMLInputElement).checked).toBe(true));
-    fireEvent.click(within(screen.getByRole('dialog', { name: '基础审稿增强包' })).getByRole('button', { name: '启用所选' }));
+    await waitFor(() =>
+      expect(
+        (
+          within(screen.getByRole('dialog', { name: '基础审稿增强包' })).getByRole(
+            'checkbox'
+          ) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '基础审稿增强包' })).getByRole('button', {
+        name: '启用所选',
+      })
+    );
     const refreshedAuditDialog = await screen.findByRole('dialog', { name: '基础审稿增强包' });
-    await waitFor(() => expect(within(refreshedAuditDialog).queryByText(/已勾选 \d+ 项，待提交/)).toBeNull());
+    await waitFor(() =>
+      expect(within(refreshedAuditDialog).queryByText(/已勾选 \d+ 项，待提交/)).toBeNull()
+    );
     expect(await within(refreshedAuditDialog).findByText('下一步：审稿诊断待运行')).toBeTruthy();
-    const auditLaunchButton = within(refreshedAuditDialog).getByRole('button', { name: '运行审稿诊断' });
+    const auditLaunchButton = within(refreshedAuditDialog).getByRole('button', {
+      name: '运行审稿诊断',
+    });
     expect(auditLaunchButton.getAttribute('data-autofocus-package-result')).toBe('true');
     await waitFor(() => expect(document.activeElement).toBe(auditLaunchButton));
     fireEvent.click(auditLaunchButton);
-    await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
-      action: 'run-diagnostic',
-      assetId: 'audit-cliche-detector',
-      launchToken: expect.any(Number),
-      novelId: 'novel-1',
-      targetChapterId: 'chapter-7',
-    }));
-    await waitFor(() => expect(within(refreshedAuditDialog).getAllByText('已发送到编辑器执行').length).toBeGreaterThan(0));
-    await waitFor(() => expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'capability_package_result_launched',
-      objectId: 'audit-cliche-detector',
-      action: 'run-diagnostic',
-    })));
-    const continueButton = within(refreshedAuditDialog).getByRole('button', { name: '先勾选要启用的能力' });
+    await waitFor(() =>
+      expect(onLaunchCapability).toHaveBeenCalledWith({
+        action: 'run-diagnostic',
+        assetId: 'audit-cliche-detector',
+        launchToken: expect.any(Number),
+        novelId: 'novel-1',
+        targetChapterId: 'chapter-7',
+      })
+    );
+    await waitFor(() =>
+      expect(
+        within(refreshedAuditDialog).getAllByText('已发送到编辑器执行').length
+      ).toBeGreaterThan(0)
+    );
+    await waitFor(() =>
+      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'capability_package_result_launched',
+          objectId: 'audit-cliche-detector',
+          action: 'run-diagnostic',
+        })
+      )
+    );
+    const continueButton = within(refreshedAuditDialog).getByRole('button', {
+      name: '先勾选要启用的能力',
+    });
     expect(continueButton.hasAttribute('disabled')).toBe(true);
     expect(continueButton.getAttribute('title')).toBe('如需继续提交，请先勾选新能力');
-    expect(within(refreshedAuditDialog).queryByText(/已推荐，需手动触发|已推荐，需手动运行/)).toBeNull();
+    expect(
+      within(refreshedAuditDialog).queryByText(/已推荐，需手动触发|已推荐，需手动运行/)
+    ).toBeNull();
 
     fireEvent.click(within(refreshedAuditDialog).getByRole('button', { name: '关闭能力包' }));
-    const humanizationPackage = screen.getByText('基础去 AI 腔增强包').closest('div.rounded-xl') as HTMLElement;
+    const humanizationPackage = screen
+      .getByText('基础去 AI 腔增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(humanizationPackage).getByRole('button', { name: '展开并选择' }));
     const humanizationDialog = await screen.findByRole('dialog', { name: '基础去 AI 腔增强包' });
     expect(within(humanizationDialog).getByText(/先勾写前规则/)).toBeTruthy();
-    expect(within(humanizationDialog).getByText(/必选 · 启用（写入本章规则）\s*·\s*写前 · 本章使用/)).toBeTruthy();
+    expect(
+      within(humanizationDialog).getByText(/必选 · 启用（写入本章规则）\s*·\s*写前 · 本章使用/)
+    ).toBeTruthy();
     expect(within(humanizationDialog).getByText(/生成精修预览 · 写后 · 选区使用/)).toBeTruthy();
-    expect(within(humanizationDialog).getAllByText('应用配置后可写入本章规则；运行一次只生成精修预览。').length).toBeGreaterThan(0);
-    expect(within(humanizationDialog).getByText(/请先选择前置能力：深度AI句式与套话物理抹除器/)).toBeTruthy();
-    const blockedPreviewRow = within(humanizationDialog).getByText(/请先选择前置能力：深度AI句式与套话物理抹除器/).closest('div.rounded-lg') as HTMLElement;
+    expect(
+      within(humanizationDialog).getAllByText('应用配置后可写入本章规则；运行一次只生成精修预览。')
+        .length
+    ).toBeGreaterThan(0);
+    expect(
+      within(humanizationDialog).getByText(/请先选择前置能力：深度AI句式与套话物理抹除器/)
+    ).toBeTruthy();
+    const blockedPreviewRow = within(humanizationDialog)
+      .getByText(/请先选择前置能力：深度AI句式与套话物理抹除器/)
+      .closest('div.rounded-lg') as HTMLElement;
     expect(within(blockedPreviewRow).getByText('依赖未满足')).toBeTruthy();
     const humanizationCheckboxes = within(humanizationDialog).getAllByRole('checkbox');
     fireEvent.click(humanizationCheckboxes[0]);
@@ -864,56 +1207,87 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(humanizationCheckboxes[1]);
     await waitFor(() => expect((humanizationCheckboxes[1] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(humanizationDialog).getByRole('button', { name: '启用所选' }));
-    expect(await within(humanizationDialog).findByText('下一步：应用配置后写入本章规则')).toBeTruthy();
+    expect(
+      await within(humanizationDialog).findByText('下一步：应用配置后写入本章规则')
+    ).toBeTruthy();
     expect(await within(humanizationDialog).findByText('下一步：精修预览待生成')).toBeTruthy();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
 
     // 单动词：启用即应用。应用解析后的重渲染会替换行节点，每次尝试都重新
     // 查询当前弹窗里的按钮并点击，直到 launch 真正被观测到。
-    await waitFor(() => {
-      fireEvent.click(within(screen.getByRole('dialog', { name: '基础去 AI 腔增强包' })).getByRole('button', { name: '生成精修预览' }));
-      expect(onLaunchCapability).toHaveBeenCalledWith({
-        action: 'run-utility',
-        assetId: 'de-ai-slop-shield',
-        launchToken: expect.any(Number),
-        novelId: 'novel-1',
-        targetChapterId: 'chapter-7',
-      });
-    }, { timeout: 5000 });
-    await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
-      action: 'run-utility',
-      assetId: 'de-ai-slop-shield',
-      launchToken: expect.any(Number),
-      novelId: 'novel-1',
-      targetChapterId: 'chapter-7',
-    }), { timeout: 5000 });
-    await waitFor(() => expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'capability_package_result_launched',
-      objectId: 'de-ai-slop-shield',
-      action: 'run-utility',
-    })));
+    await waitFor(
+      () => {
+        fireEvent.click(
+          within(screen.getByRole('dialog', { name: '基础去 AI 腔增强包' })).getByRole('button', {
+            name: '生成精修预览',
+          })
+        );
+        expect(onLaunchCapability).toHaveBeenCalledWith({
+          action: 'run-utility',
+          assetId: 'de-ai-slop-shield',
+          launchToken: expect.any(Number),
+          novelId: 'novel-1',
+          targetChapterId: 'chapter-7',
+        });
+      },
+      { timeout: 5000 }
+    );
+    await waitFor(
+      () =>
+        expect(onLaunchCapability).toHaveBeenCalledWith({
+          action: 'run-utility',
+          assetId: 'de-ai-slop-shield',
+          launchToken: expect.any(Number),
+          novelId: 'novel-1',
+          targetChapterId: 'chapter-7',
+        }),
+      { timeout: 5000 }
+    );
+    await waitFor(() =>
+      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'capability_package_result_launched',
+          objectId: 'de-ai-slop-shield',
+          action: 'run-utility',
+        })
+      )
+    );
 
     fireEvent.click(within(humanizationDialog).getByRole('button', { name: '关闭能力包' }));
-    const onboardingPackage = screen.getByText('脑洞与角色构建包').closest('div.rounded-xl') as HTMLElement;
+    const onboardingPackage = screen
+      .getByText('脑洞与角色构建包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(onboardingPackage).getByRole('button', { name: '展开并选择' }));
     const onboardingDialog = await screen.findByRole('dialog', { name: '脑洞与角色构建包' });
     expect(within(onboardingDialog).getByText(/先生成世界观，再接人物弧线/)).toBeTruthy();
-    expect(within(onboardingDialog).getAllByText(/必选 · 启用（作品默认） · 立项时 · 作品默认/).length).toBeGreaterThan(0);
-    expect(within(onboardingDialog).getAllByText('配置到作品：应用配置后写入设定素材，并前往世界观继续整理。').length).toBeGreaterThan(0);
+    expect(
+      within(onboardingDialog).getAllByText(/必选 · 启用（作品默认） · 立项时 · 作品默认/).length
+    ).toBeGreaterThan(0);
+    expect(
+      within(onboardingDialog).getAllByText(
+        '配置到作品：应用配置后写入设定素材，并前往世界观继续整理。'
+      ).length
+    ).toBeGreaterThan(0);
     await act(async () => {
-      fireEvent.click(within(onboardingDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
+      fireEvent.click(
+        within(onboardingDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' })
+      );
     });
     const onboardingCheckboxes = within(onboardingDialog).getAllByRole('checkbox');
     await waitFor(() => expect((onboardingCheckboxes[0] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(onboardingCheckboxes[1]);
     await waitFor(() => expect((onboardingCheckboxes[1] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(onboardingDialog).getByRole('button', { name: '启用所选' }));
-    expect(await within(onboardingDialog).findAllByText('下一步：应用配置后前往世界观设定')).toHaveLength(2);
+    expect(
+      await within(onboardingDialog).findAllByText('下一步：应用配置后前往世界观设定')
+    ).toHaveLength(2);
     expect(within(onboardingDialog).queryByText(/加入作品卡组后生效|启用作品卡组/)).toBeNull();
     // 单动词：启用即应用并留在能力中心，不再有待应用状态与二次目的地按钮。
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(within(onboardingDialog).queryByRole('button', { name: '应用配置并前往世界观' })).toBeNull();
+    expect(
+      within(onboardingDialog).queryByRole('button', { name: '应用配置并前往世界观' })
+    ).toBeNull();
     expect(within(onboardingDialog).queryByText(/已提交的配置仍待应用/)).toBeNull();
     expect(screen.queryByText('当前配置仍待应用；应用成功后才更新作品状态。')).toBeNull();
     expect(within(onboardingDialog).queryByText(/配置到本书|本书/)).toBeNull();
@@ -922,14 +1296,24 @@ describe('Plan 158 capability center', () => {
   test('explains outline package results as outline setup instead of deck setup', async () => {
     const onLaunchCapability = vi.fn();
     const onNavigate = vi.fn();
-    render(<SkillsStudioView selectedNovel={novel} targetChapterId="chapter-7" onLaunchCapability={onLaunchCapability} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        targetChapterId="chapter-7"
+        onLaunchCapability={onLaunchCapability}
+      />
+    );
     await openPackages();
 
-    const firstChapterPackage = screen.getByText('第一章闭环包').closest('div.rounded-xl') as HTMLElement;
+    const firstChapterPackage = screen
+      .getByText('第一章闭环包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(firstChapterPackage).getByRole('button', { name: '展开并选择' }));
     const dialog = await screen.findByRole('dialog', { name: '第一章闭环包' });
     const checkboxes = within(dialog).getAllByRole('checkbox');
-    expect(within(dialog).getByText('配置到作品：应用配置后写入大纲技法，并前往大纲继续使用。')).toBeTruthy();
+    expect(
+      within(dialog).getByText('配置到作品：应用配置后写入大纲技法，并前往大纲继续使用。')
+    ).toBeTruthy();
     fireEvent.click(checkboxes[0]);
     fireEvent.click(checkboxes[1]);
     await waitFor(() => expect((checkboxes[0] as HTMLInputElement).checked).toBe(true));
@@ -947,26 +1331,38 @@ describe('Plan 158 capability center', () => {
     expect(applyCall?.[3].projectTechniqueIds).toContain('opening-gold-three');
     expect(applyCall?.[5]).toBe('chapter-7');
     expect(onNavigate).not.toHaveBeenCalled();
-    await waitFor(() => expect(onLaunchCapability).toHaveBeenCalledWith({
-      action: 'use-project-technique',
-      assetId: 'opening-gold-three',
-      launchToken: expect.any(Number),
-      novelId: 'novel-1',
-    }));
+    await waitFor(() =>
+      expect(onLaunchCapability).toHaveBeenCalledWith({
+        action: 'use-project-technique',
+        assetId: 'opening-gold-three',
+        launchToken: expect.any(Number),
+        novelId: 'novel-1',
+      })
+    );
   }, 15_000);
 
   test('applies setup package configuration to the world bible destination', async () => {
     const onNavigate = vi.fn();
     const onNovelUpdated = vi.fn();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(async (_novelId, _databaseGeneration, _previewToken, profile) => ({
-      profile,
-      databaseGeneration: 8,
-    }));
-    render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} onNovelUpdated={onNovelUpdated} />);
+    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(
+      async (_novelId, _databaseGeneration, _previewToken, profile) => ({
+        profile,
+        databaseGeneration: 8,
+      })
+    );
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        onNavigate={onNavigate}
+        onNovelUpdated={onNovelUpdated}
+      />
+    );
     await openPackages();
 
-    const onboardingPackage = screen.getByText('脑洞与角色构建包').closest('div.rounded-xl') as HTMLElement;
+    const onboardingPackage = screen
+      .getByText('脑洞与角色构建包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(onboardingPackage).getByRole('button', { name: '展开并选择' }));
     const dialog = await screen.findByRole('dialog', { name: '脑洞与角色构建包' });
     await act(async () => {
@@ -979,34 +1375,52 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
 
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'novel-1',
-      projectPreferenceProfile: expect.objectContaining({ capabilityProfile: expect.any(Object) }),
-    }));
+    expect(onNovelUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'novel-1',
+        projectPreferenceProfile: expect.objectContaining({
+          capabilityProfile: expect.any(Object),
+        }),
+      })
+    );
     expect(onNavigate).not.toHaveBeenCalled();
   }, 15_000);
 
   test('applies staged package configuration directly from the package dialog', async () => {
     const onNavigate = vi.fn();
     const onNovelUpdated = vi.fn();
-    render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} onNovelUpdated={onNovelUpdated} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        onNavigate={onNavigate}
+        onNovelUpdated={onNovelUpdated}
+      />
+    );
     await openPackages();
 
-    const humanizationPackage = screen.getByText('基础去 AI 腔增强包').closest('div.rounded-xl') as HTMLElement;
+    const humanizationPackage = screen
+      .getByText('基础去 AI 腔增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(humanizationPackage).getByRole('button', { name: '展开并选择' }));
     const humanizationDialog = await screen.findByRole('dialog', { name: '基础去 AI 腔增强包' });
     const humanizationCheckboxes = within(humanizationDialog).getAllByRole('checkbox');
     fireEvent.click(humanizationCheckboxes[0]);
     await waitFor(() => expect((humanizationCheckboxes[0] as HTMLInputElement).checked).toBe(true));
     fireEvent.click(within(humanizationDialog).getByRole('button', { name: '启用所选' }));
-    expect(await within(humanizationDialog).findByText('下一步：应用配置后写入本章规则')).toBeTruthy();
+    expect(
+      await within(humanizationDialog).findByText('下一步：应用配置后写入本章规则')
+    ).toBeTruthy();
 
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'novel-1',
-      projectPreferenceProfile: expect.objectContaining({ capabilityProfile: expect.any(Object) }),
-    }));
+    expect(onNovelUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'novel-1',
+        projectPreferenceProfile: expect.objectContaining({
+          capabilityProfile: expect.any(Object),
+        }),
+      })
+    );
     expect(onNavigate).not.toHaveBeenCalled();
   }, 15_000);
 
@@ -1014,21 +1428,43 @@ describe('Plan 158 capability center', () => {
     const onNavigate = vi.fn();
     const onNovelUpdated = vi.fn();
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(async (_novelId, _databaseGeneration, _previewToken, profile) => ({
-      profile,
-      databaseGeneration: 8,
-    }));
-    render(<SkillsStudioView selectedNovel={novel} onNavigate={onNavigate} onNovelUpdated={onNovelUpdated} />);
+    vi.mocked(applyCapabilityConfiguration).mockImplementationOnce(
+      async (_novelId, _databaseGeneration, _previewToken, profile) => ({
+        profile,
+        databaseGeneration: 8,
+      })
+    );
+    render(
+      <SkillsStudioView
+        selectedNovel={novel}
+        onNavigate={onNavigate}
+        onNovelUpdated={onNovelUpdated}
+      />
+    );
     await openPackages();
 
-    const deckPackage = screen.getByText('跨章连贯性增强包').closest('div.rounded-xl') as HTMLElement;
+    const deckPackage = screen
+      .getByText('跨章连贯性增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(deckPackage).getByRole('button', { name: '展开并选择' }));
     const deckDialog = await screen.findByRole('dialog', { name: '跨章连贯性增强包' });
-    expect(within(deckDialog).getAllByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。').length).toBeGreaterThan(0);
+    expect(
+      within(deckDialog).getAllByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。').length
+    ).toBeGreaterThan(0);
     await act(async () => {
-      fireEvent.click(within(deckDialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' })[0]);
+      fireEvent.click(
+        within(deckDialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' })[0]
+      );
     });
-    await waitFor(() => expect((within(deckDialog).getByRole('checkbox', { name: '选择 神作黄金高爽节奏与钩子拆书卡' }) as HTMLInputElement).checked).toBe(true));
+    await waitFor(() =>
+      expect(
+        (
+          within(deckDialog).getByRole('checkbox', {
+            name: '选择 神作黄金高爽节奏与钩子拆书卡',
+          }) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
     fireEvent.click(within(deckDialog).getByRole('button', { name: '启用所选' }));
 
     expect(await within(deckDialog).findByText('下一步：应用配置后写入作品卡组')).toBeTruthy();
@@ -1037,15 +1473,19 @@ describe('Plan 158 capability center', () => {
     expect(within(deckSummary).getByText('主卡：')).toBeTruthy();
     expect(within(deckSummary).getByText(/神作黄金高爽节奏与钩子拆书卡/)).toBeTruthy();
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    expect(vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId).toBe('persisted-skill-1');
-    expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'novel-1',
-      projectPreferenceProfile: expect.objectContaining({
-        capabilityProfile: expect.objectContaining({
-          projectSkillDeck: expect.objectContaining({ mainCardId: 'persisted-skill-1' }),
+    expect(
+      vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId
+    ).toBe('persisted-skill-1');
+    expect(onNovelUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'novel-1',
+        projectPreferenceProfile: expect.objectContaining({
+          capabilityProfile: expect.objectContaining({
+            projectSkillDeck: expect.objectContaining({ mainCardId: 'persisted-skill-1' }),
+          }),
         }),
-      }),
-    }));
+      })
+    );
     expect(onNavigate).not.toHaveBeenCalled();
   }, 15_000);
 
@@ -1055,7 +1495,13 @@ describe('Plan 158 capability center', () => {
       ...novel,
       projectPreferenceProfile: {
         tags: [],
-        weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+        weights: {
+          styleWeight: 0.5,
+          characterWeight: 0.5,
+          worldWeight: 0.5,
+          plotWeight: 0.5,
+          pacingWeight: 0.5,
+        },
         acceptedDimensions: [],
         rejectedDimensions: [],
         notes: [],
@@ -1068,23 +1514,34 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={legacyNovel} onNovelUpdated={onNovelUpdated} />);
 
     const previewButton = await screen.findByRole('button', { name: '查看整理入口' });
-    const { previewCapabilityMigration, applyCapabilityMigration } = await import('../lib/capability-migration-client');
+    const { previewCapabilityMigration, applyCapabilityMigration } =
+      await import('../lib/capability-migration-client');
     await act(async () => {
       fireEvent.click(previewButton);
     });
-    await waitFor(() => expect(vi.mocked(previewCapabilityMigration)).toHaveBeenCalledWith('novel-1', 7));
+    await waitFor(() =>
+      expect(vi.mocked(previewCapabilityMigration)).toHaveBeenCalledWith('novel-1', 7)
+    );
     const migrationDialog = await screen.findByRole('dialog', { name: '能力迁移预览' });
     fireEvent.click(within(migrationDialog).getByRole('button', { name: '确认迁移' }));
 
-    await waitFor(() => expect(vi.mocked(applyCapabilityMigration)).toHaveBeenCalledWith('novel-1', 7, 'migration-preview-1'));
-    expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'novel-1',
-      projectPreferenceProfile: expect.objectContaining({
-        capabilityProfile: expect.objectContaining({
-          projectSkillDeck: expect.objectContaining({ mainCardId: 'migrated-main' }),
+    await waitFor(() =>
+      expect(vi.mocked(applyCapabilityMigration)).toHaveBeenCalledWith(
+        'novel-1',
+        7,
+        'migration-preview-1'
+      )
+    );
+    expect(onNovelUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'novel-1',
+        projectPreferenceProfile: expect.objectContaining({
+          capabilityProfile: expect.objectContaining({
+            projectSkillDeck: expect.objectContaining({ mainCardId: 'migrated-main' }),
+          }),
         }),
-      }),
-    }));
+      })
+    );
   }, 15_000);
 
   test('explains unavailable and import-gated package components', async () => {
@@ -1093,17 +1550,25 @@ describe('Plan 158 capability center', () => {
 
     const unavailablePackage = screen.getByText('爆款平台诊断包').closest('div.rounded-xl');
     expect(unavailablePackage).not.toBeNull();
-    fireEvent.click(within(unavailablePackage as HTMLElement).getByRole('button', { name: '展开并选择' }));
+    fireEvent.click(
+      within(unavailablePackage as HTMLElement).getByRole('button', { name: '展开并选择' })
+    );
     const unavailableDialog = await screen.findByRole('dialog', { name: '爆款平台诊断包' });
     expect(within(unavailableDialog).getAllByText(/当前能力暂不可运行/).length).toBeGreaterThan(0);
 
     fireEvent.click(within(unavailableDialog).getByRole('button', { name: '关闭能力包' }));
     const importPackage = screen.getByText('高级审稿与局部手术包').closest('div.rounded-xl');
     expect(importPackage).not.toBeNull();
-    fireEvent.click(within(importPackage as HTMLElement).getByRole('button', { name: '展开并选择' }));
+    fireEvent.click(
+      within(importPackage as HTMLElement).getByRole('button', { name: '展开并选择' })
+    );
     const importDialog = await screen.findByRole('dialog', { name: '高级审稿与局部手术包' });
-    expect(within(importDialog).getAllByText(/先保存到我的能力，再勾选待提交/).length).toBeGreaterThan(0);
-    expect(within(importDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' })).toBeTruthy();
+    expect(
+      within(importDialog).getAllByText(/先保存到我的能力，再勾选待提交/).length
+    ).toBeGreaterThan(0);
+    expect(
+      within(importDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' })
+    ).toBeTruthy();
     expect(within(importDialog).queryByText(/加入后可勾选|加入后再提交|加入并选中/)).toBeNull();
   }, 15_000);
 
@@ -1113,7 +1578,9 @@ describe('Plan 158 capability center', () => {
     await openPackages();
     const auditPackage = screen.getByText('基础审稿增强包').closest('div.rounded-xl');
     expect(auditPackage).not.toBeNull();
-    fireEvent.click(within(auditPackage as HTMLElement).getByRole('button', { name: '展开并选择' }));
+    fireEvent.click(
+      within(auditPackage as HTMLElement).getByRole('button', { name: '展开并选择' })
+    );
 
     const dialog = await screen.findByRole('dialog', { name: '基础审稿增强包' });
     fireEvent.click(within(dialog).getByRole('checkbox'));
@@ -1126,14 +1593,20 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '去书库选择作品' }));
     expect(onNavigate).toHaveBeenCalledWith('library');
     expect(screen.queryByRole('dialog', { name: '基础审稿增强包' })).toBeNull();
-    expect(vi.mocked((await import('../lib/capability-configuration-client')).applyCapabilityConfiguration)).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(
+        (await import('../lib/capability-configuration-client')).applyCapabilityConfiguration
+      )
+    ).not.toHaveBeenCalled();
 
     await openPackages();
     const paidPackage = screen.getByText('跨章连贯性增强包').closest('div.rounded-xl');
     expect(paidPackage).not.toBeNull();
     fireEvent.click(within(paidPackage as HTMLElement).getByRole('button', { name: '展开并选择' }));
     const paidDialog = await screen.findByRole('dialog', { name: '跨章连贯性增强包' });
-    expect(within(paidDialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(true);
+    expect(
+      within(paidDialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')
+    ).toBe(true);
   }, 15_000);
 
   test('keeps package selections visible while switching unopened packages', async () => {
@@ -1147,11 +1620,24 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(within(basicDialog).getByRole('button', { name: '关闭能力包' }));
     expect(within(basicCard).getByText('已勾选 1 项，待提交')).toBeTruthy();
 
-    const humanizationCard = screen.getByText('基础去 AI 腔增强包').closest('div.rounded-xl') as HTMLElement;
+    const humanizationCard = screen
+      .getByText('基础去 AI 腔增强包')
+      .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(humanizationCard).getByRole('button', { name: '展开并选择' }));
-    fireEvent.click(within(await screen.findByRole('dialog', { name: '基础去 AI 腔增强包' })).getByRole('button', { name: '关闭能力包' }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog', { name: '基础去 AI 腔增强包' })).getByRole(
+        'button',
+        { name: '关闭能力包' }
+      )
+    );
     fireEvent.click(within(basicCard).getByRole('button', { name: '展开并选择' }));
-    expect((within(await screen.findByRole('dialog', { name: '基础审稿增强包' })).getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
+    expect(
+      (
+        within(await screen.findByRole('dialog', { name: '基础审稿增强包' })).getByRole(
+          'checkbox'
+        ) as HTMLInputElement
+      ).checked
+    ).toBe(true);
   }, 15_000);
 
   test('keeps configuration drafts isolated when switching works', async () => {
@@ -1162,14 +1648,34 @@ describe('Plan 158 capability center', () => {
       favoriteTechniqueIds: [],
     };
     saveCapabilityConfigurationSession({
-      version: 1, novelId: 'novel-1', databaseGeneration: 6, baselineToken: getCapabilityConfigurationBaselineToken(profile),
-      configurationDraft: profile, candidateCardIds: ['candidate-card'], pendingCandidateId: null,
-      activeTab: 'mySkills', selectedCapability: 'skill-card', selectedCategory: 'all', selectedAssetId: null, scrollTop: 0, updatedAt: 1,
+      version: 1,
+      novelId: 'novel-1',
+      databaseGeneration: 6,
+      baselineToken: getCapabilityConfigurationBaselineToken(profile),
+      configurationDraft: profile,
+      candidateCardIds: ['candidate-card'],
+      pendingCandidateId: null,
+      activeTab: 'mySkills',
+      selectedCapability: 'skill-card',
+      selectedCategory: 'all',
+      selectedAssetId: null,
+      scrollTop: 0,
+      updatedAt: 1,
     });
     saveCapabilityConfigurationSession({
-      version: 1, novelId: 'novel-2', databaseGeneration: 6, baselineToken: getCapabilityConfigurationBaselineToken(profile),
-      configurationDraft: profile, candidateCardIds: ['candidate-card-2'], pendingCandidateId: null,
-      activeTab: 'mySkills', selectedCapability: 'skill-card', selectedCategory: 'all', selectedAssetId: null, scrollTop: 0, updatedAt: 1,
+      version: 1,
+      novelId: 'novel-2',
+      databaseGeneration: 6,
+      baselineToken: getCapabilityConfigurationBaselineToken(profile),
+      configurationDraft: profile,
+      candidateCardIds: ['candidate-card-2'],
+      pendingCandidateId: null,
+      activeTab: 'mySkills',
+      selectedCapability: 'skill-card',
+      selectedCategory: 'all',
+      selectedAssetId: null,
+      scrollTop: 0,
+      updatedAt: 1,
     });
 
     const view = render(<SkillsStudioView selectedNovel={novel} />);
@@ -1209,7 +1715,11 @@ describe('Plan 158 capability center', () => {
 
     await waitFor(() => expect(screen.queryByText('candidate-card')).toBeNull());
     expect(screen.getByText('你还没有保存能力卡')).toBeTruthy();
-    expect(screen.getByText('这里还没有可配置到作品的专属 AI 写作能力。先生成或挑选能力卡，再选择卡组位置或应用配置；使用范围会在卡片上标明。')).toBeTruthy();
+    expect(
+      screen.getByText(
+        '这里还没有可配置到作品的专属 AI 写作能力。先生成或挑选能力卡，再选择卡组位置或应用配置；使用范围会在卡片上标明。'
+      )
+    ).toBeTruthy();
     expect(screen.queryByRole('heading', { name: '黄金三章核心冲突大纲展开器' })).toBeNull();
   });
 
@@ -1229,14 +1739,22 @@ describe('Plan 158 capability center', () => {
   test('010 J6 sanitize-and-enable runs the full seam: endpoint -> savedSkills -> enable -> fold exit', async () => {
     // 端点 mock：返回消毒成功
     const sanitizeCalls: string[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => {
-      const assetId = String(url).split('/').pop() || '';
-      sanitizeCalls.push(assetId);
-      return {
-        ok: true,
-        json: async () => ({ skillId: `sanitized-${assetId}`, alreadySanitized: false, sanitizationHits: { contacts: 1, authors: 1, brands: 0, watermarks: 0 }, runtimeStatus: 'active' }),
-      } as Response;
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const assetId = String(url).split('/').pop() || '';
+        sanitizeCalls.push(assetId);
+        return {
+          ok: true,
+          json: async () => ({
+            skillId: `sanitized-${assetId}`,
+            alreadySanitized: false,
+            sanitizationHits: { contacts: 1, authors: 1, brands: 0, watermarks: 0 },
+            runtimeStatus: 'active',
+          }),
+        } as Response;
+      })
+    );
 
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();
@@ -1252,10 +1770,18 @@ describe('Plan 158 capability center', () => {
     // 启用链路走通：消毒后立即应用配置
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     // 该卡移出需解锁分组（消毒按钮总数减少 1）
-    await waitFor(() => expect(screen.getAllByRole('button', { name: '消毒并启用' }).length).toBe(before - 1));
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: '消毒并启用' }).length).toBe(before - 1)
+    );
     // 撤销 toast 出现（启用链路的既有语义保持）
     // toast 被 mock，断言调用而非渲染
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('已消毒并启用该能力卡（原作者署名与私有引用已剥离）。', 'success', 5000));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        '已消毒并启用该能力卡（原作者署名与私有引用已剥离）。',
+        'success',
+        5000
+      )
+    );
     vi.unstubAllGlobals();
   }, 15_000);
 
@@ -1268,5 +1794,4 @@ describe('Plan 158 capability center', () => {
     // 46 张 sanitize-required 候选中 1 张 test-fixture 不上货架 → 45
     expect(sanitizeButtons.length).toBeGreaterThanOrEqual(45);
   }, 15_000);
-
 });

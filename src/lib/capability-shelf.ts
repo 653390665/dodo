@@ -12,11 +12,7 @@ import { SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
  */
 
 export type StyleShelfGroupName =
-  | 'prose-style'
-  | 'story-gen'
-  | 'outline-setting'
-  | 'topic-template'
-  | 'deconstruct-imitate';
+  'prose-style' | 'story-gen' | 'outline-setting' | 'topic-template' | 'deconstruct-imitate';
 
 export const STYLE_SHELF_GROUP_LABELS: Record<StyleShelfGroupName, string> = {
   'prose-style': '正文润色与文风',
@@ -28,11 +24,24 @@ export const STYLE_SHELF_GROUP_LABELS: Record<StyleShelfGroupName, string> = {
 
 /** 题材 token → 中文标签（与 inferNovelGovernanceProfile 的英文 token 对齐）。 */
 const GENRE_LABELS: Record<string, string> = {
-  fantasy: '玄幻', cultivation: '修真修仙', urban: '都市', mystery: '悬疑推理',
-  romance: '言情', scifi: '科幻', apocalypse: '末世', rebirth: '重生',
-  transmigration: '穿越', 'quick-transmigration': '快穿', palace: '宫斗宅斗',
-  ensemble: '群像剧', history: '权谋历史', gaming: '电竞游戏', 'light-novel': '轻小说',
-  drama: '追妻火葬场', xuanhuan: '玄幻', xiuzhen: '修真修仙',
+  fantasy: '玄幻',
+  cultivation: '修真修仙',
+  urban: '都市',
+  mystery: '悬疑推理',
+  romance: '言情',
+  scifi: '科幻',
+  apocalypse: '末世',
+  rebirth: '重生',
+  transmigration: '穿越',
+  'quick-transmigration': '快穿',
+  palace: '宫斗宅斗',
+  ensemble: '群像剧',
+  history: '权谋历史',
+  gaming: '电竞游戏',
+  'light-novel': '轻小说',
+  drama: '追妻火葬场',
+  xuanhuan: '玄幻',
+  xiuzhen: '修真修仙',
 };
 
 const GENRE_RULES: ReadonlyArray<{ token: string; re: RegExp }> = [
@@ -57,7 +66,10 @@ const PLATFORM_RULES: ReadonlyArray<{ token: string; re: RegExp }> = [
 ];
 
 /** 从标题/描述特征化出题材与平台 token（仅小写 token，用于与 genreTags 交集）。 */
-export function deriveShelfTags(title: string, goal = ''): { genres: string[]; platforms: string[] } {
+export function deriveShelfTags(
+  title: string,
+  goal = ''
+): { genres: string[]; platforms: string[] } {
   const text = `${title}\n${goal}`;
   const genres = GENRE_RULES.filter(({ re }) => re.test(text)).map(({ token }) => token);
   const platforms = PLATFORM_RULES.filter(({ re }) => re.test(text)).map(({ token }) => token);
@@ -136,7 +148,9 @@ function classifyFunctional(title: string, goal = ''): StyleShelfGroupName {
  * 把文风与正文货架分组：系列组（同前缀 ≥3 张，折叠展示）+ 功能组（其余卡）。
  * 保证每张卡都有归属（系列组或功能组），无"未分类"桶。
  */
-export function groupStyleShelf<T extends StyleShelfCard>(assets: ReadonlyArray<T>): GroupedStyleShelf<T> {
+export function groupStyleShelf<T extends StyleShelfCard>(
+  assets: ReadonlyArray<T>
+): GroupedStyleShelf<T> {
   const enriched = assets.map((asset) => {
     const seriesKey = extractSeriesKey(asset.title);
     return { ...asset, inFlow: getFlowStepAssetIds().has(asset.id), seriesKey };
@@ -159,13 +173,14 @@ export function groupStyleShelf<T extends StyleShelfCard>(assets: ReadonlyArray<
     .map(([key, cards]) => ({ key, label: key, kind: 'series' as const, assets: cards }));
 
   const seriesKeys = new Set(series.map((group) => group.key));
-  const loose = enriched.filter(
-    (card) => !card.seriesKey || !seriesKeys.has(card.seriesKey),
-  );
+  const loose = enriched.filter((card) => !card.seriesKey || !seriesKeys.has(card.seriesKey));
 
   const functionalByGroup: Record<StyleShelfGroupName, typeof loose> = {
-    'prose-style': [], 'story-gen': [], 'outline-setting': [],
-    'topic-template': [], 'deconstruct-imitate': [],
+    'prose-style': [],
+    'story-gen': [],
+    'outline-setting': [],
+    'topic-template': [],
+    'deconstruct-imitate': [],
   };
   for (const card of loose) {
     functionalByGroup[classifyFunctional(card.title, card.goal)].push(card);
@@ -175,7 +190,12 @@ export function groupStyleShelf<T extends StyleShelfCard>(assets: ReadonlyArray<
   )
     .filter(([, cards]) => cards.length > 0)
     .sort((a, b) => b[1].length - a[1].length)
-    .map(([key, cards]) => ({ key, label: STYLE_SHELF_GROUP_LABELS[key], kind: 'functional' as const, assets: cards }));
+    .map(([key, cards]) => ({
+      key,
+      label: STYLE_SHELF_GROUP_LABELS[key],
+      kind: 'functional' as const,
+      assets: cards,
+    }));
 
   return { series, functional, ungrouped: [] };
 }
@@ -200,8 +220,11 @@ const GENRE_LABEL_FALLBACK = (token: string) => GENRE_LABELS[token] || token;
 
 /** 适合度评分：展示层计算，五信号加权，无样本信号权重自动重分配。 */
 export function computeCardFitness(
-  asset: StyleShelfCard & { platformTags?: ReadonlyArray<string>; genreTags?: ReadonlyArray<string> },
-  ctx: CardFitnessContext,
+  asset: StyleShelfCard & {
+    platformTags?: ReadonlyArray<string>;
+    genreTags?: ReadonlyArray<string>;
+  },
+  ctx: CardFitnessContext
 ): CardFitness {
   const derived = deriveShelfTags(asset.title, asset.goal);
   const assetGenres = new Set([...derived.genres, ...(asset.genreTags || [])]);
@@ -246,7 +269,7 @@ export function computeCardFitness(
   const hasFeedback = typeof ctx.feedbackScore === 'number';
   if (hasFeedback) {
     activeMax += 20;
-    score += Math.round((ctx.feedbackScore as number) / 100 * 20);
+    score += Math.round(((ctx.feedbackScore as number) / 100) * 20);
     reasons.push('✓ 有真实使用反馈');
   } else {
     if (ctx.novelGenreTokens.length > 0) activeMax += 12;

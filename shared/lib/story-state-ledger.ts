@@ -110,8 +110,9 @@ function powerLevelSnapshot(powerLevel: PowerLevel): StoryEntitySnapshot {
 export function buildStoryStateLedger(input: BuildStoryStateLedgerInput): StoryStateLedger {
   const recentChapterLimit = input.recentChapterLimit ?? 5;
   const orderedChapters = input.chapters.slice().sort((a, b) => a.order - b.order);
-  const currentChapterOrder = input.currentChapterOrder
-    ?? Math.max(1, ...orderedChapters.map((chapter) => chapter.order + 1));
+  const currentChapterOrder =
+    input.currentChapterOrder ??
+    Math.max(1, ...orderedChapters.map((chapter) => chapter.order + 1));
   const recentChapters = orderedChapters.slice(-recentChapterLimit).map((chapter) => ({
     id: chapter.id,
     title: chapter.title || `第 ${chapter.order} 章`,
@@ -145,36 +146,47 @@ export function buildStoryStateLedger(input: BuildStoryStateLedgerInput): StoryS
         statusTag: event.statusTag,
         order: event.order,
       })),
-    openForeshadowings: (input.foreshadowings || []).flatMap<StoryStateLedger['openForeshadowings'][number]>((entry) => {
-      if (entry.status === 'payoff' || entry.narrativeCore?.evidence.some((item) => item.action === 'payoff')) return [];
+    openForeshadowings: (input.foreshadowings || []).flatMap<
+      StoryStateLedger['openForeshadowings'][number]
+    >((entry) => {
+      if (
+        entry.status === 'payoff' ||
+        entry.narrativeCore?.evidence.some((item) => item.action === 'payoff')
+      )
+        return [];
       const narrativeCore = entry.narrativeCore;
-      if (!narrativeCore) return [{
-        id: entry.id,
-        title: entry.title,
-        description: compact(entry.description, 280),
-        status: entry.status,
-        updatedAt: entry.updatedAt,
-        plantedChapterId: entry.plantedChapterId,
-        payoffChapterId: entry.payoffChapterId,
-        notes: compact(entry.notes, 220),
-      }];
+      if (!narrativeCore)
+        return [
+          {
+            id: entry.id,
+            title: entry.title,
+            description: compact(entry.description, 280),
+            status: entry.status,
+            updatedAt: entry.updatedAt,
+            plantedChapterId: entry.plantedChapterId,
+            payoffChapterId: entry.payoffChapterId,
+            notes: compact(entry.notes, 220),
+          },
+        ];
       const impacts = buildNarrativePromiseImpacts(narrativeCore, currentChapterOrder);
       return impacts.flatMap<StoryStateLedger['openForeshadowings'][number]>((impact) => {
         if (impact.status !== 'due' && impact.status !== 'overdue') return [];
-        return [{
-          id: entry.id,
-          title: entry.title,
-          description: compact(entry.description, 280),
-          status: entry.status,
-          updatedAt: entry.updatedAt,
-          plantedChapterId: entry.plantedChapterId,
-          payoffChapterId: entry.payoffChapterId,
-          notes: compact(entry.notes, 220),
-          plannedAction: impact.action,
-          plannedPayoffRange: narrativeCore.plan.plannedPayoffRange,
-          revealConstraint: compact(narrativeCore.plan.revealConstraint, 220) || undefined,
-          impactStatus: impact.status,
-        }];
+        return [
+          {
+            id: entry.id,
+            title: entry.title,
+            description: compact(entry.description, 280),
+            status: entry.status,
+            updatedAt: entry.updatedAt,
+            plantedChapterId: entry.plantedChapterId,
+            payoffChapterId: entry.payoffChapterId,
+            notes: compact(entry.notes, 220),
+            plannedAction: impact.action,
+            plannedPayoffRange: narrativeCore.plan.plannedPayoffRange,
+            revealConstraint: compact(narrativeCore.plan.revealConstraint, 220) || undefined,
+            impactStatus: impact.status,
+          },
+        ];
       });
     }),
   };
@@ -187,7 +199,7 @@ function formatEntityList(title: string, entries: StoryEntitySnapshot[]): string
       (entry) =>
         `- ${entry.name}: ${entry.summary || '无摘要'}${
           entry.statusNote ? ` (${entry.statusNote})` : ''
-        }`,
+        }`
     )
     .join('\n')}`;
 }
@@ -203,8 +215,7 @@ export function buildLedgerPromptFacts(ledger: StoryStateLedger): Record<string,
     recentChapters: ledger.recentChapters.length
       ? ledger.recentChapters
           .map(
-            (chapter) =>
-              `- ${chapter.title}: ${chapter.summary || chapter.sceneBeats || '无摘要'}`,
+            (chapter) => `- ${chapter.title}: ${chapter.summary || chapter.sceneBeats || '无摘要'}`
           )
           .join('\n')
       : '- 无',
@@ -216,14 +227,16 @@ export function buildLedgerPromptFacts(ledger: StoryStateLedger): Record<string,
     timeline: ledger.timeline.length
       ? ledger.timeline
           .map(
-            (event) =>
-              `- [${event.timestamp || '未标时间'}] ${event.title}: ${event.description}`,
+            (event) => `- [${event.timestamp || '未标时间'}] ${event.title}: ${event.description}`
           )
           .join('\n')
       : '- 无',
     foreshadowings: ledger.openForeshadowings.length
       ? ledger.openForeshadowings
-          .map((entry) => `- ${entry.title} (${entry.status}${entry.plannedAction ? `; ${entry.impactStatus}:${entry.plannedAction}` : ''}): ${entry.description}${entry.revealConstraint ? `；揭示约束：${entry.revealConstraint}` : ''}`)
+          .map(
+            (entry) =>
+              `- ${entry.title} (${entry.status}${entry.plannedAction ? `; ${entry.impactStatus}:${entry.plannedAction}` : ''}): ${entry.description}${entry.revealConstraint ? `；揭示约束：${entry.revealConstraint}` : ''}`
+          )
           .join('\n')
       : '- 无',
   };
@@ -257,31 +270,28 @@ export interface LayeredLedger {
 
 export function buildLayeredLedgerSummary(
   ledger: StoryStateLedger,
-  currentChapterOrder: number,
+  currentChapterOrder: number
 ): LayeredLedger {
-  const world = [
-    ledger.worldRules || '',
-    ledger.globalOutline || '',
-  ].filter(Boolean).join('\n');
+  const world = [ledger.worldRules || '', ledger.globalOutline || ''].filter(Boolean).join('\n');
 
-  const arcChapters = ledger.recentChapters
-    ?.filter(ch => Math.abs(ch.order - currentChapterOrder) < 20)
-    .sort((a, b) => a.order - b.order) || [];
-  const currentArc = arcChapters
-    .map(ch => `第${ch.order}章: ${ch.title}`)
-    .join('\n');
+  const arcChapters =
+    ledger.recentChapters
+      ?.filter((ch) => Math.abs(ch.order - currentChapterOrder) < 20)
+      .sort((a, b) => a.order - b.order) || [];
+  const currentArc = arcChapters.map((ch) => `第${ch.order}章: ${ch.title}`).join('\n');
 
   const recent = ledger.recentChapters
-    .filter(ch => ch.order <= currentChapterOrder && ch.order > currentChapterOrder - 5)
+    .filter((ch) => ch.order <= currentChapterOrder && ch.order > currentChapterOrder - 5)
     .sort((a, b) => a.order - b.order);
   const recentChapters = recent
-    .map(ch => {
+    .map((ch) => {
       const chars = ledger.entityStates.characters
-        .filter(c => ch.summary?.includes(c.name))
-        .map(c => c.name)
+        .filter((c) => ch.summary?.includes(c.name))
+        .map((c) => c.name)
         .slice(0, 5);
       return `第${ch.order}章「${ch.title}」${chars.length ? '出场: ' + chars.join('、') : ''}`;
-    }).join('\n');
+    })
+    .join('\n');
 
   return { world, currentArc, recentChapters };
 }

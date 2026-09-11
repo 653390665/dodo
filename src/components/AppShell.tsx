@@ -6,29 +6,82 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from '../lib/toast';
 import { validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
 
-const Library = lazy(() => import('./Library').then(m => ({ default: m.Library })));
-const AIAssistantDrawer = lazy(() => import('./AIAssistantDrawer').then(m => ({ default: m.AIAssistantDrawer })));
-const EditorView = lazy(() => import('./EditorView').then(m => ({ default: m.EditorView })));
-const WorldBibleView = lazy(() => import('./WorldBibleView').then(m => ({ default: m.WorldBibleView })));
-const ContinuationImportView = lazy(() => import('./ContinuationImportView').then(m => ({ default: m.ContinuationImportView })));
-const SkillsStudioView = lazy(() => import('./SkillsStudioView').then(m => ({ default: m.SkillsStudioView })));
-const BookFactoryView = lazy(() => import('./BookFactoryView').then(m => ({ default: m.BookFactoryView })));
-const ProjectCockpitView = lazy(() => import('./ProjectCockpitView').then(m => ({ default: m.ProjectCockpitView })));
+const Library = lazy(() => import('./Library').then((m) => ({ default: m.Library })));
+const AIAssistantDrawer = lazy(() =>
+  import('./AIAssistantDrawer').then((m) => ({ default: m.AIAssistantDrawer }))
+);
+const EditorView = lazy(() => import('./EditorView').then((m) => ({ default: m.EditorView })));
+const WorldBibleView = lazy(() =>
+  import('./WorldBibleView').then((m) => ({ default: m.WorldBibleView }))
+);
+const ContinuationImportView = lazy(() =>
+  import('./ContinuationImportView').then((m) => ({ default: m.ContinuationImportView }))
+);
+const SkillsStudioView = lazy(() =>
+  import('./SkillsStudioView').then((m) => ({ default: m.SkillsStudioView }))
+);
+const BookFactoryView = lazy(() =>
+  import('./BookFactoryView').then((m) => ({ default: m.BookFactoryView }))
+);
+const ProjectCockpitView = lazy(() =>
+  import('./ProjectCockpitView').then((m) => ({ default: m.ProjectCockpitView }))
+);
 
 import { useShallow } from 'zustand/react/shallow';
-import type { AssistantActionPlan, AssistantLaunchContext, AssistantMode, AssistantSurfaceContext, CapabilityLaunchState, ContinuationEditorLaunchState, ContinuationGap, SetupTaskKey, StoryIdeaCard, StoryPlanningInput, ViewType, Novel, WorkspaceNavKey, WorldCapabilityLaunchIntent } from '../../shared/types';
+import type {
+  AssistantActionPlan,
+  AssistantLaunchContext,
+  AssistantMode,
+  AssistantSurfaceContext,
+  CapabilityLaunchState,
+  ContinuationEditorLaunchState,
+  ContinuationGap,
+  SetupTaskKey,
+  StoryIdeaCard,
+  StoryPlanningInput,
+  ViewType,
+  Novel,
+  WorkspaceNavKey,
+  WorldCapabilityLaunchIntent,
+} from '../../shared/types';
 import { useAppStore } from '../stores/app-store';
 import { isEditorCapabilityLaunchAction } from '../lib/capability-launch';
 import { useAssistantSessionStore } from '../stores/assistant-session-store';
-import { clearStoredSelectedNovelId, getStoredSelectedNovelId, useNovelStore } from '../stores/novel-store';
-import { createCharacter, generateStoryCards, getChapter, getNovel, listChaptersMetadata, listSkills, refineSetupTask, updateChapter, updateNovel, updateCharacter } from '../lib/api';
+import {
+  clearStoredSelectedNovelId,
+  getStoredSelectedNovelId,
+  useNovelStore,
+} from '../stores/novel-store';
+import {
+  createCharacter,
+  generateStoryCards,
+  getChapter,
+  getNovel,
+  listChaptersMetadata,
+  listSkills,
+  refineSetupTask,
+  updateChapter,
+  updateNovel,
+  updateCharacter,
+} from '../lib/api';
 import { createNovelWithChapter } from '../lib/novel-client';
 import { listCharacters, listTimelineEvents } from '../lib/world-client';
 import { listForeshadowings } from '../lib/foreshadowing-client';
-import { buildProjectPreferenceProfileFromPlanning, buildSetupTasksFromStoryCard, countCompletedSetupTasks, recommendSkillsForStoryCard } from '../lib/onboarding-model';
-const SettingsModal = lazy(() => import('./SettingsModal').then(m => ({ default: m.SettingsModal })));
+import {
+  buildProjectPreferenceProfileFromPlanning,
+  buildSetupTasksFromStoryCard,
+  countCompletedSetupTasks,
+  recommendSkillsForStoryCard,
+} from '../lib/onboarding-model';
+const SettingsModal = lazy(() =>
+  import('./SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
 import { deriveWorkspaceFocus, isWorkspaceFamilyView } from '../lib/workspace-nav';
-import { appendAssistantTextToChapterContent, appendAssistantTextToSceneBeats, replaceAssistantTextInSelection } from '../lib/assistant-apply';
+import {
+  appendAssistantTextToChapterContent,
+  appendAssistantTextToSceneBeats,
+  replaceAssistantTextInSelection,
+} from '../lib/assistant-apply';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { BookOpen, BrainCircuit, Globe2, Layers3, PenLine, Sparkles, Wand2 } from 'lucide-react';
 import { matchesShortcut, SHORTCUTS } from '../lib/keyboard-shortcuts';
@@ -39,8 +92,15 @@ import { buildV3CapabilityProfile } from '../lib/skills-studio-governance';
 import { QuickSearchOverlay } from './QuickSearchOverlay';
 
 const LOCAL_USER = { uid: 'local-user' };
-type NavigationContext = { targetChapterId?: string; stage?: CapabilityLaunchContext['stage']; capabilityApplied?: boolean; targetFocus?: WorkspaceNavKey; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
-const CAPABILITY_APPLIED_TOAST = '能力配置已应用：作品卡组与常用技法影响后续正文，本章使用规则只影响当前章。';
+type NavigationContext = {
+  targetChapterId?: string;
+  stage?: CapabilityLaunchContext['stage'];
+  capabilityApplied?: boolean;
+  targetFocus?: WorkspaceNavKey;
+  worldCapabilityLaunch?: WorldCapabilityLaunchIntent;
+};
+const CAPABILITY_APPLIED_TOAST =
+  '能力配置已应用：作品卡组与常用技法影响后续正文，本章使用规则只影响当前章。';
 
 // 工作台家族三段切换：总览（驾驶舱）/ 写作（编辑器）/ 设定（World Bible）。
 // 总览与写作共用 currentView='workspace'，仅 workspaceFocus 不同；设定是独立视图。
@@ -86,7 +146,9 @@ function WorkspacePreviewEmptyState({
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-bold text-theme-muted">工作台预览</div>
-                <div className="mt-1 text-lg font-serif font-bold text-theme-text">选择作品后，这里会成为创作驾驶舱</div>
+                <div className="mt-1 text-lg font-serif font-bold text-theme-text">
+                  选择作品后，这里会成为创作驾驶舱
+                </div>
               </div>
               <span className="rounded-full border border-theme-accent/20 bg-theme-accent/5 px-3 py-1 text-[11px] font-bold text-theme-accent">
                 预览
@@ -96,7 +158,10 @@ function WorkspacePreviewEmptyState({
               {previewItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4">
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="flex size-8 items-center justify-center rounded-xl bg-theme-accent/10 text-theme-accent">
                         <Icon size={15} />
@@ -121,21 +186,27 @@ function WorkspacePreviewEmptyState({
                 className="w-full rounded-2xl bg-theme-text px-4 py-3 text-left text-sm font-bold text-theme-bg shadow-sm transition-opacity hover:opacity-90"
               >
                 选择已有作品
-                <span className="mt-1 block text-[11px] font-normal opacity-80">进入作品后可打开编辑器写作、整理设定和配置能力卡。</span>
+                <span className="mt-1 block text-[11px] font-normal opacity-80">
+                  进入作品后可打开编辑器写作、整理设定和配置能力卡。
+                </span>
               </button>
               <button
                 onClick={onCreateNovel}
                 className="w-full rounded-2xl border border-theme-border px-4 py-3 text-left text-sm font-bold text-theme-text transition-colors hover:border-theme-accent"
               >
                 创建新作品
-                <span className="mt-1 block text-[11px] font-normal text-theme-muted">先建项目，再补世界观和第一章。</span>
+                <span className="mt-1 block text-[11px] font-normal text-theme-muted">
+                  先建项目，再补世界观和第一章。
+                </span>
               </button>
               <button
                 onClick={onImport}
                 className="w-full rounded-2xl border border-theme-accent/30 bg-theme-accent/5 px-4 py-3 text-left text-sm font-bold text-theme-accent transition-colors hover:border-theme-accent"
               >
                 导入资料续写
-                <span className="mt-1 block text-[11px] font-normal text-theme-muted">把已有设定、大纲、正文整理成可写上下文。</span>
+                <span className="mt-1 block text-[11px] font-normal text-theme-muted">
+                  把已有设定、大纲、正文整理成可写上下文。
+                </span>
               </button>
             </div>
           </div>
@@ -162,14 +233,21 @@ function WorkspacePreviewEmptyState({
 
 export function AppShell() {
   const {
-    currentView, setCurrentView,
+    currentView,
+    setCurrentView,
     workspaceFocus,
     setWorkspaceFocus,
-    theme, setTheme,
-    isSettingsOpen, setSettingsOpen,
+    theme,
+    setTheme,
+    isSettingsOpen,
+    setSettingsOpen,
     isAIAssistantOpen,
-    assistantMode, assistantSurfaceContext, openAssistant, closeAssistant,
-    aiDrawerTab, setAIDrawerTab,
+    assistantMode,
+    assistantSurfaceContext,
+    openAssistant,
+    closeAssistant,
+    aiDrawerTab,
+    setAIDrawerTab,
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
@@ -191,13 +269,21 @@ export function AppShell() {
   );
 
   const {
-    selectedNovel, setSelectedNovel,
-    onboardingDraft, setOnboardingDraft,
-    activeSetupTaskKey, setActiveSetupTaskKey,
-    batchCounter, incrementBatchCounter,
-    assistantLaunchContext, setAssistantLaunchContext,
-    continuationLaunchState, setContinuationLaunchState,
-    capabilityLaunchState, setCapabilityLaunchState, consumeCapabilityLaunch,
+    selectedNovel,
+    setSelectedNovel,
+    onboardingDraft,
+    setOnboardingDraft,
+    activeSetupTaskKey,
+    setActiveSetupTaskKey,
+    batchCounter,
+    incrementBatchCounter,
+    assistantLaunchContext,
+    setAssistantLaunchContext,
+    continuationLaunchState,
+    setContinuationLaunchState,
+    capabilityLaunchState,
+    setCapabilityLaunchState,
+    consumeCapabilityLaunch,
   } = useNovelStore(
     useShallow((state) => ({
       selectedNovel: state.selectedNovel,
@@ -223,10 +309,18 @@ export function AppShell() {
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
-  const [capabilityLaunchContext, setCapabilityLaunchContext] = useState<CapabilityLaunchContext | null>(null);
-  const [worldCapabilityLaunch, setWorldCapabilityLaunch] = useState<WorldCapabilityLaunchIntent | null>(null);
-  const [skillsReturnTarget, setSkillsReturnTarget] = useState<{ view: 'editor' | 'workspace'; targetChapterId?: string }>({ view: 'workspace' });
-  const [editorReturnTarget, setEditorReturnTarget] = useState<{ novelId: string; chapterId?: string } | null>(null);
+  const [capabilityLaunchContext, setCapabilityLaunchContext] =
+    useState<CapabilityLaunchContext | null>(null);
+  const [worldCapabilityLaunch, setWorldCapabilityLaunch] =
+    useState<WorldCapabilityLaunchIntent | null>(null);
+  const [skillsReturnTarget, setSkillsReturnTarget] = useState<{
+    view: 'editor' | 'workspace';
+    targetChapterId?: string;
+  }>({ view: 'workspace' });
+  const [editorReturnTarget, setEditorReturnTarget] = useState<{
+    novelId: string;
+    chapterId?: string;
+  } | null>(null);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [editorChapterContext, setEditorChapterContext] = useState<{
     novelId: string;
@@ -240,34 +334,36 @@ export function AppShell() {
   } | null>(null);
   const [continuationImportNovelId, setContinuationImportNovelId] = useState<string | undefined>();
   const [isRestoringSelectedNovel, setIsRestoringSelectedNovel] = useState(
-    () => isWorkspaceFamilyView(currentView) && !selectedNovel,
+    () => isWorkspaceFamilyView(currentView) && !selectedNovel
   );
   const previousSelectedNovelIdRef = useRef(selectedNovel?.id);
   const previousEditorViewRef = useRef<ViewType | null>(null);
   const lastEditorEnterNovelIdRef = useRef<string | undefined>(undefined);
 
-  const handleEditorChapterContextChange = useCallback((context: {
-    chapterId?: string;
-    writingStyleFingerprint?: string;
-  }) => {
-    if (!selectedNovel) return;
-    setEditorChapterContext((previous) => {
-      if (
-        previous?.novelId === selectedNovel.id
-        && previous.chapterId === context.chapterId
-        && previous.writingStyleFingerprint === context.writingStyleFingerprint
-      ) return previous;
-      return { novelId: selectedNovel.id, ...context };
-    });
-  }, [selectedNovel]);
+  const handleEditorChapterContextChange = useCallback(
+    (context: { chapterId?: string; writingStyleFingerprint?: string }) => {
+      if (!selectedNovel) return;
+      setEditorChapterContext((previous) => {
+        if (
+          previous?.novelId === selectedNovel.id &&
+          previous.chapterId === context.chapterId &&
+          previous.writingStyleFingerprint === context.writingStyleFingerprint
+        )
+          return previous;
+        return { novelId: selectedNovel.id, ...context };
+      });
+    },
+    [selectedNovel]
+  );
 
   useEffect(() => {
     if (
-      currentView !== 'factory'
-      || !selectedNovel
-      || editorChapterContext?.novelId !== selectedNovel.id
-      || !editorChapterContext.chapterId
-    ) return;
+      currentView !== 'factory' ||
+      !selectedNovel ||
+      editorChapterContext?.novelId !== selectedNovel.id ||
+      !editorChapterContext.chapterId
+    )
+      return;
     const controller = new AbortController();
     const novelId = selectedNovel.id;
     const chapterId = editorChapterContext.chapterId;
@@ -285,9 +381,12 @@ export function AppShell() {
   }, [currentView, editorChapterContext?.chapterId, editorChapterContext?.novelId, selectedNovel]);
 
   useEffect(() => {
-    if (currentView === 'editor' && selectedNovel && (
-      previousEditorViewRef.current !== 'editor' || lastEditorEnterNovelIdRef.current !== selectedNovel.id
-    )) {
+    if (
+      currentView === 'editor' &&
+      selectedNovel &&
+      (previousEditorViewRef.current !== 'editor' ||
+        lastEditorEnterNovelIdRef.current !== selectedNovel.id)
+    ) {
       lastEditorEnterNovelIdRef.current = selectedNovel.id;
       void recordProductEvent({
         eventName: 'editor_enter',
@@ -361,7 +460,7 @@ export function AppShell() {
   }, []);
 
   const navigateToEditor = async (novel: Novel) => {
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     setContinuationLaunchState(null);
     setCapabilityLaunchState(null);
     setSelectedNovel(novel);
@@ -381,23 +480,41 @@ export function AppShell() {
 
   const navigateToEditorWithCockpitAction = async (
     novel: Novel,
-    action: 'planning' | 'production' | 'resume' | 'audit' | 'polish' | 'complete-chapter' | 'resolve-issues' | 'confirm-facts' | 'next_chapter',
+    action:
+      | 'planning'
+      | 'production'
+      | 'resume'
+      | 'audit'
+      | 'polish'
+      | 'complete-chapter'
+      | 'resolve-issues'
+      | 'confirm-facts'
+      | 'next_chapter',
     targetChapterId?: string
   ) => {
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     setContinuationLaunchState({
       approvedPackId: '',
       launchToken: Date.now(),
       shouldOpenProductionPanel: true,
-      source: action === 'next_chapter' ? 'cockpit-next-chapter'
-        : action === 'planning' ? 'cockpit-planning'
-          : action === 'production' ? 'cockpit-production'
-            : action === 'audit' ? 'cockpit-audit'
-              : action === 'polish' ? 'cockpit-polish'
-                : action === 'complete-chapter' ? 'cockpit-complete-chapter'
-                  : action === 'resolve-issues' ? 'cockpit-resolve-issues'
-                    : action === 'confirm-facts' ? 'cockpit-confirm-facts'
-                      : 'cockpit-resume',
+      source:
+        action === 'next_chapter'
+          ? 'cockpit-next-chapter'
+          : action === 'planning'
+            ? 'cockpit-planning'
+            : action === 'production'
+              ? 'cockpit-production'
+              : action === 'audit'
+                ? 'cockpit-audit'
+                : action === 'polish'
+                  ? 'cockpit-polish'
+                  : action === 'complete-chapter'
+                    ? 'cockpit-complete-chapter'
+                    : action === 'resolve-issues'
+                      ? 'cockpit-resolve-issues'
+                      : action === 'confirm-facts'
+                        ? 'cockpit-confirm-facts'
+                        : 'cockpit-resume',
       targetChapterId,
     });
     setSelectedNovel(novel);
@@ -409,9 +526,9 @@ export function AppShell() {
     novel: Novel,
     approvedPackId: string,
     source: ContinuationEditorLaunchState['source'],
-    prefillIntent?: string,
+    prefillIntent?: string
   ) => {
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     setContinuationLaunchState({
       approvedPackId,
       launchToken: Date.now(),
@@ -433,7 +550,7 @@ export function AppShell() {
       toast('该能力不属于当前作品，已阻止执行', 'error');
       return;
     }
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     setContinuationLaunchState(null);
     setEditorReturnTarget({ novelId: selectedNovel.id, chapterId: launch.targetChapterId });
     setCapabilityLaunchState(launch);
@@ -441,8 +558,12 @@ export function AppShell() {
     setCurrentView('editor');
   };
 
-  const returnToEditorWithoutLaunch = async (novel: Novel, targetChapterId?: string, context?: NavigationContext) => {
-    if (!await flushBeforeNavigation()) return;
+  const returnToEditorWithoutLaunch = async (
+    novel: Novel,
+    targetChapterId?: string,
+    context?: NavigationContext
+  ) => {
+    if (!(await flushBeforeNavigation())) return;
     setContinuationLaunchState(null);
     setCapabilityLaunchState(null);
     setEditorReturnTarget({ novelId: novel.id, chapterId: targetChapterId });
@@ -453,13 +574,13 @@ export function AppShell() {
   };
 
   const handleStartContinuationImport = async (initialNovelId?: string) => {
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     setContinuationImportNovelId(initialNovelId);
     setCurrentView('continuation-import');
   };
 
   const openFactoryCandidatesInCapabilityCenter = async (novel: Novel) => {
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     closeAssistant();
     setSelectedNovel(novel);
     setSkillsReturnTarget({ view: 'workspace' });
@@ -467,46 +588,69 @@ export function AppShell() {
     setCurrentView('skills');
   };
 
-  const handleNavigate = useCallback(async (view: ViewType, navKey?: WorkspaceNavKey, context?: NavigationContext) => {
-    if (view === 'ai') {
-      const surface = currentView === 'skills' || currentView === 'factory' || currentView === 'continuation-import'
-        ? 'workspace'
-        : currentView;
-      openAssistant(
-        'general',
-        { surface, novelId: selectedNovel?.id },
+  const handleNavigate = useCallback(
+    async (view: ViewType, navKey?: WorkspaceNavKey, context?: NavigationContext) => {
+      if (view === 'ai') {
+        const surface =
+          currentView === 'skills' ||
+          currentView === 'factory' ||
+          currentView === 'continuation-import'
+            ? 'workspace'
+            : currentView;
+        openAssistant('general', { surface, novelId: selectedNovel?.id });
+        return;
+      }
+      if (!(await flushBeforeNavigation())) return;
+      closeAssistant();
+      const isEditorSurface =
+        currentView === 'editor' || (currentView === 'workspace' && workspaceFocus === 'editor');
+      if (view === 'skills' && currentView !== 'skills') {
+        setSkillsReturnTarget(
+          isEditorSurface
+            ? { view: 'editor', targetChapterId: context?.targetChapterId }
+            : { view: 'workspace' }
+        );
+        setCapabilityLaunchContext(
+          context?.stage ? { novelId: selectedNovel?.id, stage: context.stage } : null
+        );
+      }
+      if (isEditorSurface && selectedNovel && context?.targetChapterId) {
+        setEditorChapterContext((previous) => ({
+          novelId: selectedNovel.id,
+          chapterId: context.targetChapterId,
+          writingStyleFingerprint:
+            previous?.novelId === selectedNovel.id && previous.chapterId === context.targetChapterId
+              ? previous.writingStyleFingerprint
+              : undefined,
+        }));
+      }
+      if (view !== 'skills') setCapabilityLaunchContext(null);
+      if (view === 'world' && context?.worldCapabilityLaunch?.novelId === selectedNovel?.id) {
+        setWorldCapabilityLaunch(context?.worldCapabilityLaunch ?? null);
+      } else if (view !== 'world') {
+        setWorldCapabilityLaunch(null);
+      }
+      setWorkspaceFocus(
+        deriveWorkspaceFocus(
+          view,
+          context?.targetFocus || navKey,
+          useAppStore.getState().workspaceFocus
+        )
       );
-      return;
-    }
-    if (!await flushBeforeNavigation()) return;
-    closeAssistant();
-    const isEditorSurface = currentView === 'editor' || (currentView === 'workspace' && workspaceFocus === 'editor');
-    if (view === 'skills' && currentView !== 'skills') {
-      setSkillsReturnTarget(isEditorSurface
-        ? { view: 'editor', targetChapterId: context?.targetChapterId }
-        : { view: 'workspace' });
-      setCapabilityLaunchContext(context?.stage ? { novelId: selectedNovel?.id, stage: context.stage } : null);
-    }
-    if (isEditorSurface && selectedNovel && context?.targetChapterId) {
-      setEditorChapterContext((previous) => ({
-        novelId: selectedNovel.id,
-        chapterId: context.targetChapterId,
-        writingStyleFingerprint: previous?.novelId === selectedNovel.id
-          && previous.chapterId === context.targetChapterId
-          ? previous.writingStyleFingerprint
-          : undefined,
-      }));
-    }
-    if (view !== 'skills') setCapabilityLaunchContext(null);
-    if (view === 'world' && context?.worldCapabilityLaunch?.novelId === selectedNovel?.id) {
-      setWorldCapabilityLaunch(context?.worldCapabilityLaunch ?? null);
-    } else if (view !== 'world') {
-      setWorldCapabilityLaunch(null);
-    }
-    setWorkspaceFocus(deriveWorkspaceFocus(view, context?.targetFocus || navKey, useAppStore.getState().workspaceFocus));
-    setCurrentView(view);
-    if (context?.capabilityApplied) toast(CAPABILITY_APPLIED_TOAST, 'success');
-  }, [closeAssistant, currentView, flushBeforeNavigation, openAssistant, selectedNovel, setCurrentView, setWorkspaceFocus, workspaceFocus]);
+      setCurrentView(view);
+      if (context?.capabilityApplied) toast(CAPABILITY_APPLIED_TOAST, 'success');
+    },
+    [
+      closeAssistant,
+      currentView,
+      flushBeforeNavigation,
+      openAssistant,
+      selectedNovel,
+      setCurrentView,
+      setWorkspaceFocus,
+      workspaceFocus,
+    ]
+  );
 
   useEffect(() => {
     const viewMap: Record<string, { view: ViewType; navKey?: WorkspaceNavKey }> = {
@@ -524,10 +668,11 @@ export function AppShell() {
         return;
       }
       if (
-        event.target instanceof HTMLInputElement
-        || event.target instanceof HTMLTextAreaElement
-        || event.target instanceof HTMLSelectElement
-      ) return;
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      )
+        return;
       for (const [id, shortcut] of Object.entries(SHORTCUTS)) {
         if (id in viewMap && matchesShortcut(event, shortcut)) {
           event.preventDefault();
@@ -541,15 +686,21 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleNavigate]);
 
-  const handleOpenAssistant = (modeOrContext: AssistantMode | AssistantLaunchContext, surfaceContext?: AssistantSurfaceContext) => {
+  const handleOpenAssistant = (
+    modeOrContext: AssistantMode | AssistantLaunchContext,
+    surfaceContext?: AssistantSurfaceContext
+  ) => {
     if (typeof modeOrContext === 'string') {
       if (surfaceContext) {
         openAssistant(modeOrContext, surfaceContext);
         const activeNovel = selectedNovel;
         if (!activeNovel) return;
-        const source: AssistantLaunchContext['source'] = surfaceContext.surface === 'world'
-          ? 'world'
-          : surfaceContext.surface === 'workspace' ? 'workspace' : 'editor';
+        const source: AssistantLaunchContext['source'] =
+          surfaceContext.surface === 'world'
+            ? 'world'
+            : surfaceContext.surface === 'workspace'
+              ? 'workspace'
+              : 'editor';
         const baseContext: AssistantLaunchContext = {
           source,
           novelId: activeNovel.id,
@@ -559,22 +710,39 @@ export function AppShell() {
           globalOutline: activeNovel.globalOutline,
           intent: surfaceContext.intent,
           chapterId: surfaceContext.chapterId,
-          capabilitySnapshot: JSON.stringify(activeNovel.projectPreferenceProfile?.capabilityProfile || {}),
+          capabilitySnapshot: JSON.stringify(
+            activeNovel.projectPreferenceProfile?.capabilityProfile || {}
+          ),
         };
         setAssistantLaunchContext(baseContext);
         void Promise.all([
           listCharacters(activeNovel.id),
           listForeshadowings(activeNovel.id),
           listTimelineEvents(activeNovel.id),
-        ]).then(([characters, foreshadowings, timeline]) => {
-          if (useNovelStore.getState().selectedNovel?.id !== activeNovel.id) return;
-          setAssistantLaunchContext({
-            ...baseContext,
-            charactersContext: characters.slice(0, 8).map((character) => `${character.name}：${character.summary || character.bio || '无摘要'}`).join('\n'),
-            foreshadowingsContext: foreshadowings.filter((item) => item.status !== 'payoff').slice(0, 8).map((item) => `${item.title}：${item.description}`).join('\n'),
-            timelineContext: timeline.slice(-8).map((event) => `${event.title}：${event.description}`).join('\n'),
-          });
-        }).catch(() => {});
+        ])
+          .then(([characters, foreshadowings, timeline]) => {
+            if (useNovelStore.getState().selectedNovel?.id !== activeNovel.id) return;
+            setAssistantLaunchContext({
+              ...baseContext,
+              charactersContext: characters
+                .slice(0, 8)
+                .map(
+                  (character) =>
+                    `${character.name}：${character.summary || character.bio || '无摘要'}`
+                )
+                .join('\n'),
+              foreshadowingsContext: foreshadowings
+                .filter((item) => item.status !== 'payoff')
+                .slice(0, 8)
+                .map((item) => `${item.title}：${item.description}`)
+                .join('\n'),
+              timelineContext: timeline
+                .slice(-8)
+                .map((event) => `${event.title}：${event.description}`)
+                .join('\n'),
+            });
+          })
+          .catch(() => {});
       }
       return;
     }
@@ -601,9 +769,14 @@ export function AppShell() {
     });
   };
 
-  const handleOpenGapAssistant = (gap: ContinuationGap, packTitle: string, continuationPackId?: string) => {
+  const handleOpenGapAssistant = (
+    gap: ContinuationGap,
+    packTitle: string,
+    continuationPackId?: string
+  ) => {
     if (!selectedNovel) return;
-    const relatedFacts = gap.relatedFacts.length > 0 ? gap.relatedFacts.join('；') : '暂无明确关联事实';
+    const relatedFacts =
+      gap.relatedFacts.length > 0 ? gap.relatedFacts.join('；') : '暂无明确关联事实';
     const prompt = [
       `请处理资料包《${packTitle}》的一条续写缺口。`,
       `缺口等级：${gap.severity}`,
@@ -622,12 +795,17 @@ export function AppShell() {
     });
   };
 
-  const handleOpenGapAssistantBatch = (gaps: ContinuationGap[], packTitle: string, continuationPackId?: string) => {
+  const handleOpenGapAssistantBatch = (
+    gaps: ContinuationGap[],
+    packTitle: string,
+    continuationPackId?: string
+  ) => {
     if (!selectedNovel || gaps.length === 0) return;
     const prompt = [
       `请一次性处理资料包《${packTitle}》中的以下续写资料缺口：`,
       ...gaps.map((gap, index) => {
-        const relatedFacts = gap.relatedFacts.length > 0 ? gap.relatedFacts.join('；') : '暂无明确关联事实';
+        const relatedFacts =
+          gap.relatedFacts.length > 0 ? gap.relatedFacts.join('；') : '暂无明确关联事实';
         return [
           `缺口 ${index + 1}：`,
           `缺口等级：${gap.severity}`,
@@ -651,7 +829,7 @@ export function AppShell() {
   const handleApplyAssistantToContent = async (text: string) => {
     const context = assistantLaunchContext;
     if (!context?.chapterId || selectedNovel?.id !== context.novelId) return;
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
     const target = await getChapter(context.chapterId);
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
@@ -677,7 +855,7 @@ export function AppShell() {
   const handleApplyAssistantToSceneBeats = async (text: string) => {
     const context = assistantLaunchContext;
     if (!context?.chapterId || selectedNovel?.id !== context.novelId) return;
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
     const target = await getChapter(context.chapterId);
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
@@ -705,7 +883,7 @@ export function AppShell() {
       return;
     }
 
-    if (!await flushBeforeNavigation()) return;
+    if (!(await flushBeforeNavigation())) return;
 
     if (useNovelStore.getState().selectedNovel?.id !== context.novelId) return;
     const target = await getChapter(context.chapterId);
@@ -719,7 +897,7 @@ export function AppShell() {
         end: context.selectionEnd,
         selectedText: context.selectedText,
       },
-      text,
+      text
     );
     // 与正文写入同语义：替换后的整章也要过质量门才能落库
     const quality = validateCompleteChapterDraftQuality(nextContent);
@@ -745,7 +923,7 @@ export function AppShell() {
       novel,
       '',
       'cockpit-planning',
-      seedText?.trim() || plan.userRequest.trim(),
+      seedText?.trim() || plan.userRequest.trim()
     );
     if (useAppStore.getState().currentView === 'editor') closeAssistant();
   };
@@ -777,10 +955,13 @@ export function AppShell() {
   }) => {
     setStoryCardsLoading(true);
     const batch = isRefresh ? batchCounter + 1 : 0;
-    const prevHooks = isRefresh ? (onboardingDraft?.cards || []).map(c => c.hook) : [];
+    const prevHooks = isRefresh ? (onboardingDraft?.cards || []).map((c) => c.hook) : [];
     try {
       const { cards, source, jobId, warnings } = await generateStoryCards({
-        ideaSeed, chatContext, planning, surface: 'welcome',
+        ideaSeed,
+        chatContext,
+        planning,
+        surface: 'welcome',
         batchIndex: batch,
         previousHookTexts: prevHooks,
       });
@@ -829,7 +1010,7 @@ export function AppShell() {
       if (activeSeriesId) {
         initialProfile = buildV3CapabilityProfile(
           { projectPreferenceProfile: { ...initialProfile, activeSeriesId } },
-          { activeFlowId: activeSeriesId },
+          { activeFlowId: activeSeriesId }
         );
       }
 
@@ -896,7 +1077,13 @@ export function AppShell() {
       });
       setActiveSetupTaskKey(setupTasks[0]?.key ?? null);
       setAssistantInput('');
-      setWorkspaceFocus(deriveWorkspaceFocus(targetView, targetView === 'workspace' ? 'workspace-editor' : undefined, useAppStore.getState().workspaceFocus));
+      setWorkspaceFocus(
+        deriveWorkspaceFocus(
+          targetView,
+          targetView === 'workspace' ? 'workspace-editor' : undefined,
+          useAppStore.getState().workspaceFocus
+        )
+      );
       setCurrentView(targetView);
     } catch (error) {
       toast('创建作品失败，请稍后重试', 'error');
@@ -910,7 +1097,7 @@ export function AppShell() {
       return {
         ...prev,
         setupTasks: prev.setupTasks.map((task) =>
-          task.key === taskKey ? { ...task, status: 'confirmed', source: 'user-edit' } : task,
+          task.key === taskKey ? { ...task, status: 'confirmed', source: 'user-edit' } : task
         ),
       };
     });
@@ -921,7 +1108,9 @@ export function AppShell() {
     const task = onboardingDraft.setupTasks.find((entry) => entry.key === activeSetupTaskKey);
     if (!task || !assistantInput.trim()) return;
 
-    const selectedCard = onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId);
+    const selectedCard = onboardingDraft.cards.find(
+      (card) => card.id === onboardingDraft.selectedCardId
+    );
     setAssistantLoading(true);
     setAssistantError(null);
     try {
@@ -952,7 +1141,9 @@ export function AppShell() {
         const firstChapter = chapterMetadata[0];
         if (firstChapter) await updateChapter(firstChapter.id, { sceneBeats: text });
       } else if (activeSetupTaskKey === 'protagonist') {
-        const protagonist = (await listCharacters(selectedNovel.id)).find((character) => character.role === 'protagonist');
+        const protagonist = (await listCharacters(selectedNovel.id)).find(
+          (character) => character.role === 'protagonist'
+        );
         if (protagonist) await updateCharacter(protagonist.id, { summary: text });
       }
 
@@ -963,7 +1154,7 @@ export function AppShell() {
           setupTasks: prev.setupTasks.map((entry) =>
             entry.key === activeSetupTaskKey
               ? { ...entry, summary: text, status: 'drafted', source: 'ai-refine' }
-              : entry,
+              : entry
           ),
         };
       });
@@ -977,7 +1168,9 @@ export function AppShell() {
 
   const handleAcceptRecommendedSkills = async () => {
     if (!selectedNovel || !onboardingDraft || !onboardingDraft.recommendedSkills.length) return;
-    const acceptedSkillIds = onboardingDraft.recommendedSkills.map((entry) => entry.skillId).slice(0, 3);
+    const acceptedSkillIds = onboardingDraft.recommendedSkills
+      .map((entry) => entry.skillId)
+      .slice(0, 3);
     setOnboardingDraft((prev) =>
       prev
         ? {
@@ -985,20 +1178,28 @@ export function AppShell() {
             acceptedSkillIds,
             acceptedRecommendedSkills: true,
           }
-        : prev,
+        : prev
     );
   };
 
   if (isRestoringSelectedNovel) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-paper text-sm text-theme-muted" data-testid="app-ready" data-ready-state="false">
+      <div
+        className="h-screen w-full flex items-center justify-center bg-paper text-sm text-theme-muted"
+        data-testid="app-ready"
+        data-ready-state="false"
+      >
         正在恢复上次作品...
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-full flex bg-theme-bg text-theme-text overflow-hidden p-2 gap-2 sm:p-3 sm:gap-3" data-testid="app-ready" data-ready-state="true">
+    <div
+      className="h-screen w-full flex bg-theme-bg text-theme-text overflow-hidden p-2 gap-2 sm:p-3 sm:gap-3"
+      data-testid="app-ready"
+      data-ready-state="true"
+    >
       <div className="shrink-0" data-testid="app-shell-sidebar" inert={isAIAssistantOpen}>
         <Sidebar
           currentView={currentView}
@@ -1014,7 +1215,10 @@ export function AppShell() {
         inert={isAIAssistantOpen}
       >
         {(currentView === 'workspace' || currentView === 'world') && selectedNovel && (
-          <div className="hidden sm:flex shrink-0 justify-center pt-3" data-testid="workspace-family-switcher">
+          <div
+            className="hidden sm:flex shrink-0 justify-center pt-3"
+            data-testid="workspace-family-switcher"
+          >
             <div className="flex items-center gap-1 rounded-full border border-theme-border bg-theme-sidebar/70 p-1 shadow-sm">
               {WORKSPACE_FAMILY_TABS.map((tab) => {
                 const isActive = (currentView === 'world' ? 'world' : workspaceFocus) === tab.key;
@@ -1045,32 +1249,55 @@ export function AppShell() {
           </div>
         )}
         <div key={currentView} className="flex-1 overflow-hidden h-full">
-          <Suspense fallback={<div className="flex items-center justify-center h-full text-sm opacity-50">加载中...</div>}>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full text-sm opacity-50">
+                加载中...
+              </div>
+            }
+          >
             {currentView === 'welcome' && (
               <ErrorBoundary>
                 <WelcomeView
                   onSelectStoryCard={handleSelectStoryCard}
-                  onJumpToLibrary={() => { void handleNavigate('library'); }}
+                  onJumpToLibrary={() => {
+                    void handleNavigate('library');
+                  }}
                   onSelectNovel={navigateToEditor}
                   onStartContinuationImport={handleStartContinuationImport}
-                  onNavigateToFactory={() => { void handleNavigate('factory'); }}
+                  onNavigateToFactory={() => {
+                    void handleNavigate('factory');
+                  }}
                 />
               </ErrorBoundary>
             )}
             {currentView === 'continuation-import' && (
               <ErrorBoundary>
                 <ContinuationImportView
-                  onBack={() => { void handleNavigate('welcome'); }}
+                  onBack={() => {
+                    void handleNavigate('welcome');
+                  }}
                   initialNovelId={continuationImportNovelId}
                   onEnterEditor={(novel, approvedPackId, prefillIntent) =>
-                    navigateToEditorWithContinuation(novel, approvedPackId, 'continuation-import', prefillIntent)
+                    navigateToEditorWithContinuation(
+                      novel,
+                      approvedPackId,
+                      'continuation-import',
+                      prefillIntent
+                    )
                   }
                 />
               </ErrorBoundary>
             )}
             {currentView === 'library' && (
               <ErrorBoundary>
-                <Library onSelectNovel={navigateToEditor} onNavigate={(view) => { void handleNavigate(view); }} userId={'local-user'} />
+                <Library
+                  onSelectNovel={navigateToEditor}
+                  onNavigate={(view) => {
+                    void handleNavigate(view);
+                  }}
+                  userId={'local-user'}
+                />
               </ErrorBoundary>
             )}
             {currentView === 'workspace' && selectedNovel && workspaceFocus === 'cockpit' && (
@@ -1086,67 +1313,104 @@ export function AppShell() {
                       void handleNavigate(view);
                     }
                   }}
-                  onStartCockpitAction={(action, chapterId) => navigateToEditorWithCockpitAction(selectedNovel, action, chapterId)}
+                  onStartCockpitAction={(action, chapterId) =>
+                    navigateToEditorWithCockpitAction(selectedNovel, action, chapterId)
+                  }
                   onOpenCapabilities={(context) => {
                     void handleNavigate('skills', undefined, context);
                   }}
-                  onStartContinuationWriting={(packId) => navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview')}
-                  onEnterStoryboard={(packId) => navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard')}
+                  onStartContinuationWriting={(packId) =>
+                    navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview')
+                  }
+                  onEnterStoryboard={(packId) =>
+                    navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard')
+                  }
                   onOpenAssistant={handleOpenAssistant}
                 />
               </ErrorBoundary>
             )}
-            {(currentView === 'editor' || (currentView === 'workspace' && workspaceFocus === 'editor')) && selectedNovel && (
-              <ErrorBoundary>
-                <EditorView
-                  key={`${selectedNovel.id}:${continuationLaunchState?.approvedPackId || 'default'}`}
-                  novel={selectedNovel}
-                  launchState={continuationLaunchState}
-                  capabilityLaunchState={capabilityLaunchState}
-                  onCapabilityLaunchConsumed={consumeCapabilityLaunch}
-                  onLaunchConsumed={(launchToken) => {
-                    if (useNovelStore.getState().continuationLaunchState?.launchToken === launchToken) {
-                      setContinuationLaunchState(null);
+            {(currentView === 'editor' ||
+              (currentView === 'workspace' && workspaceFocus === 'editor')) &&
+              selectedNovel && (
+                <ErrorBoundary>
+                  <EditorView
+                    key={`${selectedNovel.id}:${continuationLaunchState?.approvedPackId || 'default'}`}
+                    novel={selectedNovel}
+                    launchState={continuationLaunchState}
+                    capabilityLaunchState={capabilityLaunchState}
+                    onCapabilityLaunchConsumed={consumeCapabilityLaunch}
+                    onLaunchConsumed={(launchToken) => {
+                      if (
+                        useNovelStore.getState().continuationLaunchState?.launchToken ===
+                        launchToken
+                      ) {
+                        setContinuationLaunchState(null);
+                      }
+                    }}
+                    onBack={async () => {
+                      if (!(await flushBeforeNavigation())) return;
+                      setCurrentView('library');
+                    }}
+                    onOpenAssistant={handleOpenAssistant}
+                    onOpenBibleAssistant={handleOpenBibleAssistant}
+                    initialChapterId={
+                      editorReturnTarget?.novelId === selectedNovel.id
+                        ? editorReturnTarget.chapterId
+                        : undefined
                     }
-                  }}
-                  onBack={async () => {
-                    if (!await flushBeforeNavigation()) return;
-                    setCurrentView('library');
-                  }}
-                  onOpenAssistant={handleOpenAssistant}
-                  onOpenBibleAssistant={handleOpenBibleAssistant}
-                  initialChapterId={editorReturnTarget?.novelId === selectedNovel.id ? editorReturnTarget.chapterId : undefined}
-                  onChapterContextChange={handleEditorChapterContextChange}
-                  onNavigate={(view, context) => { void handleNavigate(view, undefined, context); }}
-                />
-              </ErrorBoundary>
-            )}
+                    onChapterContextChange={handleEditorChapterContextChange}
+                    onNavigate={(view, context) => {
+                      void handleNavigate(view, undefined, context);
+                    }}
+                  />
+                </ErrorBoundary>
+              )}
             {currentView === 'world' && selectedNovel && (
               <ErrorBoundary>
                 <WorldBibleView
                   novel={selectedNovel}
-                  capabilityLaunchIntent={worldCapabilityLaunch?.novelId === selectedNovel.id
-                    ? worldCapabilityLaunch
-                    : null}
+                  capabilityLaunchIntent={
+                    worldCapabilityLaunch?.novelId === selectedNovel.id
+                      ? worldCapabilityLaunch
+                      : null
+                  }
                   onCapabilityLaunchConsumed={(launchToken) => {
-                    setWorldCapabilityLaunch((current) => current?.launchToken === launchToken ? null : current);
+                    setWorldCapabilityLaunch((current) =>
+                      current?.launchToken === launchToken ? null : current
+                    );
                   }}
                   onStartContinuationWriting={(packId, prefillIntent) =>
-                    navigateToEditorWithContinuation(selectedNovel, packId, 'world-overview', prefillIntent)
+                    navigateToEditorWithContinuation(
+                      selectedNovel,
+                      packId,
+                      'world-overview',
+                      prefillIntent
+                    )
                   }
                   onEnterStoryboard={(packId, continuationTask) =>
-                    navigateToEditorWithContinuation(selectedNovel, packId, 'storyboard', continuationTask)
+                    navigateToEditorWithContinuation(
+                      selectedNovel,
+                      packId,
+                      'storyboard',
+                      continuationTask
+                    )
                   }
                   isGlobalAssistantOpen={isAIAssistantOpen}
                   onOpenGapAssistant={handleOpenGapAssistant}
                   onOpenGapAssistantBatch={handleOpenGapAssistantBatch}
-                  onOpenCapabilityStore={() => { void handleNavigate('skills', undefined, { stage: 'creative-setup' }); }}
+                  onOpenCapabilityStore={() => {
+                    void handleNavigate('skills', undefined, { stage: 'creative-setup' });
+                  }}
                   onboarding={
                     onboardingDraft?.setupTasks.length
                       ? {
-                          card: onboardingDraft.cards.find((card) => card.id === onboardingDraft.selectedCardId),
+                          card: onboardingDraft.cards.find(
+                            (card) => card.id === onboardingDraft.selectedCardId
+                          ),
                           tasks: onboardingDraft.setupTasks,
-                          activeTask: onboardingDraft.setupTasks.find((task) => task.key === activeSetupTaskKey),
+                          activeTask: onboardingDraft.setupTasks.find(
+                            (task) => task.key === activeSetupTaskKey
+                          ),
                           onSelectTask: (key) => setActiveSetupTaskKey(key),
                           onConfirmTask: handleConfirmSetupTask,
                           assistantInput,
@@ -1156,7 +1420,9 @@ export function AppShell() {
                           assistantError,
                           completedCount: countCompletedSetupTasks(onboardingDraft.setupTasks),
                           canEnterEditor: countCompletedSetupTasks(onboardingDraft.setupTasks) >= 3,
-                          onEnterEditor: () => { void handleNavigate('editor'); },
+                          onEnterEditor: () => {
+                            void handleNavigate('editor');
+                          },
                           acceptedSkillIds: onboardingDraft.acceptedSkillIds,
                           recommendedSkills: onboardingDraft.recommendedSkills,
                           acceptedRecommendedSkills: onboardingDraft.acceptedRecommendedSkills,
@@ -1171,10 +1437,14 @@ export function AppShell() {
             {currentView === 'factory' && (
               <ErrorBoundary>
                 <BookFactoryView
-                  chapterId={editorChapterContext?.novelId === selectedNovel?.id ? editorChapterContext?.chapterId : undefined}
+                  chapterId={
+                    editorChapterContext?.novelId === selectedNovel?.id
+                      ? editorChapterContext?.chapterId
+                      : undefined
+                  }
                   databaseGeneration={
-                    factoryGenerationContext?.novelId === selectedNovel?.id
-                    && factoryGenerationContext?.chapterId === editorChapterContext?.chapterId
+                    factoryGenerationContext?.novelId === selectedNovel?.id &&
+                    factoryGenerationContext?.chapterId === editorChapterContext?.chapterId
                       ? factoryGenerationContext?.databaseGeneration
                       : undefined
                   }
@@ -1183,7 +1453,9 @@ export function AppShell() {
                       ? editorChapterContext?.writingStyleFingerprint
                       : undefined
                   }
-                  onOpenCapabilityCenter={(novel) => { void openFactoryCandidatesInCapabilityCenter(novel); }}
+                  onOpenCapabilityCenter={(novel) => {
+                    void openFactoryCandidatesInCapabilityCenter(novel);
+                  }}
                 />
               </ErrorBoundary>
             )}
@@ -1197,12 +1469,18 @@ export function AppShell() {
                   onNovelUpdated={(novel) => setSelectedNovel(novel)}
                   onNavigate={(view, context) => {
                     if (view === 'editor' && selectedNovel) {
-                      void returnToEditorWithoutLaunch(selectedNovel, skillsReturnTarget.targetChapterId, context);
+                      void returnToEditorWithoutLaunch(
+                        selectedNovel,
+                        skillsReturnTarget.targetChapterId,
+                        context
+                      );
                     } else {
                       void handleNavigate(view, undefined, context);
                     }
                   }}
-                  onLaunchCapability={(launch) => { void navigateToEditorWithCapability(launch); }}
+                  onLaunchCapability={(launch) => {
+                    void navigateToEditorWithCapability(launch);
+                  }}
                 />
               </ErrorBoundary>
             )}
@@ -1210,8 +1488,12 @@ export function AppShell() {
               <WorkspacePreviewEmptyState
                 title="创作工作台等待作品"
                 description="选中作品后，编辑器会展示章节、分镜、世界观与能力卡配置，并用于正文生成、打磨与质量中心。"
-                onGoLibrary={() => { void handleNavigate('library'); }}
-                onCreateNovel={() => { void handleNavigate('library'); }}
+                onGoLibrary={() => {
+                  void handleNavigate('library');
+                }}
+                onCreateNovel={() => {
+                  void handleNavigate('library');
+                }}
                 onImport={handleStartContinuationImport}
               />
             )}
@@ -1219,8 +1501,12 @@ export function AppShell() {
               <WorkspacePreviewEmptyState
                 title="创作工作台暂未开启"
                 description="工作台会把章节写作、设定记忆、能力卡配置和智能管家组织在一起。先选择或创建作品，就能开始协作。"
-                onGoLibrary={() => { void handleNavigate('library'); }}
-                onCreateNovel={() => { void handleNavigate('library'); }}
+                onGoLibrary={() => {
+                  void handleNavigate('library');
+                }}
+                onCreateNovel={() => {
+                  void handleNavigate('library');
+                }}
                 onImport={handleStartContinuationImport}
               />
             )}
@@ -1228,8 +1514,12 @@ export function AppShell() {
               <WorkspacePreviewEmptyState
                 title="设定集需要绑定作品"
                 description="人物、地点、道具和世界规则都跟作品绑定。选中作品后，设定会成为后续写作和审查的上下文。"
-                onGoLibrary={() => { void handleNavigate('library'); }}
-                onCreateNovel={() => { void handleNavigate('library'); }}
+                onGoLibrary={() => {
+                  void handleNavigate('library');
+                }}
+                onCreateNovel={() => {
+                  void handleNavigate('library');
+                }}
                 onImport={handleStartContinuationImport}
               />
             )}
@@ -1262,7 +1552,13 @@ export function AppShell() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} selectedNovelId={selectedNovel?.id} />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          theme={theme}
+          onThemeChange={setTheme}
+          selectedNovelId={selectedNovel?.id}
+        />
       </Suspense>
       {isQuickSearchOpen && selectedNovel && (
         <QuickSearchOverlay

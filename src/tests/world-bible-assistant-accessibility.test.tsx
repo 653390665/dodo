@@ -23,9 +23,18 @@ const storeMock = vi.hoisted(() => {
 
 vi.mock('../stores/assistant-session-store', () => ({ useAssistantSessionStore: storeMock.hook }));
 vi.mock('../lib/world-client', () => ({
-  listCharacters: vi.fn(), listLocations: vi.fn(), listItems: vi.fn(), listFactions: vi.fn(),
-  listPowerLevels: vi.fn(), listTimelineEvents: vi.fn(), createCharacter: vi.fn(), createLocation: vi.fn(),
-  createItem: vi.fn(), createFaction: vi.fn(), createPowerLevel: vi.fn(), createTimelineEvent: vi.fn(),
+  listCharacters: vi.fn(),
+  listLocations: vi.fn(),
+  listItems: vi.fn(),
+  listFactions: vi.fn(),
+  listPowerLevels: vi.fn(),
+  listTimelineEvents: vi.fn(),
+  createCharacter: vi.fn(),
+  createLocation: vi.fn(),
+  createItem: vi.fn(),
+  createFaction: vi.fn(),
+  createPowerLevel: vi.fn(),
+  createTimelineEvent: vi.fn(),
 }));
 
 import { WorldBibleAssistant } from '../components/WorldBibleAssistant';
@@ -34,7 +43,12 @@ describe('WorldBibleAssistant accessibility', () => {
   beforeEach(() => vi.clearAllMocks());
 
   test('names the inspiration textbox and exposes polite live updates', () => {
-    render(<WorldBibleAssistant novel={{ id: 'novel-1', title: '测试作品' } as never} onClose={vi.fn()} />);
+    render(
+      <WorldBibleAssistant
+        novel={{ id: 'novel-1', title: '测试作品' } as never}
+        onClose={vi.fn()}
+      />
+    );
 
     expect(screen.getByRole('textbox', { name: '输入设定灵感' })).toBeTruthy();
     expect(screen.getByRole('log').getAttribute('aria-live')).toBe('polite');

@@ -1,7 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookMarked, CheckCircle2, Clock, Download, FileText, Globe2, PenLine, Plus, Search, Trash2, Wand2 } from 'lucide-react';
+import {
+  BookMarked,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileText,
+  Globe2,
+  PenLine,
+  Plus,
+  Search,
+  Trash2,
+  Wand2,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './ui/alert-dialog';
 
 import { listNovels, createNovelWithChapter, deleteNovel } from '../lib/novel-client';
 import { listChapters, listChaptersMetadata } from '../lib/chapter-client';
@@ -42,33 +63,45 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
     let failed = false;
 
     try {
-      const batch = await callBatch<{ chapters: Record<string, ChapterMetadata[]>; packs: Record<string, ContinuationPack[]> }>('listLibraryMetadata', novelList.map((novel) => novel.id));
+      const batch = await callBatch<{
+        chapters: Record<string, ChapterMetadata[]>;
+        packs: Record<string, ContinuationPack[]>;
+      }>(
+        'listLibraryMetadata',
+        novelList.map((novel) => novel.id)
+      );
       Object.assign(chaps, batch.chapters);
       Object.assign(pks, batch.packs);
     } catch {
       // Older servers and isolated browser fixtures may not expose the batch
       // method yet. Fall back without hiding existing metadata.
-      await Promise.all(novelList.map(async (novel) => {
-        try {
-          const [chapterMetadata, packs] = await Promise.all([
-            listChaptersMetadata(novel.id),
-            listContinuationPacks(novel.id),
-          ]);
-          chaps[novel.id] = chapterMetadata;
-          pks[novel.id] = packs;
-        } catch {
-          failed = true;
-        }
-      }));
+      await Promise.all(
+        novelList.map(async (novel) => {
+          try {
+            const [chapterMetadata, packs] = await Promise.all([
+              listChaptersMetadata(novel.id),
+              listContinuationPacks(novel.id),
+            ]);
+            chaps[novel.id] = chapterMetadata;
+            pks[novel.id] = packs;
+          } catch {
+            failed = true;
+          }
+        })
+      );
     }
 
     if (!mountedRef.current || requestId !== refreshRequestRef.current) return;
     setChaptersMap((previous) => {
-      const next = Object.fromEntries(novelList.map((novel) => [novel.id, previous[novel.id] || []]));
+      const next = Object.fromEntries(
+        novelList.map((novel) => [novel.id, previous[novel.id] || []])
+      );
       return { ...next, ...chaps };
     });
     setPacksMap((previous) => {
-      const next = Object.fromEntries(novelList.map((novel) => [novel.id, previous[novel.id] || []]));
+      const next = Object.fromEntries(
+        novelList.map((novel) => [novel.id, previous[novel.id] || []])
+      );
       return { ...next, ...pks };
     });
     setMetadataError(failed ? '部分作品资料加载失败，已保留上次数据。' : null);
@@ -89,7 +122,9 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       }
     };
     void refreshLibrary();
-    const unsubscribe = subscribeToChanges(() => { void refreshLibrary(); });
+    const unsubscribe = subscribeToChanges(() => {
+      void refreshLibrary();
+    });
     return () => {
       mountedRef.current = false;
       refreshRequestRef.current += 1;
@@ -144,10 +179,8 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
   const handleCardClick = (novel: Novel) => {
     if (isSelectionMode) {
-      setSelectedNovelIds(prev =>
-        prev.includes(novel.id)
-          ? prev.filter(id => id !== novel.id)
-          : [...prev, novel.id]
+      setSelectedNovelIds((prev) =>
+        prev.includes(novel.id) ? prev.filter((id) => id !== novel.id) : [...prev, novel.id]
       );
     } else {
       onSelectNovel(novel);
@@ -188,9 +221,9 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
       exportText += `==============================\n\n`;
 
-      chapters.forEach(ch => {
-         exportText += `## ${ch.title}\n\n`;
-         exportText += `${ch.content || ''}\n\n`;
+      chapters.forEach((ch) => {
+        exportText += `## ${ch.title}\n\n`;
+        exportText += `${ch.content || ''}\n\n`;
       });
 
       if ('showDirectoryPicker' in window) {
@@ -221,7 +254,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
     }
   };
 
-  const filteredNovels = novels.filter(n => n.title.toLowerCase().includes(search.toLowerCase()));
+  const filteredNovels = novels.filter((n) => n.title.toLowerCase().includes(search.toLowerCase()));
   const getReadinessItems = (novel: Novel) => {
     const capabilityCardCount = getProjectCapabilityCardCount(novel);
     return [
@@ -245,7 +278,10 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
         <div className="flex items-center gap-4">
           <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted group-focus-within:text-theme-accent transition-colors" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted group-focus-within:text-theme-accent transition-colors"
+              size={18}
+            />
             <input
               type="text"
               placeholder="搜索作品..."
@@ -259,14 +295,19 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             /* Batch Selection controls band - Glassmorphism, beautiful round bar styling */
             <div className="flex items-center gap-3 bg-theme-sidebar/60 backdrop-blur-md border border-theme-border rounded-xl px-4 py-1.5 text-sm shadow-md animate-in fade-in duration-300">
               <span className="font-sans font-bold text-theme-text text-xs whitespace-nowrap">
-                已选中 <span className="text-theme-accent font-serif text-sm px-0.5">{selectedNovelIds.length}</span> 部作品
+                已选中{' '}
+                <span className="text-theme-accent font-serif text-sm px-0.5">
+                  {selectedNovelIds.length}
+                </span>{' '}
+                部作品
               </span>
               <span className="text-theme-border/50">|</span>
               <button
                 type="button"
                 onClick={() => {
                   const allIds = filteredNovels.map((n) => n.id);
-                  const allSelected = allIds.length > 0 && allIds.every((id) => selectedNovelIds.includes(id));
+                  const allSelected =
+                    allIds.length > 0 && allIds.every((id) => selectedNovelIds.includes(id));
                   if (allSelected) {
                     setSelectedNovelIds([]);
                   } else {
@@ -275,7 +316,10 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 }}
                 className="text-theme-accent hover:underline text-xs font-semibold whitespace-nowrap"
               >
-                {filteredNovels.length > 0 && filteredNovels.every((n) => selectedNovelIds.includes(n.id)) ? '取消全选' : '一键全选'}
+                {filteredNovels.length > 0 &&
+                filteredNovels.every((n) => selectedNovelIds.includes(n.id))
+                  ? '取消全选'
+                  : '一键全选'}
               </button>
               <span className="text-theme-border/50">|</span>
               <button
@@ -283,10 +327,10 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 disabled={selectedNovelIds.length === 0}
                 onClick={() => setNovelsToDelete(selectedNovelIds)}
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black transition-all",
+                  'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black transition-all',
                   selectedNovelIds.length > 0
-                    ? "bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 active:scale-95"
-                    : "bg-theme-bg/20 text-theme-muted/50 border border-theme-border/30 cursor-not-allowed"
+                    ? 'bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 active:scale-95'
+                    : 'bg-theme-bg/20 text-theme-muted/50 border border-theme-border/30 cursor-not-allowed'
                 )}
               >
                 <Trash2 size={12} />
@@ -330,9 +374,18 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       </div>
 
       {metadataError && (
- <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-xs">
+        <div
+          role="alert"
+          className="mb-6 flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-xs"
+        >
           <span>{metadataError}</span>
-          <button type="button" className="font-semibold underline" onClick={() => setRefreshNonce((value) => value + 1)}>重试刷新</button>
+          <button
+            type="button"
+            className="font-semibold underline"
+            onClick={() => setRefreshNonce((value) => value + 1)}
+          >
+            重试刷新
+          </button>
         </div>
       )}
 
@@ -376,7 +429,8 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
             const gradientClass = hues[hueIndex];
 
             const novelChapters = chaptersMap[novel.id] || [];
-            const latestCh = [...novelChapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+            const latestCh =
+              [...novelChapters].sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
             const chaptersCount = novelChapters.length;
             const novelPacks = packsMap[novel.id] || [];
             const firstPack = novelPacks[0] || null;
@@ -388,12 +442,12 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 key={novel.id}
                 onClick={() => handleCardClick(novel)}
                 className={cn(
-                  "group relative min-h-[440px] bg-theme-sidebar rounded-[2.5rem] border p-6 overflow-hidden transition-all duration-500 cursor-pointer",
+                  'group relative min-h-[440px] bg-theme-sidebar rounded-[2.5rem] border p-6 overflow-hidden transition-all duration-500 cursor-pointer',
                   isSelectionMode
                     ? isSelected
-                      ? "border-theme-accent shadow-lg shadow-theme-accent/5 ring-1 ring-theme-accent/20 scale-[1.01]"
-                      : "border-theme-border hover:border-theme-border/80 shadow-sm"
-                    : "border-theme-border hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1"
+                      ? 'border-theme-accent shadow-lg shadow-theme-accent/5 ring-1 ring-theme-accent/20 scale-[1.01]'
+                      : 'border-theme-border hover:border-theme-border/80 shadow-sm'
+                    : 'border-theme-border hover:shadow-2xl hover:shadow-theme-accent/10 hover:-translate-y-1'
                 )}
               >
                 {/* Individual Export/Delete hover panel - Disabled during selection mode */}
@@ -419,28 +473,45 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                 )}
 
                 {/* Enhanced Cover with Glassmorphism Selection overlay */}
-                <div className={cn(
-                  "w-full h-52 rounded-3xl mb-6 flex flex-col items-center justify-center relative overflow-hidden group-hover:scale-[1.03] transition-transform duration-700 bg-gradient-to-br shadow-inner",
-                  gradientClass
-                )}>
+                <div
+                  className={cn(
+                    'w-full h-52 rounded-3xl mb-6 flex flex-col items-center justify-center relative overflow-hidden group-hover:scale-[1.03] transition-transform duration-700 bg-gradient-to-br shadow-inner',
+                    gradientClass
+                  )}
+                >
                   <BookMarked size={56} className="text-theme-text/10 mb-2" />
-                  <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">灵感库</div>
+                  <div className="text-[10px] font-bold text-theme-text/20 uppercase tracking-[0.3em] font-serif">
+                    灵感库
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
 
                   {/* Visual texture */}
-                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+                  <div
+                    className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                    style={{
+                      backgroundImage:
+                        'radial-gradient(circle at 2px 2px, black 1px, transparent 0)',
+                      backgroundSize: '24px 24px',
+                    }}
+                  />
 
                   {/* Stateful Circle selection badge inside cover */}
                   {isSelectionMode && (
-                    <div 
+                    <div
                       className={cn(
-                        "absolute top-4 left-4 z-10 w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-sm transition-all duration-300 shadow-md",
+                        'absolute top-4 left-4 z-10 w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-sm transition-all duration-300 shadow-md',
                         isSelected
-                          ? "bg-theme-accent border-theme-accent text-theme-accent-contrast scale-110"
-                          : "bg-black/5 hover:bg-black/10 border-white/40 text-transparent"
+                          ? 'bg-theme-accent border-theme-accent text-theme-accent-contrast scale-110'
+                          : 'bg-black/5 hover:bg-black/10 border-white/40 text-transparent'
                       )}
                     >
-                      <CheckCircle2 size={16} className={cn("transition-transform duration-300", isSelected ? "scale-100" : "scale-0")} />
+                      <CheckCircle2
+                        size={16}
+                        className={cn(
+                          'transition-transform duration-300',
+                          isSelected ? 'scale-100' : 'scale-0'
+                        )}
+                      />
                     </div>
                   )}
                 </div>
@@ -451,7 +522,9 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                   </h3>
                   {firstPack && (
                     <div className="text-[10px] text-theme-muted mt-1 bg-theme-accent/5 border border-theme-accent/10 px-2 py-1 rounded-lg flex flex-wrap items-center gap-1 leading-4">
-                      <span className="font-bold text-theme-accent truncate max-w-[150px]">包: {firstPack.title}</span>
+                      <span className="font-bold text-theme-accent truncate max-w-[150px]">
+                        包: {firstPack.title}
+                      </span>
                       <span>•</span>
                       <span>{new Date(firstPack.createdAt).toLocaleDateString()}</span>
                       <span>•</span>
@@ -470,7 +543,10 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                     </div>
                     <div className="flex justify-between text-theme-muted text-[11px] font-bold truncate gap-2">
                       <span>最近章节:</span>
-                      <span className="text-theme-text font-semibold truncate" title={latestCh?.title || '无'}>
+                      <span
+                        className="text-theme-text font-semibold truncate"
+                        title={latestCh?.title || '无'}
+                      >
                         {latestCh?.title || '暂无章节'}
                       </span>
                     </div>
@@ -486,7 +562,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                             'flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[10px] font-bold',
                             item.ready
                               ? 'border-theme-accent/20 bg-theme-accent/5 text-theme-accent'
-                              : 'border-theme-border bg-theme-bg/40 text-theme-muted',
+                              : 'border-theme-border bg-theme-bg/40 text-theme-muted'
                           )}
                         >
                           <Icon size={12} />
@@ -504,17 +580,29 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
 
                     {(() => {
                       const configMap = {
-                        ongoing: { label: '连载中', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-                        completed: { label: '已完结', color: 'bg-blue-50 text-blue-700 border-blue-100' },
-                        hiatus: { label: '断更', color: 'bg-amber-50 text-amber-700 border-amber-100' }
+                        ongoing: {
+                          label: '连载中',
+                          color: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                        },
+                        completed: {
+                          label: '已完结',
+                          color: 'bg-blue-50 text-blue-700 border-blue-100',
+                        },
+                        hiatus: {
+                          label: '断更',
+                          color: 'bg-amber-50 text-amber-700 border-amber-100',
+                        },
                       };
-                      const statusConfig = configMap[(novel.status as keyof typeof configMap) || 'ongoing'];
+                      const statusConfig =
+                        configMap[(novel.status as keyof typeof configMap) || 'ongoing'];
 
                       return (
-                        <span className={cn(
-                          "ml-auto px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border shadow-sm",
-                          statusConfig.color
-                        )}>
+                        <span
+                          className={cn(
+                            'ml-auto px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border shadow-sm',
+                            statusConfig.color
+                          )}
+                        >
                           {statusConfig.label}
                         </span>
                       );
@@ -527,20 +615,26 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        setSelectedNovelIds(prev =>
+                        setSelectedNovelIds((prev) =>
                           prev.includes(novel.id)
-                            ? prev.filter(id => id !== novel.id)
+                            ? prev.filter((id) => id !== novel.id)
                             : [...prev, novel.id]
                         );
                       }}
                       className={cn(
-                        "mt-4 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold shadow-sm transition-all duration-300",
+                        'mt-4 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold shadow-sm transition-all duration-300',
                         isSelected
-                          ? "bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent/20"
-                          : "bg-transparent border border-dashed border-theme-border hover:border-theme-accent text-theme-muted hover:text-theme-accent"
+                          ? 'bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent/20'
+                          : 'bg-transparent border border-dashed border-theme-border hover:border-theme-accent text-theme-muted hover:text-theme-accent'
                       )}
                     >
-                      <CheckCircle2 size={15} className={cn("transition-transform duration-300", isSelected && "scale-110")} />
+                      <CheckCircle2
+                        size={15}
+                        className={cn(
+                          'transition-transform duration-300',
+                          isSelected && 'scale-110'
+                        )}
+                      />
                       <span>{isSelected ? '取消选择' : '选择此书'}</span>
                     </button>
                   ) : (
@@ -562,9 +656,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
           })}
 
           {isAdding && (
-            <div
-              className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors"
-            >
+            <div className="h-[420px] border-2 border-dashed border-theme-border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center bg-theme-sidebar/10 group hover:border-theme-accent transition-colors">
               <form onSubmit={handleCreateNovel} className="w-full px-4">
                 <div className="w-20 h-20 bg-theme-sidebar rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-theme-border group-hover:scale-110 transition-transform">
                   <Plus size={32} className="text-theme-accent" />
@@ -599,26 +691,29 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       )}
 
       {/* Adaptive AlertDialog supporting both Single & Bulk deletes with unified queue handling */}
-      <AlertDialog open={novelsToDelete.length > 0} onOpenChange={(open) => !open && setNovelsToDelete([])}>
+      <AlertDialog
+        open={novelsToDelete.length > 0}
+        onOpenChange={(open) => !open && setNovelsToDelete([])}
+      >
         <AlertDialogContent className="bg-theme-sidebar border border-theme-border rounded-[2rem] p-6 max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-serif font-bold text-theme-text">
-              {novelsToDelete.length > 1 
-                ? `确定要批量删除选中的 ${novelsToDelete.length} 部作品吗？` 
-                : "确定要删除这部作品吗？"}
+              {novelsToDelete.length > 1
+                ? `确定要批量删除选中的 ${novelsToDelete.length} 部作品吗？`
+                : '确定要删除这部作品吗？'}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-theme-muted mt-2">
               {novelsToDelete.length > 1
-                ? "此操作极其危险且不可逆！将会一次性物理抹除所选作品的全部卷章正文、大纲、设定记录及相关的全部本地数据。"
-                : "此操作不可逆！将会永久删除该作品的全部卷章正文、大纲、世界观条目与创作记录。"}
+                ? '此操作极其危险且不可逆！将会一次性物理抹除所选作品的全部卷章正文、大纲、设定记录及相关的全部本地数据。'
+                : '此操作不可逆！将会永久删除该作品的全部卷章正文、大纲、世界观条目与创作记录。'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6 flex gap-3 justify-end">
             <AlertDialogCancel className="rounded-xl border border-theme-border hover:bg-theme-bg/50 px-4 py-2 text-sm font-bold text-theme-muted transition-colors">
               取消
             </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={executeDeleteNovels} 
+            <AlertDialogAction
+              onClick={executeDeleteNovels}
               className="rounded-xl bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-sm font-bold transition-colors"
             >
               确认删除

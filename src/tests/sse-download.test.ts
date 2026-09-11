@@ -30,7 +30,9 @@ describe('readSseStream', () => {
   test('accumulates tokens until [DONE]', async () => {
     const body = new ReadableStream({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode('data: {"token":"a"}\n\ndata: {"token":"b"}\n\ndata: [DONE]\n\n'));
+        controller.enqueue(
+          new TextEncoder().encode('data: {"token":"a"}\n\ndata: {"token":"b"}\n\ndata: [DONE]\n\n')
+        );
         controller.close();
       },
     });
@@ -87,7 +89,9 @@ describe('downloadAuthenticatedFile', () => {
 
   test('throws on non-2xx responses', async () => {
     const { downloadAuthenticatedFile } = await import('../lib/download-client');
-    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })) as typeof fetch;
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    ) as typeof fetch;
 
     await expect(downloadAuthenticatedFile('/api/db/export-file')).rejects.toThrow('Unauthorized');
   });

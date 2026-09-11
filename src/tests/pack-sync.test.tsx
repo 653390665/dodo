@@ -2,24 +2,74 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { buildSyncExtractionPrompt } from '../../shared/lib/sync-extract-prompt';
 import type { SyncExtractionResult } from '../../shared/lib/sync-extract-prompt';
-import { buildSyncExtractionChunks, mergeSyncExtractionResults, SyncExtractionChunkLimitError, SYNC_EXTRACTION_CHUNK_CHAR_BUDGET } from '../../shared/lib/sync-extraction-chunks';
+import {
+  buildSyncExtractionChunks,
+  mergeSyncExtractionResults,
+  SyncExtractionChunkLimitError,
+  SYNC_EXTRACTION_CHUNK_CHAR_BUDGET,
+} from '../../shared/lib/sync-extraction-chunks';
 
 describe('sync extraction chunking and deterministic merge', () => {
   test('keeps 100 documents bounded and ordered', () => {
-    const chunks = buildSyncExtractionChunks(Array.from({ length: 100 }, (_, index) => ({
-      id: `doc-${index}`, filename: `${index}.txt`, text: `文档-${index}`,
-    })));
+    const chunks = buildSyncExtractionChunks(
+      Array.from({ length: 100 }, (_, index) => ({
+        id: `doc-${index}`,
+        filename: `${index}.txt`,
+        text: `文档-${index}`,
+      }))
+    );
     expect(chunks).toHaveLength(100);
-    expect(chunks.map(chunk => chunk.filename)).toEqual(Array.from({ length: 100 }, (_, index) => `${index}.txt`));
-    expect(chunks.map(chunk => chunk.sourceDocumentId)).toEqual(Array.from({ length: 100 }, (_, index) => `doc-${index}`));
-    expect(chunks.every(chunk => chunk.text.length <= SYNC_EXTRACTION_CHUNK_CHAR_BUDGET)).toBe(true);
+    expect(chunks.map((chunk) => chunk.filename)).toEqual(
+      Array.from({ length: 100 }, (_, index) => `${index}.txt`)
+    );
+    expect(chunks.map((chunk) => chunk.sourceDocumentId)).toEqual(
+      Array.from({ length: 100 }, (_, index) => `doc-${index}`)
+    );
+    expect(chunks.every((chunk) => chunk.text.length <= SYNC_EXTRACTION_CHUNK_CHAR_BUDGET)).toBe(
+      true
+    );
   });
 
   test('deduplicates entities and relationships after all chunks', () => {
-    const base = { locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [], globalOutline: '', worldRules: '' };
+    const base = {
+      locations: [],
+      items: [],
+      factions: [],
+      powerLevels: [],
+      timelineEvents: [],
+      globalOutline: '',
+      worldRules: '',
+    };
     const result = mergeSyncExtractionResults([
-      { ...base, characters: [{ name: '张三', role: 'protagonist', summary: '', bio: '', traits: ['勇敢'] }], relationships: [{ sourceName: '张三', sourceType: 'character', targetName: '京城', targetType: 'location', relationshipType: '居住', description: '' }] },
-      { ...base, characters: [{ name: ' 张三 ', role: '', summary: '主角', bio: '', traits: ['聪明'] }], locations: [{ name: '京城', region: '', description: '' }], relationships: [{ sourceName: '张三', sourceType: 'character', targetName: '京城', targetType: 'location', relationshipType: '居住', description: '' }] },
+      {
+        ...base,
+        characters: [{ name: '张三', role: 'protagonist', summary: '', bio: '', traits: ['勇敢'] }],
+        relationships: [
+          {
+            sourceName: '张三',
+            sourceType: 'character',
+            targetName: '京城',
+            targetType: 'location',
+            relationshipType: '居住',
+            description: '',
+          },
+        ],
+      },
+      {
+        ...base,
+        characters: [{ name: ' 张三 ', role: '', summary: '主角', bio: '', traits: ['聪明'] }],
+        locations: [{ name: '京城', region: '', description: '' }],
+        relationships: [
+          {
+            sourceName: '张三',
+            sourceType: 'character',
+            targetName: '京城',
+            targetType: 'location',
+            relationshipType: '居住',
+            description: '',
+          },
+        ],
+      },
     ]);
     expect(result.characters).toHaveLength(1);
     expect(result.characters[0].traits).toEqual(['勇敢', '聪明']);
@@ -27,13 +77,22 @@ describe('sync extraction chunking and deterministic merge', () => {
   });
 
   test('rejects oversized input instead of truncating it', () => {
-    expect(() => buildSyncExtractionChunks([{ filename: 'huge.txt', text: 'x'.repeat(SYNC_EXTRACTION_CHUNK_CHAR_BUDGET * 2) }], SYNC_EXTRACTION_CHUNK_CHAR_BUDGET, 1)).toThrow(SyncExtractionChunkLimitError);
+    expect(() =>
+      buildSyncExtractionChunks(
+        [{ filename: 'huge.txt', text: 'x'.repeat(SYNC_EXTRACTION_CHUNK_CHAR_BUDGET * 2) }],
+        SYNC_EXTRACTION_CHUNK_CHAR_BUDGET,
+        1
+      )
+    ).toThrow(SyncExtractionChunkLimitError);
   });
 });
 
 describe('buildSyncExtractionPrompt', () => {
   test('includes source texts', () => {
-    const prompt = buildSyncExtractionPrompt(['[sourceDocumentId:doc-1]\n文本1内容', '[sourceDocumentId:doc-2]\n文本2内容']);
+    const prompt = buildSyncExtractionPrompt([
+      '[sourceDocumentId:doc-1]\n文本1内容',
+      '[sourceDocumentId:doc-2]\n文本2内容',
+    ]);
     expect(prompt).toContain('文本1内容');
     expect(prompt).toContain('文本2内容');
     expect(prompt).toContain('JSON');
@@ -97,13 +156,24 @@ describe('buildSyncExtractionPrompt', () => {
 describe('SyncExtractionResult type', () => {
   test('compiles correctly', () => {
     const result: SyncExtractionResult = {
-      characters: [{ name: '张三', role: 'protagonist', summary: '主角', bio: '详细', traits: ['勇敢'] }],
+      characters: [
+        { name: '张三', role: 'protagonist', summary: '主角', bio: '详细', traits: ['勇敢'] },
+      ],
       locations: [{ name: '京城', region: '北方', description: '繁华' }],
       items: [{ name: '神剑', type: 'weapon', description: '锋利' }],
       factions: [{ name: '武林盟', leader: '盟主', territory: '中原', description: '正派' }],
       powerLevels: [{ name: '练气', tier: 1, characteristics: '基础', description: '入门' }],
       timelineEvents: [{ title: '开篇', timestamp: '第一天', description: '故事开始', order: 1 }],
-      relationships: [{ sourceName: '张三', sourceType: 'character', targetName: '李四', targetType: 'character', relationshipType: '敌对', description: '仇人' }],
+      relationships: [
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '李四',
+          targetType: 'character',
+          relationshipType: '敌对',
+          description: '仇人',
+        },
+      ],
       globalOutline: '世界观概述',
       worldRules: '设定规则',
     };
@@ -135,7 +205,7 @@ describe('SyncPreviewPanel dedup logic', () => {
   const normalizeName = (name: string) => name.trim().normalize('NFC').toLowerCase();
 
   test('detects existing entities', () => {
-    const existingNames = new Set(['张三', '李四'].map(n => normalizeName(n)));
+    const existingNames = new Set(['张三', '李四'].map((n) => normalizeName(n)));
     expect(existingNames.has(normalizeName('张三'))).toBe(true);
     expect(existingNames.has(normalizeName('王五'))).toBe(false);
     expect(existingNames.has(normalizeName('  张三  '))).toBe(true);
@@ -144,7 +214,9 @@ describe('SyncPreviewPanel dedup logic', () => {
   test('cross-entity dedup works', () => {
     const existingCharacters = ['张三', '李四'];
     const existingLocations = ['京城'];
-    const allNames = new Set([...existingCharacters, ...existingLocations].map(n => normalizeName(n)));
+    const allNames = new Set(
+      [...existingCharacters, ...existingLocations].map((n) => normalizeName(n))
+    );
     expect(allNames.has(normalizeName('京城'))).toBe(true);
     expect(allNames.has(normalizeName('张三'))).toBe(true);
     expect(allNames.has(normalizeName('洛阳'))).toBe(false);
@@ -159,26 +231,44 @@ describe('extractPackEntities', () => {
 
   test('calls correct endpoint and returns result', async () => {
     const emptyExtraction: SyncExtractionResult = {
-      characters: [], locations: [], items: [], factions: [],
-      powerLevels: [], timelineEvents: [], relationships: [],
-      globalOutline: '', worldRules: '',
+      characters: [],
+      locations: [],
+      items: [],
+      factions: [],
+      powerLevels: [],
+      timelineEvents: [],
+      relationships: [],
+      globalOutline: '',
+      worldRules: '',
     };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ databaseGeneration: 42 }), { status: 200 })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ packId: 'pack-123', novelId: 'novel-1', databaseGeneration: 42, extraction: emptyExtraction }), { status: 200 })
+        new Response(
+          JSON.stringify({
+            packId: 'pack-123',
+            novelId: 'novel-1',
+            databaseGeneration: 42,
+            extraction: emptyExtraction,
+          }),
+          { status: 200 }
+        )
       );
 
     const { extractPackEntities } = await import('../lib/continuation-client');
     const result = await extractPackEntities('pack-123', 'novel-1');
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/db/generation', expect.anything());
-    expect(fetchSpy).toHaveBeenCalledWith('/api/continuation-packs/extract-entities', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ packId: 'pack-123', novelId: 'novel-1', databaseGeneration: 42 }),
-    }));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/continuation-packs/extract-entities',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ packId: 'pack-123', novelId: 'novel-1', databaseGeneration: 42 }),
+      })
+    );
     expect(result.packId).toBe('pack-123');
     expect(result.databaseGeneration).toBe(42);
     expect(result.extraction.characters).toEqual([]);
@@ -189,9 +279,7 @@ describe('extractPackEntities', () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ databaseGeneration: 1 }), { status: 200 })
       )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: '提取失败' }), { status: 500 })
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: '提取失败' }), { status: 500 }));
 
     const { extractPackEntities } = await import('../lib/continuation-client');
     await expect(extractPackEntities('pack-err', 'novel-err')).rejects.toThrow();
@@ -200,38 +288,103 @@ describe('extractPackEntities', () => {
   test('starts and polls a background extraction job with progress', async () => {
     vi.useFakeTimers();
     const emptyExtraction: SyncExtractionResult = {
-      characters: [], locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [], relationships: [],
-      globalOutline: '', worldRules: '',
+      characters: [],
+      locations: [],
+      items: [],
+      factions: [],
+      powerLevels: [],
+      timelineEvents: [],
+      relationships: [],
+      globalOutline: '',
+      worldRules: '',
     };
     const progress = vi.fn();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ databaseGeneration: 42 }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ jobId: 'extract-job-1', databaseGeneration: 42 }), { status: 202 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'running', progress: 45, stageText: '正在合并实体' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        status: 'completed', progress: 100, stageText: '提取完成',
-        result: { packId: 'pack-123', novelId: 'novel-1', databaseGeneration: 42, extraction: emptyExtraction },
-      }), { status: 200 }));
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ databaseGeneration: 42 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ jobId: 'extract-job-1', databaseGeneration: 42 }), {
+          status: 202,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ status: 'running', progress: 45, stageText: '正在合并实体' }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 'completed',
+            progress: 100,
+            stageText: '提取完成',
+            result: {
+              packId: 'pack-123',
+              novelId: 'novel-1',
+              databaseGeneration: 42,
+              extraction: emptyExtraction,
+            },
+          }),
+          { status: 200 }
+        )
+      );
 
     const { extractPackEntities } = await import('../lib/continuation-client');
     const resultPromise = extractPackEntities('pack-123', 'novel-1', undefined, progress);
     await vi.advanceTimersByTimeAsync(1500);
 
     await expect(resultPromise).resolves.toMatchObject({ packId: 'pack-123' });
-    expect(progress).toHaveBeenCalledWith({ progress: 45, stageText: '正在合并实体', status: 'running' });
-    expect(fetchSpy).toHaveBeenCalledWith('/api/continuation-packs/jobs/extract-job-1?databaseGeneration=42', expect.anything());
+    expect(progress).toHaveBeenCalledWith({
+      progress: 45,
+      stageText: '正在合并实体',
+      status: 'running',
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/continuation-packs/jobs/extract-job-1?databaseGeneration=42',
+      expect.anything()
+    );
   });
 
   test('failed job preserves safe diagnostics and polling context', async () => {
     vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ databaseGeneration: 42 }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ jobId: 'extract-job-failed', databaseGeneration: 42, traceId: 'trace-143' }), { status: 202 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        status: 'failed', currentChunk: 2, totalChunks: 4, traceId: 'trace-143',
-        code: 'EXTRACTION_INVALID_JSON', error: '模型返回结果无法解析，请重试',
-        failedChunk: { attempt: 2 },
-        outputDiagnostic: { provider: 'deepseek', responseFormatMode: 'json_object', thinkingMode: 'disabled', parserStage: 'quote_repair', candidateRoot: 'object', candidateLength: 18 },
-      }), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ databaseGeneration: 42 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            jobId: 'extract-job-failed',
+            databaseGeneration: 42,
+            traceId: 'trace-143',
+          }),
+          { status: 202 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 'failed',
+            currentChunk: 2,
+            totalChunks: 4,
+            traceId: 'trace-143',
+            code: 'EXTRACTION_INVALID_JSON',
+            error: '模型返回结果无法解析，请重试',
+            failedChunk: { attempt: 2 },
+            outputDiagnostic: {
+              provider: 'deepseek',
+              responseFormatMode: 'json_object',
+              thinkingMode: 'disabled',
+              parserStage: 'quote_repair',
+              candidateRoot: 'object',
+              candidateLength: 18,
+            },
+          }),
+          { status: 200 }
+        )
+      );
 
     const { extractPackEntities } = await import('../lib/continuation-client');
     await expect(extractPackEntities('pack-failed', 'novel-failed')).rejects.toMatchObject({
@@ -248,8 +401,14 @@ describe('extractPackEntities', () => {
 
   test('malformed polling response rejects with the existing job context', async () => {
     vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ databaseGeneration: 7 }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ jobId: 'extract-job-protocol', databaseGeneration: 7 }), { status: 202 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ databaseGeneration: 7 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ jobId: 'extract-job-protocol', databaseGeneration: 7 }), {
+          status: 202,
+        })
+      )
       .mockResolvedValueOnce(new Response('not-json', { status: 200 }));
 
     const { extractPackEntities } = await import('../lib/continuation-client');
@@ -269,12 +428,20 @@ describe('syncPackToWorld', () => {
 
   test('calls correct endpoint and returns result', async () => {
     const syncResult = {
-      created: { characters: 1, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 },
+      created: {
+        characters: 1,
+        locations: 0,
+        items: 0,
+        factions: 0,
+        powerLevels: 0,
+        timelineEvents: 0,
+        relationships: 0,
+      },
       skipped: { characters: 0, locations: 0, items: 0, factions: 0 },
     };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify(syncResult), { status: 200 })
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(syncResult), { status: 200 }));
 
     const { syncPackToWorld } = await import('../lib/continuation-client');
     const result = await syncPackToWorld({
@@ -290,9 +457,12 @@ describe('syncPackToWorld', () => {
       relationships: [],
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/continuation-packs/sync-to-world', expect.objectContaining({
-      method: 'POST',
-    }));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/continuation-packs/sync-to-world',
+      expect.objectContaining({
+        method: 'POST',
+      })
+    );
     expect(result.created.characters).toBe(1);
   });
 
@@ -302,13 +472,20 @@ describe('syncPackToWorld', () => {
     );
 
     const { syncPackToWorld } = await import('../lib/continuation-client');
-    await expect(syncPackToWorld({
-      packId: 'pack-err',
-      novelId: 'novel-err',
-      databaseGeneration: 1,
-      characters: [], locations: [], items: [], factions: [],
-      powerLevels: [], timelineEvents: [], relationships: [],
-    })).rejects.toThrow();
+    await expect(
+      syncPackToWorld({
+        packId: 'pack-err',
+        novelId: 'novel-err',
+        databaseGeneration: 1,
+        characters: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        relationships: [],
+      })
+    ).rejects.toThrow();
   });
 });
 
@@ -316,17 +493,29 @@ describe('syncPackToWorld', () => {
 
 describe('SyncPreviewPanel T4.4-T4.6', () => {
   const emptyExtraction: SyncExtractionResult = {
-    characters: [], locations: [], items: [], factions: [],
-    powerLevels: [], timelineEvents: [],
+    characters: [],
+    locations: [],
+    items: [],
+    factions: [],
+    powerLevels: [],
+    timelineEvents: [],
     relationships: [],
-    globalOutline: '', worldRules: '',
+    globalOutline: '',
+    worldRules: '',
   };
 
   const unresolvedExtraction: SyncExtractionResult = {
     ...emptyExtraction,
     characters: [{ name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] }],
     relationships: [
-      { sourceName: '张三', sourceType: 'character', targetName: '未知角色', targetType: 'character', relationshipType: '敌对', description: '' },
+      {
+        sourceName: '张三',
+        sourceType: 'character',
+        targetName: '未知角色',
+        targetType: 'character',
+        relationshipType: '敌对',
+        description: '',
+      },
     ],
   };
 
@@ -350,7 +539,9 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
         isSyncing={false}
       />
     );
-    const confirmBtn = screen.getByRole('button', { name: '导入可确认项并处理 1 条关系' }) as HTMLButtonElement;
+    const confirmBtn = screen.getByRole('button', {
+      name: '导入可确认项并处理 1 条关系',
+    }) as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(false);
 
     fireEvent.click(confirmBtn);
@@ -398,8 +589,22 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
       powerLevels: [{ name: '练气', tier: 1, characteristics: '', description: '' }],
       timelineEvents: [{ title: '开篇', timestamp: '第一天', description: '', order: 1 }],
       relationships: [
-        { sourceName: '张三', sourceType: 'character', targetName: '李四', targetType: 'character', relationshipType: '同盟', description: '已经提交' },
-        { sourceName: '张三', sourceType: 'character', targetName: '未知角色', targetType: 'character', relationshipType: '敌对', description: '等待修复' },
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '李四',
+          targetType: 'character',
+          relationshipType: '同盟',
+          description: '已经提交',
+        },
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '未知角色',
+          targetType: 'character',
+          relationshipType: '敌对',
+          description: '等待修复',
+        },
       ],
     };
     const { rerender } = render(
@@ -428,9 +633,33 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
       <SyncPreviewPanel
         extraction={extraction}
         existingCharacters={[
-          { id: 'c1', novelId: 'n1', name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] },
-          { id: 'c2', novelId: 'n1', name: '李四', role: 'supporting', summary: '', bio: '', traits: [] },
-          { id: 'c3', novelId: 'n1', name: '未知角色', role: 'supporting', summary: '', bio: '', traits: [] },
+          {
+            id: 'c1',
+            novelId: 'n1',
+            name: '张三',
+            role: 'protagonist',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
+          {
+            id: 'c2',
+            novelId: 'n1',
+            name: '李四',
+            role: 'supporting',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
+          {
+            id: 'c3',
+            novelId: 'n1',
+            name: '未知角色',
+            role: 'supporting',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
         ]}
         existingLocations={[]}
         existingItems={[]}
@@ -496,7 +725,14 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
       ...unresolvedExtraction,
       relationships: [
         ...unresolvedExtraction.relationships,
-        { sourceName: '张三', sourceType: 'character', targetName: '另一未知角色', targetType: 'character', relationshipType: '同盟', description: '' },
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '另一未知角色',
+          targetType: 'character',
+          relationshipType: '同盟',
+          description: '',
+        },
       ],
     };
 
@@ -513,7 +749,9 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
       />
     );
 
-    const confirmBtn = screen.getByRole('button', { name: '导入可确认项并处理 2 条关系' }) as HTMLButtonElement;
+    const confirmBtn = screen.getByRole('button', {
+      name: '导入可确认项并处理 2 条关系',
+    }) as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: '跳过全部待确认关系' }));
@@ -531,7 +769,17 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
     render(
       <SyncPreviewPanel
         extraction={unresolvedExtraction}
-        existingCharacters={[{ id: 'c1', novelId: 'n1', name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] }]}
+        existingCharacters={[
+          {
+            id: 'c1',
+            novelId: 'n1',
+            name: '张三',
+            role: 'protagonist',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
+        ]}
         existingLocations={[]}
         existingItems={[]}
         existingFactions={[]}
@@ -554,14 +802,38 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
       ...emptyExtraction,
       characters: [{ name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] }],
       relationships: [
-        { sourceName: '张三', sourceType: 'character', targetName: '未知甲', targetType: 'character', relationshipType: '同盟', description: '可匹配关系' },
-        { sourceName: '张三', sourceType: 'character', targetName: '未知势力', targetType: 'faction', relationshipType: '敌对', description: '只能跳过关系' },
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '未知甲',
+          targetType: 'character',
+          relationshipType: '同盟',
+          description: '可匹配关系',
+        },
+        {
+          sourceName: '张三',
+          sourceType: 'character',
+          targetName: '未知势力',
+          targetType: 'faction',
+          relationshipType: '敌对',
+          description: '只能跳过关系',
+        },
       ],
     };
     render(
       <SyncPreviewPanel
         extraction={extraction}
-        existingCharacters={[{ id: 'c1', novelId: 'n1', name: '李四', role: 'supporting', summary: '', bio: '', traits: [] }]}
+        existingCharacters={[
+          {
+            id: 'c1',
+            novelId: 'n1',
+            name: '李四',
+            role: 'supporting',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
+        ]}
         existingLocations={[]}
         existingItems={[]}
         existingFactions={[]}
@@ -572,14 +844,21 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: '关系' }));
-    const repairRows = [screen.getByText('可匹配关系'), screen.getByText('只能跳过关系')]
-      .map(description => description.closest('[data-relationship-repair]'));
+    const repairRows = [screen.getByText('可匹配关系'), screen.getByText('只能跳过关系')].map(
+      (description) => description.closest('[data-relationship-repair]')
+    );
 
     expect(repairRows.every(Boolean)).toBe(true);
-    expect(within(repairRows[0] as HTMLElement).getByRole('option', { name: '李四' })).toBeDefined();
-    expect(within(repairRows[0] as HTMLElement).getByRole('button', { name: '跳过此关系' })).toBeDefined();
+    expect(
+      within(repairRows[0] as HTMLElement).getByRole('option', { name: '李四' })
+    ).toBeDefined();
+    expect(
+      within(repairRows[0] as HTMLElement).getByRole('button', { name: '跳过此关系' })
+    ).toBeDefined();
     expect(within(repairRows[1] as HTMLElement).queryByRole('combobox')).toBeNull();
-    expect(within(repairRows[1] as HTMLElement).getByRole('button', { name: '跳过此关系' })).toBeDefined();
+    expect(
+      within(repairRows[1] as HTMLElement).getByRole('button', { name: '跳过此关系' })
+    ).toBeDefined();
   });
 
   test('T2c: skip then recheck entity clears skip and restores relationship', async () => {
@@ -609,7 +888,17 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
     rerender(
       <SyncPreviewPanel
         extraction={unresolvedExtraction}
-        existingCharacters={[{ id: 'c1', novelId: 'n1', name: '未知角色', role: 'supporting', summary: '', bio: '', traits: [] }]}
+        existingCharacters={[
+          {
+            id: 'c1',
+            novelId: 'n1',
+            name: '未知角色',
+            role: 'supporting',
+            summary: '',
+            bio: '',
+            traits: [],
+          },
+        ]}
         existingLocations={[]}
         existingItems={[]}
         existingFactions={[]}
@@ -628,9 +917,9 @@ describe('SyncPreviewPanel T4.4-T4.6', () => {
     expect(confirmBtnAfter.disabled).toBe(false);
 
     // Check the relationship checkbox and click confirm
-    const relCheckbox = screen.getAllByRole('checkbox').find(
-      cb => !cb.closest('label')?.textContent?.includes('张三')
-    );
+    const relCheckbox = screen
+      .getAllByRole('checkbox')
+      .find((cb) => !cb.closest('label')?.textContent?.includes('张三'));
     expect(relCheckbox).toBeDefined();
     fireEvent.click(relCheckbox!);
     fireEvent.click(confirmBtnAfter);

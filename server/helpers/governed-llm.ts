@@ -23,7 +23,7 @@ export interface LlmCallGovernance {
 export async function governedGenerateText(
   config: GenerateConfig,
   options: GenerateOptions,
-  governance?: LlmCallGovernance,
+  governance?: LlmCallGovernance
 ): Promise<string> {
   if (hasActiveLlmExecution()) return generateTextRaw(config, options);
   if (!governance) throw new Error('Ungoverned LLM call rejected');

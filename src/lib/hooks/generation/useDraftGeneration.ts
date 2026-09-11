@@ -1,13 +1,21 @@
 import { type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useEditorGenerationStore } from '../../../stores/editor-generation-store';
-import type { Novel, Chapter, WritingStyleCandidate, WritingStyleResolution } from '../../../../shared/types';
+import type {
+  Novel,
+  Chapter,
+  WritingStyleCandidate,
+  WritingStyleResolution,
+} from '../../../../shared/types';
 import type { AgentContext } from '../../agents';
 import { editorAgentPhase, buildContextPrompt } from '../../agents';
 import { updateChapter } from '../../chapter-client';
 import { readDraftStream } from '../../draft-stream';
 import { SseError } from '../../sse-client';
 import { recordProductEvent } from '../../product-events-client';
-import { getDatabaseGenerationSnapshot, requireResponseDatabaseGeneration } from '../../db-transport';
+import {
+  getDatabaseGenerationSnapshot,
+  requireResponseDatabaseGeneration,
+} from '../../db-transport';
 import {
   createAiActionError,
   createAiActionRunning,
@@ -27,7 +35,10 @@ interface UseDraftGenerationArgs {
   selectedContinuationPackId: string;
   writingStyleFingerprint?: string;
   sessionCardIds?: string[];
-  onStyleConfirmationRequired?: (data: { resolution?: WritingStyleResolution; candidates?: WritingStyleCandidate[] }) => void;
+  onStyleConfirmationRequired?: (data: {
+    resolution?: WritingStyleResolution;
+    candidates?: WritingStyleCandidate[];
+  }) => void;
   contentRef: RefObject<HTMLTextAreaElement | null>;
   draftPromptSurface: string;
   requestSeqRef: { current: number };
@@ -44,7 +55,13 @@ interface UseDraftGenerationArgs {
   getCurrentFitScore: () => number;
   recordSkillUsage: (
     userAction: 'accepted' | 'revised' | 'rejected',
-    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[]; databaseGeneration?: number },
+    options?: {
+      fitScore?: number;
+      auditScore?: number;
+      notes?: string;
+      skillIds?: string[];
+      databaseGeneration?: number;
+    }
   ) => Promise<void>;
   formatAiFailure: (error: unknown, actionLabel: string) => string;
   flushPendingEditorWrites: () => Promise<void>;
@@ -82,13 +99,18 @@ export function useDraftGeneration({
   // 178：生成互斥——任一 isGenerating* 在途即拒绝新入口，不做隐式顶替（需先手动停止）。
   const isAnyGenerationFlagRaised = () => {
     const state = useEditorGenerationStore.getState();
-    return state.isGeneratingOutline || state.isGeneratingContent || state.isGeneratingBeats || state.isGeneratingCritique;
+    return (
+      state.isGeneratingOutline ||
+      state.isGeneratingContent ||
+      state.isGeneratingBeats ||
+      state.isGeneratingCritique
+    );
   };
   const setAiActionState = providedSetAiActionState ?? (() => undefined);
   const setAiActionStateForRequest = (
     startingChapterId: string | undefined,
     requestSeq: number,
-    state: SetStateAction<AiActionState>,
+    state: SetStateAction<AiActionState>
   ) => {
     if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === requestSeq) {
       setAiActionState(state);
@@ -114,8 +136,13 @@ export function useDraftGeneration({
       try {
         await flushPendingEditorWrites();
       } catch (error) {
-        if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
-          setAiActionState((state) => createAiActionError(state, formatAiFailure(error, '分镜生成')));
+        if (
+          latestChapterIdRef.current === startingChapterId &&
+          requestSeqRef.current === currentSeq
+        ) {
+          setAiActionState((state) =>
+            createAiActionError(state, formatAiFailure(error, '分镜生成'))
+          );
         }
         return;
       }
@@ -124,12 +151,18 @@ export function useDraftGeneration({
       try {
         databaseGeneration = await getDatabaseGenerationSnapshot(controller.signal);
       } catch (error) {
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+        if (
+          latestChapterIdRef.current !== startingChapterId ||
+          requestSeqRef.current !== currentSeq
+        )
+          return;
         if (error instanceof Error && error.name === 'AbortError') {
           setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
           return;
         }
-        setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, formatAiFailure(error, '分镜生成')));
+        setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+          createAiActionError(state, formatAiFailure(error, '分镜生成'))
+        );
         return;
       }
 
@@ -141,47 +174,67 @@ export function useDraftGeneration({
           databaseGeneration,
           selectedContinuationPackId || undefined,
           (progress, _status) => {
-            if (latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+            if (
+              latestChapterIdRef.current === startingChapterId &&
+              requestSeqRef.current === currentSeq
+            ) {
               setGenerationStatus(`正在分镜拆解中 [${progress}%]...`);
             }
           },
-          controller.signal,
+          controller.signal
         ));
       } catch (error) {
-        if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+        if (
+          latestChapterIdRef.current !== startingChapterId ||
+          requestSeqRef.current !== currentSeq
+        )
+          return;
         if (error instanceof Error && error.name === 'AbortError') {
           setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
           return;
         }
-        setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, formatAiFailure(error, '分镜生成')));
+        setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+          createAiActionError(state, formatAiFailure(error, '分镜生成'))
+        );
         return;
       }
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
       try {
-        if (!await updateChapter(currentChapter.id, { sceneBeats: beats }, databaseGeneration)) {
+        if (!(await updateChapter(currentChapter.id, { sceneBeats: beats }, databaseGeneration))) {
           throw new Error('章节已不存在，分镜未保存。');
         }
       } catch (error) {
-        setCurrentChapter((prev) => (
+        setCurrentChapter((prev) =>
           prev?.id === currentChapter.id ? { ...prev, sceneBeats: currentChapter.sceneBeats } : prev
-        ));
-        setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, formatAiFailure(error, '分镜保存')));
+        );
+        setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+          createAiActionError(state, formatAiFailure(error, '分镜保存'))
+        );
         return;
       }
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
-      setCurrentChapter((prev) => (prev?.id === currentChapter.id ? { ...prev, sceneBeats: beats } : prev));
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
+      setCurrentChapter((prev) =>
+        prev?.id === currentChapter.id ? { ...prev, sceneBeats: beats } : prev
+      );
       setUserIntent('');
-      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionSuccess(state, '场景分镜已生成并保存。'));
+      setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+        createAiActionSuccess(state, '场景分镜已生成并保存。')
+      );
     } catch (error) {
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
       if (error instanceof Error && error.name === 'AbortError') {
         setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
         return;
       }
       const message = formatAiFailure(error, '分镜生成');
-      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message));
+      setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+        createAiActionError(state, message)
+      );
     } finally {
       // 178：自己持有的旗标无条件复位，防止被顶掉后永久卡 true。
       setIsGeneratingBeats(false);
@@ -249,12 +302,18 @@ export function useDraftGeneration({
         signal: controller.signal,
       });
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
 
       if (!response.ok) {
         const errorData = await readErrorBodyOnce(response);
         if (response.status === 409 && errorData?.code === 'STYLE_CONFIRMATION_REQUIRED') {
-          onStyleConfirmationRequired?.(errorData as { resolution?: WritingStyleResolution; candidates?: WritingStyleCandidate[] });
+          onStyleConfirmationRequired?.(
+            errorData as {
+              resolution?: WritingStyleResolution;
+              candidates?: WritingStyleCandidate[];
+            }
+          );
           setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
           return;
         }
@@ -274,7 +333,9 @@ export function useDraftGeneration({
       let generationSource: 'model' | 'fallback' = 'model';
       accumulatedGeneratedText = await readDraftStream(response, {
         onStatus: (message) => setGenerationStatus(message),
-        onSource: (source) => { generationSource = source; },
+        onSource: (source) => {
+          generationSource = source;
+        },
         onToken: (token) => {
           accumulatedGeneratedText += token;
           // Stream tokens remain a transient preview. The chapter is untouched until acceptance.
@@ -292,38 +353,58 @@ export function useDraftGeneration({
         throw new Error(`正文候选未通过质量门禁：${quality.violations.join('；')}`);
       }
 
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
       setCandidate?.({
-        id: `${currentChapter.id}:${currentSeq}:draft`, operation: 'draft', novelId: novel.id,
-        chapterId: currentChapter.id, databaseGeneration, createdAt: Date.now(), baselineHash: computeChapterWorkflowHash(baselineContent, currentChapter.sceneBeats),
-        baselineContent, content: fullText, quality, source: generationSource,
+        id: `${currentChapter.id}:${currentSeq}:draft`,
+        operation: 'draft',
+        novelId: novel.id,
+        chapterId: currentChapter.id,
+        databaseGeneration,
+        createdAt: Date.now(),
+        baselineHash: computeChapterWorkflowHash(baselineContent, currentChapter.sceneBeats),
+        baselineContent,
+        content: fullText,
+        quality,
+        source: generationSource,
       });
       completedContent = true;
       setGenerationStatus('正文候选已生成，请接受后保存。');
-      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionSuccess(state, '正文候选已生成，接受后写入当前章节。'));
+      setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+        createAiActionSuccess(state, '正文候选已生成，接受后写入当前章节。')
+      );
     } catch (error) {
-      if (!completedContent && latestChapterIdRef.current === startingChapterId && requestSeqRef.current === currentSeq) {
+      if (
+        !completedContent &&
+        latestChapterIdRef.current === startingChapterId &&
+        requestSeqRef.current === currentSeq
+      ) {
         const baselineWordCount = baselineContent.replace(/\s/g, '').length;
-        setCurrentChapter((prev) => (
+        setCurrentChapter((prev) =>
           prev && prev.id === startingChapterId
             ? { ...prev, content: baselineContent, wordCount: baselineWordCount }
             : prev
-        ));
+        );
       }
-      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq) return;
+      if (latestChapterIdRef.current !== startingChapterId || requestSeqRef.current !== currentSeq)
+        return;
       if (error instanceof Error && error.name === 'AbortError') {
         setAiActionStateForRequest(startingChapterId, currentSeq, idleAiAction());
         return;
       }
-      const message = error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED'
-        ? '正文生成暂不可用，请检查当前能力额度后重试。'
-        : formatAiFailure(error, '连续写作');
-      const violations = error instanceof SseError && error.violations?.length
-        ? error.violations
-        : error instanceof Error && error.message.startsWith('正文候选未通过质量门禁：')
-          ? error.message.slice('正文候选未通过质量门禁：'.length).split('；').filter(Boolean)
-          : undefined;
-      setAiActionStateForRequest(startingChapterId, currentSeq, (state) => createAiActionError(state, message, Date.now(), true, undefined, violations));
+      const message =
+        error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED'
+          ? '正文生成暂不可用，请检查当前能力额度后重试。'
+          : formatAiFailure(error, '连续写作');
+      const violations =
+        error instanceof SseError && error.violations?.length
+          ? error.violations
+          : error instanceof Error && error.message.startsWith('正文候选未通过质量门禁：')
+            ? error.message.slice('正文候选未通过质量门禁：'.length).split('；').filter(Boolean)
+            : undefined;
+      setAiActionStateForRequest(startingChapterId, currentSeq, (state) =>
+        createAiActionError(state, message, Date.now(), true, undefined, violations)
+      );
       if (error instanceof Error && error.message === 'QUOTA_LIMIT_EXCEEDED') return;
     } finally {
       // 178：自己持有的旗标无条件复位，防止被顶掉后永久卡 true。

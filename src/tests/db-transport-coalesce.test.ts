@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { __dbTransportTestHooks, flushPendingNotifications, subscribeToChanges } from '../lib/db-transport';
+import {
+  __dbTransportTestHooks,
+  flushPendingNotifications,
+  subscribeToChanges,
+} from '../lib/db-transport';
 
 // Plan 183：SSE 外部写事件分发 trailing 合并。
 // db-transport 无既有 EventSource mock 先例，这里用最小 stub 走真实 onmessage 路径。
@@ -26,10 +30,13 @@ class FakeEventSource {
 }
 
 function installTransportStubs(): void {
-  vi.stubGlobal('fetch', vi.fn(async () => ({
-    ok: true,
-    json: async () => ({ token: 'a'.repeat(64) }),
-  })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ token: 'a'.repeat(64) }),
+    }))
+  );
   vi.stubGlobal('EventSource', FakeEventSource);
 }
 

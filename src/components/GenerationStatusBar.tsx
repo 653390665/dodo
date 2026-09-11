@@ -26,7 +26,12 @@ function toneIcon(tone: SegmentTone) {
   return <CircleDashed size={12} />;
 }
 
-function sourceSegment(key: string, label: string, source: 'fallback' | 'model' | null, running: boolean): Segment {
+function sourceSegment(
+  key: string,
+  label: string,
+  source: 'fallback' | 'model' | null,
+  running: boolean
+): Segment {
   if (source === 'model') return { key, label, tone: 'done', detail: '完成' };
   if (source === 'fallback') return { key, label, tone: 'warn', detail: '降级' };
   if (running) return { key, label, tone: 'active', detail: '进行中' };
@@ -38,7 +43,12 @@ function sourceSegment(key: string, label: string, source: 'fallback' | 'model' 
  * 完整生产从 production-store 推导四段；快速模式（无 run 记录）由
  * 候选/写入状态覆盖后两段。两种模式共用同一组件、同一套说法。
  */
-export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, quickWritten = false, onWriteClick }: {
+export function GenerationStatusBar({
+  mode = 'full',
+  quickDraftReady = false,
+  quickWritten = false,
+  onWriteClick,
+}: {
   mode?: 'full' | 'quick';
   /** 快速模式：草稿候选已就绪（覆盖②④段推导）。 */
   quickDraftReady?: boolean;
@@ -66,7 +76,12 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
     } else if (runAuditStatus === 'fail') {
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'failed', detail: '未通过' });
     } else if (runAuditStatus === 'unknown' || auditSource === 'fallback') {
-      segments.push({ key: 'audit', label: '③ 审稿', tone: 'warn', detail: runAuditStatus === 'unknown' ? '状态未知' : '降级' });
+      segments.push({
+        key: 'audit',
+        label: '③ 审稿',
+        tone: 'warn',
+        detail: runAuditStatus === 'unknown' ? '状态未知' : '降级',
+      });
     } else if (isProductionRunning) {
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'active', detail: '进行中' });
     } else {
@@ -84,7 +99,12 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
       segments.push({ key: 'write', label: '④ 写入', tone: 'pending', detail: '待生成' });
     }
   } else {
-    segments.push({ key: 'beats', label: '① 分镜', tone: beatsSource ? 'done' : 'pending', detail: beatsSource === 'fallback' ? '降级' : beatsSource ? '完成' : '未生成' });
+    segments.push({
+      key: 'beats',
+      label: '① 分镜',
+      tone: beatsSource ? 'done' : 'pending',
+      detail: beatsSource === 'fallback' ? '降级' : beatsSource ? '完成' : '未生成',
+    });
     if (quickWritten) {
       segments.push({ key: 'draft', label: '② 正文', tone: 'done', detail: '完成' });
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'pending', detail: '已跳过' });
@@ -94,7 +114,12 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'pending', detail: '已跳过' });
       segments.push({ key: 'write', label: '④ 写入', tone: 'active', detail: '待写入' });
     } else {
-      segments.push({ key: 'draft', label: '② 正文', tone: isProductionRunning ? 'active' : 'pending', detail: isProductionRunning ? '进行中' : '未生成' });
+      segments.push({
+        key: 'draft',
+        label: '② 正文',
+        tone: isProductionRunning ? 'active' : 'pending',
+        detail: isProductionRunning ? '进行中' : '未生成',
+      });
       segments.push({ key: 'audit', label: '③ 审稿', tone: 'pending', detail: '已跳过' });
       segments.push({ key: 'write', label: '④ 写入', tone: 'pending', detail: '待生成' });
     }
@@ -107,20 +132,32 @@ export function GenerationStatusBar({ mode = 'full', quickDraftReady = false, qu
         const clickable = Boolean(onWriteClick) && isWriteSegment && segment.tone === 'active';
         return (
           <span key={segment.key} className="flex items-center gap-2">
-            {index > 0 && <span aria-hidden="true" className="text-theme-border">→</span>}
+            {index > 0 && (
+              <span aria-hidden="true" className="text-theme-border">
+                →
+              </span>
+            )}
             {clickable ? (
               <button
                 type="button"
                 onClick={onWriteClick}
                 title="滚动到接受区"
-                className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold underline decoration-dotted underline-offset-2 cursor-pointer', toneStyles[segment.tone])}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold underline decoration-dotted underline-offset-2 cursor-pointer',
+                  toneStyles[segment.tone]
+                )}
               >
                 {toneIcon(segment.tone)}
                 {segment.label}
                 <span className="font-medium opacity-80">· {segment.detail} ›</span>
               </button>
             ) : (
-              <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold', toneStyles[segment.tone])}>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold',
+                  toneStyles[segment.tone]
+                )}
+              >
                 {toneIcon(segment.tone)}
                 {segment.label}
                 <span className="font-medium opacity-80">· {segment.detail}</span>

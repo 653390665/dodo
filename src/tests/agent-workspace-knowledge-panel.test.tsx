@@ -114,7 +114,9 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('检索资料包、角色、地点、道具...') as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      '检索资料包、角色、地点、道具...'
+    ) as HTMLInputElement;
     expect(input.value).toBe('');
 
     // Simulate user typing a character
@@ -165,17 +167,25 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('检索资料包、角色、地点、道具...') as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      '检索资料包、角色、地点、道具...'
+    ) as HTMLInputElement;
 
     // Fast sequential typing
     fireEvent.change(input, { target: { value: '林' } });
-    act(() => { vi.advanceTimersByTime(50); });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
 
     fireEvent.change(input, { target: { value: '林砚' } });
-    act(() => { vi.advanceTimersByTime(50); });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
 
     fireEvent.change(input, { target: { value: '林砚的' } });
-    act(() => { vi.advanceTimersByTime(50); });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
 
     // Since each stroke is within 50ms, parent should not have been called yet
     expect(setBibleSearchMock).not.toHaveBeenCalled();
@@ -237,7 +247,9 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('检索资料包、角色、地点、道具...') as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      '检索资料包、角色、地点、道具...'
+    ) as HTMLInputElement;
 
     // The input value must be updated instantly to match the prop
     expect(input.value).toBe('掌柜');
@@ -287,10 +299,53 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
         },
       },
       librarySkills: [
-        { id: 'main-card', name: '主卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'style-card', createdAt: 1 },
-        { id: 'support-card', name: '辅卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'worldview-card', createdAt: 1 },
-        { id: 'prose-mouth-flavor', name: '口语化技法', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1 },
-        { id: 'chapter-card', name: '本章卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'style-card', createdAt: 1 },
+        {
+          id: 'main-card',
+          name: '主卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          deconstructionCardType: 'style-card',
+          createdAt: 1,
+        },
+        {
+          id: 'support-card',
+          name: '辅卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          deconstructionCardType: 'worldview-card',
+          createdAt: 1,
+        },
+        {
+          id: 'prose-mouth-flavor',
+          name: '口语化技法',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          createdAt: 1,
+        },
+        {
+          id: 'chapter-card',
+          name: '本章卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          deconstructionCardType: 'style-card',
+          createdAt: 1,
+        },
       ],
     });
 
@@ -298,12 +353,20 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
     expect(screen.getByLabelText('本章能力来源摘要')).toBeDefined();
     expect(screen.getByText('番茄平台流')).toBeDefined();
     expect(screen.queryByText('tomato-platform-flow')).toBeNull();
-    expect(screen.getByText('作品默认 1 · 本章 1 · 作品技法 1 · 本章技法 0 · 系统护栏 12')).toBeDefined();
-    expect(screen.getByText('主卡、本章卡、口语化技法、灵感助手、故事方案卡 等 10 项')).toBeDefined();
-    expect(screen.getByText('主卡决定后续正文的主导口吻与节奏；辅卡补充世界观、人物或钩子约束。')).toBeDefined();
+    expect(
+      screen.getByText('作品默认 1 · 本章 1 · 作品技法 1 · 本章技法 0 · 系统护栏 12')
+    ).toBeDefined();
+    expect(
+      screen.getByText('主卡、本章卡、口语化技法、灵感助手、故事方案卡 等 10 项')
+    ).toBeDefined();
+    expect(
+      screen.getByText('主卡决定后续正文的主导口吻与节奏；辅卡补充世界观、人物或钩子约束。')
+    ).toBeDefined();
     expect(screen.getByText('常用技法')).toBeDefined();
     expect(screen.getByText('口语化技法')).toBeDefined();
-    expect(screen.getByText('常用技法会作为作品偏好参与后续正文生成；本章使用规则只影响当前章节。')).toBeDefined();
+    expect(
+      screen.getByText('常用技法会作为作品偏好参与后续正文生成；本章使用规则只影响当前章节。')
+    ).toBeDefined();
     expect(screen.getByText('本章使用规则 1 项')).toBeDefined();
     expect(screen.getByText('主卡')).toBeDefined();
     expect(screen.getByText('本章使用卡')).toBeDefined();
@@ -319,7 +382,11 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       capabilityModelVersion: 3,
       capabilityProfile: {
         version: 3,
-        projectSkillDeck: { mainCardId: 'style-ancient-elegance', supportCardIds: [], updatedAt: 1 },
+        projectSkillDeck: {
+          mainCardId: 'style-ancient-elegance',
+          supportCardIds: [],
+          updatedAt: 1,
+        },
         favoriteTechniqueIds: [],
       },
     };
@@ -349,7 +416,9 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       librarySkills: [],
     });
 
-    expect(screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')).toBeDefined();
+    expect(
+      screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')
+    ).toBeDefined();
     expect(screen.getByText('系统检查规则').nextElementSibling?.textContent).toContain('灵感助手');
     expect(screen.queryByText('未配置系统检查规则')).toBeNull();
     expect(screen.queryByText('未启用系统检查规则')).toBeNull();
@@ -367,9 +436,42 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       },
     };
     const librarySkills: Skill[] = [
-      { id: 'chapter-card-a', name: '第一章卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'style-card', createdAt: 1 },
-      { id: 'chapter-card-b', name: '第二章卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'style-card', createdAt: 1 },
-      { id: 'chapter-card-c', name: '第二章节奏卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, deconstructionCardType: 'pacing-card', createdAt: 1 },
+      {
+        id: 'chapter-card-a',
+        name: '第一章卡',
+        description: '',
+        style: '',
+        pacing: '',
+        stabilityScore: 80,
+        evaluationFeedback: '',
+        version: 1,
+        deconstructionCardType: 'style-card',
+        createdAt: 1,
+      },
+      {
+        id: 'chapter-card-b',
+        name: '第二章卡',
+        description: '',
+        style: '',
+        pacing: '',
+        stabilityScore: 80,
+        evaluationFeedback: '',
+        version: 1,
+        deconstructionCardType: 'style-card',
+        createdAt: 1,
+      },
+      {
+        id: 'chapter-card-c',
+        name: '第二章节奏卡',
+        description: '',
+        style: '',
+        pacing: '',
+        stabilityScore: 80,
+        evaluationFeedback: '',
+        version: 1,
+        deconstructionCardType: 'pacing-card',
+        createdAt: 1,
+      },
     ];
 
     const view = renderSkillsPanel({
@@ -378,7 +480,9 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       librarySkills,
     });
 
-    expect(screen.getByText('作品默认 0 · 本章 1 · 作品技法 0 · 本章技法 0 · 系统护栏 12')).toBeDefined();
+    expect(
+      screen.getByText('作品默认 0 · 本章 1 · 作品技法 0 · 本章技法 0 · 系统护栏 12')
+    ).toBeDefined();
     expect(screen.getAllByText('第一章卡').length).toBeGreaterThanOrEqual(1);
 
     view.rerender(
@@ -403,7 +507,9 @@ describe('AgentWorkspaceKnowledgePanel Debounce and Sync Suite', () => {
       />
     );
 
-    expect(screen.getByText('作品默认 0 · 本章 2 · 作品技法 0 · 本章技法 0 · 系统护栏 12')).toBeDefined();
+    expect(
+      screen.getByText('作品默认 0 · 本章 2 · 作品技法 0 · 本章技法 0 · 系统护栏 12')
+    ).toBeDefined();
     expect(screen.getAllByText('第二章卡、第二章节奏卡').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('第一章卡')).toBeNull();
   });

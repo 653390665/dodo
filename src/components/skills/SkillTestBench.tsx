@@ -22,7 +22,7 @@ async function runSkillStream(
   novelId: string,
   chapterId: string,
   databaseGeneration: number,
-  styleConfirmationFingerprint?: string,
+  styleConfirmationFingerprint?: string
 ) {
   const response = await fetch('/api/orchestrate', {
     method: 'POST',
@@ -69,7 +69,7 @@ export function SkillTestBench({
 
   const candidateSkill = useMemo(
     () => candidates.find((skill) => skill.id === candidateId) || null,
-    [candidateId, candidates],
+    [candidateId, candidates]
   );
 
   async function handleRun(mode: 'single' | 'compare') {
@@ -85,7 +85,7 @@ export function SkillTestBench({
 
     const baseSessionCardIds = getTrustedSessionCardIds(
       [baseSkill.id, baseSkill.parentSkillId || ''],
-      allSkills,
+      allSkills
     );
     if (!baseSessionCardIds.length) {
       toast('当前能力卡尚未保存为可运行版本，暂不能试跑。', 'info');
@@ -103,14 +103,14 @@ export function SkillTestBench({
         novelId,
         chapterId,
         databaseGeneration,
-        styleConfirmationFingerprint,
+        styleConfirmationFingerprint
       );
       setBaseOutput(primary);
 
       if (mode === 'compare' && candidateSkill) {
         const candidateSessionCardIds = getTrustedSessionCardIds(
           [candidateSkill.id, candidateSkill.parentSkillId || ''],
-          allSkills,
+          allSkills
         );
         if (!candidateSessionCardIds.length) {
           throw new Error('对比能力卡尚未保存为可运行版本，暂不能试跑');
@@ -123,7 +123,7 @@ export function SkillTestBench({
           novelId,
           chapterId,
           databaseGeneration,
-          styleConfirmationFingerprint,
+          styleConfirmationFingerprint
         );
         setCandidateOutput(secondary);
       }
@@ -148,20 +148,41 @@ export function SkillTestBench({
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={!input.trim() || !novelId || !chapterId || databaseGeneration === undefined || runningMode !== null}
+            disabled={
+              !input.trim() ||
+              !novelId ||
+              !chapterId ||
+              databaseGeneration === undefined ||
+              runningMode !== null
+            }
             onClick={() => handleRun('single')}
             className="flex-1 rounded-xl bg-theme-text text-theme-bg px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
-            {runningMode === 'single' ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+            {runningMode === 'single' ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Wand2 size={14} />
+            )}
             运行当前版本
           </button>
           <button
             type="button"
-            disabled={!input.trim() || !novelId || !chapterId || databaseGeneration === undefined || !candidateSkill || runningMode !== null}
+            disabled={
+              !input.trim() ||
+              !novelId ||
+              !chapterId ||
+              databaseGeneration === undefined ||
+              !candidateSkill ||
+              runningMode !== null
+            }
             onClick={() => handleRun('compare')}
             className="flex-1 rounded-xl bg-theme-accent text-theme-accent-contrast px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
-            {runningMode === 'compare' ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+            {runningMode === 'compare' ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Wand2 size={14} />
+            )}
             对比试跑
           </button>
         </div>

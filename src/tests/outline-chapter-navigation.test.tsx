@@ -20,7 +20,6 @@ describe('outline chapter navigation', () => {
     const onSelectChapter = vi.fn(async () => {});
     render(
       <OutlineTab
-        
         onGenerateOutline={vi.fn(async () => {})}
         isGeneratingOutline={false}
         onGlobalOutlineChange={vi.fn()}
@@ -28,7 +27,7 @@ describe('outline chapter navigation', () => {
         currentChapter={null}
         onSelectChapter={onSelectChapter}
         selectedContinuationPack={null}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: /第二章/ }));

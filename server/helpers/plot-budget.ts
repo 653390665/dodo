@@ -5,8 +5,10 @@
 
 export function getPlotBudgetGuidelines(chapterOrder: number): string {
   const isOpeningMode = chapterOrder <= 10;
-  const modeName = isOpeningMode ? "开篇模式 (Opening Mode)" : "十章循环模式 (10-Chapter Cyclic Mode)";
-  
+  const modeName = isOpeningMode
+    ? '开篇模式 (Opening Mode)'
+    : '十章循环模式 (10-Chapter Cyclic Mode)';
+
   let budgetPrompt = `\n\n### 剧情点预算与控制规约 (Plot Point Budget & Controls)
 【当前执行模式】：${modeName} (当前第 ${chapterOrder} 章)
 【剧情点消耗与揭示原则】：
@@ -27,6 +29,6 @@ export function getPlotBudgetGuidelines(chapterOrder: number): string {
    - 每次推进高潮后必须留下至少 2 个新的期待型伏笔悬念。
    - 严格防范前期过度透支设定。本章产生的设定与冲突必须可收回，确保后续章节有清晰的向上空间。`;
   }
-  
+
   return budgetPrompt;
 }

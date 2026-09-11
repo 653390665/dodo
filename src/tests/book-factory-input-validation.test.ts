@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { countChineseCharacters, MIN_BOOK_FACTORY_TEXT_CHARS } from '../components/book-factory/useBookFactory';
+import {
+  countChineseCharacters,
+  MIN_BOOK_FACTORY_TEXT_CHARS,
+} from '../components/book-factory/useBookFactory';
 
 describe('book factory input validation', () => {
   it('counts effective Chinese characters and requires the server minimum', () => {

@@ -64,5 +64,5 @@ export async function pollJob<T = unknown>(
       else signal?.addEventListener('abort', onAbort, { once: true });
     });
   }
-  throw new Error("Polling exceeded maximum retries");
+  throw new Error('Polling exceeded maximum retries');
 }

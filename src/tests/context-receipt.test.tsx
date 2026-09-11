@@ -12,7 +12,7 @@ describe('ContextReceipt', () => {
         selectedContinuationPack={{ title: '导入资料包' } as never}
         activeSkillsCount={2}
         bibleEntitiesCount={12}
-      />,
+      />
     );
 
     const details = screen.getByText('上下文来源未知').closest('details');
@@ -42,7 +42,7 @@ describe('ContextReceipt', () => {
         selectedContinuationPack={null}
         activeSkillsCount={0}
         bibleEntitiesCount={0}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByText('上下文来源未知'));
@@ -59,7 +59,7 @@ describe('ContextReceipt', () => {
         activeSkillsCount={0}
         bibleEntitiesCount={0}
         receipt={{ actual: true, injectedChars: 120, itemCount: 3 } as never}
-      />,
+      />
     );
 
     expect(screen.getByText('生成上下文已就绪')).toBeTruthy();

@@ -45,7 +45,13 @@ export interface OutputGuardResult {
   score: number;
   violations: string[];
   priorities?: Array<'P0' | 'P1' | 'P2'>;
-  signals?: Array<{ signal?: string; category: string; line: number; snippet: string; priority: 'P0' | 'P1' | 'P2' }>;
+  signals?: Array<{
+    signal?: string;
+    category: string;
+    line: number;
+    snippet: string;
+    priority: 'P0' | 'P1' | 'P2';
+  }>;
 }
 
 /**
@@ -55,13 +61,39 @@ export interface OutputGuardResult {
 export function isCreativeWritingRequest(prompt: string, systemInstruction?: string): boolean {
   const combined = `${prompt}\n${systemInstruction || ''}`.toLowerCase();
   const creativeKeywords = [
-    '小说', '写作', '润色', '续写', '精修', '大纲', '章节', '草稿', 'beats',
-    'novel', 'writer', 'chapter', 'draft', 'polish', 'rewrite', 'continuation',
-    'critique', 'critic', 'audit',
+    '小说',
+    '写作',
+    '润色',
+    '续写',
+    '精修',
+    '大纲',
+    '章节',
+    '草稿',
+    'beats',
+    'novel',
+    'writer',
+    'chapter',
+    'draft',
+    'polish',
+    'rewrite',
+    'continuation',
+    'critique',
+    'critic',
+    'audit',
     // Expanded keywords to ensure robust classification
-    '故事', '创作', '主笔', '扩写', '写一', '写篇', '撰写', 'story', 'creative', 'write', 'author'
+    '故事',
+    '创作',
+    '主笔',
+    '扩写',
+    '写一',
+    '写篇',
+    '撰写',
+    'story',
+    'creative',
+    'write',
+    'author',
   ];
-  return creativeKeywords.some(keyword => combined.includes(keyword));
+  return creativeKeywords.some((keyword) => combined.includes(keyword));
 }
 
 /**
@@ -69,7 +101,10 @@ export function isCreativeWritingRequest(prompt: string, systemInstruction?: str
  * Injects the prompt guard rules into the systemInstruction (Input Gate).
  * 输入门拦截：若判定为创意写作请求，无缝追加去 AI 味硬核规则。
  */
-export function applyInputGuard(prompt: string, systemInstruction?: string): { prompt: string; systemInstruction?: string } {
+export function applyInputGuard(
+  prompt: string,
+  systemInstruction?: string
+): { prompt: string; systemInstruction?: string } {
   if (!isCreativeWritingRequest(prompt, systemInstruction)) {
     return { prompt, systemInstruction };
   }
@@ -89,19 +124,33 @@ export function applyInputGuard(prompt: string, systemInstruction?: string): { p
 export function checkOutputGuard(text: string): OutputGuardResult {
   const report = scoreSlop(text);
 
-  const highConfidenceCategories = new Set(['ai_cliche', 'webnovel_trope', 'tell_dont_show', 'style_slop', 'action_chain', 'hook_ending']);
+  const highConfidenceCategories = new Set([
+    'ai_cliche',
+    'webnovel_trope',
+    'tell_dont_show',
+    'style_slop',
+    'action_chain',
+    'hook_ending',
+  ]);
   const findings = report.hits
-    .filter((hit) => highConfidenceCategories.has(hit.category) || (hit.category === 'structural' && hit.priority === 'P1'))
+    .filter(
+      (hit) =>
+        highConfidenceCategories.has(hit.category) ||
+        (hit.category === 'structural' && hit.priority === 'P1')
+    )
     .map((hit) => ({
       signal: hit.signal,
       category: hit.category,
       line: hit.line,
       snippet: hit.snippet,
-      priority: hit.priority || (highConfidenceCategories.has(hit.category) ? 'P1' : 'P2') as 'P0' | 'P1' | 'P2',
+      priority:
+        hit.priority ||
+        ((highConfidenceCategories.has(hit.category) ? 'P1' : 'P2') as 'P0' | 'P1' | 'P2'),
       suggestion: hit.suggestion,
     }));
-  const violations = findings
-    .map((hit) => `第 ${hit.line} 行: "${hit.snippet}" (${hit.suggestion || hit.signal || 'AI俗套'})`);
+  const violations = findings.map(
+    (hit) => `第 ${hit.line} 行: "${hit.snippet}" (${hit.suggestion || hit.signal || 'AI俗套'})`
+  );
 
   // Keep the Provider output gate aligned with the complete-chapter contract.
   // Short fragments can still be previewed by their caller; this gate only
@@ -113,7 +162,13 @@ export function checkOutputGuard(text: string): OutputGuardResult {
     score: report.score,
     violations: Array.from(new Set(violations)).slice(0, 5), // limit to 5 violations to prevent token bloating
     priorities: findings.map((finding) => finding.priority),
-    signals: findings.slice(0, 12).map(({ signal, category, line, snippet, priority }) => ({ signal, category, line, snippet, priority })),
+    signals: findings.slice(0, 12).map(({ signal, category, line, snippet, priority }) => ({
+      signal,
+      category,
+      line,
+      snippet,
+      priority,
+    })),
   };
 }
 
@@ -127,7 +182,7 @@ export function buildCorrectionPrompt(failedDraft: string, violations: string[])
 [SYSTEM CORRECTION GATE / 去AI俗套自动纠错重写]
 
 你刚才生成的正文未能通过【去AI味质量守卫门控】。你的文本中包含以下高置信词汇或结构问题（P2 仅作审稿建议）：
-${violations.map(v => `- ${v}`).join('\n')}
+${violations.map((v) => `- ${v}`).join('\n')}
 
 下面是需要修改的原始草稿：
 ---

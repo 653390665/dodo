@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
 import type { ContinuationEditorLaunchState } from '../../../shared/types';
 import { listContinuationPacks } from '../continuation-client';
-import { sortContinuationPacksByRecency, getPreferredContinuationPackId } from '../continuation-pack-selection';
+import {
+  sortContinuationPacksByRecency,
+  getPreferredContinuationPackId,
+} from '../continuation-pack-selection';
 import { subscribeToChanges } from '../db-transport';
 import { useContinuationPackStore } from '../../stores/continuation-pack-store';
 
@@ -18,9 +21,15 @@ export function useEditorContinuationPacks(
   // 011 Phase 1：状态后端换 store；加载与同步逻辑逐行保留
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
   const setContinuationPacks = useContinuationPackStore((state) => state.setContinuationPacks);
-  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
-  const setSelectedContinuationPackId = useContinuationPackStore((state) => state.setSelectedContinuationPackId);
-  const setSelectedContinuationPackIdUpdatable = useContinuationPackStore((state) => state.setSelectedContinuationPackIdUpdatable);
+  const selectedContinuationPackId = useContinuationPackStore(
+    (state) => state.selectedContinuationPackId
+  );
+  const setSelectedContinuationPackId = useContinuationPackStore(
+    (state) => state.setSelectedContinuationPackId
+  );
+  const setSelectedContinuationPackIdUpdatable = useContinuationPackStore(
+    (state) => state.setSelectedContinuationPackIdUpdatable
+  );
   const hasConsumedContinuationPackSelectionRef = useRef(false);
 
   // Reset pack selection consumed state on launch token or novel change
@@ -61,7 +70,13 @@ export function useEditorContinuationPacks(
       cancelled = true;
       unsubscribe();
     };
-  }, [launchState?.approvedPackId, launchState?.launchToken, novelId, setContinuationPacks, setSelectedContinuationPackIdUpdatable]);
+  }, [
+    launchState?.approvedPackId,
+    launchState?.launchToken,
+    novelId,
+    setContinuationPacks,
+    setSelectedContinuationPackIdUpdatable,
+  ]);
 
   return {
     continuationPacks,

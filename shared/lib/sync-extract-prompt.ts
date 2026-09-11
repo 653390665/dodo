@@ -1,11 +1,25 @@
 export interface SyncExtractionResult {
-  characters: Array<{ name: string; role: string; summary: string; bio: string; traits: string[]; sourceDocumentIds?: string[] }>;
+  characters: Array<{
+    name: string;
+    role: string;
+    summary: string;
+    bio: string;
+    traits: string[];
+    sourceDocumentIds?: string[];
+  }>;
   locations: Array<{ name: string; region: string; description: string }>;
   items: Array<{ name: string; type: string; description: string }>;
   factions: Array<{ name: string; leader: string; territory: string; description: string }>;
   powerLevels: Array<{ name: string; tier: number; characteristics: string; description: string }>;
   timelineEvents: Array<{ title: string; timestamp: string; description: string; order: number }>;
-  relationships: Array<{ sourceName: string; sourceType: string; targetName: string; targetType: string; relationshipType: string; description: string }>;
+  relationships: Array<{
+    sourceName: string;
+    sourceType: string;
+    targetName: string;
+    targetType: string;
+    relationshipType: string;
+    description: string;
+  }>;
   globalOutline: string;
   worldRules: string;
 }
@@ -16,13 +30,17 @@ export interface SyncExtractionPromptOptions {
   compact?: boolean;
 }
 
-export function buildSyncExtractionPrompt(sourceTexts: string[], options: SyncExtractionPromptOptions = {}): string {
+export function buildSyncExtractionPrompt(
+  sourceTexts: string[],
+  options: SyncExtractionPromptOptions = {}
+): string {
   const repairInstruction = options.repairIssues?.length
-    ? `\n## 上一次输出的格式问题\n只修复以下字段格式，不新增资料中没有的事实；仍然输出完整顶层结构：\n${options.repairIssues.map(issue => `- ${issue.path || '(根)'}：${issue.code}，${issue.message}`).join('\n')}`
+    ? `\n## 上一次输出的格式问题\n只修复以下字段格式，不新增资料中没有的事实；仍然输出完整顶层结构：\n${options.repairIssues.map((issue) => `- ${issue.path || '(根)'}：${issue.code}，${issue.message}`).join('\n')}`
     : '';
-  const jsonSyntaxRepairInstruction = options.repairKind === 'json_syntax'
-    ? '\n## JSON 语法修复要求\n上一次输出无法解析。本次只修复 JSON 语法，不新增资料中没有的事实。必须输出单一 JSON 根对象和完整顶层结构；所有键和值使用双引号（数字字段除外）。不得输出 Markdown、注释或尾逗号，不得输出多个 JSON，不得自动截断或省略数组。'
-    : '';
+  const jsonSyntaxRepairInstruction =
+    options.repairKind === 'json_syntax'
+      ? '\n## JSON 语法修复要求\n上一次输出无法解析。本次只修复 JSON 语法，不新增资料中没有的事实。必须输出单一 JSON 根对象和完整顶层结构；所有键和值使用双引号（数字字段除外）。不得输出 Markdown、注释或尾逗号，不得输出多个 JSON，不得自动截断或省略数组。'
+      : '';
   const compactRetryInstruction = options.compact
     ? '\n## 压缩重试模式\n这是一次输出长度压缩重试。保留所有顶层键和资料中可核实的实体，不任意裁剪实体数量；仅删除字段冗余，将 summary、bio、description、characteristics、relationship description 等改为最短事实短语。不要把推断写成证据，不要省略数组或用省略号代替内容。'
     : '';

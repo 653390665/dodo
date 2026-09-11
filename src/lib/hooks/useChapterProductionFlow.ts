@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import type { Chapter, ChapterMetadata, ChapterProductionRun } from '../../../shared/types';
-import { applyChapterProductionRun, startChapterProductionRunStream, type ProductionRunSSEEvent, ProductionStyleConfirmationRequiredError } from '../production-client';
+import {
+  applyChapterProductionRun,
+  startChapterProductionRunStream,
+  type ProductionRunSSEEvent,
+  ProductionStyleConfirmationRequiredError,
+} from '../production-client';
 import { getChapter } from '../chapter-client';
 import { getDatabaseGenerationSnapshot } from '../db-transport';
 import { recordProductEvent } from '../product-events-client';
@@ -16,9 +21,11 @@ interface UseChapterProductionFlowArgs {
   continuationPackId?: string;
   writingStyleFingerprint?: string;
   sessionCardIds?: string[];
-  onStyleConfirmationRequired?: (error: ProductionStyleConfirmationRequiredError & {
-    retry?: (fingerprint: string) => Promise<void>;
-  }) => void;
+  onStyleConfirmationRequired?: (
+    error: ProductionStyleConfirmationRequiredError & {
+      retry?: (fingerprint: string) => Promise<void>;
+    }
+  ) => void;
   flushPendingEditorWrites?: () => Promise<void>;
   refreshChapters: () => Promise<ChapterMetadata[]>;
   setCurrentChapter: React.Dispatch<React.SetStateAction<Chapter | null>>;
@@ -53,12 +60,16 @@ export function useChapterProductionFlow({
   const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
   const setActiveProductionRun = useProductionStore((state) => state.setActiveProductionRun);
   const setIsProductionRunning = useProductionStore((state) => state.setIsProductionRunning);
-  const setIsApplyingProductionRun = useProductionStore((state) => state.setIsApplyingProductionRun);
+  const setIsApplyingProductionRun = useProductionStore(
+    (state) => state.setIsApplyingProductionRun
+  );
   const setProductionError = useProductionStore((state) => state.setProductionError);
   const setProductionBeatsSource = useProductionStore((state) => state.setProductionBeatsSource);
   const setProductionDraftSource = useProductionStore((state) => state.setProductionDraftSource);
   const setProductionAuditSource = useProductionStore((state) => state.setProductionAuditSource);
-  const setProductionStatusMessage = useProductionStore((state) => state.setProductionStatusMessage);
+  const setProductionStatusMessage = useProductionStore(
+    (state) => state.setProductionStatusMessage
+  );
   const resetProductionFlow = useProductionStore((state) => state.resetProductionFlow);
 
   const productionAbortRef = useRef<AbortController | null>(null);
@@ -81,12 +92,20 @@ export function useChapterProductionFlow({
   }, [resetProductionFlow]);
   // 卸载即中止在途流：否则僵尸 SSE 会继续写 store 并烧 token，
   // 冷挂载守卫的"本实例无在途流"前提也不再成立。
-  useEffect(() => () => {
-    productionAbortRef.current?.abort();
-  }, []);
+  useEffect(
+    () => () => {
+      productionAbortRef.current?.abort();
+    },
+    []
+  );
   useEffect(() => {
     const previous = productionScopeRef.current;
-    if (previous.novelId === novelId && previous.chapterId === currentChapterId && previous.databaseGeneration === databaseGeneration) return;
+    if (
+      previous.novelId === novelId &&
+      previous.chapterId === currentChapterId &&
+      previous.databaseGeneration === databaseGeneration
+    )
+      return;
     productionScopeRef.current = { novelId, chapterId: currentChapterId, databaseGeneration };
     productionAbortRef.current?.abort();
     productionAbortRef.current = null;
@@ -107,16 +126,23 @@ export function useChapterProductionFlow({
     setIsProductionRunning(false);
     setProductionStatusMessage(null);
     setProductionError(message);
-    setActiveProductionRun((current) => current?.status === 'running'
-      ? { ...current, status: 'failed', errorMessage: message }
-      : current);
-  }, [setActiveProductionRun, setIsProductionRunning, setProductionError, setProductionStatusMessage]);
+    setActiveProductionRun((current) =>
+      current?.status === 'running'
+        ? { ...current, status: 'failed', errorMessage: message }
+        : current
+    );
+  }, [
+    setActiveProductionRun,
+    setIsProductionRunning,
+    setProductionError,
+    setProductionStatusMessage,
+  ]);
 
   const handleStartProductionRun = async (
     intentOverride?: string,
     fingerprintOverride?: string,
     allowStyleRetry = true,
-    preservePreview = false,
+    preservePreview = false
   ) => {
     if (productionAbortRef.current) {
       productionAbortRef.current.abort();
@@ -205,47 +231,59 @@ export function useChapterProductionFlow({
 
           switch (event.type) {
             case 'run_created':
-              setActiveProductionRun((prev) => prev ? { ...prev, id: event.runId } : prev);
+              setActiveProductionRun((prev) => (prev ? { ...prev, id: event.runId } : prev));
               break;
             case 'status':
               setProductionStatusMessage(event.message);
               break;
             case 'fallback_beats':
-              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, sceneBeats: event.content } : prev
+              );
               setProductionBeatsSource('fallback');
               break;
             case 'fallback_draft_token':
               fallbackDraftRef.current += event.content;
-              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: fallbackDraftRef.current } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, draftContent: fallbackDraftRef.current } : prev
+              );
               break;
             case 'fallback_draft_done':
               setProductionDraftSource('fallback');
               productionDraftSourceRef.current = 'fallback';
               break;
             case 'fallback_audit':
-              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, styleAudit: event.content } : prev
+              );
               setProductionAuditSource('fallback');
               break;
             case 'model_beats':
-              setActiveProductionRun((prev) => prev ? { ...prev, sceneBeats: event.content } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, sceneBeats: event.content } : prev
+              );
               setProductionBeatsSource('model');
               break;
             case 'model_draft_start':
               modelDraftRef.current = '';
               setProductionDraftSource('model');
               productionDraftSourceRef.current = 'model';
-              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: '' } : prev);
+              setActiveProductionRun((prev) => (prev ? { ...prev, draftContent: '' } : prev));
               break;
             case 'model_draft_token':
               setProductionDraftSource('model');
               productionDraftSourceRef.current = 'model';
               modelDraftRef.current += event.content;
-              setActiveProductionRun((prev) => prev ? { ...prev, draftContent: modelDraftRef.current } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, draftContent: modelDraftRef.current } : prev
+              );
               break;
             case 'model_draft_done':
               break;
             case 'model_audit':
-              setActiveProductionRun((prev) => prev ? { ...prev, styleAudit: event.content } : prev);
+              setActiveProductionRun((prev) =>
+                prev ? { ...prev, styleAudit: event.content } : prev
+              );
               setProductionAuditSource('model');
               break;
             case 'model_score':
@@ -258,12 +296,27 @@ export function useChapterProductionFlow({
                   chapterId: event.run.targetChapterId,
                   objectId: event.run.id,
                 };
-                void recordProductEvent({ eventName: 'scene_plan', stage: 'planning', result: 'success', ...common }).catch(() => undefined);
-                void recordProductEvent({ eventName: 'draft_preview', stage: 'drafting', result: 'success', ...common }).catch(() => undefined);
+                void recordProductEvent({
+                  eventName: 'scene_plan',
+                  stage: 'planning',
+                  result: 'success',
+                  ...common,
+                }).catch(() => undefined);
+                void recordProductEvent({
+                  eventName: 'draft_preview',
+                  stage: 'drafting',
+                  result: 'success',
+                  ...common,
+                }).catch(() => undefined);
                 const criticStatus = event.run.continuityReport.auditMeta?.status;
-                if (criticStatus === 'pass' || criticStatus === 'fail' || criticStatus === 'unknown') {
+                if (
+                  criticStatus === 'pass' ||
+                  criticStatus === 'fail' ||
+                  criticStatus === 'unknown'
+                ) {
                   void recordProductEvent({
-                    eventName: 'critic_review', stage: 'audit',
+                    eventName: 'critic_review',
+                    stage: 'audit',
                     result: 'success',
                     qualityStatus: criticStatus,
                     ...common,
@@ -277,19 +330,22 @@ export function useChapterProductionFlow({
               setIsProductionRunning(false);
               break;
             case 'error':
-
               setProductionError(event.message);
               break;
           }
         },
-        controller.signal,
+        controller.signal
       );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         void recordProductEvent({
-          eventName: 'draft_preview', stage: 'drafting', result: 'unknown',
-          durationMs: nowMs() - startedAt, errorCode: 'OPERATION_CANCELLED',
-          novelId, chapterId: currentChapterId,
+          eventName: 'draft_preview',
+          stage: 'drafting',
+          result: 'unknown',
+          durationMs: nowMs() - startedAt,
+          errorCode: 'OPERATION_CANCELLED',
+          novelId,
+          chapterId: currentChapterId,
         }).catch(() => undefined);
         return;
       }
@@ -299,9 +355,12 @@ export function useChapterProductionFlow({
       if (error instanceof ProductionStyleConfirmationRequiredError) {
         awaitingStyleConfirmation = true;
         if (allowStyleRetry) {
-          onStyleConfirmationRequired?.(Object.assign(error, {
-            retry: (fingerprint: string) => handleStartProductionRun(resolvedIntent, fingerprint, false, true),
-          }));
+          onStyleConfirmationRequired?.(
+            Object.assign(error, {
+              retry: (fingerprint: string) =>
+                handleStartProductionRun(resolvedIntent, fingerprint, false, true),
+            })
+          );
         } else {
           setProductionError(error.message);
         }
@@ -309,13 +368,16 @@ export function useChapterProductionFlow({
       }
 
       void recordProductEvent({
-        eventName: 'draft_preview', stage: 'drafting', result: 'failure',
-        durationMs: nowMs() - startedAt, errorCode: 'PRODUCTION_FAILED',
-        novelId, chapterId: currentChapterId,
+        eventName: 'draft_preview',
+        stage: 'drafting',
+        result: 'failure',
+        durationMs: nowMs() - startedAt,
+        errorCode: 'PRODUCTION_FAILED',
+        novelId,
+        chapterId: currentChapterId,
       }).catch(() => undefined);
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {
-
       if (productionAbortRef.current === controller) {
         if (!productionCompletedRef.current && !awaitingStyleConfirmation) {
           const message = '生产流未完整结束，预览不会作为成功正文提交，请重试。';
@@ -327,7 +389,7 @@ export function useChapterProductionFlow({
                   status: 'failed',
                   errorMessage: prev.errorMessage || message,
                 }
-              : prev,
+              : prev
           );
         }
         setIsProductionRunning(false);
@@ -360,14 +422,15 @@ export function useChapterProductionFlow({
         {
           novelId,
           chapterId: targetChapterId,
-          databaseGeneration: runToApply.continuityReport.databaseGeneration
-            ?? productionDatabaseGenerationRef.current
-            ?? await getDatabaseGenerationSnapshot(),
+          databaseGeneration:
+            runToApply.continuityReport.databaseGeneration ??
+            productionDatabaseGenerationRef.current ??
+            (await getDatabaseGenerationSnapshot()),
         },
         runToApply.reviewVersionId && runToApply.reviewVersionHash
           ? { versionId: runToApply.reviewVersionId, versionHash: runToApply.reviewVersionHash }
-        : undefined,
-        auditStatus === 'unknown' || auditStatus === 'not_run',
+          : undefined,
+        auditStatus === 'unknown' || auditStatus === 'not_run'
       );
       const freshChapters = await refreshChapters();
       const fullChapter = await getChapter(result.chapterId);
@@ -382,19 +445,32 @@ export function useChapterProductionFlow({
         targetChapterId: result.chapterId,
       });
       void recordProductEvent({
-        eventName: 'draft_accept', stage: 'drafting', result: 'success',
-        novelId, chapterId: result.chapterId, objectId: runToApply.id,
+        eventName: 'draft_accept',
+        stage: 'drafting',
+        result: 'success',
+        novelId,
+        chapterId: result.chapterId,
+        objectId: runToApply.id,
       }).catch(() => undefined);
       if (chapterWasEmpty) {
         void recordProductEvent({
-          eventName: 'first_chapter_accepted', stage: 'drafting', result: 'success',
-          novelId, chapterId: result.chapterId, objectId: runToApply.id,
+          eventName: 'first_chapter_accepted',
+          stage: 'drafting',
+          result: 'success',
+          novelId,
+          chapterId: result.chapterId,
+          objectId: runToApply.id,
         }).catch(() => undefined);
       }
     } catch (error) {
       void recordProductEvent({
-        eventName: 'draft_accept', stage: 'drafting', result: 'failure',
-        errorCode: 'APPLY_FAILED', novelId, chapterId: runToApply.targetChapterId, objectId: runToApply.id,
+        eventName: 'draft_accept',
+        stage: 'drafting',
+        result: 'failure',
+        errorCode: 'APPLY_FAILED',
+        novelId,
+        chapterId: runToApply.targetChapterId,
+        objectId: runToApply.id,
       }).catch(() => undefined);
       setProductionError(error instanceof Error ? error.message : String(error));
     } finally {

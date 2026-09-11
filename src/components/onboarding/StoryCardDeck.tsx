@@ -24,7 +24,9 @@ export function StoryCardDeck({
         <div>
           <h2 className="text-2xl font-serif font-bold text-theme-text">故事方案卡</h2>
           <p className="text-sm text-theme-muted">
-            {source === 'fallback' ? '模型较慢，当前显示本地保底草案。可刷新重试。' : '先选方向，再进入设定记忆立骨架。'}
+            {source === 'fallback'
+              ? '模型较慢，当前显示本地保底草案。可刷新重试。'
+              : '先选方向，再进入设定记忆立骨架。'}
           </p>
         </div>
         <button

@@ -12,7 +12,7 @@ export async function downloadAuthenticatedFile(
     body?: BodyInit;
     headers?: HeadersInit;
     fallbackFilename?: string;
-  },
+  }
 ): Promise<void> {
   const res = await fetch(url, {
     method: options?.method ?? 'GET',

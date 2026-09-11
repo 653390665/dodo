@@ -12,7 +12,9 @@ vi.mock('../lib/api', () => ({
   createChapter: vi.fn(),
   createCharacter: vi.fn(),
   createNovel: vi.fn(),
-  generateStoryCards: vi.fn(() => { mocks.apiCalls.push('generateStoryCards'); }),
+  generateStoryCards: vi.fn(() => {
+    mocks.apiCalls.push('generateStoryCards');
+  }),
   getNovel: vi.fn(),
   listChapters: vi.fn().mockResolvedValue([]),
   listSkills: vi.fn().mockResolvedValue([]),
@@ -20,17 +22,25 @@ vi.mock('../lib/api', () => ({
   updateChapter: vi.fn(),
   updateNovel: vi.fn(),
 }));
-vi.mock('../lib/editor-write-queue', () => ({ flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../lib/editor-write-queue', () => ({
+  flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../lib/toast', () => ({ toast: vi.fn() }));
 vi.mock('../components/Sidebar', () => ({ Sidebar: () => <aside>SIDEBAR</aside> }));
 vi.mock('../components/WelcomeView', () => ({ WelcomeView: () => <div>WELCOME</div> }));
 vi.mock('../components/AIAssistantDrawer', () => ({ AIAssistantDrawer: () => null }));
-vi.mock('../components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock('../components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock('../components/SettingsModal', () => ({ SettingsModal: () => null }));
 vi.mock('../components/Library', () => ({ Library: () => <div>LIBRARY</div> }));
-vi.mock('../components/ProjectCockpitView', () => ({ ProjectCockpitView: () => <div>COCKPIT</div> }));
+vi.mock('../components/ProjectCockpitView', () => ({
+  ProjectCockpitView: () => <div>COCKPIT</div>,
+}));
 vi.mock('../components/WorldBibleView', () => ({ WorldBibleView: () => <div>WORLD</div> }));
-vi.mock('../components/ContinuationImportView', () => ({ ContinuationImportView: () => <div>IMPORT</div> }));
+vi.mock('../components/ContinuationImportView', () => ({
+  ContinuationImportView: () => <div>IMPORT</div>,
+}));
 vi.mock('../components/SkillsStudioView', () => ({ SkillsStudioView: () => <div>SKILLS</div> }));
 vi.mock('../components/BookFactoryView', () => ({ BookFactoryView: () => <div>FACTORY</div> }));
 vi.mock('../components/EditorView', () => ({
@@ -86,8 +96,9 @@ describe('continuation gap assistant bridge', () => {
       novelId: novel.id,
       intent: 'continuation-gap',
     });
-    expect(useAssistantSessionStore.getState().getSession(novel.id, 'bible').input)
-      .toBe('补充顾铁峰与苏老板二十年前共事片段');
+    expect(useAssistantSessionStore.getState().getSession(novel.id, 'bible').input).toBe(
+      '补充顾铁峰与苏老板二十年前共事片段'
+    );
     expect(mocks.apiCalls).toEqual([]);
   });
 });

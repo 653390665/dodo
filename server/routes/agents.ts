@@ -34,9 +34,16 @@ import { getDatabaseGeneration } from '../lib/db-instance';
 import { classifyCriticFeedback, UNKNOWN_CRITIC_FEEDBACK } from '../helpers/ai-production-pipeline';
 import { ProviderError, toProviderErrorEnvelope } from '../lib/server-llm';
 import { randomUUID } from 'node:crypto';
-import { requireWritingStyleConfirmation, resolveWritingStyleRequest, WritingStyleRequestError } from '../helpers/writing-style-service.js';
+import {
+  requireWritingStyleConfirmation,
+  resolveWritingStyleRequest,
+  WritingStyleRequestError,
+} from '../helpers/writing-style-service.js';
 import { buildServerStoryContextWithSemantic } from '../helpers/story-context.js';
-import { resolveEffectiveMinDraftChars, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import {
+  resolveEffectiveMinDraftChars,
+  validateCompleteChapterDraftQuality,
+} from '../../shared/lib/draft-quality';
 
 const EDITOR_AGENT_CHAIN_MODULES = [
   'chainConcept',
@@ -50,52 +57,76 @@ const EDITOR_AGENT_CHAIN_MODULES = [
   'chainAntiAiVoice',
   'chainConsistencyReview',
 ] as const;
-const PLANNER_CHAIN_MODULES = new Set(['chainConcept', 'chainOpening', 'chainVolumeOutline', 'chainPlotLogic', 'chainCharacterConsistency']);
-const WRITER_CHAIN_MODULES = new Set(['chainTransition', 'chainDialogue', 'chainChapterEnding', 'chainAntiAiVoice']);
+const PLANNER_CHAIN_MODULES = new Set([
+  'chainConcept',
+  'chainOpening',
+  'chainVolumeOutline',
+  'chainPlotLogic',
+  'chainCharacterConsistency',
+]);
+const WRITER_CHAIN_MODULES = new Set([
+  'chainTransition',
+  'chainDialogue',
+  'chainChapterEnding',
+  'chainAntiAiVoice',
+]);
 
-const editorAgentSkillCoreSchema = z.object({
-  id: z.string().trim().min(1).max(200),
-  name: z.string().max(500),
-  description: z.string().max(20_000),
-  style: z.string().max(20_000),
-  pacing: z.string().max(20_000),
-  stabilityScore: z.number().finite(),
-  evaluationFeedback: z.string().max(20_000),
-  version: z.number().int().nonnegative(),
-  createdAt: z.number().finite(),
-}).passthrough();
+const editorAgentSkillCoreSchema = z
+  .object({
+    id: z.string().trim().min(1).max(200),
+    name: z.string().max(500),
+    description: z.string().max(20_000),
+    style: z.string().max(20_000),
+    pacing: z.string().max(20_000),
+    stabilityScore: z.number().finite(),
+    evaluationFeedback: z.string().max(20_000),
+    version: z.number().int().nonnegative(),
+    createdAt: z.number().finite(),
+  })
+  .passthrough();
 
 const editorAgentSkillSchema = z.custom<Skill>(
   (value) => editorAgentSkillCoreSchema.safeParse(value).success,
-  { message: 'Invalid skill payload' },
+  { message: 'Invalid skill payload' }
 );
 
-const editorAgentSchema = z.object({
-  userIntent: z.string().trim().min(1).max(20_000),
-  contextStr: z.string().max(200_000).default(''),
-  surface: z.enum([
-    'welcome',
-    'world-onboarding',
-    'workspace-beats',
-    'workspace-draft',
-    'chapter-polish',
-    'chapter-review',
-  ]).default('workspace-beats'),
-  continuationPackId: z.string().trim().min(1).max(200).optional(),
-  chain: z.array(z.enum(EDITOR_AGENT_CHAIN_MODULES)).max(6).optional(),
-  chapterOrder: z.coerce.number().int().min(0).max(1_000_000).transform((order) => Math.max(1, order)).optional(),
-  novelId: z.string().trim().min(1).max(200),
-  chapterId: z.string().trim().min(1).max(200),
-  skills: z.array(editorAgentSkillSchema).max(32).default([]),
-  styleConfirmationFingerprint: z.string().length(64).optional(),
-  writingStyleFingerprint: z.string().length(64).optional(),
-  sessionCardIds: z.array(z.string().trim().min(1).max(200)).max(6).optional(),
-  databaseGeneration: z.number().int().nonnegative(),
-}).strict().superRefine((value, ctx) => {
-  if (value.chain && new Set(value.chain).size !== value.chain.length) {
-    ctx.addIssue({ code: 'custom', path: ['chain'], message: 'Chain modules must be unique' });
-  }
-});
+const editorAgentSchema = z
+  .object({
+    userIntent: z.string().trim().min(1).max(20_000),
+    contextStr: z.string().max(200_000).default(''),
+    surface: z
+      .enum([
+        'welcome',
+        'world-onboarding',
+        'workspace-beats',
+        'workspace-draft',
+        'chapter-polish',
+        'chapter-review',
+      ])
+      .default('workspace-beats'),
+    continuationPackId: z.string().trim().min(1).max(200).optional(),
+    chain: z.array(z.enum(EDITOR_AGENT_CHAIN_MODULES)).max(6).optional(),
+    chapterOrder: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(1_000_000)
+      .transform((order) => Math.max(1, order))
+      .optional(),
+    novelId: z.string().trim().min(1).max(200),
+    chapterId: z.string().trim().min(1).max(200),
+    skills: z.array(editorAgentSkillSchema).max(32).default([]),
+    styleConfirmationFingerprint: z.string().length(64).optional(),
+    writingStyleFingerprint: z.string().length(64).optional(),
+    sessionCardIds: z.array(z.string().trim().min(1).max(200)).max(6).optional(),
+    databaseGeneration: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.chain && new Set(value.chain).size !== value.chain.length) {
+      ctx.addIssue({ code: 'custom', path: ['chain'], message: 'Chain modules must be unique' });
+    }
+  });
 
 const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   timeoutMs: 90_000,
@@ -106,21 +137,25 @@ const ORCHESTRATE_WRITER_LLM_OPTIONS = {
   disableThinking: true,
 } as const;
 
-const inspirationRequestSchema = z.object({
-  prompt: z.string().trim().min(1).max(200_000),
-  surface: z.enum([
-    'welcome',
-    'world-onboarding',
-    'workspace-beats',
-    'workspace-draft',
-    'chapter-polish',
-    'chapter-review',
-  ]).default('workspace-draft'),
-  novelId: z.string().trim().min(1).max(200).optional(),
-  onboardingSessionId: z.string().trim().min(1).max(200).optional(),
-  purpose: z.enum(['conversation', 'sync-extraction', 'world-bible']).default('conversation'),
-  databaseGeneration: z.number().int().nonnegative(),
-}).strict();
+const inspirationRequestSchema = z
+  .object({
+    prompt: z.string().trim().min(1).max(200_000),
+    surface: z
+      .enum([
+        'welcome',
+        'world-onboarding',
+        'workspace-beats',
+        'workspace-draft',
+        'chapter-polish',
+        'chapter-review',
+      ])
+      .default('workspace-draft'),
+    novelId: z.string().trim().min(1).max(200).optional(),
+    onboardingSessionId: z.string().trim().min(1).max(200).optional(),
+    purpose: z.enum(['conversation', 'sync-extraction', 'world-bible']).default('conversation'),
+    databaseGeneration: z.number().int().nonnegative(),
+  })
+  .strict();
 
 const providerStatusByCode = {
   configuration: 503,
@@ -137,16 +172,36 @@ const providerStatusByCode = {
 
 function safeInspirationError(error: unknown, traceId: string) {
   if (error instanceof ProviderError) return toProviderErrorEnvelope(error);
-  return { error: '灵感服务暂不可用，请稍后重试', code: 'INSPIRATION_UNAVAILABLE', traceId, retriable: true };
+  return {
+    error: '灵感服务暂不可用，请稍后重试',
+    code: 'INSPIRATION_UNAVAILABLE',
+    traceId,
+    retriable: true,
+  };
 }
 
 function safeEditorAgentError(error: unknown, traceId: string) {
   const message = error instanceof Error ? error.message : String(error);
-  if (error instanceof Error && (error.name === 'AbortError' || /abort|cancel|取消|中断/i.test(message))) {
-    return { error: '编辑助手请求已取消，请重新提交。', code: 'EDITOR_AGENT_CANCELLED', traceId, retriable: false, finishReason: undefined };
+  if (
+    error instanceof Error &&
+    (error.name === 'AbortError' || /abort|cancel|取消|中断/i.test(message))
+  ) {
+    return {
+      error: '编辑助手请求已取消，请重新提交。',
+      code: 'EDITOR_AGENT_CANCELLED',
+      traceId,
+      retriable: false,
+      finishReason: undefined,
+    };
   }
   if (error instanceof ProviderError) return toProviderErrorEnvelope(error);
-  return { error: '编辑助手暂不可用，请稍后重试', code: 'EDITOR_AGENT_UNAVAILABLE', traceId, retriable: true, finishReason: undefined };
+  return {
+    error: '编辑助手暂不可用，请稍后重试',
+    code: 'EDITOR_AGENT_UNAVAILABLE',
+    traceId,
+    retriable: true,
+    finishReason: undefined,
+  };
 }
 
 const ORCHESTRATE_CRITIC_LLM_OPTIONS = {
@@ -221,12 +276,20 @@ export function registerAgentsRoutes(app: Express) {
     }
     const requestedGeneration = Number(req.query.databaseGeneration);
     if (!Number.isInteger(requestedGeneration) || requestedGeneration !== job.databaseGeneration) {
-      return res.status(409).json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
+      return res
+        .status(409)
+        .json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
     }
     if (job.databaseGeneration !== getDatabaseGeneration()) {
       jobAbortControllers.get(jobId)?.abort(new Error('数据库已在编辑助手任务期间切换。'));
-      updateJob(jobId, { status: 'failed', progress: 100, error: '数据库已在编辑助手任务期间切换，请重新提交。' });
-      return res.status(409).json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
+      updateJob(jobId, {
+        status: 'failed',
+        progress: 100,
+        error: '数据库已在编辑助手任务期间切换，请重新提交。',
+      });
+      return res
+        .status(409)
+        .json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
     }
     res.json(job);
   });
@@ -248,7 +311,8 @@ export function registerAgentsRoutes(app: Express) {
   });
 
   app.post('/api/inspiration', async (req, res) => {
-    if (!rateLimit('inspiration')) return res.status(429).json({ error: '灵感请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('inspiration'))
+      return res.status(429).json({ error: '灵感请求过于频繁，请稍后再试。', retryAfter: 5 });
     const controller = new AbortController();
     let inspirationTraceId = `llm_${randomUUID()}`;
     let sse: SseStreamHandle | undefined;
@@ -258,12 +322,23 @@ export function registerAgentsRoutes(app: Express) {
     try {
       const parsedRequest = inspirationRequestSchema.safeParse(req.body);
       if (!parsedRequest.success) {
-        return res.status(400).json({ error: '灵感请求参数无效', code: 'INVALID_INSPIRATION_REQUEST' });
+        return res
+          .status(400)
+          .json({ error: '灵感请求参数无效', code: 'INVALID_INSPIRATION_REQUEST' });
       }
-      const { prompt, surface, novelId, onboardingSessionId, purpose, databaseGeneration: requestedGeneration } = parsedRequest.data;
+      const {
+        prompt,
+        surface,
+        novelId,
+        onboardingSessionId,
+        purpose,
+        databaseGeneration: requestedGeneration,
+      } = parsedRequest.data;
       const databaseGeneration = requestedGeneration;
       if (databaseGeneration !== getDatabaseGeneration()) {
-        return res.status(409).json({ error: '数据库已变化，请刷新后重试', code: 'DATABASE_GENERATION_STALE' });
+        return res
+          .status(409)
+          .json({ error: '数据库已变化，请刷新后重试', code: 'DATABASE_GENERATION_STALE' });
       }
       if (!novelId || typeof novelId !== 'string') {
         if (surface !== 'welcome') {
@@ -303,15 +378,22 @@ export function registerAgentsRoutes(app: Express) {
       await execution.run(async ({ signal }) => {
         await generateText(getConfig(), {
           prompt,
-          systemInstruction: purpose === 'sync-extraction'
-            ? '你是严格的世界观资料结构化整理器。只输出用户要求的单一合法 JSON 根对象，不输出 Markdown、解释、注释或思考过程。'
-            : promptAsset.template,
+          systemInstruction:
+            purpose === 'sync-extraction'
+              ? '你是严格的世界观资料结构化整理器。只输出用户要求的单一合法 JSON 根对象，不输出 Markdown、解释、注释或思考过程。'
+              : promptAsset.template,
           timeoutMs: 90_000,
           maxAttempts: 2,
           maxTokens: purpose === 'sync-extraction' || purpose === 'world-bible' ? 8192 : 2048,
           ...(purpose === 'sync-extraction'
-            ? { responseMimeType: 'application/json', disableThinking: true, outputMode: 'audit-json' }
-            : purpose === 'world-bible' ? { disableThinking: true } : {}),
+            ? {
+                responseMimeType: 'application/json',
+                disableThinking: true,
+                outputMode: 'audit-json',
+              }
+            : purpose === 'world-bible'
+              ? { disableThinking: true }
+              : {}),
           onToken: (token) => {
             if (databaseGeneration !== getDatabaseGeneration()) {
               controller.abort(new Error('数据库已在灵感生成期间切换。'));
@@ -325,10 +407,10 @@ export function registerAgentsRoutes(app: Express) {
           novelId: typeof novelId === 'string' ? novelId : undefined,
         });
         if (
-          databaseGeneration !== getDatabaseGeneration()
-          || isStreamDisconnected(req, res)
-          || res.writableEnded
-          || res.destroyed
+          databaseGeneration !== getDatabaseGeneration() ||
+          isStreamDisconnected(req, res) ||
+          res.writableEnded ||
+          res.destroyed
         ) {
           throw new Error('Client disconnected before inspiration completion');
         }
@@ -346,7 +428,9 @@ export function registerAgentsRoutes(app: Express) {
       }
       if (!res.headersSent) {
         const failure = safeInspirationError(e, inspirationTraceId);
-        return res.status(e instanceof ProviderError ? providerStatusByCode[e.code] : 502).json(failure);
+        return res
+          .status(e instanceof ProviderError ? providerStatusByCode[e.code] : 502)
+          .json(failure);
       } else {
         // The response is already an SSE stream. Preserve the failure reason
         // as a structured event so clients do not mistake an empty stream for
@@ -364,16 +448,32 @@ export function registerAgentsRoutes(app: Express) {
   });
 
   app.post('/api/editor-agent', async (req, res) => {
-    if (!rateLimit('editor-agent')) return res.status(429).json({ error: '编辑助手请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('editor-agent'))
+      return res.status(429).json({ error: '编辑助手请求过于频繁，请稍后再试。', retryAfter: 5 });
 
     try {
       const parsed = editorAgentSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: '编辑助手请求参数无效，请检查章节和作品上下文。' });
       }
-      const { userIntent, contextStr, surface, continuationPackId, chain, chapterOrder, novelId, chapterId, styleConfirmationFingerprint, writingStyleFingerprint, sessionCardIds, databaseGeneration } = parsed.data;
+      const {
+        userIntent,
+        contextStr,
+        surface,
+        continuationPackId,
+        chain,
+        chapterOrder,
+        novelId,
+        chapterId,
+        styleConfirmationFingerprint,
+        writingStyleFingerprint,
+        sessionCardIds,
+        databaseGeneration,
+      } = parsed.data;
       if (databaseGeneration !== getDatabaseGeneration()) {
-        return res.status(409).json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
+        return res
+          .status(409)
+          .json({ code: 'DATABASE_GENERATION_STALE', error: '数据库已变化，请刷新后重试' });
       }
       if (continuationPackId) {
         const pack = db.getContinuationPack(continuationPackId);
@@ -386,14 +486,30 @@ export function registerAgentsRoutes(app: Express) {
       }
       let writingStyle;
       try {
-        writingStyle = resolveWritingStyleRequest(novelId, { chapterId, databaseGeneration, continuationPackId, sessionCardIds });
-        const requiresConfirmation = surface === 'workspace-draft'
-          || surface === 'chapter-polish'
-          || Boolean(chain?.some((module) => WRITER_CHAIN_MODULES.has(module)));
-        if (requiresConfirmation) requireWritingStyleConfirmation(writingStyle, styleConfirmationFingerprint ?? writingStyleFingerprint);
+        writingStyle = resolveWritingStyleRequest(novelId, {
+          chapterId,
+          databaseGeneration,
+          continuationPackId,
+          sessionCardIds,
+        });
+        const requiresConfirmation =
+          surface === 'workspace-draft' ||
+          surface === 'chapter-polish' ||
+          Boolean(chain?.some((module) => WRITER_CHAIN_MODULES.has(module)));
+        if (requiresConfirmation)
+          requireWritingStyleConfirmation(
+            writingStyle,
+            styleConfirmationFingerprint ?? writingStyleFingerprint
+          );
       } catch (error) {
         if (error instanceof WritingStyleRequestError) {
-          return res.status(error.status).json({ code: error.code, error: error.message, ...(writingStyle ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates } : {}) });
+          return res.status(error.status).json({
+            code: error.code,
+            error: error.message,
+            ...(writingStyle
+              ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates }
+              : {}),
+          });
         }
         throw error;
       }
@@ -420,18 +536,24 @@ export function registerAgentsRoutes(app: Express) {
           const result = await execution.run(async ({ signal }) => {
             const packContext = writingStyle.executionSnapshot.canon.pack?.context || '';
 
-            const budgetGuidelines = chapterOrder ? getPlotBudgetGuidelines(Number(chapterOrder)) : '';
+            const budgetGuidelines = chapterOrder
+              ? getPlotBudgetGuidelines(Number(chapterOrder))
+              : '';
             const serverContextStr = await buildServerStoryContextWithSemantic({
               novelId,
               chapterId,
               clientContext: contextStr,
             });
 
-            const effectiveContextStr = (packContext
-              ? `${serverContextStr}\n\n${packContext}`
-              : serverContextStr) + (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
+            const effectiveContextStr =
+              (packContext ? `${serverContextStr}\n\n${packContext}` : serverContextStr) +
+              (budgetGuidelines ? `\n\n${budgetGuidelines}` : '');
 
-            const { planner: plannerSkillsInfo, writer: writerSkillsInfo, critic: criticSkillsInfo } = writingStyle.executionSnapshot.stagePrompts;
+            const {
+              planner: plannerSkillsInfo,
+              writer: writerSkillsInfo,
+              critic: criticSkillsInfo,
+            } = writingStyle.executionSnapshot.stagePrompts;
 
             // Chain mode: run focused sub-prompts instead of monolithic template
             if (chain && chain.length > 0) {
@@ -440,7 +562,9 @@ export function registerAgentsRoutes(app: Express) {
                 try {
                   const skillsInfo = PLANNER_CHAIN_MODULES.has(module)
                     ? plannerSkillsInfo
-                    : WRITER_CHAIN_MODULES.has(module) ? writerSkillsInfo : criticSkillsInfo;
+                    : WRITER_CHAIN_MODULES.has(module)
+                      ? writerSkillsInfo
+                      : criticSkillsInfo;
                   const { prompt } = resolveChainPrompt(module, {
                     contextStr: effectiveContextStr,
                     sceneBeats: '',
@@ -471,7 +595,13 @@ export function registerAgentsRoutes(app: Express) {
               if (!results.some((entry) => entry.text.trim())) {
                 throw new Error('Editor-agent chain produced no result');
               }
-              return { chainResults: results, text: results.map(r => r.text).filter(Boolean).join('\n---\n') };
+              return {
+                chainResults: results,
+                text: results
+                  .map((r) => r.text)
+                  .filter(Boolean)
+                  .join('\n---\n'),
+              };
             }
 
             const promptAsset = resolvePromptAssetForSurface({
@@ -482,9 +612,12 @@ export function registerAgentsRoutes(app: Express) {
             const prompt = renderPromptTemplate(promptAsset.template, {
               PLANNER_SOUL,
               contextStr: effectiveContextStr,
-              skillsInfo: surface === 'workspace-beats'
-                ? plannerSkillsInfo
-                : surface === 'chapter-review' ? criticSkillsInfo : writerSkillsInfo,
+              skillsInfo:
+                surface === 'workspace-beats'
+                  ? plannerSkillsInfo
+                  : surface === 'chapter-review'
+                    ? criticSkillsInfo
+                    : writerSkillsInfo,
               userIntent: wrapUserInput(userIntent),
             });
             const text = await (async () => {
@@ -513,8 +646,13 @@ export function registerAgentsRoutes(app: Express) {
           logger.error('Background editor-agent error:', e);
           const failure = safeEditorAgentError(e, execution.traceId);
           updateJob(jobId, {
-            status: 'failed', progress: 100, error: failure.error, code: failure.code,
-            traceId: failure.traceId, retriable: failure.retriable, finishReason: failure.finishReason,
+            status: 'failed',
+            progress: 100,
+            error: failure.error,
+            code: failure.code,
+            traceId: failure.traceId,
+            retriable: failure.retriable,
+            finishReason: failure.finishReason,
           });
         } finally {
           jobAbortControllers.delete(jobId);
@@ -530,13 +668,14 @@ export function registerAgentsRoutes(app: Express) {
   });
 
   app.post('/api/orchestrate', validate(orchestrateSchema), async (req, res) => {
-    if (!rateLimit('orchestrate')) return res.status(429).json({ error: '正文协作请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('orchestrate'))
+      return res.status(429).json({ error: '正文协作请求过于频繁，请稍后再试。', retryAfter: 5 });
     const {
       novelId,
       contextStr,
       sceneBeats,
       maxIterations = 2,
-      draftContent = "",
+      draftContent = '',
       includeCritic = true,
       draftingSurface = 'workspace-draft',
       reviewSurface = 'chapter-review',
@@ -554,14 +693,24 @@ export function registerAgentsRoutes(app: Express) {
     let writingStyle;
     try {
       if (!novelId) throw new WritingStyleRequestError(400, 'NOVEL_ID_REQUIRED', '必须绑定作品');
-      writingStyle = resolveWritingStyleRequest(novelId, { chapterId, databaseGeneration, continuationPackId, sessionCardIds });
-      requireWritingStyleConfirmation(writingStyle, styleConfirmationFingerprint ?? writingStyleFingerprint);
+      writingStyle = resolveWritingStyleRequest(novelId, {
+        chapterId,
+        databaseGeneration,
+        continuationPackId,
+        sessionCardIds,
+      });
+      requireWritingStyleConfirmation(
+        writingStyle,
+        styleConfirmationFingerprint ?? writingStyleFingerprint
+      );
     } catch (error) {
       if (error instanceof WritingStyleRequestError) {
         return res.status(error.status).json({
           code: error.code,
           error: error.message,
-          ...(writingStyle ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates } : {}),
+          ...(writingStyle
+            ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates }
+            : {}),
         });
       }
       throw error;
@@ -581,7 +730,7 @@ export function registerAgentsRoutes(app: Express) {
           count: reserve.count,
           max: reserve.max,
           error: reserve.error,
-        }
+        },
       });
     }
 
@@ -601,9 +750,10 @@ export function registerAgentsRoutes(app: Express) {
         },
       });
 
-      const { writer: writerSkillsInfo, critic: criticSkillsInfo } = writingStyle.executionSnapshot.stagePrompts;
-      let currentDraft = draftContent || "";
-      let criticFeedback = "";
+      const { writer: writerSkillsInfo, critic: criticSkillsInfo } =
+        writingStyle.executionSnapshot.stagePrompts;
+      let currentDraft = draftContent || '';
+      let criticFeedback = '';
       let isValid = false;
       let criticStatus: 'pass' | 'fail' | 'unknown' = 'unknown';
       let writerSource: 'model' | 'fallback' = 'model';
@@ -624,37 +774,53 @@ export function registerAgentsRoutes(app: Express) {
         });
 
         if (!res.writableEnded && !res.destroyed) {
-          res.write(`data: ${JSON.stringify({ type: 'status', message: 'Writer Agent 正在生成正文…' })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({ type: 'status', message: 'Writer Agent 正在生成正文…' })}\n\n`
+          );
         }
         try {
-          currentDraft = await generateText(getConfig(), {
-            prompt: writerPrompt,
-            ...ORCHESTRATE_WRITER_LLM_OPTIONS,
-            signal: clientAbortController.signal,
-            novelId,
-          }, {
-            operation: 'orchestrate',
-            novelId,
-            timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
-            concurrency: 2,
-            signal: clientAbortController.signal,
-          });
-          currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, contextStr, targetChars);
+          currentDraft = await generateText(
+            getConfig(),
+            {
+              prompt: writerPrompt,
+              ...ORCHESTRATE_WRITER_LLM_OPTIONS,
+              signal: clientAbortController.signal,
+              novelId,
+            },
+            {
+              operation: 'orchestrate',
+              novelId,
+              timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
+              concurrency: 2,
+              signal: clientAbortController.signal,
+            }
+          );
+          currentDraft = ensureMinimumDraftLength(
+            currentDraft,
+            sceneBeats,
+            contextStr,
+            targetChars
+          );
         } catch (error) {
           if (clientAbortController.signal.aborted) throw error;
           logger.warn('Writer generation fell back to local draft', error);
           currentDraft = buildFallbackDraft(sceneBeats, contextStr, targetChars);
           writerSource = 'fallback';
           if (!res.writableEnded && !res.destroyed) {
-            res.write(`data: ${JSON.stringify({
-              type: 'status',
-              source: writerSource,
-              message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
-            })}\n\n`);
+            res.write(
+              `data: ${JSON.stringify({
+                type: 'status',
+                source: writerSource,
+                message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+              })}\n\n`
+            );
           }
         }
-        const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, { minChars: targetChars });
-        if (!draftQuality.ok) throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
+        const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
+          minChars: targetChars,
+        });
+        if (!draftQuality.ok)
+          throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
         if (isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
           throw new Error('Client disconnected before draft delivery');
         }
@@ -687,24 +853,33 @@ export function registerAgentsRoutes(app: Express) {
 
         let classification: ReturnType<typeof classifyCriticFeedback>;
         try {
-          criticFeedback = await generateText(getConfig(), {
-            prompt: criticPrompt,
-            ...ORCHESTRATE_CRITIC_LLM_OPTIONS,
-            signal: clientAbortController.signal,
-            novelId,
-            outputMode: 'audit-json',
-            responseMimeType: 'application/json',
-          }, {
-            operation: 'orchestrate',
-            novelId,
-            timeoutMs: ORCHESTRATE_CRITIC_LLM_OPTIONS.timeoutMs,
-            concurrency: 2,
-            signal: clientAbortController.signal,
-          });
+          criticFeedback = await generateText(
+            getConfig(),
+            {
+              prompt: criticPrompt,
+              ...ORCHESTRATE_CRITIC_LLM_OPTIONS,
+              signal: clientAbortController.signal,
+              novelId,
+              outputMode: 'audit-json',
+              responseMimeType: 'application/json',
+            },
+            {
+              operation: 'orchestrate',
+              novelId,
+              timeoutMs: ORCHESTRATE_CRITIC_LLM_OPTIONS.timeoutMs,
+              concurrency: 2,
+              signal: clientAbortController.signal,
+            }
+          );
           classification = classifyCriticFeedback(criticFeedback);
           if (classification.status === 'unknown') criticFeedback = UNKNOWN_CRITIC_FEEDBACK;
         } catch (error) {
-          if (clientAbortController.signal.aborted || isStreamDisconnected(req, res) || res.writableEnded || res.destroyed) {
+          if (
+            clientAbortController.signal.aborted ||
+            isStreamDisconnected(req, res) ||
+            res.writableEnded ||
+            res.destroyed
+          ) {
             throw error;
           }
           logger.warn('Critic generation unavailable; preserving draft', error);
@@ -714,14 +889,16 @@ export function registerAgentsRoutes(app: Express) {
         criticStatus = classification.status;
         isValid = criticStatus === 'pass';
         if (!res.writableEnded && !res.destroyed) {
-          res.write(`data: ${JSON.stringify({
-            type: 'critic_done',
-            feedback: criticFeedback,
-            isValid,
-            status: criticStatus,
-            ...(criticStatus === 'unknown' ? { retriable: true } : {}),
-            ...(classification.score === undefined ? {} : { score: classification.score }),
-          })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({
+              type: 'critic_done',
+              feedback: criticFeedback,
+              isValid,
+              status: criticStatus,
+              ...(criticStatus === 'unknown' ? { retriable: true } : {}),
+              ...(classification.score === undefined ? {} : { score: classification.score }),
+            })}\n\n`
+          );
         }
 
         if (criticStatus === 'pass' || criticStatus === 'unknown') break;
@@ -735,15 +912,24 @@ export function registerAgentsRoutes(app: Express) {
       await settleQuotaReservation(reservationId, contentDelivered);
       logger.error(String(err));
       if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
-        const qualityFailure = err instanceof Error && err.message.startsWith('DRAFT_QUALITY_GATE_FAILED:')
-          ? err.message.slice('DRAFT_QUALITY_GATE_FAILED:'.length).trim().split('；').filter(Boolean)
-          : undefined;
-        res.write(`data: ${JSON.stringify({
-          type: 'error',
-          code: qualityFailure ? 'DRAFT_QUALITY_GATE_FAILED' : 'ORCHESTRATE_STREAM_FAILED',
-          message: qualityFailure ? '正文候选未通过质量门禁，请重试或调整写法。' : '正文协作暂不可用，请稍后重试',
-          ...(qualityFailure ? { violations: qualityFailure, retriable: true } : {}),
-        })}\n\n`);
+        const qualityFailure =
+          err instanceof Error && err.message.startsWith('DRAFT_QUALITY_GATE_FAILED:')
+            ? err.message
+                .slice('DRAFT_QUALITY_GATE_FAILED:'.length)
+                .trim()
+                .split('；')
+                .filter(Boolean)
+            : undefined;
+        res.write(
+          `data: ${JSON.stringify({
+            type: 'error',
+            code: qualityFailure ? 'DRAFT_QUALITY_GATE_FAILED' : 'ORCHESTRATE_STREAM_FAILED',
+            message: qualityFailure
+              ? '正文候选未通过质量门禁，请重试或调整写法。'
+              : '正文协作暂不可用，请稍后重试',
+            ...(qualityFailure ? { violations: qualityFailure, retriable: true } : {}),
+          })}\n\n`
+        );
         res.end();
       }
     } finally {
@@ -757,7 +943,9 @@ export function registerAgentsRoutes(app: Express) {
     }
     const clientAbortController = new AbortController();
     const { novelId } = req.body;
-    const targetChars = resolveEffectiveMinDraftChars((req.body as { userIntent?: string }).userIntent);
+    const targetChars = resolveEffectiveMinDraftChars(
+      (req.body as { userIntent?: string }).userIntent
+    );
     let reservationId: string | undefined;
     let contentDelivered = false;
     let sse: SseStreamHandle | undefined;
@@ -783,15 +971,30 @@ export function registerAgentsRoutes(app: Express) {
       let writingStyle;
       try {
         if (!novelId) throw new WritingStyleRequestError(400, 'NOVEL_ID_REQUIRED', '必须绑定作品');
-        if (typeof chapterId !== 'string' || typeof requestDatabaseGeneration !== 'number') throw new WritingStyleRequestError(400, 'SCOPED_CONTEXT_REQUIRED', '章节与数据库版本不能为空');
-        writingStyle = resolveWritingStyleRequest(novelId, { chapterId, databaseGeneration: requestDatabaseGeneration, continuationPackId, sessionCardIds });
-        requireWritingStyleConfirmation(writingStyle, styleConfirmationFingerprint ?? writingStyleFingerprint);
+        if (typeof chapterId !== 'string' || typeof requestDatabaseGeneration !== 'number')
+          throw new WritingStyleRequestError(
+            400,
+            'SCOPED_CONTEXT_REQUIRED',
+            '章节与数据库版本不能为空'
+          );
+        writingStyle = resolveWritingStyleRequest(novelId, {
+          chapterId,
+          databaseGeneration: requestDatabaseGeneration,
+          continuationPackId,
+          sessionCardIds,
+        });
+        requireWritingStyleConfirmation(
+          writingStyle,
+          styleConfirmationFingerprint ?? writingStyleFingerprint
+        );
       } catch (error) {
         if (error instanceof WritingStyleRequestError) {
           return res.status(error.status).json({
             code: error.code,
             error: error.message,
-            ...(writingStyle ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates } : {}),
+            ...(writingStyle
+              ? { resolution: writingStyle.resolution, candidates: writingStyle.candidates }
+              : {}),
           });
         }
         throw error;
@@ -833,11 +1036,12 @@ export function registerAgentsRoutes(app: Express) {
         if (novel) {
           const signals = getActiveDimensionSignals(novel);
           if (signals.extraWritingConstraints.length > 0) {
-            adaptiveWritingGuidelines = `\n\n【动态维度系统追加写作约束 (Adaptive Writing Constraints)】\n${signals.extraWritingConstraints.map(c => `- ${c}`).join('\n')}`;
+            adaptiveWritingGuidelines = `\n\n【动态维度系统追加写作约束 (Adaptive Writing Constraints)】\n${signals.extraWritingConstraints.map((c) => `- ${c}`).join('\n')}`;
           }
         }
       }
-      const effectiveContextStr = contextStr +
+      const effectiveContextStr =
+        contextStr +
         (budgetGuidelines ? `\n\n${budgetGuidelines}` : '') +
         (adaptiveWritingGuidelines ? `\n\n${adaptiveWritingGuidelines}` : '');
 
@@ -859,18 +1063,22 @@ export function registerAgentsRoutes(app: Express) {
       let text = '';
       let draftSource: 'model' | 'fallback' = 'model';
       try {
-        text = await generateText(getConfig(), {
-          prompt: writerPrompt,
-          ...ORCHESTRATE_WRITER_LLM_OPTIONS,
-          signal: clientAbortController.signal,
-          novelId,
-        }, {
-          operation: 'orchestrate-draft',
-          novelId,
-          timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
-          concurrency: 2,
-          signal: clientAbortController.signal,
-        });
+        text = await generateText(
+          getConfig(),
+          {
+            prompt: writerPrompt,
+            ...ORCHESTRATE_WRITER_LLM_OPTIONS,
+            signal: clientAbortController.signal,
+            novelId,
+          },
+          {
+            operation: 'orchestrate-draft',
+            novelId,
+            timeoutMs: ORCHESTRATE_WRITER_LLM_OPTIONS.timeoutMs,
+            concurrency: 2,
+            signal: clientAbortController.signal,
+          }
+        );
         text = ensureMinimumDraftLength(text, sceneBeats, effectiveContextStr, targetChars);
       } catch (error) {
         if (clientAbortController.signal.aborted) throw error;
@@ -878,22 +1086,27 @@ export function registerAgentsRoutes(app: Express) {
         text = buildFallbackDraft(sceneBeats, effectiveContextStr, targetChars);
         draftSource = 'fallback';
         if (!res.writableEnded && !res.destroyed) {
-          res.write(`data: ${JSON.stringify({
-            type: 'status',
-            source: draftSource,
-            message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
-          })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({
+              type: 'status',
+              source: draftSource,
+              message: '模型响应过慢，已切换到本地保底草稿，建议稍后重试以获得更完整版本。',
+            })}\n\n`
+          );
         }
       }
 
-      const draftQuality = validateCompleteChapterDraftQuality(text, undefined, { minChars: targetChars });
-      if (!draftQuality.ok) throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
+      const draftQuality = validateCompleteChapterDraftQuality(text, undefined, {
+        minChars: targetChars,
+      });
+      if (!draftQuality.ok)
+        throw new Error(`DRAFT_QUALITY_GATE_FAILED: ${draftQuality.violations.join('；')}`);
 
       if (
-        executionDatabaseGeneration !== getDatabaseGeneration()
-        || isStreamDisconnected(req, res)
-        || res.writableEnded
-        || res.destroyed
+        executionDatabaseGeneration !== getDatabaseGeneration() ||
+        isStreamDisconnected(req, res) ||
+        res.writableEnded ||
+        res.destroyed
       ) {
         throw new Error('Client disconnected before draft delivery');
       }
@@ -910,27 +1123,38 @@ export function registerAgentsRoutes(app: Express) {
 
       commitQuotaReservation(reservationId);
       if (!res.writableEnded && !res.destroyed) {
-        res.write(`data: ${JSON.stringify({
-          type: 'done',
-          source: draftSource,
-          text,
-          wordCount: countDraftChars(text),
-        })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({
+            type: 'done',
+            source: draftSource,
+            text,
+            wordCount: countDraftChars(text),
+          })}\n\n`
+        );
         res.end();
       }
     } catch (error) {
       await settleQuotaReservation(reservationId, contentDelivered);
       logger.error(String(error));
       if (!isStreamDisconnected(req, res) && !res.writableEnded && !res.destroyed) {
-        const qualityFailure = error instanceof Error && error.message.startsWith('DRAFT_QUALITY_GATE_FAILED:')
-          ? error.message.slice('DRAFT_QUALITY_GATE_FAILED:'.length).trim().split('；').filter(Boolean)
-          : undefined;
-        res.write(`data: ${JSON.stringify({
-          type: 'error',
-          code: qualityFailure ? 'DRAFT_QUALITY_GATE_FAILED' : 'ORCHESTRATE_DRAFT_STREAM_FAILED',
-          message: qualityFailure ? '正文候选未通过质量门禁，请重试或调整写法。' : '正文草稿暂不可用，请稍后重试',
-          ...(qualityFailure ? { violations: qualityFailure, retriable: true } : {}),
-        })}\n\n`);
+        const qualityFailure =
+          error instanceof Error && error.message.startsWith('DRAFT_QUALITY_GATE_FAILED:')
+            ? error.message
+                .slice('DRAFT_QUALITY_GATE_FAILED:'.length)
+                .trim()
+                .split('；')
+                .filter(Boolean)
+            : undefined;
+        res.write(
+          `data: ${JSON.stringify({
+            type: 'error',
+            code: qualityFailure ? 'DRAFT_QUALITY_GATE_FAILED' : 'ORCHESTRATE_DRAFT_STREAM_FAILED',
+            message: qualityFailure
+              ? '正文候选未通过质量门禁，请重试或调整写法。'
+              : '正文草稿暂不可用，请稍后重试',
+            ...(qualityFailure ? { violations: qualityFailure, retriable: true } : {}),
+          })}\n\n`
+        );
         res.end();
       }
     } finally {

@@ -1,12 +1,7 @@
 import type { Skill, SkillDimension } from '../types';
 
 export type SkillRoleKey =
-  | 'lead-style'
-  | 'character-drive'
-  | 'world-rule'
-  | 'power-beat'
-  | 'plot-advance'
-  | 'pace-control';
+  'lead-style' | 'character-drive' | 'world-rule' | 'power-beat' | 'plot-advance' | 'pace-control';
 
 const ROLE_KEY_BY_DIMENSION: Record<SkillDimension, SkillRoleKey> = {
   style: 'lead-style',
@@ -55,7 +50,9 @@ const ROLE_WEIGHT_KEYS: Record<SkillDimension, keyof NonNullable<Skill['composit
 
 const RESPONSIBILITY_COVERAGE_THRESHOLD = 0.72;
 
-export function normalizeRoleKey(input?: SkillDimension | SkillRoleKey | string): SkillRoleKey | undefined {
+export function normalizeRoleKey(
+  input?: SkillDimension | SkillRoleKey | string
+): SkillRoleKey | undefined {
   if (!input) return undefined;
   if (input in ROLE_LABELS_BY_KEY) return input as SkillRoleKey;
   if (input in ROLE_KEY_BY_DIMENSION) return ROLE_KEY_BY_DIMENSION[input as SkillDimension];

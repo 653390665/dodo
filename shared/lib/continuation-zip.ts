@@ -20,19 +20,22 @@ export interface ExpandedContinuationFile {
 
 export async function expandContinuationArchive(
   archive: ArrayBuffer,
-  limits: ArchiveResourceLimits = CONTINUATION_ZIP_LIMITS,
+  limits: ArchiveResourceLimits = CONTINUATION_ZIP_LIMITS
 ): Promise<ExpandedContinuationFile[]> {
   const zip = await JSZip.loadAsync(archive);
   const entries = Object.values(zip.files);
-  validateArchiveManifest(entries.map((entry) => {
-    const metadata = (entry as unknown as { _data?: ZipEntryMetadata })._data;
-    return {
-      name: entry.name,
-      directory: entry.dir,
-      compressedSize: metadata?.compressedSize,
-      uncompressedSize: metadata?.uncompressedSize,
-    };
-  }), limits);
+  validateArchiveManifest(
+    entries.map((entry) => {
+      const metadata = (entry as unknown as { _data?: ZipEntryMetadata })._data;
+      return {
+        name: entry.name,
+        directory: entry.dir,
+        compressedSize: metadata?.compressedSize,
+        uncompressedSize: metadata?.uncompressedSize,
+      };
+    }),
+    limits
+  );
 
   const files: ExpandedContinuationFile[] = [];
   let actualTotal = 0;

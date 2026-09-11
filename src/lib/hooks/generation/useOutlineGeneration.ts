@@ -4,7 +4,13 @@ import type { Novel, Chapter } from '../../../../shared/types';
 import { createOutline } from '../../outline-client';
 import { startWorldJob } from '../../world-job-client';
 import { toast } from '../../toast';
-import { createAiActionError, createAiActionRunning, createAiActionSuccess, idleAiAction, type AiActionState } from '../../generation-action-state';
+import {
+  createAiActionError,
+  createAiActionRunning,
+  createAiActionSuccess,
+  idleAiAction,
+  type AiActionState,
+} from '../../generation-action-state';
 
 interface UseOutlineGenerationArgs {
   novel: Novel;
@@ -33,9 +39,11 @@ export interface OutlineGenerationOptions {
 function describeOutlineFailure(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error || '未知错误');
   if (/OUTLINE_TIMEOUT|timed out|timeout|超时/i.test(raw)) return '生成超时，请缩短资料或稍后重试';
-  if (/context|too long|token|budget|上下文|过长|413/i.test(raw)) return '输入资料过长，请缩短大纲或资料后重试';
+  if (/context|too long|token|budget|上下文|过长|413/i.test(raw))
+    return '输入资料过长，请缩短大纲或资料后重试';
   if (/save|保存|不存在|未生效/i.test(raw)) return `保存失败：${raw}`;
-  if (/api key|key not configured|配置|401|403/i.test(raw)) return '模型配置不可用，请检查 API Key、模型和 Base URL';
+  if (/api key|key not configured|配置|401|403/i.test(raw))
+    return '模型配置不可用，请检查 API Key、模型和 Base URL';
   return raw;
 }
 
@@ -60,7 +68,7 @@ export function useOutlineGeneration({
   };
   const handleGenerateOutline = async (
     outlineOverride?: string,
-    options?: OutlineGenerationOptions,
+    options?: OutlineGenerationOptions
   ) => {
     const currentSeq = ++requestSeqRef.current;
     const controller = new AbortController();
@@ -77,7 +85,9 @@ export function useOutlineGeneration({
       await flushPendingEditorWrites();
       if (requestSeqRef.current !== currentSeq) return;
 
-      const { result: data, databaseGeneration } = await startWorldJob<{ outline: string }>('/api/generate-outline', {
+      const { result: data, databaseGeneration } = await startWorldJob<{ outline: string }>(
+        '/api/generate-outline',
+        {
           novelId: novel.id,
           surface: planningPromptSurface,
           title: novel.title,
@@ -92,7 +102,10 @@ export function useOutlineGeneration({
           ...(options?.outlineSourceSelection
             ? { outlineSourceSelection: options.outlineSourceSelection }
             : {}),
-        }, {}, controller.signal);
+        },
+        {},
+        controller.signal
+      );
       if (requestSeqRef.current !== currentSeq) return;
 
       if (data.outline) {
@@ -104,7 +117,9 @@ export function useOutlineGeneration({
           databaseGeneration,
         });
         if (requestSeqRef.current !== currentSeq || controller.signal.aborted) return;
-        setAiActionStateForRequest(currentSeq, (state) => createAiActionSuccess(state, '全书大纲候选已生成，可预览后采纳。'));
+        setAiActionStateForRequest(currentSeq, (state) =>
+          createAiActionSuccess(state, '全书大纲候选已生成，可预览后采纳。')
+        );
         return {
           candidateId: candidate.id,
           content: data.outline,
@@ -120,7 +135,9 @@ export function useOutlineGeneration({
         return;
       }
       const message = describeOutlineFailure(error);
-      setAiActionStateForRequest(currentSeq, (state) => createAiActionError(state, `大纲生成失败：${message}。原大纲未被修改，可重试。`));
+      setAiActionStateForRequest(currentSeq, (state) =>
+        createAiActionError(state, `大纲生成失败：${message}。原大纲未被修改，可重试。`)
+      );
       setOutlineError?.(`大纲生成失败：${message}。原大纲未被修改，可重试。`);
       toast(`大纲生成失败：${message}`, 'error');
     } finally {

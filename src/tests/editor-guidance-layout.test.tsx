@@ -1,7 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { useEditorDataStore } from '../stores/editor-data-store';
-import type { Character, EntityRelationship, Faction, Item, Location, ProjectPreferenceProfile, Skill, ContinuationPack } from '../../shared/types';
+import type {
+  Character,
+  EntityRelationship,
+  Faction,
+  Item,
+  Location,
+  ProjectPreferenceProfile,
+  Skill,
+  ContinuationPack,
+} from '../../shared/types';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -44,10 +53,26 @@ function EmptyChapterGuideHarness() {
   );
 }
 
-function SyncedPackGuideHarness({ status }: { status: 'not_started' | 'partial' | 'stale' | 'synced' }) {
+function SyncedPackGuideHarness({
+  status,
+}: {
+  status: 'not_started' | 'partial' | 'stale' | 'synced';
+}) {
   return (
     <EditorGuideBanners
-      currentChapter={{ id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷', content: '正文', sceneBeats: '分镜', critique: '意见', wordCount: 200, order: 1, createdAt: 1, updatedAt: 1 }}
+      currentChapter={{
+        id: 'chapter-1',
+        novelId: 'novel-1',
+        title: '第一章',
+        volumeName: '正文卷',
+        content: '正文',
+        sceneBeats: '分镜',
+        critique: '意见',
+        wordCount: 200,
+        order: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      }}
       isChapterEmpty={false}
       showEmptyChapterGuide={false}
       showHasContentGuide
@@ -70,76 +95,77 @@ function renderAgentWorkspace(overrides: Record<string, unknown> = {}) {
     factions: (overrides.factions as Faction[]) || [],
     librarySkills: (overrides.librarySkills as Skill[]) || [],
     relationships: (overrides.relationships as EntityRelationship[]) || [],
-    projectPreferenceProfile: overrides.projectPreferenceProfile as ProjectPreferenceProfile | undefined,
+    projectPreferenceProfile: overrides.projectPreferenceProfile as
+      ProjectPreferenceProfile | undefined,
   });
   const noop = vi.fn();
   const noopAsync = vi.fn().mockResolvedValue(undefined);
 
   const props = {
-        novel: {
-          id: 'novel-1',
-          title: '测试作品',
-          authorId: 'local-user',
-          summary: '',
-          status: 'ongoing',
-          createdAt: 1,
-          updatedAt: 1,
-        },
-        chapters: [],
-        currentChapter: null,
-        onSelectChapter: noopAsync,
-        isAgentSidebarOpen: true,
-        setIsAgentSidebarOpen: noop,
-        agentTab: 'context',
-        setAgentTab: noop,
-        copilotSuggestion: null,
-        runCopilotAction: noopAsync,
-        activeProductionRun: null,
-        productionIntent: '',
-        setProductionIntent: noop,
-        isProductionRunning: false,
-        isApplyingProductionRun: false,
-        productionError: null,
-        onStartProductionRun: noopAsync,
-        onApplyProductionRun: noopAsync,
-        onGenerateOutline: noopAsync,
-        onAdoptOutline: vi.fn().mockResolvedValue(true),
-        isGeneratingOutline: false,
-        globalOutline: '',
-        onGlobalOutlineChange: noop,
-        onGenerateBeats: noopAsync,
-        isGeneratingBeats: false,
-        userIntent: '',
-        setUserIntent: noop,
-        isGeneratingContent: false,
-        generationStatus: null,
-        onGenerateContent: noopAsync,
-        onRewriteSelectedText: noopAsync,
-        onUpdateChapterBeats: noop,
-        onRunAudit: noopAsync,
-        isGeneratingCritique: false,
-        onPolishChapterFromAudit: noopAsync,
-        characters: [],
-        locations: [],
-        items: [],
-        factions: [],
-        librarySkills: [],
-        skillUsageRecords: [],
-        mountedSkillLoadout: [],
-        onAssignSkill: noopAsync,
-        onRemoveSkill: noopAsync,
-        projectPreferenceProfile: { tags: [] },
-        onPreferenceProfileChange: noopAsync,
-        versions: [],
-        onSaveVersion: noopAsync,
-        onRestoreVersion: noop,
-        isSniffing: false,
-        sniffedEntities: null,
-        onSniffEntities: noopAsync,
-        onAddSniffedEntity: noopAsync,
-        addingEntityNames: [],
-        relationships: [],
-        isDocked: true,
+    novel: {
+      id: 'novel-1',
+      title: '测试作品',
+      authorId: 'local-user',
+      summary: '',
+      status: 'ongoing',
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    chapters: [],
+    currentChapter: null,
+    onSelectChapter: noopAsync,
+    isAgentSidebarOpen: true,
+    setIsAgentSidebarOpen: noop,
+    agentTab: 'context',
+    setAgentTab: noop,
+    copilotSuggestion: null,
+    runCopilotAction: noopAsync,
+    activeProductionRun: null,
+    productionIntent: '',
+    setProductionIntent: noop,
+    isProductionRunning: false,
+    isApplyingProductionRun: false,
+    productionError: null,
+    onStartProductionRun: noopAsync,
+    onApplyProductionRun: noopAsync,
+    onGenerateOutline: noopAsync,
+    onAdoptOutline: vi.fn().mockResolvedValue(true),
+    isGeneratingOutline: false,
+    globalOutline: '',
+    onGlobalOutlineChange: noop,
+    onGenerateBeats: noopAsync,
+    isGeneratingBeats: false,
+    userIntent: '',
+    setUserIntent: noop,
+    isGeneratingContent: false,
+    generationStatus: null,
+    onGenerateContent: noopAsync,
+    onRewriteSelectedText: noopAsync,
+    onUpdateChapterBeats: noop,
+    onRunAudit: noopAsync,
+    isGeneratingCritique: false,
+    onPolishChapterFromAudit: noopAsync,
+    characters: [],
+    locations: [],
+    items: [],
+    factions: [],
+    librarySkills: [],
+    skillUsageRecords: [],
+    mountedSkillLoadout: [],
+    onAssignSkill: noopAsync,
+    onRemoveSkill: noopAsync,
+    projectPreferenceProfile: { tags: [] },
+    onPreferenceProfileChange: noopAsync,
+    versions: [],
+    onSaveVersion: noopAsync,
+    onRestoreVersion: noop,
+    isSniffing: false,
+    sniffedEntities: null,
+    onSniffEntities: noopAsync,
+    onAddSniffedEntity: noopAsync,
+    addingEntityNames: [],
+    relationships: [],
+    isDocked: true,
   };
   return render(<AgentWorkspace {...({ ...props, ...overrides } as any)} />);
 }
@@ -151,7 +177,17 @@ describe('编辑器引导与智能管家布局', () => {
   test('未知资料状态不应宣称需要同步', () => {
     render(
       <EditorGuideBanners
-        currentChapter={{ id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷', content: '', wordCount: 0, order: 1, createdAt: 1, updatedAt: 1 }}
+        currentChapter={{
+          id: 'chapter-1',
+          novelId: 'novel-1',
+          title: '第一章',
+          volumeName: '正文卷',
+          content: '',
+          wordCount: 0,
+          order: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        }}
         isChapterEmpty
         showEmptyChapterGuide
         showHasContentGuide={false}
@@ -161,7 +197,7 @@ describe('编辑器引导与智能管家布局', () => {
         onRestoreContentGuide={vi.fn()}
         packStatus="none"
         syncState="unknown"
-      />,
+      />
     );
     expect(screen.queryByText(/同步资料包/)).toBeNull();
   });
@@ -170,18 +206,51 @@ describe('编辑器引导与智能管家布局', () => {
     const noop = vi.fn().mockResolvedValue(undefined);
     render(
       <WritingSurface
-        novel={{ id: 'novel-1', title: '测试作品', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 }}
-        currentChapter={{ id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷', content: '', wordCount: 0, order: 1, createdAt: 1, updatedAt: 1 }}
-        isGeneratingBeats={false} isGeneratingCritique={false} isGeneratingContent={false}
-        auditStatus={null} isChapterEmpty mountedSkillsCount={0}
-        runCopilotAction={noop} contentRef={React.createRef()} onGenerateBeats={noop} onRunAudit={noop}
-        onUpdateContent={vi.fn()} onQueueContentWrite={vi.fn()} onAddFirstChapter={noop} onAddChapter={noop}
-        setAgentTab={vi.fn()} setIsAgentSidebarOpen={vi.fn()} packStatus="none" syncState="not-required"
-      />,
+        novel={{
+          id: 'novel-1',
+          title: '测试作品',
+          authorId: 'local-user',
+          summary: '',
+          status: 'ongoing',
+          createdAt: 1,
+          updatedAt: 1,
+        }}
+        currentChapter={{
+          id: 'chapter-1',
+          novelId: 'novel-1',
+          title: '第一章',
+          volumeName: '正文卷',
+          content: '',
+          wordCount: 0,
+          order: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        }}
+        isGeneratingBeats={false}
+        isGeneratingCritique={false}
+        isGeneratingContent={false}
+        auditStatus={null}
+        isChapterEmpty
+        mountedSkillsCount={0}
+        runCopilotAction={noop}
+        contentRef={React.createRef()}
+        onGenerateBeats={noop}
+        onRunAudit={noop}
+        onUpdateContent={vi.fn()}
+        onQueueContentWrite={vi.fn()}
+        onAddFirstChapter={noop}
+        onAddChapter={noop}
+        setAgentTab={vi.fn()}
+        setIsAgentSidebarOpen={vi.fn()}
+        packStatus="none"
+        syncState="not-required"
+      />
     );
     const textarea = screen.getByPlaceholderText('在这里开始书写这一章……');
     const action = screen.getByRole('button', { name: '生成分镜' });
-    expect(action.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      action.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(screen.queryByText('建议创作路径')).toBeNull();
     expect(screen.getByText('能力卡 0')).toBeTruthy();
     expect(screen.queryByText('技能 0')).toBeNull();
@@ -196,12 +265,29 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('编辑器顶部世界观状态来自显式状态', () => {
     const noop = vi.fn();
-    render(<TooltipProvider>
-      <EditorHeader currentChapter={null} isSidebarOpen onToggleSidebar={noop} isFullscreen={false} onToggleFullscreen={noop}
-        isAgentSidebarOpen={false} onToggleAgentSidebar={noop} isEditorDataLoading={false} isAnyGenerating={false}
-        isSyncing={false} syncSuccess={false} syncFailed={false} connectionState="unknown" mountedSkills={[]}
-        onVolumeNameChange={noop} onTitleChange={noop} />,
-    </TooltipProvider>);
+    render(
+      <TooltipProvider>
+        <EditorHeader
+          currentChapter={null}
+          isSidebarOpen
+          onToggleSidebar={noop}
+          isFullscreen={false}
+          onToggleFullscreen={noop}
+          isAgentSidebarOpen={false}
+          onToggleAgentSidebar={noop}
+          isEditorDataLoading={false}
+          isAnyGenerating={false}
+          isSyncing={false}
+          syncSuccess={false}
+          syncFailed={false}
+          connectionState="unknown"
+          mountedSkills={[]}
+          onVolumeNameChange={noop}
+          onTitleChange={noop}
+        />
+        ,
+      </TooltipProvider>
+    );
     expect(screen.queryByText('世界观已就位')).toBeNull();
     expect(screen.getByText('本次写法来源')).toBeTruthy();
     expect(screen.getByText('系统默认')).toBeTruthy();
@@ -211,12 +297,29 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('智能管家展开时释放顶部状态空间并保留关键操作', () => {
     const noop = vi.fn();
-    render(<TooltipProvider>
-      <EditorHeader currentChapter={null} isSidebarOpen onToggleSidebar={noop} isFullscreen={false} onToggleFullscreen={noop}
-        isAgentSidebarOpen onToggleAgentSidebar={noop} isEditorDataLoading={false} isAnyGenerating={false}
-        isSyncing={false} syncSuccess={false} syncFailed={false} connectionState="connected" worldBibleState="ready" mountedSkills={[]}
-        onVolumeNameChange={noop} onTitleChange={noop} />
-    </TooltipProvider>);
+    render(
+      <TooltipProvider>
+        <EditorHeader
+          currentChapter={null}
+          isSidebarOpen
+          onToggleSidebar={noop}
+          isFullscreen={false}
+          onToggleFullscreen={noop}
+          isAgentSidebarOpen
+          onToggleAgentSidebar={noop}
+          isEditorDataLoading={false}
+          isAnyGenerating={false}
+          isSyncing={false}
+          syncSuccess={false}
+          syncFailed={false}
+          connectionState="connected"
+          worldBibleState="ready"
+          mountedSkills={[]}
+          onVolumeNameChange={noop}
+          onTitleChange={noop}
+        />
+      </TooltipProvider>
+    );
 
     expect(screen.queryByText('世界观已就绪')).toBeNull();
     expect(screen.queryByText('本次写法来源')).toBeNull();
@@ -227,12 +330,29 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('编辑器顶部 AI 状态复用共享三态文案', () => {
     const noop = vi.fn();
-    render(<TooltipProvider>
-      <EditorHeader currentChapter={null} isSidebarOpen onToggleSidebar={noop} isFullscreen={false} onToggleFullscreen={noop}
-        isAgentSidebarOpen={false} onToggleAgentSidebar={noop} isEditorDataLoading={false} isAnyGenerating={false}
-        isSyncing={false} syncSuccess={false} syncFailed={false} connectionState="missing" mountedSkills={[]}
-        onVolumeNameChange={noop} onTitleChange={noop} />,
-    </TooltipProvider>);
+    render(
+      <TooltipProvider>
+        <EditorHeader
+          currentChapter={null}
+          isSidebarOpen
+          onToggleSidebar={noop}
+          isFullscreen={false}
+          onToggleFullscreen={noop}
+          isAgentSidebarOpen={false}
+          onToggleAgentSidebar={noop}
+          isEditorDataLoading={false}
+          isAnyGenerating={false}
+          isSyncing={false}
+          syncSuccess={false}
+          syncFailed={false}
+          connectionState="missing"
+          mountedSkills={[]}
+          onVolumeNameChange={noop}
+          onTitleChange={noop}
+        />
+        ,
+      </TooltipProvider>
+    );
 
     expect(screen.getByText('AI 未配置')).toBeTruthy();
     expect(screen.getByTitle(/可继续本地写作、保存和整理设定/)).toBeTruthy();
@@ -240,7 +360,16 @@ describe('编辑器引导与智能管家布局', () => {
   });
 
   test('状态栏不显示静态预计 token', () => {
-    render(<EditorStatusBar currentChapter={null} statusTimeFormatter={new Intl.DateTimeFormat('zh-CN')} isSyncing={false} syncFailed={false} novelId="novel-1" novelTitle="测试" />);
+    render(
+      <EditorStatusBar
+        currentChapter={null}
+        statusTimeFormatter={new Intl.DateTimeFormat('zh-CN')}
+        isSyncing={false}
+        syncFailed={false}
+        novelId="novel-1"
+        novelTitle="测试"
+      />
+    );
     expect(screen.queryByText(/预计 token/)).toBeNull();
   });
   test('关闭空章节引导后仍可重新打开并恢复原内容', () => {
@@ -254,14 +383,21 @@ describe('编辑器引导与智能管家布局', () => {
     expect(screen.getByText('空章节指引')).toBeDefined();
   });
 
-  test.each(['not_started', 'partial', 'stale'] as const)('approved %s 显示接入主动作', (status) => {
-    render(<SyncedPackGuideHarness status={status} />);
-    expect(screen.getByText('当前阶段主动作：接入本章上下文。完成后再继续编辑正文。')).toBeDefined();
-  });
+  test.each(['not_started', 'partial', 'stale'] as const)(
+    'approved %s 显示接入主动作',
+    (status) => {
+      render(<SyncedPackGuideHarness status={status} />);
+      expect(
+        screen.getByText('当前阶段主动作：接入本章上下文。完成后再继续编辑正文。')
+      ).toBeDefined();
+    }
+  );
 
   test('approved synced 保持章节阶段动作', () => {
     render(<SyncedPackGuideHarness status="synced" />);
-    expect(screen.getByText('当前阶段主动作：启动本章质量审计。完成后再继续编辑正文。')).toBeDefined();
+    expect(
+      screen.getByText('当前阶段主动作：启动本章质量审计。完成后再继续编辑正文。')
+    ).toBeDefined();
   });
 
   test('智能管家使用独立可滚动内容区，窄窗口不会裁切底部内容', () => {
@@ -279,17 +415,37 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('本章正文为空时展示紧凑的作品全局关系预览', () => {
     const onNavigate = vi.fn();
-    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' } as ContinuationPack], selectedContinuationPackId: 'pack-approved' });
+    useContinuationPackStore.setState({
+      continuationPacks: [
+        {
+          id: 'pack-approved',
+          novelId: 'novel-1',
+          title: '已确认资料包',
+          status: 'approved',
+        } as ContinuationPack,
+      ],
+      selectedContinuationPackId: 'pack-approved',
+    });
     const relationships = Array.from({ length: 7 }, (_, index) => ({
       id: `rel-${index}`,
-      sourceType: 'character', sourceId: 'char-a',
-      targetType: 'character', targetId: 'char-b', relationshipType: `搭档${index + 1}`,
+      sourceType: 'character',
+      sourceId: 'char-a',
+      targetType: 'character',
+      targetId: 'char-b',
+      relationshipType: `搭档${index + 1}`,
       description: '曾经并肩执行任务',
     }));
     renderAgentWorkspace({
       currentChapter: {
-        id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷',
-        content: '', wordCount: 0, order: 1, createdAt: 1, updatedAt: 1,
+        id: 'chapter-1',
+        novelId: 'novel-1',
+        title: '第一章',
+        volumeName: '正文卷',
+        content: '',
+        wordCount: 0,
+        order: 1,
+        createdAt: 1,
+        updatedAt: 1,
       },
       characters: [
         { id: 'char-a', name: '顾铁峰' },
@@ -315,11 +471,28 @@ describe('编辑器引导与智能管家布局', () => {
 
   test('approved pack sync CTA writes intent and navigates to world view', () => {
     const onNavigate = vi.fn();
-    useContinuationPackStore.setState({ continuationPacks: [{ id: 'pack-approved', novelId: 'novel-1', title: '已确认资料包', status: 'approved' } as ContinuationPack], selectedContinuationPackId: 'pack-approved' });
+    useContinuationPackStore.setState({
+      continuationPacks: [
+        {
+          id: 'pack-approved',
+          novelId: 'novel-1',
+          title: '已确认资料包',
+          status: 'approved',
+        } as ContinuationPack,
+      ],
+      selectedContinuationPackId: 'pack-approved',
+    });
     renderAgentWorkspace({
       currentChapter: {
-        id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷',
-        content: '正文', wordCount: 2, order: 1, createdAt: 1, updatedAt: 1,
+        id: 'chapter-1',
+        novelId: 'novel-1',
+        title: '第一章',
+        volumeName: '正文卷',
+        content: '正文',
+        wordCount: 2,
+        order: 1,
+        createdAt: 1,
+        updatedAt: 1,
       },
       onNavigate,
     });
@@ -327,7 +500,9 @@ describe('编辑器引导与智能管家布局', () => {
     fireEvent.click(screen.getByRole('button', { name: '从资料包同步' }));
     expect(localStorage.getItem('inkflow-world-bible-active-tab')).toBe('pack-management');
     const intent = JSON.parse(localStorage.getItem('inkflow-world-bible-sync-intent') || 'null');
-    expect(intent).toEqual(expect.objectContaining({ novelId: 'novel-1', packId: 'pack-approved' }));
+    expect(intent).toEqual(
+      expect.objectContaining({ novelId: 'novel-1', packId: 'pack-approved' })
+    );
     expect(typeof intent.intentId).toBe('string');
     expect(intent.intentId).not.toBe('');
     expect(typeof intent.createdAt).toBe('number');
@@ -338,8 +513,15 @@ describe('编辑器引导与智能管家布局', () => {
   test('without approved pack keeps manual add CTA', () => {
     renderAgentWorkspace({
       currentChapter: {
-        id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷',
-        content: '正文', wordCount: 2, order: 1, createdAt: 1, updatedAt: 1,
+        id: 'chapter-1',
+        novelId: 'novel-1',
+        title: '第一章',
+        volumeName: '正文卷',
+        content: '正文',
+        wordCount: 2,
+        order: 1,
+        createdAt: 1,
+        updatedAt: 1,
       },
     });
     expect(screen.getByRole('button', { name: '去添加人物' })).toBeDefined();
@@ -349,7 +531,15 @@ describe('编辑器引导与智能管家布局', () => {
   test('智能管家一级入口使用创作阶段命名，更多菜单按用途分组', () => {
     renderAgentWorkspace();
 
-    expect(screen.getAllByRole('button').filter((button) => ['当前', '分镜', '生成正文', '审稿', '查设定', '更多'].includes(button.textContent?.trim() || ''))).toHaveLength(6);
+    expect(
+      screen
+        .getAllByRole('button')
+        .filter((button) =>
+          ['当前', '分镜', '生成正文', '审稿', '查设定', '更多'].includes(
+            button.textContent?.trim() || ''
+          )
+        )
+    ).toHaveLength(6);
     fireEvent.click(screen.getByRole('button', { name: /更多/ }));
     expect(screen.getByRole('menu')).toBeDefined();
     expect(screen.getByRole('group', { name: '写前准备' })).toBeDefined();
@@ -372,8 +562,21 @@ describe('编辑器引导与智能管家布局', () => {
     const contentRef = { current: textarea } as React.RefObject<HTMLTextAreaElement>;
 
     renderAgentWorkspace({
-      currentChapter: { id: 'chapter-1', novelId: 'novel-1', title: '第一章', volumeName: '正文卷', content, wordCount: content.length, order: 1, createdAt: 1, updatedAt: 1 },
-      characters: [{ id: 'char-1', name: firstName }, { id: 'char-2', name: secondName }],
+      currentChapter: {
+        id: 'chapter-1',
+        novelId: 'novel-1',
+        title: '第一章',
+        volumeName: '正文卷',
+        content,
+        wordCount: content.length,
+        order: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      characters: [
+        { id: 'char-1', name: firstName },
+        { id: 'char-2', name: secondName },
+      ],
       contentRef,
     });
 
@@ -392,20 +595,32 @@ describe('编辑器引导与智能管家布局', () => {
     ['initial', false, false, false, 'unknown'],
     ['confirmed', false, true, false, 'saved'],
     ['failed', false, false, true, 'failed'],
-  ])('保存状态 %s 仅按明确持久化结果显示', (_name, isSyncing, syncSuccess, syncFailed, expected) => {
-    render(
-      <EditorStatusBar
-        currentChapter={{ id: 'chapter-1', novelId: 'novel-1', title: '第一章', content: '正文', wordCount: 2, order: 1, createdAt: 1, updatedAt: 1 }}
-        statusTimeFormatter={new Intl.DateTimeFormat('zh-CN')}
-        isSyncing={isSyncing as boolean}
-        syncSuccess={syncSuccess as boolean}
-        syncFailed={syncFailed as boolean}
-        novelId="novel-1"
-        novelTitle="测试作品"
-      />,
-    );
-    expect(screen.getByRole('status').getAttribute('data-save-status')).toBe(expected);
-  });
+  ])(
+    '保存状态 %s 仅按明确持久化结果显示',
+    (_name, isSyncing, syncSuccess, syncFailed, expected) => {
+      render(
+        <EditorStatusBar
+          currentChapter={{
+            id: 'chapter-1',
+            novelId: 'novel-1',
+            title: '第一章',
+            content: '正文',
+            wordCount: 2,
+            order: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          }}
+          statusTimeFormatter={new Intl.DateTimeFormat('zh-CN')}
+          isSyncing={isSyncing as boolean}
+          syncSuccess={syncSuccess as boolean}
+          syncFailed={syncFailed as boolean}
+          novelId="novel-1"
+          novelTitle="测试作品"
+        />
+      );
+      expect(screen.getByRole('status').getAttribute('data-save-status')).toBe(expected);
+    }
+  );
 
   test('查设定面板的扫描入口切换到追踪', () => {
     const setAgentTab = vi.fn();
@@ -615,7 +830,11 @@ describe('编辑器引导与智能管家布局', () => {
         capabilityModelVersion: 3,
         capabilityProfile: {
           version: 3,
-          projectSkillDeck: { mainCardId: 'main-card', supportCardIds: ['support-one'], updatedAt: 1 },
+          projectSkillDeck: {
+            mainCardId: 'main-card',
+            supportCardIds: ['support-one'],
+            updatedAt: 1,
+          },
           favoriteTechniqueIds: ['technique-one'],
         },
         tags: [],
@@ -634,7 +853,9 @@ describe('编辑器引导与智能管家布局', () => {
     expect(screen.getByText('主笔节奏卡、世界观约束卡')).toBeDefined();
     expect(screen.getByText('开篇钩子技法')).toBeDefined();
     expect(screen.getByText('本章节奏卡')).toBeDefined();
-    expect(screen.getByText('作品默认卡和常用技法会长期影响本书；本章使用卡只影响当前章节。')).toBeDefined();
+    expect(
+      screen.getByText('作品默认卡和常用技法会长期影响本书；本章使用卡只影响当前章节。')
+    ).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '核对写法与能力' }));
     expect(setAgentTab).toHaveBeenCalledWith('skills');
   });
@@ -656,7 +877,11 @@ describe('编辑器引导与智能管家布局', () => {
         capabilityModelVersion: 3,
         capabilityProfile: {
           version: 3,
-          projectSkillDeck: { mainCardId: 'style-ancient-elegance', supportCardIds: [], updatedAt: 1 },
+          projectSkillDeck: {
+            mainCardId: 'style-ancient-elegance',
+            supportCardIds: [],
+            updatedAt: 1,
+          },
           favoriteTechniqueIds: [],
         },
         tags: [],
@@ -691,7 +916,9 @@ describe('编辑器引导与智能管家布局', () => {
     });
 
     expect(screen.getByLabelText('本次生成能力配置')).toBeDefined();
-    expect(screen.getByText('还没有配置作品默认卡或常用技法，生成会先按当前章节与作品上下文继续。')).toBeDefined();
+    expect(
+      screen.getByText('还没有配置作品默认卡或常用技法，生成会先按当前章节与作品上下文继续。')
+    ).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '核对写法与能力' }));
     expect(setAgentTab).toHaveBeenCalledWith('skills');
   });
@@ -715,7 +942,11 @@ describe('编辑器引导与智能管家布局', () => {
         capabilityModelVersion: 3,
         capabilityProfile: {
           version: 3,
-          projectSkillDeck: { mainCardId: 'main-card', supportCardIds: ['support-one'], updatedAt: 1 },
+          projectSkillDeck: {
+            mainCardId: 'main-card',
+            supportCardIds: ['support-one'],
+            updatedAt: 1,
+          },
           favoriteTechniqueIds: ['technique-one'],
         },
         tags: [],
@@ -809,7 +1040,9 @@ describe('编辑器引导与智能管家布局', () => {
     });
 
     expect(screen.getByText('本章写法与能力')).toBeDefined();
-    expect(screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')).toBeDefined();
+    expect(
+      screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')
+    ).toBeDefined();
     expect(screen.getByText('作品写法画像')).toBeDefined();
     expect(screen.getByText('作品默认卡')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '进入作品能力中心' }));
@@ -845,7 +1078,9 @@ describe('编辑器引导与智能管家布局', () => {
 
     rerender(<div />);
     renderAgentWorkspace({ agentTab: 'trace' });
-    expect(screen.getByRole('button', { name: '查设定' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '查设定' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
 
     rerender(<div />);
     renderAgentWorkspace({ agentTab: 'versions' });

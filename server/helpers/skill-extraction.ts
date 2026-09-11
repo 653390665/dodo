@@ -22,7 +22,7 @@ export const skillExtractionJobAbortControllers = new Map<string, AbortControlle
 
 export function createSkillExtractionJob(
   task: Promise<SkillExtractionResult>,
-  controller: AbortController = new AbortController(),
+  controller: AbortController = new AbortController()
 ): string {
   const jobId = `skill-extract-${generateId()}`;
   skillExtractionJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
@@ -59,7 +59,9 @@ export function buildFallbackSkillForSegment(
   excerpt: string,
   label: string
 ): Omit<Skill, 'id' | 'createdAt' | 'version'> {
-  const normalized = String(excerpt || '').replace(/\s+/g, ' ').trim();
+  const normalized = String(excerpt || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const sample = normalized.slice(0, 120);
   const hasDialogue = /["""']|说|问|答|喊|低声/.test(normalized);
   const hasAction = /推|走|看|握|拔|冲|落|响|停|转|退|杀|打/.test(normalized);
@@ -113,7 +115,7 @@ export function buildFullFallbackSkillResult(text: string) {
   for (const segment of segments) {
     const fallbackEvidence = collectSegmentEvidence(
       [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
-      segment.stage,
+      segment.stage
     );
     if (fallbackEvidence) {
       segmentEvidence.push(fallbackEvidence);
@@ -134,16 +136,12 @@ export function buildFullFallbackSkillResult(text: string) {
 
   const qualityReport = evaluateSkillOutputQuality(
     skills as Array<Record<string, unknown>>,
-    text.substring(0, 8000),
+    text.substring(0, 8000)
   );
 
-  const warnings: string[] = [
-    `全部段落使用本地保底萃取：${failedSegments.join('、')}`,
-  ];
+  const warnings: string[] = [`全部段落使用本地保底萃取：${failedSegments.join('、')}`];
   if (!qualityReport.passed) {
-    warnings.push(
-      `输出质量门禁未通过：${qualityReport.issue}。AI 深度分析完成后可能会改善。`,
-    );
+    warnings.push(`输出质量门禁未通过：${qualityReport.issue}。AI 深度分析完成后可能会改善。`);
   }
 
   return {

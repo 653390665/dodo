@@ -1,5 +1,3 @@
-
-
 import type { CopilotActionKey, CopilotSuggestion } from '../../../shared/types';
 
 interface CopilotStatusBarProps {

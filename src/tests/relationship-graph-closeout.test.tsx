@@ -24,7 +24,14 @@ const makeChar = (id: string, name: string): Character => ({
   bio: '',
 });
 
-const makeRel = (id: string, srcType: string, srcId: string, tgtType: string, tgtId: string, relType: string): EntityRelationship => ({
+const makeRel = (
+  id: string,
+  srcType: string,
+  srcId: string,
+  tgtType: string,
+  tgtId: string,
+  relType: string
+): EntityRelationship => ({
   id,
   novelId: 'n1',
   sourceType: srcType as EntityRelationship['sourceType'],
@@ -167,10 +174,7 @@ describe('RelationshipGraph — CTA button navigation', () => {
 });
 
 describe('filterRelationshipsByActiveEntities — closeout coverage', () => {
-  const chars: Character[] = [
-    makeChar('c1', '张三'),
-    makeChar('c2', '李四'),
-  ];
+  const chars: Character[] = [makeChar('c1', '张三'), makeChar('c2', '李四')];
 
   test('filters relationships where source matches active name', () => {
     const rels = [makeRel('r1', 'character', 'c1', 'character', 'c2', '盟友')];
@@ -193,7 +197,7 @@ describe('filterRelationshipsByActiveEntities — closeout coverage', () => {
     ];
     const result = filterRelationshipsByActiveEntities(rels, ['张三'], chars, [], [], []);
     expect(result).toHaveLength(2);
-    expect(result.map(r => r.id)).toEqual(expect.arrayContaining(['r1', 'r2']));
+    expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['r1', 'r2']));
   });
 
   test('empty active names returns empty array', () => {
@@ -210,7 +214,15 @@ describe('filterRelationshipsByActiveEntities — closeout coverage', () => {
 
   test('filters mixed entity types (location + character)', () => {
     const locs: Location[] = [
-      { id: 'l1', novelId: 'n1', name: '京城', description: '', region: '', createdAt: 1, updatedAt: 1 },
+      {
+        id: 'l1',
+        novelId: 'n1',
+        name: '京城',
+        description: '',
+        region: '',
+        createdAt: 1,
+        updatedAt: 1,
+      },
     ];
     const rels = [
       makeRel('r1', 'character', 'c1', 'location', 'l1', '驻守'),

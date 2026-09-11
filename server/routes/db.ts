@@ -16,10 +16,7 @@ import { authMiddleware, issueDbEventToken } from '../middleware/auth';
 import { CapabilityRoleAssignmentError } from '../capabilities/manifest';
 import { preflightNovelEntity, DbEntitlementBoundaryError } from '../lib/db/novel-entity-preflight';
 import { capabilityManifestFor, validateSkillCardForScope } from '../capabilities/manifest.js';
-import {
-  DatabaseImportValidationError,
-  importDatabaseBuffer,
-} from '../lib/db-import';
+import { DatabaseImportValidationError, importDatabaseBuffer } from '../lib/db-import';
 
 export {
   DB_IMPORT_BACKUP_MARKER,
@@ -39,57 +36,160 @@ function validateChapterCapabilityUpdate(chapterId: string, workflowMeta: unknow
   const chapter = db.getChapter(chapterId);
   const value = state as Record<string, unknown>;
   if (!chapter) throw new Error('CHAPTER_SCOPE_MISMATCH');
-  if (typeof value.novelId !== 'string' || value.novelId !== chapter.novelId) throw new Error('CHAPTER_SCOPE_MISMATCH');
-  if (!Number.isInteger(value.databaseGeneration) || value.databaseGeneration !== getDatabaseGeneration()) {
+  if (typeof value.novelId !== 'string' || value.novelId !== chapter.novelId)
+    throw new Error('CHAPTER_SCOPE_MISMATCH');
+  if (
+    !Number.isInteger(value.databaseGeneration) ||
+    value.databaseGeneration !== getDatabaseGeneration()
+  ) {
     throw new Error('DATABASE_GENERATION_STALE');
   }
   const techniques = value.techniqueIds;
   const overlays = value.overlayCardIds;
-  if (!Array.isArray(techniques) || !Array.isArray(overlays) || techniques.some((id) => typeof id !== 'string') || overlays.some((id) => typeof id !== 'string')) throw new Error('SCOPED_CONTEXT_REQUIRED');
-  if (new Set([...techniques, ...overlays]).size !== techniques.length + overlays.length) throw new Error('CAPABILITY_MANIFEST_INVALID');
+  if (
+    !Array.isArray(techniques) ||
+    !Array.isArray(overlays) ||
+    techniques.some((id) => typeof id !== 'string') ||
+    overlays.some((id) => typeof id !== 'string')
+  )
+    throw new Error('SCOPED_CONTEXT_REQUIRED');
+  if (new Set([...techniques, ...overlays]).size !== techniques.length + overlays.length)
+    throw new Error('CAPABILITY_MANIFEST_INVALID');
   const projectProfile = db.getNovel(chapter.novelId)?.projectPreferenceProfile?.capabilityProfile;
   const projectDeck = projectProfile?.projectSkillDeck;
-  const projectCardCount = new Set([projectDeck?.mainCardId, ...(projectDeck?.supportCardIds || [])].filter((id): id is string => typeof id === 'string' && id.trim().length > 0)).size;
+  const projectCardCount = new Set(
+    [projectDeck?.mainCardId, ...(projectDeck?.supportCardIds || [])].filter(
+      (id): id is string => typeof id === 'string' && id.trim().length > 0
+    )
+  ).size;
   if (projectCardCount + overlays.length > 6) throw new Error('CAPABILITY_STATE_TOO_LARGE');
-  const versions = (value.techniqueVersions && typeof value.techniqueVersions === 'object' ? value.techniqueVersions : {}) as Record<string, unknown>;
-  const overlayVersions = (value.overlayVersions && typeof value.overlayVersions === 'object' ? value.overlayVersions : {}) as Record<string, unknown>;
+  const versions = (
+    value.techniqueVersions && typeof value.techniqueVersions === 'object'
+      ? value.techniqueVersions
+      : {}
+  ) as Record<string, unknown>;
+  const overlayVersions = (
+    value.overlayVersions && typeof value.overlayVersions === 'object' ? value.overlayVersions : {}
+  ) as Record<string, unknown>;
   for (const id of techniques) {
     const manifest = capabilityManifestFor(id);
-    if (!manifest || manifest.kind !== 'technique' || !manifest.allowedScopes.includes('chapter') || manifest.runtimeStatus !== 'active') throw new Error('CAPABILITY_MANIFEST_INVALID');
-    if (versions[id] === undefined || String(versions[id]) !== String(manifest.version)) throw new Error('DATABASE_GENERATION_STALE');
+    if (
+      !manifest ||
+      manifest.kind !== 'technique' ||
+      !manifest.allowedScopes.includes('chapter') ||
+      manifest.runtimeStatus !== 'active'
+    )
+      throw new Error('CAPABILITY_MANIFEST_INVALID');
+    if (versions[id] === undefined || String(versions[id]) !== String(manifest.version))
+      throw new Error('DATABASE_GENERATION_STALE');
   }
   for (const id of overlays) {
     const manifest = capabilityManifestFor(id);
     const saved = db.getSkill(id);
     if (manifest) {
-      if (manifest.kind !== 'skill-card' || !manifest.allowedScopes.includes('chapter') || manifest.runtimeStatus !== 'active') throw new Error('CAPABILITY_MANIFEST_INVALID');
-      if (overlayVersions[id] === undefined || String(overlayVersions[id]) !== String(manifest.version)) throw new Error('DATABASE_GENERATION_STALE');
+      if (
+        manifest.kind !== 'skill-card' ||
+        !manifest.allowedScopes.includes('chapter') ||
+        manifest.runtimeStatus !== 'active'
+      )
+        throw new Error('CAPABILITY_MANIFEST_INVALID');
+      if (
+        overlayVersions[id] === undefined ||
+        String(overlayVersions[id]) !== String(manifest.version)
+      )
+        throw new Error('DATABASE_GENERATION_STALE');
     } else {
       if (!saved) throw new Error('CAPABILITY_MANIFEST_INVALID');
-      try { validateSkillCardForScope(saved, 'chapter'); } catch { throw new Error('CAPABILITY_MANIFEST_INVALID'); }
-      if (overlayVersions[id] === undefined || String(overlayVersions[id]) !== String(saved.version)) throw new Error('DATABASE_GENERATION_STALE');
+      try {
+        validateSkillCardForScope(saved, 'chapter');
+      } catch {
+        throw new Error('CAPABILITY_MANIFEST_INVALID');
+      }
+      if (
+        overlayVersions[id] === undefined ||
+        String(overlayVersions[id]) !== String(saved.version)
+      )
+        throw new Error('DATABASE_GENERATION_STALE');
     }
   }
 }
 
 const DB_WHITELIST = new Set([
-  'listNovels', 'getNovel', 'createNovel', 'updateNovel', 'deleteNovel',
-  'createNovelWithChapter', 'createForeshadowingsBatch', 'createSkillsBatch',
-  'listChapters', 'listChaptersMetadata', 'listLibraryMetadata', 'getChapter', 'createChapter', 'updateChapter', 'deleteChapter',
-  'listChapterVersions', 'listChapterVersionMetas', 'getChapterVersion', 'createChapterVersion', 'acceptChapterContentCandidate',
-  'listCharacters', 'getCharacter', 'createCharacter', 'updateCharacter', 'deleteCharacter',
-  'listLocations', 'createLocation', 'updateLocation', 'deleteLocation',
-  'listItems', 'getItem', 'createItem', 'updateItem', 'deleteItem',
-  'listFactions', 'createFaction', 'updateFaction', 'deleteFaction',
-  'listPowerLevels', 'createPowerLevel', 'updatePowerLevel', 'deletePowerLevel',
-  'listTimelineEvents', 'createTimelineEvent', 'updateTimelineEvent', 'deleteTimelineEvent',
-  'listSkills', 'getSkill', 'createSkill', 'updateSkill', 'deleteSkill', 'listSkillVersions',
-  'listSkillUsageRecords', 'syncSkillFeedbackScores', 'createSkillUsageRecord',
-  'listIdeaFragments', 'createIdeaFragment', 'updateIdeaFragment', 'deleteIdeaFragment',
-  'listForeshadowings', 'getForeshadowing', 'createForeshadowing', 'updateForeshadowing', 'deleteForeshadowing',
-  'listChapterProductionRuns', 'listChapterProductionRunBadges', 'getChapterProductionRun',
-  'listContinuationPacks', 'getContinuationPack', 'updateContinuationPack', 'deleteContinuationPack',
-  'listEntityRelationships', 'createEntityRelationship', 'updateEntityRelationship', 'deleteEntityRelationship',
+  'listNovels',
+  'getNovel',
+  'createNovel',
+  'updateNovel',
+  'deleteNovel',
+  'createNovelWithChapter',
+  'createForeshadowingsBatch',
+  'createSkillsBatch',
+  'listChapters',
+  'listChaptersMetadata',
+  'listLibraryMetadata',
+  'getChapter',
+  'createChapter',
+  'updateChapter',
+  'deleteChapter',
+  'listChapterVersions',
+  'listChapterVersionMetas',
+  'getChapterVersion',
+  'createChapterVersion',
+  'acceptChapterContentCandidate',
+  'listCharacters',
+  'getCharacter',
+  'createCharacter',
+  'updateCharacter',
+  'deleteCharacter',
+  'listLocations',
+  'createLocation',
+  'updateLocation',
+  'deleteLocation',
+  'listItems',
+  'getItem',
+  'createItem',
+  'updateItem',
+  'deleteItem',
+  'listFactions',
+  'createFaction',
+  'updateFaction',
+  'deleteFaction',
+  'listPowerLevels',
+  'createPowerLevel',
+  'updatePowerLevel',
+  'deletePowerLevel',
+  'listTimelineEvents',
+  'createTimelineEvent',
+  'updateTimelineEvent',
+  'deleteTimelineEvent',
+  'listSkills',
+  'getSkill',
+  'createSkill',
+  'updateSkill',
+  'deleteSkill',
+  'listSkillVersions',
+  'listSkillUsageRecords',
+  'syncSkillFeedbackScores',
+  'createSkillUsageRecord',
+  'listIdeaFragments',
+  'createIdeaFragment',
+  'updateIdeaFragment',
+  'deleteIdeaFragment',
+  'listForeshadowings',
+  'getForeshadowing',
+  'createForeshadowing',
+  'updateForeshadowing',
+  'deleteForeshadowing',
+  'listChapterProductionRuns',
+  'listChapterProductionRunBadges',
+  'getChapterProductionRun',
+  'listContinuationPacks',
+  'getContinuationPack',
+  'updateContinuationPack',
+  'deleteContinuationPack',
+  'listEntityRelationships',
+  'createEntityRelationship',
+  'updateEntityRelationship',
+  'deleteEntityRelationship',
 ]);
 
 const DB_GENERATION_CONFLICT_CODE = 'DB_GENERATION_CONFLICT';
@@ -109,7 +209,7 @@ import { subscribe, setCurrentInitiator, runInSerializedWrite } from '../lib/db-
 export function startDbEventStream(
   req: Request,
   res: Response,
-  heartbeatIntervalMs = 30_000,
+  heartbeatIntervalMs = 30_000
 ): () => void {
   let cleanedUp = false;
   let unsubscribe = () => {};
@@ -142,8 +242,15 @@ export function registerDbRoutes(app: Express) {
     if (!DB_WHITELIST.has(method)) {
       return res.status(400).json({ error: `Unknown method: ${method}` });
     }
-    if (method === 'updateContinuationPack' && args[1] && typeof args[1] === 'object' && 'status' in args[1]) {
-      return res.status(400).json({ error: '状态变更请使用 /api/continuation-packs/approve-import' });
+    if (
+      method === 'updateContinuationPack' &&
+      args[1] &&
+      typeof args[1] === 'object' &&
+      'status' in args[1]
+    ) {
+      return res
+        .status(400)
+        .json({ error: '状态变更请使用 /api/continuation-packs/approve-import' });
     }
     const fn = (db as unknown as Record<string, Function>)[method];
     if (typeof fn !== 'function') {
@@ -154,19 +261,34 @@ export function registerDbRoutes(app: Express) {
       // This also keeps the module-level initiator scoped to exactly one call.
       const invoke = () => {
         const clientId = req.headers['x-client-id'] as string | undefined;
-          setCurrentInitiator(clientId);
+        setCurrentInitiator(clientId);
         try {
-          if (method === 'updateChapter') validateChapterCapabilityUpdate(args[0] as string, (args[1] as Record<string, unknown> | undefined)?.workflowMeta);
+          if (method === 'updateChapter')
+            validateChapterCapabilityUpdate(
+              args[0] as string,
+              (args[1] as Record<string, unknown> | undefined)?.workflowMeta
+            );
           if (method === 'acceptChapterContentCandidate') {
             const candidate = args[0] as Record<string, unknown>;
             validateChapterCapabilityUpdate(candidate.chapterId as string, candidate.workflowMeta);
           }
-          if (method === 'createNovel' || method === 'updateNovel' || method === 'createNovelWithChapter') {
-            const entity = (method === 'createNovel' || method === 'createNovelWithChapter' ? args[0] : args[1]) as Record<string, unknown>;
-            preflightNovelEntity(method, entity, method === 'updateNovel' ? args[0] as string : undefined, {
-              getNovel: (id) => db.getNovel(id),
-              getSkill: (id) => db.getSkill(id),
-            });
+          if (
+            method === 'createNovel' ||
+            method === 'updateNovel' ||
+            method === 'createNovelWithChapter'
+          ) {
+            const entity = (
+              method === 'createNovel' || method === 'createNovelWithChapter' ? args[0] : args[1]
+            ) as Record<string, unknown>;
+            preflightNovelEntity(
+              method,
+              entity,
+              method === 'updateNovel' ? (args[0] as string) : undefined,
+              {
+                getNovel: (id) => db.getNovel(id),
+                getSkill: (id) => db.getSkill(id),
+              }
+            );
           }
           return fn(...args);
         } finally {
@@ -183,22 +305,49 @@ export function registerDbRoutes(app: Express) {
       const result = await runInSerializedWrite(invoke);
       return res.json({ result });
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'DATABASE_GENERATION_STALE') return databaseGenerationConflict(res);
+      if (e instanceof Error && e.message === 'DATABASE_GENERATION_STALE')
+        return databaseGenerationConflict(res);
       if (e instanceof Error && e.message === 'CHAPTER_CANDIDATE_STALE') {
-        return res.status(409).json({ code: e.message, message: '正文已变化，候选已失效，请重新生成。', error: '正文已变化，候选已失效，请重新生成。' });
+        return res.status(409).json({
+          code: e.message,
+          message: '正文已变化，候选已失效，请重新生成。',
+          error: '正文已变化，候选已失效，请重新生成。',
+        });
       }
       if (e instanceof Error && e.message === 'CHAPTER_CANDIDATE_SCOPE_MISMATCH') {
-        return res.status(409).json({ code: e.message, message: '章节已切换，候选未应用。', error: '章节已切换，候选未应用。' });
+        return res.status(409).json({
+          code: e.message,
+          message: '章节已切换，候选未应用。',
+          error: '章节已切换，候选未应用。',
+        });
       }
       if (e instanceof Error && e.message.startsWith('CHAPTER_CANDIDATE_QUALITY_FAILED:')) {
         const detail = e.message.slice('CHAPTER_CANDIDATE_QUALITY_FAILED:'.length);
-        return res.status(422).json({ code: 'CHAPTER_CANDIDATE_QUALITY_FAILED', message: detail || '正文候选未通过质量门禁。', error: detail || '正文候选未通过质量门禁。' });
+        return res.status(422).json({
+          code: 'CHAPTER_CANDIDATE_QUALITY_FAILED',
+          message: detail || '正文候选未通过质量门禁。',
+          error: detail || '正文候选未通过质量门禁。',
+        });
       }
       if (e instanceof Error && e.message === 'NOVEL_CHAPTER_SCOPE_MISMATCH') {
-        return res.status(400).json({ code: e.message, message: '首章必须属于新建作品。', error: '首章必须属于新建作品。' });
+        return res.status(400).json({
+          code: e.message,
+          message: '首章必须属于新建作品。',
+          error: '首章必须属于新建作品。',
+        });
       }
-      if (e instanceof Error && ['SCOPED_CONTEXT_REQUIRED', 'CHAPTER_SCOPE_MISMATCH', 'CAPABILITY_MANIFEST_INVALID', 'CAPABILITY_STATE_TOO_LARGE'].includes(e.message)) {
-        return res.status(e.message === 'CHAPTER_SCOPE_MISMATCH' ? 403 : 400).json({ error: '章节能力状态无效', code: e.message });
+      if (
+        e instanceof Error &&
+        [
+          'SCOPED_CONTEXT_REQUIRED',
+          'CHAPTER_SCOPE_MISMATCH',
+          'CAPABILITY_MANIFEST_INVALID',
+          'CAPABILITY_STATE_TOO_LARGE',
+        ].includes(e.message)
+      ) {
+        return res
+          .status(e.message === 'CHAPTER_SCOPE_MISMATCH' ? 403 : 400)
+          .json({ error: '章节能力状态无效', code: e.message });
       }
       if (e instanceof CapabilityRoleAssignmentError) {
         return res.status(400).json({ error: e.message.replace(`${e.code}: `, ''), code: e.code });
@@ -209,7 +358,7 @@ export function registerDbRoutes(app: Express) {
       if ((method === 'createSkill' || method === 'updateSkill') && e instanceof Error) {
         return res.status(400).json({ error: e.message, code: 'SKILL_FUSION_FORBIDDEN' });
       }
-      logger.error("DB proxy error:", e);
+      logger.error('DB proxy error:', e);
       res.status(500).json({ error: '数据库操作失败，请稍后重试。' });
     }
   });
@@ -278,6 +427,6 @@ export function registerDbRoutes(app: Express) {
         const status = err instanceof DatabaseImportValidationError ? 400 : 500;
         res.status(status).json({ error: '数据库导入失败，请确认备份文件有效' });
       }
-    },
+    }
   );
 }

@@ -11,7 +11,6 @@ import type {
 import { evaluateDeconstructionCard } from './deconstruction-scoring';
 import type { DeconstructionCardType } from '../types';
 
-
 type EvidenceBucket = {
   total: number;
   moments: BookEvidenceStage[];
@@ -60,35 +59,43 @@ const CARD_ROLE_META: Record<
 
 export function buildMethodChain(dimension: SkillDimension, evidence: string[]): SkillMethodChain {
   const role = CARD_ROLE_META[dimension];
-  const uniqueEvidence = Array.from(new Set(evidence.map((e) => e.trim()).filter(Boolean))).slice(0, 4);
+  const uniqueEvidence = Array.from(new Set(evidence.map((e) => e.trim()).filter(Boolean))).slice(
+    0,
+    4
+  );
 
   const generateScale = `${uniqueEvidence.join(' + ')}`.length > 60 ? 2 : 3;
 
   const items: SkillMethodQA[] = uniqueEvidence.slice(0, generateScale).map((item, index) => {
     return {
-      question: index === 0
-        ? `为什么这个写法在${role.name}中有效？`
-        : index === 1
-        ? `这个模式在什么条件下会失效？`
-        : `如果不使用这个技巧，会产生什么后果？`,
-      answer: index === 0
-        ? `证据显示：${item}。这种写法之所以成立，是因为它同时满足了${role.summary}的核心约束。`
-        : index === 1
-        ? `当${item}的前提条件不满足时，硬套这个模式会导致失真。具体边界：偏离设定逻辑、人物性格不一致、节奏突然变化时均应停用。`
-        : `不使用这个技巧时，${role.name}维度的写作会缺乏方向感，容易出现风格漂移或设定矛盾。`,
-      formalization: index === 0
-        ? `${role.name} = 稳定特征 + 证据锚点`
-        : index === 1
-        ? `失效条件 = 前提崩塌 ∨ 边界突破`
-        : `缺失成本 = 无方向 × 漂移概率`,
-      steps: index === 0
-        ? ['提取关键特征', '匹配当前场景', '验证风格一致性', '输出调整后文本']
-        : ['检查前提是否成立', '确认边界内操作', '若边界外，降级为参考', '若前提崩塌，停用该卡'],
-      boundary: index === 0
-        ? `适用于${role.useHint.slice(0, 30)}等场景。不适用于设定冲突或跨维度混合场景。`
-        : index === 1
-        ? `超出${role.name}覆盖范围时不应使用。不适合的维度领域应切换其他卡。`
-        : `代价可控时不使用也可。但对${role.name}敏感的场景缺失该技法会显著降低一致性。`,
+      question:
+        index === 0
+          ? `为什么这个写法在${role.name}中有效？`
+          : index === 1
+            ? `这个模式在什么条件下会失效？`
+            : `如果不使用这个技巧，会产生什么后果？`,
+      answer:
+        index === 0
+          ? `证据显示：${item}。这种写法之所以成立，是因为它同时满足了${role.summary}的核心约束。`
+          : index === 1
+            ? `当${item}的前提条件不满足时，硬套这个模式会导致失真。具体边界：偏离设定逻辑、人物性格不一致、节奏突然变化时均应停用。`
+            : `不使用这个技巧时，${role.name}维度的写作会缺乏方向感，容易出现风格漂移或设定矛盾。`,
+      formalization:
+        index === 0
+          ? `${role.name} = 稳定特征 + 证据锚点`
+          : index === 1
+            ? `失效条件 = 前提崩塌 ∨ 边界突破`
+            : `缺失成本 = 无方向 × 漂移概率`,
+      steps:
+        index === 0
+          ? ['提取关键特征', '匹配当前场景', '验证风格一致性', '输出调整后文本']
+          : ['检查前提是否成立', '确认边界内操作', '若边界外，降级为参考', '若前提崩塌，停用该卡'],
+      boundary:
+        index === 0
+          ? `适用于${role.useHint.slice(0, 30)}等场景。不适用于设定冲突或跨维度混合场景。`
+          : index === 1
+            ? `超出${role.name}覆盖范围时不应使用。不适合的维度领域应切换其他卡。`
+            : `代价可控时不使用也可。但对${role.name}敏感的场景缺失该技法会显著降低一致性。`,
     };
   });
 
@@ -109,17 +116,17 @@ function deriveCoverage(stages: BookEvidenceStage[]): SkillEvidenceCoverage {
 
 function compactEvidenceLines(lines: Array<string | undefined>, limit = 2): string {
   const unique = Array.from(
-    new Set(
-      lines
-        .map((line) => String(line || '').trim())
-        .filter(Boolean),
-    ),
+    new Set(lines.map((line) => String(line || '').trim()).filter(Boolean))
   );
 
   return unique.slice(0, limit).join('；');
 }
 
-function getBucketText(buckets: Map<SkillDimension, EvidenceBucket>, dimension: SkillDimension, limit = 2): string {
+function getBucketText(
+  buckets: Map<SkillDimension, EvidenceBucket>,
+  dimension: SkillDimension,
+  limit = 2
+): string {
   return compactEvidenceLines(buckets.get(dimension)?.evidence || [], limit);
 }
 
@@ -149,7 +156,10 @@ export function buildSkillDeckFromEvidence(evidence: SegmentSkillEvidence[]): Ag
 
       const strategyFields: Record<
         SkillDimension,
-        Pick<SkillDeckCard, 'style' | 'pacing' | 'characterTraits' | 'worldBuilding' | 'plotPattern' | 'foreshadowing'>
+        Pick<
+          SkillDeckCard,
+          'style' | 'pacing' | 'characterTraits' | 'worldBuilding' | 'plotPattern' | 'foreshadowing'
+        >
       > = {
         style: {
           style: compactEvidenceLines([getBucketText(buckets, 'style', 3)]),
@@ -274,7 +284,10 @@ export function buildSkillDeckFromEvidence(evidence: SegmentSkillEvidence[]): Ag
   return {
     // AggregatedSkillDeck still exposes mainCard for legacy consumers. Runtime
     // callers must use the explicit project deck selection instead.
-    mainCard: { ...compatibilityMainCard, sourceCardId: compatibilityMainCard.id } as unknown as SkillDeckCard,
+    mainCard: {
+      ...compatibilityMainCard,
+      sourceCardId: compatibilityMainCard.id,
+    } as unknown as SkillDeckCard,
     supportCards: enrichedCards,
     methodChain,
   };

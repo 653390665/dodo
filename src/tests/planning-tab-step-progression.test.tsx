@@ -16,7 +16,13 @@ const mockNovel = {
   title: '测试小说',
   projectPreferenceProfile: {
     tags: ['current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1'],
-    weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
+    weights: {
+      styleWeight: 0.2,
+      characterWeight: 0.2,
+      worldWeight: 0.2,
+      plotWeight: 0.2,
+      pacingWeight: 0.2,
+    },
     acceptedDimensions: [],
     rejectedDimensions: [],
     notes: [],
@@ -24,7 +30,17 @@ const mockNovel = {
   },
 };
 
-const mockCurrentChapter = { id: 'ch-1', novelId: 'novel-1', title: '第一章', content: '', sceneBeats: '', wordCount: 0, order: 1, createdAt: 0, updatedAt: 0 };
+const mockCurrentChapter = {
+  id: 'ch-1',
+  novelId: 'novel-1',
+  title: '第一章',
+  content: '',
+  sceneBeats: '',
+  wordCount: 0,
+  order: 1,
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 const defaultProps = {
   renderContextReceipt: () => <div data-testid="context-receipt" />,
@@ -47,7 +63,9 @@ const defaultProps = {
 async function clickAdvance() {
   const btn = screen.getByText(/完成本步并前往|完成全流程创作/);
   fireEvent.click(btn);
-  await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 50));
+  });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -203,35 +221,35 @@ describe('PlanningTab Step Progression', () => {
 
   test('button is disabled during save and re-enabled after', async () => {
     let resolveSave!: (v: unknown) => void;
-    const savePromise = new Promise(resolve => { resolveSave = resolve; });
+    const savePromise = new Promise((resolve) => {
+      resolveSave = resolve;
+    });
     const onPreferenceProfileChange = vi.fn().mockReturnValue(savePromise);
 
-    render(
-      <PlanningTab
-        {...defaultProps}
-        onPreferenceProfileChange={onPreferenceProfileChange}
-      />
-    );
+    render(<PlanningTab {...defaultProps} onPreferenceProfileChange={onPreferenceProfileChange} />);
 
     const advanceBtn = screen.getByText(/完成本步并前往/);
     fireEvent.click(advanceBtn);
     expect(screen.getByText('保存中...')).toBeDefined();
     expect((advanceBtn as HTMLButtonElement).disabled).toBe(true);
 
-    await act(async () => { resolveSave(undefined); await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      resolveSave(undefined);
+      await new Promise((r) => setTimeout(r, 50));
+    });
     expect(screen.queryByText('保存中...')).toBeNull();
     expect((screen.getByText(/完成本步并前往/) as HTMLButtonElement).disabled).toBe(false);
   });
 
   test('double-click only produces one save call', async () => {
     const onPreferenceProfileChange = vi.fn().mockResolvedValue(undefined);
-    render(
-      <PlanningTab {...defaultProps} onPreferenceProfileChange={onPreferenceProfileChange} />
-    );
+    render(<PlanningTab {...defaultProps} onPreferenceProfileChange={onPreferenceProfileChange} />);
     const btn = screen.getByText(/完成本步并前往/);
     fireEvent.click(btn);
     fireEvent.click(btn);
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     expect(onPreferenceProfileChange).toHaveBeenCalledTimes(1);
   });
 
@@ -285,7 +303,10 @@ describe('PlanningTab Step Progression', () => {
       ...mockNovel,
       projectPreferenceProfile: {
         ...mockNovel.projectPreferenceProfile,
-        tags: ['completed-flow:xiaofeiji-novel-flow', 'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8'],
+        tags: [
+          'completed-flow:xiaofeiji-novel-flow',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+        ],
       },
     };
 
@@ -321,7 +342,9 @@ describe('PlanningTab Step Progression', () => {
 
     // Click reset
     fireEvent.click(screen.getByText('重置流程进度'));
-    await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
     const saved = onPreferenceProfileChange.mock.calls[0][0];
     const tags = saved.tags as string[];
@@ -378,7 +401,9 @@ describe('PlanningTab Step Progression', () => {
 
   test('displayStepNumber and total steps shown correctly', () => {
     render(<PlanningTab {...defaultProps} />);
-    const indicator = screen.getByText((c) => c.includes('步骤') && c.includes('/') && c.includes('8'));
+    const indicator = screen.getByText(
+      (c) => c.includes('步骤') && c.includes('/') && c.includes('8')
+    );
     expect(indicator).toBeDefined();
   });
 
@@ -408,7 +433,11 @@ describe('PlanningTab Step Progression', () => {
 
     expect(screen.getByText('番茄平台流')).toBeDefined();
     expect(screen.getByText('番茄开篇诊断')).toBeDefined();
-    expect(screen.getByText((content) => content.includes('步骤') && content.includes('/') && content.includes('5'))).toBeDefined();
+    expect(
+      screen.getByText(
+        (content) => content.includes('步骤') && content.includes('/') && content.includes('5')
+      )
+    ).toBeDefined();
     expect(screen.queryByText('长篇商业连载流程')).toBeNull();
     expect(screen.queryByText('脑洞灵感闪耀')).toBeNull();
   });

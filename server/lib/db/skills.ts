@@ -1,39 +1,67 @@
 import type { Skill, SkillUsageRecord } from '../../../shared/types';
 import { getDb, notify } from '../db-instance.js';
-import { rowToSkill, skillToRow, rowToSkillUsageRecord, skillUsageRecordToRow, type SkillRow } from '../db-mappers.js';
+import {
+  rowToSkill,
+  skillToRow,
+  rowToSkillUsageRecord,
+  skillUsageRecordToRow,
+  type SkillRow,
+} from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 import { calculateFeedbackScore, summarizeUsageStats } from '../../../shared/lib/skill-model.js';
 import { capabilityManifestFor, validateSkillCardForScope } from '../../capabilities/manifest.js';
 
 function validateSkillPersistence(skill: Skill): void {
   const manifest = capabilityManifestFor(skill.id);
-  if (manifest?.kind === 'skill-card'
-    || skill.deconstructionCardType
-    || skill.sourceBadge === 'book-extracted'
-    || skill.sourceType === 'book-extracted'
-    || skill.sourceBadge === 'fused'
-    || skill.fusionMeta) {
+  if (
+    manifest?.kind === 'skill-card' ||
+    skill.deconstructionCardType ||
+    skill.sourceBadge === 'book-extracted' ||
+    skill.sourceType === 'book-extracted' ||
+    skill.sourceBadge === 'fused' ||
+    skill.fusionMeta
+  ) {
     validateSkillCardForScope(skill, 'project');
   }
 }
 
 function validateFusionForPersistence(skill: Skill): void {
   const meta = skill.fusionMeta;
-  const hasFusionFields = Boolean(meta && (meta.mainSkillId || meta.supportSkillId || meta.components || meta.dimensionOwners || meta.resolvedRules));
+  const hasFusionFields = Boolean(
+    meta &&
+    (meta.mainSkillId ||
+      meta.supportSkillId ||
+      meta.components ||
+      meta.dimensionOwners ||
+      meta.resolvedRules)
+  );
   if (skill.sourceBadge !== 'fused' && !hasFusionFields) return;
   if (!meta?.mainSkillId || !meta.supportSkillId || meta.mainSkillId === meta.supportSkillId) {
     throw new Error('融合卡来源必须是两个不同且存在的能力卡');
   }
-  if (!Array.isArray(meta.components) || meta.components.length !== 2
-    || meta.components.some((item) => !item?.skillId || !Number.isInteger(item.version) || item.version <= 0)) {
+  if (
+    !Array.isArray(meta.components) ||
+    meta.components.length !== 2 ||
+    meta.components.some(
+      (item) => !item?.skillId || !Number.isInteger(item.version) || item.version <= 0
+    )
+  ) {
     throw new Error('融合卡 components/version 不完整');
   }
-  if (!meta.dimensionOwners || Object.keys(meta.dimensionOwners).length === 0
-    || !meta.resolvedRules || typeof meta.resolvedRules !== 'object') {
+  if (
+    !meta.dimensionOwners ||
+    Object.keys(meta.dimensionOwners).length === 0 ||
+    !meta.resolvedRules ||
+    typeof meta.resolvedRules !== 'object'
+  ) {
     throw new Error('融合卡 dimensionOwners/resolvedRules 不完整');
   }
   const lineage = (meta.resolvedRules as Record<string, unknown>).lineage;
-  if (!lineage || typeof lineage !== 'object' || !Array.isArray((lineage as Record<string, unknown>).sources)) {
+  if (
+    !lineage ||
+    typeof lineage !== 'object' ||
+    !Array.isArray((lineage as Record<string, unknown>).sources)
+  ) {
     throw new Error('融合卡 lineage 不完整');
   }
   const main = getSkill(meta.mainSkillId);
@@ -43,7 +71,9 @@ function validateFusionForPersistence(skill: Skill): void {
     validateSkillCardForScope(main, 'fusion-source');
     validateSkillCardForScope(support, 'fusion-source');
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : '融合卡来源不存在、未授权或未达到运行时就绪');
+    throw new Error(
+      error instanceof Error ? error.message : '融合卡来源不存在、未授权或未达到运行时就绪'
+    );
   }
   const versions = new Map(meta.components.map((item) => [item.skillId, item.version]));
   if (versions.get(main.id) !== main.version || versions.get(support.id) !== support.version) {
@@ -55,9 +85,73 @@ const skillCrud = createCrudHelpers<Skill, ReturnType<typeof skillToRow>>({
   tableName: 'skills',
   rowToEntity: rowToSkill,
   entityToRow: skillToRow,
-  insertColumns: ['id', 'name', 'description', 'style', 'pacing', 'vocabulary', 'sentence_structure', 'imagery', 'banned_words', 'few_shots', 'character_traits', 'world_building', 'foreshadowing', 'plot_pattern', 'core_patterns', 'banned_elements', 'stability_score', 'evaluation_feedback', 'version', 'parent_skill_id', 'lineage_root_id', 'primary_dimension', 'dimension_tags', 'composition_profile', 'usage_stats', 'feedback_score', 'fusion_meta', 'method_chain', 'why_this_skill_works', 'source_badge', 'created_at', 'updated_at'],
-  updateColumns: ['name', 'description', 'style', 'pacing', 'vocabulary', 'sentence_structure', 'imagery', 'banned_words', 'few_shots', 'character_traits', 'world_building', 'foreshadowing', 'plot_pattern', 'core_patterns', 'banned_elements', 'stability_score', 'evaluation_feedback', 'version', 'parent_skill_id', 'lineage_root_id', 'primary_dimension', 'dimension_tags', 'composition_profile', 'usage_stats', 'feedback_score', 'fusion_meta', 'method_chain', 'why_this_skill_works', 'source_badge', 'updated_at'],
-  listOrderBy: 'created_at DESC'
+  insertColumns: [
+    'id',
+    'name',
+    'description',
+    'style',
+    'pacing',
+    'vocabulary',
+    'sentence_structure',
+    'imagery',
+    'banned_words',
+    'few_shots',
+    'character_traits',
+    'world_building',
+    'foreshadowing',
+    'plot_pattern',
+    'core_patterns',
+    'banned_elements',
+    'stability_score',
+    'evaluation_feedback',
+    'version',
+    'parent_skill_id',
+    'lineage_root_id',
+    'primary_dimension',
+    'dimension_tags',
+    'composition_profile',
+    'usage_stats',
+    'feedback_score',
+    'fusion_meta',
+    'method_chain',
+    'why_this_skill_works',
+    'source_badge',
+    'created_at',
+    'updated_at',
+  ],
+  updateColumns: [
+    'name',
+    'description',
+    'style',
+    'pacing',
+    'vocabulary',
+    'sentence_structure',
+    'imagery',
+    'banned_words',
+    'few_shots',
+    'character_traits',
+    'world_building',
+    'foreshadowing',
+    'plot_pattern',
+    'core_patterns',
+    'banned_elements',
+    'stability_score',
+    'evaluation_feedback',
+    'version',
+    'parent_skill_id',
+    'lineage_root_id',
+    'primary_dimension',
+    'dimension_tags',
+    'composition_profile',
+    'usage_stats',
+    'feedback_score',
+    'fusion_meta',
+    'method_chain',
+    'why_this_skill_works',
+    'source_badge',
+    'updated_at',
+  ],
+  listOrderBy: 'created_at DESC',
 });
 
 export function listSkills(): Skill[] {
@@ -87,7 +181,9 @@ export function listSkillVersions(skillId: string): Skill[] {
   if (!skill) return [];
   const rootId = skill.lineageRootId || skill.id;
   const rows = getDb()
-    .prepare('SELECT * FROM skills WHERE lineage_root_id = ? OR id = ? ORDER BY version ASC, created_at ASC')
+    .prepare(
+      'SELECT * FROM skills WHERE lineage_root_id = ? OR id = ? ORDER BY version ASC, created_at ASC'
+    )
     .all(rootId, rootId) as SkillRow[];
   return rows.map(rowToSkill);
 }
@@ -105,7 +201,8 @@ export function listSkillUsageRecords(skillId?: string): SkillUsageRecord[] {
   }
 
   const rows = getDb()
-    .prepare(`
+    .prepare(
+      `
       SELECT sur.*
       FROM skill_usage_records sur
       WHERE EXISTS (
@@ -114,7 +211,8 @@ export function listSkillUsageRecords(skillId?: string): SkillUsageRecord[] {
         WHERE value = ?
       )
       ORDER BY sur.created_at DESC
-    `)
+    `
+    )
     .all(skillId);
   return rows.map(rowToSkillUsageRecord);
 }
@@ -122,22 +220,22 @@ export function listSkillUsageRecords(skillId?: string): SkillUsageRecord[] {
 export function syncSkillFeedbackScores(): Skill[] {
   const skills = listSkills();
   const usageRecords = listSkillUsageRecords();
-  const updates = skills
-    .map((skill) => {
-      const relatedRecords = usageRecords.filter((record) => record.mountedSkillIds.includes(skill.id));
-      const usageStats = summarizeUsageStats(relatedRecords);
-      const feedbackScore = calculateFeedbackScore(usageStats);
-      const usageStatsJson = JSON.stringify(usageStats);
-      const existingStatsJson = JSON.stringify(skill.usageStats || {});
-      return {
-        skill,
-        usageStats,
-        feedbackScore,
-        needsUpdate:
-          existingStatsJson !== usageStatsJson ||
-          (skill.feedbackScore ?? 50) !== feedbackScore,
-      };
-    });
+  const updates = skills.map((skill) => {
+    const relatedRecords = usageRecords.filter((record) =>
+      record.mountedSkillIds.includes(skill.id)
+    );
+    const usageStats = summarizeUsageStats(relatedRecords);
+    const feedbackScore = calculateFeedbackScore(usageStats);
+    const usageStatsJson = JSON.stringify(usageStats);
+    const existingStatsJson = JSON.stringify(skill.usageStats || {});
+    return {
+      skill,
+      usageStats,
+      feedbackScore,
+      needsUpdate:
+        existingStatsJson !== usageStatsJson || (skill.feedbackScore ?? 50) !== feedbackScore,
+    };
+  });
 
   const dirtyUpdates = updates.filter((entry) => entry.needsUpdate);
   if (dirtyUpdates.length > 0) {
@@ -171,9 +269,13 @@ export function syncSkillFeedbackScores(): Skill[] {
 }
 
 export function createSkillUsageRecord(record: SkillUsageRecord): void {
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO skill_usage_records (id, novel_id, chapter_id, mounted_skill_ids, fit_score, audit_score, user_action, notes, created_at)
     VALUES (@id, @novel_id, @chapter_id, @mounted_skill_ids, @fit_score, @audit_score, @user_action, @notes, @created_at)
-  `).run(skillUsageRecordToRow(record));
+  `
+    )
+    .run(skillUsageRecordToRow(record));
   notify();
 }

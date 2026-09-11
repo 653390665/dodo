@@ -6,35 +6,61 @@ export function countDraftChars(text: string) {
   return text.replace(/\s/g, '').length;
 }
 
-export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, contextStr: string, minChars?: number) {
+export function expandDraftToMinimum(
+  baseDraft: string,
+  sceneBeats: string,
+  contextStr: string,
+  minChars?: number
+) {
   const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   const normalizedBeats = String(sceneBeats || '').trim();
   const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, ''));
   const isFallbackTemplate = /异动入场|试探加深|悬念收束/.test(normalizedBeats);
   const beatHints = isFallbackTemplate
-    ? sanitizeFallbackContext(normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1] || '').slice(0, 2)
-    : sanitizeFallbackContext(normalizedBeats.replace(/\*\*/g, '').replace(/^#+\s*/gm, '')).slice(0, 12);
+    ? sanitizeFallbackContext(
+        normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1] || ''
+      ).slice(0, 2)
+    : sanitizeFallbackContext(normalizedBeats.replace(/\*\*/g, '').replace(/^#+\s*/gm, '')).slice(
+        0,
+        12
+      );
   const hints = [...beatHints, ...contextLines].filter(Boolean);
   const seed = hints[0] || '这场变故没有给任何人留下退路';
   const hintSentence = (hint: string) => `${hint.replace(/[。！？!?；;，,]+$/, '')}。`;
 
   const paragraphTemplates = [
-    (hint: string) => `屋里先静了一拍。${hintSentence(hint)}这件事没有被谁说破，只从一束避开的目光、一次收回的手势里露了个边。`,
-    (hint: string) => `他把杯沿转了半圈，借着这个动作重新看清每个人的位置。${hintSentence(hint)}这条线索落在眼前，像一枚暂时无法归类的证物。`,
-    (hint: string) => `对方开口时刻意放低了声音，句尾还留着一点空白。${hintSentence(hint)}这让一句看似寻常的话多出一层试探。`,
-    (hint: string) => `窗纸被风顶得向内一鼓，外面的脚步随即停住。${hintSentence(hint)}线索在这点停顿里变得具体，逼得屋内的人重新斟酌下一步。`,
-    (hint: string) => `他没有顺着对方递来的解释往下走，而是盯住了那处被忽略的细节。${hintSentence(hint)}它像从雨水里浮出的细线，牵着更深的麻烦。`,
-    (hint: string) => `短暂的僵持被一个细小动作打破：有人挪开椅子，有人按住袖口。${hintSentence(hint)}这个变化把各自的打算照出一角。`,
-    (hint: string) => `他只问了一个不带锋芒的问题，屋里的空气却立刻换了方向。${hintSentence(hint)}疑问从暗处向前挪了一步，仍旧没有露出全部答案。`,
-    (hint: string) => `门外的声音远了一些，没人因此松气。${hintSentence(hint)}它反倒像一条新的界线，提醒他们刚才的选择已经留下痕迹。`,
-    (hint: string) => `桌面上的水痕被灯光切成两段，他顺着那道反光看向角落。${hintSentence(hint)}细节与眼前的沉默叠在一起，指向同一个未完的疑问。`,
-    (hint: string) => `有人把准备好的话咽了回去，改用指节轻敲桌面。${hintSentence(hint)}异样没有得到确认，却让等待本身成了回答。`,
-    (hint: string) => `他退开半步，把门口让出一条窄缝。${hintSentence(hint)}冷风带进来的不只是雨气，还有这个细节留下的压力。`,
-    (hint: string) => `对方的手停在半空，像是在衡量一件看不见的东西。${hintSentence(hint)}线索于是被放到两人之间，谁先碰它，谁就得先承担后果。`,
-    (hint: string) => `远处传来一声短促的金属碰撞，谈话被迫停下。${hintSentence(hint)}它从背景里浮出来，成为此刻唯一不能忽略的线索。`,
-    (hint: string) => `他记住了那一瞬间的顺序：先是灯影晃动，随后才有人移步。${hintSentence(hint)}这个细节没有解释一切，却让下一步有了明确方向。`,
-    (hint: string) => `屋里的人各自做了选择，有人靠近出口，有人守住桌边。${hintSentence(hint)}这件事将这些选择串在一起，形成一场尚未落幕的较量。`,
-    (hint: string) => `最后一句话落下后，谁也没有接住。${hintSentence(hint)}疑问留在半空，像一扇尚未推开的门，门后传来更近的脚步。`,
+    (hint: string) =>
+      `屋里先静了一拍。${hintSentence(hint)}这件事没有被谁说破，只从一束避开的目光、一次收回的手势里露了个边。`,
+    (hint: string) =>
+      `他把杯沿转了半圈，借着这个动作重新看清每个人的位置。${hintSentence(hint)}这条线索落在眼前，像一枚暂时无法归类的证物。`,
+    (hint: string) =>
+      `对方开口时刻意放低了声音，句尾还留着一点空白。${hintSentence(hint)}这让一句看似寻常的话多出一层试探。`,
+    (hint: string) =>
+      `窗纸被风顶得向内一鼓，外面的脚步随即停住。${hintSentence(hint)}线索在这点停顿里变得具体，逼得屋内的人重新斟酌下一步。`,
+    (hint: string) =>
+      `他没有顺着对方递来的解释往下走，而是盯住了那处被忽略的细节。${hintSentence(hint)}它像从雨水里浮出的细线，牵着更深的麻烦。`,
+    (hint: string) =>
+      `短暂的僵持被一个细小动作打破：有人挪开椅子，有人按住袖口。${hintSentence(hint)}这个变化把各自的打算照出一角。`,
+    (hint: string) =>
+      `他只问了一个不带锋芒的问题，屋里的空气却立刻换了方向。${hintSentence(hint)}疑问从暗处向前挪了一步，仍旧没有露出全部答案。`,
+    (hint: string) =>
+      `门外的声音远了一些，没人因此松气。${hintSentence(hint)}它反倒像一条新的界线，提醒他们刚才的选择已经留下痕迹。`,
+    (hint: string) =>
+      `桌面上的水痕被灯光切成两段，他顺着那道反光看向角落。${hintSentence(hint)}细节与眼前的沉默叠在一起，指向同一个未完的疑问。`,
+    (hint: string) =>
+      `有人把准备好的话咽了回去，改用指节轻敲桌面。${hintSentence(hint)}异样没有得到确认，却让等待本身成了回答。`,
+    (hint: string) =>
+      `他退开半步，把门口让出一条窄缝。${hintSentence(hint)}冷风带进来的不只是雨气，还有这个细节留下的压力。`,
+    (hint: string) =>
+      `对方的手停在半空，像是在衡量一件看不见的东西。${hintSentence(hint)}线索于是被放到两人之间，谁先碰它，谁就得先承担后果。`,
+    (hint: string) =>
+      `远处传来一声短促的金属碰撞，谈话被迫停下。${hintSentence(hint)}它从背景里浮出来，成为此刻唯一不能忽略的线索。`,
+    (hint: string) =>
+      `他记住了那一瞬间的顺序：先是灯影晃动，随后才有人移步。${hintSentence(hint)}这个细节没有解释一切，却让下一步有了明确方向。`,
+    (hint: string) =>
+      `屋里的人各自做了选择，有人靠近出口，有人守住桌边。${hintSentence(hint)}这件事将这些选择串在一起，形成一场尚未落幕的较量。`,
+    (hint: string) =>
+      `最后一句话落下后，谁也没有接住。${hintSentence(hint)}疑问留在半空，像一扇尚未推开的门，门后传来更近的脚步。`,
   ];
 
   let draft = baseDraft.trim();
@@ -168,25 +194,29 @@ export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, cont
   ];
   while (countDraftChars(draft) < effectiveMin) {
     const cycle = Math.floor(index / paragraphTemplates.length);
-    const hint = hints[index]
-      || detailHints[(index - hints.length + cycle * 3) % (isFallbackTemplate ? 16 : detailHints.length)]
-      || seed;
+    const hint =
+      hints[index] ||
+      detailHints[
+        (index - hints.length + cycle * 3) % (isFallbackTemplate ? 16 : detailHints.length)
+      ] ||
+      seed;
     // A bridge marks the start of a new pass through the scene templates. It
     // must not be appended to every paragraph or it becomes a repeated slogan.
-    const bridge = cycle > 0 && index % paragraphTemplates.length === 0
-      ? cycleBridges[(cycle - 1) % cycleBridges.length]
-      : '';
+    const bridge =
+      cycle > 0 && index % paragraphTemplates.length === 0
+        ? cycleBridges[(cycle - 1) % cycleBridges.length]
+        : '';
     let action = paragraphTemplates[index % paragraphTemplates.length](hint);
     if (!isFallbackTemplate && index % paragraphTemplates.length === 2) {
       action = action.replace(
         '这让一句看似寻常的话多出一层试探。',
-        `这让${hint.replace(/[。！？!?；;，,]+$/, '')}的意味又重了一层。`,
+        `这让${hint.replace(/[。！？!?；;，,]+$/, '')}的意味又重了一层。`
       );
     }
     if (!isFallbackTemplate && index % paragraphTemplates.length === 5) {
       action = action.replace(
         '这个变化把各自的打算照出一角。',
-        `这个变化让${hint.replace(/[。！？!?；;，,]+$/, '')}显出新的方向。`,
+        `这个变化让${hint.replace(/[。！？!?；;，,]+$/, '')}显出新的方向。`
       );
     }
     const supportIndex = (index + cycle * 5) % cadence.length;
@@ -203,20 +233,25 @@ export function expandDraftToMinimum(baseDraft: string, sceneBeats: string, cont
         ? cadence[supportIndex]
         : reflection[(supportIndex + 3) % reflection.length];
     const turnLine = turn[(index + cycle * 7) % turn.length];
-    const paragraph = (isFallbackTemplate
+    const paragraph = isFallbackTemplate
       ? `${action}${support}${turnLine}${bridge}`
       : `${action}${support}${turnLine}${bridge}`
-        .replace(/他没有/g, '他并未')
-        .replace(/没有人/g, '谁也不')
-        .replace(/危险却没有退去/g, '危险仍在原处')
-        .replace(/这一次/g, '这一回'));
+          .replace(/他没有/g, '他并未')
+          .replace(/没有人/g, '谁也不')
+          .replace(/危险却没有退去/g, '危险仍在原处')
+          .replace(/这一次/g, '这一回');
     draft = draft ? `${draft}\n\n${paragraph}` : paragraph;
     index += 1;
   }
   return draft;
 }
 
-export function ensureMinimumDraftLength(draft: string, sceneBeats: string, contextStr: string, minChars?: number) {
+export function ensureMinimumDraftLength(
+  draft: string,
+  sceneBeats: string,
+  contextStr: string,
+  minChars?: number
+) {
   const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   // Long model output still must pass the deterministic gate; never silently
   // treat an oversized response containing prompt/context residue as valid.
@@ -229,50 +264,63 @@ export function ensureMinimumDraftLength(draft: string, sceneBeats: string, cont
 
 export function buildFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number) {
   const normalizedBeats = String(sceneBeats || '').trim();
-  const intentHint = sanitizeFallbackContext(
-    normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim() || '',
-  )[0]
-    || '一场试探正在逼近真正的危险';
+  const intentHint =
+    sanitizeFallbackContext(
+      normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim() || ''
+    )[0] || '一场试探正在逼近真正的危险';
 
   // Detect fallback template markers — if the scene beats are AI-generated templates
   // rather than real content, use natural prose fallback instead
   const isFallbackTemplate = /异动入场|试探加深|悬念收束/.test(normalizedBeats);
   if (isFallbackTemplate) {
-    const userIntent = sanitizeFallbackContext(
-      normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。，]+)/)?.[1]?.trim() || '',
-    )[0] || '';
+    const userIntent =
+      sanitizeFallbackContext(
+        normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。，]+)/)?.[1]?.trim() || ''
+      )[0] || '';
     const hintText = userIntent ? ` —— ${userIntent}` : '';
-    return ensureMinimumDraftLength([
-      `门轴轻轻一响，屋里的声音同时低了下去。`,
-      ``,
-      `他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻${hintText}。`,
-      `空气里压着未说出口的消息，也压着即将逼近的危险。`,
-    ].join('\n'), sceneBeats, contextStr, minChars);
+    return ensureMinimumDraftLength(
+      [
+        `门轴轻轻一响，屋里的声音同时低了下去。`,
+        ``,
+        `他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻${hintText}。`,
+        `空气里压着未说出口的消息，也压着即将逼近的危险。`,
+      ].join('\n'),
+      sceneBeats,
+      contextStr,
+      minChars
+    );
   }
   const sceneBlocks = normalizedBeats
     .split(/\n\s*---\s*\n|(?=###\s*场景)/)
     .map((block) => block.trim())
     .filter(Boolean)
     .slice(0, 4);
-  const beats = sceneBlocks.length > 0
-    ? sceneBlocks.map((block, index) => {
-        const title = block.match(/###\s*场景\s*\d+[：:]\s*([^\n（(]+)/)?.[1]?.trim() || `第 ${index + 1} 个转折`;
-        const conflict = block.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-        const actions = block.match(/\*\*关键动作链\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-        const exitHook = block.match(/\*\*退场钩子\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-        return sanitizeFallbackContext([title, conflict, actions, exitHook].filter(Boolean).join('。'))[0] || '';
-      })
-    : normalizedBeats
-        .split(/\n+/)
-        .flatMap((line) => sanitizeFallbackContext(line.replace(/\*\*/g, '')))
-        .filter(Boolean)
-        .slice(0, 4);
+  const beats =
+    sceneBlocks.length > 0
+      ? sceneBlocks.map((block, index) => {
+          const title =
+            block.match(/###\s*场景\s*\d+[：:]\s*([^\n（(]+)/)?.[1]?.trim() ||
+            `第 ${index + 1} 个转折`;
+          const conflict = block.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+          const actions = block.match(/\*\*关键动作链\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+          const exitHook = block.match(/\*\*退场钩子\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
+          return (
+            sanitizeFallbackContext(
+              [title, conflict, actions, exitHook].filter(Boolean).join('。')
+            )[0] || ''
+          );
+        })
+      : normalizedBeats
+          .split(/\n+/)
+          .flatMap((line) => sanitizeFallbackContext(line.replace(/\*\*/g, '')))
+          .filter(Boolean)
+          .slice(0, 4);
   if (beats.length === 0) {
     return ensureMinimumDraftLength(
       '门轴轻轻一响，屋里的声音同时低了下去。\n\n他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻。空气里压着未说出口的消息，也压着即将逼近的危险。',
       sceneBeats,
       contextStr,
-      minChars,
+      minChars
     );
   }
 
@@ -280,11 +328,16 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
   const secondBeat = beats[1] || '试探被接住，旧线索浮出水面';
   const thirdBeat = beats[2] || '危险逼近，角色必须做出选择';
 
-  return ensureMinimumDraftLength([
-    `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。${firstBeat}没有被摊开讲明，它先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
-    `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。${secondBeat}，局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
-    `${thirdBeat}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
-  ].join('\n\n'), sceneBeats, contextStr, minChars);
+  return ensureMinimumDraftLength(
+    [
+      `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。${firstBeat}没有被摊开讲明，它先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
+      `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。${secondBeat}，局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
+      `${thirdBeat}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
+    ].join('\n\n'),
+    sceneBeats,
+    contextStr,
+    minChars
+  );
 }
 
 export function buildFallbackSceneBeats(userIntent: string) {

@@ -12,21 +12,31 @@ import { getDatabaseGeneration } from '../lib/db-instance';
 const EXPAND_FRAGMENT_MAX_INPUT_CHARS = 30_000;
 const EXPAND_FRAGMENT_MAX_OUTPUT_TOKENS = 1_200;
 
-export const expandFragmentSchema = z.object({
-  content: z.string().trim().max(20_000).optional(),
-  text: z.string().trim().max(20_000).optional(),
-  type: z.string().trim().max(200).default(''),
-  context: z.string().max(20_000).default(''),
-  novelId: z.string().trim().min(1).max(200),
-}).strict().superRefine((value, ctx) => {
-  const content = value.content || value.text || '';
-  if (!content) {
-    ctx.addIssue({ code: 'custom', path: ['content'], message: '请先输入要扩写的片段。' });
-  }
-  if (content.length + value.context.length > EXPAND_FRAGMENT_MAX_INPUT_CHARS) {
-    ctx.addIssue({ code: 'too_big', origin: 'string', maximum: EXPAND_FRAGMENT_MAX_INPUT_CHARS, inclusive: true, path: ['context'], message: '片段和上下文过长，请缩短后再试。' });
-  }
-});
+export const expandFragmentSchema = z
+  .object({
+    content: z.string().trim().max(20_000).optional(),
+    text: z.string().trim().max(20_000).optional(),
+    type: z.string().trim().max(200).default(''),
+    context: z.string().max(20_000).default(''),
+    novelId: z.string().trim().min(1).max(200),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const content = value.content || value.text || '';
+    if (!content) {
+      ctx.addIssue({ code: 'custom', path: ['content'], message: '请先输入要扩写的片段。' });
+    }
+    if (content.length + value.context.length > EXPAND_FRAGMENT_MAX_INPUT_CHARS) {
+      ctx.addIssue({
+        code: 'too_big',
+        origin: 'string',
+        maximum: EXPAND_FRAGMENT_MAX_INPUT_CHARS,
+        inclusive: true,
+        path: ['context'],
+        message: '片段和上下文过长，请缩短后再试。',
+      });
+    }
+  });
 
 /**
  * Simple LLM proxy routes — no shared local helpers needed.
@@ -47,7 +57,9 @@ export function registerSimpleLlmRoutes(app: Express) {
       // 同时兼容旧的 { text, context } 与前端实际调用的 { content, type } 参数
       const parsed = expandFragmentSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: '扩写请求参数无效', code: 'INVALID_EXPAND_FRAGMENT_REQUEST' });
+        return res
+          .status(400)
+          .json({ error: '扩写请求参数无效', code: 'INVALID_EXPAND_FRAGMENT_REQUEST' });
       }
       const { type, context, novelId } = parsed.data;
       const content = parsed.data.content || parsed.data.text || '';
@@ -67,9 +79,10 @@ export function registerSimpleLlmRoutes(app: Express) {
         });
       } catch (error) {
         if (error instanceof LlmExecutionRejectedError) {
-          const message = error.quota.code === 'RATE_LIMITED'
-            ? '片段扩写请求过于频繁，请稍后再试。'
-            : error.message;
+          const message =
+            error.quota.code === 'RATE_LIMITED'
+              ? '片段扩写请求过于频繁，请稍后再试。'
+              : error.message;
           res.status(error.status).json({ error: message, code: error.quota.code });
           return;
         }
@@ -103,12 +116,12 @@ export function registerSimpleLlmRoutes(app: Express) {
             if (!isStreamDisconnected(req, res) && !res.writableEnded) {
               res.write(`data: ${JSON.stringify({ token })}\n\n`);
             }
-          }
+          },
         });
         if (
-          databaseGeneration !== getDatabaseGeneration()
-          || isStreamDisconnected(req, res)
-          || res.writableEnded
+          databaseGeneration !== getDatabaseGeneration() ||
+          isStreamDisconnected(req, res) ||
+          res.writableEnded
         ) {
           throw new Error('片段扩写连接已中断。');
         }
@@ -116,7 +129,7 @@ export function registerSimpleLlmRoutes(app: Express) {
         res.end();
       });
     } catch (e: unknown) {
-      logger.error("Simple LLM route error:", e);
+      logger.error('Simple LLM route error:', e);
       if (isStreamDisconnected(req, res) || res.writableEnded) {
         return;
       }
@@ -131,7 +144,6 @@ export function registerSimpleLlmRoutes(app: Express) {
       sse?.cleanup();
     }
   });
-
 
   // Remaining routes (generate-bio, extract-entities, detect-foreshadowing,
   // analyze-pacing, generate-entity-details) are handled by world.ts with

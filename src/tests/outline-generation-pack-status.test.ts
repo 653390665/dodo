@@ -1,12 +1,14 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import type { Novel } from '../../shared/types';
 
-const { startWorldJob, createOutline, activateOutline, flushPendingEditorWrites } = vi.hoisted(() => ({
-  startWorldJob: vi.fn(),
-  createOutline: vi.fn(),
-  activateOutline: vi.fn(),
-  flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
-}));
+const { startWorldJob, createOutline, activateOutline, flushPendingEditorWrites } = vi.hoisted(
+  () => ({
+    startWorldJob: vi.fn(),
+    createOutline: vi.fn(),
+    activateOutline: vi.fn(),
+    flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
+  })
+);
 const toast = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/world-job-client', () => ({ startWorldJob }));
@@ -69,7 +71,7 @@ describe('useOutlineGeneration - pack status filtering', () => {
       '/api/generate-outline',
       expect.objectContaining({ continuationPackId: 'pack-approved-1' }),
       expect.anything(),
-      expect.anything(),
+      expect.anything()
     );
   });
 
@@ -83,7 +85,7 @@ describe('useOutlineGeneration - pack status filtering', () => {
       '/api/generate-outline',
       expect.not.objectContaining({ continuationPackId: expect.anything() }),
       expect.anything(),
-      expect.anything(),
+      expect.anything()
     );
   });
 
@@ -118,8 +120,15 @@ describe('useOutlineGeneration - pack status filtering', () => {
 
     const result = await handleGenerateOutline();
 
-    expect(result).toEqual({ candidateId: 'candidate-1', content: '生成的大纲', databaseGeneration: 1 });
-    expect(createOutline).toHaveBeenCalledWith('novel-1', expect.objectContaining({ content: '生成的大纲', databaseGeneration: 1 }));
+    expect(result).toEqual({
+      candidateId: 'candidate-1',
+      content: '生成的大纲',
+      databaseGeneration: 1,
+    });
+    expect(createOutline).toHaveBeenCalledWith(
+      'novel-1',
+      expect.objectContaining({ content: '生成的大纲', databaseGeneration: 1 })
+    );
     expect(activateOutline).not.toHaveBeenCalled();
     expect(args.setGlobalOutline).not.toHaveBeenCalled();
   });
@@ -135,7 +144,7 @@ describe('useOutlineGeneration - pack status filtering', () => {
       '/api/generate-outline',
       expect.objectContaining({ seedOutline: '所选文件大纲', expectedWordCount: 100000 }),
       expect.anything(),
-      expect.anything(),
+      expect.anything()
     );
     expect(args.setGlobalOutline).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith('大纲生成失败：网络失败', 'error');
@@ -143,7 +152,11 @@ describe('useOutlineGeneration - pack status filtering', () => {
 
   test('does not activate a stale candidate when a newer request starts during create', async () => {
     let resolveCandidate!: (value: { id: string }) => void;
-    createOutline.mockReturnValueOnce(new Promise<{ id: string }>((resolve) => { resolveCandidate = resolve; }));
+    createOutline.mockReturnValueOnce(
+      new Promise<{ id: string }>((resolve) => {
+        resolveCandidate = resolve;
+      })
+    );
     const args = createHookArgs();
     const { handleGenerateOutline } = useOutlineGeneration(args);
     const pending = handleGenerateOutline();
@@ -157,7 +170,11 @@ describe('useOutlineGeneration - pack status filtering', () => {
 
   test('a stale outline failure cannot overwrite a newer AI action state', async () => {
     let rejectGeneration!: (error: Error) => void;
-    startWorldJob.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectGeneration = reject; }));
+    startWorldJob.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectGeneration = reject;
+      })
+    );
     const setAiActionState = vi.fn();
     const args = createHookArgs({ setAiActionState });
     const { handleGenerateOutline } = useOutlineGeneration(args);
@@ -169,7 +186,9 @@ describe('useOutlineGeneration - pack status filtering', () => {
     await pending;
 
     expect(setAiActionState).toHaveBeenCalledTimes(1);
-    expect(setAiActionState).toHaveBeenCalledWith(expect.objectContaining({ status: 'running', operation: 'outline' }));
+    expect(setAiActionState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'running', operation: 'outline' })
+    );
     expect(toast).not.toHaveBeenCalled();
   });
 

@@ -56,12 +56,19 @@ export function GlobalSetupTab({
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-sm transition-all hover:bg-theme-accent/90 shadow-sm"
           >
-            {isSaving ? '保存中...' : <><Save size={16}/>保存全局设定</>}
+            {isSaving ? (
+              '保存中...'
+            ) : (
+              <>
+                <Save size={16} />
+                保存全局设定
+              </>
+            )}
           </button>
         </div>
         <textarea
           value={globalOutline}
-          onChange={e => setGlobalOutline(e.target.value)}
+          onChange={(e) => setGlobalOutline(e.target.value)}
           placeholder="描述小说的起承转合、主线任务、结局走向..."
           className="w-full h-64 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
         />
@@ -72,7 +79,7 @@ export function GlobalSetupTab({
         <h2 className="text-lg font-bold text-theme-text mb-4">世界观法则 (World Rules)</h2>
         <textarea
           value={worldRules}
-          onChange={e => setWorldRules(e.target.value)}
+          onChange={(e) => setWorldRules(e.target.value)}
           placeholder="例如：修仙体系境界、魔法运转原理、科技文明等级..."
           className="w-full h-48 p-4 rounded-xl border border-theme-border/50 focus:border-theme-accent outline-none font-serif resize-none"
         />

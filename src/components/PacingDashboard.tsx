@@ -17,15 +17,21 @@ export function PacingDashboard({ novelId }: Props) {
   const [loading, setLoading] = useState(false);
   const analyzeControllerRef = useRef<AbortController | null>(null);
 
-  const refresh = useCallback(async () => setChapters(await listChaptersMetadata(novelId)), [novelId]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+  const refresh = useCallback(
+    async () => setChapters(await listChaptersMetadata(novelId)),
+    [novelId]
+  );
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
+    refresh();
+    return subscribeToChanges(refresh);
+  }, [novelId, refresh]);
   useEffect(() => () => analyzeControllerRef.current?.abort(), []);
 
   const handleAnalyze = async () => {
     // wordCount > 0 ⟺ the chapter has non-whitespace content; full bodies are
     // fetched per chapter only for the analyzed slice.
-    const withContent = chapters.filter(c => c.wordCount > 0);
+    const withContent = chapters.filter((c) => c.wordCount > 0);
     if (withContent.length === 0) {
       toast('没有可分析的章节内容', 'info');
       return;
@@ -39,19 +45,27 @@ export function PacingDashboard({ novelId }: Props) {
       const slice = withContent.slice(-MAX_CHAPTERS);
       // The server only reads the first 500 chars per chapter, so upload just
       // that window instead of whole-chapter bodies.
-      const trimmed = await Promise.all(slice.map(async (c) => {
-        const full = await getChapter(c.id);
-        return { id: c.id, order: c.order, title: c.title, wordCount: c.wordCount, content: (full?.content || '').slice(0, 500) };
-      }));
+      const trimmed = await Promise.all(
+        slice.map(async (c) => {
+          const full = await getChapter(c.id);
+          return {
+            id: c.id,
+            order: c.order,
+            title: c.title,
+            wordCount: c.wordCount,
+            content: (full?.content || '').slice(0, 500),
+          };
+        })
+      );
       const { result } = await startWorldJob<{ chapters: Partial<PacingData>[] }>(
         '/api/analyze-pacing',
         { novelId, chapters: trimmed },
         {},
-        controller.signal,
+        controller.signal
       );
       const raw = result.chapters;
-      const enriched: PacingData[] = raw.map(r => {
-        const ch = slice.find(c => c.id === r.chapterId);
+      const enriched: PacingData[] = raw.map((r) => {
+        const ch = slice.find((c) => c.id === r.chapterId);
         return {
           chapterId: r.chapterId || '',
           chapterTitle: ch?.title || '',
@@ -75,7 +89,10 @@ export function PacingDashboard({ novelId }: Props) {
     }
   };
 
-  const avgTension = pacing.length > 0 ? Math.round(pacing.reduce((s, p) => s + p.tensionScore, 0) / pacing.length) : 0;
+  const avgTension =
+    pacing.length > 0
+      ? Math.round(pacing.reduce((s, p) => s + p.tensionScore, 0) / pacing.length)
+      : 0;
   const totalPayoffs = pacing.reduce((s, p) => s + p.payoffCount, 0);
 
   return (
@@ -85,7 +102,9 @@ export function PacingDashboard({ novelId }: Props) {
         <div className="bg-theme-text text-theme-bg p-4 rounded-2xl shadow-lg">
           <div className="flex items-center gap-2 mb-3">
             <Activity size={16} className="text-theme-accent" />
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">节奏总览</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">
+              节奏总览
+            </span>
           </div>
           <div className="flex gap-4">
             <div>
@@ -107,8 +126,11 @@ export function PacingDashboard({ novelId }: Props) {
       )}
 
       {/* Analyze button */}
-      <button onClick={handleAnalyze} disabled={loading}
-        className="w-full py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+      <button
+        onClick={handleAnalyze}
+        disabled={loading}
+        className="w-full py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+      >
         {loading ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} />}
         {loading ? '分析中...' : pacing.length > 0 ? '重新分析节奏' : 'AI 节奏诊断'}
       </button>
@@ -116,10 +138,12 @@ export function PacingDashboard({ novelId }: Props) {
       {/* Tension bar chart */}
       {pacing.length > 0 && (
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
-          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-4">张力曲线</h3>
+          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-4">
+            张力曲线
+          </h3>
           <div className="space-y-2">
-            {pacing.map(p => {
-              const chapter = chapters.find(c => c.id === p.chapterId);
+            {pacing.map((p) => {
+              const chapter = chapters.find((c) => c.id === p.chapterId);
               return (
                 <div key={p.chapterId} className="flex items-center gap-3">
                   <span className="text-[9px] text-theme-muted w-16 truncate text-right">
@@ -128,9 +152,11 @@ export function PacingDashboard({ novelId }: Props) {
                   <div className="flex-1 h-5 bg-theme-sidebar/30 rounded-full overflow-hidden relative">
                     <div
                       className={`h-full rounded-full ${
-                        p.tensionScore >= 70 ? 'bg-red-400' :
-                        p.tensionScore >= 40 ? 'bg-amber-400' :
-                        'bg-blue-400'
+                        p.tensionScore >= 70
+                          ? 'bg-red-400'
+                          : p.tensionScore >= 40
+                            ? 'bg-amber-400'
+                            : 'bg-blue-400'
                       }`}
                     />
                   </div>
@@ -145,11 +171,15 @@ export function PacingDashboard({ novelId }: Props) {
       {/* Emotion labels */}
       {pacing.length > 0 && (
         <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm">
-          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-3">情绪分布</h3>
+          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-3">
+            情绪分布
+          </h3>
           <div className="flex flex-wrap gap-1.5">
-            {pacing.map(p => (
-              <span key={p.chapterId}
-                className="text-[9px] px-2 py-1 bg-theme-sidebar rounded-full text-theme-text font-medium border border-theme-border">
+            {pacing.map((p) => (
+              <span
+                key={p.chapterId}
+                className="text-[9px] px-2 py-1 bg-theme-sidebar rounded-full text-theme-text font-medium border border-theme-border"
+              >
                 {p.emotionLabel} x{p.payoffCount}
               </span>
             ))}
@@ -158,17 +188,25 @@ export function PacingDashboard({ novelId }: Props) {
       )}
 
       {/* Suggestions */}
-      {pacing.filter(p => p.suggestion).length > 0 && (
+      {pacing.filter((p) => p.suggestion).length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider px-1">节奏建议</h3>
-          {pacing.filter(p => p.suggestion).map(p => {
-            const chapter = chapters.find(c => c.id === p.chapterId);
-            return (
-              <div key={p.chapterId} className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 text-[10px] text-amber-900 leading-relaxed">
-                <span className="font-bold">{chapter?.title}：</span>{p.suggestion}
-              </div>
-            );
-          })}
+          <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider px-1">
+            节奏建议
+          </h3>
+          {pacing
+            .filter((p) => p.suggestion)
+            .map((p) => {
+              const chapter = chapters.find((c) => c.id === p.chapterId);
+              return (
+                <div
+                  key={p.chapterId}
+                  className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 text-[10px] text-amber-900 leading-relaxed"
+                >
+                  <span className="font-bold">{chapter?.title}：</span>
+                  {p.suggestion}
+                </div>
+              );
+            })}
         </div>
       )}
     </div>

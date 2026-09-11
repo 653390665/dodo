@@ -99,8 +99,12 @@ export function OutlineGovernancePanel({
       await refresh();
     } catch (cause) {
       if (currentNovelRef.current === capturedNovel && opSeq.current === operation) {
-        const errorCode = typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
-        const errorStatus = typeof cause === 'object' && cause !== null && 'status' in cause ? cause.status : undefined;
+        const errorCode =
+          typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
+        const errorStatus =
+          typeof cause === 'object' && cause !== null && 'status' in cause
+            ? cause.status
+            : undefined;
         if (errorCode === 'CANON_PATCH_STALE' || errorStatus === 409) {
           await refresh();
           setError('Canon 基线已变化，补丁已标记为失效，请拒绝或重新生成。');
@@ -114,8 +118,16 @@ export function OutlineGovernancePanel({
   };
   // Only inspect the title band of the content: full-body scanning let common
   // words inside novel prose (e.g. 「评分4.9」) classify real outlines as reports.
-  const isReportArtifact = React.useCallback((artifact: OutlineArtifact) => /报告|审稿|审计|评分|问题清单|report|audit|review|score/i.test(`${artifact.id} ${artifact.content.slice(0, 60)}`), []);
-  const visibleArtifacts = artifacts.filter((artifact) => showReportCandidates || !isReportArtifact(artifact));
+  const isReportArtifact = React.useCallback(
+    (artifact: OutlineArtifact) =>
+      /报告|审稿|审计|评分|问题清单|report|audit|review|score/i.test(
+        `${artifact.id} ${artifact.content.slice(0, 60)}`
+      ),
+    []
+  );
+  const visibleArtifacts = artifacts.filter(
+    (artifact) => showReportCandidates || !isReportArtifact(artifact)
+  );
   const reportCandidates = artifacts.filter(isReportArtifact);
   const masters = visibleArtifacts.filter((a) => a.level === 'master' && a.status !== 'archived');
   const scoped = visibleArtifacts.filter((a) => a.level !== 'master' && a.status !== 'archived');
@@ -137,10 +149,22 @@ export function OutlineGovernancePanel({
       </h3>
       <div className="flex items-center justify-between gap-2 text-[10px]">
         <label className="flex items-center gap-2 text-theme-muted">
-          <input type="checkbox" checked={showReportCandidates} onChange={(event) => setShowReportCandidates(event.target.checked)} />
-          显示报告类候选（不可作为主纲）{reportCandidates.length ? ` · ${reportCandidates.length}` : ''}
+          <input
+            type="checkbox"
+            checked={showReportCandidates}
+            onChange={(event) => setShowReportCandidates(event.target.checked)}
+          />
+          显示报告类候选（不可作为主纲）
+          {reportCandidates.length ? ` · ${reportCandidates.length}` : ''}
         </label>
-        <button type="button" className="text-theme-accent" disabled={Boolean(busy)} onClick={() => void refresh()}>刷新治理状态</button>
+        <button
+          type="button"
+          className="text-theme-accent"
+          disabled={Boolean(busy)}
+          onClick={() => void refresh()}
+        >
+          刷新治理状态
+        </button>
       </div>
       {error && (
         <div role="alert" className="break-words text-[10px] text-red-600">
@@ -152,7 +176,9 @@ export function OutlineGovernancePanel({
         {masters.map((a) => (
           <div key={a.id} className="flex min-w-0 items-start gap-2 text-[10px]">
             {isReportArtifact(a) ? (
-              <div className="min-w-0 flex-1 break-words text-theme-muted">报告候选 · {a.content.slice(0, 160)}</div>
+              <div className="min-w-0 flex-1 break-words text-theme-muted">
+                报告候选 · {a.content.slice(0, 160)}
+              </div>
             ) : (
               <label className="flex min-w-0 flex-1 items-start gap-2">
                 <input
@@ -232,7 +258,11 @@ export function OutlineGovernancePanel({
       </div>
       <div className="space-y-2">
         <p className="text-[10px] font-semibold text-theme-muted">待确认 Canon 补丁</p>
-        {patches.some((patch) => patch.status === 'stale') && <p role="status" className="text-[10px] text-amber-600">Canon 基线已变化，失效补丁需重新生成或拒绝。</p>}
+        {patches.some((patch) => patch.status === 'stale') && (
+          <p role="status" className="text-[10px] text-amber-600">
+            Canon 基线已变化，失效补丁需重新生成或拒绝。
+          </p>
+        )}
         {pending.length === 0 && <p className="text-[10px] text-theme-muted">暂无待确认补丁</p>}
         {pending.map((p) => (
           <div key={p.id} className="flex min-w-0 items-center gap-2 text-[10px]">
@@ -273,7 +303,11 @@ export function OutlineGovernancePanel({
                 aria-label="拒绝失效补丁"
                 className="text-red-600"
                 disabled={Boolean(busy)}
-                onClick={() => void mutate(`${p.id}:reject`, (generation) => rejectCanonPatch(novelId, p.id, generation))}
+                onClick={() =>
+                  void mutate(`${p.id}:reject`, (generation) =>
+                    rejectCanonPatch(novelId, p.id, generation)
+                  )
+                }
               >
                 <X size={13} aria-hidden="true" />
               </button>

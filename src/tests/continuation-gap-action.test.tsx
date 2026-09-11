@@ -58,12 +58,15 @@ function renderTab(
   pack: ContinuationPack,
   onOpenBibleAssistant?: (prompt: string) => void,
   capabilityEffectSummary?: React.ComponentProps<typeof ProductionTab>['capabilityEffectSummary'],
-  onSwitchTab?: React.ComponentProps<typeof ProductionTab>['onSwitchTab'],
+  onSwitchTab?: React.ComponentProps<typeof ProductionTab>['onSwitchTab']
 ) {
   const onStartProductionRun = vi.fn(async () => undefined);
   const onApplyProductionRun = vi.fn(async () => undefined);
 
-  useContinuationPackStore.setState({ continuationPacks: [pack], selectedContinuationPackId: pack.id });
+  useContinuationPackStore.setState({
+    continuationPacks: [pack],
+    selectedContinuationPackId: pack.id,
+  });
   render(
     <ProductionTab
       novel={novel}
@@ -75,7 +78,7 @@ function renderTab(
       renderContextReceipt={() => null}
       capabilityEffectSummary={capabilityEffectSummary}
       onSwitchTab={onSwitchTab}
-    />,
+    />
   );
 
   return { onStartProductionRun, onApplyProductionRun };
@@ -109,24 +112,28 @@ describe('ProductionTab continuation gap actions', () => {
     ];
     const { onStartProductionRun, onApplyProductionRun } = renderTab(
       createPack(gaps),
-      onOpenBibleAssistant,
+      onOpenBibleAssistant
     );
 
     const button = screen.getByRole('button', {
       name: '让 AI 协作助手补齐：顾铁峰与苏老板的年轻外勤搭档细节未展开',
     });
-    expect(screen.getByRole('button', {
-      name: '让 AI 协作助手补齐：林啸的进化棋局规则细节未完整记录',
-    })).toBeTruthy();
-    expect(screen.queryByRole('button', {
-      name: '让 AI 协作助手补齐：不应展示的第三条缺口',
-    })).toBeNull();
+    expect(
+      screen.getByRole('button', {
+        name: '让 AI 协作助手补齐：林啸的进化棋局规则细节未完整记录',
+      })
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', {
+        name: '让 AI 协作助手补齐：不应展示的第三条缺口',
+      })
+    ).toBeNull();
 
     fireEvent.click(button);
 
     expect(onOpenBibleAssistant).toHaveBeenCalledTimes(1);
     expect(onOpenBibleAssistant).toHaveBeenCalledWith(
-      expect.stringContaining('请补充资料缺口：顾铁峰与苏老板的年轻外勤搭档细节未展开'),
+      expect.stringContaining('请补充资料缺口：顾铁峰与苏老板的年轻外勤搭档细节未展开')
     );
     const prompt = onOpenBibleAssistant.mock.calls[0][0];
     expect(prompt).toContain('建议方向：补充20年前共事片段，强化关系深度');
@@ -138,33 +145,46 @@ describe('ProductionTab continuation gap actions', () => {
 
   test('without the assistant callback, keeps gap text but hides action buttons', () => {
     const description = '缺少人物关系的关键转折';
-    renderTab(createPack([{
-      id: 'gap-no-action',
-      description,
-      severity: 'high',
-      suggestedDirection: '补充冲突来源',
-      relatedFacts: [],
-    }]));
+    renderTab(
+      createPack([
+        {
+          id: 'gap-no-action',
+          description,
+          severity: 'high',
+          suggestedDirection: '补充冲突来源',
+          relatedFacts: [],
+        },
+      ])
+    );
 
     expect(screen.getByText(description)).toBeTruthy();
-    expect(screen.queryByRole('button', {
-      name: `让 AI 协作助手补齐：${description}`,
-    })).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: `让 AI 协作助手补齐：${description}`,
+      })
+    ).toBeNull();
   });
 
   test('shows the capability cards and techniques used for this production run', () => {
     const onSwitchTab = vi.fn();
-    renderTab(createPack(), undefined, {
-      projectCardNames: ['主笔节奏卡', '世界观约束卡'],
-      favoriteTechniqueNames: ['开篇钩子技法'],
-      chapterCardNames: ['本章节奏卡'],
-    }, onSwitchTab);
+    renderTab(
+      createPack(),
+      undefined,
+      {
+        projectCardNames: ['主笔节奏卡', '世界观约束卡'],
+        favoriteTechniqueNames: ['开篇钩子技法'],
+        chapterCardNames: ['本章节奏卡'],
+      },
+      onSwitchTab
+    );
 
     expect(screen.getByLabelText('本次生成能力配置')).toBeTruthy();
     expect(screen.getByText('主笔节奏卡、世界观约束卡')).toBeTruthy();
     expect(screen.getByText('开篇钩子技法')).toBeTruthy();
     expect(screen.getByText('本章节奏卡')).toBeTruthy();
-    expect(screen.getByText('作品默认卡和常用技法会长期影响本书；本章使用卡只影响当前章节。')).toBeTruthy();
+    expect(
+      screen.getByText('作品默认卡和常用技法会长期影响本书；本章使用卡只影响当前章节。')
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '核对写法与能力' }));
     expect(onSwitchTab).toHaveBeenCalledWith('skills');
   });
@@ -174,7 +194,9 @@ describe('ProductionTab continuation gap actions', () => {
     renderTab(createPack(), undefined, undefined, onSwitchTab);
 
     expect(screen.getByLabelText('本次生成能力配置')).toBeTruthy();
-    expect(screen.getByText('还没有配置作品默认卡或常用技法，生成会先按当前章节与作品上下文继续。')).toBeTruthy();
+    expect(
+      screen.getByText('还没有配置作品默认卡或常用技法，生成会先按当前章节与作品上下文继续。')
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '核对写法与能力' }));
     expect(onSwitchTab).toHaveBeenCalledWith('skills');
   });

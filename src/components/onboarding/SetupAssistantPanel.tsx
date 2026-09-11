@@ -29,7 +29,9 @@ export function SetupAssistantPanel({
       <div className="shrink-0 p-6 border-b border-theme-border flex items-start justify-between bg-theme-sidebar sticky top-0 z-10">
         <div>
           <h3 className="text-xl font-serif font-bold text-theme-text">设定引导</h3>
-          <p className="mt-1 text-sm text-theme-muted">一次只补当前这一项。先把骨架立住，再决定要不要扩写。</p>
+          <p className="mt-1 text-sm text-theme-muted">
+            一次只补当前这一项。先把骨架立住，再决定要不要扩写。
+          </p>
         </div>
         {onClose && (
           <button
@@ -45,7 +47,9 @@ export function SetupAssistantPanel({
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {selectedTask ? (
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4">
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">当前设定项</div>
+            <div className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">
+              当前设定项
+            </div>
             <div className="mt-2 text-base font-bold text-theme-text">{selectedTask.title}</div>
             <p className="mt-2 text-sm leading-6 text-theme-muted">{selectedTask.summary}</p>
           </div>
@@ -57,7 +61,9 @@ export function SetupAssistantPanel({
 
         {summaryCard && (
           <div className="rounded-2xl border border-theme-border/80 bg-theme-sidebar p-4 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">故事方案</div>
+            <div className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">
+              故事方案
+            </div>
             <div className="mt-2 text-base font-bold text-theme-text">{summaryCard.hook}</div>
             <p className="mt-2 text-sm text-theme-muted">主角：{summaryCard.protagonist}</p>
             <p className="mt-1 text-sm text-theme-muted">冲突：{summaryCard.coreConflict}</p>
@@ -65,7 +71,9 @@ export function SetupAssistantPanel({
         )}
 
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">对话式干预</label>
+          <label className="text-xs font-bold uppercase tracking-[0.16em] text-theme-muted">
+            对话式干预
+          </label>
           <textarea
             value={textareaValue}
             onChange={(e) => onTextareaChange(e.target.value)}
@@ -78,7 +86,14 @@ export function SetupAssistantPanel({
 
       {/* Footer */}
       <div className="shrink-0 p-6 border-t border-theme-border bg-theme-sidebar sticky bottom-0 z-10">
-        {error && <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-600">{error}</p>}
+        {error && (
+          <p
+            role="alert"
+            className="mb-3 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-600"
+          >
+            {error}
+          </p>
+        )}
         <button
           onClick={onSubmit}
           disabled={!selectedTask || !textareaValue.trim() || submitting}
@@ -89,7 +104,9 @@ export function SetupAssistantPanel({
               <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               <span>AI 精炼中...</span>
             </div>
-          ) : '让 AI 精炼这项设定'}
+          ) : (
+            '让 AI 精炼这项设定'
+          )}
         </button>
       </div>
     </aside>

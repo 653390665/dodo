@@ -31,17 +31,27 @@ export function EditorStatusBar({
   novelTitle,
   embeddingStatus = 'unknown',
 }: EditorStatusBarProps) {
-  const resolvedSaveStatus: EditorSaveStatus = saveStatus
-    || (syncFailed ? 'failed' : isSyncing ? 'pending' : syncSuccess ? 'saved' : 'unknown');
-  const saveStatusLabel = resolvedSaveStatus === 'loading' ? '正在读取保存状态'
-    : resolvedSaveStatus === 'pending' ? '正在保存'
-      : resolvedSaveStatus === 'saved' ? '正文已保存'
-        : resolvedSaveStatus === 'failed' ? '保存失败，请重试'
-          : '尚未检测到保存结果';
-  const saveStatusDot = resolvedSaveStatus === 'failed' ? 'bg-red-600'
-    : resolvedSaveStatus === 'loading' || resolvedSaveStatus === 'pending' ? 'bg-amber-500'
-      : resolvedSaveStatus === 'saved' ? 'bg-green-600'
-        : 'bg-gray-400';
+  const resolvedSaveStatus: EditorSaveStatus =
+    saveStatus ||
+    (syncFailed ? 'failed' : isSyncing ? 'pending' : syncSuccess ? 'saved' : 'unknown');
+  const saveStatusLabel =
+    resolvedSaveStatus === 'loading'
+      ? '正在读取保存状态'
+      : resolvedSaveStatus === 'pending'
+        ? '正在保存'
+        : resolvedSaveStatus === 'saved'
+          ? '正文已保存'
+          : resolvedSaveStatus === 'failed'
+            ? '保存失败，请重试'
+            : '尚未检测到保存结果';
+  const saveStatusDot =
+    resolvedSaveStatus === 'failed'
+      ? 'bg-red-600'
+      : resolvedSaveStatus === 'loading' || resolvedSaveStatus === 'pending'
+        ? 'bg-amber-500'
+        : resolvedSaveStatus === 'saved'
+          ? 'bg-green-600'
+          : 'bg-gray-400';
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
   const exportMenuRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
@@ -95,15 +105,50 @@ export function EditorStatusBar({
           </span>
         )}
         <span className="font-medium tabular-nums">字数 {currentChapter?.wordCount || 0}</span>
-        <span className={embeddingStatus === 'ready' ? 'text-emerald-600' : embeddingStatus === 'fallback' || embeddingStatus === 'initializing' || embeddingStatus === 'unknown' ? 'text-amber-600' : 'text-red-600'}>
-          索引 {embeddingStatus === 'ready' ? '可用' : embeddingStatus === 'fallback' ? 'LLM 兜底' : embeddingStatus === 'initializing' ? '初始化中' : embeddingStatus === 'unavailable' ? '降级' : '未知'}
+        <span
+          className={
+            embeddingStatus === 'ready'
+              ? 'text-emerald-600'
+              : embeddingStatus === 'fallback' ||
+                  embeddingStatus === 'initializing' ||
+                  embeddingStatus === 'unknown'
+                ? 'text-amber-600'
+                : 'text-red-600'
+          }
+        >
+          索引{' '}
+          {embeddingStatus === 'ready'
+            ? '可用'
+            : embeddingStatus === 'fallback'
+              ? 'LLM 兜底'
+              : embeddingStatus === 'initializing'
+                ? '初始化中'
+                : embeddingStatus === 'unavailable'
+                  ? '降级'
+                  : '未知'}
         </span>
-        <span className="hidden sm:inline tabular-nums">更新 {currentChapter ? statusTimeFormatter.format(new Date(currentChapter.updatedAt)) : '-'}</span>
+        <span className="hidden sm:inline tabular-nums">
+          更新{' '}
+          {currentChapter ? statusTimeFormatter.format(new Date(currentChapter.updatedAt)) : '-'}
+        </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-center gap-2" role="status" aria-live="polite" data-save-status={resolvedSaveStatus}>
+        <div
+          className="flex items-center gap-2"
+          role="status"
+          aria-live="polite"
+          data-save-status={resolvedSaveStatus}
+        >
           <div className={`w-1.5 h-1.5 rounded-full ${saveStatusDot}`} />
-          <span className={resolvedSaveStatus === 'failed' ? 'text-red-600' : resolvedSaveStatus === 'unknown' ? 'text-theme-muted' : undefined}>
+          <span
+            className={
+              resolvedSaveStatus === 'failed'
+                ? 'text-red-600'
+                : resolvedSaveStatus === 'unknown'
+                  ? 'text-theme-muted'
+                  : undefined
+            }
+          >
             {saveStatusLabel}
           </span>
         </div>
@@ -118,7 +163,10 @@ export function EditorStatusBar({
             <Download size={12} aria-hidden="true" /> 导出
           </button>
           {exportMenuOpen ? (
-            <div role="menu" className="absolute bottom-full right-0 z-30 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl">
+            <div
+              role="menu"
+              className="absolute bottom-full right-0 z-30 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl"
+            >
               <button
                 type="button"
                 role="menuitem"

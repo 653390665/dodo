@@ -22,7 +22,7 @@
     "lint": "eslint . --max-warnings=0",
     "lint:any": "node scripts/lint-any.mjs",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server/**/*.{ts,json}\" \"shared/**/*.{ts,json}\" \"scripts/**/*.mjs\" \"server.ts\" \"*.{ts,mts}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server/**/*.ts\" \"server/**/*.{json}\" \"shared/**/*.ts\" \"shared/**/*.{json}\" \"server.ts\" \"scripts/**/*.mjs\" \"*.{ts,mts}\"",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
     "smoke:provider-quality": "node --import tsx scripts/provider-quality-smoke.ts",
     "eval:provider-quality": "node --import tsx scripts/run-chapter-llm-acceptance.ts --deterministic",

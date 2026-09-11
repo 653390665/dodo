@@ -13,10 +13,12 @@ export function createProductEventSessionId(scope = 'session'): string {
 
 /** Stable within one user action/session, preventing duplicate lifecycle rows from rerenders. */
 export function createProductEventId(action: string, sessionId = productEventSessionId): string {
-  const hash = [...`${sessionId}\u0000${action}`].reduce((value, character) => {
-    value ^= character.charCodeAt(0);
-    return Math.imul(value, 16_777_619) >>> 0;
-  }, 2_166_136_261).toString(36);
+  const hash = [...`${sessionId}\u0000${action}`]
+    .reduce((value, character) => {
+      value ^= character.charCodeAt(0);
+      return Math.imul(value, 16_777_619) >>> 0;
+    }, 2_166_136_261)
+    .toString(36);
   const safeSession = sessionId.replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 80);
   const safeAction = action.replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 80);
   return `event:${safeSession}:${safeAction}:${hash}`;
@@ -37,7 +39,11 @@ export async function recordProductEvent(input: ProductEventInput): Promise<void
       sessionId: input.sessionId || productEventSessionId,
       occurredAt: input.occurredAt ?? Date.now(),
     };
-    const response = await fetch('/api/product-events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(envelope) });
+    const response = await fetch('/api/product-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(envelope),
+    });
     await parseResponse(response, 'Failed to record product event');
   } catch {
     // Local telemetry must never change the outcome of the user action.

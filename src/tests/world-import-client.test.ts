@@ -32,10 +32,9 @@ describe('importWorldExtraction', () => {
   });
 
   test('rejects a failed transaction so callers cannot announce success', async () => {
-    const fetchMock = vi.fn(async () => Response.json(
-      { error: '设定导入失败，未写入任何数据' },
-      { status: 500 },
-    ));
+    const fetchMock = vi.fn(async () =>
+      Response.json({ error: '设定导入失败，未写入任何数据' }, { status: 500 })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(importWorldExtraction({ novelId: 'novel-1' })).rejects.toThrow('未写入任何数据');

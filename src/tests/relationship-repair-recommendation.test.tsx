@@ -7,19 +7,70 @@ import type { SyncExtractionResult } from '../../shared/lib/sync-extract-prompt'
 import type { Character, Faction } from '../../shared/types';
 
 vi.mock('../lib/continuation-client', async () => {
-  const actual = await vi.importActual<typeof import('../lib/continuation-client')>('../lib/continuation-client');
+  const actual = await vi.importActual<typeof import('../lib/continuation-client')>(
+    '../lib/continuation-client'
+  );
   return { ...actual, recommendRelationshipRepairs: vi.fn() };
 });
 
 const recommendMock = vi.mocked(recommendRelationshipRepairs);
 const extraction: SyncExtractionResult = {
-  characters: [{ name: '林默', role: 'protagonist', summary: '', bio: '', traits: [] }], locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-  relationships: [{ sourceName: '林默', sourceType: 'character', targetName: '玄霜盟旧称', targetType: 'faction', relationshipType: '敌对', description: '关系描述' }], globalOutline: '', worldRules: '',
+  characters: [{ name: '林默', role: 'protagonist', summary: '', bio: '', traits: [] }],
+  locations: [],
+  items: [],
+  factions: [],
+  powerLevels: [],
+  timelineEvents: [],
+  relationships: [
+    {
+      sourceName: '林默',
+      sourceType: 'character',
+      targetName: '玄霜盟旧称',
+      targetType: 'faction',
+      relationshipType: '敌对',
+      description: '关系描述',
+    },
+  ],
+  globalOutline: '',
+  worldRules: '',
 };
-const props = () => ({ extraction, packId: 'p1', novelId: 'n1', databaseGeneration: 3, existingCharacters: [{ id: 'c1', novelId: 'n1', name: '林默', role: 'protagonist', summary: '', bio: '', traits: [] } as Character], existingLocations: [], existingItems: [], existingFactions: [{ id: 'f1', novelId: 'n1', name: '玄霜盟', leader: '', territory: '', description: '' } as Faction], onConfirm: vi.fn(), onCancel: vi.fn(), isSyncing: false });
+const props = () => ({
+  extraction,
+  packId: 'p1',
+  novelId: 'n1',
+  databaseGeneration: 3,
+  existingCharacters: [
+    {
+      id: 'c1',
+      novelId: 'n1',
+      name: '林默',
+      role: 'protagonist',
+      summary: '',
+      bio: '',
+      traits: [],
+    } as Character,
+  ],
+  existingLocations: [],
+  existingItems: [],
+  existingFactions: [
+    {
+      id: 'f1',
+      novelId: 'n1',
+      name: '玄霜盟',
+      leader: '',
+      territory: '',
+      description: '',
+    } as Faction,
+  ],
+  onConfirm: vi.fn(),
+  onCancel: vi.fn(),
+  isSyncing: false,
+});
 
 describe('relationship repair recommendations', () => {
-  beforeEach(() => { recommendMock.mockReset(); });
+  beforeEach(() => {
+    recommendMock.mockReset();
+  });
 
   test('sends original index and does not confirm', async () => {
     recommendMock.mockResolvedValue({ recommendations: [] });
@@ -27,12 +78,27 @@ describe('relationship repair recommendations', () => {
     render(<SyncPreviewPanel {...panelProps} />);
     fireEvent.click(screen.getByRole('button', { name: /Agent 推荐修复/ }));
     await waitFor(() => expect(recommendMock).toHaveBeenCalled());
-    expect(recommendMock.mock.calls[0][0].relationships[0]).toMatchObject({ index: 0, sourceName: '林默' });
+    expect(recommendMock.mock.calls[0][0].relationships[0]).toMatchObject({
+      index: 0,
+      sourceName: '林默',
+    });
     expect(panelProps.onConfirm).not.toHaveBeenCalled();
   });
 
   test('auto-applies map without confirming, then confirms mapped relationship', async () => {
-    recommendMock.mockResolvedValue({ recommendations: [{ index: 0, action: 'map', sourceName: '林默', targetName: '玄霜盟', confidence: 'high', reason: '资料明确', evidence: [{ filename: '设定.txt', quote: '林默与玄霜盟交战' }] }] });
+    recommendMock.mockResolvedValue({
+      recommendations: [
+        {
+          index: 0,
+          action: 'map',
+          sourceName: '林默',
+          targetName: '玄霜盟',
+          confidence: 'high',
+          reason: '资料明确',
+          evidence: [{ filename: '设定.txt', quote: '林默与玄霜盟交战' }],
+        },
+      ],
+    });
     const panelProps = props();
     render(<SyncPreviewPanel {...panelProps} />);
     fireEvent.click(screen.getByRole('button', { name: /Agent 推荐修复/ }));
@@ -49,11 +115,17 @@ describe('relationship repair recommendations', () => {
   });
 
   test('auto-applies skip and excludes it on confirm', async () => {
-    recommendMock.mockResolvedValue({ recommendations: [{ index: 0, action: 'skip', confidence: 'low', reason: '无证据', evidence: [] }] });
+    recommendMock.mockResolvedValue({
+      recommendations: [
+        { index: 0, action: 'skip', confidence: 'low', reason: '无证据', evidence: [] },
+      ],
+    });
     const panelProps = props();
     render(<SyncPreviewPanel {...panelProps} />);
     fireEvent.click(screen.getByRole('button', { name: /Agent 推荐修复/ }));
-    expect((await screen.findByRole('button', { name: '已采用跳过' })).hasAttribute('disabled')).toBe(true);
+    expect(
+      (await screen.findByRole('button', { name: '已采用跳过' })).hasAttribute('disabled')
+    ).toBe(true);
     expect(screen.getByText('已跳过')).toBeTruthy();
     expect(panelProps.onConfirm).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '确认同步' }));

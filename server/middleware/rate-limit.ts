@@ -20,7 +20,10 @@ export function rateLimit(endpoint: string): boolean {
   }
   // Refill tokens
   const elapsed = (now - bucket.lastRefill) / 1000;
-  bucket.tokens = Math.min(RATE_LIMIT.bucketSize * LIMIT_SCALE, bucket.tokens + elapsed * RATE_LIMIT.tokensPerSecond * LIMIT_SCALE);
+  bucket.tokens = Math.min(
+    RATE_LIMIT.bucketSize * LIMIT_SCALE,
+    bucket.tokens + elapsed * RATE_LIMIT.tokensPerSecond * LIMIT_SCALE
+  );
   bucket.lastRefill = now;
 
   if (bucket.tokens >= 1) {
@@ -39,9 +42,12 @@ export const __rateLimitTestHooks = {
 
 // Periodic cleanup: remove stale entries to prevent unbounded Map growth
 // Runs every 5 minutes to evict buckets where no tokens have been used in >10 minutes
-setInterval(() => {
-  const cutoff = Date.now() - 10 * 60 * 1000;
-  for (const [endpoint, bucket] of buckets) {
-    if (bucket.lastRefill < cutoff) buckets.delete(endpoint);
-  }
-}, 5 * 60 * 1000).unref(); // unref prevents the timer from keeping the process alive
+setInterval(
+  () => {
+    const cutoff = Date.now() - 10 * 60 * 1000;
+    for (const [endpoint, bucket] of buckets) {
+      if (bucket.lastRefill < cutoff) buckets.delete(endpoint);
+    }
+  },
+  5 * 60 * 1000
+).unref(); // unref prevents the timer from keeping the process alive

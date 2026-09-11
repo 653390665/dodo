@@ -53,26 +53,31 @@ const parsedPack: ContinuationPack = {
 
 const parsedPackWithHighConflict: ContinuationPack = {
   ...parsedPack,
-  canonFacts: [{
-    id: 'fact-1',
-    priority: 'hard',
-    category: 'plot',
-    text: '主角已经离开王城',
-    evidence: '第三章写明主角出城',
-  }],
-  contradictions: [{
-    id: 'conflict-1',
-    severity: 'high',
-    summary: '主角是否仍在王城',
-    conflictingEvidence: ['第三章：主角已出城', '人物小传：主角留在王城'],
-    suggestedResolution: '以第三章正文为准',
-  }, {
-    id: 'conflict-2',
-    severity: 'high',
-    summary: '关键道具归属冲突',
-    conflictingEvidence: ['设定集：道具归主角', '大纲：道具已被反派夺走'],
-    suggestedResolution: '以最新大纲为准',
-  }],
+  canonFacts: [
+    {
+      id: 'fact-1',
+      priority: 'hard',
+      category: 'plot',
+      text: '主角已经离开王城',
+      evidence: '第三章写明主角出城',
+    },
+  ],
+  contradictions: [
+    {
+      id: 'conflict-1',
+      severity: 'high',
+      summary: '主角是否仍在王城',
+      conflictingEvidence: ['第三章：主角已出城', '人物小传：主角留在王城'],
+      suggestedResolution: '以第三章正文为准',
+    },
+    {
+      id: 'conflict-2',
+      severity: 'high',
+      summary: '关键道具归属冲突',
+      conflictingEvidence: ['设定集：道具归主角', '大纲：道具已被反派夺走'],
+      suggestedResolution: '以最新大纲为准',
+    },
+  ],
 };
 
 const approvedNovel: Novel = {
@@ -99,13 +104,15 @@ const novelB: Novel = {
 
 const approvablePack: ContinuationPack = {
   ...parsedPack,
-  canonFacts: [{
-    id: 'fact-1',
-    priority: 'hard',
-    category: 'plot',
-    text: '主角已经离开王城',
-    evidence: '第三章写明主角出城',
-  }],
+  canonFacts: [
+    {
+      id: 'fact-1',
+      priority: 'hard',
+      category: 'plot',
+      text: '主角已经离开王城',
+      evidence: '第三章写明主角出城',
+    },
+  ],
 };
 
 async function renderWithDocument(novels: Novel[] = [], initialNovelId?: string) {
@@ -115,15 +122,19 @@ async function renderWithDocument(novels: Novel[] = [], initialNovelId?: string)
       onBack={() => {}}
       onEnterEditor={() => {}}
       initialNovelId={initialNovelId}
-    />,
+    />
   );
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
 
   const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
   fireEvent.change(fileInput, {
     target: { files: [new File(['测试正文'], 'story.txt', { type: 'text/plain' })] },
   });
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
 }
 
 async function parseWithTarget(novels: Novel[], targetNovel: Novel) {
@@ -132,10 +143,9 @@ async function parseWithTarget(novels: Novel[], targetNovel: Novel) {
   fireEvent.click(screen.getByRole('button', { name: '导入到现有作品' }));
   fireEvent.change(screen.getByRole('combobox'), { target: { value: targetNovel.id } });
   fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-  await waitFor(
-    () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
-    { timeout: 1_500 },
-  );
+  await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+    timeout: 1_500,
+  });
 }
 
 describe('ContinuationImportView parsing state', () => {
@@ -157,10 +167,12 @@ describe('ContinuationImportView parsing state', () => {
     expect(screen.getByRole('option', { name: '作品 A' })).toBeDefined();
     expect(screen.getByRole('option', { name: '作品 B' })).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), { timeout: 1_500 });
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+      timeout: 1_500,
+    });
     expect(mocks.parseContinuationPack).toHaveBeenCalledWith(
       expect.objectContaining({ novelId: 'novel-b', title: '作品 B 资料包' }),
-      expect.any(Function),
+      expect.any(Function)
     );
   });
 
@@ -179,7 +191,9 @@ describe('ContinuationImportView parsing state', () => {
     await renderWithDocument([]);
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), { timeout: 1_500 });
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+      timeout: 1_500,
+    });
 
     expect(screen.getByText(/确认后会将资料包标记为本次续写资料，并带你进入编辑器/)).toBeDefined();
     expect(screen.getByText('当前未发现明显资料缺口，可确认后进入续写。')).toBeDefined();
@@ -208,10 +222,12 @@ describe('ContinuationImportView parsing state', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
 
     await waitFor(() => expect(mocks.approveContinuationImport).toHaveBeenCalledTimes(1));
-    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(expect.objectContaining({
-      mode: 'existing',
-      existingNovelId: 'novel-b',
-    }));
+    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'existing',
+        existingNovelId: 'novel-b',
+      })
+    );
   });
 
   test('blocks confirmation when the selected target is deleted after parsing', async () => {
@@ -221,29 +237,35 @@ describe('ContinuationImportView parsing state', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
 
-    await waitFor(() => expect(screen.getByText('未找到要导入的目标作品，请返回上一步重新选择。')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText('未找到要导入的目标作品，请返回上一步重新选择。')).toBeDefined()
+    );
     expect(mocks.approveContinuationImport).not.toHaveBeenCalled();
   });
 
   test('automatically uses new-novel mode when there are no existing novels', async () => {
     mocks.parseContinuationPack.mockResolvedValue(approvablePack);
-    mocks.approveContinuationImport.mockResolvedValue({ novel: approvedNovel, pack: approvablePack });
+    mocks.approveContinuationImport.mockResolvedValue({
+      novel: approvedNovel,
+      pack: approvablePack,
+    });
     await renderWithDocument([]);
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(
-      () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
-      { timeout: 1_500 },
-    );
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+      timeout: 1_500,
+    });
     fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
 
     await waitFor(() => expect(mocks.approveContinuationImport).toHaveBeenCalledTimes(1));
     expect(mocks.createContinuationImportSession).toHaveBeenCalledTimes(1);
-    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(expect.objectContaining({
-      mode: 'new',
-      existingNovelId: undefined,
-      newNovel: expect.objectContaining({ title: '测试' }),
-    }));
+    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'new',
+        existingNovelId: undefined,
+        newNovel: expect.objectContaining({ title: '测试' }),
+      })
+    );
   });
 
   test('leaves the 100% parsing screen after a successful parse', async () => {
@@ -256,10 +278,9 @@ describe('ContinuationImportView parsing state', () => {
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
     expect(screen.getByText('智能解析控制台')).toBeDefined();
 
-    await waitFor(
-      () => expect(screen.queryByText('智能解析控制台')).toBeNull(),
-      { timeout: 1_500 },
-    );
+    await waitFor(() => expect(screen.queryByText('智能解析控制台')).toBeNull(), {
+      timeout: 1_500,
+    });
     expect(screen.getByText('确认导入并进入续写')).toBeDefined();
   });
 
@@ -283,49 +304,65 @@ describe('ContinuationImportView parsing state', () => {
     await renderWithDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(
-      () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
-      { timeout: 1_500 },
-    );
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+      timeout: 1_500,
+    });
 
     expect(screen.getAllByText('高风险')).toHaveLength(2);
     expect(screen.getByText('主角是否仍在王城')).toBeDefined();
     expect(screen.getByText(/第三章：主角已出城/)).toBeDefined();
     expect(screen.getByText(/人物小传：主角留在王城/)).toBeDefined();
 
-    const blockedButton = screen.getByRole('button', { name: '先处理 2 个高风险冲突' }) as HTMLButtonElement;
+    const blockedButton = screen.getByRole('button', {
+      name: '先处理 2 个高风险冲突',
+    }) as HTMLButtonElement;
     expect(blockedButton.disabled).toBe(true);
 
-    const resolutionInput = screen.getByRole('textbox', { name: '冲突方案：主角是否仍在王城' }) as HTMLTextAreaElement;
-    const secondResolutionInput = screen.getByRole('textbox', { name: '冲突方案：关键道具归属冲突' }) as HTMLTextAreaElement;
+    const resolutionInput = screen.getByRole('textbox', {
+      name: '冲突方案：主角是否仍在王城',
+    }) as HTMLTextAreaElement;
+    const secondResolutionInput = screen.getByRole('textbox', {
+      name: '冲突方案：关键道具归属冲突',
+    }) as HTMLTextAreaElement;
     expect(resolutionInput.value).toBe('以第三章正文为准');
     expect(secondResolutionInput.value).toBe('以最新大纲为准');
 
     const acceptButtons = screen.getAllByRole('button', { name: '采用此方案' });
     fireEvent.click(acceptButtons[0]);
-    expect((screen.getByRole('button', { name: '先处理 1 个高风险冲突' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: '先处理 1 个高风险冲突' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '采用此方案' }));
-    const confirmButton = screen.getByRole('button', { name: '确认并进入续写' }) as HTMLButtonElement;
+    const confirmButton = screen.getByRole('button', {
+      name: '确认并进入续写',
+    }) as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(false);
 
     fireEvent.change(resolutionInput, { target: { value: '以人物小传为准' } });
-    expect((screen.getByRole('button', { name: '先处理 1 个高风险冲突' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: '先处理 1 个高风险冲突' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '采用此方案' }));
     fireEvent.click(screen.getByRole('button', { name: '确认并进入续写' }));
 
     await waitFor(() => expect(mocks.approveContinuationImport).toHaveBeenCalledTimes(1));
-    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(expect.objectContaining({
-      packId: 'pack-1',
-      conflictResolutions: [{
-        contradictionId: 'conflict-1',
-        resolution: '以人物小传为准',
-      }, {
-        contradictionId: 'conflict-2',
-        resolution: '以最新大纲为准',
-      }],
-    }));
+    expect(mocks.approveContinuationImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        packId: 'pack-1',
+        conflictResolutions: [
+          {
+            contradictionId: 'conflict-1',
+            resolution: '以人物小传为准',
+          },
+          {
+            contradictionId: 'conflict-2',
+            resolution: '以最新大纲为准',
+          },
+        ],
+      })
+    );
   });
 
   test('warns but allows approval when no canon facts were extracted', async () => {
@@ -333,13 +370,14 @@ describe('ContinuationImportView parsing state', () => {
     await renderWithDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '开始解析资料' }));
-    await waitFor(
-      () => expect(screen.getByText('确认导入并进入续写')).toBeDefined(),
-      { timeout: 1_500 },
-    );
+    await waitFor(() => expect(screen.getByText('确认导入并进入续写')).toBeDefined(), {
+      timeout: 1_500,
+    });
 
     expect(screen.getByText(/未提取出关键硬设定，仍可确认导入/)).toBeDefined();
-    const confirmButton = screen.getByRole('button', { name: '确认并进入续写' }) as HTMLButtonElement;
+    const confirmButton = screen.getByRole('button', {
+      name: '确认并进入续写',
+    }) as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(false);
   });
 });

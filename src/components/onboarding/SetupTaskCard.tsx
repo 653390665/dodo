@@ -22,7 +22,12 @@ const STATUS_CLASS: Record<SetupTaskDraft['status'], string> = {
   'needs-work': 'bg-amber-50 text-amber-700',
 };
 
-export const SetupTaskCard = memo(function SetupTaskCard({ task, active, onSelect, onConfirm }: SetupTaskCardProps) {
+export const SetupTaskCard = memo(function SetupTaskCard({
+  task,
+  active,
+  onSelect,
+  onConfirm,
+}: SetupTaskCardProps) {
   return (
     <article
       className={`rounded-3xl border p-5 shadow-sm transition-colors ${
@@ -35,7 +40,9 @@ export const SetupTaskCard = memo(function SetupTaskCard({ task, active, onSelec
           {STATUS_LABEL[task.status]}
         </span>
       </div>
-      <p className="min-h-16 text-sm leading-6 text-theme-muted">{task.summary || '这项还没有稳定设定。'}</p>
+      <p className="min-h-16 text-sm leading-6 text-theme-muted">
+        {task.summary || '这项还没有稳定设定。'}
+      </p>
       <div className="mt-4 flex gap-2">
         <button
           onClick={onSelect}

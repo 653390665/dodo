@@ -3,7 +3,13 @@ import { useOutlineContentStore } from '../stores/outline-content-store';
 import { useProductionStore } from '../stores/production-store';
 import { afterEach, describe, expect, test, vi, beforeEach } from 'vitest';
 
-import type { ChapterMetadata, ContinuationPack, Skill, MountedSkillLoadoutItem, AggregatedSkillDeck } from '../../shared/types';
+import type {
+  ChapterMetadata,
+  ContinuationPack,
+  Skill,
+  MountedSkillLoadoutItem,
+  AggregatedSkillDeck,
+} from '../../shared/types';
 import type { OutlineArtifact } from '../../shared/types/outline-governance';
 import { OutlineTab } from '../components/book-factory/OutlineTab';
 import { buildDeckMountPlan } from '../components/book-factory/useBookFactory';
@@ -16,7 +22,9 @@ const outlineClientMocks = vi.hoisted(() => ({
   listOutlines: vi.fn(async (): Promise<OutlineArtifact[]> => []),
   listCanonPatches: vi.fn(async () => []),
   subscribeToOutlineGovernanceChanges: vi.fn(() => () => {}),
-  archiveOutline: vi.fn(), acceptCanonPatch: vi.fn(), rejectCanonPatch: vi.fn(),
+  archiveOutline: vi.fn(),
+  acceptCanonPatch: vi.fn(),
+  rejectCanonPatch: vi.fn(),
 }));
 vi.mock('../lib/outline-client', () => outlineClientMocks);
 
@@ -37,15 +45,61 @@ const approvedPackWithManuscript: ContinuationPack = {
   title: '续写资料包',
   status: 'approved',
   sourceDocuments: [
-    { id: 'doc-1', packId: 'pack-1', filename: '正文.txt', kind: 'manuscript', text: '内容', excerpt: '摘要', createdAt: 1 },
-    { id: 'doc-2', packId: 'pack-1', filename: '设定.txt', kind: 'world', text: '内容', excerpt: '摘要', createdAt: 1 },
-    { id: 'doc-4', packId: 'pack-1', filename: '主线大纲.txt', kind: 'outline', text: '第一卷：起势', excerpt: '主线摘要', createdAt: 1 },
-    { id: 'doc-5', packId: 'pack-1', filename: '备用大纲.txt', kind: 'outline', text: '备用路线', excerpt: '备用摘要', createdAt: 1 },
+    {
+      id: 'doc-1',
+      packId: 'pack-1',
+      filename: '正文.txt',
+      kind: 'manuscript',
+      text: '内容',
+      excerpt: '摘要',
+      createdAt: 1,
+    },
+    {
+      id: 'doc-2',
+      packId: 'pack-1',
+      filename: '设定.txt',
+      kind: 'world',
+      text: '内容',
+      excerpt: '摘要',
+      createdAt: 1,
+    },
+    {
+      id: 'doc-4',
+      packId: 'pack-1',
+      filename: '主线大纲.txt',
+      kind: 'outline',
+      text: '第一卷：起势',
+      excerpt: '主线摘要',
+      createdAt: 1,
+    },
+    {
+      id: 'doc-5',
+      packId: 'pack-1',
+      filename: '备用大纲.txt',
+      kind: 'outline',
+      text: '备用路线',
+      excerpt: '备用摘要',
+      createdAt: 1,
+    },
   ],
   canonFacts: [],
   characterStates: [],
-  plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
-  styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
+  plotState: {
+    currentTimeline: '',
+    latestScene: '',
+    unresolvedHooks: [],
+    immediateConflict: '',
+    nextLikelyMove: '',
+  },
+  styleProfile: {
+    pov: '',
+    tense: '',
+    pacing: '',
+    dialogueDensity: '',
+    proseTraits: [],
+    avoidTraits: [],
+    sampleEvidence: '',
+  },
   contradictions: [],
   continuationTask: '',
   createdAt: 1,
@@ -56,7 +110,15 @@ const approvedPackWithoutManuscript: ContinuationPack = {
   ...approvedPackWithManuscript,
   id: 'pack-2',
   sourceDocuments: [
-    { id: 'doc-3', packId: 'pack-2', filename: '设定.txt', kind: 'world', text: '内容', excerpt: '摘要', createdAt: 1 },
+    {
+      id: 'doc-3',
+      packId: 'pack-2',
+      filename: '设定.txt',
+      kind: 'world',
+      text: '内容',
+      excerpt: '摘要',
+      createdAt: 1,
+    },
   ],
 };
 
@@ -70,13 +132,30 @@ const reportOutlinePack: ContinuationPack = {
   ...approvedPackWithManuscript,
   id: 'pack-report',
   sourceDocuments: [
-    { id: 'doc-report', packId: 'pack-report', filename: '审稿问题清单.txt', kind: 'outline', text: '问题清单：冲突不足', excerpt: '审稿报告', createdAt: 1 },
+    {
+      id: 'doc-report',
+      packId: 'pack-report',
+      filename: '审稿问题清单.txt',
+      kind: 'outline',
+      text: '问题清单：冲突不足',
+      excerpt: '审稿报告',
+      createdAt: 1,
+    },
   ],
 };
 
 const makeSkill = (id: string, cardType?: Skill['deconstructionCardType']): Skill => ({
-  id, name: id, description: '', style: '', pacing: '', stabilityScore: 1, evaluationFeedback: '', version: 1,
-  primaryDimension: 'world', deconstructionCardType: cardType, createdAt: 1,
+  id,
+  name: id,
+  description: '',
+  style: '',
+  pacing: '',
+  stabilityScore: 1,
+  evaluationFeedback: '',
+  version: 1,
+  primaryDimension: 'world',
+  deconstructionCardType: cardType,
+  createdAt: 1,
 });
 
 describe('OutlineTab - Plan 135 Behavior Tests', () => {
@@ -111,11 +190,24 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   test('production draft input does not persist until save, then creates user candidate and syncs locally', async () => {
     const onGlobalOutlineChange = vi.fn();
     const onCanonicalOutlineChange = vi.fn();
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGlobalOutlineChange={onGlobalOutlineChange} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onGlobalOutlineChange={onGlobalOutlineChange}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '本地草稿' } });
     expect(onGlobalOutlineChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
-    await waitFor(() => expect(outlineClientMocks.createOutline).toHaveBeenCalledWith('novel-1', expect.objectContaining({ content: '本地草稿', source: 'user' })));
+    await waitFor(() =>
+      expect(outlineClientMocks.createOutline).toHaveBeenCalledWith(
+        'novel-1',
+        expect.objectContaining({ content: '本地草稿', source: 'user' })
+      )
+    );
     expect(outlineClientMocks.activateOutline).toHaveBeenCalledWith('novel-1', 'candidate-1', 1);
     expect(onCanonicalOutlineChange).toHaveBeenCalledWith('本地草稿');
   });
@@ -124,7 +216,14 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     const onCanonicalOutlineChange = vi.fn();
     outlineClientMocks.activateOutline.mockRejectedValueOnce(new Error('conflict'));
     useOutlineContentStore.setState({ globalOutline: '旧主纲' });
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '失败草稿' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     await screen.findByRole('alert');
@@ -135,7 +234,14 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     useProductionStore.setState({ expectedWordCount: 1000 });
     const onGenerateOutline = vi.fn(async () => {});
     useOutlineContentStore.setState({ globalOutline: '旧主纲' });
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onGenerateOutline={onGenerateOutline} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onGenerateOutline={onGenerateOutline}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'AI 输入草稿' } });
     fireEvent.click(screen.getByRole('button', { name: 'AI 生成作品大纲' }));
     await waitFor(() => expect(onGenerateOutline).toHaveBeenCalledWith('AI 输入草稿'));
@@ -143,16 +249,20 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('project technique generation sends structured source IDs without imported text', async () => {
     useProductionStore.setState({ expectedWordCount: 1000 });
-    const onGenerateOutline = vi.fn(async () => ({ candidateId: 'candidate-1', content: '候选细纲', databaseGeneration: 1 }));
+    const onGenerateOutline = vi.fn(async () => ({
+      candidateId: 'candidate-1',
+      content: '候选细纲',
+      databaseGeneration: 1,
+    }));
     render(
       <OutlineTab
         {...defaultProps}
         novelId="novel-1"
-        
+
         projectTechniqueId="opening-gold-three"
         selectedContinuationPack={approvedPackWithManuscript}
         onGenerateOutline={onGenerateOutline}
-      />,
+      />
     );
     fireEvent.click(screen.getAllByRole('radio')[0]);
     fireEvent.click(screen.getByRole('button', { name: /黄金三章核心冲突大纲展开器/ }));
@@ -164,21 +274,25 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
           primaryDocumentId: 'doc-4',
           referenceDocumentIds: [],
         },
-      }),
+      })
     );
   });
 
   test('regular imported-outline generation sends structured source IDs without a technique', async () => {
     useProductionStore.setState({ expectedWordCount: 1000 });
-    const onGenerateOutline = vi.fn(async () => ({ candidateId: 'candidate-1', content: '候选细纲', databaseGeneration: 1 }));
+    const onGenerateOutline = vi.fn(async () => ({
+      candidateId: 'candidate-1',
+      content: '候选细纲',
+      databaseGeneration: 1,
+    }));
     render(
       <OutlineTab
         {...defaultProps}
         novelId="novel-1"
-        
+
         selectedContinuationPack={approvedPackWithManuscript}
         onGenerateOutline={onGenerateOutline}
-      />,
+      />
     );
     fireEvent.click(screen.getAllByRole('radio')[0]);
     fireEvent.click(screen.getByRole('button', { name: 'AI 整理所选大纲' }));
@@ -189,7 +303,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
           primaryDocumentId: 'doc-4',
           referenceDocumentIds: [],
         },
-      }),
+      })
     );
   });
 
@@ -197,10 +311,10 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         projectTechniqueId="opening-gold-three"
         selectedContinuationPack={null}
-      />,
+      />
     );
     expect(screen.getByText('本次大纲技法')).toBeDefined();
     expect(screen.getByText(/基于当前主纲或选中的导入大纲生成候选，不直接覆盖/)).toBeDefined();
@@ -210,7 +324,16 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     const onAdoptOutline = vi.fn(async () => true);
     const onGlobalOutlineChange = vi.fn();
     const onCanonicalOutlineChange = vi.fn();
-    render(<OutlineTab {...defaultProps} novelId="novel-1" onAdoptOutline={onAdoptOutline} onGlobalOutlineChange={onGlobalOutlineChange} onCanonicalOutlineChange={onCanonicalOutlineChange} selectedContinuationPack={approvedPackWithManuscript} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        onAdoptOutline={onAdoptOutline}
+        onGlobalOutlineChange={onGlobalOutlineChange}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+        selectedContinuationPack={approvedPackWithManuscript}
+      />
+    );
     fireEvent.click(screen.getAllByRole('radio')[0]);
     fireEvent.click(screen.getByRole('button', { name: '确认采用此大纲' }));
     await waitFor(() => expect(outlineClientMocks.activateOutline).toHaveBeenCalled());
@@ -219,22 +342,14 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('approved pack shows outline files', () => {
-    render(
-      <OutlineTab
-        {...defaultProps}
-        selectedContinuationPack={approvedPackWithManuscript}
-      />,
-    );
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={approvedPackWithManuscript} />);
 
     expect(screen.getByText('主线大纲.txt')).toBeDefined();
   });
 
   test('approved pack without manuscript docs does not show manuscript hint', () => {
     render(
-      <OutlineTab
-        {...defaultProps}
-        selectedContinuationPack={approvedPackWithoutManuscript}
-      />,
+      <OutlineTab {...defaultProps} selectedContinuationPack={approvedPackWithoutManuscript} />
     );
 
     expect(screen.getByText('资料已读取，尚未生成作品大纲')).toBeDefined();
@@ -242,23 +357,13 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('draft pack does not show approved pack hint', () => {
-    render(
-      <OutlineTab
-        {...defaultProps}
-        selectedContinuationPack={draftPack}
-      />,
-    );
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={draftPack} />);
 
     expect(screen.queryByText('资料已读取，尚未生成作品大纲')).toBeNull();
   });
 
   test('no pack does not show approved pack hint', () => {
-    render(
-      <OutlineTab
-        {...defaultProps}
-        selectedContinuationPack={null}
-      />,
-    );
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={null} />);
 
     expect(screen.queryByText('资料已读取，尚未生成作品大纲')).toBeNull();
   });
@@ -267,9 +372,9 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     expect(screen.getByText('AI 整理所选大纲')).toBeDefined();
@@ -279,9 +384,9 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         selectedContinuationPack={null}
-      />,
+      />
     );
 
     expect(screen.getByText('AI 生成作品大纲')).toBeDefined();
@@ -291,9 +396,9 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         selectedContinuationPack={reportOutlinePack}
-      />,
+      />
     );
 
     expect(screen.queryByText('审稿问题清单.txt')).toBeNull();
@@ -305,9 +410,33 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       ...approvedPackWithManuscript,
       id: 'pack-compatibility-report',
       sourceDocuments: [
-        { id: 'doc-candidate', packId: 'pack-compatibility-report', filename: '主线大纲.md', kind: 'outline', text: '主结构', excerpt: '', createdAt: 1 },
-        { id: 'doc-outline-report', packId: 'pack-compatibility-report', filename: '左道指南_事务所生态圈兼容性审查报告.md', kind: 'outline', text: '审查结论', excerpt: '', createdAt: 1 },
-        { id: 'doc-world-report', packId: 'pack-compatibility-report', filename: '左道指南_事务所生态圈兼容性审查报告-设定.md', kind: 'world', text: '报告内容', excerpt: '', createdAt: 1 },
+        {
+          id: 'doc-candidate',
+          packId: 'pack-compatibility-report',
+          filename: '主线大纲.md',
+          kind: 'outline',
+          text: '主结构',
+          excerpt: '',
+          createdAt: 1,
+        },
+        {
+          id: 'doc-outline-report',
+          packId: 'pack-compatibility-report',
+          filename: '左道指南_事务所生态圈兼容性审查报告.md',
+          kind: 'outline',
+          text: '审查结论',
+          excerpt: '',
+          createdAt: 1,
+        },
+        {
+          id: 'doc-world-report',
+          packId: 'pack-compatibility-report',
+          filename: '左道指南_事务所生态圈兼容性审查报告-设定.md',
+          kind: 'world',
+          text: '报告内容',
+          excerpt: '',
+          createdAt: 1,
+        },
       ],
     };
     render(<OutlineTab {...defaultProps} selectedContinuationPack={pack} />);
@@ -325,8 +454,24 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       id: 'pack-reference-kinds',
       sourceDocuments: [
         ...approvedPackWithManuscript.sourceDocuments,
-        { id: 'doc-style', packId: 'pack-reference-kinds', filename: '风格样本.txt', kind: 'style_sample' as const, text: '风格', excerpt: '', createdAt: 1 },
-        { id: 'doc-other', packId: 'pack-reference-kinds', filename: '其他资料.txt', kind: 'other' as const, text: '其他', excerpt: '', createdAt: 1 },
+        {
+          id: 'doc-style',
+          packId: 'pack-reference-kinds',
+          filename: '风格样本.txt',
+          kind: 'style_sample' as const,
+          text: '风格',
+          excerpt: '',
+          createdAt: 1,
+        },
+        {
+          id: 'doc-other',
+          packId: 'pack-reference-kinds',
+          filename: '其他资料.txt',
+          kind: 'other' as const,
+          text: '其他',
+          excerpt: '',
+          createdAt: 1,
+        },
       ],
     };
     render(<OutlineTab {...defaultProps} selectedContinuationPack={pack} />);
@@ -337,12 +482,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('button disabled without expectedWordCount shows tooltip', () => {
-    render(
-      <OutlineTab
-        {...defaultProps}
-        selectedContinuationPack={approvedPackWithManuscript}
-      />,
-    );
+    render(<OutlineTab {...defaultProps} selectedContinuationPack={approvedPackWithManuscript} />);
 
     const button = screen.getByRole('button', { name: /AI 整理所选大纲/ });
     expect(button.hasAttribute('disabled')).toBe(true);
@@ -354,9 +494,9 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     fireEvent.click(screen.getAllByRole('radio')[0]);
@@ -370,7 +510,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
         {...defaultProps}
         isGeneratingOutline={true}
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     const textarea = screen.getByRole('textbox');
@@ -383,7 +523,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
         {...defaultProps}
         isGeneratingOutline={true}
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     const input = screen.getByRole('spinbutton');
@@ -394,9 +534,9 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
     render(
       <OutlineTab
         {...defaultProps}
-        
+
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     expect(screen.getByText('主线大纲.txt')).toBeDefined();
@@ -417,7 +557,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
         onGlobalOutlineChange={onGlobalOutlineChange}
         onGenerateOutline={onGenerateOutline}
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     fireEvent.click(screen.getAllByRole('radio')[0]);
@@ -435,7 +575,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
         {...defaultProps}
         onGlobalOutlineChange={onGlobalOutlineChange}
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     fireEvent.click(screen.getAllByRole('radio')[0]);
@@ -454,7 +594,7 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
         {...defaultProps}
         onAdoptOutline={onAdoptOutline}
         selectedContinuationPack={approvedPackWithManuscript}
-      />,
+      />
     );
 
     fireEvent.click(screen.getAllByRole('radio')[0]);
@@ -479,8 +619,14 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       { slot: 0, skillId: 'old-planner', weight: 1, lockedDimensions: ['world'] as const },
       { slot: 2, skillId: 'keep-critic', weight: 1, lockedDimensions: ['plot'] as const },
     ];
-    const pacing = { ...makeSkill('new-pacing', 'pacing-card'), primaryDimension: 'pacing' as const };
-    const typedExisting: MountedSkillLoadoutItem[] = existing.map((entry) => ({ ...entry, lockedDimensions: [...entry.lockedDimensions] }));
+    const pacing = {
+      ...makeSkill('new-pacing', 'pacing-card'),
+      primaryDimension: 'pacing' as const,
+    };
+    const typedExisting: MountedSkillLoadoutItem[] = existing.map((entry) => ({
+      ...entry,
+      lockedDimensions: [...entry.lockedDimensions],
+    }));
     const unresolved = buildDeckMountPlan([pacing], typedExisting);
     expect(unresolved.requiresStageSelection).toBe(true);
     expect(unresolved.loadout.find((entry) => entry.slot === 2)?.skillId).toBe('keep-critic');
@@ -491,31 +637,57 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   });
 
   test('deck mount plan rejects same-slot card conflicts and keeps unknown cards out', () => {
-    const conflict = buildDeckMountPlan([
-      makeSkill('world-a', 'worldview-card'),
-      makeSkill('world-b', 'worldview-card'),
-      makeSkill('unknown'),
-    ], []);
+    const conflict = buildDeckMountPlan(
+      [
+        makeSkill('world-a', 'worldview-card'),
+        makeSkill('world-b', 'worldview-card'),
+        makeSkill('unknown'),
+      ],
+      []
+    );
     expect(conflict.conflicts).toHaveLength(1);
     expect(conflict.unknownCards.map((card) => card.id)).toEqual(['unknown']);
   });
 
   test('ordinary outline remains selectable when keyword appears after the opening', () => {
-    const pack = { ...approvedPackWithManuscript, id: 'pack-ordinary', sourceDocuments: [
-      { id: 'ordinary', packId: 'pack-ordinary', filename: '主线大纲.txt', kind: 'outline' as const, text: `${'正文'.repeat(150)}评分 review`, excerpt: '主线大纲', createdAt: 1 },
-    ] };
+    const pack = {
+      ...approvedPackWithManuscript,
+      id: 'pack-ordinary',
+      sourceDocuments: [
+        {
+          id: 'ordinary',
+          packId: 'pack-ordinary',
+          filename: '主线大纲.txt',
+          kind: 'outline' as const,
+          text: `${'正文'.repeat(150)}评分 review`,
+          excerpt: '主线大纲',
+          createdAt: 1,
+        },
+      ],
+    };
     render(<OutlineTab {...defaultProps} selectedContinuationPack={pack} />);
     expect(screen.getByText('主线大纲.txt')).toBeDefined();
   });
 
   test('deck equipment exposes main/support cards without role-slot selection', () => {
     const deck = (id: string): AggregatedSkillDeck => ({
-      mainCard: { ...makeSkill(id, 'pacing-card'), evidenceCoverage: 'full-book-stable', evidenceMoments: [] },
+      mainCard: {
+        ...makeSkill(id, 'pacing-card'),
+        evidenceCoverage: 'full-book-stable',
+        evidenceMoments: [],
+      },
       supportCards: [],
     });
     const props = {
-      deck: deck('deck-a'), savedDeckIds: ['saved-a'], isSaving: false, equipNovelId: 'novel-a',
-      onSetEquipNovelId: vi.fn(), userNovels: [], onEquipDeck: vi.fn(), onEquipSkill: vi.fn(), onCancel: vi.fn(),
+      deck: deck('deck-a'),
+      savedDeckIds: ['saved-a'],
+      isSaving: false,
+      equipNovelId: 'novel-a',
+      onSetEquipNovelId: vi.fn(),
+      userNovels: [],
+      onEquipDeck: vi.fn(),
+      onEquipSkill: vi.fn(),
+      onCancel: vi.fn(),
     };
     render(<EquipPanel {...props} />);
     expect(screen.getByText('主卡')).toBeDefined();
@@ -525,12 +697,27 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('reconciles activate rejection when candidate is active', async () => {
     outlineClientMocks.activateOutline.mockRejectedValueOnce(new Error('timeout'));
-    outlineClientMocks.listOutlines
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'candidate-1', level: 'master', status: 'active', content: '本地草稿', scope: {}, novelId: 'novel-1', source: 'user' }]);
+    outlineClientMocks.listOutlines.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 'candidate-1',
+        level: 'master',
+        status: 'active',
+        content: '本地草稿',
+        scope: {},
+        novelId: 'novel-1',
+        source: 'user',
+      },
+    ]);
     const onCanonicalOutlineChange = vi.fn();
     useOutlineContentStore.setState({ globalOutline: '旧' });
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '本地草稿' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/确认响应中断/)).textContent).toContain('确认响应中断');
@@ -540,12 +727,27 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
 
   test('reconciliation reports unchanged active master without local sync', async () => {
     outlineClientMocks.activateOutline.mockRejectedValueOnce(new Error('timeout'));
-    outlineClientMocks.listOutlines
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'old', level: 'master', status: 'active', content: '旧', scope: {}, novelId: 'novel-1', source: 'user' }]);
+    outlineClientMocks.listOutlines.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 'old',
+        level: 'master',
+        status: 'active',
+        content: '旧',
+        scope: {},
+        novelId: 'novel-1',
+        source: 'user',
+      },
+    ]);
     const onCanonicalOutlineChange = vi.fn();
     useOutlineContentStore.setState({ globalOutline: '旧' });
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/当前主纲未变/)).textContent).toContain('当前主纲未变');
@@ -558,7 +760,14 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('offline'));
     useOutlineContentStore.setState({ globalOutline: '旧' });
-    render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={vi.fn()} />);
+    render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={vi.fn()}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     expect((await screen.findByText(/保存状态未知/)).textContent).toContain('保存状态未知');
@@ -567,20 +776,49 @@ describe('OutlineTab - Plan 135 Behavior Tests', () => {
   test('late reconciliation after novel switch does not update the new work', async () => {
     let resolveReadback!: (value: OutlineArtifact[]) => void;
     outlineClientMocks.activateOutline.mockRejectedValueOnce(new Error('timeout'));
-    outlineClientMocks.listOutlines
-      .mockResolvedValueOnce([])
-      .mockImplementationOnce(() => new Promise<OutlineArtifact[]>((resolve) => { resolveReadback = resolve; }));
+    outlineClientMocks.listOutlines.mockResolvedValueOnce([]).mockImplementationOnce(
+      () =>
+        new Promise<OutlineArtifact[]>((resolve) => {
+          resolveReadback = resolve;
+        })
+    );
     const onCanonicalOutlineChange = vi.fn();
     useOutlineContentStore.setState({ globalOutline: '旧' });
-    const { rerender } = render(<OutlineTab {...defaultProps} novelId="novel-1" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
+    const { rerender } = render(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-1"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '新' } });
     fireEvent.click(screen.getByRole('button', { name: /保存并设为主纲/ }));
     await waitFor(() => expect(outlineClientMocks.listOutlines).toHaveBeenCalledTimes(2));
     useOutlineContentStore.setState({ globalOutline: '二' });
-    rerender(<OutlineTab {...defaultProps} novelId="novel-2" selectedContinuationPack={null} onCanonicalOutlineChange={onCanonicalOutlineChange} />);
-    await waitFor(() => expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('二'));
+    rerender(
+      <OutlineTab
+        {...defaultProps}
+        novelId="novel-2"
+        selectedContinuationPack={null}
+        onCanonicalOutlineChange={onCanonicalOutlineChange}
+      />
+    );
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('二')
+    );
     await act(async () => {
-      resolveReadback([{ id: 'candidate-1', level: 'master', status: 'active', content: '新', scope: {}, novelId: 'novel-1', source: 'user' }]);
+      resolveReadback([
+        {
+          id: 'candidate-1',
+          level: 'master',
+          status: 'active',
+          content: '新',
+          scope: {},
+          novelId: 'novel-1',
+          source: 'user',
+        },
+      ]);
       await Promise.resolve();
     });
     expect(onCanonicalOutlineChange).not.toHaveBeenCalled();

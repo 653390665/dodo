@@ -5,7 +5,16 @@ export type KnowledgeEntrySource = 'entity' | 'continuation-pack';
 
 export interface KnowledgeSearchEntry {
   id: string;
-  kind: 'character' | 'location' | 'item' | 'canon-fact' | 'pack-character' | 'continuation-task' | 'reading-question' | 'continuation-gap' | 'source-section';
+  kind:
+    | 'character'
+    | 'location'
+    | 'item'
+    | 'canon-fact'
+    | 'pack-character'
+    | 'continuation-task'
+    | 'reading-question'
+    | 'continuation-gap'
+    | 'source-section';
   source: KnowledgeEntrySource;
   title: string;
   summary: string;
@@ -85,10 +94,9 @@ export function buildKnowledgeSearchEntries({
           source: 'continuation-pack',
           title: selectedPack.continuationTask || `${selectedPack.title} 续写任务`,
           summary: selectedPack.plotState.latestScene || '资料包续写任务',
-          detail: [
-            selectedPack.plotState.immediateConflict,
-            selectedPack.plotState.nextLikelyMove,
-          ].filter(Boolean).join(' / '),
+          detail: [selectedPack.plotState.immediateConflict, selectedPack.plotState.nextLikelyMove]
+            .filter(Boolean)
+            .join(' / '),
           tag: '续写任务',
           sourceLabel: `资料包 · ${selectedPack.title}`,
         },
@@ -113,7 +121,9 @@ export function buildKnowledgeSearchEntries({
             ...(character.relationshipNotes || []),
             ...(character.secrets || []),
             character.evidence,
-          ].filter(Boolean).join(' / '),
+          ]
+            .filter(Boolean)
+            .join(' / '),
           tag: '资料人物',
           sourceLabel: `资料包 · ${selectedPack.title}`,
         })),
@@ -151,6 +161,13 @@ export function buildKnowledgeSearchEntries({
     : [];
 
   return [...packEntries, ...entityEntries].filter((entry) =>
-    matchesSearch(normalizedSearch, entry.title, entry.summary, entry.detail, entry.tag, entry.sourceLabel),
+    matchesSearch(
+      normalizedSearch,
+      entry.title,
+      entry.summary,
+      entry.detail,
+      entry.tag,
+      entry.sourceLabel
+    )
   );
 }

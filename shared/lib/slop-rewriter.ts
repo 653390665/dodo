@@ -8,7 +8,10 @@ export function buildSlopRewritePreview(text: string): string {
   const replacements: Array<[RegExp, string]> = [
     [/这不是([^，。；\n]{1,20})而是([^，。；\n]+)([，。；]?)/g, '这是$2$3'],
     [/不是([^，。；\n]{1,20})而是([^，。；\n]+)([，。；]?)/g, '是$2$3'],
-    [/(?:从某种程度上|在某种程度上|毋庸置疑|毫无疑问|显而易见|值得一提的是|总而言之|换句话说|不得不说|可以说是|可以说)[，,]*/g, ''],
+    [
+      /(?:从某种程度上|在某种程度上|毋庸置疑|毫无疑问|显而易见|值得一提的是|总而言之|换句话说|不得不说|可以说是|可以说)[，,]*/g,
+      '',
+    ],
     [/伴随着([^，。；\n]{1,15})的(?:发展|推进)[，,]?/g, '$1推进中，'],
     [/在([^，。；\n]{1,10})的过程中/g, '$1时'],
     [/这意味着/g, '这说明'],
@@ -49,7 +52,10 @@ export function buildSlopRewritePreview(text: string): string {
 function splitLongCommaSentence(sentence: string): string {
   const end = sentence.match(/[。！？]$/)?.[0] || '';
   const body = end ? sentence.slice(0, -1) : sentence;
-  const clauses = body.split('，').map((clause) => clause.trim()).filter(Boolean);
+  const clauses = body
+    .split('，')
+    .map((clause) => clause.trim())
+    .filter(Boolean);
   if (clauses.length < 3 || body.length < 28) return sentence;
 
   const lines: string[] = [];
@@ -106,5 +112,7 @@ export function buildSlopContextRewritePrompt(input: SlopContextRewriteInput): s
     input.chapterContext ? `章节/人物上下文：${input.chapterContext}` : '',
     input.sceneBeats ? `本场景目标：${input.sceneBeats}` : '',
     '只输出替换后的目标片段，不要输出分析、标题、解释或 Markdown。',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }

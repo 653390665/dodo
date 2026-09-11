@@ -21,7 +21,9 @@ describe('WritingSurface audit surface', () => {
 
   test('keeps one state-driven audit action guarded for empty chapters', () => {
     expect(source.match(/void onRunAudit\(\)/g)).toHaveLength(1);
-    expect(source).toContain("workflowState.primaryAction === 'audit' && (isGeneratingCritique || isChapterEmpty)");
+    expect(source).toContain(
+      "workflowState.primaryAction === 'audit' && (isGeneratingCritique || isChapterEmpty)"
+    );
     expect(source).toContain('正文为空，暂不能审计。');
     expect(source).toContain('readOnly={false}');
   });

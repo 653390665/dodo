@@ -15,7 +15,30 @@ export function classifyLatency(elapsedMs: number): PromptQualityReport['latency
 }
 
 function extractKeywords(input: string): string[] {
-  const stop = new Set(['一个', '的', '了', '是', '在', '和', '这', '那', '我', '你', '他', '她', '它', '们', '吗', '吧', '呢', '啊', '故事', '关于', '如何', '什么']);
+  const stop = new Set([
+    '一个',
+    '的',
+    '了',
+    '是',
+    '在',
+    '和',
+    '这',
+    '那',
+    '我',
+    '你',
+    '他',
+    '她',
+    '它',
+    '们',
+    '吗',
+    '吧',
+    '呢',
+    '啊',
+    '故事',
+    '关于',
+    '如何',
+    '什么',
+  ]);
   const cleaned = input.replace(/[，,。！？、；：""''（）\s]+/g, '');
   // Extract bigrams that aren't stop words
   const seen = new Set<string>();
@@ -33,13 +56,13 @@ function extractKeywords(input: string): string[] {
 export function scoreInputAnchoring(output: string, inputSeed: string): number {
   const keywords = extractKeywords(inputSeed);
   if (keywords.length === 0) return 0;
-  const hits = keywords.filter(k => output.includes(k)).length;
+  const hits = keywords.filter((k) => output.includes(k)).length;
   return Math.min(1, hits / Math.max(1, Math.ceil(keywords.length * 0.3)));
 }
 
 export function evaluateFieldCompleteness(
   parsed: Record<string, unknown>,
-  requiredFields: string[],
+  requiredFields: string[]
 ): Record<string, boolean> {
   const result: Record<string, boolean> = {};
   for (const field of requiredFields) {
@@ -52,10 +75,13 @@ export function evaluateFieldCompleteness(
 export function gradeOutput(report: PromptQualityReport): PromptQualityReport['overallGrade'] {
   if (!report.parseSuccess) return 'F';
   if (report.latencyBucket === 'timeout') return 'D';
-  const completeness = Object.values(report.fieldCompleteness).filter(Boolean).length /
+  const completeness =
+    Object.values(report.fieldCompleteness).filter(Boolean).length /
     Math.max(1, Object.values(report.fieldCompleteness).length);
-  if (report.latencyBucket === 'fast' && completeness >= 0.9 && report.inputAnchoringScore >= 0.6) return 'A';
-  if (report.latencyBucket !== 'slow' && completeness >= 0.7 && report.inputAnchoringScore >= 0.3) return 'B';
+  if (report.latencyBucket === 'fast' && completeness >= 0.9 && report.inputAnchoringScore >= 0.6)
+    return 'A';
+  if (report.latencyBucket !== 'slow' && completeness >= 0.7 && report.inputAnchoringScore >= 0.3)
+    return 'B';
   if (completeness >= 0.5) return 'C';
   return 'D';
 }

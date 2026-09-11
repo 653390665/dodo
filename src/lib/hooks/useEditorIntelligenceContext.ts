@@ -1,5 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import { CURATED_PRODUCT_SKILLS, PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/public-skill-catalog';
+import {
+  CURATED_PRODUCT_SKILLS,
+  PROMPT_GOVERNANCE_CATALOG,
+} from '../../../shared/lib/public-skill-catalog';
 
 import type {
   AgentTab,
@@ -68,14 +71,16 @@ export function useEditorIntelligenceContext({
 }: UseEditorIntelligenceContextArgs) {
   const projectCapabilityCardIds = useMemo(
     () => getProjectCapabilityCardIds(novel, mountedSkillLoadout),
-    [mountedSkillLoadout, novel],
+    [mountedSkillLoadout, novel]
   );
 
   const mountedSkills = useMemo(() => {
     const base: Skill[] = [];
     const addSkillById = (skillId: string) => {
       if (base.some((skill) => skill.id === skillId)) return;
-      const skill = librarySkills.find((entry) => entry.id === skillId || entry.parentSkillId === skillId);
+      const skill = librarySkills.find(
+        (entry) => entry.id === skillId || entry.parentSkillId === skillId
+      );
       if (skill) {
         base.push(skill);
         return;
@@ -127,10 +132,15 @@ export function useEditorIntelligenceContext({
 
   const sceneType = useMemo<SceneType | undefined>(() => {
     const signals = (userIntent || '') + (currentChapter?.content?.slice(-500) || '');
-    const dialogueScore = (signals.match(/对话|对白|说|问|答|谈|聊|争吵|质问|试探|回答/g) || []).length;
+    const dialogueScore = (signals.match(/对话|对白|说|问|答|谈|聊|争吵|质问|试探|回答/g) || [])
+      .length;
     const actionScore = (signals.match(/打|战|杀|追|逃|冲|砍|刺|闪|躲|搏|斗|出手/g) || []).length;
-    const politicsScore = (signals.match(/势力|门派|权力|计谋|算计|联合|背叛|交易|谈判|布局/g) || []).length;
-    const emotionalScore = (signals.match(/情感|心痛|回忆|思念|悲伤|眼泪|孤独|拥抱|温暖|感动|沉默/g) || []).length;
+    const politicsScore = (
+      signals.match(/势力|门派|权力|计谋|算计|联合|背叛|交易|谈判|布局/g) || []
+    ).length;
+    const emotionalScore = (
+      signals.match(/情感|心痛|回忆|思念|悲伤|眼泪|孤独|拥抱|温暖|感动|沉默/g) || []
+    ).length;
 
     const scores: { type: SceneType; score: number }[] = [
       { type: 'dialogue', score: dialogueScore },
@@ -156,7 +166,10 @@ export function useEditorIntelligenceContext({
     }
 
     return previousChapters
-      .map((chapter) => `【${chapter.title}】:\n<分镜纲要>${(chapter as Partial<Chapter>).sceneBeats || '无'}</分镜纲要>\n`)
+      .map(
+        (chapter) =>
+          `【${chapter.title}】:\n<分镜纲要>${(chapter as Partial<Chapter>).sceneBeats || '无'}</分镜纲要>\n`
+      )
       .join('\n');
   }, [chapters, currentChapter]);
 
@@ -191,7 +204,7 @@ export function useEditorIntelligenceContext({
       timelineEvents,
       foreshadowings,
       currentChapter,
-    ],
+    ]
   );
 
   const getCurrentFitScore = useCallback(
@@ -203,24 +216,22 @@ export function useEditorIntelligenceContext({
         loadout: skillsOverride,
       }).totalScore;
     },
-    [novel, currentChapter, mountedSkills],
+    [novel, currentChapter, mountedSkills]
   );
 
   const copilotSuggestion = useMemo<CopilotSuggestion>(
     () => {
       const selectedContinuationPack = getPreferredContinuationPack(
         continuationPacks,
-        selectedContinuationPackId,
+        selectedContinuationPackId
       );
       const hasContinuationPackContext = Boolean(
         selectedContinuationPack?.status === 'approved' &&
-        (
-          selectedContinuationPack.continuationTask?.trim() ||
+        (selectedContinuationPack.continuationTask?.trim() ||
           selectedContinuationPack.canonFacts.length > 0 ||
           selectedContinuationPack.characterStates.length > 0 ||
           selectedContinuationPack.sourceMap?.sections?.length ||
-          selectedContinuationPack.plotState?.latestScene?.trim()
-        ),
+          selectedContinuationPack.plotState?.latestScene?.trim())
       );
 
       return buildCopilotSuggestion({
@@ -250,7 +261,7 @@ export function useEditorIntelligenceContext({
       selectedContinuationPackId,
       sniffedEntities?.newEntities?.length,
       mountedSkills,
-    ],
+    ]
   );
 
   return {

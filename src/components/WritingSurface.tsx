@@ -1,9 +1,16 @@
 import React from 'react';
-import { Bot, FileText, Loader2, MessageSquareWarning, Plus, Radar, RefreshCw, Sparkles } from 'lucide-react';
-
 import {
-  Novel, Chapter, CopilotActionKey, AgentTab, ViewType,
-} from '../../shared/types';
+  Bot,
+  FileText,
+  Loader2,
+  MessageSquareWarning,
+  Plus,
+  Radar,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
+
+import { Novel, Chapter, CopilotActionKey, AgentTab, ViewType } from '../../shared/types';
 import { cn } from '../lib/utils';
 import { deriveProjectWorkflowState, type WorkflowSyncState } from '../lib/workflow-state';
 import { writeContinuationSyncIntent } from '../lib/continuation-sync-intent';
@@ -76,21 +83,27 @@ export const WritingSurface = React.memo(function WritingSurface({
   onNavigate,
   packStatus = 'none',
   syncState = 'not-required',
-  packId
+  packId,
 }: WritingSurfaceProps) {
   // 011 状态直传值迁移：generationStatus 订阅 editor-generation-store
   const generationStatus = useEditorGenerationStore((state) => state.generationStatus);
   const [prevChapterId, setPrevChapterId] = React.useState(currentChapter?.id);
   const [prevChapterContent, setPrevChapterContent] = React.useState(currentChapter?.content);
   const [localContent, setLocalContent] = React.useState(currentChapter?.content || '');
-  const chapterHeadingId = currentChapter ? `editor-chapter-heading-${currentChapter.id}` : undefined;
+  const chapterHeadingId = currentChapter
+    ? `editor-chapter-heading-${currentChapter.id}`
+    : undefined;
 
-  const workflowState = React.useMemo(() => deriveProjectWorkflowState({
-    loading: chapterLoading,
-    chapter: currentChapter,
-    packStatus,
-    syncState,
-  }), [chapterLoading, currentChapter, packStatus, syncState]);
+  const workflowState = React.useMemo(
+    () =>
+      deriveProjectWorkflowState({
+        loading: chapterLoading,
+        chapter: currentChapter,
+        packStatus,
+        syncState,
+      }),
+    [chapterLoading, currentChapter, packStatus, syncState]
+  );
 
   if (currentChapter?.id !== prevChapterId || currentChapter?.content !== prevChapterContent) {
     setPrevChapterId(currentChapter?.id);
@@ -160,7 +173,10 @@ export const WritingSurface = React.memo(function WritingSurface({
     <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 xl:px-8 py-5 scroll-smooth flex flex-col relative">
       <div className="w-full self-stretch min-w-0 flex-1 flex flex-col relative transition-all duration-500 gap-4">
         {chapterLoading ? (
-          <div className="min-h-[55vh] flex items-center justify-center text-sm text-theme-muted" role="status">
+          <div
+            className="min-h-[55vh] flex items-center justify-center text-sm text-theme-muted"
+            role="status"
+          >
             <Loader2 size={20} className="mr-2 animate-spin" aria-hidden="true" />
             正在加载完整章节…
           </div>
@@ -170,10 +186,15 @@ export const WritingSurface = React.memo(function WritingSurface({
             <div className="min-w-0 flex flex-col gap-6">
               {/* 1. 简洁精美的章节头部 (Elegant Chapter Header) */}
               <div className="w-full min-w-0 flex flex-col gap-2 pb-5 border-b border-theme-border/40">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">创作舞台</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">
+                  创作舞台
+                </p>
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                   <div className="min-w-0">
-                    <h3 id={chapterHeadingId} className="text-2xl font-serif font-bold text-theme-text tracking-tight">
+                    <h3
+                      id={chapterHeadingId}
+                      className="text-2xl font-serif font-bold text-theme-text tracking-tight"
+                    >
                       {currentChapter.title || '未命名章节'}
                     </h3>
                     <p className="text-sm text-theme-muted mt-1 max-w-xl leading-relaxed">
@@ -183,8 +204,12 @@ export const WritingSurface = React.memo(function WritingSurface({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <span className="px-2.5 py-1 rounded-full bg-theme-sidebar/55 border border-theme-border/50 text-xs text-theme-muted font-medium">字数 {currentChapter.wordCount || 0}</span>
-                    <span className="px-2.5 py-1 rounded-full bg-theme-sidebar/55 border border-theme-border/50 text-xs text-theme-muted font-medium">能力卡 {mountedSkillsCount}</span>
+                    <span className="px-2.5 py-1 rounded-full bg-theme-sidebar/55 border border-theme-border/50 text-xs text-theme-muted font-medium">
+                      字数 {currentChapter.wordCount || 0}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-theme-sidebar/55 border border-theme-border/50 text-xs text-theme-muted font-medium">
+                      能力卡 {mountedSkillsCount}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -193,7 +218,9 @@ export const WritingSurface = React.memo(function WritingSurface({
               <div className="w-full min-w-0 border border-theme-border/40 bg-theme-sidebar/10 rounded-2xl overflow-hidden transition-all duration-300">
                 <div className="px-5 py-3 border-b border-theme-border/30 bg-theme-sidebar/20 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">正文草稿</p>
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-theme-muted font-bold">
+                      正文草稿
+                    </p>
                     {generationStatus ? (
                       <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-theme-accent/5 px-2.5 py-0.5 text-[10px] font-bold text-theme-accent">
                         <Loader2 size={10} className={isGeneratingContent ? 'animate-spin' : ''} />
@@ -208,23 +235,44 @@ export const WritingSurface = React.memo(function WritingSurface({
                     <button
                       type="button"
                       onClick={runPrimaryAction}
-                      disabled={(workflowState.primaryAction === 'audit' && (isGeneratingCritique || isChapterEmpty))
-                        || (workflowState.primaryAction === 'resolve-issues' && (isGeneratingCritique || isChapterEmpty))
-                        || ((workflowState.primaryAction === 'planning' || workflowState.primaryAction === 'generate-plan') && isGeneratingBeats)
-                        || ((workflowState.primaryAction === 'polish' || workflowState.primaryAction === 'resolve-issues') && isGeneratingContent)
-                        || ((workflowState.primaryAction === 'complete-chapter' || workflowState.primaryAction === 'confirm-facts') && isCompletingChapter)
-                        || ((workflowState.primaryAction === 'review' || workflowState.primaryAction === 'sync') && !packId)}
+                      disabled={
+                        (workflowState.primaryAction === 'audit' &&
+                          (isGeneratingCritique || isChapterEmpty)) ||
+                        (workflowState.primaryAction === 'resolve-issues' &&
+                          (isGeneratingCritique || isChapterEmpty)) ||
+                        ((workflowState.primaryAction === 'planning' ||
+                          workflowState.primaryAction === 'generate-plan') &&
+                          isGeneratingBeats) ||
+                        ((workflowState.primaryAction === 'polish' ||
+                          workflowState.primaryAction === 'resolve-issues') &&
+                          isGeneratingContent) ||
+                        ((workflowState.primaryAction === 'complete-chapter' ||
+                          workflowState.primaryAction === 'confirm-facts') &&
+                          isCompletingChapter) ||
+                        ((workflowState.primaryAction === 'review' ||
+                          workflowState.primaryAction === 'sync') &&
+                          !packId)
+                      }
                       className="px-3.5 py-2 rounded-xl bg-theme-accent text-theme-accent-contrast hover:opacity-95 transition-opacity text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {workflowState.primaryAction === 'planning' ? <Radar size={13} />
-                        : workflowState.primaryAction === 'drafting' ? <Bot size={13} />
-                          : workflowState.primaryAction === 'audit' ? <MessageSquareWarning size={13} />
-                            : workflowState.primaryAction === 'polish' ? <Sparkles size={13} />
-                              : workflowState.primaryAction === 'next_chapter' ? <Plus size={13} />
-                                : <RefreshCw size={13} />}
+                      {workflowState.primaryAction === 'planning' ? (
+                        <Radar size={13} />
+                      ) : workflowState.primaryAction === 'drafting' ? (
+                        <Bot size={13} />
+                      ) : workflowState.primaryAction === 'audit' ? (
+                        <MessageSquareWarning size={13} />
+                      ) : workflowState.primaryAction === 'polish' ? (
+                        <Sparkles size={13} />
+                      ) : workflowState.primaryAction === 'next_chapter' ? (
+                        <Plus size={13} />
+                      ) : (
+                        <RefreshCw size={13} />
+                      )}
                       <span>{primaryActionLabel}</span>
                     </button>
-                    {(workflowState.primaryAction === 'audit' || workflowState.primaryAction === 'resolve-issues') && isChapterEmpty ? (
+                    {(workflowState.primaryAction === 'audit' ||
+                      workflowState.primaryAction === 'resolve-issues') &&
+                    isChapterEmpty ? (
                       <span className="text-xs text-theme-muted">正文为空，暂不能审计。</span>
                     ) : null}
                   </div>
@@ -232,8 +280,12 @@ export const WritingSurface = React.memo(function WritingSurface({
 
                 {auditUnknownFeedback ? (
                   <details className="mx-5 mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                    <summary className="cursor-pointer font-semibold">审计状态未知/未写入审稿意见</summary>
-                    <p className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-[11px]">{auditUnknownFeedback}</p>
+                    <summary className="cursor-pointer font-semibold">
+                      审计状态未知/未写入审稿意见
+                    </summary>
+                    <p className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-[11px]">
+                      {auditUnknownFeedback}
+                    </p>
                     <button
                       type="button"
                       onClick={onRunAudit}
@@ -257,25 +309,30 @@ export const WritingSurface = React.memo(function WritingSurface({
                   readOnly={false}
                   placeholder="在这里开始书写这一章……"
                   className={cn(
-                    "w-full max-w-[70ch] mx-auto bg-transparent resize-none writing-surface text-theme-text placeholder:text-theme-muted/40 transition-all font-serif p-6 md:p-10 focus-visible:outline-none focus-visible:ring-0 block text-lg leading-relaxed tracking-wide",
-                    isChapterEmpty ? "min-h-[55vh]" : "min-h-[70vh]"
+                    'w-full max-w-[70ch] mx-auto bg-transparent resize-none writing-surface text-theme-text placeholder:text-theme-muted/40 transition-all font-serif p-6 md:p-10 focus-visible:outline-none focus-visible:ring-0 block text-lg leading-relaxed tracking-wide',
+                    isChapterEmpty ? 'min-h-[55vh]' : 'min-h-[70vh]'
                   )}
                   style={{ lineHeight: '1.85' }}
                 />
               </div>
-
             </div>
-
           </div>
         ) : (
-          <div id="editor-empty-state" className="flex-1 flex flex-col items-center justify-center text-theme-muted opacity-100 min-h-[60vh] bg-theme-sidebar rounded-3xl shadow-sm border border-theme-border m-4 md:m-8 relative overflow-hidden">
+          <div
+            id="editor-empty-state"
+            className="flex-1 flex flex-col items-center justify-center text-theme-muted opacity-100 min-h-[60vh] bg-theme-sidebar rounded-3xl shadow-sm border border-theme-border m-4 md:m-8 relative overflow-hidden"
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-theme-sidebar/50 to-theme-border/20 z-0" />
             <div className="z-10 flex flex-col items-center">
               <div className="w-24 h-24 bg-theme-accent/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
                 <FileText size={40} className="text-theme-accent" />
               </div>
-              <h3 className="text-3xl font-serif text-theme-text mb-3 font-black tracking-tight">准备开始创作</h3>
-              <p className="mb-10 font-sans text-base text-theme-muted max-w-md text-center leading-relaxed">当前作品还没有任何章节，请点击下方按钮新建第一章，或者唤起智能管家协助构思。</p>
+              <h3 className="text-3xl font-serif text-theme-text mb-3 font-black tracking-tight">
+                准备开始创作
+              </h3>
+              <p className="mb-10 font-sans text-base text-theme-muted max-w-md text-center leading-relaxed">
+                当前作品还没有任何章节，请点击下方按钮新建第一章，或者唤起智能管家协助构思。
+              </p>
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <button
                   onClick={onAddFirstChapter}
@@ -296,7 +353,6 @@ export const WritingSurface = React.memo(function WritingSurface({
           </div>
         )}
       </div>
-
     </div>
   );
 });

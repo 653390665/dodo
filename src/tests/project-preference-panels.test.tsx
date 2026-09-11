@@ -14,16 +14,14 @@ const malformedProfile = {
 } as unknown as ProjectPreferenceProfile;
 
 describe('project preference panel reliability', () => {
-  test.each([
-    {},
-    { tags: [] },
-    { evidenceCount: 3 },
-    malformedProfile,
-  ])('renders a partial profile without throwing', (profile) => {
-    render(<ProjectPreferencePanel profile={profile as ProjectPreferenceProfile} />);
-    expect(screen.getByText('作品写法画像')).toBeTruthy();
-    expect(screen.getByText(/画像形成中/)).toBeTruthy();
-  });
+  test.each([{}, { tags: [] }, { evidenceCount: 3 }, malformedProfile])(
+    'renders a partial profile without throwing',
+    (profile) => {
+      render(<ProjectPreferencePanel profile={profile as ProjectPreferenceProfile} />);
+      expect(screen.getByText('作品写法画像')).toBeTruthy();
+      expect(screen.getByText(/画像形成中/)).toBeTruthy();
+    }
+  );
 
   test('SkillLoadoutBoard keeps the default writing mode for a malformed profile', () => {
     const novel = {
@@ -40,7 +38,7 @@ describe('project preference panel reliability', () => {
         loadout={[]}
         onAssignSkill={vi.fn()}
         onRemoveSkill={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getAllByText(/系统默认笔调/).length).toBeGreaterThan(0);
@@ -51,8 +49,15 @@ describe('project preference panel reliability', () => {
 
   test('SkillLoadoutBoard is a read-only historical adapter', () => {
     const skill = {
-      id: 'skill-1', name: '旧卡', description: '旧数据', style: '', pacing: '',
-      stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1,
+      id: 'skill-1',
+      name: '旧卡',
+      description: '旧数据',
+      style: '',
+      pacing: '',
+      stabilityScore: 80,
+      evaluationFeedback: '',
+      version: 1,
+      createdAt: 1,
     };
     render(
       <SkillLoadoutBoard
@@ -62,7 +67,7 @@ describe('project preference panel reliability', () => {
         loadout={[{ slot: 1, skillId: 'skill-1', weight: 1, lockedDimensions: [] }]}
         onAssignSkill={vi.fn()}
         onRemoveSkill={vi.fn()}
-      />,
+      />
     );
     expect(screen.getByText('能力摘要')).toBeTruthy();
     expect(screen.getByText('旧卡')).toBeTruthy();
@@ -76,7 +81,7 @@ describe('project preference panel reliability', () => {
         currentChapter={null}
         skills={[]}
         loadout={[{ slot: 0, skillId: 'legacy-missing', weight: 1, lockedDimensions: [] }]}
-      />,
+      />
     );
 
     expect(screen.getByText('旧配置待整理')).toBeTruthy();

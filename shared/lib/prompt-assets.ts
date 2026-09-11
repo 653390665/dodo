@@ -1,7 +1,4 @@
-import {
-  DEFAULT_PROMPT_TEMPLATES,
-  PROMPT_TEMPLATE_DEFINITIONS,
-} from '../config/prompt-templates';
+import { DEFAULT_PROMPT_TEMPLATES, PROMPT_TEMPLATE_DEFINITIONS } from '../config/prompt-templates';
 import type { PromptAsset, PromptOutputShape, PromptStage, PromptTemplateKey } from '../types';
 
 export const PROMPT_STAGE_ORDER: PromptStage[] = [
@@ -75,9 +72,6 @@ export function buildPromptAssetMap(): PromptAsset[] {
   }));
 }
 
-export function getPromptAssetsByStage(
-  assets: PromptAsset[],
-  stage: PromptStage,
-): PromptAsset[] {
+export function getPromptAssetsByStage(assets: PromptAsset[], stage: PromptStage): PromptAsset[] {
   return assets.filter((asset) => asset.stage === stage);
 }

@@ -54,11 +54,24 @@ import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
 
 const novel: Novel = {
-  id: 'novel-1', title: 'Novel', authorId: 'user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: 'Novel',
+  authorId: 'user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: 'Chapter', content: 'baseline', sceneBeats: 'beats',
-  order: 1, wordCount: 8, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: 'Chapter',
+  content: 'baseline',
+  sceneBeats: 'beats',
+  order: 1,
+  wordCount: 8,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 function setupDraftGeneration(flushPendingEditorWrites: () => Promise<void>) {
@@ -76,7 +89,7 @@ function setupDraftGeneration(flushPendingEditorWrites: () => Promise<void>) {
     setAiActionState: vi.fn(),
     setUserIntent: vi.fn(),
     setCurrentChapter: vi.fn(),
-    buildAgentContext: vi.fn(() => ({} as never)),
+    buildAgentContext: vi.fn(() => ({}) as never),
     pushToUndoHistory: vi.fn(),
     getCurrentFitScore: vi.fn(() => 1),
     recordSkillUsage: vi.fn().mockResolvedValue(undefined),
@@ -136,7 +149,12 @@ describe('editor data race guards (plan 178)', () => {
 
   test('a beats run keeps the content flag untouched during and after the run', async () => {
     let releaseFlush!: () => void;
-    const { hook } = setupDraftGeneration(() => new Promise<void>((resolve) => { releaseFlush = resolve; }));
+    const { hook } = setupDraftGeneration(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFlush = resolve;
+        })
+    );
 
     let pending!: Promise<void>;
     await act(async () => {
@@ -158,9 +176,12 @@ describe('editor data race guards (plan 178)', () => {
 
   test('finally: a superseded beats run still resets its own flag', async () => {
     let rejectGeneration!: (error: Error) => void;
-    mocks.editorAgentPhase.mockImplementationOnce(() => new Promise<string>((_resolve, reject) => {
-      rejectGeneration = reject as unknown as (error: Error) => void;
-    }));
+    mocks.editorAgentPhase.mockImplementationOnce(
+      () =>
+        new Promise<string>((_resolve, reject) => {
+          rejectGeneration = reject as unknown as (error: Error) => void;
+        })
+    );
     const { hook, props } = setupDraftGeneration(vi.fn().mockResolvedValue(undefined));
 
     const pending = hook.result.current.handleGenerateBeats();
@@ -179,27 +200,39 @@ describe('editor data race guards (plan 178)', () => {
 
   test('stale continuation packs response for the previous novel never lands in the store', async () => {
     const packA = {
-      id: 'pack-a', novelId: 'novel-a', title: 'A 的资料包', status: 'approved', updatedAt: 2,
+      id: 'pack-a',
+      novelId: 'novel-a',
+      title: 'A 的资料包',
+      status: 'approved',
+      updatedAt: 2,
     } as unknown as ContinuationPack;
     const packB = {
-      id: 'pack-b', novelId: 'novel-b', title: 'B 的资料包', status: 'approved', updatedAt: 1,
+      id: 'pack-b',
+      novelId: 'novel-b',
+      title: 'B 的资料包',
+      status: 'approved',
+      updatedAt: 1,
     } as unknown as ContinuationPack;
 
     let resolveNovelA!: (packs: ContinuationPack[]) => void;
     mocks.listContinuationPacks.mockImplementationOnce(
-      () => new Promise<ContinuationPack[]>((resolve) => { resolveNovelA = resolve; }),
+      () =>
+        new Promise<ContinuationPack[]>((resolve) => {
+          resolveNovelA = resolve;
+        })
     );
     mocks.listContinuationPacks.mockResolvedValueOnce([packB]);
 
-    const { rerender } = renderHook(
-      ({ novelId }) => useEditorContinuationPacks(novelId, null),
-      { initialProps: { novelId: 'novel-a' } },
-    );
+    const { rerender } = renderHook(({ novelId }) => useEditorContinuationPacks(novelId, null), {
+      initialProps: { novelId: 'novel-a' },
+    });
 
     // 换到 B 书：B 的响应先落库。
     rerender({ novelId: 'novel-b' });
     await act(async () => {});
-    expect(useContinuationPackStore.getState().continuationPacks.map((pack) => pack.id)).toEqual(['pack-b']);
+    expect(useContinuationPackStore.getState().continuationPacks.map((pack) => pack.id)).toEqual([
+      'pack-b',
+    ]);
 
     // A 书的慢响应后到：不得写进 B 书的 store。
     await act(async () => {
@@ -209,7 +242,9 @@ describe('editor data race guards (plan 178)', () => {
 
     expect(mocks.listContinuationPacks).toHaveBeenNthCalledWith(1, 'novel-a');
     expect(mocks.listContinuationPacks).toHaveBeenNthCalledWith(2, 'novel-b');
-    expect(useContinuationPackStore.getState().continuationPacks.map((pack) => pack.id)).toEqual(['pack-b']);
+    expect(useContinuationPackStore.getState().continuationPacks.map((pack) => pack.id)).toEqual([
+      'pack-b',
+    ]);
     expect(useContinuationPackStore.getState().selectedContinuationPackId).toBe('pack-b');
   });
 
@@ -222,12 +257,16 @@ describe('editor data race guards (plan 178)', () => {
     });
 
     const rejections: unknown[] = [];
-    const onUnhandled = (reason: unknown) => { rejections.push(reason); };
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason);
+    };
     process.on('unhandledRejection', onUnhandled);
 
     try {
       const { unmount } = render(React.createElement(AIAssistant));
-      await act(async () => { await Promise.resolve(); });
+      await act(async () => {
+        await Promise.resolve();
+      });
       expect(listener).toEqual(expect.any(Function));
 
       // 手动触发 SSE 广播回调：listNovels 两次 reject 都应被 catch 吞掉。

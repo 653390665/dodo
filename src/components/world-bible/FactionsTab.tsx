@@ -9,12 +9,7 @@ interface FactionsTabProps {
   updateEntity: (type: 'faction', id: string, data: Partial<Faction>) => void;
 }
 
-export function FactionsTab({
-  factions,
-  addEntity,
-  deleteEntity,
-  updateEntity,
-}: FactionsTabProps) {
+export function FactionsTab({ factions, addEntity, deleteEntity, updateEntity }: FactionsTabProps) {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center">

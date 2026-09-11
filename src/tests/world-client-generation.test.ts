@@ -85,7 +85,9 @@ describe('world client database generation forwarding', () => {
   test('keeps the compatibility path when generation is omitted', async () => {
     await updateLocation('location-1', { name: '旧调用方' });
 
-    expect(transport.call).toHaveBeenCalledWith('updateLocation', 'location-1', { name: '旧调用方' });
+    expect(transport.call).toHaveBeenCalledWith('updateLocation', 'location-1', {
+      name: '旧调用方',
+    });
     expect(transport.callForGeneration).not.toHaveBeenCalled();
   });
 });

@@ -6,14 +6,18 @@ export function filterRelationshipsByActiveEntities(
   characters: Character[],
   locations: Location[],
   items: Item[],
-  factions: Faction[],
+  factions: Faction[]
 ): EntityRelationship[] {
   if (!activeEntityNames || activeEntityNames.length === 0) return [];
 
-  const activeCharIds = characters.filter(c => activeEntityNames.includes(c.name)).map(c => c.id);
-  const activeLocIds = locations.filter(l => activeEntityNames.includes(l.name)).map(l => l.id);
-  const activeItemIds = items.filter(i => activeEntityNames.includes(i.name)).map(i => i.id);
-  const activeFactionIds = factions.filter(f => activeEntityNames.includes(f.name)).map(f => f.id);
+  const activeCharIds = characters
+    .filter((c) => activeEntityNames.includes(c.name))
+    .map((c) => c.id);
+  const activeLocIds = locations.filter((l) => activeEntityNames.includes(l.name)).map((l) => l.id);
+  const activeItemIds = items.filter((i) => activeEntityNames.includes(i.name)).map((i) => i.id);
+  const activeFactionIds = factions
+    .filter((f) => activeEntityNames.includes(f.name))
+    .map((f) => f.id);
 
   return relationships.filter((rel) => {
     const isSourceActive =

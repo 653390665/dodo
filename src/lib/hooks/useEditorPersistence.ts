@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 
 import type {
   Chapter,
@@ -8,7 +16,13 @@ import type {
   Novel,
   ProjectPreferenceProfile,
 } from '../../../shared/types';
-import { createChapter, createChapterVersion, deleteChapter, listChaptersMetadata, updateChapter } from '../chapter-client';
+import {
+  createChapter,
+  createChapterVersion,
+  deleteChapter,
+  listChaptersMetadata,
+  updateChapter,
+} from '../chapter-client';
 import {
   flushPendingEditorWrites as flushEditorWrites,
   hasFailedEditorWrites,
@@ -72,40 +86,86 @@ export function useEditorPersistence({
 
   // Keep legacy call shape when no snapshot is available; otherwise every
   // operation is bound to this render's generation and can be safely queued.
-  const updateChapterForEditor = useCallback((id: string, data: Partial<Chapter>) =>
-    databaseGeneration === undefined ? updateChapter(id, data) : databaseGeneration === null ? rejectUnavailableGeneration() : updateChapter(id, data, databaseGeneration), [databaseGeneration]);
-  const updateNovelForEditor = useCallback((id: string, data: Partial<Novel>) =>
-    databaseGeneration === undefined ? updateNovel(id, data) : databaseGeneration === null ? rejectUnavailableGeneration() : updateNovel(id, data, databaseGeneration), [databaseGeneration]);
-  const createChapterForEditor = useCallback((chapter: Chapter) =>
-    databaseGeneration === undefined ? createChapter(chapter) : databaseGeneration === null ? rejectUnavailableGeneration() : createChapter(chapter, databaseGeneration), [databaseGeneration]);
-  const deleteChapterForEditor = useCallback((id: string) =>
-    databaseGeneration === undefined ? deleteChapter(id) : databaseGeneration === null ? rejectUnavailableGeneration() : deleteChapter(id, databaseGeneration), [databaseGeneration]);
-  const createChapterVersionForEditor = useCallback((version: ChapterVersion) =>
-    databaseGeneration === undefined ? createChapterVersion(version) : databaseGeneration === null ? rejectUnavailableGeneration() : createChapterVersion(version, databaseGeneration), [databaseGeneration]);
+  const updateChapterForEditor = useCallback(
+    (id: string, data: Partial<Chapter>) =>
+      databaseGeneration === undefined
+        ? updateChapter(id, data)
+        : databaseGeneration === null
+          ? rejectUnavailableGeneration()
+          : updateChapter(id, data, databaseGeneration),
+    [databaseGeneration]
+  );
+  const updateNovelForEditor = useCallback(
+    (id: string, data: Partial<Novel>) =>
+      databaseGeneration === undefined
+        ? updateNovel(id, data)
+        : databaseGeneration === null
+          ? rejectUnavailableGeneration()
+          : updateNovel(id, data, databaseGeneration),
+    [databaseGeneration]
+  );
+  const createChapterForEditor = useCallback(
+    (chapter: Chapter) =>
+      databaseGeneration === undefined
+        ? createChapter(chapter)
+        : databaseGeneration === null
+          ? rejectUnavailableGeneration()
+          : createChapter(chapter, databaseGeneration),
+    [databaseGeneration]
+  );
+  const deleteChapterForEditor = useCallback(
+    (id: string) =>
+      databaseGeneration === undefined
+        ? deleteChapter(id)
+        : databaseGeneration === null
+          ? rejectUnavailableGeneration()
+          : deleteChapter(id, databaseGeneration),
+    [databaseGeneration]
+  );
+  const createChapterVersionForEditor = useCallback(
+    (version: ChapterVersion) =>
+      databaseGeneration === undefined
+        ? createChapterVersion(version)
+        : databaseGeneration === null
+          ? rejectUnavailableGeneration()
+          : createChapterVersion(version, databaseGeneration),
+    [databaseGeneration]
+  );
 
-  const recordFirstContentInput = useCallback((chapterId: string, previousContent: string, nextContent: string) => {
-    if (previousContent.trim() || !nextContent.trim() || firstContentInputChapterIdsRef.current.has(chapterId)) return;
-    firstContentInputChapterIdsRef.current.add(chapterId);
-    void recordProductEvent({
-      eventName: 'first_content_input',
-      stage: 'drafting',
-      result: 'success',
-      novelId: novel.id,
-      chapterId,
-      objectId: chapterId,
-    });
-  }, [novel.id]);
+  const recordFirstContentInput = useCallback(
+    (chapterId: string, previousContent: string, nextContent: string) => {
+      if (
+        previousContent.trim() ||
+        !nextContent.trim() ||
+        firstContentInputChapterIdsRef.current.has(chapterId)
+      )
+        return;
+      firstContentInputChapterIdsRef.current.add(chapterId);
+      void recordProductEvent({
+        eventName: 'first_content_input',
+        stage: 'drafting',
+        result: 'success',
+        novelId: novel.id,
+        chapterId,
+        objectId: chapterId,
+      });
+    },
+    [novel.id]
+  );
 
-  const recordContentSave = useCallback((chapterId: string) => {
-    void recordProductEvent({
-      eventName: 'content_save',
-      stage: 'drafting',
-      result: 'success',
-      novelId: novel.id,
-      chapterId,
-      objectId: chapterId,
-    });
-  }, [novel.id]);
+  const recordContentSave = useCallback(
+    (chapterId: string) => {
+      void recordProductEvent({
+        eventName: 'content_save',
+        stage: 'drafting',
+        result: 'success',
+        novelId: novel.id,
+        chapterId,
+        objectId: chapterId,
+      });
+    },
+    [novel.id]
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -126,26 +186,33 @@ export function useEditorPersistence({
     }, 2000);
   }, []);
 
-  useEffect(() => subscribeToEditorWrites(() => {
-    if (!isMountedRef.current) return;
-    const hasPending = hasPendingEditorWrites();
-    const hasFailure = hasFailedEditorWrites();
-    setIsSyncing(hasPending && !hasFailure);
-    setSyncFailed(hasFailure);
-    if (hasFailure) {
-      setSyncSuccess(false);
-    } else if (!hasPending && hasWriteActivityRef.current) {
-      hasWriteActivityRef.current = false;
-      markSyncComplete();
-    }
-  }), [markSyncComplete]);
+  useEffect(
+    () =>
+      subscribeToEditorWrites(() => {
+        if (!isMountedRef.current) return;
+        const hasPending = hasPendingEditorWrites();
+        const hasFailure = hasFailedEditorWrites();
+        setIsSyncing(hasPending && !hasFailure);
+        setSyncFailed(hasFailure);
+        if (hasFailure) {
+          setSyncSuccess(false);
+        } else if (!hasPending && hasWriteActivityRef.current) {
+          hasWriteActivityRef.current = false;
+          markSyncComplete();
+        }
+      }),
+    [markSyncComplete]
+  );
 
   const persistSkillLoadout = async (nextLoadout: MountedSkillLoadoutItem[]) => {
     const normalizedLoadout = nextLoadout
       .filter((entry) => entry.slot >= 0 && entry.slot <= 2)
       .slice()
       .sort((a, b) => a.slot - b.slot)
-      .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.slot === entry.slot) === index);
+      .filter(
+        (entry, index, entries) =>
+          entries.findIndex((candidate) => candidate.slot === entry.slot) === index
+      );
     const nextIds = normalizedLoadout.map((entry) => entry.skillId);
     setMountedSkillLoadout(normalizedLoadout);
     const versionedProfile = {
@@ -197,79 +264,120 @@ export function useEditorPersistence({
     }
   };
 
-  const enqueueContentWrite = useCallback((chapterId: string, newContent: string) => {
-    setIsSyncing(true);
-    setSyncSuccess(false);
-    hasWriteActivityRef.current = true;
-    queueEditorWrite(`chapter:${chapterId}:content`, async () => {
-      const saved = await updateChapterForEditor(chapterId, {
-        content: newContent,
-        updatedAt: Date.now(),
-        wordCount: newContent.replace(/\s/g, '').length,
-      });
-      if (!saved) return false;
-      recordContentSave(chapterId);
-      return true;
-    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'content', value: newContent });
-  }, [recordContentSave, updateChapterForEditor]);
+  const enqueueContentWrite = useCallback(
+    (chapterId: string, newContent: string) => {
+      setIsSyncing(true);
+      setSyncSuccess(false);
+      hasWriteActivityRef.current = true;
+      queueEditorWrite(
+        `chapter:${chapterId}:content`,
+        async () => {
+          const saved = await updateChapterForEditor(chapterId, {
+            content: newContent,
+            updatedAt: Date.now(),
+            wordCount: newContent.replace(/\s/g, '').length,
+          });
+          if (!saved) return false;
+          recordContentSave(chapterId);
+          return true;
+        },
+        1000,
+        { entityType: 'chapter', entityId: chapterId, field: 'content', value: newContent }
+      );
+    },
+    [recordContentSave, updateChapterForEditor]
+  );
 
-  const queueContentWrite = useCallback((newContent: string) => {
-    if (!currentChapter || isContentLockedRef.current) return;
-    if (newContent === undefined || newContent === null) return;
-    recordFirstContentInput(currentChapter.id, currentChapter.content || '', newContent);
-    enqueueContentWrite(currentChapter.id, newContent);
-  }, [currentChapter, enqueueContentWrite, isContentLockedRef, recordFirstContentInput]);
-
-  const handleUpdateContent = useCallback((newContent: string, isProgrammatic = false, skipPersist = false) => {
-    if (!currentChapter) return;
-    if (isContentLockedRef.current && !isProgrammatic) return;
-    if (newContent === undefined || newContent === null) return;
-
-    // 手动输入也要同步 wordCount：字数指示器读取 store 的 currentChapter.wordCount，
-    // 缺了它手写字数永远显示 0。
-    const updatedChapter = { ...currentChapter, content: newContent, wordCount: newContent.replace(/\s/g, '').length };
-    setCurrentChapter(updatedChapter);
-    pushToUndoHistory(newContent);
-    if (!isProgrammatic) {
+  const queueContentWrite = useCallback(
+    (newContent: string) => {
+      if (!currentChapter || isContentLockedRef.current) return;
+      if (newContent === undefined || newContent === null) return;
       recordFirstContentInput(currentChapter.id, currentChapter.content || '', newContent);
-    }
+      enqueueContentWrite(currentChapter.id, newContent);
+    },
+    [currentChapter, enqueueContentWrite, isContentLockedRef, recordFirstContentInput]
+  );
 
-    if (skipPersist) return;
-    enqueueContentWrite(currentChapter.id, newContent);
-  }, [currentChapter, enqueueContentWrite, isContentLockedRef, pushToUndoHistory, recordFirstContentInput, setCurrentChapter]);
+  const handleUpdateContent = useCallback(
+    (newContent: string, isProgrammatic = false, skipPersist = false) => {
+      if (!currentChapter) return;
+      if (isContentLockedRef.current && !isProgrammatic) return;
+      if (newContent === undefined || newContent === null) return;
+
+      // 手动输入也要同步 wordCount：字数指示器读取 store 的 currentChapter.wordCount，
+      // 缺了它手写字数永远显示 0。
+      const updatedChapter = {
+        ...currentChapter,
+        content: newContent,
+        wordCount: newContent.replace(/\s/g, '').length,
+      };
+      setCurrentChapter(updatedChapter);
+      pushToUndoHistory(newContent);
+      if (!isProgrammatic) {
+        recordFirstContentInput(currentChapter.id, currentChapter.content || '', newContent);
+      }
+
+      if (skipPersist) return;
+      enqueueContentWrite(currentChapter.id, newContent);
+    },
+    [
+      currentChapter,
+      enqueueContentWrite,
+      isContentLockedRef,
+      pushToUndoHistory,
+      recordFirstContentInput,
+      setCurrentChapter,
+    ]
+  );
 
   const flushPendingEditorWrites = useCallback(async () => {
     if (contentRef.current && currentChapter) {
       const latestValue = contentRef.current.value;
       if (latestValue !== (currentChapter.content || '')) {
-        const updatedChapter = { ...currentChapter, content: latestValue, wordCount: latestValue.replace(/\s/g, '').length };
+        const updatedChapter = {
+          ...currentChapter,
+          content: latestValue,
+          wordCount: latestValue.replace(/\s/g, '').length,
+        };
         setCurrentChapter(updatedChapter);
         pushToUndoHistory(latestValue);
         const chapterId = currentChapter.id;
         const finalWordCount = latestValue.replace(/\s/g, '').length;
         hasWriteActivityRef.current = true;
         recordFirstContentInput(chapterId, currentChapter.content || '', latestValue);
-        queueEditorWrite(`chapter:${chapterId}:content`, async () => {
-          const saved = await updateChapterForEditor(chapterId, {
-            content: latestValue,
-            updatedAt: Date.now(),
-            wordCount: finalWordCount,
-          });
-          if (!saved) return false;
-          recordContentSave(chapterId);
-          return true;
-        }, 0, { entityType: 'chapter', entityId: chapterId, field: 'content', value: latestValue });
+        queueEditorWrite(
+          `chapter:${chapterId}:content`,
+          async () => {
+            const saved = await updateChapterForEditor(chapterId, {
+              content: latestValue,
+              updatedAt: Date.now(),
+              wordCount: finalWordCount,
+            });
+            if (!saved) return false;
+            recordContentSave(chapterId);
+            return true;
+          },
+          0,
+          { entityType: 'chapter', entityId: chapterId, field: 'content', value: latestValue }
+        );
         setChapters((prev) =>
           prev.map((c) =>
-            c.id === chapterId
-              ? { ...c, wordCount: finalWordCount, updatedAt: Date.now() }
-              : c
+            c.id === chapterId ? { ...c, wordCount: finalWordCount, updatedAt: Date.now() } : c
           )
         );
       }
     }
     await flushEditorWrites();
-  }, [contentRef, currentChapter, pushToUndoHistory, recordContentSave, recordFirstContentInput, setCurrentChapter, setChapters, updateChapterForEditor]);
+  }, [
+    contentRef,
+    currentChapter,
+    pushToUndoHistory,
+    recordContentSave,
+    recordFirstContentInput,
+    setCurrentChapter,
+    setChapters,
+    updateChapterForEditor,
+  ]);
 
   const flushBeforeChangingEditorContext = async (): Promise<boolean> => {
     try {
@@ -292,106 +400,138 @@ export function useEditorPersistence({
 
   const handleUpdateChapterBeats = (newBeats: string) => {
     if (!currentChapter) return;
-    setCurrentChapter((prev) => prev ? { ...prev, sceneBeats: newBeats } : null);
+    setCurrentChapter((prev) => (prev ? { ...prev, sceneBeats: newBeats } : null));
 
     const chapterId = currentChapter.id;
     setIsSyncing(true);
     setSyncSuccess(false);
     hasWriteActivityRef.current = true;
-    queueEditorWrite(`chapter:${chapterId}:sceneBeats`, async () => {
-      const saved = await updateChapterForEditor(chapterId, {
-        sceneBeats: newBeats,
-      });
-      if (!saved) return false;
-      return true;
-    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'sceneBeats', value: newBeats });
+    queueEditorWrite(
+      `chapter:${chapterId}:sceneBeats`,
+      async () => {
+        const saved = await updateChapterForEditor(chapterId, {
+          sceneBeats: newBeats,
+        });
+        if (!saved) return false;
+        return true;
+      },
+      1000,
+      { entityType: 'chapter', entityId: chapterId, field: 'sceneBeats', value: newBeats }
+    );
   };
 
-  const handleUpdateGlobalOutline = useCallback((val: string): boolean => {
-    setGlobalOutline(val);
-    setIsSyncing(true);
-    setSyncSuccess(false);
-    hasWriteActivityRef.current = true;
-    queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
-      const saved = await updateNovelForEditor(novel.id, { globalOutline: val });
-      if (!saved) return false;
+  const handleUpdateGlobalOutline = useCallback(
+    (val: string): boolean => {
+      setGlobalOutline(val);
+      setIsSyncing(true);
+      setSyncSuccess(false);
+      hasWriteActivityRef.current = true;
+      queueEditorWrite(
+        `novel:${novel.id}:globalOutline`,
+        async () => {
+          const saved = await updateNovelForEditor(novel.id, { globalOutline: val });
+          if (!saved) return false;
+          return true;
+        },
+        1000,
+        { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val }
+      );
       return true;
-    }, 1000, { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val });
-    return true;
-  }, [novel.id, setGlobalOutline, updateNovelForEditor]);
+    },
+    [novel.id, setGlobalOutline, updateNovelForEditor]
+  );
 
-  const adoptGlobalOutline = useCallback(async (val: string): Promise<boolean> => {
-    setIsSyncing(true);
-    setSyncSuccess(false);
-    hasWriteActivityRef.current = true;
-    queueEditorWrite(`novel:${novel.id}:globalOutline`, async () => {
-      const saved = await updateNovelForEditor(novel.id, { globalOutline: val });
-      if (!saved) return false;
+  const adoptGlobalOutline = useCallback(
+    async (val: string): Promise<boolean> => {
+      setIsSyncing(true);
+      setSyncSuccess(false);
+      hasWriteActivityRef.current = true;
+      queueEditorWrite(
+        `novel:${novel.id}:globalOutline`,
+        async () => {
+          const saved = await updateNovelForEditor(novel.id, { globalOutline: val });
+          if (!saved) return false;
+          return true;
+        },
+        0,
+        { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val }
+      );
+      await flushEditorWrites();
+      setGlobalOutline(val);
       return true;
-    }, 0, { entityType: 'novel', entityId: novel.id, field: 'globalOutline', value: val });
-    await flushEditorWrites();
-    setGlobalOutline(val);
-    return true;
-  }, [novel.id, setGlobalOutline, updateNovelForEditor]);
+    },
+    [novel.id, setGlobalOutline, updateNovelForEditor]
+  );
 
   const handleAddChapter = async (targetVolumeName?: string) => {
     if (addChapterInFlightRef.current) return addChapterInFlightRef.current;
     const run = (async () => {
-    if (!await flushBeforeChangingEditorContext()) return;
-    const newOrder = getNextChapterOrder(chapters);
-    const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
-    const newId = generateClientId();
-    const newChapterData = {
-      id: newId,
-      novelId: novel.id,
-      volumeName,
-      title: `第 ${newOrder} 章`,
-      content: '',
-      order: newOrder,
-      wordCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+      if (!(await flushBeforeChangingEditorContext())) return;
+      const newOrder = getNextChapterOrder(chapters);
+      const volumeName = targetVolumeName || currentChapter?.volumeName || '正文卷';
+      const newId = generateClientId();
+      const newChapterData = {
+        id: newId,
+        novelId: novel.id,
+        volumeName,
+        title: `第 ${newOrder} 章`,
+        content: '',
+        order: newOrder,
+        wordCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-    const newChapterMeta: ChapterMetadata = {
-      id: newId,
-      novelId: novel.id,
-      volumeName,
-      title: `第 ${newOrder} 章`,
-      order: newOrder,
-      wordCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+      const newChapterMeta: ChapterMetadata = {
+        id: newId,
+        novelId: novel.id,
+        volumeName,
+        title: `第 ${newOrder} 章`,
+        order: newOrder,
+        wordCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-    try {
-      await createChapterForEditor(newChapterData);
-      setChapters((prev) => [...prev, newChapterMeta]);
-      setCurrentChapter({
-        ...newChapterData,
-        sceneBeats: '',
-        critique: '',
-      });
-      setExpandedVolumes((prev) => (prev.includes(volumeName) ? prev : [...prev, volumeName]));
-      void recordProductEvent({
-        eventName: 'next_chapter', stage: 'next_chapter', result: 'success',
-        novelId: novel.id, chapterId: newId,
-      }).catch(() => undefined);
-    } catch (err) {
-      void recordProductEvent({
-        eventName: 'next_chapter', stage: 'next_chapter', result: 'failure',
-        errorCode: 'CREATE_CHAPTER_FAILED', novelId: novel.id, chapterId: newId,
-      }).catch(() => undefined);
-      console.error('[useEditorPersistence] Failed to create chapter in DB:', err);
-      toast('创建章节失败，请稍后重试', 'error');
-    }
+      try {
+        await createChapterForEditor(newChapterData);
+        setChapters((prev) => [...prev, newChapterMeta]);
+        setCurrentChapter({
+          ...newChapterData,
+          sceneBeats: '',
+          critique: '',
+        });
+        setExpandedVolumes((prev) => (prev.includes(volumeName) ? prev : [...prev, volumeName]));
+        void recordProductEvent({
+          eventName: 'next_chapter',
+          stage: 'next_chapter',
+          result: 'success',
+          novelId: novel.id,
+          chapterId: newId,
+        }).catch(() => undefined);
+      } catch (err) {
+        void recordProductEvent({
+          eventName: 'next_chapter',
+          stage: 'next_chapter',
+          result: 'failure',
+          errorCode: 'CREATE_CHAPTER_FAILED',
+          novelId: novel.id,
+          chapterId: newId,
+        }).catch(() => undefined);
+        console.error('[useEditorPersistence] Failed to create chapter in DB:', err);
+        toast('创建章节失败，请稍后重试', 'error');
+      }
     })();
     addChapterInFlightRef.current = run;
-    try { await run; } finally { addChapterInFlightRef.current = null; }
+    try {
+      await run;
+    } finally {
+      addChapterInFlightRef.current = null;
+    }
   };
 
   const handleAddFirstChapter = async () => {
-    if (!await flushBeforeChangingEditorContext()) return;
+    if (!(await flushBeforeChangingEditorContext())) return;
     const newChapId = generateClientId();
     const newChap: Chapter = {
       id: newChapId,
@@ -409,13 +549,20 @@ export function useEditorPersistence({
       setChapters((prev) => [...prev, newChap]);
       setCurrentChapter(newChap);
       void recordProductEvent({
-        eventName: 'next_chapter', stage: 'next_chapter', result: 'success',
-        novelId: novel.id, chapterId: newChap.id,
+        eventName: 'next_chapter',
+        stage: 'next_chapter',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: newChap.id,
       }).catch(() => undefined);
     } catch (error) {
       void recordProductEvent({
-        eventName: 'next_chapter', stage: 'next_chapter', result: 'failure',
-        errorCode: 'CREATE_CHAPTER_FAILED', novelId: novel.id, chapterId: newChap.id,
+        eventName: 'next_chapter',
+        stage: 'next_chapter',
+        result: 'failure',
+        errorCode: 'CREATE_CHAPTER_FAILED',
+        novelId: novel.id,
+        chapterId: newChap.id,
       }).catch(() => undefined);
       console.error('[useEditorPersistence] Failed to create first chapter:', error);
       toast('创建章节失败，请稍后重试', 'error');
@@ -428,7 +575,7 @@ export function useEditorPersistence({
   };
 
   const handleDeleteChapter = async (id: string) => {
-    if (!await flushBeforeChangingEditorContext()) return;
+    if (!(await flushBeforeChangingEditorContext())) return;
     let deleted: boolean;
     try {
       deleted = await deleteChapterForEditor(id);
@@ -467,11 +614,16 @@ export function useEditorPersistence({
     setSyncSuccess(false);
     hasWriteActivityRef.current = true;
     const chapterId = currentChapter.id;
-    queueEditorWrite(`chapter:${chapterId}:volumeName`, async () => {
-      const saved = await updateChapterForEditor(chapterId, { volumeName: newVol });
-      if (!saved) return false;
-      return true;
-    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'volumeName', value: newVol });
+    queueEditorWrite(
+      `chapter:${chapterId}:volumeName`,
+      async () => {
+        const saved = await updateChapterForEditor(chapterId, { volumeName: newVol });
+        if (!saved) return false;
+        return true;
+      },
+      1000,
+      { entityType: 'chapter', entityId: chapterId, field: 'volumeName', value: newVol }
+    );
   };
 
   const handleTitleChange = (newTitle: string) => {
@@ -482,11 +634,16 @@ export function useEditorPersistence({
     setSyncSuccess(false);
     hasWriteActivityRef.current = true;
     const chapterId = currentChapter.id;
-    queueEditorWrite(`chapter:${chapterId}:title`, async () => {
-      const saved = await updateChapterForEditor(chapterId, { title: newTitle });
-      if (!saved) return false;
-      return true;
-    }, 1000, { entityType: 'chapter', entityId: chapterId, field: 'title', value: newTitle });
+    queueEditorWrite(
+      `chapter:${chapterId}:title`,
+      async () => {
+        const saved = await updateChapterForEditor(chapterId, { title: newTitle });
+        if (!saved) return false;
+        return true;
+      },
+      1000,
+      { entityType: 'chapter', entityId: chapterId, field: 'title', value: newTitle }
+    );
   };
 
   const refreshChapters = async () => {

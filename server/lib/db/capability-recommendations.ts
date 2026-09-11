@@ -10,19 +10,43 @@ export function ensureCapabilityRecommendationSchema(): void {
 }
 
 export function dismissCapabilityRecommendation(input: CapabilityRecommendationDismissal): void {
-  if (!input.novelId || !Number.isInteger(input.databaseGeneration)) throw new Error('CAPABILITY_RECOMMENDATION_OWNERSHIP_REQUIRED');
+  if (!input.novelId || !Number.isInteger(input.databaseGeneration))
+    throw new Error('CAPABILITY_RECOMMENDATION_OWNERSHIP_REQUIRED');
   ensureCapabilityRecommendationSchema();
-  getDb().prepare(`INSERT OR REPLACE INTO capability_recommendation_dismissals
+  getDb()
+    .prepare(
+      `INSERT OR REPLACE INTO capability_recommendation_dismissals
     (novel_id, fingerprint, issue_fingerprint, artifact_version, upstream_version, capability_id, dismissed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(input.novelId, input.fingerprint, input.issueFingerprint, String(input.artifactVersion), String(input.upstreamVersion ?? ''), input.capabilityId, Date.now());
+    VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      input.novelId,
+      input.fingerprint,
+      input.issueFingerprint,
+      String(input.artifactVersion),
+      String(input.upstreamVersion ?? ''),
+      input.capabilityId,
+      Date.now()
+    );
 }
 
-export function isCapabilityRecommendationDismissed(input: CapabilityRecommendationDismissal): boolean {
+export function isCapabilityRecommendationDismissed(
+  input: CapabilityRecommendationDismissal
+): boolean {
   if (!input.novelId || !Number.isInteger(input.databaseGeneration)) return false;
   ensureCapabilityRecommendationSchema();
-  const row = getDb().prepare(`SELECT 1 AS found FROM capability_recommendation_dismissals
-    WHERE novel_id = ? AND fingerprint = ? AND issue_fingerprint = ? AND artifact_version = ? AND upstream_version = ? AND capability_id = ?`)
-    .get(input.novelId, input.fingerprint, input.issueFingerprint, String(input.artifactVersion), String(input.upstreamVersion ?? ''), input.capabilityId) as { found?: number } | undefined;
+  const row = getDb()
+    .prepare(
+      `SELECT 1 AS found FROM capability_recommendation_dismissals
+    WHERE novel_id = ? AND fingerprint = ? AND issue_fingerprint = ? AND artifact_version = ? AND upstream_version = ? AND capability_id = ?`
+    )
+    .get(
+      input.novelId,
+      input.fingerprint,
+      input.issueFingerprint,
+      String(input.artifactVersion),
+      String(input.upstreamVersion ?? ''),
+      input.capabilityId
+    ) as { found?: number } | undefined;
   return row?.found === 1;
 }

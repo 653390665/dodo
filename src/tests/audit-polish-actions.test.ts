@@ -58,40 +58,56 @@ function makeChapter(content = '原文尾'): Chapter {
 
 function sseResponse(events: string[], delayBeforeCloseMs = 0): Response {
   const encoder = new TextEncoder();
-  return new Response(new ReadableStream({
-    start(controller) {
-      for (const event of events) controller.enqueue(encoder.encode(event));
-      if (delayBeforeCloseMs > 0) {
-        setTimeout(() => controller.close(), delayBeforeCloseMs);
-      } else {
-        controller.close();
-      }
-    },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' } });
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        if (delayBeforeCloseMs > 0) {
+          setTimeout(() => controller.close(), delayBeforeCloseMs);
+        } else {
+          controller.close();
+        }
+      },
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' },
+    }
+  );
 }
 
 function delayedDoneSseResponse(token: string, delayMs = 25): Response {
   const encoder = new TextEncoder();
-  return new Response(new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
-      setTimeout(() => {
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
-      }, delayMs);
-    },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' } });
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+        setTimeout(() => {
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        }, delayMs);
+      },
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' },
+    }
+  );
 }
 
-function renderRewriteHook(options: {
-  chapter?: Chapter;
-  sessionCardIds?: string[];
-  recordSkillUsage?: () => Promise<void>;
-  flushPendingEditorWrites?: () => Promise<void>;
-  onStyleConfirmationRequired?: (data: { retry?: (fingerprint: string) => Promise<void> }) => void;
-  formatAiFailure?: (error: unknown, actionLabel: string) => string;
-  setRetryContext?: (context: unknown) => void;
-} = {}) {
+function renderRewriteHook(
+  options: {
+    chapter?: Chapter;
+    sessionCardIds?: string[];
+    recordSkillUsage?: () => Promise<void>;
+    flushPendingEditorWrites?: () => Promise<void>;
+    onStyleConfirmationRequired?: (data: {
+      retry?: (fingerprint: string) => Promise<void>;
+    }) => void;
+    formatAiFailure?: (error: unknown, actionLabel: string) => string;
+    setRetryContext?: (context: unknown) => void;
+  } = {}
+) {
   const novel = makeNovel();
   const chapter = options.chapter ?? makeChapter();
   const requestSeqRef = { current: 0 };
@@ -105,31 +121,33 @@ function renderRewriteHook(options: {
   const recordSkillUsage = vi.fn(options.recordSkillUsage ?? (async () => {}));
   const flushPendingEditorWrites = vi.fn(options.flushPendingEditorWrites ?? (async () => {}));
 
-  const hook = renderHook(() => useAuditPolishActions({
-    novel,
-    currentChapter: chapter,
-    mountedSkills: [],
-    sessionCardIds: options.sessionCardIds,
-    onStyleConfirmationRequired: options.onStyleConfirmationRequired,
-    contentRef: { current: contentElement } as never,
-    polishPromptSurface: 'chapter-polish',
-    requestSeqRef,
-    abortControllerRef,
-    latestChapterIdRef,
-    setGenerationStatus: vi.fn(),
-    setAuditStatus: vi.fn(),
-    setAuditUnknownFeedback: vi.fn(),
-    setAiActionState,
-    setCandidate,
-    setCurrentChapter,
-    buildAgentContext: () => ({ novel, characters: [] }),
-    handleUpdateContent,
-    getCurrentFitScore: () => 80,
-    recordSkillUsage,
-    formatAiFailure: options.formatAiFailure ?? (() => '审稿失败，请重试。'),
-    flushPendingEditorWrites,
-    setRetryContext: options.setRetryContext,
-  }));
+  const hook = renderHook(() =>
+    useAuditPolishActions({
+      novel,
+      currentChapter: chapter,
+      mountedSkills: [],
+      sessionCardIds: options.sessionCardIds,
+      onStyleConfirmationRequired: options.onStyleConfirmationRequired,
+      contentRef: { current: contentElement } as never,
+      polishPromptSurface: 'chapter-polish',
+      requestSeqRef,
+      abortControllerRef,
+      latestChapterIdRef,
+      setGenerationStatus: vi.fn(),
+      setAuditStatus: vi.fn(),
+      setAuditUnknownFeedback: vi.fn(),
+      setAiActionState,
+      setCandidate,
+      setCurrentChapter,
+      buildAgentContext: () => ({ novel, characters: [] }),
+      handleUpdateContent,
+      getCurrentFitScore: () => 80,
+      recordSkillUsage,
+      formatAiFailure: options.formatAiFailure ?? (() => '审稿失败，请重试。'),
+      flushPendingEditorWrites,
+      setRetryContext: options.setRetryContext,
+    })
+  );
 
   return {
     ...hook,
@@ -165,9 +183,10 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('missing [DONE] restores the original content without persisting the preview', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
-      'data: {"token":"新文"}\n\n',
-    ])));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => sseResponse(['data: {"token":"新文"}\n\n']))
+    );
     const { result, handleUpdateContent, chapter, setAiActionState } = renderRewriteHook();
 
     await result.current.handleRewriteSelectedText();
@@ -178,19 +197,27 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     const errorUpdater = setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
     expect(errorUpdater(runningState)).toMatchObject({
-      status: 'error', operation: 'rewrite', message: '改写流未正常结束，原文已恢复。', retryable: true,
+      status: 'error',
+      operation: 'rewrite',
+      message: '改写流未正常结束，原文已恢复。',
+      retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
   });
 
   test('a style-required rewrite can be resumed exactly once with the original instruction', async () => {
     let retry: ((fingerprint: string) => Promise<void>) | undefined;
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(Response.json({ code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [] }, { status: 409 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [] }, { status: 409 })
+      )
       .mockResolvedValueOnce(sseResponse(['data: {"token":"新文"}\n\n', 'data: [DONE]\n\n']));
     vi.stubGlobal('fetch', fetchMock);
     const { result, setAiActionState, setCandidate } = renderRewriteHook({
-      onStyleConfirmationRequired: (data) => { retry = data.retry; },
+      onStyleConfirmationRequired: (data) => {
+        retry = data.retry;
+      },
     });
 
     await result.current.handleRewriteSelectedText();
@@ -204,11 +231,16 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       instruction: '润色',
       styleConfirmationFingerprint: 'fp-confirmed',
     });
-    expect(setCandidate).toHaveBeenCalledWith(expect.objectContaining({ operation: 'rewrite', content: '新文尾' }));
+    expect(setCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'rewrite', content: '新文尾' })
+    );
   });
 
   test('a stale request cannot restore over a newer chapter or request', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => delayedDoneSseResponse('新文')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => delayedDoneSseResponse('新文'))
+    );
     const {
       result,
       handleUpdateContent,
@@ -233,7 +265,15 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
 
   test('a stale rewrite failure cannot overwrite the current AI action state', async () => {
     let rejectRewrite: ((error: Error) => void) | undefined;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise((_resolve, reject) => { rejectRewrite = reject; })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectRewrite = reject;
+          })
+      )
+    );
     const { result, requestSeqRef, latestChapterIdRef, setAiActionState } = renderRewriteHook();
 
     const pending = result.current.handleRewriteSelectedText();
@@ -244,24 +284,35 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     await pending;
 
     expect(setAiActionState).toHaveBeenCalledTimes(1);
-    expect(setAiActionState).toHaveBeenCalledWith(expect.objectContaining({ status: 'running', operation: 'rewrite' }));
+    expect(setAiActionState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'running', operation: 'rewrite' })
+    );
     expect(alert).not.toHaveBeenCalled();
   });
 
   test('author edits during rewrite invalidate the candidate without restoring over the edit', async () => {
     let release: (() => void) | undefined;
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      const encoder = new TextEncoder();
-      return new Response(new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode('data: {"token":"新文"}\n\n'));
-          release = () => {
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          };
-        },
-      }), { status: 200, headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' } });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const encoder = new TextEncoder();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode('data: {"token":"新文"}\n\n'));
+              release = () => {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+              };
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream', 'X-InkFlow-Database-Generation': '7' },
+          }
+        );
+      })
+    );
     const { result, contentElement, handleUpdateContent, setCandidate } = renderRewriteHook();
 
     const pending = result.current.handleRewriteSelectedText();
@@ -275,11 +326,9 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('successful streaming previews use skipPersist and commit chapter content once', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => sseResponse([
-      'data: {"token":"新"}\n\n',
-      'data: {"token":"文"}\n\n',
-      'data: [DONE]\n\n',
-    ]));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      sseResponse(['data: {"token":"新"}\n\n', 'data: {"token":"文"}\n\n', 'data: [DONE]\n\n'])
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { result, handleUpdateContent, chapter, setCandidate } = renderRewriteHook({
       sessionCardIds: ['deconstruct-card-pacing'],
@@ -294,7 +343,13 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     });
 
     expect(handleUpdateContent).not.toHaveBeenCalled();
-    expect(setCandidate).toHaveBeenCalledWith(expect.objectContaining({ operation: 'rewrite', content: '新文尾', baselineHash: expect.any(String) }));
+    expect(setCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'rewrite',
+        content: '新文尾',
+        baselineHash: expect.any(String),
+      })
+    );
     expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
     expect(chapterClientMocks.createChapterVersion).not.toHaveBeenCalled();
   });
@@ -303,7 +358,9 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { result, handleUpdateContent } = renderRewriteHook({
-      flushPendingEditorWrites: async () => { throw new Error('disk unavailable'); },
+      flushPendingEditorWrites: async () => {
+        throw new Error('disk unavailable');
+      },
     });
 
     await result.current.handleRewriteSelectedText();
@@ -315,10 +372,16 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('a completed rewrite without a database generation is restored and never persisted', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(
-      'data: {"token":"新文"}\n\ndata: [DONE]\n\n',
-      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
-    )));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('data: {"token":"新文"}\n\ndata: [DONE]\n\n', {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          })
+      )
+    );
     const { result, handleUpdateContent, chapter } = renderRewriteHook();
 
     await result.current.handleRewriteSelectedText();
@@ -334,30 +397,42 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       ...makeChapter(original),
       critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
     };
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => (
-      String(input) === '/api/db/generation'
-        ? Response.json({ databaseGeneration: 7 })
-        : sseResponse([
-          'data: {"token":"他猛地扣住门框，"}\n\n',
-          'data: {"token":"挡住了对方去路。"}\n\n',
-          'data: [DONE]\n\n',
-        ])
-    )));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === '/api/db/generation'
+          ? Response.json({ databaseGeneration: 7 })
+          : sseResponse([
+              'data: {"token":"他猛地扣住门框，"}\n\n',
+              'data: {"token":"挡住了对方去路。"}\n\n',
+              'data: [DONE]\n\n',
+            ])
+      )
+    );
     const { result, handleUpdateContent, setCandidate } = renderRewriteHook({
       chapter,
       sessionCardIds: ['deconstruct-card-pacing'],
-      recordSkillUsage: async () => { throw new Error('telemetry unavailable'); },
+      recordSkillUsage: async () => {
+        throw new Error('telemetry unavailable');
+      },
     });
 
     await result.current.handlePolishChapterFromAudit();
 
-    const rewriteCall = (fetch as unknown as { mock: { calls: [RequestInfo | URL, RequestInit?][] } }).mock.calls
-      .find((call) => String(call[0]) === '/api/rewrite');
+    const rewriteCall = (
+      fetch as unknown as { mock: { calls: [RequestInfo | URL, RequestInit?][] } }
+    ).mock.calls.find((call) => String(call[0]) === '/api/rewrite');
     expect(JSON.parse(String(rewriteCall?.[1]?.body))).toMatchObject({
       sessionCardIds: ['deconstruct-card-pacing'],
     });
     expect(handleUpdateContent).not.toHaveBeenCalled();
-    expect(setCandidate).toHaveBeenCalledWith(expect.objectContaining({ operation: 'polish', content: '他猛地扣住门框，挡住了对方去路。', reviewRecheck: true }));
+    expect(setCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'polish',
+        content: '他猛地扣住门框，挡住了对方去路。',
+        reviewRecheck: true,
+      })
+    );
     expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
   });
 
@@ -367,15 +442,18 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       ...makeChapter(original),
       critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
     };
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => (
-      String(input) === '/api/db/generation'
-        ? Response.json({ databaseGeneration: 7 })
-        : sseResponse([
-          'data: {"token":"他猛地扣住门框，"}\n\n',
-          'data: {"token":"挡住了对方去路。"}\n\n',
-          'data: [DONE]\n\n',
-        ])
-    )));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === '/api/db/generation'
+          ? Response.json({ databaseGeneration: 7 })
+          : sseResponse([
+              'data: {"token":"他猛地扣住门框，"}\n\n',
+              'data: {"token":"挡住了对方去路。"}\n\n',
+              'data: [DONE]\n\n',
+            ])
+      )
+    );
     const { result, handleUpdateContent } = renderRewriteHook({ chapter });
 
     const candidate = await result.current.handlePolishChapterFromAudit(undefined, {
@@ -396,24 +474,33 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
     };
     let retry: ((fingerprint: string) => Promise<void>) | undefined;
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(Response.json({ code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [] }, { status: 409 }))
-      .mockResolvedValueOnce(sseResponse([
-        'data: {"token":"他猛地扣住门框，"}\n\n',
-        'data: {"token":"挡住了对方去路。"}\n\n',
-        'data: [DONE]\n\n',
-      ]));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [] }, { status: 409 })
+      )
+      .mockResolvedValueOnce(
+        sseResponse([
+          'data: {"token":"他猛地扣住门框，"}\n\n',
+          'data: {"token":"挡住了对方去路。"}\n\n',
+          'data: [DONE]\n\n',
+        ])
+      );
     vi.stubGlobal('fetch', fetchMock);
     const { result, setCandidate } = renderRewriteHook({
       chapter,
-      onStyleConfirmationRequired: (data) => { retry = data.retry; },
+      onStyleConfirmationRequired: (data) => {
+        retry = data.retry;
+      },
     });
 
     await result.current.handlePolishChapterFromAudit();
     expect(retry).toBeTypeOf('function');
     await retry?.('fp-confirmed');
 
-    const rewriteCall = fetchMock.mock.calls.find((call) => String(call[0]) === '/api/rewrite' && String(call[1]?.body).includes('fp-confirmed'));
+    const rewriteCall = fetchMock.mock.calls.find(
+      (call) => String(call[0]) === '/api/rewrite' && String(call[1]?.body).includes('fp-confirmed')
+    );
     expect(rewriteCall).toBeTruthy();
     expect(JSON.parse(String(rewriteCall?.[1]?.body))).toMatchObject({
       styleConfirmationFingerprint: 'fp-confirmed',
@@ -424,13 +511,16 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   test('audit polling and critique persistence stay bound to the starting database generation', async () => {
     vi.useFakeTimers();
     dbTransportMocks.getDatabaseGenerationSnapshot.mockResolvedValueOnce(17);
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(Response.json({ jobId: 'audit-1', databaseGeneration: 17 }))
-      .mockResolvedValueOnce(Response.json({
-        status: 'completed',
-        progress: 100,
-        result: { feedback: '完整审稿反馈', score: 88 },
-      }));
+      .mockResolvedValueOnce(
+        Response.json({
+          status: 'completed',
+          progress: 100,
+          result: { feedback: '完整审稿反馈', score: 88 },
+        })
+      );
     vi.stubGlobal('fetch', fetchMock);
     const { result, chapter } = renderRewriteHook({
       sessionCardIds: ['deconstruct-card-pacing'],
@@ -464,21 +554,30 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
           }),
         }),
       }),
-      17,
+      17
     );
     vi.useRealTimers();
   });
 
   test('audit result is discarded when the author edits the chapter while polling', async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(Response.json({ jobId: 'audit-stale', databaseGeneration: 7 }))
-      .mockResolvedValueOnce(Response.json({ status: 'completed', progress: 100, result: { feedback: '旧审稿反馈', score: 88 } }));
+      .mockResolvedValueOnce(
+        Response.json({
+          status: 'completed',
+          progress: 100,
+          result: { feedback: '旧审稿反馈', score: 88 },
+        })
+      );
     vi.stubGlobal('fetch', fetchMock);
     const { result, contentElement } = renderRewriteHook();
 
     const pending = result.current.handleRunAudit();
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     contentElement.value = '作者在审稿期间修改了正文';
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
@@ -491,7 +590,8 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
 
   test('audit polling failure cancels the incomplete generation-bound job', async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(Response.json({ jobId: 'audit-failed', databaseGeneration: 23 }))
       .mockResolvedValueOnce(new Response('backend unavailable', { status: 502 }))
       .mockResolvedValueOnce(undefined);
@@ -506,14 +606,19 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/audit/jobs/audit-failed/cancel?databaseGeneration=23',
-      { method: 'POST' },
+      { method: 'POST' }
     );
     expect(chapterClientMocks.updateChapter).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 
   test('audit request failure uses retryable state without showing an alert', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('provider unavailable'); }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('provider unavailable');
+      })
+    );
     const { result, setAiActionState } = renderRewriteHook();
 
     await result.current.handleRunAudit();
@@ -531,7 +636,9 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('a non-style 409 rewrite failure surfaces the server error message after a single body read', async () => {
-    const fetchMock = vi.fn(async () => Response.json({ error: '数据库已切换，请刷新后重试' }, { status: 409 }));
+    const fetchMock = vi.fn(async () =>
+      Response.json({ error: '数据库已切换，请刷新后重试' }, { status: 409 })
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { result, setAiActionState } = renderRewriteHook({
       formatAiFailure: (error) => String(error instanceof Error ? error.message : error),
@@ -550,14 +657,19 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
   });
 
   test('a style-required audit initiation reports the confirmation data without re-reading the body', async () => {
-    let received: { retry?: (fingerprint: string) => Promise<void>; candidates?: unknown[] } | undefined;
-    const fetchMock = vi.fn(async () => Response.json(
-      { code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [{ id: 'style-1' }] },
-      { status: 409 },
-    ));
+    let received:
+      { retry?: (fingerprint: string) => Promise<void>; candidates?: unknown[] } | undefined;
+    const fetchMock = vi.fn(async () =>
+      Response.json(
+        { code: 'STYLE_CONFIRMATION_REQUIRED', candidates: [{ id: 'style-1' }] },
+        { status: 409 }
+      )
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { result, setAiActionState } = renderRewriteHook({
-      onStyleConfirmationRequired: (data) => { received = data as typeof received; },
+      onStyleConfirmationRequired: (data) => {
+        received = data as typeof received;
+      },
     });
 
     await result.current.handleRunAudit();
@@ -575,10 +687,18 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
       critique: `## 致命问题\n### 弱动作链\n> ${original} —— 动作表达过弱`,
     };
     const setRetryContext = vi.fn();
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('polish upstream failed'); }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('polish upstream failed');
+      })
+    );
     const { result } = renderRewriteHook({ chapter, setRetryContext });
 
-    await result.current.handlePolishChapterFromAudit(undefined, { previewOnly: true, issueIds: ['i1'] });
+    await result.current.handlePolishChapterFromAudit(undefined, {
+      previewOnly: true,
+      issueIds: ['i1'],
+    });
 
     expect(setRetryContext).toHaveBeenCalledWith({
       operation: 'polish',
@@ -591,7 +711,9 @@ describe('useAuditPolishActions rewrite persistence guards', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { result, contentElement, setAiActionState } = renderRewriteHook({
-      flushPendingEditorWrites: async () => { contentElement.value = '作者在窗口期内打了新字'; },
+      flushPendingEditorWrites: async () => {
+        contentElement.value = '作者在窗口期内打了新字';
+      },
     });
 
     await result.current.handleRewriteSelectedText();

@@ -11,7 +11,10 @@ export interface CapabilityUnavailableDetail {
   packageDesc?: string;
   novelId?: string;
 }
-export type CapabilityUnavailableEventDetail = Omit<CapabilityUnavailableDetail, 'count' | 'max'> & {
+export type CapabilityUnavailableEventDetail = Omit<
+  CapabilityUnavailableDetail,
+  'count' | 'max'
+> & {
   count?: number;
   max?: number;
 };
@@ -36,7 +39,7 @@ export function canUseEnhancedCapability({
 /** Resolve the mode consumed by recommendation routing after platform entitlement rules apply. */
 export function getEffectiveCommercialMode(
   commercialMode?: CommercialMode | null,
-  env: EntitlementEnv = import.meta.env,
+  env: EntitlementEnv = import.meta.env
 ): 'free' | 'paid' | 'strict' {
   if (commercialMode === 'strict') return 'strict';
   if (canUseEnhancedCapability({ commercialMode, env })) return 'paid';
@@ -46,19 +49,26 @@ export function getEffectiveCommercialMode(
 export function filterLicensedAssetsByEntitlement<T extends { sourceType?: string }>(
   assets: T[],
   commercialMode?: CommercialMode | null,
-  env: EntitlementEnv = import.meta.env,
+  env: EntitlementEnv = import.meta.env
 ): T[] {
   if (canUseEnhancedCapability({ commercialMode, env })) return assets;
   return assets.filter((asset) => asset.sourceType !== 'licensed');
 }
 
 export function normalizeCapabilityUnavailableDetail(input: unknown): CapabilityUnavailableDetail {
-  const value = input && typeof input === 'object' ? input as Record<string, unknown> : {};
-  const limitType = value.limitType === 'extractSkill' || value.limitType === 'generateProse' || value.limitType === 'advancedAudit'
-    ? value.limitType
-    : undefined;
-  const finiteNonNegative = (candidate: unknown, fallback: number) => typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= 0 ? candidate : fallback;
-  const stringOrUndefined = (candidate: unknown) => typeof candidate === 'string' ? candidate : undefined;
+  const value = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const limitType =
+    value.limitType === 'extractSkill' ||
+    value.limitType === 'generateProse' ||
+    value.limitType === 'advancedAudit'
+      ? value.limitType
+      : undefined;
+  const finiteNonNegative = (candidate: unknown, fallback: number) =>
+    typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= 0
+      ? candidate
+      : fallback;
+  const stringOrUndefined = (candidate: unknown) =>
+    typeof candidate === 'string' ? candidate : undefined;
   return {
     limitType,
     count: finiteNonNegative(value.count, 0),
@@ -79,7 +89,7 @@ export function dispatchCapabilityUnavailable(detail: CapabilityUnavailableEvent
 /** 007 T6：授权增强门槛的唯一判定（licensed 资产且当前作品未开通增强）。 */
 export function isLicensedEnhancementGated(
   sourceType: string | undefined | null,
-  isFreeNovel: boolean,
+  isFreeNovel: boolean
 ): boolean {
   return sourceType === 'licensed' && isFreeNovel;
 }

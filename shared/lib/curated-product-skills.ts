@@ -16,7 +16,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'built-in',
     primaryCategory: 'author-workflow',
     inputs: ['outline'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'opening-novelty-hook',
@@ -29,7 +29,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'licensed',
     primaryCategory: 'quality-guardrail',
     inputs: ['content'],
-    actionType: 'direct-exec'
+    actionType: 'direct-exec',
   },
   // 2. bible (设定)
   {
@@ -43,7 +43,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'licensed',
     primaryCategory: 'author-workflow',
     inputs: ['idea'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'bible-character-arc',
@@ -56,7 +56,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'built-in',
     primaryCategory: 'author-workflow',
     inputs: ['idea'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   // 3. prose (正文)
   {
@@ -70,7 +70,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'author-workflow',
     inputs: ['scene-outline'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'prose-action-booster',
@@ -83,7 +83,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'built-in',
     primaryCategory: 'author-workflow',
     inputs: ['scene-outline'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   // 4. audit (审稿)
   {
@@ -97,7 +97,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'quality-guardrail',
     inputs: ['content'],
-    actionType: 'direct-exec'
+    actionType: 'direct-exec',
   },
   {
     id: 'audit-cliche-detector',
@@ -110,7 +110,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'built-in',
     primaryCategory: 'quality-guardrail',
     inputs: ['content'],
-    actionType: 'direct-exec'
+    actionType: 'direct-exec',
   },
   // 5. de-ai (去AI)
   {
@@ -124,7 +124,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'built-in',
     primaryCategory: 'quality-guardrail',
     inputs: ['content'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'de-ai-rhythm-restorer',
@@ -137,7 +137,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'quality-guardrail',
     inputs: ['content'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   // 6. platform (平台)
   {
@@ -151,7 +151,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'licensed',
     primaryCategory: 'platform-criteria',
     inputs: ['content'],
-    actionType: 'direct-exec'
+    actionType: 'direct-exec',
   },
   {
     id: 'platform-webnovel-criteria',
@@ -164,7 +164,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'licensed',
     primaryCategory: 'platform-criteria',
     inputs: ['content'],
-    actionType: 'direct-exec'
+    actionType: 'direct-exec',
   },
   // 7. style (风格)
   {
@@ -178,7 +178,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'licensed',
     primaryCategory: 'style-reference',
     inputs: ['content'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'style-ancient-elegance',
@@ -191,7 +191,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'style-reference',
     inputs: ['content'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   // 8. deconstruct (拆书)
   {
@@ -205,7 +205,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'skill-card',
     inputs: ['content'],
-    actionType: 'equip'
+    actionType: 'equip',
   },
   {
     id: 'deconstruct-suspense-hook',
@@ -218,6 +218,6 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     sourceType: 'plaza',
     primaryCategory: 'skill-card',
     inputs: ['content'],
-    actionType: 'equip'
-  }
+    actionType: 'equip',
+  },
 ];

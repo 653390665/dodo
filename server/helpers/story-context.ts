@@ -1,5 +1,8 @@
 import * as db from '../lib/db.js';
-import { buildLedgerPromptFacts, buildStoryStateLedger } from '../../shared/lib/story-state-ledger.js';
+import {
+  buildLedgerPromptFacts,
+  buildStoryStateLedger,
+} from '../../shared/lib/story-state-ledger.js';
 import { embedWithMetadata, getEmbeddingStatus } from '../embedding';
 import { getChunkCount, searchSimilar } from '../vector-store';
 
@@ -11,10 +14,16 @@ const MAX_FORESHADOWINGS = 12;
 
 function truncate(text: string, maxChars: number): string {
   const normalized = text.trim();
-  return normalized.length > maxChars ? `${normalized.slice(0, maxChars)}\n……（已截断）` : normalized;
+  return normalized.length > maxChars
+    ? `${normalized.slice(0, maxChars)}\n……（已截断）`
+    : normalized;
 }
 
-function prioritizeNamed<T extends { name: string; updatedAt?: number }>(entries: T[], chapterText: string, isPrimary?: (entry: T) => boolean): T[] {
+function prioritizeNamed<T extends { name: string; updatedAt?: number }>(
+  entries: T[],
+  chapterText: string,
+  isPrimary?: (entry: T) => boolean
+): T[] {
   return entries
     .slice()
     .sort((left, right) => {
@@ -37,11 +46,15 @@ export function buildServerStoryContext(input: {
   if (chapter.novelId !== novel.id) throw new Error('CHAPTER_SCOPE_MISMATCH');
 
   const chapterText = `${chapter.title}\n${chapter.sceneBeats || ''}\n${chapter.content || ''}`;
-  const foreshadowings = db.listForeshadowings(novel.id)
+  const foreshadowings = db
+    .listForeshadowings(novel.id)
     .filter((entry) => entry.status !== 'payoff')
     .sort((left, right) => {
-      const leftScore = (left.plantedChapterId === chapter.id ? 2 : 0) + (chapterText.includes(left.title) ? 1 : 0);
-      const rightScore = (right.plantedChapterId === chapter.id ? 2 : 0) + (chapterText.includes(right.title) ? 1 : 0);
+      const leftScore =
+        (left.plantedChapterId === chapter.id ? 2 : 0) + (chapterText.includes(left.title) ? 1 : 0);
+      const rightScore =
+        (right.plantedChapterId === chapter.id ? 2 : 0) +
+        (chapterText.includes(right.title) ? 1 : 0);
       return rightScore - leftScore || left.createdAt - right.createdAt;
     })
     .slice(0, MAX_FORESHADOWINGS);
@@ -51,7 +64,11 @@ export function buildServerStoryContext(input: {
     // The ledger only reads the last `recentChapterLimit` chapters — loading
     // just those rows avoids a full-book content scan per request.
     chapters: db.listRecentChapterContents(novel.id, 5),
-    characters: prioritizeNamed(db.listCharacters(novel.id), chapterText, (entry) => entry.role === 'protagonist'),
+    characters: prioritizeNamed(
+      db.listCharacters(novel.id),
+      chapterText,
+      (entry) => entry.role === 'protagonist'
+    ),
     locations: prioritizeNamed(db.listLocations(novel.id), chapterText),
     items: prioritizeNamed(db.listItems(novel.id), chapterText),
     factions: prioritizeNamed(db.listFactions(novel.id), chapterText),
@@ -62,27 +79,36 @@ export function buildServerStoryContext(input: {
     currentChapterOrder: chapter.order,
   });
   const facts = buildLedgerPromptFacts(ledger);
-  const serverContext = truncate([
-    '【服务端故事状态账本】',
-    facts.story,
-    `【当前章节】\n- [${chapter.id}] ${chapter.title}：${chapter.sceneBeats || '无分镜'}`,
-    `【近期章节】\n${facts.recentChapters}`,
-    facts.characters,
-    facts.locations,
-    facts.items,
-    facts.factions,
-    facts.powerLevels,
-    `【时间线】\n${facts.timeline}`,
-    `【开放伏笔与叙事承诺】\n${ledger.openForeshadowings.length
-      ? ledger.openForeshadowings.map((entry) => `- [${entry.id}] ${entry.title} (${entry.status}): ${entry.description}${entry.revealConstraint ? `；揭示约束：${entry.revealConstraint}` : ''}`).join('\n')
-      : '- 无'}`,
-  ].join('\n\n'), MAX_SERVER_CONTEXT_CHARS);
+  const serverContext = truncate(
+    [
+      '【服务端故事状态账本】',
+      facts.story,
+      `【当前章节】\n- [${chapter.id}] ${chapter.title}：${chapter.sceneBeats || '无分镜'}`,
+      `【近期章节】\n${facts.recentChapters}`,
+      facts.characters,
+      facts.locations,
+      facts.items,
+      facts.factions,
+      facts.powerLevels,
+      `【时间线】\n${facts.timeline}`,
+      `【开放伏笔与叙事承诺】\n${
+        ledger.openForeshadowings.length
+          ? ledger.openForeshadowings
+              .map(
+                (entry) =>
+                  `- [${entry.id}] ${entry.title} (${entry.status}): ${entry.description}${entry.revealConstraint ? `；揭示约束：${entry.revealConstraint}` : ''}`
+              )
+              .join('\n')
+          : '- 无'
+      }`,
+    ].join('\n\n'),
+    MAX_SERVER_CONTEXT_CHARS
+  );
   const clientContext = truncate(input.clientContext || '', MAX_CLIENT_CONTEXT_CHARS);
   return clientContext
     ? `${serverContext}\n\n【客户端补充上下文（仅作临时补充）】\n${clientContext}`
     : serverContext;
 }
-
 
 /**
  * Story context with semantic retrieval (DIR-01): embeds the current chapter
@@ -106,7 +132,7 @@ export async function buildServerStoryContextWithSemantic(input: {
     if (embeddingStatus.status !== 'ready' && embeddingStatus.status !== 'fallback') return base;
     const { values, modelId } = await embedWithMetadata(
       `${chapter.title}\n${chapter.content || ''}`,
-      novel.id,
+      novel.id
     );
     const hits = searchSimilar(values, novel.id, modelId, 2);
     if (hits.length === 0) return base;

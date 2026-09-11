@@ -8,7 +8,12 @@ export interface WritingStyleInput {
   mode?: WritingStyleMode;
   styleAnchors?: string[];
   writerSkill?: Record<string, unknown>;
-  pack?: { id?: string; novelId: string; status: 'draft' | 'approved'; styleProfile?: Record<string, unknown> };
+  pack?: {
+    id?: string;
+    novelId: string;
+    status: 'draft' | 'approved';
+    styleProfile?: Record<string, unknown>;
+  };
   sessionCards?: Array<Record<string, unknown>>;
   /** Resolved project skill-deck cards. Only writer-relevant cards should be supplied. */
   skillDeck?: Array<Record<string, unknown>>;
@@ -40,10 +45,19 @@ function normalizeText(value: string): string {
 
 function normalizeStringCollection(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((item): item is string => typeof item === 'string').map(normalizeText).filter(Boolean))].sort();
+  return [
+    ...new Set(
+      value
+        .filter((item): item is string => typeof item === 'string')
+        .map(normalizeText)
+        .filter(Boolean)
+    ),
+  ].sort();
 }
 
-function normalizeStyleProfile(value: Record<string, unknown> | undefined): Record<string, unknown> {
+function normalizeStyleProfile(
+  value: Record<string, unknown> | undefined
+): Record<string, unknown> {
   if (!value) return {};
   // Only style-bearing fields participate in the contract. Pack bookkeeping
   // (for example updatedAt/import metadata) must not force reconfirmation.
@@ -60,21 +74,30 @@ function stable(value: unknown): unknown {
   if (typeof value === 'string') return normalizeText(value);
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value as Record<string, unknown>).sort().map((key) => [key, stable((value as Record<string, unknown>)[key])]));
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((key) => [key, stable((value as Record<string, unknown>)[key])])
+    );
   }
   return value;
 }
 
 export function canonicalWritingStyleFingerprint(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify(stable(value)))
+    .digest('hex');
 }
 
 export function resolveWritingStyle(input: WritingStyleInput): WritingStyleResolution {
   const mode = input.mode ?? 'writer-skill';
   const warnings: string[] = [];
-  if (input.pack && input.pack.novelId !== input.novelId) throw new Error('Continuation pack belongs to another novel');
+  if (input.pack && input.pack.novelId !== input.novelId)
+    throw new Error('Continuation pack belongs to another novel');
   if (input.pack?.status === 'draft') warnings.push('continuation-pack-draft');
-  const styleAnchors = [...new Set((input.styleAnchors || []).map(normalizeText).filter(Boolean))].sort();
+  const styleAnchors = [
+    ...new Set((input.styleAnchors || []).map(normalizeText).filter(Boolean)),
+  ].sort();
   const rawCards = input.sessionCards || [];
   if (rawCards.length > 6) throw new Error('TOO_MANY_SESSION_CARDS');
   const cards = rawCards
@@ -88,15 +111,32 @@ export function resolveWritingStyle(input: WritingStyleInput): WritingStyleResol
     .sort((left, right) => String(left.id || '').localeCompare(String(right.id || '')));
   const slots: WritingStyleResolution['slots'] = [{ source: 'default', value: {} }];
   if (deckCards.length > 0) slots[0] = { source: 'skill-deck', value: { cards: deckCards } };
-  else if (input.writerSkill) slots[0] = { source: 'writer-skill', id: String(input.writerSkill.id || ''), value: stable(input.writerSkill) as Record<string, unknown> };
-  if (input.pack) slots[1] = {
-    source: 'continuation-pack',
-    id: input.pack.id,
-    value: { status: input.pack.status, styleProfile: normalizeStyleProfile(input.pack.styleProfile) },
-  };
+  else if (input.writerSkill)
+    slots[0] = {
+      source: 'writer-skill',
+      id: String(input.writerSkill.id || ''),
+      value: stable(input.writerSkill) as Record<string, unknown>,
+    };
+  if (input.pack)
+    slots[1] = {
+      source: 'continuation-pack',
+      id: input.pack.id,
+      value: {
+        status: input.pack.status,
+        styleProfile: normalizeStyleProfile(input.pack.styleProfile),
+      },
+    };
   if (cards.length > 0) slots[2] = { source: 'writer-session', value: { cards } };
   if (mode === 'continuation-pack' && !input.pack) warnings.push('continuation-pack-missing');
-  return { resolverVersion: WRITING_STYLE_RESOLVER_VERSION, mode, styleAnchors, slots, sessionCards: cards, techniques, warnings };
+  return {
+    resolverVersion: WRITING_STYLE_RESOLVER_VERSION,
+    mode,
+    styleAnchors,
+    slots,
+    sessionCards: cards,
+    techniques,
+    warnings,
+  };
 }
 
 export function checkWritingStyleConfirmation(input: {

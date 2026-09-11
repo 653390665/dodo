@@ -2,12 +2,27 @@ import type { Express } from 'express';
 import { governedGenerateText as generateText } from '../helpers/governed-llm';
 import { getConfig } from '../lib/config';
 import * as db from '../lib/db';
-import { renderPromptTemplate, getPromptTemplate, wrapUserInput, buildSkillsPrompt } from '../helpers/prompt-helpers';
+import {
+  renderPromptTemplate,
+  getPromptTemplate,
+  wrapUserInput,
+  buildSkillsPrompt,
+} from '../helpers/prompt-helpers';
 import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer.js';
 
 function sanitizeSkillFields<T>(skill: T): T {
   if (!skill || typeof skill !== 'object') return skill;
-  const fields = ['name', 'description', 'style', 'sentenceStructure', 'pacing', 'characterTraits', 'worldBuilding', 'plotPattern', 'foreshadowing'];
+  const fields = [
+    'name',
+    'description',
+    'style',
+    'sentenceStructure',
+    'pacing',
+    'characterTraits',
+    'worldBuilding',
+    'plotPattern',
+    'foreshadowing',
+  ];
   const sanitized = { ...(skill as object) } as Record<string, unknown>;
   for (const f of fields) {
     if (typeof sanitized[f] === 'string') {
@@ -15,16 +30,19 @@ function sanitizeSkillFields<T>(skill: T): T {
     }
   }
   if (Array.isArray(sanitized.fewShots)) {
-    sanitized.fewShots = sanitized.fewShots.map((fs: unknown) => typeof fs === 'string' ? sanitizeWhiteLabelText(fs) : fs);
+    sanitized.fewShots = sanitized.fewShots.map((fs: unknown) =>
+      typeof fs === 'string' ? sanitizeWhiteLabelText(fs) : fs
+    );
   }
   return sanitized as T;
 }
 
 function finalizeExtractedCard<T extends object>(skill: T, fallbackId: string): T {
   const source = skill as Record<string, unknown>;
-  const sourceCardId = typeof source.sourceCardId === 'string' && source.sourceCardId.trim()
-    ? source.sourceCardId
-    : fallbackId;
+  const sourceCardId =
+    typeof source.sourceCardId === 'string' && source.sourceCardId.trim()
+      ? source.sourceCardId
+      : fallbackId;
   const normalized = sanitizeSkillFields({
     ...source,
     sourceCardId,
@@ -34,12 +52,23 @@ function finalizeExtractedCard<T extends object>(skill: T, fallbackId: string): 
     sanitizationStatus: 'runtime-ready',
     runtimeStatus: 'active',
   }) as Record<string, unknown>;
-  const stringList = (value: unknown): string[] => Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : [];
-  const hasRule = [normalized.style, normalized.pacing, normalized.characterTraits, normalized.worldBuilding, normalized.plotPattern, normalized.foreshadowing, ...stringList(normalized.corePatterns), ...stringList(normalized.fewShots)]
-    .some((value: unknown) => typeof value === 'string' && value.trim().length > 0);
-  return (normalized.deconstructionCardType && hasRule ? normalized : { ...normalized, extractionRejectedReason: '缺少拆书卡类型或可执行规则' }) as T;
+  const stringList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  const hasRule = [
+    normalized.style,
+    normalized.pacing,
+    normalized.characterTraits,
+    normalized.worldBuilding,
+    normalized.plotPattern,
+    normalized.foreshadowing,
+    ...stringList(normalized.corePatterns),
+    ...stringList(normalized.fewShots),
+  ].some((value: unknown) => typeof value === 'string' && value.trim().length > 0);
+  return (
+    normalized.deconstructionCardType && hasRule
+      ? normalized
+      : { ...normalized, extractionRejectedReason: '缺少拆书卡类型或可执行规则' }
+  ) as T;
 }
 import { rateLimit } from '../middleware/rate-limit';
 import { logger } from '../logger';
@@ -62,10 +91,7 @@ import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence, Skill } from '../../shared/types';
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
 import { validate, extractSkillSchema } from '../validation';
-import {
-  createLlmExecution,
-  LlmExecutionRejectedError,
-} from '../helpers/llm-execution-gate';
+import { createLlmExecution, LlmExecutionRejectedError } from '../helpers/llm-execution-gate';
 
 const SKILL_EXTRACTION_LLM_OPTIONS = {
   timeoutMs: 35_000,
@@ -85,7 +111,7 @@ async function processModelSkillExtraction(
   text: string,
   segments: ReturnType<typeof buildBookEvidenceSegments>,
   deconstructSkillsInfo?: string,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ) {
   const totalSegments = segments.length;
   const maxModelSegments = Math.min(6, totalSegments);
@@ -100,8 +126,8 @@ async function processModelSkillExtraction(
     }
   }
 
-  const modelSegmentLabels = new Set(modelSegments.map(s => s.label));
-  const fallbackSegments = segments.filter(s => !modelSegmentLabels.has(s.label));
+  const modelSegmentLabels = new Set(modelSegments.map((s) => s.label));
+  const fallbackSegments = segments.filter((s) => !modelSegmentLabels.has(s.label));
 
   const segmentEvidence: SegmentSkillEvidence[] = [];
   const failedSegments: string[] = [];
@@ -120,10 +146,10 @@ async function processModelSkillExtraction(
       }
 
       const responseText = await generateText(getConfig(), {
-          prompt,
-          ...SKILL_EXTRACTION_LLM_OPTIONS,
-          signal,
-        });
+        prompt,
+        ...SKILL_EXTRACTION_LLM_OPTIONS,
+        signal,
+      });
 
       const parsed = extractJsonPayload(responseText);
       const refusal = parseModelRefusal(parsed);
@@ -131,7 +157,7 @@ async function processModelSkillExtraction(
         modelRefusals.push(`${segment.label}: ${refusal.reason}`);
         const fallbackEvidence = collectSegmentEvidence(
           [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
-          segment.stage,
+          segment.stage
         );
         if (fallbackEvidence) segmentEvidence.push(fallbackEvidence);
         failedSegments.push(`${segment.label}(模型拒绝-保底萃取)`);
@@ -155,10 +181,12 @@ async function processModelSkillExtraction(
       const message = error instanceof Error ? error.message : String(error);
       const fallbackEvidence = collectSegmentEvidence(
         [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
-        segment.stage,
+        segment.stage
       );
       if (fallbackEvidence) segmentEvidence.push(fallbackEvidence);
-      failedSegments.push(`${segment.label}(${/timed out|拆书超时/i.test(message) ? '超时保底' : '解析保底'})`);
+      failedSegments.push(
+        `${segment.label}(${/timed out|拆书超时/i.test(message) ? '超时保底' : '解析保底'})`
+      );
     }
   }
 
@@ -166,7 +194,7 @@ async function processModelSkillExtraction(
   for (const segment of fallbackSegments) {
     const fallbackEvidence = collectSegmentEvidence(
       [buildFallbackSkillForSegment(segment.excerpt, segment.label)],
-      segment.stage,
+      segment.stage
     );
     if (fallbackEvidence) {
       segmentEvidence.push(fallbackEvidence);
@@ -177,7 +205,7 @@ async function processModelSkillExtraction(
   const deck = buildSkillDeckFromEvidence(segmentEvidence);
   if (deck.mainCard) deck.mainCard = sanitizeSkillFields(deck.mainCard);
   if (Array.isArray(deck.supportCards)) {
-    deck.supportCards = deck.supportCards.map(s => sanitizeSkillFields(s));
+    deck.supportCards = deck.supportCards.map((s) => sanitizeSkillFields(s));
   }
 
   const skills = [deck.mainCard, ...deck.supportCards].filter(Boolean).map((skill, index) => {
@@ -191,7 +219,7 @@ async function processModelSkillExtraction(
 
   const qualityReport = evaluateSkillOutputQuality(
     skills as unknown as Array<Record<string, unknown>>,
-    text.substring(0, 8000),
+    text.substring(0, 8000)
   );
 
   const warnings: string[] = [];
@@ -203,7 +231,7 @@ async function processModelSkillExtraction(
   }
   if (!qualityReport.passed) {
     warnings.push(
-      `输出质量门禁未通过：${qualityReport.issue}。建议上传更长或更有风格辨识度的文本重新拆书。`,
+      `输出质量门禁未通过：${qualityReport.issue}。建议上传更长或更有风格辨识度的文本重新拆书。`
     );
   }
 
@@ -229,17 +257,25 @@ export function registerSkillsRoutes(app: Express) {
   // 运行中的静态目录不可变；消毒 = 以脱敏副本写入 skills 表（runtime-ready + active），
   // 原始 sourceRef 保留在目录中可追溯。
   app.post('/api/skills/sanitize/:assetId', (req, res) => {
-    if (!rateLimit('sanitize-skill')) return res.status(429).json({ error: '消毒请求过于频繁，请稍后再试。', retryAfter: 10 });
+    if (!rateLimit('sanitize-skill'))
+      return res.status(429).json({ error: '消毒请求过于频繁，请稍后再试。', retryAfter: 10 });
     const { assetId } = req.params;
     const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === assetId);
     if (!asset) return res.status(404).json({ code: 'ASSET_NOT_FOUND', error: '治理资产不存在' });
     if (asset.runtimeStatus !== 'candidate' || asset.sanitizationStatus !== 'needs-sanitization') {
-      return res.status(409).json({ code: 'ASSET_NOT_SANITIZABLE', error: '该资产不是待消毒的候选卡' });
+      return res
+        .status(409)
+        .json({ code: 'ASSET_NOT_SANITIZABLE', error: '该资产不是待消毒的候选卡' });
     }
     const skillId = `sanitized-${asset.id}`;
     const existing = db.getSkill(skillId);
     if (existing) {
-      return res.json({ skillId, alreadySanitized: true, sanitizationHits: asset.sanitizationHits, runtimeStatus: 'active' });
+      return res.json({
+        skillId,
+        alreadySanitized: true,
+        sanitizationHits: asset.sanitizationHits,
+        runtimeStatus: 'active',
+      });
     }
     const skill: Skill = {
       id: skillId,
@@ -267,14 +303,22 @@ export function registerSkillsRoutes(app: Express) {
       db.createSkill(skill);
     } catch (error) {
       logger.error('sanitize: failed to persist sanitized skill', { assetId, error });
-      return res.status(500).json({ code: 'SANITIZE_PERSIST_FAILED', error: '消毒结果保存失败，请重试。' });
+      return res
+        .status(500)
+        .json({ code: 'SANITIZE_PERSIST_FAILED', error: '消毒结果保存失败，请重试。' });
     }
     logger.info('sanitize: skill sanitized', { assetId });
-    return res.json({ skillId, alreadySanitized: false, sanitizationHits: asset.sanitizationHits, runtimeStatus: 'active' });
+    return res.json({
+      skillId,
+      alreadySanitized: false,
+      sanitizationHits: asset.sanitizationHits,
+      runtimeStatus: 'active',
+    });
   });
 
   app.post('/api/extract-skill', validate(extractSkillSchema), async (req, res) => {
-    if (!rateLimit('extract-skill')) return res.status(429).json({ error: '拆书请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('extract-skill'))
+      return res.status(429).json({ error: '拆书请求过于频繁，请稍后再试。', retryAfter: 5 });
     const { novelId } = req.body;
     try {
       const { text = '', skills = [] } = req.body;
@@ -303,28 +347,35 @@ export function registerSkillsRoutes(app: Express) {
       }
 
       // Filter out any skills that are meant for book deconstruction/decompile
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const deconstructSkills = (activeSkills || []).filter((s: any) => 
-        (s.id && s.id.startsWith('deconstruct-')) || 
-        s.deconstructionCardType !== undefined ||
-        s.curatedCategory === 'deconstruct'
+      const deconstructSkills = (activeSkills || []).filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (s: any) =>
+          (s.id && s.id.startsWith('deconstruct-')) ||
+          s.deconstructionCardType !== undefined ||
+          s.curatedCategory === 'deconstruct'
       );
 
-      const deconstructSkillsInfo = deconstructSkills.length > 0 ? buildSkillsPrompt(deconstructSkills) : undefined;
+      const deconstructSkillsInfo =
+        deconstructSkills.length > 0 ? buildSkillsPrompt(deconstructSkills) : undefined;
 
       // ================================================================
       // Phase 1 (fast): Build full fallback deck and return immediately.
       // ================================================================
       const fallbackResult = buildFullFallbackSkillResult(text);
       if (fallbackResult.skills) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fallbackResult.skills = fallbackResult.skills.map((s: any, index: number) => finalizeExtractedCard(s, `deck-skill-${index + 1}`));
+        fallbackResult.skills = fallbackResult.skills.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (s: any, index: number) => finalizeExtractedCard(s, `deck-skill-${index + 1}`)
+        );
       }
       if (fallbackResult.deck) {
-        if (fallbackResult.deck.mainCard) fallbackResult.deck.mainCard = sanitizeSkillFields(fallbackResult.deck.mainCard);
+        if (fallbackResult.deck.mainCard)
+          fallbackResult.deck.mainCard = sanitizeSkillFields(fallbackResult.deck.mainCard);
         if (Array.isArray(fallbackResult.deck.supportCards)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          fallbackResult.deck.supportCards = fallbackResult.deck.supportCards.map((s: any, index: number) => finalizeExtractedCard(s, `deck-skill-${index + 1}`));
+          fallbackResult.deck.supportCards = fallbackResult.deck.supportCards.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (s: any, index: number) => finalizeExtractedCard(s, `deck-skill-${index + 1}`)
+          );
         }
       }
 
@@ -342,7 +393,8 @@ export function registerSkillsRoutes(app: Express) {
         signal: jobController.signal,
       });
       const modelTask = execution.run(({ signal }) =>
-        processModelSkillExtraction(text, segments, deconstructSkillsInfo, signal));
+        processModelSkillExtraction(text, segments, deconstructSkillsInfo, signal)
+      );
       const jobId = createSkillExtractionJob(modelTask, jobController);
 
       res.json({
@@ -398,10 +450,15 @@ export function registerSkillsRoutes(app: Express) {
     const job = skillExtractionJobs.get(req.params.jobId);
     if (!job) return res.status(404).json({ error: '拆书任务不存在或已过期，请重新提交。' });
     const controller = skillExtractionJobAbortControllers.get(req.params.jobId);
-    if (!controller || job.status !== 'pending') return res.status(409).json({ error: '当前拆书任务不能取消。' });
+    if (!controller || job.status !== 'pending')
+      return res.status(409).json({ error: '当前拆书任务不能取消。' });
     controller.abort(new Error('拆书任务已取消。'));
     skillExtractionJobAbortControllers.delete(req.params.jobId);
-    skillExtractionJobs.set(req.params.jobId, { status: 'failed', createdAt: Date.now(), error: '拆书任务已取消。' });
+    skillExtractionJobs.set(req.params.jobId, {
+      status: 'failed',
+      createdAt: Date.now(),
+      error: '拆书任务已取消。',
+    });
     return res.json({ cancelled: true });
   });
 }

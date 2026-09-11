@@ -38,7 +38,9 @@ export function useChapterVersions(currentChapterId?: string) {
     // Never render chapter A's versions beneath chapter B while B is loading.
     setVersions([]);
     void refreshVersions();
-    const unsubscribe = subscribeToChanges(() => { void refreshVersions(); });
+    const unsubscribe = subscribeToChanges(() => {
+      void refreshVersions();
+    });
     const handleLocalVersion = (event: Event) => {
       const chapterId = (event as CustomEvent<{ chapterId?: string }>).detail?.chapterId;
       if (chapterId === currentChapterId) void refreshVersions();

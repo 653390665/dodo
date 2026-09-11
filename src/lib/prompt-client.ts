@@ -65,9 +65,11 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function isContinuationImportInvalidated(code: unknown): boolean {
-  return code === 'CONTINUATION_IMPORT_SESSION_EXPIRED'
-    || code === 'CONTINUATION_IMPORT_GENERATION_CHANGED'
-    || code === 'CONTINUATION_IMPORT_PACK_EXPIRED';
+  return (
+    code === 'CONTINUATION_IMPORT_SESSION_EXPIRED' ||
+    code === 'CONTINUATION_IMPORT_GENERATION_CHANGED' ||
+    code === 'CONTINUATION_IMPORT_PACK_EXPIRED'
+  );
 }
 
 function extractApiErrorMessage(data: unknown, fallback: string): string {
@@ -135,7 +137,12 @@ export async function generateStoryCards(payload: {
   surface?: PromptSurface;
   previousHookTexts?: string[];
   batchIndex?: number;
-}): Promise<{ cards: StoryIdeaCard[]; source?: 'model' | 'fallback'; jobId?: string; warnings?: string[] }> {
+}): Promise<{
+  cards: StoryIdeaCard[];
+  source?: 'model' | 'fallback';
+  jobId?: string;
+  warnings?: string[];
+}> {
   const databaseGeneration = await getDatabaseGenerationSnapshot();
   const onboardingSessionId = await createOnboardingLlmSession('story-cards');
   const res = await fetch('/api/story-cards', {
@@ -181,16 +188,27 @@ export async function parseContinuationPack(
   onProgress?: (progress: number, stageText: string) => void
 ): Promise<ContinuationPack> {
   const startedAt = Date.now();
-  const recordResult = (result: 'success' | 'failure', pack?: ContinuationPack, errorCode?: string) => {
+  const recordResult = (
+    result: 'success' | 'failure',
+    pack?: ContinuationPack,
+    errorCode?: string
+  ) => {
     void recordProductEvent({
-      eventName: 'continuation_parse', stage: 'import', result,
-      durationMs: Date.now() - startedAt, errorCode,
-      novelId: payload.novelId, objectId: pack?.id,
+      eventName: 'continuation_parse',
+      stage: 'import',
+      result,
+      durationMs: Date.now() - startedAt,
+      errorCode,
+      novelId: payload.novelId,
+      objectId: pack?.id,
     }).catch(() => undefined);
     if (result === 'success' && pack?.contradictions.length) {
       void recordProductEvent({
-        eventName: 'continuation_conflict', stage: 'review', result: 'success',
-        novelId: payload.novelId, objectId: pack.id,
+        eventName: 'continuation_conflict',
+        stage: 'review',
+        result: 'success',
+        novelId: payload.novelId,
+        objectId: pack.id,
       }).catch(() => undefined);
     }
   };
@@ -214,7 +232,9 @@ export async function parseContinuationPack(
   if (!res.ok || rec.error) {
     recordResult('failure', undefined, `HTTP_${res.status}`);
     if (rec.error === 'Validation failed' && Array.isArray(rec.details)) {
-      const detailMsgs = rec.details.map((d: { path: string; message: string }) => `[${d.path}]: ${d.message}`).join('; ');
+      const detailMsgs = rec.details
+        .map((d: { path: string; message: string }) => `[${d.path}]: ${d.message}`)
+        .join('; ');
       throw new Error(`数据校验失败: ${detailMsgs}`);
     }
     if (isContinuationImportInvalidated(rec.code)) {
@@ -294,10 +314,13 @@ export async function parseContinuationPack(
           isTerminated = true;
           clearInterval(intervalId);
           recordResult('failure', undefined, 'PARSE_JOB_FAILED');
-          throw new Error(typeof jobData.error === 'string' ? jobData.error : '解析任务失败，请重试。');
+          throw new Error(
+            typeof jobData.error === 'string' ? jobData.error : '解析任务失败，请重试。'
+          );
         } else {
           targetProgress = typeof jobData.progress === 'number' ? jobData.progress : 15;
-          currentStageText = typeof jobData.stageText === 'string' ? jobData.stageText : '解析中...';
+          currentStageText =
+            typeof jobData.stageText === 'string' ? jobData.stageText : '解析中...';
         }
       }
     } finally {
@@ -318,7 +341,7 @@ export async function parseDocAsync(
     filedata: string;
   },
   onProgress?: (progress: number, stageText: string) => void,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<DocExtractionResult> {
   const res = await fetch('/api/parse-doc', {
     method: 'POST',
@@ -326,13 +349,13 @@ export async function parseDocAsync(
     body: JSON.stringify(payload),
     signal,
   });
-  
+
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || '上传设定文档失败');
   }
 
-  const { jobId, databaseGeneration } = await res.json() as {
+  const { jobId, databaseGeneration } = (await res.json()) as {
     jobId?: string;
     databaseGeneration?: number;
   };
@@ -344,7 +367,10 @@ export async function parseDocAsync(
   const cancel = () => {
     if (completed || cancelled) return;
     cancelled = true;
-    void fetch(`/api/parse-doc/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, { method: 'POST' }).catch(() => {});
+    void fetch(
+      `/api/parse-doc/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`,
+      { method: 'POST' }
+    ).catch(() => {});
   };
   signal?.addEventListener('abort', cancel, { once: true });
   onProgress?.(10, '正在读取并提取文档内容...');
@@ -393,7 +419,7 @@ export async function parseDocAsync(
 
       const jobRes = await fetch(
         `/api/parse-doc/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`,
-        { signal },
+        { signal }
       );
       if (!jobRes.ok) {
         const errorData = asRecord(await jobRes.json().catch(() => ({})));
@@ -403,7 +429,7 @@ export async function parseDocAsync(
         throw new Error(
           typeof errorData.error === 'string'
             ? errorData.error
-            : '无法连接到解析后台服务，请检查网络。',
+            : '无法连接到解析后台服务，请检查网络。'
         );
       }
 
@@ -422,7 +448,9 @@ export async function parseDocAsync(
       } else if (status === 'failed') {
         isTerminated = true;
         clearInterval(intervalId);
-        throw new Error(typeof jobData.error === 'string' ? jobData.error : '解析设定文档任务失败，请重试。');
+        throw new Error(
+          typeof jobData.error === 'string' ? jobData.error : '解析设定文档任务失败，请重试。'
+        );
       } else {
         targetProgress = typeof jobData.progress === 'number' ? jobData.progress : 15;
         currentStageText = typeof jobData.stageText === 'string' ? jobData.stageText : '解析中...';
@@ -455,32 +483,54 @@ export async function refineSetupTask(payload: {
   return data.text;
 }
 
-export async function generateInspiration(prompt: string, surface: PromptSurface = 'workspace-draft', novelId?: string, signal?: AbortSignal): Promise<string> {
+export async function generateInspiration(
+  prompt: string,
+  surface: PromptSurface = 'workspace-draft',
+  novelId?: string,
+  signal?: AbortSignal
+): Promise<string> {
   const databaseGeneration = await getDatabaseGenerationSnapshot(signal);
   const onboardingSessionId = novelId ? undefined : await createOnboardingLlmSession('inspiration');
   const res = await fetch('/api/inspiration', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
-    body: JSON.stringify({ prompt, surface, databaseGeneration, ...(novelId ? { novelId } : { onboardingSessionId }) }),
+    body: JSON.stringify({
+      prompt,
+      surface,
+      databaseGeneration,
+      ...(novelId ? { novelId } : { onboardingSessionId }),
+    }),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     throw new SseError(extractApiErrorMessage(data, 'Failed to generate inspiration'), {
       code: typeof data.code === 'string' ? data.code : `HTTP_${res.status}`,
       traceId: typeof data.traceId === 'string' ? data.traceId : undefined,
-      retriable: typeof data.retriable === 'boolean' ? data.retriable : res.status >= 500 || res.status === 429,
+      retriable:
+        typeof data.retriable === 'boolean'
+          ? data.retriable
+          : res.status >= 500 || res.status === 429,
       finishReason: typeof data.finishReason === 'string' ? data.finishReason : undefined,
-      reason: data.reason === 'no_content' || data.reason === 'reasoning_only' || data.reason === 'length_exhausted' ? data.reason : undefined,
+      reason:
+        data.reason === 'no_content' ||
+        data.reason === 'reasoning_only' ||
+        data.reason === 'length_exhausted'
+          ? data.reason
+          : undefined,
     });
   }
   const result = await readSseStream(res, () => {});
-  if (!result.done) throw new SseError('灵感生成流不完整，请重试。', { code: 'SSE_EOF', retriable: true });
-  if (!result.text.trim()) throw new SseError('灵感生成结果为空，请重试。', { code: 'empty_response', retriable: true });
+  if (!result.done)
+    throw new SseError('灵感生成流不完整，请重试。', { code: 'SSE_EOF', retriable: true });
+  if (!result.text.trim())
+    throw new SseError('灵感生成结果为空，请重试。', { code: 'empty_response', retriable: true });
   return result.text;
 }
 
-async function createOnboardingLlmSession(operation: 'story-cards' | 'inspiration'): Promise<string> {
+async function createOnboardingLlmSession(
+  operation: 'story-cards' | 'inspiration'
+): Promise<string> {
   const res = await fetch('/api/onboarding/llm-session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

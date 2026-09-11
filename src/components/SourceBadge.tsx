@@ -12,9 +12,9 @@ interface SourceBadgeProps {
 }
 
 const SOURCE_CONFIG: Record<ContentSource, { label: string; className: string }> = {
-  model:   { label: 'AI',   className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
- fallback:{ label: '保底', className: 'alert-warning' },
-  cached:  { label: '缓存', className: 'border-slate-200 bg-slate-50 text-slate-500' },
+  model: { label: 'AI', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+  fallback: { label: '保底', className: 'alert-warning' },
+  cached: { label: '缓存', className: 'border-slate-200 bg-slate-50 text-slate-500' },
 };
 
 export function SourceBadge({ source, className = '' }: SourceBadgeProps) {
@@ -22,7 +22,9 @@ export function SourceBadge({ source, className = '' }: SourceBadgeProps) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${config.className} ${className}`}
-      title={source === 'model' ? 'AI 模型生成' : source === 'fallback' ? '本地规则保底' : '缓存复用'}
+      title={
+        source === 'model' ? 'AI 模型生成' : source === 'fallback' ? '本地规则保底' : '缓存复用'
+      }
     >
       {config.label}
     </span>

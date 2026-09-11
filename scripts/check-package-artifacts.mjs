@@ -71,7 +71,9 @@ const releaseFiles = walk(releaseDir);
 if (process.platform === 'darwin') {
   const dmgName = `InkFlow-${version}-mac-${process.arch}.dmg`;
   const dmgPath = path.join(releaseDir, dmgName);
-  const appExecutable = releaseFiles.find((file) => file.endsWith(path.join('InkFlow.app', 'Contents', 'MacOS', 'InkFlow')));
+  const appExecutable = releaseFiles.find((file) =>
+    file.endsWith(path.join('InkFlow.app', 'Contents', 'MacOS', 'InkFlow'))
+  );
   requireSizedFile(dmgPath, dmgName);
   if (fs.existsSync(`${dmgPath}.blockmap`)) ok(`${dmgName}.blockmap exists`);
   else fail(`${dmgName}.blockmap missing`);
@@ -80,7 +82,9 @@ if (process.platform === 'darwin') {
 } else if (process.platform === 'win32') {
   const exePath = path.join(releaseDir, `InkFlow-${version}-win-x64.exe`);
   const zipPath = path.join(releaseDir, `InkFlow-${version}-win-x64.zip`);
-  const appExecutable = releaseFiles.find((file) => path.basename(file) === 'InkFlow.exe' && file.includes(`win-unpacked${path.sep}`));
+  const appExecutable = releaseFiles.find(
+    (file) => path.basename(file) === 'InkFlow.exe' && file.includes(`win-unpacked${path.sep}`)
+  );
   requireSizedFile(exePath, `InkFlow-${version}-win-x64.exe`);
   requireSizedFile(zipPath, `InkFlow-${version}-win-x64.zip`);
   if (appExecutable) ok(path.relative(root, appExecutable) + ' exists');
@@ -93,7 +97,9 @@ if (process.platform === 'darwin') {
   if (fs.existsSync(appExecutable)) ok(path.relative(root, appExecutable) + ' exists');
   else fail('packaged Linux InkFlow executable missing');
 } else {
-  ok(`common Electron build artifacts checked; no strict ${process.platform} release artifact contract is configured`);
+  ok(
+    `common Electron build artifacts checked; no strict ${process.platform} release artifact contract is configured`
+  );
 }
 
 if (process.exitCode) process.exit(process.exitCode);

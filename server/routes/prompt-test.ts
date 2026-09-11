@@ -20,11 +20,13 @@ function isPromptTestTimeout(error: unknown): boolean {
   return /timed out|timeout|超时/i.test(message);
 }
 
-const promptTemplateTestSchema = z.object({
-  novelId: z.string().trim().min(1).max(200),
-  key: z.string().trim().min(1).max(100),
-  template: z.string().max(100_000).optional(),
-}).strict();
+const promptTemplateTestSchema = z
+  .object({
+    novelId: z.string().trim().min(1).max(200),
+    key: z.string().trim().min(1).max(100),
+    template: z.string().max(100_000).optional(),
+  })
+  .strict();
 
 export function registerPromptTestRoutes(app: Express) {
   app.post('/api/prompt-template-test', async (req, res) => {
@@ -39,18 +41,28 @@ export function registerPromptTestRoutes(app: Express) {
     try {
       const parsed = promptTemplateTestSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: '提示词试跑参数无效，请先选择作品和模板。', code: PROMPT_TEST_CODES.invalidInput });
+        return res.status(400).json({
+          error: '提示词试跑参数无效，请先选择作品和模板。',
+          code: PROMPT_TEST_CODES.invalidInput,
+        });
       }
       const { novelId, key, template } = parsed.data;
       if (!Object.prototype.hasOwnProperty.call(getConfig().promptTemplates, key)) {
-        return res.status(400).json({ error: '未找到这张提示词模板，请重新选择。', code: PROMPT_TEST_CODES.invalidInput });
+        return res.status(400).json({
+          error: '未找到这张提示词模板，请重新选择。',
+          code: PROMPT_TEST_CODES.invalidInput,
+        });
       }
       const promptKey = key as PromptTemplateKey;
       const baseTemplate = getPromptTemplate(promptKey);
-      const effectiveTemplate = typeof template === 'string' && template.trim() ? template : baseTemplate;
+      const effectiveTemplate =
+        typeof template === 'string' && template.trim() ? template : baseTemplate;
       const payload = buildPromptTemplateTest(promptKey, effectiveTemplate);
       if (!payload.prompt?.trim()) {
-        return res.status(400).json({ error: '这张提示词模板渲染后为空，请先补全模板内容。', code: PROMPT_TEST_CODES.invalidInput });
+        return res.status(400).json({
+          error: '这张提示词模板渲染后为空，请先补全模板内容。',
+          code: PROMPT_TEST_CODES.invalidInput,
+        });
       }
       promptPreview = payload.prompt.slice(0, 4000);
       const execution = await createLlmExecution({
@@ -60,12 +72,14 @@ export function registerPromptTestRoutes(app: Express) {
         timeoutMs: 25_000,
         concurrency: 1,
       });
-      const text = await execution.run(({ signal }) => generateText(getConfig(), {
-        ...(payload as { prompt: string; systemInstruction?: string }),
-        signal,
-        timeoutMs: 25_000,
-        maxAttempts: 1,
-      }));
+      const text = await execution.run(({ signal }) =>
+        generateText(getConfig(), {
+          ...(payload as { prompt: string; systemInstruction?: string }),
+          signal,
+          timeoutMs: 25_000,
+          maxAttempts: 1,
+        })
+      );
       res.json({
         text,
         promptPreview,
@@ -74,9 +88,7 @@ export function registerPromptTestRoutes(app: Express) {
     } catch (e) {
       if (e instanceof LlmExecutionRejectedError) {
         const isRateLimited = e.quota.code === 'RATE_LIMITED';
-        const message = isRateLimited
-          ? '提示词试跑请求过于频繁，请稍后再试。'
-          : e.message;
+        const message = isRateLimited ? '提示词试跑请求过于频繁，请稍后再试。' : e.message;
         return res.status(e.status).json({
           error: message,
           code: isRateLimited ? PROMPT_TEST_CODES.rateLimited : e.quota.code,

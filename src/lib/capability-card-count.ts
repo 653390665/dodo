@@ -5,14 +5,14 @@ type CapabilityLoadoutSlot = Pick<MountedSkillLoadoutItem, 'slot' | 'skillId'>;
 
 export function getProjectCapabilityCardCount(
   novel: Pick<Novel, 'projectPreferenceProfile' | 'mountedSkillIds'>,
-  mountedSkillLoadout?: CapabilityLoadoutSlot[],
+  mountedSkillLoadout?: CapabilityLoadoutSlot[]
 ): number {
   return getProjectCapabilityCardIds(novel, mountedSkillLoadout).length;
 }
 
 export function getProjectCapabilityCardIds(
   novel: Pick<Novel, 'projectPreferenceProfile' | 'mountedSkillIds'>,
-  mountedSkillLoadout?: CapabilityLoadoutSlot[],
+  mountedSkillLoadout?: CapabilityLoadoutSlot[]
 ): string[] {
   const projectDeckIds = getProjectDeckIds(getProjectCapabilityProfile(novel));
   if (projectDeckIds.length > 0) return projectDeckIds;

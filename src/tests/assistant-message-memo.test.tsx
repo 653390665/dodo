@@ -13,17 +13,29 @@ vi.mock('react-markdown', () => ({
   },
 }));
 
-vi.mock('../lib/novel-client', () => ({ listNovels: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('../lib/novel-client', () => ({
+  listNovels: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 vi.mock('../lib/db-transport', () => ({ subscribeToChanges: vi.fn().mockReturnValue(() => {}) }));
 vi.mock('../lib/prompt-client', () => ({ generateInspiration: vi.fn().mockResolvedValue('') }));
 vi.mock('../lib/agents', () => ({ extractWorldSetupPhase: vi.fn() }));
 vi.mock('../lib/world-client', () => ({ importWorldExtraction: vi.fn() }));
-vi.mock('../lib/product-events-client', () => ({ recordProductEvent: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../lib/product-events-client', () => ({
+  recordProductEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { AIAssistant } from '../components/AIAssistant';
 import { useAssistantSessionStore } from '../stores/assistant-session-store';
 
-const novelA: Novel = { id: 'novel-memo', title: '作品 A', authorId: 'local', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 };
+const novelA: Novel = {
+  id: 'novel-memo',
+  title: '作品 A',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
+};
 
 function seedThreeMessages(): void {
   useAssistantSessionStore.getState().setMessages(novelA.id, 'general', [

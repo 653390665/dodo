@@ -1,4 +1,8 @@
-import type { GovernedPromptAsset, SanitizationHits, PromptCategoryV2 } from '../types/prompt-assets-governed.js';
+import type {
+  GovernedPromptAsset,
+  SanitizationHits,
+  PromptCategoryV2,
+} from '../types/prompt-assets-governed.js';
 
 /**
  * 物理抹除水印清洗分析器 (White-Label Watermark Sanitizer & Analyzer)
@@ -6,13 +10,16 @@ import type { GovernedPromptAsset, SanitizationHits, PromptCategoryV2 } from '..
  * 核心设计准则（绝对物理删除原则）：
  * 彻底抹除、完全清除作者名、微信号、QQ群、联系电话、邮箱及竞品软件水印。
  * 绝不能保留任何诸如 "[微信号]"、"***"、"【已脱敏】" 类似的伪脱敏占位代称，一律替换为空字符串或进行空白折叠。
- * 
+ *
  * 针对 'fire'：将其加锁，仅在伴随有定制、出品、作者、by 等特定定制署名上下文中抹除，严禁误伤 standalone 普通英文单词 'fire'。
  *
  * @param text 待清洗的原始文本
  * @returns 彻底物理漂白后的安全文本及命中分类统计
  */
-export function analyzeAndSanitize(text: string): { sanitizedText: string; hits: SanitizationHits } {
+export function analyzeAndSanitize(text: string): {
+  sanitizedText: string;
+  hits: SanitizationHits;
+} {
   const hits: SanitizationHits = {
     contacts: 0,
     authors: 0,
@@ -29,9 +36,11 @@ export function analyzeAndSanitize(text: string): { sanitizedText: string; hits:
   // 1. 清洗 Contacts (微信、QQ群、手机、座机、邮箱等)
   // 资深架构师设计：扩展微信匹配正则以捕获常见的宣传前缀（如"想要了解更多，请联系"、"请添加"、"我的"）和后缀（如"，欢迎交流"）
   // 从而实现整条/整句无关微信推广信息的彻底物理抹除，绝不留存半截无意义残留，完全契合 Google 编码规范。
-  const wechatRegex = /(?:想要了解更多[\s,，]*请?联系|请?[添加]加?|我的|有需要请?[加添])?\s*(?:微\s*信\s*(?:号)?|we\s*chat|vx\s*(?:号)?)\s*[：:\s-]*[a-zA-Z0-9_-]{5,}(?:[\s,，]*欢迎交流)?/gi;
+  const wechatRegex =
+    /(?:想要了解更多[\s,，]*请?联系|请?[添加]加?|我的|有需要请?[加添])?\s*(?:微\s*信\s*(?:号)?|we\s*chat|vx\s*(?:号)?)\s*[：:\s-]*[a-zA-Z0-9_-]{5,}(?:[\s,，]*欢迎交流)?/gi;
   const qqGroupRegex = /(?:qq\s*(?:群)?\s*(?:号)?|q\s*群\s*(?:号)?)\s*[：:\s-]*\d{5,}/gi;
-  const contactPhoneRegex = /(?:手\s*机\s*(?:号)?|电\s*话\s*(?:号)?|联\s*系\s*方\s*式|联\s*系\s*电\s*话|客\s*服\s*电\s*话)\s*[：:\s-]*(?:1[3-9]\d{9}|0\d{2,3}-\d{7,8})/g;
+  const contactPhoneRegex =
+    /(?:手\s*机\s*(?:号)?|电\s*话\s*(?:号)?|联\s*系\s*方\s*式|联\s*系\s*电\s*话|客\s*服\s*电\s*话)\s*[：:\s-]*(?:1[3-9]\d{9}|0\d{2,3}-\d{7,8})/g;
   const standaloneMobileRegex = /\b1[3-9]\d{9}\b/g;
   const standaloneLandlineRegex = /\b0\d{2,3}-\d{7,8}\b/g;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -42,7 +51,7 @@ export function analyzeAndSanitize(text: string): { sanitizedText: string; hits:
     contactPhoneRegex,
     standaloneMobileRegex,
     standaloneLandlineRegex,
-    emailRegex
+    emailRegex,
   ];
 
   for (const regex of contactsRegexes) {
@@ -63,8 +72,10 @@ export function analyzeAndSanitize(text: string): { sanitizedText: string; hits:
   // 中文作者：风华、沐殇、乐乐乐、牧殇 (可以 standalone 匹配，因为中文名字在普通指令中误伤概率极低)
   // 英文作者：fire (绝对加锁，仅在伴随定制、出品、作者、by 等特定上下文才抹除)
   const authorBracketsRegex = /【\s*(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)\s*出\s*品\s*】/gi;
-  const authorSuffixRegex = /(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)\s*(?:出\s*品|专\s*用|定\s*制|开\s*发|制\s*作|原\s*创)/gi;
-  const authorPrefixRegex = /(?:作\s*者|出\s*品\s*人|开\s*发\s*者|设\s*计\s*者|原\s*创\s*者)\s*[：:\s\-【[]*(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)\s*[】]]*/gi;
+  const authorSuffixRegex =
+    /(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)\s*(?:出\s*品|专\s*用|定\s*制|开\s*发|制\s*作|原\s*创)/gi;
+  const authorPrefixRegex =
+    /(?:作\s*者|出\s*品\s*人|开\s*发\s*者|设\s*计\s*者|原\s*创\s*者)\s*[：:\s\-【[]*(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)\s*[】]]*/gi;
   const byAuthorRegex = /\bby\s*[：:\s-]*(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|fire|牧\s*殇)/gi;
   const standaloneChineseAuthorsRegex = /(?:风\s*华|沐\s*殇|乐\s*乐\s*乐|牧\s*殇)/g;
 
@@ -73,7 +84,7 @@ export function analyzeAndSanitize(text: string): { sanitizedText: string; hits:
     authorSuffixRegex,
     authorPrefixRegex,
     byAuthorRegex,
-    standaloneChineseAuthorsRegex
+    standaloneChineseAuthorsRegex,
   ];
 
   for (const regex of authorsRegexes) {
@@ -117,7 +128,9 @@ export function sanitizeWhiteLabelText(text: string): string {
   if (!text) return '';
   let s = text;
   s = s.replace(/(?:qq\s*群|群号|扣扣群|企鹅群)[:：]?\s*\d+/gi, '');
-  s = s.replace(/(?:https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,6}(?:\/\S*)?/gi, m => (m.includes('localhost') || m.includes('api') ? m : ''));
+  s = s.replace(/(?:https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,6}(?:\/\S*)?/gi, (m) =>
+    m.includes('localhost') || m.includes('api') ? m : ''
+  );
   s = s.replace(/(?:知轩藏书|精校版|校对版|精校完本|精校无错|精校电子书)/gi, '');
   s = s.replace(/(?:微信号|微信|vx号|vx|wechat)\s*[:：]?\s*[a-zA-Z0-9_-]{5,20}/gi, '');
   s = s.replace(/【(?:风华出品|小飞鸡|天马|私有化|自用)】/gi, '');
@@ -177,9 +190,14 @@ export function sanitizeGovernedPromptAsset(asset: GovernedPromptAsset): Governe
  * @param score 评审评分 (0 - 100)
  * @returns 升级后的治理提示词资产
  */
-export function promoteToRuntimeReady(asset: GovernedPromptAsset, score: number): GovernedPromptAsset {
+export function promoteToRuntimeReady(
+  asset: GovernedPromptAsset,
+  score: number
+): GovernedPromptAsset {
   if (asset.sanitizationStatus !== 'sanitized') {
-    throw new Error('Security Error: Prompt asset must be sanitized before promoting to runtime-ready.');
+    throw new Error(
+      'Security Error: Prompt asset must be sanitized before promoting to runtime-ready.'
+    );
   }
 
   let grade: 'A' | 'B' | 'C' | 'D' | 'F' = 'F';
@@ -265,7 +283,10 @@ export function validateAssetV2(asset: GovernedPromptAsset): boolean {
   }
 
   // 4. 清洗合规反向拦截 (Sanitization state compliance)
-  if (asset.sanitizationStatus === 'needs-sanitization' || asset.placementTier === 'sanitize-required') {
+  if (
+    asset.sanitizationStatus === 'needs-sanitization' ||
+    asset.placementTier === 'sanitize-required'
+  ) {
     if (asset.isWhiteLabeled) {
       return false;
     }

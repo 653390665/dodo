@@ -27,7 +27,7 @@ function collectAllText(card: Partial<Skill>): string {
     'updatedAt',
     'version',
     'stabilityScore',
-    'feedbackScore'
+    'feedbackScore',
   ]);
   const texts: string[] = [];
 
@@ -131,7 +131,7 @@ export function evaluateDeconstructionCard(card: Partial<Skill>): Deconstruction
     '引人入胜',
     '语言精炼',
     '意象丰富',
-    '跃然纸上'
+    '跃然纸上',
   ];
 
   for (const phrase of slopPhrases) {
@@ -165,7 +165,7 @@ export function evaluateDeconstructionCard(card: Partial<Skill>): Deconstruction
       transferabilityScore,
       transferabilityDeductions,
       safetyScore,
-      safetyDeductions
-    }
+      safetyDeductions,
+    },
   };
 }

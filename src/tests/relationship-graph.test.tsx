@@ -14,8 +14,28 @@ vi.mock('../lib/world-client', () => ({
 }));
 
 const mockCharacters: Character[] = [
-  { id: 'c1', novelId: 'n1', name: '张三', role: 'protagonist', summary: '', traits: [], bio: '', createdAt: Date.now(), updatedAt: Date.now() },
-  { id: 'c2', novelId: 'n1', name: '李四', role: 'supporting', summary: '', traits: [], bio: '', createdAt: Date.now(), updatedAt: Date.now() },
+  {
+    id: 'c1',
+    novelId: 'n1',
+    name: '张三',
+    role: 'protagonist',
+    summary: '',
+    traits: [],
+    bio: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'c2',
+    novelId: 'n1',
+    name: '李四',
+    role: 'supporting',
+    summary: '',
+    traits: [],
+    bio: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
 ];
 
 const mockLocations: Location[] = [];
@@ -100,7 +120,7 @@ describe('RelationshipGraph', () => {
     expect(nodeGroups.length).toBeGreaterThanOrEqual(1);
     fireEvent.click(nodeGroups[0]);
     expect(onSelectEntity).toHaveBeenCalled();
-    const [type, id] = (onSelectEntity.mock.calls[0] as [string, string]);
+    const [type, id] = onSelectEntity.mock.calls[0] as [string, string];
     expect(['character']).toContain(type);
     expect(['c1', 'c2']).toContain(id);
   });
@@ -114,7 +134,7 @@ describe('filterRelationshipsByActiveEntities', () => {
       mockCharacters,
       mockLocations,
       mockItems,
-      mockFactions,
+      mockFactions
     );
     expect(result.length).toBe(1);
     expect(result[0].id).toBe('r1');
@@ -127,7 +147,7 @@ describe('filterRelationshipsByActiveEntities', () => {
       mockCharacters,
       mockLocations,
       mockItems,
-      mockFactions,
+      mockFactions
     );
     expect(result).toEqual([]);
   });
@@ -151,13 +171,7 @@ describe('RelationshipFormDialog', () => {
   });
 
   test('create mode renders form fields', () => {
-    render(
-      <RelationshipFormDialog
-        {...baseProps}
-        open={true}
-        mode="create"
-      />
-    );
+    render(<RelationshipFormDialog {...baseProps} open={true} mode="create" />);
     expect(screen.getByText('新建关系')).toBeDefined();
     expect(screen.getByText('起始实体')).toBeDefined();
     expect(screen.getByText('目标实体')).toBeDefined();
@@ -196,13 +210,7 @@ describe('RelationshipFormDialog', () => {
   });
 
   test('Escape key triggers onClose', async () => {
-    render(
-      <RelationshipFormDialog
-        {...baseProps}
-        open={true}
-        mode="create"
-      />
-    );
+    render(<RelationshipFormDialog {...baseProps} open={true} mode="create" />);
     await act(async () => {
       fireEvent.keyDown(document, { key: 'Escape' });
     });

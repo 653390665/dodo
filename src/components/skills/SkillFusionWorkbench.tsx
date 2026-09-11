@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { GitMerge, Sparkles } from 'lucide-react';
 
-import { buildResolvedFusionDraft, explainSkillFusion, isAuthorizedSkillFusionSource } from '../../lib/skill-fusion';
+import {
+  buildResolvedFusionDraft,
+  explainSkillFusion,
+  isAuthorizedSkillFusionSource,
+} from '../../lib/skill-fusion';
 import type { Skill, SkillFusionExplanation } from '../../../shared/types';
 
 interface SkillFusionWorkbenchProps {
@@ -19,14 +23,19 @@ export function SkillFusionWorkbench({
   const [conflictsConfirmed, setConflictsConfirmed] = useState(false);
 
   const supportSkill = useMemo(
-    () => candidates.find((skill) => skill.id === supportSkillId && isAuthorizedSkillFusionSource(skill)) || null,
-    [candidates, supportSkillId],
+    () =>
+      candidates.find(
+        (skill) => skill.id === supportSkillId && isAuthorizedSkillFusionSource(skill)
+      ) || null,
+    [candidates, supportSkillId]
   );
   const fusionTimestamp = supportSkill?.updatedAt ?? baseSkill.updatedAt ?? baseSkill.createdAt;
 
   const preview = useMemo(() => {
     if (!supportSkill) return null;
-    return buildResolvedFusionDraft(baseSkill, supportSkill, fusionTimestamp, { confirmConflicts: conflictsConfirmed });
+    return buildResolvedFusionDraft(baseSkill, supportSkill, fusionTimestamp, {
+      confirmConflicts: conflictsConfirmed,
+    });
   }, [baseSkill, supportSkill, fusionTimestamp, conflictsConfirmed]);
 
   const explanation: SkillFusionExplanation | null = useMemo(() => {
@@ -112,10 +121,16 @@ export function SkillFusionWorkbench({
 
       <button
         type="button"
-        disabled={!supportSkill || !preview?.draft || (conflictPreview?.conflicts.length ?? 0) > 0 && !conflictsConfirmed}
+        disabled={
+          !supportSkill ||
+          !preview?.draft ||
+          ((conflictPreview?.conflicts.length ?? 0) > 0 && !conflictsConfirmed)
+        }
         onClick={() => {
           if (!supportSkill) return;
-          const resolved = buildResolvedFusionDraft(baseSkill, supportSkill, Date.now(), { confirmConflicts: conflictsConfirmed });
+          const resolved = buildResolvedFusionDraft(baseSkill, supportSkill, Date.now(), {
+            confirmConflicts: conflictsConfirmed,
+          });
           onPreview(resolved.draft || null);
         }}
         className="w-full rounded-2xl bg-theme-accent text-theme-accent-contrast px-4 py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"

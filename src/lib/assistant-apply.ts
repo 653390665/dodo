@@ -8,7 +8,10 @@ export interface AssistantSelection {
   selectedText: string;
 }
 
-export function appendAssistantTextToChapterContent(currentContent: string, suggestion: string): string {
+export function appendAssistantTextToChapterContent(
+  currentContent: string,
+  suggestion: string
+): string {
   const base = trimValue(currentContent);
   const incoming = trimValue(suggestion);
   if (!base) return incoming;
@@ -28,7 +31,7 @@ export function appendAssistantTextToSceneBeats(currentBeats: string, suggestion
 export function replaceAssistantTextInSelection(
   currentContent: string,
   selection: AssistantSelection,
-  suggestion: string,
+  suggestion: string
 ): string {
   const incoming = trimValue(suggestion);
   const expected = currentContent.slice(selection.start, selection.end);

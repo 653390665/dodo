@@ -1,6 +1,11 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
-import type { AgentTab, ContinuationPack, Novel, ChapterProductionRun } from '../../../shared/types';
+import type {
+  AgentTab,
+  ContinuationPack,
+  Novel,
+  ChapterProductionRun,
+} from '../../../shared/types';
 import { ProductionRunReview } from '../ProductionRunReview';
 import { cn } from '../../lib/utils';
 import { WritingStyleControl } from '../WritingStyleControl';
@@ -66,14 +71,18 @@ export function ProductionTab({
   // 005-S4：写法确认展示态直接订阅 store
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
-  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
-  const setSelectedContinuationPackId = useContinuationPackStore((state) => state.setSelectedContinuationPackId);
+  const selectedContinuationPackId = useContinuationPackStore(
+    (state) => state.selectedContinuationPackId
+  );
+  const setSelectedContinuationPackId = useContinuationPackStore(
+    (state) => state.setSelectedContinuationPackId
+  );
   const writingStyleResolution = useWritingStyleStore((state) => state.resolution);
   const writingStyleCandidates = useWritingStyleStore((state) => state.candidates);
   const hasCapabilityDetails = Boolean(
-    capabilityEffectSummary?.projectCardNames.length
-      || capabilityEffectSummary?.favoriteTechniqueNames.length
-      || capabilityEffectSummary?.chapterCardNames?.length,
+    capabilityEffectSummary?.projectCardNames.length ||
+    capabilityEffectSummary?.favoriteTechniqueNames.length ||
+    capabilityEffectSummary?.chapterCardNames?.length
   );
   const shouldShowCapabilitySummary = hasCapabilityDetails || Boolean(onSwitchTab);
 
@@ -82,11 +91,16 @@ export function ProductionTab({
       {/* 006：统一状态条——完整生产四段流转，直接订阅 production-store */}
       <GenerationStatusBar
         mode="full"
-        onWriteClick={() => runReviewAnchorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })}
+        onWriteClick={() =>
+          runReviewAnchorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        }
       />
       {renderContextReceipt()}
       {shouldShowCapabilitySummary ? (
-        <section className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs" aria-label="本次生成能力配置">
+        <section
+          className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs"
+          aria-label="本次生成能力配置"
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="font-bold text-theme-text">本次生成能力配置</div>
             {onSwitchTab ? (
@@ -101,17 +115,26 @@ export function ProductionTab({
           </div>
           {capabilityEffectSummary?.projectCardNames.length ? (
             <p className="mt-1 leading-5 text-theme-muted">
-              作品默认卡：<span className="text-theme-text">{capabilityEffectSummary.projectCardNames.join('、')}</span>
+              作品默认卡：
+              <span className="text-theme-text">
+                {capabilityEffectSummary.projectCardNames.join('、')}
+              </span>
             </p>
           ) : null}
           {capabilityEffectSummary?.favoriteTechniqueNames.length ? (
             <p className="mt-1 leading-5 text-theme-muted">
-              常用技法：<span className="text-theme-text">{capabilityEffectSummary.favoriteTechniqueNames.join('、')}</span>
+              常用技法：
+              <span className="text-theme-text">
+                {capabilityEffectSummary.favoriteTechniqueNames.join('、')}
+              </span>
             </p>
           ) : null}
           {capabilityEffectSummary?.chapterCardNames?.length ? (
             <p className="mt-1 leading-5 text-theme-muted">
-              本章使用卡：<span className="text-theme-text">{capabilityEffectSummary.chapterCardNames.join('、')}</span>
+              本章使用卡：
+              <span className="text-theme-text">
+                {capabilityEffectSummary.chapterCardNames.join('、')}
+              </span>
             </p>
           ) : null}
           {!hasCapabilityDetails ? (
@@ -124,7 +147,7 @@ export function ProductionTab({
           </p>
         </section>
       ) : null}
-      {(writingStyleResolution || writingStyleCandidates.length) ? (
+      {writingStyleResolution || writingStyleCandidates.length ? (
         <WritingStyleControl
           resolution={writingStyleResolution}
           candidates={writingStyleCandidates}
@@ -168,7 +191,9 @@ export function ProductionTab({
               <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 px-3 py-3 text-xs text-theme-muted space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <div className="text-[11px] font-bold text-theme-text">{selectedContinuationPack.title}</div>
+                    <div className="text-[11px] font-bold text-theme-text">
+                      {selectedContinuationPack.title}
+                    </div>
                     <div className="text-[10px] text-theme-muted">
                       {selectedContinuationPack.status === 'approved'
                         ? '已确认资料包会作为本次生成参考。'
@@ -181,13 +206,17 @@ export function ProductionTab({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <span className={cn(
-                    'rounded-full px-2.5 py-1 text-[10px] font-medium border',
-                    selectedContinuationPack.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200',
-                  )}>
-                    {selectedContinuationPack.status === 'approved' ? '已确认资料包' : '待审核资料包'}
+                  <span
+                    className={cn(
+                      'rounded-full px-2.5 py-1 text-[10px] font-medium border',
+                      selectedContinuationPack.status === 'approved'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                    )}
+                  >
+                    {selectedContinuationPack.status === 'approved'
+                      ? '已确认资料包'
+                      : '待审核资料包'}
                   </span>
                 </div>
 
@@ -238,10 +267,15 @@ export function ProductionTab({
 
                 {selectedContinuationPack.continuationGaps?.length ? (
                   <div className="rounded-xl border border-dashed border-theme-border bg-theme-sidebar/70 px-3 py-2">
-                    <div className="text-[10px] font-bold text-theme-text">最值得先补的资料缺口</div>
+                    <div className="text-[10px] font-bold text-theme-text">
+                      最值得先补的资料缺口
+                    </div>
                     <div className="mt-1.5 space-y-1">
                       {selectedContinuationPack.continuationGaps.slice(0, 2).map((gap) => (
-                        <div key={gap.id} className="flex items-start justify-between gap-2 text-[11px] leading-relaxed text-theme-muted">
+                        <div
+                          key={gap.id}
+                          className="flex items-start justify-between gap-2 text-[11px] leading-relaxed text-theme-muted"
+                        >
                           <div className="min-w-0">
                             <span className="font-bold text-theme-text">{gap.description}</span>
                             {gap.suggestedDirection ? ` · ${gap.suggestedDirection}` : ''}
@@ -253,10 +287,16 @@ export function ProductionTab({
                               onClick={() => {
                                 const prompt = [
                                   `请补充资料缺口：${gap.description}`,
-                                  gap.suggestedDirection ? `建议方向：${gap.suggestedDirection}` : '',
-                                  gap.relatedFacts?.length ? `相关事实：${gap.relatedFacts.join('；')}` : '',
+                                  gap.suggestedDirection
+                                    ? `建议方向：${gap.suggestedDirection}`
+                                    : '',
+                                  gap.relatedFacts?.length
+                                    ? `相关事实：${gap.relatedFacts.join('；')}`
+                                    : '',
                                   '请先生成可编辑确认单，不要直接写入。',
-                                ].filter(Boolean).join('\n');
+                                ]
+                                  .filter(Boolean)
+                                  .join('\n');
                                 onOpenBibleAssistant(prompt);
                               }}
                               className="shrink-0 rounded-lg border border-theme-border bg-theme-sidebar px-2 py-1 text-[10px] font-medium text-theme-text hover:bg-theme-border/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/30"
@@ -281,22 +321,22 @@ export function ProductionTab({
 
       <div ref={runReviewAnchorRef} data-production-run-review="true">
         <ProductionRunReview
-        run={activeProductionRun}
-        userIntent={productionIntent}
-        running={isProductionRunning}
-        applying={isApplyingProductionRun}
-        error={productionError}
-        novelId={novel.id}
-        beatsSource={productionBeatsSource}
-        draftSource={productionDraftSource}
-        auditSource={productionAuditSource}
-        statusMessage={productionStatusMessage}
-        onIntentChange={setProductionIntent}
-        onStart={() => void onStartProductionRun()}
-        onStop={onStopProductionRun}
-        onApply={(runOverride) => void onApplyProductionRun(runOverride)}
-        showStartAction={!onGenerateWithWritingStyle}
-      />
+          run={activeProductionRun}
+          userIntent={productionIntent}
+          running={isProductionRunning}
+          applying={isApplyingProductionRun}
+          error={productionError}
+          novelId={novel.id}
+          beatsSource={productionBeatsSource}
+          draftSource={productionDraftSource}
+          auditSource={productionAuditSource}
+          statusMessage={productionStatusMessage}
+          onIntentChange={setProductionIntent}
+          onStart={() => void onStartProductionRun()}
+          onStop={onStopProductionRun}
+          onApply={(runOverride) => void onApplyProductionRun(runOverride)}
+          showStartAction={!onGenerateWithWritingStyle}
+        />
       </div>
     </div>
   );

@@ -15,8 +15,9 @@ interface SkillsCandidateState {
 export const useSkillsCandidateStore = create<SkillsCandidateState>((set) => ({
   candidateCardIds: [],
   pendingCandidateId: null,
-  setCandidateCardIds: (value) => set((state) => ({
-    candidateCardIds: typeof value === 'function' ? value(state.candidateCardIds) : value,
-  })),
+  setCandidateCardIds: (value) =>
+    set((state) => ({
+      candidateCardIds: typeof value === 'function' ? value(state.candidateCardIds) : value,
+    })),
   setPendingCandidateId: (value) => set({ pendingCandidateId: value }),
 }));

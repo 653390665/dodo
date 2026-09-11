@@ -56,23 +56,38 @@ export function useEntitySniffing({
   const chapterContent = currentChapter?.content || '';
   const chapterText = useMemo(
     () => `${chapterSceneBeats}\n${chapterContent}`,
-    [chapterSceneBeats, chapterContent],
+    [chapterSceneBeats, chapterContent]
   );
   const chapterTextHash = useMemo(() => stableHash(chapterText), [chapterText]);
   const chapterId = currentChapter?.id;
   // Hashes keep object identity changes from rebuilding the scan input.
   /* eslint-disable react-hooks/exhaustive-deps -- dependencies are stable hashes, not mutable entity objects */
-  const chapterInput = useMemo(() => chapterId ? {
-    id: chapterId,
-    text: chapterText,
-  } : null, [chapterId, chapterTextHash, chapterText]);
+  const chapterInput = useMemo(
+    () =>
+      chapterId
+        ? {
+            id: chapterId,
+            text: chapterText,
+          }
+        : null,
+    [chapterId, chapterTextHash, chapterText]
+  );
   const existingNamesSignature = [
     ...characters.map((character) => character.name),
     ...locations.map((location) => location.name),
     ...items.map((item) => item.name),
-  ].filter(Boolean).sort().join('\u001f');
-  const existingNamesHash = useMemo(() => stableHash(existingNamesSignature), [existingNamesSignature]);
-  const stableExistingNames = useMemo(() => existingNamesSignature ? existingNamesSignature.split('\u001f') : [], [existingNamesHash]);
+  ]
+    .filter(Boolean)
+    .sort()
+    .join('\u001f');
+  const existingNamesHash = useMemo(
+    () => stableHash(existingNamesSignature),
+    [existingNamesSignature]
+  );
+  const stableExistingNames = useMemo(
+    () => (existingNamesSignature ? existingNamesSignature.split('\u001f') : []),
+    [existingNamesHash]
+  );
   /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
@@ -88,10 +103,13 @@ export function useEntitySniffing({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [chapterId, novelId]);
 
-  useEffect(() => () => {
-    requestSeqRef.current += 1;
-    sniffControllerRef.current?.abort();
-  }, []);
+  useEffect(
+    () => () => {
+      requestSeqRef.current += 1;
+      sniffControllerRef.current?.abort();
+    },
+    []
+  );
 
   const handleAddSniffedEntity = async (entity: SniffedEntities['newEntities'][number]) => {
     const scopeAtStart = sniffScopeRef.current;
@@ -102,47 +120,62 @@ export function useEntitySniffing({
         {
           ...entity,
           novelId,
-          ...(sniffDatabaseGenerationRef.current === null ? {} : { databaseGeneration: sniffDatabaseGenerationRef.current }),
-        },
+          ...(sniffDatabaseGenerationRef.current === null
+            ? {}
+            : { databaseGeneration: sniffDatabaseGenerationRef.current }),
+        }
       );
 
       const now = Date.now();
 
       if (data.entityType === 'character') {
-        await createCharacter({
-          id: generateClientId(),
-          novelId,
-          name: data.name || entity.name,
-          role: data.role || 'supporting',
-          summary: data.summary || '',
-          traits: data.traits || [],
-          bio: data.bio || '',
-          createdAt: now,
-          updatedAt: now,
-        }, databaseGeneration);
+        await createCharacter(
+          {
+            id: generateClientId(),
+            novelId,
+            name: data.name || entity.name,
+            role: data.role || 'supporting',
+            summary: data.summary || '',
+            traits: data.traits || [],
+            bio: data.bio || '',
+            createdAt: now,
+            updatedAt: now,
+          },
+          databaseGeneration
+        );
       } else if (data.entityType === 'location') {
-        await createLocation({
-          id: generateClientId(),
-          novelId,
-          name: data.name || entity.name,
-          region: data.region || '',
-          description: data.description || '',
-          createdAt: now,
-          updatedAt: now,
-        }, databaseGeneration);
+        await createLocation(
+          {
+            id: generateClientId(),
+            novelId,
+            name: data.name || entity.name,
+            region: data.region || '',
+            description: data.description || '',
+            createdAt: now,
+            updatedAt: now,
+          },
+          databaseGeneration
+        );
       } else if (data.entityType === 'item') {
-        await createItem({
-          id: generateClientId(),
-          novelId,
-          name: data.name || entity.name,
-          type: data.type || '',
-          description: data.description || '',
-          createdAt: now,
-          updatedAt: now,
-        }, databaseGeneration);
+        await createItem(
+          {
+            id: generateClientId(),
+            novelId,
+            name: data.name || entity.name,
+            type: data.type || '',
+            description: data.description || '',
+            createdAt: now,
+            updatedAt: now,
+          },
+          databaseGeneration
+        );
       }
 
-      if (scopeAtStart.novelId !== sniffScopeRef.current.novelId || scopeAtStart.chapterId !== sniffScopeRef.current.chapterId) return;
+      if (
+        scopeAtStart.novelId !== sniffScopeRef.current.novelId ||
+        scopeAtStart.chapterId !== sniffScopeRef.current.chapterId
+      )
+        return;
       setSniffedEntities((prev) => {
         if (!prev) return prev;
         return {
@@ -175,7 +208,7 @@ export function useEntitySniffing({
         '/api/extract-entities',
         { novelId, text: chapterInput.text, existingNames: stableExistingNames },
         {},
-        controller.signal,
+        controller.signal
       );
       if (chapterInput.id !== startingChapterId || requestSeqRef.current !== currentSeq) return;
       sniffDatabaseGenerationRef.current = databaseGeneration;

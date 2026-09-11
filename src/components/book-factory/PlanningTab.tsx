@@ -9,7 +9,7 @@ import {
   ArrowRight,
   CheckCircle2,
   RefreshCcw,
-  Compass
+  Compass,
 } from 'lucide-react';
 import type { Chapter, Novel, ProjectPreferenceProfile, AgentTab } from '../../../shared/types';
 import { cn } from '../../lib/utils';
@@ -21,7 +21,7 @@ import {
   getNovelCurrentStepId,
   getNovelCompletedStepIds,
   getFlowEnhancementPackage,
-  isPackageRestricted
+  isPackageRestricted,
 } from '../../../shared/lib/prompt-assets-governed.js';
 import { useEditorGenerationStore } from '../../stores/editor-generation-store';
 import { useUserIntentStore } from '../../stores/user-intent-store';
@@ -75,44 +75,52 @@ export function PlanningTab({
   const novelWithLiveProfile = { ...novel, projectPreferenceProfile: liveProfile };
 
   const activeProfile = inferNovelGovernanceProfile(novelWithLiveProfile);
-  const activeSeriesId = liveProfile?.capabilityProfile?.activeFlowId
-    || liveProfile?.activeSeriesId
-    || activeProfile.activeSeriesId
-    || 'generic-novel-flow';
+  const activeSeriesId =
+    liveProfile?.capabilityProfile?.activeFlowId ||
+    liveProfile?.activeSeriesId ||
+    activeProfile.activeSeriesId ||
+    'generic-novel-flow';
 
   const pkg = getFlowEnhancementPackage(activeSeriesId);
-  const isRestricted = Boolean(pkg && isPackageRestricted(pkg.id, liveProfile?.commercialMode || 'free') && !canUseEnhancedCapability({
-    commercialMode: liveProfile?.commercialMode,
-  }));
+  const isRestricted = Boolean(
+    pkg &&
+    isPackageRestricted(pkg.id, liveProfile?.commercialMode || 'free') &&
+    !canUseEnhancedCapability({
+      commercialMode: liveProfile?.commercialMode,
+    })
+  );
 
   const currentStepId = getNovelCurrentStepId(novelWithLiveProfile, activeSeriesId);
   const completedStepIds = getNovelCompletedStepIds(novelWithLiveProfile, activeSeriesId);
 
-  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId) || SKILL_SERIES_FLOWS[1];
+  const flow = SKILL_SERIES_FLOWS.find((f) => f.id === activeSeriesId) || SKILL_SERIES_FLOWS[1];
 
   // If the "completed-flow" tag exists, the entire flow is done.
   // This prevents a fallback to step 1 when no current-step tag is present.
   const isFlowCompleted = (liveProfile?.tags || []).includes(`completed-flow:${activeSeriesId}`);
 
   const currentStepIdOrDefault = isFlowCompleted
-    ? flow.steps[flow.steps.length - 1].id  // keep showing the last step as "current"
+    ? flow.steps[flow.steps.length - 1].id // keep showing the last step as "current"
     : currentStepId;
-  const currentStepIndex = flow.steps.findIndex(s => s.id === currentStepIdOrDefault);
+  const currentStepIndex = flow.steps.findIndex((s) => s.id === currentStepIdOrDefault);
   const currentStep = currentStepIndex !== -1 ? flow.steps[currentStepIndex] : flow.steps[0];
   const displayStepNumber = currentStepIndex !== -1 ? currentStepIndex + 1 : 1;
   const isLastStep = !currentStep.nextStepId;
 
   // PRD Story 5: verify wizard progress against real artifacts. Evidence is
   // keyed by the step's declared `output`; `undefined` means "cannot verify".
-  const stepEvidenceByOutput: Record<string, boolean | undefined> | null = stepEvidence ? {
-    idea: (stepEvidence.ideaChars ?? 0) > 0,
-    setting: (stepEvidence.worldEntityCount ?? 0) > 0,
-    outline: (stepEvidence.outlineChars ?? 0) > 0,
-    'scene-outline': (stepEvidence.sceneBeatsChars ?? 0) > 0,
-    draft: (stepEvidence.draftChars ?? 0) > 0,
-    'polished-draft': stepEvidence.auditPassed === true,
-  } : null;
-  const currentStepTagCompleted = completedStepIds.includes(currentStep.id) || (isFlowCompleted && isLastStep);
+  const stepEvidenceByOutput: Record<string, boolean | undefined> | null = stepEvidence
+    ? {
+        idea: (stepEvidence.ideaChars ?? 0) > 0,
+        setting: (stepEvidence.worldEntityCount ?? 0) > 0,
+        outline: (stepEvidence.outlineChars ?? 0) > 0,
+        'scene-outline': (stepEvidence.sceneBeatsChars ?? 0) > 0,
+        draft: (stepEvidence.draftChars ?? 0) > 0,
+        'polished-draft': stepEvidence.auditPassed === true,
+      }
+    : null;
+  const currentStepTagCompleted =
+    completedStepIds.includes(currentStep.id) || (isFlowCompleted && isLastStep);
   const currentStepVerified = stepEvidenceByOutput
     ? stepEvidenceByOutput[currentStep.output] === true
     : true;
@@ -130,10 +138,10 @@ export function PlanningTab({
   const handleNextStep = async () => {
     if (isRestricted && pkg) {
       dispatchCapabilityUnavailable({
-          limitType: 'extractSkill',
-          packageName: pkg.name,
-          packageDesc: pkg.description,
-          novelId: novel.id,
+        limitType: 'extractSkill',
+        packageName: pkg.name,
+        packageDesc: pkg.description,
+        novelId: novel.id,
       });
       return;
     }
@@ -145,50 +153,57 @@ export function PlanningTab({
       const nextStepId = currentStep.nextStepId;
       const profile = liveProfile || {
         tags: [],
-        weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
+        weights: {
+          styleWeight: 0.2,
+          characterWeight: 0.2,
+          worldWeight: 0.2,
+          plotWeight: 0.2,
+          pacingWeight: 0.2,
+        },
         acceptedDimensions: [],
         rejectedDimensions: [],
         notes: [],
-        evidenceCount: 0
+        evidenceCount: 0,
       };
 
       const oldTags = profile.tags || [];
       const otherTags = oldTags.filter(
-        t => !t.startsWith(`current-step:${activeSeriesId}:`) &&
-             !t.startsWith(`completed-step:${activeSeriesId}:`)
+        (t) =>
+          !t.startsWith(`current-step:${activeSeriesId}:`) &&
+          !t.startsWith(`completed-step:${activeSeriesId}:`)
       );
 
       const newCompletedSet = new Set(completedStepIds);
       newCompletedSet.add(currentStep.id);
       const newCompletedList = Array.from(newCompletedSet);
 
-	      const completedTags = newCompletedList.map(id => `completed-step:${activeSeriesId}:${id}`);
-	      const newTags = [...otherTags, ...completedTags];
-	      if (nextStepId) {
-	        newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
-	      } else {
-	        // Last step — mark the entire flow as completed so we never
-	        // fall back to step 1 when the current-step tag is absent.
-	        newTags.push(`completed-flow:${activeSeriesId}`);
-	      }
+      const completedTags = newCompletedList.map((id) => `completed-step:${activeSeriesId}:${id}`);
+      const newTags = [...otherTags, ...completedTags];
+      if (nextStepId) {
+        newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
+      } else {
+        // Last step — mark the entire flow as completed so we never
+        // fall back to step 1 when the current-step tag is absent.
+        newTags.push(`completed-flow:${activeSeriesId}`);
+      }
 
-	      const updatedProfile: ProjectPreferenceProfile = {
-	        ...profile,
-	        tags: newTags
-	      };
+      const updatedProfile: ProjectPreferenceProfile = {
+        ...profile,
+        tags: newTags,
+      };
 
-	      await onPreferenceProfileChange(updatedProfile);
+      await onPreferenceProfileChange(updatedProfile);
 
-	      setStepError(null);
+      setStepError(null);
 
-	      // Navigate based on the NEXT step's designated target tab.
-	      // When step 1 (脑洞灵感闪耀) completes, nextStep is step 2
-	      // (世界观架构设定) whose navigateTo:'bible' sends the user to
-	      // the bible tab.  Steps with no navigateTo stay on planning.
-	      const navigateTo = nextStep?.navigateTo as AgentTab | undefined;
-	      if (navigateTo && onSwitchTab) {
-	        onSwitchTab(navigateTo);
-	      }
+      // Navigate based on the NEXT step's designated target tab.
+      // When step 1 (脑洞灵感闪耀) completes, nextStep is step 2
+      // (世界观架构设定) whose navigateTo:'bible' sends the user to
+      // the bible tab.  Steps with no navigateTo stay on planning.
+      const navigateTo = nextStep?.navigateTo as AgentTab | undefined;
+      if (navigateTo && onSwitchTab) {
+        onSwitchTab(navigateTo);
+      }
     } catch (e) {
       console.error('Failed to advance step:', e);
       setStepError(e instanceof Error ? e.message : '保存失败，请重试');
@@ -199,22 +214,36 @@ export function PlanningTab({
 
   const handleResetFlow = async () => {
     if (isSavingStep) return;
-    if (!(await appConfirm('重置流程进度？', '所有创作步骤的完成标记将被清空并回到第 1 步，不影响已创作的内容。', { confirmLabel: '重置' }))) return;
+    if (
+      !(await appConfirm(
+        '重置流程进度？',
+        '所有创作步骤的完成标记将被清空并回到第 1 步，不影响已创作的内容。',
+        { confirmLabel: '重置' }
+      ))
+    )
+      return;
     if (!onPreferenceProfileChange) return;
     const profile = liveProfile || {
       tags: [],
-      weights: { styleWeight: 0.2, characterWeight: 0.2, worldWeight: 0.2, plotWeight: 0.2, pacingWeight: 0.2 },
+      weights: {
+        styleWeight: 0.2,
+        characterWeight: 0.2,
+        worldWeight: 0.2,
+        plotWeight: 0.2,
+        pacingWeight: 0.2,
+      },
       acceptedDimensions: [],
       rejectedDimensions: [],
       notes: [],
-      evidenceCount: 0
+      evidenceCount: 0,
     };
 
     const oldTags = profile.tags || [];
     const newTags = oldTags.filter(
-      t => !t.startsWith(`current-step:${activeSeriesId}:`) &&
-           !t.startsWith(`completed-step:${activeSeriesId}:`) &&
-           !t.startsWith(`completed-flow:${activeSeriesId}`)
+      (t) =>
+        !t.startsWith(`current-step:${activeSeriesId}:`) &&
+        !t.startsWith(`completed-step:${activeSeriesId}:`) &&
+        !t.startsWith(`completed-flow:${activeSeriesId}`)
     );
     // Restore step 1 as the current step after reset.
     const firstStep = flow.steps[0];
@@ -224,7 +253,7 @@ export function PlanningTab({
 
     const updatedProfile: ProjectPreferenceProfile = {
       ...profile,
-      tags: newTags
+      tags: newTags,
     };
 
     await onPreferenceProfileChange(updatedProfile);
@@ -236,7 +265,7 @@ export function PlanningTab({
       <div className="relative overflow-hidden rounded-2xl border border-theme-border/50 bg-theme-sidebar/60 backdrop-blur-md p-5 shadow-lg transition-all duration-300 hover:shadow-xl group">
         {/* 顶部 OKLCH 霓虹渐变发光灯带 (Neon Ambient Glow) */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500 via-indigo-500 to-pink-500 opacity-80" />
-        
+
         <div className="flex flex-col justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2">
@@ -253,33 +282,49 @@ export function PlanningTab({
                 步骤 {displayStepNumber} / {flow.steps.length}
               </span>
             </div>
-            
+
             <h4 className="text-base font-bold text-theme-text flex items-center gap-1.5 leading-snug">
               {currentStep.name}
             </h4>
-            
+
             <p className="text-xs text-theme-muted leading-relaxed max-w-[55ch]">
               {currentStep.description}
             </p>
 
             {/* 必填质量门栏提示 (Quality Gate Indicator) */}
             <div className="flex items-start gap-1.5 mt-2 bg-theme-accent/5 rounded-lg p-2.5 border border-theme-accent/10 max-w-[55ch]">
-              <Lightbulb size={14} className="text-theme-accent shrink-0 mt-0.5 animate-pulse" aria-hidden="true" />
+              <Lightbulb
+                size={14}
+                className="text-theme-accent shrink-0 mt-0.5 animate-pulse"
+                aria-hidden="true"
+              />
               <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-theme-accent uppercase tracking-wider block">质量检查门栏 (Quality Gate)</span>
-                <span className="text-xs text-theme-muted leading-relaxed block">{currentStep.qualityGate}</span>
+                <span className="text-[10px] font-bold text-theme-accent uppercase tracking-wider block">
+                  质量检查门栏 (Quality Gate)
+                </span>
+                <span className="text-xs text-theme-muted leading-relaxed block">
+                  {currentStep.qualityGate}
+                </span>
               </div>
             </div>
 
-            {currentStepTagCompleted && stepEvidenceByOutput && !currentStepVerified && !currentStepUnverifiable ? (
-              <div role="status" className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 max-w-[55ch]">
+            {currentStepTagCompleted &&
+            stepEvidenceByOutput &&
+            !currentStepVerified &&
+            !currentStepUnverifiable ? (
+              <div
+                role="status"
+                className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 max-w-[55ch]"
+              >
                 <span className="text-[11px] leading-5 text-amber-600 dark:text-amber-400 block">
                   此步骤已被标记为完成，但当前未检测到对应产物。建议补齐后再继续下一步。
                 </span>
               </div>
             ) : null}
             {currentStepUnverifiable ? (
-              <p className="mt-1 text-[10px] text-theme-muted">此步骤暂无法自动验证产物，请自行确认已完成。</p>
+              <p className="mt-1 text-[10px] text-theme-muted">
+                此步骤暂无法自动验证产物，请自行确认已完成。
+              </p>
             ) : null}
 
             {stepError && (
@@ -291,7 +336,7 @@ export function PlanningTab({
 
           <div className="flex w-full min-w-0 flex-col items-stretch justify-center gap-2">
             {!isFlowCompleted && (
-<button
+              <button
                 onClick={handleNextStep}
                 disabled={isSavingStep}
                 className="w-full min-w-0 whitespace-normal px-4 py-2.5 text-center leading-relaxed bg-gradient-to-r from-theme-accent to-indigo-600 text-theme-accent-contrast rounded-xl text-xs font-bold shadow-md shadow-theme-accent/10 hover:shadow-lg hover:shadow-theme-accent/20 hover:opacity-95 transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-x-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -304,15 +349,15 @@ export function PlanningTab({
                 ) : isLastStep ? (
                   <>
                     <CheckCircle2 size={14} aria-hidden="true" />
-                  完成全流程创作
-                </>
-              ) : (
-                <>
-                  完成本步并前往：{nextStep?.name || ''}
-                  <ArrowRight size={14} aria-hidden="true" />
-                </>
-              )}
-            </button>
+                    完成全流程创作
+                  </>
+                ) : (
+                  <>
+                    完成本步并前往：{nextStep?.name || ''}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </>
+                )}
+              </button>
             )}
 
             {(completedStepIds.length > 0 || isFlowCompleted) && (
@@ -333,7 +378,10 @@ export function PlanningTab({
           </div>
         )}
         {isFlowCompleted && stepEvidenceByOutput && !flowArtifactsVerified && (
-          <div role="status" className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
+          <div
+            role="status"
+            className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2"
+          >
             <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
             <span>
               流程曾被标记为完成，但部分步骤未检测到真实产物（灵感、设定、大纲、分镜、正文或审稿）。
@@ -377,10 +425,16 @@ export function PlanningTab({
                 disabled={isGeneratingBeats}
                 className="w-full mt-3 py-2.5 bg-theme-accent text-theme-accent-contrast rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-[background-color,opacity,box-shadow] duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {isGeneratingBeats ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
+                {isGeneratingBeats ? (
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles size={16} aria-hidden="true" />
+                )}
                 {isGeneratingBeats ? '规划中...' : '生成场景分镜（快捷操作）'}
               </button>
-              <p className="text-[10px] text-theme-muted mt-1 text-center">推荐先完成"世界与角色设定"再生成分镜，避免两个主操作竞争</p>
+              <p className="text-[10px] text-theme-muted mt-1 text-center">
+                推荐先完成"世界与角色设定"再生成分镜，避免两个主操作竞争
+              </p>
             </>
           )}
         </div>
@@ -390,18 +444,24 @@ export function PlanningTab({
             <div
               className={cn(
                 'bg-theme-sidebar p-5 rounded-2xl border border-theme-border/40 shadow-sm relative overflow-hidden group',
-                !currentChapter.sceneBeats && 'opacity-50',
+                !currentChapter.sceneBeats && 'opacity-50'
               )}
             >
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">当前场景分镜规划</h3>
+                <h3 className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">
+                  当前场景分镜规划
+                </h3>
                 <div className="flex gap-2">
                   <button
                     onClick={() => void onGenerateContent()}
                     disabled={isGeneratingContent || !currentChapter.sceneBeats}
                     className="flex items-center gap-1.5 px-3 py-1 bg-theme-accent text-theme-accent-contrast rounded-lg text-[10px] font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition-[background-color,opacity,box-shadow] duration-200"
                   >
-                    {isGeneratingContent ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <Feather size={10} aria-hidden="true" />}
+                    {isGeneratingContent ? (
+                      <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Feather size={10} aria-hidden="true" />
+                    )}
                     {isGeneratingContent ? '扩写中…' : 'AI 扩写正文'}
                   </button>
                   <button
@@ -425,7 +485,8 @@ export function PlanningTab({
 
             {isGeneratingContent ? (
               <div className="flex items-center justify-center p-4 bg-theme-sidebar/20 rounded-xl border border-theme-border/30 text-xs text-theme-muted gap-2">
-                <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Writer Agent 正在执笔中...
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Writer Agent
+                正在执笔中...
               </div>
             ) : null}
             {generationStatus ? (

@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, FileText, Loader2, PlusCircle, Upload } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  PlusCircle,
+  Upload,
+} from 'lucide-react';
 
 import type { ContinuationImportTargetMode, ContinuationPack, Novel } from '../../shared/types';
 import { cn } from '../lib/utils';
@@ -14,14 +24,16 @@ import {
 } from '../../shared/lib/continuation-import-flow';
 import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 import { expandContinuationZip } from '../lib/continuation-zip-client';
-import { isSupportedContinuationDocument, sanitizeArchivePath } from '../../shared/lib/archive-limits';
+import {
+  isSupportedContinuationDocument,
+  sanitizeArchivePath,
+} from '../../shared/lib/archive-limits';
 
 // 校验文档是否是合法的、高熵的文本输入（排除系统临时文件如 .DS_Store 及 __MACOSX 目录）
 const isValidDocument = isSupportedContinuationDocument;
 
 // 消毒文件路径，防御 Zip Slip (路径遍历/穿透) 漏洞
 const sanitizePath = sanitizeArchivePath;
-
 
 interface ContinuationImportViewProps {
   onBack: () => void;
@@ -44,7 +56,11 @@ const FLOW_STEPS = [
   { title: '进入续写', description: '确认后带着资料包进入编辑器继续写。' },
 ];
 
-export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }: ContinuationImportViewProps) {
+export function ContinuationImportView({
+  onBack,
+  onEnterEditor,
+  initialNovelId,
+}: ContinuationImportViewProps) {
   const [stage, setStage] = useState<Stage>('upload');
   const [novels, setNovels] = useState<Novel[]>([]);
   const [targetMode, setTargetMode] = useState<ContinuationImportTargetMode>('new');
@@ -57,7 +73,9 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
   const [parseStageText, setParseStageText] = useState('正在读取资料包并展开文档树...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [conflictResolutionDrafts, setConflictResolutionDrafts] = useState<Record<string, string>>({});
+  const [conflictResolutionDrafts, setConflictResolutionDrafts] = useState<Record<string, string>>(
+    {}
+  );
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,9 +110,11 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
       // ZIP 在独立 Worker 内受资源预算约束地解压，避免阻塞渲染器或遭受 ZIP bomb。
       if (filename.toLowerCase().endsWith('.zip')) {
         try {
-          newFiles.push(...await expandContinuationZip(file));
+          newFiles.push(...(await expandContinuationZip(file)));
         } catch (err) {
-          setError(`解包文件 ${filename} 失败: ${err instanceof Error ? err.message : String(err)}`);
+          setError(
+            `解包文件 ${filename} 失败: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       } else {
         // 如果是普通文件，或者 webkitdirectory 选中的多级文件夹文件
@@ -134,7 +154,6 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
     }
   };
 
-
   useEffect(() => {
     let isMounted = true;
 
@@ -145,11 +164,12 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         setNovels(loadedNovels);
         const defaultMode = resolveContinuationImportTargetMode(loadedNovels);
         setTargetMode(defaultMode);
-        const inheritedNovelId = initialNovelId && loadedNovels.some((novel) => novel.id === initialNovelId)
-          ? initialNovelId
-          : loadedNovels.length === 1
-            ? loadedNovels[0].id
-            : '';
+        const inheritedNovelId =
+          initialNovelId && loadedNovels.some((novel) => novel.id === initialNovelId)
+            ? initialNovelId
+            : loadedNovels.length === 1
+              ? loadedNovels[0].id
+              : '';
         setSelectedNovelId(inheritedNovelId);
       } catch (e) {
         if (!isMounted) return;
@@ -169,18 +189,20 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
   const selectedNovel = useMemo(
     () => novels.find((novel) => novel.id === selectedNovelId) || null,
-    [novels, selectedNovelId],
+    [novels, selectedNovelId]
   );
 
   const parsedPack = parsedState?.pack || null;
   const canConfirm = canApproveContinuationImportPack(parsedPack);
   const hasCanonFacts = Boolean(parsedPack?.canonFacts.length);
-  const unresolvedHighConflictCount = parsedPack?.contradictions.filter((contradiction) => (
-    contradiction.severity === 'high'
-    && !isContinuationContradictionResolved(contradiction)
-  )).length || 0;
+  const unresolvedHighConflictCount =
+    parsedPack?.contradictions.filter(
+      (contradiction) =>
+        contradiction.severity === 'high' && !isContinuationContradictionResolved(contradiction)
+    ).length || 0;
   const suggestedDraft = parsedPack ? buildImportedNovelDraft(parsedPack.title) : null;
-  const uploadActionDisabled = files.length === 0 || isParsing || (targetMode === 'existing' && !selectedNovelId);
+  const uploadActionDisabled =
+    files.length === 0 || isParsing || (targetMode === 'existing' && !selectedNovelId);
 
   const resetParsedSession = () => {
     setParsedState(null);
@@ -219,11 +241,11 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         ...previous,
         pack: {
           ...previous.pack,
-          contradictions: previous.pack.contradictions.map((contradiction) => (
+          contradictions: previous.pack.contradictions.map((contradiction) =>
             contradiction.id === contradictionId
               ? { ...contradiction, acceptedResolution: resolution, resolvedAt: Date.now() }
               : contradiction
-          )),
+          ),
         },
       };
     });
@@ -249,19 +271,18 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
     setParseProgress(0);
     setParseStageText('正在读取资料包并展开文档树...');
     setError('');
-    
+
     // Reset previous parse results safely without interrupting the active parsing state
     setParsedState(null);
 
     try {
-      const parseNovelId = targetMode === 'existing'
-        ? selectedNovelId
-        : await createContinuationImportSession();
+      const parseNovelId =
+        targetMode === 'existing' ? selectedNovelId : await createContinuationImportSession();
       const documents = await Promise.all(
         files.map(async (file) => ({
           filename: file.name,
           filedata: await fileToBase64(file),
-        })),
+        }))
       );
       const pack = await parseContinuationPack(
         {
@@ -287,12 +308,14 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         targetModeAtParse: targetMode,
         selectedNovelIdAtParse: selectedNovelId,
       });
-      setConflictResolutionDrafts(Object.fromEntries(
-        pack.contradictions.map((contradiction) => [
-          contradiction.id,
-          contradiction.acceptedResolution || contradiction.suggestedResolution || '',
-        ]),
-      ));
+      setConflictResolutionDrafts(
+        Object.fromEntries(
+          pack.contradictions.map((contradiction) => [
+            contradiction.id,
+            contradiction.acceptedResolution || contradiction.suggestedResolution || '',
+          ])
+        )
+      );
       setStage('confirm');
       setIsParsing(false);
     } catch (e) {
@@ -309,10 +332,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
     try {
       if (
-        parsedState.targetModeAtParse === 'existing'
-        && !novels.some((novel) => novel.id === parsedState.selectedNovelIdAtParse)
+        parsedState.targetModeAtParse === 'existing' &&
+        !novels.some((novel) => novel.id === parsedState.selectedNovelIdAtParse)
       ) {
-          throw new Error('未找到要导入的目标作品，请返回上一步重新选择。');
+        throw new Error('未找到要导入的目标作品，请返回上一步重新选择。');
       }
 
       const draft = buildImportedNovelDraft(parsedPack.title);
@@ -320,9 +343,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         packId: parsedPack.id,
         mode: parsedState.targetModeAtParse,
         existingNovelId: parsedState.selectedNovelIdAtParse || undefined,
-        newNovel: parsedState.targetModeAtParse === 'new'
-          ? { title: draft.title, summary: draft.summary }
-          : undefined,
+        newNovel:
+          parsedState.targetModeAtParse === 'new'
+            ? { title: draft.title, summary: draft.summary }
+            : undefined,
         conflictResolutions: parsedPack.contradictions.flatMap((contradiction) => {
           const resolution = contradiction.acceptedResolution?.trim();
           return resolution ? [{ contradictionId: contradiction.id, resolution }] : [];
@@ -332,7 +356,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
       onEnterEditor(
         approved.novel,
         approved.pack.id,
-        buildCreationIntentDraft(approved.pack) || undefined,
+        buildCreationIntentDraft(approved.pack) || undefined
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -362,8 +386,13 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
       <div className="grid gap-3 md:grid-cols-4">
         {FLOW_STEPS.map((step, index) => (
-          <div key={step.title} className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
-            <div className="text-[11px] font-bold tracking-[0.2em] text-theme-accent/70">第 {index + 1} 步</div>
+          <div
+            key={step.title}
+            className="rounded-2xl border border-theme-border bg-theme-sidebar p-4"
+          >
+            <div className="text-[11px] font-bold tracking-[0.2em] text-theme-accent/70">
+              第 {index + 1} 步
+            </div>
             <div className="mt-2 text-sm font-bold text-theme-text">{step.title}</div>
             <p className="mt-1 text-xs leading-5 text-theme-muted">{step.description}</p>
           </div>
@@ -377,7 +406,9 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           </div>
           <div>
             <div className="text-base font-bold text-theme-text">上传本次续写所需资料</div>
-            <div className="text-xs text-theme-muted mt-1">支持多文件 `.txt .md .json .docx`，会按一次任务整体解析。</div>
+            <div className="text-xs text-theme-muted mt-1">
+              支持多文件 `.txt .md .json .docx`，会按一次任务整体解析。
+            </div>
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
@@ -388,10 +419,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={cn(
-                "rounded-2xl border-2 border-dashed p-6 transition-all duration-200 flex flex-col items-center justify-center min-h-[200px] bg-theme-sidebar/5",
+                'rounded-2xl border-2 border-dashed p-6 transition-all duration-200 flex flex-col items-center justify-center min-h-[200px] bg-theme-sidebar/5',
                 isDragging
-                  ? "border-theme-accent bg-theme-accent/10 scale-[0.99] shadow-inner"
-                  : "border-theme-border hover:border-theme-accent/30 hover:bg-theme-sidebar/10"
+                  ? 'border-theme-accent bg-theme-accent/10 scale-[0.99] shadow-inner'
+                  : 'border-theme-border hover:border-theme-accent/30 hover:bg-theme-sidebar/10'
               )}
             >
               {/* Hidden Inputs */}
@@ -410,7 +441,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                 type="file"
                 ref={folderInputRef}
                 multiple
-                {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                {...({
+                  webkitdirectory: '',
+                  directory: '',
+                } as React.InputHTMLAttributes<HTMLInputElement>)}
                 onChange={(e) => {
                   if (e.target.files) processSelectedFiles(e.target.files);
                   e.target.value = '';
@@ -419,15 +453,19 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
               />
 
               <div className="flex flex-col items-center text-center space-y-3">
-                <div className={cn(
-                  "rounded-full p-3 transition-colors duration-200",
-                  isDragging ? "bg-theme-accent/20 text-theme-accent" : "bg-theme-border/20 text-theme-muted"
-                )}>
-                  <Upload size={24} className={cn(isDragging && "animate-pulse")} />
+                <div
+                  className={cn(
+                    'rounded-full p-3 transition-colors duration-200',
+                    isDragging
+                      ? 'bg-theme-accent/20 text-theme-accent'
+                      : 'bg-theme-border/20 text-theme-muted'
+                  )}
+                >
+                  <Upload size={24} className={cn(isDragging && 'animate-pulse')} />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-theme-text">
-                    {isDragging ? "松开鼠标以添加文件" : "将文件、文件夹或 ZIP 拖拽到此处"}
+                    {isDragging ? '松开鼠标以添加文件' : '将文件、文件夹或 ZIP 拖拽到此处'}
                   </p>
                   <p className="text-xs text-theme-muted mt-1">
                     支持解包 .zip 和多级目录，仅保留文本设定/正文
@@ -490,7 +528,11 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                         className="text-theme-muted hover:text-red-500 transition-colors p-0.5 rounded hover:bg-theme-border/20 cursor-pointer flex items-center justify-center"
                         title="移除此文件"
                       >
-                        <PlusCircle size={14} className="rotate-45 transform" style={{ transform: 'rotate(45deg)' }} />
+                        <PlusCircle
+                          size={14}
+                          className="rotate-45 transform"
+                          style={{ transform: 'rotate(45deg)' }}
+                        />
                       </button>
                     </div>
                   ))
@@ -515,7 +557,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                     targetMode === 'existing'
                       ? 'border-theme-accent bg-theme-accent/5'
                       : 'border-theme-border bg-theme-sidebar'
-                    } ${novels.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-theme-accent/40'}`}
+                  } ${novels.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-theme-accent/40'}`}
                 >
                   <button
                     type="button"
@@ -525,9 +567,14 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                   >
                     导入到现有作品
                   </button>
-                  <div className="mt-1 text-xs text-theme-muted">把解析结果接到已有作品里，确认资料包后继续写。</div>
+                  <div className="mt-1 text-xs text-theme-muted">
+                    把解析结果接到已有作品里，确认资料包后继续写。
+                  </div>
                   {novels.length > 0 && (
-                    <label className="mt-3 block text-xs font-bold text-theme-muted" htmlFor="continuation-import-target">
+                    <label
+                      className="mt-3 block text-xs font-bold text-theme-muted"
+                      htmlFor="continuation-import-target"
+                    >
                       目标作品
                       <select
                         id="continuation-import-target"
@@ -542,11 +589,14 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                       >
                         {novels.length > 1 && <option value="">请选择目标作品</option>}
                         {novels.map((novel) => (
-                          <option key={novel.id} value={novel.id}>{novel.title}</option>
+                          <option key={novel.id} value={novel.id}>
+                            {novel.title}
+                          </option>
                         ))}
                       </select>
                       <span className="mt-2 block font-normal text-theme-text">
-                        当前将导入到：{selectedNovel ? `《${selectedNovel.title}》` : '请选择目标作品'}
+                        当前将导入到：
+                        {selectedNovel ? `《${selectedNovel.title}》` : '请选择目标作品'}
                       </span>
                     </label>
                   )}
@@ -563,7 +613,9 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                     <PlusCircle size={15} />
                     新建作品
                   </div>
-                  <div className="mt-1 text-xs text-theme-muted">为这批资料单独创建作品，再进入续写。</div>
+                  <div className="mt-1 text-xs text-theme-muted">
+                    为这批资料单独创建作品，再进入续写。
+                  </div>
                 </button>
               </div>
             </div>
@@ -582,11 +634,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           </div>
         </div>
 
-        {error && (
- <div className="rounded-2xl alert-danger px-4 py-3 text-xs">
-            {error}
-          </div>
-        )}
+        {error && <div className="rounded-2xl alert-danger px-4 py-3 text-xs">{error}</div>}
 
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-theme-muted">
@@ -610,7 +658,8 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
     const targetNovelLabel =
       parsedState.targetModeAtParse === 'existing'
-        ? novels.find((novel) => novel.id === parsedState.selectedNovelIdAtParse)?.title || '未找到目标作品'
+        ? novels.find((novel) => novel.id === parsedState.selectedNovelIdAtParse)?.title ||
+          '未找到目标作品'
         : suggestedDraft?.title || '新建作品';
 
     return (
@@ -618,13 +667,17 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-xs font-bold tracking-[0.24em] text-theme-accent">写作前确认</div>
-            <h1 className="mt-2 text-3xl font-serif font-bold text-theme-text">确认导入并进入续写</h1>
+            <h1 className="mt-2 text-3xl font-serif font-bold text-theme-text">
+              确认导入并进入续写
+            </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-theme-muted">
               这里只展示本次续写必需的任务摘要。确认后会将资料包标记为本次续写资料，并带你进入编辑器。
             </p>
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar px-4 py-3 text-right">
-            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-theme-muted">导入目标</div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-theme-muted">
+              导入目标
+            </div>
             <div className="mt-1 text-sm font-bold text-theme-text">{targetNovelLabel}</div>
             <div className="mt-1 text-xs text-theme-muted">
               {parsedState.targetModeAtParse === 'existing' ? '现有作品' : '确认时新建作品'}
@@ -633,11 +686,11 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         </div>
 
         {parsedPack.contradictions.length > 0 && (
- <div className="rounded-2xl alert-warning p-4 text-sm">
+          <div className="rounded-2xl alert-warning p-4 text-sm">
             <div className="flex items-center justify-between gap-3 font-bold">
               <div className="flex items-center gap-2">
-              <AlertTriangle size={16} />
-              发现资料冲突
+                <AlertTriangle size={16} />
+                发现资料冲突
               </div>
               {unresolvedHighConflictCount > 0 && (
                 <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] text-red-700">
@@ -647,25 +700,41 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
             </div>
             <div className="mt-3 space-y-3 text-xs leading-5">
               {parsedPack.contradictions.map((item) => {
-                const resolutionDraft = conflictResolutionDrafts[item.id] ?? item.suggestedResolution ?? '';
+                const resolutionDraft =
+                  conflictResolutionDrafts[item.id] ?? item.suggestedResolution ?? '';
                 const acceptedResolution = item.acceptedResolution?.trim() || '';
-                const isAccepted = Boolean(acceptedResolution && acceptedResolution === resolutionDraft.trim());
-                const severityLabel = item.severity === 'high' ? '高风险' : item.severity === 'medium' ? '中风险' : '低风险';
-                const severityClass = item.severity === 'high'
-                  ? 'bg-red-100 text-red-700'
-                  : item.severity === 'medium'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-blue-100 text-blue-700';
+                const isAccepted = Boolean(
+                  acceptedResolution && acceptedResolution === resolutionDraft.trim()
+                );
+                const severityLabel =
+                  item.severity === 'high'
+                    ? '高风险'
+                    : item.severity === 'medium'
+                      ? '中风险'
+                      : '低风险';
+                const severityClass =
+                  item.severity === 'high'
+                    ? 'bg-red-100 text-red-700'
+                    : item.severity === 'medium'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-blue-100 text-blue-700';
                 return (
-                  <div key={item.id} className="rounded-xl border border-amber-200 bg-white/60 p-3 space-y-3">
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-amber-200 bg-white/60 p-3 space-y-3"
+                  >
                     <div className="flex items-start gap-2">
-                      <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${severityClass}`}>
+                      <span
+                        className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${severityClass}`}
+                      >
                         {severityLabel}
                       </span>
                       <div className="font-bold text-theme-text">{item.summary}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">冲突证据</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">
+                        冲突证据
+                      </div>
                       {item.conflictingEvidence.length > 0 ? (
                         <ul className="mt-1 space-y-1 text-theme-muted">
                           {item.conflictingEvidence.map((evidence, index) => (
@@ -677,14 +746,19 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                       )}
                     </div>
                     <div>
-                      <label htmlFor={`conflict-resolution-${item.id}`} className="text-[10px] font-bold uppercase tracking-wider text-theme-muted">
+                      <label
+                        htmlFor={`conflict-resolution-${item.id}`}
+                        className="text-[10px] font-bold uppercase tracking-wider text-theme-muted"
+                      >
                         裁决方案
                       </label>
                       <textarea
                         id={`conflict-resolution-${item.id}`}
                         aria-label={`冲突方案：${item.summary}`}
                         value={resolutionDraft}
-                        onChange={(event) => updateConflictResolutionDraft(item.id, event.target.value)}
+                        onChange={(event) =>
+                          updateConflictResolutionDraft(item.id, event.target.value)
+                        }
                         rows={2}
                         maxLength={1000}
                         className="mt-1 w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-theme-text outline-none focus:border-theme-accent"
@@ -710,7 +784,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         )}
 
         {!hasCanonFacts && (
- <div className="rounded-2xl alert-warning p-4 text-xs">
+          <div className="rounded-2xl alert-warning p-4 text-xs">
             当前资料未提取出关键硬设定，仍可确认导入。建议先检查资料完整性，后续可在设定集中补充。
           </div>
         )}
@@ -726,10 +800,22 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           <section className="rounded-2xl border border-theme-border bg-theme-sidebar p-5">
             <div className="text-sm font-bold text-theme-text">剧情锚点 / 即时冲突</div>
             <div className="mt-3 space-y-2 text-xs leading-5 text-theme-muted">
-              <div><span className="font-bold text-theme-text">时间位置：</span>{parsedPack.plotState.currentTimeline || '未识别'}</div>
-              <div><span className="font-bold text-theme-text">最新场景：</span>{parsedPack.plotState.latestScene || '未识别'}</div>
-              <div><span className="font-bold text-theme-text">即时冲突：</span>{parsedPack.plotState.immediateConflict || '未识别'}</div>
-              <div><span className="font-bold text-theme-text">下一步倾向：</span>{parsedPack.plotState.nextLikelyMove || '未识别'}</div>
+              <div>
+                <span className="font-bold text-theme-text">时间位置：</span>
+                {parsedPack.plotState.currentTimeline || '未识别'}
+              </div>
+              <div>
+                <span className="font-bold text-theme-text">最新场景：</span>
+                {parsedPack.plotState.latestScene || '未识别'}
+              </div>
+              <div>
+                <span className="font-bold text-theme-text">即时冲突：</span>
+                {parsedPack.plotState.immediateConflict || '未识别'}
+              </div>
+              <div>
+                <span className="font-bold text-theme-text">下一步倾向：</span>
+                {parsedPack.plotState.nextLikelyMove || '未识别'}
+              </div>
             </div>
           </section>
 
@@ -737,7 +823,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
             <div className="text-sm font-bold text-theme-text">关键硬设定</div>
             <div className="mt-3 space-y-2">
               {parsedPack.canonFacts.slice(0, 6).map((fact) => (
-                <div key={fact.id} className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-2 text-xs leading-5 text-theme-muted">
+                <div
+                  key={fact.id}
+                  className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-2 text-xs leading-5 text-theme-muted"
+                >
                   <span className="font-bold text-theme-text">{fact.category}</span> · {fact.text}
                 </div>
               ))}
@@ -751,7 +840,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
             <div className="text-sm font-bold text-theme-text">人物状态</div>
             <div className="mt-3 space-y-2">
               {parsedPack.characterStates.slice(0, 5).map((character) => (
-                <div key={`${character.name}-${character.currentGoal}`} className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-2 text-xs leading-5 text-theme-muted">
+                <div
+                  key={`${character.name}-${character.currentGoal}`}
+                  className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-2 text-xs leading-5 text-theme-muted"
+                >
                   <div className="font-bold text-theme-text">{character.name}</div>
                   <div>目标：{character.currentGoal || '未识别'}</div>
                   <div>情绪：{character.emotionalState || '未识别'}</div>
@@ -769,15 +861,20 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           <div className="mt-3 space-y-2">
             {parsedPack.continuationGaps && parsedPack.continuationGaps.length > 0 ? (
               parsedPack.continuationGaps.slice(0, 6).map((gap) => (
-                <div key={gap.id} className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-3 text-xs leading-5 text-theme-muted">
+                <div
+                  key={gap.id}
+                  className="rounded-xl border border-theme-border bg-theme-sidebar/10 px-3 py-3 text-xs leading-5 text-theme-muted"
+                >
                   <div className="flex items-center gap-2">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                      gap.severity === 'high'
-                        ? 'bg-red-100 text-red-700'
-                        : gap.severity === 'medium'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-blue-100 text-blue-700'
-                    }`}>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        gap.severity === 'high'
+                          ? 'bg-red-100 text-red-700'
+                          : gap.severity === 'medium'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
                       {gap.severity}
                     </span>
                     <span className="font-bold text-theme-text">{gap.description}</span>
@@ -793,11 +890,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
           </div>
         </section>
 
-        {error && (
- <div className="rounded-2xl alert-danger px-4 py-3 text-xs">
-            {error}
-          </div>
-        )}
+        {error && <div className="rounded-2xl alert-danger px-4 py-3 text-xs">{error}</div>}
 
         <div className="flex items-center justify-between gap-3">
           <button
@@ -818,7 +911,11 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
             disabled={!canConfirm || isSubmitting}
             className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-5 py-3 text-sm font-bold text-theme-accent-contrast disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            {isSubmitting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <CheckCircle2 size={16} />
+            )}
             {isSubmitting
               ? '正在进入编辑器...'
               : unresolvedHighConflictCount > 0
@@ -836,7 +933,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
         <div className="relative w-full max-w-lg rounded-3xl border border-theme-border/60 bg-theme-sidebar/40 p-10 shadow-2xl backdrop-blur-md">
           {/* Subtle Glowing AI Halo */}
           <div className="absolute -top-12 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-theme-text/10 blur-xl animate-pulse" />
-          
+
           <div className="flex flex-col items-center text-center">
             {/* Spinning AI Orb */}
             <div className="relative mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-theme-text/5 text-theme-text border border-theme-border">
@@ -858,7 +955,7 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
                 <span className="font-mono text-theme-text">{parseProgress}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-theme-border/50">
-                <div 
+                <div
                   className="h-full rounded-full bg-gradient-to-r from-theme-text/60 to-theme-text transition-all duration-300 ease-out"
                   style={{ width: `${parseProgress}%` }}
                 />
@@ -867,33 +964,93 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
             {/* List of Parsing Status Items */}
             <div className="mt-8 w-full space-y-3.5 text-left border-t border-theme-border/40 pt-6">
-              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 20 ? "text-theme-text font-medium" : "text-theme-muted")}>
-                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 20 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
-                  {parseProgress >= 20 ? "✓" : "1"}
+              <div
+                className={cn(
+                  'flex items-center gap-3 text-xs transition-opacity duration-300',
+                  parseProgress >= 20 ? 'text-theme-text font-medium' : 'text-theme-muted'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                    parseProgress >= 20
+                      ? 'border-theme-text bg-theme-text/5 text-theme-text'
+                      : 'border-theme-border'
+                  )}
+                >
+                  {parseProgress >= 20 ? '✓' : '1'}
                 </div>
                 <span>分析文档拓扑，解包并提取基础语料</span>
               </div>
-              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 50 ? "text-theme-text font-medium" : "text-theme-muted")}>
-                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 50 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
-                  {parseProgress >= 50 ? "✓" : "2"}
+              <div
+                className={cn(
+                  'flex items-center gap-3 text-xs transition-opacity duration-300',
+                  parseProgress >= 50 ? 'text-theme-text font-medium' : 'text-theme-muted'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                    parseProgress >= 50
+                      ? 'border-theme-text bg-theme-text/5 text-theme-text'
+                      : 'border-theme-border'
+                  )}
+                >
+                  {parseProgress >= 50 ? '✓' : '2'}
                 </div>
                 <span>跨文档实体检索，标记角色与人设底稿</span>
               </div>
-              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 73 ? "text-theme-text font-medium" : "text-theme-muted")}>
-                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 73 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
-                  {parseProgress >= 73 ? "✓" : "3"}
+              <div
+                className={cn(
+                  'flex items-center gap-3 text-xs transition-opacity duration-300',
+                  parseProgress >= 73 ? 'text-theme-text font-medium' : 'text-theme-muted'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                    parseProgress >= 73
+                      ? 'border-theme-text bg-theme-text/5 text-theme-text'
+                      : 'border-theme-border'
+                  )}
+                >
+                  {parseProgress >= 73 ? '✓' : '3'}
                 </div>
                 <span>提取多维关系连线，梳理设定关联脉络</span>
               </div>
-              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 88 ? "text-theme-text font-medium" : "text-theme-muted")}>
-                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 88 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
-                  {parseProgress >= 88 ? "✓" : "4"}
+              <div
+                className={cn(
+                  'flex items-center gap-3 text-xs transition-opacity duration-300',
+                  parseProgress >= 88 ? 'text-theme-text font-medium' : 'text-theme-muted'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                    parseProgress >= 88
+                      ? 'border-theme-text bg-theme-text/5 text-theme-text'
+                      : 'border-theme-border'
+                  )}
+                >
+                  {parseProgress >= 88 ? '✓' : '4'}
                 </div>
                 <span>重构叙事大纲冲突，提取时间线与未决悬念</span>
               </div>
-              <div className={cn("flex items-center gap-3 text-xs transition-opacity duration-300", parseProgress >= 96 ? "text-theme-text font-medium" : "text-theme-muted")}>
-                <div className={cn("flex h-5 w-5 items-center justify-center rounded-full border text-[10px]", parseProgress >= 96 ? "border-theme-text bg-theme-text/5 text-theme-text" : "border-theme-border")}>
-                  {parseProgress >= 96 ? "✓" : "5"}
+              <div
+                className={cn(
+                  'flex items-center gap-3 text-xs transition-opacity duration-300',
+                  parseProgress >= 96 ? 'text-theme-text font-medium' : 'text-theme-muted'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                    parseProgress >= 96
+                      ? 'border-theme-text bg-theme-text/5 text-theme-text'
+                      : 'border-theme-border'
+                  )}
+                >
+                  {parseProgress >= 96 ? '✓' : '5'}
                 </div>
                 <span>执行自适应质量审计，预防剧情逻辑崩坏</span>
               </div>
@@ -917,10 +1074,10 @@ export function ContinuationImportView({ onBack, onEnterEditor, initialNovelId }
 
   return (
     <div className="h-full overflow-y-auto bg-theme-bg/30">
-      {isParsing 
-        ? renderParsingStage() 
-        : stage === 'upload' 
-          ? renderUploadStage() 
+      {isParsing
+        ? renderParsingStage()
+        : stage === 'upload'
+          ? renderUploadStage()
           : renderConfirmStage()}
     </div>
   );

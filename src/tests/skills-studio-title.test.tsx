@@ -19,7 +19,9 @@ vi.mock('../lib/db-transport', () => ({
 
 vi.mock('../lib/product-events-client', () => ({
   createProductEventSessionId: vi.fn((scope = 'session') => `${scope}:test-session`),
-  createProductEventId: vi.fn((action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`),
+  createProductEventId: vi.fn(
+    (action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`
+  ),
   recordProductEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -33,7 +35,22 @@ describe('SkillsStudioView product boundary', () => {
 
   test('returns an editor-origin visit to the current chapter', async () => {
     const onNavigate = vi.fn();
-    render(<SkillsStudioView selectedNovel={{ id: 'novel-1', title: '作品', authorId: 'local', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 }} returnView="editor" targetChapterId="chapter-1" onNavigate={onNavigate} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={{
+          id: 'novel-1',
+          title: '作品',
+          authorId: 'local',
+          summary: '',
+          status: 'ongoing',
+          createdAt: 1,
+          updatedAt: 1,
+        }}
+        returnView="editor"
+        targetChapterId="chapter-1"
+        onNavigate={onNavigate}
+      />
+    );
 
     expect(await screen.findByText('能力配置会带回刚才那一章，不需要重新找章节。')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '回到刚才章节写作' }));

@@ -5,33 +5,71 @@ import { OutlineGovernancePanel } from '../components/book-factory/OutlineGovern
 import { OutlineTab } from '../components/book-factory/OutlineTab';
 
 const mocks = vi.hoisted(() => ({
-  listOutlines: vi.fn(), listCanonPatches: vi.fn(), activateOutline: vi.fn(), archiveOutline: vi.fn(),
+  listOutlines: vi.fn(),
+  listCanonPatches: vi.fn(),
+  activateOutline: vi.fn(),
+  archiveOutline: vi.fn(),
   getDatabaseGenerationSnapshot: vi.fn(async () => 1),
-  acceptCanonPatch: vi.fn(), rejectCanonPatch: vi.fn(), subscribe: vi.fn(),
+  acceptCanonPatch: vi.fn(),
+  rejectCanonPatch: vi.fn(),
+  subscribe: vi.fn(),
 }));
 vi.mock('../lib/outline-client', () => ({
-  listOutlines: mocks.listOutlines, listCanonPatches: mocks.listCanonPatches,
+  listOutlines: mocks.listOutlines,
+  listCanonPatches: mocks.listCanonPatches,
   getDatabaseGenerationSnapshot: mocks.getDatabaseGenerationSnapshot,
-  activateOutline: mocks.activateOutline, archiveOutline: mocks.archiveOutline,
-  acceptCanonPatch: mocks.acceptCanonPatch, rejectCanonPatch: mocks.rejectCanonPatch,
+  activateOutline: mocks.activateOutline,
+  archiveOutline: mocks.archiveOutline,
+  acceptCanonPatch: mocks.acceptCanonPatch,
+  rejectCanonPatch: mocks.rejectCanonPatch,
   subscribeToOutlineGovernanceChanges: mocks.subscribe,
 }));
 
-const master = (id: string, status: 'active' | 'candidate') => ({ id, novelId: 'n1', level: 'master' as const, scope: {}, content: id, source: 'user' as const, status });
-const scoped = (id: string, level: 'volume' | 'chapter', status: 'active' | 'candidate') => ({ id, novelId: 'n1', level, scope: level === 'volume' ? { volumeName: '第一卷' } : { chapterStart: 2, chapterEnd: 3 }, content: id, source: 'user' as const, status });
+const master = (id: string, status: 'active' | 'candidate') => ({
+  id,
+  novelId: 'n1',
+  level: 'master' as const,
+  scope: {},
+  content: id,
+  source: 'user' as const,
+  status,
+});
+const scoped = (id: string, level: 'volume' | 'chapter', status: 'active' | 'candidate') => ({
+  id,
+  novelId: 'n1',
+  level,
+  scope: level === 'volume' ? { volumeName: '第一卷' } : { chapterStart: 2, chapterEnd: 3 },
+  content: id,
+  source: 'user' as const,
+  status,
+});
 
 describe('OutlineGovernancePanel', () => {
   let notify: (() => void) | undefined;
   afterEach(() => cleanup());
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.listOutlines.mockResolvedValue([master('m-active', 'active'), master('m-candidate', 'candidate'), master('audit-report', 'candidate'), scoped('v1', 'volume', 'candidate'), scoped('c1', 'chapter', 'active')]);
-    mocks.listCanonPatches.mockResolvedValue([{ id: 'p1', novelId: 'n1', baseFingerprint: 'x', operations: [], status: 'pending' }, { id: 'p-stale', novelId: 'n1', baseFingerprint: 'y', operations: [], status: 'stale' }]);
+    mocks.listOutlines.mockResolvedValue([
+      master('m-active', 'active'),
+      master('m-candidate', 'candidate'),
+      master('audit-report', 'candidate'),
+      scoped('v1', 'volume', 'candidate'),
+      scoped('c1', 'chapter', 'active'),
+    ]);
+    mocks.listCanonPatches.mockResolvedValue([
+      { id: 'p1', novelId: 'n1', baseFingerprint: 'x', operations: [], status: 'pending' },
+      { id: 'p-stale', novelId: 'n1', baseFingerprint: 'y', operations: [], status: 'stale' },
+    ]);
     mocks.activateOutline.mockResolvedValue({ archivedIds: [], demotedIds: [] });
     mocks.archiveOutline.mockResolvedValue({ archived: true });
     mocks.acceptCanonPatch.mockResolvedValue({ status: 'accepted' });
     mocks.rejectCanonPatch.mockResolvedValue({ status: 'rejected' });
-    mocks.subscribe.mockImplementation((listener: () => void) => { notify = listener; return () => { notify = undefined; }; });
+    mocks.subscribe.mockImplementation((listener: () => void) => {
+      notify = listener;
+      return () => {
+        notify = undefined;
+      };
+    });
   });
 
   test('marks one active master and candidate radio is single-select with activation', async () => {
@@ -70,7 +108,11 @@ describe('OutlineGovernancePanel', () => {
   });
 
   test('refreshes and exposes stale state when accepting a stale pending patch', async () => {
-    mocks.acceptCanonPatch.mockRejectedValueOnce({ code: 'CANON_PATCH_STALE', status: 409, message: '基线已变化' });
+    mocks.acceptCanonPatch.mockRejectedValueOnce({
+      code: 'CANON_PATCH_STALE',
+      status: 409,
+      message: '基线已变化',
+    });
     render(<OutlineGovernancePanel novelId="n1" />);
     await screen.findByText(/p1/);
     fireEvent.click(screen.getByRole('button', { name: '接受补丁' }));
@@ -94,7 +136,10 @@ describe('OutlineGovernancePanel', () => {
     mocks.listOutlines.mockResolvedValue([
       {
         ...master('m-clean', 'active'),
-        content: '# 《左道指南》逐章细纲数据库\n' + '设定与剧情正文。'.repeat(20) + '骑手的店铺页面评分4.9，两千多单。',
+        content:
+          '# 《左道指南》逐章细纲数据库\n' +
+          '设定与剧情正文。'.repeat(20) +
+          '骑手的店铺页面评分4.9，两千多单。',
       },
     ]);
     render(<OutlineGovernancePanel novelId="n1" />);
@@ -113,7 +158,14 @@ describe('OutlineGovernancePanel', () => {
 
   test('refreshes on subscription, and ignores stale request after novel switch', async () => {
     let resolveOld!: (value: unknown) => void;
-    mocks.listOutlines.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; })).mockResolvedValueOnce([master('new', 'active')]);
+    mocks.listOutlines
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOld = resolve;
+          })
+      )
+      .mockResolvedValueOnce([master('new', 'active')]);
     const { rerender } = render(<OutlineGovernancePanel novelId="old" />);
     rerender(<OutlineGovernancePanel novelId="new" />);
     await screen.findByText('new');
@@ -125,7 +177,20 @@ describe('OutlineGovernancePanel', () => {
   });
 
   test('keeps semantic controls and narrow layout class', () => {
-    const { container } = render(<><OutlineGovernancePanel /><OutlineTab onGenerateOutline={vi.fn(async () => {})} isGeneratingOutline={false} onGlobalOutlineChange={vi.fn()} chapters={[]} currentChapter={null} onSelectChapter={vi.fn()} selectedContinuationPack={null} /></>);
+    const { container } = render(
+      <>
+        <OutlineGovernancePanel />
+        <OutlineTab
+          onGenerateOutline={vi.fn(async () => {})}
+          isGeneratingOutline={false}
+          onGlobalOutlineChange={vi.fn()}
+          chapters={[]}
+          currentChapter={null}
+          onSelectChapter={vi.fn()}
+          selectedContinuationPack={null}
+        />
+      </>
+    );
     expect(screen.queryByRole('button', { name: '设为主纲' })).toBeNull();
     expect(container.querySelector('.sm\\:flex-row')).toBeTruthy();
   });

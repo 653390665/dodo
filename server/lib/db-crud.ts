@@ -13,7 +13,9 @@ export interface CrudConfig<T, TRow> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createCrudHelpers<T, TRow extends Record<string, any>>(config: CrudConfig<T, TRow>) {
+export function createCrudHelpers<T, TRow extends Record<string, any>>(
+  config: CrudConfig<T, TRow>
+) {
   const {
     tableName,
     rowToEntity,

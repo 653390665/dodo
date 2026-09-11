@@ -21,18 +21,33 @@ vi.mock('../lib/chapter-client', () => ({
 import { useDraftGeneration } from '../lib/hooks/generation/useDraftGeneration';
 
 const novel: Novel = {
-  id: 'novel-1', title: 'Novel', authorId: 'user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: 'Novel',
+  authorId: 'user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: 'Chapter', content: 'baseline', sceneBeats: 'beats',
-  order: 1, wordCount: 8, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: 'Chapter',
+  content: 'baseline',
+  sceneBeats: 'beats',
+  order: 1,
+  wordCount: 8,
+  createdAt: 1,
+  updatedAt: 1,
 };
-const generatedDraft = Array.from({ length: 40 }, (_, index) => [
-  `生成场景${index + 1}从一声门响开始，林舟先确认水痕方向，再把手从桌沿收回。`,
-  '对方的停顿托住了下一句对白，灯影沿着地面移动，逼得两人的站位同时改变。',
-  '他将线索压回袖中，听见远处锁舌回应，局势因此向门外又推进一步。',
-  '雨声盖住半句话，留下的空白反而指向更近的危险。',
-].join('')).join('\n\n');
+const generatedDraft = Array.from({ length: 40 }, (_, index) =>
+  [
+    `生成场景${index + 1}从一声门响开始，林舟先确认水痕方向，再把手从桌沿收回。`,
+    '对方的停顿托住了下一句对白，灯影沿着地面移动，逼得两人的站位同时改变。',
+    '他将线索压回袖中，听见远处锁舌回应，局势因此向门外又推进一步。',
+    '雨声盖住半句话，留下的空白反而指向更近的危险。',
+  ].join('')
+).join('\n\n');
 
 function setup(flushPendingEditorWrites: () => Promise<void>, sessionCardIds?: string[]) {
   const setCurrentChapter = vi.fn();
@@ -59,7 +74,7 @@ function setup(flushPendingEditorWrites: () => Promise<void>, sessionCardIds?: s
     setCandidate,
     setUserIntent: vi.fn(),
     setCurrentChapter,
-    buildAgentContext: vi.fn(() => ({} as never)),
+    buildAgentContext: vi.fn(() => ({}) as never),
     pushToUndoHistory: vi.fn(),
     getCurrentFitScore: vi.fn(() => 1),
     recordSkillUsage,
@@ -84,12 +99,14 @@ describe('draft generation save and stream gates', () => {
   });
 
   test('partial draft EOF restores the baseline and creates no success records', async () => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => String(input).includes('/api/db/generation')
-      ? Response.json({ databaseGeneration: 11 })
-      : new Response(
-        'data: {"type":"token","content":"partial"}\n\n',
-        { status: 200, headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '11' } },
-      )) as typeof fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/api/db/generation')
+        ? Response.json({ databaseGeneration: 11 })
+        : new Response('data: {"type":"token","content":"partial"}\n\n', {
+            status: 200,
+            headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '11' },
+          })
+    ) as typeof fetch;
     const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
 
     await act(() => hook.result.current.handleGenerateContent());
@@ -102,7 +119,10 @@ describe('draft generation save and stream gates', () => {
     const errorUpdater = props.setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
     expect(errorUpdater(runningState)).toMatchObject({
-      status: 'error', operation: 'draft', message: 'generation failed', retryable: true,
+      status: 'error',
+      operation: 'draft',
+      message: 'generation failed',
+      retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
   });
@@ -118,7 +138,10 @@ describe('draft generation save and stream gates', () => {
     const errorUpdater = props.setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
     expect(errorUpdater(runningState)).toMatchObject({
-      status: 'error', operation: 'beats', message: 'generation failed', retryable: true,
+      status: 'error',
+      operation: 'beats',
+      message: 'generation failed',
+      retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
   });
@@ -136,7 +159,7 @@ describe('draft generation save and stream gates', () => {
       9,
       undefined,
       expect.any(Function),
-      expect.any(AbortSignal),
+      expect.any(AbortSignal)
     );
     expect(mocks.updateChapter).toHaveBeenCalledTimes(1);
     expect(mocks.updateChapter).toHaveBeenCalledWith(chapter.id, { sceneBeats: 'new beats' }, 9);
@@ -155,12 +178,17 @@ describe('draft generation save and stream gates', () => {
     expect(mocks.updateChapter).toHaveBeenCalledTimes(1);
     expect(props.setCurrentChapter).toHaveBeenCalledTimes(1);
     const restore = props.setCurrentChapter.mock.calls[0][0] as (value: Chapter) => Chapter;
-    expect(restore({ ...chapter, sceneBeats: chapter.sceneBeats })).toMatchObject({ sceneBeats: chapter.sceneBeats });
+    expect(restore({ ...chapter, sceneBeats: chapter.sceneBeats })).toMatchObject({
+      sceneBeats: chapter.sceneBeats,
+    });
     const runningState = props.setAiActionState.mock.calls[0]?.[0];
     const errorUpdater = props.setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
     expect(errorUpdater(runningState)).toMatchObject({
-      status: 'error', operation: 'beats', message: 'generation failed', retryable: true,
+      status: 'error',
+      operation: 'beats',
+      message: 'generation failed',
+      retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
   });
@@ -177,7 +205,10 @@ describe('draft generation save and stream gates', () => {
     const errorUpdater = props.setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
     expect(errorUpdater(runningState)).toMatchObject({
-      status: 'error', operation: 'beats', message: 'generation failed', retryable: true,
+      status: 'error',
+      operation: 'beats',
+      message: 'generation failed',
+      retryable: true,
     });
     expect(alert).not.toHaveBeenCalled();
   });
@@ -185,7 +216,11 @@ describe('draft generation save and stream gates', () => {
   test('a stale scene-beat failure cannot overwrite the current AI action state', async () => {
     let rejectGeneration!: (error: Error) => void;
     globalThis.fetch = vi.fn(async () => Response.json({ databaseGeneration: 12 })) as typeof fetch;
-    mocks.editorAgentPhase.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectGeneration = reject; }));
+    mocks.editorAgentPhase.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectGeneration = reject;
+      })
+    );
     const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
 
     const pending = hook.result.current.handleGenerateBeats();
@@ -196,15 +231,24 @@ describe('draft generation save and stream gates', () => {
     await pending;
 
     expect(props.setAiActionState).toHaveBeenCalledTimes(1);
-    expect(props.setAiActionState).toHaveBeenCalledWith(expect.objectContaining({ status: 'running', operation: 'beats' }));
+    expect(props.setAiActionState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'running', operation: 'beats' })
+    );
     expect(alert).not.toHaveBeenCalled();
   });
 
   test('scene-beat persistence cannot update another chapter after the request becomes stale', async () => {
     let resolveSave!: (saved: boolean) => void;
     globalThis.fetch = vi.fn(async () => Response.json({ databaseGeneration: 12 })) as typeof fetch;
-    mocks.editorAgentPhase.mockResolvedValueOnce({ text: 'chapter A beats', databaseGeneration: 12 });
-    mocks.updateChapter.mockReturnValueOnce(new Promise((resolve) => { resolveSave = resolve; }));
+    mocks.editorAgentPhase.mockResolvedValueOnce({
+      text: 'chapter A beats',
+      databaseGeneration: 12,
+    });
+    mocks.updateChapter.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      })
+    );
     const { hook, props } = setup(vi.fn().mockResolvedValue(undefined));
 
     const pending = hook.result.current.handleGenerateBeats();
@@ -220,18 +264,28 @@ describe('draft generation save and stream gates', () => {
   });
 
   test('auxiliary version failure does not roll back an already committed draft', async () => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => String(input).includes('/api/db/generation')
-      ? Response.json({ databaseGeneration: 11 })
-      : new Response(
-        `data: ${JSON.stringify({ type: 'token', content: generatedDraft })}\n\ndata: ${JSON.stringify({ type: 'done', text: generatedDraft })}\n\n`,
-        { status: 200, headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '11' } },
-      )) as typeof fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/api/db/generation')
+        ? Response.json({ databaseGeneration: 11 })
+        : new Response(
+            `data: ${JSON.stringify({ type: 'token', content: generatedDraft })}\n\ndata: ${JSON.stringify({ type: 'done', text: generatedDraft })}\n\n`,
+            {
+              status: 200,
+              headers: {
+                'content-type': 'text/event-stream',
+                'x-inkflow-database-generation': '11',
+              },
+            }
+          )
+    ) as typeof fetch;
     mocks.createChapterVersion.mockRejectedValueOnce(new Error('version store failed'));
     const { hook, props, setCandidate } = setup(vi.fn().mockResolvedValue(undefined));
 
     await act(() => hook.result.current.handleGenerateContent());
 
-    expect(setCandidate).toHaveBeenCalledWith(expect.objectContaining({ operation: 'draft', content: `baseline\n\n${generatedDraft}` }));
+    expect(setCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'draft', content: `baseline\n\n${generatedDraft}` })
+    );
     expect(mocks.updateChapter).not.toHaveBeenCalled();
     expect(mocks.createChapterVersion).not.toHaveBeenCalled();
     expect(props.recordSkillUsage).not.toHaveBeenCalled();
@@ -247,7 +301,10 @@ describe('draft generation save and stream gates', () => {
       }
       return new Response(
         `data: ${JSON.stringify({ type: 'token', content: generatedDraft })}\n\ndata: ${JSON.stringify({ type: 'done', text: generatedDraft })}\n\n`,
-        { status: 200, headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '17' } },
+        {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream', 'x-inkflow-database-generation': '17' },
+        }
       );
     });
     globalThis.fetch = fetchMock as typeof fetch;
@@ -255,7 +312,9 @@ describe('draft generation save and stream gates', () => {
 
     await act(() => hook.result.current.handleGenerateContent());
 
-    const draftCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/orchestrate-draft');
+    const draftCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === '/api/orchestrate-draft'
+    );
     expect(draftCall).toBeDefined();
     expect(JSON.parse(String(draftCall?.[1]?.body))).toMatchObject({
       novelId: novel.id,

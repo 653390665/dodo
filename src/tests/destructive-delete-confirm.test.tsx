@@ -63,7 +63,9 @@ describe('破坏性删除确认（ForeshadowingPanel）', () => {
     await renderAndClickDelete();
     await waitFor(() => expect(mocks.mockAppConfirm).toHaveBeenCalledTimes(1));
     // 冲刷微任务，确保没有延迟触发的删除调用
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(mocks.mockDeleteForeshadowing).not.toHaveBeenCalled();
   });
 
@@ -72,11 +74,9 @@ describe('破坏性删除确认（ForeshadowingPanel）', () => {
     await renderAndClickDelete();
     await waitFor(() => expect(mocks.mockDeleteForeshadowing).toHaveBeenCalledTimes(1));
     expect(mocks.mockAppConfirm).toHaveBeenCalledTimes(1);
-    expect(mocks.mockAppConfirm).toHaveBeenCalledWith(
-      '删除该伏笔？',
-      '删除后不可撤销。',
-      { confirmLabel: '删除' },
-    );
+    expect(mocks.mockAppConfirm).toHaveBeenCalledWith('删除该伏笔？', '删除后不可撤销。', {
+      confirmLabel: '删除',
+    });
     expect(mocks.mockDeleteForeshadowing).toHaveBeenCalledWith('foreshadowing-1');
   });
 });

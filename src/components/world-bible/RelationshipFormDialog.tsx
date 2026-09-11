@@ -31,7 +31,15 @@ const ENTITY_TYPES = [
 ] as const;
 
 const RELATIONSHIP_PRESETS = [
-  '盟友', '敌对', '师徒', '恋人', '亲属', '同门', '上司', '下属', '对手',
+  '盟友',
+  '敌对',
+  '师徒',
+  '恋人',
+  '亲属',
+  '同门',
+  '上司',
+  '下属',
+  '对手',
 ] as const;
 
 type EntityType = 'character' | 'location' | 'item' | 'faction';
@@ -48,14 +56,19 @@ function getEntitiesByType(
   characters: Character[],
   locations: Location[],
   items: Item[],
-  factions: Faction[],
+  factions: Faction[]
 ) {
   switch (type) {
-    case 'character': return characters;
-    case 'location': return locations;
-    case 'item': return items;
-    case 'faction': return factions;
-    default: return [];
+    case 'character':
+      return characters;
+    case 'location':
+      return locations;
+    case 'item':
+      return items;
+    case 'faction':
+      return factions;
+    default:
+      return [];
   }
 }
 
@@ -65,7 +78,7 @@ function getEntityName(
   characters: Character[],
   locations: Location[],
   items: Item[],
-  factions: Faction[],
+  factions: Faction[]
 ): string {
   const list = getEntitiesByType(type, characters, locations, items, factions);
   return list.find((e) => e.id === id)?.name || id.slice(0, 8);
@@ -74,11 +87,14 @@ function getEntityName(
 function isDatabaseGenerationConflict(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const details = error as { status?: unknown; code?: unknown };
-  return details.status === 409 || [
-    'DB_GENERATION_CONFLICT',
-    'DATABASE_GENERATION_STALE',
-    'DATABASE_GENERATION_MISMATCH',
-  ].includes(details.code as string);
+  return (
+    details.status === 409 ||
+    [
+      'DB_GENERATION_CONFLICT',
+      'DATABASE_GENERATION_STALE',
+      'DATABASE_GENERATION_MISMATCH',
+    ].includes(details.code as string)
+  );
 }
 
 export function RelationshipFormDialog({
@@ -121,7 +137,9 @@ export function RelationshipFormDialog({
       setTargetType(r.targetType as EntityType);
       setTargetId(r.targetId);
       setDescription(r.description || '');
-      const preset = RELATIONSHIP_PRESETS.includes(r.relationshipType as typeof RELATIONSHIP_PRESETS[number]);
+      const preset = RELATIONSHIP_PRESETS.includes(
+        r.relationshipType as (typeof RELATIONSHIP_PRESETS)[number]
+      );
       setIsCustom(!preset);
       setRelationshipType(preset ? r.relationshipType : '');
       setCustomRelType(preset ? '' : r.relationshipType);
@@ -190,19 +208,30 @@ export function RelationshipFormDialog({
           relationshipType: resolvedRelType,
           description: description.trim() || undefined,
         };
-        const ok = await updateEntityRelationshipClient(existingRelationship.id, data, databaseGeneration ?? undefined);
+        const ok = await updateEntityRelationshipClient(
+          existingRelationship.id,
+          data,
+          databaseGeneration ?? undefined
+        );
         if (!ok) throw new Error('更新失败');
         onSaved({ ...existingRelationship, ...data });
       } else if (mode === 'delete' && existingRelationship) {
-        const ok = await deleteEntityRelationshipClient(existingRelationship.id, databaseGeneration ?? undefined);
+        const ok = await deleteEntityRelationshipClient(
+          existingRelationship.id,
+          databaseGeneration ?? undefined
+        );
         if (!ok) throw new Error('删除失败');
         onDeleted(existingRelationship.id);
       }
       onClose();
     } catch (e: unknown) {
-      setError(isDatabaseGenerationConflict(e)
-        ? '数据库已变化，已保留本地输入。请刷新后重试。'
-        : e instanceof Error ? e.message : '操作失败，请重试');
+      setError(
+        isDatabaseGenerationConflict(e)
+          ? '数据库已变化，已保留本地输入。请刷新后重试。'
+          : e instanceof Error
+            ? e.message
+            : '操作失败，请重试'
+      );
     } finally {
       setSaving(false);
     }
@@ -213,7 +242,10 @@ export function RelationshipFormDialog({
   const deleteRel = existingRelationship;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -223,12 +255,19 @@ export function RelationshipFormDialog({
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h3 id="relationship-dialog-title" className="text-lg font-bold text-theme-text font-serif">
+          <h3
+            id="relationship-dialog-title"
+            className="text-lg font-bold text-theme-text font-serif"
+          >
             {mode === 'create' && '新建关系'}
             {mode === 'edit' && '编辑关系'}
             {mode === 'delete' && '删除关系'}
           </h3>
-          <button onClick={onClose} aria-label="关闭" className="text-theme-muted hover:text-theme-text transition-colors">
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="text-theme-muted hover:text-theme-text transition-colors"
+          >
             <X size={18} />
           </button>
         </div>
@@ -237,14 +276,39 @@ export function RelationshipFormDialog({
         {mode === 'delete' && deleteRel && (
           <div className="space-y-4">
             <p className="text-sm text-theme-text leading-relaxed">
-              确定要删除「{getEntityName(deleteRel.sourceType as EntityType, deleteRel.sourceId, characters, locations, items, factions)} → {deleteRel.relationshipType} → {getEntityName(deleteRel.targetType as EntityType, deleteRel.targetId, characters, locations, items, factions)}」的关系吗？
+              确定要删除「
+              {getEntityName(
+                deleteRel.sourceType as EntityType,
+                deleteRel.sourceId,
+                characters,
+                locations,
+                items,
+                factions
+              )}{' '}
+              → {deleteRel.relationshipType} →{' '}
+              {getEntityName(
+                deleteRel.targetType as EntityType,
+                deleteRel.targetId,
+                characters,
+                locations,
+                items,
+                factions
+              )}
+              」的关系吗？
             </p>
             {error && <p className="text-xs text-red-500">{error}</p>}
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm text-theme-muted hover:text-theme-text rounded-xl border border-theme-border/50 hover:bg-theme-sidebar/50 transition-all">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-theme-muted hover:text-theme-text rounded-xl border border-theme-border/50 hover:bg-theme-sidebar/50 transition-all"
+              >
                 取消
               </button>
-              <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-md transition-all disabled:opacity-50">
+              <button
+                onClick={handleSubmit}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-md transition-all disabled:opacity-50"
+              >
                 <Trash2 size={14} />
                 {saving ? '删除中...' : '确认删除'}
               </button>
@@ -257,7 +321,12 @@ export function RelationshipFormDialog({
           <div className="space-y-4">
             {/* Source entity */}
             <div className="space-y-2">
-              <label htmlFor="source-type" className="text-xs font-bold text-theme-muted uppercase tracking-wide">起始实体</label>
+              <label
+                htmlFor="source-type"
+                className="text-xs font-bold text-theme-muted uppercase tracking-wide"
+              >
+                起始实体
+              </label>
               <div className="flex gap-2">
                 <select
                   id="source-type"
@@ -267,7 +336,9 @@ export function RelationshipFormDialog({
                   className="w-1/3 p-2 text-sm border border-theme-border/50 rounded-lg bg-theme-sidebar/50 text-theme-text outline-none focus:border-theme-accent"
                 >
                   {ENTITY_TYPES.map((t) => (
-                    <option key={t.value} value={t.value} title={t.label}>{t.label}</option>
+                    <option key={t.value} value={t.value} title={t.label}>
+                      {t.label}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -278,7 +349,9 @@ export function RelationshipFormDialog({
                 >
                   <option value="">选择{ENTITY_TYPE_LABELS[sourceType] || '实体'}</option>
                   {sourceEntities.map((e) => (
-                    <option key={e.id} value={e.id} title={e.name}>{e.name}</option>
+                    <option key={e.id} value={e.id} title={e.name}>
+                      {e.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -286,7 +359,12 @@ export function RelationshipFormDialog({
 
             {/* Target entity */}
             <div className="space-y-2">
-              <label htmlFor="target-type" className="text-xs font-bold text-theme-muted uppercase tracking-wide">目标实体</label>
+              <label
+                htmlFor="target-type"
+                className="text-xs font-bold text-theme-muted uppercase tracking-wide"
+              >
+                目标实体
+              </label>
               <div className="flex gap-2">
                 <select
                   id="target-type"
@@ -295,7 +373,9 @@ export function RelationshipFormDialog({
                   className="w-1/3 p-2 text-sm border border-theme-border/50 rounded-lg bg-theme-sidebar/50 text-theme-text outline-none focus:border-theme-accent"
                 >
                   {ENTITY_TYPES.map((t) => (
-                    <option key={t.value} value={t.value} title={t.label}>{t.label}</option>
+                    <option key={t.value} value={t.value} title={t.label}>
+                      {t.label}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -306,7 +386,9 @@ export function RelationshipFormDialog({
                 >
                   <option value="">选择{ENTITY_TYPE_LABELS[targetType] || '实体'}</option>
                   {targetEntities.map((e) => (
-                    <option key={e.id} value={e.id} title={e.name}>{e.name}</option>
+                    <option key={e.id} value={e.id} title={e.name}>
+                      {e.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -314,7 +396,12 @@ export function RelationshipFormDialog({
 
             {/* Relationship type */}
             <div className="space-y-2">
-              <label htmlFor="custom-rel-type" className="text-xs font-bold text-theme-muted uppercase tracking-wide">关系类型</label>
+              <label
+                htmlFor="custom-rel-type"
+                className="text-xs font-bold text-theme-muted uppercase tracking-wide"
+              >
+                关系类型
+              </label>
               {isCustom ? (
                 <div className="flex gap-2">
                   <input
@@ -325,7 +412,10 @@ export function RelationshipFormDialog({
                     className="flex-1 p-2 text-sm border border-theme-border/50 rounded-lg bg-theme-sidebar/50 text-theme-text outline-none focus:border-theme-accent"
                   />
                   <button
-                    onClick={() => { setIsCustom(false); setCustomRelType(''); }}
+                    onClick={() => {
+                      setIsCustom(false);
+                      setCustomRelType('');
+                    }}
                     className="px-3 py-2 text-xs text-theme-muted hover:text-theme-text border border-theme-border/50 rounded-lg hover:bg-theme-sidebar/50 transition-all shrink-0"
                   >
                     预设
@@ -358,7 +448,12 @@ export function RelationshipFormDialog({
 
             {/* Description */}
             <div className="space-y-2">
-              <label htmlFor="rel-description" className="text-xs font-bold text-theme-muted uppercase tracking-wide">描述（可选）</label>
+              <label
+                htmlFor="rel-description"
+                className="text-xs font-bold text-theme-muted uppercase tracking-wide"
+              >
+                描述（可选）
+              </label>
               <textarea
                 id="rel-description"
                 value={description}
@@ -373,7 +468,10 @@ export function RelationshipFormDialog({
 
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm text-theme-muted hover:text-theme-text rounded-xl border border-theme-border/50 hover:bg-theme-sidebar/50 transition-all">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-theme-muted hover:text-theme-text rounded-xl border border-theme-border/50 hover:bg-theme-sidebar/50 transition-all"
+              >
                 取消
               </button>
               <button

@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, BookOpen, Brain, Compass, FileCheck, Globe, Layers3, Loader2, Sliders, Sparkles, Upload, X } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  Brain,
+  Compass,
+  FileCheck,
+  Globe,
+  Layers3,
+  Loader2,
+  Sliders,
+  Sparkles,
+  Upload,
+  X,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
 import { fetchLlmConfig } from '../lib/config-client';
@@ -46,22 +59,77 @@ const GENRES = [
 ];
 
 const PLATFORMS = [
-  { id: 'tomato', label: '番茄平台', desc: '主打黄金三章爆发、脑洞大开、极速推进与高能爽点', icon: '🍅' },
-  { id: 'yuewen', label: '阅文平台', desc: '适合慢热铺陈、世界观庞大细致、主角长线成长、剧情考究', icon: '📚' },
-  { id: 'lofter', label: 'Lofter平台', desc: '人设极为饱满、轻快同人风、注重情绪共鸣、文笔细腻唯美', icon: '✨' },
+  {
+    id: 'tomato',
+    label: '番茄平台',
+    desc: '主打黄金三章爆发、脑洞大开、极速推进与高能爽点',
+    icon: '🍅',
+  },
+  {
+    id: 'yuewen',
+    label: '阅文平台',
+    desc: '适合慢热铺陈、世界观庞大细致、主角长线成长、剧情考究',
+    icon: '📚',
+  },
+  {
+    id: 'lofter',
+    label: 'Lofter平台',
+    desc: '人设极为饱满、轻快同人风、注重情绪共鸣、文笔细腻唯美',
+    icon: '✨',
+  },
 ];
 
 const LENGTHS = [
   { id: 'long', label: '百万长篇', words: 1500000, desc: '波澜壮阔的世界观与升级主线', icon: '🌟' },
-  { id: 'medium', label: '中长篇规划', words: 300000, desc: '主线极其明确，节奏紧密不拖沓', icon: '📖' },
-  { id: 'short', label: '精致短篇', words: 80000, desc: '戏剧冲突一气呵成，适合极速突进', icon: '✍️' },
+  {
+    id: 'medium',
+    label: '中长篇规划',
+    words: 300000,
+    desc: '主线极其明确，节奏紧密不拖沓',
+    icon: '📖',
+  },
+  {
+    id: 'short',
+    label: '精致短篇',
+    words: 80000,
+    desc: '戏剧冲突一气呵成，适合极速突进',
+    icon: '✍️',
+  },
 ];
 
 const STYLES = [
-  { id: 'relaxed', label: '轻松爽快', desc: '解压幽默、段子吐槽、高糖无雷无郁闷', icon: '🥳', pacing: 'tight' as const, focus: 'character' as const },
-  { id: 'fast', label: '剧情高能', desc: '快节奏推进、高潮不断、悬念丛生绝无尿点', icon: '🔥', pacing: 'tight' as const, focus: 'plot' as const },
-  { id: 'deep', label: '厚重深沉', desc: '强烈的史诗宿命感、探讨人性、角色深度挣扎', icon: '🏔️', pacing: 'balanced' as const, focus: 'world' as const },
-  { id: 'elegant', label: '文笔典雅', desc: '追求诗意隽永的文字美感、意境深远、古风留白', icon: '🎭', pacing: 'slow-burn' as const, focus: 'character' as const },
+  {
+    id: 'relaxed',
+    label: '轻松爽快',
+    desc: '解压幽默、段子吐槽、高糖无雷无郁闷',
+    icon: '🥳',
+    pacing: 'tight' as const,
+    focus: 'character' as const,
+  },
+  {
+    id: 'fast',
+    label: '剧情高能',
+    desc: '快节奏推进、高潮不断、悬念丛生绝无尿点',
+    icon: '🔥',
+    pacing: 'tight' as const,
+    focus: 'plot' as const,
+  },
+  {
+    id: 'deep',
+    label: '厚重深沉',
+    desc: '强烈的史诗宿命感、探讨人性、角色深度挣扎',
+    icon: '🏔️',
+    pacing: 'balanced' as const,
+    focus: 'world' as const,
+  },
+  {
+    id: 'elegant',
+    label: '文笔典雅',
+    desc: '追求诗意隽永的文字美感、意境深远、古风留白',
+    icon: '🎭',
+    pacing: 'slow-burn' as const,
+    focus: 'character' as const,
+  },
 ];
 
 export function WelcomeView({
@@ -97,7 +165,9 @@ export function WelcomeView({
   const [selectedCardForRec, setSelectedCardForRec] = useState<StoryIdeaCard | null>(null);
   const [recResult, setRecResult] = useState<OpeningRecommendationResult | null>(null);
   const [llmAvailability, setLlmAvailability] = useState<LlmAvailabilityState | null>(null);
-  const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
+  const [embeddingStatus, setEmbeddingStatus] = useState<
+    'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'
+  >('unknown');
 
   // 新开书拦截确认弹窗与引导气泡状态
   const [showConfirmDetailsModal, setShowConfirmDetailsModal] = useState(false);
@@ -129,7 +199,12 @@ export function WelcomeView({
   // 弹窗 Esc 关闭（对齐 SettingsModal 先例）
   useEffect(() => {
     if (!(selectedCardForRec && recResult)) return;
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setSelectedCardForRec(null); setRecResult(null); } };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedCardForRec(null);
+        setRecResult(null);
+      }
+    };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedCardForRec, recResult]);
@@ -137,14 +212,24 @@ export function WelcomeView({
   // 「生成设定确认单」为确认单类弹窗，防误触：仅支持 Esc，不做遮罩点击关闭
   useEffect(() => {
     if (!(showConfirmDetailsModal && confirmModalData)) return;
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowConfirmDetailsModal(false); setConfirmModalData(null); } };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowConfirmDetailsModal(false);
+        setConfirmModalData(null);
+      }
+    };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showConfirmDetailsModal, confirmModalData]);
 
   useEffect(() => {
     if (!(showGuidedBubble && bubbleData)) return;
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowGuidedBubble(false); setConfirmBubbleData(null); } };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowGuidedBubble(false);
+        setConfirmBubbleData(null);
+      }
+    };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showGuidedBubble, bubbleData]);
@@ -159,7 +244,12 @@ export function WelcomeView({
   useEffect(() => {
     listNovels().then((novels) => {
       setTotalNovelCount(novels.length);
-      setRecentNovels(novels.slice().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3));
+      setRecentNovels(
+        novels
+          .slice()
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .slice(0, 3)
+      );
     });
     fetchLlmConfig()
       .then(({ config, availability }) => {
@@ -190,9 +280,13 @@ export function WelcomeView({
       `【核心故事创意】: ${input.trim()}`,
       selectedGenre ? `【主打题材】: ${selectedGenre}` : '',
       selectedPlatform ? `【目标平台】: ${selectedPlatform}` : '',
-      selectedLengthLabel ? `【篇幅规划】: ${selectedLengthLabel} (${planning.expectedWordCount}字)` : '',
+      selectedLengthLabel
+        ? `【篇幅规划】: ${selectedLengthLabel} (${planning.expectedWordCount}字)`
+        : '',
       selectedStyleLabel ? `【风格偏好】: ${selectedStyleLabel}` : '',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const submitted = await submit(promptParts);
     if (submitted) {
@@ -235,7 +329,13 @@ export function WelcomeView({
     setIsPersistingStory(true);
     setPersistStoryError(null);
     try {
-      await onSelectStoryCard(bubbleData.card, planning, bubbleData.tags, targetView, bubbleData.defaultFlowId);
+      await onSelectStoryCard(
+        bubbleData.card,
+        planning,
+        bubbleData.tags,
+        targetView,
+        bubbleData.defaultFlowId
+      );
       if (openBibleAssistant) localStorage.setItem('inkflow_auto_open_bible_assistant', 'true');
       setShowGuidedBubble(false);
       setConfirmBubbleData(null);
@@ -249,34 +349,39 @@ export function WelcomeView({
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-theme-bg/25">
       <div className="max-w-6xl mx-auto px-6 py-8 sm:px-8 sm:py-10">
-
         {/* 全局布局格栅：在大屏幕下采用均衡的 4:8 左右分栏设计 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
           {/* ==================== 左栏：系统核心遥测与作品快查 ==================== */}
           <div className="lg:col-span-4 space-y-4">
-
             {/* 1. Terminal-inspired 终端遥测控制面板 */}
             <div className="bg-theme-sidebar/40 font-mono border border-theme-border/50 rounded-md p-4 text-xs space-y-4 shadow-sm relative overflow-hidden">
               {/* 顶部极简科技装饰条 */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-theme-accent/20 via-theme-accent/50 to-theme-accent/20" />
 
               <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
-                <span className="font-bold text-theme-accent tracking-wider">AI 创作状态监视器</span>
+                <span className="font-bold text-theme-accent tracking-wider">
+                  AI 创作状态监视器
+                </span>
                 {llmAvailability === 'connected' ? (
                   <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">{LLM_AVAILABILITY_COPY.connected.label}</span>
+                    <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">
+                      {LLM_AVAILABILITY_COPY.connected.label}
+                    </span>
                   </div>
                 ) : llmAvailability === 'unknown' || llmAvailability === null ? (
                   <div className="flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                    <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">{LLM_AVAILABILITY_COPY.unknown.label}</span>
+                    <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">
+                      {LLM_AVAILABILITY_COPY.unknown.label}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                    <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider">{LLM_AVAILABILITY_COPY.missing.label}</span>
+                    <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider">
+                      {LLM_AVAILABILITY_COPY.missing.label}
+                    </span>
                   </div>
                 )}
               </div>
@@ -296,18 +401,42 @@ export function WelcomeView({
                     {llmAvailability === null ? (
                       <span className="text-theme-muted">正在检测...</span>
                     ) : llmAvailability === 'unknown' ? (
-                      <span className="text-amber-500 font-bold">{LLM_AVAILABILITY_COPY.unknown.label}</span>
+                      <span className="text-amber-500 font-bold">
+                        {LLM_AVAILABILITY_COPY.unknown.label}
+                      </span>
                     ) : llmAvailability === 'connected' ? (
-                      <span className="text-theme-accent font-bold text-[10px]">{LLM_AVAILABILITY_COPY.connected.label}</span>
+                      <span className="text-theme-accent font-bold text-[10px]">
+                        {LLM_AVAILABILITY_COPY.connected.label}
+                      </span>
                     ) : (
-                      <span className="text-amber-500 font-bold">{LLM_AVAILABILITY_COPY.missing.label}</span>
+                      <span className="text-amber-500 font-bold">
+                        {LLM_AVAILABILITY_COPY.missing.label}
+                      </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-theme-muted">语义索引</span>
-                  <span className={embeddingStatus === 'ready' ? 'text-emerald-600 font-bold' : embeddingStatus === 'fallback' || embeddingStatus === 'initializing' || embeddingStatus === 'unknown' ? 'text-amber-600 font-bold' : 'text-red-600 font-bold'}>
-                    {embeddingStatus === 'ready' ? '本地可用' : embeddingStatus === 'fallback' ? 'LLM 兜底' : embeddingStatus === 'initializing' ? '初始化中' : embeddingStatus === 'unavailable' ? '不可用（不影响保存）' : '状态未知'}
+                  <span
+                    className={
+                      embeddingStatus === 'ready'
+                        ? 'text-emerald-600 font-bold'
+                        : embeddingStatus === 'fallback' ||
+                            embeddingStatus === 'initializing' ||
+                            embeddingStatus === 'unknown'
+                          ? 'text-amber-600 font-bold'
+                          : 'text-red-600 font-bold'
+                    }
+                  >
+                    {embeddingStatus === 'ready'
+                      ? '本地可用'
+                      : embeddingStatus === 'fallback'
+                        ? 'LLM 兜底'
+                        : embeddingStatus === 'initializing'
+                          ? '初始化中'
+                          : embeddingStatus === 'unavailable'
+                            ? '不可用（不影响保存）'
+                            : '状态未知'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -319,10 +448,18 @@ export function WelcomeView({
                 </div>
 
                 {/* 专属本地无缝降级指引横幅 */}
-                {(llmAvailability === 'unknown' || llmAvailability === 'missing' || llmAvailability === null) && (
+                {(llmAvailability === 'unknown' ||
+                  llmAvailability === 'missing' ||
+                  llmAvailability === null) && (
                   <div className="mt-3.5 p-2.5 bg-amber-500/5 border border-amber-500/15 rounded text-[11px] text-amber-600/90 leading-relaxed font-sans normal-case">
-                    <p className="font-bold flex items-center gap-1 mb-0.5">⚠️ 本地无缝降级指引：</p>
-                    <p>{llmAvailability === 'unknown' ? LLM_AVAILABILITY_COPY.unknown.helper : LLM_AVAILABILITY_COPY.missing.helper}</p>
+                    <p className="font-bold flex items-center gap-1 mb-0.5">
+                      ⚠️ 本地无缝降级指引：
+                    </p>
+                    <p>
+                      {llmAvailability === 'unknown'
+                        ? LLM_AVAILABILITY_COPY.unknown.helper
+                        : LLM_AVAILABILITY_COPY.missing.helper}
+                    </p>
                   </div>
                 )}
               </div>
@@ -332,7 +469,9 @@ export function WelcomeView({
             {recentNovels.length > 0 && (
               <div className="bg-theme-sidebar/15 border border-theme-border/40 rounded-md p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-theme-border/30 pb-2">
-                  <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">最近作品归档</span>
+                  <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">
+                    最近作品归档
+                  </span>
                   <button
                     onClick={onJumpToLibrary}
                     className="text-[10px] text-theme-accent font-bold hover:underline transition-all"
@@ -348,13 +487,19 @@ export function WelcomeView({
                       className="w-full flex items-center justify-between py-2 text-left group transition-all hover:translate-x-0.5"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <BookOpen size={12} className="text-theme-muted group-hover:text-theme-accent transition-colors shrink-0" />
+                        <BookOpen
+                          size={12}
+                          className="text-theme-muted group-hover:text-theme-accent transition-colors shrink-0"
+                        />
                         <span className="text-xs font-medium text-theme-text truncate group-hover:text-theme-accent transition-colors">
                           {novel.title}
                         </span>
                       </div>
                       <span className="text-[9px] text-theme-muted font-mono shrink-0 ml-2">
-                        {new Date(novel.updatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
+                        {new Date(novel.updatedAt).toLocaleDateString('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit',
+                        })}
                       </span>
                     </button>
                   ))}
@@ -365,7 +510,6 @@ export function WelcomeView({
 
           {/* ==================== 右栏：主业务控制台与输入区域 ==================== */}
           <div className="lg:col-span-8 space-y-6">
-
             {/* 1. 紧凑型精美控制台页眉 */}
             <div className="border-b border-theme-border/30 pb-3">
               <div className="flex items-center gap-2 mb-1.5">
@@ -389,7 +533,9 @@ export function WelcomeView({
                         新手启航指南
                       </h4>
                       <p className="text-xs text-theme-text/85 leading-relaxed font-sans">
-                        您好，欢迎进入 InkFlow 创作终端！当前您的书库为空。您可以直接在下方输入新书灵感（如“雨夜酒馆里的复仇故事”）生成立项候选；或点击上方【导入资料续写】以上传世界观与人设。需要 AI 生成时，请在右上角配置您的 API Key。
+                        您好，欢迎进入 InkFlow
+                        创作终端！当前您的书库为空。您可以直接在下方输入新书灵感（如“雨夜酒馆里的复仇故事”）生成立项候选；或点击上方【导入资料续写】以上传世界观与人设。需要
+                        AI 生成时，请在右上角配置您的 API Key。
                       </p>
                     </div>
                   </div>
@@ -511,7 +657,9 @@ export function WelcomeView({
               <div className="flex items-center justify-between bg-theme-sidebar/10 border border-theme-border/30 rounded-xl px-4 py-3 shadow-xs">
                 <div className="flex items-center gap-2">
                   <Compass size={14} className="text-theme-accent animate-pulse" />
-                  <span className="text-xs font-bold text-theme-text font-serif">开书智导多步向导</span>
+                  <span className="text-xs font-bold text-theme-text font-serif">
+                    开书智导多步向导
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   {[0, 1, 2].map((sIndex) => (
@@ -520,8 +668,10 @@ export function WelcomeView({
                       type="button"
                       onClick={() => setGuideStep(sIndex)}
                       className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        guideStep === sIndex ? "w-6 bg-theme-accent" : "w-2 bg-theme-border/60 hover:bg-theme-accent/50"
+                        'h-1.5 rounded-full transition-all duration-300',
+                        guideStep === sIndex
+                          ? 'w-6 bg-theme-accent'
+                          : 'w-2 bg-theme-border/60 hover:bg-theme-accent/50'
                       )}
                       aria-label={`跳转至第 ${sIndex + 1} 步`}
                     />
@@ -537,28 +687,41 @@ export function WelcomeView({
                   className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
-                      guideStep === 0 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
-                    )}>
+                    <div
+                      className={cn(
+                        'size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300',
+                        guideStep === 0
+                          ? 'bg-theme-accent text-theme-bg shadow-sm'
+                          : 'bg-theme-border/60 text-theme-muted'
+                      )}
+                    >
                       01
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-theme-text transition-colors">创意灵感与主打题材</h3>
-                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">描述您的小说场景并选择对应的细分题材</p>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">
+                        创意灵感与主打题材
+                      </h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">
+                        描述您的小说场景并选择对应的细分题材
+                      </p>
                     </div>
                   </div>
                   {guideStep !== 0 && (
                     <div className="text-[10px] font-bold text-theme-accent font-sans bg-theme-accent/5 px-2.5 py-0.5 rounded border border-theme-accent/15 truncate max-w-[200px]">
-                      {GENRES.find(g => g.id === selectedGenre)?.label || '未选定题材'} {input ? `| ${input.slice(0, 10)}...` : ''}
+                      {GENRES.find((g) => g.id === selectedGenre)?.label || '未选定题材'}{' '}
+                      {input ? `| ${input.slice(0, 10)}...` : ''}
                     </div>
                   )}
                 </button>
 
-                <div className={cn(
-                  "grid transition-all duration-300 ease-out border-theme-border/20",
-                  guideStep === 0 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
-                )}>
+                <div
+                  className={cn(
+                    'grid transition-all duration-300 ease-out border-theme-border/20',
+                    guideStep === 0
+                      ? 'grid-rows-[1fr] opacity-100 border-t'
+                      : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                  )}
+                >
                   <div className="overflow-hidden">
                     <div className="p-4 space-y-4">
                       {/* 题材选择列表 */}
@@ -575,10 +738,10 @@ export function WelcomeView({
                                 type="button"
                                 onClick={() => setSelectedGenre(g.id)}
                                 className={cn(
-                                  "p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden",
+                                  'p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden',
                                   isSelected
-                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
-                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                    ? 'border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25'
+                                    : 'border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25'
                                 )}
                               >
                                 <div className="flex items-center justify-between w-full">
@@ -591,7 +754,9 @@ export function WelcomeView({
                                   <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                                     {g.label}
                                   </div>
-                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">{g.desc}</p>
+                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">
+                                    {g.desc}
+                                  </p>
                                 </div>
                               </button>
                             );
@@ -605,7 +770,9 @@ export function WelcomeView({
                           <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider font-mono">
                             02 / 激发脑洞创意灵感
                           </span>
-                          <span className="text-[9px] text-theme-muted font-sans font-bold">按 Enter 进入下一步</span>
+                          <span className="text-[9px] text-theme-muted font-sans font-bold">
+                            按 Enter 进入下一步
+                          </span>
                         </div>
                         <div className="relative">
                           <textarea
@@ -673,28 +840,40 @@ export function WelcomeView({
                   className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
-                      guideStep === 1 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
-                    )}>
+                    <div
+                      className={cn(
+                        'size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300',
+                        guideStep === 1
+                          ? 'bg-theme-accent text-theme-bg shadow-sm'
+                          : 'bg-theme-border/60 text-theme-muted'
+                      )}
+                    >
                       02
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-theme-text transition-colors">定位目标平台</h3>
-                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">选择契合的文学分发阵地，对齐其独特的爽点大纲规则</p>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">
+                        定位目标平台
+                      </h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">
+                        选择契合的文学分发阵地，对齐其独特的爽点大纲规则
+                      </p>
                     </div>
                   </div>
                   {guideStep !== 1 && (
                     <div className="text-[10px] font-bold text-theme-accent font-sans bg-theme-accent/5 px-2.5 py-0.5 rounded border border-theme-accent/15 truncate max-w-[200px]">
-                      {PLATFORMS.find(p => p.id === selectedPlatform)?.label || '未选定平台'}
+                      {PLATFORMS.find((p) => p.id === selectedPlatform)?.label || '未选定平台'}
                     </div>
                   )}
                 </button>
 
-                <div className={cn(
-                  "grid transition-all duration-300 ease-out border-theme-border/20",
-                  guideStep === 1 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
-                )}>
+                <div
+                  className={cn(
+                    'grid transition-all duration-300 ease-out border-theme-border/20',
+                    guideStep === 1
+                      ? 'grid-rows-[1fr] opacity-100 border-t'
+                      : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                  )}
+                >
                   <div className="overflow-hidden">
                     <div className="p-4 space-y-4">
                       {/* 平台选择矩阵 */}
@@ -707,10 +886,10 @@ export function WelcomeView({
                               type="button"
                               onClick={() => setSelectedPlatform(p.id)}
                               className={cn(
-                                "p-4 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between min-h-[105px] overflow-hidden",
+                                'p-4 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between min-h-[105px] overflow-hidden',
                                 isSelected
-                                  ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
-                                  : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                  ? 'border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25'
+                                  : 'border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25'
                               )}
                             >
                               <div className="flex items-center justify-between w-full">
@@ -723,7 +902,9 @@ export function WelcomeView({
                                 <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                                   {p.label}
                                 </div>
-                                <p className="text-[10px] text-theme-muted leading-relaxed line-clamp-2 font-sans">{p.desc}</p>
+                                <p className="text-[10px] text-theme-muted leading-relaxed line-clamp-2 font-sans">
+                                  {p.desc}
+                                </p>
                               </div>
                             </button>
                           );
@@ -762,15 +943,23 @@ export function WelcomeView({
                   className="w-full flex items-center justify-between p-4 bg-theme-sidebar/10 hover:bg-theme-sidebar/20 text-left transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300",
-                      guideStep === 2 ? "bg-theme-accent text-theme-bg shadow-sm" : "bg-theme-border/60 text-theme-muted"
-                    )}>
+                    <div
+                      className={cn(
+                        'size-6 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all duration-300',
+                        guideStep === 2
+                          ? 'bg-theme-accent text-theme-bg shadow-sm'
+                          : 'bg-theme-border/60 text-theme-muted'
+                      )}
+                    >
                       03
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-theme-text transition-colors">篇幅规划与写作文风</h3>
-                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">锁定字数规模，调配高连贯性的行文格调与故事更重</p>
+                      <h3 className="text-xs font-bold text-theme-text transition-colors">
+                        篇幅规划与写作文风
+                      </h3>
+                      <p className="text-[10px] text-theme-muted mt-0.5 font-sans">
+                        锁定字数规模，调配高连贯性的行文格调与故事更重
+                      </p>
                     </div>
                   </div>
                   {guideStep !== 2 && (
@@ -780,10 +969,14 @@ export function WelcomeView({
                   )}
                 </button>
 
-                <div className={cn(
-                  "grid transition-all duration-300 ease-out border-theme-border/20",
-                  guideStep === 2 ? "grid-rows-[1fr] opacity-100 border-t" : "grid-rows-[0fr] opacity-0 pointer-events-none"
-                )}>
+                <div
+                  className={cn(
+                    'grid transition-all duration-300 ease-out border-theme-border/20',
+                    guideStep === 2
+                      ? 'grid-rows-[1fr] opacity-100 border-t'
+                      : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                  )}
+                >
                   <div className="overflow-hidden">
                     <div className="p-4 space-y-4">
                       {/* 篇幅规划 */}
@@ -806,10 +999,10 @@ export function WelcomeView({
                                   }));
                                 }}
                                 className={cn(
-                                  "p-3.5 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex items-start gap-3",
+                                  'p-3.5 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex items-start gap-3',
                                   isSelected
-                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
-                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                    ? 'border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25'
+                                    : 'border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25'
                                 )}
                               >
                                 <span className="text-xl shrink-0 mt-0.5">{l.icon}</span>
@@ -817,7 +1010,9 @@ export function WelcomeView({
                                   <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                                     {l.label}
                                   </div>
-                                  <p className="text-[9px] text-theme-muted mt-0.5 font-sans">{l.desc}</p>
+                                  <p className="text-[9px] text-theme-muted mt-0.5 font-sans">
+                                    {l.desc}
+                                  </p>
                                   <div className="text-[10px] text-theme-accent font-mono font-bold mt-1.5">
                                     {l.words.toLocaleString()} 字
                                   </div>
@@ -850,10 +1045,10 @@ export function WelcomeView({
                                   }));
                                 }}
                                 className={cn(
-                                  "p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden",
+                                  'p-3 rounded-xl border text-left transition-all duration-300 cursor-pointer relative group flex flex-col justify-between h-24 overflow-hidden',
                                   isSelected
-                                    ? "border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25"
-                                    : "border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25"
+                                    ? 'border-theme-accent bg-theme-accent/5 shadow-md shadow-theme-accent/5 ring-1 ring-theme-accent/25'
+                                    : 'border-theme-border/50 bg-theme-sidebar/15 hover:border-theme-accent/40 hover:bg-theme-sidebar/25'
                                 )}
                               >
                                 <div className="flex items-center justify-between w-full">
@@ -866,7 +1061,9 @@ export function WelcomeView({
                                   <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                                     {s.label}
                                   </div>
-                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">{s.desc}</p>
+                                  <p className="text-[9px] text-theme-muted line-clamp-1 leading-none font-sans">
+                                    {s.desc}
+                                  </p>
                                 </div>
                               </button>
                             );
@@ -877,13 +1074,18 @@ export function WelcomeView({
                       {/* 离线降级状态下的警告提示 */}
                       {(llmAvailability === 'missing' || llmAvailability === 'unknown') && (
                         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left flex items-start gap-2.5 font-sans leading-relaxed">
-                          <Sparkles size={14} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                          <Sparkles
+                            size={14}
+                            className="text-amber-500 shrink-0 mt-0.5 animate-pulse"
+                          />
                           <div className="flex-1">
                             <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
                               本地降级模式已自动就绪
                             </div>
                             <p className="mt-0.5 text-[9px] text-theme-muted">
-                              {llmAvailability === 'unknown' ? LLM_AVAILABILITY_COPY.unknown.helper : LLM_AVAILABILITY_COPY.missing.helper}
+                              {llmAvailability === 'unknown'
+                                ? LLM_AVAILABILITY_COPY.unknown.helper
+                                : LLM_AVAILABILITY_COPY.missing.helper}
                             </p>
                           </div>
                         </div>
@@ -922,7 +1124,9 @@ export function WelcomeView({
             {isWaiting && (
               <div className="rounded border border-theme-accent/20 bg-theme-accent/5 p-6 text-center space-y-2 animate-pulse">
                 <div className="size-5 border-2 border-theme-accent/30 border-t-theme-accent rounded-full animate-spin mx-auto" />
-                <div className="text-xs font-bold text-theme-text">脑洞转化中，系统正在为您构建初始开书方向...</div>
+                <div className="text-xs font-bold text-theme-text">
+                  脑洞转化中，系统正在为您构建初始开书方向...
+                </div>
                 <p className="text-[10px] text-theme-muted">
                   正在等待大语言模型响应；需要 API Key 和网络连接才能生成开书方向。
                 </p>
@@ -934,10 +1138,14 @@ export function WelcomeView({
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-theme-border/20 pb-2">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xs font-bold text-theme-text uppercase tracking-wider">立项推荐方案方向</h2>
+                    <h2 className="text-xs font-bold text-theme-text uppercase tracking-wider">
+                      立项推荐方案方向
+                    </h2>
                     {source && <SourceBadge source={source} />}
                   </div>
-                  <span className="text-[10px] text-theme-muted">选中其一即可开启主角与作品设定</span>
+                  <span className="text-[10px] text-theme-muted">
+                    选中其一即可开启主角与作品设定
+                  </span>
                 </div>
 
                 {/* 异常和后台任务提示状态 */}
@@ -945,20 +1153,25 @@ export function WelcomeView({
                   <div className="rounded border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 flex items-center gap-2">
                     <Loader2 size={12} className="animate-spin text-amber-500 shrink-0" />
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
-                      模型响应尚未完成。您仍可继续本地编辑、保存和整理作品，连接恢复后再重试 AI 生成。
+                      模型响应尚未完成。您仍可继续本地编辑、保存和整理作品，连接恢复后再重试 AI
+                      生成。
                     </p>
                   </div>
                 )}
 
                 {source === 'fallback' && !isModelPending && (
                   <div className="rounded border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
-                    {warnings.length > 0 ? warnings.map((w, i) => <div key={i}>{w}</div>) : '模型未能成功响应；您仍可继续本地编辑、保存和整理作品。'}
+                    {warnings.length > 0
+                      ? warnings.map((w, i) => <div key={i}>{w}</div>)
+                      : '模型未能成功响应；您仍可继续本地编辑、保存和整理作品。'}
                   </div>
                 )}
 
                 {source === 'model' && warnings.length > 0 && (
                   <div className="rounded border border-theme-border bg-theme-sidebar/10 px-4 py-2 text-[10px] text-theme-muted leading-relaxed">
-                    {warnings.map((w, i) => <div key={i}>{w}</div>)}
+                    {warnings.map((w, i) => (
+                      <div key={i}>{w}</div>
+                    ))}
                   </div>
                 )}
 
@@ -981,7 +1194,8 @@ export function WelcomeView({
 
                       <div className="mt-3 space-y-2">
                         <div className="text-[9px] font-mono text-theme-muted bg-theme-sidebar/50 px-2 py-0.5 rounded text-center">
-                          {card.planningFit.recommendedLength} · {card.planningFit.recommendedFocus} · {card.planningFit.recommendedPacing}
+                          {card.planningFit.recommendedLength} · {card.planningFit.recommendedFocus}{' '}
+                          · {card.planningFit.recommendedPacing}
                         </div>
                         <div className="flex items-center gap-1 text-[10px] text-theme-accent font-bold">
                           <ArrowRight size={10} />
@@ -994,7 +1208,6 @@ export function WelcomeView({
               </div>
             )}
           </div>
-
         </div>
 
         {/* ==================== InkFlow 能为您做什么 (Glassmorphism Quad-Grid Highlights) ==================== */}
@@ -1081,10 +1294,14 @@ export function WelcomeView({
         {selectedCardForRec && recResult && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/60 backdrop-blur-md p-4 animate-fade-in"
-            onClick={(e) => { if (e.target === e.currentTarget) { setSelectedCardForRec(null); setRecResult(null); } }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedCardForRec(null);
+                setRecResult(null);
+              }
+            }}
           >
             <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-lg p-5 shadow-xl relative overflow-hidden flex flex-col gap-4 animate-scale-in max-h-[85vh] overflow-y-auto">
-
               {/* 高级控制台色边彩条 design */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-theme-accent/20 via-theme-accent to-theme-accent/20" />
 
@@ -1095,11 +1312,16 @@ export function WelcomeView({
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-theme-text">智能开书配置推荐</h3>
-                    <p className="text-[9px] text-theme-muted font-mono">INKFLOW GOVERNANCE ENGINE</p>
+                    <p className="text-[9px] text-theme-muted font-mono">
+                      INKFLOW GOVERNANCE ENGINE
+                    </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => { setSelectedCardForRec(null); setRecResult(null); }}
+                  onClick={() => {
+                    setSelectedCardForRec(null);
+                    setRecResult(null);
+                  }}
                   className="text-theme-muted hover:text-theme-text text-xs p-1"
                 >
                   ✕
@@ -1108,50 +1330,72 @@ export function WelcomeView({
 
               <div className="border-t border-theme-border/20 my-0.5" />
 
-              {confirmError && <div role="alert" className="text-[10px] text-red-600">{confirmError}</div>}
+              {confirmError && (
+                <div role="alert" className="text-[10px] text-red-600">
+                  {confirmError}
+                </div>
+              )}
 
               <div className="space-y-4 text-xs">
                 <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">选定主线 hook</span>
-                  <p className="text-xs font-bold text-theme-text leading-relaxed">《{selectedCardForRec.hook.slice(0, 18)}》</p>
+                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">
+                    选定主线 hook
+                  </span>
+                  <p className="text-xs font-bold text-theme-text leading-relaxed">
+                    《{selectedCardForRec.hook.slice(0, 18)}》
+                  </p>
                 </div>
 
                 <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">自适应推荐分析</span>
+                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">
+                    自适应推荐分析
+                  </span>
                   <p className="text-[11px] text-theme-muted leading-relaxed bg-theme-bg/30 p-2.5 rounded border border-theme-border/30">
                     {recResult.explanation}
                   </p>
                 </div>
 
                 <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1.5">流程引擎引导规划</span>
+                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1.5">
+                    流程引擎引导规划
+                  </span>
                   <div className="flex flex-col gap-2">
-
                     {/* 智能匹配工作流 */}
                     <div className="flex items-center justify-between p-2.5 rounded border border-theme-accent/20 bg-theme-accent/5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex size-5 items-center justify-center rounded bg-theme-accent/10 text-theme-accent text-[10px] shrink-0 font-serif">⚡</span>
+                        <span className="flex size-5 items-center justify-center rounded bg-theme-accent/10 text-theme-accent text-[10px] shrink-0 font-serif">
+                          ⚡
+                        </span>
                         <div className="min-w-0">
                           <div className="text-[11px] font-bold text-theme-text truncate">
-                            {recResult.activeSeriesId === 'tomato-platform-flow' ? '番茄脑洞文爆款创作流' :
-                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '长篇商业连载流程' :
-                             '通用型多阶智能创作流'}
+                            {recResult.activeSeriesId === 'tomato-platform-flow'
+                              ? '番茄脑洞文爆款创作流'
+                              : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
+                                ? '长篇商业连载流程'
+                                : '通用型多阶智能创作流'}
                           </div>
                           <div className="text-[9px] text-theme-muted truncate">
-                            {recResult.activeSeriesId === 'tomato-platform-flow' ? '契合快节奏签约、黄金三章爆发设定' :
-                             recResult.activeSeriesId === 'xiaofeiji-novel-flow' ? '聚焦精细大纲拟定、多视角人物重塑' :
-                             '全链路覆盖灵感卡片、分镜精细打磨和质检'}
+                            {recResult.activeSeriesId === 'tomato-platform-flow'
+                              ? '契合快节奏签约、黄金三章爆发设定'
+                              : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
+                                ? '聚焦精细大纲拟定、多视角人物重塑'
+                                : '全链路覆盖灵感卡片、分镜精细打磨和质检'}
                           </div>
                         </div>
                       </div>
-                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-theme-accent/10 text-theme-accent shrink-0 ml-2">工作流</span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-theme-accent/10 text-theme-accent shrink-0 ml-2">
+                        工作流
+                      </span>
                     </div>
 
                     {/* 自适应题材标签 */}
                     {recResult.tagsToApply.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {recResult.tagsToApply.map(tag => (
-                          <span key={tag} className="text-[9px] font-bold px-2 py-0.5 rounded bg-theme-sidebar border border-theme-border/50 text-theme-text flex items-center gap-1">
+                        {recResult.tagsToApply.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-[9px] font-bold px-2 py-0.5 rounded bg-theme-sidebar border border-theme-border/50 text-theme-text flex items-center gap-1"
+                          >
                             <span className="w-1 h-1 rounded-full bg-theme-accent animate-pulse" />
                             {tag}
                           </span>
@@ -1170,13 +1414,13 @@ export function WelcomeView({
                     const card = selectedCardForRec;
                     setSelectedCardForRec(null);
                     setRecResult(null);
-                    
+
                     // 前置拦截：打开“生成设定确认单”
                     setConfirmModalData({
                       card,
                       tags: [],
                       useWorkflow: false,
-                      defaultFlowId: 'generic-novel-flow'
+                      defaultFlowId: 'generic-novel-flow',
                     });
                     setShowConfirmDetailsModal(true);
                   }}
@@ -1191,13 +1435,13 @@ export function WelcomeView({
                     const defaultFlowId = recResult.activeSeriesId || 'generic-novel-flow';
                     setSelectedCardForRec(null);
                     setRecResult(null);
-                    
+
                     // 前置拦截：打开“生成设定确认单”
                     setConfirmModalData({
                       card,
                       tags,
                       useWorkflow: true,
-                      defaultFlowId
+                      defaultFlowId,
                     });
                     setShowConfirmDetailsModal(true);
                   }}
@@ -1207,7 +1451,6 @@ export function WelcomeView({
                   接受治理规划立项
                 </button>
               </div>
-
             </div>
           </div>
         )}
@@ -1231,11 +1474,16 @@ export function WelcomeView({
                         CONFIRM CHECKLIST
                       </span>
                     </h3>
-                    <p className="text-[10px] text-theme-muted mt-0.5">请勾选并确认即将导入设定工坊的虚构资产清单</p>
+                    <p className="text-[10px] text-theme-muted mt-0.5">
+                      请勾选并确认即将导入设定工坊的虚构资产清单
+                    </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => { setShowConfirmDetailsModal(false); setConfirmModalData(null); }}
+                  onClick={() => {
+                    setShowConfirmDetailsModal(false);
+                    setConfirmModalData(null);
+                  }}
                   className="text-theme-muted hover:text-theme-text text-xs p-1"
                 >
                   ✕
@@ -1251,16 +1499,22 @@ export function WelcomeView({
                     type="checkbox"
                     id="chk-char"
                     checked={confirmedItems.character}
-                    onChange={(e) => setConfirmedItems({ ...confirmedItems, character: e.target.checked })}
+                    onChange={(e) =>
+                      setConfirmedItems({ ...confirmedItems, character: e.target.checked })
+                    }
                     className="mt-1 accent-amber-500"
                   />
                   <label htmlFor="chk-char" className="flex-1 cursor-pointer select-none">
                     <div className="font-bold text-theme-text flex items-center gap-1.5">
                       <span>待导入角色 (Protagonist)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">角色库</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                        角色库
+                      </span>
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
-                      主角设定: {confirmModalData.card.protagonist || '生成核心主角候选，确认后写入第一章主角人设卡。'}
+                      主角设定:{' '}
+                      {confirmModalData.card.protagonist ||
+                        '生成核心主角候选，确认后写入第一章主角人设卡。'}
                     </p>
                   </label>
                 </div>
@@ -1270,13 +1524,17 @@ export function WelcomeView({
                     type="checkbox"
                     id="chk-world"
                     checked={confirmedItems.world}
-                    onChange={(e) => setConfirmedItems({ ...confirmedItems, world: e.target.checked })}
+                    onChange={(e) =>
+                      setConfirmedItems({ ...confirmedItems, world: e.target.checked })
+                    }
                     className="mt-1 accent-amber-500"
                   />
                   <label htmlFor="chk-world" className="flex-1 cursor-pointer select-none">
                     <div className="font-bold text-theme-text flex items-center gap-1.5">
                       <span>世界观设定 (World Seed)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">虚构创世</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                        虚构创世
+                      </span>
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
                       世界设定: {confirmModalData.card.starterSeeds.worldSeed}
@@ -1289,13 +1547,17 @@ export function WelcomeView({
                     type="checkbox"
                     id="chk-power"
                     checked={confirmedItems.power}
-                    onChange={(e) => setConfirmedItems({ ...confirmedItems, power: e.target.checked })}
+                    onChange={(e) =>
+                      setConfirmedItems({ ...confirmedItems, power: e.target.checked })
+                    }
                     className="mt-1 accent-amber-500"
                   />
                   <label htmlFor="chk-power" className="flex-1 cursor-pointer select-none">
                     <div className="font-bold text-theme-text flex items-center gap-1.5">
                       <span>力量与战力等级体系 (Power System)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">规则树</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                        规则树
+                      </span>
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
                       基于该小说的虚构底层规则及升级序列，纳入高连贯性检查候选，确认后用于防止大后期失衡。
@@ -1308,13 +1570,17 @@ export function WelcomeView({
                     type="checkbox"
                     id="chk-conflict"
                     checked={confirmedItems.conflict}
-                    onChange={(e) => setConfirmedItems({ ...confirmedItems, conflict: e.target.checked })}
+                    onChange={(e) =>
+                      setConfirmedItems({ ...confirmedItems, conflict: e.target.checked })
+                    }
                     className="mt-1 accent-amber-500"
                   />
                   <label htmlFor="chk-conflict" className="flex-1 cursor-pointer select-none">
                     <div className="font-bold text-theme-text flex items-center gap-1.5">
                       <span>核心冲突与金手指 (Conflict & Hooks)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">大纲规划</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                        大纲规划
+                      </span>
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
                       主线冲突: {confirmModalData.card.coreConflict}
@@ -1327,16 +1593,24 @@ export function WelcomeView({
                     type="checkbox"
                     id="chk-plat"
                     checked={confirmedItems.platform}
-                    onChange={(e) => setConfirmedItems({ ...confirmedItems, platform: e.target.checked })}
+                    onChange={(e) =>
+                      setConfirmedItems({ ...confirmedItems, platform: e.target.checked })
+                    }
                     className="mt-1 accent-amber-500"
                   />
                   <label htmlFor="chk-plat" className="flex-1 cursor-pointer select-none">
                     <div className="font-bold text-theme-text flex items-center gap-1.5">
                       <span>自适应适配平台标准 (Platform Target)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">白标质检</span>
+                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                        白标质检
+                      </span>
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
-                      目标发布: {confirmModalData.useWorkflow && confirmModalData.defaultFlowId === 'tomato-platform-flow' ? '番茄小说爆款规则协议' : '经典网络文学通用标准'}
+                      目标发布:{' '}
+                      {confirmModalData.useWorkflow &&
+                      confirmModalData.defaultFlowId === 'tomato-platform-flow'
+                        ? '番茄小说爆款规则协议'
+                        : '经典网络文学通用标准'}
                     </p>
                   </label>
                 </div>
@@ -1346,26 +1620,33 @@ export function WelcomeView({
 
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => { setShowConfirmDetailsModal(false); setConfirmModalData(null); }}
+                  onClick={() => {
+                    setShowConfirmDetailsModal(false);
+                    setConfirmModalData(null);
+                  }}
                   className="py-3 rounded-xl border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-xs font-bold transition-all text-center"
                 >
                   取消返回
                 </button>
                 <button
                   onClick={() => {
-                    if (!confirmedItems.character || !confirmedItems.world || !confirmedItems.conflict) {
+                    if (
+                      !confirmedItems.character ||
+                      !confirmedItems.world ||
+                      !confirmedItems.conflict
+                    ) {
                       setConfirmError('角色、世界设定、核心冲突为必需项，请先勾选。');
                       return;
                     }
                     const data = confirmModalData;
                     setShowConfirmDetailsModal(false);
                     setConfirmModalData(null);
-                    
+
                     // 打开智能引导气泡弹窗
                     setConfirmBubbleData({
                       card: buildConfirmedCard(data.card),
                       tags: data.tags,
-                      defaultFlowId: data.defaultFlowId
+                      defaultFlowId: data.defaultFlowId,
                     });
                     setShowGuidedBubble(true);
                   }}
@@ -1384,13 +1665,21 @@ export function WelcomeView({
         {showGuidedBubble && bubbleData && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/85 backdrop-blur-md p-4 animate-fade-in"
-            onClick={(e) => { if (e.target === e.currentTarget) { setShowGuidedBubble(false); setConfirmBubbleData(null); } }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowGuidedBubble(false);
+                setConfirmBubbleData(null);
+              }
+            }}
           >
             <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5 animate-scale-in text-left">
               <button
                 aria-label="关闭引导"
                 title="关闭"
-                onClick={() => { setShowGuidedBubble(false); setConfirmBubbleData(null); }}
+                onClick={() => {
+                  setShowGuidedBubble(false);
+                  setConfirmBubbleData(null);
+                }}
                 className="absolute top-3 right-3 flex size-7 items-center justify-center rounded text-theme-muted hover:text-theme-text transition-colors"
               >
                 <X size={14} />
@@ -1408,13 +1697,22 @@ export function WelcomeView({
                 </p>
               </div>
 
-              {persistStoryError && <div role="alert" className="border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-600">{persistStoryError}</div>}
+              {persistStoryError && (
+                <div
+                  role="alert"
+                  className="border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-600"
+                >
+                  {persistStoryError}
+                </div>
+              )}
 
               <div className="border-t border-theme-border/10 my-0.5" />
 
               <div className="space-y-3">
                 <button
-                  onClick={() => { void handlePersistStory('editor'); }}
+                  onClick={() => {
+                    void handlePersistStory('editor');
+                  }}
                   disabled={isPersistingStory}
                   className="w-full p-4 rounded-xl border border-theme-accent/20 bg-theme-accent/5 hover:bg-theme-accent/10 transition-all duration-150 text-left flex items-start gap-3 group"
                 >
@@ -1424,14 +1722,20 @@ export function WelcomeView({
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
                       <span>📝 先写正文</span>
-                      <span className="text-[9px] bg-theme-accent/10 text-theme-accent px-1.5 py-0.2 rounded font-sans font-bold scale-90">官方推荐</span>
+                      <span className="text-[9px] bg-theme-accent/10 text-theme-accent px-1.5 py-0.2 rounded font-sans font-bold scale-90">
+                        官方推荐
+                      </span>
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">保存作品和第一章后打开编辑器，进入空白正文编辑区。</p>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                      保存作品和第一章后打开编辑器，进入空白正文编辑区。
+                    </p>
                   </div>
                 </button>
 
                 <button
-                  onClick={() => { void handlePersistStory('world', true); }}
+                  onClick={() => {
+                    void handlePersistStory('world', true);
+                  }}
                   disabled={isPersistingStory}
                   className="w-full p-4 rounded-xl border border-theme-border/40 hover:border-theme-accent/35 bg-theme-bg/30 hover:bg-theme-bg/60 transition-all duration-150 text-left flex items-start gap-3 group"
                 >
@@ -1442,12 +1746,17 @@ export function WelcomeView({
                     <div className="text-xs font-bold text-theme-text group-hover:text-theme-accent transition-colors">
                       🔮 补全世界观与角色
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">前往设定工坊，通过 AI 协作助手的设定模式逐步细化并锁定主角、世界背景与升级体系。</p>
+                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                      前往设定工坊，通过 AI
+                      协作助手的设定模式逐步细化并锁定主角、世界背景与升级体系。
+                    </p>
                   </div>
                 </button>
 
                 <button
-                  onClick={() => { void handlePersistStory('workspace'); }}
+                  onClick={() => {
+                    void handlePersistStory('workspace');
+                  }}
                   disabled={isPersistingStory}
                   className="w-full p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-150 text-left flex items-start gap-3 group"
                 >
@@ -1459,7 +1768,11 @@ export function WelcomeView({
                       ⚡ 选择推荐创作流程
                     </div>
                     <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
-                      选择 {bubbleData?.defaultFlowId === 'tomato-platform-flow' ? '番茄爆款爽文主流程' : '通用小说主流程'}，打开编辑器继续规划与写作。
+                      选择{' '}
+                      {bubbleData?.defaultFlowId === 'tomato-platform-flow'
+                        ? '番茄爆款爽文主流程'
+                        : '通用小说主流程'}
+                      ，打开编辑器继续规划与写作。
                     </p>
                   </div>
                 </button>
@@ -1469,7 +1782,10 @@ export function WelcomeView({
 
               <div className="text-center">
                 <button
-                  onClick={() => { setShowGuidedBubble(false); setConfirmBubbleData(null); }}
+                  onClick={() => {
+                    setShowGuidedBubble(false);
+                    setConfirmBubbleData(null);
+                  }}
                   className="text-xs text-theme-muted hover:text-theme-text transition-colors"
                 >
                   暂不需要，我自己探索
@@ -1478,7 +1794,6 @@ export function WelcomeView({
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

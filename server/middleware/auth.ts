@@ -33,7 +33,11 @@ function getOrCreateToken(): string {
     fs.renameSync(tempPath, TOKEN_PATH);
     return token;
   } catch {
-    try { fs.unlinkSync(`${TOKEN_PATH}.${process.pid}.tmp`); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(`${TOKEN_PATH}.${process.pid}.tmp`);
+    } catch {
+      /* best effort */
+    }
     // Fallback: generate per-session token (not persisted)
     return crypto.randomBytes(32).toString('hex');
   }
@@ -66,7 +70,11 @@ function getOrCreateIdentityToken(): string {
   try {
     persistIdentityToken(token);
   } catch {
-    try { fs.unlinkSync(`${IDENTITY_TOKEN_PATH}.${process.pid}.tmp`); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(`${IDENTITY_TOKEN_PATH}.${process.pid}.tmp`);
+    } catch {
+      /* best effort */
+    }
   }
   return token;
 }
@@ -75,8 +83,10 @@ const IDENTITY_TOKEN = getOrCreateIdentityToken();
 
 export function isIdentityTokenValid(candidate: unknown): boolean {
   if (typeof candidate !== 'string' || !IDENTITY_TOKEN_PATTERN.test(candidate)) return false;
-  return candidate.length === IDENTITY_TOKEN.length
-    && crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(IDENTITY_TOKEN));
+  return (
+    candidate.length === IDENTITY_TOKEN.length &&
+    crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(IDENTITY_TOKEN))
+  );
 }
 
 function pruneSseTokens(now = Date.now()): void {
@@ -105,9 +115,9 @@ function isValidDbEventToken(candidate: unknown): boolean {
   pruneSseTokens(now);
   for (const [token, expiresAt] of sseTokens) {
     if (
-      expiresAt > now
-      && candidate.length === token.length
-      && crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(token))
+      expiresAt > now &&
+      candidate.length === token.length &&
+      crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(token))
     ) {
       return true;
     }
@@ -119,7 +129,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   // Native EventSource cannot set Authorization headers. It uses a short-lived,
   // process-local credential minted through the authenticated token endpoint.
   const eventToken = req.query?.token;
-  if ((req.path === '/db/events' || req.path === '/api/db/events') && isValidDbEventToken(eventToken)) {
+  if (
+    (req.path === '/db/events' || req.path === '/api/db/events') &&
+    isValidDbEventToken(eventToken)
+  ) {
     return next();
   }
 
@@ -128,7 +141,11 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return res.status(401).json({ error: 'Missing or invalid authorization header' });
   }
   const token = authHeader.slice(7);
-  if (!isValidToken(token) || token.length !== AUTH_TOKEN.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(AUTH_TOKEN))) {
+  if (
+    !isValidToken(token) ||
+    token.length !== AUTH_TOKEN.length ||
+    !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(AUTH_TOKEN))
+  ) {
     return res.status(401).json({ error: 'Invalid token' });
   }
   next();

@@ -1,13 +1,19 @@
 import { request, HttpApiError } from './http';
 import { deriveLlmAvailability, type LlmAvailabilityState } from './llm-availability';
 
-export type EmbeddingStatusValue = 'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown';
+export type EmbeddingStatusValue =
+  'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown';
 
 /** Shape of the server `GET /api/config` payload. */
 export interface LlmConfig {
   hasApiKey?: boolean;
   livenessStatus?: 'connected' | 'unknown' | 'disconnected' | string;
-  embeddingStatus?: { status?: EmbeddingStatusValue; reason?: string | null; provider?: string | null; modelId?: string | null } | null;
+  embeddingStatus?: {
+    status?: EmbeddingStatusValue;
+    reason?: string | null;
+    provider?: string | null;
+    modelId?: string | null;
+  } | null;
   embeddingProvider?: string | null;
   embeddingModel?: string | null;
   baseUrl?: string;

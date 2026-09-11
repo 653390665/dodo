@@ -42,8 +42,19 @@ export interface OutlineArtifact {
 
 export type CanonPatchOperation =
   | { operation: 'create-master-outline'; content: string; core?: StructuredOutlineCore }
-  | { operation: 'replace-outline'; targetArtifactId: string; content: string; core?: StructuredOutlineCore }
-  | { operation: 'create-scoped-outline'; level: 'volume' | 'chapter'; scope: OutlineArtifactScope; content: string; core?: StructuredOutlineCore };
+  | {
+      operation: 'replace-outline';
+      targetArtifactId: string;
+      content: string;
+      core?: StructuredOutlineCore;
+    }
+  | {
+      operation: 'create-scoped-outline';
+      level: 'volume' | 'chapter';
+      scope: OutlineArtifactScope;
+      content: string;
+      core?: StructuredOutlineCore;
+    };
 
 export interface CanonPatch {
   id: string;

@@ -63,14 +63,17 @@ const OUTLINE_REFERENCE_KINDS = new Set<ContinuationSourceKind>(['outline', 'wor
 interface OutlineTabProps {
   novelId?: string;
   projectTechniqueId?: string;
-  onGenerateOutline: (outline?: string, options?: {
-    techniqueId?: string;
-    outlineSourceSelection?: {
-      continuationPackId: string;
-      primaryDocumentId: string;
-      referenceDocumentIds: string[];
-    };
-  }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
+  onGenerateOutline: (
+    outline?: string,
+    options?: {
+      techniqueId?: string;
+      outlineSourceSelection?: {
+        continuationPackId: string;
+        primaryDocumentId: string;
+        referenceDocumentIds: string[];
+      };
+    }
+  ) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline?: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
   isGeneratingOutline: boolean;
@@ -110,17 +113,21 @@ export function OutlineTab({
     [selectedContinuationPack]
   );
   const referenceDocuments = React.useMemo(
-    () => selectedContinuationPack?.sourceDocuments.filter(
-      (doc) => OUTLINE_REFERENCE_KINDS.has(doc.kind) &&
-        !isOutlineReportDocument(doc) &&
-        !outlineDocuments.some((outline) => outline.id === doc.id)
-    ) || [],
+    () =>
+      selectedContinuationPack?.sourceDocuments.filter(
+        (doc) =>
+          OUTLINE_REFERENCE_KINDS.has(doc.kind) &&
+          !isOutlineReportDocument(doc) &&
+          !outlineDocuments.some((outline) => outline.id === doc.id)
+      ) || [],
     [selectedContinuationPack, outlineDocuments]
   );
   const projectTechniqueTitle = React.useMemo(
-    () => projectTechniqueId
-      ? CURATED_PRODUCT_SKILLS.find((skill) => skill.id === projectTechniqueId)?.title || '当前大纲技法'
-      : '',
+    () =>
+      projectTechniqueId
+        ? CURATED_PRODUCT_SKILLS.find((skill) => skill.id === projectTechniqueId)?.title ||
+          '当前大纲技法'
+        : '',
     [projectTechniqueId]
   );
   const [selectedOutlineId, setSelectedOutlineId] = React.useState('');
@@ -193,7 +200,11 @@ export function OutlineTab({
     if (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation) return;
     try {
       const artifacts = await listOutlines(capturedNovel, {}, generation);
-      if (novelId && (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)) return;
+      if (
+        novelId &&
+        (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)
+      )
+        return;
       const active = artifacts.find((a) => a.level === 'master' && a.status === 'active');
       if (active?.id === candidateId) {
         onCanonicalOutlineChange?.(desiredContent);
@@ -235,7 +246,11 @@ export function OutlineTab({
       onCanonicalOutlineChange?.(draftOutline);
       setDraftDirty(false);
     } catch (error) {
-      if (novelId && (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)) return;
+      if (
+        novelId &&
+        (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)
+      )
+        return;
       setAdoptError(
         `大纲保存失败：${error instanceof Error ? error.message : '未知错误'}。原大纲未被修改，可重试。`
       );
@@ -295,7 +310,11 @@ export function OutlineTab({
       setDraftOutline(selectedOutline.text);
       setDraftDirty(false);
     } catch (error) {
-      if (novelId && (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)) return;
+      if (
+        novelId &&
+        (currentNovelRef.current !== capturedNovel || operationSeq.current !== operation)
+      )
+        return;
       setAdoptError(
         `大纲保存失败：${error instanceof Error ? error.message : '未知错误'}。原大纲未被修改，可重试。`
       );
@@ -304,22 +323,24 @@ export function OutlineTab({
 
   const handleGenerateCandidate = async () => {
     const primary = draftDirty ? draftOutline : (selectedOutline?.text ?? draftOutline);
-    const sourceSelection = selectedContinuationPack && activeSelectedOutlineId
-      ? {
-          continuationPackId: selectedContinuationPack.id,
-          primaryDocumentId: activeSelectedOutlineId,
-          referenceDocumentIds: selectedReferenceIds,
-        }
-      : undefined;
+    const sourceSelection =
+      selectedContinuationPack && activeSelectedOutlineId
+        ? {
+            continuationPackId: selectedContinuationPack.id,
+            primaryDocumentId: activeSelectedOutlineId,
+            referenceDocumentIds: selectedReferenceIds,
+          }
+        : undefined;
     // When an imported pack is selected, the server resolves its documents by ID.
     // Only an explicit local draft remains a seed; never concatenate imported text in the client.
     const seedOutline = sourceSelection && !draftDirty ? undefined : primary;
-    const options = projectTechniqueId || sourceSelection
-      ? {
-          ...(projectTechniqueId ? { techniqueId: projectTechniqueId } : {}),
-          ...(sourceSelection ? { outlineSourceSelection: sourceSelection } : {}),
-        }
-      : undefined;
+    const options =
+      projectTechniqueId || sourceSelection
+        ? {
+            ...(projectTechniqueId ? { techniqueId: projectTechniqueId } : {}),
+            ...(sourceSelection ? { outlineSourceSelection: sourceSelection } : {}),
+          }
+        : undefined;
     const candidate = options
       ? await onGenerateOutline(seedOutline, options)
       : await onGenerateOutline(seedOutline);
@@ -333,7 +354,11 @@ export function OutlineTab({
     if (!pendingCandidate) return;
     try {
       if (novelId) {
-        await activateOutline(novelId, pendingCandidate.candidateId, pendingCandidate.databaseGeneration);
+        await activateOutline(
+          novelId,
+          pendingCandidate.candidateId,
+          pendingCandidate.databaseGeneration
+        );
         onCanonicalOutlineChange?.(pendingCandidate.content);
       } else if (onAdoptOutline) {
         const saved = await onAdoptOutline(pendingCandidate.content);
@@ -359,10 +384,14 @@ export function OutlineTab({
         </div>
 
         {projectTechniqueId && (
-          <div className="mb-3 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-[10px] text-theme-text" role="status">
+          <div
+            className="mb-3 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-[10px] text-theme-text"
+            role="status"
+          >
             <div className="font-bold text-theme-accent">本次大纲技法</div>
             <div className="mt-1 text-theme-muted">
-              已选择能力「{projectTechniqueTitle}」。将基于当前主纲或选中的导入大纲生成候选，不直接覆盖。
+              已选择能力「{projectTechniqueTitle}
+              」。将基于当前主纲或选中的导入大纲生成候选，不直接覆盖。
             </div>
           </div>
         )}
@@ -433,21 +462,30 @@ export function OutlineTab({
             })}
             {referenceDocuments.length > 0 && (
               <div className="rounded-lg border border-theme-border/50 p-3">
-                <div className="text-[10px] font-bold text-theme-text">参考资料（最多选择 5 份）</div>
+                <div className="text-[10px] font-bold text-theme-text">
+                  参考资料（最多选择 5 份）
+                </div>
                 <div className="mt-2 space-y-1.5">
                   {referenceDocuments.map((document) => {
                     const checked = selectedReferenceIds.includes(document.id);
                     return (
-                      <label key={document.id} className="flex items-center gap-2 text-[9px] text-theme-muted">
+                      <label
+                        key={document.id}
+                        className="flex items-center gap-2 text-[9px] text-theme-muted"
+                      >
                         <input
                           type="checkbox"
                           aria-label={`参考资料：${document.filename}`}
                           checked={checked}
                           disabled={!checked && selectedReferenceIds.length >= 5}
-                          onChange={() => setSelectedReferenceIds((current) => {
-                            if (!checked && current.length >= 5) return current;
-                            return checked ? current.filter((id) => id !== document.id) : [...current, document.id];
-                          })}
+                          onChange={() =>
+                            setSelectedReferenceIds((current) => {
+                              if (!checked && current.length >= 5) return current;
+                              return checked
+                                ? current.filter((id) => id !== document.id)
+                                : [...current, document.id];
+                            })
+                          }
                         />
                         <span>{document.filename}</span>
                       </label>
@@ -538,11 +576,21 @@ export function OutlineTab({
           </p>
         )}
 
-        {adoptNotice && <div role="status" className="mb-3 text-[10px] text-amber-600">{adoptNotice}</div>}
+        {adoptNotice && (
+          <div role="status" className="mb-3 text-[10px] text-amber-600">
+            {adoptNotice}
+          </div>
+        )}
         {pendingCandidate && (
           <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[10px] text-amber-700">
             <span>生成结果已作为候选，请确认后才会写入主纲。</span>
-            <button type="button" className="font-bold underline" onClick={() => void handleConfirmCandidate()}>确认采用候选</button>
+            <button
+              type="button"
+              className="font-bold underline"
+              onClick={() => void handleConfirmCandidate()}
+            >
+              确认采用候选
+            </button>
           </div>
         )}
         {(outlineError || adoptError) && (
@@ -639,9 +687,7 @@ export function OutlineTab({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={() => void performAdopt()}>
-                确认覆盖
-              </AlertDialogAction>
+              <AlertDialogAction onClick={() => void performAdopt()}>确认覆盖</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

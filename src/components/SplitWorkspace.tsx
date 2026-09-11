@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { EditorView } from './EditorView';
 import { WorldBibleView } from './WorldBibleView';
 import { cn } from '../lib/utils';
-import type { AssistantLaunchContext, ContinuationEditorLaunchState, Novel, WorkspaceFocus } from '../../shared/types';
+import type {
+  AssistantLaunchContext,
+  ContinuationEditorLaunchState,
+  Novel,
+  WorkspaceFocus,
+} from '../../shared/types';
 
 interface SplitWorkspaceProps {
   novel: Novel;
@@ -106,7 +111,13 @@ export function SplitWorkspace({
       </div>
       <div ref={containerRef} className="flex-1 flex min-h-0">
         <div style={{ width: `${splitRatio * 100}%` }} className="h-full overflow-hidden">
-          <EditorView novel={novel} launchState={continuationLaunchState} onBack={onBack} onOpenAssistant={onOpenAssistant} onNavigate={onNavigate} />
+          <EditorView
+            novel={novel}
+            launchState={continuationLaunchState}
+            onBack={onBack}
+            onOpenAssistant={onOpenAssistant}
+            onNavigate={onNavigate}
+          />
         </div>
         <div
           onMouseDown={onMouseDown}
@@ -122,7 +133,12 @@ export function SplitWorkspace({
           }`}
         />
         <div style={{ width: `${(1 - splitRatio) * 100}%` }} className="h-full overflow-hidden">
-          <WorldBibleView novel={novel} onboarding={onboarding} onStartContinuationWriting={onStartContinuationWriting} onEnterStoryboard={onEnterStoryboard} />
+          <WorldBibleView
+            novel={novel}
+            onboarding={onboarding}
+            onStartContinuationWriting={onStartContinuationWriting}
+            onEnterStoryboard={onEnterStoryboard}
+          />
         </div>
       </div>
     </div>

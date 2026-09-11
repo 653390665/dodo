@@ -1,11 +1,7 @@
 /**
  * Lightweight vector store backed by SQLite.
  */
-import {
-  getDatabaseGeneration,
-  getDb,
-  runInSerializedWriteForGeneration,
-} from './lib/db-instance';
+import { getDatabaseGeneration, getDb, runInSerializedWriteForGeneration } from './lib/db-instance';
 import { createHash } from 'node:crypto';
 import { embedWithMetadata, cosineSimilarity } from './embedding';
 import { logger } from './logger';
@@ -60,13 +56,15 @@ export async function addChunk(
   const guarded = await runInSerializedWriteForGeneration(generation, () => {
     setCachedEmbedding(id, embedding);
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO vector_chunks (id, novel_id, chapter_id, chunk_index, text, embedding)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         text = excluded.text,
         embedding = excluded.embedding
-    `).run(id, novelId, chapterId, index, text, JSON.stringify(embedding));
+    `
+    ).run(id, novelId, chapterId, index, text, JSON.stringify(embedding));
   });
   if (!guarded.executed) throw new VectorIndexGenerationMismatchError();
 }
@@ -81,37 +79,46 @@ export function searchSimilar(
   queryEmbedding: number[],
   novelId: string,
   queryModelId: string,
-  topK: number = 5,
+  topK: number = 5
 ): Array<{ text: string; score: number; chapterId: string }> {
   const db = getDb();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT id, chapter_id, text, embedding FROM vector_chunks WHERE novel_id = ?
-  `).all(novelId) as Array<{ id: string; chapter_id: string; text: string; embedding: string }>;
+  `
+    )
+    .all(novelId) as Array<{ id: string; chapter_id: string; text: string; embedding: string }>;
   // 调查项（Plan 184）：检索当前为全表扫描线性余弦。chunk 超过阈值时记录一次，
   // 积累数据后另立计划决定是否引入 sqlite-vec/分块；不做算法替换。
   if (rows.length >= 1_000) {
     logger.info('searchSimilar 全表扫描规模达到调查阈值', { novelId, chunks: rows.length, topK });
   }
 
-  const scored = rows.map((row) => {
-    let stored = embeddingCache.get(row.id);
-    if (!stored) {
-      const parsed = JSON.parse(row.embedding) as number[] | StoredEmbedding;
-      const values = Array.isArray(parsed) ? parsed : parsed.values;
-      stored = Array.isArray(parsed)
-        ? { values, modelId: 'legacy:unknown', dimensions: values.length, contentHash: '' }
-        : parsed;
-      setCachedEmbedding(row.id, stored);
-    }
-    const compatible = stored.modelId !== 'legacy:unknown'
-      && stored.modelId === queryModelId
-      && stored.dimensions === queryEmbedding.length;
-    return {
-      text: row.text,
-      score: compatible ? cosineSimilarity(queryEmbedding, stored.values) : Number.NEGATIVE_INFINITY,
-      chapterId: row.chapter_id,
-    };
-  }).filter((row) => Number.isFinite(row.score));
+  const scored = rows
+    .map((row) => {
+      let stored = embeddingCache.get(row.id);
+      if (!stored) {
+        const parsed = JSON.parse(row.embedding) as number[] | StoredEmbedding;
+        const values = Array.isArray(parsed) ? parsed : parsed.values;
+        stored = Array.isArray(parsed)
+          ? { values, modelId: 'legacy:unknown', dimensions: values.length, contentHash: '' }
+          : parsed;
+        setCachedEmbedding(row.id, stored);
+      }
+      const compatible =
+        stored.modelId !== 'legacy:unknown' &&
+        stored.modelId === queryModelId &&
+        stored.dimensions === queryEmbedding.length;
+      return {
+        text: row.text,
+        score: compatible
+          ? cosineSimilarity(queryEmbedding, stored.values)
+          : Number.NEGATIVE_INFINITY,
+        chapterId: row.chapter_id,
+      };
+    })
+    .filter((row) => Number.isFinite(row.score));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
 }
@@ -134,10 +141,13 @@ export function deleteNovel(novelId: string): void {
 export function getChunkCount(novelId?: string): number {
   const db = getDb();
   if (novelId) {
-    const row = db.prepare('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?').get(novelId) as { count: number } | undefined;
+    const row = db
+      .prepare('SELECT COUNT(*) as count FROM vector_chunks WHERE novel_id = ?')
+      .get(novelId) as { count: number } | undefined;
     return row ? row.count : 0;
   } else {
-    const row = db.prepare('SELECT COUNT(*) as count FROM vector_chunks').get() as { count: number } | undefined;
+    const row = db.prepare('SELECT COUNT(*) as count FROM vector_chunks').get() as
+      { count: number } | undefined;
     return row ? row.count : 0;
   }
 }

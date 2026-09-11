@@ -101,7 +101,13 @@ export class LlmExecutionRejectedError extends Error {
 
 export interface LlmExecutionSession {
   traceId: string;
-  run<T>(work: (context: { signal: AbortSignal; controller: AbortController; traceId: string }) => Promise<T>): Promise<T>;
+  run<T>(
+    work: (context: {
+      signal: AbortSignal;
+      controller: AbortController;
+      traceId: string;
+    }) => Promise<T>
+  ): Promise<T>;
 }
 
 export async function createLlmExecution(options: {
@@ -122,7 +128,7 @@ export async function createLlmExecution(options: {
 }): Promise<LlmExecutionSession> {
   const eligibility = options.quotaType
     ? checkQuota(options.novelId, options.quotaType, options.accessContext)
-    : { allowed: true } satisfies QuotaCheckResult;
+    : ({ allowed: true } satisfies QuotaCheckResult);
   if (!eligibility.allowed) {
     throw new LlmExecutionRejectedError(eligibility);
   }
@@ -139,12 +145,19 @@ export async function createLlmExecution(options: {
 
   return {
     traceId,
-    async run<T>(work: (context: { signal: AbortSignal; controller: AbortController; traceId: string }) => Promise<T>): Promise<T> {
+    async run<T>(
+      work: (context: {
+        signal: AbortSignal;
+        controller: AbortController;
+        traceId: string;
+      }) => Promise<T>
+    ): Promise<T> {
       if (executed) throw new Error('LLM execution session can only run once');
       executed = true;
 
       const controller = new AbortController();
-      const onExternalAbort = () => controller.abort(options.signal?.reason || new Error('LLM execution aborted'));
+      const onExternalAbort = () =>
+        controller.abort(options.signal?.reason || new Error('LLM execution aborted'));
       if (options.signal?.aborted) {
         controller.abort(options.signal.reason || new Error('LLM execution aborted'));
       } else {
@@ -152,21 +165,22 @@ export async function createLlmExecution(options: {
       }
       const timeoutError = new Error(`LLM operation ${options.operation} timed out`);
       const timeoutId = setTimeout(() => controller.abort(timeoutError), options.timeoutMs);
-      const unsubscribeGeneration = options.databaseGeneration === undefined
-        ? undefined
-        : subscribeDatabaseGeneration((generation) => {
-          if (generation !== options.databaseGeneration) {
-            controller.abort(new Error('数据库已切换，请重试当前操作'));
-          }
-        });
+      const unsubscribeGeneration =
+        options.databaseGeneration === undefined
+          ? undefined
+          : subscribeDatabaseGeneration((generation) => {
+              if (generation !== options.databaseGeneration) {
+                controller.abort(new Error('数据库已切换，请重试当前操作'));
+              }
+            });
       let release: (() => void) | undefined;
       let reservation: QuotaCheckResult = { allowed: true };
       let removeAbortListener: (() => void) | undefined;
 
       try {
         if (
-          options.databaseGeneration !== undefined
-          && options.databaseGeneration !== getDatabaseGeneration()
+          options.databaseGeneration !== undefined &&
+          options.databaseGeneration !== getDatabaseGeneration()
         ) {
           throw new LlmExecutionRejectedError({
             allowed: false,
@@ -175,11 +189,15 @@ export async function createLlmExecution(options: {
           });
         }
         if (options.quotaType) {
-          reservation = await reserveQuota(options.novelId, options.quotaType, options.accessContext);
+          reservation = await reserveQuota(
+            options.novelId,
+            options.quotaType,
+            options.accessContext
+          );
           if (!reservation.allowed) throw new LlmExecutionRejectedError(reservation);
           if (
-            options.databaseGeneration !== undefined
-            && reservation.databaseGeneration !== options.databaseGeneration
+            options.databaseGeneration !== undefined &&
+            reservation.databaseGeneration !== options.databaseGeneration
           ) {
             await refundQuota(reservation.reservationId);
             throw new LlmExecutionRejectedError({
@@ -189,21 +207,27 @@ export async function createLlmExecution(options: {
             });
           }
         }
-        release = await getSemaphore(options.operation, options.concurrency ?? 2).acquire(controller.signal);
-        const workPromise = llmExecutionContext.run(
-          { traceId, operation: options.operation },
-          () => work({ signal: controller.signal, controller, traceId }),
+        release = await getSemaphore(options.operation, options.concurrency ?? 2).acquire(
+          controller.signal
+        );
+        const workPromise = llmExecutionContext.run({ traceId, operation: options.operation }, () =>
+          work({ signal: controller.signal, controller, traceId })
         );
         const abortPromise = new Promise<never>((_, reject) => {
           const rejectOnAbort = () => {
             const reason = controller.signal.reason;
-            reject(reason instanceof Error ? reason : new Error(String(reason || 'LLM execution aborted')));
+            reject(
+              reason instanceof Error
+                ? reason
+                : new Error(String(reason || 'LLM execution aborted'))
+            );
           };
           if (controller.signal.aborted) {
             rejectOnAbort();
           } else {
             controller.signal.addEventListener('abort', rejectOnAbort, { once: true });
-            removeAbortListener = () => controller.signal.removeEventListener('abort', rejectOnAbort);
+            removeAbortListener = () =>
+              controller.signal.removeEventListener('abort', rejectOnAbort);
           }
         });
         // A provider is expected to honor the signal, but the gate must still

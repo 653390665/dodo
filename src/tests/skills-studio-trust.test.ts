@@ -1,19 +1,57 @@
 import { describe, expect, test } from 'vitest';
-import { getTrustedSessionCardIds, getGovernanceCapabilityType, getGovernedStageRecommendations, getGovernanceStageForWorkflowPhase, getGovernanceActionLabel, getCapabilityScopeLabel, filterGovernedAssets, getCapabilityManifest } from '../lib/capability-governance';
-import { getRoleSkillSlots, buildRoleSkillLoadout, isCapabilityRunnable } from '../lib/skills-studio-governance';
+import {
+  getTrustedSessionCardIds,
+  getGovernanceCapabilityType,
+  getGovernedStageRecommendations,
+  getGovernanceStageForWorkflowPhase,
+  getGovernanceActionLabel,
+  getCapabilityScopeLabel,
+  filterGovernedAssets,
+  getCapabilityManifest,
+} from '../lib/capability-governance';
+import {
+  getRoleSkillSlots,
+  buildRoleSkillLoadout,
+  isCapabilityRunnable,
+} from '../lib/skills-studio-governance';
 import type { Skill } from '../../shared/types/skills';
 import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/public-skill-catalog';
 
 describe('SkillsStudioView score trust guard', () => {
   test('rejects unscored clones instead of synthesizing a score', () => {
-    const ordinary: Skill = { id: 'ordinary', name: 'x', description: 'x', style: 'rule', pacing: '', stabilityScore: 1, evaluationFeedback: '', version: 1, createdAt: 0 };
+    const ordinary: Skill = {
+      id: 'ordinary',
+      name: 'x',
+      description: 'x',
+      style: 'rule',
+      pacing: '',
+      stabilityScore: 1,
+      evaluationFeedback: '',
+      version: 1,
+      createdAt: 0,
+    };
     expect(getTrustedSessionCardIds(['ordinary'], [ordinary])).toEqual([]);
   });
 
   test('accepts only governed or runtime-ready extracted cards', () => {
-    const base: Skill = { id: 'saved', name: 'x', description: 'x', style: 'rule', pacing: '', stabilityScore: 1, evaluationFeedback: '', version: 1, createdAt: 0, sourceBadge: 'book-extracted', deconstructionCardType: 'style-card', executionScore: 60 };
+    const base: Skill = {
+      id: 'saved',
+      name: 'x',
+      description: 'x',
+      style: 'rule',
+      pacing: '',
+      stabilityScore: 1,
+      evaluationFeedback: '',
+      version: 1,
+      createdAt: 0,
+      sourceBadge: 'book-extracted',
+      deconstructionCardType: 'style-card',
+      executionScore: 60,
+    };
     expect(getTrustedSessionCardIds(['saved'], [base])).toEqual(['saved']);
-    expect(getTrustedSessionCardIds(['ordinary'], [{ ...base, id: 'ordinary', sourceBadge: 'manual' }])).toEqual([]);
+    expect(
+      getTrustedSessionCardIds(['ordinary'], [{ ...base, id: 'ordinary', sourceBadge: 'manual' }])
+    ).toEqual([]);
   });
 
   test('accepts runtime-ready governed catalog clones saved from the capability store', () => {
@@ -37,26 +75,82 @@ describe('SkillsStudioView score trust guard', () => {
       runtimeStatus: 'active',
     };
 
-    expect(getTrustedSessionCardIds(['saved-governed-card'], [clone])).toEqual(['saved-governed-card']);
+    expect(getTrustedSessionCardIds(['saved-governed-card'], [clone])).toEqual([
+      'saved-governed-card',
+    ]);
   });
 
   test('accepts active catalog skill-card ids without requiring a saved clone', () => {
-    expect(getTrustedSessionCardIds(['style-ancient-elegance'], [])).toEqual(['style-ancient-elegance']);
+    expect(getTrustedSessionCardIds(['style-ancient-elegance'], [])).toEqual([
+      'style-ancient-elegance',
+    ]);
   });
 
   test('uses the authoritative manifest for deconstruction overlays', () => {
-    expect(getGovernanceCapabilityType({ id: 'deconstruct-golden-climax', title: 'x', curatedCategory: 'deconstruct', goal: '', successSignal: '', score: 1, grade: 'A', sourceType: 'plaza', primaryCategory: 'utility-tool', inputs: [], actionType: 'equip' })).toBe('skill-card');
+    expect(
+      getGovernanceCapabilityType({
+        id: 'deconstruct-golden-climax',
+        title: 'x',
+        curatedCategory: 'deconstruct',
+        goal: '',
+        successSignal: '',
+        score: 1,
+        grade: 'A',
+        sourceType: 'plaza',
+        primaryCategory: 'utility-tool',
+        inputs: [],
+        actionType: 'equip',
+      })
+    ).toBe('skill-card');
   });
 
   test('does not infer a capability from id, category, or action type', () => {
-    const unknown = { id: 'looks-like-a-flow', title: 'x', curatedCategory: 'audit' as const, goal: '', successSignal: '', score: 1, grade: 'A', sourceType: 'plaza' as const, primaryCategory: 'quality-guardrail', inputs: [], actionType: 'direct-exec' as const };
+    const unknown = {
+      id: 'looks-like-a-flow',
+      title: 'x',
+      curatedCategory: 'audit' as const,
+      goal: '',
+      successSignal: '',
+      score: 1,
+      grade: 'A',
+      sourceType: 'plaza' as const,
+      primaryCategory: 'quality-guardrail',
+      inputs: [],
+      actionType: 'direct-exec' as const,
+    };
     expect(() => getGovernanceCapabilityType(unknown)).toThrow('CAPABILITY_MANIFEST_MISSING');
-    expect(getGovernanceCapabilityType({ ...unknown, id: 'platform-tomato-scoring', curatedCategory: 'platform' as const })).toBe('diagnostic');
-    expect(getGovernanceCapabilityType({ ...unknown, id: 'de-ai-slop-shield', curatedCategory: 'de-ai' as const, sourceType: 'built-in' as const, actionType: 'equip' as const })).toBe('technique');
+    expect(
+      getGovernanceCapabilityType({
+        ...unknown,
+        id: 'platform-tomato-scoring',
+        curatedCategory: 'platform' as const,
+      })
+    ).toBe('diagnostic');
+    expect(
+      getGovernanceCapabilityType({
+        ...unknown,
+        id: 'de-ai-slop-shield',
+        curatedCategory: 'de-ai' as const,
+        sourceType: 'built-in' as const,
+        actionType: 'equip' as const,
+      })
+    ).toBe('technique');
   });
 
   test('does not present unavailable utilities as runnable', () => {
-    const asset = { id: 'platform-tomato-scoring', title: 'x', curatedCategory: 'platform' as const, goal: '', successSignal: '', score: 1, grade: 'A', sourceType: 'licensed' as const, primaryCategory: 'platform-criteria' as const, inputs: [], actionType: 'direct-exec' as const };
+    const asset = {
+      id: 'platform-tomato-scoring',
+      title: 'x',
+      curatedCategory: 'platform' as const,
+      goal: '',
+      successSignal: '',
+      score: 1,
+      grade: 'A',
+      sourceType: 'licensed' as const,
+      primaryCategory: 'platform-criteria' as const,
+      inputs: [],
+      actionType: 'direct-exec' as const,
+    };
     expect(isCapabilityRunnable(asset)).toBe(false);
     expect(isCapabilityRunnable({ ...asset, id: 'audit-cliche-detector' })).toBe(true);
   });
@@ -71,7 +165,9 @@ describe('SkillsStudioView score trust guard', () => {
   });
 
   test('shows every declared capability scope instead of only the first one', () => {
-    expect(getCapabilityScopeLabel(['project', 'chapter', 'single-run'])).toBe('作品默认 / 本章使用 / 仅运行一次');
+    expect(getCapabilityScopeLabel(['project', 'chapter', 'single-run'])).toBe(
+      '作品默认 / 本章使用 / 仅运行一次'
+    );
   });
 
   test('projects runtime-ready quality guardrails into the governed shelf', () => {
@@ -95,8 +191,14 @@ describe('SkillsStudioView score trust guard', () => {
   test('recommends guardrails for the style-polish stage', () => {
     const recommendations = getGovernedStageRecommendations('style-polish');
     expect(recommendations.some((entry) => entry.capability === 'guardrail')).toBe(true);
-    expect(recommendations.every((entry) => getCapabilityManifest(entry.asset).runtimeStatus === 'active')).toBe(true);
-    expect(recommendations.find((entry) => entry.capability === 'diagnostic')?.asset.id).toBe('audit-cliche-detector');
+    expect(
+      recommendations.every(
+        (entry) => getCapabilityManifest(entry.asset).runtimeStatus === 'active'
+      )
+    ).toBe(true);
+    expect(recommendations.find((entry) => entry.capability === 'diagnostic')?.asset.id).toBe(
+      'audit-cliche-detector'
+    );
   });
 
   test('maps every workflow phase through one canonical governance-stage helper', () => {
@@ -123,10 +225,14 @@ describe('SkillsStudioView score trust guard', () => {
   });
 
   test('replaces the explicitly selected slot and preserves other slots', () => {
-    const next = buildRoleSkillLoadout([
-      { slot: 0, skillId: 'old-planner', weight: 1, lockedDimensions: [] },
-      { slot: 1, skillId: 'writer', weight: 1, lockedDimensions: [] },
-    ], 'new-planner', 'planner');
+    const next = buildRoleSkillLoadout(
+      [
+        { slot: 0, skillId: 'old-planner', weight: 1, lockedDimensions: [] },
+        { slot: 1, skillId: 'writer', weight: 1, lockedDimensions: [] },
+      ],
+      'new-planner',
+      'planner'
+    );
     expect(next).toEqual([
       { slot: 0, skillId: 'new-planner', weight: 1, lockedDimensions: [] },
       { slot: 1, skillId: 'writer', weight: 1, lockedDimensions: [] },

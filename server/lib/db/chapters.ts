@@ -1,5 +1,15 @@
-import type { Chapter, ChapterVersion, ChapterMetadata, ChapterWorkflowMeta } from '../../../shared/types';
-import { rowToChapter, chapterToRow, rowToChapterVersion, chapterVersionToRow } from '../db-mappers.js';
+import type {
+  Chapter,
+  ChapterVersion,
+  ChapterMetadata,
+  ChapterWorkflowMeta,
+} from '../../../shared/types';
+import {
+  rowToChapter,
+  chapterToRow,
+  rowToChapterVersion,
+  chapterVersionToRow,
+} from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 import { getDb, notify, runInTransaction } from '../db-instance.js';
 import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow.js';
@@ -10,10 +20,33 @@ const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>(
   tableName: 'chapters',
   rowToEntity: rowToChapter,
   entityToRow: chapterToRow,
-  insertColumns: ['id', 'novel_id', 'volume_name', 'title', 'content', '"order"', 'word_count', 'scene_beats', 'critique', 'workflow_meta', 'created_at', 'updated_at'],
-  updateColumns: ['volume_name', 'title', 'content', '"order"', 'word_count', 'scene_beats', 'critique', 'workflow_meta', 'updated_at'],
+  insertColumns: [
+    'id',
+    'novel_id',
+    'volume_name',
+    'title',
+    'content',
+    '"order"',
+    'word_count',
+    'scene_beats',
+    'critique',
+    'workflow_meta',
+    'created_at',
+    'updated_at',
+  ],
+  updateColumns: [
+    'volume_name',
+    'title',
+    'content',
+    '"order"',
+    'word_count',
+    'scene_beats',
+    'critique',
+    'workflow_meta',
+    'updated_at',
+  ],
   listFilterKey: 'novel_id',
-  listOrderBy: '"order" ASC'
+  listOrderBy: '"order" ASC',
 });
 
 export function listChapters(novelId: string): Chapter[] {
@@ -26,26 +59,37 @@ export function listChapters(novelId: string): Chapter[] {
  * the book, so this avoids pulling full content for every chapter.
  */
 export function listRecentChapterContents(novelId: string, limit: number): Chapter[] {
-  const rows = getDb().prepare(
-    `SELECT * FROM chapters WHERE novel_id = ? ORDER BY "order" DESC LIMIT ?`
-  ).all(novelId, limit) as Parameters<typeof rowToChapter>[0][];
+  const rows = getDb()
+    .prepare(`SELECT * FROM chapters WHERE novel_id = ? ORDER BY "order" DESC LIMIT ?`)
+    .all(novelId, limit) as Parameters<typeof rowToChapter>[0][];
   return rows.map(rowToChapter).reverse();
 }
 
 export function listChaptersMetadata(novelId: string): ChapterMetadata[] {
   const db = getDb();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = db.prepare('SELECT id, novel_id, volume_name, title, "order", word_count, workflow_meta, created_at, updated_at FROM chapters WHERE novel_id = ? ORDER BY "order" ASC').all(novelId) as any[];
+  const rows = db
+    .prepare(
+      'SELECT id, novel_id, volume_name, title, "order", word_count, workflow_meta, created_at, updated_at FROM chapters WHERE novel_id = ? ORDER BY "order" ASC'
+    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .all(novelId) as any[];
 
-  return rows.map(row => ({
+  return rows.map((row) => ({
     id: row.id,
     novelId: row.novel_id,
     volumeName: row.volume_name || undefined,
     title: row.title,
     order: row.order,
     wordCount: row.word_count,
-    workflowMeta: (() => { try { return row.workflow_meta ? JSON.parse(row.workflow_meta) : undefined; } catch { return undefined; } })(), createdAt: row.created_at,
-    updatedAt: row.updated_at
+    workflowMeta: (() => {
+      try {
+        return row.workflow_meta ? JSON.parse(row.workflow_meta) : undefined;
+      } catch {
+        return undefined;
+      }
+    })(),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }));
 }
 
@@ -65,14 +109,17 @@ export function deleteChapter(id: string): boolean {
   return chapterCrud.delete(id);
 }
 
-const chapterVersionCrud = createCrudHelpers<ChapterVersion, ReturnType<typeof chapterVersionToRow>>({
+const chapterVersionCrud = createCrudHelpers<
+  ChapterVersion,
+  ReturnType<typeof chapterVersionToRow>
+>({
   tableName: 'chapter_versions',
   rowToEntity: rowToChapterVersion,
   entityToRow: chapterVersionToRow,
   insertColumns: ['id', 'chapter_id', 'content', 'word_count', 'author', 'created_at'],
   updateColumns: [],
   listFilterKey: 'chapter_id',
-  listOrderBy: 'created_at DESC'
+  listOrderBy: 'created_at DESC',
 });
 
 export function listChapterVersions(chapterId: string): ChapterVersion[] {
@@ -89,10 +136,18 @@ export interface ChapterVersionMeta {
 }
 
 export function listChapterVersionMetas(chapterId: string): ChapterVersionMeta[] {
-  const rows = getDb().prepare(
-    `SELECT id, word_count, author, created_at, substr(content, 1, 150) AS preview
+  const rows = getDb()
+    .prepare(
+      `SELECT id, word_count, author, created_at, substr(content, 1, 150) AS preview
      FROM chapter_versions WHERE chapter_id = ? ORDER BY created_at DESC`
-  ).all(chapterId) as Array<{ id: string; word_count: number; author: string; created_at: number; preview: string | null }>;
+    )
+    .all(chapterId) as Array<{
+    id: string;
+    word_count: number;
+    author: string;
+    created_at: number;
+    preview: string | null;
+  }>;
   return rows.map((r) => ({
     id: r.id,
     wordCount: r.word_count,
@@ -129,7 +184,8 @@ export interface ChapterContentCandidateAcceptance {
 export function acceptChapterContentCandidate(input: ChapterContentCandidateAcceptance): boolean {
   const accepted = runInTransaction(() => {
     const existing = chapterCrud.get(input.chapterId);
-    if (!existing || existing.novelId !== input.novelId) throw new Error('CHAPTER_CANDIDATE_SCOPE_MISMATCH');
+    if (!existing || existing.novelId !== input.novelId)
+      throw new Error('CHAPTER_CANDIDATE_SCOPE_MISMATCH');
     if (input.version.chapterId !== input.chapterId || input.version.content !== existing.content) {
       throw new Error('CHAPTER_CANDIDATE_SCOPE_MISMATCH');
     }
@@ -156,21 +212,29 @@ export function acceptChapterContentCandidate(input: ChapterContentCandidateAcce
       updatedAt: now,
     };
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO chapter_versions (id, chapter_id, content, word_count, author, created_at)
       VALUES (@id, @chapter_id, @content, @word_count, @author, @created_at)
-    `).run(chapterVersionToRow({
-      ...input.version,
-      wordCount: baselineWordCount,
-    }));
+    `
+    ).run(
+      chapterVersionToRow({
+        ...input.version,
+        wordCount: baselineWordCount,
+      })
+    );
     const row = chapterToRow(updated);
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       UPDATE chapters
       SET volume_name=@volume_name, title=@title, content=@content, "order"=@order,
           word_count=@word_count, scene_beats=@scene_beats, critique=@critique,
           workflow_meta=@workflow_meta, updated_at=@updated_at
       WHERE id=@id
-    `).run(row);
+    `
+      )
+      .run(row);
     if (result.changes === 0) throw new Error('CHAPTER_CANDIDATE_SCOPE_MISMATCH');
     return true;
   });

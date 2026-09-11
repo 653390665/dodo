@@ -26,7 +26,7 @@ function skill(id: string, overrides: Partial<Skill> = {}): Skill {
     evidenceMoments: ['opening'],
     sourceBadge: 'book-extracted',
     sourceType: 'plaza',
-    ...( {
+    ...({
       isRuntimeReady: true,
       sanitizationStatus: 'runtime-ready',
       runtimeStatus: 'active',
@@ -41,16 +41,20 @@ describe('Plan 158 project skill deck', () => {
     const unselected = buildProjectSkillDeckPreview(cards, Date.now(), undefined);
     expect(unselected.deck.mainCardId).toBeUndefined();
     const selected = buildProjectSkillDeckPreview(cards, Date.now(), {
-      mainCardId: 'main', supportCardIds: ['support-a', 'support-b'],
+      mainCardId: 'main',
+      supportCardIds: ['support-a', 'support-b'],
     });
-    expect(selected.deck).toMatchObject({ mainCardId: 'main', supportCardIds: ['support-a', 'support-b'] });
+    expect(selected.deck).toMatchObject({
+      mainCardId: 'main',
+      supportCardIds: ['support-a', 'support-b'],
+    });
   });
 
   it('rejects more than two explicit supports instead of truncating', () => {
     const result = buildProjectSkillDeckPreview(
       [skill('main'), skill('a'), skill('b'), skill('c')],
       Date.now(),
-      { mainCardId: 'main', supportCardIds: ['a', 'b', 'c'] },
+      { mainCardId: 'main', supportCardIds: ['a', 'b', 'c'] }
     );
     expect(result.conflicts).toContain('PROJECT_DECK_SUPPORT_LIMIT');
     expect(result.acceptedCards.map((card) => card.id)).toEqual(['main', 'a', 'b', 'c']);
@@ -64,12 +68,16 @@ describe('Plan 158 project skill deck', () => {
     expect(result.rejectedCards).toHaveLength(0);
   });
   it('selects one main and at most two supports without stage-slot conflicts', () => {
-    const result = buildProjectSkillDeckPreview([
-      skill('main'),
-      skill('planner-a', { deconstructionCardType: 'worldview-card', primaryDimension: 'world' }),
-      skill('planner-b', { deconstructionCardType: 'hook-card', primaryDimension: 'plot' }),
-      skill('extra', { deconstructionCardType: 'character-card', primaryDimension: 'character' }),
-    ], Date.now(), { mainCardId: 'main', supportCardIds: ['planner-a', 'planner-b'] });
+    const result = buildProjectSkillDeckPreview(
+      [
+        skill('main'),
+        skill('planner-a', { deconstructionCardType: 'worldview-card', primaryDimension: 'world' }),
+        skill('planner-b', { deconstructionCardType: 'hook-card', primaryDimension: 'plot' }),
+        skill('extra', { deconstructionCardType: 'character-card', primaryDimension: 'character' }),
+      ],
+      Date.now(),
+      { mainCardId: 'main', supportCardIds: ['planner-a', 'planner-b'] }
+    );
 
     expect(result.deck).toEqual({
       mainCardId: 'main',
@@ -84,7 +92,13 @@ describe('Plan 158 project skill deck', () => {
   it('writes only v3 capability state and preserves unrelated profile fields', () => {
     const profile = {
       tags: ['keep'],
-      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+      weights: {
+        styleWeight: 1,
+        characterWeight: 1,
+        worldWeight: 1,
+        plotWeight: 1,
+        pacingWeight: 1,
+      },
       acceptedDimensions: [],
       rejectedDimensions: [],
       notes: [],
@@ -99,16 +113,32 @@ describe('Plan 158 project skill deck', () => {
 
     expect(next.capabilityModelVersion).toBe(3);
     expect(next.capabilityProfile?.projectSkillDeck).toEqual({
-      mainCardId: 'main', supportCardIds: ['support-a', 'support-b'], updatedAt: 123,
+      mainCardId: 'main',
+      supportCardIds: ['support-a', 'support-b'],
+      updatedAt: 123,
     });
     expect(next.quotaLimits).toEqual({ generateProseCount: 2 });
     expect(next.tags).toEqual(['keep']);
   });
 
   it('rejects invalid profile deck updates instead of bypassing deck validation', () => {
-    expect(() => updateProjectSkillDeck(undefined, { mainCardId: '', supportCardIds: [], updatedAt: 1 })).toThrow();
-    expect(() => updateProjectSkillDeck(undefined, { mainCardId: 'main', supportCardIds: ['a', 'b', 'c'], updatedAt: 1 })).toThrow();
-    expect(() => updateProjectSkillDeck(undefined, { mainCardId: 'main', supportCardIds: ['main'], updatedAt: 1 })).toThrow();
+    expect(() =>
+      updateProjectSkillDeck(undefined, { mainCardId: '', supportCardIds: [], updatedAt: 1 })
+    ).toThrow();
+    expect(() =>
+      updateProjectSkillDeck(undefined, {
+        mainCardId: 'main',
+        supportCardIds: ['a', 'b', 'c'],
+        updatedAt: 1,
+      })
+    ).toThrow();
+    expect(() =>
+      updateProjectSkillDeck(undefined, {
+        mainCardId: 'main',
+        supportCardIds: ['main'],
+        updatedAt: 1,
+      })
+    ).toThrow();
   });
 
   it('rejects non-deconstruction skills instead of putting techniques into the card deck', () => {
@@ -139,23 +169,32 @@ describe('Plan 158 project skill deck', () => {
       skill('no-rule', { style: '', pacing: '', corePatterns: [] }),
     ]);
     expect(result.acceptedCards).toHaveLength(0);
-    expect(result.rejectedCards.map((card) => card.id)).toEqual(['paid', 'unknown-source', 'no-rule']);
+    expect(result.rejectedCards.map((card) => card.id)).toEqual([
+      'paid',
+      'unknown-source',
+      'no-rule',
+    ]);
   });
 
   it('builds a v3-only update payload without legacy mounted fields', () => {
     const payload = buildProjectSkillDeckUpdatePayload(undefined, {
-      mainCardId: 'main', supportCardIds: ['support'], updatedAt: 1,
+      mainCardId: 'main',
+      supportCardIds: ['support'],
+      updatedAt: 1,
     });
     expect(payload).toHaveProperty('projectPreferenceProfile.capabilityModelVersion', 3);
     expect(payload).not.toHaveProperty('mountedSkillLoadout');
     expect(payload).not.toHaveProperty('mountedSkillIds');
   });
-
 });
 
 describe('Plan 158 resolved skill fusion', () => {
   it('freezes components, dimension owners, resolved rules and lineage without mutating sources', () => {
-    const main = skill('main', { style: 'short sentences', primaryDimension: 'style', dimensionTags: ['style', 'plot'] });
+    const main = skill('main', {
+      style: 'short sentences',
+      primaryDimension: 'style',
+      dimensionTags: ['style', 'plot'],
+    });
     const support = skill('support', {
       version: 4,
       style: 'ornate imagery',
@@ -174,7 +213,8 @@ describe('Plan 158 resolved skill fusion', () => {
     expect(result.risks).toContain('存在维度规则冲突，融合候选保留主卡规则并显示辅卡差异');
     expect(result.draft?.description).toBe('main 为主卡，融合 support 的辅卡特征。');
     expect(result.draft?.fusionMeta?.components).toEqual([
-      { skillId: 'main', version: 2 }, { skillId: 'support', version: 4 },
+      { skillId: 'main', version: 2 },
+      { skillId: 'support', version: 4 },
     ]);
     expect(result.draft?.fusionMeta?.dimensionOwners?.style).toBe('main');
     expect(result.draft?.fusionMeta?.dimensionOwners?.plot).toBe('main');
@@ -187,19 +227,33 @@ describe('Plan 158 resolved skill fusion', () => {
       }),
       lineage: expect.objectContaining({ mainSkillId: 'main', supportSkillId: 'support' }),
     });
-    const lineageSources = (result.draft?.fusionMeta?.resolvedRules?.lineage as { sources: Array<Record<string, unknown>> }).sources;
-    expect(lineageSources).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        skillId: 'main', version: 2, deckGroupId: 'deck-1',
-        deconstructionCardType: 'style-card', evidenceCoverage: 'full-book-stable',
-        sourceBadge: 'book-extracted', sourceType: 'plaza',
-      }),
-      expect.objectContaining({
-        skillId: 'support', version: 4, deckGroupId: 'deck-1',
-        deconstructionCardType: 'style-card', evidenceCoverage: 'full-book-stable',
-        sourceBadge: 'book-extracted', sourceType: 'licensed',
-      }),
-    ]));
+    const lineageSources = (
+      result.draft?.fusionMeta?.resolvedRules?.lineage as {
+        sources: Array<Record<string, unknown>>;
+      }
+    ).sources;
+    expect(lineageSources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          skillId: 'main',
+          version: 2,
+          deckGroupId: 'deck-1',
+          deconstructionCardType: 'style-card',
+          evidenceCoverage: 'full-book-stable',
+          sourceBadge: 'book-extracted',
+          sourceType: 'plaza',
+        }),
+        expect.objectContaining({
+          skillId: 'support',
+          version: 4,
+          deckGroupId: 'deck-1',
+          deconstructionCardType: 'style-card',
+          evidenceCoverage: 'full-book-stable',
+          sourceBadge: 'book-extracted',
+          sourceType: 'licensed',
+        }),
+      ])
+    );
     expect(result.draft?.sourceBadge).toBe('fused');
     expect(result.draft?.parentSkillId).toBe('main');
     main.style = 'mutated';
@@ -215,7 +269,10 @@ describe('Plan 158 resolved skill fusion', () => {
   });
 
   it('rejects non-runtime-ready or unauthorized fusion sources', () => {
-    const result = buildResolvedFusionDraft(skill('main'), skill('support', { accessTier: 'paid' }));
+    const result = buildResolvedFusionDraft(
+      skill('main'),
+      skill('support', { accessTier: 'paid' })
+    );
     expect(result.status).toBe('rejected');
   });
 
@@ -228,15 +285,23 @@ describe('Plan 158 resolved skill fusion', () => {
 
   it('does not create a metadata-only fusion when sources have no runtime rules', () => {
     const source = skill('empty', { style: '', pacing: '', dimensionTags: [] });
-    const draft = buildFusionDraft(source, skill('empty-support', { style: '', pacing: '', dimensionTags: [] }));
+    const draft = buildFusionDraft(
+      source,
+      skill('empty-support', { style: '', pacing: '', dimensionTags: [] })
+    );
     expect(draft).toBeNull();
-    expect(buildResolvedFusionDraft(source, skill('empty-support', { style: '', pacing: '', dimensionTags: [] })).status).toBe('rejected');
+    expect(
+      buildResolvedFusionDraft(
+        source,
+        skill('empty-support', { style: '', pacing: '', dimensionTags: [] })
+      ).status
+    ).toBe('rejected');
   });
 
   it('rejects unresolved dimension conflicts', () => {
     const result = buildResolvedFusionDraft(
       skill('main', { style: 'short' }),
-      skill('support', { style: 'ornate' }),
+      skill('support', { style: 'ornate' })
     );
     expect(result.status).toBe('rejected');
     expect(result.conflicts.length).toBeGreaterThan(0);

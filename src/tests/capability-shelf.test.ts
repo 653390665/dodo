@@ -9,13 +9,18 @@ import {
 } from '../lib/capability-shelf';
 
 const card = (id: string, title: string, extra: Partial<StyleShelfCard> = {}): StyleShelfCard => ({
-  id, title, goal: '', score: 80, ...extra,
+  id,
+  title,
+  goal: '',
+  score: 80,
+  ...extra,
 });
 
 describe('deriveShelfTags', () => {
   test('题材词映射为英文 token，平台词映射为平台 token', () => {
     expect(deriveShelfTags('玄幻题材大类配置模板')).toEqual({
-      genres: ['fantasy', 'xuanhuan'], platforms: [],
+      genres: ['fantasy', 'xuanhuan'],
+      platforms: [],
     });
     const tomato = deriveShelfTags('【小飞鸡】番茄长篇正文通用');
     expect(tomato.platforms).toEqual(['tomato']);
@@ -29,7 +34,9 @@ describe('deriveShelfTags', () => {
 describe('deriveNovelGenreTokens', () => {
   test('从作品文本与标签提取题材 token（中英均可）', () => {
     expect(deriveNovelGenreTokens('这是一个玄幻故事', [])).toContain('fantasy');
-    expect(deriveNovelGenreTokens('', ['fantasy', 'urban'])).toEqual(expect.arrayContaining(['fantasy', 'urban']));
+    expect(deriveNovelGenreTokens('', ['fantasy', 'urban'])).toEqual(
+      expect.arrayContaining(['fantasy', 'urban'])
+    );
   });
 });
 
@@ -46,9 +53,9 @@ describe('groupStyleShelf', () => {
     ];
     const shelf = groupStyleShelf(cards);
     const total =
-      shelf.series.reduce((sum, group) => sum + group.assets.length, 0)
-      + shelf.functional.reduce((sum, group) => sum + group.assets.length, 0)
-      + shelf.ungrouped.length;
+      shelf.series.reduce((sum, group) => sum + group.assets.length, 0) +
+      shelf.functional.reduce((sum, group) => sum + group.assets.length, 0) +
+      shelf.ungrouped.length;
     expect(total).toBe(cards.length);
   });
 
@@ -68,7 +75,10 @@ describe('groupStyleShelf', () => {
   test('与创作流程步骤同源的卡打 inFlow 标记', () => {
     // square-76 天马-脑洞生成 同时是天马大纲流步骤
     const shelf = groupStyleShelf([card('square-76', '天马-脑洞生成-番茄爆款')]);
-    const all = [...shelf.functional.flatMap((group) => group.assets), ...shelf.series.flatMap((group) => group.assets)];
+    const all = [
+      ...shelf.functional.flatMap((group) => group.assets),
+      ...shelf.series.flatMap((group) => group.assets),
+    ];
     expect(all.find((a) => a.id === 'square-76')?.inFlow).toBe(true);
   });
 
@@ -83,12 +93,12 @@ describe('computeCardFitness', () => {
   test('题材与平台命中显著提升适合度并产出原因', () => {
     const hit = computeCardFitness(
       card('x', '【小飞鸡】番茄长篇正文通用', { platformTags: ['tomato'] }),
-      { novelGenreTokens: [], novelPlatform: 'tomato' },
+      { novelGenreTokens: [], novelPlatform: 'tomato' }
     );
-    const miss = computeCardFitness(
-      card('y', '【风华出品】长短篇通用正文'),
-      { novelGenreTokens: [], novelPlatform: 'tomato' },
-    );
+    const miss = computeCardFitness(card('y', '【风华出品】长短篇通用正文'), {
+      novelGenreTokens: [],
+      novelPlatform: 'tomato',
+    });
     expect(hit.score).toBeGreaterThan(miss.score);
     expect(hit.reasons.join()).toContain('tomato');
   });
@@ -96,7 +106,7 @@ describe('computeCardFitness', () => {
   test('反馈缺失时权重重分配，有反馈时计入', () => {
     const base = card('x', '某正文润色卡');
     const noFeedback = computeCardFitness(base, { novelGenreTokens: [] });
-    const withFeedback = computeCardFitness(base, { novelGenreTokens: [] }, );
+    const withFeedback = computeCardFitness(base, { novelGenreTokens: [] });
     expect(noFeedback.score).toBe(withFeedback.score);
     const good = computeCardFitness(base, { novelGenreTokens: [], feedbackScore: 90 });
     expect(good.score).toBeGreaterThan(noFeedback.score);

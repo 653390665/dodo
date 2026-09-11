@@ -1,8 +1,5 @@
 function normalizeQuotes(raw: string): string {
-  return raw
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/＂/g, '"');
+  return raw.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/＂/g, '"');
 }
 
 function stripCodeFences(raw: string): string {
@@ -41,7 +38,13 @@ export class ModelJsonSyntaxError extends Error {
   }
 }
 
-function findJsonCandidateInfo(raw: string): { candidate: string; cleaned: string; start: number; balanced: boolean; root: 'object' | 'array' } | null {
+function findJsonCandidateInfo(raw: string): {
+  candidate: string;
+  cleaned: string;
+  start: number;
+  balanced: boolean;
+  root: 'object' | 'array';
+} | null {
   const cleaned = stripCodeFences(raw);
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
@@ -90,12 +93,24 @@ function findJsonCandidateInfo(raw: string): { candidate: string; cleaned: strin
     if (char === jsonEnd) {
       depth -= 1;
       if (depth === 0) {
-        return { candidate: cleaned.slice(start, index + 1), cleaned, start, balanced: true, root: jsonStart === '{' ? 'object' : 'array' };
+        return {
+          candidate: cleaned.slice(start, index + 1),
+          cleaned,
+          start,
+          balanced: true,
+          root: jsonStart === '{' ? 'object' : 'array',
+        };
       }
     }
   }
 
-  return { candidate: cleaned.slice(start), cleaned, start, balanced: false, root: jsonStart === '{' ? 'object' : 'array' };
+  return {
+    candidate: cleaned.slice(start),
+    cleaned,
+    start,
+    balanced: false,
+    root: jsonStart === '{' ? 'object' : 'array',
+  };
 }
 
 function findJsonCandidate(raw: string): string {
@@ -234,7 +249,10 @@ export function parseModelJsonPayload<T = unknown>(raw: string): T {
 }
 
 /** Strict parser for payloads where closeJsonStructures would create unsafe data. */
-export function parseModelJsonPayloadStrict<T = unknown>(raw: string, options: { expectedRoot?: 'object' | 'array' } = {}): T {
+export function parseModelJsonPayloadStrict<T = unknown>(
+  raw: string,
+  options: { expectedRoot?: 'object' | 'array' } = {}
+): T {
   const cleaned = stripCodeFences(raw);
   try {
     const parsed = JSON.parse(cleaned) as unknown;
@@ -245,7 +263,12 @@ export function parseModelJsonPayloadStrict<T = unknown>(raw: string, options: {
   } catch (fullError) {
     const info = findJsonCandidateInfo(raw);
     if (!info) {
-      throw new ModelJsonSyntaxError({ parserStage: 'no_candidate', candidateRoot: 'none', balanced: false, parseOffset: parseOffset(fullError) });
+      throw new ModelJsonSyntaxError({
+        parserStage: 'no_candidate',
+        candidateRoot: 'none',
+        balanced: false,
+        parseOffset: parseOffset(fullError),
+      });
     }
     const baseDiagnostic: ModelJsonDiagnostic = {
       parserStage: 'strict_parse',
@@ -265,7 +288,11 @@ export function parseModelJsonPayloadStrict<T = unknown>(raw: string, options: {
       try {
         return JSON.parse(repairUnescapedQuotesInJson(info.candidate)) as T;
       } catch {
-        throw new ModelJsonSyntaxError({ ...baseDiagnostic, parserStage: 'quote_repair', parseOffset: parseOffset(candidateError) });
+        throw new ModelJsonSyntaxError({
+          ...baseDiagnostic,
+          parserStage: 'quote_repair',
+          parseOffset: parseOffset(candidateError),
+        });
       }
     }
   }

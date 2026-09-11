@@ -51,7 +51,9 @@ vi.mock('../lib/editor-write-queue', () => ({
   queueEditorWrite: vi.fn(),
   subscribeToEditorWrites: vi.fn().mockReturnValue(() => {}),
 }));
-vi.mock('../lib/continuation-client', () => ({ listContinuationPacks: vi.fn().mockResolvedValue([]) }));
+vi.mock('../lib/continuation-client', () => ({
+  listContinuationPacks: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../lib/db-transport', () => ({
   call: vi.fn().mockResolvedValue(undefined),
   callBatch: mocks.callBatch,
@@ -76,14 +78,20 @@ vi.mock('../lib/world-client', () => ({
   listCharacters: vi.fn().mockResolvedValue([]),
   listTimelineEvents: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('../lib/foreshadowing-client', () => ({ listForeshadowings: vi.fn().mockResolvedValue([]) }));
+vi.mock('../lib/foreshadowing-client', () => ({
+  listForeshadowings: vi.fn().mockResolvedValue([]),
+}));
 
 // AppShell 周边重组件全部替换为轻桩；Library 与 AIAssistantDrawer 保持真实（被测对象）。
 vi.mock('../components/Sidebar', () => ({ Sidebar: () => <aside /> }));
 vi.mock('../components/WelcomeView', () => ({ WelcomeView: () => <div /> }));
-vi.mock('../components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock('../components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock('../components/SettingsModal', () => ({ SettingsModal: () => null }));
-vi.mock('../components/commercial/PremiumUpgradeModal', () => ({ PremiumUpgradeModal: () => null }));
+vi.mock('../components/commercial/PremiumUpgradeModal', () => ({
+  PremiumUpgradeModal: () => null,
+}));
 vi.mock('../components/ProjectCockpitView', () => ({ ProjectCockpitView: () => <div /> }));
 vi.mock('../components/ContinuationImportView', () => ({ ContinuationImportView: () => <div /> }));
 vi.mock('../components/SkillsStudioView', () => ({ SkillsStudioView: () => <div /> }));
@@ -91,7 +99,9 @@ vi.mock('../components/BookFactoryView', () => ({ BookFactoryView: () => <div />
 vi.mock('../components/EditorView', () => ({ EditorView: () => <div /> }));
 vi.mock('../components/WorldBibleView', () => ({ WorldBibleView: () => <div /> }));
 vi.mock('../components/AIAssistant', () => ({ AIAssistant: () => <div>作品助手内容</div> }));
-vi.mock('../components/WorldBibleAssistant', () => ({ WorldBibleAssistant: () => <div>设定助手内容</div> }));
+vi.mock('../components/WorldBibleAssistant', () => ({
+  WorldBibleAssistant: () => <div>设定助手内容</div>,
+}));
 
 import { AppShell } from '../components/AppShell';
 import { Library } from '../components/Library';
@@ -99,10 +109,26 @@ import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 import { useAppStore } from '../stores/app-store';
 import { useNovelStore } from '../stores/novel-store';
 
-const novel: Novel = { id: 'novel-1', title: '测试作品', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 };
+const novel: Novel = {
+  id: 'novel-1',
+  title: '测试作品',
+  authorId: 'local-user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
+};
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: '第一章', volumeName: '正文卷', content: '原文', sceneBeats: '',
-  order: 1, wordCount: 2, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: '第一章',
+  volumeName: '正文卷',
+  content: '原文',
+  sceneBeats: '',
+  order: 1,
+  wordCount: 2,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 function getToastText(): string {
@@ -145,27 +171,33 @@ describe('user action failure feedback (plan 180)', () => {
     const setChapters = vi.fn();
     const setCurrentChapter = vi.fn();
     const unhandled: unknown[] = [];
-    const onUnhandled = (event: PromiseRejectionEvent) => { unhandled.push(event.reason); };
+    const onUnhandled = (event: PromiseRejectionEvent) => {
+      unhandled.push(event.reason);
+    };
     window.addEventListener('unhandledrejection', onUnhandled);
 
-    const { result } = renderHook(() => useEditorPersistence({
-      novel,
-      chapters: [chapter],
-      currentChapter: chapter,
-      isContentLockedRef: { current: false },
-      contentRef: { current: null },
-      setChapters,
-      setCurrentChapter,
-      selectChapter: vi.fn().mockResolvedValue(chapter),
-      setMountedSkillLoadout: vi.fn(),
-      setProjectPreferenceProfile: vi.fn(),
-      setGlobalOutline: vi.fn(),
-      setExpandedVolumes: vi.fn(),
-      pushToUndoHistory: vi.fn(),
-    }));
+    const { result } = renderHook(() =>
+      useEditorPersistence({
+        novel,
+        chapters: [chapter],
+        currentChapter: chapter,
+        isContentLockedRef: { current: false },
+        contentRef: { current: null },
+        setChapters,
+        setCurrentChapter,
+        selectChapter: vi.fn().mockResolvedValue(chapter),
+        setMountedSkillLoadout: vi.fn(),
+        setProjectPreferenceProfile: vi.fn(),
+        setGlobalOutline: vi.fn(),
+        setExpandedVolumes: vi.fn(),
+        pushToUndoHistory: vi.fn(),
+      })
+    );
 
     // 不抛出即证明 rejection 已在 hook 内被接住（无 unhandled rejection）。
-    await act(async () => { await result.current.handleDeleteChapter('chapter-1'); });
+    await act(async () => {
+      await result.current.handleDeleteChapter('chapter-1');
+    });
     window.removeEventListener('unhandledrejection', onUnhandled);
 
     expect(mocks.deleteChapter).toHaveBeenCalledWith('chapter-1');
@@ -186,11 +218,26 @@ describe('user action failure feedback (plan 180)', () => {
       coreConflict: '核心冲突',
       tone: '爽文',
       whyItWorks: '节奏明确',
-      starterSeeds: { worldSeed: '世界种子', relationshipSeed: '关系种子', chapterOneSeed: '第一章种子' },
-      planningFit: { recommendedLength: '30万字', recommendedFocus: '剧情推进', recommendedPacing: '紧推进', reason: '适合平台节奏' },
+      starterSeeds: {
+        worldSeed: '世界种子',
+        relationshipSeed: '关系种子',
+        chapterOneSeed: '第一章种子',
+      },
+      planningFit: {
+        recommendedLength: '30万字',
+        recommendedFocus: '剧情推进',
+        recommendedPacing: '紧推进',
+        reason: '适合平台节奏',
+      },
       riskNote: '',
       mixTags: [],
-      signals: { tone: '爽文', conflictType: '升级', worldWeight: 0.3, characterWeight: 0.5, pacingPreference: 'tight' },
+      signals: {
+        tone: '爽文',
+        conflictType: '升级',
+        worldWeight: 0.3,
+        characterWeight: 0.5,
+        pacingPreference: 'tight',
+      },
     };
     useNovelStore.setState({
       selectedNovel: null,

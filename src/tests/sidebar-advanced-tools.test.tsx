@@ -25,7 +25,9 @@ describe('Sidebar advanced tools', () => {
 
   test('reveals the active advanced destination', () => {
     render(<Sidebar currentView="skills" onNavigate={vi.fn()} user={{ uid: 'local' }} />);
-    expect(screen.getByRole('button', { name: '高级工具' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: '高级工具' }).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
     expect(screen.getByRole('button', { name: '作品能力中心' })).toBeTruthy();
   });
 });

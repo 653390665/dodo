@@ -21,7 +21,7 @@ function skill(id: string, overrides: Partial<Skill> = {}): Skill {
     evidenceMoments: ['opening'],
     sourceBadge: 'book-extracted',
     sourceType: 'plaza',
-    ...( {
+    ...({
       isRuntimeReady: true,
       sanitizationStatus: 'runtime-ready',
       runtimeStatus: 'active',
@@ -36,12 +36,21 @@ describe('Plan 158 fusion workbench', () => {
     render(
       <SkillFusionWorkbench
         baseSkill={skill('main')}
-        candidates={[skill('support', { style: '', primaryDimension: 'plot', dimensionTags: ['plot'], plotPattern: 'hidden cost' })]}
+        candidates={[
+          skill('support', {
+            style: '',
+            primaryDimension: 'plot',
+            dimensionTags: ['plot'],
+            plotPattern: 'hidden cost',
+          }),
+        ]}
         onPreview={onPreview}
-      />,
+      />
     );
 
-    fireEvent.change(screen.getByRole('combobox', { name: '选择融合辅卡' }), { target: { value: 'support' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '选择融合辅卡' }), {
+      target: { value: 'support' },
+    });
     expect(onPreview).toHaveBeenLastCalledWith(null);
     expect(screen.getByText('主卡：main · 辅卡：support')).toBeTruthy();
 

@@ -1,10 +1,22 @@
-import type { CanonPatch, OutlineArtifact, OutlineArtifactLevel, OutlineArtifactScope, OutlineArtifactSource, OutlineArtifactStatus, CanonPatchOperation } from '../../shared/types/outline-governance';
+import type {
+  CanonPatch,
+  OutlineArtifact,
+  OutlineArtifactLevel,
+  OutlineArtifactScope,
+  OutlineArtifactSource,
+  OutlineArtifactStatus,
+  CanonPatchOperation,
+} from '../../shared/types/outline-governance';
 import type { CreativeArtifactRef } from '../../shared/types/creative-artifacts';
 import { HttpApiError, request as requestHttp } from './http';
 export { getDatabaseGenerationSnapshot } from './db-transport';
 
 export class OutlineClientError extends HttpApiError {
-  constructor(public readonly code: string, public readonly status: number, message: string) {
+  constructor(
+    public readonly code: string,
+    public readonly status: number,
+    message: string
+  ) {
     super(message, status, code);
     this.name = 'OutlineClientError';
   }
@@ -25,14 +37,26 @@ const request = async <T>(url: string, init?: RequestInit): Promise<T> => {
     return await requestHttp<T>(url, init);
   } catch (error) {
     if (error instanceof HttpApiError) {
-      throw new OutlineClientError(error.code || 'OUTLINE_REQUEST_FAILED', error.status, error.message);
+      throw new OutlineClientError(
+        error.code || 'OUTLINE_REQUEST_FAILED',
+        error.status,
+        error.message
+      );
     }
     throw error;
   }
 };
-const json = (body: unknown): RequestInit => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const json = (body: unknown): RequestInit => ({
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
 
-export function listOutlines(novelId: string, filters: { level?: OutlineArtifactLevel; status?: OutlineArtifactStatus } = {}, databaseGeneration?: number) {
+export function listOutlines(
+  novelId: string,
+  filters: { level?: OutlineArtifactLevel; status?: OutlineArtifactStatus } = {},
+  databaseGeneration?: number
+) {
   const params = new URLSearchParams();
   if (filters.level) params.set('level', filters.level);
   if (filters.status) params.set('status', filters.status);
@@ -40,40 +64,110 @@ export function listOutlines(novelId: string, filters: { level?: OutlineArtifact
   const suffix = params.toString() ? `?${params}` : '';
   return request<OutlineArtifact[]>(`/api/novels/${encodeURIComponent(novelId)}/outlines${suffix}`);
 }
-export async function createOutline(novelId: string, input: { level: OutlineArtifactLevel; scope: OutlineArtifactScope; content: string; source?: 'user' | 'continuation-pack' | 'ai-proposal'; databaseGeneration: number }) {
-  const result = await request<OutlineArtifact>(`/api/novels/${encodeURIComponent(novelId)}/outlines`, json(input));
-  emit(novelId); return result;
+export async function createOutline(
+  novelId: string,
+  input: {
+    level: OutlineArtifactLevel;
+    scope: OutlineArtifactScope;
+    content: string;
+    source?: 'user' | 'continuation-pack' | 'ai-proposal';
+    databaseGeneration: number;
+  }
+) {
+  const result = await request<OutlineArtifact>(
+    `/api/novels/${encodeURIComponent(novelId)}/outlines`,
+    json(input)
+  );
+  emit(novelId);
+  return result;
 }
-export async function activateOutline(novelId: string, outlineId: string, databaseGeneration: number) {
-  const result = await request<{ archivedIds: string[]; demotedIds: string[] }>(`/api/novels/${encodeURIComponent(novelId)}/outlines/${encodeURIComponent(outlineId)}/activate`, json({ databaseGeneration }));
-  emit(novelId); return result;
+export async function activateOutline(
+  novelId: string,
+  outlineId: string,
+  databaseGeneration: number
+) {
+  const result = await request<{ archivedIds: string[]; demotedIds: string[] }>(
+    `/api/novels/${encodeURIComponent(novelId)}/outlines/${encodeURIComponent(outlineId)}/activate`,
+    json({ databaseGeneration })
+  );
+  emit(novelId);
+  return result;
 }
-export async function archiveOutline(novelId: string, outlineId: string, databaseGeneration: number) {
-  const result = await request<{ archived: boolean }>(`/api/novels/${encodeURIComponent(novelId)}/outlines/${encodeURIComponent(outlineId)}/archive`, json({ databaseGeneration }));
-  emit(novelId); return result;
+export async function archiveOutline(
+  novelId: string,
+  outlineId: string,
+  databaseGeneration: number
+) {
+  const result = await request<{ archived: boolean }>(
+    `/api/novels/${encodeURIComponent(novelId)}/outlines/${encodeURIComponent(outlineId)}/archive`,
+    json({ databaseGeneration })
+  );
+  emit(novelId);
+  return result;
 }
 export function listCanonPatches(novelId: string) {
   return request<CanonPatch[]>(`/api/novels/${encodeURIComponent(novelId)}/canon-patches`);
 }
-export interface CanonPatchActionResult { status: CanonPatch['status']; fingerprint?: string; artifacts?: string[]; acceptedOutlineRefs?: CreativeArtifactRef[]; code?: string; }
-export async function acceptCanonPatch(novelId: string, patchId: string, databaseGeneration: number) {
-  const result = await request<CanonPatchActionResult>(`/api/novels/${encodeURIComponent(novelId)}/canon-patches/${encodeURIComponent(patchId)}/accept`, json({ databaseGeneration }));
-  emit(novelId); return result;
+export interface CanonPatchActionResult {
+  status: CanonPatch['status'];
+  fingerprint?: string;
+  artifacts?: string[];
+  acceptedOutlineRefs?: CreativeArtifactRef[];
+  code?: string;
 }
-export async function rejectCanonPatch(novelId: string, patchId: string, databaseGeneration: number) {
-  const result = await request<CanonPatchActionResult>(`/api/novels/${encodeURIComponent(novelId)}/canon-patches/${encodeURIComponent(patchId)}/reject`, json({ databaseGeneration }));
-  emit(novelId); return result;
+export async function acceptCanonPatch(
+  novelId: string,
+  patchId: string,
+  databaseGeneration: number
+) {
+  const result = await request<CanonPatchActionResult>(
+    `/api/novels/${encodeURIComponent(novelId)}/canon-patches/${encodeURIComponent(patchId)}/accept`,
+    json({ databaseGeneration })
+  );
+  emit(novelId);
+  return result;
+}
+export async function rejectCanonPatch(
+  novelId: string,
+  patchId: string,
+  databaseGeneration: number
+) {
+  const result = await request<CanonPatchActionResult>(
+    `/api/novels/${encodeURIComponent(novelId)}/canon-patches/${encodeURIComponent(patchId)}/reject`,
+    json({ databaseGeneration })
+  );
+  emit(novelId);
+  return result;
 }
 // Compatibility names used by governance views.
 export const listOutlineArtifacts = listOutlines;
 export const subscribeOutlineGovernanceChanges = subscribeToOutlineGovernanceChanges;
-export async function createOutlineArtifact(novelId: string, input: { level: OutlineArtifactLevel; scope: OutlineArtifactScope; content: string }, options: { source?: OutlineArtifactSource; databaseGeneration: number }) {
-  return createOutline(novelId, { ...input, ...(options.source ? { source: options.source } : {}), databaseGeneration: options.databaseGeneration });
+export async function createOutlineArtifact(
+  novelId: string,
+  input: { level: OutlineArtifactLevel; scope: OutlineArtifactScope; content: string },
+  options: { source?: OutlineArtifactSource; databaseGeneration: number }
+) {
+  return createOutline(novelId, {
+    ...input,
+    ...(options.source ? { source: options.source } : {}),
+    databaseGeneration: options.databaseGeneration,
+  });
 }
-export async function activateOutlineArtifact(novelId: string, outlineId: string, databaseGeneration: number) {
+export async function activateOutlineArtifact(
+  novelId: string,
+  outlineId: string,
+  databaseGeneration: number
+) {
   await activateOutline(novelId, outlineId, databaseGeneration);
   const artifacts = await listOutlines(novelId, {}, databaseGeneration);
   return artifacts.find((artifact) => artifact.id === outlineId);
 }
 export const archiveOutlineArtifact = archiveOutline;
-export type { CanonPatch, CanonPatchOperation, OutlineArtifact, OutlineArtifactLevel, OutlineArtifactScope, OutlineArtifactStatus };
+export type {
+  CanonPatch,
+  CanonPatchOperation,
+  OutlineArtifact,
+  OutlineArtifactLevel,
+  OutlineArtifactScope,
+  OutlineArtifactStatus,
+};

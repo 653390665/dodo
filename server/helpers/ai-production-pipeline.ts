@@ -3,7 +3,10 @@ import { getConfig, type AppConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import { AUDIT_OUTPUT_CONTRACT, renderPromptTemplate, wrapUserInput } from './prompt-helpers';
-import { convertFiveDimToStructured, parseAuditResponseWithDiagnostics } from '../../shared/lib/audit-structured';
+import {
+  convertFiveDimToStructured,
+  parseAuditResponseWithDiagnostics,
+} from '../../shared/lib/audit-structured';
 import {
   buildFallbackDraft,
   buildFallbackSceneBeats,
@@ -11,7 +14,10 @@ import {
 } from './fallback-draft';
 import type { LearnedPreference } from '../../shared/lib/preference-flywheel';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
-import { resolveEffectiveMinDraftChars, validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import {
+  resolveEffectiveMinDraftChars,
+  validateCompleteChapterDraftQuality,
+} from '../../shared/lib/draft-quality';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -19,13 +25,23 @@ const MAX_RETRIES = 2;
 const SCORE_THRESHOLD = 80;
 export const UNKNOWN_CRITIC_FEEDBACK = '审稿结果不可验证，未完成结构化审阅，请重试。';
 
-const REQUIRED_CRITIC_EVIDENCE = ['scene_execution', 'character_state', 'hard_canon', 'foreshadowing'] as const;
+const REQUIRED_CRITIC_EVIDENCE = [
+  'scene_execution',
+  'character_state',
+  'hard_canon',
+  'foreshadowing',
+] as const;
 
 function hasCompleteCriticEvidence(audit: ReturnType<typeof convertFiveDimToStructured>): boolean {
-  return REQUIRED_CRITIC_EVIDENCE.every((category) => audit.evidence?.some((item) => item.category === category));
+  return REQUIRED_CRITIC_EVIDENCE.every((category) =>
+    audit.evidence?.some((item) => item.category === category)
+  );
 }
 
-export function classifyCriticFeedback(feedback: string, available = true): { status: 'pass' | 'fail' | 'unknown'; score?: number } {
+export function classifyCriticFeedback(
+  feedback: string,
+  available = true
+): { status: 'pass' | 'fail' | 'unknown'; score?: number } {
   if (!available || typeof feedback !== 'string') return { status: 'unknown' };
   const parsed = parseAuditResponseWithDiagnostics(feedback);
   if (parsed.diagnostic) return { status: 'unknown' };
@@ -33,16 +49,29 @@ export function classifyCriticFeedback(feedback: string, available = true): { st
   if (parsed.fiveDim) {
     const score = Math.round((parsed.fiveDim.totalScore / 50) * 100);
     const structured = convertFiveDimToStructured(parsed.fiveDim);
-    if (parsed.fiveDim.pass && score >= SCORE_THRESHOLD && !hasCompleteCriticEvidence(structured)) return { status: 'unknown' };
+    if (parsed.fiveDim.pass && score >= SCORE_THRESHOLD && !hasCompleteCriticEvidence(structured))
+      return { status: 'unknown' };
     return { status: parsed.fiveDim.pass && score >= SCORE_THRESHOLD ? 'pass' : 'fail', score };
   }
 
-  if (!parsed.structured || !Number.isFinite(parsed.structured.score) || parsed.structured.score < 0 || parsed.structured.score > 100) {
+  if (
+    !parsed.structured ||
+    !Number.isFinite(parsed.structured.score) ||
+    parsed.structured.score < 0 ||
+    parsed.structured.score > 100
+  ) {
     return { status: 'unknown' };
   }
   const score = Math.round(parsed.structured.score);
-  const hasCriticalIssue = parsed.structured.fatalIssues.some((issue) => issue.severity === 'critical');
-  if (score >= SCORE_THRESHOLD && !hasCriticalIssue && !hasCompleteCriticEvidence(parsed.structured)) return { status: 'unknown' };
+  const hasCriticalIssue = parsed.structured.fatalIssues.some(
+    (issue) => issue.severity === 'critical'
+  );
+  if (
+    score >= SCORE_THRESHOLD &&
+    !hasCriticalIssue &&
+    !hasCompleteCriticEvidence(parsed.structured)
+  )
+    return { status: 'unknown' };
   return { status: score >= SCORE_THRESHOLD && !hasCriticalIssue ? 'pass' : 'fail', score };
 }
 
@@ -50,7 +79,11 @@ export interface PipelineProgress {
   onPhase?: (phase: 'planner' | 'writer' | 'critic' | 'retry') => void;
   onWriterToken?: (chunk: string) => void;
   onWriterDone?: () => void;
-  onCriticDone?: (feedback: string, isValid: boolean, meta?: { status: 'pass' | 'fail' | 'unknown'; score?: number }) => void;
+  onCriticDone?: (
+    feedback: string,
+    isValid: boolean,
+    meta?: { status: 'pass' | 'fail' | 'unknown'; score?: number }
+  ) => void;
   signal?: AbortSignal;
 }
 
@@ -79,7 +112,12 @@ export class DraftQualityRejectionError extends Error {
   readonly mechanicalScore?: number;
   readonly beatsSource: 'model' | 'fallback';
 
-  constructor(draft: string, violations: string[], mechanicalScore?: number, beatsSource: 'model' | 'fallback' = 'fallback') {
+  constructor(
+    draft: string,
+    violations: string[],
+    mechanicalScore?: number,
+    beatsSource: 'model' | 'fallback' = 'fallback'
+  ) {
     super(`DRAFT_QUALITY_REJECTED:${violations.join('；')}`);
     this.name = 'DraftQualityRejectionError';
     this.draft = draft;
@@ -92,9 +130,10 @@ export class DraftQualityRejectionError extends Error {
 // Stronger writer models (e.g. reasoning-heavy pro tiers) may need longer
 // windows; tune via INKFLOW_WRITER_TIMEOUT_MS without a code change.
 const WRITER_LLM_OPTIONS = {
-  timeoutMs: Number(process.env.INKFLOW_WRITER_TIMEOUT_MS) > 0
-    ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
-    : 90_000,
+  timeoutMs:
+    Number(process.env.INKFLOW_WRITER_TIMEOUT_MS) > 0
+      ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
+      : 90_000,
   maxAttempts: 1,
   maxTokens: 8192,
 } as const;
@@ -146,7 +185,8 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
   throw error;
 }
 
-const WRITER_RETRY_STYLE_RULE = '重写要求：段首句式必须多样化，禁止连续段落以相同词语或相同结构开头；避免套话与保底句式，用具体动作和细节推进情节。';
+const WRITER_RETRY_STYLE_RULE =
+  '重写要求：段首句式必须多样化，禁止连续段落以相同词语或相同结构开头；避免套话与保底句式，用具体动作和细节推进情节。';
 
 // Both the model draft and the deterministic fallback were unusable. Seed the
 // next writer attempt with the violations instead of killing the whole run.
@@ -159,7 +199,11 @@ function truncateFeedback(message: string): string[] {
   return [message.slice(0, 200)];
 }
 
-function buildValidatedFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number): string {
+function buildValidatedFallbackDraft(
+  sceneBeats: string,
+  contextStr: string,
+  minChars?: number
+): string {
   const fallbackDraft = buildFallbackDraft(sceneBeats, contextStr, minChars);
   const quality = validateCompleteChapterDraftQuality(fallbackDraft, undefined, { minChars });
   if (!quality.ok) {
@@ -184,14 +228,25 @@ export async function runProductionPipeline(params: {
   learnedPreferences?: LearnedPreference[];
   progress?: PipelineProgress;
 }): Promise<PipelineResult> {
-  const { novelId, userIntent, contextStr, stageContexts, stagePrompts, learnedPreferences = [], progress = {} } = params;
+  const {
+    novelId,
+    userIntent,
+    contextStr,
+    stageContexts,
+    stagePrompts,
+    learnedPreferences = [],
+    progress = {},
+  } = params;
   const minDraftChars = resolveEffectiveMinDraftChars(userIntent);
 
   // Build learned preference context
-  const learnedContext = learnedPreferences.length > 0
-    ? '\n\n【学习到的偏好 — 基于你之前的修改习惯】\n' +
-      learnedPreferences.map((lp) => `- ${lp.pattern}（可信度：${Math.round(lp.confidence * 100)}%）`).join('\n')
-    : '';
+  const learnedContext =
+    learnedPreferences.length > 0
+      ? '\n\n【学习到的偏好 — 基于你之前的修改习惯】\n' +
+        learnedPreferences
+          .map((lp) => `- ${lp.pattern}（可信度：${Math.round(lp.confidence * 100)}%）`)
+          .join('\n')
+      : '';
 
   const augmentedContexts = {
     // Learned writing preferences belong to Writer/Critic. Planner should
@@ -223,24 +278,28 @@ export async function runProductionPipeline(params: {
   let sceneBeats: string;
   let beatsSource: PipelineResult['beatsSource'];
   try {
-    sceneBeats = await generateText(getConfig(), {
-      prompt: plannerPrompt,
-      timeoutMs: 8_000,
-      maxAttempts: 1,
-      // Planner beats are structure, not prose: pin thinking off and give the
-      // budget headroom so reasoning-heavy models don't burn it on
-      // chain-of-thought and truncate the scene breakdown.
-      maxTokens: 2400,
-      disableThinking: true,
-      signal: progress.signal,
-      novelId,
-    }, {
-      operation: 'production-pipeline-planner',
-      novelId,
-      timeoutMs: 8_000,
-      concurrency: 2,
-      signal: progress.signal,
-    });
+    sceneBeats = await generateText(
+      getConfig(),
+      {
+        prompt: plannerPrompt,
+        timeoutMs: 8_000,
+        maxAttempts: 1,
+        // Planner beats are structure, not prose: pin thinking off and give the
+        // budget headroom so reasoning-heavy models don't burn it on
+        // chain-of-thought and truncate the scene breakdown.
+        maxTokens: 2400,
+        disableThinking: true,
+        signal: progress.signal,
+        novelId,
+      },
+      {
+        operation: 'production-pipeline-planner',
+        novelId,
+        timeoutMs: 8_000,
+        concurrency: 2,
+        signal: progress.signal,
+      }
+    );
     beatsSource = 'model';
   } catch (err) {
     throwIfAborted(progress.signal);
@@ -304,34 +363,45 @@ export async function runProductionPipeline(params: {
           const isFinalScene = i === sceneSections.length - 1;
           const sectionPrompt = renderPromptTemplate(writerAsset.template, {
             WRITER_SOUL,
-            contextStr: augmentedContexts.writer
-              + (previousTail ? `\n【上一场景结尾——保持人物、时间与节奏的衔接，不要复述】\n${previousTail}` : ''),
+            contextStr:
+              augmentedContexts.writer +
+              (previousTail
+                ? `\n【上一场景结尾——保持人物、时间与节奏的衔接，不要复述】\n${previousTail}`
+                : ''),
             skillsInfo: writerSkillsInfo,
-            sceneBeats: sceneSections[i]
-              + (isFinalScene ? '\n\n（本章最终场景：按分镜收束本章悬念，给出章节结尾。）' : '\n\n（写完本场景即停，不要越到下一场景。）'),
-            criticFeedback: criticFeedback
-              || (i === 0 ? '初稿阶段，请全力输出。' : '继续本章的下一场景，保持人物与节奏连贯。'),
+            sceneBeats:
+              sceneSections[i] +
+              (isFinalScene
+                ? '\n\n（本章最终场景：按分镜收束本章悬念，给出章节结尾。）'
+                : '\n\n（写完本场景即停，不要越到下一场景。）'),
+            criticFeedback:
+              criticFeedback ||
+              (i === 0 ? '初稿阶段，请全力输出。' : '继续本章的下一场景，保持人物与节奏连贯。'),
           });
           try {
-            const sectionText = await generateText(writerConfig, {
-              prompt: sectionPrompt,
-              ...WRITER_LLM_OPTIONS,
-              maxTokens: WRITER_SCENE_MAX_TOKENS,
-              // Reasoning chains would eat the per-scene token budget and leave
-              // the prose truncated empty (finish_reason=length).
-              disableThinking: true,
-              signal: progress.signal,
-              onToken: (token) => {
-                streamedWriterText += token;
+            const sectionText = await generateText(
+              writerConfig,
+              {
+                prompt: sectionPrompt,
+                ...WRITER_LLM_OPTIONS,
+                maxTokens: WRITER_SCENE_MAX_TOKENS,
+                // Reasoning chains would eat the per-scene token budget and leave
+                // the prose truncated empty (finish_reason=length).
+                disableThinking: true,
+                signal: progress.signal,
+                onToken: (token) => {
+                  streamedWriterText += token;
+                },
+                novelId,
               },
-              novelId,
-            }, {
-              operation: 'production-pipeline-writer',
-              novelId,
-              timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-              concurrency: 2,
-              signal: progress.signal,
-            });
+              {
+                operation: 'production-pipeline-writer',
+                novelId,
+                timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+                concurrency: 2,
+                signal: progress.signal,
+              }
+            );
             const trimmed = String(sectionText).trim();
             if (trimmed) {
               parts.push(trimmed);
@@ -343,11 +413,14 @@ export async function runProductionPipeline(params: {
             // the rejected scene, note it for the critic, and let the
             // complete-chapter delivery gate make the final call.
             if (progress.signal?.aborted) throw sceneErr;
-            const isQualityRejection = sceneErr instanceof Error
-              && sceneErr.message.includes('质量校验');
+            const isQualityRejection =
+              sceneErr instanceof Error && sceneErr.message.includes('质量校验');
             if (!isQualityRejection) throw sceneErr;
             rejectedScenes += 1;
-            logger.warn(`[pipeline] scene ${i + 1}/${sceneSections.length} rejected by output guard; skipping`, sceneErr instanceof Error ? sceneErr.message : sceneErr);
+            logger.warn(
+              `[pipeline] scene ${i + 1}/${sceneSections.length} rejected by output guard; skipping`,
+              sceneErr instanceof Error ? sceneErr.message : sceneErr
+            );
             previousTail = '';
           }
         }
@@ -357,31 +430,47 @@ export async function runProductionPipeline(params: {
           criticFeedback = `${criticFeedback ? criticFeedback + '\n' : ''}【生成器提示】${rejectedScenes} 个场景因套话守卫被跳过，请检查成稿的场景覆盖与连贯性。`;
         }
       } else {
-        currentDraft = await generateText(writerConfig, {
-          prompt: writerPrompt,
-          ...WRITER_LLM_OPTIONS,
-          // Pin thinking off for the whole-chapter path too: reasoning-heavy
-          // models can burn the token budget on chain-of-thought and return a
-          // truncated/empty draft (length_exhausted) instead of prose.
-          disableThinking: true,
-          signal: progress.signal,
-          onToken: (token) => {
-            streamedWriterText += token;
+        currentDraft = await generateText(
+          writerConfig,
+          {
+            prompt: writerPrompt,
+            ...WRITER_LLM_OPTIONS,
+            // Pin thinking off for the whole-chapter path too: reasoning-heavy
+            // models can burn the token budget on chain-of-thought and return a
+            // truncated/empty draft (length_exhausted) instead of prose.
+            disableThinking: true,
+            signal: progress.signal,
+            onToken: (token) => {
+              streamedWriterText += token;
+            },
+            novelId,
           },
-          novelId,
-        }, {
-          operation: 'production-pipeline-writer',
-          novelId,
-          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-          concurrency: 2,
-          signal: progress.signal,
-        });
+          {
+            operation: 'production-pipeline-writer',
+            novelId,
+            timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+            concurrency: 2,
+            signal: progress.signal,
+          }
+        );
       }
-      currentDraft = ensureMinimumDraftLength(currentDraft, sceneBeats, augmentedContexts.writer, minDraftChars);
+      currentDraft = ensureMinimumDraftLength(
+        currentDraft,
+        sceneBeats,
+        augmentedContexts.writer,
+        minDraftChars
+      );
       if (process.env.DEBUG_GATE_IN === '1') {
-        console.error('[DEBUG-gatein] len=' + String(currentDraft).length + ' head=' + JSON.stringify(String(currentDraft).slice(0, 150)));
+        console.error(
+          '[DEBUG-gatein] len=' +
+            String(currentDraft).length +
+            ' head=' +
+            JSON.stringify(String(currentDraft).slice(0, 150))
+        );
       }
-      const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, { minChars: minDraftChars });
+      const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
+        minChars: minDraftChars,
+      });
       if (!draftQuality.ok) {
         logger.warn('Writer output failed the prose quality gate; using fallback draft', {
           novelId,
@@ -398,7 +487,11 @@ export async function runProductionPipeline(params: {
         }
         let fallbackDraft: string;
         try {
-          fallbackDraft = buildValidatedFallbackDraft(sceneBeats, augmentedContexts.writer, minDraftChars);
+          fallbackDraft = buildValidatedFallbackDraft(
+            sceneBeats,
+            augmentedContexts.writer,
+            minDraftChars
+          );
         } catch (fallbackErr) {
           if (attempt < MAX_RETRIES) {
             criticFeedback = buildWriterRetryFeedback(draftQuality.violations);
@@ -406,7 +499,12 @@ export async function runProductionPipeline(params: {
             continue;
           }
           if (lastModelDraft.trim()) {
-            throw new DraftQualityRejectionError(lastModelDraft, lastViolations.length ? lastViolations : draftQuality.violations, lastMechanicalScore, beatsSource);
+            throw new DraftQualityRejectionError(
+              lastModelDraft,
+              lastViolations.length ? lastViolations : draftQuality.violations,
+              lastMechanicalScore,
+              beatsSource
+            );
           }
           throw fallbackErr;
         }
@@ -435,7 +533,7 @@ export async function runProductionPipeline(params: {
       } catch (fallbackErr) {
         if (attempt < MAX_RETRIES) {
           criticFeedback = buildWriterRetryFeedback(
-            err instanceof Error ? truncateFeedback(err.message) : [],
+            err instanceof Error ? truncateFeedback(err.message) : []
           );
           progress.onPhase?.('retry');
           continue;
@@ -443,9 +541,11 @@ export async function runProductionPipeline(params: {
         if (lastModelDraft.trim()) {
           throw new DraftQualityRejectionError(
             lastModelDraft,
-            lastViolations.length ? lastViolations : truncateFeedback(err instanceof Error ? err.message : String(err)),
+            lastViolations.length
+              ? lastViolations
+              : truncateFeedback(err instanceof Error ? err.message : String(err)),
             lastMechanicalScore,
-            beatsSource,
+            beatsSource
           );
         }
         throw fallbackErr;
@@ -480,20 +580,24 @@ export async function runProductionPipeline(params: {
     });
 
     try {
-      criticFeedback = await generateText(getConfig(), {
-        prompt: criticPrompt + AUDIT_OUTPUT_CONTRACT,
-        ...CRITIC_LLM_OPTIONS,
-        signal: progress.signal,
-        novelId,
-        outputMode: 'audit-json',
-        responseMimeType: 'application/json',
-      }, {
-        operation: 'production-pipeline-critic',
-        novelId,
-        timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
-        concurrency: 2,
-        signal: progress.signal,
-      });
+      criticFeedback = await generateText(
+        getConfig(),
+        {
+          prompt: criticPrompt + AUDIT_OUTPUT_CONTRACT,
+          ...CRITIC_LLM_OPTIONS,
+          signal: progress.signal,
+          novelId,
+          outputMode: 'audit-json',
+          responseMimeType: 'application/json',
+        },
+        {
+          operation: 'production-pipeline-critic',
+          novelId,
+          timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
+          concurrency: 2,
+          signal: progress.signal,
+        }
+      );
       criticAvailable = true;
     } catch (err) {
       throwIfAborted(progress.signal);
@@ -512,7 +616,10 @@ export async function runProductionPipeline(params: {
     }
 
     const isValid = auditStatus === 'pass';
-    progress.onCriticDone?.(criticFeedback, isValid, { status: auditStatus, score: auditStatus === 'unknown' ? undefined : auditScore });
+    progress.onCriticDone?.(criticFeedback, isValid, {
+      status: auditStatus,
+      score: auditStatus === 'unknown' ? undefined : auditScore,
+    });
 
     if (isValid || auditStatus === 'unknown') break;
 

@@ -41,13 +41,11 @@ function formatErr(error) {
   }
   if (error.name === 'AbortError' || /aborted|abort/i.test(error.message)) {
     bits.push(
-      'hint: SSE step aborts after 1.5s if headers are not ready (see scripts/runtime-smoke.mjs)',
+      'hint: SSE step aborts after 1.5s if headers are not ready (see scripts/runtime-smoke.mjs)'
     );
   }
   if (/fetch failed|ECONNREFUSED|ENOTFOUND/i.test(error.message)) {
-    bits.push(
-      `hint: is InkFlow running and INKFLOW_BASE_URL correct? (current: ${baseUrl})`,
-    );
+    bits.push(`hint: is InkFlow running and INKFLOW_BASE_URL correct? (current: ${baseUrl})`);
   }
   return bits.join(' | ');
 }

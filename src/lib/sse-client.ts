@@ -38,7 +38,7 @@ export type SseEventDirective = 'done' | void;
 
 export async function readSseEvents<T extends Record<string, unknown>>(
   response: Response,
-  onEvent: (event: T) => SseEventDirective,
+  onEvent: (event: T) => SseEventDirective
 ): Promise<{ done: boolean }> {
   const reader = response.body?.getReader();
   if (!reader) return { done: false };
@@ -69,18 +69,24 @@ export async function readSseEvents<T extends Record<string, unknown>>(
       throw new SseParseError('Invalid SSE payload');
     }
 
-    const errorMessage = typeof parsed.error === 'string'
-      ? parsed.error
-      : parsed.type === 'error' && typeof parsed.message === 'string'
-        ? parsed.message
-        : null;
+    const errorMessage =
+      typeof parsed.error === 'string'
+        ? parsed.error
+        : parsed.type === 'error' && typeof parsed.message === 'string'
+          ? parsed.message
+          : null;
     if (errorMessage) {
       throw new SseError(errorMessage, {
         code: typeof parsed.code === 'string' ? parsed.code : undefined,
         traceId: typeof parsed.traceId === 'string' ? parsed.traceId : undefined,
         retriable: typeof parsed.retriable === 'boolean' ? parsed.retriable : undefined,
         finishReason: typeof parsed.finishReason === 'string' ? parsed.finishReason : undefined,
-        reason: parsed.reason === 'no_content' || parsed.reason === 'reasoning_only' || parsed.reason === 'length_exhausted' ? parsed.reason : undefined,
+        reason:
+          parsed.reason === 'no_content' ||
+          parsed.reason === 'reasoning_only' ||
+          parsed.reason === 'length_exhausted'
+            ? parsed.reason
+            : undefined,
         violations: Array.isArray(parsed.violations)
           ? parsed.violations.filter((item): item is string => typeof item === 'string')
           : undefined,
@@ -118,11 +124,22 @@ export async function readSseEvents<T extends Record<string, unknown>>(
 
 export async function readSseStream(
   response: Response,
-  onToken: (token: string) => void,
+  onToken: (token: string) => void
 ): Promise<{ text: string; done: boolean }> {
   let accumulated = '';
   let finalText: string | undefined;
-  const result = await readSseEvents<{ type?: string; token?: string; content?: string; text?: string; error?: string; code?: string; traceId?: string; retriable?: boolean; finishReason?: string; reason?: SseErrorFields['reason'] }>(response, (parsed) => {
+  const result = await readSseEvents<{
+    type?: string;
+    token?: string;
+    content?: string;
+    text?: string;
+    error?: string;
+    code?: string;
+    traceId?: string;
+    retriable?: boolean;
+    finishReason?: string;
+    reason?: SseErrorFields['reason'];
+  }>(response, (parsed) => {
     if (parsed.token) {
       accumulated += parsed.token;
       onToken(parsed.token);

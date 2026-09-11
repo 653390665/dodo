@@ -9,7 +9,7 @@ export async function fetchArtifactGovernance<T>(url: string, label: string): Pr
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${label}读取失败（${response.status}），请刷新后重试。`);
   try {
-    return await response.json() as T;
+    return (await response.json()) as T;
   } catch {
     throw new Error(`${label}响应无效，请刷新后重试。`);
   }
@@ -20,13 +20,16 @@ export async function decideArtifactCandidate<TCore>(
   novelId: string,
   candidateId: string,
   action: 'accept' | 'reject',
-  databaseGeneration: number,
+  databaseGeneration: number
 ): Promise<{ error?: string; core?: { core: TCore; version: number } }> {
-  return request(`/api/novels/${encodeURIComponent(novelId)}/artifacts/candidates/${encodeURIComponent(candidateId)}/${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ databaseGeneration }),
-  });
+  return request(
+    `/api/novels/${encodeURIComponent(novelId)}/artifacts/candidates/${encodeURIComponent(candidateId)}/${action}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ databaseGeneration }),
+    }
+  );
 }
 
 /**
@@ -36,11 +39,14 @@ export async function decideArtifactCandidate<TCore>(
  */
 export async function fetchCapabilityRecommendationDismissed(dismissal: unknown): Promise<boolean> {
   try {
-    const body = await request<{ dismissed?: boolean }>('/api/capability-recommendations/dismissed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dismissal),
-    });
+    const body = await request<{ dismissed?: boolean }>(
+      '/api/capability-recommendations/dismissed',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dismissal),
+      }
+    );
     return Boolean(body?.dismissed);
   } catch (error) {
     if (error instanceof HttpApiError) return false;

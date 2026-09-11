@@ -18,7 +18,8 @@ export interface CreativeArtifactRef {
 export interface OutlineNode {
   id: string;
   parentNodeId?: string;
-  type: 'premise' | 'conflict' | 'turn' | 'climax' | 'resolution' | 'character-arc' | 'foreshadowing';
+  type:
+    'premise' | 'conflict' | 'turn' | 'climax' | 'resolution' | 'character-arc' | 'foreshadowing';
   title: string;
   intent: string;
   order: number;
@@ -61,7 +62,12 @@ export type ArtifactOperation = 'diagnose' | 'generate' | 'restructure' | 'optim
 
 export interface ArtifactDiff {
   changed: boolean;
-  fields: Array<{ path: string; before?: unknown; after?: unknown; kind: 'added' | 'removed' | 'changed' }>;
+  fields: Array<{
+    path: string;
+    before?: unknown;
+    after?: unknown;
+    kind: 'added' | 'removed' | 'changed';
+  }>;
 }
 
 export interface ArtifactImpactReport {
@@ -77,11 +83,7 @@ export interface ArtifactImpactReport {
 }
 
 export type ChapterCompletionGate =
-  | 'drafting'
-  | 'review-required'
-  | 'needs-action'
-  | 'ready'
-  | 'accepted-risk';
+  'drafting' | 'review-required' | 'needs-action' | 'ready' | 'accepted-risk';
 
 export interface ArtifactCandidate<T = unknown> {
   id: string;

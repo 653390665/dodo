@@ -1,13 +1,24 @@
 import type { CapabilityManifestEntry } from '../types/capability-manifest.js';
-import type { CapabilityRecommendation, CapabilityRecommendationDismissal, CapabilityRecommendationInput, CapabilityRecommendationResult } from '../types/capability-recommendation.js';
+import type {
+  CapabilityRecommendation,
+  CapabilityRecommendationDismissal,
+  CapabilityRecommendationInput,
+  CapabilityRecommendationResult,
+} from '../types/capability-recommendation.js';
 
 function hash(value: string): string {
   let result = 2166136261;
-  for (let index = 0; index < value.length; index += 1) result = Math.imul(result ^ value.charCodeAt(index), 16777619);
+  for (let index = 0; index < value.length; index += 1)
+    result = Math.imul(result ^ value.charCodeAt(index), 16777619);
   return (result >>> 0).toString(16).padStart(8, '0');
 }
 
-export function recommendationFingerprint(input: Pick<CapabilityRecommendationInput, 'issue' | 'artifactKind' | 'operation' | 'scope' | 'artifactVersion' | 'upstreamVersion'>): string {
+export function recommendationFingerprint(
+  input: Pick<
+    CapabilityRecommendationInput,
+    'issue' | 'artifactKind' | 'operation' | 'scope' | 'artifactVersion' | 'upstreamVersion'
+  >
+): string {
   return `caprec-${hash([input.issue.fingerprint, input.artifactKind, input.operation, input.scope, input.artifactVersion, input.upstreamVersion ?? ''].join('|'))}`;
 }
 
@@ -19,34 +30,58 @@ function usageMode(manifest: CapabilityManifestEntry): CapabilityRecommendation[
 }
 
 function eligible(input: CapabilityRecommendationInput): CapabilityManifestEntry[] {
-  const accessible = input.accessibleCapabilityIds ? new Set(input.accessibleCapabilityIds) : undefined;
+  const accessible = input.accessibleCapabilityIds
+    ? new Set(input.accessibleCapabilityIds)
+    : undefined;
   const artifacts = input.availableArtifacts || [];
   const prerequisites = new Set(input.availablePrerequisites || []);
   return input.capabilities.filter((manifest) => {
     const contract = manifest.artifactContract;
     if (manifest.runtimeStatus !== 'active' || !contract) return false;
     if (accessible && !accessible.has(manifest.id)) return false;
-    if (!contract.artifactKinds.includes(input.artifactKind) || !contract.operations.includes(input.operation) || !contract.allowedScopes.includes(input.scope)) return false;
-    if (contract.requiredInputs.some((kind) => !artifacts.some((artifact) => artifact.kind === kind))) return false;
-    const requiredPrerequisites = (manifest.lineage?.requiredPrerequisites as unknown[] | undefined) || [];
-    return requiredPrerequisites.every((value) => typeof value === 'string' && prerequisites.has(value));
+    if (
+      !contract.artifactKinds.includes(input.artifactKind) ||
+      !contract.operations.includes(input.operation) ||
+      !contract.allowedScopes.includes(input.scope)
+    )
+      return false;
+    if (
+      contract.requiredInputs.some((kind) => !artifacts.some((artifact) => artifact.kind === kind))
+    )
+      return false;
+    const requiredPrerequisites =
+      (manifest.lineage?.requiredPrerequisites as unknown[] | undefined) || [];
+    return requiredPrerequisites.every(
+      (value) => typeof value === 'string' && prerequisites.has(value)
+    );
   });
 }
 
-export function buildCapabilityRecommendations(input: CapabilityRecommendationInput): CapabilityRecommendationResult {
+export function buildCapabilityRecommendations(
+  input: CapabilityRecommendationInput
+): CapabilityRecommendationResult {
   const eligibleEntries = eligible(input);
   const eligibleIds = new Set(eligibleEntries.map((entry) => entry.id));
   const dismissed = new Set(input.dismissedCapabilityIds || []);
   const preferred = input.issue.recommendedCapabilityIds || [];
   const aiOrder = (input.aiRankedCapabilityIds || []).filter((id) => eligibleIds.has(id));
-  const order = [...new Set([...aiOrder, ...preferred.filter((id) => eligibleIds.has(id)), ...eligibleEntries.map((entry) => entry.id)])]
-    .filter((id) => !dismissed.has(id));
+  const order = [
+    ...new Set([
+      ...aiOrder,
+      ...preferred.filter((id) => eligibleIds.has(id)),
+      ...eligibleEntries.map((entry) => entry.id),
+    ]),
+  ].filter((id) => !dismissed.has(id));
   const byId = new Map(eligibleEntries.map((entry) => [entry.id, entry]));
   const recommendations = order.slice(0, 3).map((id) => {
     const manifest = byId.get(id)!;
     return {
-      capabilityId: id, manifest, reason: input.issue.explanation || input.issue.suggestedFix || '可用于处理当前诊断问题',
-      diagnosis: input.issue.explanation, expectedArtifactChange: input.issue.suggestedFix, usageMode: usageMode(manifest),
+      capabilityId: id,
+      manifest,
+      reason: input.issue.explanation || input.issue.suggestedFix || '可用于处理当前诊断问题',
+      diagnosis: input.issue.explanation,
+      expectedArtifactChange: input.issue.suggestedFix,
+      usageMode: usageMode(manifest),
     };
   });
   return {
@@ -66,7 +101,12 @@ export function buildCapabilityRecommendations(input: CapabilityRecommendationIn
   };
 }
 
-export function buildCapabilityRecommendationDismissal(result: CapabilityRecommendationResult, novelId: string, databaseGeneration: number): CapabilityRecommendationDismissal & Pick<CapabilityRecommendationInput, 'artifactKind' | 'operation' | 'scope'> {
+export function buildCapabilityRecommendationDismissal(
+  result: CapabilityRecommendationResult,
+  novelId: string,
+  databaseGeneration: number
+): CapabilityRecommendationDismissal &
+  Pick<CapabilityRecommendationInput, 'artifactKind' | 'operation' | 'scope'> {
   return {
     novelId,
     databaseGeneration,

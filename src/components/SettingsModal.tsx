@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { Monitor, Moon, RotateCcw, Save, Sparkles, Sun, X, Database, Download, Upload, Trash2, AlertTriangle, ShieldCheck, Activity, Wifi, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
+import {
+  Monitor,
+  Moon,
+  RotateCcw,
+  Save,
+  Sparkles,
+  Sun,
+  X,
+  Database,
+  Download,
+  Upload,
+  Trash2,
+  AlertTriangle,
+  ShieldCheck,
+  Activity,
+  Wifi,
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+} from 'lucide-react';
 
 import {
   DEFAULT_PROMPT_TEMPLATES,
@@ -12,7 +31,11 @@ import { downloadDbBackup } from '../lib/download-client';
 import { fetchLlmConfig, saveLlmConfig, HttpApiError } from '../lib/config-client';
 import { flushPendingEditorWrites } from '../lib/editor-write-queue';
 import { SHORTCUTS } from '../lib/keyboard-shortcuts';
-import { clearProductEvents, exportProductEvents, getProductMetrics } from '../lib/product-events-client';
+import {
+  clearProductEvents,
+  exportProductEvents,
+  getProductMetrics,
+} from '../lib/product-events-client';
 import type { ProductEventMetrics } from '../../shared/types/product-events';
 import { isMonetizationEnabled } from '../lib/entitlements';
 import { appConfirm } from './ui/app-confirm';
@@ -35,13 +58,16 @@ const CONFIG_FIELD_LABELS: Record<string, string> = {
 
 /** 把 /api/config 的校验失败（Validation failed + details）转成中文字段级错误。 */
 function formatConfigValidationError(data: unknown, fallback: string): string {
-  const rec = data as { error?: string; details?: Array<{ path?: string; message?: string }> } | null | undefined;
+  const rec = data as
+    { error?: string; details?: Array<{ path?: string; message?: string }> } | null | undefined;
   if (rec?.error === 'Validation failed' && Array.isArray(rec.details) && rec.details.length > 0) {
     return rec.details
       .map((d) => {
         const key = String(d.path ?? '');
         const label = CONFIG_FIELD_LABELS[key] ?? key;
-        const msg = /url/i.test(d.message ?? '') ? '格式无效（需以 http(s):// 开头的完整地址）' : (d.message ?? '格式无效');
+        const msg = /url/i.test(d.message ?? '')
+          ? '格式无效（需以 http(s):// 开头的完整地址）'
+          : (d.message ?? '格式无效');
         return `${label}：${msg}`;
       })
       .join('；');
@@ -49,7 +75,19 @@ function formatConfigValidationError(data: unknown, fallback: string): string {
   return rec?.error || fallback;
 }
 
-export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedNovelId }: { isOpen: boolean, onClose: () => void, theme?: string, onThemeChange?: (t: 'light' | 'dark' | 'system') => void, selectedNovelId?: string }) {
+export function SettingsModal({
+  isOpen,
+  onClose,
+  theme,
+  onThemeChange,
+  selectedNovelId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  theme?: string;
+  onThemeChange?: (t: 'light' | 'dark' | 'system') => void;
+  selectedNovelId?: string;
+}) {
   const monetizationEnabled = isMonetizationEnabled();
 
   const [config, setConfig] = useState({
@@ -80,9 +118,14 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const [testErrorCode, setTestErrorCode] = useState<string | null>(null);
   const [testRetryAfter, setTestRetryAfter] = useState<number | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [connectionTestResult, setConnectionTestResult] = useState<null | { success: boolean; message: string }>(null);
+  const [connectionTestResult, setConnectionTestResult] = useState<null | {
+    success: boolean;
+    message: string;
+  }>(null);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
-  const [modelDiscoveryStatus, setModelDiscoveryStatus] = useState<'available' | 'unsupported' | null>(null);
+  const [modelDiscoveryStatus, setModelDiscoveryStatus] = useState<
+    'available' | 'unsupported' | null
+  >(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
   const [activeModelIndex, setActiveModelIndex] = useState(-1);
@@ -95,7 +138,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const latestConfigRef = React.useRef(config);
 
   // Keep latestConfigRef in sync with live config state.
-  useEffect(() => { latestConfigRef.current = config; }, [config]);
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
 
   /** Cancel any in-flight test-connection, re-enable the button, and
    *  invalidate any pending response. */
@@ -114,7 +159,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const [promptPreview, setPromptPreview] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'quick' | 'promptLab' | 'dataManage' | 'activation'>('quick');
+  const [settingsTab, setSettingsTab] = useState<
+    'quick' | 'promptLab' | 'dataManage' | 'activation'
+  >('quick');
   const [productMetrics, setProductMetrics] = useState<ProductEventMetrics | null>(null);
   const [productMetricsLoading, setProductMetricsLoading] = useState(false);
   const [productMetricsError, setProductMetricsError] = useState<string | null>(null);
@@ -130,7 +177,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       const metrics = await getProductMetrics(7);
       if (requestId === metricsRequestRef.current) setProductMetrics(metrics);
     } catch (error) {
-      if (requestId === metricsRequestRef.current) setProductMetricsError(error instanceof Error ? error.message : '加载指标失败');
+      if (requestId === metricsRequestRef.current)
+        setProductMetricsError(error instanceof Error ? error.message : '加载指标失败');
     } finally {
       if (requestId === metricsRequestRef.current) setProductMetricsLoading(false);
     }
@@ -142,11 +190,21 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   }, [isOpen, settingsTab, loadProductMetrics]);
 
   const handleExportProductEvents = async () => {
-    try { await exportProductEvents(); } catch (error) { toast(`导出指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error'); }
+    try {
+      await exportProductEvents();
+    } catch (error) {
+      toast(`导出指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
+    }
   };
   const handleClearProductEvents = async () => {
-    if (!(await appConfirm('清除本机创作指标？', '此操作不可撤销。', { confirmLabel: '清除' }))) return;
-    try { await clearProductEvents(); await loadProductMetrics(); } catch (error) { toast(`清除指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error'); }
+    if (!(await appConfirm('清除本机创作指标？', '此操作不可撤销。', { confirmLabel: '清除' })))
+      return;
+    try {
+      await clearProductEvents();
+      await loadProductMetrics();
+    } catch (error) {
+      toast(`清除指标失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
+    }
   };
 
   const handleExportData = async () => {
@@ -164,7 +222,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const confirmRestore = await appConfirm('覆盖恢复旧数据？', '导入旧数据会完全覆盖当前系统的所有小说、设定和章节，且无法撤销。系统在覆盖前会自动为您创建一份安全灾难备份。确定执行覆盖恢复吗？', { confirmLabel: '覆盖恢复' });
+    const confirmRestore = await appConfirm(
+      '覆盖恢复旧数据？',
+      '导入旧数据会完全覆盖当前系统的所有小说、设定和章节，且无法撤销。系统在覆盖前会自动为您创建一份安全灾难备份。确定执行覆盖恢复吗？',
+      { confirmLabel: '覆盖恢复' }
+    );
     if (!confirmRestore) {
       e.target.value = '';
       return;
@@ -175,14 +237,18 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       const response = await fetch('/api/db/import-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
-        body: file
+        body: file,
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.error) throw new Error(data.error || '恢复数据失败');
       toast('🎉 数据恢复成功！页面即将自动刷新加载最新数据。', 'success', 2500);
       window.setTimeout(() => window.location.reload(), 2200);
     } catch (err) {
-      toast(`恢复数据失败，当前数据库未被替换: ${err instanceof Error ? err.message : '未知错误'}`, 'error', 5000);
+      toast(
+        `恢复数据失败，当前数据库未被替换: ${err instanceof Error ? err.message : '未知错误'}`,
+        'error',
+        5000
+      );
     } finally {
       setSaving(false);
       e.target.value = '';
@@ -194,23 +260,23 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
     setConfigLoadError(null);
     try {
       const { config: data } = await fetchLlmConfig();
-          const nextConfig = {
-            apiKey: '',
-            baseUrl: data.baseUrl || '',
-            model: data.model || '',
-            promptGuardLevel: data.promptGuardLevel || 'strict',
-            promptTemplates: {
-              ...DEFAULT_PROMPT_TEMPLATES,
-              ...(data.promptTemplates || {}),
-            }
-          };
-          setConfig(nextConfig);
-          setBaselineConfig(nextConfig);
-          setApiKeyStatus(data.hasApiKey ? 'configured' : 'missing');
-          setEmbeddingStatus(data.embeddingStatus?.status || 'unknown');
-          setEmbeddingReason(data.embeddingStatus?.reason || null);
-          setSaveMessage('');
-          setSaveError(null);
+      const nextConfig = {
+        apiKey: '',
+        baseUrl: data.baseUrl || '',
+        model: data.model || '',
+        promptGuardLevel: data.promptGuardLevel || 'strict',
+        promptTemplates: {
+          ...DEFAULT_PROMPT_TEMPLATES,
+          ...(data.promptTemplates || {}),
+        },
+      };
+      setConfig(nextConfig);
+      setBaselineConfig(nextConfig);
+      setApiKeyStatus(data.hasApiKey ? 'configured' : 'missing');
+      setEmbeddingStatus(data.embeddingStatus?.status || 'unknown');
+      setEmbeddingReason(data.embeddingStatus?.reason || null);
+      setSaveMessage('');
+      setSaveError(null);
       setConfigLoadStatus('ready');
     } catch (error) {
       setApiKeyStatus('unknown');
@@ -222,7 +288,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
   }, []);
 
   useEffect(() => {
-    const loadTimer = isOpen ? window.setTimeout(() => { void loadConfig(); }, 0) : undefined;
+    const loadTimer = isOpen
+      ? window.setTimeout(() => {
+          void loadConfig();
+        }, 0)
+      : undefined;
     // When dialog closes, cancel any in-flight test
     return () => {
       if (loadTimer !== undefined) window.clearTimeout(loadTimer);
@@ -274,7 +344,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         );
         const modalElement = document.getElementById('settings-dialog-container');
         if (!modalElement) return;
-        const modalFocusables = Array.from(focusableElements).filter(el =>
+        const modalFocusables = Array.from(focusableElements).filter((el) =>
           modalElement.contains(el)
         ) as HTMLElement[];
 
@@ -301,7 +371,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
     const focusTimer = setTimeout(() => {
       const modalElement = document.getElementById('settings-dialog-container');
       if (modalElement) {
-        const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+        const firstInput = modalElement.querySelector(
+          'input, select, textarea, button'
+        ) as HTMLElement;
         if (firstInput) firstInput.focus();
       }
     }, 50);
@@ -393,7 +465,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       if (requestId !== templateTestRequestIdRef.current || controller.signal.aborted) return;
       setPromptPreview(data.promptPreview || '');
       if (!response.ok || data.error) {
-        const error = new Error(data.error || '模板试跑失败') as Error & { code?: string; retryAfter?: number };
+        const error = new Error(data.error || '模板试跑失败') as Error & {
+          code?: string;
+          retryAfter?: number;
+        };
         error.code = data.code;
         error.retryAfter = data.retryAfter;
         throw error;
@@ -442,9 +517,11 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
       // Ignore stale responses — request ID or config may have changed
       if (currentId !== testRequestIdRef.current) return;
       const currentConfig = latestConfigRef.current;
-      if (currentConfig.apiKey !== config.apiKey
-          || currentConfig.baseUrl !== config.baseUrl
-          || currentConfig.model !== config.model) {
+      if (
+        currentConfig.apiKey !== config.apiKey ||
+        currentConfig.baseUrl !== config.baseUrl ||
+        currentConfig.model !== config.model
+      ) {
         return;
       }
 
@@ -469,9 +546,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         if (!config.model || data.modelDiscovery === 'unsupported') {
           return;
         }
-        const warning = data.models?.length > 0
-          ? `模型 "${config.model}" 不在可用列表中，请选择后再次测试`
-          : '请从已发现的模型中选择一个';
+        const warning =
+          data.models?.length > 0
+            ? `模型 "${config.model}" 不在可用列表中，请选择后再次测试`
+            : '请从已发现的模型中选择一个';
         setConnectionTestResult({
           success: false,
           message: warning,
@@ -500,12 +578,15 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
 
   if (!isOpen) return null;
 
-  const selectedTemplate = PROMPT_TEMPLATE_DEFINITIONS.find((item) => item.key === selectedTemplateKey)!;
+  const selectedTemplate = PROMPT_TEMPLATE_DEFINITIONS.find(
+    (item) => item.key === selectedTemplateKey
+  )!;
   const selectedTemplateText = config.promptTemplates[selectedTemplateKey];
   const missingVariables = selectedTemplate.variables.filter(
-    (variable) => !selectedTemplateText.includes(`{{${variable}}}`),
+    (variable) => !selectedTemplateText.includes(`{{${variable}}}`)
   );
-  const isModifiedFromDefault = selectedTemplateText !== DEFAULT_PROMPT_TEMPLATES[selectedTemplateKey];
+  const isModifiedFromDefault =
+    selectedTemplateText !== DEFAULT_PROMPT_TEMPLATES[selectedTemplateKey];
   const hasUnsavedChanges = JSON.stringify(config) !== JSON.stringify(baselineConfig);
 
   return (
@@ -516,12 +597,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
         className={`relative my-4 flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-3xl border border-theme-border bg-paper p-6 shadow-2xl transition-all duration-300 ${
-          settingsTab === 'quick' || settingsTab === 'dataManage' || settingsTab === 'activation' ? 'max-w-xl' : 'max-w-6xl'
+          settingsTab === 'quick' || settingsTab === 'dataManage' || settingsTab === 'activation'
+            ? 'max-w-xl'
+            : 'max-w-6xl'
         }`}
       >
         <div className="flex justify-between items-center mb-6 relative z-10">
           <div className="space-y-1">
-            <h2 id="settings-dialog-title" className="text-2xl font-serif text-theme-text">模型与提示词设置</h2>
+            <h2 id="settings-dialog-title" className="text-2xl font-serif text-theme-text">
+              模型与提示词设置
+            </h2>
             <p className="text-sm text-theme-muted">
               默认只处理模型接入；提示词实验室适合需要精修 AI 行为时再进入。
             </p>
@@ -535,15 +620,44 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
           </button>
         </div>
 
-        <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as 'quick' | 'promptLab' | 'dataManage' | 'activation')} className="flex flex-col flex-1 overflow-hidden relative z-10 min-h-0">
+        <Tabs
+          value={settingsTab}
+          onValueChange={(v) =>
+            setSettingsTab(v as 'quick' | 'promptLab' | 'dataManage' | 'activation')
+          }
+          className="flex flex-col flex-1 overflow-hidden relative z-10 min-h-0"
+        >
           <TabsList className="mb-5 self-start grid h-auto w-full max-w-lg shrink-0 grid-cols-2 sm:grid-cols-4">
-            <TabsTrigger value="quick" className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent">快速模型设置</TabsTrigger>
-            <TabsTrigger value="promptLab" className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent">提示词实验室</TabsTrigger>
-            <TabsTrigger value="dataManage" className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent">数据备份与管理</TabsTrigger>
-            <TabsTrigger value="activation" className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent">权益状态</TabsTrigger>
+            <TabsTrigger
+              value="quick"
+              className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent"
+            >
+              快速模型设置
+            </TabsTrigger>
+            <TabsTrigger
+              value="promptLab"
+              className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent"
+            >
+              提示词实验室
+            </TabsTrigger>
+            <TabsTrigger
+              value="dataManage"
+              className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent"
+            >
+              数据备份与管理
+            </TabsTrigger>
+            <TabsTrigger
+              value="activation"
+              className="flex-1 whitespace-normal min-h-10 px-2 leading-tight focus-visible:ring-2 focus-visible:ring-theme-accent"
+            >
+              权益状态
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="quick" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+          <TabsContent
+            value="quick"
+            className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden"
+          >
             <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
@@ -555,21 +669,29 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">API Key</label>
+                    <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">
+                      API Key
+                    </label>
                     <div className="relative">
                       <input
                         type="password"
                         value={config.apiKey}
-                        onChange={e => {
+                        onChange={(e) => {
                           cancelPendingTest();
-                          setConfig({...config, apiKey: e.target.value});
+                          setConfig({ ...config, apiKey: e.target.value });
                           setConnectionTestResult(null);
                           setDiscoveredModels([]);
                           setModelDiscoveryStatus(null);
                           setIsModelDropdownOpen(false);
                         }}
                         className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
-                        placeholder={apiKeyStatus === 'configured' ? '已配置；留空保留，输入新 Key 替换' : apiKeyStatus === 'unknown' ? '配置状态未知；可输入新 Key' : 'sk-...'}
+                        placeholder={
+                          apiKeyStatus === 'configured'
+                            ? '已配置；留空保留，输入新 Key 替换'
+                            : apiKeyStatus === 'unknown'
+                              ? '配置状态未知；可输入新 Key'
+                              : 'sk-...'
+                        }
                       />
                       {apiKeyStatus === 'configured' && !config.apiKey && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-emerald-600 font-medium pointer-events-none">
@@ -580,31 +702,51 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
 
                   {configLoadStatus === 'error' && (
- <div role="alert" className="flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-[11px]">
-                      <span>配置状态暂时无法确认{configLoadError ? `：${configLoadError}` : ''}</span>
-                      <button type="button" onClick={() => void loadConfig()} className="shrink-0 border border-amber-400 px-2 py-1 font-bold">重新加载配置</button>
+                    <div
+                      role="alert"
+                      className="flex items-center justify-between gap-3 rounded-lg alert-warning px-3 py-2 text-[11px]"
+                    >
+                      <span>
+                        配置状态暂时无法确认{configLoadError ? `：${configLoadError}` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void loadConfig()}
+                        className="shrink-0 border border-amber-400 px-2 py-1 font-bold"
+                      >
+                        重新加载配置
+                      </button>
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Base URL</label>
-                      <input
-                        type="text"
-                        value={config.baseUrl}
-                        onChange={e => {
-                          cancelPendingTest();
-                          setConfig({...config, baseUrl: e.target.value});
-                          setConnectionTestResult(null);
-                          setDiscoveredModels([]);
-                          setModelDiscoveryStatus(null);
-                          setIsModelDropdownOpen(false);
+                    <label className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">
+                      Base URL
+                    </label>
+                    <input
+                      type="text"
+                      value={config.baseUrl}
+                      onChange={(e) => {
+                        cancelPendingTest();
+                        setConfig({ ...config, baseUrl: e.target.value });
+                        setConnectionTestResult(null);
+                        setDiscoveredModels([]);
+                        setModelDiscoveryStatus(null);
+                        setIsModelDropdownOpen(false);
                       }}
                       className="w-full px-3 py-2 bg-theme-bg border border-theme-border rounded-lg text-sm text-theme-text outline-none focus:border-theme-accent transition-colors font-mono"
                       placeholder="https://api.deepseek.com"
                     />
-                    <p className="text-[10px] text-theme-muted mt-1">兼容 OpenAI 接口规范的 API 地址，如 https://api.deepseek.com</p>
+                    <p className="text-[10px] text-theme-muted mt-1">
+                      兼容 OpenAI 接口规范的 API 地址，如 https://api.deepseek.com
+                    </p>
                   </div>
                   <div className="relative">
-                    <label htmlFor="model-input" className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider">Model</label>
+                    <label
+                      htmlFor="model-input"
+                      className="block text-xs font-bold text-theme-text mb-1 uppercase tracking-wider"
+                    >
+                      Model
+                    </label>
                     <div className="relative">
                       <input
                         ref={modelInputRef}
@@ -615,11 +757,15 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         aria-controls="model-listbox"
                         aria-haspopup="listbox"
                         aria-autocomplete="list"
-                        aria-activedescendant={isModelDropdownOpen && activeModelIndex >= 0 ? `model-option-${activeModelIndex}` : undefined}
+                        aria-activedescendant={
+                          isModelDropdownOpen && activeModelIndex >= 0
+                            ? `model-option-${activeModelIndex}`
+                            : undefined
+                        }
                         value={config.model}
-                        onChange={e => {
+                        onChange={(e) => {
                           cancelPendingTest();
-                          setConfig({...config, model: e.target.value});
+                          setConfig({ ...config, model: e.target.value });
                           setConnectionTestResult(null);
                           setActiveModelIndex(-1);
                           setShowAllModels(false);
@@ -635,7 +781,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           // Delay closing so mousedown on an option fires first
                           setTimeout(() => setIsModelDropdownOpen(false), 150);
                         }}
-                        onKeyDown={e => {
+                        onKeyDown={(e) => {
                           if (!isModelDropdownOpen || discoveredModels.length === 0) {
                             if (e.key === 'ArrowDown' && discoveredModels.length > 0) {
                               e.preventDefault();
@@ -646,22 +792,29 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                             return;
                           }
                           const inputVal = config.model.toLowerCase();
-                          const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
+                          const filtered = discoveredModels.filter((m) =>
+                            m.toLowerCase().includes(inputVal)
+                          );
                           // When filter yields nothing, navigate the full list
-                          const navigable = showAllModels || filtered.length === 0 ? discoveredModels : filtered;
+                          const navigable =
+                            showAllModels || filtered.length === 0 ? discoveredModels : filtered;
                           if (e.key === 'ArrowDown') {
                             e.preventDefault();
-                            setActiveModelIndex(prev =>
+                            setActiveModelIndex((prev) =>
                               prev < navigable.length - 1 ? prev + 1 : 0
                             );
                           } else if (e.key === 'ArrowUp') {
                             e.preventDefault();
-                            setActiveModelIndex(prev =>
+                            setActiveModelIndex((prev) =>
                               prev > 0 ? prev - 1 : navigable.length - 1
                             );
-                          } else if (e.key === 'Enter' && activeModelIndex >= 0 && navigable[activeModelIndex]) {
+                          } else if (
+                            e.key === 'Enter' &&
+                            activeModelIndex >= 0 &&
+                            navigable[activeModelIndex]
+                          ) {
                             e.preventDefault();
-                            setConfig({...config, model: navigable[activeModelIndex]});
+                            setConfig({ ...config, model: navigable[activeModelIndex] });
                             setConnectionTestResult(null);
                             setIsModelDropdownOpen(false);
                             setShowAllModels(false);
@@ -682,7 +835,7 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                           aria-label={isModelDropdownOpen ? '收起模型列表' : '展开模型列表'}
                           aria-expanded={isModelDropdownOpen}
                           aria-controls="model-listbox"
-                          onMouseDown={e => e.preventDefault()}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             const nextOpen = !isModelDropdownOpen;
                             setIsModelDropdownOpen(nextOpen);
@@ -702,72 +855,85 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       )}
                     </div>
 
-                    {isModelDropdownOpen && discoveredModels.length > 0 && (() => {
-                      const inputVal = config.model.toLowerCase();
-                      const filtered = discoveredModels.filter(m => m.toLowerCase().includes(inputVal));
-                      // When no models match the filter, show ALL models so the user
-                      // can still pick from the full list even with a custom model name.
-                      const displayModels = showAllModels || filtered.length === 0 ? discoveredModels : filtered;
-                      const isFilterActive = !showAllModels && filtered.length > 0 && filtered.length < discoveredModels.length;
-                      return (
-                        <ul
-                          ref={modelListboxRef}
-                          id="model-listbox"
-                          role="listbox"
-                          aria-label="可用模型"
-                          className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-theme-border bg-theme-bg shadow-lg"
-                        >
-                          {!isFilterActive && filtered.length === 0 && (
-                            <li className="px-3 py-2 text-xs text-theme-muted italic pointer-events-none" role="presentation">
-                              当前输入未匹配，展示全部模型
-                            </li>
-                          )}
-                          {displayModels.map((model, index) => (
-                            <li
-                              key={model}
-                              id={`model-option-${index}`}
-                              role="option"
-                              aria-selected={model === config.model}
-                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                                index === activeModelIndex
-                                  ? 'bg-theme-accent/10 text-theme-accent'
-                                  : model === config.model
-                                    ? 'bg-theme-accent/5 text-theme-text font-medium'
-                                    : 'text-theme-text hover:bg-theme-border/30'
-                              }`}
-                              onMouseDown={e => {
-                                e.preventDefault();
-                                setConfig({...config, model});
-                                setConnectionTestResult(null);
-                                setIsModelDropdownOpen(false);
-                                setShowAllModels(false);
-                                setActiveModelIndex(-1);
-                                modelInputRef.current?.focus();
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span>{model}</span>
-                                {model === config.model && (
-                                  <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      );
-                    })()}
+                    {isModelDropdownOpen &&
+                      discoveredModels.length > 0 &&
+                      (() => {
+                        const inputVal = config.model.toLowerCase();
+                        const filtered = discoveredModels.filter((m) =>
+                          m.toLowerCase().includes(inputVal)
+                        );
+                        // When no models match the filter, show ALL models so the user
+                        // can still pick from the full list even with a custom model name.
+                        const displayModels =
+                          showAllModels || filtered.length === 0 ? discoveredModels : filtered;
+                        const isFilterActive =
+                          !showAllModels &&
+                          filtered.length > 0 &&
+                          filtered.length < discoveredModels.length;
+                        return (
+                          <ul
+                            ref={modelListboxRef}
+                            id="model-listbox"
+                            role="listbox"
+                            aria-label="可用模型"
+                            className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-theme-border bg-theme-bg shadow-lg"
+                          >
+                            {!isFilterActive && filtered.length === 0 && (
+                              <li
+                                className="px-3 py-2 text-xs text-theme-muted italic pointer-events-none"
+                                role="presentation"
+                              >
+                                当前输入未匹配，展示全部模型
+                              </li>
+                            )}
+                            {displayModels.map((model, index) => (
+                              <li
+                                key={model}
+                                id={`model-option-${index}`}
+                                role="option"
+                                aria-selected={model === config.model}
+                                className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                  index === activeModelIndex
+                                    ? 'bg-theme-accent/10 text-theme-accent'
+                                    : model === config.model
+                                      ? 'bg-theme-accent/5 text-theme-text font-medium'
+                                      : 'text-theme-text hover:bg-theme-border/30'
+                                }`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setConfig({ ...config, model });
+                                  setConnectionTestResult(null);
+                                  setIsModelDropdownOpen(false);
+                                  setShowAllModels(false);
+                                  setActiveModelIndex(-1);
+                                  modelInputRef.current?.focus();
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{model}</span>
+                                  {model === config.model && (
+                                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
 
                     <p className="text-[10px] text-theme-muted mt-1">
                       {discoveredModels.length > 0
                         ? `已发现 ${discoveredModels.length} 个模型，可输入搜索或点击箭头选择`
                         : '模型名称，如 deepseek-chat、gpt-4o、gemini-2.5-pro'}
                     </p>
-                    {discoveredModels.length > 0 && config.model && !discoveredModels.includes(config.model) && (
-                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                        <AlertTriangle size={10} />
-                        自定义模型
-                      </span>
-                    )}
+                    {discoveredModels.length > 0 &&
+                      config.model &&
+                      !discoveredModels.includes(config.model) && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                          <AlertTriangle size={10} />
+                          自定义模型
+                        </span>
+                      )}
                     {modelDiscoveryStatus === 'unsupported' && discoveredModels.length === 0 && (
                       <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
                         <AlertTriangle size={10} />
@@ -793,10 +959,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold">严格纠错 🟢</span>
-                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
-                            config.promptGuardLevel === 'strict' ? 'border-emerald-500 bg-emerald-500' : 'border-theme-border'
-                          }`}>
-                            {config.promptGuardLevel === 'strict' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          <div
+                            className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                              config.promptGuardLevel === 'strict'
+                                ? 'border-emerald-500 bg-emerald-500'
+                                : 'border-theme-border'
+                            }`}
+                          >
+                            {config.promptGuardLevel === 'strict' && (
+                              <div className="w-1 h-1 rounded-full bg-white" />
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] leading-relaxed">
@@ -815,10 +987,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold">前置规则 🟡</span>
-                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
-                            config.promptGuardLevel === 'balanced' ? 'border-amber-500 bg-amber-500' : 'border-theme-border'
-                          }`}>
-                            {config.promptGuardLevel === 'balanced' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          <div
+                            className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                              config.promptGuardLevel === 'balanced'
+                                ? 'border-amber-500 bg-amber-500'
+                                : 'border-theme-border'
+                            }`}
+                          >
+                            {config.promptGuardLevel === 'balanced' && (
+                              <div className="w-1 h-1 rounded-full bg-white" />
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] leading-relaxed">
@@ -837,10 +1015,16 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold">关闭守卫 ⚪</span>
-                          <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
-                            config.promptGuardLevel === 'disabled' ? 'border-theme-text/50 bg-theme-text/50' : 'border-theme-border'
-                          }`}>
-                            {config.promptGuardLevel === 'disabled' && <div className="w-1 h-1 rounded-full bg-white" />}
+                          <div
+                            className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                              config.promptGuardLevel === 'disabled'
+                                ? 'border-theme-text/50 bg-theme-text/50'
+                                : 'border-theme-border'
+                            }`}
+                          >
+                            {config.promptGuardLevel === 'disabled' && (
+                              <div className="w-1 h-1 rounded-full bg-white" />
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] leading-relaxed">
@@ -854,11 +1038,33 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-theme-border/50 bg-theme-sidebar/30 px-3 py-2 text-[11px]">
                     <span className="text-theme-muted">语义索引状态</span>
                     <div className="flex items-center gap-2">
-                      <span className={embeddingStatus === 'ready' ? 'font-bold text-emerald-600' : 'font-bold text-amber-600'}>
-                        {embeddingStatus === 'ready' ? '本地 WASM 可用' : embeddingStatus === 'fallback' ? 'LLM 兜底（正文仍可保存）' : embeddingStatus === 'initializing' ? '初始化中' : embeddingStatus === 'unavailable' && embeddingReason === 'not_initialized' ? '尚未初始化' : embeddingStatus === 'unavailable' ? '暂不可用（正文仍可保存）' : '暂时无法确认'}
+                      <span
+                        className={
+                          embeddingStatus === 'ready'
+                            ? 'font-bold text-emerald-600'
+                            : 'font-bold text-amber-600'
+                        }
+                      >
+                        {embeddingStatus === 'ready'
+                          ? '本地 WASM 可用'
+                          : embeddingStatus === 'fallback'
+                            ? 'LLM 兜底（正文仍可保存）'
+                            : embeddingStatus === 'initializing'
+                              ? '初始化中'
+                              : embeddingStatus === 'unavailable' &&
+                                  embeddingReason === 'not_initialized'
+                                ? '尚未初始化'
+                                : embeddingStatus === 'unavailable'
+                                  ? '暂不可用（正文仍可保存）'
+                                  : '暂时无法确认'}
                       </span>
                       {(embeddingStatus === 'unavailable' || embeddingStatus === 'fallback') && (
-                        <button type="button" disabled={isRetryingEmbedding} onClick={() => void handleRetryEmbedding()} className="border border-theme-border px-2 py-1 font-bold disabled:opacity-50">
+                        <button
+                          type="button"
+                          disabled={isRetryingEmbedding}
+                          onClick={() => void handleRetryEmbedding()}
+                          className="border border-theme-border px-2 py-1 font-bold disabled:opacity-50"
+                        >
                           {isRetryingEmbedding ? '检测中…' : '重新检测语义索引'}
                         </button>
                       )}
@@ -866,7 +1072,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
                   <div className="pt-4 border-t border-theme-border/50 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-theme-muted">在保存前测试配置的连通性：</span>
+                      <span className="text-[11px] text-theme-muted">
+                        在保存前测试配置的连通性：
+                      </span>
                       <button
                         type="button"
                         onClick={handleTestConnection}
@@ -884,68 +1092,91 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
 
                     {/* Loading 状态反馈 */}
                     <div role="status" aria-live="polite" aria-atomic="true">
-                    {isTestingConnection && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-theme-border bg-theme-sidebar/35 text-[11px] text-theme-muted animate-pulse">
-                        <Activity size={14} className="text-theme-accent animate-spin shrink-0" />
-                        <span>📡 正在与大语言模型建立连接并发送握手请求，请稍候...</span>
-                      </div>
-                    )}
-
-                    {/* 自适应结果横幅 */}
-                    {connectionTestResult && (
-                      <div
-                        className={`flex items-start gap-2 px-3 py-3 rounded-xl border text-[11px] leading-relaxed transition-all ${
-                          connectionTestResult.success
-                            ? 'bg-emerald-500/[0.04] border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-red-500/[0.04] border-red-500/20 text-red-600 dark:text-red-400'
-                        }`}
-                      >
-                        {connectionTestResult.success ? (
-                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                        ) : (
-                          <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
-                        )}
-                        <div className="flex-1">
-                          <div className="font-bold mb-0.5">
-                            {connectionTestResult.success ? '✅ 链接测试成功！' : '❌ 链接测试失败'}
-                          </div>
-                          <div className="break-all whitespace-pre-wrap">{connectionTestResult.message}</div>
-                          {discoveredModels.length > 0 && (
-                            <div className="mt-1.5 text-[10px] text-theme-muted leading-normal">
-                              已发现 <strong className="text-theme-text">{discoveredModels.length}</strong> 个模型，
-                              可在 Model 输入框中搜索选择
-                            </div>
-                          )}
-                          {!connectionTestResult.success && (
-                            <div className="mt-1 text-[10px] text-theme-muted leading-normal">
-                              💡 排查建议：请检查 API Key 是否正确、Base URL 格式是否正确、本地代理连接是否正常，或该模型名在此 API 服务商中是否可用。
-                            </div>
-                          )}
+                      {isTestingConnection && (
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-theme-border bg-theme-sidebar/35 text-[11px] text-theme-muted animate-pulse">
+                          <Activity size={14} className="text-theme-accent animate-spin shrink-0" />
+                          <span>📡 正在与大语言模型建立连接并发送握手请求，请稍候...</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {/* 自适应结果横幅 */}
+                      {connectionTestResult && (
+                        <div
+                          className={`flex items-start gap-2 px-3 py-3 rounded-xl border text-[11px] leading-relaxed transition-all ${
+                            connectionTestResult.success
+                              ? 'bg-emerald-500/[0.04] border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-red-500/[0.04] border-red-500/20 text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {connectionTestResult.success ? (
+                            <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-bold mb-0.5">
+                              {connectionTestResult.success
+                                ? '✅ 链接测试成功！'
+                                : '❌ 链接测试失败'}
+                            </div>
+                            <div className="break-all whitespace-pre-wrap">
+                              {connectionTestResult.message}
+                            </div>
+                            {discoveredModels.length > 0 && (
+                              <div className="mt-1.5 text-[10px] text-theme-muted leading-normal">
+                                已发现{' '}
+                                <strong className="text-theme-text">
+                                  {discoveredModels.length}
+                                </strong>{' '}
+                                个模型， 可在 Model 输入框中搜索选择
+                              </div>
+                            )}
+                            {!connectionTestResult.success && (
+                              <div className="mt-1 text-[10px] text-theme-muted leading-normal">
+                                💡 排查建议：请检查 API Key 是否正确、Base URL
+                                格式是否正确、本地代理连接是否正常，或该模型名在此 API
+                                服务商中是否可用。
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-
-
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5 space-y-3">
                   <div className="text-sm font-bold text-theme-text">生效验证链</div>
                   <div className="space-y-2 text-[11px] text-theme-muted leading-relaxed">
-                    <div><span className="font-bold text-theme-text">1.</span> 填写 API Key、Base URL 和模型名。</div>
-                    <div><span className="font-bold text-theme-text">2.</span> 点“保存配置”后写入本地配置，并同步到当前服务端内存。</div>
-                    <div><span className="font-bold text-theme-text">3.</span> 后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。</div>
+                    <div>
+                      <span className="font-bold text-theme-text">1.</span> 填写 API Key、Base URL
+                      和模型名。
+                    </div>
+                    <div>
+                      <span className="font-bold text-theme-text">2.</span>{' '}
+                      点“保存配置”后写入本地配置，并同步到当前服务端内存。
+                    </div>
+                    <div>
+                      <span className="font-bold text-theme-text">3.</span>{' '}
+                      后续灵感、拆书、分镜、正文生成、审计都会使用这套模型配置。
+                    </div>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-5">
                   <details>
-                    <summary className="cursor-pointer select-none text-sm font-bold text-theme-text">键盘快捷键</summary>
+                    <summary className="cursor-pointer select-none text-sm font-bold text-theme-text">
+                      键盘快捷键
+                    </summary>
                     <dl className="mt-3 space-y-2">
                       {Object.entries(SHORTCUTS).map(([id, shortcut]) => (
-                        <div key={id} className="flex items-center justify-between gap-3 text-[11px]">
-                          <dt className="shrink-0 font-mono font-bold text-theme-text">{shortcut.label}</dt>
+                        <div
+                          key={id}
+                          className="flex items-center justify-between gap-3 text-[11px]"
+                        >
+                          <dt className="shrink-0 font-mono font-bold text-theme-text">
+                            {shortcut.label}
+                          </dt>
                           <dd className="text-right text-theme-muted">{shortcut.desc}</dd>
                         </div>
                       ))}
@@ -956,7 +1187,10 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
             </div>
           </TabsContent>
 
-          <TabsContent value="activation" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+          <TabsContent
+            value="activation"
+            className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden"
+          >
             <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 <div className="rounded-2xl border border-theme-border bg-theme-sidebar/50 p-5 space-y-4">
@@ -975,31 +1209,41 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
 
                   {monetizationEnabled ? (
-                    <p className="text-xs text-theme-muted">增强能力需服务端授权；当前版本未开放在线购买。基础写作和 BYOK 主链仍可继续。</p>
+                    <p className="text-xs text-theme-muted">
+                      增强能力需服务端授权；当前版本未开放在线购买。基础写作和 BYOK 主链仍可继续。
+                    </p>
                   ) : (
-                    <p className="text-xs text-theme-muted">Beta 默认开放，无需访问码。基础写作和 BYOK 主链仍可继续。</p>
+                    <p className="text-xs text-theme-muted">
+                      Beta 默认开放，无需访问码。基础写作和 BYOK 主链仍可继续。
+                    </p>
                   )}
                 </div>
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="promptLab" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+          <TabsContent
+            value="promptLab"
+            className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden"
+          >
             <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="rounded-2xl border border-theme-border bg-theme-sidebar/40 p-4 space-y-4 min-w-0 pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-theme-text">提示词实验室</h3>
                     <p className="text-[11px] text-theme-muted mt-1 leading-relaxed max-w-2xl">
-                      高级区域。这里会影响核心写作链路：灵感、拆书、分镜、正文生成、AI 审计与全局大纲。模板变量统一使用 <code>{'{{变量名}}'}</code>。
+                      高级区域。这里会影响核心写作链路：灵感、拆书、分镜、正文生成、AI
+                      审计与全局大纲。模板变量统一使用 <code>{'{{变量名}}'}</code>。
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${
-                      hasUnsavedChanges
- ? 'alert-warning'
-                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-[10px] font-bold border ${
+                        hasUnsavedChanges
+                          ? 'alert-warning'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      }`}
+                    >
                       {hasUnsavedChanges ? '存在未保存修改' : '当前修改已保存'}
                     </span>
                     {isModifiedFromDefault && (
@@ -1014,7 +1258,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   <div className="rounded-2xl border border-theme-border bg-theme-sidebar/25 p-3 space-y-2 max-h-[580px] overflow-y-auto">
                     <div className="px-1">
                       <div className="text-xs font-bold text-theme-text">模板目录</div>
-                      <div className="text-[10px] text-theme-muted mt-1">先选链路，再编辑右侧正文。</div>
+                      <div className="text-[10px] text-theme-muted mt-1">
+                        先选链路，再编辑右侧正文。
+                      </div>
                     </div>
                     {PROMPT_TEMPLATE_DEFINITIONS.map((item) => (
                       <button
@@ -1028,7 +1274,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         }`}
                       >
                         <div className="text-xs font-bold">{item.label}</div>
-                        <div className="text-[10px] mt-1 text-theme-muted leading-relaxed">{item.description}</div>
+                        <div className="text-[10px] mt-1 text-theme-muted leading-relaxed">
+                          {item.description}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -1037,18 +1285,26 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                     <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-bold text-theme-text">{selectedTemplate.label}</div>
-                          <p className="text-[11px] text-theme-muted mt-1 leading-relaxed">{selectedTemplate.description}</p>
+                          <div className="text-sm font-bold text-theme-text">
+                            {selectedTemplate.label}
+                          </div>
+                          <p className="text-[11px] text-theme-muted mt-1 leading-relaxed">
+                            {selectedTemplate.description}
+                          </p>
                         </div>
                         <div className="text-[10px] text-theme-muted leading-relaxed rounded-xl border border-theme-border bg-theme-sidebar/30 px-3 py-2">
                           会影响：
-                          <div className="font-bold text-theme-text mt-1">{selectedTemplate.label} 对应的 AI 请求链路</div>
+                          <div className="font-bold text-theme-text mt-1">
+                            {selectedTemplate.label} 对应的 AI 请求链路
+                          </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-3">
                         <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-3">
-                          <div className="text-[11px] font-bold text-theme-text mb-2">变量与风险</div>
+                          <div className="text-[11px] font-bold text-theme-text mb-2">
+                            变量与风险
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             {selectedTemplate.variables.map((variable) => (
                               <span
@@ -1059,13 +1315,18 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                               </span>
                             ))}
                             {selectedTemplate.variables.length === 0 && (
-                              <span className="text-[10px] text-theme-muted">这个模板没有必填变量。</span>
+                              <span className="text-[10px] text-theme-muted">
+                                这个模板没有必填变量。
+                              </span>
                             )}
                           </div>
                           {missingVariables.length > 0 && (
- <div className="mt-3 rounded-xl alert-warning px-3 py-3 text-[11px] leading-relaxed">
+                            <div className="mt-3 rounded-xl alert-warning px-3 py-3 text-[11px] leading-relaxed">
                               缺少关键变量：
-                              <span className="font-mono"> {missingVariables.map((item) => `{{${item}}}`).join('、')}</span>
+                              <span className="font-mono">
+                                {' '}
+                                {missingVariables.map((item) => `{{${item}}}`).join('、')}
+                              </span>
                               。删掉它们后，这条链路会丢上下文。
                             </div>
                           )}
@@ -1074,8 +1335,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         <div className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-3 text-[11px] text-theme-muted leading-relaxed">
                           <div className="font-bold text-theme-text mb-2">调试建议</div>
                           <div>1. 先改语气、步骤和约束，再决定要不要动结构段落。</div>
-                          <div className="mt-1">2. 尽量保留变量占位符，否则你改的是“断链”不是“优化”。</div>
-                          <div className="mt-1">3. 先试跑，再保存；试跑看即时输出，保存决定后续真实请求使用哪套模板。</div>
+                          <div className="mt-1">
+                            2. 尽量保留变量占位符，否则你改的是“断链”不是“优化”。
+                          </div>
+                          <div className="mt-1">
+                            3. 先试跑，再保存；试跑看即时输出，保存决定后续真实请求使用哪套模板。
+                          </div>
                         </div>
                       </div>
 
@@ -1107,72 +1372,86 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                       </div>
                     </div>
 
-                      <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-bold text-theme-text">验证区</div>
-                            <div className="text-[11px] text-theme-muted mt-1">试跑会用当前编辑草稿发起一次测试；保存后，后续真实 AI 请求才会统一使用这套模板。</div>
+                    <div className="rounded-2xl border border-theme-border bg-theme-sidebar/20 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-bold text-theme-text">验证区</div>
+                          <div className="text-[11px] text-theme-muted mt-1">
+                            试跑会用当前编辑草稿发起一次测试；保存后，后续真实 AI
+                            请求才会统一使用这套模板。
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleTestTemplate}
-                            disabled={isTesting}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-text text-theme-bg text-xs font-bold hover:bg-theme-text/90 transition-colors disabled:opacity-50 cursor-pointer"
-                          >
-                            <Sparkles size={14} />
-                            {isTesting ? '试跑中...' : '试跑当前模板'}
-                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleTestTemplate}
+                          disabled={isTesting}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-text text-theme-bg text-xs font-bold hover:bg-theme-text/90 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          <Sparkles size={14} />
+                          {isTesting ? '试跑中...' : '试跑当前模板'}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
+                          <div className="text-xs font-bold text-theme-text">模板试跑输出</div>
+                          {testError ? (
+                            <div className="text-[11px] text-red-600 leading-relaxed space-y-2">
+                              <div>{testError}</div>
+                              {testErrorCode === 'PROMPT_TEST_TIMEOUT' && (
+                                <div>模型响应超时，请稍后重试。</div>
+                              )}
+                              {testErrorCode === 'PROMPT_TEST_RATE_LIMITED' && (
+                                <div>请求过于频繁，请等待 {testRetryAfter ?? 5} 秒后再试。</div>
+                              )}
+                              {testErrorCode === 'PROMPT_TEST_PROVIDER_ERROR' && (
+                                <div>请检查模型配置或网络连接。</div>
+                              )}
+                              {testErrorCode === 'PROMPT_TEST_INVALID_INPUT' && (
+                                <div>请检查作品和模板内容后再试。</div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={handleTestTemplate}
+                                disabled={isTesting}
+                                className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1 font-bold text-red-700 disabled:opacity-50"
+                              >
+                                <RotateCcw size={12} />
+                                {isTesting ? '试跑中...' : '重试试跑'}
+                              </button>
+                            </div>
+                          ) : testOutput ? (
+                            <pre className="whitespace-pre-wrap text-[11px] leading-6 text-theme-text font-mono max-h-64 overflow-y-auto">
+                              {testOutput}
+                            </pre>
+                          ) : (
+                            <div className="text-[11px] text-theme-muted leading-relaxed">
+                              还没有试跑结果。先点一次“试跑当前模板”，看当前内容会如何影响输出。
+                            </div>
+                          )}
                         </div>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                          <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
-                            <div className="text-xs font-bold text-theme-text">模板试跑输出</div>
-                            {testError ? (
-                              <div className="text-[11px] text-red-600 leading-relaxed space-y-2">
-                                <div>{testError}</div>
-                                {testErrorCode === 'PROMPT_TEST_TIMEOUT' && <div>模型响应超时，请稍后重试。</div>}
-                                {testErrorCode === 'PROMPT_TEST_RATE_LIMITED' && (
-                                  <div>请求过于频繁，请等待 {testRetryAfter ?? 5} 秒后再试。</div>
-                                )}
-                                {testErrorCode === 'PROMPT_TEST_PROVIDER_ERROR' && <div>请检查模型配置或网络连接。</div>}
-                                {testErrorCode === 'PROMPT_TEST_INVALID_INPUT' && <div>请检查作品和模板内容后再试。</div>}
-                                <button
-                                  type="button"
-                                  onClick={handleTestTemplate}
-                                  disabled={isTesting}
-                                  className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1 font-bold text-red-700 disabled:opacity-50"
-                                >
-                                  <RotateCcw size={12} />
-                                  {isTesting ? '试跑中...' : '重试试跑'}
-                                </button>
-                              </div>
-                            ) : testOutput ? (
-                              <pre className="whitespace-pre-wrap text-[11px] leading-6 text-theme-text font-mono max-h-64 overflow-y-auto">
-                                {testOutput}
-                              </pre>
-                            ) : (
-                              <div className="text-[11px] text-theme-muted leading-relaxed">还没有试跑结果。先点一次“试跑当前模板”，看当前内容会如何影响输出。</div>
-                            )}
+                        <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
+                          <div className="text-xs font-bold text-theme-text">送模前预览</div>
+                          <div className="text-[11px] text-theme-muted leading-relaxed">
+                            这里展示变量渲染后的最终提示词样本，便于检查结构、占位符和上下文拼接。
                           </div>
-
-                          <div className="rounded-2xl border border-theme-border bg-theme-sidebar/30 p-4 space-y-2 min-h-[180px]">
-                            <div className="text-xs font-bold text-theme-text">送模前预览</div>
-                            <div className="text-[11px] text-theme-muted leading-relaxed">
-                              这里展示变量渲染后的最终提示词样本，便于检查结构、占位符和上下文拼接。
-                            </div>
-                            <pre className="whitespace-pre-wrap text-[11px] leading-6 text-theme-text font-mono max-h-64 overflow-y-auto">
-                              {promptPreview || '尚未生成预览'}
-                            </pre>
-                          </div>
+                          <pre className="whitespace-pre-wrap text-[11px] leading-6 text-theme-text font-mono max-h-64 overflow-y-auto">
+                            {promptPreview || '尚未生成预览'}
+                          </pre>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="dataManage" className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden">
+          <TabsContent
+            value="dataManage"
+            className="m-0 outline-none focus:outline-none flex flex-col flex-1 min-h-0 overflow-hidden"
+          >
             <div className="flex-1 min-h-0 relative pr-2 h-full overflow-y-auto">
               <div className="max-w-xl space-y-4 pb-4">
                 <input
@@ -1197,25 +1476,223 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                   </div>
                 </div>
 
-                <section className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-4 space-y-4" aria-label="本地创作指标">
+                <section
+                  className="rounded-2xl border border-theme-border bg-theme-sidebar/35 p-4 space-y-4"
+                  aria-label="本地创作指标"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-bold text-theme-text flex items-center gap-2"><Activity size={16} className="text-theme-accent" />本地创作指标 <span className="text-[10px] font-normal text-theme-muted">近 7 天</span></div>
-                      <p className="text-[11px] text-theme-muted mt-1">仅保存在本机，不上传正文、提示词或模型输出。</p>
+                      <div className="text-sm font-bold text-theme-text flex items-center gap-2">
+                        <Activity size={16} className="text-theme-accent" />
+                        本地创作指标{' '}
+                        <span className="text-[10px] font-normal text-theme-muted">近 7 天</span>
+                      </div>
+                      <p className="text-[11px] text-theme-muted mt-1">
+                        仅保存在本机，不上传正文、提示词或模型输出。
+                      </p>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button type="button" onClick={handleExportProductEvents} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-border text-[11px] text-theme-text hover:border-theme-accent" aria-label="导出本地创作指标"><Download size={13} />导出</button>
-                      <button type="button" onClick={handleClearProductEvents} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-border text-[11px] text-theme-text hover:border-red-400" aria-label="清除本地创作指标"><Trash2 size={13} /></button>
+                      <button
+                        type="button"
+                        onClick={handleExportProductEvents}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-border text-[11px] text-theme-text hover:border-theme-accent"
+                        aria-label="导出本地创作指标"
+                      >
+                        <Download size={13} />
+                        导出
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearProductEvents}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-theme-border text-[11px] text-theme-text hover:border-red-400"
+                        aria-label="清除本地创作指标"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
-                  {productMetricsLoading ? <div className="text-xs text-theme-muted py-3">正在加载指标...</div> : productMetricsError ? <div className="text-xs text-red-600 py-3">{productMetricsError}</div> : !productMetrics ? <div className="text-xs text-theme-muted py-3">暂无指标数据</div> : (
+                  {productMetricsLoading ? (
+                    <div className="text-xs text-theme-muted py-3">正在加载指标...</div>
+                  ) : productMetricsError ? (
+                    <div className="text-xs text-red-600 py-3">{productMetricsError}</div>
+                  ) : !productMetrics ? (
+                    <div className="text-xs text-theme-muted py-3">暂无指标数据</div>
+                  ) : (
                     <div className="space-y-3 text-xs">
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div><span className="text-theme-muted">已接受章节</span><div className="text-lg font-bold text-theme-text">{productMetrics.northStar.acceptedChapters}</div></div><div><span className="text-theme-muted">活跃作品</span><div className="text-lg font-bold text-theme-text">{productMetrics.northStar.activeNovels ?? '暂无'}</div></div><div><span className="text-theme-muted">样本数（去重对象）</span><div className="font-semibold text-theme-text">{productMetrics.sampleSize}</div></div><div><span className="text-theme-muted">生成延迟 P50 / P95</span><div className="font-semibold text-theme-text">{productMetrics.generationLatencyMs.p50 ?? '暂无'} / {productMetrics.generationLatencyMs.p95 ?? '暂无'} ms</div></div></div>
-                      <div><div className="text-theme-muted mb-1">阶段完成量</div><div className="grid grid-cols-3 gap-x-2 gap-y-1">{(productMetrics.stageCompletions || []).map((step) => <div key={step.stage} className="flex justify-between gap-1"><span className="truncate text-theme-muted">{step.stage}</span><span className="font-semibold text-theme-text">{step.count}</span></div>)}</div></div>
-                      <div><div className="text-theme-muted mb-1">高级功能采用量</div><div className="grid grid-cols-2 gap-x-2 gap-y-1">{(productMetrics.advancedAdoption || []).map((item) => <div key={item.eventName} className="flex justify-between"><span>{item.eventName}</span><b>{item.count}</b></div>)}</div></div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted"><span>预览采纳率：<b className="text-theme-text">{formatRate(productMetrics.rates.previewAcceptance)}</b></span><span>同步完成率：<b className="text-theme-text">{formatRate(productMetrics.rates.syncCompletion)}</b></span><span>评论未知率：<b className="text-theme-text">{formatRate(productMetrics.rates.criticUnknown)}</b></span><span>冲突率：<b className="text-theme-text">{formatRate(productMetrics.rates.conflict)}</b></span></div>
-                      {productMetrics.writingActivation ? <div className="space-y-2" aria-label="写作激活"><div className="text-theme-muted mb-1">写作激活</div><div className="grid grid-cols-2 gap-x-3 gap-y-1"><span>进入编辑器：<b className="text-theme-text">{productMetrics.writingActivation.editorEntries}</b></span><span>首次输入：<b className="text-theme-text">{productMetrics.writingActivation.firstInputs}</b></span><span>内容保存：<b className="text-theme-text">{productMetrics.writingActivation.contentSaves}</b></span><span>跳过同步：<b className="text-theme-text">{productMetrics.writingActivation.continuationSkips}</b></span></div><div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted"><span>进入到首次输入：<b className="text-theme-text">{formatRate(productMetrics.writingActivation.entryToFirstInput)}</b></span><span>跳过同步到首次输入：<b className="text-theme-text">{formatRate(productMetrics.writingActivation.skipToFirstInput)}</b></span><span>首次 AI 辅助跑通率：<b className="text-theme-text">{formatRate(productMetrics.writingActivation.firstAiAssistCompletion)}</b></span></div></div> : null}
-                      {productMetrics.capabilities ? <div className="space-y-2" aria-label="能力生命周期"><div className="text-theme-muted mb-1">能力生命周期</div><div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted"><span>配置完成率：<b className="text-theme-text">{formatRate(productMetrics.capabilities.configurationCompletion)}</b></span><span>配置期间视图跳转数：<b className="text-theme-text">{productMetrics.capabilities.configurationViewChanges}</b></span><span>冲突取消率：<b className="text-theme-text">{formatRate(productMetrics.capabilities.conflictCancellation)}</b></span><span>商店到编辑器回流率：<b className="text-theme-text">{formatRate(productMetrics.capabilities.storeToEditorReturn)}</b></span><span>卡组正文采纳率：<b className="text-theme-text">{formatRate(productMetrics.capabilities.cardDraftAcceptance)}</b></span><span>精修预览应用率：<b className="text-theme-text">{formatRate(productMetrics.capabilities.oneShotPreviewApplication ?? productMetrics.capabilities.diagnosticPreviewApplication)}</b></span></div></div> : null}
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div>
+                          <span className="text-theme-muted">已接受章节</span>
+                          <div className="text-lg font-bold text-theme-text">
+                            {productMetrics.northStar.acceptedChapters}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-theme-muted">活跃作品</span>
+                          <div className="text-lg font-bold text-theme-text">
+                            {productMetrics.northStar.activeNovels ?? '暂无'}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-theme-muted">样本数（去重对象）</span>
+                          <div className="font-semibold text-theme-text">
+                            {productMetrics.sampleSize}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-theme-muted">生成延迟 P50 / P95</span>
+                          <div className="font-semibold text-theme-text">
+                            {productMetrics.generationLatencyMs.p50 ?? '暂无'} /{' '}
+                            {productMetrics.generationLatencyMs.p95 ?? '暂无'} ms
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-theme-muted mb-1">阶段完成量</div>
+                        <div className="grid grid-cols-3 gap-x-2 gap-y-1">
+                          {(productMetrics.stageCompletions || []).map((step) => (
+                            <div key={step.stage} className="flex justify-between gap-1">
+                              <span className="truncate text-theme-muted">{step.stage}</span>
+                              <span className="font-semibold text-theme-text">{step.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-theme-muted mb-1">高级功能采用量</div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                          {(productMetrics.advancedAdoption || []).map((item) => (
+                            <div key={item.eventName} className="flex justify-between">
+                              <span>{item.eventName}</span>
+                              <b>{item.count}</b>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted">
+                        <span>
+                          预览采纳率：
+                          <b className="text-theme-text">
+                            {formatRate(productMetrics.rates.previewAcceptance)}
+                          </b>
+                        </span>
+                        <span>
+                          同步完成率：
+                          <b className="text-theme-text">
+                            {formatRate(productMetrics.rates.syncCompletion)}
+                          </b>
+                        </span>
+                        <span>
+                          评论未知率：
+                          <b className="text-theme-text">
+                            {formatRate(productMetrics.rates.criticUnknown)}
+                          </b>
+                        </span>
+                        <span>
+                          冲突率：
+                          <b className="text-theme-text">
+                            {formatRate(productMetrics.rates.conflict)}
+                          </b>
+                        </span>
+                      </div>
+                      {productMetrics.writingActivation ? (
+                        <div className="space-y-2" aria-label="写作激活">
+                          <div className="text-theme-muted mb-1">写作激活</div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                            <span>
+                              进入编辑器：
+                              <b className="text-theme-text">
+                                {productMetrics.writingActivation.editorEntries}
+                              </b>
+                            </span>
+                            <span>
+                              首次输入：
+                              <b className="text-theme-text">
+                                {productMetrics.writingActivation.firstInputs}
+                              </b>
+                            </span>
+                            <span>
+                              内容保存：
+                              <b className="text-theme-text">
+                                {productMetrics.writingActivation.contentSaves}
+                              </b>
+                            </span>
+                            <span>
+                              跳过同步：
+                              <b className="text-theme-text">
+                                {productMetrics.writingActivation.continuationSkips}
+                              </b>
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted">
+                            <span>
+                              进入到首次输入：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.writingActivation.entryToFirstInput)}
+                              </b>
+                            </span>
+                            <span>
+                              跳过同步到首次输入：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.writingActivation.skipToFirstInput)}
+                              </b>
+                            </span>
+                            <span>
+                              首次 AI 辅助跑通率：
+                              <b className="text-theme-text">
+                                {formatRate(
+                                  productMetrics.writingActivation.firstAiAssistCompletion
+                                )}
+                              </b>
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                      {productMetrics.capabilities ? (
+                        <div className="space-y-2" aria-label="能力生命周期">
+                          <div className="text-theme-muted mb-1">能力生命周期</div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-theme-muted">
+                            <span>
+                              配置完成率：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.capabilities.configurationCompletion)}
+                              </b>
+                            </span>
+                            <span>
+                              配置期间视图跳转数：
+                              <b className="text-theme-text">
+                                {productMetrics.capabilities.configurationViewChanges}
+                              </b>
+                            </span>
+                            <span>
+                              冲突取消率：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.capabilities.conflictCancellation)}
+                              </b>
+                            </span>
+                            <span>
+                              商店到编辑器回流率：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.capabilities.storeToEditorReturn)}
+                              </b>
+                            </span>
+                            <span>
+                              卡组正文采纳率：
+                              <b className="text-theme-text">
+                                {formatRate(productMetrics.capabilities.cardDraftAcceptance)}
+                              </b>
+                            </span>
+                            <span>
+                              精修预览应用率：
+                              <b className="text-theme-text">
+                                {formatRate(
+                                  productMetrics.capabilities.oneShotPreviewApplication ??
+                                    productMetrics.capabilities.diagnosticPreviewApplication
+                                )}
+                              </b>
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </section>
@@ -1229,7 +1706,8 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         一键备份导出
                       </div>
                       <p className="text-[11px] text-theme-muted leading-relaxed">
-                        将当前的数据库完整导出为 <code>inkflow-data.db</code> 文件，妥善保存可随时用于数据恢复。
+                        将当前的数据库完整导出为 <code>inkflow-data.db</code>{' '}
+                        文件，妥善保存可随时用于数据恢复。
                       </p>
                     </div>
                     <button
@@ -1250,8 +1728,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
                         导入数据恢复
                       </div>
                       <p className="text-[11px] text-amber-600/85 dark:text-amber-400/85 leading-relaxed">
-                        ⚠️ <strong>极其危险</strong>：导入数据会完全<strong>覆盖并替换</strong>当前系统的所有数据且无法撤销！
-                        系统会在执行覆盖前自动为您创建一份 <code>.pre-import-bak</code> 灾难备份。
+                        ⚠️ <strong>极其危险</strong>：导入数据会完全<strong>覆盖并替换</strong>
+                        当前系统的所有数据且无法撤销！ 系统会在执行覆盖前自动为您创建一份{' '}
+                        <code>.pre-import-bak</code> 灾难备份。
                       </p>
                     </div>
                     <button
@@ -1277,7 +1756,9 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
             ) : saveMessage ? (
               <span className="text-emerald-700 font-medium">{saveMessage}</span>
             ) : (
-              <span className="text-theme-muted hidden sm:inline">保存后会写入本地配置，并用于后续 AI 请求组装。</span>
+              <span className="text-theme-muted hidden sm:inline">
+                保存后会写入本地配置，并用于后续 AI 请求组装。
+              </span>
             )}
           </div>
 
@@ -1322,7 +1803,12 @@ export function SettingsModal({ isOpen, onClose, theme, onThemeChange, selectedN
             )}
 
             <div className="flex items-center gap-3 ml-auto">
-              <button onClick={onClose} className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent">关闭</button>
+              <button
+                onClick={onClose}
+                className="shrink-0 px-4 py-2 text-sm text-theme-muted hover:text-theme-accent"
+              >
+                关闭
+              </button>
               <button
                 onClick={handleSave}
                 disabled={saving || configLoadStatus !== 'ready'}

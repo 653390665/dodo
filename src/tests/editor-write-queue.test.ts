@@ -34,7 +34,9 @@ describe('editor write boundary', () => {
     expect(hasPendingEditorWrites()).toBe(true);
     await flushPendingEditorWrites();
 
-    expect(persisted.sort()).toEqual(['content', 'globalOutline', 'sceneBeats', 'title', 'volumeName'].sort());
+    expect(persisted.sort()).toEqual(
+      ['content', 'globalOutline', 'sceneBeats', 'title', 'volumeName'].sort()
+    );
     expect(hasPendingEditorWrites()).toBe(false);
   });
 
@@ -74,13 +76,17 @@ describe('editor write boundary', () => {
     });
     expect(writer).toHaveBeenCalledTimes(1);
     expect(hasFailedEditorWrites()).toBe(true);
-    expect(getPendingEditorWriteSnapshots()).toEqual([{
-      key: 'chapter:1:content',
-      snapshot: { value: '待恢复正文' },
-      failed: true,
-    }]);
+    expect(getPendingEditorWriteSnapshots()).toEqual([
+      {
+        key: 'chapter:1:content',
+        snapshot: { value: '待恢复正文' },
+        failed: true,
+      },
+    ]);
 
-    await expect(flushPendingEditorWrites()).rejects.toMatchObject({ code: 'DB_GENERATION_CONFLICT' });
+    await expect(flushPendingEditorWrites()).rejects.toMatchObject({
+      code: 'DB_GENERATION_CONFLICT',
+    });
     expect(writer).toHaveBeenCalledTimes(1);
 
     clearStaleEditorWrites();
@@ -98,8 +104,14 @@ describe('editor write boundary', () => {
 
   test('only the newest value for the same field is persisted', async () => {
     const persisted: string[] = [];
-    queueEditorWrite('chapter:1:title', async () => { persisted.push('old'); return true; });
-    queueEditorWrite('chapter:1:title', async () => { persisted.push('new'); return true; });
+    queueEditorWrite('chapter:1:title', async () => {
+      persisted.push('old');
+      return true;
+    });
+    queueEditorWrite('chapter:1:title', async () => {
+      persisted.push('new');
+      return true;
+    });
 
     await flushPendingEditorWrites();
     expect(persisted).toEqual(['new']);
@@ -112,11 +124,13 @@ describe('editor write boundary', () => {
       field: 'content',
     });
 
-    expect(getPendingEditorWriteSnapshots()).toEqual([{
-      key: 'chapter:1:content',
-      snapshot: { value: '退出前未保存正文', field: 'content' },
-      failed: false,
-    }]);
+    expect(getPendingEditorWriteSnapshots()).toEqual([
+      {
+        key: 'chapter:1:content',
+        snapshot: { value: '退出前未保存正文', field: 'content' },
+        failed: false,
+      },
+    ]);
     expect(writer).not.toHaveBeenCalled();
   });
 
@@ -137,7 +151,13 @@ describe('editor write boundary', () => {
   });
 
   test('hasPendingWriteForExactKey returns true for failed write', async () => {
-    queueEditorWrite('novel:1:globalOutline', async () => { throw new Error('fail'); }, 0);
+    queueEditorWrite(
+      'novel:1:globalOutline',
+      async () => {
+        throw new Error('fail');
+      },
+      0
+    );
     await flushPendingEditorWrites().catch(() => {});
     expect(hasPendingWriteForExactKey('novel:1:globalOutline')).toBe(true);
   });

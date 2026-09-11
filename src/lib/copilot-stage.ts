@@ -29,11 +29,9 @@ export interface CopilotInput {
 }
 
 export function deriveCopilotStage(input: CopilotInput): CopilotStage {
-  const hasStoryFrame = input.hasContinuationPackContext || (
-    input.hasSummary &&
-    input.hasGlobalOutline &&
-    input.hasWorldRules
-  );
+  const hasStoryFrame =
+    input.hasContinuationPackContext ||
+    (input.hasSummary && input.hasGlobalOutline && input.hasWorldRules);
   if (!hasStoryFrame) {
     return 'missing-setup';
   }

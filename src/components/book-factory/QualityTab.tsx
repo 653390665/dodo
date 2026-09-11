@@ -1,18 +1,49 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
-  Bot, Loader2, MessageSquareWarning, Wand2, RefreshCw, Compass,
-  HeartCrack, Sparkles, Lightbulb, X
+  Bot,
+  Loader2,
+  MessageSquareWarning,
+  Wand2,
+  RefreshCw,
+  Compass,
+  HeartCrack,
+  Sparkles,
+  Lightbulb,
+  X,
 } from 'lucide-react';
-import type { Chapter, AgentTab, Novel, MountedSkillLoadoutItem, ReviewIssue } from '../../../shared/types';
-import { extractStructuredAudit, stripEmbeddedStructuredAudit } from '../../../shared/lib/audit-structured';
+import type {
+  Chapter,
+  AgentTab,
+  Novel,
+  MountedSkillLoadoutItem,
+  ReviewIssue,
+} from '../../../shared/types';
+import {
+  extractStructuredAudit,
+  stripEmbeddedStructuredAudit,
+} from '../../../shared/lib/audit-structured';
 import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow';
 import { DRAFT_QUALITY_SEMANTIC_LABELS } from '../../../shared/lib/quality-contract';
 import { findPatchWindow } from '../../lib/chapter-polish';
-import { recommendPromptAssets, getPromptAssetAction, inferNovelGovernanceProfile, getAssetEnhancementPackage, isPackageRestricted } from '../../../shared/lib/prompt-assets-governed';
-import type { GovernedPromptAsset, PromptAssetActionKind } from '../../../shared/types/prompt-assets-governed';
+import {
+  recommendPromptAssets,
+  getPromptAssetAction,
+  inferNovelGovernanceProfile,
+  getAssetEnhancementPackage,
+  isPackageRestricted,
+} from '../../../shared/lib/prompt-assets-governed';
+import type {
+  GovernedPromptAsset,
+  PromptAssetActionKind,
+} from '../../../shared/types/prompt-assets-governed';
 import { toast } from '../../lib/toast';
-import { canUseEnhancedCapability, dispatchCapabilityUnavailable, filterLicensedAssetsByEntitlement, getEffectiveCommercialMode } from '../../lib/entitlements';
+import {
+  canUseEnhancedCapability,
+  dispatchCapabilityUnavailable,
+  filterLicensedAssetsByEntitlement,
+  getEffectiveCommercialMode,
+} from '../../lib/entitlements';
 import { getOptionalStyleAssets } from '../../lib/capability-governance';
 
 interface QualityTabProps {
@@ -55,7 +86,8 @@ interface ReviewIssueDisplay {
 }
 
 function normalizeReviewIssue(raw: ReviewIssue, index: number): ReviewIssueDisplay {
-  const severity = raw.severity === 'critical' || raw.severity === 'moderate' ? raw.severity : 'major';
+  const severity =
+    raw.severity === 'critical' || raw.severity === 'moderate' ? raw.severity : 'major';
   return {
     id: raw.id || `review-issue-${index + 1}`,
     title: raw.explanation || '章节问题',
@@ -88,7 +120,10 @@ export function QualityTab({
   capabilityEffectSummary,
 }: QualityTabProps) {
   const [reviewIssueStatuses, setReviewIssueStatuses] = React.useState<Record<string, string>>({});
-  const normalizedReviewIssues = React.useMemo(() => reviewIssues.map(normalizeReviewIssue), [reviewIssues]);
+  const normalizedReviewIssues = React.useMemo(
+    () => reviewIssues.map(normalizeReviewIssue),
+    [reviewIssues]
+  );
   const critiqueText = currentChapter?.critique || '';
   const structuredAudit = React.useMemo(() => {
     return extractStructuredAudit(critiqueText);
@@ -98,23 +133,22 @@ export function QualityTab({
   const freshReviewState = React.useMemo(() => {
     const reviewState = currentChapter?.workflowMeta?.reviewState;
     if (!currentChapter || !reviewState) return null;
-    return reviewState.contentHash === computeChapterWorkflowHash(currentChapter.content, currentChapter.sceneBeats)
+    return reviewState.contentHash ===
+      computeChapterWorkflowHash(currentChapter.content, currentChapter.sceneBeats)
       ? reviewState
       : null;
   }, [currentChapter]);
-  const semanticReview = React.useMemo(() => freshReviewState?.semanticReview || null, [freshReviewState]);
+  const semanticReview = React.useMemo(
+    () => freshReviewState?.semanticReview || null,
+    [freshReviewState]
+  );
 
   const cleanCritiqueText = React.useMemo(() => {
     return stripEmbeddedStructuredAudit(critiqueText);
   }, [critiqueText]);
 
   // 分类与匹配判定
-  const {
-    autoFixableIssues,
-    hardIssues,
-    slopIssues,
-    manualFixIssues,
-  } = React.useMemo(() => {
+  const { autoFixableIssues, hardIssues, slopIssues, manualFixIssues } = React.useMemo(() => {
     if (!structuredAudit || !currentChapter) {
       return { autoFixableIssues: [], hardIssues: [], slopIssues: [], manualFixIssues: [] };
     }
@@ -157,13 +191,16 @@ export function QualityTab({
   const hasCritique = Boolean(critiqueText);
   const hasQualityReport = hasCritique || Boolean(freshReviewState);
   const hasCapabilityDetails = Boolean(
-    capabilityEffectSummary?.projectCardNames.length
-      || capabilityEffectSummary?.favoriteTechniqueNames.length
-      || capabilityEffectSummary?.chapterCardNames?.length,
+    capabilityEffectSummary?.projectCardNames.length ||
+    capabilityEffectSummary?.favoriteTechniqueNames.length ||
+    capabilityEffectSummary?.chapterCardNames?.length
   );
 
   const renderCapabilitySummary = (label: string, emptyMessage: string) => (
-    <section className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs" aria-label={label}>
+    <section
+      className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs"
+      aria-label={label}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="font-bold text-theme-text">{label}</div>
         {onSwitchTab ? (
@@ -178,17 +215,26 @@ export function QualityTab({
       </div>
       {capabilityEffectSummary?.projectCardNames.length ? (
         <p className="mt-1 leading-5 text-theme-muted">
-          作品默认卡：<span className="text-theme-text">{capabilityEffectSummary.projectCardNames.join('、')}</span>
+          作品默认卡：
+          <span className="text-theme-text">
+            {capabilityEffectSummary.projectCardNames.join('、')}
+          </span>
         </p>
       ) : null}
       {capabilityEffectSummary?.favoriteTechniqueNames.length ? (
         <p className="mt-1 leading-5 text-theme-muted">
-          常用技法：<span className="text-theme-text">{capabilityEffectSummary.favoriteTechniqueNames.join('、')}</span>
+          常用技法：
+          <span className="text-theme-text">
+            {capabilityEffectSummary.favoriteTechniqueNames.join('、')}
+          </span>
         </p>
       ) : null}
       {capabilityEffectSummary?.chapterCardNames?.length ? (
         <p className="mt-1 leading-5 text-theme-muted">
-          本章使用卡：<span className="text-theme-text">{capabilityEffectSummary.chapterCardNames.join('、')}</span>
+          本章使用卡：
+          <span className="text-theme-text">
+            {capabilityEffectSummary.chapterCardNames.join('、')}
+          </span>
         </p>
       ) : null}
       {!hasCapabilityDetails ? (
@@ -201,7 +247,11 @@ export function QualityTab({
   );
 
   const recommendedAssets = React.useMemo(() => {
-    const hasIssues = autoFixableIssues.length > 0 || hardIssues.length > 0 || slopIssues.length > 0 || manualFixIssues.length > 0;
+    const hasIssues =
+      autoFixableIssues.length > 0 ||
+      hardIssues.length > 0 ||
+      slopIssues.length > 0 ||
+      manualFixIssues.length > 0;
     const currentStage = hasCritique ? (hasIssues ? 'polish' : 'review') : 'review';
     const profile = inferNovelGovernanceProfile(novel);
     const recommendations = recommendPromptAssets({
@@ -212,7 +262,10 @@ export function QualityTab({
       commercialMode: getEffectiveCommercialMode(novel.projectPreferenceProfile?.commercialMode),
       excludeAssetIds: skippedAssetIds,
     });
-    const licensed = filterLicensedAssetsByEntitlement(recommendations, novel.projectPreferenceProfile?.commercialMode);
+    const licensed = filterLicensedAssetsByEntitlement(
+      recommendations,
+      novel.projectPreferenceProfile?.commercialMode
+    );
     // 004：文风与正文卡按写作上下文浮现，最多 2 张——章节文本命中卡目标/成效
     // 关键词的优先，其余按库存评分排序，去重后追加在治理推荐之后。
     const seen = new Set(licensed.map((asset) => asset.id));
@@ -222,22 +275,44 @@ export function QualityTab({
         const tokens = `${asset.title}|${asset.goal}|${asset.successSignal}`
           .split(/[^\u4e00-\u9fa5A-Za-z0-9]+/)
           .filter((token) => token.length >= 2);
-        const hits = tokens.reduce((count, token) => (content.includes(token) ? count + 1 : count), 0);
+        const hits = tokens.reduce(
+          (count, token) => (content.includes(token) ? count + 1 : count),
+          0
+        );
         return { asset, hits };
       })
       .sort((a, b) => b.hits - a.hits || b.asset.score - a.asset.score)
       .map(({ asset }) => asset)
       .filter((asset) => !seen.has(asset.id))
       .slice(0, 2)
-      .map((asset) => ({ ...asset, placementTier: 'optional-style', recommendationReason: asset.successSignal }) as unknown as GovernedPromptAsset);
+      .map(
+        (asset) =>
+          ({
+            ...asset,
+            placementTier: 'optional-style',
+            recommendationReason: asset.successSignal,
+          }) as unknown as GovernedPromptAsset
+      );
     return [...licensed, ...styleMatches];
-  }, [novel, currentChapter, hasCritique, autoFixableIssues, hardIssues, slopIssues, manualFixIssues, skippedAssetIds]);
+  }, [
+    novel,
+    currentChapter,
+    hasCritique,
+    autoFixableIssues,
+    hardIssues,
+    slopIssues,
+    manualFixIssues,
+    skippedAssetIds,
+  ]);
 
   // 渲染尚未审查状态（002：空态语义对齐完成审查——接受正文后自动运行）
   if (!hasQualityReport) {
     return (
       <div className="space-y-6">
-        {renderCapabilitySummary('本次审稿能力配置', '还没有配置作品默认卡或常用技法，审稿会先按当前章节与作品上下文继续。')}
+        {renderCapabilitySummary(
+          '本次审稿能力配置',
+          '还没有配置作品默认卡或常用技法，审稿会先按当前章节与作品上下文继续。'
+        )}
         <div className="bg-theme-sidebar p-6 rounded-2xl border border-theme-border/60 shadow-md flex flex-col items-center justify-center text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-theme-accent/5 to-transparent pointer-events-none" />
           <div className="flex items-center justify-center rounded-2xl w-14 h-14 bg-theme-accent/10 text-theme-accent mb-4">
@@ -271,7 +346,10 @@ export function QualityTab({
 
   return (
     <div className="space-y-6 text-left pb-10">
-      {renderCapabilitySummary('本次精修能力配置', '还没有配置作品默认卡或常用技法，精修会先按当前审稿意见与章节正文继续。')}
+      {renderCapabilitySummary(
+        '本次精修能力配置',
+        '还没有配置作品默认卡或常用技法，精修会先按当前审稿意见与章节正文继续。'
+      )}
       {/* 1. 质量总览得分面板 (如果解析出结构化数据) */}
       {structuredAudit ? (
         <div className="relative p-5 rounded-2xl border border-theme-border/60 bg-theme-sidebar shadow-md overflow-hidden flex flex-col gap-4">
@@ -279,23 +357,27 @@ export function QualityTab({
 
           <div className="flex items-center justify-between relative z-10 gap-3">
             <div className="flex items-center gap-3.5">
-              <div className={`flex items-center justify-center rounded-2xl w-12 h-12 font-mono text-xl font-black ${
-                structuredAudit.score >= 80
-                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                  : structuredAudit.score >= 60
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                  : 'bg-red-500/10 text-red-600 dark:text-red-400'
-              }`}>
+              <div
+                className={`flex items-center justify-center rounded-2xl w-12 h-12 font-mono text-xl font-black ${
+                  structuredAudit.score >= 80
+                    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                    : structuredAudit.score >= 60
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                }`}
+              >
                 {structuredAudit.score}
               </div>
               <div>
-                <h4 className="text-xs font-black text-theme-text uppercase tracking-wider">诊断质量得分</h4>
+                <h4 className="text-xs font-black text-theme-text uppercase tracking-wider">
+                  诊断质量得分
+                </h4>
                 <p className="text-[11px] text-theme-muted mt-0.5 leading-relaxed">
                   {structuredAudit.score >= 80
                     ? '质量上乘，表达圆融，人物情感充沛自然'
                     : structuredAudit.score >= 60
-                    ? '框架完整，但局部动作链及对白前因需精修'
-                    : '存在明显写作硬伤，AI机械腔或套话较多'}
+                      ? '框架完整，但局部动作链及对白前因需精修'
+                      : '存在明显写作硬伤，AI机械腔或套话较多'}
                 </p>
               </div>
             </div>
@@ -308,7 +390,9 @@ export function QualityTab({
             <Bot size={20} className="text-theme-accent" aria-hidden="true" />
             <div>
               <h4 className="text-xs font-bold text-theme-text">质量报告</h4>
-              <p className="text-[10px] text-theme-muted">完成审查的问题单与语义审阅在下方，可逐项处理</p>
+              <p className="text-[10px] text-theme-muted">
+                完成审查的问题单与语义审阅在下方，可逐项处理
+              </p>
             </div>
           </div>
           <button
@@ -316,27 +400,53 @@ export function QualityTab({
             disabled={isGeneratingCritique}
             className="px-3 py-1.5 border border-theme-border text-xs font-bold rounded-lg hover:bg-theme-border/40 transition-colors shrink-0 flex items-center gap-1 disabled:opacity-50"
           >
-            {isGeneratingCritique ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={12} aria-hidden="true" />}
+            {isGeneratingCritique ? (
+              <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCw size={12} aria-hidden="true" />
+            )}
             重新审查
           </button>
         </div>
       )}
 
-      <section className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs" aria-label="语义质量审阅">
+      <section
+        className="rounded-xl border border-theme-border bg-theme-sidebar/50 p-3 text-xs"
+        aria-label="语义质量审阅"
+      >
         <div className="font-bold text-theme-text">语义质量审阅</div>
         {!semanticReview ? (
-          <p className="mt-1 text-[11px] leading-5 text-amber-700">当前正文尚无有效语义审阅，或正文已在审稿后变化，请重新审稿。</p>
+          <p className="mt-1 text-[11px] leading-5 text-amber-700">
+            当前正文尚无有效语义审阅，或正文已在审稿后变化，请重新审稿。
+          </p>
         ) : (
           <div className="mt-2 grid gap-2">
             {semanticReview.checks.map((check) => (
               <div key={check.id} className="rounded border border-theme-border/70 px-2 py-1.5">
-                <div className={check.status === 'needs-action' ? 'font-semibold text-amber-700' : check.status === 'pass' ? 'font-semibold text-green-700' : 'font-semibold text-theme-muted'}>
-                  {DRAFT_QUALITY_SEMANTIC_LABELS[check.id]}：{check.status === 'pass' ? '通过' : check.status === 'needs-action' ? '需处理' : '未知'}
+                <div
+                  className={
+                    check.status === 'needs-action'
+                      ? 'font-semibold text-amber-700'
+                      : check.status === 'pass'
+                        ? 'font-semibold text-green-700'
+                        : 'font-semibold text-theme-muted'
+                  }
+                >
+                  {DRAFT_QUALITY_SEMANTIC_LABELS[check.id]}：
+                  {check.status === 'pass'
+                    ? '通过'
+                    : check.status === 'needs-action'
+                      ? '需处理'
+                      : '未知'}
                 </div>
                 <p className="mt-0.5 text-[10px] leading-5 text-theme-muted">{check.reason}</p>
                 {check.evidence?.map((evidence) => (
-                  <div key={`${check.id}:${evidence.quote}`} className="mt-1 border-l-2 border-theme-border pl-2 text-[10px] leading-5 text-theme-muted">
-                    “{evidence.quote}”{evidence.location ? `（${evidence.location}）` : ''}：{evidence.explanation} 建议：{evidence.suggestedFix}
+                  <div
+                    key={`${check.id}:${evidence.quote}`}
+                    className="mt-1 border-l-2 border-theme-border pl-2 text-[10px] leading-5 text-theme-muted"
+                  >
+                    “{evidence.quote}”{evidence.location ? `（${evidence.location}）` : ''}：
+                    {evidence.explanation} 建议：{evidence.suggestedFix}
                   </div>
                 ))}
               </div>
@@ -367,14 +477,24 @@ export function QualityTab({
 
               // 臻享/付费增强包判定 (Premium custom package restrictions check)
               const pkg = getAssetEnhancementPackage(asset.id);
-              const enhancedUnavailable = !canUseEnhancedCapability({ commercialMode: novel.projectPreferenceProfile?.commercialMode });
-              const isRestricted = enhancedUnavailable && (
-                asset.sourceType === 'licensed'
-                || Boolean(pkg && isPackageRestricted(pkg.id, novel.projectPreferenceProfile?.commercialMode || 'free'))
-              );
+              const enhancedUnavailable = !canUseEnhancedCapability({
+                commercialMode: novel.projectPreferenceProfile?.commercialMode,
+              });
+              const isRestricted =
+                enhancedUnavailable &&
+                (asset.sourceType === 'licensed' ||
+                  Boolean(
+                    pkg &&
+                    isPackageRestricted(
+                      pkg.id,
+                      novel.projectPreferenceProfile?.commercialMode || 'free'
+                    )
+                  ));
 
               // 判断状态
-              const isStacked = actionKind === 'deconstruction-card' && stackedDeconstructionCardIds.includes(asset.id);
+              const isStacked =
+                actionKind === 'deconstruction-card' &&
+                stackedDeconstructionCardIds.includes(asset.id);
 
               return (
                 <div
@@ -441,7 +561,9 @@ export function QualityTab({
                           if (isRestricted) {
                             dispatchCapabilityUnavailable({
                               limitType: 'extractSkill',
-                              ...(pkg ? { packageName: pkg.name, packageDesc: pkg.description } : {}),
+                              ...(pkg
+                                ? { packageName: pkg.name, packageDesc: pkg.description }
+                                : {}),
                               novelId: novel.id,
                             });
                             return;
@@ -476,10 +598,15 @@ export function QualityTab({
                             : 'bg-theme-accent/10 hover:bg-theme-accent text-theme-accent hover:text-theme-accent-contrast border-theme-accent/20'
                         }`}
                       >
-                        {actionKind === 'polish-rewrite' || actionKind === 'audit-enhance' ? '生成精修预览' :
-                         actionKind === 'open-flow-step' ? '进入步骤' :
-                         actionKind === 'mount-skill' ? '进入作品能力中心' :
-                         (isStacked ? '移出本章' : '本章使用')}
+                        {actionKind === 'polish-rewrite' || actionKind === 'audit-enhance'
+                          ? '生成精修预览'
+                          : actionKind === 'open-flow-step'
+                            ? '进入步骤'
+                            : actionKind === 'mount-skill'
+                              ? '进入作品能力中心'
+                              : isStacked
+                                ? '移出本章'
+                                : '本章使用'}
                       </button>
                     )}
                   </div>
@@ -493,98 +620,243 @@ export function QualityTab({
       {normalizedReviewIssues.length > 0 && (
         <section aria-labelledby="review-issues-title" className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h4 id="review-issues-title" className="text-xs font-black text-theme-text uppercase tracking-wider">问题单 ({normalizedReviewIssues.length})</h4>
+            <h4
+              id="review-issues-title"
+              className="text-xs font-black text-theme-text uppercase tracking-wider"
+            >
+              问题单 ({normalizedReviewIssues.length})
+            </h4>
             <span className="text-[10px] text-theme-muted">逐项处理，不离开当前章节</span>
           </div>
           <div className="space-y-3">
             {normalizedReviewIssues.map((issue) => {
               const status = reviewIssueStatuses[issue.id] || issue.status;
-              const severityLabel = issue.severity === 'critical' ? '严重' : issue.severity === 'moderate' ? '中等' : '重要';
-              const statusLabel = status === 'accepted-risk' ? '已接受风险' : status === 'deferred' ? '已延期' : status === 'candidate' ? '修正候选待确认' : status === 'previewed' ? '预览已生成，未写入' : status === 'applied' ? '已修正，待复审' : status === 'stale' ? '内容已变化，待复审' : '待处理';
+              const severityLabel =
+                issue.severity === 'critical'
+                  ? '严重'
+                  : issue.severity === 'moderate'
+                    ? '中等'
+                    : '重要';
+              const statusLabel =
+                status === 'accepted-risk'
+                  ? '已接受风险'
+                  : status === 'deferred'
+                    ? '已延期'
+                    : status === 'candidate'
+                      ? '修正候选待确认'
+                      : status === 'previewed'
+                        ? '预览已生成，未写入'
+                        : status === 'applied'
+                          ? '已修正，待复审'
+                          : status === 'stale'
+                            ? '内容已变化，待复审'
+                            : '待处理';
               return (
-                <article key={issue.id} className="rounded-xl border border-theme-border/60 bg-theme-sidebar p-3 text-[11px] leading-relaxed">
+                <article
+                  key={issue.id}
+                  className="rounded-xl border border-theme-border/60 bg-theme-sidebar p-3 text-[11px] leading-relaxed"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h5 className="font-bold text-theme-text">{issue.title}</h5>
                     <div className="flex flex-wrap gap-1.5" aria-label="问题状态">
-                      <span className={issue.severity === 'critical' ? 'rounded bg-red-500/10 px-1.5 py-0.5 text-red-600' : 'rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-600'}>{severityLabel}</span>
-                      <span className="rounded bg-theme-bg px-1.5 py-0.5 text-theme-muted">{statusLabel}</span>
-                      <span className="rounded bg-theme-bg px-1.5 py-0.5 text-theme-muted">作用域：{issue.scope}</span>
+                      <span
+                        className={
+                          issue.severity === 'critical'
+                            ? 'rounded bg-red-500/10 px-1.5 py-0.5 text-red-600'
+                            : 'rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-600'
+                        }
+                      >
+                        {severityLabel}
+                      </span>
+                      <span className="rounded bg-theme-bg px-1.5 py-0.5 text-theme-muted">
+                        {statusLabel}
+                      </span>
+                      <span className="rounded bg-theme-bg px-1.5 py-0.5 text-theme-muted">
+                        作用域：{issue.scope}
+                      </span>
                     </div>
                   </div>
-                  <p className="mt-2 text-theme-muted"><span className="font-semibold text-theme-text">建议：</span>{issue.recommendation}</p>
+                  <p className="mt-2 text-theme-muted">
+                    <span className="font-semibold text-theme-text">建议：</span>
+                    {issue.recommendation}
+                  </p>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button type="button" className="rounded-lg border border-theme-border px-2 py-1.5 text-[10px] font-bold text-theme-text hover:border-theme-accent" aria-label={`预览修正：${issue.title}`} onClick={() => {
-                      const previous = reviewIssueStatuses[issue.id];
-                      try {
-                        const result = onPreviewReviewIssue?.(issue.id);
-                        if (result && typeof result.then === 'function') {
-                          void result.then(() => {
-                            setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'previewed' }));
-                          }).catch((error: unknown) => {
-                            setReviewIssueStatuses((current) => ({ ...current, ...(previous ? { [issue.id]: previous } : {}) }));
-                            toast(error instanceof Error ? error.message : '修正预览失败，请重试。', 'error');
-                          });
-                        } else {
-                          setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'previewed' }));
+                    <button
+                      type="button"
+                      className="rounded-lg border border-theme-border px-2 py-1.5 text-[10px] font-bold text-theme-text hover:border-theme-accent"
+                      aria-label={`预览修正：${issue.title}`}
+                      onClick={() => {
+                        const previous = reviewIssueStatuses[issue.id];
+                        try {
+                          const result = onPreviewReviewIssue?.(issue.id);
+                          if (result && typeof result.then === 'function') {
+                            void result
+                              .then(() => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  [issue.id]: 'previewed',
+                                }));
+                              })
+                              .catch((error: unknown) => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  ...(previous ? { [issue.id]: previous } : {}),
+                                }));
+                                toast(
+                                  error instanceof Error ? error.message : '修正预览失败，请重试。',
+                                  'error'
+                                );
+                              });
+                          } else {
+                            setReviewIssueStatuses((current) => ({
+                              ...current,
+                              [issue.id]: 'previewed',
+                            }));
+                          }
+                        } catch (error) {
+                          toast(
+                            error instanceof Error ? error.message : '修正预览失败，请重试。',
+                            'error'
+                          );
                         }
-                      } catch (error) {
-                        toast(error instanceof Error ? error.message : '修正预览失败，请重试。', 'error');
-                      }
-                    }}>预览修正</button>
-                    <button type="button" className="rounded-lg bg-theme-text px-2 py-1.5 text-[10px] font-bold text-theme-bg disabled:opacity-50" aria-label={`修正并复审：${issue.title}`} onClick={() => {
-                      const previous = reviewIssueStatuses[issue.id];
-                      try {
-                        const result = onFixReviewIssues?.([issue.id], issue.scope);
-                        if (result && typeof result.then === 'function') {
-                          void result.then(() => {
-                            setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'candidate' }));
-                          }).catch((error: unknown) => {
-                            setReviewIssueStatuses((current) => ({ ...current, ...(previous ? { [issue.id]: previous } : {}) }));
-                            toast(error instanceof Error ? error.message : '修正并复审失败，原内容已保留。', 'error');
-                          });
-                        } else {
-                          setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'candidate' }));
+                      }}
+                    >
+                      预览修正
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-theme-text px-2 py-1.5 text-[10px] font-bold text-theme-bg disabled:opacity-50"
+                      aria-label={`修正并复审：${issue.title}`}
+                      onClick={() => {
+                        const previous = reviewIssueStatuses[issue.id];
+                        try {
+                          const result = onFixReviewIssues?.([issue.id], issue.scope);
+                          if (result && typeof result.then === 'function') {
+                            void result
+                              .then(() => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  [issue.id]: 'candidate',
+                                }));
+                              })
+                              .catch((error: unknown) => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  ...(previous ? { [issue.id]: previous } : {}),
+                                }));
+                                toast(
+                                  error instanceof Error
+                                    ? error.message
+                                    : '修正并复审失败，原内容已保留。',
+                                  'error'
+                                );
+                              });
+                          } else {
+                            setReviewIssueStatuses((current) => ({
+                              ...current,
+                              [issue.id]: 'candidate',
+                            }));
+                          }
+                        } catch (error) {
+                          toast(
+                            error instanceof Error
+                              ? error.message
+                              : '修正并复审失败，原内容已保留。',
+                            'error'
+                          );
                         }
-                      } catch (error) {
-                        toast(error instanceof Error ? error.message : '修正并复审失败，原内容已保留。', 'error');
-                      }
-                    }}>修正并复审</button>
-                    <button type="button" className="rounded-lg border border-amber-500/40 px-2 py-1.5 text-[10px] font-bold text-amber-700 hover:bg-amber-500/10" aria-label={`接受风险：${issue.title}`} onClick={() => {
-                      const previous = reviewIssueStatuses[issue.id];
-                      try {
-                        const result = onAcceptReviewIssueRisk?.(issue.id);
-                        if (result && typeof result.then === 'function') {
-                          void result.then(() => {
-                            setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'accepted-risk' }));
-                          }).catch((error: unknown) => {
-                            setReviewIssueStatuses((current) => ({ ...current, ...(previous ? { [issue.id]: previous } : {}) }));
-                            toast(error instanceof Error ? error.message : '风险决定保存失败，请重试。', 'error');
-                          });
-                        } else {
-                          setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'accepted-risk' }));
+                      }}
+                    >
+                      修正并复审
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-amber-500/40 px-2 py-1.5 text-[10px] font-bold text-amber-700 hover:bg-amber-500/10"
+                      aria-label={`接受风险：${issue.title}`}
+                      onClick={() => {
+                        const previous = reviewIssueStatuses[issue.id];
+                        try {
+                          const result = onAcceptReviewIssueRisk?.(issue.id);
+                          if (result && typeof result.then === 'function') {
+                            void result
+                              .then(() => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  [issue.id]: 'accepted-risk',
+                                }));
+                              })
+                              .catch((error: unknown) => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  ...(previous ? { [issue.id]: previous } : {}),
+                                }));
+                                toast(
+                                  error instanceof Error
+                                    ? error.message
+                                    : '风险决定保存失败，请重试。',
+                                  'error'
+                                );
+                              });
+                          } else {
+                            setReviewIssueStatuses((current) => ({
+                              ...current,
+                              [issue.id]: 'accepted-risk',
+                            }));
+                          }
+                        } catch (error) {
+                          toast(
+                            error instanceof Error ? error.message : '风险决定保存失败，请重试。',
+                            'error'
+                          );
                         }
-                      } catch (error) {
-                        toast(error instanceof Error ? error.message : '风险决定保存失败，请重试。', 'error');
-                      }
-                    }}>接受风险</button>
-                    <button type="button" className="rounded-lg border border-theme-border px-2 py-1.5 text-[10px] font-bold text-theme-muted hover:text-theme-text" aria-label={`延期到后续章节：${issue.title}`} onClick={() => {
-                      const previous = reviewIssueStatuses[issue.id];
-                      try {
-                        const result = onDeferReviewIssue?.(issue.id);
-                        if (result && typeof result.then === 'function') {
-                          void result.then(() => {
-                            setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'deferred' }));
-                          }).catch((error: unknown) => {
-                            setReviewIssueStatuses((current) => ({ ...current, ...(previous ? { [issue.id]: previous } : {}) }));
-                            toast(error instanceof Error ? error.message : '延期决定保存失败，请重试。', 'error');
-                          });
-                        } else {
-                          setReviewIssueStatuses((current) => ({ ...current, [issue.id]: 'deferred' }));
+                      }}
+                    >
+                      接受风险
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-theme-border px-2 py-1.5 text-[10px] font-bold text-theme-muted hover:text-theme-text"
+                      aria-label={`延期到后续章节：${issue.title}`}
+                      onClick={() => {
+                        const previous = reviewIssueStatuses[issue.id];
+                        try {
+                          const result = onDeferReviewIssue?.(issue.id);
+                          if (result && typeof result.then === 'function') {
+                            void result
+                              .then(() => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  [issue.id]: 'deferred',
+                                }));
+                              })
+                              .catch((error: unknown) => {
+                                setReviewIssueStatuses((current) => ({
+                                  ...current,
+                                  ...(previous ? { [issue.id]: previous } : {}),
+                                }));
+                                toast(
+                                  error instanceof Error
+                                    ? error.message
+                                    : '延期决定保存失败，请重试。',
+                                  'error'
+                                );
+                              });
+                          } else {
+                            setReviewIssueStatuses((current) => ({
+                              ...current,
+                              [issue.id]: 'deferred',
+                            }));
+                          }
+                        } catch (error) {
+                          toast(
+                            error instanceof Error ? error.message : '延期决定保存失败，请重试。',
+                            'error'
+                          );
                         }
-                      } catch (error) {
-                        toast(error instanceof Error ? error.message : '延期决定保存失败，请重试。', 'error');
-                      }
-                    }}>延期到后续章节</button>
+                      }}
+                    >
+                      延期到后续章节
+                    </button>
                   </div>
                 </article>
               );
@@ -608,23 +880,36 @@ export function QualityTab({
 
           <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
             {autoFixableIssues.slice(0, 3).map((issue, idx) => (
-              <div key={issue.snippet + idx} className="bg-theme-sidebar/60 p-3 rounded-xl border border-theme-border/40 text-[11px] leading-relaxed relative">
+              <div
+                key={issue.snippet + idx}
+                className="bg-theme-sidebar/60 p-3 rounded-xl border border-theme-border/40 text-[11px] leading-relaxed relative"
+              >
                 <div className="font-bold text-theme-text flex items-center gap-1.5 mb-1.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500" />
                   <span>
-                    {issue.issueType === 'style-slop' ? '文笔去AI味' :
-                     issue.issueType === 'action-chain' ? '增强动作链' :
-                     issue.issueType === 'hook-ending' ? '收尾加固' : '硬伤修复'}
+                    {issue.issueType === 'style-slop'
+                      ? '文笔去AI味'
+                      : issue.issueType === 'action-chain'
+                        ? '增强动作链'
+                        : issue.issueType === 'hook-ending'
+                          ? '收尾加固'
+                          : '硬伤修复'}
                     <span className="text-theme-muted font-normal"> · {issue.explanation}</span>
                   </span>
                 </div>
                 <div className="space-y-2 mt-1.5 pl-3 border-l-2 border-theme-border/60">
                   <div>
-                    <span className="text-[10px] text-theme-muted block uppercase tracking-wider font-semibold mb-0.5">原文片段:</span>
-                    <span className="italic font-serif text-theme-muted block line-clamp-2">“{issue.snippet.trim()}”</span>
+                    <span className="text-[10px] text-theme-muted block uppercase tracking-wider font-semibold mb-0.5">
+                      原文片段:
+                    </span>
+                    <span className="italic font-serif text-theme-muted block line-clamp-2">
+                      “{issue.snippet.trim()}”
+                    </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-indigo-500 block uppercase tracking-wider font-semibold mb-0.5">手术预估:</span>
+                    <span className="text-[10px] text-indigo-500 block uppercase tracking-wider font-semibold mb-0.5">
+                      手术预估:
+                    </span>
                     <span className="text-theme-text block font-medium">{issue.patchHint}</span>
                   </div>
                 </div>
@@ -645,7 +930,11 @@ export function QualityTab({
               </>
             ) : (
               <>
-                <Wand2 size={13} className="group-hover:rotate-12 transition-transform duration-300" aria-hidden="true" />
+                <Wand2
+                  size={13}
+                  className="group-hover:rotate-12 transition-transform duration-300"
+                  aria-hidden="true"
+                />
                 <span>执行局部手术精修</span>
               </>
             )}
@@ -665,14 +954,19 @@ export function QualityTab({
               </div>
               <div className="space-y-2 divide-y divide-theme-border/20">
                 {hardIssues.map((issue, idx) => (
-                  <div key={issue.explanation + idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
+                  <div
+                    key={issue.explanation + idx}
+                    className="pt-2 first:pt-0 text-[11px] leading-relaxed"
+                  >
                     <div className="font-bold text-theme-text">{issue.explanation}</div>
                     {issue.snippet && (
                       <div className="mt-1 pl-2.5 border-l border-theme-border/50 text-theme-muted italic font-serif">
                         “{issue.snippet}”
                       </div>
                     )}
-                    <div className="mt-1 text-[10px] text-theme-muted font-medium">修补建议: {issue.patchHint}</div>
+                    <div className="mt-1 text-[10px] text-theme-muted font-medium">
+                      修补建议: {issue.patchHint}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -688,14 +982,19 @@ export function QualityTab({
               </div>
               <div className="space-y-2 divide-y divide-theme-border/20">
                 {slopIssues.map((issue, idx) => (
-                  <div key={issue.explanation + idx} className="pt-2 first:pt-0 text-[11px] leading-relaxed">
+                  <div
+                    key={issue.explanation + idx}
+                    className="pt-2 first:pt-0 text-[11px] leading-relaxed"
+                  >
                     <div className="font-bold text-theme-text">{issue.explanation}</div>
                     {issue.snippet && (
                       <div className="mt-1 pl-2.5 border-l border-theme-border/50 text-theme-muted italic font-serif">
                         “{issue.snippet}”
                       </div>
                     )}
-                    <div className="mt-1 text-[10px] text-theme-muted font-medium">修补建议: {issue.patchHint}</div>
+                    <div className="mt-1 text-[10px] text-theme-muted font-medium">
+                      修补建议: {issue.patchHint}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -712,11 +1011,15 @@ export function QualityTab({
               <ul className="space-y-1.5 pl-3 list-disc text-[11px] text-theme-muted leading-relaxed">
                 {manualFixIssues.map((issue, idx) => (
                   <li key={issue.explanation + idx} className="marker:text-blue-500">
-                    <span className="font-bold text-theme-text">{issue.explanation}</span>：{issue.patchHint}
+                    <span className="font-bold text-theme-text">{issue.explanation}</span>：
+                    {issue.patchHint}
                   </li>
                 ))}
                 {structuredAudit.surgerySuggestions.map((sug, idx) => (
-                  <li key={`sug-${sug.trim().slice(0, 15)}-${idx}`} className="marker:text-blue-500/60">
+                  <li
+                    key={`sug-${sug.trim().slice(0, 15)}-${idx}`}
+                    className="marker:text-blue-500/60"
+                  >
                     {sug}
                   </li>
                 ))}
@@ -729,21 +1032,30 @@ export function QualityTab({
       {/* 4. 原文 Critique 展示 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-black text-theme-text uppercase tracking-wider">诊断报告全文</h4>
+          <h4 className="text-xs font-black text-theme-text uppercase tracking-wider">
+            诊断报告全文
+          </h4>
           {structuredAudit && (
             <button
               onClick={() => void onRunAudit()}
               disabled={isGeneratingCritique}
               className="py-1 px-2.5 border border-theme-border hover:bg-theme-border/30 rounded-lg text-[10px] font-bold text-theme-muted hover:text-theme-text flex items-center gap-1 transition-colors shrink-0 disabled:opacity-50"
             >
-              {isGeneratingCritique ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={10} aria-hidden="true" />}
+              {isGeneratingCritique ? (
+                <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <RefreshCw size={10} aria-hidden="true" />
+              )}
               重新审计章节
             </button>
           )}
         </div>
 
         <div className="prose prose-sm prose-slate prose-p:leading-relaxed max-w-none bg-theme-sidebar p-5 rounded-2xl border border-theme-border/60 shadow-sm max-h-[350px] overflow-y-auto">
-          <div data-prompt-surface="chapter-review" className="text-[12px] text-theme-text leading-relaxed">
+          <div
+            data-prompt-surface="chapter-review"
+            className="text-[12px] text-theme-text leading-relaxed"
+          >
             <ReactMarkdown>{cleanCritiqueText}</ReactMarkdown>
           </div>
         </div>
@@ -759,7 +1071,11 @@ export function QualityTab({
             disabled={isGeneratingContent || !currentChapter?.critique || !currentChapter?.content}
             className="flex-1 py-2 bg-theme-sidebar border border-theme-border text-theme-text hover:bg-theme-border/40 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            {isGeneratingContent ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Wand2 size={13} aria-hidden="true" />}
+            {isGeneratingContent ? (
+              <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Wand2 size={13} aria-hidden="true" />
+            )}
             {isGeneratingContent ? '精修中...' : '按审计精修正文'}
           </button>
         )}

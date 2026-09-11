@@ -12,7 +12,9 @@ describe('desktop editor close handshake', () => {
     const readyToClose = vi.fn();
     const dispose = bindEditorCloseSafety(window, {
       onPrepareClose: (callback) => {
-        prepareClose = async () => { await callback(1); };
+        prepareClose = async () => {
+          await callback(1);
+        };
         return vi.fn();
       },
       readyToClose,
@@ -29,7 +31,9 @@ describe('desktop editor close handshake', () => {
     let contentObservedAtReady = '';
     bindEditorCloseSafety(window, {
       onPrepareClose: (callback) => {
-        prepareClose = async () => { await callback(1); };
+        prepareClose = async () => {
+          await callback(1);
+        };
         return vi.fn();
       },
       readyToClose: async () => {
@@ -52,7 +56,9 @@ describe('desktop editor close handshake', () => {
     let prepareClose!: () => Promise<void>;
     const dispose = bindEditorCloseSafety(window, {
       onPrepareClose: (callback) => {
-        prepareClose = async () => { await callback(1); };
+        prepareClose = async () => {
+          await callback(1);
+        };
         return vi.fn();
       },
       readyToClose: vi.fn().mockResolvedValue(true),
@@ -75,7 +81,9 @@ describe('desktop editor close handshake', () => {
     const readyToClose = vi.fn().mockResolvedValue(false);
     const dispose = bindEditorCloseSafety(window, {
       onPrepareClose: (callback) => {
-        prepareClose = async () => { await callback(1); };
+        prepareClose = async () => {
+          await callback(1);
+        };
         return vi.fn();
       },
       readyToClose,
@@ -87,7 +95,8 @@ describe('desktop editor close handshake', () => {
 
     // User cancels close in main and continues editing.
     queueEditorWrite('chapter:chapter-1:content', async () => true, 1000, {
-      field: 'content', value: '超时后继续输入',
+      field: 'content',
+      value: '超时后继续输入',
     });
     const reloadEvent = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(reloadEvent);
@@ -100,15 +109,23 @@ describe('desktop editor close handshake', () => {
     const closeSaveFailed = vi.fn();
     const reportCloseSnapshot = vi.fn();
     let shouldFail = true;
-    queueEditorWrite('chapter:chapter-1:content', async () => {
-      if (shouldFail) throw new Error('database locked');
-      return true;
-    }, 1000, { value: '最后一行', field: 'content' });
+    queueEditorWrite(
+      'chapter:chapter-1:content',
+      async () => {
+        if (shouldFail) throw new Error('database locked');
+        return true;
+      },
+      1000,
+      { value: '最后一行', field: 'content' }
+    );
 
     const dispose = bindEditorCloseSafety(window, {
       onPrepareClose: (callback) => {
         let attemptId = 0;
-        prepareClose = async () => { attemptId += 1; await callback(attemptId); };
+        prepareClose = async () => {
+          attemptId += 1;
+          await callback(attemptId);
+        };
         return vi.fn();
       },
       reportCloseSnapshot,
@@ -117,13 +134,21 @@ describe('desktop editor close handshake', () => {
     });
 
     await prepareClose();
-    expect(reportCloseSnapshot).toHaveBeenCalledWith(1, expect.objectContaining({
-      pendingWrites: [expect.objectContaining({
-        key: 'chapter:chapter-1:content',
-        snapshot: { value: '最后一行', field: 'content' },
-      })],
-    }));
-    expect(closeSaveFailed).toHaveBeenCalledWith(1, expect.objectContaining({ reason: 'database locked' }));
+    expect(reportCloseSnapshot).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        pendingWrites: [
+          expect.objectContaining({
+            key: 'chapter:chapter-1:content',
+            snapshot: { value: '最后一行', field: 'content' },
+          }),
+        ],
+      })
+    );
+    expect(closeSaveFailed).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ reason: 'database locked' })
+    );
 
     shouldFail = false;
     await prepareClose();
@@ -131,7 +156,8 @@ describe('desktop editor close handshake', () => {
   });
 
   test('snapshot collection ignores password inputs', () => {
-    document.body.innerHTML = '<textarea name="chapter-content">未保存正文</textarea><input type="password" value="secret">';
+    document.body.innerHTML =
+      '<textarea name="chapter-content">未保存正文</textarea><input type="password" value="secret">';
     const snapshot = collectPendingEditorSnapshot(window);
     expect(snapshot.visibleFields).toEqual([
       expect.objectContaining({ name: 'chapter-content', value: '未保存正文' }),

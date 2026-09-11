@@ -19,11 +19,13 @@ export default defineConfig({
     baseURL: 'http://localhost:3001',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    ...(chromiumExecutablePath ? {
-      launchOptions: {
-        executablePath: chromiumExecutablePath,
-      },
-    } : {}),
+    ...(chromiumExecutablePath
+      ? {
+          launchOptions: {
+            executablePath: chromiumExecutablePath,
+          },
+        }
+      : {}),
   },
   projects: [
     {

@@ -1,6 +1,14 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import path from 'path';
-import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync } from 'fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from 'fs';
 import os from 'os';
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
@@ -16,12 +24,13 @@ let metaUrl: string;
 try {
   metaUrl = indirectEval('import.meta.url');
 } catch {
-  metaUrl = typeof __filename !== 'undefined' ? __filename : path.join(process.cwd(), 'server/lib/db-init.ts');
+  metaUrl =
+    typeof __filename !== 'undefined'
+      ? __filename
+      : path.join(process.cwd(), 'server/lib/db-init.ts');
 }
 
-const req = typeof __CJS_BUNDLE__ !== 'undefined'
-  ? require
-  : createRequire(metaUrl);
+const req = typeof __CJS_BUNDLE__ !== 'undefined' ? require : createRequire(metaUrl);
 const { Database, nativeBindingPath } = req('./better-sqlite3-shim.cjs') as {
   Database: typeof BetterSqlite3;
   nativeBindingPath: string;
@@ -61,7 +70,7 @@ function validateStartupBackup(snapshotPath: string): void {
     }
 
     const findSchemaObject = snapshot.prepare(
-      'SELECT 1 AS present FROM sqlite_master WHERE type = ? AND name = ?',
+      'SELECT 1 AS present FROM sqlite_master WHERE type = ? AND name = ?'
     );
     for (const [type, name] of REQUIRED_STARTUP_BACKUP_SCHEMA) {
       if (!findSchemaObject.get(type, name)) {
@@ -76,7 +85,7 @@ function validateStartupBackup(snapshotPath: string): void {
 /** Create, validate, and atomically publish a WAL-consistent startup snapshot. */
 export async function createValidatedStartupBackup(
   database: BetterSqlite3.Database,
-  targetPath: string,
+  targetPath: string
 ): Promise<string> {
   const backupPath = `${targetPath}.bak`;
   const tempBackupPath = `${backupPath}.${process.pid}-${randomUUID()}.temp`;
@@ -118,9 +127,10 @@ function repairDataFilePermissions(targetPath: string): void {
     if (!existsSync(dir)) return;
     const baseName = path.basename(targetPath);
     for (const entry of readdirSync(dir)) {
-      const isBackup = entry === `${baseName}.bak`
-        || entry.startsWith(`${baseName}.bak.`)
-        || entry.startsWith(`${baseName}.pre-import-`);
+      const isBackup =
+        entry === `${baseName}.bak` ||
+        entry.startsWith(`${baseName}.bak.`) ||
+        entry.startsWith(`${baseName}.pre-import-`);
       const isKeyFile = entry === 'secure-key.bin';
       if (!isBackup && !isKeyFile) continue;
       try {
@@ -140,9 +150,10 @@ function repairDataFilePermissions(targetPath: string): void {
 // Allow tests / e2e / tooling to redirect the database to an isolated path.
 // Default behavior is unchanged (no env var → ~/.inkflow/data.db).
 const DB_PATH_ENV = process.env.INKFLOW_DB_PATH;
-export const DB_PATH = DB_PATH_ENV && DB_PATH_ENV.length > 0
-  ? DB_PATH_ENV
-  : path.join(os.homedir(), '.inkflow', 'data.db');
+export const DB_PATH =
+  DB_PATH_ENV && DB_PATH_ENV.length > 0
+    ? DB_PATH_ENV
+    : path.join(os.homedir(), '.inkflow', 'data.db');
 const DB_DIR = path.dirname(DB_PATH);
 
 function ensureColumn(table: string, column: string, definition: string) {
@@ -186,7 +197,13 @@ function cleanupOrphanStartupBackupTemps(targetPath: string): void {
   try {
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir)) {
-      if (entry.startsWith(prefix) && (entry.endsWith('.temp') || entry.endsWith('.temp-wal') || entry.endsWith('.temp-shm') || entry.endsWith('.temp-journal'))) {
+      if (
+        entry.startsWith(prefix) &&
+        (entry.endsWith('.temp') ||
+          entry.endsWith('.temp-wal') ||
+          entry.endsWith('.temp-shm') ||
+          entry.endsWith('.temp-journal'))
+      ) {
         try {
           unlinkSync(path.join(dir, entry));
         } catch {
@@ -663,7 +680,7 @@ export function initDb(dbPath?: string): void {
   ensureColumn('skills', 'feedback_score', 'REAL DEFAULT 0');
   ensureColumn('skills', 'updated_at', 'INTEGER');
   ensureColumn('skills', 'fusion_meta', 'TEXT DEFAULT NULL');
-  ensureColumn('skills', 'method_chain', "TEXT DEFAULT NULL");
+  ensureColumn('skills', 'method_chain', 'TEXT DEFAULT NULL');
   ensureColumn('skills', 'why_this_skill_works', 'TEXT');
   ensureColumn('skills', 'source_badge', 'TEXT');
   ensureColumn('continuation_packs', 'source_map', "TEXT DEFAULT '{}'");
@@ -732,7 +749,9 @@ export function initDb(dbPath?: string): void {
       WHERE status = 'active';
   `);
 
-  const legacyOutlineIdConflict = getDb().prepare(`
+  const legacyOutlineIdConflict = getDb()
+    .prepare(
+      `
     SELECT artifact.id
     FROM novels
     JOIN outline_artifacts artifact ON artifact.id = 'legacy-outline-' || novels.id
@@ -743,12 +762,18 @@ export function initDb(dbPath?: string): void {
           AND active_artifact.level = 'master' AND active_artifact.status = 'active'
       )
     LIMIT 1
-  `).get() as { id?: string } | undefined;
+  `
+    )
+    .get() as { id?: string } | undefined;
   if (legacyOutlineIdConflict?.id) {
-    throw new Error(`legacy outline artifact id is already occupied: ${legacyOutlineIdConflict.id}`);
+    throw new Error(
+      `legacy outline artifact id is already occupied: ${legacyOutlineIdConflict.id}`
+    );
   }
 
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO outline_artifacts
       (id, novel_id, level, scope, content, source, status, created_at, updated_at)
     SELECT 'legacy-outline-' || id, id, 'master', '{}', global_outline, 'user', 'active', created_at, updated_at
@@ -759,7 +784,9 @@ export function initDb(dbPath?: string): void {
         WHERE artifact.novel_id = novels.id
           AND artifact.level = 'master' AND artifact.status = 'active'
       )
-  `).run();
+  `
+    )
+    .run();
 
   getDb().pragma(`application_id = ${INKFLOW_SQLITE_APPLICATION_ID}`);
 
@@ -796,12 +823,15 @@ function repairImportedContinuationPackNovelLinks() {
     ORDER BY ABS(updated_at - ?) ASC, updated_at DESC
     LIMIT 1
   `);
-  const updateNovelLink = database.prepare('UPDATE continuation_packs SET novel_id = ? WHERE id = ?');
+  const updateNovelLink = database.prepare(
+    'UPDATE continuation_packs SET novel_id = ? WHERE id = ?'
+  );
 
   for (const row of orphanRows) {
     const pack = mapContinuationPackRow(row);
     const targetTitle = buildImportedNovelDraft(pack.title).title;
-    const targetNovel = selectNovelByTitle.get(targetTitle, pack.updatedAt) as { id: string } | undefined;
+    const targetNovel = selectNovelByTitle.get(targetTitle, pack.updatedAt) as
+      { id: string } | undefined;
     if (!targetNovel) continue;
     updateNovelLink.run(targetNovel.id, pack.id);
   }

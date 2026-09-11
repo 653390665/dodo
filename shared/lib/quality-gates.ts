@@ -51,7 +51,8 @@ function hasConcreteTerms(text: string): boolean {
   const chinese = text.replace(/[^一-鿿]/g, '');
   if (chinese.length === 0) return false;
   // Function words: 的得地了是我不人在有这个他她它来去上下中着就和那也要会可以还能没说过与自之们一个后大小多少怎么如因为所以但是然而却已经只
-  const functionWordRe = /[的了得地是我不人在有这个他她它来去上下中着就和那也要会可以还能没说过与自之们一个后大小多少怎么如因为所以但是然而却已经只]/g;
+  const functionWordRe =
+    /[的了得地是我不人在有这个他她它来去上下中着就和那也要会可以还能没说过与自之们一个后大小多少怎么如因为所以但是然而却已经只]/g;
   const funcCount = (chinese.match(functionWordRe) || []).length;
   return funcCount / chinese.length < 0.65;
 }
@@ -89,7 +90,8 @@ export function validateExtractSkillInput(text: string): InputGateResult {
   if (detectCharSpam(trimmed)) {
     return {
       accepted: false,
-      rejectedReason: '输入文本中存在大量重复单字，看起来不像完整的叙事文本。请上传正常的小说正文。',
+      rejectedReason:
+        '输入文本中存在大量重复单字，看起来不像完整的叙事文本。请上传正常的小说正文。',
       chineseCharCount,
     };
   }
@@ -126,7 +128,8 @@ export function validateExtractSkillInput(text: string): InputGateResult {
   if (!hasConcreteTerms(trimmed)) {
     return {
       accepted: false,
-      rejectedReason: '文本几乎全是虚词（的、了、是、在...），缺少具体的人物、场景或事件描写。请上传有实质叙事内容的文本。',
+      rejectedReason:
+        '文本几乎全是虚词（的、了、是、在...），缺少具体的人物、场景或事件描写。请上传有实质叙事内容的文本。',
       chineseCharCount,
       chineseDiversity: diversity,
     };
@@ -226,7 +229,10 @@ export function scoreStyleGenericness(style: string): number {
  * Check if an entire skill card's style/pacing fields are too generic.
  * Returns { isGeneric: true } if the main descriptive fields are hollow.
  */
-export function skillCardIsGeneric(skill: Record<string, unknown>): { isGeneric: boolean; reason?: string } {
+export function skillCardIsGeneric(skill: Record<string, unknown>): {
+  isGeneric: boolean;
+  reason?: string;
+} {
   const style = (typeof skill.style === 'string' ? skill.style : '').trim();
   const pacing = (typeof skill.pacing === 'string' ? skill.pacing : '').trim();
   const description = (typeof skill.description === 'string' ? skill.description : '').trim();
@@ -262,14 +268,70 @@ export function extractAnchoringKeywords(text: string, maxKeywords: number = 12)
 
   // Extract bigrams and trigrams, skip pure function-word combinations
   const functionWords = new Set([
-    '一个', '这个', '那个', '什么', '怎么', '为什么', '可以', '还是',
-    '但是', '因为', '所以', '如果', '虽然', '已经', '而且', '我的',
-    '你的', '他的', '我们', '他们', '你们', '关于', '自己', '没有',
-    '不是', '就是', '的话', '来说', '这样', '那样', '如何', '不过',
-    '是的', '在了', '着就', '地去', '要来', '会去', '能把', '被一',
-    '于是', '因此', '然而', '并且', '或者', '只是', '不过', '由于',
-    '为了', '那么', '这么', '一切', '所有', '可能', '应该', '已经',
-    '知道', '觉得', '认为', '一般', '一样', '也许', '或许', '一定',
+    '一个',
+    '这个',
+    '那个',
+    '什么',
+    '怎么',
+    '为什么',
+    '可以',
+    '还是',
+    '但是',
+    '因为',
+    '所以',
+    '如果',
+    '虽然',
+    '已经',
+    '而且',
+    '我的',
+    '你的',
+    '他的',
+    '我们',
+    '他们',
+    '你们',
+    '关于',
+    '自己',
+    '没有',
+    '不是',
+    '就是',
+    '的话',
+    '来说',
+    '这样',
+    '那样',
+    '如何',
+    '不过',
+    '是的',
+    '在了',
+    '着就',
+    '地去',
+    '要来',
+    '会去',
+    '能把',
+    '被一',
+    '于是',
+    '因此',
+    '然而',
+    '并且',
+    '或者',
+    '只是',
+    '不过',
+    '由于',
+    '为了',
+    '那么',
+    '这么',
+    '一切',
+    '所有',
+    '可能',
+    '应该',
+    '已经',
+    '知道',
+    '觉得',
+    '认为',
+    '一般',
+    '一样',
+    '也许',
+    '或许',
+    '一定',
   ]);
 
   const seen = new Set<string>();
@@ -302,7 +364,7 @@ export function extractAnchoringKeywords(text: string, maxKeywords: number = 12)
  */
 export function scoreSkillOutputAnchoring(
   skills: Array<Record<string, unknown>>,
-  inputText: string,
+  inputText: string
 ): number {
   if (!skills || skills.length === 0) return 0;
   const keywords = extractAnchoringKeywords(inputText, 15);
@@ -322,7 +384,7 @@ export function scoreSkillOutputAnchoring(
         s.name,
       ]
         .filter((v): v is string => typeof v === 'string')
-        .join(''),
+        .join('')
     )
     .join('');
 
@@ -338,9 +400,10 @@ const SKILL_REQUIRED_FIELDS = ['name', 'style', 'pacing', 'primaryDimension'] as
  * Check field completeness across all capability cards.
  * Returns a per-field completeness map and overall ratio.
  */
-export function evaluateSkillFieldCompleteness(
-  skills: Array<Record<string, unknown>>,
-): { perField: Record<string, number>; overall: number } {
+export function evaluateSkillFieldCompleteness(skills: Array<Record<string, unknown>>): {
+  perField: Record<string, number>;
+  overall: number;
+} {
   if (!skills || skills.length === 0) {
     return { perField: {}, overall: 0 };
   }
@@ -387,7 +450,7 @@ export interface SkillOutputQualityReport {
  */
 export function evaluateSkillOutputQuality(
   skills: Array<Record<string, unknown>>,
-  inputText: string,
+  inputText: string
 ): SkillOutputQualityReport {
   const totalSkillCount = skills.length;
   const anchoringScore = scoreSkillOutputAnchoring(skills, inputText);
@@ -399,9 +462,7 @@ export function evaluateSkillOutputQuality(
     const { isGeneric, reason } = skillCardIsGeneric(skill);
     if (isGeneric) {
       genericSkillCount += 1;
-      genericDetails.push(
-        `${(skill.name as string) || '(未命名)'}: ${reason || '模板化输出'}`,
-      );
+      genericDetails.push(`${(skill.name as string) || '(未命名)'}: ${reason || '模板化输出'}`);
     }
   }
 
@@ -409,10 +470,7 @@ export function evaluateSkillOutputQuality(
   // 1. No more than 1 skill is fully generic
   // 2. Anchoring score >= 0.15 (at least some keyword overlap)
   // 3. Field completeness >= 0.5
-  const passed =
-    genericSkillCount <= 1 &&
-    anchoringScore >= 0.15 &&
-    fieldReport.overall >= 0.5;
+  const passed = genericSkillCount <= 1 && anchoringScore >= 0.15 && fieldReport.overall >= 0.5;
 
   let issue: string | null = null;
   if (!passed) {

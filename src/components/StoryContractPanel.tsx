@@ -23,7 +23,10 @@ export function StoryContractPanel({ contract, onSave, onClose }: StoryContractP
 
   const addRule = () => {
     if (!newRule.trim()) return;
-    setDraft((prev) => ({ ...prev, customConstraints: [...(prev.customConstraints || []), newRule.trim()] }));
+    setDraft((prev) => ({
+      ...prev,
+      customConstraints: [...(prev.customConstraints || []), newRule.trim()],
+    }));
     setNewRule('');
   };
 
@@ -83,7 +86,10 @@ export function StoryContractPanel({ contract, onSave, onClose }: StoryContractP
         <select
           value={draft.characterConsistency}
           onChange={(e) =>
-            setDraft((prev) => ({ ...prev, characterConsistency: e.target.value as 'strict' | 'loose' }))
+            setDraft((prev) => ({
+              ...prev,
+              characterConsistency: e.target.value as 'strict' | 'loose',
+            }))
           }
           className="mt-1 w-full rounded-xl border border-theme-border bg-theme-sidebar px-3 py-2 text-sm text-theme-text outline-none"
         >
@@ -112,12 +118,19 @@ export function StoryContractPanel({ contract, onSave, onClose }: StoryContractP
             <Plus size={14} />
           </button>
         </div>
-        {((draft.customConstraints?.length ?? 0) > 0) && (
+        {(draft.customConstraints?.length ?? 0) > 0 && (
           <div className="space-y-1">
             {(draft.customConstraints || []).map((rule, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-theme-muted bg-theme-sidebar rounded-lg px-3 py-1.5">
+              <div
+                key={i}
+                className="flex items-center gap-2 text-xs text-theme-muted bg-theme-sidebar rounded-lg px-3 py-1.5"
+              >
                 <span className="flex-1">{rule}</span>
-                <button onClick={() => removeRule(i)} aria-label={`删除约束：${rule}`} className="text-theme-muted hover:text-red-500">
+                <button
+                  onClick={() => removeRule(i)}
+                  aria-label={`删除约束：${rule}`}
+                  className="text-theme-muted hover:text-red-500"
+                >
                   <X size={12} />
                 </button>
               </div>

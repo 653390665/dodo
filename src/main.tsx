@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import {ErrorBoundary} from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { createAuthenticatedFetch } from './lib/authenticated-fetch';
 import './index.css';
 
@@ -21,5 +21,5 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
-  </StrictMode>,
+  </StrictMode>
 );

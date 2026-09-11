@@ -9,7 +9,14 @@ const STORAGE_KEY = 'inkflow-world-bible-sync-intent';
 
 export function writeContinuationSyncIntent(intent: ContinuationSyncIntent): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...intent, intentId: intent.intentId || `${Date.now()}-${Math.random().toString(36).slice(2)}`, createdAt: intent.createdAt || Date.now() }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...intent,
+        intentId: intent.intentId || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        createdAt: intent.createdAt || Date.now(),
+      })
+    );
   } catch {
     // Storage may be unavailable in private or restricted browsing contexts.
   }
@@ -30,7 +37,8 @@ export function readContinuationSyncIntent(): ContinuationSyncIntent | null {
       typeof (parsed as ContinuationSyncIntent).packId !== 'string' ||
       !(parsed as ContinuationSyncIntent).novelId ||
       !(parsed as ContinuationSyncIntent).packId
-    ) return null;
+    )
+      return null;
     return parsed as ContinuationSyncIntent;
   } catch {
     return null;

@@ -8,22 +8,28 @@ import { SseParseError } from '../lib/sse-client';
 
 function sseResponse(events: string[]): Response {
   const encoder = new TextEncoder();
-  return new Response(new ReadableStream({
-    start(controller) {
-      for (const event of events) controller.enqueue(encoder.encode(event));
-      controller.close();
-    },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const event of events) controller.enqueue(encoder.encode(event));
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+  );
 }
 
 function controlledSseResponse() {
   const encoder = new TextEncoder();
   let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
-  const response = new Response(new ReadableStream<Uint8Array>({
-    start(controller) {
-      streamController = controller;
-    },
-  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  const response = new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller;
+      },
+    }),
+    { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+  );
 
   return {
     response,
@@ -44,18 +50,20 @@ describe('character bio streaming persistence', () => {
     const previews: string[] = [];
     const commit = vi.fn(async () => {});
 
-    await expect(streamCharacterBio({
-      response: sseResponse([
-        'data: {"token":"甲"}\n\n',
-        'data: {"token":"乙"}\n\n',
-        'data: {"token":"丙"}\n\n',
-        'data: [DONE]\n\n',
-      ]),
-      originalBio: '原小传',
-      isCurrent: () => true,
-      onPreview: bio => previews.push(bio),
-      onCommit: commit,
-    })).resolves.toBe(true);
+    await expect(
+      streamCharacterBio({
+        response: sseResponse([
+          'data: {"token":"甲"}\n\n',
+          'data: {"token":"乙"}\n\n',
+          'data: {"token":"丙"}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+        originalBio: '原小传',
+        isCurrent: () => true,
+        onPreview: (bio) => previews.push(bio),
+        onCommit: commit,
+      })
+    ).resolves.toBe(true);
 
     expect(previews).toEqual(['甲乙丙']);
     expect(commit).toHaveBeenCalledTimes(1);
@@ -73,8 +81,12 @@ describe('character bio streaming persistence', () => {
       response: oldStream.response,
       originalBio: visibleBio,
       isCurrent: () => currentRequest === 1,
-      onPreview: bio => { visibleBio = bio; },
-      onCommit: async bio => { commits.push(bio); },
+      onPreview: (bio) => {
+        visibleBio = bio;
+      },
+      onCommit: async (bio) => {
+        commits.push(bio);
+      },
     });
 
     currentRequest = 2;
@@ -82,8 +94,12 @@ describe('character bio streaming persistence', () => {
       response: newStream.response,
       originalBio: visibleBio,
       isCurrent: () => currentRequest === 2,
-      onPreview: bio => { visibleBio = bio; },
-      onCommit: async bio => { commits.push(bio); },
+      onPreview: (bio) => {
+        visibleBio = bio;
+      },
+      onCommit: async (bio) => {
+        commits.push(bio);
+      },
     });
 
     newStream.send('data: {"token":"最终文本"}\n\ndata: [DONE]\n\n');
@@ -104,7 +120,7 @@ describe('character bio streaming persistence', () => {
     let currentRequest = 1;
     let oldCommitStarted = false;
     let releaseOldCommit: (() => void) | undefined;
-    const oldCommitGate = new Promise<void>(resolve => {
+    const oldCommitGate = new Promise<void>((resolve) => {
       releaseOldCommit = resolve;
     });
 
@@ -116,7 +132,7 @@ describe('character bio streaming persistence', () => {
         oldCommitStarted = true;
         await oldCommitGate;
         persistedValues.push('旧文本');
-      },
+      }
     );
     await vi.waitFor(() => expect(oldCommitStarted).toBe(true));
 
@@ -127,7 +143,7 @@ describe('character bio streaming persistence', () => {
       () => currentRequest === 2,
       async () => {
         persistedValues.push('新文本');
-      },
+      }
     );
 
     await Promise.resolve();
@@ -156,21 +172,26 @@ describe('character bio streaming persistence', () => {
       response: () => sseResponse(['data: {"error":"upstream failed"}\n\n']),
       errorType: Error,
     },
-  ])('$name restores the original bio without persisting partial output', async ({ response, errorType }) => {
-    const previews: string[] = [];
-    const commit = vi.fn(async () => {});
+  ])(
+    '$name restores the original bio without persisting partial output',
+    async ({ response, errorType }) => {
+      const previews: string[] = [];
+      const commit = vi.fn(async () => {});
 
-    await expect(streamCharacterBio({
-      response: response(),
-      originalBio: '原小传',
-      isCurrent: () => true,
-      onPreview: bio => previews.push(bio),
-      onCommit: commit,
-    })).rejects.toBeInstanceOf(errorType);
+      await expect(
+        streamCharacterBio({
+          response: response(),
+          originalBio: '原小传',
+          isCurrent: () => true,
+          onPreview: (bio) => previews.push(bio),
+          onCommit: commit,
+        })
+      ).rejects.toBeInstanceOf(errorType);
 
-    expect(previews.at(-1)).toBe('原小传');
-    expect(commit).not.toHaveBeenCalled();
-  });
+      expect(previews.at(-1)).toBe('原小传');
+      expect(commit).not.toHaveBeenCalled();
+    }
+  );
 
   test('an aborted stream restores the original bio and never commits', async () => {
     const stream = controlledSseResponse();
@@ -180,7 +201,7 @@ describe('character bio streaming persistence', () => {
       response: stream.response,
       originalBio: '原小传',
       isCurrent: () => true,
-      onPreview: bio => previews.push(bio),
+      onPreview: (bio) => previews.push(bio),
       onCommit: commit,
       previewIntervalMs: 50,
     });

@@ -9,7 +9,9 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function copyValue<T>(value: T): T {
   if (Array.isArray(value)) return value.map(copyValue) as T;
   if (isPlainObject(value)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copyValue(item)])) as T;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, copyValue(item)])
+    ) as T;
   }
   return value;
 }
@@ -17,13 +19,18 @@ function copyValue<T>(value: T): T {
 function valuesEqual(before: unknown, after: unknown): boolean {
   if (Object.is(before, after)) return true;
   if (Array.isArray(before) && Array.isArray(after)) {
-    return before.length === after.length && before.every((item, index) => valuesEqual(item, after[index]));
+    return (
+      before.length === after.length &&
+      before.every((item, index) => valuesEqual(item, after[index]))
+    );
   }
   if (isPlainObject(before) && isPlainObject(after)) {
     const beforeKeys = Object.keys(before);
     const afterKeys = Object.keys(after);
-    return beforeKeys.length === afterKeys.length
-      && beforeKeys.every((key) => key in after && valuesEqual(before[key], after[key]));
+    return (
+      beforeKeys.length === afterKeys.length &&
+      beforeKeys.every((key) => key in after && valuesEqual(before[key], after[key]))
+    );
   }
   return false;
 }

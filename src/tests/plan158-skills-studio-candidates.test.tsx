@@ -2,20 +2,45 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SkillsStudioView } from '../components/SkillsStudioView';
 
-const { savedCards } = vi.hoisted(() => ({ savedCards: [
-  {
-    id: 'candidate-card', name: '黄金三章候选卡', description: '候选', style: 'style', pacing: 'pacing',
-    stabilityScore: 95, evaluationFeedback: 'ok', version: 3, parentSkillId: 'deconstruct-golden-climax',
-    primaryDimension: 'pacing' as const, dimensionTags: ['pacing' as const], sourceType: 'plaza', sourceBadge: 'manual' as const,
-    deconstructionCardType: 'pacing-card' as const, isRuntimeReady: true, sanitizationStatus: 'runtime-ready' as const,
-    runtimeStatus: 'active' as const, createdAt: 1,
-  },
-  {
-    id: 'ordinary-technique', name: '普通技法', description: '技法', style: 'rule', pacing: '',
-    stabilityScore: 80, evaluationFeedback: '', version: 3, parentSkillId: 'prose-mouth-flavor',
-    primaryDimension: 'style' as const, sourceType: 'plaza', sourceBadge: 'manual' as const, createdAt: 1,
-  },
-  ] }));
+const { savedCards } = vi.hoisted(() => ({
+  savedCards: [
+    {
+      id: 'candidate-card',
+      name: '黄金三章候选卡',
+      description: '候选',
+      style: 'style',
+      pacing: 'pacing',
+      stabilityScore: 95,
+      evaluationFeedback: 'ok',
+      version: 3,
+      parentSkillId: 'deconstruct-golden-climax',
+      primaryDimension: 'pacing' as const,
+      dimensionTags: ['pacing' as const],
+      sourceType: 'plaza',
+      sourceBadge: 'manual' as const,
+      deconstructionCardType: 'pacing-card' as const,
+      isRuntimeReady: true,
+      sanitizationStatus: 'runtime-ready' as const,
+      runtimeStatus: 'active' as const,
+      createdAt: 1,
+    },
+    {
+      id: 'ordinary-technique',
+      name: '普通技法',
+      description: '技法',
+      style: 'rule',
+      pacing: '',
+      stabilityScore: 80,
+      evaluationFeedback: '',
+      version: 3,
+      parentSkillId: 'prose-mouth-flavor',
+      primaryDimension: 'style' as const,
+      sourceType: 'plaza',
+      sourceBadge: 'manual' as const,
+      createdAt: 1,
+    },
+  ],
+}));
 
 vi.mock('../lib/skill-client', () => ({
   syncSkillFeedbackScores: vi.fn().mockResolvedValue(savedCards),
@@ -24,27 +49,65 @@ vi.mock('../lib/skill-client', () => ({
 }));
 vi.mock('../lib/novel-client', () => ({ listNovels: vi.fn().mockResolvedValue([]) }));
 vi.mock('../components/skills/SkillCard', () => ({
-  SkillCard: ({ skill, onEquip }: { skill: { name: string }; onEquip?: (novelId: string) => void }) => <div>
-    <span>{skill.name}</span>
-    {onEquip && <button type="button" onClick={() => onEquip('novel-1')}>加入本次配置候选 {skill.name}</button>}
-  </div>,
+  SkillCard: ({
+    skill,
+    onEquip,
+  }: {
+    skill: { name: string };
+    onEquip?: (novelId: string) => void;
+  }) => (
+    <div>
+      <span>{skill.name}</span>
+      {onEquip && (
+        <button type="button" onClick={() => onEquip('novel-1')}>
+          加入本次配置候选 {skill.name}
+        </button>
+      )}
+    </div>
+  ),
 }));
-vi.mock('../lib/db-transport', () => ({ subscribeToChanges: vi.fn(() => () => undefined), getDatabaseGenerationSnapshot: vi.fn().mockResolvedValue(7) }));
+vi.mock('../lib/db-transport', () => ({
+  subscribeToChanges: vi.fn(() => () => undefined),
+  getDatabaseGenerationSnapshot: vi.fn().mockResolvedValue(7),
+}));
 vi.mock('../lib/product-events-client', () => ({
   createProductEventSessionId: vi.fn((scope = 'session') => `${scope}:test-session`),
-  createProductEventId: vi.fn((action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`),
+  createProductEventId: vi.fn(
+    (action: string, sessionId = 'session:test-session') => `event:${sessionId}:${action}`
+  ),
   recordProductEvent: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../lib/capability-configuration-client', () => ({
-  previewCapabilityConfiguration: vi.fn().mockResolvedValue({ previewToken: 'p', databaseGeneration: 7 }),
-  applyCapabilityConfiguration: vi.fn().mockResolvedValue({ profile: { version: 3, projectSkillDeck: { supportCardIds: [], updatedAt: 1 }, favoriteTechniqueIds: [] }, databaseGeneration: 8 }),
+  previewCapabilityConfiguration: vi
+    .fn()
+    .mockResolvedValue({ previewToken: 'p', databaseGeneration: 7 }),
+  applyCapabilityConfiguration: vi.fn().mockResolvedValue({
+    profile: {
+      version: 3,
+      projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
+      favoriteTechniqueIds: [],
+    },
+    databaseGeneration: 8,
+  }),
 }));
 
 const novel = {
-  id: 'novel-1', title: '作品', authorId: 'local', summary: '', status: 'ongoing' as const, createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: '作品',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing' as const,
+  createdAt: 1,
+  updatedAt: 1,
   projectPreferenceProfile: {
     tags: [],
-    weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+    weights: {
+      styleWeight: 0.5,
+      characterWeight: 0.5,
+      worldWeight: 0.5,
+      plotWeight: 0.5,
+      pacingWeight: 0.5,
+    },
     acceptedDimensions: [],
     rejectedDimensions: [],
     notes: [],
@@ -52,7 +115,11 @@ const novel = {
     capabilityModelVersion: 3 as const,
     capabilityProfile: {
       version: 3 as const,
-      projectSkillDeck: { mainCardId: 'legacy-unknown-card', supportCardIds: ['style-ancient-elegance', 'deconstruct-suspense-hook'], updatedAt: 1 },
+      projectSkillDeck: {
+        mainCardId: 'legacy-unknown-card',
+        supportCardIds: ['style-ancient-elegance', 'deconstruct-suspense-hook'],
+        updatedAt: 1,
+      },
       favoriteTechniqueIds: [],
     },
   },
@@ -72,11 +139,18 @@ describe('Plan 158 capability candidates', () => {
 
   test('adds a trusted saved card in place and does not navigate to editor', async () => {
     const onNavigate = vi.fn();
-    render(<SkillsStudioView selectedNovel={{ ...novel, projectPreferenceProfile: undefined }} onNavigate={onNavigate} />);
+    render(
+      <SkillsStudioView
+        selectedNovel={{ ...novel, projectPreferenceProfile: undefined }}
+        onNavigate={onNavigate}
+      />
+    );
     const action = await screen.findByRole('button', { name: '加入本次配置候选 黄金三章候选卡' });
     fireEvent.click(action);
     expect(await screen.findByText('待提交的卡组位置')).toBeTruthy();
-    expect(screen.getByText('选择主卡或辅卡后仍是待提交状态；点击应用配置才会写入作品卡组。')).toBeTruthy();
+    expect(
+      screen.getByText('选择主卡或辅卡后仍是待提交状态；点击应用配置才会写入作品卡组。')
+    ).toBeTruthy();
     expect(screen.queryByRole('button', { name: '加入本次配置候选 普通技法' })).toBeNull();
     expect(onNavigate).not.toHaveBeenCalledWith('editor');
   });
@@ -89,7 +163,9 @@ describe('Plan 158 capability candidates', () => {
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByText('待放入：黄金三章候选卡')).toBeTruthy();
     expect(screen.getAllByText(/来源：/).length).toBeGreaterThan(1);
-    const responsibilityLabels = screen.getAllByText(/负责维度：/).map((element) => element.textContent || '');
+    const responsibilityLabels = screen
+      .getAllByText(/负责维度：/)
+      .map((element) => element.textContent || '');
     expect(responsibilityLabels.length).toBeGreaterThan(1);
     expect(responsibilityLabels.some((text) => text.includes('节奏'))).toBe(true);
     expect(screen.queryByText(/负责维度：pacing|负责维度：style|负责维度：hook/)).toBeNull();
@@ -97,7 +173,9 @@ describe('Plan 158 capability candidates', () => {
     expect(within(replacementButton).getByText('重叠')).toBeTruthy();
     expect(within(replacementButton).getByText('会失去')).toBeTruthy();
     expect(within(replacementButton).getByText('会新增')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /legacy-unknown-card/ }).hasAttribute('disabled')).toBe(true);
+    expect(
+      screen.getByRole('button', { name: /legacy-unknown-card/ }).hasAttribute('disabled')
+    ).toBe(true);
   });
 
   test('expands a capability package and submits only checked components', async () => {
@@ -109,11 +187,15 @@ describe('Plan 158 capability candidates', () => {
     fireEvent.click(within(packageCard as HTMLElement).getByRole('button', { name: '展开并选择' }));
     expect(await screen.findByRole('dialog', { name: '基础审稿增强包' })).toBeTruthy();
     const dialog = screen.getByRole('dialog', { name: '基础审稿增强包' });
-    expect(within(dialog).getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/)).toBeTruthy();
+    expect(
+      within(dialog).getByText(/必选 · 不改正文 · 运行审稿诊断 · 写后 · 本章使用/)
+    ).toBeTruthy();
     const checkboxes = within(dialog).getAllByRole('checkbox');
     expect(checkboxes).toHaveLength(1);
     fireEvent.click(checkboxes[0]);
-    expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(false);
+    expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(
+      false
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
     expect(onNavigate).not.toHaveBeenCalledWith('editor');
   });
@@ -138,20 +220,27 @@ describe('Plan 158 capability candidates', () => {
     fireEvent.click(within(packageCard as HTMLElement).getByRole('button', { name: '展开并选择' }));
 
     const dialog = await screen.findByRole('dialog', { name: '跨章连贯性增强包' });
-    const selectable = within(dialog).getAllByRole('checkbox').filter((checkbox) => !checkbox.hasAttribute('disabled'));
+    const selectable = within(dialog)
+      .getAllByRole('checkbox')
+      .filter((checkbox) => !checkbox.hasAttribute('disabled'));
     expect(selectable.length).toBeGreaterThan(0);
     fireEvent.click(selectable[0]);
     fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
 
     // 单动词：启用即写入作品卡组（主卡槽位）
-    const { applyCapabilityConfiguration: applyMock } = await import('../lib/capability-configuration-client');
+    const { applyCapabilityConfiguration: applyMock } =
+      await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyMock).mock.calls.length).toBeGreaterThan(0));
-    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].capabilityMemberships).toContainEqual(expect.objectContaining({
-      sourceId: 'deconstruct-golden-climax',
-      persistedSkillId: 'candidate-card',
-    }));
+    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].capabilityMemberships).toContainEqual(
+      expect.objectContaining({
+        sourceId: 'deconstruct-golden-climax',
+        persistedSkillId: 'candidate-card',
+      })
+    );
     expect(onNovelUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: 'novel-1' }));
-    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId).toBe('candidate-card');
+    expect(vi.mocked(applyMock).mock.calls.at(-1)?.[3].projectSkillDeck.mainCardId).toBe(
+      'candidate-card'
+    );
     expect(screen.queryByText(/本次已选 \d+ 项（暂存）/)).toBeNull();
     expect(screen.queryByText(/待加入候选 \d+ 项/)).toBeNull();
   });
@@ -165,15 +254,24 @@ describe('Plan 158 capability candidates', () => {
     fireEvent.click(within(packageCard as HTMLElement).getByRole('button', { name: '展开并选择' }));
 
     const dialog = await screen.findByRole('dialog', { name: '高级审稿与局部手术包' });
-    const importGatedRow = within(dialog).getByText(/先保存到我的能力，再勾选待提交/).closest('div.rounded-lg') as HTMLElement;
+    const importGatedRow = within(dialog)
+      .getByText(/先保存到我的能力，再勾选待提交/)
+      .closest('div.rounded-lg') as HTMLElement;
     expect(within(importGatedRow).getByText('需先保存')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
 
-    await waitFor(() => expect(within(dialog).getAllByRole('checkbox').some((checkbox) => (checkbox as HTMLInputElement).checked)).toBe(true));
+    await waitFor(() =>
+      expect(
+        within(dialog)
+          .getAllByRole('checkbox')
+          .some((checkbox) => (checkbox as HTMLInputElement).checked)
+      ).toBe(true)
+    );
     expect(within(dialog).getByText('已勾选 1 项，待提交')).toBeTruthy();
     expect(within(dialog).getByText('已勾选，待提交到本次配置')).toBeTruthy();
     expect(within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: '启用所选' }).getAttribute('aria-describedby')).toBe('capability-package-submit-help');
+    expect(
+      within(dialog).getByRole('button', { name: '启用所选' }).getAttribute('aria-describedby')
+    ).toBe('capability-package-submit-help');
   });
-
 });

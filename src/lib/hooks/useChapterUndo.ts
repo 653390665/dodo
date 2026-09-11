@@ -9,7 +9,11 @@ interface UseChapterUndoOptions {
 
 const undoReducer = (
   state: UndoState,
-  action: { type: 'push'; content: string } | { type: 'undo' } | { type: 'redo' } | { type: 'reset'; content: string }
+  action:
+    | { type: 'push'; content: string }
+    | { type: 'undo' }
+    | { type: 'redo' }
+    | { type: 'reset'; content: string }
 ) => {
   switch (action.type) {
     case 'push':
@@ -25,7 +29,11 @@ const undoReducer = (
   }
 };
 
-export function useChapterUndo({ currentContent, isContentLockedRef, onUndoRedo }: UseChapterUndoOptions) {
+export function useChapterUndo({
+  currentContent,
+  isContentLockedRef,
+  onUndoRedo,
+}: UseChapterUndoOptions) {
   const [undoState, dispatchUndo] = useReducer(undoReducer, currentContent, (initial) =>
     createUndoState(initial)
   );

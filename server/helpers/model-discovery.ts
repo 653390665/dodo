@@ -48,7 +48,7 @@ export function normalizeModels(raw: string[]): string[] {
  */
 export async function discoverModels(
   config: AppConfig,
-  signal: AbortSignal,
+  signal: AbortSignal
 ): Promise<ModelDiscoveryResult> {
   if (isGoogleProvider(config.baseUrl)) {
     return discoverGoogleModels(config, signal);
@@ -58,7 +58,7 @@ export async function discoverModels(
 
 async function discoverGoogleModels(
   config: AppConfig,
-  signal: AbortSignal,
+  signal: AbortSignal
 ): Promise<ModelDiscoveryResult> {
   const { GoogleGenAI } = await import('@google/genai');
   const ai = new GoogleGenAI({ apiKey: config.apiKey });
@@ -84,7 +84,7 @@ async function discoverGoogleModels(
 
 async function discoverOpenAIModels(
   config: AppConfig,
-  signal: AbortSignal,
+  signal: AbortSignal
 ): Promise<ModelDiscoveryResult> {
   let response: Response;
   try {

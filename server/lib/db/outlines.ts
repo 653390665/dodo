@@ -26,7 +26,7 @@ import type {
 export class OutlineError extends Error {
   constructor(
     public readonly code: string,
-    message: string,
+    message: string
   ) {
     super(`${code}: ${message}`);
   }
@@ -34,47 +34,64 @@ export class OutlineError extends Error {
 
 function scopeFor(level: OutlineArtifactLevel, scope: OutlineArtifactScope): OutlineArtifactScope {
   const clean = { ...(scope || {}) } as OutlineArtifactScope;
-  if (Object.keys(clean).some((key) => !['volumeName', 'chapterStart', 'chapterEnd'].includes(key))) {
+  if (
+    Object.keys(clean).some((key) => !['volumeName', 'chapterStart', 'chapterEnd'].includes(key))
+  ) {
     throw new OutlineError('OUTLINE_INVALID_SCOPE', 'scope contains unknown keys');
   }
   if (clean.volumeName !== undefined) {
-    if (typeof clean.volumeName !== 'string') throw new OutlineError('OUTLINE_INVALID_SCOPE', 'scope is invalid');
+    if (typeof clean.volumeName !== 'string')
+      throw new OutlineError('OUTLINE_INVALID_SCOPE', 'scope is invalid');
     clean.volumeName = clean.volumeName.trim();
   }
   if (level === 'master' && Object.keys(clean).length) {
     throw new OutlineError('OUTLINE_INVALID_SCOPE', 'master scope must be empty');
   }
   if (
-    level === 'volume'
-    && (!clean.volumeName?.trim() || clean.chapterStart !== undefined || clean.chapterEnd !== undefined)
+    level === 'volume' &&
+    (!clean.volumeName?.trim() ||
+      clean.chapterStart !== undefined ||
+      clean.chapterEnd !== undefined)
   ) {
     throw new OutlineError('OUTLINE_INVALID_SCOPE', 'volume scope is invalid');
   }
   if (
-    level === 'chapter'
-    && (clean.volumeName !== undefined
-      || !Number.isInteger(clean.chapterStart)
-      || !Number.isInteger(clean.chapterEnd)
-      || (clean.chapterStart as number) < 0
-      || (clean.chapterEnd as number) < 0
-      || (clean.chapterStart as number) > (clean.chapterEnd as number))
+    level === 'chapter' &&
+    (clean.volumeName !== undefined ||
+      !Number.isInteger(clean.chapterStart) ||
+      !Number.isInteger(clean.chapterEnd) ||
+      (clean.chapterStart as number) < 0 ||
+      (clean.chapterEnd as number) < 0 ||
+      (clean.chapterStart as number) > (clean.chapterEnd as number))
   ) {
     throw new OutlineError('OUTLINE_INVALID_SCOPE', 'chapter scope is invalid');
   }
   return clean;
 }
 
-function sourceCapabilityVersionsFor(value: unknown, stored = false): SourceCapabilityVersion[] | undefined {
+function sourceCapabilityVersionsFor(
+  value: unknown,
+  stored = false
+): SourceCapabilityVersion[] | undefined {
   if (value === undefined || value === null) return undefined;
-  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => {
-    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return true;
-    const version = entry as Record<string, unknown>;
-    return typeof version.capabilityId !== 'string'
-      || !version.capabilityId.trim()
-      || typeof version.version !== 'string'
-      || !version.version.trim();
-  })) {
-    throw new OutlineError(stored ? 'OUTLINE_INVALID_DATA' : 'OUTLINE_INVALID_INPUT', 'source capability versions are invalid');
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((entry) => {
+      if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return true;
+      const version = entry as Record<string, unknown>;
+      return (
+        typeof version.capabilityId !== 'string' ||
+        !version.capabilityId.trim() ||
+        typeof version.version !== 'string' ||
+        !version.version.trim()
+      );
+    })
+  ) {
+    throw new OutlineError(
+      stored ? 'OUTLINE_INVALID_DATA' : 'OUTLINE_INVALID_INPUT',
+      'source capability versions are invalid'
+    );
   }
   return value.map((entry) => ({
     capabilityId: (entry as SourceCapabilityVersion).capabilityId,
@@ -85,7 +102,10 @@ function sourceCapabilityVersionsFor(value: unknown, stored = false): SourceCapa
 function coreFor(value: unknown, stored = false): StructuredOutlineCore | undefined {
   if (value === undefined || value === null) return undefined;
   if (!isStructuredOutlineCore(value)) {
-    throw new OutlineError(stored ? 'OUTLINE_INVALID_DATA' : 'OUTLINE_INVALID_INPUT', 'structured outline core is invalid');
+    throw new OutlineError(
+      stored ? 'OUTLINE_INVALID_DATA' : 'OUTLINE_INVALID_INPUT',
+      'structured outline core is invalid'
+    );
   }
   return value;
 }
@@ -111,10 +131,10 @@ function rowToArtifact(row: OutlineRow): OutlineArtifact {
     throw new OutlineError('OUTLINE_INVALID_DATA', 'outline scope data is invalid');
   }
   if (
-    parsedScope === null
-    || typeof parsedScope !== 'object'
-    || Array.isArray(parsedScope)
-    || Object.getPrototypeOf(parsedScope) !== Object.prototype
+    parsedScope === null ||
+    typeof parsedScope !== 'object' ||
+    Array.isArray(parsedScope) ||
+    Object.getPrototypeOf(parsedScope) !== Object.prototype
   ) {
     throw new OutlineError('OUTLINE_INVALID_DATA', 'outline scope data is invalid');
   }
@@ -136,10 +156,16 @@ function rowToArtifact(row: OutlineRow): OutlineArtifact {
   let sourceCapabilityVersions: SourceCapabilityVersion[] | undefined;
   if (row.source_capability_versions !== null) {
     try {
-      sourceCapabilityVersions = sourceCapabilityVersionsFor(JSON.parse(row.source_capability_versions), true);
+      sourceCapabilityVersions = sourceCapabilityVersionsFor(
+        JSON.parse(row.source_capability_versions),
+        true
+      );
     } catch (error) {
       if (error instanceof OutlineError) throw error;
-      throw new OutlineError('OUTLINE_INVALID_DATA', 'outline source capability versions are invalid');
+      throw new OutlineError(
+        'OUTLINE_INVALID_DATA',
+        'outline source capability versions are invalid'
+      );
     }
   }
   return {
@@ -187,8 +213,10 @@ export function createOutlineArtifactInTransaction(input: CreateOutlineInput): O
           : {}),
       })),
     });
-    const missingPromise = validation.issues.find((issue) =>
-      issue.code === 'OUTLINE_FORESHADOWING_MISSING' || issue.code === 'OUTLINE_PROMISE_NOT_FOUND');
+    const missingPromise = validation.issues.find(
+      (issue) =>
+        issue.code === 'OUTLINE_FORESHADOWING_MISSING' || issue.code === 'OUTLINE_PROMISE_NOT_FOUND'
+    );
     if (missingPromise) throw new OutlineError('OUTLINE_INVALID_INPUT', missingPromise.detail);
   }
   const now = Date.now();
@@ -212,7 +240,7 @@ export function createOutlineArtifactInTransaction(input: CreateOutlineInput): O
       core ? JSON.stringify(core) : null,
       sourceCapabilityVersions ? JSON.stringify(sourceCapabilityVersions) : null,
       now,
-      now,
+      now
     );
   return getOutlineArtifact(id, input.novelId)!;
 }
@@ -232,7 +260,7 @@ export function getOutlineArtifact(id: string, novelId: string): OutlineArtifact
 
 export function listOutlineArtifacts(
   novelId: string,
-  filters: { level?: OutlineArtifactLevel; status?: OutlineArtifactStatus } = {},
+  filters: { level?: OutlineArtifactLevel; status?: OutlineArtifactStatus } = {}
 ): OutlineArtifact[] {
   const clauses = ['novel_id = ?'];
   const args: unknown[] = [novelId];
@@ -246,21 +274,28 @@ export function listOutlineArtifacts(
   }
   return (
     getDb()
-      .prepare(`SELECT * FROM outline_artifacts WHERE ${clauses.join(' AND ')} ORDER BY created_at ASC, id ASC`)
+      .prepare(
+        `SELECT * FROM outline_artifacts WHERE ${clauses.join(' AND ')} ORDER BY created_at ASC, id ASC`
+      )
       .all(...args) as OutlineRow[]
   ).map(rowToArtifact);
 }
 
 export function assertOutlineMirrorIntegrity(
   novelId: string,
-  artifacts = listOutlineArtifacts(novelId),
+  artifacts = listOutlineArtifacts(novelId)
 ): void {
-  const master = artifacts.find((artifact) => artifact.level === 'master' && artifact.status === 'active');
+  const master = artifacts.find(
+    (artifact) => artifact.level === 'master' && artifact.status === 'active'
+  );
   if (!master) return;
   const novel = getNovel(novelId);
   if (!novel) throw new OutlineError('OUTLINE_NOVEL_NOT_FOUND', 'novel not found');
   if ((novel.globalOutline || '') !== master.content) {
-    throw new OutlineError('OUTLINE_MIRROR_DIVERGED', 'active master and global outline mirror diverged');
+    throw new OutlineError(
+      'OUTLINE_MIRROR_DIVERGED',
+      'active master and global outline mirror diverged'
+    );
   }
 }
 
@@ -269,23 +304,33 @@ function validationIssue(input: {
   artifacts: readonly OutlineArtifact[];
 }): { code: string; detail: string } | undefined {
   const { target, artifacts } = input;
-  const activeMaster = artifacts.find((artifact) => artifact.level === 'master' && artifact.status === 'active');
+  const activeMaster = artifacts.find(
+    (artifact) => artifact.level === 'master' && artifact.status === 'active'
+  );
   if (target.level !== 'master' && !activeMaster) {
     return { code: 'OUTLINE_MASTER_REQUIRED', detail: 'active master required' };
   }
-  const activeVolumes = artifacts.filter((artifact) => artifact.level === 'volume' && artifact.status === 'active');
+  const activeVolumes = artifacts.filter(
+    (artifact) => artifact.level === 'volume' && artifact.status === 'active'
+  );
   if (target.level === 'chapter' && target.core && activeVolumes.length === 0) {
-    return { code: 'OUTLINE_VOLUME_REQUIRED', detail: 'active volume required for structured chapter outline' };
+    return {
+      code: 'OUTLINE_VOLUME_REQUIRED',
+      detail: 'active volume required for structured chapter outline',
+    };
   }
-  const upstreamNodeIds = target.level === 'master'
-    ? []
-    : target.level === 'volume'
-      ? activeMaster?.core?.nodes.map((node) => node.id) || []
-      : activeVolumes.flatMap((artifact) => artifact.core?.nodes.map((node) => node.id) || []);
+  const upstreamNodeIds =
+    target.level === 'master'
+      ? []
+      : target.level === 'volume'
+        ? activeMaster?.core?.nodes.map((node) => node.id) || []
+        : activeVolumes.flatMap((artifact) => artifact.core?.nodes.map((node) => node.id) || []);
   const result = validateOutlineHierarchy({
     artifact: target,
     upstreamNodeIds,
-    siblingScopes: artifacts.filter((artifact) => artifact.status === 'active' && artifact.id !== target.id),
+    siblingScopes: artifacts.filter(
+      (artifact) => artifact.status === 'active' && artifact.id !== target.id
+    ),
     characterIds: listCharacters(target.novelId).map((character) => character.id),
     foreshadowings: listForeshadowings(target.novelId).map((promise) => ({
       id: promise.id,
@@ -299,11 +344,12 @@ function validationIssue(input: {
 
 function refFor(artifact: OutlineArtifact): CreativeArtifactRef {
   return {
-    kind: artifact.level === 'master'
-      ? 'master-outline'
-      : artifact.level === 'volume'
-        ? 'volume-outline'
-        : 'chapter-outline',
+    kind:
+      artifact.level === 'master'
+        ? 'master-outline'
+        : artifact.level === 'volume'
+          ? 'volume-outline'
+          : 'chapter-outline',
     id: artifact.id,
     version: 1,
   };
@@ -313,15 +359,25 @@ function markOutlineReviewRequired(novelId: string, refs: readonly CreativeArtif
   const unique = new Map(refs.map((ref) => [`${ref.kind}:${ref.id}:${ref.version}`, ref]));
   const now = Date.now();
   for (const ref of unique.values()) {
-    getDb().prepare(`
+    getDb()
+      .prepare(
+        `
       INSERT INTO artifact_review_requirements (
         id, novel_id, artifact_kind, artifact_id, artifact_version,
         source_candidate_id, reason, status, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, NULL, ?, 'review-required', ?, ?)
-    `).run(
-      generateId(), novelId, ref.kind, ref.id, ref.version,
-      'upstream outline changed', now, now,
-    );
+    `
+      )
+      .run(
+        generateId(),
+        novelId,
+        ref.kind,
+        ref.id,
+        ref.version,
+        'upstream outline changed',
+        now,
+        now
+      );
   }
 }
 
@@ -330,7 +386,10 @@ export interface OutlineActivationResult {
   demotedIds: string[];
 }
 
-function activateOutlineArtifactInTransactionResult(novelId: string, id: string): OutlineActivationResult & { changed: boolean } {
+function activateOutlineArtifactInTransactionResult(
+  novelId: string,
+  id: string
+): OutlineActivationResult & { changed: boolean } {
   const target = getOutlineArtifact(id, novelId);
   if (!target) throw new OutlineError('OUTLINE_NOT_FOUND', 'outline not found');
   const artifacts = listOutlineArtifacts(novelId);
@@ -345,25 +404,37 @@ function activateOutlineArtifactInTransactionResult(novelId: string, id: string)
   if (target.level === 'master') {
     for (const artifact of artifacts) {
       if (artifact.level === 'master' && artifact.status === 'active' && artifact.id !== id) {
-        getDb().prepare(
-          "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?",
-        ).run(now, artifact.id, novelId);
+        getDb()
+          .prepare(
+            "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?"
+          )
+          .run(now, artifact.id, novelId);
         archivedIds.push(artifact.id);
       }
     }
-    getDb().prepare(
-      "UPDATE outline_artifacts SET status = 'active', updated_at = ? WHERE id = ? AND novel_id = ?",
-    ).run(now, id, novelId);
+    getDb()
+      .prepare(
+        "UPDATE outline_artifacts SET status = 'active', updated_at = ? WHERE id = ? AND novel_id = ?"
+      )
+      .run(now, id, novelId);
     const novel = getNovel(novelId);
     if (!novel) throw new OutlineError('OUTLINE_NOT_FOUND', 'novel not found');
-    getDb().prepare('UPDATE novels SET global_outline = ?, updated_at = ? WHERE id = ?').run(target.content, now, novelId);
+    getDb()
+      .prepare('UPDATE novels SET global_outline = ?, updated_at = ? WHERE id = ?')
+      .run(target.content, now, novelId);
     const fingerprint = outlineMasterBaseFingerprint(novelId, novel.worldRules || '', target);
     const reviewRefs: CreativeArtifactRef[] = [];
     for (const artifact of artifacts) {
-      if (artifact.level !== 'master' && artifact.status === 'active' && artifact.baseFingerprint !== fingerprint) {
-        getDb().prepare(
-          "UPDATE outline_artifacts SET status = 'candidate', updated_at = ? WHERE id = ? AND novel_id = ?",
-        ).run(now, artifact.id, novelId);
+      if (
+        artifact.level !== 'master' &&
+        artifact.status === 'active' &&
+        artifact.baseFingerprint !== fingerprint
+      ) {
+        getDb()
+          .prepare(
+            "UPDATE outline_artifacts SET status = 'candidate', updated_at = ? WHERE id = ? AND novel_id = ?"
+          )
+          .run(now, artifact.id, novelId);
         demotedIds.push(artifact.id);
         reviewRefs.push(refFor(artifact));
       }
@@ -378,23 +449,29 @@ function activateOutlineArtifactInTransactionResult(novelId: string, id: string)
 
   for (const artifact of artifacts) {
     if (
-      artifact.id !== id
-      && artifact.level === target.level
-      && artifact.status === 'active'
-      && stableOutlineScope(artifact.scope) === stableOutlineScope(target.scope)
+      artifact.id !== id &&
+      artifact.level === target.level &&
+      artifact.status === 'active' &&
+      stableOutlineScope(artifact.scope) === stableOutlineScope(target.scope)
     ) {
-      getDb().prepare(
-        "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?",
-      ).run(now, artifact.id, novelId);
+      getDb()
+        .prepare(
+          "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?"
+        )
+        .run(now, artifact.id, novelId);
       archivedIds.push(artifact.id);
     }
   }
-  const master = artifacts.find((artifact) => artifact.level === 'master' && artifact.status === 'active')!;
+  const master = artifacts.find(
+    (artifact) => artifact.level === 'master' && artifact.status === 'active'
+  )!;
   const novel = getNovel(novelId)!;
   const fingerprint = outlineMasterBaseFingerprint(novelId, novel.worldRules || '', master);
-  getDb().prepare(
-    "UPDATE outline_artifacts SET status = 'active', base_fingerprint = ?, updated_at = ? WHERE id = ? AND novel_id = ?",
-  ).run(fingerprint, now, id, novelId);
+  getDb()
+    .prepare(
+      "UPDATE outline_artifacts SET status = 'active', base_fingerprint = ?, updated_at = ? WHERE id = ? AND novel_id = ?"
+    )
+    .run(fingerprint, now, id, novelId);
   if (target.level === 'volume') {
     const linked = buildOutlineImpactReport({
       proposedUpstreamNodeIds: target.core?.nodes.map((node) => node.id) || [],
@@ -405,7 +482,10 @@ function activateOutlineArtifactInTransactionResult(novelId: string, id: string)
   return { archivedIds, demotedIds, changed: true };
 }
 
-export function activateOutlineArtifactInTransaction(novelId: string, id: string): OutlineActivationResult {
+export function activateOutlineArtifactInTransaction(
+  novelId: string,
+  id: string
+): OutlineActivationResult {
   const result = activateOutlineArtifactInTransactionResult(novelId, id);
   return { archivedIds: result.archivedIds, demotedIds: result.demotedIds };
 }
@@ -423,11 +503,15 @@ export function archiveOutlineArtifact(novelId: string, id: string): { archived:
     const artifacts = listOutlineArtifacts(novelId);
     assertOutlineMirrorIntegrity(novelId, artifacts);
     if (target.status === 'archived') return { archived: false, changed: false };
-    getDb().prepare(
-      "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?",
-    ).run(Date.now(), id, novelId);
+    getDb()
+      .prepare(
+        "UPDATE outline_artifacts SET status = 'archived', updated_at = ? WHERE id = ? AND novel_id = ?"
+      )
+      .run(Date.now(), id, novelId);
     if (target.level === 'master' && target.status === 'active') {
-      getDb().prepare("UPDATE novels SET global_outline = '', updated_at = ? WHERE id = ?").run(Date.now(), novelId);
+      getDb()
+        .prepare("UPDATE novels SET global_outline = '', updated_at = ? WHERE id = ?")
+        .run(Date.now(), novelId);
     }
     return { archived: true, changed: true };
   });

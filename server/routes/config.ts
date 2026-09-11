@@ -1,6 +1,14 @@
 import { logger } from '../logger';
 import type { Express } from 'express';
-import { getConfig, getLastConfigError, reloadConfig, saveConfig, updateCachedApiKey, getLivenessStatus, setLivenessStatus } from '../lib/config';
+import {
+  getConfig,
+  getLastConfigError,
+  reloadConfig,
+  saveConfig,
+  updateCachedApiKey,
+  getLivenessStatus,
+  setLivenessStatus,
+} from '../lib/config';
 import { mergePromptTemplates } from '../../shared/config/prompt-templates';
 import { validate, configConnectionSchema, configSchema } from '../validation';
 import { governedGenerateText as generateText } from '../helpers/governed-llm';
@@ -146,14 +154,16 @@ export function registerConfigRoutes(app: Express) {
             connectionOk: false,
             selectedModelValid: false,
             modelTested: false,
-            message: models.length > 0
-              ? '请从已发现的模型中选择一个'
-              : '请输入模型名称',
+            message: models.length > 0 ? '请从已发现的模型中选择一个' : '请输入模型名称',
           };
         }
 
         // If discovery succeeded but the model is not in the list, don't probe.
-        if (modelDiscovery === 'available' && models.length > 0 && !models.includes(effectiveConfig.model)) {
+        if (
+          modelDiscovery === 'available' &&
+          models.length > 0 &&
+          !models.includes(effectiveConfig.model)
+        ) {
           return {
             ...responseBase,
             ok: false,
@@ -232,7 +242,8 @@ async function triggerStartupLivenessCheck() {
         maxTokens: CONNECTION_PROBE_MAX_TOKENS,
         maxAttempts: 1, // Only 1 attempt during startup check
         signal,
-      }));
+      })
+    );
     setLivenessStatus('connected');
     logger.info('LLM startup liveness check: Connected successfully.');
   } catch (_e) {

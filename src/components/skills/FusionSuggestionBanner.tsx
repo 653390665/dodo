@@ -21,7 +21,9 @@ export function FusionSuggestionBanner({
     <div className="shrink-0 rounded-2xl border border-theme-accent/30 bg-theme-accent/5 px-4 py-3 text-sm text-theme-text flex items-start gap-3">
       <Sparkles size={18} className="text-theme-accent mt-0.5 shrink-0" />
       <div>
-        这两张卡长期配合稳定，建议尝试融合：以《{mainSkill.name}》为主卡（{getSkillRoleLabel(mainSkill.primaryDimension)}），吸收《{supportSkill.name}》的增强特征（{getSkillRoleLabel(supportSkill.primaryDimension)}）。
+        这两张卡长期配合稳定，建议尝试融合：以《{mainSkill.name}》为主卡（
+        {getSkillRoleLabel(mainSkill.primaryDimension)}），吸收《{supportSkill.name}》的增强特征（
+        {getSkillRoleLabel(supportSkill.primaryDimension)}）。
         {acceptedCoMountCount != null && (
           <span className="ml-2 text-theme-muted">共挂采纳 {acceptedCoMountCount} 次</span>
         )}

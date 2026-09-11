@@ -31,7 +31,7 @@ interface FusionSuggestion {
 
 function deriveFusionSuggestions(
   populated: SkillDimension[],
-  _missing: SkillDimension[],
+  _missing: SkillDimension[]
 ): FusionSuggestion[] {
   const suggestions: FusionSuggestion[] = [];
   const complementary: Array<[SkillDimension, SkillDimension, string]> = [
@@ -63,12 +63,17 @@ interface SkillMapPanelProps {
 
 export function SkillMapPanel({ skills }: SkillMapPanelProps) {
   const stats = useMemo(() => {
-    const dimMap = new Map<SkillDimension, { count: number; totalScore: number; topName: string; topScore: number }>();
+    const dimMap = new Map<
+      SkillDimension,
+      { count: number; totalScore: number; topName: string; topScore: number }
+    >();
     for (const dim of ALL_DIMENSIONS) {
       dimMap.set(dim, { count: 0, totalScore: 0, topName: '', topScore: 0 });
     }
     for (const skill of skills) {
-      const tags = new Set(skill.dimensionTags || (skill.primaryDimension ? [skill.primaryDimension] : []));
+      const tags = new Set(
+        skill.dimensionTags || (skill.primaryDimension ? [skill.primaryDimension] : [])
+      );
       for (const tag of tags) {
         const entry = dimMap.get(tag);
         if (!entry) continue;
@@ -94,7 +99,9 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
 
     const populated = dimensionStats.filter((d) => d.count > 0).map((d) => d.dimension);
     const missing = dimensionStats.filter((d) => d.count === 0).map((d) => d.dimension);
-    const weak = dimensionStats.filter((d) => d.count > 0 && d.avgScore < 60).map((d) => d.dimension);
+    const weak = dimensionStats
+      .filter((d) => d.count > 0 && d.avgScore < 60)
+      .map((d) => d.dimension);
     const fusionSuggestions = deriveFusionSuggestions(populated, missing);
 
     const totalSkills = skills.length;
@@ -104,11 +111,23 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
     const coldStartScores = skills
       .map((skill) => getSkillScoreChannels(skill).coldStartScore)
       .filter((score): score is number => score !== null);
-    const avgColdStart = coldStartScores.length > 0
-      ? Math.round(coldStartScores.reduce((sum, score) => sum + score, 0) / coldStartScores.length)
-      : null;
+    const avgColdStart =
+      coldStartScores.length > 0
+        ? Math.round(
+            coldStartScores.reduce((sum, score) => sum + score, 0) / coldStartScores.length
+          )
+        : null;
 
-    return { dimensionStats, populated, missing, weak, fusionSuggestions, totalSkills, mountedCount: observedSkills.length, avgColdStart };
+    return {
+      dimensionStats,
+      populated,
+      missing,
+      weak,
+      fusionSuggestions,
+      totalSkills,
+      mountedCount: observedSkills.length,
+      avgColdStart,
+    };
   }, [skills]);
 
   if (skills.length === 0) return null;
@@ -138,10 +157,14 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
 
       {/* Dimension bars */}
       <div className="space-y-2">
-        <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">能力维度分布（冷启动分）</div>
+        <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">
+          能力维度分布（冷启动分）
+        </div>
         {stats.dimensionStats.map((ds) => (
           <div key={ds.dimension} className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold w-10 shrink-0 ${ds.count === 0 ? 'text-theme-muted/40' : 'text-theme-text'}`}>
+            <span
+              className={`text-[10px] font-bold w-10 shrink-0 ${ds.count === 0 ? 'text-theme-muted/40' : 'text-theme-text'}`}
+            >
               {ds.label}
             </span>
             <div className="flex-1 h-2 rounded-full bg-theme-sidebar overflow-hidden">
@@ -149,7 +172,14 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
                 className="h-full rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, ds.count * 25)}%`,
-                  backgroundColor: ds.count === 0 ? '#e5e7eb' : ds.avgScore >= 70 ? '#059669' : ds.avgScore >= 50 ? '#d97706' : '#dc2626',
+                  backgroundColor:
+                    ds.count === 0
+                      ? '#e5e7eb'
+                      : ds.avgScore >= 70
+                        ? '#059669'
+                        : ds.avgScore >= 50
+                          ? '#d97706'
+                          : '#dc2626',
                 }}
               />
             </div>
@@ -179,7 +209,9 @@ export function SkillMapPanel({ skills }: SkillMapPanelProps) {
       {/* Fusion suggestions */}
       {stats.fusionSuggestions.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">可融合路径</div>
+          <div className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">
+            可融合路径
+          </div>
           {stats.fusionSuggestions.map((s, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[10px] text-theme-accent">
               <Zap size={10} />

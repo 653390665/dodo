@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { Novel, CopilotActionKey, AssistantLaunchContext, ContinuationEditorLaunchState, ChapterMetadata, ViewType, ReviewIssueStatus } from '../../shared/types';
-import type { CapabilityLaunchState, CapabilityUtilityResult, WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../shared/types';
+import {
+  Novel,
+  CopilotActionKey,
+  AssistantLaunchContext,
+  ContinuationEditorLaunchState,
+  ChapterMetadata,
+  ViewType,
+  ReviewIssueStatus,
+} from '../../shared/types';
+import type {
+  CapabilityLaunchState,
+  CapabilityUtilityResult,
+  WritingStyleCandidate,
+  WritingStyleMode,
+  WritingStyleResolution,
+} from '../../shared/types';
 import type { ProductEventSourceType } from '../../shared/types/product-events';
 import { cn } from '../lib/utils';
 import { fetchLlmConfig } from '../lib/config-client';
@@ -37,21 +51,31 @@ import { useEditorUiState } from '../lib/hooks/useEditorUiState';
 import { useEditorContinuationPacks } from '../lib/hooks/useEditorContinuationPacks';
 import { toast } from '../lib/toast';
 import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
-import { confirmWritingStyle, resolveWritingStyle, WritingStyleRequestError } from '../lib/writing-style-client';
+import {
+  confirmWritingStyle,
+  resolveWritingStyle,
+  WritingStyleRequestError,
+} from '../lib/writing-style-client';
 import { recordProductEvent } from '../lib/product-events-client';
 import { getTrustedSessionCardIds, type GovernanceStage } from '../lib/capability-governance';
 import { executeCapability } from '../lib/capability-client';
 import { resolveEditorCapabilityLaunch } from '../lib/capability-launch';
-import { buildChapterCapabilityWorkflowMeta, getChapterOverlayCapacity } from '../lib/chapter-capability-state';
+import {
+  buildChapterCapabilityWorkflowMeta,
+  getChapterOverlayCapacity,
+} from '../lib/chapter-capability-state';
 import { buildCapabilityPreviewApplication } from '../lib/capability-preview-apply';
 import { getProjectCapabilityCardCount } from '../lib/capability-card-count';
 import { buildEffectiveCapabilitySummary } from '../lib/capability-stage-cards';
-import { createChapterVersion, getChapter as getChapterById, updateChapter } from '../lib/chapter-client';
+import {
+  createChapterVersion,
+  getChapter as getChapterById,
+  updateChapter,
+} from '../lib/chapter-client';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/public-skill-catalog';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow';
 import { deriveChapterReviewState, deriveReviewGate } from '../../shared/lib/review-issues';
-
 
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile';
 import { completeChapter, acceptChapterRisk } from '../lib/chapter-completion-client';
@@ -71,8 +95,14 @@ interface EditorViewProps {
   onBack: () => void;
   onOpenAssistant?: (context: AssistantLaunchContext) => void;
   onOpenBibleAssistant?: (prompt: string) => void;
-  onChapterContextChange?: (context: { chapterId?: string; writingStyleFingerprint?: string }) => void;
-  onNavigate?: (view: ViewType, context?: { targetChapterId?: string; stage?: GovernanceStage }) => void;
+  onChapterContextChange?: (context: {
+    chapterId?: string;
+    writingStyleFingerprint?: string;
+  }) => void;
+  onNavigate?: (
+    view: ViewType,
+    context?: { targetChapterId?: string; stage?: GovernanceStage }
+  ) => void;
 }
 
 type CapabilityUtilityRunRequest = {
@@ -82,7 +112,18 @@ type CapabilityUtilityRunRequest = {
   runToken: string;
 };
 
-export function EditorView({ novel, initialChapterId, launchState = null, onLaunchConsumed, capabilityLaunchState = null, onCapabilityLaunchConsumed, onBack, onOpenBibleAssistant, onChapterContextChange, onNavigate }: EditorViewProps) {
+export function EditorView({
+  novel,
+  initialChapterId,
+  launchState = null,
+  onLaunchConsumed,
+  capabilityLaunchState = null,
+  onCapabilityLaunchConsumed,
+  onBack,
+  onOpenBibleAssistant,
+  onChapterContextChange,
+  onNavigate,
+}: EditorViewProps) {
   // --- 1. Basic State & Ref Hooks (Declared at the very top) ---
   const {
     isFullscreen,
@@ -100,10 +141,10 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   } = useEditorUiState(novel.id);
   const [projectTechniqueId, setProjectTechniqueId] = useState<string | null>(null);
 
-  const {
-    continuationPacks,
-    selectedContinuationPackId,
-  } = useEditorContinuationPacks(novel.id, launchState);
+  const { continuationPacks, selectedContinuationPackId } = useEditorContinuationPacks(
+    novel.id,
+    launchState
+  );
 
   const approvedOutlinePackId = React.useMemo(() => {
     if (!selectedContinuationPackId) return '';
@@ -118,7 +159,11 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   }, [continuationPacks, launchState]);
 
   const launchProductionIntent = React.useMemo(() => {
-    if (!launchState || (launchState.source !== 'world-overview' && launchState.source !== 'continuation-import')) return '';
+    if (
+      !launchState ||
+      (launchState.source !== 'world-overview' && launchState.source !== 'continuation-import')
+    )
+      return '';
     const selectedPack = continuationPacks.find((pack) => pack.id === launchState.approvedPackId);
     if (!selectedPack || selectedContinuationPackId !== launchState.approvedPackId) return '';
     return launchState.prefillIntent?.trim() || buildCreationIntentDraft(selectedPack);
@@ -129,24 +174,39 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   // 011 状态直传值迁移：创作意图入 user-intent-store（AW/PlanningTab 改订阅，透传消亡）
   const userIntent = useUserIntentStore((state) => state.userIntent);
   const setUserIntent = useUserIntentStore((state) => state.setUserIntent);
-  const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>('unknown');
-  const [embeddingStatus, setEmbeddingStatus] = useState<'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'>('unknown');
+  const [connectionState, setConnectionState] = useState<'missing' | 'unknown' | 'connected'>(
+    'unknown'
+  );
+  const [embeddingStatus, setEmbeddingStatus] = useState<
+    'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'
+  >('unknown');
   // 005-S4：写法确认展示态入 store；留存化守卫 refs（下方）保留本地。
   const writingStyleResolution = useWritingStyleStore((state) => state.resolution);
-  const setWritingStyleResolution = useWritingStyleStore((state) => state.setWritingStyleResolution);
+  const setWritingStyleResolution = useWritingStyleStore(
+    (state) => state.setWritingStyleResolution
+  );
   const writingStyleCandidates = useWritingStyleStore((state) => state.candidates);
-  const setWritingStyleCandidates = useWritingStyleStore((state) => state.setWritingStyleCandidates);
+  const setWritingStyleCandidates = useWritingStyleStore(
+    (state) => state.setWritingStyleCandidates
+  );
   const writingStyleError = useWritingStyleStore((state) => state.error);
   const setWritingStyleError = useWritingStyleStore((state) => state.setWritingStyleError);
-  const [capabilityUtilityResult, setCapabilityUtilityResult] = useState<CapabilityUtilityResult | null>(null);
+  const [capabilityUtilityResult, setCapabilityUtilityResult] =
+    useState<CapabilityUtilityResult | null>(null);
   const [capabilityUtilityError, setCapabilityUtilityError] = useState<string | null>(null);
   const [isCapabilityUtilityRunning, setIsCapabilityUtilityRunning] = useState(false);
-  const [capabilityUtilityRunningAssetId, setCapabilityUtilityRunningAssetId] = useState<string | null>(null);
-  const [capabilityUtilityRetry, setCapabilityUtilityRetry] = useState<CapabilityUtilityRunRequest | null>(null);
-  const [capabilityUtilitySelection, setCapabilityUtilitySelection] = useState<{ start: number; end: number } | undefined>();
+  const [capabilityUtilityRunningAssetId, setCapabilityUtilityRunningAssetId] = useState<
+    string | null
+  >(null);
+  const [capabilityUtilityRetry, setCapabilityUtilityRetry] =
+    useState<CapabilityUtilityRunRequest | null>(null);
+  const [capabilityUtilitySelection, setCapabilityUtilitySelection] = useState<
+    { start: number; end: number } | undefined
+  >();
   const [capabilityUtilitySuccess, setCapabilityUtilitySuccess] = useState<string | null>(null);
   const [completionResult, setCompletionResult] = useState<ChapterCompletionResult | null>(null);
-  const [completionFactCandidate, setCompletionFactCandidate] = useState<ChapterFactCandidate | null>(null);
+  const [completionFactCandidate, setCompletionFactCandidate] =
+    useState<ChapterFactCandidate | null>(null);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [completionChapterId, setCompletionChapterId] = useState<string | null>(null);
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
@@ -178,17 +238,27 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   const autoStartedProductionLaunchTokenRef = useRef<number | null>(null);
   const prevTargetChapterIdRef = useRef<string | undefined>(undefined);
   const candidateBannerRef = React.useRef<HTMLDivElement | null>(null);
-  const autoPolishAfterAuditRef = useRef<{ chapterId: string; launchToken: number; previousAuditCompletedAt: number } | null>(null);
+  const autoPolishAfterAuditRef = useRef<{
+    chapterId: string;
+    launchToken: number;
+    previousAuditCompletedAt: number;
+  } | null>(null);
   const autoPolishAuditStartedRef = useRef(false);
   const restoredLaunchSessionCardsRef = useRef<number | null>(null);
   const consumedCapabilityLaunchTokenRef = useRef<number | null>(null);
-  const capabilityUtilityRequestRef = useRef<{ requestId: string; controller: AbortController } | null>(null);
+  const capabilityUtilityRequestRef = useRef<{
+    requestId: string;
+    controller: AbortController;
+  } | null>(null);
   const capabilityUtilityContextVersionRef = useRef(0);
   const capabilityUtilityContextKeyRef = useRef<string | null>(null);
-  const recordSkillUsageRef = useRef<((
-    userAction: 'accepted' | 'revised' | 'rejected',
-    options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] },
-  ) => Promise<void>) | null>(null);
+  const recordSkillUsageRef = useRef<
+    | ((
+        userAction: 'accepted' | 'revised' | 'rejected',
+        options?: { fitScore?: number; auditScore?: number; notes?: string; skillIds?: string[] }
+      ) => Promise<void>)
+    | null
+  >(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const statusTimeFormatter = React.useMemo(
@@ -197,16 +267,19 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: false
+        hour12: false,
       }),
     []
   );
 
-
   // --- 2. Custom Hooks (Invoked in correct dependency order) ---
   const {
-    chapters, setChapters,
-    currentChapter, setCurrentChapter, selectChapter, chapterLoading,
+    chapters,
+    setChapters,
+    currentChapter,
+    setCurrentChapter,
+    selectChapter,
+    chapterLoading,
     characters,
     locations,
     items,
@@ -215,10 +288,15 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     timelineEvents,
     foreshadowings,
     librarySkills,
-    mountedSkillLoadout, setMountedSkillLoadout, pendingSkillIds, setPendingSkillIds,
+    mountedSkillLoadout,
+    setMountedSkillLoadout,
+    pendingSkillIds,
+    setPendingSkillIds,
     relationships,
-    projectPreferenceProfile, setProjectPreferenceProfile,
-    globalOutline, setGlobalOutline,
+    projectPreferenceProfile,
+    setProjectPreferenceProfile,
+    globalOutline,
+    setGlobalOutline,
     databaseGeneration,
     isLoading: isEditorDataLoading,
   } = useEditorData(novel.id, initialChapterId);
@@ -233,70 +311,90 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     setProjectPreferenceProfile(normalizeProjectPreferenceProfile(novel.projectPreferenceProfile));
   }, [novel.projectPreferenceProfile, setProjectPreferenceProfile]);
 
-  const persistChapterCapabilityState = React.useCallback(async (state: {
-    techniqueIds: string[];
-    overlayCardIds: string[];
-  }) => {
-    if (!currentChapter) throw new Error('当前章节不存在');
-    const chapterId = currentChapter.id;
-    const writeGeneration = requireEditorDatabaseGeneration();
-    const previous = currentChapter.workflowMeta?.capabilityState;
-    const techniqueVersions = Object.fromEntries(state.techniqueIds.flatMap((id) => {
-      const version = getCatalogCapabilityManifest(id)?.version ?? previous?.techniqueVersions?.[id];
-      return version === undefined ? [] : [[id, version]];
-    }));
-    const overlayVersions = Object.fromEntries(state.overlayCardIds.flatMap((id) => {
-      const skill = librarySkills.find((entry) => entry.id === id || entry.parentSkillId === id);
-      const version = skill?.version ?? getCatalogCapabilityManifest(id)?.version ?? previous?.overlayVersions?.[id];
-      return version === undefined ? [] : [[id, version]];
-    }));
-    const workflowMeta = buildChapterCapabilityWorkflowMeta(currentChapter.workflowMeta, {
-      ...state,
-      novelId: novel.id,
-      databaseGeneration: writeGeneration,
-      techniqueVersions,
-      overlayVersions,
-    });
-    const saved = await updateChapter(chapterId, { workflowMeta }, writeGeneration);
-    if (!saved) throw new Error('章节能力配置保存失败');
-    setCurrentChapter((entry) => entry?.id === chapterId ? { ...entry, workflowMeta } : entry);
-    setChapters((entries) => entries.map((entry) => entry.id === chapterId ? { ...entry, workflowMeta } : entry));
-  }, [currentChapter, librarySkills, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]);
-  const persistChapterOverlayIds = React.useCallback((overlayCardIds: string[]) => persistChapterCapabilityState({
-    techniqueIds: currentChapter?.workflowMeta?.capabilityState?.techniqueIds || [],
-    overlayCardIds,
-  }), [currentChapter?.workflowMeta?.capabilityState?.techniqueIds, persistChapterCapabilityState]);
+  const persistChapterCapabilityState = React.useCallback(
+    async (state: { techniqueIds: string[]; overlayCardIds: string[] }) => {
+      if (!currentChapter) throw new Error('当前章节不存在');
+      const chapterId = currentChapter.id;
+      const writeGeneration = requireEditorDatabaseGeneration();
+      const previous = currentChapter.workflowMeta?.capabilityState;
+      const techniqueVersions = Object.fromEntries(
+        state.techniqueIds.flatMap((id) => {
+          const version =
+            getCatalogCapabilityManifest(id)?.version ?? previous?.techniqueVersions?.[id];
+          return version === undefined ? [] : [[id, version]];
+        })
+      );
+      const overlayVersions = Object.fromEntries(
+        state.overlayCardIds.flatMap((id) => {
+          const skill = librarySkills.find(
+            (entry) => entry.id === id || entry.parentSkillId === id
+          );
+          const version =
+            skill?.version ??
+            getCatalogCapabilityManifest(id)?.version ??
+            previous?.overlayVersions?.[id];
+          return version === undefined ? [] : [[id, version]];
+        })
+      );
+      const workflowMeta = buildChapterCapabilityWorkflowMeta(currentChapter.workflowMeta, {
+        ...state,
+        novelId: novel.id,
+        databaseGeneration: writeGeneration,
+        techniqueVersions,
+        overlayVersions,
+      });
+      const saved = await updateChapter(chapterId, { workflowMeta }, writeGeneration);
+      if (!saved) throw new Error('章节能力配置保存失败');
+      setCurrentChapter((entry) => (entry?.id === chapterId ? { ...entry, workflowMeta } : entry));
+      setChapters((entries) =>
+        entries.map((entry) => (entry.id === chapterId ? { ...entry, workflowMeta } : entry))
+      );
+    },
+    [
+      currentChapter,
+      librarySkills,
+      novel.id,
+      requireEditorDatabaseGeneration,
+      setChapters,
+      setCurrentChapter,
+    ]
+  );
+  const persistChapterOverlayIds = React.useCallback(
+    (overlayCardIds: string[]) =>
+      persistChapterCapabilityState({
+        techniqueIds: currentChapter?.workflowMeta?.capabilityState?.techniqueIds || [],
+        overlayCardIds,
+      }),
+    [currentChapter?.workflowMeta?.capabilityState?.techniqueIds, persistChapterCapabilityState]
+  );
   const handleWorkspaceNavigate = React.useCallback(
     (view: ViewType) => onNavigate?.(view, { targetChapterId: currentChapter?.id }),
-    [currentChapter?.id, onNavigate],
+    [currentChapter?.id, onNavigate]
   );
   const handleOpenPolishCards = React.useCallback(() => {
     onNavigate?.('skills', { targetChapterId: currentChapter?.id, stage: 'style-polish' });
   }, [currentChapter?.id, onNavigate]);
 
-  const hasWorldBibleData = Boolean(globalOutline.trim()) || [
-    characters,
-    locations,
-    items,
-    factions,
-    powerLevels,
-    timelineEvents,
-    relationships,
-  ].some((entries) => entries.length > 0);
+  const hasWorldBibleData =
+    Boolean(globalOutline.trim()) ||
+    [characters, locations, items, factions, powerLevels, timelineEvents, relationships].some(
+      (entries) => entries.length > 0
+    );
   const worldBibleState: 'missing' | 'unknown' | 'ready' = isEditorDataLoading
     ? 'unknown'
-    : hasWorldBibleData ? 'ready' : 'missing';
+    : hasWorldBibleData
+      ? 'ready'
+      : 'missing';
 
-  const handleUpdateContentRef = React.useRef<((newContent: string, isProgrammatic?: boolean) => void) | null>(null);
+  const handleUpdateContentRef = React.useRef<
+    ((newContent: string, isProgrammatic?: boolean) => void) | null
+  >(null);
 
   const handleUndoRedo = React.useCallback((content: string) => {
     handleUpdateContentRef.current?.(content, true);
   }, []);
 
-  const {
-    pushToUndoHistory,
-    resetUndoHistory,
-  } = useChapterUndo({
+  const { pushToUndoHistory, resetUndoHistory } = useChapterUndo({
     currentContent: currentChapter?.content || '',
     isContentLockedRef: isGeneratingContentRef,
     onUndoRedo: handleUndoRedo,
@@ -321,7 +419,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
   const writingStyleSessionCardIds = React.useMemo(
     () => [...new Set(stackedDeconstructionCardIds)].slice(0, 6),
-    [stackedDeconstructionCardIds],
+    [stackedDeconstructionCardIds]
   );
   const writingStyleFingerprint = writingStyleResolution?.confirmed
     ? writingStyleResolution.fingerprint
@@ -345,56 +443,98 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       setWritingStyleResolution(null);
       setWritingStyleError('本章使用卡已变化，请重新确认本次写法。');
     });
-  }, [isSessionStateLoaded, setWritingStyleError, setWritingStyleResolution, writingStyleResolution?.confirmed, writingStyleSessionCardSignature]);
-  const pendingWritingStyleActionRef = React.useRef<((fingerprint: string) => Promise<void>) | null>(null);
-  const applyWritingStyleRequirement = React.useCallback((data: {
-    resolution?: WritingStyleResolution;
-    candidates?: WritingStyleCandidate[];
-    retry?: (fingerprint: string) => Promise<void>;
-  }) => {
-    if (data.resolution) setWritingStyleResolution(data.resolution);
-    if (data.candidates) setWritingStyleCandidates(data.candidates);
-    pendingWritingStyleActionRef.current = data.retry || null;
-    setWritingStyleError(null);
-    if (data.resolution) {
-      void recordProductEvent({
-        eventName: 'writing_style_required', stage: 'drafting', result: 'success',
-        novelId: novel.id, chapterId: currentChapter?.id, objectId: data.resolution.fingerprint,
+  }, [
+    isSessionStateLoaded,
+    setWritingStyleError,
+    setWritingStyleResolution,
+    writingStyleResolution?.confirmed,
+    writingStyleSessionCardSignature,
+  ]);
+  const pendingWritingStyleActionRef = React.useRef<
+    ((fingerprint: string) => Promise<void>) | null
+  >(null);
+  const applyWritingStyleRequirement = React.useCallback(
+    (data: {
+      resolution?: WritingStyleResolution;
+      candidates?: WritingStyleCandidate[];
+      retry?: (fingerprint: string) => Promise<void>;
+    }) => {
+      if (data.resolution) setWritingStyleResolution(data.resolution);
+      if (data.candidates) setWritingStyleCandidates(data.candidates);
+      pendingWritingStyleActionRef.current = data.retry || null;
+      setWritingStyleError(null);
+      if (data.resolution) {
+        void recordProductEvent({
+          eventName: 'writing_style_required',
+          stage: 'drafting',
+          result: 'success',
+          novelId: novel.id,
+          chapterId: currentChapter?.id,
+          objectId: data.resolution.fingerprint,
+        });
+      }
+    },
+    [
+      currentChapter?.id,
+      novel.id,
+      setWritingStyleCandidates,
+      setWritingStyleError,
+      setWritingStyleResolution,
+    ]
+  );
+  const handleConfirmWritingStyle = React.useCallback(
+    async (mode: WritingStyleMode) => {
+      if (!currentChapter) throw new Error('当前章节不存在');
+      const startedAt = Date.now();
+      const writeGeneration = requireEditorDatabaseGeneration();
+      const response = await confirmWritingStyle(novel.id, {
+        chapterId: currentChapter.id,
+        databaseGeneration: writeGeneration,
+        mode,
+        continuationPackId: selectedContinuationPackId || undefined,
+        sessionCardIds: writingStyleSessionCardIds.length ? writingStyleSessionCardIds : undefined,
       });
-    }
-  }, [currentChapter?.id, novel.id, setWritingStyleCandidates, setWritingStyleError, setWritingStyleResolution]);
-  const handleConfirmWritingStyle = React.useCallback(async (mode: WritingStyleMode) => {
-    if (!currentChapter) throw new Error('当前章节不存在');
-    const startedAt = Date.now();
-    const writeGeneration = requireEditorDatabaseGeneration();
-    const response = await confirmWritingStyle(novel.id, {
-      chapterId: currentChapter.id,
-      databaseGeneration: writeGeneration,
-      mode,
-      continuationPackId: selectedContinuationPackId || undefined,
-      sessionCardIds: writingStyleSessionCardIds.length ? writingStyleSessionCardIds : undefined,
-    });
-    if (!response.resolution) throw new Error('写法确认响应不完整');
-    const confirmedResolution = response.resolution;
-    setWritingStyleResolution(confirmedResolution);
-    setWritingStyleCandidates(response.candidates || []);
-    setWritingStyleError(null);
-    setProjectPreferenceProfile((current) => current ? {
-      ...current,
-      writingStyleConfirmation: {
-        mode: confirmedResolution.mode,
-        fingerprint: confirmedResolution.fingerprint,
-        confirmedAt: Date.now(),
-      },
-    } : current);
-    confirmedWritingStyleFingerprintRef.current = response.resolution.fingerprint;
-    void recordProductEvent({
-      eventName: 'writing_style_confirmed', stage: 'drafting', result: 'success',
-      durationMs: Date.now() - startedAt, novelId: novel.id, chapterId: currentChapter?.id,
-      objectId: response.resolution.fingerprint,
-    });
-    return response.resolution.fingerprint;
-  }, [currentChapter, novel.id, requireEditorDatabaseGeneration, selectedContinuationPackId, setWritingStyleCandidates, setWritingStyleError, setWritingStyleResolution, writingStyleSessionCardIds, setProjectPreferenceProfile]);
+      if (!response.resolution) throw new Error('写法确认响应不完整');
+      const confirmedResolution = response.resolution;
+      setWritingStyleResolution(confirmedResolution);
+      setWritingStyleCandidates(response.candidates || []);
+      setWritingStyleError(null);
+      setProjectPreferenceProfile((current) =>
+        current
+          ? {
+              ...current,
+              writingStyleConfirmation: {
+                mode: confirmedResolution.mode,
+                fingerprint: confirmedResolution.fingerprint,
+                confirmedAt: Date.now(),
+              },
+            }
+          : current
+      );
+      confirmedWritingStyleFingerprintRef.current = response.resolution.fingerprint;
+      void recordProductEvent({
+        eventName: 'writing_style_confirmed',
+        stage: 'drafting',
+        result: 'success',
+        durationMs: Date.now() - startedAt,
+        novelId: novel.id,
+        chapterId: currentChapter?.id,
+        objectId: response.resolution.fingerprint,
+      });
+      return response.resolution.fingerprint;
+    },
+    [
+      currentChapter,
+      novel.id,
+      requireEditorDatabaseGeneration,
+      selectedContinuationPackId,
+      setWritingStyleCandidates,
+      setWritingStyleError,
+      setWritingStyleResolution,
+      writingStyleSessionCardIds,
+      setProjectPreferenceProfile,
+    ]
+  );
 
   useEffect(() => {
     confirmedWritingStyleFingerprintRef.current = null;
@@ -404,46 +544,75 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   useEffect(() => {
     if (isEditorDataLoading || !isSessionStateLoaded || !currentChapter) return;
     const requestSeq = ++writingStyleRequestSeqRef.current;
-    void Promise.resolve().then(() => resolveWritingStyle(novel.id, {
-      chapterId: currentChapter.id,
-      databaseGeneration: requireEditorDatabaseGeneration(),
-      continuationPackId: selectedContinuationPackId || undefined,
-      sessionCardIds: writingStyleSessionCardIds.length ? writingStyleSessionCardIds : undefined,
-    })).then((response) => {
-      if (requestSeq !== writingStyleRequestSeqRef.current || !response.resolution) return;
-      setWritingStyleError(null);
-      const previousFingerprint = confirmedWritingStyleFingerprintRef.current;
-      if (previousFingerprint && previousFingerprint !== response.resolution.fingerprint && !response.resolution.confirmed) {
-        void recordProductEvent({
-          eventName: 'writing_style_stale', stage: 'drafting', result: 'success',
-          novelId: novel.id, chapterId: currentChapter?.id, objectId: response.resolution.fingerprint,
-        });
-      }
-      confirmedWritingStyleFingerprintRef.current = response.resolution.confirmed
-        ? response.resolution.fingerprint
-        : null;
-      if (!response.resolution.confirmed && !requiredWritingStyleFingerprintsRef.current.has(response.resolution.fingerprint)) {
-        requiredWritingStyleFingerprintsRef.current.add(response.resolution.fingerprint);
-        void recordProductEvent({
-          eventName: 'writing_style_required', stage: 'drafting', result: 'success',
-          novelId: novel.id, chapterId: currentChapter?.id, objectId: response.resolution.fingerprint,
-        });
-      }
-      setWritingStyleResolution(response.resolution);
-      setWritingStyleCandidates(response.candidates || []);
-    }).catch((error) => {
-      if (requestSeq !== writingStyleRequestSeqRef.current) return;
-      if (error instanceof WritingStyleRequestError && error.sessionCardId && [
-        'UNKNOWN_SESSION_CARD', 'UNKNOWN_SESSION_CARD_TYPE', 'SESSION_CARD_NOT_RUNTIME_READY',
-        'SESSION_CARD_UNAUTHORIZED', 'SESSION_CARD_FORBIDDEN',
-      ].includes(error.code)) {
-        removeStackedDeconstructionCard(error.sessionCardId);
-        toast('一张失效拆书卡已移除，请重新确认写法', 'info');
-      }
-      setWritingStyleResolution(null);
-      setWritingStyleCandidates([]);
-      setWritingStyleError(error instanceof Error ? error.message : '写法解析失败');
-    });
+    void Promise.resolve()
+      .then(() =>
+        resolveWritingStyle(novel.id, {
+          chapterId: currentChapter.id,
+          databaseGeneration: requireEditorDatabaseGeneration(),
+          continuationPackId: selectedContinuationPackId || undefined,
+          sessionCardIds: writingStyleSessionCardIds.length
+            ? writingStyleSessionCardIds
+            : undefined,
+        })
+      )
+      .then((response) => {
+        if (requestSeq !== writingStyleRequestSeqRef.current || !response.resolution) return;
+        setWritingStyleError(null);
+        const previousFingerprint = confirmedWritingStyleFingerprintRef.current;
+        if (
+          previousFingerprint &&
+          previousFingerprint !== response.resolution.fingerprint &&
+          !response.resolution.confirmed
+        ) {
+          void recordProductEvent({
+            eventName: 'writing_style_stale',
+            stage: 'drafting',
+            result: 'success',
+            novelId: novel.id,
+            chapterId: currentChapter?.id,
+            objectId: response.resolution.fingerprint,
+          });
+        }
+        confirmedWritingStyleFingerprintRef.current = response.resolution.confirmed
+          ? response.resolution.fingerprint
+          : null;
+        if (
+          !response.resolution.confirmed &&
+          !requiredWritingStyleFingerprintsRef.current.has(response.resolution.fingerprint)
+        ) {
+          requiredWritingStyleFingerprintsRef.current.add(response.resolution.fingerprint);
+          void recordProductEvent({
+            eventName: 'writing_style_required',
+            stage: 'drafting',
+            result: 'success',
+            novelId: novel.id,
+            chapterId: currentChapter?.id,
+            objectId: response.resolution.fingerprint,
+          });
+        }
+        setWritingStyleResolution(response.resolution);
+        setWritingStyleCandidates(response.candidates || []);
+      })
+      .catch((error) => {
+        if (requestSeq !== writingStyleRequestSeqRef.current) return;
+        if (
+          error instanceof WritingStyleRequestError &&
+          error.sessionCardId &&
+          [
+            'UNKNOWN_SESSION_CARD',
+            'UNKNOWN_SESSION_CARD_TYPE',
+            'SESSION_CARD_NOT_RUNTIME_READY',
+            'SESSION_CARD_UNAUTHORIZED',
+            'SESSION_CARD_FORBIDDEN',
+          ].includes(error.code)
+        ) {
+          removeStackedDeconstructionCard(error.sessionCardId);
+          toast('一张失效拆书卡已移除，请重新确认写法', 'info');
+        }
+        setWritingStyleResolution(null);
+        setWritingStyleCandidates([]);
+        setWritingStyleError(error instanceof Error ? error.message : '写法解析失败');
+      });
   }, [
     isEditorDataLoading,
     isSessionStateLoaded,
@@ -518,25 +687,33 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   }, [handleUpdateContent]);
 
   // 183：版本列表只含投影，回滚时按 id 单条取全文再走原有恢复流程。
-  const handleRestoreVersionFromMeta = React.useCallback(async (meta: ChapterVersionMeta) => {
-    try {
-      const fullVersion = await getChapterVersion(meta.id);
-      if (!fullVersion) {
-        toast('未找到该版本的正文，可能已被清理', 'error');
-        return;
+  const handleRestoreVersionFromMeta = React.useCallback(
+    async (meta: ChapterVersionMeta) => {
+      try {
+        const fullVersion = await getChapterVersion(meta.id);
+        if (!fullVersion) {
+          toast('未找到该版本的正文，可能已被清理', 'error');
+          return;
+        }
+        handleRestoreVersion(fullVersion);
+      } catch {
+        toast('版本正文加载失败，请重试', 'error');
       }
-      handleRestoreVersion(fullVersion);
-    } catch {
-      toast('版本正文加载失败，请重试', 'error');
-    }
-  }, [handleRestoreVersion]);
+    },
+    [handleRestoreVersion]
+  );
 
-  const buildCapabilityUtilityEventMetadata = React.useCallback((result: CapabilityUtilityResult) => {
-    const sourceType: ProductEventSourceType = getCatalogCapabilityManifest(result.capabilityId)?.sourceType || 'unknown';
-    const sessionKind = result.kind === 'transform-preview' ? 'capability-preview' : 'capability-diagnostic';
-    const sessionId = `${sessionKind}:${novel.id}:${currentChapter?.id || 'unknown'}:${result.capabilityId}:${result.baselineHash}`;
-    return { action: result.kind, sessionId, sourceType };
-  }, [currentChapter?.id, novel.id]);
+  const buildCapabilityUtilityEventMetadata = React.useCallback(
+    (result: CapabilityUtilityResult) => {
+      const sourceType: ProductEventSourceType =
+        getCatalogCapabilityManifest(result.capabilityId)?.sourceType || 'unknown';
+      const sessionKind =
+        result.kind === 'transform-preview' ? 'capability-preview' : 'capability-diagnostic';
+      const sessionId = `${sessionKind}:${novel.id}:${currentChapter?.id || 'unknown'}:${result.capabilityId}:${result.baselineHash}`;
+      return { action: result.kind, sessionId, sourceType };
+    },
+    [currentChapter?.id, novel.id]
+  );
 
   const handleApplyCapabilityPreview = React.useCallback(async () => {
     if (!currentChapter || capabilityUtilityResult?.kind !== 'transform-preview') return;
@@ -549,17 +726,22 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       preview: capabilityUtilityResult.preview,
     });
     if (!application.ok) {
-      const message = application.code === 'CAPABILITY_PREVIEW_NO_CHANGES'
-        ? '本次精修没有产生可应用变化'
-        : application.code === 'CAPABILITY_PREVIEW_EMPTY_CHAPTER'
-          ? '精修预览为空，不能覆盖整章正文'
-          : application.code === 'CAPABILITY_PREVIEW_QUALITY_GATE_FAILED'
-            ? `精修预览未通过质量门禁${application.violations?.length ? `：${application.violations.join('；')}` : ''}`
-          : '正文或分镜已变化，旧预览不能应用，请重新运行';
+      const message =
+        application.code === 'CAPABILITY_PREVIEW_NO_CHANGES'
+          ? '本次精修没有产生可应用变化'
+          : application.code === 'CAPABILITY_PREVIEW_EMPTY_CHAPTER'
+            ? '精修预览为空，不能覆盖整章正文'
+            : application.code === 'CAPABILITY_PREVIEW_QUALITY_GATE_FAILED'
+              ? `精修预览未通过质量门禁${application.violations?.length ? `：${application.violations.join('；')}` : ''}`
+              : '正文或分镜已变化，旧预览不能应用，请重新运行';
       setCapabilityUtilityError(message);
       void recordProductEvent({
-        eventName: 'capability_stale', stage: 'polish', result: 'failure',
-        errorCode: application.code, novelId: novel.id, chapterId: currentChapter.id,
+        eventName: 'capability_stale',
+        stage: 'polish',
+        result: 'failure',
+        errorCode: application.code,
+        novelId: novel.id,
+        chapterId: currentChapter.id,
         objectId: capabilityUtilityResult.capabilityId,
         ...eventMetadata,
         eventId: `event:capability-stale:${eventMetadata.sessionId}`,
@@ -568,19 +750,26 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     }
     try {
       const writeGeneration = requireEditorDatabaseGeneration();
-      await createChapterVersion({
-        id: `${Date.now()}-capability-preview`,
-        chapterId: currentChapter.id,
-        content: currentChapter.content || '',
-        wordCount: (currentChapter.content || '').replace(/\s/g, '').length,
-        author: 'editor-agent',
-        createdAt: Date.now(),
-      }, writeGeneration);
+      await createChapterVersion(
+        {
+          id: `${Date.now()}-capability-preview`,
+          chapterId: currentChapter.id,
+          content: currentChapter.content || '',
+          wordCount: (currentChapter.content || '').replace(/\s/g, '').length,
+          author: 'editor-agent',
+          createdAt: Date.now(),
+        },
+        writeGeneration
+      );
       handleUpdateContent(application.nextContent, true);
       await flushPendingEditorWrites();
       void recordProductEvent({
-        eventName: 'capability_apply', stage: 'polish', result: 'success',
-        novelId: novel.id, chapterId: currentChapter.id, objectId: capabilityUtilityResult.capabilityId,
+        eventName: 'capability_apply',
+        stage: 'polish',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: currentChapter.id,
+        objectId: capabilityUtilityResult.capabilityId,
         ...eventMetadata,
         eventId: `event:capability-apply:${eventMetadata.sessionId}`,
       });
@@ -592,7 +781,16 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     } catch (error) {
       setCapabilityUtilityError(error instanceof Error ? error.message : '预览应用失败');
     }
-  }, [buildCapabilityUtilityEventMetadata, capabilityUtilityResult, capabilityUtilitySelection, currentChapter, flushPendingEditorWrites, handleUpdateContent, novel.id, requireEditorDatabaseGeneration]);
+  }, [
+    buildCapabilityUtilityEventMetadata,
+    capabilityUtilityResult,
+    capabilityUtilitySelection,
+    currentChapter,
+    flushPendingEditorWrites,
+    handleUpdateContent,
+    novel.id,
+    requireEditorDatabaseGeneration,
+  ]);
 
   const {
     handleStartProductionRun: startProductionRun,
@@ -613,7 +811,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   });
 
   // PRD (follow-ups A3): badge chapters whose generated preview is not yet accepted.
-  const [previewRunChapterIds, setPreviewRunChapterIds] = React.useState<ReadonlySet<string>>(new Set());
+  const [previewRunChapterIds, setPreviewRunChapterIds] = React.useState<ReadonlySet<string>>(
+    new Set()
+  );
   // 005-S3：编辑器只订阅还需要的生产域状态
   const activeProductionRun = useProductionStore((state) => state.activeProductionRun);
   const setProductionIntent = useProductionStore((state) => state.setProductionIntent);
@@ -624,71 +824,68 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       try {
         const runs = await listChapterProductionRunBadges(novel.id);
         if (cancelled) return;
-        setPreviewRunChapterIds(new Set(
-          runs
-            .filter((run) => run.status === 'review_required' && run.targetChapterId)
-            .map((run) => run.targetChapterId as string),
-        ));
+        setPreviewRunChapterIds(
+          new Set(
+            runs
+              .filter((run) => run.status === 'review_required' && run.targetChapterId)
+              .map((run) => run.targetChapterId as string)
+          )
+        );
       } catch {
         // Badge is advisory; a failed load just means no badge.
       }
     };
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [novel.id, previewRunStatus]);
 
   const liveNovel = React.useMemo(
     () => ({ ...novel, globalOutline, projectPreferenceProfile }),
-    [novel, globalOutline, projectPreferenceProfile],
+    [novel, globalOutline, projectPreferenceProfile]
   );
   const mountedSkillsCount = React.useMemo(
     () => getProjectCapabilityCardCount(liveNovel, mountedSkillLoadout),
-    [liveNovel, mountedSkillLoadout],
+    [liveNovel, mountedSkillLoadout]
   );
   const effectiveCapabilitySummary = React.useMemo(
-    () => projectPreferenceProfile
-      ? buildEffectiveCapabilitySummary({
-        projectPreferenceProfile,
-        currentChapter,
-        librarySkills,
-      })
-      : null,
-    [currentChapter, librarySkills, projectPreferenceProfile],
+    () =>
+      projectPreferenceProfile
+        ? buildEffectiveCapabilitySummary({
+            projectPreferenceProfile,
+            currentChapter,
+            librarySkills,
+          })
+        : null,
+    [currentChapter, librarySkills, projectPreferenceProfile]
   );
 
-  const {
-    mountedSkills,
-    agentContext,
-    copilotSuggestion,
-    getCurrentFitScore,
-  } = useEditorIntelligenceContext({
-    novel: liveNovel,
-    chapters,
-    currentChapter,
-    characters,
-    locations,
-    items,
-    factions,
-    powerLevels,
-    timelineEvents,
-    foreshadowings,
-    librarySkills,
-    mountedSkillLoadout,
-    continuationPacks,
-    selectedContinuationPackId,
-    sniffedEntities,
-    userIntent,
-    agentTab,
-    stackedDeconstructionCardIds,
-  });
+  const { mountedSkills, agentContext, copilotSuggestion, getCurrentFitScore } =
+    useEditorIntelligenceContext({
+      novel: liveNovel,
+      chapters,
+      currentChapter,
+      characters,
+      locations,
+      items,
+      factions,
+      powerLevels,
+      timelineEvents,
+      foreshadowings,
+      librarySkills,
+      mountedSkillLoadout,
+      continuationPacks,
+      selectedContinuationPackId,
+      sniffedEntities,
+      userIntent,
+      agentTab,
+      stackedDeconstructionCardIds,
+    });
 
   const buildAgentContext = React.useCallback((): AgentContext => agentContext, [agentContext]);
 
-  const {
-    recordSkillUsage,
-    assignSkillToSlot,
-    removeSkillFromSlot,
-  } = useSkillLoadoutManager({
+  const { recordSkillUsage, assignSkillToSlot, removeSkillFromSlot } = useSkillLoadoutManager({
     novelId: novel.id,
     currentChapterId: currentChapter?.id,
     mountedSkills,
@@ -763,28 +960,46 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   // Stable callbacks/objects for AgentWorkspace's React.memo — inline arrows
   // and object literals were defeating memoization on every render. Declared
   // here because they close over the generation/production hooks above.
-  const stepEvidence = React.useMemo(() => ({
-    ideaChars: userIntent.trim().length,
-    worldEntityCount: characters.length + locations.length + items.length + factions.length,
-    outlineChars: globalOutline.trim().length,
-    sceneBeatsChars: currentChapter?.sceneBeats?.length ?? 0,
-    draftChars: currentChapter?.wordCount ?? 0,
-  }), [userIntent, characters, locations, items, factions, globalOutline, currentChapter?.sceneBeats, currentChapter?.wordCount]);
+  const stepEvidence = React.useMemo(
+    () => ({
+      ideaChars: userIntent.trim().length,
+      worldEntityCount: characters.length + locations.length + items.length + factions.length,
+      outlineChars: globalOutline.trim().length,
+      sceneBeatsChars: currentChapter?.sceneBeats?.length ?? 0,
+      draftChars: currentChapter?.wordCount ?? 0,
+    }),
+    [
+      userIntent,
+      characters,
+      locations,
+      items,
+      factions,
+      globalOutline,
+      currentChapter?.sceneBeats,
+      currentChapter?.wordCount,
+    ]
+  );
   const handlePolishFromAuditCallback = React.useCallback(async () => {
     await handlePolishChapterFromAudit();
   }, [handlePolishChapterFromAudit]);
-  const handleResolvePendingSkill = React.useCallback((skillId: string, slot: number) => {
-    if (!librarySkills.some((skill) => skill.id === skillId)) {
-      toast('该历史能力卡已不存在，仍保留为待整理状态', 'error');
-      return;
-    }
-    void assignSkillToSlot(slot, skillId)
-      .then(() => setPendingSkillIds((ids) => ids.filter((id) => id !== skillId)))
-      .catch(() => toast('能力卡配置失败，请重试', 'error'));
-  }, [librarySkills, assignSkillToSlot, setPendingSkillIds]);
-  const handleGenerateWithWritingStyle = React.useCallback((fingerprint?: string) => {
-    void startProductionRun(undefined, fingerprint);
-  }, [startProductionRun]);
+  const handleResolvePendingSkill = React.useCallback(
+    (skillId: string, slot: number) => {
+      if (!librarySkills.some((skill) => skill.id === skillId)) {
+        toast('该历史能力卡已不存在，仍保留为待整理状态', 'error');
+        return;
+      }
+      void assignSkillToSlot(slot, skillId)
+        .then(() => setPendingSkillIds((ids) => ids.filter((id) => id !== skillId)))
+        .catch(() => toast('能力卡配置失败，请重试', 'error'));
+    },
+    [librarySkills, assignSkillToSlot, setPendingSkillIds]
+  );
+  const handleGenerateWithWritingStyle = React.useCallback(
+    (fingerprint?: string) => {
+      void startProductionRun(undefined, fingerprint);
+    },
+    [startProductionRun]
+  );
   const handleQuickGenerate = React.useCallback(() => {
     void handleGenerateContent();
   }, [handleGenerateContent]);
@@ -794,149 +1009,245 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   }, [setAgentTab, setIsAgentSidebarOpen]);
 
   const handleContextRewriteFromCapability = React.useCallback(async () => {
-    if (!currentChapter || capabilityUtilityResult?.kind !== 'transform-preview' || capabilityUtilityResult.contextRewrite?.status !== 'required' || !capabilityUtilityResult.structureSignals?.length) return;
-    const signal = capabilityUtilityResult.structureSignals.find((entry) => entry.priority === 'P1') || capabilityUtilityResult.structureSignals[0];
+    if (
+      !currentChapter ||
+      capabilityUtilityResult?.kind !== 'transform-preview' ||
+      capabilityUtilityResult.contextRewrite?.status !== 'required' ||
+      !capabilityUtilityResult.structureSignals?.length
+    )
+      return;
+    const signal =
+      capabilityUtilityResult.structureSignals.find((entry) => entry.priority === 'P1') ||
+      capabilityUtilityResult.structureSignals[0];
     const content = contentRef.current?.value ?? currentChapter.content;
     const selectionOffset = capabilityUtilitySelection?.start ?? 0;
     const relativeStart = signal.range?.start ?? 0;
     const relativeEnd = signal.range?.end ?? relativeStart + signal.snippet.length;
     const start = Math.max(0, Math.min(selectionOffset + relativeStart, content.length));
-    const end = Math.max(start + 1, Math.min(selectionOffset + relativeEnd, start + 600, content.length));
+    const end = Math.max(
+      start + 1,
+      Math.min(selectionOffset + relativeEnd, start + 600, content.length)
+    );
     try {
-      await handleContextRewriteCandidate({ targetText: content.slice(start, end), beforeContext: content.slice(Math.max(0, start - 300), start), afterContext: content.slice(end, Math.min(content.length, end + 300)), auditIssue: signal.suggestion || signal.signal || '结构同构', sceneBeats: currentChapter.sceneBeats, databaseGeneration: requireEditorDatabaseGeneration(), selectionStart: start, selectionEnd: end });
+      await handleContextRewriteCandidate({
+        targetText: content.slice(start, end),
+        beforeContext: content.slice(Math.max(0, start - 300), start),
+        afterContext: content.slice(end, Math.min(content.length, end + 300)),
+        auditIssue: signal.suggestion || signal.signal || '结构同构',
+        sceneBeats: currentChapter.sceneBeats,
+        databaseGeneration: requireEditorDatabaseGeneration(),
+        selectionStart: start,
+        selectionEnd: end,
+      });
     } catch (error) {
       setCapabilityUtilityError(error instanceof Error ? error.message : '上下文精修失败，可重试');
     }
-  }, [capabilityUtilityResult, capabilityUtilitySelection, contentRef, currentChapter, handleContextRewriteCandidate, requireEditorDatabaseGeneration]);
+  }, [
+    capabilityUtilityResult,
+    capabilityUtilitySelection,
+    contentRef,
+    currentChapter,
+    handleContextRewriteCandidate,
+    requireEditorDatabaseGeneration,
+  ]);
 
-  const updateReviewIssueStatus = React.useCallback(async (issueId: string, status: ReviewIssueStatus, reason?: string) => {
-    if (!currentChapter) return;
-    const writeGeneration = requireEditorDatabaseGeneration();
-    const content = contentRef.current?.value ?? currentChapter.content;
-    const contentHash = computeChapterWorkflowHash(content, currentChapter.sceneBeats);
-    const baseState = deriveChapterReviewState(currentChapter, contentHash);
-    if (!baseState) return;
-    const now = Date.now();
-    const issues = baseState.issues.map((issue) => issue.id === issueId
-      ? {
-        ...issue,
-        status,
-        updatedAt: now,
-        ...(reason ? { decisionReason: reason } : {}),
-        ...(status === 'accepted-risk' || status === 'applied' ? { resolvedAt: now } : {}),
-      }
-      : issue);
-    const reviewState = {
-      ...baseState,
-      contentHash,
-      issues,
-      gate: deriveReviewGate(issues, status === 'accepted-risk' ? 'pass' : baseState.gate === 'unknown' ? 'unknown' : 'pass'),
-      ...(reason ? { decisionReason: reason } : {}),
-    };
-    const workflowMeta = { ...(currentChapter.workflowMeta || { version: 1 as const }), version: 1 as const, reviewState };
-    const saved = await updateChapter(currentChapter.id, { workflowMeta }, writeGeneration);
-    if (!saved) throw new Error('审查问题状态保存失败');
-    setCurrentChapter((entry) => entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry);
-    setChapters((entries) => entries.map((entry) => entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry));
-  }, [currentChapter, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]);
-  const handlePreviewReviewIssue = React.useCallback(async (issueId: string) => {
-    if (!currentChapter) return;
-    const preview = await handlePolishChapterFromAudit(undefined, { issueIds: [issueId], previewOnly: true });
-    if (typeof preview !== 'string' || !preview.trim()) return;
-    const baselineContent = contentRef.current?.value ?? currentChapter.content;
-    const baselineHash = computeChapterWorkflowHash(baselineContent, currentChapter.sceneBeats);
-    const issue = currentChapter.workflowMeta?.reviewState?.issues.find((entry) => entry.id === issueId);
-    setCapabilityUtilitySelection(undefined);
-    setCapabilityUtilityError(null);
-    setCapabilityUtilityResult({
-      kind: 'transform-preview',
-      capabilityId: issue?.recommendedCapabilityIds[0] || 'review-remediation',
-      preview,
-      baselineHash,
-      contextReceipt: {
-        actual: true,
-        sourceIds: [currentChapter.id],
-        runtimeSha256: baselineHash,
-        injectedChars: baselineContent.length,
-        itemCount: 1,
-        truncated: false,
-      },
-      readOnly: true,
-    });
-    await updateReviewIssueStatus(issueId, 'previewed');
-    toast('修正预览已生成；接受前不会修改正文。', 'info');
-  }, [currentChapter, handlePolishChapterFromAudit, updateReviewIssueStatus]);
-  const handleFixReviewIssues = React.useCallback(async (issueIds: string[]) => {
-    await handlePolishChapterFromAudit(undefined, { issueIds, recheck: true });
-  }, [handlePolishChapterFromAudit]);
-  const handleAcceptReviewIssueRisk = React.useCallback(async (issueId: string, reason?: string) => {
-    await updateReviewIssueStatus(issueId, 'accepted-risk', reason || '作者明确接受该风险');
-  }, [updateReviewIssueStatus]);
-
-  const handleCompleteChapter = React.useCallback(async (retryUnavailable = false) => {
-    if (!currentChapter || completionRequestInFlightRef.current) return;
-    setCompletionInFlight(true);
-    setCompletionChapterId(currentChapter.id);
-    setCompletionError(null);
-    try {
-      await flushPendingEditorWrites();
+  const updateReviewIssueStatus = React.useCallback(
+    async (issueId: string, status: ReviewIssueStatus, reason?: string) => {
+      if (!currentChapter) return;
       const writeGeneration = requireEditorDatabaseGeneration();
-      const result = await completeChapter(currentChapter.id, { novelId: novel.id, databaseGeneration: writeGeneration, retryUnavailable });
-      setCompletionResult(result);
-      setCompletionFactCandidate(null);
+      const content = contentRef.current?.value ?? currentChapter.content;
+      const contentHash = computeChapterWorkflowHash(content, currentChapter.sceneBeats);
+      const baseState = deriveChapterReviewState(currentChapter, contentHash);
+      if (!baseState) return;
+      const now = Date.now();
+      const issues = baseState.issues.map((issue) =>
+        issue.id === issueId
+          ? {
+              ...issue,
+              status,
+              updatedAt: now,
+              ...(reason ? { decisionReason: reason } : {}),
+              ...(status === 'accepted-risk' || status === 'applied' ? { resolvedAt: now } : {}),
+            }
+          : issue
+      );
+      const reviewState = {
+        ...baseState,
+        contentHash,
+        issues,
+        gate: deriveReviewGate(
+          issues,
+          status === 'accepted-risk' ? 'pass' : baseState.gate === 'unknown' ? 'unknown' : 'pass'
+        ),
+        ...(reason ? { decisionReason: reason } : {}),
+      };
       const workflowMeta = {
         ...(currentChapter.workflowMeta || { version: 1 as const }),
         version: 1 as const,
-        completionGate: result.gate.completionGate,
-        completionContentHash: result.gate.contentHash,
+        reviewState,
       };
-      delete workflowMeta.factCandidateId;
-      delete workflowMeta.factCandidateRunId;
-      if (result.factCandidateId && result.factCandidateRunId) {
-        workflowMeta.factCandidateId = result.factCandidateId;
-        workflowMeta.factCandidateRunId = result.factCandidateRunId;
-      }
-      setCurrentChapter((entry) => entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry);
-      setChapters((entries) => entries.map((entry) => entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry));
+      const saved = await updateChapter(currentChapter.id, { workflowMeta }, writeGeneration);
+      if (!saved) throw new Error('审查问题状态保存失败');
+      setCurrentChapter((entry) =>
+        entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+      );
+      setChapters((entries) =>
+        entries.map((entry) =>
+          entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+        )
+      );
+    },
+    [currentChapter, requireEditorDatabaseGeneration, setChapters, setCurrentChapter]
+  );
+  const handlePreviewReviewIssue = React.useCallback(
+    async (issueId: string) => {
+      if (!currentChapter) return;
+      const preview = await handlePolishChapterFromAudit(undefined, {
+        issueIds: [issueId],
+        previewOnly: true,
+      });
+      if (typeof preview !== 'string' || !preview.trim()) return;
+      const baselineContent = contentRef.current?.value ?? currentChapter.content;
+      const baselineHash = computeChapterWorkflowHash(baselineContent, currentChapter.sceneBeats);
+      const issue = currentChapter.workflowMeta?.reviewState?.issues.find(
+        (entry) => entry.id === issueId
+      );
+      setCapabilityUtilitySelection(undefined);
+      setCapabilityUtilityError(null);
+      setCapabilityUtilityResult({
+        kind: 'transform-preview',
+        capabilityId: issue?.recommendedCapabilityIds[0] || 'review-remediation',
+        preview,
+        baselineHash,
+        contextReceipt: {
+          actual: true,
+          sourceIds: [currentChapter.id],
+          runtimeSha256: baselineHash,
+          injectedChars: baselineContent.length,
+          itemCount: 1,
+          truncated: false,
+        },
+        readOnly: true,
+      });
+      await updateReviewIssueStatus(issueId, 'previewed');
+      toast('修正预览已生成；接受前不会修改正文。', 'info');
+    },
+    [currentChapter, handlePolishChapterFromAudit, updateReviewIssueStatus]
+  );
+  const handleFixReviewIssues = React.useCallback(
+    async (issueIds: string[]) => {
+      await handlePolishChapterFromAudit(undefined, { issueIds, recheck: true });
+    },
+    [handlePolishChapterFromAudit]
+  );
+  const handleAcceptReviewIssueRisk = React.useCallback(
+    async (issueId: string, reason?: string) => {
+      await updateReviewIssueStatus(issueId, 'accepted-risk', reason || '作者明确接受该风险');
+    },
+    [updateReviewIssueStatus]
+  );
+
+  const handleCompleteChapter = React.useCallback(
+    async (retryUnavailable = false) => {
+      if (!currentChapter || completionRequestInFlightRef.current) return;
+      setCompletionInFlight(true);
+      setCompletionChapterId(currentChapter.id);
+      setCompletionError(null);
       try {
-        const refreshedChapter = await getChapterById(currentChapter.id);
-        if (refreshedChapter) {
-          setCurrentChapter((entry) => entry?.id === currentChapter.id ? refreshedChapter : entry);
-          setChapters((entries) => entries.map((entry) => entry.id === currentChapter.id
-            ? { ...entry, workflowMeta: refreshedChapter.workflowMeta, wordCount: refreshedChapter.wordCount, updatedAt: refreshedChapter.updatedAt }
-            : entry));
+        await flushPendingEditorWrites();
+        const writeGeneration = requireEditorDatabaseGeneration();
+        const result = await completeChapter(currentChapter.id, {
+          novelId: novel.id,
+          databaseGeneration: writeGeneration,
+          retryUnavailable,
+        });
+        setCompletionResult(result);
+        setCompletionFactCandidate(null);
+        const workflowMeta = {
+          ...(currentChapter.workflowMeta || { version: 1 as const }),
+          version: 1 as const,
+          completionGate: result.gate.completionGate,
+          completionContentHash: result.gate.contentHash,
+        };
+        delete workflowMeta.factCandidateId;
+        delete workflowMeta.factCandidateRunId;
+        if (result.factCandidateId && result.factCandidateRunId) {
+          workflowMeta.factCandidateId = result.factCandidateId;
+          workflowMeta.factCandidateRunId = result.factCandidateRunId;
         }
-      } catch {
-        setCompletionError('本章已完成，但最新审阅详情加载失败，请稍后重试。');
-      }
-      if (result.factCandidateRunId) {
+        setCurrentChapter((entry) =>
+          entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+        );
+        setChapters((entries) =>
+          entries.map((entry) =>
+            entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+          )
+        );
         try {
-          setCompletionFactCandidate(await previewChapterFactCandidate(result.factCandidateRunId, { novelId: novel.id, databaseGeneration: writeGeneration }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '事实候选加载失败';
-          setCompletionError(`本章已完成，但${message}`);
-          toast(`本章已完成，但${message}`, 'error');
+          const refreshedChapter = await getChapterById(currentChapter.id);
+          if (refreshedChapter) {
+            setCurrentChapter((entry) =>
+              entry?.id === currentChapter.id ? refreshedChapter : entry
+            );
+            setChapters((entries) =>
+              entries.map((entry) =>
+                entry.id === currentChapter.id
+                  ? {
+                      ...entry,
+                      workflowMeta: refreshedChapter.workflowMeta,
+                      wordCount: refreshedChapter.wordCount,
+                      updatedAt: refreshedChapter.updatedAt,
+                    }
+                  : entry
+              )
+            );
+          }
+        } catch {
+          setCompletionError('本章已完成，但最新审阅详情加载失败，请稍后重试。');
         }
+        if (result.factCandidateRunId) {
+          try {
+            setCompletionFactCandidate(
+              await previewChapterFactCandidate(result.factCandidateRunId, {
+                novelId: novel.id,
+                databaseGeneration: writeGeneration,
+              })
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : '事实候选加载失败';
+            setCompletionError(`本章已完成，但${message}`);
+            toast(`本章已完成，但${message}`, 'error');
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '章节完成失败';
+        setCompletionError(message);
+        toast(message, 'error');
+      } finally {
+        setCompletionInFlight(false);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '章节完成失败';
-      setCompletionError(message);
-      toast(message, 'error');
-    } finally {
-      setCompletionInFlight(false);
-    }
-  }, [currentChapter, flushPendingEditorWrites, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter, setCompletionInFlight]);
+    },
+    [
+      currentChapter,
+      flushPendingEditorWrites,
+      novel.id,
+      requireEditorDatabaseGeneration,
+      setChapters,
+      setCurrentChapter,
+      setCompletionInFlight,
+    ]
+  );
 
   // When a fact-candidate panel appears for a chapter whose completion gate
   // hasn't been evaluated yet (e.g. right after accepting a production run),
   // run the completion review once so the gate — and with it the fact
   // confirm button — becomes actionable instead of permanently disabled.
   const factPanelNeedsGate = Boolean(
-    completionFactCandidate
-      && completionChapterId === currentChapter?.id
-      && currentChapter
-      && currentChapter.workflowMeta?.completionGate !== 'ready'
-      && currentChapter.workflowMeta?.completionGate !== 'accepted-risk',
+    completionFactCandidate &&
+    completionChapterId === currentChapter?.id &&
+    currentChapter &&
+    currentChapter.workflowMeta?.completionGate !== 'ready' &&
+    currentChapter.workflowMeta?.completionGate !== 'accepted-risk'
   );
   React.useEffect(() => {
     if (!factPanelNeedsGate || isCompletingChapter) return;
@@ -958,7 +1269,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     setCompletionError(null);
     try {
       const databaseGeneration = requireEditorDatabaseGeneration();
-      setCompletionFactCandidate(await previewChapterFactCandidate(runId, { novelId: novel.id, databaseGeneration }));
+      setCompletionFactCandidate(
+        await previewChapterFactCandidate(runId, { novelId: novel.id, databaseGeneration })
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : '事实候选加载失败';
       setCompletionError(message);
@@ -968,70 +1281,89 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     }
   }, [currentChapter, novel.id, requireEditorDatabaseGeneration, setCompletionInFlight]);
 
-  const handleConfirmCompletionFacts = React.useCallback(async (selection: { factDecisions: Record<string, 'accepted' | 'pending' | 'rejected'> }) => {
-    if (!currentChapter || !completionFactCandidate || factConfirmationInFlightRef.current) return;
-    factConfirmationInFlightRef.current = true;
-    setCompletionChapterId(currentChapter.id);
-    setIsConfirmingFacts(true);
-    setCompletionError(null);
-    try {
-      const databaseGeneration = requireEditorDatabaseGeneration();
-      const result = await applyChapterFactCandidate({
-        novelId: novel.id,
-        runId: completionFactCandidate.runId,
-        databaseGeneration,
-        candidateId: completionFactCandidate.id,
-        manuscriptContentHash: completionFactCandidate.manuscript.contentHash,
-        storyMemoryFingerprint: completionFactCandidate.storyMemoryFingerprint,
-        factDecisions: selection.factDecisions,
-      });
-      const hasPending = Object.values(result.factStatuses).some((status) => status === 'pending');
-      let nextCandidate: ChapterFactCandidate | null = null;
-      if (hasPending) {
-        try {
-          nextCandidate = await previewChapterFactCandidate(completionFactCandidate.runId, { novelId: novel.id, databaseGeneration });
-        } catch (error) {
-          setCompletionFactCandidate(null);
-          await selectChapter(currentChapter.id);
-          const message = error instanceof Error ? error.message : '事实候选刷新失败';
-          setCompletionError(`事实决定已保存，但${message}`);
-          toast(`事实决定已保存，但${message}`, 'error');
-          return;
+  const handleConfirmCompletionFacts = React.useCallback(
+    async (selection: { factDecisions: Record<string, 'accepted' | 'pending' | 'rejected'> }) => {
+      if (!currentChapter || !completionFactCandidate || factConfirmationInFlightRef.current)
+        return;
+      factConfirmationInFlightRef.current = true;
+      setCompletionChapterId(currentChapter.id);
+      setIsConfirmingFacts(true);
+      setCompletionError(null);
+      try {
+        const databaseGeneration = requireEditorDatabaseGeneration();
+        const result = await applyChapterFactCandidate({
+          novelId: novel.id,
+          runId: completionFactCandidate.runId,
+          databaseGeneration,
+          candidateId: completionFactCandidate.id,
+          manuscriptContentHash: completionFactCandidate.manuscript.contentHash,
+          storyMemoryFingerprint: completionFactCandidate.storyMemoryFingerprint,
+          factDecisions: selection.factDecisions,
+        });
+        const hasPending = Object.values(result.factStatuses).some(
+          (status) => status === 'pending'
+        );
+        let nextCandidate: ChapterFactCandidate | null = null;
+        if (hasPending) {
+          try {
+            nextCandidate = await previewChapterFactCandidate(completionFactCandidate.runId, {
+              novelId: novel.id,
+              databaseGeneration,
+            });
+          } catch (error) {
+            setCompletionFactCandidate(null);
+            await selectChapter(currentChapter.id);
+            const message = error instanceof Error ? error.message : '事实候选刷新失败';
+            setCompletionError(`事实决定已保存，但${message}`);
+            toast(`事实决定已保存，但${message}`, 'error');
+            return;
+          }
         }
+        setCompletionFactCandidate(nextCandidate);
+        setCurrentChapter((entry) => {
+          if (!entry || entry.id !== currentChapter.id) return entry;
+          const workflowMeta = { ...(entry.workflowMeta || { version: 1 as const }) };
+          delete workflowMeta.factCandidateId;
+          delete workflowMeta.factCandidateRunId;
+          if (nextCandidate) {
+            workflowMeta.factCandidateId = nextCandidate.id;
+            workflowMeta.factCandidateRunId = nextCandidate.runId;
+          }
+          return { ...entry, workflowMeta };
+        });
+        setChapters((entries) =>
+          entries.map((entry) => {
+            if (entry.id !== currentChapter.id) return entry;
+            const workflowMeta = { ...(entry.workflowMeta || { version: 1 as const }) };
+            delete workflowMeta.factCandidateId;
+            delete workflowMeta.factCandidateRunId;
+            if (nextCandidate) {
+              workflowMeta.factCandidateId = nextCandidate.id;
+              workflowMeta.factCandidateRunId = nextCandidate.runId;
+            }
+            return { ...entry, workflowMeta };
+          })
+        );
+        toast(hasPending ? '已保存事实决定，仍有待确认项。' : '章节事实已确认。', 'success');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '事实确认失败';
+        setCompletionError(message);
+        toast(message, 'error');
+      } finally {
+        factConfirmationInFlightRef.current = false;
+        setIsConfirmingFacts(false);
       }
-      setCompletionFactCandidate(nextCandidate);
-      setCurrentChapter((entry) => {
-        if (!entry || entry.id !== currentChapter.id) return entry;
-        const workflowMeta = { ...(entry.workflowMeta || { version: 1 as const }) };
-        delete workflowMeta.factCandidateId;
-        delete workflowMeta.factCandidateRunId;
-        if (nextCandidate) {
-          workflowMeta.factCandidateId = nextCandidate.id;
-          workflowMeta.factCandidateRunId = nextCandidate.runId;
-        }
-        return { ...entry, workflowMeta };
-      });
-      setChapters((entries) => entries.map((entry) => {
-        if (entry.id !== currentChapter.id) return entry;
-        const workflowMeta = { ...(entry.workflowMeta || { version: 1 as const }) };
-        delete workflowMeta.factCandidateId;
-        delete workflowMeta.factCandidateRunId;
-        if (nextCandidate) {
-          workflowMeta.factCandidateId = nextCandidate.id;
-          workflowMeta.factCandidateRunId = nextCandidate.runId;
-        }
-        return { ...entry, workflowMeta };
-      }));
-      toast(hasPending ? '已保存事实决定，仍有待确认项。' : '章节事实已确认。', 'success');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '事实确认失败';
-      setCompletionError(message);
-      toast(message, 'error');
-    } finally {
-      factConfirmationInFlightRef.current = false;
-      setIsConfirmingFacts(false);
-    }
-  }, [completionFactCandidate, currentChapter, novel.id, requireEditorDatabaseGeneration, selectChapter, setChapters, setCurrentChapter]);
+    },
+    [
+      completionFactCandidate,
+      currentChapter,
+      novel.id,
+      requireEditorDatabaseGeneration,
+      selectChapter,
+      setChapters,
+      setCurrentChapter,
+    ]
+  );
 
   const handleAcceptCompletionRisk = React.useCallback(async (): Promise<boolean> => {
     if (!currentChapter || !completionResult || completionRequestInFlightRef.current) return false;
@@ -1050,11 +1382,20 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       });
       setCompletionResult(result);
       const workflowMeta = {
-        ...(currentChapter.workflowMeta || { version: 1 as const }), version: 1 as const,
-        completionGate: result.gate.completionGate, completionContentHash: result.gate.contentHash, completionDecisionAt: Date.now(),
+        ...(currentChapter.workflowMeta || { version: 1 as const }),
+        version: 1 as const,
+        completionGate: result.gate.completionGate,
+        completionContentHash: result.gate.contentHash,
+        completionDecisionAt: Date.now(),
       };
-      setCurrentChapter((entry) => entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry);
-      setChapters((entries) => entries.map((entry) => entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry));
+      setCurrentChapter((entry) =>
+        entry?.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+      );
+      setChapters((entries) =>
+        entries.map((entry) =>
+          entry.id === currentChapter.id ? { ...entry, workflowMeta } : entry
+        )
+      );
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '风险确认失败';
@@ -1064,26 +1405,40 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     } finally {
       setCompletionInFlight(false);
     }
-  }, [completionResult, currentChapter, novel.id, requireEditorDatabaseGeneration, setChapters, setCurrentChapter, setCompletionInFlight]);
-  const handleDeferReviewIssue = React.useCallback(async (issueId: string) => {
-    await updateReviewIssueStatus(issueId, 'deferred');
-  }, [updateReviewIssueStatus]);
+  }, [
+    completionResult,
+    currentChapter,
+    novel.id,
+    requireEditorDatabaseGeneration,
+    setChapters,
+    setCurrentChapter,
+    setCompletionInFlight,
+  ]);
+  const handleDeferReviewIssue = React.useCallback(
+    async (issueId: string) => {
+      await updateReviewIssueStatus(issueId, 'deferred');
+    },
+    [updateReviewIssueStatus]
+  );
 
-  const handleWritingStyleGenerate = React.useCallback(async (fingerprint?: string) => {
-    const pending = pendingWritingStyleActionRef.current;
-    pendingWritingStyleActionRef.current = null;
-    if (pending) {
-      if (typeof fingerprint !== 'string' || !fingerprint) return;
-      await pending(fingerprint);
-      return;
-    }
-    // Entry consolidation (PRD: generation-entry-consolidation Story 1): the
-    // top banner routes to the unified production panel; quick generation
-    // (continuous writing without audit) remains available inside the panel.
-    void fingerprint;
-    setAgentTab('production');
-    setIsAgentSidebarOpen(true);
-  }, [setAgentTab, setIsAgentSidebarOpen]);
+  const handleWritingStyleGenerate = React.useCallback(
+    async (fingerprint?: string) => {
+      const pending = pendingWritingStyleActionRef.current;
+      pendingWritingStyleActionRef.current = null;
+      if (pending) {
+        if (typeof fingerprint !== 'string' || !fingerprint) return;
+        await pending(fingerprint);
+        return;
+      }
+      // Entry consolidation (PRD: generation-entry-consolidation Story 1): the
+      // top banner routes to the unified production panel; quick generation
+      // (continuous writing without audit) remains available inside the panel.
+      void fingerprint;
+      setAgentTab('production');
+      setIsAgentSidebarOpen(true);
+    },
+    [setAgentTab, setIsAgentSidebarOpen]
+  );
 
   // 005-S5 双写收敛：state=UI 投影，ref=跨异步守卫。
   // 此行是 isGeneratingContent 的唯一同步点；ref 禁止在别处直写。
@@ -1091,52 +1446,86 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   isGeneratingContentRef.current = isGeneratingContent;
 
   const isAnyGenerating =
-    isGeneratingContent || isGeneratingBeats || isGeneratingCritique || isSniffing || isGeneratingOutline;
+    isGeneratingContent ||
+    isGeneratingBeats ||
+    isGeneratingCritique ||
+    isSniffing ||
+    isGeneratingOutline;
 
   const isChapterEmpty = !currentChapter?.content || currentChapter.content.trim() === '';
   const capabilityResultSourceLabels = React.useMemo(() => {
-    const activeCapabilityId = capabilityUtilityResult?.capabilityId || capabilityUtilityRunningAssetId;
+    const activeCapabilityId =
+      capabilityUtilityResult?.capabilityId || capabilityUtilityRunningAssetId;
     const currentLibrarySkillName = activeCapabilityId
-      ? librarySkills.find((skill) => skill.id === activeCapabilityId || skill.parentSkillId === activeCapabilityId)?.name
+      ? librarySkills.find(
+          (skill) => skill.id === activeCapabilityId || skill.parentSkillId === activeCapabilityId
+        )?.name
       : undefined;
     const currentCardTitle = activeCapabilityId
       ? CURATED_PRODUCT_SKILLS.find((skill) => skill.id === activeCapabilityId)?.title
       : undefined;
-    const receiptSources = capabilityUtilityResult?.contextReceipt?.sources
-      ?.map((source) => source.label)
-      .filter((label): label is string => Boolean(label.trim())) || [];
-    const receiptWithCard = [...new Set([currentLibrarySkillName, currentCardTitle, ...receiptSources].filter((label): label is string => Boolean(label?.trim())))];
+    const receiptSources =
+      capabilityUtilityResult?.contextReceipt?.sources
+        ?.map((source) => source.label)
+        .filter((label): label is string => Boolean(label.trim())) || [];
+    const receiptWithCard = [
+      ...new Set(
+        [currentLibrarySkillName, currentCardTitle, ...receiptSources].filter(
+          (label): label is string => Boolean(label?.trim())
+        )
+      ),
+    ];
     if (receiptWithCard.length > 0) return receiptWithCard;
-    return writingStyleResolution?.sources
-      .map((source) => source.label)
-      .filter((label): label is string => Boolean(label?.trim())) || [];
-  }, [capabilityUtilityResult, capabilityUtilityRunningAssetId, librarySkills, writingStyleResolution?.sources]);
+    return (
+      writingStyleResolution?.sources
+        .map((source) => source.label)
+        .filter((label): label is string => Boolean(label?.trim())) || []
+    );
+  }, [
+    capabilityUtilityResult,
+    capabilityUtilityRunningAssetId,
+    librarySkills,
+    writingStyleResolution?.sources,
+  ]);
   const capabilityUtilityPanelTitle = React.useMemo(() => {
     if (isCapabilityUtilityRunning) return '正在运行能力卡...';
     if (capabilityUtilityError) {
       if (capabilityUtilityRetry?.action === 'run-diagnostic') return '审稿卡执行失败';
-      const activeCapabilityId = capabilityUtilityRetry?.assetId || capabilityUtilityRunningAssetId || capabilityUtilityResult?.capabilityId;
-      return activeCapabilityId && getCatalogCapabilityManifest(activeCapabilityId)?.output === 'transform-preview'
+      const activeCapabilityId =
+        capabilityUtilityRetry?.assetId ||
+        capabilityUtilityRunningAssetId ||
+        capabilityUtilityResult?.capabilityId;
+      return activeCapabilityId &&
+        getCatalogCapabilityManifest(activeCapabilityId)?.output === 'transform-preview'
         ? '精修卡执行失败'
         : '能力卡执行失败';
     }
     return capabilityUtilityResult?.kind === 'diagnostic' ? '审稿卡诊断报告' : '精修卡修改预览';
-  }, [capabilityUtilityError, capabilityUtilityResult, capabilityUtilityRetry, capabilityUtilityRunningAssetId, isCapabilityUtilityRunning]);
+  }, [
+    capabilityUtilityError,
+    capabilityUtilityResult,
+    capabilityUtilityRetry,
+    capabilityUtilityRunningAssetId,
+    isCapabilityUtilityRunning,
+  ]);
 
   // --- 3. Helper & Callback Functions (Fully declared before referencing) ---
 
-  const handleSelectChapter = React.useCallback(async (chapter: ChapterMetadata) => {
-    autoPolishAfterAuditRef.current = null;
-    autoPolishAuditStartedRef.current = false;
-    try {
-      await flushPendingEditorWrites();
-      const loaded = await selectChapter(chapter.id);
-      if (!loaded) toast('章节已不存在或无法加载', 'error');
-    } catch (error) {
-      console.error('[EditorView] Failed to save before switching chapters:', error);
-      toast('尚有内容保存失败，请重试后再切换章节', 'error');
-    }
-  }, [flushPendingEditorWrites, selectChapter]);
+  const handleSelectChapter = React.useCallback(
+    async (chapter: ChapterMetadata) => {
+      autoPolishAfterAuditRef.current = null;
+      autoPolishAuditStartedRef.current = false;
+      try {
+        await flushPendingEditorWrites();
+        const loaded = await selectChapter(chapter.id);
+        if (!loaded) toast('章节已不存在或无法加载', 'error');
+      } catch (error) {
+        console.error('[EditorView] Failed to save before switching chapters:', error);
+        toast('尚有内容保存失败，请重试后再切换章节', 'error');
+      }
+    },
+    [flushPendingEditorWrites, selectChapter]
+  );
 
   const handleManualAudit = React.useCallback(async () => {
     autoPolishAfterAuditRef.current = null;
@@ -1144,55 +1533,66 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     await handleRunAudit();
   }, [handleRunAudit]);
 
-  const runCopilotAction = React.useCallback(async (actionKey: CopilotActionKey) => {
-    switch (actionKey) {
-      case 'fill-setup':
-      case 'open-bible':
-        setAgentTab('bible');
-        setIsAgentSidebarOpen(true);
-        return;
-      case 'generate-beats':
-        setAgentTab('planning');
-        setIsAgentSidebarOpen(true);
-        await handleGenerateBeats();
-        return;
-      case 'generate-draft':
-        setAgentTab('planning');
-        setIsAgentSidebarOpen(true);
-        await handleGenerateContent();
-        return;
-      case 'run-audit':
-      case 'open-quality':
-        setAgentTab('quality');
-        setIsAgentSidebarOpen(true);
-        if (actionKey === 'run-audit') {
-          await handleManualAudit();
-        }
-        return;
-      case 'run-polish':
-        autoPolishAfterAuditRef.current = null;
-        autoPolishAuditStartedRef.current = false;
-        setAgentTab('quality');
-        setIsAgentSidebarOpen(true);
-        await handlePolishChapterFromAudit();
-        return;
-      case 'sync-memory':
-        setAgentTab('trace');
-        setIsAgentSidebarOpen(true);
-        await handleSniffEntities();
-        return;
-      case 'open-skills':
-        setAgentTab('skills');
-        setIsAgentSidebarOpen(true);
-        return;
-      case 'open-planning':
-        setAgentTab('planning');
-        setIsAgentSidebarOpen(true);
-        return;
-      default:
-        return;
-    }
-  }, [setAgentTab, setIsAgentSidebarOpen, handleGenerateBeats, handleGenerateContent, handleManualAudit, handlePolishChapterFromAudit, handleSniffEntities]);
+  const runCopilotAction = React.useCallback(
+    async (actionKey: CopilotActionKey) => {
+      switch (actionKey) {
+        case 'fill-setup':
+        case 'open-bible':
+          setAgentTab('bible');
+          setIsAgentSidebarOpen(true);
+          return;
+        case 'generate-beats':
+          setAgentTab('planning');
+          setIsAgentSidebarOpen(true);
+          await handleGenerateBeats();
+          return;
+        case 'generate-draft':
+          setAgentTab('planning');
+          setIsAgentSidebarOpen(true);
+          await handleGenerateContent();
+          return;
+        case 'run-audit':
+        case 'open-quality':
+          setAgentTab('quality');
+          setIsAgentSidebarOpen(true);
+          if (actionKey === 'run-audit') {
+            await handleManualAudit();
+          }
+          return;
+        case 'run-polish':
+          autoPolishAfterAuditRef.current = null;
+          autoPolishAuditStartedRef.current = false;
+          setAgentTab('quality');
+          setIsAgentSidebarOpen(true);
+          await handlePolishChapterFromAudit();
+          return;
+        case 'sync-memory':
+          setAgentTab('trace');
+          setIsAgentSidebarOpen(true);
+          await handleSniffEntities();
+          return;
+        case 'open-skills':
+          setAgentTab('skills');
+          setIsAgentSidebarOpen(true);
+          return;
+        case 'open-planning':
+          setAgentTab('planning');
+          setIsAgentSidebarOpen(true);
+          return;
+        default:
+          return;
+      }
+    },
+    [
+      setAgentTab,
+      setIsAgentSidebarOpen,
+      handleGenerateBeats,
+      handleGenerateContent,
+      handleManualAudit,
+      handlePolishChapterFromAudit,
+      handleSniffEntities,
+    ]
+  );
 
   const handleStartProductionRun = React.useCallback(async () => {
     setAgentTab('production');
@@ -1271,88 +1671,112 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     consumedCapabilityLaunchTokenRef.current = null;
   }, [capabilityLaunchState?.launchToken, novel.id]);
 
-  const runCapabilityUtility = React.useCallback((
-    run: CapabilityUtilityRunRequest,
-    selection?: { start: number; end: number },
-    onSettled?: () => void,
-  ) => {
-    setCapabilityUtilitySelection(selection);
-    setCapabilityUtilityResult(null);
-    setCapabilityUtilityError(null);
-    setCapabilityUtilitySuccess(null);
-    setCapabilityUtilityRetry(null);
-    setCapabilityUtilityRunningAssetId(run.assetId);
-    setIsCapabilityUtilityRunning(true);
-    const requestId = `${run.runToken}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    const controller = new AbortController();
-    capabilityUtilityRequestRef.current?.controller.abort(new Error('能力执行已被新的请求替换'));
-    capabilityUtilityRequestRef.current = { requestId, controller };
-    const isCurrentRequest = () => capabilityUtilityRequestRef.current?.requestId === requestId;
-    void Promise.resolve()
-      .then(() => executeCapability(novel.id, run.assetId, {
-        chapterId: run.targetChapterId,
-        databaseGeneration: requireEditorDatabaseGeneration(),
-        stage: 'critic',
-        ...(selection ? { selection } : {}),
-      }, controller.signal))
-      .then((result) => {
-        if (!isCurrentRequest()) return;
-        setCapabilityUtilityResult(result);
-        setCapabilityUtilityRetry(null);
-        if (result.kind === 'diagnostic') {
-          const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
-          void recordProductEvent({
-            eventName: 'diagnostic_run', stage: 'audit', result: 'success',
-            novelId: novel.id, chapterId: run.targetChapterId, objectId: run.assetId,
-            action: result.kind,
-            sessionId: `chapter:${novel.id}:${run.targetChapterId || 'unknown'}`,
-            eventId: `event:diagnostic:${run.runToken}:${run.assetId}`,
-            sourceType,
-          });
-        } else {
-          const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
-          const previewSessionId = `capability-preview:${novel.id}:${run.targetChapterId || 'unknown'}:${run.assetId}:${result.baselineHash}`;
-          void recordProductEvent({
-            eventName: 'capability_preview', stage: 'polish', result: 'success',
-            novelId: novel.id, chapterId: run.targetChapterId, objectId: run.assetId,
-            action: result.kind,
-            sessionId: previewSessionId,
-            eventId: `event:capability-preview:${previewSessionId}`,
-            sourceType,
-          });
-        }
-      })
-      .catch((error) => {
-        if (isCurrentRequest() && !controller.signal.aborted) {
-          setCapabilityUtilityError(error instanceof Error ? error.message : '能力执行失败');
-          setCapabilityUtilityRetry(run);
-          const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
-          const sessionId = `capability-run:${novel.id}:${run.targetChapterId || 'unknown'}:${run.assetId}:${run.runToken}`;
-          void recordProductEvent({
-            eventName: 'capability_preview', stage: 'polish', result: 'failure',
-            errorCode: 'CAPABILITY_UTILITY_EXECUTION_FAILED',
-            novelId: novel.id, chapterId: run.targetChapterId, objectId: run.assetId,
-            action: run.action,
-            sessionId,
-            eventId: `event:capability-preview-failure:${sessionId}`,
-            sourceType,
-          });
-        }
-      })
-      .finally(() => {
-        if (isCurrentRequest()) {
-          setIsCapabilityUtilityRunning(false);
-          capabilityUtilityRequestRef.current = null;
-          onSettled?.();
-        }
-      });
-  }, [novel.id, requireEditorDatabaseGeneration]);
+  const runCapabilityUtility = React.useCallback(
+    (
+      run: CapabilityUtilityRunRequest,
+      selection?: { start: number; end: number },
+      onSettled?: () => void
+    ) => {
+      setCapabilityUtilitySelection(selection);
+      setCapabilityUtilityResult(null);
+      setCapabilityUtilityError(null);
+      setCapabilityUtilitySuccess(null);
+      setCapabilityUtilityRetry(null);
+      setCapabilityUtilityRunningAssetId(run.assetId);
+      setIsCapabilityUtilityRunning(true);
+      const requestId = `${run.runToken}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+      const controller = new AbortController();
+      capabilityUtilityRequestRef.current?.controller.abort(new Error('能力执行已被新的请求替换'));
+      capabilityUtilityRequestRef.current = { requestId, controller };
+      const isCurrentRequest = () => capabilityUtilityRequestRef.current?.requestId === requestId;
+      void Promise.resolve()
+        .then(() =>
+          executeCapability(
+            novel.id,
+            run.assetId,
+            {
+              chapterId: run.targetChapterId,
+              databaseGeneration: requireEditorDatabaseGeneration(),
+              stage: 'critic',
+              ...(selection ? { selection } : {}),
+            },
+            controller.signal
+          )
+        )
+        .then((result) => {
+          if (!isCurrentRequest()) return;
+          setCapabilityUtilityResult(result);
+          setCapabilityUtilityRetry(null);
+          if (result.kind === 'diagnostic') {
+            const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
+            void recordProductEvent({
+              eventName: 'diagnostic_run',
+              stage: 'audit',
+              result: 'success',
+              novelId: novel.id,
+              chapterId: run.targetChapterId,
+              objectId: run.assetId,
+              action: result.kind,
+              sessionId: `chapter:${novel.id}:${run.targetChapterId || 'unknown'}`,
+              eventId: `event:diagnostic:${run.runToken}:${run.assetId}`,
+              sourceType,
+            });
+          } else {
+            const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
+            const previewSessionId = `capability-preview:${novel.id}:${run.targetChapterId || 'unknown'}:${run.assetId}:${result.baselineHash}`;
+            void recordProductEvent({
+              eventName: 'capability_preview',
+              stage: 'polish',
+              result: 'success',
+              novelId: novel.id,
+              chapterId: run.targetChapterId,
+              objectId: run.assetId,
+              action: result.kind,
+              sessionId: previewSessionId,
+              eventId: `event:capability-preview:${previewSessionId}`,
+              sourceType,
+            });
+          }
+        })
+        .catch((error) => {
+          if (isCurrentRequest() && !controller.signal.aborted) {
+            setCapabilityUtilityError(error instanceof Error ? error.message : '能力执行失败');
+            setCapabilityUtilityRetry(run);
+            const sourceType = getCatalogCapabilityManifest(run.assetId)?.sourceType || 'unknown';
+            const sessionId = `capability-run:${novel.id}:${run.targetChapterId || 'unknown'}:${run.assetId}:${run.runToken}`;
+            void recordProductEvent({
+              eventName: 'capability_preview',
+              stage: 'polish',
+              result: 'failure',
+              errorCode: 'CAPABILITY_UTILITY_EXECUTION_FAILED',
+              novelId: novel.id,
+              chapterId: run.targetChapterId,
+              objectId: run.assetId,
+              action: run.action,
+              sessionId,
+              eventId: `event:capability-preview-failure:${sessionId}`,
+              sourceType,
+            });
+          }
+        })
+        .finally(() => {
+          if (isCurrentRequest()) {
+            setIsCapabilityUtilityRunning(false);
+            capabilityUtilityRequestRef.current = null;
+            onSettled?.();
+          }
+        });
+    },
+    [novel.id, requireEditorDatabaseGeneration]
+  );
 
   useEffect(() => {
     const contextVersion = ++capabilityUtilityContextVersionRef.current;
     const contextKey = `${novel.id}:${currentChapter?.id || ''}`;
     const clearCapabilityUtilityState = () => {
-      capabilityUtilityRequestRef.current?.controller.abort(new Error('章节上下文已变化，能力执行已取消'));
+      capabilityUtilityRequestRef.current?.controller.abort(
+        new Error('章节上下文已变化，能力执行已取消')
+      );
       capabilityUtilityRequestRef.current = null;
       setIsCapabilityUtilityRunning(false);
       setCapabilityUtilityRunningAssetId(null);
@@ -1363,7 +1787,10 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       setCapabilityUtilitySuccess(null);
     };
 
-    if (capabilityUtilityContextKeyRef.current && capabilityUtilityContextKeyRef.current !== contextKey) {
+    if (
+      capabilityUtilityContextKeyRef.current &&
+      capabilityUtilityContextKeyRef.current !== contextKey
+    ) {
       clearCapabilityUtilityState();
     }
     capabilityUtilityContextKeyRef.current = contextKey;
@@ -1376,25 +1803,32 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         // The ref read is intentionally deferred to distinguish StrictMode's
         // simulated cleanup from a real context change.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- compare the latest context generation after the deferred cleanup
-        if (capabilityUtilityContextVersionRef.current === contextVersion) clearCapabilityUtilityState();
+        if (capabilityUtilityContextVersionRef.current === contextVersion)
+          clearCapabilityUtilityState();
       });
     };
   }, [currentChapter?.id, novel.id]);
 
   useEffect(() => {
     if (
-      !capabilityLaunchState
-      || consumedCapabilityLaunchTokenRef.current === capabilityLaunchState.launchToken
-      || isEditorDataLoading
-      || chapterLoading
-    ) return;
+      !capabilityLaunchState ||
+      consumedCapabilityLaunchTokenRef.current === capabilityLaunchState.launchToken ||
+      isEditorDataLoading ||
+      chapterLoading
+    )
+      return;
     const resolved = resolveEditorCapabilityLaunch(capabilityLaunchState, {
       novelId: novel.id,
       chapterId: currentChapter?.id,
     });
     consumedCapabilityLaunchTokenRef.current = capabilityLaunchState.launchToken;
     if (!resolved.ok) {
-      toast(resolved.code === 'CAPABILITY_NOVEL_MISMATCH' ? '该能力不属于当前作品' : '目标章节已变化，请重新运行能力', 'error');
+      toast(
+        resolved.code === 'CAPABILITY_NOVEL_MISMATCH'
+          ? '该能力不属于当前作品'
+          : '目标章节已变化，请重新运行能力',
+        'error'
+      );
       onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken);
       return;
     }
@@ -1412,26 +1846,48 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     if (resolved.action === 'use-technique') {
       const state = currentChapter?.workflowMeta?.capabilityState;
       const techniqueIds = [...new Set([...(state?.techniqueIds || []), resolved.assetId])];
-      const isPolishRule = getCatalogCapabilityManifest(resolved.assetId)?.output === 'transform-preview';
+      const isPolishRule =
+        getCatalogCapabilityManifest(resolved.assetId)?.output === 'transform-preview';
       void persistChapterCapabilityState({
         techniqueIds,
         overlayCardIds: state?.overlayCardIds || [],
-      }).then(() => {
-        setWritingStyleResolution(null);
-        toast(isPolishRule ? '已加入本章精修规则，请重新确认本次写法' : '已加入本章技法，请重新确认本次写法', 'success');
-        void recordProductEvent({
-          eventName: 'technique_used', stage: 'drafting', result: 'success',
-          novelId: novel.id, chapterId: currentChapter?.id, objectId: resolved.assetId,
-        });
-      }).catch((error) => {
-        const fallbackMessage = isPolishRule ? '本章精修规则保存失败，请重试' : '本章技法保存失败，请重试';
-        toast(error instanceof Error && error.message !== '章节能力配置保存失败' ? error.message : fallbackMessage, 'error');
-      }).finally(() => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken));
+      })
+        .then(() => {
+          setWritingStyleResolution(null);
+          toast(
+            isPolishRule
+              ? '已加入本章精修规则，请重新确认本次写法'
+              : '已加入本章技法，请重新确认本次写法',
+            'success'
+          );
+          void recordProductEvent({
+            eventName: 'technique_used',
+            stage: 'drafting',
+            result: 'success',
+            novelId: novel.id,
+            chapterId: currentChapter?.id,
+            objectId: resolved.assetId,
+          });
+        })
+        .catch((error) => {
+          const fallbackMessage = isPolishRule
+            ? '本章精修规则保存失败，请重试'
+            : '本章技法保存失败，请重试';
+          toast(
+            error instanceof Error && error.message !== '章节能力配置保存失败'
+              ? error.message
+              : fallbackMessage,
+            'error'
+          );
+        })
+        .finally(() => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken));
       return;
     }
 
     if (resolved.action === 'use-overlay' || resolved.action === 'add-to-stack') {
-      const linkedSkill = librarySkills.find((skill) => skill.id === resolved.assetId || skill.parentSkillId === resolved.assetId);
+      const linkedSkill = librarySkills.find(
+        (skill) => skill.id === resolved.assetId || skill.parentSkillId === resolved.assetId
+      );
       const launchCardIds = resolved.sessionCardIds?.length
         ? [...resolved.sessionCardIds]
         : [resolved.assetId, linkedSkill?.id || ''];
@@ -1441,33 +1897,49 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken);
         return;
       }
-      void handleStackDeconstructionCard(ids[0]).then(() => {
-        const rawSourceType = linkedSkill?.sourceType ?? getCatalogCapabilityManifest(resolved.assetId)?.sourceType;
-        const sourceType = rawSourceType === 'built-in' || rawSourceType === 'plaza' || rawSourceType === 'licensed' || rawSourceType === 'book-extracted'
-          ? rawSourceType
-          : 'unknown';
-        void recordProductEvent({
-          eventName: 'chapter_overlay_used', stage: 'drafting', result: 'success',
-          novelId: novel.id, chapterId: currentChapter?.id, objectId: ids[0],
-          action: resolved.action,
-          sessionId: `chapter:${novel.id}:${currentChapter?.id || resolved.targetChapterId || 'unknown'}`,
-          eventId: `event:chapter-overlay:${capabilityLaunchState.launchToken}:${ids[0]}`,
-          sourceType,
-        });
-      }).finally(() => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken));
+      void handleStackDeconstructionCard(ids[0])
+        .then(() => {
+          const rawSourceType =
+            linkedSkill?.sourceType ?? getCatalogCapabilityManifest(resolved.assetId)?.sourceType;
+          const sourceType =
+            rawSourceType === 'built-in' ||
+            rawSourceType === 'plaza' ||
+            rawSourceType === 'licensed' ||
+            rawSourceType === 'book-extracted'
+              ? rawSourceType
+              : 'unknown';
+          void recordProductEvent({
+            eventName: 'chapter_overlay_used',
+            stage: 'drafting',
+            result: 'success',
+            novelId: novel.id,
+            chapterId: currentChapter?.id,
+            objectId: ids[0],
+            action: resolved.action,
+            sessionId: `chapter:${novel.id}:${currentChapter?.id || resolved.targetChapterId || 'unknown'}`,
+            eventId: `event:chapter-overlay:${capabilityLaunchState.launchToken}:${ids[0]}`,
+            sourceType,
+          });
+        })
+        .finally(() => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken));
       return;
     }
 
     const textarea = contentRef.current;
-    const selection = textarea && textarea.selectionEnd > textarea.selectionStart
-      ? { start: textarea.selectionStart, end: textarea.selectionEnd }
-      : undefined;
-    return runCapabilityUtility({
-      assetId: resolved.assetId,
-      targetChapterId: resolved.targetChapterId,
-      action: resolved.action,
-      runToken: String(capabilityLaunchState.launchToken),
-    }, selection, () => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken));
+    const selection =
+      textarea && textarea.selectionEnd > textarea.selectionStart
+        ? { start: textarea.selectionStart, end: textarea.selectionEnd }
+        : undefined;
+    return runCapabilityUtility(
+      {
+        assetId: resolved.assetId,
+        targetChapterId: resolved.targetChapterId,
+        action: resolved.action,
+        runToken: String(capabilityLaunchState.launchToken),
+      },
+      selection,
+      () => onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken)
+    );
   }, [
     capabilityLaunchState,
     chapterLoading,
@@ -1486,15 +1958,44 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   ]);
 
   useEffect(() => {
-    if (!launchState || launchState.source !== 'capability-overlay' || launchState.novelId !== novel.id || isEditorDataLoading || chapterLoading || !currentChapter) return;
+    if (
+      !launchState ||
+      launchState.source !== 'capability-overlay' ||
+      launchState.novelId !== novel.id ||
+      isEditorDataLoading ||
+      chapterLoading ||
+      !currentChapter
+    )
+      return;
     if (restoredLaunchSessionCardsRef.current === launchState.launchToken) return;
     restoredLaunchSessionCardsRef.current = launchState.launchToken;
-    const ids = getTrustedSessionCardIds([...new Set((launchState.sessionCardIds || []).filter(Boolean))].slice(0, 6), librarySkills);
-    ids.forEach((id) => { void handleStackDeconstructionCard(id); });
-    if (ids.length) void recordProductEvent({ eventName: 'deconstruction_card_restore', stage: 'drafting', result: 'success', novelId: novel.id, chapterId: currentChapter.id, objectId: ids.join(',') });
+    const ids = getTrustedSessionCardIds(
+      [...new Set((launchState.sessionCardIds || []).filter(Boolean))].slice(0, 6),
+      librarySkills
+    );
+    ids.forEach((id) => {
+      void handleStackDeconstructionCard(id);
+    });
+    if (ids.length)
+      void recordProductEvent({
+        eventName: 'deconstruction_card_restore',
+        stage: 'drafting',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: currentChapter.id,
+        objectId: ids.join(','),
+      });
     onLaunchConsumed?.(launchState.launchToken);
-  }, [chapterLoading, currentChapter, handleStackDeconstructionCard, isEditorDataLoading, launchState, librarySkills, novel.id, onLaunchConsumed]);
-
+  }, [
+    chapterLoading,
+    currentChapter,
+    handleStackDeconstructionCard,
+    isEditorDataLoading,
+    launchState,
+    librarySkills,
+    novel.id,
+    onLaunchConsumed,
+  ]);
 
   useEffect(() => {
     if (!launchState || hasConsumedContinuationLaunchUiRef.current) return;
@@ -1571,21 +2072,43 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     if (chapters.length === 0) {
       void handleAddFirstChapter();
     }
-  }, [chapters.length, chapterLoading, handleAddChapter, handleAddFirstChapter, handleCompleteChapter, handleOpenCompletionFacts, isEditorDataLoading, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.prefillIntent, launchState?.source, onLaunchConsumed, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, setUserIntent, handleRunAudit, handlePolishChapterFromAudit, currentChapter]);
+  }, [
+    chapters.length,
+    chapterLoading,
+    handleAddChapter,
+    handleAddFirstChapter,
+    handleCompleteChapter,
+    handleOpenCompletionFacts,
+    isEditorDataLoading,
+    launchState,
+    launchState?.approvedPackId,
+    launchState?.launchToken,
+    launchState?.prefillIntent,
+    launchState?.source,
+    onLaunchConsumed,
+    setAgentTab,
+    setIsAgentSidebarOpen,
+    setProductionIntent,
+    setUserIntent,
+    handleRunAudit,
+    handlePolishChapterFromAudit,
+    currentChapter,
+  ]);
 
   useEffect(() => {
     if (
-      !launchState
-      || (launchState.source !== 'world-overview' && launchState.source !== 'continuation-import')
-      || !launchState.approvedPackId
-      || autoStartedProductionLaunchTokenRef.current === launchState.launchToken
-      || isEditorDataLoading
-      || chapterLoading
-      || chapters.length === 0
-      || !currentChapter
-      || selectedContinuationPackId !== launchState.approvedPackId
-      || !launchProductionIntent
-    ) return;
+      !launchState ||
+      (launchState.source !== 'world-overview' && launchState.source !== 'continuation-import') ||
+      !launchState.approvedPackId ||
+      autoStartedProductionLaunchTokenRef.current === launchState.launchToken ||
+      isEditorDataLoading ||
+      chapterLoading ||
+      chapters.length === 0 ||
+      !currentChapter ||
+      selectedContinuationPackId !== launchState.approvedPackId ||
+      !launchProductionIntent
+    )
+      return;
 
     autoStartedProductionLaunchTokenRef.current = launchState.launchToken;
     setUserIntent(launchProductionIntent);
@@ -1594,7 +2117,24 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     setAgentTab('production');
     void startProductionRun(launchProductionIntent);
     onLaunchConsumed?.(launchState.launchToken);
-  }, [chapterLoading, chapters.length, currentChapter, isEditorDataLoading, launchProductionIntent, launchState, launchState?.approvedPackId, launchState?.launchToken, launchState?.source, onLaunchConsumed, selectedContinuationPackId, setAgentTab, setIsAgentSidebarOpen, setProductionIntent, setUserIntent, startProductionRun]);
+  }, [
+    chapterLoading,
+    chapters.length,
+    currentChapter,
+    isEditorDataLoading,
+    launchProductionIntent,
+    launchState,
+    launchState?.approvedPackId,
+    launchState?.launchToken,
+    launchState?.source,
+    onLaunchConsumed,
+    selectedContinuationPackId,
+    setAgentTab,
+    setIsAgentSidebarOpen,
+    setProductionIntent,
+    setUserIntent,
+    startProductionRun,
+  ]);
 
   // Synchronize target chapter ID from cockpit / launch state
   useEffect(() => {
@@ -1606,14 +2146,16 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     if (hasSyncedTargetChapterRef.current) return;
 
     if (launchState?.targetChapterId && chapters.length > 0) {
-      const matched = chapters.find(c => c.id === launchState.targetChapterId);
+      const matched = chapters.find((c) => c.id === launchState.targetChapterId);
       if (matched) {
-        void selectChapter(matched.id).then((loaded) => {
-          if (loaded) hasSyncedTargetChapterRef.current = true;
-        }).catch((error) => {
-          console.error('[EditorView] Failed to load launch target chapter:', error);
-          toast('目标章节加载失败，请重试', 'error');
-        });
+        void selectChapter(matched.id)
+          .then((loaded) => {
+            if (loaded) hasSyncedTargetChapterRef.current = true;
+          })
+          .catch((error) => {
+            console.error('[EditorView] Failed to load launch target chapter:', error);
+            toast('目标章节加载失败，请重试', 'error');
+          });
       }
     }
   }, [launchState?.targetChapterId, chapters, selectChapter]);
@@ -1641,7 +2183,15 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
     }
     autoPolishAfterAuditRef.current = null;
     autoPolishAuditStartedRef.current = false;
-  }, [currentChapter, currentChapter?.id, currentChapter?.critique, currentChapter?.workflowMeta?.lastAudit?.completedAt, isGeneratingCritique, handlePolishChapterFromAudit, launchState?.launchToken]);
+  }, [
+    currentChapter,
+    currentChapter?.id,
+    currentChapter?.critique,
+    currentChapter?.workflowMeta?.lastAudit?.completedAt,
+    isGeneratingCritique,
+    handlePolishChapterFromAudit,
+    launchState?.launchToken,
+  ]);
 
   useEffect(() => {
     recordSkillUsageRef.current = recordSkillUsage;
@@ -1655,13 +2205,19 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
   }, [stopGenerationFlow, stopProductionFlow]);
 
   return (
-    <div className={cn(
-      "h-full flex overflow-hidden transition-all duration-700 relative",
-      isFullscreen ? "fixed inset-0 z-[100] bg-parchment" : "bg-theme-sidebar"
-    )}>
+    <div
+      className={cn(
+        'h-full flex overflow-hidden transition-all duration-700 relative',
+        isFullscreen ? 'fixed inset-0 z-[100] bg-parchment' : 'bg-theme-sidebar'
+      )}
+    >
       {(isEditorDataLoading || chapterLoading) && (
         <div className="absolute top-4 right-4 z-50">
-          <Loader2 className="animate-spin text-theme-accent opacity-50" size={20} aria-hidden="true" />
+          <Loader2
+            className="animate-spin text-theme-accent opacity-50"
+            size={20}
+            aria-hidden="true"
+          />
         </div>
       )}
       {/* Chapter List Sidebar */}
@@ -1681,10 +2237,12 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
       />
 
       {/* Editor Content Area */}
-      <div className={cn(
-        "flex-1 flex flex-col relative overflow-hidden transition-colors duration-500",
-        isFullscreen ? "bg-parchment" : "bg-paper"
-      )}>
+      <div
+        className={cn(
+          'flex-1 flex flex-col relative overflow-hidden transition-colors duration-500',
+          isFullscreen ? 'bg-parchment' : 'bg-paper'
+        )}
+      >
         {/* Editor Toolbar */}
         <EditorHeader
           currentChapter={currentChapter}
@@ -1733,56 +2291,103 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
         />
 
         {(isCapabilityUtilityRunning || capabilityUtilityResult || capabilityUtilityError) && (
-          <section aria-label="能力执行结果" className="mx-3 mb-2 border-y border-theme-border bg-theme-sidebar/70 px-3 py-3 sm:mx-5">
+          <section
+            aria-label="能力执行结果"
+            className="mx-3 mb-2 border-y border-theme-border bg-theme-sidebar/70 px-3 py-3 sm:mx-5"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-theme-text">
                   {capabilityUtilityPanelTitle}
                 </div>
                 {capabilityResultSourceLabels.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]" aria-label="本次能力来源">
+                  <div
+                    className="mt-1 flex flex-wrap gap-1.5 text-[11px]"
+                    aria-label="本次能力来源"
+                  >
                     <span className="text-theme-muted">本次能力来源</span>
                     {capabilityResultSourceLabels.slice(0, 4).map((label) => (
-                      <span key={label} className="rounded border border-theme-border bg-theme-bg px-1.5 py-0.5 text-theme-text">
+                      <span
+                        key={label}
+                        className="rounded border border-theme-border bg-theme-bg px-1.5 py-0.5 text-theme-text"
+                      >
                         {label}
                       </span>
                     ))}
-                    {capabilityResultSourceLabels.length > 4 ? <span className="text-theme-muted">+{capabilityResultSourceLabels.length - 4}</span> : null}
+                    {capabilityResultSourceLabels.length > 4 ? (
+                      <span className="text-theme-muted">
+                        +{capabilityResultSourceLabels.length - 4}
+                      </span>
+                    ) : null}
                   </div>
                 )}
-                {capabilityUtilityError && <p role="alert" className="mt-1 text-xs text-red-600">{capabilityUtilityError}</p>}
-                {capabilityUtilityResult?.kind === 'diagnostic' && (
-                  capabilityUtilityResult.report.issueCount === 0
-                    ? <p className="mt-2 text-xs text-theme-muted">本次诊断未发现明确问题，正文未被修改。</p>
-                    : <ul className="mt-2 max-h-40 space-y-2 overflow-auto text-xs leading-5 text-theme-text">
+                {capabilityUtilityError && (
+                  <p role="alert" className="mt-1 text-xs text-red-600">
+                    {capabilityUtilityError}
+                  </p>
+                )}
+                {capabilityUtilityResult?.kind === 'diagnostic' &&
+                  (capabilityUtilityResult.report.issueCount === 0 ? (
+                    <p className="mt-2 text-xs text-theme-muted">
+                      本次诊断未发现明确问题，正文未被修改。
+                    </p>
+                  ) : (
+                    <ul className="mt-2 max-h-40 space-y-2 overflow-auto text-xs leading-5 text-theme-text">
                       {capabilityUtilityResult.report.issues.map((issue, index) => (
-                        <li key={`${issue.category}-${issue.line}-${index}`} className="rounded border border-theme-border/60 p-2">
-                          <div className="font-bold">{issue.category}{issue.line > 0 ? ` · 第 ${issue.line} 行` : ''}</div>
-                          {issue.snippet && <div className="mt-1 text-theme-muted">“{issue.snippet}”</div>}
+                        <li
+                          key={`${issue.category}-${issue.line}-${index}`}
+                          className="rounded border border-theme-border/60 p-2"
+                        >
+                          <div className="font-bold">
+                            {issue.category}
+                            {issue.line > 0 ? ` · 第 ${issue.line} 行` : ''}
+                          </div>
+                          {issue.snippet && (
+                            <div className="mt-1 text-theme-muted">“{issue.snippet}”</div>
+                          )}
                           {issue.suggestion && <div className="mt-1">建议：{issue.suggestion}</div>}
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-theme-muted">
-                            <span>下一步：按建议修改正文，或运行精修卡生成预览，确认后再应用。</span>
-                            <button type="button" onClick={handleOpenPolishCards} className="inline-flex h-7 items-center border border-theme-border px-2 text-[11px] font-bold text-theme-text hover:border-theme-accent" title="打开精修卡">
+                            <span>
+                              下一步：按建议修改正文，或运行精修卡生成预览，确认后再应用。
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleOpenPolishCards}
+                              className="inline-flex h-7 items-center border border-theme-border px-2 text-[11px] font-bold text-theme-text hover:border-theme-accent"
+                              title="打开精修卡"
+                            >
                               打开精修卡
                             </button>
                           </div>
                         </li>
                       ))}
                     </ul>
-                )}
+                  ))}
                 {capabilityUtilityResult?.kind === 'transform-preview' && (
                   <>
                     {capabilityUtilityResult.contextRewrite?.status === 'required' && (
-                      <button type="button" onClick={() => void handleContextRewriteFromCapability()} disabled={isCapabilityUtilityRunning || isGeneratingContent} className="mt-2 inline-flex h-8 items-center border border-theme-accent px-2 text-xs font-bold text-theme-accent disabled:cursor-not-allowed disabled:opacity-50" title="生成上下文精修候选">
+                      <button
+                        type="button"
+                        onClick={() => void handleContextRewriteFromCapability()}
+                        disabled={isCapabilityUtilityRunning || isGeneratingContent}
+                        className="mt-2 inline-flex h-8 items-center border border-theme-accent px-2 text-xs font-bold text-theme-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        title="生成上下文精修候选"
+                      >
                         生成上下文精修候选
                       </button>
                     )}
                     {capabilityUtilityResult.quality ? (
- <div className={`mt-2 rounded border px-2 py-1 text-[11px] ${capabilityUtilityResult.quality.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'alert-danger'}`}>
-                        {capabilityUtilityResult.quality.ok ? '质量门禁通过，可确认写入。' : `质量门禁阻断：${capabilityUtilityResult.quality.violations.join('；')}`}
+                      <div
+                        className={`mt-2 rounded border px-2 py-1 text-[11px] ${capabilityUtilityResult.quality.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'alert-danger'}`}
+                      >
+                        {capabilityUtilityResult.quality.ok
+                          ? '质量门禁通过，可确认写入。'
+                          : `质量门禁阻断：${capabilityUtilityResult.quality.violations.join('；')}`}
                       </div>
                     ) : null}
-                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5 text-theme-text">{capabilityUtilityResult.preview}</pre>
+                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5 text-theme-text">
+                      {capabilityUtilityResult.preview}
+                    </pre>
                   </>
                 )}
               </div>
@@ -1794,10 +2399,13 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                       onClick={() => {
                         const retry = capabilityUtilityRetry;
                         const selection = capabilityUtilitySelection;
-                        void runCapabilityUtility({
-                          ...retry,
-                          runToken: `${retry.runToken}:retry:${Date.now()}`,
-                        }, selection);
+                        void runCapabilityUtility(
+                          {
+                            ...retry,
+                            runToken: `${retry.runToken}:retry:${Date.now()}`,
+                          },
+                          selection
+                        );
                       }}
                       className="inline-flex h-8 items-center justify-center border border-theme-accent px-2 text-xs font-bold text-theme-accent"
                       title="重新运行能力卡"
@@ -1808,7 +2416,12 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                   {capabilityUtilityError && capabilityUtilityRetry && onNavigate && (
                     <button
                       type="button"
-                      onClick={() => onNavigate('skills', { targetChapterId: capabilityUtilityRetry.targetChapterId, stage: 'style-polish' })}
+                      onClick={() =>
+                        onNavigate('skills', {
+                          targetChapterId: capabilityUtilityRetry.targetChapterId,
+                          stage: 'style-polish',
+                        })
+                      }
                       className="inline-flex h-8 items-center justify-center border border-theme-border px-2 text-xs font-bold text-theme-text hover:border-theme-accent"
                       title="返回作品能力中心"
                     >
@@ -1816,7 +2429,13 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                     </button>
                   )}
                   {capabilityUtilityResult?.kind === 'transform-preview' && (
-                    <button type="button" onClick={() => void handleApplyCapabilityPreview()} disabled={capabilityUtilityResult.quality?.ok === false} className="inline-flex h-8 items-center justify-center gap-1 border border-theme-accent px-2 text-xs font-bold text-theme-accent disabled:cursor-not-allowed disabled:opacity-50" title="应用精修预览">
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyCapabilityPreview()}
+                      disabled={capabilityUtilityResult.quality?.ok === false}
+                      className="inline-flex h-8 items-center justify-center gap-1 border border-theme-accent px-2 text-xs font-bold text-theme-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      title="应用精修预览"
+                    >
                       <Check size={15} aria-hidden="true" />
                       <span>应用精修预览</span>
                     </button>
@@ -1825,10 +2444,15 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
                     type="button"
                     onClick={() => {
                       if (capabilityUtilityResult) {
-                        const eventMetadata = buildCapabilityUtilityEventMetadata(capabilityUtilityResult);
+                        const eventMetadata =
+                          buildCapabilityUtilityEventMetadata(capabilityUtilityResult);
                         void recordProductEvent({
-                          eventName: 'capability_cancel', stage: 'polish', result: 'success',
-                          novelId: novel.id, chapterId: currentChapter?.id, objectId: capabilityUtilityResult.capabilityId,
+                          eventName: 'capability_cancel',
+                          stage: 'polish',
+                          result: 'success',
+                          novelId: novel.id,
+                          chapterId: currentChapter?.id,
+                          objectId: capabilityUtilityResult.capabilityId,
                           ...eventMetadata,
                           eventId: `event:capability-cancel:${eventMetadata.sessionId}`,
                         });
@@ -1852,13 +2476,21 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           </section>
         )}
         {capabilityUtilitySuccess && (
-          <section aria-label="能力应用结果" className="mx-3 mb-2 flex flex-wrap items-center gap-2 border-y border-theme-border bg-theme-sidebar/70 px-3 py-2 text-xs text-theme-text sm:mx-5">
+          <section
+            aria-label="能力应用结果"
+            className="mx-3 mb-2 flex flex-wrap items-center gap-2 border-y border-theme-border bg-theme-sidebar/70 px-3 py-2 text-xs text-theme-text sm:mx-5"
+          >
             <span className="font-bold">精修已应用</span>
             <span className="text-theme-muted">已保存应用前版本，可从章节版本记录回退。</span>
             {onNavigate && currentChapter?.id ? (
               <button
                 type="button"
-                onClick={() => onNavigate('skills', { targetChapterId: currentChapter.id, stage: 'style-polish' })}
+                onClick={() =>
+                  onNavigate('skills', {
+                    targetChapterId: currentChapter.id,
+                    stage: 'style-polish',
+                  })
+                }
                 className="inline-flex h-7 items-center justify-center border border-theme-border px-2 text-[11px] font-bold text-theme-text hover:border-theme-accent"
               >
                 调整精修卡
@@ -1874,13 +2506,19 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             aria-label="AI 操作状态"
             className={cn(
               'mx-3 mb-2 flex flex-wrap items-center gap-2 border px-3 py-2 text-xs sm:mx-5',
-              aiActionState.status === 'running' && 'border-theme-accent/30 bg-theme-accent/5 text-theme-text',
-              aiActionState.status === 'success' && 'border-emerald-300 bg-emerald-50 text-emerald-800',
- aiActionState.status === 'error' && 'alert-danger',
+              aiActionState.status === 'running' &&
+                'border-theme-accent/30 bg-theme-accent/5 text-theme-text',
+              aiActionState.status === 'success' &&
+                'border-emerald-300 bg-emerald-50 text-emerald-800',
+              aiActionState.status === 'error' && 'alert-danger'
             )}
           >
             <span className="font-bold">
-              {aiActionState.status === 'running' ? 'AI 处理中' : aiActionState.status === 'success' ? 'AI 已完成' : 'AI 操作失败'}
+              {aiActionState.status === 'running'
+                ? 'AI 处理中'
+                : aiActionState.status === 'success'
+                  ? 'AI 已完成'
+                  : 'AI 操作失败'}
             </span>
             <span className="min-w-0 flex-1 break-words">{aiActionState.message}</span>
             {aiActionState.status === 'running' ? (
@@ -1894,7 +2532,9 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
               </button>
             ) : null}
             {typeof aiActionState.elapsedMs === 'number' && aiActionState.status !== 'running' ? (
-              <span className="text-[10px] opacity-70">耗时 {(aiActionState.elapsedMs / 1000).toFixed(1)}s</span>
+              <span className="text-[10px] opacity-70">
+                耗时 {(aiActionState.elapsedMs / 1000).toFixed(1)}s
+              </span>
             ) : null}
             {aiActionState.status === 'error' && aiActionState.retryable ? (
               <button
@@ -1908,7 +2548,10 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
             {aiActionState.status === 'error' && aiActionState.violations?.length ? (
               <button
                 type="button"
-                onClick={() => { setAgentTab('skills'); setIsAgentSidebarOpen(true); }}
+                onClick={() => {
+                  setAgentTab('skills');
+                  setIsAgentSidebarOpen(true);
+                }}
                 className="inline-flex h-7 items-center border border-theme-border px-2 text-[11px] font-bold hover:bg-theme-border/30"
               >
                 调整写法
@@ -1938,41 +2581,61 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
               onConfirm={handleConfirmWritingStyle}
               onGenerate={handleWritingStyleGenerate}
               generateLabel="去生成本章正文"
-              onOpenWritingStyle={() => { setAgentTab('skills'); setIsAgentSidebarOpen(true); }}
+              onOpenWritingStyle={() => {
+                setAgentTab('skills');
+                setIsAgentSidebarOpen(true);
+              }}
               onManageSkills={() => handleWorkspaceNavigate('skills')}
             />
           </div>
         ) : writingStyleError ? (
- <div role="status" className="mx-3 mb-2 alert-warning px-3 py-2 text-xs sm:mx-5">
+          <div role="status" className="mx-3 mb-2 alert-warning px-3 py-2 text-xs sm:mx-5">
             {writingStyleError}
           </div>
         ) : null}
         {/* 008：快速模式与完整生产共用同一状态条（④ 待写入可点击滚动到候选区） */}
-        {aiContentCandidate && aiContentCandidate.chapterId === currentChapter?.id && !isAgentSidebarOpen && (
-          <div className="mx-3 mb-2 sm:mx-5">
-            <GenerationStatusBar
-              mode="quick"
-              quickDraftReady
-              onWriteClick={() => {
-                candidateBannerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              }}
-            />
-          </div>
-        )}
-        {aiContentCandidate && aiContentCandidate.chapterId === currentChapter?.id && !isAgentSidebarOpen && (
-          <div ref={candidateBannerRef} className="mx-3 mb-2 sm:mx-5">
-            <AiCandidateReview
-              candidate={aiContentCandidate}
-              variant="editor"
-              isAccepting={isAcceptingAiCandidate}
-              className="rounded-lg px-3 py-2"
-              onAccept={() => { void acceptAiContentCandidate().catch((error) => toast(error instanceof Error ? error.message : '候选已失效，请重新生成。', 'error')); }}
-              onDiscard={discardAiContentCandidate}
-              onPolish={handleOpenPolishCards}
-              onWorkbenchJump={() => { setAgentTab('quality'); setIsAgentSidebarOpen(true); }}
-            />
-          </div>
-        )}
+        {aiContentCandidate &&
+          aiContentCandidate.chapterId === currentChapter?.id &&
+          !isAgentSidebarOpen && (
+            <div className="mx-3 mb-2 sm:mx-5">
+              <GenerationStatusBar
+                mode="quick"
+                quickDraftReady
+                onWriteClick={() => {
+                  candidateBannerRef.current?.scrollIntoView({
+                    block: 'center',
+                    behavior: 'smooth',
+                  });
+                }}
+              />
+            </div>
+          )}
+        {aiContentCandidate &&
+          aiContentCandidate.chapterId === currentChapter?.id &&
+          !isAgentSidebarOpen && (
+            <div ref={candidateBannerRef} className="mx-3 mb-2 sm:mx-5">
+              <AiCandidateReview
+                candidate={aiContentCandidate}
+                variant="editor"
+                isAccepting={isAcceptingAiCandidate}
+                className="rounded-lg px-3 py-2"
+                onAccept={() => {
+                  void acceptAiContentCandidate().catch((error) =>
+                    toast(
+                      error instanceof Error ? error.message : '候选已失效，请重新生成。',
+                      'error'
+                    )
+                  );
+                }}
+                onDiscard={discardAiContentCandidate}
+                onPolish={handleOpenPolishCards}
+                onWorkbenchJump={() => {
+                  setAgentTab('quality');
+                  setIsAgentSidebarOpen(true);
+                }}
+              />
+            </div>
+          )}
         <WritingSurface
           novel={novel}
           currentChapter={currentChapter}
@@ -2018,14 +2681,21 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           <div className="mx-3 mb-3 sm:mx-5">
             <ChapterFactCandidateReview
               candidate={completionFactCandidate}
-              canConfirm={currentChapter?.workflowMeta?.completionGate === 'ready' || currentChapter?.workflowMeta?.completionGate === 'accepted-risk'}
+              canConfirm={
+                currentChapter?.workflowMeta?.completionGate === 'ready' ||
+                currentChapter?.workflowMeta?.completionGate === 'accepted-risk'
+              }
               submitting={isConfirmingFacts}
               onConfirm={(selection) => void handleConfirmCompletionFacts(selection)}
             />
           </div>
         ) : null}
 
- {completionError && completionChapterId === currentChapter?.id ? <div role="alert" className="mx-3 mb-3 alert-danger px-3 py-2 text-xs sm:mx-5">{completionError}</div> : null}
+        {completionError && completionChapterId === currentChapter?.id ? (
+          <div role="alert" className="mx-3 mb-3 alert-danger px-3 py-2 text-xs sm:mx-5">
+            {completionError}
+          </div>
+        ) : null}
 
         <EditorStatusBar
           currentChapter={currentChapter}
@@ -2033,13 +2703,22 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
           isSyncing={isSyncing}
           syncSuccess={syncSuccess}
           syncFailed={syncFailed}
-          saveStatus={(isEditorDataLoading || chapterLoading) ? 'loading' : syncFailed ? 'failed' : isSyncing ? 'pending' : syncSuccess ? 'saved' : 'unknown'}
+          saveStatus={
+            isEditorDataLoading || chapterLoading
+              ? 'loading'
+              : syncFailed
+                ? 'failed'
+                : isSyncing
+                  ? 'pending'
+                  : syncSuccess
+                    ? 'saved'
+                    : 'unknown'
+          }
           launchState={launchState}
           novelId={novel.id}
           novelTitle={novel.title}
           embeddingStatus={embeddingStatus}
         />
-
       </div>
 
       {/* Agent Sidebar - Docked (WritingContextRail) */}

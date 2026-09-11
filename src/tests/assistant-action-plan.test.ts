@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import {
-  buildAssistantActionPlan,
-  getAssistantQuickActions,
-} from '../lib/assistant-action-plan';
+import { buildAssistantActionPlan, getAssistantQuickActions } from '../lib/assistant-action-plan';
 
 describe('assistant action plan', () => {
   test('hides chapter-only actions when no chapter is bound', () => {
@@ -45,7 +42,9 @@ describe('assistant action plan', () => {
   });
 
   test('routes setting work to a project candidate instead of a direct canon write', () => {
-    expect(buildAssistantActionPlan('build-setting', '补充世界规则', { novelId: 'novel-a' })).toMatchObject({
+    expect(
+      buildAssistantActionPlan('build-setting', '补充世界规则', { novelId: 'novel-a' })
+    ).toMatchObject({
       scope: 'project',
       executionMode: 'single-run',
       outputArtifact: 'world-candidate',

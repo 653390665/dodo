@@ -80,7 +80,9 @@ class WriteQueue {
     if (this.latch) throw new Error('[db] Write queue is already held.');
     this.enqueuedSinceHold = 0;
     let resolver: () => void;
-    this.latch = new Promise<void>((resolve) => { resolver = resolve; });
+    this.latch = new Promise<void>((resolve) => {
+      resolver = resolve;
+    });
     let released = false;
     const release = () => {
       if (released) return;
@@ -127,7 +129,9 @@ export function advanceDatabaseGeneration(): number {
 
 export function subscribeDatabaseGeneration(listener: (generation: number) => void): () => void {
   databaseGenerationListeners.add(listener);
-  return () => { databaseGenerationListeners.delete(listener); };
+  return () => {
+    databaseGenerationListeners.delete(listener);
+  };
 }
 
 /**
@@ -136,14 +140,13 @@ export function subscribeDatabaseGeneration(listener: (generation: number) => vo
  */
 export async function runInSerializedWriteForGeneration<T>(
   generation: number,
-  fn: () => Promise<T> | T,
+  fn: () => Promise<T> | T
 ): Promise<{ executed: true; result: T } | { executed: false }> {
   return writeQueue.run(async () => {
     if (generation !== databaseGeneration) return { executed: false };
     return { executed: true, result: await fn() };
   });
 }
-
 
 /** Returns true if the database singleton has been initialized. */
 export function isDbInitialized(): boolean {
@@ -160,8 +163,12 @@ export async function drainWriteQueue(): Promise<void> {
 }
 
 /** Test-only: hold the write queue until released. */
-export function holdWriteQueue(): { release: () => void; waitForQueued: (count: number) => Promise<void> } {
-  if (process.env.NODE_ENV !== 'test') throw new Error('[db] holdWriteQueue is only available in test environment.');
+export function holdWriteQueue(): {
+  release: () => void;
+  waitForQueued: (count: number) => Promise<void>;
+} {
+  if (process.env.NODE_ENV !== 'test')
+    throw new Error('[db] holdWriteQueue is only available in test environment.');
   return writeQueue.hold();
 }
 
@@ -182,7 +189,9 @@ const listeners = new Set<(initiatorId?: string) => void>();
 /** Subscribe to database mutation events. Returns an unsubscribe function. */
 export function subscribe(fn: (initiatorId?: string) => void): () => void {
   listeners.add(fn);
-  return () => { listeners.delete(fn); };
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 let currentInitiator: string | undefined;

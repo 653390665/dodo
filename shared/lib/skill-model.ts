@@ -49,7 +49,7 @@ function collectCoveredResponsibilities(skill: Partial<Skill>): Set<SkillRoleKey
 }
 
 export function coerceMountedSkillLoadout(
-  mountedSkillIds: string[] | undefined,
+  mountedSkillIds: string[] | undefined
 ): MountedSkillLoadoutItem[] {
   return (mountedSkillIds || []).slice(0, 3).map((skillId, slot) => ({
     slot,
@@ -71,7 +71,9 @@ export interface SkillLoadoutMigrationResult {
 }
 
 /** Preserve explicit v2 emptiness; only migrate unambiguous legacy data. */
-export function resolveSkillLoadout(input: SkillLoadoutMigrationInput): SkillLoadoutMigrationResult {
+export function resolveSkillLoadout(
+  input: SkillLoadoutMigrationInput
+): SkillLoadoutMigrationResult {
   const entries = input.mountedSkillLoadout || [];
   if (input.profileVersion === 2) {
     if (entries.length === 0) return { loadout: [], pendingSkillIds: [] };
@@ -85,8 +87,11 @@ export function resolveSkillLoadout(input: SkillLoadoutMigrationInput): SkillLoa
     const pending = new Set<string>();
     const loadout: MountedSkillLoadoutItem[] = [];
     for (const entry of entries) {
-      const valid = entry.slot >= 0 && entry.slot <= 2 &&
-        slotCounts.get(entry.slot) === 1 && skillCounts.get(entry.skillId) === 1;
+      const valid =
+        entry.slot >= 0 &&
+        entry.slot <= 2 &&
+        slotCounts.get(entry.slot) === 1 &&
+        skillCounts.get(entry.skillId) === 1;
       if (valid) loadout.push(entry);
       else pending.add(entry.skillId);
     }
@@ -103,23 +108,34 @@ export function resolveSkillLoadout(input: SkillLoadoutMigrationInput): SkillLoa
   const slotZero = validEntries.filter((entry) => entry.slot === 0);
   const uniqueSlots = new Set(validEntries.map((entry) => entry.slot)).size === validEntries.length;
   const duplicateIds = entries
-    .filter((entry, index, all) => all.findIndex((candidate) => candidate.skillId === entry.skillId) !== index)
+    .filter(
+      (entry, index, all) =>
+        all.findIndex((candidate) => candidate.skillId === entry.skillId) !== index
+    )
     .map((entry) => entry.skillId);
   // A legacy slot 0 is safe only when it is the sole usable slot. Never silently
   // reinterpret ambiguous 1-based or malformed records.
-  if (slotZero.length === 1 && uniqueSlots && duplicateIds.length === 0 && validEntries.length > 0 && validEntries.length === entries.length) {
+  if (
+    slotZero.length === 1 &&
+    uniqueSlots &&
+    duplicateIds.length === 0 &&
+    validEntries.length > 0 &&
+    validEntries.length === entries.length
+  ) {
     return {
       loadout: validEntries,
-      pendingSkillIds: [...new Set(legacyIds.filter((skillId) => !validEntries.some((entry) => entry.skillId === skillId)))],
+      pendingSkillIds: [
+        ...new Set(
+          legacyIds.filter((skillId) => !validEntries.some((entry) => entry.skillId === skillId))
+        ),
+      ],
     };
   }
   return {
     loadout: [],
-    pendingSkillIds: [...new Set([
-      ...entries.map((entry) => entry.skillId),
-      ...legacyIds,
-      ...duplicateIds,
-    ])],
+    pendingSkillIds: [
+      ...new Set([...entries.map((entry) => entry.skillId), ...legacyIds, ...duplicateIds]),
+    ],
   };
 }
 
@@ -135,7 +151,7 @@ export function detectSkillConflicts(skills: Partial<Skill>[]): SkillConflict[] 
       const leftProfile = getProfile(left);
       const rightProfile = getProfile(right);
       const sharedDimensions = (left.dimensionTags || []).filter((dimension) =>
-        (right.dimensionTags || []).includes(dimension),
+        (right.dimensionTags || []).includes(dimension)
       );
 
       const hasExplicitConflict =
@@ -191,10 +207,7 @@ export function calculateSkillFitScore(args: {
   const conflictPenalty = conflicts.length * 0.12;
   const totalScore = Math.max(
     0,
-    Math.min(
-      1,
-      coverageScore * 0.45 + contextScore * 0.25 + stabilityScore * 0.3 - conflictPenalty,
-    ),
+    Math.min(1, coverageScore * 0.45 + contextScore * 0.25 + stabilityScore * 0.3 - conflictPenalty)
   );
 
   return {
@@ -206,8 +219,7 @@ export function calculateSkillFitScore(args: {
       conflictPenalty: Math.round(conflictPenalty * 100),
     },
     conflicts,
-    recommendations:
-      conflicts.length > 0 ? ['考虑替换存在作用冲突的能力卡'] : [],
+    recommendations: conflicts.length > 0 ? ['考虑替换存在作用冲突的能力卡'] : [],
   };
 }
 
@@ -217,9 +229,7 @@ export function summarizeUsageStats(records: SkillUsageRecord[]): SkillUsageStat
   const rejectedCount = records.filter((record) => record.userAction === 'rejected').length;
   const revisedCount = records.filter((record) => record.userAction === 'revised').length;
   const averageFitScore =
-    mountedCount > 0
-      ? records.reduce((sum, record) => sum + record.fitScore, 0) / mountedCount
-      : 0;
+    mountedCount > 0 ? records.reduce((sum, record) => sum + record.fitScore, 0) / mountedCount : 0;
 
   return {
     mountedCount,
@@ -251,7 +261,12 @@ export interface SkillScoreChannels {
   observedPerformance: { score: number; sampleSize: number } | null;
   /** Four independent P4 channels; no aggregate score is derived. */
   governanceGate: SkillGovernanceResult;
-  coldStartEvidence: { score: number | null; sampleSize: number; coverage: number; label: '冷启动评分' };
+  coldStartEvidence: {
+    score: number | null;
+    sampleSize: number;
+    coverage: number;
+    label: '冷启动评分';
+  };
   currentContextFit: { score: number; signalCount: number; sampleSize: number } | null;
   observedUsageFeedback: { score: number; sampleSize: number } | null;
 }
@@ -269,9 +284,16 @@ export function evaluateSkillGovernance(skill: Partial<Skill>): SkillGovernanceR
   if (!skill.description?.trim()) reasons.push('缺少能力卡说明');
   if (!skill.primaryDimension) reasons.push('未声明主维度');
   if (!skill.dimensionTags || skill.dimensionTags.length === 0) reasons.push('未声明维度标签');
-  const hasRule = [skill.style, skill.pacing, skill.characterTraits, skill.worldBuilding,
-    skill.plotPattern, skill.foreshadowing, ...(skill.corePatterns || []), ...(skill.fewShots || [])]
-    .some((value) => typeof value === 'string' && value.trim().length > 0);
+  const hasRule = [
+    skill.style,
+    skill.pacing,
+    skill.characterTraits,
+    skill.worldBuilding,
+    skill.plotPattern,
+    skill.foreshadowing,
+    ...(skill.corePatterns || []),
+    ...(skill.fewShots || []),
+  ].some((value) => typeof value === 'string' && value.trim().length > 0);
   if (!hasRule) reasons.push('缺少可执行规则或示例');
   return { status: reasons.length === 0 ? 'ready' : 'review-required', reasons };
 }
@@ -284,38 +306,58 @@ function normalizeScore(value: number | null | undefined): number | null {
 function hasValidUsageStats(stats: SkillUsageStats | null | undefined): stats is SkillUsageStats {
   if (!stats || !Number.isInteger(stats.mountedCount) || stats.mountedCount <= 0) return false;
   const counts = [stats.acceptedCount, stats.rejectedCount, stats.revisedCount];
-  return counts.every((count) => Number.isInteger(count) && count >= 0) && Number.isFinite(stats.averageFitScore);
+  return (
+    counts.every((count) => Number.isInteger(count) && count >= 0) &&
+    Number.isFinite(stats.averageFitScore)
+  );
 }
 
 /** Keep extraction evidence and real usage feedback as separate decision channels. */
-export function getSkillScoreChannels(skill: Partial<Skill>, context?: {
-  requiredDimensions?: SkillDimension[];
-  chapterSignals?: SkillDimension[];
-  loadout?: Partial<Skill>[];
-  assetKind?: 'skill-card' | 'flow' | 'technique';
-}): SkillScoreChannels {
+export function getSkillScoreChannels(
+  skill: Partial<Skill>,
+  context?: {
+    requiredDimensions?: SkillDimension[];
+    chapterSignals?: SkillDimension[];
+    loadout?: Partial<Skill>[];
+    assetKind?: 'skill-card' | 'flow' | 'technique';
+  }
+): SkillScoreChannels {
   const executionScore = normalizeScore(skill.executionScore);
   const evidenceStabilityScore = normalizeScore(skill.stabilityScore);
   const coldStartScore = executionScore;
-  const evidenceCoverage = new Set((skill.evidenceMoments || []).filter((value) => typeof value === 'string' && value.trim().length > 0)).size;
+  const evidenceCoverage = new Set(
+    (skill.evidenceMoments || []).filter(
+      (value) => typeof value === 'string' && value.trim().length > 0
+    )
+  ).size;
   const stats = skill.usageStats;
-  const signalCount = new Set((context?.chapterSignals || [])).size;
+  const signalCount = new Set(context?.chapterSignals || []).size;
   const currentContextFit = context?.chapterSignals
-    ? { score: calculateSkillFitScore({
-      requiredDimensions: context.requiredDimensions || skill.dimensionTags || [],
-      chapterSignals: context.chapterSignals,
-      loadout: context.loadout || [skill],
-    }).breakdown.contextScore, signalCount, sampleSize: signalCount }
+    ? {
+        score: calculateSkillFitScore({
+          requiredDimensions: context.requiredDimensions || skill.dimensionTags || [],
+          chapterSignals: context.chapterSignals,
+          loadout: context.loadout || [skill],
+        }).breakdown.contextScore,
+        signalCount,
+        sampleSize: signalCount,
+      }
     : null;
-  const governanceGate = context?.assetKind && context.assetKind !== 'skill-card'
-    ? { status: 'review-required' as const, reasons: ['非能力卡资产不进入能力卡评分通道'] }
-    : evaluateSkillGovernance(skill);
+  const governanceGate =
+    context?.assetKind && context.assetKind !== 'skill-card'
+      ? { status: 'review-required' as const, reasons: ['非能力卡资产不进入能力卡评分通道'] }
+      : evaluateSkillGovernance(skill);
   const base = {
     coldStartScore,
     evidenceStabilityScore,
     observedPerformance: null as { score: number; sampleSize: number } | null,
     governanceGate,
-    coldStartEvidence: { score: coldStartScore, sampleSize: evidenceCoverage, coverage: evidenceCoverage, label: '冷启动评分' as const },
+    coldStartEvidence: {
+      score: coldStartScore,
+      sampleSize: evidenceCoverage,
+      coverage: evidenceCoverage,
+      label: '冷启动评分' as const,
+    },
     currentContextFit,
     observedUsageFeedback: null as { score: number; sampleSize: number } | null,
   };

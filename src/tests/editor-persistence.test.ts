@@ -33,37 +33,53 @@ import {
 import { useEditorPersistence } from '../lib/hooks/useEditorPersistence';
 
 const novel: Novel = {
-  id: 'novel-1', title: '测试作品', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: '测试作品',
+  authorId: 'local-user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: '第一章', volumeName: '正文卷', content: '原文', sceneBeats: '',
-  order: 1, wordCount: 2, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: '第一章',
+  volumeName: '正文卷',
+  content: '原文',
+  sceneBeats: '',
+  order: 1,
+  wordCount: 2,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 function setup(
   currentChapter: Chapter | null = chapter,
   chapters = currentChapter ? [currentChapter] : [],
   contentRef: { current: HTMLTextAreaElement | null } = { current: null },
-  setGlobalOutline = vi.fn(),
+  setGlobalOutline = vi.fn()
 ) {
   const setChapters = vi.fn();
   const setCurrentChapter = vi.fn();
   const selectChapter = vi.fn().mockResolvedValue(chapter);
-  const hook = renderHook(() => useEditorPersistence({
-    novel,
-    chapters,
-    currentChapter,
-    isContentLockedRef: { current: false },
-    contentRef,
-    setChapters,
-    setCurrentChapter,
-    selectChapter,
-    setMountedSkillLoadout: vi.fn(),
-    setProjectPreferenceProfile: vi.fn(),
-    setGlobalOutline,
-    setExpandedVolumes: vi.fn(),
-    pushToUndoHistory: vi.fn(),
-  }));
+  const hook = renderHook(() =>
+    useEditorPersistence({
+      novel,
+      chapters,
+      currentChapter,
+      isContentLockedRef: { current: false },
+      contentRef,
+      setChapters,
+      setCurrentChapter,
+      selectChapter,
+      setMountedSkillLoadout: vi.fn(),
+      setProjectPreferenceProfile: vi.fn(),
+      setGlobalOutline,
+      setExpandedVolumes: vi.fn(),
+      pushToUndoHistory: vi.fn(),
+    })
+  );
   return { ...hook, setChapters, setCurrentChapter, selectChapter, setGlobalOutline };
 }
 
@@ -96,7 +112,12 @@ describe('useEditorPersistence safety boundary', () => {
 
   test('adds and selects a chapter only after createChapter resolves', async () => {
     let release!: () => void;
-    client.createChapter.mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
+    client.createChapter.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
     const { result, setChapters, setCurrentChapter } = setup();
 
     let creating!: Promise<void>;
@@ -117,7 +138,12 @@ describe('useEditorPersistence safety boundary', () => {
 
   test('coalesces repeated add chapter requests while creation is in flight', async () => {
     let release!: () => void;
-    client.createChapter.mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
+    client.createChapter.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
     const { result, setChapters, setCurrentChapter } = setup();
 
     let first!: Promise<void>;
@@ -155,14 +181,16 @@ describe('useEditorPersistence safety boundary', () => {
 
   test('refuses to restore a version belonging to another chapter', () => {
     const { result, setCurrentChapter } = setup();
-    act(() => result.current.handleRestoreVersion({
-      id: 'version-b',
-      chapterId: 'chapter-b',
-      content: '错误章节正文',
-      wordCount: 6,
-      author: 'user',
-      createdAt: 2,
-    }));
+    act(() =>
+      result.current.handleRestoreVersion({
+        id: 'version-b',
+        chapterId: 'chapter-b',
+        content: '错误章节正文',
+        wordCount: 6,
+        author: 'user',
+        createdAt: 2,
+      })
+    );
 
     expect(setCurrentChapter).not.toHaveBeenCalled();
     expect(client.toast).toHaveBeenCalledWith('该版本不属于当前章节，已阻止恢复', 'error');
@@ -180,7 +208,10 @@ describe('useEditorPersistence safety boundary', () => {
 
     await act(() => result.current.flushPendingEditorWrites());
 
-    expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({ content: '新正文' }));
+    expect(client.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({ content: '新正文' })
+    );
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { sceneBeats: '新分镜' });
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { title: '新标题' });
     expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, { volumeName: '新卷名' });
@@ -198,13 +229,15 @@ describe('useEditorPersistence safety boundary', () => {
       result.current.handleVolumeNameChange('新卷名');
     });
 
-    expect(getPendingEditorWriteSnapshots().map(({ snapshot }) => snapshot)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'content', value: '新正文' }),
-      expect.objectContaining({ field: 'sceneBeats', value: '新分镜' }),
-      expect.objectContaining({ field: 'globalOutline', value: '新大纲' }),
-      expect.objectContaining({ field: 'title', value: '新标题' }),
-      expect.objectContaining({ field: 'volumeName', value: '新卷名' }),
-    ]));
+    expect(getPendingEditorWriteSnapshots().map(({ snapshot }) => snapshot)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'content', value: '新正文' }),
+        expect.objectContaining({ field: 'sceneBeats', value: '新分镜' }),
+        expect.objectContaining({ field: 'globalOutline', value: '新大纲' }),
+        expect.objectContaining({ field: 'title', value: '新标题' }),
+        expect.objectContaining({ field: 'volumeName', value: '新卷名' }),
+      ])
+    );
   });
 
   test('adopts an imported outline through the queue before updating local state', async () => {
@@ -225,7 +258,9 @@ describe('useEditorPersistence safety boundary', () => {
     const setGlobalOutline = vi.fn();
     const { result } = setup(chapter, [chapter], { current: null }, setGlobalOutline);
 
-    await expect(result.current.adoptGlobalOutline('不得覆盖的旧大纲')).rejects.toThrow('Editor write did not update a row');
+    await expect(result.current.adoptGlobalOutline('不得覆盖的旧大纲')).rejects.toThrow(
+      'Editor write did not update a row'
+    );
 
     expect(setGlobalOutline).not.toHaveBeenCalled();
     expect(hasPendingEditorWrites()).toBe(true);
@@ -239,9 +274,12 @@ describe('useEditorPersistence safety boundary', () => {
 
     await act(() => flushPendingEditorWrites());
 
-    expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({
-      content: '立即退出前的最后输入',
-    }));
+    expect(client.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({
+        content: '立即退出前的最后输入',
+      })
+    );
     expect(hasPendingEditorWrites()).toBe(false);
   });
 
@@ -252,12 +290,17 @@ describe('useEditorPersistence safety boundary', () => {
 
     await act(() => result.current.handleSaveVersion('user'));
 
-    expect(client.updateChapter).toHaveBeenCalledWith(chapter.id, expect.objectContaining({ content: '最后一次输入' }));
-    expect(client.createChapterVersion).toHaveBeenCalledWith(expect.objectContaining({
-      chapterId: chapter.id,
-      content: '最后一次输入',
-      wordCount: 6,
-    }));
+    expect(client.updateChapter).toHaveBeenCalledWith(
+      chapter.id,
+      expect.objectContaining({ content: '最后一次输入' })
+    );
+    expect(client.createChapterVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chapterId: chapter.id,
+        content: '最后一次输入',
+        wordCount: 6,
+      })
+    );
   });
 
   test('records first content input once without content payload', async () => {
@@ -267,9 +310,15 @@ describe('useEditorPersistence safety boundary', () => {
     act(() => result.current.handleUpdateContent('第二次输入'));
 
     expect(client.recordProductEvent).toHaveBeenCalledTimes(1);
-    expect(client.recordProductEvent).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'first_content_input', stage: 'drafting', novelId: novel.id, chapterId: chapter.id, objectId: chapter.id,
-    }));
+    expect(client.recordProductEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: 'first_content_input',
+        stage: 'drafting',
+        novelId: novel.id,
+        chapterId: chapter.id,
+        objectId: chapter.id,
+      })
+    );
     expect(client.recordProductEvent.mock.calls[0][0]).not.toHaveProperty('content');
   });
 
@@ -279,9 +328,16 @@ describe('useEditorPersistence safety boundary', () => {
     act(() => result.current.handleUpdateContent('可保存正文'));
     await act(() => vi.advanceTimersByTimeAsync(1000));
 
-    expect(client.recordProductEvent).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'content_save', stage: 'drafting', result: 'success', novelId: novel.id, chapterId: chapter.id, objectId: chapter.id,
-    }));
+    expect(client.recordProductEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: 'content_save',
+        stage: 'drafting',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: chapter.id,
+        objectId: chapter.id,
+      })
+    );
   });
 
   test('does not record content save when persistence fails', async () => {
@@ -291,6 +347,8 @@ describe('useEditorPersistence safety boundary', () => {
     act(() => result.current.handleUpdateContent('保存失败正文'));
     await act(() => vi.advanceTimersByTimeAsync(1000));
 
-    expect(client.recordProductEvent).not.toHaveBeenCalledWith(expect.objectContaining({ eventName: 'content_save' }));
+    expect(client.recordProductEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'content_save' })
+    );
   });
 });

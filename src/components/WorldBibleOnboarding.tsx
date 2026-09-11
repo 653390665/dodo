@@ -4,7 +4,10 @@ import { SetupTaskDraft, StoryIdeaCard } from '../../shared/types';
 import { SetupTaskCard } from './onboarding/SetupTaskCard';
 import { SetupAssistantPanel } from './onboarding/SetupAssistantPanel';
 import { CURATED_PRODUCT_SKILLS, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
-import { filterGovernedAssets, getGovernedStageRecommendations } from '../lib/capability-governance';
+import {
+  filterGovernedAssets,
+  getGovernedStageRecommendations,
+} from '../lib/capability-governance';
 
 export function WorldBibleOnboarding({
   onboarding,
@@ -38,7 +41,9 @@ export function WorldBibleOnboarding({
   const [showCapabilityRecommendations, setShowCapabilityRecommendations] = useState(true);
   const stageRecommendations = getGovernedStageRecommendations('creative-setup');
   const defaultGuardrail = filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'guardrail')[0];
-  const optionalOverlay = stageRecommendations.find((entry) => entry.capability === 'overlay')?.asset;
+  const optionalOverlay = stageRecommendations.find(
+    (entry) => entry.capability === 'overlay'
+  )?.asset;
   const defaultFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === 'generic-novel-flow');
   // 核心状态：设定助手抽屉是否开启。
   // 遵循 Google 编程规范，此处采用惰性初始化（Lazy Initialization）安全读取 localStorage，
@@ -73,16 +78,18 @@ export function WorldBibleOnboarding({
           <p className="text-sm text-theme-muted mt-1">可以先写正文，设定骨架随时补全。</p>
         </div>
         <div className="text-right">
-          <div className="text-sm font-bold text-theme-text">{onboarding.completedCount} / 3 项核心设定已确认</div>
-          <p className="mt-1 text-xs text-theme-muted">
-            设定越完整，后续生成越稳
-          </p>
+          <div className="text-sm font-bold text-theme-text">
+            {onboarding.completedCount} / 3 项核心设定已确认
+          </div>
+          <p className="mt-1 text-xs text-theme-muted">设定越完整，后续生成越稳</p>
         </div>
       </header>
 
       <div className="px-8 py-5 border-b border-theme-border/60 bg-theme-bg/40">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-bold text-theme-text">当前阶段：故事方案已选，正在补全设定骨架</span>
+          <span className="font-bold text-theme-text">
+            当前阶段：故事方案已选，正在补全设定骨架
+          </span>
           <span className="text-theme-muted">{Math.min(onboarding.completedCount, 3)} / 3</span>
         </div>
         <div className="h-2 rounded-full bg-theme-sidebar">
@@ -98,7 +105,9 @@ export function WorldBibleOnboarding({
           <section className="h-full overflow-y-auto pr-1">
             <div className="mb-5">
               <h2 className="text-2xl font-serif font-bold text-theme-text">关键设定任务</h2>
-              <p className="mt-1 text-sm text-theme-muted">左侧确认故事骨架，右侧随时插话干预设定走向。</p>
+              <p className="mt-1 text-sm text-theme-muted">
+                左侧确认故事骨架，右侧随时插话干预设定走向。
+              </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {onboarding.tasks.map((task) => (
@@ -116,23 +125,41 @@ export function WorldBibleOnboarding({
                 <div className="mb-5 rounded-2xl border border-theme-accent/25 bg-theme-accent/5 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-base font-serif font-bold text-theme-text">本阶段能力建议</h3>
-                      <p className="mt-1 text-sm text-theme-muted">只展示建议，不会自动应用；可稍后在作品能力中心调整。</p>
+                      <h3 className="text-base font-serif font-bold text-theme-text">
+                        本阶段能力建议
+                      </h3>
+                      <p className="mt-1 text-sm text-theme-muted">
+                        只展示建议，不会自动应用；可稍后在作品能力中心调整。
+                      </p>
                     </div>
-                    <button type="button" onClick={() => setShowCapabilityRecommendations(false)} className="text-xs text-theme-muted hover:text-theme-text">稍后调整</button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCapabilityRecommendations(false)}
+                      className="text-xs text-theme-muted hover:text-theme-text"
+                    >
+                      稍后调整
+                    </button>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     <div className="rounded-xl border border-theme-border/60 bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] font-bold text-theme-accent">创作流程</div>
-                      <div className="mt-1 text-xs font-semibold text-theme-text">{defaultFlow?.name || '通用创作流程'}</div>
+                      <div className="mt-1 text-xs font-semibold text-theme-text">
+                        {defaultFlow?.name || '通用创作流程'}
+                      </div>
                     </div>
                     <div className="rounded-xl border border-theme-border/60 bg-theme-sidebar px-3 py-2">
                       <div className="text-[10px] font-bold text-theme-accent">系统护栏</div>
-                      <div className="mt-1 text-xs font-semibold text-theme-text">{defaultGuardrail?.title || '系统默认护栏'}</div>
+                      <div className="mt-1 text-xs font-semibold text-theme-text">
+                        {defaultGuardrail?.title || '系统默认护栏'}
+                      </div>
                     </div>
                     <div className="rounded-xl border border-theme-border/60 bg-theme-sidebar px-3 py-2">
-                      <div className="text-[10px] font-bold text-theme-accent">本章使用卡（可选）</div>
-                      <div className="mt-1 text-xs font-semibold text-theme-text">{optionalOverlay?.title || '暂无本章使用卡'}</div>
+                      <div className="text-[10px] font-bold text-theme-accent">
+                        本章使用卡（可选）
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-theme-text">
+                        {optionalOverlay?.title || '暂无本章使用卡'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -140,12 +167,19 @@ export function WorldBibleOnboarding({
               {onboarding.recommendedSkills.length > 0 && (
                 <div className="mb-5 rounded-2xl border border-theme-border bg-theme-bg/40 p-4">
                   <div className="mb-3">
-                    <h3 className="text-base font-serif font-bold text-theme-text">推荐的角色写作配置</h3>
-                    <p className="mt-1 text-sm text-theme-muted">基于你选中的故事方案，提供可选的角色写作配置；不会自动写入作品。</p>
+                    <h3 className="text-base font-serif font-bold text-theme-text">
+                      推荐的角色写作配置
+                    </h3>
+                    <p className="mt-1 text-sm text-theme-muted">
+                      基于你选中的故事方案，提供可选的角色写作配置；不会自动写入作品。
+                    </p>
                   </div>
                   <div className="space-y-3">
                     {onboarding.recommendedSkills.slice(0, 3).map((skill) => (
-                      <div key={skill.skillId} className="rounded-2xl border border-theme-border/70 bg-theme-sidebar px-4 py-3">
+                      <div
+                        key={skill.skillId}
+                        className="rounded-2xl border border-theme-border/70 bg-theme-sidebar px-4 py-3"
+                      >
                         <div className="text-sm font-bold text-theme-text">{skill.skillName}</div>
                         <p className="mt-1 text-xs leading-5 text-theme-muted">{skill.reason}</p>
                       </div>
@@ -199,9 +233,7 @@ export function WorldBibleOnboarding({
               onClick={() => setIsAssistantOpen(false)}
               className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
             />
-            <div
-              className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl"
-            >
+            <div className="fixed right-0 top-0 z-50 h-full w-[420px] max-w-[90vw] border-l border-theme-border bg-theme-sidebar shadow-2xl">
               <SetupAssistantPanel
                 selectedTask={onboarding.activeTask}
                 summaryCard={onboarding.card}

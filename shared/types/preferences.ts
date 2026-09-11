@@ -1,4 +1,3 @@
-
 export interface ChapterDecision {
   chapterId: string;
   timestamp: number;
@@ -19,12 +18,12 @@ export interface ProjectPreferenceWeights {
 }
 
 export interface QuotaLimits {
-  extractSkillMax?: number;      // 拆书萃取最大免费次数
-  extractSkillCount?: number;    // 当前已用拆书萃取次数
-  generateProseMax?: number;     // 正文生成最大免费次数
-  generateProseCount?: number;   // 当前已用正文生成次数
-  advancedAuditMax?: number;     // 智能审稿/高级诊断最大免费次数
-  advancedAuditCount?: number;   // 当前已用智能审稿/高级诊断次数
+  extractSkillMax?: number; // 拆书萃取最大免费次数
+  extractSkillCount?: number; // 当前已用拆书萃取次数
+  generateProseMax?: number; // 正文生成最大免费次数
+  generateProseCount?: number; // 当前已用正文生成次数
+  advancedAuditMax?: number; // 智能审稿/高级诊断最大免费次数
+  advancedAuditCount?: number; // 当前已用智能审稿/高级诊断次数
 }
 
 export interface ProjectPreferenceProfile {
@@ -70,7 +69,8 @@ export interface ProjectCapabilityProfile {
   migrationPendingIds?: string[];
 }
 
-export type WritingStyleMode = 'default' | 'skill-deck' | 'writer-skill' | 'continuation-pack' | 'blend';
+export type WritingStyleMode =
+  'default' | 'skill-deck' | 'writer-skill' | 'continuation-pack' | 'blend';
 
 export interface WritingStyleConfirmation {
   mode: WritingStyleMode;
@@ -80,7 +80,14 @@ export interface WritingStyleConfirmation {
   continuationPackId?: string;
 }
 
-export type WritingStyleSourceKind = 'default' | 'project-tone' | 'skill-deck' | 'writer-skill' | 'continuation-pack' | 'writer-session' | 'technique';
+export type WritingStyleSourceKind =
+  | 'default'
+  | 'project-tone'
+  | 'skill-deck'
+  | 'writer-skill'
+  | 'continuation-pack'
+  | 'writer-session'
+  | 'technique';
 export interface WritingStyleSourceSummary {
   kind: WritingStyleSourceKind;
   id?: string;

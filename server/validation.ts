@@ -8,7 +8,12 @@ export function validate(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      console.error('[Validation Failed] Path:', req.path, 'Issues:', JSON.stringify(result.error.issues, null, 2));
+      console.error(
+        '[Validation Failed] Path:',
+        req.path,
+        'Issues:',
+        JSON.stringify(result.error.issues, null, 2)
+      );
 
       // Write detailed validation log only when INKFLOW_VALIDATION_DEBUG=1.
       // The body can contain full manuscripts — always truncate long strings
@@ -16,18 +21,23 @@ export function validate(schema: z.ZodSchema) {
       if (process.env.INKFLOW_VALIDATION_DEBUG === '1' && process.env.NODE_ENV !== 'production') {
         try {
           const errorLogPath = path.join(os.tmpdir(), 'validation-debug.log');
-          const safeBody = JSON.parse(JSON.stringify(req.body, (key, value) => {
-            if (typeof value === 'string' && value.length > 200) return value.slice(0, 200) + '...[TRUNCATED]';
-            return value;
-          }));
+          const safeBody = JSON.parse(
+            JSON.stringify(req.body, (key, value) => {
+              if (typeof value === 'string' && value.length > 200)
+                return value.slice(0, 200) + '...[TRUNCATED]';
+              return value;
+            })
+          );
           const logContent = `\n=========================================\n[${new Date().toISOString()}] Validation Failed\nPath: ${req.path}\nIssues: ${JSON.stringify(result.error.issues, null, 2)}\nBody: ${JSON.stringify(safeBody, null, 2)}\n=========================================\n`;
           fs.appendFileSync(errorLogPath, logContent, 'utf8');
-        } catch (_err) { /* ignore */ }
+        } catch (_err) {
+          /* ignore */
+        }
       }
 
       return res.status(400).json({
         error: 'Validation failed',
-        details: result.error.issues.map(i => ({ path: i.path.join('.'), message: i.message }))
+        details: result.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
       });
     }
     req.body = result.data;
@@ -50,139 +60,207 @@ const optionalIdArgsSchema = z.union([noArgsSchema, idArgsSchema]);
 const idArrayArgsSchema = z.tuple([z.array(dbIdSchema).max(500)]);
 const createArgsSchema = z.tuple([dbEntitySchema]);
 const updateArgsSchema = z.tuple([dbIdSchema, dbEntitySchema]);
-const chapterCandidateAcceptanceSchema = z.tuple([z.object({
-  chapterId: dbIdSchema,
-  novelId: dbIdSchema,
-  baselineHash: z.string().length(64),
-  content: dbTextSchema,
-  wordCount: z.number().int().nonnegative(),
-  operation: z.enum(['draft', 'polish', 'rewrite']).optional(),
-  source: z.enum(['model', 'fallback', 'user', 'unknown']).optional(),
-  workflowMeta: dbEntitySchema.optional(),
-  version: z.object({
-    id: dbIdSchema,
-    chapterId: dbIdSchema,
-    content: dbTextSchema,
-    wordCount: z.number().int().nonnegative(),
-    author: dbShortTextSchema,
-    createdAt: dbTimestampSchema,
-  }).strict(),
-}).strict()]);
+const chapterCandidateAcceptanceSchema = z.tuple([
+  z
+    .object({
+      chapterId: dbIdSchema,
+      novelId: dbIdSchema,
+      baselineHash: z.string().length(64),
+      content: dbTextSchema,
+      wordCount: z.number().int().nonnegative(),
+      operation: z.enum(['draft', 'polish', 'rewrite']).optional(),
+      source: z.enum(['model', 'fallback', 'user', 'unknown']).optional(),
+      workflowMeta: dbEntitySchema.optional(),
+      version: z
+        .object({
+          id: dbIdSchema,
+          chapterId: dbIdSchema,
+          content: dbTextSchema,
+          wordCount: z.number().int().nonnegative(),
+          author: dbShortTextSchema,
+          createdAt: dbTimestampSchema,
+        })
+        .strict(),
+    })
+    .strict(),
+]);
 
-const persistedFusionMetaSchema = z.object({
-  mainSkillId: dbIdSchema,
-  supportSkillId: dbIdSchema,
-  components: z.array(z.object({ skillId: dbIdSchema, version: z.number().int().positive() }).passthrough()).length(2),
-  dimensionOwners: z.record(z.string(), dbIdSchema),
-  resolvedRules: z.record(z.string(), z.unknown()),
-}).passthrough();
+const persistedFusionMetaSchema = z
+  .object({
+    mainSkillId: dbIdSchema,
+    supportSkillId: dbIdSchema,
+    components: z
+      .array(z.object({ skillId: dbIdSchema, version: z.number().int().positive() }).passthrough())
+      .length(2),
+    dimensionOwners: z.record(z.string(), dbIdSchema),
+    resolvedRules: z.record(z.string(), z.unknown()),
+  })
+  .passthrough();
 const skillWriteEntitySchema = dbEntitySchema.superRefine((value, context) => {
   const fusionMeta = value.fusionMeta;
   if (value.sourceBadge !== 'fused' && !fusionMeta) return;
   const result = persistedFusionMetaSchema.safeParse(fusionMeta);
   if (!result.success) {
-    context.addIssue({ code: 'custom', path: ['fusionMeta'], message: '融合卡必须包含完整 components/version/dimensionOwners/resolvedRules/lineage' });
+    context.addIssue({
+      code: 'custom',
+      path: ['fusionMeta'],
+      message: '融合卡必须包含完整 components/version/dimensionOwners/resolvedRules/lineage',
+    });
   }
 });
 
 // Core writing entities cross a generic IPC/HTTP proxy, so validate their
 // domain fields at runtime instead of trusting TypeScript-only interfaces.
-const novelEntitySchema = z.object({
-  id: dbIdSchema,
-  title: dbShortTextSchema,
-  authorId: dbIdSchema,
-  summary: dbTextSchema,
-  coverImage: dbTextSchema.optional(),
-  status: z.enum(['ongoing', 'completed', 'hiatus']),
-  worldRules: dbTextSchema.optional(),
-  globalOutline: dbTextSchema.optional(),
-  mountedSkillIds: z.array(dbIdSchema).max(100).optional(),
-  mountedSkillLoadout: z.array(z.unknown()).max(100).optional(),
-  projectPreferenceProfile: z.record(z.string(), z.unknown()).optional(),
-  createdAt: dbTimestampSchema,
-  updatedAt: dbTimestampSchema,
-}).strict();
+const novelEntitySchema = z
+  .object({
+    id: dbIdSchema,
+    title: dbShortTextSchema,
+    authorId: dbIdSchema,
+    summary: dbTextSchema,
+    coverImage: dbTextSchema.optional(),
+    status: z.enum(['ongoing', 'completed', 'hiatus']),
+    worldRules: dbTextSchema.optional(),
+    globalOutline: dbTextSchema.optional(),
+    mountedSkillIds: z.array(dbIdSchema).max(100).optional(),
+    mountedSkillLoadout: z.array(z.unknown()).max(100).optional(),
+    projectPreferenceProfile: z.record(z.string(), z.unknown()).optional(),
+    createdAt: dbTimestampSchema,
+    updatedAt: dbTimestampSchema,
+  })
+  .strict();
 
-const chapterEntitySchema = z.object({
-  id: dbIdSchema,
-  novelId: dbIdSchema,
-  volumeName: dbShortTextSchema.optional(),
-  title: dbShortTextSchema,
-  content: dbTextSchema,
-  order: z.number().int().nonnegative(),
-  wordCount: z.number().int().nonnegative(),
-  sceneBeats: dbTextSchema.optional(),
-  critique: dbTextSchema.optional(),
-  // Chapter workflow state is persisted as a bounded JSON object. Domain
-  // validation for capabilityState remains in db routes, where chapter
-  // ownership and database-generation context are available.
-  workflowMeta: dbEntitySchema.optional(),
-  createdAt: dbTimestampSchema,
-  updatedAt: dbTimestampSchema,
-}).strict();
+const chapterEntitySchema = z
+  .object({
+    id: dbIdSchema,
+    novelId: dbIdSchema,
+    volumeName: dbShortTextSchema.optional(),
+    title: dbShortTextSchema,
+    content: dbTextSchema,
+    order: z.number().int().nonnegative(),
+    wordCount: z.number().int().nonnegative(),
+    sceneBeats: dbTextSchema.optional(),
+    critique: dbTextSchema.optional(),
+    // Chapter workflow state is persisted as a bounded JSON object. Domain
+    // validation for capabilityState remains in db routes, where chapter
+    // ownership and database-generation context are available.
+    workflowMeta: dbEntitySchema.optional(),
+    createdAt: dbTimestampSchema,
+    updatedAt: dbTimestampSchema,
+  })
+  .strict();
 
-const characterEntitySchema = z.object({
-  id: dbIdSchema,
-  novelId: dbIdSchema,
-  name: dbShortTextSchema,
-  role: z.enum(['protagonist', 'antagonist', 'supporting', 'extra']),
-  summary: dbTextSchema,
-  traits: z.array(dbShortTextSchema).max(200),
-  bio: dbTextSchema,
-  current_state: dbTextSchema.optional(),
-  concealGender: z.boolean().optional(),
-  createdAt: dbTimestampSchema.optional(),
-  updatedAt: dbTimestampSchema.optional(),
-}).strict();
+const characterEntitySchema = z
+  .object({
+    id: dbIdSchema,
+    novelId: dbIdSchema,
+    name: dbShortTextSchema,
+    role: z.enum(['protagonist', 'antagonist', 'supporting', 'extra']),
+    summary: dbTextSchema,
+    traits: z.array(dbShortTextSchema).max(200),
+    bio: dbTextSchema,
+    current_state: dbTextSchema.optional(),
+    concealGender: z.boolean().optional(),
+    createdAt: dbTimestampSchema.optional(),
+    updatedAt: dbTimestampSchema.optional(),
+  })
+  .strict();
 
-const locationEntitySchema = z.object({
-  id: dbIdSchema,
-  novelId: dbIdSchema,
-  name: dbShortTextSchema,
-  description: dbTextSchema,
-  region: dbShortTextSchema,
-  createdAt: dbTimestampSchema,
-  updatedAt: dbTimestampSchema,
-}).strict();
+const locationEntitySchema = z
+  .object({
+    id: dbIdSchema,
+    novelId: dbIdSchema,
+    name: dbShortTextSchema,
+    description: dbTextSchema,
+    region: dbShortTextSchema,
+    createdAt: dbTimestampSchema,
+    updatedAt: dbTimestampSchema,
+  })
+  .strict();
 
-const itemEntitySchema = z.object({
-  id: dbIdSchema,
-  novelId: dbIdSchema,
-  name: dbShortTextSchema,
-  description: dbTextSchema,
-  type: dbShortTextSchema,
-  createdAt: dbTimestampSchema,
-  updatedAt: dbTimestampSchema,
-}).strict();
+const itemEntitySchema = z
+  .object({
+    id: dbIdSchema,
+    novelId: dbIdSchema,
+    name: dbShortTextSchema,
+    description: dbTextSchema,
+    type: dbShortTextSchema,
+    createdAt: dbTimestampSchema,
+    updatedAt: dbTimestampSchema,
+  })
+  .strict();
 
 const DB_LIST_WITH_ID = [
-  'listChapters', 'listChaptersMetadata', 'listChapterVersions', 'listChapterVersionMetas',
-  'listCharacters', 'listLocations', 'listItems', 'listFactions',
-  'listPowerLevels', 'listTimelineEvents', 'listSkillVersions',
-  'listForeshadowings', 'listChapterProductionRuns', 'listChapterProductionRunBadges',
-  'listContinuationPacks', 'listEntityRelationships',
+  'listChapters',
+  'listChaptersMetadata',
+  'listChapterVersions',
+  'listChapterVersionMetas',
+  'listCharacters',
+  'listLocations',
+  'listItems',
+  'listFactions',
+  'listPowerLevels',
+  'listTimelineEvents',
+  'listSkillVersions',
+  'listForeshadowings',
+  'listChapterProductionRuns',
+  'listChapterProductionRunBadges',
+  'listContinuationPacks',
+  'listEntityRelationships',
 ] as const;
 const DB_OPTIONAL_LIST = ['listSkillUsageRecords', 'listIdeaFragments'] as const;
 const DB_GET_OR_DELETE = [
-  'getNovel', 'deleteNovel', 'getChapter', 'deleteChapter',
-  'getSkill', 'deleteSkill', 'getCharacter', 'deleteCharacter',
-  'deleteLocation', 'getItem', 'deleteItem', 'deleteFaction',
-  'deletePowerLevel', 'deleteTimelineEvent', 'getForeshadowing',
-  'deleteForeshadowing', 'getChapterProductionRun', 'getChapterVersion',
-  'getContinuationPack', 'deleteContinuationPack', 'deleteEntityRelationship',
+  'getNovel',
+  'deleteNovel',
+  'getChapter',
+  'deleteChapter',
+  'getSkill',
+  'deleteSkill',
+  'getCharacter',
+  'deleteCharacter',
+  'deleteLocation',
+  'getItem',
+  'deleteItem',
+  'deleteFaction',
+  'deletePowerLevel',
+  'deleteTimelineEvent',
+  'getForeshadowing',
+  'deleteForeshadowing',
+  'getChapterProductionRun',
+  'getChapterVersion',
+  'getContinuationPack',
+  'deleteContinuationPack',
+  'deleteEntityRelationship',
 ] as const;
 const DB_CREATE = [
-  'createNovel', 'createChapter', 'createChapterVersion', 'createSkill',
-  'createSkillUsageRecord', 'createCharacter', 'createLocation', 'createItem',
-  'createFaction', 'createPowerLevel', 'createTimelineEvent',
-  'createIdeaFragment', 'createForeshadowing',
+  'createNovel',
+  'createChapter',
+  'createChapterVersion',
+  'createSkill',
+  'createSkillUsageRecord',
+  'createCharacter',
+  'createLocation',
+  'createItem',
+  'createFaction',
+  'createPowerLevel',
+  'createTimelineEvent',
+  'createIdeaFragment',
+  'createForeshadowing',
   'createEntityRelationship',
 ] as const;
 const DB_UPDATE = [
-  'updateNovel', 'updateChapter', 'updateSkill', 'updateCharacter',
-  'updateLocation', 'updateItem', 'updateFaction', 'updatePowerLevel',
-  'updateTimelineEvent', 'updateIdeaFragment', 'updateForeshadowing',
-  'updateContinuationPack', 'updateEntityRelationship',
+  'updateNovel',
+  'updateChapter',
+  'updateSkill',
+  'updateCharacter',
+  'updateLocation',
+  'updateItem',
+  'updateFaction',
+  'updatePowerLevel',
+  'updateTimelineEvent',
+  'updateIdeaFragment',
+  'updateForeshadowing',
+  'updateContinuationPack',
+  'updateEntityRelationship',
 ] as const;
 
 export const dbMethodSchemas: Record<string, z.ZodType<unknown>> = {
@@ -261,34 +339,39 @@ for (const method of [
 // novel or rewrite its source/canon payload through the generic DB proxy.
 dbMethodSchemas.updateContinuationPack = z.tuple([
   dbIdSchema,
-  z.object({
-    status: z.enum(['draft', 'approved']).optional(),
-    continuationTask: dbTextSchema.optional(),
-    updatedAt: dbTimestampSchema.optional(),
-  }).strict(),
+  z
+    .object({
+      status: z.enum(['draft', 'approved']).optional(),
+      continuationTask: dbTextSchema.optional(),
+      updatedAt: dbTimestampSchema.optional(),
+    })
+    .strict(),
 ]);
 
-export const dbSchema = z.object({
-  method: z.string().min(1),
-  args: z.array(z.unknown()).default([]),
-  databaseGeneration: z.number().int().nonnegative().optional(),
-}).superRefine(({ method, args }, context) => {
-  const methodSchema = dbMethodSchemas[method];
-  if (!methodSchema) {
-    context.addIssue({ code: 'custom', path: ['method'], message: 'Unknown database method' });
-    return;
-  }
-  const result = methodSchema.safeParse(args);
-  if (!result.success) {
-    for (const issue of result.error.issues) {
-      context.addIssue({ ...issue, path: ['args', ...issue.path] });
+export const dbSchema = z
+  .object({
+    method: z.string().min(1),
+    args: z.array(z.unknown()).default([]),
+    databaseGeneration: z.number().int().nonnegative().optional(),
+  })
+  .superRefine(({ method, args }, context) => {
+    const methodSchema = dbMethodSchemas[method];
+    if (!methodSchema) {
+      context.addIssue({ code: 'custom', path: ['method'], message: 'Unknown database method' });
+      return;
     }
-  }
-});
+    const result = methodSchema.safeParse(args);
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        context.addIssue({ ...issue, path: ['args', ...issue.path] });
+      }
+    }
+  });
 
 // LLM endpoints must be http(s): the server forwards the user's API key as a
 // Bearer header, so exotic schemes (file:, data:, etc.) are rejected outright.
-const llmBaseUrlSchema = z.string()
+const llmBaseUrlSchema = z
+  .string()
   .url()
   .refine((value) => /^https?:\/\//i.test(value), '仅支持 http(s) 地址');
 
@@ -352,24 +435,35 @@ export const chapterProductionSchema = z.object({
   databaseGeneration: z.number().int().nonnegative(),
 });
 
-export const chapterProductionApplySchema = z.object({
-  novelId: dbIdSchema,
-  chapterId: dbIdSchema,
-  databaseGeneration: z.number().int().nonnegative(),
-  versionId: dbIdSchema.optional(),
-  versionHash: z.string().min(1).optional(),
-  acceptUnreviewed: z.boolean().optional(),
-  decisionAction: z.string().max(100).optional(),
-  decisionInstruction: z.string().max(2000).optional(),
-  decisionReason: z.string().max(2000).optional(),
-  reviewIssueIds: z.array(dbIdSchema).max(200).optional(),
-  reviewScope: z.enum(['affected', 'full']).optional(),
-  reviewContentHash: z.string().length(64).regex(/^[a-f0-9]+$/).optional(),
-}).strict().superRefine((value, context) => {
-  if ((value.versionId === undefined) !== (value.versionHash === undefined)) {
-    context.addIssue({ code: 'custom', path: ['versionId'], message: 'versionId and versionHash must be provided together' });
-  }
-});
+export const chapterProductionApplySchema = z
+  .object({
+    novelId: dbIdSchema,
+    chapterId: dbIdSchema,
+    databaseGeneration: z.number().int().nonnegative(),
+    versionId: dbIdSchema.optional(),
+    versionHash: z.string().min(1).optional(),
+    acceptUnreviewed: z.boolean().optional(),
+    decisionAction: z.string().max(100).optional(),
+    decisionInstruction: z.string().max(2000).optional(),
+    decisionReason: z.string().max(2000).optional(),
+    reviewIssueIds: z.array(dbIdSchema).max(200).optional(),
+    reviewScope: z.enum(['affected', 'full']).optional(),
+    reviewContentHash: z
+      .string()
+      .length(64)
+      .regex(/^[a-f0-9]+$/)
+      .optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.versionId === undefined) !== (value.versionHash === undefined)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['versionId'],
+        message: 'versionId and versionHash must be provided together',
+      });
+    }
+  });
 
 export const orchestrateSchema = z.object({
   draftingSurface: z.string().min(1).max(100).optional().default('workspace-draft'),
@@ -392,72 +486,89 @@ export const orchestrateSchema = z.object({
 // The single-shot editor endpoints do not use the multi-iteration orchestrator
 // payload. Keep their contract explicit so malformed or oversized prompts are
 // rejected before rate/quota reservation or an LLM request.
-export const orchestrateDraftSchema = z.object({
-  novelId: dbIdSchema,
-  chapterId: dbIdSchema,
-  databaseGeneration: z.number().int().nonnegative(),
-  draftingSurface: z.string().min(1).max(100).optional().default('workspace-draft'),
-  contextStr: z.string().max(100_000).optional().default(''),
-  sceneBeats: z.string().max(20_000).optional().default(''),
-  draftContent: z.string().max(200_000).optional().default(''),
-  chapterOrder: z.number().int().nonnegative().max(100_000).optional(),
-  continuationPackId: dbIdSchema.optional(),
-  sessionCardIds: z.array(dbIdSchema).max(6).optional(),
-  styleConfirmationFingerprint: z.string().length(64).optional(),
-  writingStyleFingerprint: z.string().length(64).optional(),
-  userIntent: z.string().max(2000).optional(),
-}).strict();
+export const orchestrateDraftSchema = z
+  .object({
+    novelId: dbIdSchema,
+    chapterId: dbIdSchema,
+    databaseGeneration: z.number().int().nonnegative(),
+    draftingSurface: z.string().min(1).max(100).optional().default('workspace-draft'),
+    contextStr: z.string().max(100_000).optional().default(''),
+    sceneBeats: z.string().max(20_000).optional().default(''),
+    draftContent: z.string().max(200_000).optional().default(''),
+    chapterOrder: z.number().int().nonnegative().max(100_000).optional(),
+    continuationPackId: dbIdSchema.optional(),
+    sessionCardIds: z.array(dbIdSchema).max(6).optional(),
+    styleConfirmationFingerprint: z.string().length(64).optional(),
+    writingStyleFingerprint: z.string().length(64).optional(),
+    userIntent: z.string().max(2000).optional(),
+  })
+  .strict();
 
-export const rewriteSchema = z.object({
-  novelId: dbIdSchema,
-  chapterId: dbIdSchema,
-  databaseGeneration: z.number().int().nonnegative(),
-  text: z.string().min(1, '待改写正文不能为空').max(200_000),
-  instruction: z.string().max(20_000).optional(),
-  contextStr: z.string().max(100_000).optional(),
-  auditFeedback: z.string().max(100_000).optional(),
-  sceneBeats: z.string().max(20_000).optional(),
-  mode: z.enum(['selection', 'chapter-polish', 'surgical-patch']).optional().default('selection'),
-  beforeContext: z.string().max(20_000).optional(),
-  afterContext: z.string().max(20_000).optional(),
-  auditIssue: z.string().max(20_000).optional(),
-  continuationPackId: dbIdSchema.optional(),
-  sessionCardIds: z.array(dbIdSchema).max(6).optional(),
-  styleConfirmationFingerprint: z.string().length(64).optional(),
-  writingStyleFingerprint: z.string().length(64).optional(),
-}).strict();
+export const rewriteSchema = z
+  .object({
+    novelId: dbIdSchema,
+    chapterId: dbIdSchema,
+    databaseGeneration: z.number().int().nonnegative(),
+    text: z.string().min(1, '待改写正文不能为空').max(200_000),
+    instruction: z.string().max(20_000).optional(),
+    contextStr: z.string().max(100_000).optional(),
+    auditFeedback: z.string().max(100_000).optional(),
+    sceneBeats: z.string().max(20_000).optional(),
+    mode: z.enum(['selection', 'chapter-polish', 'surgical-patch']).optional().default('selection'),
+    beforeContext: z.string().max(20_000).optional(),
+    afterContext: z.string().max(20_000).optional(),
+    auditIssue: z.string().max(20_000).optional(),
+    continuationPackId: dbIdSchema.optional(),
+    sessionCardIds: z.array(dbIdSchema).max(6).optional(),
+    styleConfirmationFingerprint: z.string().length(64).optional(),
+    writingStyleFingerprint: z.string().length(64).optional(),
+  })
+  .strict();
 
-export const writingStyleResolveSchema = z.object({
-  mode: z.enum(['default', 'skill-deck', 'writer-skill', 'continuation-pack', 'blend']).optional(),
-  chapterId: dbIdSchema,
-  databaseGeneration: z.number().int().nonnegative(),
-  continuationPackId: dbIdSchema.optional(),
-  sessionCardIds: z.array(dbIdSchema).max(6).optional(),
-}).strict();
+export const writingStyleResolveSchema = z
+  .object({
+    mode: z
+      .enum(['default', 'skill-deck', 'writer-skill', 'continuation-pack', 'blend'])
+      .optional(),
+    chapterId: dbIdSchema,
+    databaseGeneration: z.number().int().nonnegative(),
+    continuationPackId: dbIdSchema.optional(),
+    sessionCardIds: z.array(dbIdSchema).max(6).optional(),
+  })
+  .strict();
 
 export const writingStyleConfirmSchema = writingStyleResolveSchema;
 
-export const capabilityConfigurationPreviewSchema = z.object({
-  databaseGeneration: z.number().int().nonnegative(),
-  capabilityProfile: z.record(z.string(), z.unknown()),
-}).strict();
+export const capabilityConfigurationPreviewSchema = z
+  .object({
+    databaseGeneration: z.number().int().nonnegative(),
+    capabilityProfile: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 
-export const capabilityConfigurationApplySchema = z.object({
-  databaseGeneration: z.number().int().nonnegative(),
-  previewToken: dbIdSchema,
-  capabilityProfile: z.record(z.string(), z.unknown()),
-  targetChapterId: dbIdSchema.optional(),
-  packageSteps: z.array(z.object({
-    stepId: dbIdSchema,
-    assetId: dbIdSchema,
-    mode: z.enum(['configure', 'schedule', 'run-now', 'recommend']),
-    trigger: z.enum(['project-setup', 'outline', 'before-draft', 'after-draft', 'milestone']),
-    scope: z.enum(['project', 'volume', 'chapter', 'selection', 'single-run']),
-    order: z.number().int().nonnegative(),
-    required: z.boolean(),
-    dependsOn: z.array(dbIdSchema).optional(),
-  })).max(32).optional(),
-}).strict();
+export const capabilityConfigurationApplySchema = z
+  .object({
+    databaseGeneration: z.number().int().nonnegative(),
+    previewToken: dbIdSchema,
+    capabilityProfile: z.record(z.string(), z.unknown()),
+    targetChapterId: dbIdSchema.optional(),
+    packageSteps: z
+      .array(
+        z.object({
+          stepId: dbIdSchema,
+          assetId: dbIdSchema,
+          mode: z.enum(['configure', 'schedule', 'run-now', 'recommend']),
+          trigger: z.enum(['project-setup', 'outline', 'before-draft', 'after-draft', 'milestone']),
+          scope: z.enum(['project', 'volume', 'chapter', 'selection', 'single-run']),
+          order: z.number().int().nonnegative(),
+          required: z.boolean(),
+          dependsOn: z.array(dbIdSchema).optional(),
+        })
+      )
+      .max(32)
+      .optional(),
+  })
+  .strict();
 
 const base64Regex = /^[a-zA-Z0-9+/_\-\s]*={0,2}$/;
 const allowedExtensions = /\.(txt|md|json|docx)$/i;
@@ -465,27 +576,49 @@ const allowedDocExtensions = /\.(txt|md|json|docx)$/i;
 
 export const parseDocSchema = z.object({
   novelId: z.string().min(1).max(200),
-  filename: z.string().min(1).max(255).refine(val => allowedDocExtensions.test(val), {
-    message: '仅支持 .txt, .md, .json, .docx 格式文档'
-  }),
-  filedata: z.string().min(1).max(8000000, '单文件不能超过 6MB').regex(base64Regex, '非法 Base64 数据'),
+  filename: z
+    .string()
+    .min(1)
+    .max(255)
+    .refine((val) => allowedDocExtensions.test(val), {
+      message: '仅支持 .txt, .md, .json, .docx 格式文档',
+    }),
+  filedata: z
+    .string()
+    .min(1)
+    .max(8000000, '单文件不能超过 6MB')
+    .regex(base64Regex, '非法 Base64 数据'),
 });
 
 export const continuationParseSchema = z.object({
   novelId: z.string().min(1, '请先选择作品或重新开始资料导入。'),
   title: z.string().max(500).optional(),
-  documents: z.array(
-    z.object({
-      filename: z.string().min(1).max(255).refine(val => allowedExtensions.test(val), {
-        message: '仅支持 .txt, .md, .json, .docx 格式文档'
-      }),
-      filedata: z.string().min(1).max(15000000, '单文件不能超过 10MB').regex(base64Regex, '非法 Base64 数据'),
-    })
-  ).min(1, '请至少上传一份续写资料。').max(100, '一次最多只能上传 100 个文档')
-.refine(docs => {
-      const totalSize = docs.reduce((acc, doc) => acc + doc.filedata.length, 0);
-      return totalSize <= 50000000;
-    }, { message: '总文件大小不能超过 35MB' }),
+  documents: z
+    .array(
+      z.object({
+        filename: z
+          .string()
+          .min(1)
+          .max(255)
+          .refine((val) => allowedExtensions.test(val), {
+            message: '仅支持 .txt, .md, .json, .docx 格式文档',
+          }),
+        filedata: z
+          .string()
+          .min(1)
+          .max(15000000, '单文件不能超过 10MB')
+          .regex(base64Regex, '非法 Base64 数据'),
+      })
+    )
+    .min(1, '请至少上传一份续写资料。')
+    .max(100, '一次最多只能上传 100 个文档')
+    .refine(
+      (docs) => {
+        const totalSize = docs.reduce((acc, doc) => acc + doc.filedata.length, 0);
+        return totalSize <= 50000000;
+      },
+      { message: '总文件大小不能超过 35MB' }
+    ),
 });
 
 export const exportSchema = z.object({

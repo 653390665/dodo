@@ -11,17 +11,35 @@
  */
 
 export interface SlopHit {
-  category: 'ai_cliche' | 'webnovel_trope' | 'tell_dont_show' | 'sentence_monotony' | 'style_slop' | 'action_chain' | 'hook_ending' | 'structural';
+  category:
+    | 'ai_cliche'
+    | 'webnovel_trope'
+    | 'tell_dont_show'
+    | 'sentence_monotony'
+    | 'style_slop'
+    | 'action_chain'
+    | 'hook_ending'
+    | 'structural';
   line: number; // 1-based line in original text
   snippet: string; // the offending text
   suggestion?: string;
   /** P0/P1 block complete output; P2 is an editorial warning. */
   priority?: 'P0' | 'P1' | 'P2';
   /** Stable machine-readable signal for structure-aware consumers. */
-  signal?: 'paragraph-opening' | 'abstract-ending' | 'subject-action-chain' | 'abstract-explanation-density' | 'scene-template';
+  signal?:
+    | 'paragraph-opening'
+    | 'abstract-ending'
+    | 'subject-action-chain'
+    | 'abstract-explanation-density'
+    | 'scene-template';
   /** Source range for a local context rewrite request. */
   range?: { start: number; end: number };
-  scope?: { paragraphStart: number; paragraphEnd: number; sentenceStart?: number; sentenceEnd?: number };
+  scope?: {
+    paragraphStart: number;
+    paragraphEnd: number;
+    sentenceStart?: number;
+    sentenceEnd?: number;
+  };
 }
 
 export interface SlopReport {
@@ -109,7 +127,10 @@ const ACTION_CHAIN_ISSUES: Array<[RegExp, string]> = [
 const GENERIC_ENDINGS: Array<[RegExp, string]> = [
   [/消失在夜色中/g, '通用收尾/陈词滥调「消失在夜色中」（建议用更具悬念和信息量的Hook收尾）'],
   [/转身(?:离去|走开)/g, '通用收尾/陈词滥调「转身离去/走开」（建议用更具悬念和信息量的Hook收尾）'],
-  [/嘴角勾起一抹/g, '通用收尾/陈词滥调「嘴角勾起一抹」（嘴角上扬等陈词，建议避免千篇一律的弧度描写）'],
+  [
+    /嘴角勾起一抹/g,
+    '通用收尾/陈词滥调「嘴角勾起一抹」（嘴角上扬等陈词，建议避免千篇一律的弧度描写）',
+  ],
 ];
 
 interface ParagraphRecord {
@@ -120,9 +141,11 @@ interface ParagraphRecord {
   sentences: Array<{ text: string; start: number; end: number }>;
 }
 
-const ABSTRACT_TERMS = /(?:局面|危险|细节|疑问|方向|答案|选择|压力|沉默|判断|真相|可能性|变化|代价|线索|局势|信息|关系)/;
+const ABSTRACT_TERMS =
+  /(?:局面|危险|细节|疑问|方向|答案|选择|压力|沉默|判断|真相|可能性|变化|代价|线索|局势|信息|关系)/;
 const EXPLANATION_CONNECTORS = /(?:因此|从而|这让|这意味着|说明|意味着|也就是说|于是)/;
-const CONCRETE_MARKERS = /(?:走|跑|抬|放|握|推|拉|撞|砸|落|停|转|看|望|听|闻|摸|抓|按|拔|递|说|问|答|门|灯|刀|杯|纸|雨|脚步|声音|钥匙|铃|“|「|『)/;
+const CONCRETE_MARKERS =
+  /(?:走|跑|抬|放|握|推|拉|撞|砸|落|停|转|看|望|听|闻|摸|抓|按|拔|递|说|问|答|门|灯|刀|杯|纸|雨|脚步|声音|钥匙|铃|“|「|『)/;
 const SUBJECT_ACTIONS = /(?:看向|望向|确认|意识到|决定|发现|判断|观察|试探|准备|盯住|抬眼|抬头)/;
 const ATMOSPHERE_MARKERS = /(?:风|雨|灯|空气|沉默|脚步|光线|夜色|屋内|窗|水声|火光)/;
 const HOOK_MARKERS = /(?:危险|疑问|答案|方向|局面|脚步|声音|影子|门缝|线索|代价)/;
@@ -142,9 +165,19 @@ function splitParagraphs(text: string): ParagraphRecord[] {
       if (!sentence) continue;
       const relativeStart = sentenceMatch.index || 0;
       const sentenceStart = start + Math.max(0, match[0].indexOf(sentence, relativeStart));
-      sentences.push({ text: sentence, start: sentenceStart, end: sentenceStart + sentence.length });
+      sentences.push({
+        text: sentence,
+        start: sentenceStart,
+        end: sentenceStart + sentence.length,
+      });
     }
-    records.push({ text: value, start, end, line: text.slice(0, start).split('\n').length, sentences });
+    records.push({
+      text: value,
+      start,
+      end,
+      line: text.slice(0, start).split('\n').length,
+      sentences,
+    });
   }
   return records;
 }
@@ -160,13 +193,14 @@ function structureHit(
   signal: SlopHit['signal'],
   paragraphs: ParagraphRecord[],
   priority: SlopHit['priority'],
-  suggestion: string,
+  suggestion: string
 ): SlopHit {
   const first = paragraphs[0]!;
   const last = paragraphs[paragraphs.length - 1] || first;
-  const snippet = paragraphs.length === 1
-    ? first.text.slice(0, 180)
-    : `${first.text.slice(0, 90)} … ${last.text.slice(-90)}`;
+  const snippet =
+    paragraphs.length === 1
+      ? first.text.slice(0, 180)
+      : `${first.text.slice(0, 90)} … ${last.text.slice(-90)}`;
   return {
     category: 'structural',
     line: first.line,
@@ -191,7 +225,14 @@ function scanStructuralSignals(text: string, paragraphs: ParagraphRecord[]): Slo
   }
   for (const group of openings.values()) {
     if (group.length >= 3) {
-      hits.push(structureHit('paragraph-opening', group, group.length >= 5 ? 'P1' : 'P2', '段落首句结构重复；请改写入场动作或视角落点，避免每段沿用同一骨架。'));
+      hits.push(
+        structureHit(
+          'paragraph-opening',
+          group,
+          group.length >= 5 ? 'P1' : 'P2',
+          '段落首句结构重复；请改写入场动作或视角落点，避免每段沿用同一骨架。'
+        )
+      );
       break;
     }
   }
@@ -201,7 +242,14 @@ function scanStructuralSignals(text: string, paragraphs: ParagraphRecord[]): Slo
     return ABSTRACT_TERMS.test(last) && !CONCRETE_MARKERS.test(last) && !/[“「『]/.test(last);
   });
   if (abstractEndings.length >= 3) {
-    hits.push(structureHit('abstract-ending', abstractEndings, abstractEndings.length >= 5 ? 'P1' : 'P2', '段末连续用抽象名词收束；请让结尾落到可见动作、选择或事件后果。'));
+    hits.push(
+      structureHit(
+        'abstract-ending',
+        abstractEndings,
+        abstractEndings.length >= 5 ? 'P1' : 'P2',
+        '段末连续用抽象名词收束；请让结尾落到可见动作、选择或事件后果。'
+      )
+    );
   }
 
   const subjectActionGroups = new Map<string, ParagraphRecord[]>();
@@ -210,37 +258,78 @@ function scanStructuralSignals(text: string, paragraphs: ParagraphRecord[]): Slo
     if (!sentence) continue;
     const action = sentence.text.match(SUBJECT_ACTIONS)?.[0] || '';
     const actionIndex = sentence.text.indexOf(action);
-    const subject = sentence.text.slice(Math.max(0, actionIndex - 6), actionIndex).replace(/[^\u4e00-\u9fff]/g, '').slice(-4);
+    const subject = sentence.text
+      .slice(Math.max(0, actionIndex - 6), actionIndex)
+      .replace(/[^\u4e00-\u9fff]/g, '')
+      .slice(-4);
     if (subject.length < 1) continue;
     const key = `${subject}:${action}`;
     subjectActionGroups.set(key, [...(subjectActionGroups.get(key) || []), paragraph]);
   }
   for (const [key, group] of subjectActionGroups) {
     if (group.length >= 4) {
-      hits.push(structureHit('subject-action-chain', group, 'P1', `同一主语反复执行“${key.split(':')[1]}”观察链；请补出不同目标、阻碍和后果。`));
+      hits.push(
+        structureHit(
+          'subject-action-chain',
+          group,
+          'P1',
+          `同一主语反复执行“${key.split(':')[1]}”观察链；请补出不同目标、阻碍和后果。`
+        )
+      );
       break;
     }
   }
 
-  const explanationSentences = paragraphs.flatMap((paragraph) => paragraph.sentences.filter((sentence) => (
-    EXPLANATION_CONNECTORS.test(sentence.text)
-      && !/[“「『]/.test(sentence.text)
-      && !CONCRETE_MARKERS.test(sentence.text)
-  )));
-  const totalSentences = paragraphs.reduce((count, paragraph) => count + paragraph.sentences.length, 0);
-  if (explanationSentences.length >= 3 && explanationSentences.length / Math.max(totalSentences, 1) >= 0.25) {
-    const records = explanationSentences.map((sentence) => ({ text: sentence.text, start: sentence.start, end: sentence.end, line: text.slice(0, sentence.start).split('\n').length, sentences: [sentence] }));
-    hits.push(structureHit('abstract-explanation-density', records, 'P2', '抽象解释句密度偏高；请用人物动作、物件变化或对白压力承接信息。'));
+  const explanationSentences = paragraphs.flatMap((paragraph) =>
+    paragraph.sentences.filter(
+      (sentence) =>
+        EXPLANATION_CONNECTORS.test(sentence.text) &&
+        !/[“「『]/.test(sentence.text) &&
+        !CONCRETE_MARKERS.test(sentence.text)
+    )
+  );
+  const totalSentences = paragraphs.reduce(
+    (count, paragraph) => count + paragraph.sentences.length,
+    0
+  );
+  if (
+    explanationSentences.length >= 3 &&
+    explanationSentences.length / Math.max(totalSentences, 1) >= 0.25
+  ) {
+    const records = explanationSentences.map((sentence) => ({
+      text: sentence.text,
+      start: sentence.start,
+      end: sentence.end,
+      line: text.slice(0, sentence.start).split('\n').length,
+      sentences: [sentence],
+    }));
+    hits.push(
+      structureHit(
+        'abstract-explanation-density',
+        records,
+        'P2',
+        '抽象解释句密度偏高；请用人物动作、物件变化或对白压力承接信息。'
+      )
+    );
   }
 
   const sceneTemplateParagraphs = paragraphs.filter((paragraph) => {
     const first = paragraph.sentences[0]?.text || '';
-    const middle = paragraph.sentences.slice(0, -1).some((sentence) => EXPLANATION_CONNECTORS.test(sentence.text));
+    const middle = paragraph.sentences
+      .slice(0, -1)
+      .some((sentence) => EXPLANATION_CONNECTORS.test(sentence.text));
     const last = paragraph.sentences.at(-1)?.text || '';
     return ATMOSPHERE_MARKERS.test(first) && middle && HOOK_MARKERS.test(last);
   });
   if (sceneTemplateParagraphs.length >= 3) {
-    hits.push(structureHit('scene-template', sceneTemplateParagraphs, 'P1', '段落重复“气氛—解释—悬念”同构；请让每段产生独立选择和可追踪后果。'));
+    hits.push(
+      structureHit(
+        'scene-template',
+        sceneTemplateParagraphs,
+        'P1',
+        '段落重复“气氛—解释—悬念”同构；请让每段产生独立选择和可追踪后果。'
+      )
+    );
   }
 
   return hits;
@@ -274,7 +363,8 @@ export function scoreSlop(text: string): SlopReport {
           category: 'action_chain',
           line: lineNum,
           snippet: lines.slice(dialogueStartIdx, i + 1).join('\n'),
-          suggestion: '对白突兀无前因/无动作穿插（缺少Beat/Narration）— 建议在台词间穿插人物微表情或环境微动作',
+          suggestion:
+            '对白突兀无前因/无动作穿插（缺少Beat/Narration）— 建议在台词间穿插人物微表情或环境微动作',
         });
         consecutiveDialogueCount = 0;
       }
@@ -302,7 +392,13 @@ export function scoreSlop(text: string): SlopReport {
       let m: RegExpExecArray | null;
       regex.lastIndex = 0;
       while ((m = regex.exec(line)) !== null) {
-        hits.push({ category: 'tell_dont_show', line: lineNum, snippet: m[0], suggestion: label, priority: 'P1' });
+        hits.push({
+          category: 'tell_dont_show',
+          line: lineNum,
+          snippet: m[0],
+          suggestion: label,
+          priority: 'P1',
+        });
       }
     }
 
@@ -334,9 +430,9 @@ export function scoreSlop(text: string): SlopReport {
   hits.push(...scanStructuralSignals(text, paragraphs));
 
   // Category 4: Sentence-length monotony
-  const sentences = text.split(/[。！？\n]+/).filter(s => s.trim().length > 0);
+  const sentences = text.split(/[。！？\n]+/).filter((s) => s.trim().length > 0);
   if (sentences.length >= 5) {
-    const lengths = sentences.map(s => s.length);
+    const lengths = sentences.map((s) => s.length);
     let lastMonotonyEnd = -1;
 
     // Check every 5 consecutive sentences
@@ -345,9 +441,12 @@ export function scoreSlop(text: string): SlopReport {
       const window = lengths.slice(i, i + 5);
       const windowAvg = window.reduce((sum, length) => sum + length, 0) / window.length;
       const threshold = Math.max(3, windowAvg * 0.08);
-      const monotone = window.every(length => Math.abs(length - windowAvg) <= threshold);
+      const monotone = window.every((length) => Math.abs(length - windowAvg) <= threshold);
       if (monotone) {
-        const snippet = sentences.slice(i, i + 5).map(s => s.substring(0, 20) + '…').join(' | ');
+        const snippet = sentences
+          .slice(i, i + 5)
+          .map((s) => s.substring(0, 20) + '…')
+          .join(' | ');
         const charCount = sentences.slice(0, i).reduce((c, s) => c + s.length + 1, 0);
         const approxLine = text.substring(0, charCount).split('\n').length;
         hits.push({

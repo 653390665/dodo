@@ -1,8 +1,13 @@
-import type { AppConfig } from "./config";
-import { setLivenessStatus } from "./config";
+import type { AppConfig } from './config';
+import { setLivenessStatus } from './config';
 import { randomUUID } from 'node:crypto';
-import { applyInputGuard, checkOutputGuard, buildCorrectionPrompt, isCreativeWritingRequest } from '../helpers/prompt-guard';
-import { getDb } from "./db-instance.js";
+import {
+  applyInputGuard,
+  checkOutputGuard,
+  buildCorrectionPrompt,
+  isCreativeWritingRequest,
+} from '../helpers/prompt-guard';
+import { getDb } from './db-instance.js';
 
 export type OutputDiagnostic = {
   provider: 'deepseek' | 'minimax' | 'google' | 'openai-compatible';
@@ -42,13 +47,25 @@ export interface GenerateTextOptions {
   signal?: AbortSignal;
   onToken?: (token: string) => void;
   novelId?: string;
-  onComplete?: (metadata: { finishReason?: string; truncated: boolean; outputDiagnostic: OutputDiagnostic }) => void;
+  onComplete?: (metadata: {
+    finishReason?: string;
+    truncated: boolean;
+    outputDiagnostic: OutputDiagnostic;
+  }) => void;
   traceId?: string;
 }
 
 export type ProviderErrorCode =
-  | 'configuration' | 'authentication' | 'billing' | 'parameter_incompatible' | 'rate_limit'
-  | 'service_unavailable' | 'network' | 'timeout' | 'empty_response' | 'quality_rejected';
+  | 'configuration'
+  | 'authentication'
+  | 'billing'
+  | 'parameter_incompatible'
+  | 'rate_limit'
+  | 'service_unavailable'
+  | 'network'
+  | 'timeout'
+  | 'empty_response'
+  | 'quality_rejected';
 
 export type ProviderErrorPhase = 'request' | 'response' | 'parse';
 export type ProviderErrorReason = 'no_content' | 'reasoning_only' | 'length_exhausted';
@@ -68,7 +85,22 @@ export class ProviderError extends Error {
   readonly compatibilityMode: CompatibilityMode;
   readonly provider: OutputDiagnostic['provider'];
 
-  constructor(fields: { code: ProviderErrorCode; phase: ProviderErrorPhase; attempt: number; traceId: string; provider?: OutputDiagnostic['provider']; httpStatus?: number; finishReason?: string; reason?: ProviderErrorReason; retriable?: boolean; rejectedParameter?: RejectedParameter; providerErrorCode?: string; providerRequestCount?: number; compatibilityMode?: CompatibilityMode; message: string }) {
+  constructor(fields: {
+    code: ProviderErrorCode;
+    phase: ProviderErrorPhase;
+    attempt: number;
+    traceId: string;
+    provider?: OutputDiagnostic['provider'];
+    httpStatus?: number;
+    finishReason?: string;
+    reason?: ProviderErrorReason;
+    retriable?: boolean;
+    rejectedParameter?: RejectedParameter;
+    providerErrorCode?: string;
+    providerRequestCount?: number;
+    compatibilityMode?: CompatibilityMode;
+    message: string;
+  }) {
     super(fields.message);
     this.name = 'ProviderError';
     this.code = fields.code;
@@ -77,7 +109,13 @@ export class ProviderError extends Error {
     this.attempt = fields.attempt;
     this.finishReason = fields.finishReason;
     this.reason = fields.reason;
-    this.retriable = fields.retriable ?? (fields.reason === 'reasoning_only' || fields.reason === 'length_exhausted' ? false : ['rate_limit', 'service_unavailable', 'network', 'timeout', 'empty_response'].includes(fields.code));
+    this.retriable =
+      fields.retriable ??
+      (fields.reason === 'reasoning_only' || fields.reason === 'length_exhausted'
+        ? false
+        : ['rate_limit', 'service_unavailable', 'network', 'timeout', 'empty_response'].includes(
+            fields.code
+          ));
     this.traceId = fields.traceId;
     this.rejectedParameter = fields.rejectedParameter;
     this.providerErrorCode = fields.providerErrorCode;
@@ -111,7 +149,7 @@ const OPENAI_TIMEOUT_MS = 75_000;
 const OPENAI_MAX_ATTEMPTS = 3;
 
 function isGoogleProvider(baseUrl: string) {
-  return !baseUrl || baseUrl.includes("generativelanguage.googleapis.com");
+  return !baseUrl || baseUrl.includes('generativelanguage.googleapis.com');
 }
 
 export interface EmbeddingModelInfo {
@@ -123,19 +161,23 @@ export interface EmbeddingModelInfo {
 /** Keep status metadata and the actual embedding request on the same model. */
 export function getEmbeddingModelInfo(config: AppConfig): EmbeddingModelInfo {
   if (isGoogleProvider(config.baseUrl)) {
-    const model = config.model && config.model.includes('embedding') ? config.model : 'text-embedding-004';
+    const model =
+      config.model && config.model.includes('embedding') ? config.model : 'text-embedding-004';
     return { provider: 'google', model, modelId: `google:${model}` };
   }
 
   const normalizedModel = config.model?.toLowerCase() || '';
-  const isChatModel = normalizedModel.includes('chat') || normalizedModel.includes('gpt-')
-    || normalizedModel.includes('claude-') || normalizedModel.includes('deepseek-');
-  const model = isChatModel ? 'text-embedding-3-small' : (config.model || 'text-embedding-3-small');
+  const isChatModel =
+    normalizedModel.includes('chat') ||
+    normalizedModel.includes('gpt-') ||
+    normalizedModel.includes('claude-') ||
+    normalizedModel.includes('deepseek-');
+  const model = isChatModel ? 'text-embedding-3-small' : config.model || 'text-embedding-3-small';
   return { provider: 'openai-compatible', model, modelId: `openai-compatible:${model}` };
 }
 
 function isMiniMaxProvider(baseUrl: string) {
-  return baseUrl.includes("api.minimaxi.com") || baseUrl.includes("api.minimax.io");
+  return baseUrl.includes('api.minimaxi.com') || baseUrl.includes('api.minimax.io');
 }
 
 function isDeepSeekProvider(baseUrl: string) {
@@ -150,7 +192,7 @@ function getProviderName(baseUrl: string): OutputDiagnostic['provider'] {
 }
 
 function joinUrl(baseUrl: string, path: string) {
-  return `${baseUrl.replace(/\/+$/, "")}${path}`;
+  return `${baseUrl.replace(/\/+$/, '')}${path}`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -171,26 +213,29 @@ export function extractOpenAIText(data: unknown): string {
 
 function extractOpenAIMessageText(message: Record<string, unknown>): string {
   const content = message.content;
-  if (typeof content === "string") return content;
+  if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
       .map((part) => {
         const partRec = asRecord(part);
-        return typeof partRec.text === "string" ? partRec.text : "";
+        return typeof partRec.text === 'string' ? partRec.text : '';
       })
-      .join("");
+      .join('');
   }
-  return "";
+  return '';
 }
 
 function sanitizeModelTextWithDiagnostic(text: string, reasoningContentPresent = false) {
-  const hasClosedThink = /<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/i.test(text);
+  const hasClosedThink =
+    /<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/i.test(text);
   const hasThinkStart = /<(?:think|analysis|reasoning)>/i.test(text);
   const hasThinkEnd = /<\/(?:think|analysis|reasoning)>/i.test(text);
-  const thinkTagState: OutputDiagnostic['thinkTagState'] = hasThinkStart && !hasThinkEnd
-    ? 'unclosed'
-    : hasClosedThink ? 'closed_removed' : 'none';
-  let sanitized = text.replace(/<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/gi, '');
+  const thinkTagState: OutputDiagnostic['thinkTagState'] =
+    hasThinkStart && !hasThinkEnd ? 'unclosed' : hasClosedThink ? 'closed_removed' : 'none';
+  let sanitized = text.replace(
+    /<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/gi,
+    ''
+  );
   const unclosedStart = sanitized.search(/<(?:think|analysis|reasoning)>/i);
   if (unclosedStart >= 0) sanitized = sanitized.slice(0, unclosedStart);
   sanitized = sanitized.trim();
@@ -207,7 +252,11 @@ function sanitizeModelText(text: string): string {
   return sanitizeModelTextWithDiagnostic(text).text;
 }
 
-function emptyOutputReason(text: string, reasoningContentPresent: boolean, finishReason?: string): ProviderErrorReason {
+function emptyOutputReason(
+  text: string,
+  reasoningContentPresent: boolean,
+  finishReason?: string
+): ProviderErrorReason {
   const sanitized = sanitizeModelTextWithDiagnostic(text, reasoningContentPresent);
   if (sanitized.text) return 'no_content';
   if (/length|max[_ -]?tokens/i.test(finishReason || '')) return 'length_exhausted';
@@ -222,7 +271,13 @@ function buildOutputDiagnostic(
   text: string,
   finishReason?: string,
   reasoningContentPresent = false,
-  options: { compatibilityMode?: CompatibilityMode; providerRequestCount?: number; providerHttpStatus?: number; rejectedParameter?: RejectedParameter; providerErrorCode?: string } = {},
+  options: {
+    compatibilityMode?: CompatibilityMode;
+    providerRequestCount?: number;
+    providerHttpStatus?: number;
+    rejectedParameter?: RejectedParameter;
+    providerErrorCode?: string;
+  } = {}
 ): OutputDiagnostic {
   const sanitized = sanitizeModelTextWithDiagnostic(text, reasoningContentPresent);
   return {
@@ -242,8 +297,14 @@ function buildOutputDiagnostic(
   };
 }
 
-export function buildGoogleGenerateContentRequest(options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking" | "signal">) {
-  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, signal } = options;
+export function buildGoogleGenerateContentRequest(
+  options: Pick<
+    GenerateTextOptions,
+    'prompt' | 'systemInstruction' | 'maxTokens' | 'responseMimeType' | 'disableThinking' | 'signal'
+  >
+) {
+  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, signal } =
+    options;
   const config = {
     ...(systemInstruction ? { systemInstruction } : {}),
     ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
@@ -253,22 +314,38 @@ export function buildGoogleGenerateContentRequest(options: Pick<GenerateTextOpti
   };
 
   return {
-    model: "gemini-2.5-pro",
+    model: 'gemini-2.5-pro',
     contents: prompt,
     ...(Object.keys(config).length > 0 ? { config } : {}),
   };
 }
 
 export function buildOpenAICompatibleChatRequest(
-  config: Pick<AppConfig, "baseUrl" | "model">,
-  options: Pick<GenerateTextOptions, "prompt" | "systemInstruction" | "maxTokens" | "responseMimeType" | "disableThinking" | "onToken"> & { includeResponseFormat?: boolean },
+  config: Pick<AppConfig, 'baseUrl' | 'model'>,
+  options: Pick<
+    GenerateTextOptions,
+    | 'prompt'
+    | 'systemInstruction'
+    | 'maxTokens'
+    | 'responseMimeType'
+    | 'disableThinking'
+    | 'onToken'
+  > & { includeResponseFormat?: boolean }
 ) {
-  const { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking, onToken, includeResponseFormat = true } = options;
+  const {
+    prompt,
+    systemInstruction,
+    maxTokens,
+    responseMimeType,
+    disableThinking,
+    onToken,
+    includeResponseFormat = true,
+  } = options;
   const request: Record<string, unknown> = {
     model: config.model,
     messages: [
-      ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
-      { role: "user", content: prompt },
+      ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+      { role: 'user', content: prompt },
     ],
     stream: !!onToken,
   };
@@ -289,11 +366,11 @@ export function buildOpenAICompatibleChatRequest(
   if (isDeepSeekProvider(config.baseUrl) && disableThinking) {
     request.thinking = { type: 'disabled' };
   }
-  if (responseMimeType === "application/json" && includeResponseFormat) {
+  if (responseMimeType === 'application/json' && includeResponseFormat) {
     // Siliconflow's API gateway fails or drops connection when response_format is sent
-    const isSiliconFlow = config.baseUrl.includes("siliconflow");
+    const isSiliconFlow = config.baseUrl.includes('siliconflow');
     if (!isSiliconFlow) {
-      request.response_format = { type: "json_object" };
+      request.response_format = { type: 'json_object' };
     }
   }
 
@@ -304,7 +381,9 @@ function isRetryableStatus(status: number) {
   return status === 429 || (status >= 500 && status <= 599);
 }
 
-function providerError(fields: Omit<ConstructorParameters<typeof ProviderError>[0], 'message'> & { message?: string }): ProviderError {
+function providerError(
+  fields: Omit<ConstructorParameters<typeof ProviderError>[0], 'message'> & { message?: string }
+): ProviderError {
   const safeMessages: Record<ProviderErrorCode, string> = {
     configuration: '模型配置不可用，请检查设置',
     authentication: '模型服务鉴权失败，请检查 API Key',
@@ -341,7 +420,10 @@ function createReasoningStreamFilter(onToken: (token: string) => void): Reasonin
 
   const markerPrefixSuffixLength = (value: string, markers: string[]) => {
     const lowered = value.toLowerCase();
-    const maxLength = Math.min(value.length, Math.max(...markers.map((marker) => marker.length - 1)));
+    const maxLength = Math.min(
+      value.length,
+      Math.max(...markers.map((marker) => marker.length - 1))
+    );
     for (let length = maxLength; length > 0; length -= 1) {
       const suffix = lowered.slice(-length);
       if (markers.some((marker) => marker.startsWith(suffix))) return length;
@@ -357,11 +439,12 @@ function createReasoningStreamFilter(onToken: (token: string) => void): Reasonin
           if (!flush) {
             const keepLength = markerPrefixSuffixLength(pending, ends);
             pending = keepLength > 0 ? pending.slice(-keepLength) : '';
-          }
-          else pending = '';
+          } else pending = '';
           return;
         }
-        pending = pending.slice(end + ends.find((marker) => pending.slice(end).toLowerCase().startsWith(marker))!.length);
+        pending = pending.slice(
+          end + ends.find((marker) => pending.slice(end).toLowerCase().startsWith(marker))!.length
+        );
         inside = false;
         continue;
       }
@@ -404,7 +487,10 @@ function classifyProviderStatus(status: number): ProviderErrorCode {
   return 'parameter_incompatible';
 }
 
-function getParameterRejection(status: number, body: string): { rejectedParameter: RejectedParameter; providerErrorCode?: string } | undefined {
+function getParameterRejection(
+  status: number,
+  body: string
+): { rejectedParameter: RejectedParameter; providerErrorCode?: string } | undefined {
   if (status !== 400 && status !== 422) return undefined;
   let parsedError: Record<string, unknown> = {};
   try {
@@ -413,11 +499,13 @@ function getParameterRejection(status: number, body: string): { rejectedParamete
     // The provider may return a plain text parameter error.
   }
   const parameter = typeof parsedError.param === 'string' ? parsedError.param : '';
-  const providerErrorCode = typeof parsedError.code === 'string' && /^[A-Za-z0-9_.-]{1,80}$/.test(parsedError.code)
-    ? parsedError.code
-    : undefined;
+  const providerErrorCode =
+    typeof parsedError.code === 'string' && /^[A-Za-z0-9_.-]{1,80}$/.test(parsedError.code)
+      ? parsedError.code
+      : undefined;
   const signal = `${parameter} ${typeof parsedError.message === 'string' ? parsedError.message : ''} ${body}`;
-  if (/response[_ -]?format|json[_ -]?object/i.test(signal)) return { rejectedParameter: 'response_format', providerErrorCode };
+  if (/response[_ -]?format|json[_ -]?object/i.test(signal))
+    return { rejectedParameter: 'response_format', providerErrorCode };
   if (/thinking/i.test(signal)) return { rejectedParameter: 'thinking', providerErrorCode };
   if (parameter) return { rejectedParameter: 'unknown', providerErrorCode };
   return undefined;
@@ -426,12 +514,12 @@ function getParameterRejection(status: number, body: string): { rejectedParamete
 function isRetryableNetworkError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return (
-    message.includes("UND_ERR_SOCKET") ||
-    message.includes("fetch failed") ||
-    message.includes("ECONNRESET") ||
-    message.includes("ETIMEDOUT") ||
-    message.includes("timed out") ||
-    message.includes("other side closed")
+    message.includes('UND_ERR_SOCKET') ||
+    message.includes('fetch failed') ||
+    message.includes('ECONNRESET') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('timed out') ||
+    message.includes('other side closed')
   );
 }
 
@@ -443,28 +531,31 @@ function isTimeoutError(error: unknown): boolean {
 function isRetryableModelOutputError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return (
-    message.includes("LLM returned empty response") ||
-    message.includes("LLM response contained only thinking/reasoning content")
+    message.includes('LLM returned empty response') ||
+    message.includes('LLM response contained only thinking/reasoning content')
   );
 }
 
 function classifyStreamFailure(error: unknown): ProviderErrorCode | undefined {
   const message = error instanceof Error ? error.message : String(error);
-  if (/SSE ended before \[DONE\]|Response body is empty|empty response/i.test(message)) return 'empty_response';
+  if (/SSE ended before \[DONE\]|Response body is empty|empty response/i.test(message))
+    return 'empty_response';
   if (/SSE returned invalid JSON/i.test(message)) return 'network';
   return undefined;
 }
 
 async function sleep(ms: number) {
-  await new Promise(resolve => setTimeout(resolve, ms));
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function buildCharacterRelationshipContext(novelId: string): string {
   try {
     const database = getDb();
-    const characters = database.prepare(
-      'SELECT id, name, role, summary, traits, bio, current_state FROM characters WHERE novel_id = ?'
-    ).all(novelId) as Array<{
+    const characters = database
+      .prepare(
+        'SELECT id, name, role, summary, traits, bio, current_state FROM characters WHERE novel_id = ?'
+      )
+      .all(novelId) as Array<{
       id: string;
       name: string;
       role: string;
@@ -474,9 +565,11 @@ function buildCharacterRelationshipContext(novelId: string): string {
       current_state: string;
     }>;
 
-    const relationships = database.prepare(
-      'SELECT sourceId, targetId, relationshipType, description FROM entity_relationships WHERE novelId = ?'
-    ).all(novelId) as Array<{
+    const relationships = database
+      .prepare(
+        'SELECT sourceId, targetId, relationshipType, description FROM entity_relationships WHERE novelId = ?'
+      )
+      .all(novelId) as Array<{
       sourceId: string;
       targetId: string;
       relationshipType: string;
@@ -526,7 +619,10 @@ function buildCharacterRelationshipContext(novelId: string): string {
 // mode so generateTextRaw can tell it apart from a client-bound onToken.
 const deferredTokenSink = () => undefined;
 
-export async function generateText(config: AppConfig, options: GenerateTextOptions): Promise<string> {
+export async function generateText(
+  config: AppConfig,
+  options: GenerateTextOptions
+): Promise<string> {
   const outputMode = options.outputMode || 'prose';
   if (outputMode === 'audit-json') {
     // Audit payloads are data, not prose. Keep transport safeguards while
@@ -553,9 +649,10 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
 
   // 1. Input Gate: Apply prompt guard rules to systemInstruction or prompt if creative writing
   const guarded = applyInputGuard(options.prompt, updatedSystemInstruction);
-  const deferQualityGuardedTokens = guardLevel === 'strict'
-    && isCreativeWritingRequest(options.prompt, updatedSystemInstruction)
-    && typeof options.onToken === 'function';
+  const deferQualityGuardedTokens =
+    guardLevel === 'strict' &&
+    isCreativeWritingRequest(options.prompt, updatedSystemInstruction) &&
+    typeof options.onToken === 'function';
   const effectiveOptions = {
     ...options,
     prompt: guarded.prompt,
@@ -569,7 +666,10 @@ export async function generateText(config: AppConfig, options: GenerateTextOptio
   const rawResult = await generateTextRaw(config, effectiveOptions);
 
   // If this request is not creative-writing-related or level is balanced, skip output guard and corrective retry
-  if (guardLevel === 'balanced' || !isCreativeWritingRequest(options.prompt, updatedSystemInstruction)) {
+  if (
+    guardLevel === 'balanced' ||
+    !isCreativeWritingRequest(options.prompt, updatedSystemInstruction)
+  ) {
     return rawResult;
   }
 
@@ -639,7 +739,13 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
   const traceId = options.traceId || `llm_${randomUUID()}`;
 
   if (!config.apiKey) {
-    throw providerError({ code: 'configuration', phase: 'request', attempt: 0, traceId, provider: getProviderName(config.baseUrl) });
+    throw providerError({
+      code: 'configuration',
+      phase: 'request',
+      attempt: 0,
+      traceId,
+      provider: getProviderName(config.baseUrl),
+    });
   }
 
   if (isGoogleProvider(config.baseUrl)) {
@@ -660,7 +766,7 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       options.signal?.addEventListener('abort', onExternalAbort, { once: true });
 
       try {
-        const { GoogleGenAI } = await import("@google/genai");
+        const { GoogleGenAI } = await import('@google/genai');
         if (controller.signal.aborted) {
           throw controller.signal.reason || new Error('AbortError');
         }
@@ -688,7 +794,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               throw controller.signal.reason || new Error('AbortError');
             }
             const text = chunk.text || '';
-            const candidateFinishReason = String(asRecord(asArray(asRecord(chunk).candidates)[0]).finishReason || '');
+            const candidateFinishReason = String(
+              asRecord(asArray(asRecord(chunk).candidates)[0]).finishReason || ''
+            );
             if (candidateFinishReason) finishReason = candidateFinishReason;
             if (text) {
               fullText += text;
@@ -709,13 +817,21 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               provider: getProviderName(config.baseUrl),
               finishReason,
               reason: emptyOutputReason(fullText, sanitized.reasoningContentPresent, finishReason),
-              retriable: emptyOutputReason(fullText, sanitized.reasoningContentPresent, finishReason) === 'no_content',
+              retriable:
+                emptyOutputReason(fullText, sanitized.reasoningContentPresent, finishReason) ===
+                'no_content',
             });
           }
           options.onComplete?.({
             truncated: false,
             outputDiagnostic: {
-              ...buildOutputDiagnostic(config.baseUrl, responseMimeType === 'application/json' ? 'json_object' : 'none', disableThinking, fullText, finishReason),
+              ...buildOutputDiagnostic(
+                config.baseUrl,
+                responseMimeType === 'application/json' ? 'json_object' : 'none',
+                disableThinking,
+                fullText,
+                finishReason
+              ),
               contentLength: sanitized.contentLength,
               sanitizedLength: sanitized.sanitizedLength,
               reasoningContentPresent: sanitized.reasoningContentPresent,
@@ -732,24 +848,53 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         if (controller.signal.aborted) {
           throw controller.signal.reason || new Error('AbortError');
         }
-        const finishReason = String(asRecord(asArray(asRecord(response).candidates)[0]).finishReason || '');
+        const finishReason = String(
+          asRecord(asArray(asRecord(response).candidates)[0]).finishReason || ''
+        );
         const rawText = response.text || '';
-        const diagnostic = buildOutputDiagnostic(config.baseUrl, responseMimeType === 'application/json' ? 'json_object' : 'none', disableThinking, rawText, finishReason || undefined);
-        options.onComplete?.({ finishReason: finishReason || undefined, truncated: /length|max[_ -]?tokens/i.test(finishReason), outputDiagnostic: diagnostic });
+        const diagnostic = buildOutputDiagnostic(
+          config.baseUrl,
+          responseMimeType === 'application/json' ? 'json_object' : 'none',
+          disableThinking,
+          rawText,
+          finishReason || undefined
+        );
+        options.onComplete?.({
+          finishReason: finishReason || undefined,
+          truncated: /length|max[_ -]?tokens/i.test(finishReason),
+          outputDiagnostic: diagnostic,
+        });
         const text = sanitizeModelText(rawText);
         if (!text) {
-          const reason = emptyOutputReason(rawText, diagnostic.reasoningContentPresent, finishReason);
-          throw providerError({ code: 'empty_response', phase: 'response', attempt, traceId, provider: getProviderName(config.baseUrl), finishReason, reason, retriable: reason === 'no_content' });
+          const reason = emptyOutputReason(
+            rawText,
+            diagnostic.reasoningContentPresent,
+            finishReason
+          );
+          throw providerError({
+            code: 'empty_response',
+            phase: 'response',
+            attempt,
+            traceId,
+            provider: getProviderName(config.baseUrl),
+            finishReason,
+            reason,
+            retriable: reason === 'no_content',
+          });
         }
         return text;
       } catch (error) {
-        lastError = controller.signal.aborted
-          ? (controller.signal.reason || error)
-          : error;
+        lastError = controller.signal.aborted ? controller.signal.reason || error : error;
 
         const externallyAborted = options.signal?.aborted === true;
-        const isTimeout = lastError instanceof Error && lastError.message.includes("timed out");
-        if (!externallyAborted && attempt < maxAttempts && (isTimeout || isRetryableNetworkError(lastError) || isRetryableModelOutputError(lastError))) {
+        const isTimeout = lastError instanceof Error && lastError.message.includes('timed out');
+        if (
+          !externallyAborted &&
+          attempt < maxAttempts &&
+          (isTimeout ||
+            isRetryableNetworkError(lastError) ||
+            isRetryableModelOutputError(lastError))
+        ) {
           await sleep(400 * attempt);
           continue;
         }
@@ -757,8 +902,15 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         if (options.signal?.aborted) throw options.signal.reason || lastError;
         if (lastError instanceof ProviderError) throw lastError;
         throw providerError({
-          code: isTimeoutError(lastError) ? 'timeout' : isRetryableNetworkError(lastError) ? 'network' : 'service_unavailable',
-          phase: 'request', attempt, traceId, provider: getProviderName(config.baseUrl),
+          code: isTimeoutError(lastError)
+            ? 'timeout'
+            : isRetryableNetworkError(lastError)
+              ? 'network'
+              : 'service_unavailable',
+          phase: 'request',
+          attempt,
+          traceId,
+          provider: getProviderName(config.baseUrl),
         });
       } finally {
         clearTimeout(timeoutId);
@@ -790,9 +942,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     if (options.signal) {
       if (options.signal.aborted) {
         clearTimeout(abortTimeoutId);
-        throw options.signal.reason || new Error("AbortError");
+        throw options.signal.reason || new Error('AbortError');
       }
-      options.signal.addEventListener("abort", onExternalAbort, { once: true });
+      options.signal.addEventListener('abort', onExternalAbort, { once: true });
     }
 
     // Double safety net: Promise.race with a hard timeout in case AbortController
@@ -811,19 +963,27 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       const result = await Promise.race([
         (async () => {
           providerRequestCount += 1;
-          const response = await fetch(joinUrl(config.baseUrl, "/chat/completions"), {
-            method: "POST",
+          const response = await fetch(joinUrl(config.baseUrl, '/chat/completions'), {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${config.apiKey}`
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${config.apiKey}`,
             },
             body: JSON.stringify(
               buildOpenAICompatibleChatRequest(
                 { baseUrl: config.baseUrl, model: config.model },
-                { prompt, systemInstruction, maxTokens, responseMimeType, disableThinking: disableThinking && !omitThinking, onToken, includeResponseFormat },
-              ),
+                {
+                  prompt,
+                  systemInstruction,
+                  maxTokens,
+                  responseMimeType,
+                  disableThinking: disableThinking && !omitThinking,
+                  onToken,
+                  includeResponseFormat,
+                }
+              )
             ),
-            signal: controller.signal
+            signal: controller.signal,
           });
 
           if (!response.ok) {
@@ -831,20 +991,36 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             const rejection = getParameterRejection(response.status, errorText);
             if (rejection) {
               throw providerError({
-              code: 'parameter_incompatible', phase: 'response', attempt, traceId, provider: getProviderName(config.baseUrl), httpStatus: response.status,
-                rejectedParameter: rejection.rejectedParameter, providerErrorCode: rejection.providerErrorCode,
-                providerRequestCount, compatibilityMode,
+                code: 'parameter_incompatible',
+                phase: 'response',
+                attempt,
+                traceId,
+                provider: getProviderName(config.baseUrl),
+                httpStatus: response.status,
+                rejectedParameter: rejection.rejectedParameter,
+                providerErrorCode: rejection.providerErrorCode,
+                providerRequestCount,
+                compatibilityMode,
               });
             }
             const code = classifyProviderStatus(response.status);
-            throw providerError({ code, phase: 'response', attempt, traceId, provider: getProviderName(config.baseUrl), httpStatus: response.status, providerRequestCount, compatibilityMode });
+            throw providerError({
+              code,
+              phase: 'response',
+              attempt,
+              traceId,
+              provider: getProviderName(config.baseUrl),
+              httpStatus: response.status,
+              providerRequestCount,
+              compatibilityMode,
+            });
           }
 
           if (onToken) {
             const body = response.body;
-            if (!body) throw new Error("Response body is empty");
+            if (!body) throw new Error('Response body is empty');
             const reader = body.getReader();
-            const decoder = new TextDecoder("utf-8");
+            const decoder = new TextDecoder('utf-8');
             let fullText = '';
             let buffer = '';
             let sawDone = false;
@@ -881,7 +1057,8 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               const delta = asRecord(asRecord(asArray(asRecord(parsed).choices)[0]).delta);
               const token = delta.content;
               const reasoningToken = delta.reasoning_content || delta.reasoningContent;
-              if (typeof reasoningToken === 'string' && reasoningToken) reasoningContentPresent = true;
+              if (typeof reasoningToken === 'string' && reasoningToken)
+                reasoningContentPresent = true;
               const choice = asRecord(asArray(asRecord(parsed).choices)[0]);
               const chunkFinishReason = String(choice.finish_reason || choice.finishReason || '');
               if (chunkFinishReason) finishReason = chunkFinishReason;
@@ -913,7 +1090,16 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             if (buffer.trim()) processSseLine(buffer);
             reasoningFilter.flush();
             if (!sawDone) {
-              throw providerError({ code: 'network', phase: 'parse', attempt, traceId, provider: getProviderName(config.baseUrl), finishReason, providerRequestCount, compatibilityMode });
+              throw providerError({
+                code: 'network',
+                phase: 'parse',
+                attempt,
+                traceId,
+                provider: getProviderName(config.baseUrl),
+                finishReason,
+                providerRequestCount,
+                compatibilityMode,
+              });
             }
             const sanitized = sanitizeModelTextWithDiagnostic(fullText);
             if (!sanitized.text) {
@@ -926,8 +1112,17 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
                 finishReason,
                 providerRequestCount,
                 compatibilityMode,
-                reason: emptyOutputReason(fullText, reasoningContentPresent || sanitized.reasoningContentPresent, finishReason),
-                retriable: emptyOutputReason(fullText, reasoningContentPresent || sanitized.reasoningContentPresent, finishReason) === 'no_content',
+                reason: emptyOutputReason(
+                  fullText,
+                  reasoningContentPresent || sanitized.reasoningContentPresent,
+                  finishReason
+                ),
+                retriable:
+                  emptyOutputReason(
+                    fullText,
+                    reasoningContentPresent || sanitized.reasoningContentPresent,
+                    finishReason
+                  ) === 'no_content',
               });
             }
             if (!emittedContent) {
@@ -937,7 +1132,19 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             options.onComplete?.({
               truncated: false,
               outputDiagnostic: {
-                ...buildOutputDiagnostic(config.baseUrl, responseMimeType === 'application/json' ? (includeResponseFormat ? 'json_object' : 'plain_fallback') : 'none', disableThinking && !omitThinking, fullText, finishReason, false, { compatibilityMode, providerRequestCount }),
+                ...buildOutputDiagnostic(
+                  config.baseUrl,
+                  responseMimeType === 'application/json'
+                    ? includeResponseFormat
+                      ? 'json_object'
+                      : 'plain_fallback'
+                    : 'none',
+                  disableThinking && !omitThinking,
+                  fullText,
+                  finishReason,
+                  false,
+                  { compatibilityMode, providerRequestCount }
+                ),
                 contentLength: sanitized.contentLength,
                 sanitizedLength: sanitized.sanitizedLength,
                 reasoningContentPresent: sanitized.reasoningContentPresent,
@@ -947,24 +1154,62 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             return sanitized.text;
           } else {
             const data = await response.json();
-            const finishReason = String(asRecord(asArray(asRecord(data).choices)[0]).finish_reason || '');
+            const finishReason = String(
+              asRecord(asArray(asRecord(data).choices)[0]).finish_reason || ''
+            );
             const firstChoice = asRecord(asArray(asRecord(data).choices)[0]);
             const message = asRecord(firstChoice.message);
             const text = extractOpenAIMessageText(message);
             const diagnostic = buildOutputDiagnostic(
               config.baseUrl,
-              responseMimeType === 'application/json' ? (includeResponseFormat ? 'json_object' : 'plain_fallback') : 'none',
+              responseMimeType === 'application/json'
+                ? includeResponseFormat
+                  ? 'json_object'
+                  : 'plain_fallback'
+                : 'none',
               disableThinking && !omitThinking,
               text,
               finishReason || undefined,
-              typeof message.reasoning_content === 'string' || typeof message.reasoningContent === 'string',
-              { compatibilityMode, providerRequestCount },
+              typeof message.reasoning_content === 'string' ||
+                typeof message.reasoningContent === 'string',
+              { compatibilityMode, providerRequestCount }
             );
-            options.onComplete?.({ finishReason: finishReason || undefined, truncated: /length|max[_ -]?tokens/i.test(finishReason), outputDiagnostic: diagnostic });
-            if (!text) throw providerError({ code: 'empty_response', phase: 'response', attempt, traceId, provider: getProviderName(config.baseUrl), finishReason, providerRequestCount, compatibilityMode, reason: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason), retriable: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason) === 'no_content' });
+            options.onComplete?.({
+              finishReason: finishReason || undefined,
+              truncated: /length|max[_ -]?tokens/i.test(finishReason),
+              outputDiagnostic: diagnostic,
+            });
+            if (!text)
+              throw providerError({
+                code: 'empty_response',
+                phase: 'response',
+                attempt,
+                traceId,
+                provider: getProviderName(config.baseUrl),
+                finishReason,
+                providerRequestCount,
+                compatibilityMode,
+                reason: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason),
+                retriable:
+                  emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason) ===
+                  'no_content',
+              });
             const sanitized = sanitizeModelText(text);
             if (!sanitized) {
-              throw providerError({ code: 'empty_response', phase: 'parse', attempt, traceId, provider: getProviderName(config.baseUrl), finishReason, providerRequestCount, compatibilityMode, reason: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason), retriable: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason) === 'no_content' });
+              throw providerError({
+                code: 'empty_response',
+                phase: 'parse',
+                attempt,
+                traceId,
+                provider: getProviderName(config.baseUrl),
+                finishReason,
+                providerRequestCount,
+                compatibilityMode,
+                reason: emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason),
+                retriable:
+                  emptyOutputReason(text, diagnostic.reasoningContentPresent, finishReason) ===
+                  'no_content',
+              });
             }
             return sanitized;
           }
@@ -977,11 +1222,14 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     } catch (error) {
       // Node undici fetch aborts are wrapped as TypeError: fetch failed with a nested AbortError cause.
       // Check both nested cause name and standard error names.
-      const isAbort = controller.signal.aborted ||
-                      (error instanceof Error && error.name === "AbortError") ||
-                      (error instanceof Error && error.message.includes("fetch failed") &&
-                       (error.cause instanceof Error) && error.cause.name === "AbortError") ||
-                      (error instanceof Error && error.message.includes("The user aborted a request"));
+      const isAbort =
+        controller.signal.aborted ||
+        (error instanceof Error && error.name === 'AbortError') ||
+        (error instanceof Error &&
+          error.message.includes('fetch failed') &&
+          error.cause instanceof Error &&
+          error.cause.name === 'AbortError') ||
+        (error instanceof Error && error.message.includes('The user aborted a request'));
       if (controller.signal.aborted) {
         lastError = controller.signal.reason || error;
       } else if (isAbort) {
@@ -990,13 +1238,26 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         lastError = error;
       }
 
-      if (error instanceof ProviderError && error.code === 'parameter_incompatible' && responseMimeType === 'application/json') {
-        if (isDeepSeekProvider(config.baseUrl) && disableThinking && !omitThinking && (error.rejectedParameter === 'thinking' || error.rejectedParameter === 'unknown')) {
+      if (
+        error instanceof ProviderError &&
+        error.code === 'parameter_incompatible' &&
+        responseMimeType === 'application/json'
+      ) {
+        if (
+          isDeepSeekProvider(config.baseUrl) &&
+          disableThinking &&
+          !omitThinking &&
+          (error.rejectedParameter === 'thinking' || error.rejectedParameter === 'unknown')
+        ) {
           omitThinking = true;
           compatibilityMode = 'omit_thinking';
           continue;
         }
-        if (!isDeepSeekProvider(config.baseUrl) && includeResponseFormat && error.rejectedParameter === 'response_format') {
+        if (
+          !isDeepSeekProvider(config.baseUrl) &&
+          includeResponseFormat &&
+          error.rejectedParameter === 'response_format'
+        ) {
           includeResponseFormat = false;
           compatibilityMode = 'plain_fallback';
           continue;
@@ -1010,17 +1271,34 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       if (everEmittedTokens) throw error;
 
       // Do not retry if request was explicitly aborted or timed out to prevent compounding delays.
-      const isRetryable = !controller.signal.aborted && !isAbort && (
-        (error instanceof ProviderError ? error.code === 'rate_limit' || error.code === 'service_unavailable' || (error.code === 'empty_response' && (error.reason === undefined || error.reason === 'no_content')) : false) ||
-        isRetryableStatus(error instanceof ProviderError ? error.httpStatus || 0 : error instanceof Error ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0') : 0) ||
-        isRetryableNetworkError(error) ||
-        isRetryableModelOutputError(error)
-      );
+      const isRetryable =
+        !controller.signal.aborted &&
+        !isAbort &&
+        ((error instanceof ProviderError
+          ? error.code === 'rate_limit' ||
+            error.code === 'service_unavailable' ||
+            (error.code === 'empty_response' &&
+              (error.reason === undefined || error.reason === 'no_content'))
+          : false) ||
+          isRetryableStatus(
+            error instanceof ProviderError
+              ? error.httpStatus || 0
+              : error instanceof Error
+                ? parseInt(error.message.match(/\((\d+)\)/)?.[1] || '0')
+                : 0
+          ) ||
+          isRetryableNetworkError(error) ||
+          isRetryableModelOutputError(error));
 
       if (attempt < maxAttempts && isRetryable) {
         // DeepSeek may drop a request carrying its disabled-thinking option. On a
         // retry, omit only that option while preserving JSON response formatting.
-        if (isDeepSeekProvider(config.baseUrl) && disableThinking && !omitThinking && isRetryableNetworkError(error)) {
+        if (
+          isDeepSeekProvider(config.baseUrl) &&
+          disableThinking &&
+          !omitThinking &&
+          isRetryableNetworkError(error)
+        ) {
           omitThinking = true;
           compatibilityMode = 'omit_thinking';
         }
@@ -1035,8 +1313,17 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
       if (lastError instanceof ProviderError) throw lastError;
       const streamFailureCode = classifyStreamFailure(lastError);
       throw providerError({
-        code: isAbort || isTimeoutError(lastError) ? 'timeout' : isRetryableNetworkError(lastError) ? 'network' : streamFailureCode || (isRetryableModelOutputError(lastError) ? 'empty_response' : 'service_unavailable'),
-        phase: streamFailureCode ? 'parse' : 'request', attempt, traceId, provider: getProviderName(config.baseUrl),
+        code:
+          isAbort || isTimeoutError(lastError)
+            ? 'timeout'
+            : isRetryableNetworkError(lastError)
+              ? 'network'
+              : streamFailureCode ||
+                (isRetryableModelOutputError(lastError) ? 'empty_response' : 'service_unavailable'),
+        phase: streamFailureCode ? 'parse' : 'request',
+        attempt,
+        traceId,
+        provider: getProviderName(config.baseUrl),
         providerRequestCount,
         compatibilityMode,
       });
@@ -1055,24 +1342,28 @@ export async function generateEmbedding(
   config: AppConfig,
   text: string,
   signal?: AbortSignal,
-  timeoutMs = 30_000,
+  timeoutMs = 30_000
 ): Promise<number[]> {
   if (!config.apiKey) {
-    throw new Error("API key not configured");
+    throw new Error('API key not configured');
   }
 
   const controller = new AbortController();
-  const onExternalAbort = () => controller.abort(signal?.reason || new Error('Embedding request aborted'));
+  const onExternalAbort = () =>
+    controller.abort(signal?.reason || new Error('Embedding request aborted'));
   if (signal?.aborted) onExternalAbort();
   else signal?.addEventListener('abort', onExternalAbort, { once: true });
-  const timeoutId = setTimeout(() => controller.abort(new Error('Embedding request timed out')), timeoutMs);
+  const timeoutId = setTimeout(
+    () => controller.abort(new Error('Embedding request timed out')),
+    timeoutMs
+  );
 
   try {
     if (controller.signal.aborted) {
       throw controller.signal.reason || new Error('Embedding request aborted');
     }
     if (isGoogleProvider(config.baseUrl)) {
-      const { GoogleGenAI } = await import("@google/genai");
+      const { GoogleGenAI } = await import('@google/genai');
       if (controller.signal.aborted) {
         throw controller.signal.reason || new Error('Embedding request aborted');
       }
@@ -1091,21 +1382,22 @@ export async function generateEmbedding(
       const embeddingsArray = asArray(responseRec.embeddings);
       const firstEmbedding = asRecord(embeddingsArray[0]);
 
-      const values = (Array.isArray(embeddingField.values) ? (embeddingField.values as number[]) : null) ||
-                     (Array.isArray(firstEmbedding.values) ? (firstEmbedding.values as number[]) : null);
+      const values =
+        (Array.isArray(embeddingField.values) ? (embeddingField.values as number[]) : null) ||
+        (Array.isArray(firstEmbedding.values) ? (firstEmbedding.values as number[]) : null);
       if (!values) {
-        throw new Error("Google GenAI returned empty embedding");
+        throw new Error('Google GenAI returned empty embedding');
       }
       return values;
     }
 
     const model = getEmbeddingModelInfo(config).model;
 
-    const response = await fetch(joinUrl(config.baseUrl, "/embeddings"), {
-      method: "POST",
+    const response = await fetch(joinUrl(config.baseUrl, '/embeddings'), {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         input: text,
@@ -1122,7 +1414,7 @@ export async function generateEmbedding(
     const data = await response.json();
     const embedding = data?.data?.[0]?.embedding;
     if (!Array.isArray(embedding)) {
-      throw new Error("OpenAI returned invalid embedding format");
+      throw new Error('OpenAI returned invalid embedding format');
     }
     return embedding;
   } finally {

@@ -22,24 +22,29 @@ async function startServer() {
   const app = express();
   // Register helmet for secure headers (CSP, XSS, MIME Sniffing, Clickjacking)
   const isProduction = process.env.NODE_ENV === 'production';
-  app.use(helmet({
-    contentSecurityPolicy: isProduction ? {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'", 'data:'],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-      },
-    } : false,
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: isProduction
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'blob:'],
+              connectSrc: ["'self'"],
+              fontSrc: ["'self'", 'data:'],
+              objectSrc: ["'none'"],
+              baseUri: ["'self'"],
+              formAction: ["'self'"],
+            },
+          }
+        : false,
+    })
+  );
   const PORT = parseInt(process.env.PORT || '3000', 10);
-  const allowPortRetry = process.env.INKFLOW_FIXED_PORT !== 'true'
-    && (!process.env.PORT || process.env.NODE_ENV === 'production');
+  const allowPortRetry =
+    process.env.INKFLOW_FIXED_PORT !== 'true' &&
+    (!process.env.PORT || process.env.NODE_ENV === 'production');
 
   app.use((_req, res, next) => {
     if (fatalShutdownStarted) {
@@ -60,13 +65,15 @@ async function startServer() {
       // SSE endpoints carry short-lived tokens in the query string — never log them.
       const [pathWithoutQuery, query] = req.originalUrl.split('?');
       const safeQuery = query ? `?${query.replace(/([?&]token=)[^&]+/g, '$1<redacted>')}` : '';
-      console.error(`[ACCESS] ${JSON.stringify({
-        id: reqId,
-        method: req.method,
-        path: pathWithoutQuery + safeQuery,
-        status: res.statusCode,
-        ms: Date.now() - startedAt,
-      })}`);
+      console.error(
+        `[ACCESS] ${JSON.stringify({
+          id: reqId,
+          method: req.method,
+          path: pathWithoutQuery + safeQuery,
+          status: res.statusCode,
+          ms: Date.now() - startedAt,
+        })}`
+      );
     });
     next();
   });
@@ -79,7 +86,10 @@ async function startServer() {
   app.use(createRequestTimeoutMiddleware());
 
   // Development token bootstrap is opt-in and remains loopback-only.
-  if (process.env.NODE_ENV !== 'production' && process.env.INKFLOW_ENABLE_DEV_AUTH_TOKEN === 'true') {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.INKFLOW_ENABLE_DEV_AUTH_TOKEN === 'true'
+  ) {
     app.get('/api/dev-auth-token', (req, res) => {
       const remoteAddress = req.socket.remoteAddress?.replace(/^::ffff:/, '');
       if (remoteAddress !== '127.0.0.1' && remoteAddress !== '::1') {
@@ -118,11 +128,11 @@ async function startServer() {
   const disableDevViteMiddleware = process.env.DISABLE_VITE_DEV_MIDDLEWARE === '1';
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production" && !disableDevViteMiddleware) {
+  if (process.env.NODE_ENV !== 'production' && !disableDevViteMiddleware) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: 'spa',
     });
     app.use(vite.middlewares);
     console.log('Vite dev middleware enabled');
@@ -131,7 +141,7 @@ async function startServer() {
   }
 
   const listen = (port: number) => {
-    const server = app.listen(port, "127.0.0.1", () => {
+    const server = app.listen(port, '127.0.0.1', () => {
       console.log(`Server running on http://localhost:${port}`);
       // In production (Electron), notify the main process of the port via stdout JSON
       if (process.env.NODE_ENV === 'production') {

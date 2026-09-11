@@ -33,7 +33,13 @@ describe('AI action state', () => {
 
   it('keeps a retryable error without dropping the operation context', () => {
     const running = createAiActionRunning('audit', 1000);
-    const state: AiActionState = createAiActionError(running, '请求超时，请重试。', 5000, true, 'PROMPT_TEST_TIMEOUT');
+    const state: AiActionState = createAiActionError(
+      running,
+      '请求超时，请重试。',
+      5000,
+      true,
+      'PROMPT_TEST_TIMEOUT'
+    );
 
     expect(state).toMatchObject({
       status: 'error',

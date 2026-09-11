@@ -34,22 +34,27 @@ export function canApproveContinuationImportPack(pack: ContinuationPack | null):
   }
 
   const hasHighContradiction = pack.contradictions.some(
-    (contradiction) => contradiction.severity === 'high' && !isContinuationContradictionResolved(contradiction),
+    (contradiction) =>
+      contradiction.severity === 'high' && !isContinuationContradictionResolved(contradiction)
   );
 
   return !hasHighContradiction;
 }
 
-export function isContinuationContradictionResolved(contradiction: ContinuationContradiction): boolean {
-  return Boolean(contradiction.acceptedResolution?.trim())
-    && typeof contradiction.resolvedAt === 'number'
-    && Number.isFinite(contradiction.resolvedAt);
+export function isContinuationContradictionResolved(
+  contradiction: ContinuationContradiction
+): boolean {
+  return (
+    Boolean(contradiction.acceptedResolution?.trim()) &&
+    typeof contradiction.resolvedAt === 'number' &&
+    Number.isFinite(contradiction.resolvedAt)
+  );
 }
 
 export function applyContinuationConflictResolutions(
   pack: ContinuationPack,
   resolutions: ContinuationConflictResolution[],
-  resolvedAt = Date.now(),
+  resolvedAt = Date.now()
 ): ContinuationPack {
   const resolutionById = new Map<string, string>();
   for (const item of resolutions) {

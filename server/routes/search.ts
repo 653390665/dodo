@@ -12,11 +12,13 @@ import * as db from '../lib/db';
  * available:false + 当前状态，不假装空结果；索引为空时返回 indexed:false，
  * 让客户端渲染「还没有可检索的索引」而不是「没有匹配」。
  */
-const searchSchema = z.object({
-  novelId: z.string().min(1),
-  query: z.string().min(1).max(500),
-  limit: z.number().int().min(1).max(20).optional(),
-}).strict();
+const searchSchema = z
+  .object({
+    novelId: z.string().min(1),
+    query: z.string().min(1).max(500),
+    limit: z.number().int().min(1).max(20).optional(),
+  })
+  .strict();
 
 export function registerSearchRoutes(app: Express): void {
   app.post('/api/search-similar', async (req, res) => {
@@ -31,16 +33,31 @@ export function registerSearchRoutes(app: Express): void {
 
     const embeddingStatus = getEmbeddingStatus();
     if (embeddingStatus.status !== 'ready' && embeddingStatus.status !== 'fallback') {
-      return res.json({ available: false, embeddingStatus: embeddingStatus.status, indexed: getChunkCount(novelId) > 0, hits: [] });
+      return res.json({
+        available: false,
+        embeddingStatus: embeddingStatus.status,
+        indexed: getChunkCount(novelId) > 0,
+        hits: [],
+      });
     }
     if (getChunkCount(novelId) <= 0) {
-      return res.json({ available: true, embeddingStatus: embeddingStatus.status, indexed: false, hits: [] });
+      return res.json({
+        available: true,
+        embeddingStatus: embeddingStatus.status,
+        indexed: false,
+        hits: [],
+      });
     }
 
     try {
       const { values, modelId } = await embedWithMetadata(query, novelId);
       const hits = searchSimilar(values, novelId, modelId, limit ?? 8);
-      return res.json({ available: true, embeddingStatus: embeddingStatus.status, indexed: true, hits });
+      return res.json({
+        available: true,
+        embeddingStatus: embeddingStatus.status,
+        indexed: true,
+        hits,
+      });
     } catch (error) {
       logger.error('search-similar failed', {
         errorName: error instanceof Error ? error.name : typeof error,

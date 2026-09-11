@@ -67,9 +67,12 @@ export function ProductionRunReview({
   const [submittingFactCandidate, setSubmittingFactCandidate] = useState(false);
   const submittingFactCandidateRef = useRef(false);
   const [factCandidateError, setFactCandidateError] = useState<string | null>(null);
-  const recoveredRun = !running && run?.status === 'running' && !run.draftContent.trim()
-    ? history.find((item) => item.status === 'review_required' && Boolean(item.draftContent.trim()))
-    : undefined;
+  const recoveredRun =
+    !running && run?.status === 'running' && !run.draftContent.trim()
+      ? history.find(
+          (item) => item.status === 'review_required' && Boolean(item.draftContent.trim())
+        )
+      : undefined;
   const viewingHistory = Boolean(selectedHistoryRun);
   const displayRun = selectedHistoryRun || recoveredRun || run;
   const displayRunning = running;
@@ -77,27 +80,34 @@ export function ProductionRunReview({
   const timelineEvents = displayRun?.continuityReport.proposedPatch.timelineEventsToCreate || [];
   const foreshadowings = displayRun?.continuityReport.proposedPatch.foreshadowingsToCreate || [];
   const effectiveStatus = displayRun?.status;
-  const draftQuality = displayRun?.draftContent ? validateCompleteChapterDraftQuality(displayRun.draftContent) : null;
+  const draftQuality = displayRun?.draftContent
+    ? validateCompleteChapterDraftQuality(displayRun.draftContent)
+    : null;
   const auditStatus = displayRun?.continuityReport.auditMeta?.status ?? 'not_run';
   const auditSource = displayRun?.continuityReport.auditMeta?.source;
   const fallbackAudit = auditSource === 'fallback';
   const unknownAuditSource = Boolean(displayRun) && !auditSource;
   const failedAudit = auditStatus === 'fail';
   const qualityRejected = displayRun?.continuityReport.degradation?.qualityRejected === true;
-  const auditSourceLabel = auditSource === 'fallback' ? '保底流程' : auditSource === 'model' ? '模型' : '未知';
+  const auditSourceLabel =
+    auditSource === 'fallback' ? '保底流程' : auditSource === 'model' ? '模型' : '未知';
   // A quality-rejected run is delivered on purpose (user keeps the material);
   // acceptance stays possible but always goes through the explicit override confirm.
-  const canApply = !running
-    && displayRun?.status === 'review_required'
-    && (viewingHistory || displayRun.id === run?.id)
-    && (Boolean(draftQuality?.ok) || qualityRejected)
-    && !fallbackAudit
-    && !unknownAuditSource
-    && !failedAudit;
+  const canApply =
+    !running &&
+    displayRun?.status === 'review_required' &&
+    (viewingHistory || displayRun.id === run?.id) &&
+    (Boolean(draftQuality?.ok) || qualityRejected) &&
+    !fallbackAudit &&
+    !unknownAuditSource &&
+    !failedAudit;
   const visibleError = error;
   const visibleRunError = displayRun?.errorMessage;
   const auditNeedsConfirmation = auditStatus === 'unknown' || auditStatus === 'not_run';
-  const hasVerifiedScore = (auditStatus === 'pass' || auditStatus === 'fail') && typeof displayRun?.continuityReport.score === 'number' && Number.isFinite(displayRun.continuityReport.score);
+  const hasVerifiedScore =
+    (auditStatus === 'pass' || auditStatus === 'fail') &&
+    typeof displayRun?.continuityReport.score === 'number' &&
+    Number.isFinite(displayRun.continuityReport.score);
   const factCandidateRunId = displayRun?.id;
   const factCandidateRunStatus = displayRun?.status;
   const factCandidateGeneration = displayRun?.continuityReport.databaseGeneration;
@@ -139,7 +149,12 @@ export function ProductionRunReview({
   }, [displayRun?.status, loadHistory]);
 
   useEffect(() => {
-    if (!factCandidateRunId || !novelId || factCandidateGeneration === undefined || (factCandidateRunStatus !== 'review_required' && factCandidateRunStatus !== 'applied')) {
+    if (
+      !factCandidateRunId ||
+      !novelId ||
+      factCandidateGeneration === undefined ||
+      (factCandidateRunStatus !== 'review_required' && factCandidateRunStatus !== 'applied')
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clear a previous run's candidate before loading the next one
       setFactCandidate(null);
       return;
@@ -147,11 +162,25 @@ export function ProductionRunReview({
     let active = true;
     setLoadingFactCandidate(true);
     setFactCandidateError(null);
-    void previewChapterFactCandidate(factCandidateRunId, { novelId, databaseGeneration: factCandidateGeneration })
-      .then((candidate) => { if (active) setFactCandidate(candidate); })
-      .catch((candidateError: unknown) => { if (active) setFactCandidateError(candidateError instanceof Error ? candidateError.message : '事实候选预览失败'); })
-      .finally(() => { if (active) setLoadingFactCandidate(false); });
-    return () => { active = false; };
+    void previewChapterFactCandidate(factCandidateRunId, {
+      novelId,
+      databaseGeneration: factCandidateGeneration,
+    })
+      .then((candidate) => {
+        if (active) setFactCandidate(candidate);
+      })
+      .catch((candidateError: unknown) => {
+        if (active)
+          setFactCandidateError(
+            candidateError instanceof Error ? candidateError.message : '事实候选预览失败'
+          );
+      })
+      .finally(() => {
+        if (active) setLoadingFactCandidate(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [factCandidateGeneration, factCandidateRunId, factCandidateRunStatus, novelId]);
 
   return (
@@ -174,7 +203,7 @@ export function ProductionRunReview({
           </div>
         ) : null}
         {visibleError ? (
- <div className="mt-3 flex items-center gap-2 rounded-xl alert-danger px-3 py-2 text-xs">
+          <div className="mt-3 flex items-center gap-2 rounded-xl alert-danger px-3 py-2 text-xs">
             <XCircle size={14} />
             {visibleError}
           </div>
@@ -213,7 +242,10 @@ export function ProductionRunReview({
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-bold text-theme-text">生产报告</div>
-              <div className="mt-1 text-xs text-theme-muted">状态 {effectiveStatus}{hasVerifiedScore ? ` · 连续性评分 ${displayRun.continuityReport.score}/100` : ''}</div>
+              <div className="mt-1 text-xs text-theme-muted">
+                状态 {effectiveStatus}
+                {hasVerifiedScore ? ` · 连续性评分 ${displayRun.continuityReport.score}/100` : ''}
+              </div>
             </div>
             <button
               onClick={() => {
@@ -227,59 +259,83 @@ export function ProductionRunReview({
               disabled={applying || !canApply}
               className="inline-flex items-center gap-2 rounded-xl bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
             >
-              {applying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              {applying ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
               接受并写入
             </button>
           </div>
 
           {fallbackAudit ? (
- <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
+            <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               保底草稿未经过模型审稿，不能直接接受并写入。请重试生成模型版本。
             </div>
           ) : null}
 
           {/* 002：生产期审稿只服务于流水线内迭代，不与章内权威结论混淆 */}
-          <div role="note" className="mt-3 rounded-xl border border-theme-border/60 bg-theme-bg/50 px-3 py-2 text-[10px] leading-4 text-theme-muted">
+          <div
+            role="note"
+            className="mt-3 rounded-xl border border-theme-border/60 bg-theme-bg/50 px-3 py-2 text-[10px] leading-4 text-theme-muted"
+          >
             生产期审稿（迭代用）：这里的审计结果用于流水线内的重写反馈；章节交付的权威审稿结论以接受正文后的完成审查为准。
           </div>
 
           {unknownAuditSource ? (
- <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
+            <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               正文版本来源未知，不能直接接受并写入。请重新生成模型版本。
             </div>
           ) : null}
 
           {canApply && !applying && !displayRunning ? (
-            <div role="status" className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            <div
+              role="status"
+              className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"
+            >
               正文已就绪。点击「接受并写入」后才会保存到章节和状态账本；在那之前内容只存在于预览。
             </div>
           ) : null}
 
           {failedAudit ? (
- <div role="alert" className="mt-3 rounded-xl alert-danger px-3 py-2 text-xs">
+            <div role="alert" className="mt-3 rounded-xl alert-danger px-3 py-2 text-xs">
               审稿未通过，当前正文需要精修后重新审阅，不能直接写入。
             </div>
           ) : null}
 
           {auditNeedsConfirmation && confirmingRunId === displayRun.id && !fallbackAudit ? (
- <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-3 text-xs">
-              {qualityRejected ? '正文未通过质量门禁，写入即代表接受当前质量风险。' : ''}本次审计{auditStatus === 'not_run' ? '未运行' : '状态未知'}（来源：{auditSourceLabel}），没有可验证评分。仍要接受预览并写入吗？
+            <div role="alert" className="mt-3 rounded-xl alert-warning px-3 py-3 text-xs">
+              {qualityRejected ? '正文未通过质量门禁，写入即代表接受当前质量风险。' : ''}本次审计
+              {auditStatus === 'not_run' ? '未运行' : '状态未知'}（来源：{auditSourceLabel}
+              ），没有可验证评分。仍要接受预览并写入吗？
               <div className="mt-2 flex gap-2">
-                <button type="button" className="rounded-lg border border-theme-border px-2 py-1" onClick={() => setConfirmingRunId(null)}>取消</button>
-                <button type="button" className="rounded-lg bg-theme-accent px-2 py-1 text-theme-accent-contrast" onClick={() => onApply(displayRun)}>确认写入</button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-theme-border px-2 py-1"
+                  onClick={() => setConfirmingRunId(null)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-theme-accent px-2 py-1 text-theme-accent-contrast"
+                  onClick={() => onApply(displayRun)}
+                >
+                  确认写入
+                </button>
               </div>
             </div>
           ) : null}
 
           {auditNeedsConfirmation && confirmingRunId !== displayRun.id && !fallbackAudit ? (
- <div className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
+            <div className="mt-3 rounded-xl alert-warning px-3 py-2 text-xs">
               审计{auditStatus === 'not_run' ? '未运行' : '状态未知'} · 来源：{auditSourceLabel}
             </div>
           ) : null}
 
           <div className="mt-4 space-y-3">
             {visibleRunError ? (
- <div className="rounded-xl alert-danger px-3 py-2 text-xs">
+              <div className="rounded-xl alert-danger px-3 py-2 text-xs">
                 失败原因：{visibleRunError}
               </div>
             ) : null}
@@ -287,18 +343,26 @@ export function ProductionRunReview({
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 分镜
                 {beatsSource === 'fallback' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">⚠️ 分镜降级</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                    ⚠️ 分镜降级
+                  </span>
                 )}
                 {beatsSource === 'model' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 分镜</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">
+                    AI 分镜
+                  </span>
                 )}
               </div>
               <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-theme-sidebar/25 p-3 text-xs leading-5 text-theme-text">
                 {displayRun.sceneBeats}
               </pre>
               {beatsSource === 'fallback' && !displayRunning ? (
- <div role="alert" className="mt-2 rounded-xl alert-warning px-3 py-2 text-xs leading-5">
-                  ⚠️ 智能分镜失败，以上是基础模板而非按本章剧情生成的分镜，正文贴合度可能下降。可先到「分镜」重新生成分镜，再生成正文。
+                <div
+                  role="alert"
+                  className="mt-2 rounded-xl alert-warning px-3 py-2 text-xs leading-5"
+                >
+                  ⚠️
+                  智能分镜失败，以上是基础模板而非按本章剧情生成的分镜，正文贴合度可能下降。可先到「分镜」重新生成分镜，再生成正文。
                 </div>
               ) : null}
             </section>
@@ -306,10 +370,14 @@ export function ProductionRunReview({
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 正文预览
                 {draftSource === 'fallback' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">⚠️ 草稿降级</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
+                    ⚠️ 草稿降级
+                  </span>
                 )}
                 {draftSource === 'model' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">AI 正文</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">
+                    AI 正文
+                  </span>
                 )}
                 {displayRunning && draftSource && (
                   <span className="inline-flex items-center gap-1 text-[9px] text-theme-muted">
@@ -322,38 +390,60 @@ export function ProductionRunReview({
                 {displayRun.draftContent}
               </pre>
               {draftQuality && !draftQuality.ok ? (
- <div role="alert" className="mt-2 rounded-xl alert-danger px-3 py-2 text-xs leading-5">
+                <div
+                  role="alert"
+                  className="mt-2 rounded-xl alert-danger px-3 py-2 text-xs leading-5"
+                >
                   {qualityRejected
                     ? '正文未通过质量门禁，已按“待改进草稿”保留：'
                     : '正文候选未通过质量门禁，暂不能写入：'}
                   {draftQuality.violations.join('；')}
-                  {qualityRejected ? '。可在此阅读或复制后自行修改；如坚持原样写入，点击「接受并写入」并确认覆盖。' : ''}
-                  {draftQuality.findings.flatMap((finding) => finding.evidence || []).slice(0, 3).map((evidence, index) => (
-                    <div key={`quality-evidence-${index}`} className="mt-1 border-l-2 border-red-300 pl-2">
-                      {evidence.line ? `第 ${evidence.line} 行：` : ''}“{evidence.snippet}”{evidence.suggestion ? ` 建议：${evidence.suggestion}` : ''}
-                    </div>
-                  ))}
+                  {qualityRejected
+                    ? '。可在此阅读或复制后自行修改；如坚持原样写入，点击「接受并写入」并确认覆盖。'
+                    : ''}
+                  {draftQuality.findings
+                    .flatMap((finding) => finding.evidence || [])
+                    .slice(0, 3)
+                    .map((evidence, index) => (
+                      <div
+                        key={`quality-evidence-${index}`}
+                        className="mt-1 border-l-2 border-red-300 pl-2"
+                      >
+                        {evidence.line ? `第 ${evidence.line} 行：` : ''}“{evidence.snippet}”
+                        {evidence.suggestion ? ` 建议：${evidence.suggestion}` : ''}
+                      </div>
+                    ))}
                 </div>
               ) : null}
               {draftQuality?.mechanicalReview?.status === 'pass' ? (
                 <div className="mt-2 text-[10px] text-theme-muted" role="status">
-                  机械审查 {draftQuality.mechanicalReview.score.toFixed(1)}/{draftQuality.mechanicalReview.threshold}：{draftQuality.mechanicalReview.summary}
+                  机械审查 {draftQuality.mechanicalReview.score.toFixed(1)}/
+                  {draftQuality.mechanicalReview.threshold}：{draftQuality.mechanicalReview.summary}
                 </div>
               ) : null}
             </section>
             <section>
-              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">连续性问题</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">
+                连续性问题
+              </div>
               <div className="mt-2 space-y-2">
-                {issues.length ? issues.map((issue, index) => (
- <div key={`${issue.category}-${index}`} className="rounded-xl alert-warning px-3 py-2 text-xs">
-                    <div className="flex items-center gap-2 font-bold">
-                      <AlertTriangle size={13} />
-                      {issue.severity} / {issue.category}
+                {issues.length ? (
+                  issues.map((issue, index) => (
+                    <div
+                      key={`${issue.category}-${index}`}
+                      className="rounded-xl alert-warning px-3 py-2 text-xs"
+                    >
+                      <div className="flex items-center gap-2 font-bold">
+                        <AlertTriangle size={13} />
+                        {issue.severity} / {issue.category}
+                      </div>
+                      <div className="mt-1 leading-5">{issue.message}</div>
+                      {issue.suggestedFix ? (
+                        <div className="mt-1 text-amber-700">建议：{issue.suggestedFix}</div>
+                      ) : null}
                     </div>
-                    <div className="mt-1 leading-5">{issue.message}</div>
-                    {issue.suggestedFix ? <div className="mt-1 text-amber-700">建议：{issue.suggestedFix}</div> : null}
-                  </div>
-                )) : (
+                  ))
+                ) : (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                     没有发现明显连续性冲突。
                   </div>
@@ -361,15 +451,23 @@ export function ProductionRunReview({
               </div>
             </section>
             <section>
-              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">建议写入状态账本</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">
+                建议写入状态账本
+              </div>
               <div className="mt-2 space-y-2 text-xs text-theme-muted">
                 {timelineEvents.map((event, index) => (
-                  <div key={`timeline-${index}`} className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-2">
+                  <div
+                    key={`timeline-${index}`}
+                    className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-2"
+                  >
                     时间线：[{event.timestamp}] {event.title} - {event.description}
                   </div>
                 ))}
                 {foreshadowings.map((entry, index) => (
-                  <div key={`foreshadow-${index}`} className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-2">
+                  <div
+                    key={`foreshadow-${index}`}
+                    className="rounded-xl border border-theme-border bg-theme-sidebar/20 px-3 py-2"
+                  >
                     新伏笔：{entry.title} - {entry.description}
                   </div>
                 ))}
@@ -380,32 +478,56 @@ export function ProductionRunReview({
                 ) : null}
               </div>
             </section>
-            {loadingFactCandidate ? <div className="text-xs text-theme-muted">正在加载章节事实候选...</div> : null}
- {factCandidateError ? <div role="alert" className="rounded-lg alert-warning px-2 py-2 text-xs">{factCandidateError}</div> : null}
-            {factCandidate ? <ChapterFactCandidateReview candidate={factCandidate} canConfirm={displayRun?.status === 'applied'} submitting={submittingFactCandidate} onConfirm={(selection) => {
-              if (submittingFactCandidateRef.current) return;
-              submittingFactCandidateRef.current = true;
-              setSubmittingFactCandidate(true);
-              void applyChapterFactCandidate({
-                novelId: factCandidate.novelId, runId: factCandidate.runId, databaseGeneration: factCandidate.databaseGeneration,
-                candidateId: factCandidate.id, manuscriptContentHash: factCandidate.manuscript.contentHash,
-                storyMemoryFingerprint: factCandidate.storyMemoryFingerprint, ...selection,
-              }).then(() => {
-                setLoadingFactCandidate(true);
-                setFactCandidateError(null);
-                return previewChapterFactCandidate(factCandidate.runId, {
-                  novelId: factCandidate.novelId, databaseGeneration: factCandidate.databaseGeneration,
-                });
-              }).then((nextCandidate) => {
-                setFactCandidate(nextCandidate.facts.length ? nextCandidate : null);
-              }).catch((candidateError: unknown) => {
-                setFactCandidateError(candidateError instanceof Error ? candidateError.message : '事实确认失败');
-              }).finally(() => {
-                submittingFactCandidateRef.current = false;
-                setSubmittingFactCandidate(false);
-                setLoadingFactCandidate(false);
-              });
-            }} /> : null}
+            {loadingFactCandidate ? (
+              <div className="text-xs text-theme-muted">正在加载章节事实候选...</div>
+            ) : null}
+            {factCandidateError ? (
+              <div role="alert" className="rounded-lg alert-warning px-2 py-2 text-xs">
+                {factCandidateError}
+              </div>
+            ) : null}
+            {factCandidate ? (
+              <ChapterFactCandidateReview
+                candidate={factCandidate}
+                canConfirm={displayRun?.status === 'applied'}
+                submitting={submittingFactCandidate}
+                onConfirm={(selection) => {
+                  if (submittingFactCandidateRef.current) return;
+                  submittingFactCandidateRef.current = true;
+                  setSubmittingFactCandidate(true);
+                  void applyChapterFactCandidate({
+                    novelId: factCandidate.novelId,
+                    runId: factCandidate.runId,
+                    databaseGeneration: factCandidate.databaseGeneration,
+                    candidateId: factCandidate.id,
+                    manuscriptContentHash: factCandidate.manuscript.contentHash,
+                    storyMemoryFingerprint: factCandidate.storyMemoryFingerprint,
+                    ...selection,
+                  })
+                    .then(() => {
+                      setLoadingFactCandidate(true);
+                      setFactCandidateError(null);
+                      return previewChapterFactCandidate(factCandidate.runId, {
+                        novelId: factCandidate.novelId,
+                        databaseGeneration: factCandidate.databaseGeneration,
+                      });
+                    })
+                    .then((nextCandidate) => {
+                      setFactCandidate(nextCandidate.facts.length ? nextCandidate : null);
+                    })
+                    .catch((candidateError: unknown) => {
+                      setFactCandidateError(
+                        candidateError instanceof Error ? candidateError.message : '事实确认失败'
+                      );
+                    })
+                    .finally(() => {
+                      submittingFactCandidateRef.current = false;
+                      setSubmittingFactCandidate(false);
+                      setLoadingFactCandidate(false);
+                    });
+                }}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -414,7 +536,9 @@ export function ProductionRunReview({
       {novelId ? (
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-xs font-bold text-theme-text uppercase tracking-wider">生产历史</div>
+            <div className="text-xs font-bold text-theme-text uppercase tracking-wider">
+              生产历史
+            </div>
             <div className="flex items-center gap-2">
               {viewingHistory ? (
                 <button
@@ -434,9 +558,20 @@ export function ProductionRunReview({
             </div>
           </div>
           {historyError ? (
-            <div className="mt-3 rounded-xl border alert-danger px-3 py-2 text-xs">生产历史加载失败。<button type="button" className="font-bold underline" onClick={() => void loadHistory()}>重试</button></div>
+            <div className="mt-3 rounded-xl border alert-danger px-3 py-2 text-xs">
+              生产历史加载失败。
+              <button
+                type="button"
+                className="font-bold underline"
+                onClick={() => void loadHistory()}
+              >
+                重试
+              </button>
+            </div>
           ) : history.length === 0 ? (
-            <div className="mt-3 text-xs text-theme-muted">尚无生产记录。输入意图后点击"开始生产一章"。</div>
+            <div className="mt-3 text-xs text-theme-muted">
+              尚无生产记录。输入意图后点击"开始生产一章"。
+            </div>
           ) : (
             <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
               {history.map((item) => (
@@ -462,26 +597,42 @@ export function ProductionRunReview({
                     <div className="flex items-center gap-2">
                       <Clock size={12} className="text-theme-muted" />
                       <span className="font-bold text-theme-text">
-                        {new Date(item.createdAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(item.createdAt).toLocaleString('zh-CN', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        item.status === 'applied' ? 'bg-emerald-100 text-emerald-700' :
-                        item.status === 'failed' ? 'bg-red-100 text-red-700' :
-                        item.status === 'review_required' ? 'bg-amber-100 text-amber-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                          item.status === 'applied'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : item.status === 'failed'
+                              ? 'bg-red-100 text-red-700'
+                              : item.status === 'review_required'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
                         {STATUS_LABELS[item.status] || item.status}
                       </span>
-                      {item.continuityReport.degradation && (item.continuityReport.degradation.beatsSource === 'fallback' || item.continuityReport.degradation.draftSource === 'fallback') ? (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700" title="该次生产中部分阶段降级为基础模板">
+                      {item.continuityReport.degradation &&
+                      (item.continuityReport.degradation.beatsSource === 'fallback' ||
+                        item.continuityReport.degradation.draftSource === 'fallback') ? (
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700"
+                          title="该次生产中部分阶段降级为基础模板"
+                        >
                           ⚠️ 含降级
                         </span>
                       ) : null}
                     </div>
                     <span className="text-theme-muted">
-                      {(item.continuityReport.auditMeta?.status === 'pass' || item.continuityReport.auditMeta?.status === 'fail')
-                        && typeof item.continuityReport.score === 'number'
-                        && Number.isFinite(item.continuityReport.score)
+                      {(item.continuityReport.auditMeta?.status === 'pass' ||
+                        item.continuityReport.auditMeta?.status === 'fail') &&
+                      typeof item.continuityReport.score === 'number' &&
+                      Number.isFinite(item.continuityReport.score)
                         ? `${item.continuityReport.score}/100`
                         : '未评分'}
                     </span>

@@ -14,7 +14,9 @@ const api = vi.hoisted(() => ({
   listContinuationPacks: vi.fn(),
   listSkills: vi.fn(),
 }));
-const productEvents = vi.hoisted(() => ({ recordProductEvent: vi.fn().mockResolvedValue(undefined) }));
+const productEvents = vi.hoisted(() => ({
+  recordProductEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('../lib/api', () => api);
 vi.mock('../lib/product-events-client', () => productEvents);
@@ -23,23 +25,75 @@ vi.mock('../lib/download-client', () => ({ downloadDbBackup: vi.fn() }));
 import { ProjectCockpitView } from '../components/ProjectCockpitView';
 
 const novel: Novel = {
-  id: 'novel-1', title: '测试作品', authorId: 'local-user', summary: '',
-  status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: '测试作品',
+  authorId: 'local-user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 
-const pack = (id: string, syncStatus: 'not_started' | 'partial' | 'synced' | 'stale' = 'not_started'): ContinuationPack => ({
-  id, novelId: novel.id, title: '已确认资料包', status: 'approved',
-  sourceDocuments: [], canonFacts: [], characterStates: [], plotState: {
-    currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '',
+const pack = (
+  id: string,
+  syncStatus: 'not_started' | 'partial' | 'synced' | 'stale' = 'not_started'
+): ContinuationPack => ({
+  id,
+  novelId: novel.id,
+  title: '已确认资料包',
+  status: 'approved',
+  sourceDocuments: [],
+  canonFacts: [],
+  characterStates: [],
+  plotState: {
+    currentTimeline: '',
+    latestScene: '',
+    unresolvedHooks: [],
+    immediateConflict: '',
+    nextLikelyMove: '',
   },
-  styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' }, contradictions: [],
-  continuationTask: '', createdAt: 1, updatedAt: 2,
-  syncState: { status: syncStatus, contentHash: '', pendingRelationshipCount: 0, summary: { characters: 0, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 } },
+  styleProfile: {
+    pov: '',
+    tense: '',
+    pacing: '',
+    dialogueDensity: '',
+    proseTraits: [],
+    avoidTraits: [],
+    sampleEvidence: '',
+  },
+  contradictions: [],
+  continuationTask: '',
+  createdAt: 1,
+  updatedAt: 2,
+  syncState: {
+    status: syncStatus,
+    contentHash: '',
+    pendingRelationshipCount: 0,
+    summary: {
+      characters: 0,
+      locations: 0,
+      items: 0,
+      factions: 0,
+      powerLevels: 0,
+      timelineEvents: 0,
+      relationships: 0,
+    },
+  },
 });
 
 const chapter = (overrides: Partial<Chapter> = {}): Chapter => ({
-  id: 'chapter-1', novelId: novel.id, title: '第一章', volumeName: '正文', content: '',
-  sceneBeats: '', critique: '', order: 1, wordCount: 0, createdAt: 1, updatedAt: 1, ...overrides,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: '第一章',
+  volumeName: '正文',
+  content: '',
+  sceneBeats: '',
+  critique: '',
+  order: 1,
+  wordCount: 0,
+  createdAt: 1,
+  updatedAt: 1,
+  ...overrides,
 });
 
 function renderCockpit(
@@ -49,11 +103,13 @@ function renderCockpit(
   onNavigate = vi.fn(),
   onStartCockpitAction = vi.fn(),
   onSelectChapter = vi.fn(),
-  cockpitNovel: Novel = novel,
+  cockpitNovel: Novel = novel
 ) {
   const fullChapter = chapter(overrides);
   api.getNovel.mockResolvedValue(cockpitNovel);
-  api.listChaptersMetadata.mockResolvedValue([{ ...fullChapter, content: undefined, sceneBeats: undefined, critique: undefined }]);
+  api.listChaptersMetadata.mockResolvedValue([
+    { ...fullChapter, content: undefined, sceneBeats: undefined, critique: undefined },
+  ]);
   api.getChapter.mockResolvedValue(fullChapter);
   api.listContinuationPacks.mockResolvedValue(packs);
   return render(
@@ -63,7 +119,7 @@ function renderCockpit(
       onStartCockpitAction={onStartCockpitAction}
       onSelectChapter={onSelectChapter}
       onStartContinuationWriting={onStartContinuationWriting}
-    />,
+    />
   );
 }
 
@@ -76,7 +132,15 @@ beforeEach(() => {
   api.listFactions.mockResolvedValue([]);
   api.listSkills.mockResolvedValue([]);
   api.listContinuationPacks.mockResolvedValue([]);
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ hasApiKey: true, livenessStatus: 'connected' }), { status: 200 })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ hasApiKey: true, livenessStatus: 'connected' }), {
+          status: 200,
+        })
+    )
+  );
 });
 
 afterEach(() => {
@@ -87,22 +151,47 @@ afterEach(() => {
 describe('ProjectCockpitView content gating', () => {
   test.each([
     [{ hasApiKey: true, livenessStatus: 'connected' }, 'AI 状态：已连接', 'AI 生成与审阅可用。'],
-    [{ hasApiKey: false, livenessStatus: 'disconnected' }, 'AI 状态：未配置', '可继续本地写作、保存和整理设定'],
-    [{ hasApiKey: true, livenessStatus: 'unknown' }, 'AI 状态：暂时无法确认', '网络或配置检测暂时不可确认'],
-  ])('AI action exposes the shared %s availability state without hiding local editing', async (config, label, helper) => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(config), { status: 200 })));
-    renderCockpit({ content: '正文内容', sceneBeats: '分镜', wordCount: 4 });
+    [
+      { hasApiKey: false, livenessStatus: 'disconnected' },
+      'AI 状态：未配置',
+      '可继续本地写作、保存和整理设定',
+    ],
+    [
+      { hasApiKey: true, livenessStatus: 'unknown' },
+      'AI 状态：暂时无法确认',
+      '网络或配置检测暂时不可确认',
+    ],
+  ])(
+    'AI action exposes the shared %s availability state without hiding local editing',
+    async (config, label, helper) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(JSON.stringify(config), { status: 200 }))
+      );
+      renderCockpit({ content: '正文内容', sceneBeats: '分镜', wordCount: 4 });
 
-    await waitFor(() => expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain(label));
-    expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain(helper);
-    expect(screen.getByRole('button', { name: '进入正文编辑' })).toBeTruthy();
-  });
+      await waitFor(() =>
+        expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain(label)
+      );
+      expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain(helper);
+      expect(screen.getByRole('button', { name: '进入正文编辑' })).toBeTruthy();
+    }
+  );
 
   test('network failure shows unknown while preserving the local writing action', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network'); }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network');
+      })
+    );
     renderCockpit({ content: '正文内容', sceneBeats: '分镜', wordCount: 4 });
 
-    await waitFor(() => expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain('AI 状态：暂时无法确认'));
+    await waitFor(() =>
+      expect(screen.getByTestId('cockpit-llm-availability').textContent).toContain(
+        'AI 状态：暂时无法确认'
+      )
+    );
     expect(screen.getByRole('button', { name: '进入正文编辑' })).toBeTruthy();
   });
 
@@ -111,8 +200,18 @@ describe('ProjectCockpitView content gating', () => {
     let resolveOldNovel!: (value: Novel) => void;
     let resolveNewNovel!: (value: Novel) => void;
     api.getNovel
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldNovel = resolve; }))
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveNewNovel = resolve; }));
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOldNovel = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveNewNovel = resolve;
+          })
+      );
     api.listChaptersMetadata.mockResolvedValue([]);
     api.listCharacters.mockResolvedValue([]);
     api.listLocations.mockResolvedValue([]);
@@ -143,8 +242,18 @@ describe('ProjectCockpitView content gating', () => {
     const v3Novel: Novel = {
       ...novel,
       projectPreferenceProfile: {
-        tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
-        acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0,
+        tags: [],
+        weights: {
+          styleWeight: 1,
+          characterWeight: 1,
+          worldWeight: 1,
+          plotWeight: 1,
+          pacingWeight: 1,
+        },
+        acceptedDimensions: [],
+        rejectedDimensions: [],
+        notes: [],
+        evidenceCount: 0,
         activeSeriesId: 'xiaofeiji-novel-flow',
         capabilityModelVersion: 3,
         capabilityProfile: {
@@ -165,26 +274,38 @@ describe('ProjectCockpitView content gating', () => {
     const onStartContinuationWriting = vi.fn();
     const onNavigate = vi.fn();
     renderCockpit({}, [pack('pack-approved')], onStartContinuationWriting, onNavigate);
-    await waitFor(() => expect(screen.getByRole('button', { name: '接入本章上下文' })).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '接入本章上下文' })).toBeTruthy()
+    );
 
     expect(screen.getByRole('button', { name: '进入正文编辑' })).toBeTruthy();
-    expect(screen.getByText(/接入本章上下文是推荐准备动作；也可以先打开编辑器手写正文/)).toBeTruthy();
+    expect(
+      screen.getByText(/接入本章上下文是推荐准备动作；也可以先打开编辑器手写正文/)
+    ).toBeTruthy();
     expect(screen.queryByRole('button', { name: '规划本章分镜' })).toBeNull();
     expect(screen.queryByText('审计本章正文')).toBeNull();
     expect(screen.queryByText('按审稿意见精修')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '进入正文编辑' }));
-    expect(productEvents.recordProductEvent).toHaveBeenCalledWith(expect.objectContaining({
-      eventName: 'continuation_skip', stage: 'sync', result: 'success', novelId: novel.id,
-      chapterId: 'chapter-1', objectId: 'pack-approved',
-    }));
+    expect(productEvents.recordProductEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: 'continuation_skip',
+        stage: 'sync',
+        result: 'success',
+        novelId: novel.id,
+        chapterId: 'chapter-1',
+        objectId: 'pack-approved',
+      })
+    );
     productEvents.recordProductEvent.mockClear();
 
     // The component forwards the approved pack ID through its callback.
     fireEvent.click(screen.getByRole('button', { name: '接入本章上下文' }));
     expect(onStartContinuationWriting).not.toHaveBeenCalled();
     expect(onNavigate).toHaveBeenCalledWith('world');
-    expect(JSON.parse(localStorage.getItem('inkflow-world-bible-sync-intent') || '')).toEqual(expect.objectContaining({ novelId: novel.id, packId: 'pack-approved' }));
+    expect(JSON.parse(localStorage.getItem('inkflow-world-bible-sync-intent') || '')).toEqual(
+      expect.objectContaining({ novelId: novel.id, packId: 'pack-approved' })
+    );
   });
 
   test('有章节时进入正文编辑只选择最新章并启动 resume', async () => {
@@ -213,9 +334,11 @@ describe('ProjectCockpitView content gating', () => {
         novel={novel}
         onNavigate={onNavigate}
         onStartCockpitAction={onStartCockpitAction}
-      />,
+      />
     );
-    await waitFor(() => expect(screen.getByRole('button', { name: '创建第一章并开始写作' })).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '创建第一章并开始写作' })).toBeTruthy()
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '创建第一章并开始写作' }));
 
@@ -224,9 +347,15 @@ describe('ProjectCockpitView content gating', () => {
   });
 
   test('separates approved and draft packs and exposes writing actions only for approved packs', async () => {
-    const draftPack: ContinuationPack = { ...pack('pack-draft'), title: '待审核资料包', status: 'draft' };
+    const draftPack: ContinuationPack = {
+      ...pack('pack-draft'),
+      title: '待审核资料包',
+      status: 'draft',
+    };
     renderCockpit({}, [pack('pack-approved'), draftPack]);
-    await waitFor(() => expect(screen.getAllByText('已确认 1 · 待审核 1').length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText('已确认 1 · 待审核 1').length).toBeGreaterThan(0)
+    );
 
     expect(screen.getAllByRole('button', { name: '接入续写' })).toHaveLength(1);
     expect(screen.getByText(/待审核 · 本章接入：未接入/)).toBeTruthy();
@@ -234,7 +363,13 @@ describe('ProjectCockpitView content gating', () => {
 
   test('chapter with content but no trusted workflow metadata offers audit and continue editing', async () => {
     const onStartCockpitAction = vi.fn();
-    renderCockpit({ content: '正文内容', sceneBeats: '分镜', wordCount: 4 }, [], vi.fn(), vi.fn(), onStartCockpitAction);
+    renderCockpit(
+      { content: '正文内容', sceneBeats: '分镜', wordCount: 4 },
+      [],
+      vi.fn(),
+      vi.fn(),
+      onStartCockpitAction
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: '进入正文编辑' })).toBeTruthy());
 
     expect(screen.getByTestId('cockpit-primary-action')).toBeTruthy();

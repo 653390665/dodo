@@ -15,7 +15,9 @@ import { useEditorGenerationStore } from '../stores/editor-generation-store';
 // 测试变红。变更语义需产品决策。
 
 const chapterClientMocks = vi.hoisted(() => ({
-  acceptChapterContentCandidate: vi.fn(async (_payload: Record<string, unknown>, _generation?: number) => true),
+  acceptChapterContentCandidate: vi.fn(
+    async (_payload: Record<string, unknown>, _generation?: number) => true
+  ),
   updateChapter: vi.fn(async () => true),
 }));
 
@@ -25,10 +27,16 @@ const dbTransportMocks = vi.hoisted(() => ({
 }));
 
 const draftStreamMocks = vi.hoisted(() => ({
-  readDraftStream: vi.fn(async (
-    _response: Response,
-    _handlers: { onStatus?: (message: string) => void; onSource?: (source: 'model' | 'fallback') => void; onToken?: (token: string) => void },
-  ) => '一段生成的正文。'),
+  readDraftStream: vi.fn(
+    async (
+      _response: Response,
+      _handlers: {
+        onStatus?: (message: string) => void;
+        onSource?: (source: 'model' | 'fallback') => void;
+        onToken?: (token: string) => void;
+      }
+    ) => '一段生成的正文。'
+  ),
 }));
 
 const sseMocks = vi.hoisted(() => ({
@@ -49,7 +57,9 @@ vi.mock('../lib/db-transport', async (importOriginal) => ({
 }));
 vi.mock('../lib/draft-stream', () => draftStreamMocks);
 vi.mock('../lib/sse-client', () => ({
-  SseError: class SseError extends Error { violations?: string[] },
+  SseError: class SseError extends Error {
+    violations?: string[];
+  },
   readSseStream: sseMocks.readSseStream,
 }));
 vi.mock('../lib/product-events-client', () => productEventMocks);
@@ -57,7 +67,13 @@ vi.mock('../lib/product-events-client', () => productEventMocks);
 import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 
 const novel: Novel = {
-  id: 'novel-1', title: '接线测试小说', authorId: 'local-user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: '接线测试小说',
+  authorId: 'local-user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 const chapterBaseline = '城门外的风卷着沙尘，守夜人点亮了灯。这段旧描写需要重写。';
@@ -66,33 +82,42 @@ const selectionStart = chapterBaseline.indexOf(rewriteTarget);
 const selectionEnd = selectionStart + rewriteTarget.length;
 
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: '第一章', content: chapterBaseline, sceneBeats: '分镜一：入城',
-  order: 1, wordCount: chapterBaseline.length, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: '第一章',
+  content: chapterBaseline,
+  sceneBeats: '分镜一：入城',
+  order: 1,
+  wordCount: chapterBaseline.length,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 function renderFlow() {
   const contentElement = { value: chapterBaseline, selectionStart, selectionEnd };
-  return renderHook(() => useEditorGenerationFlow({
-    novel,
-    currentChapter: chapter,
-    userIntent: '',
-    globalOutline: '',
-    expectedWordCount: '',
-    contentRef: { current: contentElement } as never,
-    selectedContinuationPackId: '',
-    approvedOutlinePackId: '',
-    buildAgentContext: () => ({ novel, characters: [] }) as never,
-    handleUpdateContent: vi.fn(),
-    pushToUndoHistory: vi.fn(),
-    setCurrentChapter: vi.fn(),
-    setGlobalOutline: vi.fn(),
-    setUserIntent: vi.fn(),
-    getCurrentFitScore: () => 100,
-    recordSkillUsage: vi.fn(async () => undefined),
-    formatAiFailure: () => 'failed',
-    flushPendingEditorWrites: vi.fn(async () => undefined),
-    databaseGeneration: 7,
-  }));
+  return renderHook(() =>
+    useEditorGenerationFlow({
+      novel,
+      currentChapter: chapter,
+      userIntent: '',
+      globalOutline: '',
+      expectedWordCount: '',
+      contentRef: { current: contentElement } as never,
+      selectedContinuationPackId: '',
+      approvedOutlinePackId: '',
+      buildAgentContext: () => ({ novel, characters: [] }) as never,
+      handleUpdateContent: vi.fn(),
+      pushToUndoHistory: vi.fn(),
+      setCurrentChapter: vi.fn(),
+      setGlobalOutline: vi.fn(),
+      setUserIntent: vi.fn(),
+      getCurrentFitScore: () => 100,
+      recordSkillUsage: vi.fn(async () => undefined),
+      formatAiFailure: () => 'failed',
+      flushPendingEditorWrites: vi.fn(async () => undefined),
+      databaseGeneration: 7,
+    })
+  );
 }
 
 describe('editor wiring contract (real hooks, mocked transport)', () => {
@@ -105,7 +130,9 @@ describe('editor wiring contract (real hooks, mocked transport)', () => {
     chapterClientMocks.acceptChapterContentCandidate.mockClear().mockResolvedValue(true);
     chapterClientMocks.updateChapter.mockClear().mockResolvedValue(true);
     draftStreamMocks.readDraftStream.mockClear();
-    sseMocks.readSseStream.mockClear().mockResolvedValue({ done: true, text: '这段新描写更有画面感。' });
+    sseMocks.readSseStream
+      .mockClear()
+      .mockResolvedValue({ done: true, text: '这段新描写更有画面感。' });
     productEventMocks.recordProductEvent.mockClear();
     useEditorGenerationStore.setState({
       isGeneratingOutline: false,
@@ -122,7 +149,9 @@ describe('editor wiring contract (real hooks, mocked transport)', () => {
     fetchMock.mockResolvedValueOnce(draftResponse);
     const { result } = renderFlow();
 
-    await act(async () => { await result.current.handleGenerateContent(); });
+    await act(async () => {
+      await result.current.handleGenerateContent();
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -173,12 +202,16 @@ describe('editor wiring contract (real hooks, mocked transport)', () => {
       baselineHash: computeChapterWorkflowHash(chapterBaseline, chapter.sceneBeats),
     });
 
-    await act(async () => { await result.current.acceptAiContentCandidate(); });
+    await act(async () => {
+      await result.current.acceptAiContentCandidate();
+    });
 
     expect(chapterClientMocks.acceptChapterContentCandidate).toHaveBeenCalledTimes(1);
     const [payload, generation] = chapterClientMocks.acceptChapterContentCandidate.mock.calls[0];
     expect(generation).toBe(7);
-    expect(payload.baselineHash).toBe(computeChapterWorkflowHash(chapterBaseline, chapter.sceneBeats));
+    expect(payload.baselineHash).toBe(
+      computeChapterWorkflowHash(chapterBaseline, chapter.sceneBeats)
+    );
     expect(payload.source).toBe('model');
     expect(payload.chapterId).toBe('chapter-1');
     expect(payload.novelId).toBe('novel-1');

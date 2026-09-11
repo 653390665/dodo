@@ -22,9 +22,16 @@ import {
   storyCardsSchema,
   worldSetupExtractSchema,
 } from '../validation';
-import { createLlmExecution, LlmExecutionRejectedError, type LlmExecutionSession } from '../helpers/llm-execution-gate';
+import {
+  createLlmExecution,
+  LlmExecutionRejectedError,
+  type LlmExecutionSession,
+} from '../helpers/llm-execution-gate';
 import { bindClientDisconnect } from '../helpers/stream-disconnect';
-import { consumeOnboardingLlmSession, issueOnboardingLlmSession } from '../helpers/onboarding-llm-session';
+import {
+  consumeOnboardingLlmSession,
+  issueOnboardingLlmSession,
+} from '../helpers/onboarding-llm-session';
 import { getDatabaseGeneration } from '../lib/db-instance';
 import { safeJobError } from '../helpers/job-error';
 
@@ -37,7 +44,8 @@ const setupTaskRefineRequestSchema = setupTaskRefineSchema.extend({
 
 export function registerOnboardingRoutes(app: Express) {
   app.post('/api/onboarding/llm-session', (_req, res) => {
-    if (!rateLimit('onboarding-llm-session')) return res.status(429).json({ error: '新手引导请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('onboarding-llm-session'))
+      return res.status(429).json({ error: '新手引导请求过于频繁，请稍后再试。', retryAfter: 5 });
     const operation = _req.body?.operation;
     if (operation !== 'story-cards' && operation !== 'inspiration') {
       return res.status(400).json({ error: '新手引导模型操作无效，请重新打开当前流程。' });
@@ -48,9 +56,19 @@ export function registerOnboardingRoutes(app: Express) {
   });
 
   app.post('/api/story-cards', validate(storyCardsRequestSchema), async (req, res) => {
-    if (!rateLimit('story-cards')) return res.status(429).json({ error: '故事卡生成请求过于频繁，请稍后再试。', retryAfter: 5 });
+    if (!rateLimit('story-cards'))
+      return res.status(429).json({ error: '故事卡生成请求过于频繁，请稍后再试。', retryAfter: 5 });
     try {
-      const { onboardingSessionId, ideaSeed: rawSeed = '', chatContext = '', planning = {}, surface = 'welcome', previousHookTexts = [], batchIndex = 0, databaseGeneration: requestedGeneration } = req.body;
+      const {
+        onboardingSessionId,
+        ideaSeed: rawSeed = '',
+        chatContext = '',
+        planning = {},
+        surface = 'welcome',
+        previousHookTexts = [],
+        batchIndex = 0,
+        databaseGeneration: requestedGeneration,
+      } = req.body;
       const ideaSeed = sanitizeIdeaSeed(rawSeed) || rawSeed.trim();
 
       if (!ideaSeed.trim()) {
@@ -66,7 +84,9 @@ export function registerOnboardingRoutes(app: Express) {
       }
       const databaseGeneration = requestedGeneration;
       if (databaseGeneration !== getDatabaseGeneration()) {
-        return res.status(409).json({ error: '数据库已切换，请刷新后重试', code: 'DATABASE_GENERATION_MISMATCH' });
+        return res
+          .status(409)
+          .json({ error: '数据库已切换，请刷新后重试', code: 'DATABASE_GENERATION_MISMATCH' });
       }
       const session = consumeOnboardingLlmSession(onboardingSessionId, 'story-cards');
       if (!session.allowed) return res.status(session.status).json({ error: session.error });
@@ -117,7 +137,8 @@ export function registerOnboardingRoutes(app: Express) {
           // 立项卡是结构化 JSON 数据而非散文：prose 质量守卫会把 JSON 字段误判为
           // "对白突兀无前因"，用 audit-json 通道跳过散文守卫（与 audit.ts 一致）。
           outputMode: 'audit-json',
-        }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed)));
+        }).then((raw) => parseStoryCardsFromModel(raw, ideaSeed))
+      );
 
       const jobId = createStoryCardJob(modelTask, jobController);
 
@@ -146,10 +167,15 @@ export function registerOnboardingRoutes(app: Express) {
     const job = storyCardJobs.get(req.params.jobId);
     if (!job) return res.status(404).json({ error: '故事卡任务不存在或已过期，请重新生成。' });
     const controller = storyCardJobAbortControllers.get(req.params.jobId);
-    if (!controller || job.status !== 'pending') return res.status(409).json({ error: '当前故事卡任务不能取消。' });
+    if (!controller || job.status !== 'pending')
+      return res.status(409).json({ error: '当前故事卡任务不能取消。' });
     controller.abort(new Error('故事卡任务已取消。'));
     storyCardJobAbortControllers.delete(req.params.jobId);
-    storyCardJobs.set(req.params.jobId, { status: 'failed', createdAt: Date.now(), error: '故事卡任务已取消。' });
+    storyCardJobs.set(req.params.jobId, {
+      status: 'failed',
+      createdAt: Date.now(),
+      error: '故事卡任务已取消。',
+    });
     return res.json({ cancelled: true });
   });
 
@@ -157,13 +183,23 @@ export function registerOnboardingRoutes(app: Express) {
     const controller = new AbortController();
     const disposeDisconnect = bindClientDisconnect(req, res, () => controller.abort());
     try {
-      const { novelId, taskTitle = '', currentDraft = '', userRequest = '', storyContext = '', surface = 'world-onboarding', databaseGeneration: requestedGeneration } = req.body;
+      const {
+        novelId,
+        taskTitle = '',
+        currentDraft = '',
+        userRequest = '',
+        storyContext = '',
+        surface = 'world-onboarding',
+        databaseGeneration: requestedGeneration,
+      } = req.body;
       if (!taskTitle.trim()) {
         return res.status(400).json({ error: '请先选择要完善的设定任务。' });
       }
       const databaseGeneration = requestedGeneration;
       if (databaseGeneration !== getDatabaseGeneration()) {
-        return res.status(409).json({ error: '数据库已切换，请刷新后重试', code: 'DATABASE_GENERATION_MISMATCH' });
+        return res
+          .status(409)
+          .json({ error: '数据库已切换，请刷新后重试', code: 'DATABASE_GENERATION_MISMATCH' });
       }
       const promptAsset = resolvePromptAssetForSurface({
         surface,
@@ -197,10 +233,15 @@ export function registerOnboardingRoutes(app: Express) {
           maxTokens: 4000,
           disableThinking: true,
           outputMode: 'audit-json',
-        }));
+        })
+      );
       try {
         const parsed = JSON.parse(text);
-        res.json({ text: parsed.result || text, changedFields: parsed.changedFields, reason: parsed.reason });
+        res.json({
+          text: parsed.result || text,
+          changedFields: parsed.changedFields,
+          reason: parsed.reason,
+        });
       } catch {
         res.json({ text });
       }
@@ -233,7 +274,7 @@ export function registerOnboardingRoutes(app: Express) {
     jobId: string,
     documentText: string,
     novelId: string,
-    execution: LlmExecutionSession,
+    execution: LlmExecutionSession
   ) {
     const updateJob = (updates: Partial<WorldSetupJob>) => {
       const current = worldSetupJobs.get(jobId);
@@ -246,7 +287,7 @@ export function registerOnboardingRoutes(app: Express) {
       updateJob({
         status: 'processing',
         progress: 30,
-        stageText: '正在分析设定并提取关键名词元素...'
+        stageText: '正在分析设定并提取关键名词元素...',
       });
 
       // Limit characters to avoid API contextual window blowup or slow processing
@@ -301,7 +342,7 @@ ${slicedText}
 
       updateJob({
         progress: 50,
-        stageText: 'AI 正在结构化生成世界观、角色与时间线卡片...'
+        stageText: 'AI 正在结构化生成世界观、角色与时间线卡片...',
       });
 
       // World setup extraction also happens before the project is persisted.
@@ -316,21 +357,25 @@ ${slicedText}
           disableThinking: true,
           outputMode: 'audit-json',
           novelId,
-        }));
+        })
+      );
 
       updateJob({
         progress: 85,
-        stageText: '正在校验并融合设定集合数据...'
+        stageText: '正在校验并融合设定集合数据...',
       });
 
-      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+      const cleaned = raw
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
       const resultJson = JSON.parse(cleaned);
 
       updateJob({
         status: 'completed',
         progress: 100,
         stageText: '设定提取完成！',
-        result: resultJson
+        result: resultJson,
       });
     } catch (e) {
       logger.error(`Error in runExtractWorldSetupJob: ${e}`);
@@ -338,7 +383,7 @@ ${slicedText}
         status: 'failed',
         progress: 100,
         stageText: '设定提取失败',
-        error: `WORLD_SETUP_FAILED: ${safeJobError(e, '设定提取失败，请稍后重试。')}`
+        error: `WORLD_SETUP_FAILED: ${safeJobError(e, '设定提取失败，请稍后重试。')}`,
       });
     } finally {
       worldSetupJobAbortControllers.delete(jobId);
@@ -356,7 +401,9 @@ ${slicedText}
       return res.status(409).json({ error: '设定提取任务状态已过期，请重新提交。' });
     }
     if (job.databaseGeneration !== getDatabaseGeneration()) {
-      worldSetupJobAbortControllers.get(jobId)?.abort(new Error('数据库已在设定提取任务期间切换。'));
+      worldSetupJobAbortControllers
+        .get(jobId)
+        ?.abort(new Error('数据库已在设定提取任务期间切换。'));
       worldSetupJobAbortControllers.delete(jobId);
       worldSetupJobs.set(jobId, {
         ...job,
@@ -383,7 +430,13 @@ ${slicedText}
     }
     controller.abort(new Error('设定提取任务已取消。'));
     worldSetupJobAbortControllers.delete(req.params.jobId);
-    worldSetupJobs.set(req.params.jobId, { ...job, status: 'failed', progress: 100, stageText: '已取消', error: '设定提取任务已取消。' });
+    worldSetupJobs.set(req.params.jobId, {
+      ...job,
+      status: 'failed',
+      progress: 100,
+      stageText: '已取消',
+      error: '设定提取任务已取消。',
+    });
     return res.json({ cancelled: true });
   });
 
@@ -415,13 +468,15 @@ ${slicedText}
       });
       worldSetupJobAbortControllers.set(jobId, jobController);
 
-      runExtractWorldSetupJob(jobId, documentText, novelId, execution).catch(e => {
+      runExtractWorldSetupJob(jobId, documentText, novelId, execution).catch((e) => {
         logger.error(`Unhandled error in background runExtractWorldSetupJob: ${e}`);
       });
 
       // TTL cleanup
       const cleanupTimer = setTimeout(() => {
-        worldSetupJobAbortControllers.get(jobId)?.abort(new Error('设定提取任务已过期，请重新提交。'));
+        worldSetupJobAbortControllers
+          .get(jobId)
+          ?.abort(new Error('设定提取任务已过期，请重新提交。'));
         worldSetupJobAbortControllers.delete(jobId);
         worldSetupJobs.delete(jobId);
       }, WORLD_SETUP_JOB_TTL_MS);

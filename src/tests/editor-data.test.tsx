@@ -63,7 +63,9 @@ function chapter(id: string, content: string): Chapter {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => { resolve = done; });
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -110,9 +112,7 @@ describe('useEditorData full chapter loading', () => {
   });
 
   test('discards core data when the database generation changes during the read', async () => {
-    dbTransport.getDatabaseGenerationSnapshot
-      .mockResolvedValueOnce(7)
-      .mockResolvedValueOnce(8);
+    dbTransport.getDatabaseGenerationSnapshot.mockResolvedValueOnce(7).mockResolvedValueOnce(8);
 
     const { result } = renderHook(() => useEditorData(novel.id));
 
@@ -124,7 +124,9 @@ describe('useEditorData full chapter loading', () => {
   });
 
   test('does not treat an unavailable database generation as a consistent read', async () => {
-    dbTransport.getDatabaseGenerationSnapshot.mockRejectedValue(new Error('generation unavailable'));
+    dbTransport.getDatabaseGenerationSnapshot.mockRejectedValue(
+      new Error('generation unavailable')
+    );
 
     const { result } = renderHook(() => useEditorData(novel.id));
 
@@ -139,9 +141,7 @@ describe('useEditorData full chapter loading', () => {
     const { result } = renderHook(() => useEditorData(novel.id));
     await waitFor(() => expect(result.current.currentChapter?.id).toBe('a'));
 
-    dbTransport.getDatabaseGenerationSnapshot
-      .mockResolvedValueOnce(7)
-      .mockResolvedValueOnce(8);
+    dbTransport.getDatabaseGenerationSnapshot.mockResolvedValueOnce(7).mockResolvedValueOnce(8);
     api.getChapter.mockResolvedValueOnce(chapter('a', '切代期间读取的正文'));
 
     await act(async () => {
@@ -152,10 +152,20 @@ describe('useEditorData full chapter loading', () => {
   });
 
   test('clears only stale-generation writes after the new database context loads', async () => {
-    queueEditorWrite('chapter:a:content', async () => {
-      throw Object.assign(new Error('database changed'), { status: 409, code: 'DB_GENERATION_CONFLICT' });
-    }, 0, { value: '旧代次正文' });
-    await expect(flushPendingEditorWrites()).rejects.toMatchObject({ code: 'DB_GENERATION_CONFLICT' });
+    queueEditorWrite(
+      'chapter:a:content',
+      async () => {
+        throw Object.assign(new Error('database changed'), {
+          status: 409,
+          code: 'DB_GENERATION_CONFLICT',
+        });
+      },
+      0,
+      { value: '旧代次正文' }
+    );
+    await expect(flushPendingEditorWrites()).rejects.toMatchObject({
+      code: 'DB_GENERATION_CONFLICT',
+    });
     expect(hasPendingEditorWrites()).toBe(true);
 
     const { result } = renderHook(() => useEditorData(novel.id));
@@ -199,7 +209,9 @@ describe('useEditorData full chapter loading', () => {
     api.getChapter.mockImplementationOnce(() => slowB.promise);
 
     let loading!: Promise<Chapter | null>;
-    act(() => { loading = result.current.selectChapter('b'); });
+    act(() => {
+      loading = result.current.selectChapter('b');
+    });
     expect(result.current.chapterLoading).toBe(true);
     expect(result.current.currentChapter).toBeNull();
 
@@ -244,7 +256,9 @@ describe('useEditorData full chapter loading', () => {
 
     expect(result.current.isLoading).toBe(true);
 
-    act(() => { result.current.setGlobalOutline('本地新大纲'); });
+    act(() => {
+      result.current.setGlobalOutline('本地新大纲');
+    });
     expect(result.current.globalOutline).toBe('本地新大纲');
 
     await act(async () => slowGetNovel.resolve({ ...novel, globalOutline: '旧数据库大纲' }));
@@ -272,7 +286,9 @@ describe('useEditorData full chapter loading', () => {
 
     const { result } = renderHook(() => useEditorData(novel.id));
 
-    await waitFor(() => expect(result.current.projectPreferenceProfile?.weights.styleWeight).toBe(0.5));
+    await waitFor(() =>
+      expect(result.current.projectPreferenceProfile?.weights.styleWeight).toBe(0.5)
+    );
     expect(result.current.projectPreferenceProfile?.tags).toEqual([]);
     expect(result.current.projectPreferenceProfile?.notes).toEqual([]);
   });

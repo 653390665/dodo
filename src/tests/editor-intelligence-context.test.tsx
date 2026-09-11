@@ -34,7 +34,13 @@ function novelWithProjectDeck(): Novel {
     mountedSkillLoadout: [],
     projectPreferenceProfile: {
       tags: [],
-      weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+      weights: {
+        styleWeight: 1,
+        characterWeight: 1,
+        worldWeight: 1,
+        plotWeight: 1,
+        pacingWeight: 1,
+      },
       acceptedDimensions: [],
       rejectedDimensions: [],
       notes: [],
@@ -69,27 +75,26 @@ const currentChapter: Chapter = {
 
 describe('useEditorIntelligenceContext', () => {
   test('v3 作品卡组进入前端智能上下文与推荐判断', () => {
-    const { result } = renderHook(() => useEditorIntelligenceContext({
-      novel: novelWithProjectDeck(),
-      chapters: [],
-      currentChapter,
-      characters: [],
-      locations: [],
-      items: [],
-      factions: [],
-      powerLevels: [],
-      timelineEvents: [],
-      librarySkills: [
-        skill('main-card', '主笔节奏卡'),
-        skill('support-card', '世界观约束卡'),
-      ],
-      mountedSkillLoadout: [],
-      continuationPacks: [],
-      selectedContinuationPackId: '',
-      sniffedEntities: null,
-      userIntent: '',
-      agentTab: 'planning',
-    }));
+    const { result } = renderHook(() =>
+      useEditorIntelligenceContext({
+        novel: novelWithProjectDeck(),
+        chapters: [],
+        currentChapter,
+        characters: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        librarySkills: [skill('main-card', '主笔节奏卡'), skill('support-card', '世界观约束卡')],
+        mountedSkillLoadout: [],
+        continuationPacks: [],
+        selectedContinuationPackId: '',
+        sniffedEntities: null,
+        userIntent: '',
+        agentTab: 'planning',
+      })
+    );
 
     expect(result.current.mountedSkills.map((entry) => entry.name)).toEqual([
       '主笔节奏卡',
@@ -111,24 +116,26 @@ describe('useEditorIntelligenceContext', () => {
       updatedAt: now,
     };
 
-    const { result } = renderHook(() => useEditorIntelligenceContext({
-      novel,
-      chapters: [],
-      currentChapter,
-      characters: [],
-      locations: [],
-      items: [],
-      factions: [],
-      powerLevels: [],
-      timelineEvents: [],
-      librarySkills: [],
-      mountedSkillLoadout: [],
-      continuationPacks: [],
-      selectedContinuationPackId: '',
-      sniffedEntities: null,
-      userIntent: '',
-      agentTab: 'planning',
-    }));
+    const { result } = renderHook(() =>
+      useEditorIntelligenceContext({
+        novel,
+        chapters: [],
+        currentChapter,
+        characters: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        librarySkills: [],
+        mountedSkillLoadout: [],
+        continuationPacks: [],
+        selectedContinuationPackId: '',
+        sniffedEntities: null,
+        userIntent: '',
+        agentTab: 'planning',
+      })
+    );
 
     expect(result.current.mountedSkills.map((entry) => entry.name)).toEqual([
       '古言华美辞藻典雅国风参考包',

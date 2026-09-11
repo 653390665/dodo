@@ -1,5 +1,9 @@
 import type { CapabilityManifestEntry } from './capability-manifest.js';
-import type { ArtifactOperation, CreativeArtifactKind, CreativeArtifactRef } from './creative-artifacts.js';
+import type {
+  ArtifactOperation,
+  CreativeArtifactKind,
+  CreativeArtifactRef,
+} from './creative-artifacts.js';
 
 export interface CapabilityRecommendationIssue {
   fingerprint: string;
@@ -34,7 +38,10 @@ export interface CapabilityRecommendation {
 
 export interface CapabilityRecommendationResult {
   fingerprint: string;
-  context: Pick<CapabilityRecommendationInput, 'issue' | 'artifactKind' | 'operation' | 'scope' | 'artifactVersion' | 'upstreamVersion'>;
+  context: Pick<
+    CapabilityRecommendationInput,
+    'issue' | 'artifactKind' | 'operation' | 'scope' | 'artifactVersion' | 'upstreamVersion'
+  >;
   primary?: CapabilityRecommendation;
   alternatives: CapabilityRecommendation[];
   recommendations: CapabilityRecommendation[];

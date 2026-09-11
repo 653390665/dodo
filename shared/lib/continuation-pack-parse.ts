@@ -8,7 +8,9 @@ function isMiniMaxProvider(baseUrl: string): boolean {
   return /api\.minima(xi|x\.io)/.test(baseUrl);
 }
 
-export function buildContinuationPackParseAttempts(baseUrl: string): ContinuationPackParseAttempt[] {
+export function buildContinuationPackParseAttempts(
+  baseUrl: string
+): ContinuationPackParseAttempt[] {
   if (isMiniMaxProvider(baseUrl)) {
     return [
       { maxCharsPerDocument: 2500, maxTokens: 2048, compactMode: false },
@@ -25,7 +27,10 @@ export function buildContinuationPackParseAttempts(baseUrl: string): Continuatio
   ];
 }
 
-export function buildContinuationPackPrompt(documentsForPrompt: string, compactMode = false): string {
+export function buildContinuationPackPrompt(
+  documentsForPrompt: string,
+  compactMode = false
+): string {
   const outputBudgetRules = compactMode
     ? [
         '6. 这是压缩重试模式：canonFacts 最多 5 条，characterStates 最多 4 条，contradictions 最多 3 条，readingQuestions 最多 2 条，continuationGaps 最多 2 条，sourceMap.sections 最多 4 条。',

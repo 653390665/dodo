@@ -5,9 +5,20 @@
  */
 
 const REDACT_FIELDS = new Set([
-  'content', 'bio', 'summary', 'text', 'description', 'traits',
-  'draftContent', 'sceneBeats', 'chapterContent', 'documentText',
-  'globalOutline', 'worldRules', 'context', 'contextStr',
+  'content',
+  'bio',
+  'summary',
+  'text',
+  'description',
+  'traits',
+  'draftContent',
+  'sceneBeats',
+  'chapterContent',
+  'documentText',
+  'globalOutline',
+  'worldRules',
+  'context',
+  'contextStr',
 ]);
 
 function sanitize(obj: unknown): unknown {
@@ -32,9 +43,7 @@ function sanitize(obj: unknown): unknown {
 
 export const logger = {
   error: (context: string, err?: unknown) => {
-    const safe = err instanceof Error
-      ? err.stack || `${err.name}: ${err.message}`
-      : sanitize(err);
+    const safe = err instanceof Error ? err.stack || `${err.name}: ${err.message}` : sanitize(err);
     console.error(`[ERROR] ${context}`, safe);
   },
   warn: (context: string, detail?: unknown) => {

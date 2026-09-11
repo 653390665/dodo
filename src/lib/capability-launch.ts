@@ -36,13 +36,18 @@ function normalizeSessionCardIds(ids: readonly string[] | undefined): string[] {
 
 export function resolveEditorCapabilityLaunch(
   launch: CapabilityLaunchState,
-  current: { novelId: string; chapterId?: string },
+  current: { novelId: string; chapterId?: string }
 ): EditorCapabilityLaunchResult {
   if (launch.novelId !== current.novelId) {
     return { ok: false, code: 'CAPABILITY_NOVEL_MISMATCH' };
   }
   if (launch.action === 'use-project-technique') {
-    return { ok: true, action: launch.action, assetId: launch.assetId, projectTechniqueId: launch.assetId };
+    return {
+      ok: true,
+      action: launch.action,
+      assetId: launch.assetId,
+      projectTechniqueId: launch.assetId,
+    };
   }
   if (launch.targetChapterId && launch.targetChapterId !== current.chapterId) {
     return { ok: false, code: 'CAPABILITY_CHAPTER_MISMATCH' };

@@ -30,21 +30,24 @@ export function useSkillLoadoutManager({
 }: UseSkillLoadoutManagerArgs) {
   const recordSkillUsage = async (
     userAction: 'accepted' | 'revised' | 'rejected',
-    options?: RecordSkillUsageOptions,
+    options?: RecordSkillUsageOptions
   ) => {
     const skillIds = options?.skillIds || mountedSkills.map((skill) => skill.id);
     if (skillIds.length === 0) return;
-    await createSkillUsageRecord({
-      id: crypto.randomUUID(),
-      novelId,
-      chapterId: currentChapterId,
-      mountedSkillIds: skillIds,
-      fitScore: options?.fitScore ?? getCurrentFitScore(),
-      auditScore: options?.auditScore,
-      userAction,
-      notes: options?.notes,
-      createdAt: Date.now(),
-    }, options?.databaseGeneration);
+    await createSkillUsageRecord(
+      {
+        id: crypto.randomUUID(),
+        novelId,
+        chapterId: currentChapterId,
+        mountedSkillIds: skillIds,
+        fitScore: options?.fitScore ?? getCurrentFitScore(),
+        auditScore: options?.auditScore,
+        userAction,
+        notes: options?.notes,
+        createdAt: Date.now(),
+      },
+      options?.databaseGeneration
+    );
   };
 
   const assignSkillToSlot = async (slot: number, skillId: string) => {
@@ -61,9 +64,7 @@ export function useSkillLoadoutManager({
     const nextLoadout = mountedSkillLoadout
       .filter((entry) => entry.slot !== slot && entry.skillId !== skillId)
       .map((entry) =>
-        existingElsewhere && entry.slot === existingElsewhere.slot
-          ? { ...entry, slot }
-          : entry,
+        existingElsewhere && entry.slot === existingElsewhere.slot ? { ...entry, slot } : entry
       );
 
     nextLoadout.push({
@@ -74,7 +75,14 @@ export function useSkillLoadoutManager({
     });
 
     await persistSkillLoadout(nextLoadout.sort((a, b) => a.slot - b.slot));
-    if (previousIds.length > 0 && previousIds.join(',') !== nextLoadout.map((entry) => entry.skillId).sort().join(',')) {
+    if (
+      previousIds.length > 0 &&
+      previousIds.join(',') !==
+        nextLoadout
+          .map((entry) => entry.skillId)
+          .sort()
+          .join(',')
+    ) {
       await recordSkillUsage('rejected', {
         fitScore: getCurrentFitScore(previousSkills),
         notes: `slot-${slot}-replaced`,

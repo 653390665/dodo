@@ -1,8 +1,13 @@
 import type { AssistantLaunchContext, IdeaFragment } from '../../shared/types';
 import { generateClientId } from './id';
 
-export function buildAssistantIdeaFragment(content: string, context: AssistantLaunchContext): IdeaFragment {
-  const hasChapterContext = Boolean(context.chapterId || context.chapterTitle || context.sceneBeats || context.currentExcerpt);
+export function buildAssistantIdeaFragment(
+  content: string,
+  context: AssistantLaunchContext
+): IdeaFragment {
+  const hasChapterContext = Boolean(
+    context.chapterId || context.chapterTitle || context.sceneBeats || context.currentExcerpt
+  );
   return {
     id: generateClientId(),
     novelId: context.novelId,

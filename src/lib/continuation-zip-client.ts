@@ -18,7 +18,9 @@ export async function expandContinuationZip(file: File): Promise<File[]> {
     throw new Error('ZIP 文件大小超出安全上限');
   }
   const archiveBuffer = await file.arrayBuffer();
-  const worker = new Worker(new URL('../workers/continuation-zip.worker.ts', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('../workers/continuation-zip.worker.ts', import.meta.url), {
+    type: 'module',
+  });
 
   return new Promise<File[]>((resolve, reject) => {
     let settled = false;
@@ -39,11 +41,13 @@ export async function expandContinuationZip(file: File): Promise<File[]> {
         finish(() => reject(new Error(payload.error || 'ZIP 解压失败')));
         return;
       }
-      finish(() => resolve(payload.files!.map((entry) => new File(
-        [entry.buffer],
-        entry.name,
-        { type: 'application/octet-stream' },
-      ))));
+      finish(() =>
+        resolve(
+          payload.files!.map(
+            (entry) => new File([entry.buffer], entry.name, { type: 'application/octet-stream' })
+          )
+        )
+      );
     };
     worker.onerror = () => finish(() => reject(new Error('ZIP 解压 Worker 异常')));
     worker.postMessage(archiveBuffer, [archiveBuffer]);

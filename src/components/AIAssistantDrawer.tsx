@@ -3,7 +3,15 @@ import { X } from 'lucide-react';
 import { StoryCardDeck } from './onboarding/StoryCardDeck';
 import { AIAssistant } from './AIAssistant';
 import { ErrorBoundary } from './ErrorBoundary';
-import type { AssistantActionPlan, AssistantLaunchContext, AssistantMode, Novel, StoryIdeaCard, StoryPlanningInput, OnboardingDraftState } from '../../shared/types';
+import type {
+  AssistantActionPlan,
+  AssistantLaunchContext,
+  AssistantMode,
+  Novel,
+  StoryIdeaCard,
+  StoryPlanningInput,
+  OnboardingDraftState,
+} from '../../shared/types';
 import { WorldBibleAssistant } from './WorldBibleAssistant';
 
 export function AIAssistantDrawer({
@@ -66,7 +74,7 @@ export function AIAssistantDrawer({
         );
         const modalElement = document.getElementById('ai-assistant-drawer-container');
         if (!modalElement) return;
-        const modalFocusables = Array.from(focusableElements).filter(el =>
+        const modalFocusables = Array.from(focusableElements).filter((el) =>
           modalElement.contains(el)
         ) as HTMLElement[];
 
@@ -92,7 +100,9 @@ export function AIAssistantDrawer({
     // Auto focus first interactive element
     const modalElement = document.getElementById('ai-assistant-drawer-container');
     if (modalElement) {
-      const firstInput = modalElement.querySelector('input, select, textarea, button') as HTMLElement;
+      const firstInput = modalElement.querySelector(
+        'input, select, textarea, button'
+      ) as HTMLElement;
       if (firstInput) firstInput.focus();
     }
 
@@ -105,14 +115,12 @@ export function AIAssistantDrawer({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-  const showOnboardingDraft = Boolean(onboardingDraft) && !(selectedNovel && assistantMode === 'bible');
+  const showOnboardingDraft =
+    Boolean(onboardingDraft) && !(selectedNovel && assistantMode === 'bible');
 
   return (
     <>
-      <div
-        onClick={onClose}
-        className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]"
-      />
+      <div onClick={onClose} className="fixed inset-0 z-[60] bg-black/10 backdrop-blur-[2px]" />
       <div
         id="ai-assistant-drawer-container"
         role="dialog"
@@ -127,7 +135,9 @@ export function AIAssistantDrawer({
                 <button
                   onClick={() => setAIDrawerTab('cards')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'cards' ? 'bg-theme-text text-theme-bg' : 'text-theme-muted hover:bg-theme-sidebar'
+                    aiDrawerTab === 'cards'
+                      ? 'bg-theme-text text-theme-bg'
+                      : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >
                   方案卡
@@ -135,7 +145,9 @@ export function AIAssistantDrawer({
                 <button
                   onClick={() => setAIDrawerTab('chat')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'chat' ? 'bg-theme-text text-theme-bg' : 'text-theme-muted hover:bg-theme-sidebar'
+                    aiDrawerTab === 'chat'
+                      ? 'bg-theme-text text-theme-bg'
+                      : 'text-theme-muted hover:bg-theme-sidebar'
                   }`}
                 >
                   灵感对话
@@ -159,7 +171,9 @@ export function AIAssistantDrawer({
                   onSelectCard={handleSelectStoryCard}
                   onMixCard={() => {
                     if (onboardingDraft.cards.length >= 2) {
-                      const other = onboardingDraft.cards.find((c) => c.id !== onboardingDraft.selectedCardId);
+                      const other = onboardingDraft.cards.find(
+                        (c) => c.id !== onboardingDraft.selectedCardId
+                      );
                       if (other) {
                         handleCreateDraftFromIdea({
                           ideaSeed: `${onboardingDraft.cards[0].hook} + ${other.hook}`,
@@ -228,7 +242,11 @@ export function AIAssistantDrawer({
             )}
             <div className="flex-1 min-h-0 overflow-y-auto">
               {assistantMode === 'bible' && selectedNovel ? (
-                <WorldBibleAssistant novel={selectedNovel} continuationPackId={continuationPackId} onClose={onClose} />
+                <WorldBibleAssistant
+                  novel={selectedNovel}
+                  continuationPackId={continuationPackId}
+                  onClose={onClose}
+                />
               ) : (
                 <AIAssistant
                   launchContext={assistantLaunchContext}

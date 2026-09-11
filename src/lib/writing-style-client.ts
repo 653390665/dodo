@@ -1,4 +1,8 @@
-import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../shared/types';
+import type {
+  WritingStyleCandidate,
+  WritingStyleMode,
+  WritingStyleResolution,
+} from '../../shared/types';
 
 export interface WritingStyleResponse {
   resolution?: WritingStyleResolution;
@@ -45,13 +49,20 @@ export class WritingStyleRequestError extends Error {
   }
 }
 
-async function requestWritingStyle(novelId: string, action: 'resolve' | 'confirm', payload: WritingStyleRequest): Promise<WritingStyleResponse> {
-  const response = await fetch(`/api/novels/${encodeURIComponent(novelId)}/writing-style/${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({})) as WritingStyleResponse;
+async function requestWritingStyle(
+  novelId: string,
+  action: 'resolve' | 'confirm',
+  payload: WritingStyleRequest
+): Promise<WritingStyleResponse> {
+  const response = await fetch(
+    `/api/novels/${encodeURIComponent(novelId)}/writing-style/${action}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
+  const data = (await response.json().catch(() => ({}))) as WritingStyleResponse;
   if (response.status === 409 && data.code === 'STYLE_CONFIRMATION_REQUIRED') {
     throw new StyleConfirmationRequiredError(data);
   }

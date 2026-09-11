@@ -11,7 +11,7 @@ export function sortContinuationPacksByRecency(packs: ContinuationPack[]): Conti
 
 export function getPreferredContinuationPackId(
   packs: ContinuationPack[],
-  currentPackId?: string,
+  currentPackId?: string
 ): string {
   if (currentPackId && packs.some((pack) => pack.id === currentPackId)) {
     return currentPackId;
@@ -26,7 +26,7 @@ export function getPreferredContinuationPackId(
 
 export function getPreferredContinuationPack(
   packs: ContinuationPack[],
-  currentPackId?: string,
+  currentPackId?: string
 ): ContinuationPack | null {
   const id = getPreferredContinuationPackId(packs, currentPackId);
   return packs.find((p) => p.id === id) || null;

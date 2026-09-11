@@ -16,7 +16,12 @@ export interface EntityExtractionJob {
   status: 'queued' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
   progress: number;
   stageText: string;
-  result?: { packId: string; novelId: string; databaseGeneration: number; extraction: SyncExtractionResult };
+  result?: {
+    packId: string;
+    novelId: string;
+    databaseGeneration: number;
+    extraction: SyncExtractionResult;
+  };
   error?: string;
   code?: string;
   createdAt: number;
@@ -28,7 +33,13 @@ export interface EntityExtractionJob {
   currentChunk: number;
   traceId?: string;
   outputDiagnostic?: OutputDiagnostic;
-  failedChunk?: { index: number; code: string; traceId?: string; attempt: number; providerRequestCount?: number };
+  failedChunk?: {
+    index: number;
+    code: string;
+    traceId?: string;
+    attempt: number;
+    providerRequestCount?: number;
+  };
   schemaIssues?: Array<{ path: string; code: string; message: string }>;
   warnings?: string[];
   completedResults?: SyncExtractionResult[];
@@ -41,8 +52,14 @@ export const ENTITY_EXTRACTION_JOB_TTL_MS = 30 * 60 * 1000;
 
 function buildEntityExtractionCheckpoint(job: EntityExtractionJob): Record<string, unknown> {
   return {
-    completedResults: job.completedResults || [], completedChunkIndexes: job.completedChunkIndexes || [], splitCheckpoint: job.splitCheckpoint,
-    failedChunk: job.failedChunk, schemaIssues: job.schemaIssues, warnings: job.warnings, chunkMeta: job.chunkMeta, outputDiagnostic: job.outputDiagnostic,
+    completedResults: job.completedResults || [],
+    completedChunkIndexes: job.completedChunkIndexes || [],
+    splitCheckpoint: job.splitCheckpoint,
+    failedChunk: job.failedChunk,
+    schemaIssues: job.schemaIssues,
+    warnings: job.warnings,
+    chunkMeta: job.chunkMeta,
+    outputDiagnostic: job.outputDiagnostic,
     traceId: job.traceId,
   };
 }
@@ -56,10 +73,18 @@ export class EntityExtractionJobManager {
   /** Persist the initial job row and cache the in-memory job (dual-write). */
   create(job: EntityExtractionJob): void {
     db.createContinuationExtractionJob({
-      id: job.id, packId: job.packId, novelId: job.novelId, status: job.status,
-      progress: job.progress, stageText: job.stageText, batchCursor: job.currentChunk, totalBatches: job.totalChunks,
+      id: job.id,
+      packId: job.packId,
+      novelId: job.novelId,
+      status: job.status,
+      progress: job.progress,
+      stageText: job.stageText,
+      batchCursor: job.currentChunk,
+      totalBatches: job.totalChunks,
       checkpointJson: JSON.stringify(buildEntityExtractionCheckpoint(job)),
-      databaseGeneration: job.databaseGeneration, createdAt: job.createdAt, updatedAt: job.lastActivityAt,
+      databaseGeneration: job.databaseGeneration,
+      createdAt: job.createdAt,
+      updatedAt: job.lastActivityAt,
     });
     this.jobs.set(job.id, job);
   }
@@ -93,7 +118,11 @@ export class EntityExtractionJobManager {
     return controller;
   }
 
-  clearRuntimeHandles(jobId: string, status?: EntityExtractionJob['status'], onCleared?: (jobId: string) => void): void {
+  clearRuntimeHandles(
+    jobId: string,
+    status?: EntityExtractionJob['status'],
+    onCleared?: (jobId: string) => void
+  ): void {
     this.activeRuns.delete(jobId);
     this.abortControllers.delete(jobId);
     if (status === 'completed') {
@@ -143,7 +172,11 @@ export class EntityExtractionJobManager {
    * row. `persist:false` only refreshes the in-memory activity time; see the
    * in-body comment for the checkpoint granularity contract.
    */
-  async touch(job: EntityExtractionJob, reason = 'state-change', options?: { persist?: boolean }): Promise<void> {
+  async touch(
+    job: EntityExtractionJob,
+    reason = 'state-change',
+    options?: { persist?: boolean }
+  ): Promise<void> {
     job.lastActivityAt = Date.now();
     // persist:false 仅刷新内存活动时间（TTL 依赖 lastActivityAt），不序列化 checkpoint、不写库。
     // 断点粒度由 batch-completed 落盘的 completedChunkIndexes 决定，收窄后恢复语义不变。
@@ -161,15 +194,30 @@ export class EntityExtractionJobManager {
     const persistedStatus = job.status;
     const persistedCurrentChunk = job.currentChunk;
     const persistedTotalChunks = job.totalChunks;
-    const outcome = await runInSerializedWriteForGeneration(job.databaseGeneration, () => db.updateContinuationExtractionJob(job.id, {
-      status: job.status, progress: job.progress, stageText: job.stageText, batchCursor: job.currentChunk,
-      totalBatches: job.totalChunks, checkpointJson, errorCode: job.code, errorMessage: job.error,
-      databaseGeneration: job.databaseGeneration, resultJson,
-    }));
+    const outcome = await runInSerializedWriteForGeneration(job.databaseGeneration, () =>
+      db.updateContinuationExtractionJob(job.id, {
+        status: job.status,
+        progress: job.progress,
+        stageText: job.stageText,
+        batchCursor: job.currentChunk,
+        totalBatches: job.totalChunks,
+        checkpointJson,
+        errorCode: job.code,
+        errorMessage: job.error,
+        databaseGeneration: job.databaseGeneration,
+        resultJson,
+      })
+    );
     if (!outcome.executed || !outcome.result) {
       throw new Error('EXTRACTION_CHECKPOINT_PERSIST_FAILED');
     }
-    logger.info('提取任务检查点已持久化', { jobId: job.id, status: persistedStatus, currentChunk: persistedCurrentChunk, totalChunks: persistedTotalChunks, reason });
+    logger.info('提取任务检查点已持久化', {
+      jobId: job.id,
+      status: persistedStatus,
+      currentChunk: persistedCurrentChunk,
+      totalChunks: persistedTotalChunks,
+      reason,
+    });
   }
 }
 

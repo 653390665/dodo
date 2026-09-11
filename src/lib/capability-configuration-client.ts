@@ -1,12 +1,15 @@
 import type { ProjectCapabilityProfile } from '../../shared/types';
-import type { CapabilityApplicationItemResult, CapabilityPackageStep } from '../../shared/types/capability-execution';
+import type {
+  CapabilityApplicationItemResult,
+  CapabilityPackageStep,
+} from '../../shared/types/capability-execution';
 import { HttpApiError, request as requestHttp } from './http';
 
 export class CapabilityConfigurationError extends HttpApiError {
   constructor(
     public readonly code: string,
     public readonly status: number,
-    message: string,
+    message: string
   ) {
     super(message, status, code);
     this.name = 'CapabilityConfigurationError';
@@ -27,7 +30,11 @@ const request = async <T>(url: string, body: unknown): Promise<T> => {
     });
   } catch (error) {
     if (error instanceof HttpApiError) {
-      throw new CapabilityConfigurationError(error.code || `HTTP_${error.status}`, error.status, error.message);
+      throw new CapabilityConfigurationError(
+        error.code || `HTTP_${error.status}`,
+        error.status,
+        error.message
+      );
     }
     throw error;
   }
@@ -36,10 +43,13 @@ const request = async <T>(url: string, body: unknown): Promise<T> => {
 export function previewCapabilityConfiguration(
   novelId: string,
   databaseGeneration: number,
-  capabilityProfile: ProjectCapabilityProfile,
+  capabilityProfile: ProjectCapabilityProfile
 ): Promise<{ previewToken: string; databaseGeneration: number }> {
   const payload: ConfigurationPayload = { databaseGeneration, capabilityProfile };
-  return request(`/api/novels/${encodeURIComponent(novelId)}/capabilities/configuration/preview`, payload);
+  return request(
+    `/api/novels/${encodeURIComponent(novelId)}/capabilities/configuration/preview`,
+    payload
+  );
 }
 
 export function applyCapabilityConfiguration(
@@ -48,8 +58,14 @@ export function applyCapabilityConfiguration(
   previewToken: string,
   capabilityProfile: ProjectCapabilityProfile,
   packageSteps?: readonly CapabilityPackageStep[],
-  targetChapterId?: string,
-): Promise<{ profile: ProjectCapabilityProfile; databaseGeneration: number; items?: readonly CapabilityApplicationItemResult[]; applied?: boolean; idempotent?: boolean }> {
+  targetChapterId?: string
+): Promise<{
+  profile: ProjectCapabilityProfile;
+  databaseGeneration: number;
+  items?: readonly CapabilityApplicationItemResult[];
+  applied?: boolean;
+  idempotent?: boolean;
+}> {
   return request(`/api/novels/${encodeURIComponent(novelId)}/capabilities/configuration/apply`, {
     databaseGeneration,
     previewToken,

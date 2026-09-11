@@ -57,7 +57,7 @@ const tasks = [
     startTime: 0,
     output: '',
     error: '',
-  }
+  },
 ];
 
 const isTTY = process.stdout.isTTY;
@@ -69,9 +69,15 @@ function drawDashboard() {
   readline.cursorTo(process.stdout, 0, 0);
   readline.clearScreenDown(process.stdout);
 
-  console.log(`${BG_DARK}${CYAN}┌────────────────────────────────────────────────────────────────────────┐${RESET}`);
-  console.log(`${BG_DARK}${CYAN}│${RESET}                 ${BOLD}${MAGENTA}🌸 InkFlow Merge Guard watchdog Console 🌸${RESET}               ${BG_DARK}${CYAN}│${RESET}`);
-  console.log(`${BG_DARK}${CYAN}└────────────────────────────────────────────────────────────────────────┘${RESET}`);
+  console.log(
+    `${BG_DARK}${CYAN}┌────────────────────────────────────────────────────────────────────────┐${RESET}`
+  );
+  console.log(
+    `${BG_DARK}${CYAN}│${RESET}                 ${BOLD}${MAGENTA}🌸 InkFlow Merge Guard watchdog Console 🌸${RESET}               ${BG_DARK}${CYAN}│${RESET}`
+  );
+  console.log(
+    `${BG_DARK}${CYAN}└────────────────────────────────────────────────────────────────────────┘${RESET}`
+  );
   console.log('');
 
   for (const task of tasks) {
@@ -96,10 +102,12 @@ function drawDashboard() {
   }
 
   console.log('');
-  console.log(`${DIM}──────────────────────────────────────────────────────────────────────────${RESET}`);
+  console.log(
+    `${DIM}──────────────────────────────────────────────────────────────────────────${RESET}`
+  );
 
   // Display log outputs for failures or latest details
-  const failedTasks = tasks.filter(t => t.status === 'FAILED');
+  const failedTasks = tasks.filter((t) => t.status === 'FAILED');
   if (failedTasks.length > 0) {
     console.log(`${BOLD}${RED}⚠️ 故障警报 / Failures detected:${RESET}`);
     for (const task of failedTasks) {
@@ -108,7 +116,7 @@ function drawDashboard() {
       console.log(lines.join('\n'));
     }
   } else {
-    const runningTasks = tasks.filter(t => t.status === 'RUNNING');
+    const runningTasks = tasks.filter((t) => t.status === 'RUNNING');
     if (runningTasks.length > 0) {
       console.log(`${DIM}📡 正在静默监控并行子任务执行流程...${RESET}`);
     } else {
@@ -119,14 +127,14 @@ function drawDashboard() {
 
 // Start executing tasks concurrently
 function startTasks() {
-  const promises = tasks.map(task => {
+  const promises = tasks.map((task) => {
     return new Promise((resolve) => {
       task.status = 'RUNNING';
       task.startTime = Date.now();
 
       const child = spawn(task.command, task.args, {
         shell: true,
-        env: { ...process.env, FORCE_COLOR: '1' }
+        env: { ...process.env, FORCE_COLOR: '1' },
       });
 
       child.stdout.on('data', (data) => {
@@ -145,7 +153,9 @@ function startTasks() {
           task.status = 'FAILED';
         }
         if (!isTTY) {
-          console.log(`[Watchdog Event] Task ${task.name} finished with status: ${task.status} in ${task.elapsed.toFixed(1)}s`);
+          console.log(
+            `[Watchdog Event] Task ${task.name} finished with status: ${task.status} in ${task.elapsed.toFixed(1)}s`
+          );
           if (task.status === 'FAILED') {
             console.error(`Error details for ${task.name}:\n`, task.error || task.output);
           }
@@ -173,7 +183,7 @@ function startTasks() {
     clearInterval(timer);
     drawDashboard();
 
-    const anyFailed = tasks.some(t => t.status === 'FAILED');
+    const anyFailed = tasks.some((t) => t.status === 'FAILED');
     if (anyFailed) {
       console.log(`\n${BOLD}${RED}❌ [Watchdog] 校验失败。合并门禁不予放行。${RESET}\n`);
       process.exit(1);

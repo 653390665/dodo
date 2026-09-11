@@ -15,9 +15,14 @@ export const GENRE_PROFILES: GenreProfile[] = [
     icon: 'Flame',
     description: '修炼升级、力量体系、爽点密集的长篇热血故事',
     constraints: {
-      powerSystem: '明确的修炼境界体系（炼气→筑基→金丹→元婴→化神→…），每个境界有清晰的能力提升和突破难度',
+      powerSystem:
+        '明确的修炼境界体系（炼气→筑基→金丹→元婴→化神→…），每个境界有清晰的能力提升和突破难度',
       characterArchetypes: ['废材逆袭型主角', '护道老者', '冰山女神', '宿命对手', '神秘师父'],
-      plotPatterns: ['废材开局→奇遇翻身→宗门崛起→越级打脸→飞升新世界', '战斗中突破', '秘境探险得宝'],
+      plotPatterns: [
+        '废材开局→奇遇翻身→宗门崛起→越级打脸→飞升新世界',
+        '战斗中突破',
+        '秘境探险得宝',
+      ],
       pacingRules: '每章至少1个爽点（突破/打脸/得宝），主线占比60%，力量体系扩展20%，感情线20%',
       tabooElements: ['无理由的无限升级', '境界体系前后矛盾', '主角无敌太久失去悬念'],
     },
@@ -41,7 +46,13 @@ export const GENRE_PROFILES: GenreProfile[] = [
     description: '宫斗权谋、宅斗经商、古代背景下的情感与博弈',
     constraints: {
       dialogueStyle: '古代官话风格，避免现代词汇，不同身份用不同称谓（臣妾/奴婢/奴才/下官）',
-      characterArchetypes: ['心机皇后/贵妃', '隐忍嫡女', '腹黑王爷/将军', '忠仆/谋士', '白莲花对手'],
+      characterArchetypes: [
+        '心机皇后/贵妃',
+        '隐忍嫡女',
+        '腹黑王爷/将军',
+        '忠仆/谋士',
+        '白莲花对手',
+      ],
       plotPatterns: ['入宫/入府→受辱→隐忍布局→反击→权倾朝野', '宅斗升级→经商独立→打脸家族'],
       pacingRules: '前期铺垫细致（20-30章），中期权谋密集，后期格局打开（朝代更迭/制度改革）',
       tabooElements: ['现代词汇穿帮', '宫斗手段过于幼稚', '历史背景明显错误'],
@@ -65,10 +76,19 @@ export const GENRE_PROFILES: GenreProfile[] = [
     icon: 'Skull',
     description: '诡异规则、烧脑谜题、细思极恐的心理悬疑',
     constraints: {
-      characterArchetypes: ['规则解读者（主角）', '规则守护者（NPC/怪物）', '受害者/炮灰', '幕后黑手'],
+      characterArchetypes: [
+        '规则解读者（主角）',
+        '规则守护者（NPC/怪物）',
+        '受害者/炮灰',
+        '幕后黑手',
+      ],
       plotPatterns: ['进入规则空间→发现规则→触犯规则受罚→破解规则→发现更深层规则'],
       pacingRules: '每3-5章揭示一个规则层次，规则必须自洽且可被读者推理',
-      tabooElements: ['规则前后矛盾', '破解方式毫无伏笔（机械降神）', '恐怖氛围断裂（搞笑破坏气氛）'],
+      tabooElements: [
+        '规则前后矛盾',
+        '破解方式毫无伏笔（机械降神）',
+        '恐怖氛围断裂（搞笑破坏气氛）',
+      ],
       hookTechniques: ['以一条诡异规则开篇', '主角触犯规则后的惩罚展示', '规则中隐藏的救赎线索'],
     },
     promptAugmentation:
@@ -153,7 +173,11 @@ export const GENRE_PROFILES: GenreProfile[] = [
     icon: 'Building2',
     description: '社会议题、职业故事、贴近生活的现实主义写作',
     constraints: {
-      characterArchetypes: ['普通人主角（有缺点有挣扎）', '灰色道德角色（非纯善非纯恶）', '系统/体制代表'],
+      characterArchetypes: [
+        '普通人主角（有缺点有挣扎）',
+        '灰色道德角色（非纯善非纯恶）',
+        '系统/体制代表',
+      ],
       plotPatterns: ['日常困境→积累→爆发→和解/改变（不一定是HE）', '多条社会议题线交织'],
       pacingRules: '节奏自然，不刻意制造爽点，重视细节积累和情感递进',
       tabooElements: ['脱离现实的"金手指"', '简单的善恶二分', '社会议题的肤浅处理'],
@@ -181,7 +205,11 @@ export const GENRE_PROFILES: GenreProfile[] = [
       plotPatterns: ['案件发生→线索收集→错误推理→真相揭示→动机反转', '连环案件，表面无关实则相连'],
       pacingRules: '每3-5章抛出一个新线索或反转，最终解答时必须所有伏笔闭环',
       tabooElements: ['模糊化关键线索欺骗读者', '真凶无任何前置伏笔（机械降神）', '物证逻辑错误'],
-      hookTechniques: ['以尸体/犯罪现场开篇', '不可能的犯罪（密室/不在场证明）', '叙述性诡计（第一人称=凶手）'],
+      hookTechniques: [
+        '以尸体/犯罪现场开篇',
+        '不可能的犯罪（密室/不在场证明）',
+        '叙述性诡计（第一人称=凶手）',
+      ],
     },
     promptAugmentation:
       '你正在写一部悬疑推理小说。请遵循以下规则：\n' +

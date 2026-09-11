@@ -7,7 +7,9 @@ import path from 'node:path';
 
 const executablePath = process.env.INKFLOW_PACKAGED_EXECUTABLE;
 if (!executablePath || !existsSync(executablePath)) {
-  throw new Error(`INKFLOW_PACKAGED_EXECUTABLE is missing or invalid: ${executablePath || '<empty>'}`);
+  throw new Error(
+    `INKFLOW_PACKAGED_EXECUTABLE is missing or invalid: ${executablePath || '<empty>'}`
+  );
 }
 
 const testRoot = path.join(os.tmpdir(), `inkflow-packaged-lifecycle-${process.pid}`);
@@ -23,7 +25,8 @@ function collectStartupLogs(directory = testRoot) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) logs.push(collectStartupLogs(entryPath));
-    else if (entry.name === 'startup.log') logs.push(`--- ${entryPath} ---\n${readFileSync(entryPath, 'utf8')}`);
+    else if (entry.name === 'startup.log')
+      logs.push(`--- ${entryPath} ---\n${readFileSync(entryPath, 'utf8')}`);
   }
   return logs.filter(Boolean).join('\n');
 }
@@ -33,7 +36,10 @@ function withTimeout(promise, timeoutMs, label) {
   return Promise.race([
     promise,
     new Promise((_, reject) => {
-      timeout = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+      timeout = setTimeout(
+        () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
     }),
   ]).finally(() => clearTimeout(timeout));
 }
@@ -46,7 +52,9 @@ async function reservePort() {
   });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Unable to reserve a CDP port');
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve()))
+  );
   return address.port;
 }
 
@@ -64,15 +72,17 @@ async function waitForCdp(port, child, processOutput) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`Packaged application exited before exposing CDP (${child.exitCode}). Output:\n${processOutput()}`);
+      throw new Error(
+        `Packaged application exited before exposing CDP (${child.exitCode}). Output:\n${processOutput()}`
+      );
     }
     try {
       const response = await fetch(endpoint, { signal: globalThis.AbortSignal.timeout(1_000) });
       if (response.ok) {
         const targets = await response.json();
-        const rendererTarget = Array.isArray(targets) && targets.find((target) => (
-          target.type === 'page' && isPackagedRendererUrl(target.url)
-        ));
+        const rendererTarget =
+          Array.isArray(targets) &&
+          targets.find((target) => target.type === 'page' && isPackagedRendererUrl(target.url));
         if (rendererTarget) return rendererTarget;
       }
     } catch {
@@ -89,35 +99,53 @@ async function launch({ connectBrowser = true } = {}) {
   let output = '';
   mkdirSync(path.join(testRoot, 'AppData', 'Roaming'), { recursive: true });
   mkdirSync(path.join(testRoot, 'AppData', 'Local'), { recursive: true });
-  const child = spawn(executablePath, [
-    `--remote-debugging-port=${port}`,
-    '--remote-allow-origins=*',
-    `--user-data-dir=${userDataDir}`,
-  ], {
-    env: {
-      ...process.env,
-      HOME: testRoot,
-      USERPROFILE: testRoot,
-      APPDATA: path.join(testRoot, 'AppData', 'Roaming'),
-      LOCALAPPDATA: path.join(testRoot, 'AppData', 'Local'),
-      INKFLOW_DB_PATH: databasePath,
-      INKFLOW_CONFIG_DIR: configDir,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const child = spawn(
+    executablePath,
+    [
+      `--remote-debugging-port=${port}`,
+      '--remote-allow-origins=*',
+      `--user-data-dir=${userDataDir}`,
+    ],
+    {
+      env: {
+        ...process.env,
+        HOME: testRoot,
+        USERPROFILE: testRoot,
+        APPDATA: path.join(testRoot, 'AppData', 'Roaming'),
+        LOCALAPPDATA: path.join(testRoot, 'AppData', 'Local'),
+        INKFLOW_DB_PATH: databasePath,
+        INKFLOW_CONFIG_DIR: configDir,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
+  child.stdout.on('data', (chunk) => {
+    output += chunk.toString();
   });
-  child.stdout.on('data', (chunk) => { output += chunk.toString(); });
-  child.stderr.on('data', (chunk) => { output += chunk.toString(); });
+  child.stderr.on('data', (chunk) => {
+    output += chunk.toString();
+  });
 
   try {
     const rendererTarget = await waitForCdp(port, child, () => output);
     if (!connectBrowser) {
-      return { browser: null, child, page: null, rendererUrl: rendererTarget.url, userDataDir, output: () => output };
+      return {
+        browser: null,
+        child,
+        page: null,
+        rendererUrl: rendererTarget.url,
+        userDataDir,
+        output: () => output,
+      };
     }
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error('Packaged application exposed no browser context');
     const page = context.pages().find((candidate) => isPackagedRendererUrl(candidate.url()));
-    if (!page) throw new Error(`CDP reported no packaged renderer target that Playwright could attach. Output:\n${output}`);
+    if (!page)
+      throw new Error(
+        `CDP reported no packaged renderer target that Playwright could attach. Output:\n${output}`
+      );
     return { browser, child, page, userDataDir, output: () => output };
   } catch (error) {
     child.kill();
@@ -140,23 +168,31 @@ async function callDbOverHttp(rendererUrl, method, ...args) {
 }
 
 async function terminateApplication(application) {
-  const exited = application.child.exitCode !== null
-    ? Promise.resolve(application.child.exitCode)
-    : new Promise((resolve) => application.child.once('exit', resolve));
+  const exited =
+    application.child.exitCode !== null
+      ? Promise.resolve(application.child.exitCode)
+      : new Promise((resolve) => application.child.once('exit', resolve));
   application.child.kill('SIGKILL');
-  await withTimeout(exited, 5_000, `Packaged process termination. Output:\n${application.output()}`);
+  await withTimeout(
+    exited,
+    5_000,
+    `Packaged process termination. Output:\n${application.output()}`
+  );
 }
 
 async function callDb(page, method, ...args) {
-  return page.evaluate(async ({ method: dbMethod, args: dbArgs }) => {
-    const response = await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: dbMethod, args: dbArgs }),
-    });
-    if (!response.ok) throw new Error(await response.text());
-    return response.json();
-  }, { method, args });
+  return page.evaluate(
+    async ({ method: dbMethod, args: dbArgs }) => {
+      const response = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: dbMethod, args: dbArgs }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    { method, args }
+  );
 }
 
 async function enterEditor(page) {
@@ -164,8 +200,14 @@ async function enterEditor(page) {
   try {
     await continueButton.click();
   } catch (error) {
-    const bodyText = await page.locator('body').innerText().catch(() => '<unavailable>');
-    throw new Error(`Unable to enter the packaged editor at ${page.url()}. Visible text:\n${bodyText.slice(0, 4_000)}`, { cause: error });
+    const bodyText = await page
+      .locator('body')
+      .innerText()
+      .catch(() => '<unavailable>');
+    throw new Error(
+      `Unable to enter the packaged editor at ${page.url()}. Visible text:\n${bodyText.slice(0, 4_000)}`,
+      { cause: error }
+    );
   }
   const editor = page.locator('textarea[placeholder="在这里开始书写这一章……"]');
   try {
@@ -190,9 +232,10 @@ async function enterEditor(page) {
 
 async function closeThroughElectronHandshake(application) {
   const { browser, child, page, output } = application;
-  const exited = child.exitCode !== null
-    ? Promise.resolve(child.exitCode)
-    : new Promise((resolve) => child.once('exit', resolve));
+  const exited =
+    child.exitCode !== null
+      ? Promise.resolve(child.exitCode)
+      : new Promise((resolve) => child.once('exit', resolve));
   const pageClosed = page.waitForEvent('close', { timeout: 15_000 });
   await page.evaluate(() => {
     if (!globalThis.inkflow?.requestClose) throw new Error('Packaged close bridge is unavailable');
@@ -211,7 +254,9 @@ async function closeThroughElectronHandshake(application) {
 
   const startupLog = readFileSync(path.join(application.userDataDir, 'startup.log'), 'utf8');
   if (startupLog.includes('Editor flush timed out')) {
-    throw new Error(`Packaged close used the timeout fallback instead of completing the renderer flush handshake.\n${startupLog}`);
+    throw new Error(
+      `Packaged close used the timeout fallback instead of completing the renderer flush handshake.\n${startupLog}`
+    );
   }
 }
 
@@ -255,10 +300,12 @@ try {
   const { result: restoredChapter } = await callDbOverHttp(
     application.rendererUrl,
     'getChapter',
-    'packaged-lifecycle-chapter',
+    'packaged-lifecycle-chapter'
   );
   if (restoredChapter?.content !== expectedContent) {
-    throw new Error(`Last editor input was not durable. Expected ${JSON.stringify(expectedContent)}, received ${JSON.stringify(restoredChapter?.content)}`);
+    throw new Error(
+      `Last editor input was not durable. Expected ${JSON.stringify(expectedContent)}, received ${JSON.stringify(restoredChapter?.content)}`
+    );
   }
 
   await terminateApplication(application);
@@ -268,11 +315,16 @@ try {
 } finally {
   if (application) {
     await application.browser?.close().catch(() => {});
-    const exited = application.child.exitCode !== null
-      ? Promise.resolve(application.child.exitCode)
-      : new Promise((resolve) => application.child.once('exit', resolve));
+    const exited =
+      application.child.exitCode !== null
+        ? Promise.resolve(application.child.exitCode)
+        : new Promise((resolve) => application.child.once('exit', resolve));
     application.child.kill();
-    await withTimeout(exited, 5_000, `Packaged process cleanup. Output:\n${application.output()}`).catch(() => {});
+    await withTimeout(
+      exited,
+      5_000,
+      `Packaged process cleanup. Output:\n${application.output()}`
+    ).catch(() => {});
   }
   if (!completed) {
     const startupLogs = collectStartupLogs();
@@ -281,6 +333,8 @@ try {
   try {
     rmSync(testRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   } catch (error) {
-    process.stderr.write(`WARN: unable to remove packaged lifecycle temp dir ${testRoot}: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(
+      `WARN: unable to remove packaged lifecycle temp dir ${testRoot}: ${error instanceof Error ? error.message : String(error)}\n`
+    );
   }
 }

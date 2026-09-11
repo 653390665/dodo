@@ -9,12 +9,7 @@ interface ItemsTabProps {
   updateEntity: (type: 'item', id: string, data: Partial<Item>) => void;
 }
 
-export function ItemsTab({
-  items,
-  addEntity,
-  deleteEntity,
-  updateEntity,
-}: ItemsTabProps) {
+export function ItemsTab({ items, addEntity, deleteEntity, updateEntity }: ItemsTabProps) {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center">

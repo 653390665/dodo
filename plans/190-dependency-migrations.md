@@ -13,6 +13,7 @@
 - **Depends on**: Plan 186、186（测试安全网先落地）
 - **Category**: migration
 - **Planned at**: commit `0dfbbcf`, 2026-09-10
+- **Executed**: 2026-09-11，PARTIAL。Step1（transformers）5ff0f28；Step2（Express 5）+ Step4（包管理器配置收敛）fa4761e；Step3（Vite 7）未做、遗留。附带定位并缓解 E2E 马拉松 429 根因（全局配额窗旋钮），详见 plans/README.md 行 190。
 
 ## Why this matters
 

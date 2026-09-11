@@ -52,9 +52,32 @@ export function checkPowerSignal(content: string | undefined | null): boolean {
   if (!content) return false;
 
   const powerKeywords = [
-    '灵力', '灵压', '境界', '功法', '等阶', '修为', '神魂', '金丹', '元婴', '觉醒', '战力', 
-    '属性', '魔法', '内功', '魔力', '武功', '法则', '神格', '奥术', '修真', '筑基', '化神',
-    '圣阶', '神阶', '斗气', '精神力'
+    '灵力',
+    '灵压',
+    '境界',
+    '功法',
+    '等阶',
+    '修为',
+    '神魂',
+    '金丹',
+    '元婴',
+    '觉醒',
+    '战力',
+    '属性',
+    '魔法',
+    '内功',
+    '魔力',
+    '武功',
+    '法则',
+    '神格',
+    '奥术',
+    '修真',
+    '筑基',
+    '化神',
+    '圣阶',
+    '神阶',
+    '斗气',
+    '精神力',
   ];
 
   for (const keyword of powerKeywords) {
@@ -89,4 +112,3 @@ export function checkPowerSignal(content: string | undefined | null): boolean {
 
   return false;
 }
-

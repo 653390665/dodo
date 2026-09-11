@@ -63,9 +63,12 @@ async function runPendingWrite(key: string): Promise<void> {
       if (saved === false) throw new Error(`Editor write did not update a row: ${key}`);
     } catch (error) {
       entry.failure = error;
-      const errorRecord = error && typeof error === 'object' ? error as { code?: unknown; status?: unknown } : {};
-      const isGenerationConflict = errorRecord.status === 409
-        && (errorRecord.code === 'DB_GENERATION_CONFLICT' || errorRecord.code === 'DATABASE_GENERATION_STALE');
+      const errorRecord =
+        error && typeof error === 'object' ? (error as { code?: unknown; status?: unknown }) : {};
+      const isGenerationConflict =
+        errorRecord.status === 409 &&
+        (errorRecord.code === 'DB_GENERATION_CONFLICT' ||
+          errorRecord.code === 'DATABASE_GENERATION_STALE');
       entry.staleGeneration = isGenerationConflict;
       if (!isGenerationConflict && !entry.pending) entry.pending = writer;
       entry.failed = true;
@@ -89,7 +92,7 @@ export function queueEditorWrite(
   key: string,
   writer: EditorWrite,
   delayMs = 1000,
-  snapshot: unknown = null,
+  snapshot: unknown = null
 ): void {
   const entry = getOrCreateEntry(key);
   if (entry.timer) clearTimeout(entry.timer);
@@ -131,7 +134,9 @@ export async function flushPendingEditorWrites(): Promise<void> {
       return;
     }
     const results = await Promise.allSettled(activeKeys.map((key) => runPendingWrite(key)));
-    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    const failed = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
     if (failed) throw failed.reason;
   }
 }

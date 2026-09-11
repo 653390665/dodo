@@ -62,7 +62,9 @@ console.log(`Total explicit 'any' count: ${totalAnyCount}`);
 
 const MAX_ANY_LIMIT = 35;
 if (totalAnyCount > MAX_ANY_LIMIT) {
-  console.error(`\n❌ Type safety audit failed! Total 'any' count (${totalAnyCount}) exceeds maximum allowed limit (${MAX_ANY_LIMIT}).`);
+  console.error(
+    `\n❌ Type safety audit failed! Total 'any' count (${totalAnyCount}) exceeds maximum allowed limit (${MAX_ANY_LIMIT}).`
+  );
   process.exit(1);
 } else {
   console.log(`\n✅ Type safety audit passed! (${totalAnyCount}/${MAX_ANY_LIMIT} allowed)`);

@@ -29,17 +29,18 @@ export function EquipPanel({
   deckSelection,
   disabledReason,
 }: EquipPanelProps) {
-  const selectedMain = deck && deckSelection?.mainCardId
-    ? deck.supportCards.find((card) => card.id === deckSelection.mainCardId) || (deck.mainCard.id === deckSelection.mainCardId ? deck.mainCard : undefined)
-    : deck?.mainCard;
-  const selectedSupports = deck && deckSelection
-    ? deck.supportCards.filter((card) => (deckSelection.supportCardIds || []).includes(card.id))
-    : deck?.supportCards || [];
+  const selectedMain =
+    deck && deckSelection?.mainCardId
+      ? deck.supportCards.find((card) => card.id === deckSelection.mainCardId) ||
+        (deck.mainCard.id === deckSelection.mainCardId ? deck.mainCard : undefined)
+      : deck?.mainCard;
+  const selectedSupports =
+    deck && deckSelection
+      ? deck.supportCards.filter((card) => (deckSelection.supportCardIds || []).includes(card.id))
+      : deck?.supportCards || [];
   return (
     <div className="mt-4 rounded-2xl border border-theme-accent/30 bg-theme-accent/5 p-5">
-      <div className="text-sm font-bold text-theme-text mb-1">
-        提交到作品卡组待选
-      </div>
+      <div className="text-sm font-bold text-theme-text mb-1">提交到作品卡组待选</div>
       <div className="text-xs text-theme-muted mb-4">
         {deck
           ? savedDeckIds.length > 0
@@ -60,7 +61,9 @@ export function EquipPanel({
               <span className="truncate font-medium">{card.name}</span>
             </div>
           ))}
-          <div className="mt-2 text-[11px] text-theme-muted">提交后仍是待选；在作品能力中心选择主卡或辅卡并应用配置后，才会参与后续写作。</div>
+          <div className="mt-2 text-[11px] text-theme-muted">
+            提交后仍是待选；在作品能力中心选择主卡或辅卡并应用配置后，才会参与后续写作。
+          </div>
         </div>
       )}
       <div className="mb-3">
@@ -72,17 +75,26 @@ export function EquipPanel({
         >
           <option value="">请选择目标作品</option>
           {userNovels.map((n) => (
-            <option key={n.id} value={n.id}>{n.title}</option>
+            <option key={n.id} value={n.id}>
+              {n.title}
+            </option>
           ))}
         </select>
       </div>
       <div className="flex gap-2">
         <button
-          onClick={() => deck ? onEquipDeck() : onEquipSkill()}
+          onClick={() => (deck ? onEquipDeck() : onEquipSkill())}
           disabled={!equipNovelId || isSaving || Boolean(disabledReason)}
           className="rounded-xl bg-theme-accent text-theme-accent-contrast px-4 py-2 text-sm font-bold disabled:opacity-40 transition-opacity"
         >
-          {isSaving ? '处理中...' : disabledReason || (deck ? (savedDeckIds.length > 0 ? '提交到作品卡组待选' : '保存草稿，并提交到作品卡组待选') : '提交到作品卡组待选')}
+          {isSaving
+            ? '处理中...'
+            : disabledReason ||
+              (deck
+                ? savedDeckIds.length > 0
+                  ? '提交到作品卡组待选'
+                  : '保存草稿，并提交到作品卡组待选'
+                : '提交到作品卡组待选')}
         </button>
         <button
           onClick={onCancel}

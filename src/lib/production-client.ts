@@ -5,7 +5,10 @@ import type { WritingStyleResolution, WritingStyleCandidate } from './writing-st
 
 export class ProductionStyleConfirmationRequiredError extends Error {
   readonly code = 'STYLE_CONFIRMATION_REQUIRED';
-  constructor(readonly resolution?: WritingStyleResolution, readonly candidates?: WritingStyleCandidate[]) {
+  constructor(
+    readonly resolution?: WritingStyleResolution,
+    readonly candidates?: WritingStyleCandidate[]
+  ) {
     super('Writing style confirmation is required');
     this.name = 'ProductionStyleConfirmationRequiredError';
   }
@@ -31,25 +34,36 @@ type ScopedProductionPayload = {
 };
 
 function requireProductionContext(payload: ScopedProductionPayload): void {
-  if (!payload.chapterId || !Number.isInteger(payload.databaseGeneration) || payload.databaseGeneration < 0) {
+  if (
+    !payload.chapterId ||
+    !Number.isInteger(payload.databaseGeneration) ||
+    payload.databaseGeneration < 0
+  ) {
     throw new Error('章节与数据库版本是正文生成的必需上下文');
   }
 }
 
-export async function startChapterProductionRun(payload: ScopedProductionPayload, signal?: AbortSignal): Promise<ChapterProductionRun> {
+export async function startChapterProductionRun(
+  payload: ScopedProductionPayload,
+  signal?: AbortSignal
+): Promise<ChapterProductionRun> {
   requireProductionContext(payload);
   const { writingStyleFingerprint, ...requestPayload } = payload;
   const res = await fetch('/api/chapter-production-runs/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...requestPayload, styleConfirmationFingerprint: writingStyleFingerprint }),
+    body: JSON.stringify({
+      ...requestPayload,
+      styleConfirmationFingerprint: writingStyleFingerprint,
+    }),
     signal,
   });
   const data = await res.json();
   if (res.status === 409 && data.code === 'STYLE_CONFIRMATION_REQUIRED') {
     throw new ProductionStyleConfirmationRequiredError(data.resolution, data.candidates);
   }
-  if (!res.ok || data.error) throw new Error(data.error || 'Failed to start chapter production run');
+  if (!res.ok || data.error)
+    throw new Error(data.error || 'Failed to start chapter production run');
   return data.run;
 }
 
@@ -65,7 +79,13 @@ export type ProductionRunSSEEvent =
   | { type: 'model_draft_start' }
   | { type: 'model_draft_token'; content: string }
   | { type: 'model_draft_done' }
-  | { type: 'model_audit'; content: string; isValid?: boolean; status?: 'pass' | 'fail' | 'unknown'; score?: number }
+  | {
+      type: 'model_audit';
+      content: string;
+      isValid?: boolean;
+      status?: 'pass' | 'fail' | 'unknown';
+      score?: number;
+    }
   | { type: 'model_continuity'; report: ChapterProductionRun['continuityReport'] }
   | { type: 'model_score'; score: number; attempts: number; status?: 'pass' | 'fail' | 'unknown' }
   | { type: 'done'; run: ChapterProductionRun }
@@ -85,46 +105,55 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isContinuityReport(value: unknown): value is ChapterProductionRun['continuityReport'] {
   if (
-    !isRecord(value)
-    || (value.score !== undefined && (typeof value.score !== 'number' || !Number.isFinite(value.score)))
-    || !Array.isArray(value.issues)
+    !isRecord(value) ||
+    (value.score !== undefined &&
+      (typeof value.score !== 'number' || !Number.isFinite(value.score))) ||
+    !Array.isArray(value.issues)
   ) {
     return false;
   }
   const patch = value.proposedPatch;
-  return isRecord(patch)
-    && Array.isArray(patch.characterUpdates)
-    && Array.isArray(patch.itemUpdates)
-    && Array.isArray(patch.foreshadowingUpdates)
-    && Array.isArray(patch.timelineEventsToCreate)
-    && Array.isArray(patch.foreshadowingsToCreate);
+  return (
+    isRecord(patch) &&
+    Array.isArray(patch.characterUpdates) &&
+    Array.isArray(patch.itemUpdates) &&
+    Array.isArray(patch.foreshadowingUpdates) &&
+    Array.isArray(patch.timelineEventsToCreate) &&
+    Array.isArray(patch.foreshadowingsToCreate)
+  );
 }
 
 function isChapterProductionRun(value: unknown): value is ChapterProductionRun {
   if (!isRecord(value)) return false;
-  const hasReviewVersion = value.reviewVersionId !== undefined
-    || value.reviewVersionHash !== undefined
-    || value.reviewVersionSource !== undefined;
-  const hasValidReviewVersion = !hasReviewVersion
-    || (typeof value.reviewVersionId === 'string' && value.reviewVersionId.length > 0
-      && typeof value.reviewVersionHash === 'string' && value.reviewVersionHash.length > 0
-      && (value.reviewVersionSource === 'fallback' || value.reviewVersionSource === 'model'));
-  return hasValidReviewVersion
-    && typeof value.id === 'string'
-    && typeof value.novelId === 'string'
-    && typeof value.status === 'string'
-    && PRODUCTION_RUN_STATUSES.has(value.status)
-    && typeof value.userIntent === 'string'
-    && typeof value.sceneBeats === 'string'
-    && typeof value.draftContent === 'string'
-    && typeof value.styleAudit === 'string'
-    && isContinuityReport(value.continuityReport)
-    && typeof value.createdAt === 'number'
-    && Number.isFinite(value.createdAt)
-    && typeof value.updatedAt === 'number'
-    && Number.isFinite(value.updatedAt)
-    && (value.targetChapterId === undefined || typeof value.targetChapterId === 'string')
-    && (value.errorMessage === undefined || typeof value.errorMessage === 'string');
+  const hasReviewVersion =
+    value.reviewVersionId !== undefined ||
+    value.reviewVersionHash !== undefined ||
+    value.reviewVersionSource !== undefined;
+  const hasValidReviewVersion =
+    !hasReviewVersion ||
+    (typeof value.reviewVersionId === 'string' &&
+      value.reviewVersionId.length > 0 &&
+      typeof value.reviewVersionHash === 'string' &&
+      value.reviewVersionHash.length > 0 &&
+      (value.reviewVersionSource === 'fallback' || value.reviewVersionSource === 'model'));
+  return (
+    hasValidReviewVersion &&
+    typeof value.id === 'string' &&
+    typeof value.novelId === 'string' &&
+    typeof value.status === 'string' &&
+    PRODUCTION_RUN_STATUSES.has(value.status) &&
+    typeof value.userIntent === 'string' &&
+    typeof value.sceneBeats === 'string' &&
+    typeof value.draftContent === 'string' &&
+    typeof value.styleAudit === 'string' &&
+    isContinuityReport(value.continuityReport) &&
+    typeof value.createdAt === 'number' &&
+    Number.isFinite(value.createdAt) &&
+    typeof value.updatedAt === 'number' &&
+    Number.isFinite(value.updatedAt) &&
+    (value.targetChapterId === undefined || typeof value.targetChapterId === 'string') &&
+    (value.errorMessage === undefined || typeof value.errorMessage === 'string')
+  );
 }
 
 export async function startChapterProductionRunStream(
@@ -132,14 +161,17 @@ export async function startChapterProductionRunStream(
     activeEntityNames?: string[];
   },
   onEvent: (event: ProductionRunSSEEvent) => void,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<void> {
   requireProductionContext(payload);
   const { writingStyleFingerprint, ...requestPayload } = payload;
   const res = await fetch('/api/chapter-production-runs/start-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...requestPayload, styleConfirmationFingerprint: writingStyleFingerprint }),
+    body: JSON.stringify({
+      ...requestPayload,
+      styleConfirmationFingerprint: writingStyleFingerprint,
+    }),
     signal,
   });
 
@@ -153,14 +185,29 @@ export async function startChapterProductionRunStream(
 
   if (!res.body) throw new Error('No response body');
   const allowedTypes = new Set<ProductionRunSSEEvent['type']>([
-    'run_created', 'status', 'fallback_beats', 'fallback_draft_token',
-    'fallback_draft_done', 'fallback_audit', 'fallback_continuity',
-    'model_beats', 'model_draft_start', 'model_draft_token', 'model_draft_done', 'model_audit',
-    'model_continuity', 'model_score', 'done', 'error',
+    'run_created',
+    'status',
+    'fallback_beats',
+    'fallback_draft_token',
+    'fallback_draft_done',
+    'fallback_audit',
+    'fallback_continuity',
+    'model_beats',
+    'model_draft_start',
+    'model_draft_token',
+    'model_draft_done',
+    'model_audit',
+    'model_continuity',
+    'model_score',
+    'done',
+    'error',
   ]);
   let receivedTypedDone = false;
   await readSseEvents<Record<string, unknown>>(res, (data) => {
-    if (typeof data.type !== 'string' || !allowedTypes.has(data.type as ProductionRunSSEEvent['type'])) {
+    if (
+      typeof data.type !== 'string' ||
+      !allowedTypes.has(data.type as ProductionRunSSEEvent['type'])
+    ) {
       throw new SseParseError('Invalid production SSE event type');
     }
     if (data.type === 'done' && !isChapterProductionRun(data.run)) {
@@ -185,15 +232,20 @@ export async function applyChapterProductionRun(
   runId: string,
   context: ProductionApplyContext,
   version?: { versionId: string; versionHash: string },
-  acceptUnreviewed = false,
+  acceptUnreviewed = false
 ): Promise<{ chapterId: string }> {
   requireProductionContext({ ...context, userIntent: '' });
   const res = await fetch(`/api/chapter-production-runs/${runId}/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...context, ...(version || {}), ...(acceptUnreviewed ? { acceptUnreviewed: true } : {}) }),
+    body: JSON.stringify({
+      ...context,
+      ...(version || {}),
+      ...(acceptUnreviewed ? { acceptUnreviewed: true } : {}),
+    }),
   });
   const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || 'Failed to apply chapter production run');
+  if (!res.ok || data.error)
+    throw new Error(data.error || 'Failed to apply chapter production run');
   return { chapterId: data.chapterId };
 }

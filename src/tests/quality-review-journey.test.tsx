@@ -4,8 +4,26 @@ import { QualityTab } from '../components/book-factory/QualityTab';
 import type { Chapter, Novel } from '../../shared/types';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow';
 
-const novel: Novel = { id: 'novel-1', title: '作品', authorId: 'local', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1 };
-const chapter: Chapter = { id: 'chapter-1', novelId: 'novel-1', title: '第一章', content: '正文', order: 1, wordCount: 2, createdAt: 1, updatedAt: 1, critique: '审计报告' };
+const novel: Novel = {
+  id: 'novel-1',
+  title: '作品',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
+};
+const chapter: Chapter = {
+  id: 'chapter-1',
+  novelId: 'novel-1',
+  title: '第一章',
+  content: '正文',
+  order: 1,
+  wordCount: 2,
+  createdAt: 1,
+  updatedAt: 1,
+  critique: '审计报告',
+};
 
 describe('QualityTab review issue journey', () => {
   test('shows severity, status, recommendation and scope and routes issue actions', () => {
@@ -21,7 +39,20 @@ describe('QualityTab review issue journey', () => {
         isGeneratingCritique={false}
         onPolishChapterFromAudit={vi.fn().mockResolvedValue(undefined)}
         isGeneratingContent={false}
-        reviewIssues={[{ id: 'issue-1', source: 'utility', severity: 'critical', status: 'open', explanation: '动作断裂', suggestedFix: '补足动作链', recommendedCapabilityIds: [], contentHash: 'hash', createdAt: 1, updatedAt: 1 }]}
+        reviewIssues={[
+          {
+            id: 'issue-1',
+            source: 'utility',
+            severity: 'critical',
+            status: 'open',
+            explanation: '动作断裂',
+            suggestedFix: '补足动作链',
+            recommendedCapabilityIds: [],
+            contentHash: 'hash',
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ]}
         onPreviewReviewIssue={onPreview}
         onFixReviewIssues={onFix}
         onAcceptReviewIssueRisk={onAccept}
@@ -51,7 +82,20 @@ describe('QualityTab review issue journey', () => {
         isGeneratingCritique={false}
         onPolishChapterFromAudit={vi.fn().mockResolvedValue(undefined)}
         isGeneratingContent={false}
-        reviewIssues={[{ id: 'issue-1', source: 'utility', severity: 'major', status: 'open', explanation: '动作断裂', suggestedFix: '补足动作链', recommendedCapabilityIds: [], contentHash: 'hash', createdAt: 1, updatedAt: 1 }]}
+        reviewIssues={[
+          {
+            id: 'issue-1',
+            source: 'utility',
+            severity: 'major',
+            status: 'open',
+            explanation: '动作断裂',
+            suggestedFix: '补足动作链',
+            recommendedCapabilityIds: [],
+            contentHash: 'hash',
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ]}
         onFixReviewIssues={vi.fn()}
         onAcceptReviewIssueRisk={vi.fn().mockRejectedValue(new Error('保存失败'))}
       />
@@ -78,11 +122,23 @@ describe('QualityTab review issue journey', () => {
           issues: [],
           semanticReview: {
             status: 'needs-action',
-            checks: [{
-              id: 'character-consistency', status: 'needs-action', category: 'semantic-review',
-              reason: '人物一致性存在审稿证据，需要修复后复核。',
-              evidence: [{ quote: '他答应了', explanation: '动机没有铺垫', suggestedFix: '补充犹豫与代价', severity: 'medium', location: '第 2 段' }],
-            }],
+            checks: [
+              {
+                id: 'character-consistency',
+                status: 'needs-action',
+                category: 'semantic-review',
+                reason: '人物一致性存在审稿证据，需要修复后复核。',
+                evidence: [
+                  {
+                    quote: '他答应了',
+                    explanation: '动机没有铺垫',
+                    suggestedFix: '补充犹豫与代价',
+                    severity: 'medium',
+                    location: '第 2 段',
+                  },
+                ],
+              },
+            ],
           },
         },
       },
@@ -97,10 +153,16 @@ describe('QualityTab review issue journey', () => {
     const view = render(<QualityTab {...props} currentChapter={reviewedChapter} />);
 
     expect(screen.getByText('人物一致性：需处理')).toBeTruthy();
-    expect(screen.getByText(/“他答应了”（第 2 段）：动机没有铺垫 建议：补充犹豫与代价/)).toBeTruthy();
+    expect(
+      screen.getByText(/“他答应了”（第 2 段）：动机没有铺垫 建议：补充犹豫与代价/)
+    ).toBeTruthy();
 
-    view.rerender(<QualityTab {...props} currentChapter={{ ...reviewedChapter, content: '正文已修改' }} />);
-    expect(screen.getByText('当前正文尚无有效语义审阅，或正文已在审稿后变化，请重新审稿。')).toBeTruthy();
+    view.rerender(
+      <QualityTab {...props} currentChapter={{ ...reviewedChapter, content: '正文已修改' }} />
+    );
+    expect(
+      screen.getByText('当前正文尚无有效语义审阅，或正文已在审稿后变化，请重新审稿。')
+    ).toBeTruthy();
     expect(screen.queryByText('人物一致性：需处理')).toBeNull();
   });
 
@@ -117,11 +179,20 @@ describe('QualityTab review issue journey', () => {
           schemaVersion: 1,
           contentHash,
           gate: 'needs-action',
-          issues: [{
-            id: 'issue-1', source: 'utility', severity: 'major', status: 'open',
-            explanation: '动作断裂', suggestedFix: '补足动作链',
-            recommendedCapabilityIds: [], contentHash, createdAt: 1, updatedAt: 1,
-          }],
+          issues: [
+            {
+              id: 'issue-1',
+              source: 'utility',
+              severity: 'major',
+              status: 'open',
+              explanation: '动作断裂',
+              suggestedFix: '补足动作链',
+              recommendedCapabilityIds: [],
+              contentHash,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ],
         },
       },
     };
@@ -134,11 +205,20 @@ describe('QualityTab review issue journey', () => {
         isGeneratingCritique={false}
         onPolishChapterFromAudit={vi.fn().mockResolvedValue(undefined)}
         isGeneratingContent={false}
-        reviewIssues={[{
-          id: 'issue-1', source: 'utility', severity: 'major', status: 'open',
-          explanation: '动作断裂', suggestedFix: '补足动作链',
-          recommendedCapabilityIds: [], contentHash, createdAt: 1, updatedAt: 1,
-        }]}
+        reviewIssues={[
+          {
+            id: 'issue-1',
+            source: 'utility',
+            severity: 'major',
+            status: 'open',
+            explanation: '动作断裂',
+            suggestedFix: '补足动作链',
+            recommendedCapabilityIds: [],
+            contentHash,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ]}
         onFixReviewIssues={onFix}
       />
     );

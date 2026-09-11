@@ -3,13 +3,19 @@ import type {
   ArtifactImpactReport,
   CreativeArtifactRef,
 } from '../../shared/types/creative-artifacts.js';
-import type { CanonPatchOperation, SourceCapabilityVersion } from '../../shared/types/outline-governance.js';
+import type {
+  CanonPatchOperation,
+  SourceCapabilityVersion,
+} from '../../shared/types/outline-governance.js';
 import { acceptCanonPatch, createCanonPatch } from '../lib/db/canon-patches.js';
 import { getChapterProductionRun } from '../lib/db/production.js';
 import { getChapterProductionRunVersion } from '../lib/db/production-versions.js';
 
 export class ArtifactCandidateAdapterError extends Error {
-  constructor(public readonly code: string, message: string) {
+  constructor(
+    public readonly code: string,
+    message: string
+  ) {
     super(`${code}: ${message}`);
   }
 }
@@ -43,8 +49,17 @@ export function previewManuscriptCandidate(input: {
 }): Pick<ArtifactCandidate, 'target' | 'impactReport' | 'status'> {
   const run = getChapterProductionRun(input.runId);
   const version = getChapterProductionRunVersion(input.versionId);
-  if (!run || run.novelId !== input.novelId || !version || version.runId !== run.id || version.novelId !== input.novelId) {
-    throw new ArtifactCandidateAdapterError('ARTIFACT_CANDIDATE_MANUSCRIPT_NOT_FOUND', 'production run version not found for novel');
+  if (
+    !run ||
+    run.novelId !== input.novelId ||
+    !version ||
+    version.runId !== run.id ||
+    version.novelId !== input.novelId
+  ) {
+    throw new ArtifactCandidateAdapterError(
+      'ARTIFACT_CANDIDATE_MANUSCRIPT_NOT_FOUND',
+      'production run version not found for novel'
+    );
   }
 
   const target: CreativeArtifactRef = { kind: 'scene-beats', id: version.id, version: 1 };

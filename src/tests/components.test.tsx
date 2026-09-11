@@ -19,19 +19,32 @@ const capabilityPreviewMocks = vi.hoisted(() => {
     operationLog,
     mockToast: vi.fn(),
     mockExecuteCapability: vi.fn(),
-    mockCreateChapterVersion: vi.fn(async (_version: unknown, _databaseGeneration?: number) => { operationLog.push('version'); }),
+    mockCreateChapterVersion: vi.fn(async (_version: unknown, _databaseGeneration?: number) => {
+      operationLog.push('version');
+    }),
     mockUpdateChapter: vi.fn().mockResolvedValue(true),
-    mockHandleUpdateContent: vi.fn((_content: string, _isProgrammatic?: boolean) => { operationLog.push('update-content'); }),
-    mockFlushPendingEditorWrites: vi.fn(async () => { operationLog.push('flush'); }),
+    mockHandleUpdateContent: vi.fn((_content: string, _isProgrammatic?: boolean) => {
+      operationLog.push('update-content');
+    }),
+    mockFlushPendingEditorWrites: vi.fn(async () => {
+      operationLog.push('flush');
+    }),
   };
 });
 
 const completionMocks = vi.hoisted(() => ({
   completeChapter: vi.fn().mockResolvedValue({
-    quality: 'pass', phase: 'facts-proposed',
+    quality: 'pass',
+    phase: 'facts-proposed',
     gate: {
-      contentHash: 'completion-hash', planHash: 'plan-hash', quality: 'pass', completionGate: 'ready',
-      deterministicIssues: [], unknownChecks: [], reviewRequired: false, canAcceptLocalRevision: false,
+      contentHash: 'completion-hash',
+      planHash: 'plan-hash',
+      quality: 'pass',
+      completionGate: 'ready',
+      deterministicIssues: [],
+      unknownChecks: [],
+      reviewRequired: false,
+      canAcceptLocalRevision: false,
     },
   }),
   acceptChapterRisk: vi.fn(),
@@ -60,7 +73,8 @@ vi.mock('../lib/db-transport', () => ({
   requireResponseDatabaseGeneration: vi.fn(() => 7),
 }));
 vi.mock('../lib/capability-client', () => ({
-  executeCapability: (novelId: string, assetId: string, input: unknown) => capabilityPreviewMocks.mockExecuteCapability(novelId, assetId, input),
+  executeCapability: (novelId: string, assetId: string, input: unknown) =>
+    capabilityPreviewMocks.mockExecuteCapability(novelId, assetId, input),
 }));
 vi.mock('../lib/writing-style-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/writing-style-client')>();
@@ -71,7 +85,8 @@ vi.mock('../lib/writing-style-client', async (importOriginal) => {
   };
 });
 vi.mock('../lib/chapter-client', () => ({
-  createChapterVersion: (version: unknown, databaseGeneration?: number) => capabilityPreviewMocks.mockCreateChapterVersion(version, databaseGeneration),
+  createChapterVersion: (version: unknown, databaseGeneration?: number) =>
+    capabilityPreviewMocks.mockCreateChapterVersion(version, databaseGeneration),
   getChapter: vi.fn().mockResolvedValue(undefined),
   updateChapter: (...args: unknown[]) => capabilityPreviewMocks.mockUpdateChapter(...args),
 }));
@@ -105,11 +120,7 @@ vi.mock('../components/ui/tabs', () => {
     TabsTrigger: ({ value, children, className }: any) => {
       const ctx = React.useContext(TabsContext);
       return (
-        <button
-          type="button"
-          onClick={() => ctx.onValueChange(value)}
-          className={className}
-        >
+        <button type="button" onClick={() => ctx.onValueChange(value)} className={className}>
           {children}
         </button>
       );
@@ -118,7 +129,7 @@ vi.mock('../components/ui/tabs', () => {
       const ctx = React.useContext(TabsContext);
       if (ctx.value !== value) return null;
       return <div className={className}>{children}</div>;
-    }
+    },
   };
 });
 
@@ -138,7 +149,9 @@ const storyCardsMockState = vi.hoisted(() => ({
 }));
 vi.mock('../hooks/useStoryCards', () => ({
   useStoryCards: () => ({
-    get cards() { return storyCardsMockState.cards; },
+    get cards() {
+      return storyCardsMockState.cards;
+    },
     source: null,
     isWaiting: false,
     isModelPending: false,
@@ -191,13 +204,22 @@ vi.mock('../lib/hooks/useEditorContinuationPacks', () => ({
   }),
 }));
 
-let mockCurrentChapter: any = { id: 'ch-1', title: '第一章', content: 'Here is some content', wordCount: 150, createdAt: Date.now(), updatedAt: Date.now() };
+let mockCurrentChapter: any = {
+  id: 'ch-1',
+  title: '第一章',
+  content: 'Here is some content',
+  wordCount: 150,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+};
 let mockSelectedContinuationPackId = '';
 let mockContinuationPacks: any[] = [];
 let mockAgentTab = 'planning';
 let mockIsAgentSidebarOpen = false;
 const mockSetIsAgentSidebarOpen = vi.fn();
-const mockSetAgentTab = vi.fn((next: string) => { mockAgentTab = next; });
+const mockSetAgentTab = vi.fn((next: string) => {
+  mockAgentTab = next;
+});
 const mockHandleStackDeconstructionCard = vi.fn();
 const mockHandleUnstackDeconstructionCard = vi.fn();
 const mockRemoveStackedDeconstructionCard = vi.fn();
@@ -319,21 +341,21 @@ vi.mock('../lib/hooks/useEditorPersistence', () => ({
 vi.mock('../lib/hooks/useChapterProductionFlow', () => ({
   useChapterProductionFlow: (args: any) => {
     mockChapterProductionFlowArgs = args;
-    return ({
-    productionIntent: '',
-    setProductionIntent: vi.fn(),
-    activeProductionRun: null,
-    isProductionRunning: false,
-    isApplyingProductionRun: false,
-    productionError: null,
-    productionBeatsSource: null,
-    productionDraftSource: null,
-    productionAuditSource: null,
-    productionStatusMessage: '',
-    handleStartProductionRun: mockStartProductionRun,
-    handleApplyProductionRun: vi.fn(),
-    stopProductionFlow: vi.fn(),
-    });
+    return {
+      productionIntent: '',
+      setProductionIntent: vi.fn(),
+      activeProductionRun: null,
+      isProductionRunning: false,
+      isApplyingProductionRun: false,
+      productionError: null,
+      productionBeatsSource: null,
+      productionDraftSource: null,
+      productionAuditSource: null,
+      productionStatusMessage: '',
+      handleStartProductionRun: mockStartProductionRun,
+      handleApplyProductionRun: vi.fn(),
+      stopProductionFlow: vi.fn(),
+    };
   },
 }));
 
@@ -368,23 +390,23 @@ let mockEditorGenerationFlowArgs: any = null;
 vi.mock('../lib/hooks/useEditorGenerationFlow', () => ({
   useEditorGenerationFlow: (args: any) => {
     mockEditorGenerationFlowArgs = args;
-    return ({
-    isGeneratingContent: false,
-    isGeneratingOutline: false,
-    isGeneratingBeats: false,
-    isGeneratingCritique: mockIsGeneratingCritique,
-    generationStatus: '',
-    auditStatus: '',
-    aiActionState: { status: 'idle' },
-    retryLastAiAction: vi.fn(),
-    handleRunAudit: mockHandleRunAudit,
-    handleGenerateBeats: vi.fn(),
-    handleRewriteSelectedText: vi.fn(),
-    handleGenerateOutline: vi.fn(),
-    handleGenerateContent: vi.fn(),
-    handlePolishChapterFromAudit: mockHandlePolishChapterFromAudit,
-    stopGenerationFlow: vi.fn(),
-    });
+    return {
+      isGeneratingContent: false,
+      isGeneratingOutline: false,
+      isGeneratingBeats: false,
+      isGeneratingCritique: mockIsGeneratingCritique,
+      generationStatus: '',
+      auditStatus: '',
+      aiActionState: { status: 'idle' },
+      retryLastAiAction: vi.fn(),
+      handleRunAudit: mockHandleRunAudit,
+      handleGenerateBeats: vi.fn(),
+      handleRewriteSelectedText: vi.fn(),
+      handleGenerateOutline: vi.fn(),
+      handleGenerateContent: vi.fn(),
+      handlePolishChapterFromAudit: mockHandlePolishChapterFromAudit,
+      stopGenerationFlow: vi.fn(),
+    };
   },
 }));
 
@@ -436,19 +458,27 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
     mockChapterProductionFlowArgs = null;
     mockEditorGenerationFlowArgs = null;
     mockIsGeneratingCritique = false;
-    mockCurrentChapter = { id: 'ch-1', title: '第一章', content: 'Here is some content', wordCount: 150, createdAt: Date.now(), updatedAt: Date.now() };
+    mockCurrentChapter = {
+      id: 'ch-1',
+      title: '第一章',
+      content: 'Here is some content',
+      wordCount: 150,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
     localStorage.clear();
 
     // Mock the fetch call in SettingsModal to resolve immediately
     window.fetch = vi.fn().mockImplementation(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({
-          baseUrl: 'http://test.api',
-          model: 'gemini-pro',
-          hasApiKey: true,
-          promptTemplates: {}
-        }),
+        json: () =>
+          Promise.resolve({
+            baseUrl: 'http://test.api',
+            model: 'gemini-pro',
+            hasApiKey: true,
+            promptTemplates: {},
+          }),
       } as Response)
     );
   });
@@ -458,13 +488,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const mockNavigate = vi.fn();
       const mockUser = { uid: 'test-uid' };
 
-      render(
-        <Sidebar
-          currentView="welcome"
-          onNavigate={mockNavigate}
-          user={mockUser}
-        />
-      );
+      render(<Sidebar currentView="welcome" onNavigate={mockNavigate} user={mockUser} />);
 
       // Locate toggle button using aria-label (default uncollapsed state is "折叠侧边栏")
       const toggleBtn = screen.getByLabelText('折叠侧边栏');
@@ -485,19 +509,15 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const mockUser = { uid: 'test-uid' };
 
       const { container } = render(
-        <Sidebar
-          currentView="welcome"
-          onNavigate={mockNavigate}
-          user={mockUser}
-        />
+        <Sidebar currentView="welcome" onNavigate={mockNavigate} user={mockUser} />
       );
 
       // Perform direct axe-core scan on the rendered container
       // Disable 'color-contrast' which is extremely slow and prone to timing out in JSDOM environment
       const results = await axe.run(container, {
         rules: {
-          'color-contrast': { enabled: false }
-        }
+          'color-contrast': { enabled: false },
+        },
       });
       expect(results.violations.length).toBe(0);
     });
@@ -516,12 +536,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       // 2. Render SettingsModal as open
       const { unmount } = render(
-        <SettingsModal
-          isOpen={true}
-          onClose={mockClose}
-          theme="dark"
-          onThemeChange={() => {}}
-        />
+        <SettingsModal isOpen={true} onClose={mockClose} theme="dark" onThemeChange={() => {}} />
       );
 
       // 3. Confirm focus was trapped and redirected to the first input in SettingsModal (typically API Key or first TabTrigger)
@@ -530,7 +545,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       // Wait for focus trap setTimeout (50ms) to trigger inside SettingsModal
       await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 60));
+        await new Promise((resolve) => setTimeout(resolve, 60));
       });
 
       const firstInput = container?.querySelector('input, select, textarea, button') as HTMLElement;
@@ -563,18 +578,29 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       ['relationships', { relationships: [{ id: 'relationship-1' }] }],
     ])('EditorView 有%s资料时显示世界观已就绪', (_source, worldData) => {
       mockEditorWorldData = {
-        characters: [], locations: [], items: [], factions: [],
-        powerLevels: [], timelineEvents: [], relationships: [], globalOutline: '',
+        characters: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        relationships: [],
+        globalOutline: '',
         ...worldData,
       };
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       expect(screen.getByText('世界观已就绪')).toBeDefined();
@@ -583,7 +609,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
     test('EditorView 正文顶部统计 v3 作品卡组', () => {
       mockProjectPreferenceProfile = {
         tags: [],
-        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+        weights: {
+          styleWeight: 1,
+          characterWeight: 1,
+          worldWeight: 1,
+          plotWeight: 1,
+          pacingWeight: 1,
+        },
         acceptedDimensions: [],
         rejectedDimensions: [],
         notes: [],
@@ -603,15 +635,24 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            mountedSkillIds: [],
+            mountedSkillLoadout: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       expect(screen.getByText('能力卡 3')).toBeDefined();
-      expect(screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')).toBeDefined();
+      expect(
+        screen.getByText('作品默认 0 · 本章 0 · 作品技法 0 · 本章技法 0 · 系统护栏 12')
+      ).toBeDefined();
       expect(screen.queryByText('main-card / support-one / support-two')).toBeNull();
       expect(screen.queryByText('能力卡 0')).toBeNull();
       expect(screen.queryByText('系统默认')).toBeNull();
@@ -638,14 +679,40 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         },
       };
       mockLibrarySkills = [
-        { id: 'deconstruct-card-pacing', name: '节奏拆书卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1 },
-        { id: 'chapter-style-card', name: '本章文风卡', description: '', style: '', pacing: '', stabilityScore: 80, evaluationFeedback: '', version: 1, createdAt: 1 },
+        {
+          id: 'deconstruct-card-pacing',
+          name: '节奏拆书卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          createdAt: 1,
+        },
+        {
+          id: 'chapter-style-card',
+          name: '本章文风卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          createdAt: 1,
+        },
       ];
       // 011 Phase 3：AgentWorkspace/Panel 改读 store，mock 数据需同步
       useEditorDataStore.setState({ librarySkills: mockLibrarySkills });
       mockProjectPreferenceProfile = {
         tags: [],
-        weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+        weights: {
+          styleWeight: 1,
+          characterWeight: 1,
+          worldWeight: 1,
+          plotWeight: 1,
+          pacingWeight: 1,
+        },
         acceptedDimensions: [],
         rejectedDimensions: [],
         notes: [],
@@ -662,17 +729,28 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       expect(screen.getByText('本章使用卡')).toBeDefined();
       expect(screen.getAllByText('节奏拆书卡、本章文风卡').length).toBeGreaterThanOrEqual(1);
-      expect(mockEditorGenerationFlowArgs?.sessionCardIds).toEqual(['deconstruct-card-pacing', 'chapter-style-card']);
-      expect(mockChapterProductionFlowArgs?.sessionCardIds).toEqual(['deconstruct-card-pacing', 'chapter-style-card']);
+      expect(mockEditorGenerationFlowArgs?.sessionCardIds).toEqual([
+        'deconstruct-card-pacing',
+        'chapter-style-card',
+      ]);
+      expect(mockChapterProductionFlowArgs?.sessionCardIds).toEqual([
+        'deconstruct-card-pacing',
+        'chapter-style-card',
+      ]);
     });
 
     test('EditorView 在作品能力配置变化后同步内部写作配置', async () => {
@@ -688,7 +766,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         updatedAt: Date.now(),
         projectPreferenceProfile: {
           tags: [],
-          weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+          weights: {
+            styleWeight: 1,
+            characterWeight: 1,
+            worldWeight: 1,
+            plotWeight: 1,
+            pacingWeight: 1,
+          },
           acceptedDimensions: [],
           rejectedDimensions: [],
           notes: [],
@@ -708,7 +792,11 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           ...oldNovel.projectPreferenceProfile,
           capabilityProfile: {
             ...oldNovel.projectPreferenceProfile.capabilityProfile,
-            projectSkillDeck: { mainCardId: 'new-main-card', supportCardIds: ['support-card'], updatedAt: 2 },
+            projectSkillDeck: {
+              mainCardId: 'new-main-card',
+              supportCardIds: ['support-card'],
+              updatedAt: 2,
+            },
             favoriteTechniqueIds: ['technique-1'],
           },
         },
@@ -719,46 +807,60 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       rerender(<EditorView novel={newNovel} onBack={vi.fn()} />);
 
-      await waitFor(() => expect(mockSetProjectPreferenceProfile).toHaveBeenCalledWith(
-        expect.objectContaining({
-          capabilityProfile: expect.objectContaining({
-            projectSkillDeck: expect.objectContaining({
-              mainCardId: 'new-main-card',
-              supportCardIds: ['support-card'],
+      await waitFor(() =>
+        expect(mockSetProjectPreferenceProfile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            capabilityProfile: expect.objectContaining({
+              projectSkillDeck: expect.objectContaining({
+                mainCardId: 'new-main-card',
+                supportCardIds: ['support-card'],
+              }),
+              favoriteTechniqueIds: ['technique-1'],
             }),
-            favoriteTechniqueIds: ['technique-1'],
-          }),
-        }),
-      ));
+          })
+        )
+      );
     });
 
     test('EditorView 本章使用卡变化后要求重新确认写法', async () => {
       const { resolveWritingStyle } = await import('../lib/writing-style-client');
-      vi.mocked(resolveWritingStyle).mockResolvedValueOnce({
-        resolution: {
-          resolverVersion: 1,
-          fingerprint: 'confirmed-fingerprint',
-          mode: 'skill-deck',
-          summary: '已确认写法',
-          sources: [{ kind: 'skill-deck', label: '作品卡组' }],
-          allowedModes: ['skill-deck'],
-          warnings: [],
-          confirmed: true,
-        },
-        candidates: [],
-      }).mockResolvedValue({
-        resolution: {
-          resolverVersion: 1,
-          fingerprint: 'new-fingerprint',
-          mode: 'skill-deck',
-          summary: '新写法待确认',
-          sources: [{ kind: 'skill-deck', label: '作品卡组' }, { kind: 'writer-session', label: '本章卡' }],
-          allowedModes: ['skill-deck'],
-          warnings: [],
-          confirmed: false,
-        },
-        candidates: [{ mode: 'skill-deck', fingerprint: 'new-fingerprint', summary: '新写法待确认', sources: [] }],
-      });
+      vi.mocked(resolveWritingStyle)
+        .mockResolvedValueOnce({
+          resolution: {
+            resolverVersion: 1,
+            fingerprint: 'confirmed-fingerprint',
+            mode: 'skill-deck',
+            summary: '已确认写法',
+            sources: [{ kind: 'skill-deck', label: '作品卡组' }],
+            allowedModes: ['skill-deck'],
+            warnings: [],
+            confirmed: true,
+          },
+          candidates: [],
+        })
+        .mockResolvedValue({
+          resolution: {
+            resolverVersion: 1,
+            fingerprint: 'new-fingerprint',
+            mode: 'skill-deck',
+            summary: '新写法待确认',
+            sources: [
+              { kind: 'skill-deck', label: '作品卡组' },
+              { kind: 'writer-session', label: '本章卡' },
+            ],
+            allowedModes: ['skill-deck'],
+            warnings: [],
+            confirmed: false,
+          },
+          candidates: [
+            {
+              mode: 'skill-deck',
+              fingerprint: 'new-fingerprint',
+              summary: '新写法待确认',
+              sources: [],
+            },
+          ],
+        });
       mockIsSessionStateLoaded = true;
       mockCurrentChapter = {
         id: 'ch-1',
@@ -792,10 +894,12 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
       const { rerender } = render(<EditorView novel={novel} onBack={vi.fn()} />);
       expect(await screen.findByText('已确认写法')).toBeDefined();
-      await waitFor(() => expect(vi.mocked(resolveWritingStyle)).toHaveBeenCalledWith(
-        novel.id,
-        expect.objectContaining({ databaseGeneration: 7 }),
-      ));
+      await waitFor(() =>
+        expect(vi.mocked(resolveWritingStyle)).toHaveBeenCalledWith(
+          novel.id,
+          expect.objectContaining({ databaseGeneration: 7 })
+        )
+      );
 
       mockCurrentChapter = {
         ...mockCurrentChapter,
@@ -841,8 +945,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -853,14 +962,14 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           }}
           onBack={vi.fn()}
           onNavigate={onNavigate}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
       expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalledWith(
         'test-novel-id',
         'de-ai-slop-shield',
-        expect.objectContaining({ databaseGeneration: 7 }),
+        expect.objectContaining({ databaseGeneration: 7 })
       );
       expect(await screen.findByText('精修卡修改预览')).toBeDefined();
       expect(screen.getByLabelText('本次能力来源')).toBeDefined();
@@ -878,7 +987,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           wordCount: 3,
           author: 'editor-agent',
         }),
-        7,
+        7
       );
       expect(capabilityPreviewMocks.mockHandleUpdateContent).toHaveBeenCalledWith('新正文', true);
       expect(capabilityPreviewMocks.operationLog).toEqual(['version', 'update-content', 'flush']);
@@ -886,25 +995,32 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(screen.getByText('精修已应用')).toBeDefined();
       expect(screen.getByText('已保存应用前版本，可从章节版本记录回退。')).toBeDefined();
       fireEvent.click(screen.getByRole('button', { name: '调整精修卡' }));
-      expect(onNavigate).toHaveBeenCalledWith('skills', { targetChapterId: 'ch-1', stage: 'style-polish' });
+      expect(onNavigate).toHaveBeenCalledWith('skills', {
+        targetChapterId: 'ch-1',
+        stage: 'style-polish',
+      });
       const events = vi.mocked(recordProductEvent).mock.calls.map(([event]) => event);
       const previewEvent = events.find((event) => event.eventName === 'capability_preview');
       const applyEvent = events.find((event) => event.eventName === 'capability_apply');
-      expect(previewEvent).toEqual(expect.objectContaining({
-        action: 'transform-preview',
-        novelId: 'test-novel-id',
-        chapterId: 'ch-1',
-        objectId: 'de-ai-slop-shield',
-        sourceType: 'built-in',
-      }));
-      expect(applyEvent).toEqual(expect.objectContaining({
-        action: 'transform-preview',
-        novelId: 'test-novel-id',
-        chapterId: 'ch-1',
-        objectId: 'de-ai-slop-shield',
-        sessionId: previewEvent?.sessionId,
-        sourceType: 'built-in',
-      }));
+      expect(previewEvent).toEqual(
+        expect.objectContaining({
+          action: 'transform-preview',
+          novelId: 'test-novel-id',
+          chapterId: 'ch-1',
+          objectId: 'de-ai-slop-shield',
+          sourceType: 'built-in',
+        })
+      );
+      expect(applyEvent).toEqual(
+        expect.objectContaining({
+          action: 'transform-preview',
+          novelId: 'test-novel-id',
+          chapterId: 'ch-1',
+          objectId: 'de-ai-slop-shield',
+          sessionId: previewEvent?.sessionId,
+          sourceType: 'built-in',
+        })
+      );
     });
 
     test('EditorView 能力执行来源优先展示用户保存的能力卡名称', async () => {
@@ -918,17 +1034,19 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      mockLibrarySkills = [{
-        id: 'custom-polish-card',
-        name: '我保存的精修卡',
-        description: '',
-        style: '',
-        pacing: '',
-        stabilityScore: 80,
-        evaluationFeedback: '',
-        version: 1,
-        createdAt: Date.now(),
-      }];
+      mockLibrarySkills = [
+        {
+          id: 'custom-polish-card',
+          name: '我保存的精修卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          createdAt: Date.now(),
+        },
+      ];
       capabilityPreviewMocks.mockExecuteCapability.mockResolvedValueOnce({
         kind: 'transform-preview',
         capabilityId: 'custom-polish-card',
@@ -941,8 +1059,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -952,7 +1075,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
@@ -981,27 +1104,36 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      mockLibrarySkills = [{
-        id: 'custom-running-card',
-        name: '正在执行的审稿卡',
-        description: '',
-        style: '',
-        pacing: '',
-        stabilityScore: 80,
-        evaluationFeedback: '',
-        version: 1,
-        createdAt: Date.now(),
-      }];
-      capabilityPreviewMocks.mockExecuteCapability.mockReturnValueOnce(new Promise((resolve) => {
-        resolveCapability = resolve;
-      }));
+      mockLibrarySkills = [
+        {
+          id: 'custom-running-card',
+          name: '正在执行的审稿卡',
+          description: '',
+          style: '',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 1,
+          createdAt: Date.now(),
+        },
+      ];
+      capabilityPreviewMocks.mockExecuteCapability.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveCapability = resolve;
+        })
+      );
 
       render(
         <React.StrictMode>
           <EditorView
             novel={{
-              id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-              status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+              id: 'test-novel-id',
+              title: 'Test Novel',
+              authorId: 'local-user',
+              summary: '',
+              status: 'ongoing',
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
             }}
             capabilityLaunchState={{
               novelId: 'test-novel-id',
@@ -1012,7 +1144,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             }}
             onBack={vi.fn()}
           />
-        </React.StrictMode>,
+        </React.StrictMode>
       );
 
       expect(await screen.findByText('正在运行能力卡...')).toBeDefined();
@@ -1048,8 +1180,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1059,11 +1196,19 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
-      await waitFor(() => expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith('已加入本章精修规则，请重新确认本次写法', 'success'));
-      expect(capabilityPreviewMocks.mockToast).not.toHaveBeenCalledWith('已加入本章技法，请重新确认本次写法', 'success');
+      await waitFor(() =>
+        expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith(
+          '已加入本章精修规则，请重新确认本次写法',
+          'success'
+        )
+      );
+      expect(capabilityPreviewMocks.mockToast).not.toHaveBeenCalledWith(
+        '已加入本章技法，请重新确认本次写法',
+        'success'
+      );
     });
 
     test('EditorView 启用普通写作技法时保留技法提示', async () => {
@@ -1082,8 +1227,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1093,10 +1243,15 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
-      await waitFor(() => expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith('已加入本章技法，请重新确认本次写法', 'success'));
+      await waitFor(() =>
+        expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith(
+          '已加入本章技法，请重新确认本次写法',
+          'success'
+        )
+      );
     });
 
     test('EditorView 从能力商店试跑拆书卡时优先入栈持久化卡', async () => {
@@ -1111,28 +1266,35 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         updatedAt: Date.now(),
         workflowMeta: { version: 1, capabilityState: { techniqueIds: [], overlayCardIds: [] } },
       };
-      mockLibrarySkills = [{
-        id: 'persisted-card-1',
-        parentSkillId: 'deconstruct-card-pacing',
-        name: '已保存节奏拆书卡',
-        description: '',
-        style: '短句推进',
-        pacing: '',
-        stabilityScore: 80,
-        evaluationFeedback: '',
-        version: 3,
-        sourceBadge: 'book-extracted',
-        deconstructionCardType: 'pacing-card',
-        executionScore: 88,
-        createdAt: Date.now(),
-      }];
+      mockLibrarySkills = [
+        {
+          id: 'persisted-card-1',
+          parentSkillId: 'deconstruct-card-pacing',
+          name: '已保存节奏拆书卡',
+          description: '',
+          style: '短句推进',
+          pacing: '',
+          stabilityScore: 80,
+          evaluationFeedback: '',
+          version: 3,
+          sourceBadge: 'book-extracted',
+          deconstructionCardType: 'pacing-card',
+          executionScore: 88,
+          createdAt: Date.now(),
+        },
+      ];
       mockHandleStackDeconstructionCard.mockResolvedValueOnce(undefined);
 
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1143,10 +1305,12 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             sessionCardIds: ['persisted-card-1'],
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
-      await waitFor(() => expect(mockHandleStackDeconstructionCard).toHaveBeenCalledWith('persisted-card-1'));
+      await waitFor(() =>
+        expect(mockHandleStackDeconstructionCard).toHaveBeenCalledWith('persisted-card-1')
+      );
       expect(mockHandleStackDeconstructionCard).not.toHaveBeenCalledWith('deconstruct-card-pacing');
     });
 
@@ -1167,8 +1331,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1178,11 +1347,19 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
-      await waitFor(() => expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith('本章精修规则保存失败，请重试', 'error'));
-      expect(capabilityPreviewMocks.mockToast).not.toHaveBeenCalledWith('章节能力配置保存失败', 'error');
+      await waitFor(() =>
+        expect(capabilityPreviewMocks.mockToast).toHaveBeenCalledWith(
+          '本章精修规则保存失败，请重试',
+          'error'
+        )
+      );
+      expect(capabilityPreviewMocks.mockToast).not.toHaveBeenCalledWith(
+        '章节能力配置保存失败',
+        'error'
+      );
     });
 
     test('EditorView 取消精修预览时保留同一能力事件会话', async () => {
@@ -1210,8 +1387,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1221,7 +1403,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
@@ -1230,14 +1412,16 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const events = vi.mocked(recordProductEvent).mock.calls.map(([event]) => event);
       const previewEvent = events.find((event) => event.eventName === 'capability_preview');
       const cancelEvent = events.find((event) => event.eventName === 'capability_cancel');
-      expect(cancelEvent).toEqual(expect.objectContaining({
-        action: 'transform-preview',
-        novelId: 'test-novel-id',
-        chapterId: 'ch-1',
-        objectId: 'preview-capability',
-        sessionId: previewEvent?.sessionId,
-        sourceType: 'unknown',
-      }));
+      expect(cancelEvent).toEqual(
+        expect.objectContaining({
+          action: 'transform-preview',
+          novelId: 'test-novel-id',
+          chapterId: 'ch-1',
+          objectId: 'preview-capability',
+          sessionId: previewEvent?.sessionId,
+          sourceType: 'unknown',
+        })
+      );
     });
 
     test('EditorView 记录一次性能力执行失败且不写入错误文本', async () => {
@@ -1267,8 +1451,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1278,26 +1467,32 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       expect(await screen.findByText('服务返回了正文片段')).toBeDefined();
       expect(screen.getByText('深度AI句式与套话物理抹除器')).toBeDefined();
       const retryButton = screen.getByRole('button', { name: '重新运行能力卡' });
-      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(expect.objectContaining({
-        eventName: 'capability_preview',
-        result: 'failure',
-        errorCode: 'CAPABILITY_UTILITY_EXECUTION_FAILED',
-        action: 'run-utility',
-        novelId: 'test-novel-id',
-        chapterId: 'ch-1',
-        objectId: 'de-ai-slop-shield',
-        sourceType: 'built-in',
-      }));
-      expect(JSON.stringify(vi.mocked(recordProductEvent).mock.calls)).not.toContain('服务返回了正文片段');
+      expect(vi.mocked(recordProductEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'capability_preview',
+          result: 'failure',
+          errorCode: 'CAPABILITY_UTILITY_EXECUTION_FAILED',
+          action: 'run-utility',
+          novelId: 'test-novel-id',
+          chapterId: 'ch-1',
+          objectId: 'de-ai-slop-shield',
+          sourceType: 'built-in',
+        })
+      );
+      expect(JSON.stringify(vi.mocked(recordProductEvent).mock.calls)).not.toContain(
+        '服务返回了正文片段'
+      );
 
       fireEvent.click(retryButton);
-      await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalledTimes(2)
+      );
       expect(await screen.findByText('审稿卡诊断报告')).toBeDefined();
       expect(screen.getByText('本次诊断未发现明确问题，正文未被修改。')).toBeDefined();
     });
@@ -1314,13 +1509,20 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      capabilityPreviewMocks.mockExecuteCapability.mockRejectedValueOnce(new Error('审稿服务暂不可用'));
+      capabilityPreviewMocks.mockExecuteCapability.mockRejectedValueOnce(
+        new Error('审稿服务暂不可用')
+      );
 
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1331,7 +1533,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           }}
           onBack={vi.fn()}
           onNavigate={onNavigate}
-        />,
+        />
       );
 
       expect(await screen.findByText('审稿卡执行失败')).toBeDefined();
@@ -1339,7 +1541,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(screen.getByText('去AI腔腔调与废话净化质检仪')).toBeDefined();
       expect(screen.queryByText('精修卡修改预览')).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: '返回作品能力中心' }));
-      expect(onNavigate).toHaveBeenCalledWith('skills', { targetChapterId: 'ch-1', stage: 'style-polish' });
+      expect(onNavigate).toHaveBeenCalledWith('skills', {
+        targetChapterId: 'ch-1',
+        stage: 'style-polish',
+      });
     });
 
     test('EditorView 不会应用没有变化的能力预览', async () => {
@@ -1365,8 +1570,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1376,7 +1586,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
@@ -1410,7 +1620,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           itemCount: 2,
           truncated: false,
           sources: [
-            { id: 'stage-prompt-critic', label: '审稿阶段能力卡与护栏', chars: 120, itemCount: 2, truncated: false },
+            {
+              id: 'stage-prompt-critic',
+              label: '审稿阶段能力卡与护栏',
+              chars: 120,
+              itemCount: 2,
+              truncated: false,
+            },
           ],
         },
         readOnly: true,
@@ -1423,8 +1639,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1434,7 +1655,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             targetChapterId: 'ch-1',
           }}
           onBack={vi.fn()}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
@@ -1466,7 +1687,12 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         report: {
           issueCount: 1,
           issues: [
-            { category: '节奏', line: 3, snippet: '这里忽然跳过冲突', suggestion: '补一段选择压力。' },
+            {
+              category: '节奏',
+              line: 3,
+              snippet: '这里忽然跳过冲突',
+              suggestion: '补一段选择压力。',
+            },
           ],
         },
       });
@@ -1474,8 +1700,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       render(
         <EditorView
           novel={{
-            id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '',
-            status: 'ongoing', createdAt: Date.now(), updatedAt: Date.now(),
+            id: 'test-novel-id',
+            title: 'Test Novel',
+            authorId: 'local-user',
+            summary: '',
+            status: 'ongoing',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           }}
           capabilityLaunchState={{
             novelId: 'test-novel-id',
@@ -1486,16 +1717,21 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           }}
           onBack={vi.fn()}
           onNavigate={onNavigate}
-        />,
+        />
       );
 
       await waitFor(() => expect(capabilityPreviewMocks.mockExecuteCapability).toHaveBeenCalled());
       expect(await screen.findByText('审稿卡诊断报告')).toBeDefined();
       expect(screen.getByText('节奏 · 第 3 行')).toBeDefined();
       expect(screen.getByText('建议：补一段选择压力。')).toBeDefined();
-      expect(screen.getByText('下一步：按建议修改正文，或运行精修卡生成预览，确认后再应用。')).toBeDefined();
+      expect(
+        screen.getByText('下一步：按建议修改正文，或运行精修卡生成预览，确认后再应用。')
+      ).toBeDefined();
       fireEvent.click(screen.getByRole('button', { name: '打开精修卡' }));
-      expect(onNavigate).toHaveBeenCalledWith('skills', { targetChapterId: 'ch-1', stage: 'style-polish' });
+      expect(onNavigate).toHaveBeenCalledWith('skills', {
+        targetChapterId: 'ch-1',
+        stage: 'style-polish',
+      });
       expect(capabilityPreviewMocks.mockHandleUpdateContent).not.toHaveBeenCalled();
     });
 
@@ -1540,19 +1776,26 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const mockSelectNovel = vi.fn();
       const mockStartContinuationImport = vi.fn();
 
-      storyCardsMockState.cards = [{
-        id: 'card-esc-1',
-        hook: '雨夜酒馆里的复仇刀客',
-        protagonist: '沉默刀客',
-        coreConflict: '复仇与真相的拉扯',
-        tone: '冷峻悬疑',
-        whyItWorks: '强冲突开局，悬念驱动。',
-        starterSeeds: {},
-        planningFit: { recommendedLength: '', recommendedFocus: '', recommendedPacing: '', reason: '' },
-        riskNote: '',
-        mixTags: [],
-        signals: {},
-      }];
+      storyCardsMockState.cards = [
+        {
+          id: 'card-esc-1',
+          hook: '雨夜酒馆里的复仇刀客',
+          protagonist: '沉默刀客',
+          coreConflict: '复仇与真相的拉扯',
+          tone: '冷峻悬疑',
+          whyItWorks: '强冲突开局，悬念驱动。',
+          starterSeeds: {},
+          planningFit: {
+            recommendedLength: '',
+            recommendedFocus: '',
+            recommendedPacing: '',
+            reason: '',
+          },
+          riskNote: '',
+          mixTags: [],
+          signals: {},
+        },
+      ];
       try {
         render(
           <WelcomeView
@@ -1610,7 +1853,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       expect(screen.queryByText('当前建议行动序列')).toBeNull();
       expect(screen.queryByTestId('cockpit-primary-action')).toBeNull();
       fireEvent.click(await screen.findByRole('button', { name: '管理能力' }));
-      expect(mockOpenCapabilities).toHaveBeenCalledWith({ novelId: 'test-novel-id', stage: 'creative-setup' });
+      expect(mockOpenCapabilities).toHaveBeenCalledWith({
+        novelId: 'test-novel-id',
+        stage: 'creative-setup',
+      });
     });
 
     test('onboarding 展示作者化能力建议且不自动应用', () => {
@@ -1633,14 +1879,16 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
             acceptedRecommendedSkills: false,
             onAcceptRecommendedSkills,
           }}
-        />,
+        />
       );
 
       expect(screen.getByText('创作流程')).toBeDefined();
       expect(screen.getByText('系统护栏')).toBeDefined();
       expect(screen.getByText('本章使用卡（可选）')).toBeDefined();
       expect(screen.getByText('推荐的角色写作配置')).toBeDefined();
-      expect(screen.getByText('只展示建议，不会自动应用；可稍后在作品能力中心调整。')).toBeDefined();
+      expect(
+        screen.getByText('只展示建议，不会自动应用；可稍后在作品能力中心调整。')
+      ).toBeDefined();
       expect(screen.queryByText(/Flow|Guardrail|Overlay|Role Skill|角色技能|自动装配/)).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: '稍后调整' }));
       expect(screen.queryByText('本阶段能力建议')).toBeNull();
@@ -1709,7 +1957,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       );
 
       // Wait a tick for effects to trigger
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       // Assert handleRunAudit was automatically called
       expect(mockHandleRunAudit).toHaveBeenCalled();
@@ -1717,65 +1965,158 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
 
     test('cockpit-complete-chapter 加载目标章节后直接执行完成编排', async () => {
       const novel = {
-        id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: '', mountedSkillIds: [], mountedSkillLoadout: [],
-        status: 'ongoing' as const, createdAt: Date.now(), updatedAt: Date.now(),
+        id: 'test-novel-id',
+        title: 'Test Novel',
+        authorId: 'local-user',
+        summary: '',
+        mountedSkillIds: [],
+        mountedSkillLoadout: [],
+        status: 'ongoing' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
-      render(<EditorView
-        novel={novel}
-        launchState={{ approvedPackId: '', launchToken: 202, shouldOpenProductionPanel: true, source: 'cockpit-complete-chapter', targetChapterId: 'ch-1' }}
-        onBack={vi.fn()}
-      />);
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      render(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: '',
+            launchToken: 202,
+            shouldOpenProductionPanel: true,
+            source: 'cockpit-complete-chapter',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={vi.fn()}
+        />
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      });
       expect(capabilityPreviewMocks.mockFlushPendingEditorWrites).toHaveBeenCalled();
-      expect(completionMocks.completeChapter).toHaveBeenCalledWith('ch-1', expect.objectContaining({ novelId: novel.id, databaseGeneration: 7 }));
+      expect(completionMocks.completeChapter).toHaveBeenCalledWith(
+        'ch-1',
+        expect.objectContaining({ novelId: novel.id, databaseGeneration: 7 })
+      );
       expect(mockHandleRunAudit).not.toHaveBeenCalled();
     });
 
-    test.each(['world-overview', 'continuation-import'] as const)('资料续写 %s 自动启动一次生产预览并带入意图', async (source) => {
-      mockSelectedContinuationPackId = 'pack-1';
-      mockContinuationPacks = [{ id: 'pack-1', status: 'approved', continuationTask: '推进主角与反派冲突', plotState: {}, continuationGaps: [] }];
-      const novel = {
-        id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: 'A test novel summary',
-        mountedSkillIds: [], mountedSkillLoadout: [], status: 'ongoing' as const, createdAt: Date.now(), updatedAt: Date.now(),
-      };
-      const launchState = {
-        approvedPackId: 'pack-1', launchToken: 101, shouldOpenProductionPanel: true as const,
-        source, prefillIntent: '继续写冲突', targetChapterId: 'ch-1',
-      };
-      const { rerender } = render(<EditorView novel={novel} launchState={launchState} onBack={vi.fn()} />);
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
-      rerender(<EditorView novel={novel} launchState={launchState} onBack={vi.fn()} />);
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
-      expect(mockStartProductionRun).toHaveBeenCalledTimes(1);
-      expect(mockStartProductionRun).toHaveBeenCalledWith('继续写冲突');
-    });
+    test.each(['world-overview', 'continuation-import'] as const)(
+      '资料续写 %s 自动启动一次生产预览并带入意图',
+      async (source) => {
+        mockSelectedContinuationPackId = 'pack-1';
+        mockContinuationPacks = [
+          {
+            id: 'pack-1',
+            status: 'approved',
+            continuationTask: '推进主角与反派冲突',
+            plotState: {},
+            continuationGaps: [],
+          },
+        ];
+        const novel = {
+          id: 'test-novel-id',
+          title: 'Test Novel',
+          authorId: 'local-user',
+          summary: 'A test novel summary',
+          mountedSkillIds: [],
+          mountedSkillLoadout: [],
+          status: 'ongoing' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        const launchState = {
+          approvedPackId: 'pack-1',
+          launchToken: 101,
+          shouldOpenProductionPanel: true as const,
+          source,
+          prefillIntent: '继续写冲突',
+          targetChapterId: 'ch-1',
+        };
+        const { rerender } = render(
+          <EditorView novel={novel} launchState={launchState} onBack={vi.fn()} />
+        );
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 15));
+        });
+        rerender(<EditorView novel={novel} launchState={launchState} onBack={vi.fn()} />);
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 15));
+        });
+        expect(mockStartProductionRun).toHaveBeenCalledTimes(1);
+        expect(mockStartProductionRun).toHaveBeenCalledWith('继续写冲突');
+      }
+    );
 
     test('world-overview 缺少 prefillIntent 时从 approved pack 派生生产意图', async () => {
       mockSelectedContinuationPackId = 'pack-1';
-      mockContinuationPacks = [{ id: 'pack-1', status: 'approved', continuationTask: '推进主角与反派冲突', plotState: {}, continuationGaps: [] }];
+      mockContinuationPacks = [
+        {
+          id: 'pack-1',
+          status: 'approved',
+          continuationTask: '推进主角与反派冲突',
+          plotState: {},
+          continuationGaps: [],
+        },
+      ];
       const novel = {
-        id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: 'A test novel summary',
-        mountedSkillIds: [], mountedSkillLoadout: [], status: 'ongoing' as const, createdAt: Date.now(), updatedAt: Date.now(),
+        id: 'test-novel-id',
+        title: 'Test Novel',
+        authorId: 'local-user',
+        summary: 'A test novel summary',
+        mountedSkillIds: [],
+        mountedSkillLoadout: [],
+        status: 'ongoing' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
-      render(<EditorView novel={novel} launchState={{
-        approvedPackId: 'pack-1', launchToken: 103, shouldOpenProductionPanel: true,
-        source: 'world-overview', targetChapterId: 'ch-1',
-      }} onBack={vi.fn()} />);
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      render(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: 'pack-1',
+            launchToken: 103,
+            shouldOpenProductionPanel: true,
+            source: 'world-overview',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={vi.fn()}
+        />
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      });
       expect(mockStartProductionRun).toHaveBeenCalledWith('推进主角与反派冲突');
     });
 
     test('storyboard 来源不自动启动生产预览', async () => {
       mockSelectedContinuationPackId = 'pack-1';
       const novel = {
-        id: 'test-novel-id', title: 'Test Novel', authorId: 'local-user', summary: 'A test novel summary',
-        mountedSkillIds: [], mountedSkillLoadout: [], status: 'ongoing' as const, createdAt: Date.now(), updatedAt: Date.now(),
+        id: 'test-novel-id',
+        title: 'Test Novel',
+        authorId: 'local-user',
+        summary: 'A test novel summary',
+        mountedSkillIds: [],
+        mountedSkillLoadout: [],
+        status: 'ongoing' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
-      render(<EditorView novel={novel} launchState={{
-        approvedPackId: 'pack-1', launchToken: 102, shouldOpenProductionPanel: true,
-        source: 'storyboard', prefillIntent: '不应自动生产', targetChapterId: 'ch-1',
-      }} onBack={vi.fn()} />);
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      render(
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: 'pack-1',
+            launchToken: 102,
+            shouldOpenProductionPanel: true,
+            source: 'storyboard',
+            prefillIntent: '不应自动生产',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={vi.fn()}
+        />
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      });
       expect(mockStartProductionRun).not.toHaveBeenCalled();
     });
 
@@ -1801,7 +2142,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         title: '第一章',
         content: 'Here is some content',
         critique: 'Some critique report',
-        workflowMeta: { version: 1, lastAudit: { status: 'fail', contentHash: 'old', completedAt: 100, source: 'model' } },
+        workflowMeta: {
+          version: 1,
+          lastAudit: { status: 'fail', contentHash: 'old', completedAt: 100, source: 'model' },
+        },
         wordCount: 150,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1823,7 +2167,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       );
 
       // Wait a tick for effects to trigger
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       expect(mockHandleRunAudit).toHaveBeenCalledTimes(1);
       expect(mockHandlePolishChapterFromAudit).not.toHaveBeenCalled();
@@ -1832,15 +2176,26 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       mockCurrentChapter = {
         ...mockCurrentChapter,
         critique: 'New critique report',
-        workflowMeta: { version: 1, lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' } },
+        workflowMeta: {
+          version: 1,
+          lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' },
+        },
       };
       rerender(
-        <EditorView novel={novel} launchState={{
-          approvedPackId: '', launchToken, shouldOpenProductionPanel: true,
-          source: 'cockpit-polish', targetChapterId: 'ch-1',
-        }} onBack={mockBack} onOpenAssistant={mockOpenAssistant} />
+        <EditorView
+          novel={novel}
+          launchState={{
+            approvedPackId: '',
+            launchToken,
+            shouldOpenProductionPanel: true,
+            source: 'cockpit-polish',
+            targetChapterId: 'ch-1',
+          }}
+          onBack={mockBack}
+          onOpenAssistant={mockOpenAssistant}
+        />
       );
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
       expect(mockHandlePolishChapterFromAudit).toHaveBeenCalledTimes(1);
     });
 
@@ -1887,7 +2242,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       );
 
       // Wait a tick for effects to trigger
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       // Assert handleRunAudit was automatically called instead
       expect(mockHandleRunAudit).toHaveBeenCalled();
@@ -1896,7 +2251,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       // Now simulate audit completes: we update mockCurrentChapter with critique and make isGeneratingCritique false
       mockIsGeneratingCritique = false;
       mockCurrentChapter.critique = 'Newly generated critique';
-      mockCurrentChapter.workflowMeta = { version: 1, lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' } };
+      mockCurrentChapter.workflowMeta = {
+        version: 1,
+        lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' },
+      };
 
       // Rerender to trigger effect
       rerender(
@@ -1914,7 +2272,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
         />
       );
 
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       // Now assert handlePolishChapterFromAudit was automatically run!
       expect(mockHandlePolishChapterFromAudit).toHaveBeenCalled();
@@ -1963,7 +2321,9 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           onOpenAssistant={mockOpenAssistant}
         />
       );
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      });
 
       expect(mockHandleRunAudit).toHaveBeenCalledTimes(1);
       expect(onLaunchConsumed).toHaveBeenCalledWith(launchToken);
@@ -1983,7 +2343,10 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       mockCurrentChapter = {
         ...mockCurrentChapter,
         critique: 'Newly generated critique',
-        workflowMeta: { version: 1, lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' } },
+        workflowMeta: {
+          version: 1,
+          lastAudit: { status: 'fail', contentHash: 'new', completedAt: 200, source: 'model' },
+        },
       };
 
       await act(async () => {
@@ -2005,12 +2368,7 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
       const mockClose = vi.fn();
 
       render(
-        <SettingsModal
-          isOpen={true}
-          onClose={mockClose}
-          theme="dark"
-          onThemeChange={() => {}}
-        />
+        <SettingsModal isOpen={true} onClose={mockClose} theme="dark" onThemeChange={() => {}} />
       );
 
       const tabTrigger = screen.getByText('数据备份与管理');

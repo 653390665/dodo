@@ -4,10 +4,14 @@ const MAX_EFFECTIVE_SKILL_CARDS = 6;
 
 function normalizeIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value
-    .filter((id): id is string => typeof id === 'string')
-    .map((id) => id.trim())
-    .filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .filter((id): id is string => typeof id === 'string')
+        .map((id) => id.trim())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 export function getChapterOverlayCapacity(profile?: ProjectPreferenceProfile): number {
@@ -27,8 +31,8 @@ export function buildChapterCapabilityWorkflowMeta(
     databaseGeneration?: number;
     techniqueVersions?: Record<string, string | number>;
     overlayVersions?: Record<string, string | number>;
-  },
-  ): ChapterWorkflowMeta {
+  }
+): ChapterWorkflowMeta {
   const normalizeVersions = (value: unknown): Record<string, string | number> => {
     if (!value || typeof value !== 'object') return {};
     const result: Record<string, string | number> = {};
@@ -41,13 +45,24 @@ export function buildChapterCapabilityWorkflowMeta(
   const capabilityState = {
     techniqueIds: normalizeIds(state.techniqueIds),
     overlayCardIds: normalizeIds(state.overlayCardIds),
-    updatedAt: typeof state.updatedAt === 'number' && Number.isFinite(state.updatedAt) && state.updatedAt >= 0
-      ? state.updatedAt
-      : Date.now(),
-    ...(typeof state.novelId === 'string' && state.novelId.trim() ? { novelId: state.novelId.trim() } : {}),
-    ...(Number.isInteger(state.databaseGeneration) && (state.databaseGeneration as number) >= 0 ? { databaseGeneration: state.databaseGeneration } : {}),
-    ...(Object.keys(normalizeVersions(state.techniqueVersions)).length > 0 ? { techniqueVersions: normalizeVersions(state.techniqueVersions) } : {}),
-    ...(Object.keys(normalizeVersions(state.overlayVersions)).length > 0 ? { overlayVersions: normalizeVersions(state.overlayVersions) } : {}),
+    updatedAt:
+      typeof state.updatedAt === 'number' &&
+      Number.isFinite(state.updatedAt) &&
+      state.updatedAt >= 0
+        ? state.updatedAt
+        : Date.now(),
+    ...(typeof state.novelId === 'string' && state.novelId.trim()
+      ? { novelId: state.novelId.trim() }
+      : {}),
+    ...(Number.isInteger(state.databaseGeneration) && (state.databaseGeneration as number) >= 0
+      ? { databaseGeneration: state.databaseGeneration }
+      : {}),
+    ...(Object.keys(normalizeVersions(state.techniqueVersions)).length > 0
+      ? { techniqueVersions: normalizeVersions(state.techniqueVersions) }
+      : {}),
+    ...(Object.keys(normalizeVersions(state.overlayVersions)).length > 0
+      ? { overlayVersions: normalizeVersions(state.overlayVersions) }
+      : {}),
   };
   return {
     ...(current || {}),

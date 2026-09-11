@@ -1,4 +1,14 @@
-import { Character, Novel, Location, Item, Faction, PowerLevel, TimelineEvent, Skill, Foreshadowing } from "../../shared/types";
+import {
+  Character,
+  Novel,
+  Location,
+  Item,
+  Faction,
+  PowerLevel,
+  TimelineEvent,
+  Skill,
+  Foreshadowing,
+} from '../../shared/types';
 import type { PromptSurface } from '../../shared/lib/prompt-stage-routing';
 import { pollJob } from './poll-client';
 
@@ -66,14 +76,14 @@ export function buildContextPrompt(context: AgentContext): string {
   const pruneCharacters = (chars: Character[] | undefined) => {
     if (!chars) return [];
     // Always keep protagonists for global context
-    const protagonists = chars.filter(c => c.role === 'protagonist');
+    const protagonists = chars.filter((c) => c.role === 'protagonist');
 
     // If not sniffed, return all to be safe, but ideally in a real app would paginate or limit
     if (!context.activeEntityNames) return chars;
 
     // Filter active characters, excluding protagonists (already added)
-    const activeChars = chars.filter(c =>
-      context.activeEntityNames!.includes(c.name) && c.role !== 'protagonist'
+    const activeChars = chars.filter(
+      (c) => context.activeEntityNames!.includes(c.name) && c.role !== 'protagonist'
     );
 
     return [...protagonists, ...activeChars];
@@ -82,7 +92,7 @@ export function buildContextPrompt(context: AgentContext): string {
   const filterEntities = <T extends NamedEntity>(entities: T[] | undefined) => {
     if (!entities) return [];
     if (!context.activeEntityNames) return entities;
-    return entities.filter(e => context.activeEntityNames!.includes(e.name));
+    return entities.filter((e) => context.activeEntityNames!.includes(e.name));
   };
 
   const activeChars = pruneCharacters(context.characters).slice(0, MAX_CHARACTERS);
@@ -98,25 +108,49 @@ export function buildContextPrompt(context: AgentContext): string {
     })
     .slice(0, MAX_FORESHADOWINGS);
 
-  const charContext = activeChars.map(c => `${c.name} (${c.role || '未定'}): ${c.summary} - ${(c.traits || []).join(',')}`).join('\n') || '无特写角色';
-  const locationContext = activeLocations.map(l => `${l.name} (${l.region}): ${l.description}`).join('\n') || '未指定场景';
-  const itemContext = activeItems.map(i => `${i.name} [${i.type}]: ${i.description}`).join('\n') || '无特殊道具';
-  const factionContext = activeFactions.map(f => `${f.name} [首领:${f.leader}]: 占据 ${f.territory}。 ${f.description}`).join('\n') || '无特写势力';
+  const charContext =
+    activeChars
+      .map((c) => `${c.name} (${c.role || '未定'}): ${c.summary} - ${(c.traits || []).join(',')}`)
+      .join('\n') || '无特写角色';
+  const locationContext =
+    activeLocations.map((l) => `${l.name} (${l.region}): ${l.description}`).join('\n') ||
+    '未指定场景';
+  const itemContext =
+    activeItems.map((i) => `${i.name} [${i.type}]: ${i.description}`).join('\n') || '无特殊道具';
+  const factionContext =
+    activeFactions
+      .map((f) => `${f.name} [首领:${f.leader}]: 占据 ${f.territory}。 ${f.description}`)
+      .join('\n') || '无特写势力';
   const foreshadowingContext = truncateText(
-    openForeshadowings.map((entry) => `- [${entry.id}] ${entry.title} (${entry.status}): ${entry.description}${entry.notes ? `；备注：${entry.notes}` : ''}`).join('\n') || '暂无开放伏笔',
-    MAX_FORESHADOWING_CHARS,
+    openForeshadowings
+      .map(
+        (entry) =>
+          `- [${entry.id}] ${entry.title} (${entry.status}): ${entry.description}${entry.notes ? `；备注：${entry.notes}` : ''}`
+      )
+      .join('\n') || '暂无开放伏笔',
+    MAX_FORESHADOWING_CHARS
   );
 
   let powerLevelContext = '';
   if (context.powerLevels && context.powerLevels.length > 0) {
-    powerLevelContext = `\n【境界与力量体系】\n` +
-      context.powerLevels.slice(0, MAX_POWER_LEVELS).map(p => `- 第${p.tier}阶 [${p.name}]: ${p.characteristics}。${p.description}`).join('\n') + `\n`;
+    powerLevelContext =
+      `\n【境界与力量体系】\n` +
+      context.powerLevels
+        .slice(0, MAX_POWER_LEVELS)
+        .map((p) => `- 第${p.tier}阶 [${p.name}]: ${p.characteristics}。${p.description}`)
+        .join('\n') +
+      `\n`;
   }
 
   let timelineContext = '';
   if (context.timelineEvents && context.timelineEvents.length > 0) {
-    timelineContext = `\n【重大历史时间线 (Timeline)】\n` +
-      context.timelineEvents.slice(0, MAX_TIMELINE_EVENTS).map(t => `- [${t.timestamp}] ${t.title}: ${t.description}`).join('\n') + `\n`;
+    timelineContext =
+      `\n【重大历史时间线 (Timeline)】\n` +
+      context.timelineEvents
+        .slice(0, MAX_TIMELINE_EVENTS)
+        .map((t) => `- [${t.timestamp}] ${t.title}: ${t.description}`)
+        .join('\n') +
+      `\n`;
   }
 
   let recentContext = '';
@@ -126,10 +160,10 @@ export function buildContextPrompt(context: AgentContext): string {
 
   // Dynamic entity ordering based on scene type
   const entityOrderByScene: Record<SceneType, string[]> = {
-    action:      ['locations', 'items', 'characters', 'factions'],
-    dialogue:    ['characters', 'locations', 'items', 'factions'],
-    politics:    ['factions', 'characters', 'locations', 'items'],
-    emotional:   ['characters', 'locations', 'items', 'factions'],
+    action: ['locations', 'items', 'characters', 'factions'],
+    dialogue: ['characters', 'locations', 'items', 'factions'],
+    politics: ['factions', 'characters', 'locations', 'items'],
+    emotional: ['characters', 'locations', 'items', 'factions'],
   };
 
   const sections: Record<string, string> = {
@@ -155,8 +189,13 @@ ${foreshadowingContext}
 
 ${(() => {
   const sceneType = context.sceneType;
-  const order = sceneType ? entityOrderByScene[sceneType] : ['characters', 'locations', 'items', 'factions'];
-  return order.map(key => sections[key] || '').filter(Boolean).join('\n\n');
+  const order = sceneType
+    ? entityOrderByScene[sceneType]
+    : ['characters', 'locations', 'items', 'factions'];
+  return order
+    .map((key) => sections[key] || '')
+    .filter(Boolean)
+    .join('\n\n');
 })()}
 `;
 }
@@ -169,12 +208,12 @@ export async function extractWorldSetupPhase(
   documentText: string,
   novelId: string,
   onProgress?: (progress: number, status: string) => void,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<ExtractedWorldSetupJobResult> {
   const response = await fetch('/api/extract-world-setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documentText, novelId })
+    body: JSON.stringify({ documentText, novelId }),
   });
   const data = await response.json();
   if (!response.ok || data.error) {
@@ -191,13 +230,20 @@ export async function extractWorldSetupPhase(
   const cancel = () => {
     if (completed || cancelled) return;
     cancelled = true;
-    void fetch(`/api/extract-world-setup/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, { method: 'POST' }).catch(() => {});
+    void fetch(
+      `/api/extract-world-setup/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`,
+      { method: 'POST' }
+    ).catch(() => {});
   };
   signal?.addEventListener('abort', cancel, { once: true });
   try {
-    const result = await pollJob<ExtractedWorldSetup>(`/api/extract-world-setup/jobs/${jobId}?databaseGeneration=${databaseGeneration}`, {
-      onProgress,
-    }, signal);
+    const result = await pollJob<ExtractedWorldSetup>(
+      `/api/extract-world-setup/jobs/${jobId}?databaseGeneration=${databaseGeneration}`,
+      {
+        onProgress,
+      },
+      signal
+    );
     completed = true;
     return { result, databaseGeneration };
   } finally {
@@ -212,7 +258,7 @@ export async function editorAgentPhase(
   databaseGeneration: number,
   continuationPackId?: string,
   onProgress?: (progress: number, status: string) => void,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<{ text: string; databaseGeneration: number }> {
   if (!context.chapterId) throw new Error('章节与数据库版本是分镜生成的必需上下文');
   const contextStr = buildContextPrompt(context);
@@ -228,7 +274,7 @@ export async function editorAgentPhase(
       novelId: context.novel.id,
       chapterId: context.chapterId,
       databaseGeneration,
-      ...(continuationPackId ? { continuationPackId } : {})
+      ...(continuationPackId ? { continuationPackId } : {}),
     }),
     signal,
   });
@@ -248,9 +294,12 @@ export async function editorAgentPhase(
   const cancel = () => {
     if (completed || cancelled) return;
     cancelled = true;
-    void fetch(`/api/agents/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`, {
-      method: 'POST',
-    }).catch(() => {});
+    void fetch(
+      `/api/agents/jobs/${encodeURIComponent(jobId)}/cancel?databaseGeneration=${databaseGeneration}`,
+      {
+        method: 'POST',
+      }
+    ).catch(() => {});
   };
   signal?.addEventListener('abort', cancel, { once: true });
   try {
@@ -259,7 +308,7 @@ export async function editorAgentPhase(
       result = await pollJob<{ text: string }>(
         `/api/agents/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`,
         { onProgress },
-        signal,
+        signal
       );
     } catch (error) {
       if (error instanceof Error && /HTTP 409/.test(error.message)) {

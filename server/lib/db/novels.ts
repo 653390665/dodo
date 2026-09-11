@@ -9,16 +9,34 @@ const novelCrud = createCrudHelpers<Novel, ReturnType<typeof novelToRow>>({
   rowToEntity: rowToNovel,
   entityToRow: novelToRow,
   insertColumns: [
-    'id', 'title', 'author_id', 'summary', 'cover_image', 'status', 'world_rules',
-    'global_outline', 'mounted_skill_ids', 'mounted_skill_loadout',
-    'project_preference_profile', 'created_at', 'updated_at'
+    'id',
+    'title',
+    'author_id',
+    'summary',
+    'cover_image',
+    'status',
+    'world_rules',
+    'global_outline',
+    'mounted_skill_ids',
+    'mounted_skill_loadout',
+    'project_preference_profile',
+    'created_at',
+    'updated_at',
   ],
   updateColumns: [
-    'title', 'author_id', 'summary', 'cover_image', 'status', 'world_rules',
-    'global_outline', 'mounted_skill_ids', 'mounted_skill_loadout',
-    'project_preference_profile', 'updated_at'
+    'title',
+    'author_id',
+    'summary',
+    'cover_image',
+    'status',
+    'world_rules',
+    'global_outline',
+    'mounted_skill_ids',
+    'mounted_skill_loadout',
+    'project_preference_profile',
+    'updated_at',
   ],
-  listOrderBy: 'updated_at DESC'
+  listOrderBy: 'updated_at DESC',
 });
 
 export function listNovels(): Novel[] {

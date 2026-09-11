@@ -21,7 +21,7 @@ export async function readDraftStream(
     onStatus?: (message: string) => void;
     onToken?: (token: string) => void;
     onSource?: (source: 'model' | 'fallback') => void;
-  } = {},
+  } = {}
 ): Promise<string> {
   let accumulated = '';
   let finalText: string | undefined;

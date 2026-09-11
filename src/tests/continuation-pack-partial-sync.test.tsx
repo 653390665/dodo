@@ -33,17 +33,46 @@ vi.mock('../lib/prompt-client', () => ({ parseContinuationPack: vi.fn() }));
 import { ContinuationPackView } from '../components/ContinuationPackView';
 
 const novel = {
-  id: 'n1', title: '测试小说', authorId: 'local', summary: '', status: 'ongoing' as const,
-  createdAt: 0, updatedAt: 0,
+  id: 'n1',
+  title: '测试小说',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing' as const,
+  createdAt: 0,
+  updatedAt: 0,
 };
 
 const pack = {
-  id: 'pack-a', novelId: 'n1', title: 'Pack A', status: 'approved' as const,
-  sourceDocuments: [], canonFacts: [], characterStates: [],
-  plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
-  styleProfile: { pov: 'third', tense: 'past', pacing: '', dialogueDensity: 'normal', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
-  contradictions: [], continuationTask: '', sourceMap: { sections: [], keyConflicts: [] },
-  readingQuestions: [], continuationGaps: [], createdAt: 0, updatedAt: 0,
+  id: 'pack-a',
+  novelId: 'n1',
+  title: 'Pack A',
+  status: 'approved' as const,
+  sourceDocuments: [],
+  canonFacts: [],
+  characterStates: [],
+  plotState: {
+    currentTimeline: '',
+    latestScene: '',
+    unresolvedHooks: [],
+    immediateConflict: '',
+    nextLikelyMove: '',
+  },
+  styleProfile: {
+    pov: 'third',
+    tense: 'past',
+    pacing: '',
+    dialogueDensity: 'normal',
+    proseTraits: [],
+    avoidTraits: [],
+    sampleEvidence: '',
+  },
+  contradictions: [],
+  continuationTask: '',
+  sourceMap: { sections: [], keyConflicts: [] },
+  readingQuestions: [],
+  continuationGaps: [],
+  createdAt: 0,
+  updatedAt: 0,
 };
 
 describe('ContinuationPackView partial sync', () => {
@@ -55,18 +84,40 @@ describe('ContinuationPackView partial sync', () => {
     mockListItems.mockResolvedValue([]);
     mockListFactions.mockResolvedValue([]);
     mockExtract.mockResolvedValue({
-      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+      packId: 'pack-a',
+      novelId: 'n1',
+      databaseGeneration: 1,
       extraction: {
         characters: [{ name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] }],
-        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
         relationships: [
-          { sourceName: '张三', sourceType: 'character', targetName: '未知角色', targetType: 'character', relationshipType: '敌对', description: '' },
+          {
+            sourceName: '张三',
+            sourceType: 'character',
+            targetName: '未知角色',
+            targetType: 'character',
+            relationshipType: '敌对',
+            description: '',
+          },
         ],
-        globalOutline: '', worldRules: '',
+        globalOutline: '',
+        worldRules: '',
       },
     });
     mockSync.mockResolvedValue({
-      created: { characters: 1, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 },
+      created: {
+        characters: 1,
+        locations: 0,
+        items: 0,
+        factions: 0,
+        powerLevels: 0,
+        timelineEvents: 0,
+        relationships: 0,
+      },
       skipped: { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 },
     });
   });
@@ -76,7 +127,9 @@ describe('ContinuationPackView partial sync', () => {
     render(<ContinuationPackView novel={novel} onSyncComplete={onSyncComplete} />);
     fireEvent.click(await screen.findByText('Pack A'));
     expect((await screen.findAllByText('资料包已确认')).length).toBeGreaterThan(0);
-    expect(await screen.findByText('资料包确认不代表已写入设定集；提取后还需在同步预览确认。')).toBeDefined();
+    expect(
+      await screen.findByText('资料包确认不代表已写入设定集；提取后还需在同步预览确认。')
+    ).toBeDefined();
     fireEvent.click((await screen.findAllByRole('button', { name: '提取并预览' }))[0]);
 
     const confirm = await screen.findByRole('button', { name: '导入可确认项并处理 1 条关系' });
@@ -97,25 +150,60 @@ describe('ContinuationPackView partial sync', () => {
   });
 
   test('after partial sync, hides imported entities and shows only unresolved relationships', async () => {
-    mockListCharacters
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        { id: 'c1', novelId: 'n1', name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] },
-        { id: 'c2', novelId: 'n1', name: '李四', role: 'supporting', summary: '', bio: '', traits: [] },
-      ]);
+    mockListCharacters.mockResolvedValueOnce([]).mockResolvedValue([
+      {
+        id: 'c1',
+        novelId: 'n1',
+        name: '张三',
+        role: 'protagonist',
+        summary: '',
+        bio: '',
+        traits: [],
+      },
+      {
+        id: 'c2',
+        novelId: 'n1',
+        name: '李四',
+        role: 'supporting',
+        summary: '',
+        bio: '',
+        traits: [],
+      },
+    ]);
     mockExtract.mockResolvedValue({
-      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+      packId: 'pack-a',
+      novelId: 'n1',
+      databaseGeneration: 1,
       extraction: {
         characters: [
           { name: '张三', role: 'protagonist', summary: '', bio: '', traits: [] },
           { name: '李四', role: 'supporting', summary: '', bio: '', traits: [] },
         ],
-        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
         relationships: [
-          { sourceName: '张三', sourceType: 'character', targetName: '李四', targetType: 'character', relationshipType: '同盟', description: '已可确认' },
-          { sourceName: '张三', sourceType: 'character', targetName: '未知角色', targetType: 'character', relationshipType: '敌对', description: '仍需处理' },
+          {
+            sourceName: '张三',
+            sourceType: 'character',
+            targetName: '李四',
+            targetType: 'character',
+            relationshipType: '同盟',
+            description: '已可确认',
+          },
+          {
+            sourceName: '张三',
+            sourceType: 'character',
+            targetName: '未知角色',
+            targetType: 'character',
+            relationshipType: '敌对',
+            description: '仍需处理',
+          },
         ],
-        globalOutline: '', worldRules: '',
+        globalOutline: '',
+        worldRules: '',
       },
     });
 
@@ -139,7 +227,12 @@ describe('ContinuationPackView partial sync', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '提取并预览' }));
     await waitFor(() => expect(mockExtract).toHaveBeenCalledTimes(1));
-    expect(mockExtract).toHaveBeenCalledWith('pack-a', 'n1', expect.any(AbortSignal), expect.any(Function));
+    expect(mockExtract).toHaveBeenCalledWith(
+      'pack-a',
+      'n1',
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
     expect(mockSync).not.toHaveBeenCalled();
   });
 });

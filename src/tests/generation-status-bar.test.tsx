@@ -4,15 +4,16 @@ import { GenerationStatusBar } from '../components/GenerationStatusBar';
 import { useProductionStore } from '../stores/production-store';
 import type { ChapterProductionRun } from '../../shared/types';
 
-const run = (overrides: Partial<ChapterProductionRun> = {}): ChapterProductionRun => ({
-  id: 'run-1',
-  status: 'running',
-  createdAt: 1,
-  updatedAt: 1,
-  novelId: 'novel-1',
-  continuityReport: {} as ChapterProductionRun['continuityReport'],
-  ...overrides,
-} as ChapterProductionRun);
+const run = (overrides: Partial<ChapterProductionRun> = {}): ChapterProductionRun =>
+  ({
+    id: 'run-1',
+    status: 'running',
+    createdAt: 1,
+    updatedAt: 1,
+    novelId: 'novel-1',
+    continuityReport: {} as ChapterProductionRun['continuityReport'],
+    ...overrides,
+  }) as ChapterProductionRun;
 
 describe('GenerationStatusBar', () => {
   beforeEach(() => {
@@ -67,7 +68,7 @@ describe('GenerationStatusBar', () => {
       <div>
         <GenerationStatusBar mode="full" />
         <GenerationStatusBar mode="full" />
-      </div>,
+      </div>
     );
     const bars = () => probe.container.querySelectorAll('[role="status"]');
     expect(bars().length).toBe(2);
@@ -114,7 +115,9 @@ describe('GenerationStatusBar', () => {
 
     // 已写入后不再可点击
     act(() => {
-      useProductionStore.setState({ activeProductionRun: run({ status: 'applied', targetChapterId: 'chapter-1' }) });
+      useProductionStore.setState({
+        activeProductionRun: run({ status: 'applied', targetChapterId: 'chapter-1' }),
+      });
     });
     expect(screen.queryByRole('button', { name: /④ 写入/ })).toBeNull();
   });

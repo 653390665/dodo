@@ -20,4 +20,3 @@ export interface GenreProfile {
   constraints: Record<string, unknown>;
   promptAugmentation: string;
 }
-

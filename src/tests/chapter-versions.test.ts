@@ -7,7 +7,9 @@ const clients = vi.hoisted(() => ({
   subscribeToChanges: vi.fn(() => () => undefined),
 }));
 
-vi.mock('../lib/chapter-client', () => ({ listChapterVersionMetas: clients.listChapterVersionMetas }));
+vi.mock('../lib/chapter-client', () => ({
+  listChapterVersionMetas: clients.listChapterVersionMetas,
+}));
 vi.mock('../lib/db-transport', () => ({ subscribeToChanges: clients.subscribeToChanges }));
 
 import { useChapterVersions } from '../lib/hooks/useChapterVersions';
@@ -31,20 +33,27 @@ describe('useChapterVersions request isolation', () => {
   test('a late chapter A response cannot overwrite chapter B versions', async () => {
     let resolveA!: (versions: ChapterVersionMeta[]) => void;
     let resolveB!: (versions: ChapterVersionMeta[]) => void;
-    clients.listChapterVersionMetas.mockImplementation((chapterId: string) => new Promise<ChapterVersionMeta[]>((resolve) => {
-      if (chapterId === 'A') resolveA = resolve;
-      else resolveB = resolve;
-    }));
+    clients.listChapterVersionMetas.mockImplementation(
+      (chapterId: string) =>
+        new Promise<ChapterVersionMeta[]>((resolve) => {
+          if (chapterId === 'A') resolveA = resolve;
+          else resolveB = resolve;
+        })
+    );
 
     const hook = renderHook(({ chapterId }) => useChapterVersions(chapterId), {
       initialProps: { chapterId: 'A' },
     });
     hook.rerender({ chapterId: 'B' });
 
-    await act(async () => { resolveB([versionMeta('B')]); });
+    await act(async () => {
+      resolveB([versionMeta('B')]);
+    });
     await waitFor(() => expect(hook.result.current.versions).toEqual([versionMeta('B')]));
 
-    await act(async () => { resolveA([versionMeta('A')]); });
+    await act(async () => {
+      resolveA([versionMeta('A')]);
+    });
     expect(hook.result.current.versions).toEqual([versionMeta('B')]);
   });
 });

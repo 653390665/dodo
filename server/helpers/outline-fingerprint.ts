@@ -32,7 +32,7 @@ export function stableOutlineScope(scope: OutlineArtifactScope): string {
 export function outlineMasterBaseFingerprint(
   novelId: string,
   worldRules: string,
-  master: Pick<OutlineArtifact, 'id' | 'level' | 'scope' | 'content' | 'core'>,
+  master: Pick<OutlineArtifact, 'id' | 'level' | 'scope' | 'content' | 'core'>
 ): string {
   const payload = JSON.stringify(
     stable({
@@ -63,21 +63,23 @@ export interface CanonFingerprintArtifact {
 export function outlineCanonFingerprint(
   novelId: string,
   worldRules: string,
-  artifacts: readonly CanonFingerprintArtifact[],
+  artifacts: readonly CanonFingerprintArtifact[]
 ): string {
-  const payload = JSON.stringify(stable({
-    version: 'outline-canon-v1',
-    novelId,
-    worldRules,
-    artifacts: [...artifacts]
-      .map((artifact) => ({
-        id: artifact.id,
-        level: artifact.level,
-        scope: artifact.scope,
-        content: artifact.content,
-        ...(artifact.core ? { core: artifact.core } : {}),
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-  }));
+  const payload = JSON.stringify(
+    stable({
+      version: 'outline-canon-v1',
+      novelId,
+      worldRules,
+      artifacts: [...artifacts]
+        .map((artifact) => ({
+          id: artifact.id,
+          level: artifact.level,
+          scope: artifact.scope,
+          content: artifact.content,
+          ...(artifact.core ? { core: artifact.core } : {}),
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    })
+  );
   return createHash('sha256').update(payload, 'utf8').digest('hex');
 }

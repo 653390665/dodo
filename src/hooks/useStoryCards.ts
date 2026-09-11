@@ -75,7 +75,12 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
       }));
 
       try {
-        const { cards, source, jobId, warnings: w } = await generateStoryCards({
+        const {
+          cards,
+          source,
+          jobId,
+          warnings: w,
+        } = await generateStoryCards({
           ideaSeed,
           chatContext: chatContextRef.current,
           planning,
@@ -137,7 +142,7 @@ export function useStoryCards({ planning, chatContext }: UseStoryCardsOptions) {
         return false;
       }
     },
-    [planning, clearPoller],
+    [planning, clearPoller]
   );
 
   return { ...state, submit };

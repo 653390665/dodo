@@ -71,43 +71,59 @@ import { useEditorGenerationFlow } from '../lib/hooks/useEditorGenerationFlow';
 import { useEditorGenerationStore } from '../stores/editor-generation-store';
 
 const novel: Novel = {
-  id: 'novel-1', title: 'Novel', authorId: 'user', summary: '', status: 'ongoing', createdAt: 1, updatedAt: 1,
+  id: 'novel-1',
+  title: 'Novel',
+  authorId: 'user',
+  summary: '',
+  status: 'ongoing',
+  createdAt: 1,
+  updatedAt: 1,
 };
 const chapter: Chapter = {
-  id: 'chapter-1', novelId: novel.id, title: 'Chapter', content: 'baseline', sceneBeats: 'beats',
-  order: 1, wordCount: 8, createdAt: 1, updatedAt: 1,
+  id: 'chapter-1',
+  novelId: novel.id,
+  title: 'Chapter',
+  content: 'baseline',
+  sceneBeats: 'beats',
+  order: 1,
+  wordCount: 8,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 function renderFlow(databaseGeneration = 1) {
-  return renderHook(({ generation, autoStart }) => {
-    const flow = useEditorGenerationFlow({
-      novel,
-      currentChapter: chapter,
-      userIntent: '',
-      expectedWordCount: '',
-      globalOutline: '',
-      contentRef: { current: null },
-      selectedContinuationPackId: '',
-      approvedOutlinePackId: '',
-      buildAgentContext: () => ({} as never),
-      handleUpdateContent: vi.fn(),
-      pushToUndoHistory: vi.fn(),
-      setCurrentChapter: vi.fn(),
-      setGlobalOutline: vi.fn(),
-      setUserIntent: vi.fn(),
-      getCurrentFitScore: () => 100,
-      recordSkillUsage: vi.fn(async () => undefined),
-      formatAiFailure: () => 'failed',
-      flushPendingEditorWrites: vi.fn(async () => undefined),
-      databaseGeneration: generation,
-    });
-    useEffect(() => {
-      if (autoStart) void flow.handleGenerateContent();
-      // The test intentionally models a later parent effect, such as cockpit auto-start.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoStart, generation]);
-    return flow;
-  }, { initialProps: { generation: databaseGeneration, autoStart: false } });
+  return renderHook(
+    ({ generation, autoStart }) => {
+      const flow = useEditorGenerationFlow({
+        novel,
+        currentChapter: chapter,
+        userIntent: '',
+        expectedWordCount: '',
+        globalOutline: '',
+        contentRef: { current: null },
+        selectedContinuationPackId: '',
+        approvedOutlinePackId: '',
+        buildAgentContext: () => ({}) as never,
+        handleUpdateContent: vi.fn(),
+        pushToUndoHistory: vi.fn(),
+        setCurrentChapter: vi.fn(),
+        setGlobalOutline: vi.fn(),
+        setUserIntent: vi.fn(),
+        getCurrentFitScore: () => 100,
+        recordSkillUsage: vi.fn(async () => undefined),
+        formatAiFailure: () => 'failed',
+        flushPendingEditorWrites: vi.fn(async () => undefined),
+        databaseGeneration: generation,
+      });
+      useEffect(() => {
+        if (autoStart) void flow.handleGenerateContent();
+        // The test intentionally models a later parent effect, such as cockpit auto-start.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [autoStart, generation]);
+      return flow;
+    },
+    { initialProps: { generation: databaseGeneration, autoStart: false } }
+  );
 }
 
 describe('editor generation flow invalidation', () => {
@@ -154,15 +170,32 @@ describe('editor generation flow invalidation', () => {
       const args = auditPolishMocks.hookArgs;
       if (!args) return;
       args.requestSeqRef.current += 1;
-      args.setRetryContext?.({ operation: 'polish', fingerprint: 'fp-style', reviewOptions: { previewOnly: true, issueIds: ['i1'] } });
-      args.setAiActionState({ status: 'error', operation: 'polish', message: '精修失败', retryable: true });
+      args.setRetryContext?.({
+        operation: 'polish',
+        fingerprint: 'fp-style',
+        reviewOptions: { previewOnly: true, issueIds: ['i1'] },
+      });
+      args.setAiActionState({
+        status: 'error',
+        operation: 'polish',
+        message: '精修失败',
+        retryable: true,
+      });
     });
 
-    await act(async () => result.current.handlePolishChapterFromAudit('fp-style', { previewOnly: true, issueIds: ['i1'] }));
+    await act(async () =>
+      result.current.handlePolishChapterFromAudit('fp-style', {
+        previewOnly: true,
+        issueIds: ['i1'],
+      })
+    );
     auditPolishMocks.handlePolishChapterFromAudit.mockClear();
     await act(async () => result.current.retryLastAiAction());
 
     expect(auditPolishMocks.handlePolishChapterFromAudit).toHaveBeenCalledTimes(1);
-    expect(auditPolishMocks.handlePolishChapterFromAudit).toHaveBeenCalledWith('fp-style', { previewOnly: true, issueIds: ['i1'] });
+    expect(auditPolishMocks.handlePolishChapterFromAudit).toHaveBeenCalledWith('fp-style', {
+      previewOnly: true,
+      issueIds: ['i1'],
+    });
   });
 });

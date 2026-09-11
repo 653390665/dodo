@@ -22,7 +22,9 @@ const TASK_META: Array<{
 
 function formatWordCount(expectedWordCount: number) {
   if (expectedWordCount >= 10000) {
-    const value = Number((expectedWordCount / 10000).toFixed(expectedWordCount % 10000 === 0 ? 0 : 1));
+    const value = Number(
+      (expectedWordCount / 10000).toFixed(expectedWordCount % 10000 === 0 ? 0 : 1)
+    );
     return `${value}万字`;
   }
   return `${expectedWordCount}字`;
@@ -45,7 +47,9 @@ function formatPlanningSummary(planning: StoryPlanningInput): string {
   return `预计总字数 ${formatWordCount(planning.expectedWordCount)}，以${focusLabel}为主，整体采用${pacingLabel}。`;
 }
 
-export function buildProjectPreferenceProfileFromPlanning(planning: StoryPlanningInput): ProjectPreferenceProfile {
+export function buildProjectPreferenceProfileFromPlanning(
+  planning: StoryPlanningInput
+): ProjectPreferenceProfile {
   const focusWeights =
     planning.storyFocus === 'plot'
       ? { plotWeight: 0.8, characterWeight: 0.55, worldWeight: 0.35 }
@@ -60,7 +64,11 @@ export function buildProjectPreferenceProfileFromPlanning(planning: StoryPlannin
         : 0.55;
 
   const tags = [
-    planning.expectedWordCount >= 400000 ? '长篇推进' : planning.expectedWordCount >= 120000 ? '中长篇推进' : '短中篇推进',
+    planning.expectedWordCount >= 400000
+      ? '长篇推进'
+      : planning.expectedWordCount >= 120000
+        ? '中长篇推进'
+        : '短中篇推进',
     planning.storyFocus === 'plot'
       ? '剧情推进优先'
       : planning.storyFocus === 'character'
@@ -97,7 +105,10 @@ export function buildProjectPreferenceProfileFromPlanning(planning: StoryPlannin
   };
 }
 
-export function buildSetupTasksFromStoryCard(card: StoryIdeaCard, planning?: StoryPlanningInput): SetupTaskDraft[] {
+export function buildSetupTasksFromStoryCard(
+  card: StoryIdeaCard,
+  planning?: StoryPlanningInput
+): SetupTaskDraft[] {
   const tasks: SetupTaskDraft[] = TASK_META.map((meta) => ({
     key: meta.key,
     title: meta.title,
@@ -131,7 +142,7 @@ function paceWeight(preference: StoryIdeaCard['signals']['pacingPreference']) {
 
 export function recommendSkillsForStoryCard(
   card: StoryIdeaCard,
-  skills: Skill[],
+  skills: Skill[]
 ): StorySkillRecommendation[] {
   return skills
     .map((skill) => {
@@ -157,11 +168,17 @@ export function recommendSkillsForStoryCard(
       if ((skill.dimensionTags || []).includes('world') && card.signals.worldWeight >= 0.6) {
         reasonBits.push('能补强世界规则表达');
       }
-      if ((skill.dimensionTags || []).includes('character') && card.signals.characterWeight >= 0.6) {
+      if (
+        (skill.dimensionTags || []).includes('character') &&
+        card.signals.characterWeight >= 0.6
+      ) {
         reasonBits.push('能强化人物对峙感');
       }
       if ((skill.dimensionTags || []).includes('plot')) reasonBits.push('能承接当前冲突推进');
-      if ((skill.dimensionTags || []).includes('pacing') && card.signals.pacingPreference === 'tight') {
+      if (
+        (skill.dimensionTags || []).includes('pacing') &&
+        card.signals.pacingPreference === 'tight'
+      ) {
         reasonBits.push('适合紧张推进节奏');
       }
 
@@ -177,7 +194,10 @@ export function recommendSkillsForStoryCard(
 }
 
 export function normalizeStoryCardsResponse(raw: string): StoryIdeaCard[] {
-  const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+  const cleaned = raw
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
   const parsed = JSON.parse(cleaned);
   const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [];
   return cards;

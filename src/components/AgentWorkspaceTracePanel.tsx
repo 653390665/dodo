@@ -55,15 +55,16 @@ export function AgentWorkspaceTracePanel({
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {sniffedEntities.activeExisting.map((name) => (
-                  <span key={name} className="text-[9px] px-2 py-1 bg-theme-sidebar border border-theme-border rounded hover:bg-theme-border/30 cursor-default transition-colors">
+                  <span
+                    key={name}
+                    className="text-[9px] px-2 py-1 bg-theme-sidebar border border-theme-border rounded hover:bg-theme-border/30 cursor-default transition-colors"
+                  >
                     {name}
                   </span>
                 ))}
               </div>
             )}
-            <p className="text-[8px] text-theme-muted mt-3">
-              * 这些对象会纳入本章生成参考。
-            </p>
+            <p className="text-[8px] text-theme-muted mt-3">* 这些对象会纳入本章生成参考。</p>
           </div>
 
           <div className="bg-theme-sidebar rounded-xl border border-theme-border p-4 shadow-sm">
@@ -76,7 +77,10 @@ export function AgentWorkspaceTracePanel({
             ) : (
               <div className="space-y-2.5">
                 {sniffedEntities.newEntities.map((ent) => (
-                  <div key={`${ent.type}-${ent.name}`} className="flex flex-col gap-1.5 p-2.5 bg-amber-50/50 border border-amber-100 rounded-lg group">
+                  <div
+                    key={`${ent.type}-${ent.name}`}
+                    className="flex flex-col gap-1.5 p-2.5 bg-amber-50/50 border border-amber-100 rounded-lg group"
+                  >
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-amber-900">{ent.name}</span>
                       <span className="text-[8px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded uppercase font-bold tracking-wider">
@@ -92,8 +96,14 @@ export function AgentWorkspaceTracePanel({
                         disabled={addingEntityNames.includes(ent.name)}
                         className="text-[10px] flex items-center gap-1 px-2 py-1 bg-theme-sidebar border border-amber-200 text-amber-700 hover:bg-amber-100 rounded shadow-sm font-bold disabled:opacity-50 transition-colors"
                       >
-                        {addingEntityNames.includes(ent.name) ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
-                        {addingEntityNames.includes(ent.name) ? '正在生成词条...' : '添加到 World Bible'}
+                        {addingEntityNames.includes(ent.name) ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Plus size={10} />
+                        )}
+                        {addingEntityNames.includes(ent.name)
+                          ? '正在生成词条...'
+                          : '添加到 World Bible'}
                       </button>
                     </div>
                   </div>

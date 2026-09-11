@@ -4,7 +4,11 @@ import { getWorkflowDisplay } from '../lib/workflow-display-registry';
 describe('workflow display registry', () => {
   test('returns Chinese stage, primary action and target view without internal enum leakage', () => {
     const display = getWorkflowDisplay('sync');
-    expect(display).toEqual({ stage: '资料接入', primaryAction: '接入本章上下文', targetView: 'world' });
+    expect(display).toEqual({
+      stage: '资料接入',
+      primaryAction: '接入本章上下文',
+      targetView: 'world',
+    });
     expect(JSON.stringify(display)).not.toMatch(/sync|creative-setup/);
   });
 

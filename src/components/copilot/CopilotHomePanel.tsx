@@ -41,25 +41,31 @@ export function CopilotHomePanel({ suggestion, onAction }: CopilotHomePanelProps
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">已具备</div>
           <div className="space-y-1 text-xs text-theme-muted">
-            {suggestion.reasons.ready.length > 0
-              ? suggestion.reasons.ready.map((item) => <div key={item}>{item}</div>)
-              : <div>暂无</div>}
+            {suggestion.reasons.ready.length > 0 ? (
+              suggestion.reasons.ready.map((item) => <div key={item}>{item}</div>)
+            ) : (
+              <div>暂无</div>
+            )}
           </div>
         </div>
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">当前缺失</div>
           <div className="space-y-1 text-xs text-theme-muted">
-            {suggestion.reasons.missing.length > 0
-              ? suggestion.reasons.missing.map((item) => <div key={item}>{item}</div>)
-              : <div>暂无</div>}
+            {suggestion.reasons.missing.length > 0 ? (
+              suggestion.reasons.missing.map((item) => <div key={item}>{item}</div>)
+            ) : (
+              <div>暂无</div>
+            )}
           </div>
         </div>
         <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4 shadow-sm">
           <div className="text-xs font-bold text-theme-text mb-2">潜在风险</div>
           <div className="space-y-1 text-xs text-theme-muted">
-            {suggestion.reasons.risks.length > 0
-              ? suggestion.reasons.risks.map((item) => <div key={item}>{item}</div>)
-              : <div>暂无</div>}
+            {suggestion.reasons.risks.length > 0 ? (
+              suggestion.reasons.risks.map((item) => <div key={item}>{item}</div>)
+            ) : (
+              <div>暂无</div>
+            )}
           </div>
         </div>
       </div>

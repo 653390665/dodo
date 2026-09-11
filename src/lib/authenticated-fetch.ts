@@ -14,13 +14,14 @@ export function createAuthenticatedFetch({
   let cachedDevToken: string | undefined;
 
   return async (input, init) => {
-    const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const rawUrl =
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const target = new URL(rawUrl, location.href);
     const isProtectedApi =
-      target.origin === location.origin
-      && target.pathname.startsWith('/api/')
-      && target.pathname !== '/api/db/events'
-      && target.pathname !== '/api/dev-auth-token';
+      target.origin === location.origin &&
+      target.pathname.startsWith('/api/') &&
+      target.pathname !== '/api/db/events' &&
+      target.pathname !== '/api/dev-auth-token';
 
     if (!isProtectedApi) return originalFetch(input, init);
 
@@ -30,7 +31,7 @@ export function createAuthenticatedFetch({
         try {
           const response = await originalFetch('/api/dev-auth-token');
           if (response.ok) {
-            const data = await response.json() as { token?: string };
+            const data = (await response.json()) as { token?: string };
             cachedDevToken = data.token;
           }
         } catch (error) {

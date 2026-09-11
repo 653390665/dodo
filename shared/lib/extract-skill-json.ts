@@ -1,8 +1,5 @@
 function normalizeQuotes(raw: string): string {
-  return raw
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/＂/g, '"');
+  return raw.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/＂/g, '"');
 }
 
 export function extractJsonPayload(raw: string) {

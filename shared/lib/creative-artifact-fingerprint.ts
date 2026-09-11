@@ -18,7 +18,9 @@ function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (isPlainObject(value)) {
     return Object.fromEntries(
-      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalize(value[key])])
     );
   }
   return value;

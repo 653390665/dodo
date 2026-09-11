@@ -20,7 +20,7 @@ export async function enqueueLatestCharacterBioCommit(
   commitChains: Map<string, Promise<void>>,
   characterId: string,
   isCurrent: () => boolean,
-  commit: () => Promise<void>,
+  commit: () => Promise<void>
 ): Promise<void> {
   const previousCommit = commitChains.get(characterId) ?? Promise.resolve();
   const queuedCommit = previousCommit

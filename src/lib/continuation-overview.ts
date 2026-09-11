@@ -8,8 +8,9 @@ function sortByRecency(packs: ContinuationPack[]): ContinuationPack[] {
 function hasHighRisk(pack: ContinuationPack | null): boolean {
   if (!pack) return false;
   return (
-    pack.contradictions.some((item) => item.severity === 'high' && !isContinuationContradictionResolved(item)) ||
-    (pack.continuationGaps || []).some((item) => item.severity === 'high')
+    pack.contradictions.some(
+      (item) => item.severity === 'high' && !isContinuationContradictionResolved(item)
+    ) || (pack.continuationGaps || []).some((item) => item.severity === 'high')
   );
 }
 
@@ -29,7 +30,9 @@ function buildWarnings(pack: ContinuationPack | null): string[] {
   return [...contradictionWarnings, ...gapWarnings].filter(Boolean).slice(0, 2);
 }
 
-export function buildContinuationOverviewState(packs: ContinuationPack[]): ContinuationOverviewState {
+export function buildContinuationOverviewState(
+  packs: ContinuationPack[]
+): ContinuationOverviewState {
   const draftPack = sortByRecency(packs.filter((pack) => pack.status === 'draft'))[0] || null;
   const approvedPack = sortByRecency(packs.filter((pack) => pack.status === 'approved'))[0] || null;
 
@@ -55,7 +58,9 @@ export function buildContinuationOverviewState(packs: ContinuationPack[]): Conti
     primaryPack,
     draftPack,
     approvedPack,
-    contradictionCount: primaryPack.contradictions.filter((item) => !isContinuationContradictionResolved(item)).length,
+    contradictionCount: primaryPack.contradictions.filter(
+      (item) => !isContinuationContradictionResolved(item)
+    ).length,
     readingQuestionCount: primaryPack.readingQuestions?.length || 0,
     continuationGapCount: primaryPack.continuationGaps?.length || 0,
     highlightWarnings: buildWarnings(primaryPack),

@@ -1,5 +1,9 @@
 import type { CapabilityManifestEntry } from '../types/capability-manifest.js';
-import type { ArtifactOperation, CreativeArtifactKind, CreativeArtifactRef } from '../types/creative-artifacts.js';
+import type {
+  ArtifactOperation,
+  CreativeArtifactKind,
+  CreativeArtifactRef,
+} from '../types/creative-artifacts.js';
 
 export { composeArtifactCapabilities } from './capability-composition.js';
 
@@ -13,7 +17,11 @@ export type ArtifactCapabilityExecutionCode =
 
 export type ArtifactCapabilityExecutionResult =
   | { ok: true }
-  | { ok: false; code: ArtifactCapabilityExecutionCode; missingArtifactKinds?: CreativeArtifactKind[] };
+  | {
+      ok: false;
+      code: ArtifactCapabilityExecutionCode;
+      missingArtifactKinds?: CreativeArtifactKind[];
+    };
 
 export function validateArtifactCapabilityExecution(input: {
   manifest: CapabilityManifestEntry;
@@ -37,8 +45,9 @@ export function validateArtifactCapabilityExecution(input: {
   if (!contract.allowedScopes.includes(input.scope)) {
     return { ok: false, code: 'ARTIFACT_CAPABILITY_SCOPE_UNSUPPORTED' };
   }
-  const missingArtifactKinds = contract.requiredInputs
-    .filter((kind) => !input.availableArtifacts.some((artifact) => artifact.kind === kind));
+  const missingArtifactKinds = contract.requiredInputs.filter(
+    (kind) => !input.availableArtifacts.some((artifact) => artifact.kind === kind)
+  );
   return missingArtifactKinds.length > 0
     ? { ok: false, code: 'ARTIFACT_CAPABILITY_GAP', missingArtifactKinds }
     : { ok: true };

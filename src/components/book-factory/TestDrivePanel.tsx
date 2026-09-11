@@ -3,7 +3,11 @@ import { Loader2, Wand2 } from 'lucide-react';
 import type { Skill } from '../../../shared/types';
 import { countChineseCharacters, MIN_BOOK_FACTORY_TEXT_CHARS } from './useBookFactory';
 import { WritingStyleControl } from '../WritingStyleControl';
-import type { WritingStyleCandidate, WritingStyleMode, WritingStyleResolution } from '../../lib/writing-style-client';
+import type {
+  WritingStyleCandidate,
+  WritingStyleMode,
+  WritingStyleResolution,
+} from '../../lib/writing-style-client';
 
 interface TestDrivePanelProps {
   selectedSkill: Skill;
@@ -44,16 +48,30 @@ export function TestDrivePanel({
           placeholder={`输入至少 ${MIN_BOOK_FACTORY_TEXT_CHARS} 个有效中文字符，试跑这张能力卡的写法效果...`}
           className="w-full h-20 p-2 text-xs bg-theme-sidebar border border-theme-border rounded-lg outline-none focus:border-theme-accent transition-all resize-none"
         />
-        <p className="text-[10px] text-theme-muted">试跑要求：至少 {MIN_BOOK_FACTORY_TEXT_CHARS} 个有效中文字符，当前 {effectiveChineseChars} 个；不足时不会发送模型请求。</p>
+        <p className="text-[10px] text-theme-muted">
+          试跑要求：至少 {MIN_BOOK_FACTORY_TEXT_CHARS} 个有效中文字符，当前 {effectiveChineseChars}{' '}
+          个；不足时不会发送模型请求。
+        </p>
         <button
           onClick={onTestDrive}
           disabled={isTesting || !hasEnoughInput}
           className="w-full py-2 bg-theme-text/10 text-theme-text text-[10px] font-bold rounded-lg border border-theme-text/20 hover:bg-theme-text/20 transition-all flex items-center justify-center gap-2"
         >
-          {isTesting ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <Wand2 size={12} aria-hidden="true" />} 试跑写法效果
+          {isTesting ? (
+            <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+          ) : (
+            <Wand2 size={12} aria-hidden="true" />
+          )}{' '}
+          试跑写法效果
         </button>
-        {testError && <p role="alert" className="text-[11px] text-red-600">{testError}</p>}
-        {(testStyleResolution || testStyleCandidates?.length) && onConfirmTestStyle && onGenerateWithTestStyle ? (
+        {testError && (
+          <p role="alert" className="text-[11px] text-red-600">
+            {testError}
+          </p>
+        )}
+        {(testStyleResolution || testStyleCandidates?.length) &&
+        onConfirmTestStyle &&
+        onGenerateWithTestStyle ? (
           <WritingStyleControl
             resolution={testStyleResolution}
             candidates={testStyleCandidates}

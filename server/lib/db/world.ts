@@ -1,6 +1,27 @@
-import type { Character, Location, Item, Faction, PowerLevel, TimelineEvent, EntityRelationship } from '../../../shared/types';
+import type {
+  Character,
+  Location,
+  Item,
+  Faction,
+  PowerLevel,
+  TimelineEvent,
+  EntityRelationship,
+} from '../../../shared/types';
 import { getDb, notify } from '../db-instance.js';
-import { rowToCharacter, characterToRow, rowToLocation, locationToRow, rowToItem, itemToRow, rowToFaction, factionToRow, rowToPowerLevel, powerLevelToRow, rowToTimelineEvent, timelineEventToRow } from '../db-mappers.js';
+import {
+  rowToCharacter,
+  characterToRow,
+  rowToLocation,
+  locationToRow,
+  rowToItem,
+  itemToRow,
+  rowToFaction,
+  factionToRow,
+  rowToPowerLevel,
+  powerLevelToRow,
+  rowToTimelineEvent,
+  timelineEventToRow,
+} from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 
 // --- Character CRUD ---
@@ -8,9 +29,20 @@ const characterCrud = createCrudHelpers<Character, ReturnType<typeof characterTo
   tableName: 'characters',
   rowToEntity: rowToCharacter,
   entityToRow: characterToRow,
-  insertColumns: ['id', 'novel_id', 'name', 'role', 'summary', 'traits', 'bio', 'current_state', 'created_at', 'updated_at'],
+  insertColumns: [
+    'id',
+    'novel_id',
+    'name',
+    'role',
+    'summary',
+    'traits',
+    'bio',
+    'current_state',
+    'created_at',
+    'updated_at',
+  ],
   updateColumns: ['name', 'role', 'summary', 'traits', 'bio', 'current_state', 'updated_at'],
-  listFilterKey: 'novel_id'
+  listFilterKey: 'novel_id',
 });
 
 export function listCharacters(novelId: string): Character[] {
@@ -40,7 +72,7 @@ const locationCrud = createCrudHelpers<Location, ReturnType<typeof locationToRow
   entityToRow: locationToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'region', 'created_at', 'updated_at'],
   updateColumns: ['name', 'description', 'region', 'updated_at'],
-  listFilterKey: 'novel_id'
+  listFilterKey: 'novel_id',
 });
 
 export function listLocations(novelId: string): Location[] {
@@ -66,7 +98,7 @@ const itemCrud = createCrudHelpers<Item, ReturnType<typeof itemToRow>>({
   entityToRow: itemToRow,
   insertColumns: ['id', 'novel_id', 'name', 'description', 'type', 'created_at', 'updated_at'],
   updateColumns: ['name', 'description', 'type', 'updated_at'],
-  listFilterKey: 'novel_id'
+  listFilterKey: 'novel_id',
 });
 
 export function listItems(novelId: string): Item[] {
@@ -94,9 +126,18 @@ const factionCrud = createCrudHelpers<Faction, ReturnType<typeof factionToRow>>(
   tableName: 'factions',
   rowToEntity: rowToFaction,
   entityToRow: factionToRow,
-  insertColumns: ['id', 'novel_id', 'name', 'description', 'leader', 'territory', 'created_at', 'updated_at'],
+  insertColumns: [
+    'id',
+    'novel_id',
+    'name',
+    'description',
+    'leader',
+    'territory',
+    'created_at',
+    'updated_at',
+  ],
   updateColumns: ['name', 'description', 'leader', 'territory', 'updated_at'],
-  listFilterKey: 'novel_id'
+  listFilterKey: 'novel_id',
 });
 
 export function listFactions(novelId: string): Faction[] {
@@ -120,10 +161,19 @@ const powerLevelCrud = createCrudHelpers<PowerLevel, ReturnType<typeof powerLeve
   tableName: 'power_levels',
   rowToEntity: rowToPowerLevel,
   entityToRow: powerLevelToRow,
-  insertColumns: ['id', 'novel_id', 'name', 'description', 'tier', 'characteristics', 'created_at', 'updated_at'],
+  insertColumns: [
+    'id',
+    'novel_id',
+    'name',
+    'description',
+    'tier',
+    'characteristics',
+    'created_at',
+    'updated_at',
+  ],
   updateColumns: ['name', 'description', 'tier', 'characteristics', 'updated_at'],
   listFilterKey: 'novel_id',
-  listOrderBy: 'tier ASC'
+  listOrderBy: 'tier ASC',
 });
 
 export function listPowerLevels(novelId: string): PowerLevel[] {
@@ -147,10 +197,20 @@ const timelineEventCrud = createCrudHelpers<TimelineEvent, ReturnType<typeof tim
   tableName: 'timeline_events',
   rowToEntity: rowToTimelineEvent,
   entityToRow: timelineEventToRow,
-  insertColumns: ['id', 'novel_id', 'title', 'description', 'timestamp', 'status_tag', '"order"', 'created_at', 'updated_at'],
+  insertColumns: [
+    'id',
+    'novel_id',
+    'title',
+    'description',
+    'timestamp',
+    'status_tag',
+    '"order"',
+    'created_at',
+    'updated_at',
+  ],
   updateColumns: ['title', 'description', 'timestamp', 'status_tag', '"order"', 'updated_at'],
   listFilterKey: 'novel_id',
-  listOrderBy: '"order" ASC'
+  listOrderBy: '"order" ASC',
 });
 
 export function listTimelineEvents(novelId: string): TimelineEvent[] {
@@ -171,7 +231,7 @@ export function deleteTimelineEvent(id: string): boolean {
 
 // --- Entity Relationships ---
 const ENTITY_TYPES = ['character', 'location', 'item', 'faction'] as const;
-type EntityType = typeof ENTITY_TYPES[number];
+type EntityType = (typeof ENTITY_TYPES)[number];
 const ENTITY_TABLE_MAP: Record<EntityType, string> = {
   character: 'characters',
   location: 'locations',
@@ -179,9 +239,20 @@ const ENTITY_TABLE_MAP: Record<EntityType, string> = {
   faction: 'factions',
 };
 
-function validateRelationship(rel: { novelId: string; sourceType: string; sourceId: string; targetType: string; targetId: string }): void {
-  if (!ENTITY_TYPES.includes(rel.sourceType as EntityType) || !ENTITY_TYPES.includes(rel.targetType as EntityType)) {
-    throw new Error(`Invalid entity type: sourceType="${rel.sourceType}", targetType="${rel.targetType}". Must be one of: ${ENTITY_TYPES.join(', ')}`);
+function validateRelationship(rel: {
+  novelId: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+}): void {
+  if (
+    !ENTITY_TYPES.includes(rel.sourceType as EntityType) ||
+    !ENTITY_TYPES.includes(rel.targetType as EntityType)
+  ) {
+    throw new Error(
+      `Invalid entity type: sourceType="${rel.sourceType}", targetType="${rel.targetType}". Must be one of: ${ENTITY_TYPES.join(', ')}`
+    );
   }
   if (rel.sourceType === rel.targetType && rel.sourceId === rel.targetId) {
     throw new Error('Self-relationship is not allowed');
@@ -189,37 +260,81 @@ function validateRelationship(rel: { novelId: string; sourceType: string; source
   const db = getDb();
   const srcTable = ENTITY_TABLE_MAP[rel.sourceType as EntityType];
   const tgtTable = ENTITY_TABLE_MAP[rel.targetType as EntityType];
-  const srcExists = db.prepare(`SELECT 1 FROM ${srcTable} WHERE id = ? AND novel_id = ?`).get(rel.sourceId, rel.novelId);
-  if (!srcExists) throw new Error(`Source entity not found: ${rel.sourceType} id="${rel.sourceId}" in novel "${rel.novelId}"`);
-  const tgtExists = db.prepare(`SELECT 1 FROM ${tgtTable} WHERE id = ? AND novel_id = ?`).get(rel.targetId, rel.novelId);
-  if (!tgtExists) throw new Error(`Target entity not found: ${rel.targetType} id="${rel.targetId}" in novel "${rel.novelId}"`);
+  const srcExists = db
+    .prepare(`SELECT 1 FROM ${srcTable} WHERE id = ? AND novel_id = ?`)
+    .get(rel.sourceId, rel.novelId);
+  if (!srcExists)
+    throw new Error(
+      `Source entity not found: ${rel.sourceType} id="${rel.sourceId}" in novel "${rel.novelId}"`
+    );
+  const tgtExists = db
+    .prepare(`SELECT 1 FROM ${tgtTable} WHERE id = ? AND novel_id = ?`)
+    .get(rel.targetId, rel.novelId);
+  if (!tgtExists)
+    throw new Error(
+      `Target entity not found: ${rel.targetType} id="${rel.targetId}" in novel "${rel.novelId}"`
+    );
 }
 
-function isDuplicateRelationship(novelId: string, sourceType: string, sourceId: string, targetType: string, targetId: string): boolean {
-  const row = getDb().prepare('SELECT 1 FROM entity_relationships WHERE novelId = ? AND sourceType = ? AND sourceId = ? AND targetType = ? AND targetId = ?').get(novelId, sourceType, sourceId, targetType, targetId);
+function isDuplicateRelationship(
+  novelId: string,
+  sourceType: string,
+  sourceId: string,
+  targetType: string,
+  targetId: string
+): boolean {
+  const row = getDb()
+    .prepare(
+      'SELECT 1 FROM entity_relationships WHERE novelId = ? AND sourceType = ? AND sourceId = ? AND targetType = ? AND targetId = ?'
+    )
+    .get(novelId, sourceType, sourceId, targetType, targetId);
   return !!row;
 }
 
 export function listEntityRelationships(novelId: string): EntityRelationship[] {
-  return getDb().prepare('SELECT * FROM entity_relationships WHERE novelId = ?').all(novelId) as EntityRelationship[];
+  return getDb()
+    .prepare('SELECT * FROM entity_relationships WHERE novelId = ?')
+    .all(novelId) as EntityRelationship[];
 }
 
 export function createEntityRelationship(rel: EntityRelationship): boolean {
   validateRelationship(rel);
-  if (isDuplicateRelationship(rel.novelId, rel.sourceType, rel.sourceId, rel.targetType, rel.targetId)) {
+  if (
+    isDuplicateRelationship(rel.novelId, rel.sourceType, rel.sourceId, rel.targetType, rel.targetId)
+  ) {
     return false;
   }
-  getDb().prepare('INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(rel.id, rel.novelId, rel.sourceType, rel.sourceId, rel.targetType, rel.targetId, rel.relationshipType, rel.description || '', Date.now());
+  getDb()
+    .prepare(
+      'INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )
+    .run(
+      rel.id,
+      rel.novelId,
+      rel.sourceType,
+      rel.sourceId,
+      rel.targetType,
+      rel.targetId,
+      rel.relationshipType,
+      rel.description || '',
+      Date.now()
+    );
   notify();
   return true;
 }
 
 const ENTITY_RELATIONSHIP_COLUMNS = new Set([
-  'sourceType', 'sourceId', 'targetType', 'targetId', 'relationshipType', 'description'
+  'sourceType',
+  'sourceId',
+  'targetType',
+  'targetId',
+  'relationshipType',
+  'description',
 ]);
 
 export function updateEntityRelationship(id: string, data: Partial<EntityRelationship>): boolean {
-  const sets: string[] = []; const vals: unknown[] = [];
+  const sets: string[] = [];
+  const vals: unknown[] = [];
   for (const [k, v] of Object.entries(data)) {
     if (!ENTITY_RELATIONSHIP_COLUMNS.has(k)) {
       throw new Error(`Invalid column name: ${k}`);
@@ -229,9 +344,11 @@ export function updateEntityRelationship(id: string, data: Partial<EntityRelatio
   }
   if (sets.length === 0) return false;
 
-  const needsRevalidation = 'sourceType' in data || 'sourceId' in data || 'targetType' in data || 'targetId' in data;
+  const needsRevalidation =
+    'sourceType' in data || 'sourceId' in data || 'targetType' in data || 'targetId' in data;
   if (needsRevalidation) {
-    const existing = getDb().prepare('SELECT * FROM entity_relationships WHERE id = ?').get(id) as EntityRelationship | undefined;
+    const existing = getDb().prepare('SELECT * FROM entity_relationships WHERE id = ?').get(id) as
+      EntityRelationship | undefined;
     if (!existing) throw new Error(`Relationship not found: id="${id}"`);
     const merged = {
       novelId: existing.novelId,
@@ -241,14 +358,35 @@ export function updateEntityRelationship(id: string, data: Partial<EntityRelatio
       targetId: (data.targetId as string) ?? existing.targetId,
     };
     validateRelationship(merged);
-    if (isDuplicateRelationship(merged.novelId, merged.sourceType, merged.sourceId, merged.targetType, merged.targetId)) {
-      const dup = getDb().prepare('SELECT id FROM entity_relationships WHERE novelId = ? AND sourceType = ? AND sourceId = ? AND targetType = ? AND targetId = ? AND id != ?').get(merged.novelId, merged.sourceType, merged.sourceId, merged.targetType, merged.targetId, id);
+    if (
+      isDuplicateRelationship(
+        merged.novelId,
+        merged.sourceType,
+        merged.sourceId,
+        merged.targetType,
+        merged.targetId
+      )
+    ) {
+      const dup = getDb()
+        .prepare(
+          'SELECT id FROM entity_relationships WHERE novelId = ? AND sourceType = ? AND sourceId = ? AND targetType = ? AND targetId = ? AND id != ?'
+        )
+        .get(
+          merged.novelId,
+          merged.sourceType,
+          merged.sourceId,
+          merged.targetType,
+          merged.targetId,
+          id
+        );
       if (dup) return false;
     }
   }
 
   vals.push(id);
-  const result = getDb().prepare('UPDATE entity_relationships SET ' + sets.join(', ') + ' WHERE id = ?').run(...vals);
+  const result = getDb()
+    .prepare('UPDATE entity_relationships SET ' + sets.join(', ') + ' WHERE id = ?')
+    .run(...vals);
   if (result.changes > 0) notify();
   return result.changes > 0;
 }

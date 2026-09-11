@@ -34,24 +34,72 @@ vi.mock('../lib/prompt-client', () => ({ parseContinuationPack: vi.fn() }));
 
 import { ContinuationPackView } from '../components/ContinuationPackView';
 
-const novel = { id: 'novel-1', title: '测试小说', authorId: 'local', summary: '', status: 'ongoing' as const, createdAt: 0, updatedAt: 0 };
+const novel = {
+  id: 'novel-1',
+  title: '测试小说',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing' as const,
+  createdAt: 0,
+  updatedAt: 0,
+};
 const pack = {
-  id: 'pack-1', novelId: novel.id, title: '恢复资料包', status: 'approved' as const,
-  sourceDocuments: [], canonFacts: [], characterStates: [],
-  plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' },
-  styleProfile: { pov: '', tense: '', pacing: '', dialogueDensity: '', proseTraits: [], avoidTraits: [], sampleEvidence: '' },
-  contradictions: [], continuationTask: '', sourceMap: { sections: [], keyConflicts: [] },
-  readingQuestions: [], continuationGaps: [], createdAt: 0, updatedAt: 0,
+  id: 'pack-1',
+  novelId: novel.id,
+  title: '恢复资料包',
+  status: 'approved' as const,
+  sourceDocuments: [],
+  canonFacts: [],
+  characterStates: [],
+  plotState: {
+    currentTimeline: '',
+    latestScene: '',
+    unresolvedHooks: [],
+    immediateConflict: '',
+    nextLikelyMove: '',
+  },
+  styleProfile: {
+    pov: '',
+    tense: '',
+    pacing: '',
+    dialogueDensity: '',
+    proseTraits: [],
+    avoidTraits: [],
+    sampleEvidence: '',
+  },
+  contradictions: [],
+  continuationTask: '',
+  sourceMap: { sections: [], keyConflicts: [] },
+  readingQuestions: [],
+  continuationGaps: [],
+  createdAt: 0,
+  updatedAt: 0,
 };
 const snapshot = {
-  packId: pack.id, novelId: novel.id, databaseGeneration: 3,
-  extraction: { characters: [], locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [], relationships: [], globalOutline: '', worldRules: '' },
+  packId: pack.id,
+  novelId: novel.id,
+  databaseGeneration: 3,
+  extraction: {
+    characters: [],
+    locations: [],
+    items: [],
+    factions: [],
+    powerLevels: [],
+    timelineEvents: [],
+    relationships: [],
+    globalOutline: '',
+    worldRules: '',
+  },
 };
 
 describe('ContinuationPackView job URL recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.history.replaceState(null, '', '/world?extractionJobId=job-1&extractionPackId=pack-1&databaseGeneration=3&keep=1#preview');
+    window.history.replaceState(
+      null,
+      '',
+      '/world?extractionJobId=job-1&extractionPackId=pack-1&databaseGeneration=3&keep=1#preview'
+    );
     mockListPacks.mockResolvedValue([pack]);
     mockRequery.mockResolvedValue(snapshot);
     mockListCharacters.mockResolvedValue([]);
@@ -69,7 +117,12 @@ describe('ContinuationPackView job URL recovery', () => {
 
     expect(await screen.findByText('同步预览 — 选择要导入的实体')).toBeDefined();
     await waitFor(() => expect(mockRequery).toHaveBeenCalledTimes(1));
-    expect(mockRequery).toHaveBeenCalledWith('job-1', 3, expect.any(AbortSignal), expect.any(Function));
+    expect(mockRequery).toHaveBeenCalledWith(
+      'job-1',
+      3,
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
     expect(mockExtract).not.toHaveBeenCalled();
     expect(mockResume).not.toHaveBeenCalled();
     expect(mockSync).not.toHaveBeenCalled();
@@ -102,13 +155,24 @@ describe('ContinuationPackView job URL recovery', () => {
     window.history.replaceState(null, '', '/world');
     mockExtract.mockResolvedValue(snapshot);
     const onAutoSyncConsumed = vi.fn();
-    render(<ContinuationPackView novel={novel} initialAutoSyncPackId={pack.id} onAutoSyncConsumed={onAutoSyncConsumed} />);
+    render(
+      <ContinuationPackView
+        novel={novel}
+        initialAutoSyncPackId={pack.id}
+        onAutoSyncConsumed={onAutoSyncConsumed}
+      />
+    );
 
     expect(await screen.findByText('同步预览 — 选择要导入的实体')).toBeDefined();
     await waitFor(() => expect(mockExtract).toHaveBeenCalledTimes(1));
     expect(onAutoSyncConsumed).toHaveBeenCalledTimes(1);
     expect(onAutoSyncConsumed).toHaveBeenCalledWith(pack.id);
-    expect(mockExtract).toHaveBeenCalledWith(pack.id, novel.id, expect.any(AbortSignal), expect.any(Function));
+    expect(mockExtract).toHaveBeenCalledWith(
+      pack.id,
+      novel.id,
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
     expect(mockRequery).not.toHaveBeenCalled();
     expect(mockResume).not.toHaveBeenCalled();
     expect(mockSync).not.toHaveBeenCalled();
@@ -121,7 +185,13 @@ describe('ContinuationPackView job URL recovery', () => {
     window.history.replaceState(null, '', '/world');
     mockListPacks.mockResolvedValue([candidate]);
     const onAutoSyncConsumed = vi.fn();
-    render(<ContinuationPackView novel={novel} initialAutoSyncPackId={candidate.id} onAutoSyncConsumed={onAutoSyncConsumed} />);
+    render(
+      <ContinuationPackView
+        novel={novel}
+        initialAutoSyncPackId={candidate.id}
+        onAutoSyncConsumed={onAutoSyncConsumed}
+      />
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mockExtract).not.toHaveBeenCalled();
     expect(mockSync).not.toHaveBeenCalled();
@@ -132,7 +202,13 @@ describe('ContinuationPackView job URL recovery', () => {
     window.history.replaceState(null, '', '/world');
     mockListPacks.mockResolvedValue([]);
     const onAutoSyncConsumed = vi.fn();
-    render(<ContinuationPackView novel={novel} initialAutoSyncPackId="missing-pack" onAutoSyncConsumed={onAutoSyncConsumed} />);
+    render(
+      <ContinuationPackView
+        novel={novel}
+        initialAutoSyncPackId="missing-pack"
+        onAutoSyncConsumed={onAutoSyncConsumed}
+      />
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mockExtract).not.toHaveBeenCalled();
     expect(mockSync).not.toHaveBeenCalled();
@@ -143,7 +219,13 @@ describe('ContinuationPackView job URL recovery', () => {
     window.history.replaceState(null, '', '/world');
     mockExtract.mockResolvedValue(snapshot);
     const onAutoSyncConsumed = vi.fn();
-    const view = render(<ContinuationPackView novel={novel} initialAutoSyncPackId={pack.id} onAutoSyncConsumed={onAutoSyncConsumed} />);
+    const view = render(
+      <ContinuationPackView
+        novel={novel}
+        initialAutoSyncPackId={pack.id}
+        onAutoSyncConsumed={onAutoSyncConsumed}
+      />
+    );
     expect(await screen.findByText('同步预览 — 选择要导入的实体')).toBeDefined();
     view.rerender(<ContinuationPackView novel={novel} initialAutoSyncPackId={pack.id} />);
     await waitFor(() => expect(mockExtract).toHaveBeenCalledTimes(1));
@@ -156,7 +238,13 @@ describe('ContinuationPackView job URL recovery', () => {
     mockExtract.mockResolvedValue(snapshot);
     mockListCharacters.mockRejectedValueOnce(new Error('本地设定暂不可用'));
     const onAutoSyncConsumed = vi.fn();
-    render(<ContinuationPackView novel={novel} initialAutoSyncPackId={pack.id} onAutoSyncConsumed={onAutoSyncConsumed} />);
+    render(
+      <ContinuationPackView
+        novel={novel}
+        initialAutoSyncPackId={pack.id}
+        onAutoSyncConsumed={onAutoSyncConsumed}
+      />
+    );
 
     expect(await screen.findByText('同步预览 — 选择要导入的实体')).toBeDefined();
     expect((await screen.findByRole('alert')).textContent).toContain('本地设定暂不可用');
@@ -168,5 +256,4 @@ describe('ContinuationPackView job URL recovery', () => {
     await waitFor(() => expect(onAutoSyncConsumed).toHaveBeenCalledTimes(1));
     expect(onAutoSyncConsumed).toHaveBeenCalledWith(pack.id);
   });
-
 });

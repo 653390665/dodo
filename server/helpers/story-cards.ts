@@ -33,7 +33,7 @@ export const storyCardJobAbortControllers = new Map<string, AbortController>();
 
 export function createStoryCardJob(
   task: Promise<StoryIdeaCard[]>,
-  controller: AbortController = new AbortController(),
+  controller: AbortController = new AbortController()
 ): string {
   const jobId = `story-cards-${generateId()}`;
   storyCardJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
@@ -116,7 +116,8 @@ export function hookIsTrivial(hook: string, seed: string): boolean {
   const cleanedSeed = seed.replace(/[，,。！？、；：\s]+/g, '').trim();
   if (cleanedHook.length < 5) return true;
   // Hook is just the seed + trash suffix
-  if (cleanedHook.startsWith(cleanedSeed) && cleanedHook.length <= cleanedSeed.length + 6) return true;
+  if (cleanedHook.startsWith(cleanedSeed) && cleanedHook.length <= cleanedSeed.length + 6)
+    return true;
   return false;
 }
 
@@ -124,16 +125,20 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
   const parsed = asRecord(extractJsonPayload(raw));
   // Model returned needs_clarification — user input not usable as story seed
   if (stringValue(parsed.status) === 'needs_clarification') {
-    throw new Error(JSON.stringify({
-      type: 'needs_clarification',
-      questions: asArray(parsed.questions),
-    }));
+    throw new Error(
+      JSON.stringify({
+        type: 'needs_clarification',
+        questions: asArray(parsed.questions),
+      })
+    );
   }
 
   const payload = extractJsonPayload(raw);
   const cards: unknown[] = Array.isArray(payload)
     ? payload
-    : payload && typeof payload === 'object' && Array.isArray((payload as Record<string, unknown>).cards)
+    : payload &&
+        typeof payload === 'object' &&
+        Array.isArray((payload as Record<string, unknown>).cards)
       ? ((payload as Record<string, unknown>).cards as unknown[])
       : payload
         ? [payload]
@@ -205,11 +210,12 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
       worldSeed: card.coreConflict
         ? `以${mainTerm}为核心的世界设定，${stringValue(card.coreConflict).slice(0, 20)}`
         : `以${mainTerm}为核心背景`,
-      relationshipSeed: i === 0
-        ? '主角与他人之间既有利益交集也有信息差，合作中藏着试探。'
-        : i === 1
-          ? '主角被迫与对立角色周旋，每次对白都是双向刺探。'
-          : '关键人物关系充满不信任，所有交谈都是博弈。',
+      relationshipSeed:
+        i === 0
+          ? '主角与他人之间既有利益交集也有信息差，合作中藏着试探。'
+          : i === 1
+            ? '主角被迫与对立角色周旋，每次对白都是双向刺探。'
+            : '关键人物关系充满不信任，所有交谈都是博弈。',
       chapterOneSeed: `第一章从${card.hook ? stringValue(card.hook).slice(0, 20) : mainTerm}的信号开场，快速建立冲突，留下悬念钩子。`,
     },
     planningFit: {
@@ -230,9 +236,47 @@ export function parseStoryCardsFromModel(raw: string, ideaSeed: string): StoryId
 
 export function extractKeywords(seed: string): string[] {
   // Extract meaningful 2-4 char Chinese substrings, skip common stop words
-  const stop = new Set(['一个', '这个', '那个', '什么', '怎么', '为什么', '可以', '还是', '或者', '但是', '因为', '所以', '如果', '虽然', '已经', '而且', '我的', '你的', '他的', '我们', '他们', '你们', '关于', '自己', '没有', '不是', '就是', '的话', '来说', '这样', '那样', '如何', '核心故事创意', '主打题材', '目标平台', '篇幅规划', '风格偏好']);
+  const stop = new Set([
+    '一个',
+    '这个',
+    '那个',
+    '什么',
+    '怎么',
+    '为什么',
+    '可以',
+    '还是',
+    '或者',
+    '但是',
+    '因为',
+    '所以',
+    '如果',
+    '虽然',
+    '已经',
+    '而且',
+    '我的',
+    '你的',
+    '他的',
+    '我们',
+    '他们',
+    '你们',
+    '关于',
+    '自己',
+    '没有',
+    '不是',
+    '就是',
+    '的话',
+    '来说',
+    '这样',
+    '那样',
+    '如何',
+    '核心故事创意',
+    '主打题材',
+    '目标平台',
+    '篇幅规划',
+    '风格偏好',
+  ]);
   const cleaned = seed.replace(/[，,。！？、；：""''（）\s]+/g, ' ').trim();
-  const segments = cleaned.split(' ').filter(s => s.length >= 2 && !stop.has(s));
+  const segments = cleaned.split(' ').filter((s) => s.length >= 2 && !stop.has(s));
   // Also split longer segments into bigrams for better coverage
   const bigrams: string[] = [];
   for (const seg of segments) {
@@ -260,11 +304,13 @@ export function buildFallbackStoryCards(
     storyFocus: 'plot' | 'character' | 'world';
   }>,
   batchIndex = 0,
-  _previousHookTexts: string[] = [],
+  _previousHookTexts: string[] = []
 ) {
   let seed = String(ideaSeed || '').trim();
   seed = seed.replace(/【[^】]+】\s*[:：]?\s*/g, ' ').trim();
-  seed = seed.replace(/(核心故事创意|主打题材|目标平台|篇幅规划|风格偏好)\s*[:：]?\s*/g, ' ').trim();
+  seed = seed
+    .replace(/(核心故事创意|主打题材|目标平台|篇幅规划|风格偏好)\s*[:：]?\s*/g, ' ')
+    .trim();
   seed = seed || '一个尚未成形的新故事';
   const keywords = extractKeywords(seed);
   const mainTerm = keywords[0] || '故事核心';
@@ -273,20 +319,26 @@ export function buildFallbackStoryCards(
   const expectedWordCount = Number(planning.expectedWordCount || 180000);
   const pacing = planning.pacingPreference || 'tight';
   const focus = planning.storyFocus || 'plot';
-  const pacingText = pacing === 'slow-burn' ? '慢热铺陈' : pacing === 'balanced' ? '均衡推进' : '紧推进';
-  const focusText = focus === 'character' ? '人物关系' : focus === 'world' ? '世界设定' : '剧情推进';
-  const lengthText = expectedWordCount >= 500000 ? '长篇连载' : expectedWordCount >= 180000 ? '中长篇' : '中短篇';
+  const pacingText =
+    pacing === 'slow-burn' ? '慢热铺陈' : pacing === 'balanced' ? '均衡推进' : '紧推进';
+  const focusText =
+    focus === 'character' ? '人物关系' : focus === 'world' ? '世界设定' : '剧情推进';
+  const lengthText =
+    expectedWordCount >= 500000 ? '长篇连载' : expectedWordCount >= 180000 ? '中长篇' : '中短篇';
 
   // Direction pools — selected based on storyFocus
-  const directionPools: Record<string, Array<{
-    label: string;
-    hookTemplate: (main: string, second: string) => string;
-    protagonistTemplate: (main: string) => string;
-    conflictTemplate: (main: string, second: string) => string;
-    tone: string;
-    whyTemplate: (seed: string) => string;
-    risk: string;
-  }>> = {
+  const directionPools: Record<
+    string,
+    Array<{
+      label: string;
+      hookTemplate: (main: string, second: string) => string;
+      protagonistTemplate: (main: string) => string;
+      conflictTemplate: (main: string, second: string) => string;
+      tone: string;
+      whyTemplate: (seed: string) => string;
+      risk: string;
+    }>
+  > = {
     character: [
       {
         label: '双人对峙',
@@ -358,7 +410,8 @@ export function buildFallbackStoryCards(
       {
         label: '多米诺链',
         hookTemplate: (m) => `${m}引发的连锁反应刚刚开始`,
-        protagonistTemplate: (m) => `一个以为解决了${m}就能脱身的主角，发现每解决一件事又引出两件。`,
+        protagonistTemplate: (m) =>
+          `一个以为解决了${m}就能脱身的主角，发现每解决一件事又引出两件。`,
         conflictTemplate: (m) => `${m}不是终点而是起点，每步处理都牵出新危机。`,
         tone: '快节奏、一环扣一环、爆点密集。',
         whyTemplate: (s) => `让"${s}"像多米诺骨牌一样推倒后续事件，适合紧凑连载。`,
@@ -382,7 +435,8 @@ export function buildFallbackStoryCards(
   const rotated = [...directions];
   for (let r = 0; r < batchIndex % directions.length; r++) rotated.push(rotated.shift()!);
 
-  const batchSuffix = batchIndex > 0 ? ['', '（变体）', '（另辟蹊径）'][Math.min(batchIndex, 2)] : '';
+  const batchSuffix =
+    batchIndex > 0 ? ['', '（变体）', '（另辟蹊径）'][Math.min(batchIndex, 2)] : '';
 
   const base = rotated.map((dir, i) => ({
     id: `fallback-card-${batchIndex}-${i + 1}`,
@@ -402,27 +456,30 @@ export function buildFallbackStoryCards(
     },
   }));
 
-  return base.map((card, i) => ({
-    ...card,
-    starterSeeds: {
-      worldSeed: `以${mainTerm}为核心构建的世界背景，${secondTerm ? `与${secondTerm}交织` : ''}。`,
-      relationshipSeed: i === 2
-        ? '主角与同伴之间保持不信任的合作关系，一边共事一边试探。'
-        : '主角与关键人物之间既有利益交集也有信息差。',
-      chapterOneSeed: `第一章从${mainTerm}的异常信号开场，迅速建立${card.signals.conflictType}冲突，留下第一枚悬念钩子。`,
-    },
-    planningFit: {
-      recommendedLength: `${lengthText}，约 ${expectedWordCount.toLocaleString('zh-CN')} 字`,
-      recommendedFocus: focusText,
-      recommendedPacing: pacingText,
-      reason: `该方向适合${pacingText}节奏，能把叙事重心放在${focusText}上，与"${seed}"自然衔接。`,
-    },
-  })).map(card => ({
-    ...card,
-    hook: cleanCardField(card.hook),
-    protagonist: cleanCardField(card.protagonist),
-    coreConflict: cleanCardField(card.coreConflict),
-  }));
+  return base
+    .map((card, i) => ({
+      ...card,
+      starterSeeds: {
+        worldSeed: `以${mainTerm}为核心构建的世界背景，${secondTerm ? `与${secondTerm}交织` : ''}。`,
+        relationshipSeed:
+          i === 2
+            ? '主角与同伴之间保持不信任的合作关系，一边共事一边试探。'
+            : '主角与关键人物之间既有利益交集也有信息差。',
+        chapterOneSeed: `第一章从${mainTerm}的异常信号开场，迅速建立${card.signals.conflictType}冲突，留下第一枚悬念钩子。`,
+      },
+      planningFit: {
+        recommendedLength: `${lengthText}，约 ${expectedWordCount.toLocaleString('zh-CN')} 字`,
+        recommendedFocus: focusText,
+        recommendedPacing: pacingText,
+        reason: `该方向适合${pacingText}节奏，能把叙事重心放在${focusText}上，与"${seed}"自然衔接。`,
+      },
+    }))
+    .map((card) => ({
+      ...card,
+      hook: cleanCardField(card.hook),
+      protagonist: cleanCardField(card.protagonist),
+      coreConflict: cleanCardField(card.coreConflict),
+    }));
 }
 
 export function cleanCardField(text: string): string {
@@ -431,7 +488,7 @@ export function cleanCardField(text: string): string {
     .replace(/我想写\s*/g, '')
     .replace(/^当当\s*/g, '')
     .replace(/作者/g, '')
-    .replace(/这个故事/g, '这个故事')  // keep for now but flag
+    .replace(/这个故事/g, '这个故事') // keep for now but flag
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

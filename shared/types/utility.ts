@@ -25,7 +25,12 @@ export interface CapabilityDiagnosticIssue {
   readonly priority?: 'P0' | 'P1' | 'P2';
   readonly signal?: string;
   readonly range?: Readonly<{ start: number; end: number }>;
-  readonly scope?: Readonly<{ paragraphStart: number; paragraphEnd: number; sentenceStart?: number; sentenceEnd?: number }>;
+  readonly scope?: Readonly<{
+    paragraphStart: number;
+    paragraphEnd: number;
+    sentenceStart?: number;
+    sentenceEnd?: number;
+  }>;
 }
 
 export interface CapabilityStructureSignal extends CapabilityDiagnosticIssue {
@@ -34,7 +39,14 @@ export interface CapabilityStructureSignal extends CapabilityDiagnosticIssue {
 
 export interface CapabilityDiagnosticResult extends CapabilityUtilityResultBase {
   readonly kind: 'diagnostic';
-  readonly report: Readonly<{ issueCount: number; score?: number; issues: readonly CapabilityDiagnosticIssue[]; structureSignals?: readonly CapabilityStructureSignal[]; qualityMode?: 'deterministic' | string; needsContextRewrite?: boolean }>;
+  readonly report: Readonly<{
+    issueCount: number;
+    score?: number;
+    issues: readonly CapabilityDiagnosticIssue[];
+    structureSignals?: readonly CapabilityStructureSignal[];
+    qualityMode?: 'deterministic' | string;
+    needsContextRewrite?: boolean;
+  }>;
   readonly qualityMode?: 'deterministic' | string;
 }
 

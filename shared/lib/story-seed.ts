@@ -14,8 +14,7 @@ export function sanitizeIdeaSeed(raw: string): string {
 }
 
 export type StorySeedQuality =
-  | { status: 'ok' }
-  | { status: 'needs_clarification'; error: string; questions: string[] };
+  { status: 'ok' } | { status: 'needs_clarification'; error: string; questions: string[] };
 
 function calcCharDiversity(text: string): number {
   const chars = text.replace(/[^一-鿿]/g, '');
@@ -42,7 +41,8 @@ function detectDigitNoise(text: string): boolean {
 function hasConcreteElements(text: string): boolean {
   const chineseOnly = text.replace(/[^一-鿿]/g, '');
   if (chineseOnly.length === 0) return false;
-  const functionWords = /[的了在是我不人他这个上下看着来去也就那要会可以还能没说过道得地里和自着之它们一个后大小多少怎么如果因为所以但是然而已经]/g;
+  const functionWords =
+    /[的了在是我不人他这个上下看着来去也就那要会可以还能没说过道得地里和自着之它们一个后大小多少怎么如果因为所以但是然而已经]/g;
   const funcCount = (chineseOnly.match(functionWords) || []).length;
   return funcCount / chineseOnly.length < 0.7;
 }
@@ -51,8 +51,11 @@ function looksExpandableSeed(normalized: string, chineseChars: string): boolean 
   if (chineseChars.length < 5) return false;
   if (!hasConcreteElements(normalized)) return false;
 
-  return /(故事|传说|江湖|长生|武侠|修仙|宗门|王朝|剑|刀|宫|城|记忆|世界|末日|异能|复仇|秘密|悬疑|案|夜|雨|人|者)$/.test(normalized)
-    || /的故事|的人生|的传说|来了|恩怨|传奇|风云|秘闻|疑案|之谜/.test(normalized);
+  return (
+    /(故事|传说|江湖|长生|武侠|修仙|宗门|王朝|剑|刀|宫|城|记忆|世界|末日|异能|复仇|秘密|悬疑|案|夜|雨|人|者)$/.test(
+      normalized
+    ) || /的故事|的人生|的传说|来了|恩怨|传奇|风云|秘闻|疑案|之谜/.test(normalized)
+  );
 }
 
 export function assessStorySeedQuality(seed: string): StorySeedQuality {
@@ -109,10 +112,15 @@ export function assessStorySeedQuality(seed: string): StorySeedQuality {
   }
 
   const storySignal =
-    /(酒馆|客栈|便利店|雨夜|深夜|城市|王朝|江湖|学校|医院|公司|废墟|战场|世界|主角|少年|少女|刀客|乞丐|皇帝|杀手|医生|老师|陌生人|复仇|追杀|背叛|失踪|死亡|秘密|阴谋|危机|冲突|逃亡|相遇|救下|寻找|觉醒|穿越|重生|系统|记忆|契约|诅咒|灵气|异能|悬疑|恐惧|愤怒|孤独|爱恨|后悔|仙侠|玄幻|武侠|都市|科幻|末日|推理|恐怖|恋爱|青春|历史|权谋|商战|电竞|盗墓|探案|宫斗|种田|升级|打脸|逆袭|扮猪|吃虎|玉玺|古墓|门派|宗门|功法|修炼|考验|试炼|封印|结界|时空|平行|宇宙|星舰|机甲|丧尸|变异|进化|超能力|魔法|剑与|骑士|领主|贵族|奴隶|起义)/.test(normalized);
+    /(酒馆|客栈|便利店|雨夜|深夜|城市|王朝|江湖|学校|医院|公司|废墟|战场|世界|主角|少年|少女|刀客|乞丐|皇帝|杀手|医生|老师|陌生人|复仇|追杀|背叛|失踪|死亡|秘密|阴谋|危机|冲突|逃亡|相遇|救下|寻找|觉醒|穿越|重生|系统|记忆|契约|诅咒|灵气|异能|悬疑|恐惧|愤怒|孤独|爱恨|后悔|仙侠|玄幻|武侠|都市|科幻|末日|推理|恐怖|恋爱|青春|历史|权谋|商战|电竞|盗墓|探案|宫斗|种田|升级|打脸|逆袭|扮猪|吃虎|玉玺|古墓|门派|宗门|功法|修炼|考验|试炼|封印|结界|时空|平行|宇宙|星舰|机甲|丧尸|变异|进化|超能力|魔法|剑与|骑士|领主|贵族|奴隶|起义)/.test(
+      normalized
+    );
   const phraseLike = /[，,。！？、；：]/.test(normalized) || chineseChars.length >= 8;
   const expandableSeed = looksExpandableSeed(normalized, chineseChars);
-  const obviousNoise = /^(不补|补哦|哦啵|哈哈|啊啊|嗯嗯|随便|测试|不知道|无所谓|没有想法|不造|母鸡|阿巴|阿吧|嘤嘤|呜呜|嘿嘿|嘻嘻|呵呵|emm|hhh|666|111|1234|abcd)/i.test(normalized);
+  const obviousNoise =
+    /^(不补|补哦|哦啵|哈哈|啊啊|嗯嗯|随便|测试|不知道|无所谓|没有想法|不造|母鸡|阿巴|阿吧|嘤嘤|呜呜|嘿嘿|嘻嘻|呵呵|emm|hhh|666|111|1234|abcd)/i.test(
+      normalized
+    );
 
   if ((!storySignal && !expandableSeed) || obviousNoise || (!phraseLike && !expandableSeed)) {
     return {

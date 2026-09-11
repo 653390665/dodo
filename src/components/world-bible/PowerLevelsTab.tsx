@@ -35,9 +35,13 @@ export function PowerLevelsTab({
           >
             <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
               <div className="flex flex-col items-center gap-1 border border-theme-border/50 rounded-lg p-1 bg-theme-bg/50">
-                <span className="text-[10px] text-theme-muted font-bold leading-none">T{lvl.tier}</span>
+                <span className="text-[10px] text-theme-muted font-bold leading-none">
+                  T{lvl.tier}
+                </span>
                 <button
-                  onClick={() => updateEntity('powerLevel', lvl.id, { tier: Math.max(1, lvl.tier - 1) })}
+                  onClick={() =>
+                    updateEntity('powerLevel', lvl.id, { tier: Math.max(1, lvl.tier - 1) })
+                  }
                   className="text-theme-muted hover:text-theme-accent disabled:opacity-30"
                   aria-label="提升等级"
                 >
@@ -68,13 +72,17 @@ export function PowerLevelsTab({
               />
               <input
                 value={lvl.characteristics}
-                onChange={(e) => updateEntity('powerLevel', lvl.id, { characteristics: e.target.value })}
+                onChange={(e) =>
+                  updateEntity('powerLevel', lvl.id, { characteristics: e.target.value })
+                }
                 className="text-sm font-medium text-theme-accent outline-none w-3/4 bg-transparent focus:bg-theme-sidebar/50 rounded px-1 -mx-1"
                 placeholder="阶段特征 (例如: 寿元三百，可御空飞行)"
               />
               <textarea
                 value={lvl.description}
-                onChange={(e) => updateEntity('powerLevel', lvl.id, { description: e.target.value })}
+                onChange={(e) =>
+                  updateEntity('powerLevel', lvl.id, { description: e.target.value })
+                }
                 placeholder="详细说明该等级的力量表现、突破条件等..."
                 className="text-sm outline-none resize-none h-20 bg-theme-sidebar/10 p-2 rounded-lg border border-theme-border/30 focus:border-theme-border"
               />

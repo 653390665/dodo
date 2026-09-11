@@ -1,9 +1,13 @@
-import type { GovernedPromptAsset, PromptAssetActionKind, InferenceOutput } from '../types/prompt-assets-governed.js';
+import type {
+  GovernedPromptAsset,
+  PromptAssetActionKind,
+  InferenceOutput,
+} from '../types/prompt-assets-governed.js';
 import type { Novel } from '../types.js';
 import {
   GOVERNED_ASSETS_V2_REGISTRY,
   SKILL_SERIES_FLOWS,
-  PROMPT_GOVERNANCE_CATALOG
+  PROMPT_GOVERNANCE_CATALOG,
 } from './public-skill-catalog.js';
 
 // ── V2 Intelligent Recommendation Router ──
@@ -24,13 +28,13 @@ export interface RecommendationInput {
  */
 export function recommendPromptAssets(input: RecommendationInput): GovernedPromptAsset[] {
   // 1. 置信度物理过滤与安全拦截门禁
-  const availableAssets = PROMPT_GOVERNANCE_CATALOG.filter(asset => {
+  const availableAssets = PROMPT_GOVERNANCE_CATALOG.filter((asset) => {
     if (input.excludeAssetIds && input.excludeAssetIds.includes(asset.id)) {
       return false;
     }
 
     // 物理隔离 test-fixture 极其它不合规置信度资产（非正式资产），豁免 V2 注册表核心资产
-    const isV2Registry = GOVERNED_ASSETS_V2_REGISTRY.some(r => r.id === asset.id);
+    const isV2Registry = GOVERNED_ASSETS_V2_REGISTRY.some((r) => r.id === asset.id);
     if (
       !isV2Registry &&
       asset.evidenceLevel !== 'scored-from-source' &&
@@ -57,10 +61,11 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
     }
 
     // 平台硬绑定：非番茄/非 strict 模式下拦截番茄特化及番茄补充资产
-    const isTomatoAsset = (asset.platformTags && asset.platformTags.includes('tomato')) ||
-                          asset.id.startsWith('tomato-') ||
-                          asset.id === 'hook-system' ||
-                          (asset.sourceGroup === 'fanqie-supplement' && !asset.id.startsWith('deconstruct-card-'));
+    const isTomatoAsset =
+      (asset.platformTags && asset.platformTags.includes('tomato')) ||
+      asset.id.startsWith('tomato-') ||
+      asset.id === 'hook-system' ||
+      (asset.sourceGroup === 'fanqie-supplement' && !asset.id.startsWith('deconstruct-card-'));
     if (isTomatoAsset) {
       const isTomatoPlatform = input.targetPlatform === 'tomato';
       const isStrict = input.commercialMode === 'strict';
@@ -80,15 +85,17 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
 
   // 2. 匹配 Tier 1: 核心安全质量护栏
   if (stage === 'polish' || stage === 'review' || stage === 'refactor') {
-    const guardrails = availableAssets.filter(asset => asset.primaryCategory === 'quality-guardrail');
+    const guardrails = availableAssets.filter(
+      (asset) => asset.primaryCategory === 'quality-guardrail'
+    );
     tier1_guardrails.push(...guardrails);
   }
 
   // 3. 匹配 Tier 2: 流程链条连续步骤推荐
   if (input.activeSeriesId) {
-    const activeFlow = SKILL_SERIES_FLOWS.find(flow => flow.id === input.activeSeriesId);
+    const activeFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === input.activeSeriesId);
     if (activeFlow) {
-      const currentSteps = activeFlow.steps.filter(step => {
+      const currentSteps = activeFlow.steps.filter((step) => {
         if (stage === 'planning' && step.stepNumber === 1) return true;
         if (stage === 'drafting' && (step.stepNumber === 2 || step.stepNumber === 3)) return true;
         if (stage === 'polish' && step.stepNumber === 4) return true;
@@ -97,13 +104,15 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
 
       if (currentSteps.length > 0) {
         for (const step of currentSteps) {
-          const stepAsset = availableAssets.find(asset => asset.id === step.assetId);
+          const stepAsset = availableAssets.find((asset) => asset.id === step.assetId);
           if (stepAsset) {
             tier2_nextSteps.push(stepAsset);
           }
         }
       } else {
-        const firstStepAsset = availableAssets.find(asset => asset.id === activeFlow.steps[0].assetId);
+        const firstStepAsset = availableAssets.find(
+          (asset) => asset.id === activeFlow.steps[0].assetId
+        );
         if (firstStepAsset) {
           tier2_nextSteps.push(firstStepAsset);
         }
@@ -112,13 +121,22 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
   }
 
   // 4. 匹配 Tier 3: 题材或平台特化与拆书卡
-  availableAssets.forEach(asset => {
-    const matchPlatform = input.targetPlatform && asset.platformTags && asset.platformTags.includes(input.targetPlatform);
-    const matchGenre = input.genreTags && asset.genreTags && asset.genreTags.some(tag => input.genreTags!.includes(tag));
-    const isDeconstruct = asset.id.startsWith('deconstruct-') || asset.deconstructionCardType !== undefined;
+  availableAssets.forEach((asset) => {
+    const matchPlatform =
+      input.targetPlatform &&
+      asset.platformTags &&
+      asset.platformTags.includes(input.targetPlatform);
+    const matchGenre =
+      input.genreTags &&
+      asset.genreTags &&
+      asset.genreTags.some((tag) => input.genreTags!.includes(tag));
+    const isDeconstruct =
+      asset.id.startsWith('deconstruct-') || asset.deconstructionCardType !== undefined;
 
     if (matchPlatform || matchGenre || isDeconstruct) {
-      const alreadyInTier1Or2 = [...tier1_guardrails, ...tier2_nextSteps].some(a => a.id === asset.id);
+      const alreadyInTier1Or2 = [...tier1_guardrails, ...tier2_nextSteps].some(
+        (a) => a.id === asset.id
+      );
       if (!alreadyInTier1Or2) {
         tier3_enhancements.push(asset);
       }
@@ -130,7 +148,7 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
   const primaryCategoryScoreMap: Record<string, number> = {};
 
   // 5. 高分去重拦截规则：同分类同大类中强制去重，保留高分资产
-  combinedList.forEach(asset => {
+  combinedList.forEach((asset) => {
     const cat = asset.primaryCategory || 'other';
     const score = asset.score || 0;
     if (!primaryCategoryScoreMap[cat] || score > primaryCategoryScoreMap[cat]) {
@@ -139,13 +157,16 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
   });
 
   const seenIds = new Set<string>();
-  combinedList.forEach(asset => {
+  combinedList.forEach((asset) => {
     if (seenIds.has(asset.id)) return;
 
     const cat = asset.primaryCategory || 'other';
     const score = asset.score || 0;
-    const isTier2 = tier2_nextSteps.some(a => a.id === asset.id);
-    const isSpecialAsset = asset.platformTags !== undefined || asset.genreTags !== undefined || asset.deconstructionCardType !== undefined;
+    const isTier2 = tier2_nextSteps.some((a) => a.id === asset.id);
+    const isSpecialAsset =
+      asset.platformTags !== undefined ||
+      asset.genreTags !== undefined ||
+      asset.deconstructionCardType !== undefined;
 
     // 如果是最高分或者是流程下一步推荐，或者是平台或题材特化及拆书卡资产，予以保留
     if (score >= primaryCategoryScoreMap[cat] || isTier2 || isSpecialAsset) {
@@ -155,8 +176,8 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
   });
 
   const getAssetTier = (asset: GovernedPromptAsset): number => {
-    if (tier1_guardrails.some(a => a.id === asset.id)) return 1;
-    if (tier2_nextSteps.some(a => a.id === asset.id)) return 2;
+    if (tier1_guardrails.some((a) => a.id === asset.id)) return 1;
+    if (tier2_nextSteps.some((a) => a.id === asset.id)) return 2;
     return 3;
   };
 
@@ -169,10 +190,10 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
     }
 
     if (input.activeSeriesId) {
-      const activeFlow = SKILL_SERIES_FLOWS.find(flow => flow.id === input.activeSeriesId);
+      const activeFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === input.activeSeriesId);
       if (activeFlow) {
-        const isAInFlow = activeFlow.steps.some(step => step.assetId === a.id);
-        const isBInFlow = activeFlow.steps.some(step => step.assetId === b.id);
+        const isAInFlow = activeFlow.steps.some((step) => step.assetId === a.id);
+        const isBInFlow = activeFlow.steps.some((step) => step.assetId === b.id);
         if (isAInFlow && !isBInFlow) return -1;
         if (!isAInFlow && isBInFlow) return 1;
       }
@@ -184,17 +205,17 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
   const result = uniqueList.slice(0, 3);
 
   // 7. 返回结果注入推荐原因，并对推荐资产进行浅拷贝，防止直接修改大库全局对象的副作用
-  return result.map(asset => {
+  return result.map((asset) => {
     const tier = getAssetTier(asset);
     const recommendationReason =
       tier === 1
-        ? "底线防御：AI味去化与局部问题审校，确保文字画面感。"
+        ? '底线防御：AI味去化与局部问题审校，确保文字画面感。'
         : tier === 2
-        ? "流程推进：长篇写作连续步骤节点，确保大纲与剧情顺承。"
-        : "题材/平台特化：番茄爽爆开篇与钩子强化，拉高完读指标。";
+          ? '流程推进：长篇写作连续步骤节点，确保大纲与剧情顺承。'
+          : '题材/平台特化：番茄爽爆开篇与钩子强化，拉高完读指标。';
     return {
       ...asset,
-      recommendationReason
+      recommendationReason,
     };
   });
 }
@@ -202,7 +223,9 @@ export function recommendPromptAssets(input: RecommendationInput): GovernedPromp
 /**
  * 依据启发式规则推断资产的推荐卡片动作类别 (Get Prompt Asset Action Kind)
  */
-export function getPromptAssetAction(asset: Partial<GovernedPromptAsset> & { id: string }): PromptAssetActionKind | null {
+export function getPromptAssetAction(
+  asset: Partial<GovernedPromptAsset> & { id: string }
+): PromptAssetActionKind | null {
   // 1. 过滤及不可执行规则拦截
   if (
     asset.placementTier === 'sanitize-required' ||
@@ -222,7 +245,10 @@ export function getPromptAssetAction(asset: Partial<GovernedPromptAsset> & { id:
   }
 
   // 3. 质量护栏及平台标准规则
-  if (asset.primaryCategory === 'quality-guardrail' || asset.primaryCategory === 'platform-criteria') {
+  if (
+    asset.primaryCategory === 'quality-guardrail' ||
+    asset.primaryCategory === 'platform-criteria'
+  ) {
     const isRewrite =
       asset.id.includes('rewrite') ||
       asset.id.includes('polish') ||
@@ -254,7 +280,8 @@ export function getPromptAssetAction(asset: Partial<GovernedPromptAsset> & { id:
 export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
   const profileTags = novel.projectPreferenceProfile?.tags || [];
   const capabilityProfile = novel.projectPreferenceProfile?.capabilityProfile;
-  const explicitActiveFlowId = capabilityProfile?.activeFlowId || novel.projectPreferenceProfile?.activeSeriesId;
+  const explicitActiveFlowId =
+    capabilityProfile?.activeFlowId || novel.projectPreferenceProfile?.activeSeriesId;
   const projectDeckIds = [
     capabilityProfile?.projectSkillDeck?.mainCardId,
     ...(capabilityProfile?.projectSkillDeck?.supportCardIds || []),
@@ -264,32 +291,34 @@ export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
     novel.summary || '',
     novel.worldRules || '',
     novel.globalOutline || '',
-    ...profileTags
-  ].join('\n').toLowerCase();
+    ...profileTags,
+  ]
+    .join('\n')
+    .toLowerCase();
 
   const isTomato = textToSearch.includes('番茄') || textToSearch.includes('tomato');
   const targetPlatform = isTomato ? 'tomato' : undefined;
 
   const detectedGenres: string[] = [];
   const GENRE_KEYWORD_MAP: { [key: string]: string } = {
-    '玄幻': 'fantasy',
-    'fantasy': 'fantasy',
-    '修真': 'cultivation',
-    '修仙': 'cultivation',
-    'cultivation': 'cultivation',
-    '都市': 'urban',
-    'urban': 'urban',
-    '悬疑': 'mystery',
-    'mystery': 'mystery',
-    '言情': 'romance',
-    'romance': 'romance',
-    '科幻': 'sci-fi',
+    玄幻: 'fantasy',
+    fantasy: 'fantasy',
+    修真: 'cultivation',
+    修仙: 'cultivation',
+    cultivation: 'cultivation',
+    都市: 'urban',
+    urban: 'urban',
+    悬疑: 'mystery',
+    mystery: 'mystery',
+    言情: 'romance',
+    romance: 'romance',
+    科幻: 'sci-fi',
     'sci-fi': 'sci-fi',
-    'scifi': 'sci-fi',
-    '末世': 'apocalypse',
-    'apocalypse': 'apocalypse',
-    '重生': 'rebirth',
-    'rebirth': 'rebirth'
+    scifi: 'sci-fi',
+    末世: 'apocalypse',
+    apocalypse: 'apocalypse',
+    重生: 'rebirth',
+    rebirth: 'rebirth',
   };
 
   for (const [kw, tag] of Object.entries(GENRE_KEYWORD_MAP)) {
@@ -299,15 +328,20 @@ export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
   }
 
   const mountedSkillIds = novel.mountedSkillIds || [];
-  const mountedSkillLoadoutIds = novel.mountedSkillLoadout?.map(item => item.skillId) || [];
-  const longformFlowId = SKILL_SERIES_FLOWS.find(flow => flow.name.includes('长篇商业连载'))?.id;
-  const hasPremiumLongformFlow =
-    [...profileTags, ...mountedSkillIds, ...mountedSkillLoadoutIds, ...projectDeckIds].some(id =>
+  const mountedSkillLoadoutIds = novel.mountedSkillLoadout?.map((item) => item.skillId) || [];
+  const longformFlowId = SKILL_SERIES_FLOWS.find((flow) => flow.name.includes('长篇商业连载'))?.id;
+  const hasPremiumLongformFlow = [
+    ...profileTags,
+    ...mountedSkillIds,
+    ...mountedSkillLoadoutIds,
+    ...projectDeckIds,
+  ].some(
+    (id) =>
       id === longformFlowId ||
       id === 'xiaofeiji' ||
       id === 'xiaofeiji-novel' ||
       id.includes('xiaofeiji')
-    );
+  );
 
   const isShortAesthetic =
     textToSearch.includes('老福特') ||
@@ -335,7 +369,7 @@ export function inferNovelGovernanceProfile(novel: Novel): InferenceOutput {
     targetPlatform,
     genreTags: detectedGenres,
     activeSeriesId,
-    commercialMode
+    commercialMode,
   };
 }
 
@@ -358,7 +392,9 @@ export interface OpeningRecommendationResult {
 /**
  * 开新书时智能推荐平台、题材包、流程系列
  */
-export function recommendOpeningGovernance(input: OpeningRecommendationInput): OpeningRecommendationResult {
+export function recommendOpeningGovernance(
+  input: OpeningRecommendationInput
+): OpeningRecommendationResult {
   const title = input.title || '';
   const summary = input.summary || '';
   const ideaSeed = input.ideaSeed || '';
@@ -368,21 +404,21 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
   const textToSearch = [title, summary, ideaSeed, ...tags].join('\n').toLowerCase();
 
   // 识别平台与短篇特征
-  const isShortForm = 
-    textToSearch.includes('短篇') || 
-    textToSearch.includes('知乎') || 
-    textToSearch.includes('老福特') || 
-    textToSearch.includes('lofter') || 
+  const isShortForm =
+    textToSearch.includes('短篇') ||
+    textToSearch.includes('知乎') ||
+    textToSearch.includes('老福特') ||
+    textToSearch.includes('lofter') ||
     (targetWordCount !== undefined && targetWordCount > 0 && targetWordCount < 50000);
 
-  const isTomatoMatched = 
-    textToSearch.includes('番茄') || 
+  const isTomatoMatched =
+    textToSearch.includes('番茄') ||
     textToSearch.includes('tomato') ||
     textToSearch.includes('爽文') ||
     textToSearch.includes('系统') ||
     textToSearch.includes('重生');
 
-  const longformFlowId = SKILL_SERIES_FLOWS.find(flow => flow.name.includes('长篇商业连载'))?.id;
+  const longformFlowId = SKILL_SERIES_FLOWS.find((flow) => flow.name.includes('长篇商业连载'))?.id;
   const isPremiumLongformMatched =
     tags.includes(longformFlowId || '') ||
     tags.includes('长篇商业连载流程') ||
@@ -417,7 +453,7 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
   } else if (isPremiumLongformMatched && longformFlowId) {
     activeSeriesId = longformFlowId;
     platformTagToApply = [
-      textToSearch.includes('小飞鸡') || tags.includes('小飞鸡') ? '小飞鸡' : '长篇商业连载流程'
+      textToSearch.includes('小飞鸡') || tags.includes('小飞鸡') ? '小飞鸡' : '长篇商业连载流程',
     ];
     explanation = '识别到您的专属高级定制流偏好，推荐选择长篇商业连载流程。';
   } else if (isTomatoMatched) {
@@ -430,25 +466,25 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
   // 题材识别
   const detectedGenres: string[] = [];
   const genreTagsToApply: string[] = [];
-  const GENRE_MAP: { [key: string]: { tag: string, label: string } } = {
-    '玄幻': { tag: 'fantasy', label: '玄幻' },
-    'fantasy': { tag: 'fantasy', label: '玄幻' },
-    '修真': { tag: 'cultivation', label: '修真' },
-    '修仙': { tag: 'cultivation', label: '修仙' },
-    'cultivation': { tag: 'cultivation', label: '修真' },
-    '都市': { tag: 'urban', label: '都市' },
-    'urban': { tag: 'urban', label: '都市' },
-    '悬疑': { tag: 'mystery', label: '悬疑' },
-    'mystery': { tag: 'mystery', label: '悬疑' },
-    '言情': { tag: 'romance', label: '言情' },
-    'romance': { tag: 'romance', label: '言情' },
-    '科幻': { tag: 'sci-fi', label: '科幻' },
+  const GENRE_MAP: { [key: string]: { tag: string; label: string } } = {
+    玄幻: { tag: 'fantasy', label: '玄幻' },
+    fantasy: { tag: 'fantasy', label: '玄幻' },
+    修真: { tag: 'cultivation', label: '修真' },
+    修仙: { tag: 'cultivation', label: '修仙' },
+    cultivation: { tag: 'cultivation', label: '修真' },
+    都市: { tag: 'urban', label: '都市' },
+    urban: { tag: 'urban', label: '都市' },
+    悬疑: { tag: 'mystery', label: '悬疑' },
+    mystery: { tag: 'mystery', label: '悬疑' },
+    言情: { tag: 'romance', label: '言情' },
+    romance: { tag: 'romance', label: '言情' },
+    科幻: { tag: 'sci-fi', label: '科幻' },
     'sci-fi': { tag: 'sci-fi', label: '科幻' },
-    'scifi': { tag: 'sci-fi', label: '科幻' },
-    '末世': { tag: 'apocalypse', label: '末世' },
-    'apocalypse': { tag: 'apocalypse', label: '末世' },
-    '重生': { tag: 'rebirth', label: '重生' },
-    'rebirth': { tag: 'rebirth', label: '重生' }
+    scifi: { tag: 'sci-fi', label: '科幻' },
+    末世: { tag: 'apocalypse', label: '末世' },
+    apocalypse: { tag: 'apocalypse', label: '末世' },
+    重生: { tag: 'rebirth', label: '重生' },
+    rebirth: { tag: 'rebirth', label: '重生' },
   };
 
   for (const [kw, info] of Object.entries(GENRE_MAP)) {
@@ -469,7 +505,7 @@ export function recommendOpeningGovernance(input: OpeningRecommendationInput): O
     genreTags: finalGenreTags,
     activeSeriesId,
     tagsToApply: [...platformTagToApply, ...finalGenreTagsToApply],
-    explanation
+    explanation,
   };
 }
 
@@ -483,9 +519,9 @@ export interface ActiveDimensionSignals {
   platformFit: boolean;
 
   // 映射的具体行为文案或指令
-  extraAuditChecks: string[];       // 补充审稿项
+  extraAuditChecks: string[]; // 补充审稿项
   extraWritingConstraints: string[]; // 加入写作约束
-  recommendedAssetIds: string[];    // 推荐的治理资产 ID
+  recommendedAssetIds: string[]; // 推荐的治理资产 ID
 }
 export interface GovernanceNovelInput {
   wordCount?: number;
@@ -511,14 +547,22 @@ export function getActiveDimensionSignals(novel: GovernanceNovelInput): ActiveDi
   const tags = novel.tags || [];
 
   // 1. style-humanization 激活条件：已经开始写正文，且存在字数，或者带有 style-humanization 的标签/偏好
-  const styleHumanization = wordCount > 0 || tags.includes('style-humanization') || tags.includes('美文') || tags.includes('精品');
+  const styleHumanization =
+    wordCount > 0 ||
+    tags.includes('style-humanization') ||
+    tags.includes('美文') ||
+    tags.includes('精品');
 
   // 2. cross-chapter-continuity 激活条件：章节数 >= 5，或者长篇字数 > 10000
-  const crossChapterContinuity = chapterCount >= 5 || wordCount > 10000 || tags.includes('long-novel') || tags.includes('长篇');
+  const crossChapterContinuity =
+    chapterCount >= 5 || wordCount > 10000 || tags.includes('long-novel') || tags.includes('长篇');
 
   // 3. commercial-readability 激活条件：属于付费商业项目，或者目标平台是商业爆款导向（如番茄、七猫、起点）
-  const isCommercialPlatform = ['番茄', '起点', '晋江', '七猫', '17k'].some(p => targetPlatform.includes(p));
-  const commercialReadability = isCommercial || isCommercialPlatform || tags.includes('爽文') || tags.includes('商业');
+  const isCommercialPlatform = ['番茄', '起点', '晋江', '七猫', '17k'].some((p) =>
+    targetPlatform.includes(p)
+  );
+  const commercialReadability =
+    isCommercial || isCommercialPlatform || tags.includes('爽文') || tags.includes('商业');
 
   // 4. genre-fit 激活条件：指定了明确的流派，且有对应的题材包/题材特征
   const genreFit = !!genre && genre !== '未分类' && genre !== '其他';
@@ -565,8 +609,12 @@ export function getActiveDimensionSignals(novel: GovernanceNovelInput): ActiveDi
   }
 
   if (genreFit) {
-    extraAuditChecks.push(`审视内容是否高度贴合流派 [${genre}] 的核心调性（如克苏鲁需要冰冷压迫感、古言需要典雅句式）。`);
-    extraWritingConstraints.push(`【流派特化】请严格遵循 [${genre}] 流派的核心叙事特征与审美词汇，强化该题材垂直受众最钟爱的氛围场景渲染。`);
+    extraAuditChecks.push(
+      `审视内容是否高度贴合流派 [${genre}] 的核心调性（如克苏鲁需要冰冷压迫感、古言需要典雅句式）。`
+    );
+    extraWritingConstraints.push(
+      `【流派特化】请严格遵循 [${genre}] 流派的核心叙事特征与审美词汇，强化该题材垂直受众最钟爱的氛围场景渲染。`
+    );
     if (genre.includes('克苏鲁') || genre.includes('悬疑')) {
       recommendedAssetIds.push('licensed-cthulhu-style');
     } else if (genre.includes('古风') || genre.includes('古言')) {
@@ -575,8 +623,12 @@ export function getActiveDimensionSignals(novel: GovernanceNovelInput): ActiveDi
   }
 
   if (platformFit) {
-    extraAuditChecks.push(`检测审稿口径是否符合发布平台 [${targetPlatform}] 的签约 and 读者推荐倾向。`);
-    extraWritingConstraints.push(`【平台特化】针对发布平台 [${targetPlatform}] 的读者期望优化章节字数分布和悬念落点，符合平台完读率模型。`);
+    extraAuditChecks.push(
+      `检测审稿口径是否符合发布平台 [${targetPlatform}] 的签约 and 读者推荐倾向。`
+    );
+    extraWritingConstraints.push(
+      `【平台特化】针对发布平台 [${targetPlatform}] 的读者期望优化章节字数分布和悬念落点，符合平台完读率模型。`
+    );
     if (targetPlatform.includes('番茄')) {
       recommendedAssetIds.push('tomato-opening-validator');
     }
@@ -590,6 +642,6 @@ export function getActiveDimensionSignals(novel: GovernanceNovelInput): ActiveDi
     platformFit,
     extraAuditChecks,
     extraWritingConstraints,
-    recommendedAssetIds: Array.from(new Set(recommendedAssetIds))
+    recommendedAssetIds: Array.from(new Set(recommendedAssetIds)),
   };
 }

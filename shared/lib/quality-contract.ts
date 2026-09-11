@@ -50,10 +50,7 @@ export interface DraftQualityMechanicalReview {
 }
 
 export type SemanticReviewCheckId =
-  | 'chapter-goal'
-  | 'character-consistency'
-  | 'world-rule-consistency'
-  | 'foreshadowing';
+  'chapter-goal' | 'character-consistency' | 'world-rule-consistency' | 'foreshadowing';
 
 export type DraftQualitySemanticStatus = 'unknown' | 'pass' | 'needs-action';
 
@@ -100,11 +97,7 @@ export interface DraftQualityReport {
 }
 
 /** Origin of a manuscript candidate. Fallback output is never an ordinary acceptance source. */
-export type DraftAcceptanceSource =
-  | 'model'
-  | 'fallback'
-  | 'user'
-  | 'unknown';
+export type DraftAcceptanceSource = 'model' | 'fallback' | 'user' | 'unknown';
 
 export type DraftAcceptanceStatus = 'eligible' | 'blocked' | 'review-required' | 'risk-accepted';
 

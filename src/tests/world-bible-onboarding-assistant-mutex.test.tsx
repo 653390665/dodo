@@ -34,7 +34,7 @@ describe('WorldBible onboarding assistant mutex', () => {
           onEnterEditor,
         }}
         isGlobalAssistantOpen={false}
-      />,
+      />
     );
 
     const enterButton = screen.getByRole('button', { name: '先写正文' });
@@ -48,7 +48,7 @@ describe('WorldBible onboarding assistant mutex', () => {
 
   test('hides the local assistant while the global assistant is open without clearing input', () => {
     const view = render(
-      <WorldBibleOnboarding onboarding={onboarding} isGlobalAssistantOpen={false} />,
+      <WorldBibleOnboarding onboarding={onboarding} isGlobalAssistantOpen={false} />
     );
 
     fireEvent.click(screen.getByRole('button', { name: '设定引导' }));
@@ -56,14 +56,20 @@ describe('WorldBible onboarding assistant mutex', () => {
     fireEvent.change(textarea, { target: { value: '保留这段设定' } });
 
     view.rerender(
-      <WorldBibleOnboarding onboarding={{ ...onboarding, assistantInput: '保留这段设定' }} isGlobalAssistantOpen />,
+      <WorldBibleOnboarding
+        onboarding={{ ...onboarding, assistantInput: '保留这段设定' }}
+        isGlobalAssistantOpen
+      />
     );
 
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: '设定引导' })).toBeNull();
 
     view.rerender(
-      <WorldBibleOnboarding onboarding={{ ...onboarding, assistantInput: '保留这段设定' }} isGlobalAssistantOpen={false} />,
+      <WorldBibleOnboarding
+        onboarding={{ ...onboarding, assistantInput: '保留这段设定' }}
+        isGlobalAssistantOpen={false}
+      />
     );
     expect(screen.getByRole('button', { name: '设定引导' })).toBeTruthy();
   });

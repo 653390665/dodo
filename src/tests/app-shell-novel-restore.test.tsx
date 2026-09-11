@@ -21,28 +21,46 @@ vi.mock('../lib/api', () => ({
   updateChapter: vi.fn(),
   updateNovel: vi.fn(),
 }));
-vi.mock('../lib/editor-write-queue', () => ({ flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../lib/editor-write-queue', () => ({
+  flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../lib/toast', () => ({ toast: vi.fn() }));
 vi.mock('../lib/product-events-client', () => ({ recordProductEvent: mocks.recordProductEvent }));
-vi.mock('../components/Sidebar', () => ({ Sidebar: ({ onNavigate }: { onNavigate: (view: 'editor') => void }) => (
-  <aside>
-    <button data-testid="enter-editor" onClick={() => onNavigate('editor')}>SIDEBAR</button>
-  </aside>
-) }));
-vi.mock('../components/WelcomeView', () => ({ WelcomeView: ({ onSelectNovel }: { onSelectNovel: (novel: Novel) => void }) => (
-  <div>
-    <button onClick={() => onSelectNovel(restoredNovel)}>选择作品</button>
-    WELCOME
-  </div>
-) }));
+vi.mock('../components/Sidebar', () => ({
+  Sidebar: ({ onNavigate }: { onNavigate: (view: 'editor') => void }) => (
+    <aside>
+      <button data-testid="enter-editor" onClick={() => onNavigate('editor')}>
+        SIDEBAR
+      </button>
+    </aside>
+  ),
+}));
+vi.mock('../components/WelcomeView', () => ({
+  WelcomeView: ({ onSelectNovel }: { onSelectNovel: (novel: Novel) => void }) => (
+    <div>
+      <button onClick={() => onSelectNovel(restoredNovel)}>选择作品</button>
+      WELCOME
+    </div>
+  ),
+}));
 vi.mock('../components/AIAssistantDrawer', () => ({ AIAssistantDrawer: () => null }));
-vi.mock('../components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('../components/ProjectCockpitView', () => ({ ProjectCockpitView: ({ novel }: { novel: Novel }) => <div>COCKPIT:{novel.title}</div> }));
+vi.mock('../components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
+}));
+vi.mock('../components/ProjectCockpitView', () => ({
+  ProjectCockpitView: ({ novel }: { novel: Novel }) => <div>COCKPIT:{novel.title}</div>,
+}));
 vi.mock('../components/SettingsModal', () => ({ SettingsModal: () => null }));
 vi.mock('../components/Library', () => ({ Library: () => <div>LIBRARY</div> }));
-vi.mock('../components/EditorView', () => ({ EditorView: ({ novel }: { novel: Novel }) => <div>EDITOR:{novel.title}</div> }));
-vi.mock('../components/WorldBibleView', () => ({ WorldBibleView: ({ novel }: { novel: Novel }) => <div>WORLD:{novel.title}</div> }));
-vi.mock('../components/ContinuationImportView', () => ({ ContinuationImportView: () => <div>IMPORT</div> }));
+vi.mock('../components/EditorView', () => ({
+  EditorView: ({ novel }: { novel: Novel }) => <div>EDITOR:{novel.title}</div>,
+}));
+vi.mock('../components/WorldBibleView', () => ({
+  WorldBibleView: ({ novel }: { novel: Novel }) => <div>WORLD:{novel.title}</div>,
+}));
+vi.mock('../components/ContinuationImportView', () => ({
+  ContinuationImportView: () => <div>IMPORT</div>,
+}));
 vi.mock('../components/SkillsStudioView', () => ({ SkillsStudioView: () => <div>SKILLS</div> }));
 vi.mock('../components/BookFactoryView', () => ({ BookFactoryView: () => <div>FACTORY</div> }));
 
@@ -78,7 +96,7 @@ describe('AppShell selected novel restoration', () => {
     render(
       <React.StrictMode>
         <AppShell />
-      </React.StrictMode>,
+      </React.StrictMode>
     );
 
     expect(screen.getByText('正在恢复上次作品...')).toBeDefined();

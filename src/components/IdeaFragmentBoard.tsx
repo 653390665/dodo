@@ -1,10 +1,25 @@
 import { toast } from '../lib/toast';
 import { logger } from '../lib/client-logger';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Crosshair, Globe, Lightbulb, Loader2, MessageSquare, Plus, Sparkles, Trash2, User } from 'lucide-react';
+import {
+  Crosshair,
+  Globe,
+  Lightbulb,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Sparkles,
+  Trash2,
+  User,
+} from 'lucide-react';
 
 import { IdeaFragment } from '../../shared/types';
-import { listIdeaFragments, createIdeaFragment, updateIdeaFragment, deleteIdeaFragment } from '../lib/idea-client';
+import {
+  listIdeaFragments,
+  createIdeaFragment,
+  updateIdeaFragment,
+  deleteIdeaFragment,
+} from '../lib/idea-client';
 import { requireResponseDatabaseGeneration, subscribeToChanges } from '../lib/db-transport';
 import { streamIdeaFragment } from '../lib/idea-fragment-stream';
 import { generateClientId } from '../lib/id';
@@ -36,20 +51,28 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   const [newContent, setNewContent] = useState('');
   const [newType, setNewType] = useState<IdeaFragment['type']>('scene');
   const [expandingIds, setExpandingIds] = useState<Set<string>>(() => new Set());
-  const expansionRequestsRef = useRef(new Map<string, { sequence: number; controller: AbortController }>());
+  const expansionRequestsRef = useRef(
+    new Map<string, { sequence: number; controller: AbortController }>()
+  );
   const expansionSequenceRef = useRef(new Map<string, number>());
 
   const refresh = useCallback(async () => {
     setFragments(await listIdeaFragments(novelId));
   }, [novelId]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
-  useEffect(() => { refresh(); return subscribeToChanges(refresh); }, [novelId, refresh]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching with subscription
+    refresh();
+    return subscribeToChanges(refresh);
+  }, [novelId, refresh]);
 
-  useEffect(() => () => {
-    expansionRequestsRef.current.forEach(({ controller }) => controller.abort());
-    expansionRequestsRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      expansionRequestsRef.current.forEach(({ controller }) => controller.abort());
+      expansionRequestsRef.current.clear();
+    },
+    []
+  );
 
   const handleAdd = async () => {
     if (!newContent.trim()) return;
@@ -64,7 +87,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
     };
     await createIdeaFragment(f);
     setNewContent('');
-    setFragments(prev => [f, ...prev]);
+    setFragments((prev) => [f, ...prev]);
   };
 
   const handleExpand = async (f: IdeaFragment) => {
@@ -78,9 +101,9 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
     const isCurrent = () => expansionRequestsRef.current.get(f.id)?.sequence === sequence;
     const originalExpansion = f.aiExpansion || '';
     const originalStatus = f.status;
-    setFragments((previous) => previous.map((item) => (
-      item.id === f.id ? { ...item, aiExpansion: '' } : item
-    )));
+    setFragments((previous) =>
+      previous.map((item) => (item.id === f.id ? { ...item, aiExpansion: '' } : item))
+    );
 
     try {
       const res = await fetch('/api/expand-fragment', {
@@ -99,25 +122,40 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
         response: res,
         originalExpansion,
         isCurrent,
-        onPreview: (text) => setFragments((previous) => previous.map((item) => (
-          item.id === f.id ? { ...item, aiExpansion: text, status: originalStatus } : item
-        ))),
+        onPreview: (text) =>
+          setFragments((previous) =>
+            previous.map((item) =>
+              item.id === f.id ? { ...item, aiExpansion: text, status: originalStatus } : item
+            )
+          ),
         onCommit: async (text) => {
-          if (!await updateIdeaFragment(f.id, { aiExpansion: text, status: 'expanded' }, databaseGeneration)) {
+          if (
+            !(await updateIdeaFragment(
+              f.id,
+              { aiExpansion: text, status: 'expanded' },
+              databaseGeneration
+            ))
+          ) {
             throw new Error('灵感碎片已不存在，展开结果未保存。');
           }
           if (isCurrent()) {
-            setFragments((previous) => previous.map((item) => (
-              item.id === f.id ? { ...item, aiExpansion: text, status: 'expanded' } : item
-            )));
+            setFragments((previous) =>
+              previous.map((item) =>
+                item.id === f.id ? { ...item, aiExpansion: text, status: 'expanded' } : item
+              )
+            );
           }
         },
       });
     } catch (e) {
       if (isCurrent()) {
-        setFragments((previous) => previous.map((item) => (
-          item.id === f.id ? { ...item, aiExpansion: originalExpansion, status: originalStatus } : item
-        )));
+        setFragments((previous) =>
+          previous.map((item) =>
+            item.id === f.id
+              ? { ...item, aiExpansion: originalExpansion, status: originalStatus }
+              : item
+          )
+        );
         if (!(e instanceof Error && e.name === 'AbortError')) {
           logger.error('AI 展开失败:', e);
           toast('AI 展开失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
@@ -136,12 +174,13 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await appConfirm('删除该灵感碎片？', '删除后不可撤销。', { confirmLabel: '删除' }))) return;
+    if (!(await appConfirm('删除该灵感碎片？', '删除后不可撤销。', { confirmLabel: '删除' })))
+      return;
     expansionRequestsRef.current.get(id)?.controller.abort();
     expansionRequestsRef.current.delete(id);
     expansionSequenceRef.current.set(id, (expansionSequenceRef.current.get(id) || 0) + 1);
     await deleteIdeaFragment(id);
-    setFragments(prev => prev.filter(f => f.id !== id));
+    setFragments((prev) => prev.filter((f) => f.id !== id));
     setExpandingIds((previous) => {
       const next = new Set(previous);
       next.delete(id);
@@ -154,12 +193,14 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
       {/* Input area */}
       <div className="bg-theme-sidebar p-4 rounded-xl border border-theme-border shadow-sm space-y-3">
         <div className="flex gap-2">
-          {(['scene', 'dialogue', 'character', 'plot_hook', 'world'] as const).map(t => (
+          {(['scene', 'dialogue', 'character', 'plot_hook', 'world'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setNewType(t)}
               className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all flex items-center gap-1 ${
-                newType === t ? 'bg-theme-accent text-theme-accent-contrast' : 'bg-theme-sidebar text-theme-muted hover:bg-theme-border'
+                newType === t
+                  ? 'bg-theme-accent text-theme-accent-contrast'
+                  : 'bg-theme-sidebar text-theme-muted hover:bg-theme-border'
               }`}
             >
               {TYPE_ICONS[t]} {compact ? '' : TYPE_LABELS[t]}
@@ -169,12 +210,18 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
         <div className="flex gap-2">
           <input
             value={newContent}
-            onChange={e => setNewContent(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+            onChange={(e) => setNewContent(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAdd();
+            }}
             placeholder="随手记下一个灵感碎片..."
             className="flex-1 text-sm px-3 py-2 bg-theme-sidebar/30 border border-theme-border rounded-lg outline-none focus:border-theme-accent transition-colors"
           />
-          <button onClick={handleAdd} disabled={!newContent.trim()} className="px-4 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-sm font-bold disabled:opacity-50 hover:opacity-90 transition-all">
+          <button
+            onClick={handleAdd}
+            disabled={!newContent.trim()}
+            className="px-4 py-2 bg-theme-accent text-theme-accent-contrast rounded-lg text-sm font-bold disabled:opacity-50 hover:opacity-90 transition-all"
+          >
             <Plus size={16} />
           </button>
         </div>
@@ -182,7 +229,7 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
 
       {/* Fragment list */}
       <div className="space-y-3">
-        {fragments.map(f => (
+        {fragments.map((f) => (
           <div
             key={f.id}
             className={`bg-theme-sidebar rounded-xl border shadow-sm overflow-hidden ${
@@ -192,12 +239,18 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-theme-muted">{TYPE_ICONS[f.type]}</span>
-                <span className="text-[10px] font-bold text-theme-muted uppercase">{TYPE_LABELS[f.type]}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                  f.status === 'raw' ? 'bg-amber-50 text-amber-700' :
-                  f.status === 'expanded' ? 'bg-blue-50 text-blue-700' :
-                  'bg-emerald-50 text-emerald-700'
-                }`}>
+                <span className="text-[10px] font-bold text-theme-muted uppercase">
+                  {TYPE_LABELS[f.type]}
+                </span>
+                <span
+                  className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                    f.status === 'raw'
+                      ? 'bg-amber-50 text-amber-700'
+                      : f.status === 'expanded'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
                   {f.status === 'raw' ? '原始' : f.status === 'expanded' ? '已展开' : '已转化'}
                 </span>
               </div>
@@ -215,7 +268,11 @@ export function IdeaFragmentBoard({ novelId, compact }: Props) {
                   disabled={expandingIds.has(f.id)}
                   className="flex-1 py-2 text-xs font-bold text-theme-accent hover:bg-theme-accent/5 transition-colors flex items-center justify-center gap-1.5"
                 >
-                  {expandingIds.has(f.id) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  {expandingIds.has(f.id) ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}
                   AI 展开
                 </button>
               )}

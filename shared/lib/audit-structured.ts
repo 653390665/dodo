@@ -44,11 +44,7 @@ export interface StructuredAuditSceneCheck {
 }
 
 export type StructuredAuditEvidenceCategory =
-  | 'hard_canon'
-  | 'character_state'
-  | 'scene_execution'
-  | 'pacing'
-  | 'foreshadowing';
+  'hard_canon' | 'character_state' | 'scene_execution' | 'pacing' | 'foreshadowing';
 
 export interface StructuredAuditEvidence {
   category: StructuredAuditEvidenceCategory;
@@ -103,11 +99,17 @@ function decodeBase64Utf8(value: string): string {
 }
 
 function stripCodeFences(raw: string): string {
-  return raw.replace(/```json/g, '').replace(/```/g, '').trim();
+  return raw
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
 }
 
 function stripReasoningBlocks(raw: string): string {
-  const withoutClosed = raw.replace(/<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/gi, '');
+  const withoutClosed = raw.replace(
+    /<(?:think|analysis|reasoning)>[\s\S]*?<\/(?:think|analysis|reasoning)>/gi,
+    ''
+  );
   return withoutClosed.replace(/<(?:think|analysis|reasoning)>[\s\S]*$/i, '').trim();
 }
 
@@ -174,7 +176,7 @@ export function parseBalancedJsonObject(raw: string): Record<string, unknown> | 
   try {
     const parsed = JSON.parse(candidate.candidate);
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
+      ? (parsed as Record<string, unknown>)
       : null;
   } catch {
     return null;
@@ -334,7 +336,14 @@ function normalizeEvidence(item: unknown): StructuredAuditEvidence | null {
   const suggestedFix = stringValue(r.suggestedFix || r.fix).trim();
   if (!category || !severity || !quote || !explanation || !suggestedFix) return null;
   const location = stringValue(r.location).trim();
-  return { category, severity, quote, explanation, suggestedFix, ...(location ? { location } : {}) };
+  return {
+    category,
+    severity,
+    quote,
+    explanation,
+    suggestedFix,
+    ...(location ? { location } : {}),
+  };
 }
 
 function stringValue(value: unknown): string {
@@ -426,7 +435,13 @@ export interface AuditScores {
   evidence?: unknown[];
 }
 
-const FIVE_DIMENSION_KEYS = ['可读性', '分镜执行度', '冲突推进度', '风格契合度', '网文章节感'] as const;
+const FIVE_DIMENSION_KEYS = [
+  '可读性',
+  '分镜执行度',
+  '冲突推进度',
+  '风格契合度',
+  '网文章节感',
+] as const;
 
 export function parseAuditFiveDim(raw: string): AuditScores | null {
   try {
@@ -442,16 +457,28 @@ export function parseAuditFiveDim(raw: string): AuditScores | null {
     }
     if (!parsed || typeof parsed !== 'object') return null;
     const payload = parsed as Record<string, unknown>;
-    if (!payload.scores || typeof payload.scores !== 'object' || !('totalScore' in payload)) return null;
+    if (!payload.scores || typeof payload.scores !== 'object' || !('totalScore' in payload))
+      return null;
     const scores = payload.scores as Record<string, unknown>;
     const scoreKeys = Object.keys(scores);
-    if (scoreKeys.length !== FIVE_DIMENSION_KEYS.length || FIVE_DIMENSION_KEYS.some((key) => !Object.prototype.hasOwnProperty.call(scores, key))) return null;
+    if (
+      scoreKeys.length !== FIVE_DIMENSION_KEYS.length ||
+      FIVE_DIMENSION_KEYS.some((key) => !Object.prototype.hasOwnProperty.call(scores, key))
+    )
+      return null;
     const normalizedScores: Record<string, { score: number; reason: string }> = {};
     for (const key of FIVE_DIMENSION_KEYS) {
       const value = scores[key];
       if (!value || typeof value !== 'object') return null;
       const entry = value as Record<string, unknown>;
-      if (typeof entry.score !== 'number' || !Number.isFinite(entry.score) || entry.score < 0 || entry.score > 10 || typeof entry.reason !== 'string') return null;
+      if (
+        typeof entry.score !== 'number' ||
+        !Number.isFinite(entry.score) ||
+        entry.score < 0 ||
+        entry.score > 10 ||
+        typeof entry.reason !== 'string'
+      )
+        return null;
       normalizedScores[key] = { score: entry.score, reason: entry.reason };
     }
     if (typeof payload.totalScore !== 'number') return null;
@@ -465,8 +492,12 @@ export function parseAuditFiveDim(raw: string): AuditScores | null {
       totalScore,
       pass: typeof payload.pass === 'boolean' ? payload.pass : totalScore >= 36,
       failReason: typeof payload.failReason === 'string' ? payload.failReason : '',
-      fatalIssues: Array.isArray(payload.fatalIssues) ? payload.fatalIssues as Array<Record<string, unknown>> : undefined,
-      surgerySuggestions: Array.isArray(payload.surgerySuggestions) ? payload.surgerySuggestions.map(String) : undefined,
+      fatalIssues: Array.isArray(payload.fatalIssues)
+        ? (payload.fatalIssues as Array<Record<string, unknown>>)
+        : undefined,
+      surgerySuggestions: Array.isArray(payload.surgerySuggestions)
+        ? payload.surgerySuggestions.map(String)
+        : undefined,
       evidence: Array.isArray(payload.evidence) ? payload.evidence : undefined,
     };
   } catch {
@@ -496,8 +527,21 @@ export interface AuditResponseParseResult {
   candidateLength: number;
 }
 
-function auditDiagnostic(code: AuditResponseDiagnosticCode, summary: string): AuditResponseDiagnostic {
-  return { code, summary, legacyCode: code === 'no_candidate' || code === 'truncated' || code === 'invalid_json' || code === 'plain_text' ? 'audit_response_unparseable' : null };
+function auditDiagnostic(
+  code: AuditResponseDiagnosticCode,
+  summary: string
+): AuditResponseDiagnostic {
+  return {
+    code,
+    summary,
+    legacyCode:
+      code === 'no_candidate' ||
+      code === 'truncated' ||
+      code === 'invalid_json' ||
+      code === 'plain_text'
+        ? 'audit_response_unparseable'
+        : null,
+  };
 }
 
 /** Strict parser used at Provider boundaries; tolerant legacy parser remains above for stored reports. */
@@ -505,16 +549,32 @@ export function parseAuditResponseWithDiagnostics(raw: string): AuditResponsePar
   const candidate = findBalancedJson(raw);
   const trimmed = stripReasoningBlocks(stripCodeFences(raw)).trim();
   if (!trimmed || /^<(?:think|analysis|reasoning)>/i.test(trimmed)) {
-    return { diagnostic: auditDiagnostic('no_candidate', '未找到审稿 JSON 候选'), root: candidate.root, candidateLength: 0 };
+    return {
+      diagnostic: auditDiagnostic('no_candidate', '未找到审稿 JSON 候选'),
+      root: candidate.root,
+      candidateLength: 0,
+    };
   }
   if (candidate.root === 'none') {
-    return { diagnostic: auditDiagnostic('plain_text', 'Provider 返回了纯文本而非审稿 JSON'), root: 'none', candidateLength: 0 };
+    return {
+      diagnostic: auditDiagnostic('plain_text', 'Provider 返回了纯文本而非审稿 JSON'),
+      root: 'none',
+      candidateLength: 0,
+    };
   }
   if (candidate.truncated) {
-    return { diagnostic: auditDiagnostic('truncated', '审稿 JSON 未闭合，疑似达到输出长度上限'), root: candidate.root, candidateLength: candidate.candidate.length };
+    return {
+      diagnostic: auditDiagnostic('truncated', '审稿 JSON 未闭合，疑似达到输出长度上限'),
+      root: candidate.root,
+      candidateLength: candidate.candidate.length,
+    };
   }
   if (candidate.root !== 'object') {
-    return { diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 根节点必须是对象'), root: candidate.root, candidateLength: candidate.candidate.length };
+    return {
+      diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 根节点必须是对象'),
+      root: candidate.root,
+      candidateLength: candidate.candidate.length,
+    };
   }
 
   let payload: Record<string, unknown>;
@@ -524,101 +584,178 @@ export function parseAuditResponseWithDiagnostics(raw: string): AuditResponsePar
     try {
       payload = asRecord(JSON.parse(repairUnescapedQuotesInJson(candidate.candidate)));
     } catch {
-      return { diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 语法无效'), root: candidate.root, candidateLength: candidate.candidate.length };
+      return {
+        diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 语法无效'),
+        root: candidate.root,
+        candidateLength: candidate.candidate.length,
+      };
     }
   }
 
   const rawIssues = payload.fatalIssues;
   if (rawIssues === undefined || !Array.isArray(rawIssues)) {
-    return { diagnostic: auditDiagnostic('missing_fatal_issues', '审稿 JSON 缺少合法 fatalIssues 数组'), root: candidate.root, candidateLength: candidate.candidate.length };
+    return {
+      diagnostic: auditDiagnostic('missing_fatal_issues', '审稿 JSON 缺少合法 fatalIssues 数组'),
+      root: candidate.root,
+      candidateLength: candidate.candidate.length,
+    };
   }
 
   if (payload.scores !== undefined) {
     const fiveDim = parseAuditFiveDim(JSON.stringify(payload));
     if (!fiveDim) {
-      return { diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 未通过五维评分合同'), root: candidate.root, candidateLength: candidate.candidate.length };
+      return {
+        diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 未通过五维评分合同'),
+        root: candidate.root,
+        candidateLength: candidate.candidate.length,
+      };
     }
     const normalizedCount = convertFiveDimToStructured(fiveDim).fatalIssues.length;
     if (rawIssues.length > normalizedCount) {
-      return { diagnostic: auditDiagnostic('filtered_fatal_issue', 'fatalIssues 含有字段不完整或非法条目'), root: candidate.root, candidateLength: candidate.candidate.length };
+      return {
+        diagnostic: auditDiagnostic('filtered_fatal_issue', 'fatalIssues 含有字段不完整或非法条目'),
+        root: candidate.root,
+        candidateLength: candidate.candidate.length,
+      };
     }
     const contract = diagnoseAuditContract(JSON.stringify(payload), 'five-dim');
     if (!contract.valid) {
-      const code: AuditResponseDiagnosticCode = contract.violation === 'fatal_issues_filtered' ? 'filtered_fatal_issue' : contract.violation === 'fatal_issues_missing' || contract.violation === 'fatal_issues_not_array' ? 'missing_fatal_issues' : 'invalid_json';
-      return { diagnostic: auditDiagnostic(code, '审稿 JSON 未通过结构化合同校验'), root: candidate.root, candidateLength: candidate.candidate.length };
+      const code: AuditResponseDiagnosticCode =
+        contract.violation === 'fatal_issues_filtered'
+          ? 'filtered_fatal_issue'
+          : contract.violation === 'fatal_issues_missing' ||
+              contract.violation === 'fatal_issues_not_array'
+            ? 'missing_fatal_issues'
+            : 'invalid_json';
+      return {
+        diagnostic: auditDiagnostic(code, '审稿 JSON 未通过结构化合同校验'),
+        root: candidate.root,
+        candidateLength: candidate.candidate.length,
+      };
     }
     return { fiveDim, root: candidate.root, candidateLength: candidate.candidate.length };
   }
 
   const structured = normalizeStructuredAuditPayload(payload);
   if (!structured) {
-    return { diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 字段类型无效'), root: candidate.root, candidateLength: candidate.candidate.length };
+    return {
+      diagnostic: auditDiagnostic('invalid_json', '审稿 JSON 字段类型无效'),
+      root: candidate.root,
+      candidateLength: candidate.candidate.length,
+    };
   }
   if (rawIssues.length > structured.fatalIssues.length) {
-    return { diagnostic: auditDiagnostic('filtered_fatal_issue', 'fatalIssues 含有字段不完整或非法条目'), root: candidate.root, candidateLength: candidate.candidate.length };
+    return {
+      diagnostic: auditDiagnostic('filtered_fatal_issue', 'fatalIssues 含有字段不完整或非法条目'),
+      root: candidate.root,
+      candidateLength: candidate.candidate.length,
+    };
   }
   return { structured, root: candidate.root, candidateLength: candidate.candidate.length };
 }
 
-function parseDiagnosticPayload(input: unknown, mode: AuditContractMode): Record<string, unknown> | null {
+function parseDiagnosticPayload(
+  input: unknown,
+  mode: AuditContractMode
+): Record<string, unknown> | null {
   if (typeof input === 'string') {
     try {
-      const parsed = mode === 'five-dim'
-        ? (() => {
-          try {
-            return JSON.parse(findJsonObject(input));
-          } catch {
-            return extractJsonPayload(input);
-          }
-        })()
-        : JSON.parse(findJsonObject(input));
-      return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+      const parsed =
+        mode === 'five-dim'
+          ? (() => {
+              try {
+                return JSON.parse(findJsonObject(input));
+              } catch {
+                return extractJsonPayload(input);
+              }
+            })()
+          : JSON.parse(findJsonObject(input));
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
     } catch {
       return null;
     }
   }
-  return input && typeof input === 'object' ? input as Record<string, unknown> : null;
+  return input && typeof input === 'object' ? (input as Record<string, unknown>) : null;
 }
 
 /** Strict, sanitized contract diagnostics. The tolerant parsers above remain unchanged. */
-export function diagnoseAuditContract(input: unknown, mode: AuditContractMode): AuditContractDiagnostic {
+export function diagnoseAuditContract(
+  input: unknown,
+  mode: AuditContractMode
+): AuditContractDiagnostic {
   const payload = parseDiagnosticPayload(input, mode);
-  if (!payload) return { valid: false, violation: 'unparseable', rawIssueCount: 0, normalizedIssueCount: 0 };
+  if (!payload)
+    return { valid: false, violation: 'unparseable', rawIssueCount: 0, normalizedIssueCount: 0 };
 
   const rawIssues = payload.fatalIssues;
   const rawIssueCount = Array.isArray(rawIssues) ? rawIssues.length : 0;
-  const parsed = mode === 'five-dim'
-    ? parseAuditFiveDim(typeof input === 'string' ? input : JSON.stringify(payload))
-    : parseStructuredAuditResponse(typeof input === 'string' ? input : JSON.stringify(payload));
+  const parsed =
+    mode === 'five-dim'
+      ? parseAuditFiveDim(typeof input === 'string' ? input : JSON.stringify(payload))
+      : parseStructuredAuditResponse(typeof input === 'string' ? input : JSON.stringify(payload));
   const normalizedIssueCount = parsed
-    ? (mode === 'five-dim'
-      ? (convertFiveDimToStructured(parsed as AuditScores).fatalIssues.length)
-      : (parsed as StructuredAudit).fatalIssues.length)
+    ? mode === 'five-dim'
+      ? convertFiveDimToStructured(parsed as AuditScores).fatalIssues.length
+      : (parsed as StructuredAudit).fatalIssues.length
     : 0;
 
   if (rawIssues === undefined) {
-    return { valid: false, violation: CONTRACT_VIOLATIONS.fatalIssuesMissing, rawIssueCount, normalizedIssueCount };
+    return {
+      valid: false,
+      violation: CONTRACT_VIOLATIONS.fatalIssuesMissing,
+      rawIssueCount,
+      normalizedIssueCount,
+    };
   } else if (!Array.isArray(rawIssues)) {
-    return { valid: false, violation: CONTRACT_VIOLATIONS.fatalIssuesNotArray, rawIssueCount, normalizedIssueCount };
+    return {
+      valid: false,
+      violation: CONTRACT_VIOLATIONS.fatalIssuesNotArray,
+      rawIssueCount,
+      normalizedIssueCount,
+    };
   } else if (rawIssueCount > normalizedIssueCount) {
-    return { valid: false, violation: CONTRACT_VIOLATIONS.fatalIssuesFiltered, rawIssueCount, normalizedIssueCount };
+    return {
+      valid: false,
+      violation: CONTRACT_VIOLATIONS.fatalIssuesFiltered,
+      rawIssueCount,
+      normalizedIssueCount,
+    };
   }
 
-  if (!parsed) return { valid: false, violation: 'invalid_scores', rawIssueCount, normalizedIssueCount };
+  if (!parsed)
+    return { valid: false, violation: 'invalid_scores', rawIssueCount, normalizedIssueCount };
   if (mode === 'structured') {
     const structured = parsed as StructuredAudit;
     if (structured.score < 60 && normalizedIssueCount === 0) {
-      return { valid: false, violation: CONTRACT_VIOLATIONS.lowStructuredScoreWithoutIssues, rawIssueCount, normalizedIssueCount };
+      return {
+        valid: false,
+        violation: CONTRACT_VIOLATIONS.lowStructuredScoreWithoutIssues,
+        rawIssueCount,
+        normalizedIssueCount,
+      };
     }
   } else {
     const fiveDim = parsed as AuditScores;
     const gate = evaluateAuditGate(
       Object.fromEntries(Object.entries(fiveDim.scores).map(([key, value]) => [key, value.score])),
-      (fiveDim.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>,
+      (fiveDim.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>
     );
-    if (fiveDim.pass !== gate.pass) return { valid: false, violation: CONTRACT_VIOLATIONS.passGateMismatch, rawIssueCount, normalizedIssueCount };
-    const lowScore = fiveDim.totalScore < 30 || Object.values(fiveDim.scores).some((entry) => entry.score < 4);
-    if (lowScore && normalizedIssueCount === 0) return { valid: false, violation: CONTRACT_VIOLATIONS.incompleteLowScore, rawIssueCount, normalizedIssueCount };
+    if (fiveDim.pass !== gate.pass)
+      return {
+        valid: false,
+        violation: CONTRACT_VIOLATIONS.passGateMismatch,
+        rawIssueCount,
+        normalizedIssueCount,
+      };
+    const lowScore =
+      fiveDim.totalScore < 30 || Object.values(fiveDim.scores).some((entry) => entry.score < 4);
+    if (lowScore && normalizedIssueCount === 0)
+      return {
+        valid: false,
+        violation: CONTRACT_VIOLATIONS.incompleteLowScore,
+        rawIssueCount,
+        normalizedIssueCount,
+      };
   }
   return { valid: true, violation: null, rawIssueCount, normalizedIssueCount };
 }
@@ -632,30 +769,43 @@ export function convertFiveDimToStructured(fiveDim: AuditScores): StructuredAudi
   const evidenceFromPayload = (fiveDim.evidence || [])
     .map(normalizeEvidence)
     .filter((item): item is StructuredAuditEvidence => Boolean(item));
-  const evidence = evidenceFromPayload.length > 0 ? evidenceFromPayload : (fiveDim.fatalIssues || [])
-    .map((item) => {
-      const issue = normalizeStructuredAuditIssue(item);
-      if (!issue) return null;
-      const category: StructuredAuditEvidenceCategory = issue.issueType === 'scene-execution' || issue.issueSubtype === 'scene-layer-missing'
-        ? 'scene_execution'
-        : issue.issueType === 'action-chain' || issue.issueType === 'hook-ending' || issue.issueSubtype === 'generic-ending'
-          ? 'foreshadowing'
-          : issue.issueType === 'duplicate' || issue.issueType === 'syntax' || issue.issueType === 'style-slop'
-            ? 'pacing'
-            : issue.issueType === 'dialogue-logic'
-              ? 'character_state'
-              : 'hard_canon';
-      const quote = issue.snippet.trim();
-      if (!quote) return null;
-      return {
-        category,
-        severity: issue.severity === 'critical' ? 'high' : issue.severity === 'moderate' ? 'low' : 'medium',
-        quote,
-        explanation: issue.explanation,
-        suggestedFix: issue.patchHint,
-      } satisfies StructuredAuditEvidence;
-    })
-    .filter((item): item is StructuredAuditEvidence => Boolean(item));
+  const evidence =
+    evidenceFromPayload.length > 0
+      ? evidenceFromPayload
+      : (fiveDim.fatalIssues || [])
+          .map((item) => {
+            const issue = normalizeStructuredAuditIssue(item);
+            if (!issue) return null;
+            const category: StructuredAuditEvidenceCategory =
+              issue.issueType === 'scene-execution' || issue.issueSubtype === 'scene-layer-missing'
+                ? 'scene_execution'
+                : issue.issueType === 'action-chain' ||
+                    issue.issueType === 'hook-ending' ||
+                    issue.issueSubtype === 'generic-ending'
+                  ? 'foreshadowing'
+                  : issue.issueType === 'duplicate' ||
+                      issue.issueType === 'syntax' ||
+                      issue.issueType === 'style-slop'
+                    ? 'pacing'
+                    : issue.issueType === 'dialogue-logic'
+                      ? 'character_state'
+                      : 'hard_canon';
+            const quote = issue.snippet.trim();
+            if (!quote) return null;
+            return {
+              category,
+              severity:
+                issue.severity === 'critical'
+                  ? 'high'
+                  : issue.severity === 'moderate'
+                    ? 'low'
+                    : 'medium',
+              quote,
+              explanation: issue.explanation,
+              suggestedFix: issue.patchHint,
+            } satisfies StructuredAuditEvidence;
+          })
+          .filter((item): item is StructuredAuditEvidence => Boolean(item));
   return {
     score,
     fatalIssues,
@@ -679,10 +829,11 @@ export function renderFiveDimMarkdown(audit: AuditScores): string {
   const lines: string[] = [];
   const gate = evaluateAuditGate(
     Object.fromEntries(Object.entries(audit.scores).map(([key, value]) => [key, value.score])),
-    (audit.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>,
+    (audit.fatalIssues || []) as Array<{ dimension?: string; severity?: string }>
   );
   lines.push(gate.pass ? '## PASS' : '## FAIL');
-  if (!gate.pass) lines.push(`**失败原因**: ${gate.blockReason || audit.failReason || '未通过审计门禁'}`);
+  if (!gate.pass)
+    lines.push(`**失败原因**: ${gate.blockReason || audit.failReason || '未通过审计门禁'}`);
   lines.push('');
   lines.push('| 维度 | 评分 | 原因 |');
   lines.push('|------|------|------|');
@@ -699,7 +850,10 @@ export function renderFiveDimMarkdown(audit: AuditScores): string {
     const formattedIssues = audit.fatalIssues
       .map(normalizeStructuredAuditIssue)
       .filter((issue): issue is StructuredAuditIssue => Boolean(issue))
-      .map((issue) => `- [${issue.issueType}/${issue.issueSubtype}]${issue.dimension ? ` [${issue.dimension}]` : ''} "${issue.snippet}"\n  - 问题：${issue.explanation}\n  - 修补建议：${issue.patchHint}`);
+      .map(
+        (issue) =>
+          `- [${issue.issueType}/${issue.issueSubtype}]${issue.dimension ? ` [${issue.dimension}]` : ''} "${issue.snippet}"\n  - 问题：${issue.explanation}\n  - 修补建议：${issue.patchHint}`
+      );
     if (formattedIssues.length > 0) {
       lines.push(formattedIssues.join('\n'));
     } else {
@@ -717,26 +871,38 @@ export function renderFiveDimMarkdown(audit: AuditScores): string {
 }
 
 export function renderStructuredAuditMarkdown(audit: StructuredAudit): string {
-  const issues = audit.fatalIssues.length > 0
-    ? audit.fatalIssues
-        .map((issue) => `- [${issue.issueType}/${issue.issueSubtype}]${issue.dimension ? ` [${issue.dimension}]` : ''} "${issue.snippet}"\n  - 问题：${issue.explanation}\n  - 修补建议：${issue.patchHint}`)
-        .join('\n')
-    : '- 本轮未识别出明确致命问题。';
+  const issues =
+    audit.fatalIssues.length > 0
+      ? audit.fatalIssues
+          .map(
+            (issue) =>
+              `- [${issue.issueType}/${issue.issueSubtype}]${issue.dimension ? ` [${issue.dimension}]` : ''} "${issue.snippet}"\n  - 问题：${issue.explanation}\n  - 修补建议：${issue.patchHint}`
+          )
+          .join('\n')
+      : '- 本轮未识别出明确致命问题。';
 
-  const sceneChecks = audit.sceneChecks.length > 0
-    ? audit.sceneChecks
-        .map((check) => `- ${check.scene} [${check.status}]：${check.note}`)
-        .join('\n')
-    : '- 本轮未返回分镜执行检查。';
+  const sceneChecks =
+    audit.sceneChecks.length > 0
+      ? audit.sceneChecks
+          .map((check) => `- ${check.scene} [${check.status}]：${check.note}`)
+          .join('\n')
+      : '- 本轮未返回分镜执行检查。';
 
-  const surgerySuggestions = audit.surgerySuggestions.length > 0
-    ? audit.surgerySuggestions.map((item) => `- ${item}`).join('\n')
-    : '- 本轮未返回手术建议。';
+  const surgerySuggestions =
+    audit.surgerySuggestions.length > 0
+      ? audit.surgerySuggestions.map((item) => `- ${item}`).join('\n')
+      : '- 本轮未返回手术建议。';
 
   const evidenceItems = audit.evidence || [];
-  const evidence = evidenceItems.length > 0
-    ? evidenceItems.map((item) => `- [${item.category}/${item.severity}] "${item.quote}"\n  - 证据：${item.explanation}\n  - 修复：${item.suggestedFix}${item.location ? `\n  - 位置：${item.location}` : ''}`).join('\n')
-    : '- 本轮未返回结构化证据。';
+  const evidence =
+    evidenceItems.length > 0
+      ? evidenceItems
+          .map(
+            (item) =>
+              `- [${item.category}/${item.severity}] "${item.quote}"\n  - 证据：${item.explanation}\n  - 修复：${item.suggestedFix}${item.location ? `\n  - 位置：${item.location}` : ''}`
+          )
+          .join('\n')
+      : '- 本轮未返回结构化证据。';
 
   return [
     '## 评分',
@@ -797,7 +963,7 @@ export function computeTrend(scores: number[]): 'rising' | 'falling' | 'flat' {
 
 export function evaluateAuditGate(
   scores: Record<string, number>,
-  fatalIssues: Array<{ dimension?: string; severity?: string }>,
+  fatalIssues: Array<{ dimension?: string; severity?: string }>
 ): AuditGateResult {
   const GATE_MIN_TOTAL = 30;
   const GATE_MIN_DIMENSION = 4;
@@ -806,7 +972,8 @@ export function evaluateAuditGate(
   const criticalFails: string[] = [];
 
   const scoreKeys = Object.keys(scores);
-  const hasExactDimensions = scoreKeys.length === FIVE_DIMENSION_KEYS.length &&
+  const hasExactDimensions =
+    scoreKeys.length === FIVE_DIMENSION_KEYS.length &&
     FIVE_DIMENSION_KEYS.every((key) => Object.prototype.hasOwnProperty.call(scores, key));
   if (!hasExactDimensions) {
     criticalFails.push('评分维度必须恰好包含固定五维');
@@ -830,7 +997,7 @@ export function evaluateAuditGate(
     }
   }
 
-  const criticalIssues = fatalIssues.filter(i => i.severity === 'critical');
+  const criticalIssues = fatalIssues.filter((i) => i.severity === 'critical');
   if (criticalIssues.length > GATE_MAX_CRITICAL) {
     criticalFails.push(`${criticalIssues.length} 个严重问题未解决`);
   }

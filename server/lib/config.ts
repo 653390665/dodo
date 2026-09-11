@@ -3,7 +3,11 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../logger';
 import crypto from 'crypto';
-import { DEFAULT_PROMPT_TEMPLATES, mergePromptTemplates, type PromptTemplates } from '../../shared/config/prompt-templates';
+import {
+  DEFAULT_PROMPT_TEMPLATES,
+  mergePromptTemplates,
+  type PromptTemplates,
+} from '../../shared/config/prompt-templates';
 import type { PromptTemplateKey } from '../../shared/types';
 
 function getConfigDir(): string {
@@ -147,7 +151,9 @@ function normalizePromptTemplate(text: string | undefined): string {
   return (text || '').replace(/\r\n/g, '\n').trim();
 }
 
-export function migrateLegacyPromptTemplates(partial?: Partial<PromptTemplates>): Partial<PromptTemplates> | undefined {
+export function migrateLegacyPromptTemplates(
+  partial?: Partial<PromptTemplates>
+): Partial<PromptTemplates> | undefined {
   if (!partial) return partial;
 
   const next = { ...partial };
@@ -157,7 +163,7 @@ export function migrateLegacyPromptTemplates(partial?: Partial<PromptTemplates>)
 
     const legacyCandidates = LEGACY_BUILTIN_PROMPTS[key] || [];
     const isLegacyBuiltin = legacyCandidates.some(
-      (candidate) => normalizePromptTemplate(candidate) === normalizePromptTemplate(currentValue),
+      (candidate) => normalizePromptTemplate(candidate) === normalizePromptTemplate(currentValue)
     );
 
     if (isLegacyBuiltin) {
@@ -191,7 +197,11 @@ export function loadConfig(): AppConfig {
       const raw = fs.readFileSync(getConfigPath(), 'utf-8');
       const parsed = JSON.parse(raw);
       // Repair permissions on legacy config files; new writes are 0600.
-      try { fs.chmodSync(getConfigPath(), 0o600); } catch { /* best effort */ }
+      try {
+        fs.chmodSync(getConfigPath(), 0o600);
+      } catch {
+        /* best effort */
+      }
       // Decrypt API key or read from secure environment variable
       if (isElectronMode) {
         parsed.apiKey = secureKey;
@@ -245,7 +255,10 @@ export function saveConfig(config: AppConfig): void {
           }
         }
       } catch (readErr) {
-        logger.warn('Failed to read existing config for API key migration, will create fresh:', readErr);
+        logger.warn(
+          'Failed to read existing config for API key migration, will create fresh:',
+          readErr
+        );
       }
     }
 

@@ -14,7 +14,14 @@ interface SkillCardProps {
   onEquip?: (novelId: string) => void;
 }
 
-export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEquip }: SkillCardProps) {
+export function SkillCard({
+  skill,
+  selected,
+  onOpen,
+  onDelete,
+  userNovels,
+  onEquip,
+}: SkillCardProps) {
   const [showEquipMenu, setShowEquipMenu] = useState(false);
 
   return (
@@ -22,7 +29,7 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
       onClick={onOpen}
       className={cn(
         'group bg-theme-sidebar rounded-2xl p-6 border shadow-sm flex flex-col text-left relative overflow-hidden',
-        selected ? 'border-theme-accent ring-1 ring-theme-accent/20' : 'border-theme-border',
+        selected ? 'border-theme-accent ring-1 ring-theme-accent/20' : 'border-theme-border'
       )}
     >
       <button
@@ -38,7 +45,8 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
         <div className="min-w-0">
           <h3 className="font-bold text-theme-text text-lg truncate">{skill.name}</h3>
           <div className="text-[10px] text-theme-muted tracking-widest uppercase font-bold mt-1">
-            v{skill.version || 1} · {getSkillRoleLabel(skill.primaryDimension)} · {skill.stabilityScore}%
+            v{skill.version || 1} · {getSkillRoleLabel(skill.primaryDimension)} ·{' '}
+            {skill.stabilityScore}%
           </div>
         </div>
         <div className="relative z-10 flex items-center gap-1">
@@ -93,17 +101,21 @@ export function SkillCard({ skill, selected, onOpen, onDelete, userNovels, onEqu
         </div>
       </div>
 
-      <p className="text-sm text-theme-muted/80 flex-1 mb-4 italic line-clamp-3">"{skill.description}"</p>
+      <p className="text-sm text-theme-muted/80 flex-1 mb-4 italic line-clamp-3">
+        "{skill.description}"
+      </p>
 
       <div className="flex flex-wrap gap-1.5 mt-auto">
-        {getSkillRoleTags(skill.dimensionTags).slice(0, 3).map((tag) => (
-          <span
-            key={tag}
-            className="px-2 py-0.5 bg-theme-sidebar rounded text-[10px] text-theme-muted border border-theme-border"
-          >
-            {tag}
-          </span>
-        ))}
+        {getSkillRoleTags(skill.dimensionTags)
+          .slice(0, 3)
+          .map((tag) => (
+            <span
+              key={tag}
+              className="px-2 py-0.5 bg-theme-sidebar rounded text-[10px] text-theme-muted border border-theme-border"
+            >
+              {tag}
+            </span>
+          ))}
         {(getSkillRoleTags(skill.dimensionTags).length || 0) > 3 && (
           <span className="px-2 py-0.5 bg-theme-sidebar rounded text-[10px] text-theme-muted border border-theme-border">
             +{getSkillRoleTags(skill.dimensionTags).length - 3}

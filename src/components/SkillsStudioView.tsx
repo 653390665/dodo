@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BrainCircuit, CheckCircle2, PenLine, Sparkles, Wand2, X, ShieldAlert, ArrowDown, Lock } from 'lucide-react';
+import {
+  BrainCircuit,
+  CheckCircle2,
+  PenLine,
+  Sparkles,
+  Wand2,
+  X,
+  ShieldAlert,
+  ArrowDown,
+  Lock,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { logger } from '../lib/client-logger';
 import { subscribeToChanges } from '../lib/db-transport';
@@ -10,17 +20,63 @@ import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/t
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from './ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './ui/alert-dialog';
 import { appConfirm } from './ui/app-confirm';
 import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
 import { useSkillsCandidateStore } from '../stores/skills-candidate-store';
-import { CURATED_PRODUCT_SKILLS, ENHANCEMENT_PACKAGES, getEnhancementPackageSteps, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
-import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
-import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
-import { canUseEnhancedCapability, dispatchCapabilityUnavailable, isLicensedEnhancementGated, isMonetizationEnabled } from '../lib/entitlements';
-import { filterGovernedAssets, getGovernanceCapabilityType, getTrustedSessionCardIds, getCapabilityManifest, getCapabilitySourceLabel, getConfigurableGuardrailAssets, getCoreDefaultGuardrailCount, getOptionalStyleAssets, getSanitizeRequiredAssets, isSanitizeRequiredAsset, type GovernanceCapabilityType, type GovernanceStage } from '../lib/capability-governance';
-import { computeCardFitness, deriveNovelGenreTokens, groupStyleShelf } from '../lib/capability-shelf';
+import {
+  CURATED_PRODUCT_SKILLS,
+  ENHANCEMENT_PACKAGES,
+  getEnhancementPackageSteps,
+  sanitizeWhiteLabelText,
+  SKILL_SERIES_FLOWS,
+} from '../../shared/lib/public-skill-catalog';
+import type {
+  CuratedProductSkill,
+  EnhancementPackage,
+  EnhancementPackageStep,
+  SkillSeriesFlow,
+} from '../../shared/types/prompt-assets-governed';
+import {
+  createProductEventId,
+  createProductEventSessionId,
+  recordProductEvent,
+} from '../lib/product-events-client';
+import {
+  canUseEnhancedCapability,
+  dispatchCapabilityUnavailable,
+  isLicensedEnhancementGated,
+  isMonetizationEnabled,
+} from '../lib/entitlements';
+import {
+  filterGovernedAssets,
+  getGovernanceCapabilityType,
+  getTrustedSessionCardIds,
+  getCapabilityManifest,
+  getCapabilitySourceLabel,
+  getConfigurableGuardrailAssets,
+  getCoreDefaultGuardrailCount,
+  getOptionalStyleAssets,
+  getSanitizeRequiredAssets,
+  isSanitizeRequiredAsset,
+  type GovernanceCapabilityType,
+  type GovernanceStage,
+} from '../lib/capability-governance';
+import {
+  computeCardFitness,
+  deriveNovelGenreTokens,
+  groupStyleShelf,
+} from '../lib/capability-shelf';
 import {
   getAuthorFacingCapabilityActionHint,
   getAuthorFacingCapabilityActionLabel,
@@ -30,7 +86,10 @@ import {
   getAuthorFacingCapabilityScopeLabel,
   getAuthorFacingCapabilityUseHint,
 } from '../lib/capability-stage-cards';
-import type { CapabilityLaunchState, WorldCapabilityLaunchIntent } from '../../shared/types/capability-manifest';
+import type {
+  CapabilityLaunchState,
+  WorldCapabilityLaunchIntent,
+} from '../../shared/types/capability-manifest';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityApplicationStatus } from '../../shared/types/capability-execution';
 import {
@@ -41,8 +100,16 @@ import {
   getProjectDeckIds,
   upsertCapabilityMembership,
 } from '../lib/skills-studio-governance';
-import { applyCapabilityConfiguration, previewCapabilityConfiguration } from '../lib/capability-configuration-client';
-import { applyCapabilityMigration, previewCapabilityMigration, type CapabilityMigrationPreview, CapabilityMigrationError } from '../lib/capability-migration-client';
+import {
+  applyCapabilityConfiguration,
+  previewCapabilityConfiguration,
+} from '../lib/capability-configuration-client';
+import {
+  applyCapabilityMigration,
+  previewCapabilityMigration,
+  type CapabilityMigrationPreview,
+  CapabilityMigrationError,
+} from '../lib/capability-migration-client';
 import { CapabilityMigrationPreviewPanel } from './skills/CapabilityMigrationPreviewPanel';
 import { LegacyArtifactStructuringPrompt } from './LegacyArtifactStructuringPrompt';
 import {
@@ -56,13 +123,18 @@ import {
 } from '../lib/capability-configuration-session';
 
 type DatabaseGenerationReader = () => Promise<number>;
-type SkillsStudioNavigateContext = { capabilityApplied?: boolean; targetFocus?: 'workspace-world'; worldCapabilityLaunch?: WorldCapabilityLaunchIntent };
+type SkillsStudioNavigateContext = {
+  capabilityApplied?: boolean;
+  targetFocus?: 'workspace-world';
+  worldCapabilityLaunch?: WorldCapabilityLaunchIntent;
+};
 type CapabilityApplyDestination = 'return' | 'world' | 'outline';
 
 // 004：文风与正文货架总数（目录静态，模块级只算一次）。研究口径 74 含 1 张 test-fixture，实际投影 73。
 const OPTIONAL_STYLE_SHELF_COUNT = getOptionalStyleAssets().length;
 
-const CAPABILITY_RETURN_EFFECT_HINT = '应用配置后，主卡与辅卡影响作品后续正文；常用技法作为作品偏好；本章使用规则只影响当前章；系统护栏参与生成与审稿检查。';
+const CAPABILITY_RETURN_EFFECT_HINT =
+  '应用配置后，主卡与辅卡影响作品后续正文；常用技法作为作品偏好；本章使用规则只影响当前章；系统护栏参与生成与审稿检查。';
 
 // 004：消毒落库副本的前端占位（真实持久化以服务端消毒端点为准）。
 // 模块级纯数据构造，避免组件体内 Date.now() 触发 react-hooks/purity。
@@ -110,7 +182,11 @@ function getPackageSubmitButtonLabel(hasResults: boolean, selectionCount: number
   return '启用所选';
 }
 
-function getPackageEmptySelectionHint(hasResults: boolean, selectionCount: number, hasPendingConfiguration: boolean): string | null {
+function getPackageEmptySelectionHint(
+  hasResults: boolean,
+  selectionCount: number,
+  hasPendingConfiguration: boolean
+): string | null {
   if (!hasResults || selectionCount > 0) return null;
   if (hasPendingConfiguration) return null;
   return '勾选后点击「启用所选」即生效，可撤销。';
@@ -118,7 +194,9 @@ function getPackageEmptySelectionHint(hasResults: boolean, selectionCount: numbe
 
 function getDatabaseGenerationReader(): DatabaseGenerationReader | null {
   try {
-    const reader = (dbTransport as unknown as { getDatabaseGenerationSnapshot?: DatabaseGenerationReader }).getDatabaseGenerationSnapshot;
+    const reader = (
+      dbTransport as unknown as { getDatabaseGenerationSnapshot?: DatabaseGenerationReader }
+    ).getDatabaseGenerationSnapshot;
     return typeof reader === 'function' ? reader : null;
   } catch {
     return null;
@@ -129,11 +207,16 @@ async function getDatabaseGenerationSafe(): Promise<number> {
   return (await getDatabaseGenerationReader()?.()) ?? 0;
 }
 
-function getPackageModeLabel(mode: EnhancementPackageStep['mode'], manifest?: ReturnType<typeof getCatalogCapabilityManifest>): string {
+function getPackageModeLabel(
+  mode: EnhancementPackageStep['mode'],
+  manifest?: ReturnType<typeof getCatalogCapabilityManifest>
+): string {
   if (mode === 'configure') return '启用（作品默认）';
-  if (mode === 'schedule' && manifest?.output === 'transform-preview') return '启用（写入本章规则）';
+  if (mode === 'schedule' && manifest?.output === 'transform-preview')
+    return '启用（写入本章规则）';
   if (mode === 'schedule') return '写到这里时提醒';
-  if (mode === 'run-now' && manifest) return getAuthorFacingCapabilityActionLabel(manifest, 'single-run') || '运行（一次性）';
+  if (mode === 'run-now' && manifest)
+    return getAuthorFacingCapabilityActionLabel(manifest, 'single-run') || '运行（一次性）';
   if (mode === 'run-now') return '运行（一次性）';
   return '稍后选择';
 }
@@ -143,20 +226,22 @@ function getPackageResultLabel(
   step: EnhancementPackageStep,
   manifest: ReturnType<typeof getCatalogCapabilityManifest> | undefined,
   capabilityType: GovernanceCapabilityType | string | undefined,
-  resultCandidateInDeck = false,
+  resultCandidateInDeck = false
 ): string {
-    const isPolishPreview = manifest?.output === 'transform-preview';
-    const isRunTool = manifest?.action === 'run-diagnostic' || manifest?.kind === 'utility';
-    const isProjectTechnique = capabilityType === 'technique' && step.scope === 'project';
-    // Destination-aware result copy mirrors packageApplyDestination's manifest
-    // logic so applied rows point at the same panel the apply path launches.
-    const destinationResult = isWorldCandidateArtifact(manifest?.outputArtifact)
-      ? '下一步：应用配置后前往世界观设定'
-      : isOutlineCandidateOutput(manifest?.output) && !isWorldCandidateArtifact(manifest?.outputArtifact)
-        ? '下一步：应用配置后前往大纲面板'
-        : '下一步：应用配置后写入作品';
-    if (status === 'configured') return destinationResult;
-  if (status === 'scheduled') return isPolishPreview ? '下一步：应用配置后写入本章规则' : '下一步：应用配置后写入写前提醒';
+  const isPolishPreview = manifest?.output === 'transform-preview';
+  const isRunTool = manifest?.action === 'run-diagnostic' || manifest?.kind === 'utility';
+  const isProjectTechnique = capabilityType === 'technique' && step.scope === 'project';
+  // Destination-aware result copy mirrors packageApplyDestination's manifest
+  // logic so applied rows point at the same panel the apply path launches.
+  const destinationResult = isWorldCandidateArtifact(manifest?.outputArtifact)
+    ? '下一步：应用配置后前往世界观设定'
+    : isOutlineCandidateOutput(manifest?.output) &&
+        !isWorldCandidateArtifact(manifest?.outputArtifact)
+      ? '下一步：应用配置后前往大纲面板'
+      : '下一步：应用配置后写入作品';
+  if (status === 'configured') return destinationResult;
+  if (status === 'scheduled')
+    return isPolishPreview ? '下一步：应用配置后写入本章规则' : '下一步：应用配置后写入写前提醒';
   if (status === 'run') {
     if (isPolishPreview) return '下一步：精修预览待生成';
     if (manifest?.action === 'run-diagnostic') return '下一步：审稿诊断待运行';
@@ -166,11 +251,15 @@ function getPackageResultLabel(
   if (status === 'recommended') {
     if (step.mode === 'schedule' && isPolishPreview) return '下一步：应用配置后写入本章规则';
     if (step.mode === 'run-now' && isPolishPreview) return '下一步：精修预览待生成';
-    if (step.mode === 'run-now' && manifest?.action === 'run-diagnostic') return '下一步：审稿诊断待运行';
+    if (step.mode === 'run-now' && manifest?.action === 'run-diagnostic')
+      return '下一步：审稿诊断待运行';
     if (step.mode === 'run-now' && isRunTool) return '下一步：辅助动作待运行';
     if (isProjectTechnique) return destinationResult;
     if (capabilityType === 'flow') return '下一步：应用配置后写入创作流程';
-    if (capabilityType === 'skill-card') return resultCandidateInDeck ? '下一步：应用配置后写入作品卡组' : '下一步：选择卡组位置后应用';
+    if (capabilityType === 'skill-card')
+      return resultCandidateInDeck
+        ? '下一步：应用配置后写入作品卡组'
+        : '下一步：选择卡组位置后应用';
     return '下一步：应用配置后写入作品';
   }
   if (status === 'unavailable') return '结果：不可用，已跳过';
@@ -188,7 +277,7 @@ function getPackageScopeLabel(scope: EnhancementPackageStep['scope']): string {
 
 function getPackageComponentActionHint(
   flow: SkillSeriesFlow | null,
-  manifest: ReturnType<typeof getCatalogCapabilityManifest> | undefined,
+  manifest: ReturnType<typeof getCatalogCapabilityManifest> | undefined
 ): string | null {
   if (flow) return '配置到作品：应用配置后写入创作流程。';
   if (!manifest) return null;
@@ -205,18 +294,25 @@ function getPackageUseLabel(packageId: string): string {
 }
 
 function getPackageNextStepHint(packageId: string): string {
-  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '勾选后点「启用所选」，诊断立即运行';
-  if (packageId.includes('humanization') || packageId.includes('patch')) return '勾选后点「启用所选」，预览生成后确认应用';
-  if (packageId.includes('continuity') || packageId.includes('deconstruction')) return '勾选拆书卡，启用后自动放入卡组空位';
+  if (packageId.includes('audit') || packageId.includes('diagnostic'))
+    return '勾选后点「启用所选」，诊断立即运行';
+  if (packageId.includes('humanization') || packageId.includes('patch'))
+    return '勾选后点「启用所选」，预览生成后确认应用';
+  if (packageId.includes('continuity') || packageId.includes('deconstruction'))
+    return '勾选拆书卡，启用后自动放入卡组空位';
   return '勾选后点「启用所选」即生效，可撤销';
 }
 
 function getPackageRecommendedPath(packageId: string): string {
-  if (packageId.includes('audit') || packageId.includes('diagnostic')) return '先勾必选审稿项，启用后诊断立即运行。';
-  if (packageId.includes('humanization') || packageId.includes('patch')) return '先勾写前规则，再按需勾写后预览项。';
-  if (packageId.includes('onboarding')) return '建议两个设定项一起勾选，先生成世界观，再接人物弧线。';
+  if (packageId.includes('audit') || packageId.includes('diagnostic'))
+    return '先勾必选审稿项，启用后诊断立即运行。';
+  if (packageId.includes('humanization') || packageId.includes('patch'))
+    return '先勾写前规则，再按需勾写后预览项。';
+  if (packageId.includes('onboarding'))
+    return '建议两个设定项一起勾选，先生成世界观，再接人物弧线。';
   if (packageId.includes('first-chapter')) return '先勾开篇结构，再按需选择正文表达技法。';
-  if (packageId.includes('continuity')) return '按当前作品短板选择一张节奏卡或悬念卡，启用后自动放入卡组空位。';
+  if (packageId.includes('continuity'))
+    return '按当前作品短板选择一张节奏卡或悬念卡，启用后自动放入卡组空位。';
   if (packageId.includes('deconstruction')) return '先选主笔文风卡，再补一张节奏或钩子卡。';
   if (packageId.includes('platform')) return '先运行开篇钩子诊断，再按目标平台补充检查项。';
   return '先勾当前阶段最需要的一项，启用后即生效。';
@@ -233,13 +329,21 @@ function getPackageStageSummary(pkg: EnhancementPackage): string {
   return '阶段节点';
 }
 
-function getPackageAvailabilityLabel(pkg: EnhancementPackage, canUsePaidCapabilities: boolean, monetizationEnabled: boolean): string {
+function getPackageAvailabilityLabel(
+  pkg: EnhancementPackage,
+  canUsePaidCapabilities: boolean,
+  monetizationEnabled: boolean
+): string {
   if (pkg.type !== 'paid') return '基础开放';
   if (!monetizationEnabled) return 'Beta 开放';
   return canUsePaidCapabilities ? '授权可用' : '需授权';
 }
 
-function getPackageOpenButtonLabel(pkg: EnhancementPackage, canUsePaidCapabilities: boolean, monetizationEnabled: boolean): string {
+function getPackageOpenButtonLabel(
+  pkg: EnhancementPackage,
+  canUsePaidCapabilities: boolean,
+  monetizationEnabled: boolean
+): string {
   if (pkg.type === 'paid' && monetizationEnabled && !canUsePaidCapabilities) return '查看受限步骤';
   return '展开并选择';
 }
@@ -285,7 +389,13 @@ function getPackageGroupId(packageId: string): PackageGroupId {
   if (packageId.includes('onboarding') || packageId.includes('first-chapter')) return 'setup';
   if (packageId.includes('platform')) return 'platform';
   if (packageId.includes('continuity') || packageId.includes('deconstruction')) return 'deck';
-  if (packageId.includes('audit') || packageId.includes('diagnostic') || packageId.includes('humanization') || packageId.includes('patch')) return 'review';
+  if (
+    packageId.includes('audit') ||
+    packageId.includes('diagnostic') ||
+    packageId.includes('humanization') ||
+    packageId.includes('patch')
+  )
+    return 'review';
   return 'other';
 }
 
@@ -328,7 +438,9 @@ function StyleShelfGrid({ cards, isFreeNovel, handlers }: StyleShelfGridProps) {
           onUseTechnique={() => handlers.onUseTechnique(asset)}
           onUseProjectTechnique={() => handlers.onUseProjectTechnique(asset)}
           onDirectExec={() => handlers.onDirectExec(asset)}
-          onSanitize={isSanitizeRequiredAsset(asset.id) ? () => handlers.onSanitize(asset) : undefined}
+          onSanitize={
+            isSanitizeRequiredAsset(asset.id) ? () => handlers.onSanitize(asset) : undefined
+          }
           fitnessChip={{ score: fitness.score, reasons: fitness.reasons }}
         />
       ))}
@@ -370,24 +482,45 @@ function PlazaAssetCard({
   const governanceType = getGovernanceCapabilityType(asset);
   const manifest = getCapabilityManifest(asset);
   const isTechniqueManifest = (manifest?.kind as string) === 'technique';
-  const supportsProjectTechnique = isTechniqueManifest && manifest?.allowedScopes.includes('project');
-  const supportsChapterTechnique = isTechniqueManifest && manifest?.allowedScopes.includes('chapter');
-  const isPreviewOnlyTransform = manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
-  const canRunOneShot = manifest.action === 'run-diagnostic' || manifest.kind === 'utility' || isPreviewOnlyTransform;
-  const cleanGoal = getCapabilityDisplayText(sanitizeWhiteLabelText(asset.goal || '暂无描述'), manifest.sourceType);
-  const cleanSignal = getCapabilityDisplayText(sanitizeWhiteLabelText(asset.successSignal || ''), manifest.sourceType);
+  const supportsProjectTechnique =
+    isTechniqueManifest && manifest?.allowedScopes.includes('project');
+  const supportsChapterTechnique =
+    isTechniqueManifest && manifest?.allowedScopes.includes('chapter');
+  const isPreviewOnlyTransform =
+    manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
+  const canRunOneShot =
+    manifest.action === 'run-diagnostic' || manifest.kind === 'utility' || isPreviewOnlyTransform;
+  const cleanGoal = getCapabilityDisplayText(
+    sanitizeWhiteLabelText(asset.goal || '暂无描述'),
+    manifest.sourceType
+  );
+  const cleanSignal = getCapabilityDisplayText(
+    sanitizeWhiteLabelText(asset.successSignal || ''),
+    manifest.sourceType
+  );
   const unavailable = manifest?.runtimeStatus !== 'active';
   const isBuiltIn = manifest?.sourceType === 'built-in';
   const cardCategory = manifest ? getAuthorFacingCapabilityCardCategory(manifest) : null;
   const useHint = cardCategory ? getAuthorFacingCapabilityUseHint(cardCategory) : null;
-  const entryHint = manifest ? getAuthorFacingCapabilityDeckHint(manifest) || (cardCategory ? getAuthorFacingCapabilityEntryHint(cardCategory) : null) : null;
-  const visibleScopes = manifest.allowedScopes.filter((scope) => scope !== 'single-run' || canRunOneShot);
+  const entryHint = manifest
+    ? getAuthorFacingCapabilityDeckHint(manifest) ||
+      (cardCategory ? getAuthorFacingCapabilityEntryHint(cardCategory) : null)
+    : null;
+  const visibleScopes = manifest.allowedScopes.filter(
+    (scope) => scope !== 'single-run' || canRunOneShot
+  );
   const scopeLabel = visibleScopes.length
     ? visibleScopes.map(getAuthorFacingCapabilityScopeLabel).join(' / ')
     : null;
-  const directActionLabel = canRunOneShot ? getAuthorFacingCapabilityActionLabel(manifest, 'single-run') : undefined;
-  const projectActionLabel = manifest ? getAuthorFacingCapabilityActionLabel(manifest, 'project') : undefined;
-  const chapterActionLabel = manifest ? getAuthorFacingCapabilityActionLabel(manifest, 'chapter') : undefined;
+  const directActionLabel = canRunOneShot
+    ? getAuthorFacingCapabilityActionLabel(manifest, 'single-run')
+    : undefined;
+  const projectActionLabel = manifest
+    ? getAuthorFacingCapabilityActionLabel(manifest, 'project')
+    : undefined;
+  const chapterActionLabel = manifest
+    ? getAuthorFacingCapabilityActionLabel(manifest, 'chapter')
+    : undefined;
   const defaultActionLabel = manifest ? getAuthorFacingCapabilityActionLabel(manifest) : undefined;
   const favoriteActionLabel = cardCategory === '精修卡' ? '收藏为常用精修卡' : '收藏为常用技法';
   const actionHint = manifest ? getAuthorFacingCapabilityActionHint(manifest) : null;
@@ -403,7 +536,10 @@ function PlazaAssetCard({
           <h3 className="font-bold text-theme-text text-sm leading-snug flex items-center gap-2">
             <span className="truncate">{cleanTitle}</span>
             {isLicensed && (
-              <span aria-hidden="true" className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              <span
+                aria-hidden="true"
+                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20"
+              >
                 授权增强
               </span>
             )}
@@ -411,9 +547,14 @@ function PlazaAssetCard({
           <div className="text-[10px] text-theme-muted tracking-wide mt-1 flex flex-wrap items-center gap-1.5">
             <span>{Number.isFinite(asset.score) ? `冷启动证据 ${asset.score}` : '证据待积累'}</span>
             <span className="text-theme-border/60">·</span>
-            <span className="text-[9px] px-1 py-0.2 bg-theme-bg rounded text-theme-muted">{manifest ? getCapabilitySourceLabel(manifest.sourceType) : '来源未知'}</span>
+            <span className="text-[9px] px-1 py-0.2 bg-theme-bg rounded text-theme-muted">
+              {manifest ? getCapabilitySourceLabel(manifest.sourceType) : '来源未知'}
+            </span>
             {fitnessChip && (
-              <span className="text-[9px] px-1 py-0.2 bg-theme-accent/10 rounded text-theme-accent font-bold" title={fitnessChip.reasons.join('；') || undefined}>
+              <span
+                className="text-[9px] px-1 py-0.2 bg-theme-accent/10 rounded text-theme-accent font-bold"
+                title={fitnessChip.reasons.join('；') || undefined}
+              >
                 适合度 {fitnessChip.score}
               </span>
             )}
@@ -455,24 +596,23 @@ function PlazaAssetCard({
       </div>
 
       <div className="mt-auto pt-2 relative z-10">
-        {actionHint && (
-          <p className="mb-2 text-[10px] leading-4 text-theme-muted">
-            {actionHint}
-          </p>
-        )}
+        {actionHint && <p className="mb-2 text-[10px] leading-4 text-theme-muted">{actionHint}</p>}
         {governanceType === 'guardrail' ? (
           <button
             type="button"
             disabled={isCloning || unavailable}
             aria-pressed={isFavorited}
-            onClick={(e) => { e.stopPropagation(); onEquip(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEquip();
+            }}
             className={cn(
-              "w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1",
+              'w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1',
               isCloning || unavailable
-                ? "bg-theme-border/30 text-theme-muted cursor-not-allowed"
+                ? 'bg-theme-border/30 text-theme-muted cursor-not-allowed'
                 : isFavorited
-                  ? "bg-amber-500/10 border border-amber-500/35 text-amber-700 hover:bg-amber-500/15"
-                  : "border border-amber-500/35 text-amber-700 hover:bg-amber-500/10",
+                  ? 'bg-amber-500/10 border border-amber-500/35 text-amber-700 hover:bg-amber-500/15'
+                  : 'border border-amber-500/35 text-amber-700 hover:bg-amber-500/10'
             )}
           >
             <ShieldAlert size={13} />
@@ -486,7 +626,10 @@ function PlazaAssetCard({
             {onSanitize && isSanitizeRequiredAsset(asset.id) && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onSanitize(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSanitize();
+                }}
                 className="w-full py-2 rounded text-xs font-bold bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent/20 transition-all"
               >
                 消毒并启用
@@ -500,14 +643,17 @@ function PlazaAssetCard({
                 type="button"
                 disabled={isCloning}
                 aria-pressed={isFavorited}
-                onClick={(e) => { e.stopPropagation(); onEquip(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEquip();
+                }}
                 className={cn(
-                  "flex-1 py-2 rounded text-xs font-bold transition-all duration-150",
+                  'flex-1 py-2 rounded text-xs font-bold transition-all duration-150',
                   isCloning
-                    ? "bg-theme-border/30 text-theme-muted cursor-wait"
+                    ? 'bg-theme-border/30 text-theme-muted cursor-wait'
                     : isFavorited
-                      ? "bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15"
-                      : "border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5",
+                      ? 'bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15'
+                      : 'border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5'
                 )}
               >
                 {isCloning ? '处理中...' : isFavorited ? '取消收藏' : favoriteActionLabel}
@@ -515,7 +661,10 @@ function PlazaAssetCard({
               <button
                 type="button"
                 disabled={isCloning}
-                onClick={(e) => { e.stopPropagation(); onUseTechnique(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUseTechnique();
+                }}
                 className="flex-1 py-2 rounded bg-theme-text text-theme-bg text-xs font-bold hover:opacity-90 disabled:opacity-60"
               >
                 {chapterActionLabel || '用于本章'}
@@ -524,72 +673,97 @@ function PlazaAssetCard({
             <button
               type="button"
               disabled={isCloning}
-              onClick={(e) => { e.stopPropagation(); onDirectExec(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDirectExec();
+              }}
               className="w-full py-2 rounded border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text text-xs font-bold transition-all duration-150 disabled:opacity-60"
             >
               {directActionLabel || '运行一次，不保存配置'}
             </button>
           </div>
-        ) : manifest?.action === 'run-diagnostic' || manifest?.action === 'preview-transform' || manifest?.kind === 'utility' ? (
+        ) : manifest?.action === 'run-diagnostic' ||
+          manifest?.action === 'preview-transform' ||
+          manifest?.kind === 'utility' ? (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onDirectExec(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDirectExec();
+            }}
             className="w-full py-2 rounded bg-theme-text hover:opacity-90 text-theme-bg text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1"
           >
             {directActionLabel || '运行一次，不保存配置'}
           </button>
-        ) : manifest?.action === 'activate-flow' || manifest?.action === 'use-technique' || manifest?.action === 'add-to-stack' ? isTechniqueManifest ? (
-          <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              disabled={isCloning}
-              aria-pressed={isFavorited}
-              onClick={(e) => { e.stopPropagation(); onEquip(); }}
-              className={cn(
-                "flex-1 py-2 rounded text-xs font-bold transition-all duration-150",
-                isCloning
-                  ? "bg-theme-border/30 text-theme-muted cursor-wait"
-                  : isFavorited
-                    ? "bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15"
-                    : "border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5",
+        ) : manifest?.action === 'activate-flow' ||
+          manifest?.action === 'use-technique' ||
+          manifest?.action === 'add-to-stack' ? (
+          isTechniqueManifest ? (
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                disabled={isCloning}
+                aria-pressed={isFavorited}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEquip();
+                }}
+                className={cn(
+                  'flex-1 py-2 rounded text-xs font-bold transition-all duration-150',
+                  isCloning
+                    ? 'bg-theme-border/30 text-theme-muted cursor-wait'
+                    : isFavorited
+                      ? 'bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15'
+                      : 'border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5'
+                )}
+              >
+                {isCloning ? '处理中...' : isFavorited ? '取消收藏' : favoriteActionLabel}
+              </button>
+              {supportsProjectTechnique && (
+                <button
+                  type="button"
+                  disabled={isCloning}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUseProjectTechnique();
+                  }}
+                  className="flex-1 min-w-[8rem] py-2 rounded bg-theme-text text-theme-bg text-xs font-bold hover:opacity-90 disabled:opacity-60"
+                >
+                  {projectActionLabel || '设为作品默认'}
+                </button>
               )}
-            >
-              {isCloning ? '处理中...' : isFavorited ? '取消收藏' : favoriteActionLabel}
-            </button>
-            {supportsProjectTechnique && (
-              <button
-                type="button"
-                disabled={isCloning}
-                onClick={(e) => { e.stopPropagation(); onUseProjectTechnique(); }}
-                className="flex-1 min-w-[8rem] py-2 rounded bg-theme-text text-theme-bg text-xs font-bold hover:opacity-90 disabled:opacity-60"
-              >
-                {projectActionLabel || '设为作品默认'}
-              </button>
-            )}
-            {supportsChapterTechnique && (
-              <button
-                type="button"
-                disabled={isCloning}
-                onClick={(e) => { e.stopPropagation(); onUseTechnique(); }}
-                className="flex-1 min-w-[8rem] py-2 rounded border border-theme-border text-theme-text text-xs font-bold hover:border-theme-accent hover:text-theme-accent disabled:opacity-60"
-              >
-                {chapterActionLabel || '用于本章'}
-              </button>
-            )}
-          </div>
-          ) : manifest.kind === 'skill-card' && manifest.allowedScopes.includes('project') && manifest.allowedScopes.includes('chapter') ? (
+              {supportsChapterTechnique && (
+                <button
+                  type="button"
+                  disabled={isCloning}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUseTechnique();
+                  }}
+                  className="flex-1 min-w-[8rem] py-2 rounded border border-theme-border text-theme-text text-xs font-bold hover:border-theme-accent hover:text-theme-accent disabled:opacity-60"
+                >
+                  {chapterActionLabel || '用于本章'}
+                </button>
+              )}
+            </div>
+          ) : manifest.kind === 'skill-card' &&
+            manifest.allowedScopes.includes('project') &&
+            manifest.allowedScopes.includes('chapter') ? (
             <div className="flex gap-2">
               <button
                 type="button"
                 disabled={isCloning}
-                onClick={(e) => { e.stopPropagation(); onEquip(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEquip();
+                }}
                 className={cn(
-                  "flex-1 py-2 rounded text-xs font-bold transition-all duration-150",
+                  'flex-1 py-2 rounded text-xs font-bold transition-all duration-150',
                   isCloning
-                    ? "bg-theme-border/30 text-theme-muted cursor-wait"
+                    ? 'bg-theme-border/30 text-theme-muted cursor-wait'
                     : isLicensed
-                      ? "bg-amber-500 hover:bg-amber-600 text-white"
-                      : "border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5",
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                      : 'border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5'
                 )}
               >
                 {isCloning ? '处理中...' : projectActionLabel || '应用配置后设为作品默认'}
@@ -597,31 +771,46 @@ function PlazaAssetCard({
               <button
                 type="button"
                 disabled={isCloning}
-                onClick={(e) => { e.stopPropagation(); onDirectExec(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDirectExec();
+                }}
                 className="flex-1 py-2 rounded bg-theme-text text-theme-bg text-xs font-bold hover:opacity-90 disabled:opacity-60"
               >
                 {chapterActionLabel || '用于本章'}
               </button>
             </div>
           ) : (
-          <button
-            type="button"
-            disabled={isCloning}
-            aria-pressed={isTechniqueManifest ? isFavorited : undefined}
-            onClick={(e) => { e.stopPropagation(); onEquip(); }}
-            className={cn(
-              "w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1",
-              isCloning
-                ? "bg-theme-border/30 text-theme-muted cursor-wait"
-                : isTechniqueManifest && isFavorited
-                  ? "bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15"
-                : isLicensed
-                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                  : "border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5"
-            )}
-          >
-            {isCloning ? "处理中..." : governanceType === 'flow' ? (projectActionLabel || "应用配置后设为作品默认") : isTechniqueManifest ? (isFavorited ? "取消收藏" : favoriteActionLabel) : (defaultActionLabel || "用于本章")}
-          </button>
+            <button
+              type="button"
+              disabled={isCloning}
+              aria-pressed={isTechniqueManifest ? isFavorited : undefined}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEquip();
+              }}
+              className={cn(
+                'w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1',
+                isCloning
+                  ? 'bg-theme-border/30 text-theme-muted cursor-wait'
+                  : isTechniqueManifest && isFavorited
+                    ? 'bg-theme-accent/10 border border-theme-accent/40 text-theme-accent hover:bg-theme-accent/15'
+                    : isLicensed
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                      : 'border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5'
+              )}
+            >
+              {isCloning
+                ? '处理中...'
+                : governanceType === 'flow'
+                  ? projectActionLabel || '应用配置后设为作品默认'
+                  : isTechniqueManifest
+                    ? isFavorited
+                      ? '取消收藏'
+                      : favoriteActionLabel
+                    : defaultActionLabel || '用于本章'}
+            </button>
+          )
         ) : isImported || isBuiltIn ? (
           <button
             type="button"
@@ -633,18 +822,21 @@ function PlazaAssetCard({
         ) : (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onImport(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onImport();
+            }}
             disabled={isCloning}
             className={cn(
-              "w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1",
+              'w-full py-2 rounded text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1',
               isCloning
-                ? "bg-theme-border/30 text-theme-muted cursor-wait"
+                ? 'bg-theme-border/30 text-theme-muted cursor-wait'
                 : isLicensed
-                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                  : "border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5"
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'border border-theme-border hover:border-theme-accent hover:text-theme-accent text-theme-text hover:bg-theme-accent/5'
             )}
           >
-            {isCloning ? "处理中..." : "保存到我的能力"}
+            {isCloning ? '处理中...' : '保存到我的能力'}
           </button>
         )}
       </div>
@@ -654,7 +846,12 @@ function PlazaAssetCard({
 
 function cloneAssetToSkill(asset: CuratedProductSkill): Skill | null {
   const manifest = getCatalogCapabilityManifest(asset.id);
-  if (!Number.isFinite(asset.score) || !manifest || manifest.runtimeStatus !== 'active' || !['technique', 'skill-card'].includes(manifest.kind)) {
+  if (
+    !Number.isFinite(asset.score) ||
+    !manifest ||
+    manifest.runtimeStatus !== 'active' ||
+    !['technique', 'skill-card'].includes(manifest.kind)
+  ) {
     return null;
   }
 
@@ -669,7 +866,8 @@ function cloneAssetToSkill(asset: CuratedProductSkill): Skill | null {
     version: Number(getCatalogCapabilityManifest(asset.id)?.version) || 1,
     primaryDimension: 'style',
     dimensionTags: ['style'],
-    accessTier: (manifest.sourceType === 'built-in' || manifest.sourceType === 'plaza') ? 'free' : 'paid',
+    accessTier:
+      manifest.sourceType === 'built-in' || manifest.sourceType === 'plaza' ? 'free' : 'paid',
     createdAt: Date.now(),
     executionScore: asset.score,
     parentSkillId: asset.parentSkillId || asset.id,
@@ -690,33 +888,33 @@ const goldenFlowMetadata: Record<string, { target: string; output: string; color
   'xiaofeiji-novel-flow': {
     target: '精品长篇写手 / 进阶故事创作者',
     output: '高张力万字大纲 & 极高粘性前三章正文',
-    color: 'from-orange-500/10 to-amber-500/10 border-amber-500/30'
+    color: 'from-orange-500/10 to-amber-500/10 border-amber-500/30',
   },
   'tomato-platform-flow': {
     target: '番茄平台写手 / 爆款爽文追随者',
     output: '黄金三章快速过签大纲 & 高频金手指爽点正文',
-    color: 'from-red-500/10 to-orange-500/10 border-red-500/30'
+    color: 'from-red-500/10 to-orange-500/10 border-red-500/30',
   },
   'generic-novel-flow': {
     target: '传统网文作者 / 新手通俗写手',
     output: '标准三要素设定 & 结构扎实的百万字通俗大纲',
-    color: 'from-blue-500/10 to-teal-500/10 border-blue-500/30'
+    color: 'from-blue-500/10 to-teal-500/10 border-blue-500/30',
   },
   'book-deconstruction-flow': {
     target: '大神文风研习者 / 精准流派复刻者',
     output: '神作精髓拆解报告 & 强因果节奏伏笔线索图谱',
-    color: 'from-purple-500/10 to-pink-500/10 border-purple-500/30'
+    color: 'from-purple-500/10 to-pink-500/10 border-purple-500/30',
   },
   'fenghua-short-flow': {
     target: '短篇网文作者 / 快速完稿创作者',
     output: '短篇高密度大纲 & 紧凑节奏正文',
-    color: 'from-cyan-500/10 to-sky-500/10 border-cyan-500/30'
+    color: 'from-cyan-500/10 to-sky-500/10 border-cyan-500/30',
   },
   'tianma-outline-flow': {
     target: '长篇策划作者 / 结构型创作者',
     output: '天马行空创意拆解 & 可执行长篇大纲',
-    color: 'from-violet-500/10 to-indigo-500/10 border-violet-500/30'
-  }
+    color: 'from-violet-500/10 to-indigo-500/10 border-violet-500/30',
+  },
 };
 
 function FlowTimelinePreview({ flow }: { flow: SkillSeriesFlow }) {
@@ -730,7 +928,10 @@ function FlowTimelinePreview({ flow }: { flow: SkillSeriesFlow }) {
         {/* Linear Connector Line */}
         <div className="absolute top-[9px] left-2 right-2 h-0.5 bg-theme-border/30 z-0" />
         {flow.steps.map((step) => (
-          <div key={step.id} className="relative z-10 flex flex-col items-center group/dot cursor-pointer">
+          <div
+            key={step.id}
+            className="relative z-10 flex flex-col items-center group/dot cursor-pointer"
+          >
             <div className="w-5 h-5 rounded-full border border-theme-border/60 bg-theme-sidebar flex items-center justify-center text-[8px] font-bold text-theme-muted font-mono hover:border-theme-accent hover:text-theme-accent hover:shadow-sm transition-all">
               {step.stepNumber}
             </div>
@@ -767,16 +968,18 @@ export function SkillsStudioView({
       ? '回到刚才章节写作'
       : '回到当前作品工作台'
     : '去书库选择作品';
-  const returnHint = selectedNovel && returnView === 'editor'
-    ? targetChapterId
-      ? '能力配置会带回刚才那一章，不需要重新找章节。'
-      : '能力配置会带回编辑器，继续当前章节写作。'
-    : selectedNovel
-      ? '回到工作台继续设定、写作和管理作品。'
-      : undefined;
-  const stageLaunchHint = selectedNovel && targetChapterId && initialStage === 'style-polish'
-    ? '从审稿问题进入：选择精修卡后点「生成精修预览」，会回到刚才章节生成只读预览。'
-    : null;
+  const returnHint =
+    selectedNovel && returnView === 'editor'
+      ? targetChapterId
+        ? '能力配置会带回刚才那一章，不需要重新找章节。'
+        : '能力配置会带回编辑器，继续当前章节写作。'
+      : selectedNovel
+        ? '回到工作台继续设定、写作和管理作品。'
+        : undefined;
+  const stageLaunchHint =
+    selectedNovel && targetChapterId && initialStage === 'style-polish'
+      ? '从审稿问题进入：选择精修卡后点「生成精修预览」，会回到刚才章节生成只读预览。'
+      : null;
   const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [skillToDeleteId, setSkillToDeleteId] = useState<string | null>(null);
@@ -789,9 +992,15 @@ export function SkillsStudioView({
   const [guardrailPolicyOpen, setGuardrailPolicyOpen] = useState(false);
   const [packageSelections, setPackageSelections] = useState<string[]>([]);
   const [pendingPackageSteps, setPendingPackageSteps] = useState<EnhancementPackageStep[]>([]);
-  const [packageSelectionDrafts, setPackageSelectionDrafts] = useState<Record<string, string[]>>({});
-  const [packageComponentResults, setPackageComponentResults] = useState<Record<string, CapabilityApplicationStatus>>({});
-  const [packageResultLaunchFeedbackAssetId, setPackageResultLaunchFeedbackAssetId] = useState<string | null>(null);
+  const [packageSelectionDrafts, setPackageSelectionDrafts] = useState<Record<string, string[]>>(
+    {}
+  );
+  const [packageComponentResults, setPackageComponentResults] = useState<
+    Record<string, CapabilityApplicationStatus>
+  >({});
+  const [packageResultLaunchFeedbackAssetId, setPackageResultLaunchFeedbackAssetId] = useState<
+    string | null
+  >(null);
   // Plan 195 Phase 2：候选卡簇状态迁 skills-candidate-store（setter 镜像 useState 语义，调用点零改动）。
   const candidateCardIds = useSkillsCandidateStore((state) => state.candidateCardIds);
   const setCandidateCardIds = useSkillsCandidateStore((state) => state.setCandidateCardIds);
@@ -818,8 +1027,12 @@ export function SkillsStudioView({
 
   useEffect(() => {
     if (!selectedFlowDetail || typeof document === 'undefined') return;
-    const dialog = document.querySelector('[data-capability-flow-dialog="true"]') as HTMLElement | null;
-    const focusable = dialog?.querySelector<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    const dialog = document.querySelector(
+      '[data-capability-flow-dialog="true"]'
+    ) as HTMLElement | null;
+    const focusable = dialog?.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
     focusable?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -828,11 +1041,21 @@ export function SkillsStudioView({
         return;
       }
       if (event.key !== 'Tab' || !dialog) return;
-      const items = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+      const items = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
       if (items.length < 2) return;
       const current = document.activeElement;
       const index = items.indexOf(current as HTMLElement);
-      const nextIndex = event.shiftKey ? (index <= 0 ? items.length - 1 : index - 1) : (index === items.length - 1 ? 0 : index + 1);
+      const nextIndex = event.shiftKey
+        ? index <= 0
+          ? items.length - 1
+          : index - 1
+        : index === items.length - 1
+          ? 0
+          : index + 1;
       if (index >= 0) {
         event.preventDefault();
         items[nextIndex].focus();
@@ -858,13 +1081,21 @@ export function SkillsStudioView({
     return recordProductEvent({
       ...input,
       sessionId,
-      eventId: input.eventId || createProductEventId(`${input.eventName}:${input.action || input.objectId || 'default'}`, sessionId),
+      eventId:
+        input.eventId ||
+        createProductEventId(
+          `${input.eventName}:${input.action || input.objectId || 'default'}`,
+          sessionId
+        ),
     });
   };
 
   const effectiveNovel = useMemo(
-    () => (selectedNovel ? userNovels.find((novel) => novel.id === selectedNovel.id) || selectedNovel : null),
-    [selectedNovel, userNovels],
+    () =>
+      selectedNovel
+        ? userNovels.find((novel) => novel.id === selectedNovel.id) || selectedNovel
+        : null,
+    [selectedNovel, userNovels]
   );
 
   const handleActivateFlow = async (flowId: string) => {
@@ -884,17 +1115,21 @@ export function SkillsStudioView({
       // 003：排他确认带对比清单，说明替换的是哪个流程、会重置什么。
       const previousFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === activeFlowId);
       const nextFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === flowId);
-      const confirmedReplace = await appConfirm('替换当前创作流程？', `切换到「${nextFlow?.name || flowId}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`, { confirmLabel: '确认替换' });
+      const confirmedReplace = await appConfirm(
+        '替换当前创作流程？',
+        `切换到「${nextFlow?.name || flowId}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`,
+        { confirmLabel: '确认替换' }
+      );
       if (!confirmedReplace) return;
     }
 
     if (isLicensedFlow && isFreeNovel) {
       dispatchCapabilityUnavailable({
-          limitType: 'extractSkill',
-          count: 5,
-          max: 5,
-          error: '当前商业化实验配置未开放该授权增强能力；基础写作和 BYOK 主链仍可继续。',
-          novelId: selectedNovel.id,
+        limitType: 'extractSkill',
+        count: 5,
+        max: 5,
+        error: '当前商业化实验配置未开放该授权增强能力；基础写作和 BYOK 主链仍可继续。',
+        novelId: selectedNovel.id,
       });
       return;
     }
@@ -903,7 +1138,6 @@ export function SkillsStudioView({
       const updatedProfile = buildV3CapabilityProfile(effectiveNovel, { activeFlowId: flowId });
 
       stageConfiguration(updatedProfile.capabilityProfile);
-
     } catch (err) {
       logger.warn('Failed to activate flow:', err);
     }
@@ -921,13 +1155,20 @@ export function SkillsStudioView({
   }, []);
 
   useEffect(() => {
-    if (selectedNovel?.id) void recordCapabilityEvent({ eventName: 'capability_viewed', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: 'skills-studio' });
+    if (selectedNovel?.id)
+      void recordCapabilityEvent({
+        eventName: 'capability_viewed',
+        stage: 'advanced',
+        result: 'success',
+        novelId: selectedNovel.id,
+        objectId: 'skills-studio',
+      });
     capabilityViewStateRef.current = selectedNovel?.id || null;
   }, [selectedNovel?.id]);
 
   const selectedSkill = useMemo(
     () => savedSkills.find((skill) => skill.id === selectedSkillId) || null,
-    [savedSkills, selectedSkillId],
+    [savedSkills, selectedSkillId]
   );
 
   const handleDeleteSkill = async (id: string) => {
@@ -945,24 +1186,34 @@ export function SkillsStudioView({
   };
 
   type StoreTab = GovernanceCapabilityType | 'diagnostic-tools' | 'packages' | 'optional-style';
-  const getInitialCapabilityTab = React.useCallback((stage?: GovernanceStage): StoreTab => (
-    stage === 'style-polish' ? 'diagnostic-tools' : 'flow'
-  ), []);
+  const getInitialCapabilityTab = React.useCallback(
+    (stage?: GovernanceStage): StoreTab => (stage === 'style-polish' ? 'diagnostic-tools' : 'flow'),
+    []
+  );
   const [selectedCapability, setSelectedCapability] = useState<StoreTab>('flow');
-  const [selectedCategory, setSelectedCategory] = useState<GovernanceStage | 'all'>(initialStage || 'all');
+  const [selectedCategory, setSelectedCategory] = useState<GovernanceStage | 'all'>(
+    initialStage || 'all'
+  );
 
   useEffect(() => {
     if (!selectedNovel?.id) return;
     const nextState = `${selectedNovel.id}:${activeTab}:${selectedCapability}:${selectedCategory}`;
-    if (capabilityViewStateRef.current === null || capabilityViewStateRef.current === selectedNovel.id) {
+    if (
+      capabilityViewStateRef.current === null ||
+      capabilityViewStateRef.current === selectedNovel.id
+    ) {
       capabilityViewStateRef.current = nextState;
       return;
     }
     if (capabilityViewStateRef.current === nextState) return;
     capabilityViewStateRef.current = nextState;
     void recordCapabilityEvent({
-      eventName: 'capability_viewed', stage: 'advanced', result: 'success',
-      novelId: selectedNovel.id, objectId: 'skills-studio', action: 'view-change',
+      eventName: 'capability_viewed',
+      stage: 'advanced',
+      result: 'success',
+      novelId: selectedNovel.id,
+      objectId: 'skills-studio',
+      action: 'view-change',
     });
   }, [activeTab, selectedCapability, selectedCategory, selectedNovel?.id]);
 
@@ -973,13 +1224,21 @@ export function SkillsStudioView({
     if (selectedCapability === 'optional-style') return getOptionalStyleAssets(stage);
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
-      return manifest.runtimeStatus === 'active'
-        || (selectedCategory === 'commercial-sign'
-          && asset.curatedCategory === 'platform'
-          && manifest.runtimeStatus === 'unavailable');
+      return (
+        manifest.runtimeStatus === 'active' ||
+        (selectedCategory === 'commercial-sign' &&
+          asset.curatedCategory === 'platform' &&
+          manifest.runtimeStatus === 'unavailable')
+      );
     };
-    const polishPreviewCards = filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'technique', stage)
-      .filter((asset) => getCapabilityManifest(asset).output === 'transform-preview' && isVisibleShelfAsset(asset));
+    const polishPreviewCards = filterGovernedAssets(
+      CURATED_PRODUCT_SKILLS,
+      'technique',
+      stage
+    ).filter(
+      (asset) =>
+        getCapabilityManifest(asset).output === 'transform-preview' && isVisibleShelfAsset(asset)
+    );
     if (selectedCapability === 'diagnostic-tools') {
       return [
         ...filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'diagnostic', stage),
@@ -987,7 +1246,9 @@ export function SkillsStudioView({
         ...polishPreviewCards,
       ].filter(isVisibleShelfAsset);
     }
-    const assets = filterGovernedAssets(CURATED_PRODUCT_SKILLS, selectedCapability, stage).filter(isVisibleShelfAsset);
+    const assets = filterGovernedAssets(CURATED_PRODUCT_SKILLS, selectedCapability, stage).filter(
+      isVisibleShelfAsset
+    );
     if (selectedCapability === 'technique') {
       return assets.filter((asset) => getCapabilityManifest(asset).output !== 'transform-preview');
     }
@@ -995,12 +1256,20 @@ export function SkillsStudioView({
   }, [selectedCapability, selectedCategory]);
   // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
   // 004：待消毒候选卡也投影进该分组，提供"消毒并启用"入口。
-  const availableCuratedSkills = filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus === 'active');
+  const availableCuratedSkills = filteredCuratedSkills.filter(
+    (asset) => getCapabilityManifest(asset).runtimeStatus === 'active'
+  );
   // 已消毒（落库存在 sanitized- 副本）的候选不再出现在"需解锁"分组；
   // 消毒副本本身可在"我的能力"中查看与使用。
-  const sanitizedCloneIds = new Set(savedSkills.filter((skill) => String(skill.id).startsWith('sanitized-')).map((skill) => skill.parentSkillId || skill.id));
+  const sanitizedCloneIds = new Set(
+    savedSkills
+      .filter((skill) => String(skill.id).startsWith('sanitized-'))
+      .map((skill) => skill.parentSkillId || skill.id)
+  );
   const lockedCuratedSkills = [
-    ...filteredCuratedSkills.filter((asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'),
+    ...filteredCuratedSkills.filter(
+      (asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'
+    ),
     ...getSanitizeRequiredAssets().filter((asset) => !sanitizedCloneIds.has(asset.id)),
   ];
   const capabilityTabCount = (id: StoreTab) => {
@@ -1009,16 +1278,24 @@ export function SkillsStudioView({
     if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
-      return manifest.runtimeStatus === 'active'
-        || (selectedCategory === 'commercial-sign'
-          && asset.curatedCategory === 'platform'
-          && manifest.runtimeStatus === 'unavailable');
+      return (
+        manifest.runtimeStatus === 'active' ||
+        (selectedCategory === 'commercial-sign' &&
+          asset.curatedCategory === 'platform' &&
+          manifest.runtimeStatus === 'unavailable')
+      );
     };
     if (id === 'diagnostic-tools') {
-      return filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'diagnostic').filter(isVisibleShelfAsset).length
-        + filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'utility').filter(isVisibleShelfAsset).length
-        + filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'technique')
-          .filter((asset) => getCapabilityManifest(asset).output === 'transform-preview' && isVisibleShelfAsset(asset)).length;
+      return (
+        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'diagnostic').filter(isVisibleShelfAsset)
+          .length +
+        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'utility').filter(isVisibleShelfAsset).length +
+        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'technique').filter(
+          (asset) =>
+            getCapabilityManifest(asset).output === 'transform-preview' &&
+            isVisibleShelfAsset(asset)
+        ).length
+      );
     }
     const assets = filterGovernedAssets(CURATED_PRODUCT_SKILLS, id).filter(isVisibleShelfAsset);
     return id === 'technique'
@@ -1030,47 +1307,61 @@ export function SkillsStudioView({
     ? ENHANCEMENT_PACKAGES.find((pkg) => pkg.id === selectedPackageId) || null
     : null;
   const visiblePackages = ENHANCEMENT_PACKAGES.filter((pkg) => pkg.id !== 'paid-author-flows');
-  const groupedPackages = PACKAGE_GROUPS
-    .map((group) => ({
-      ...group,
-      packages: visiblePackages.filter((pkg) => getPackageGroupId(pkg.id) === group.id),
-    }))
-    .filter((group) => group.packages.length > 0);
-  const packageComponents = (selectedPackage ? getEnhancementPackageSteps(selectedPackage) : []).map((step) => {
+  const groupedPackages = PACKAGE_GROUPS.map((group) => ({
+    ...group,
+    packages: visiblePackages.filter((pkg) => getPackageGroupId(pkg.id) === group.id),
+  })).filter((group) => group.packages.length > 0);
+  const packageComponents = (
+    selectedPackage ? getEnhancementPackageSteps(selectedPackage) : []
+  ).map((step) => {
     const assetId = step.assetId;
     const asset = CURATED_PRODUCT_SKILLS.find((entry) => entry.id === assetId) || null;
     const flow = SKILL_SERIES_FLOWS.find((entry) => entry.id === assetId) || null;
     const manifest = getCatalogCapabilityManifest(assetId);
     return { assetId, asset, flow, manifest, step };
   });
-  const getPackageComponentLabel = (component: typeof packageComponents[number]) => component.flow?.name || component.asset?.title || component.assetId;
-  const isPackageStepSelected = (component: typeof packageComponents[number]) =>
+  const getPackageComponentLabel = (component: (typeof packageComponents)[number]) =>
+    component.flow?.name || component.asset?.title || component.assetId;
+  const isPackageStepSelected = (component: (typeof packageComponents)[number]) =>
     packageSelections.includes(component.step.id) || packageSelections.includes(component.assetId);
-  const isConfigurationPackageComponent = (component: typeof packageComponents[number]) => {
+  const isConfigurationPackageComponent = (component: (typeof packageComponents)[number]) => {
     if (component.flow) return true;
     if (!component.asset) return false;
     const type = getGovernanceCapabilityType(component.asset);
     return type !== 'diagnostic' && type !== 'utility';
   };
-  const visibleFlowIds = ['xiaofeiji-novel-flow', 'tomato-platform-flow', 'generic-novel-flow', 'book-deconstruction-flow', 'fenghua-short-flow', 'tianma-outline-flow'];
-  const visibleFlowCount = SKILL_SERIES_FLOWS.filter((flow) => visibleFlowIds.includes(flow.id)).length;
+  const visibleFlowIds = [
+    'xiaofeiji-novel-flow',
+    'tomato-platform-flow',
+    'generic-novel-flow',
+    'book-deconstruction-flow',
+    'fenghua-short-flow',
+    'tianma-outline-flow',
+  ];
+  const visibleFlowCount = SKILL_SERIES_FLOWS.filter((flow) =>
+    visibleFlowIds.includes(flow.id)
+  ).length;
   const visiblePackageCount = visiblePackages.length;
 
   const isAssetPersisted = (asset: CuratedProductSkill) => {
     const manifestVersion = Number(getCatalogCapabilityManifest(asset.id)?.version) || 1;
-    return savedSkills.some((skill) => (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id)
-      && skill.sourceType === asset.sourceType && skill.version === manifestVersion);
+    return savedSkills.some(
+      (skill) =>
+        (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id) &&
+        skill.sourceType === asset.sourceType &&
+        skill.version === manifestVersion
+    );
   };
 
   const isRuntimeReadySkillCard = (skill: Skill) => {
     const sourceId = skill.parentSkillId || skill.id;
     const manifest = getCatalogCapabilityManifest(sourceId);
     return Boolean(
-      (manifest?.kind === 'skill-card' && manifest.runtimeStatus === 'active' || !manifest)
-      && Boolean(skill.deconstructionCardType)
-      && skill.isRuntimeReady === true
-      && skill.sanitizationStatus === 'runtime-ready'
-      && skill.runtimeStatus === 'active',
+      ((manifest?.kind === 'skill-card' && manifest.runtimeStatus === 'active') || !manifest) &&
+      Boolean(skill.deconstructionCardType) &&
+      skill.isRuntimeReady === true &&
+      skill.sanitizationStatus === 'runtime-ready' &&
+      skill.runtimeStatus === 'active'
     );
   };
 
@@ -1079,13 +1370,23 @@ export function SkillsStudioView({
     const sourceId = saved?.parentSkillId || id;
     const entry = CURATED_PRODUCT_SKILLS.find((asset) => asset.id === sourceId);
     const manifest = getCatalogCapabilityManifest(sourceId) || getCatalogCapabilityManifest(id);
-    const dimensions = [...new Set([
-      ...(saved?.dimensionTags || []),
-      ...(saved?.primaryDimension ? [saved.primaryDimension] : []),
-      ...(entry?.primaryCategory ? [entry.primaryCategory] : []),
-      ...(manifest?.deconstructionCardType ? [manifest.deconstructionCardType.replace(/-card$/, '')] : []),
-    ].filter(Boolean))];
-    const known = Boolean(saved ? isRuntimeReadySkillCard(saved) : manifest?.kind === 'skill-card' && manifest.runtimeStatus === 'active');
+    const dimensions = [
+      ...new Set(
+        [
+          ...(saved?.dimensionTags || []),
+          ...(saved?.primaryDimension ? [saved.primaryDimension] : []),
+          ...(entry?.primaryCategory ? [entry.primaryCategory] : []),
+          ...(manifest?.deconstructionCardType
+            ? [manifest.deconstructionCardType.replace(/-card$/, '')]
+            : []),
+        ].filter(Boolean)
+      ),
+    ];
+    const known = Boolean(
+      saved
+        ? isRuntimeReadySkillCard(saved)
+        : manifest?.kind === 'skill-card' && manifest.runtimeStatus === 'active'
+    );
     return {
       id,
       title: saved?.name || entry?.title || id,
@@ -1105,16 +1406,19 @@ export function SkillsStudioView({
     const manifest = getCapabilityManifest(asset);
     const sourceId = asset.parentSkillId || asset.id;
     const sourceVersion = manifest.version || '1';
-    return (profile?.capabilityMemberships || []).some((membership) =>
-      membership.sourceId === sourceId
-      && membership.sourceVersion === sourceVersion
-      && Boolean(membership.persistedSkillId && favorites.has(membership.persistedSkillId)),
+    return (profile?.capabilityMemberships || []).some(
+      (membership) =>
+        membership.sourceId === sourceId &&
+        membership.sourceVersion === sourceVersion &&
+        Boolean(membership.persistedSkillId && favorites.has(membership.persistedSkillId))
     );
   };
 
-  const isFreeNovel = !selectedNovel || !canUseEnhancedCapability({
-    commercialMode: selectedNovel.projectPreferenceProfile?.commercialMode,
-  });
+  const isFreeNovel =
+    !selectedNovel ||
+    !canUseEnhancedCapability({
+      commercialMode: selectedNovel.projectPreferenceProfile?.commercialMode,
+    });
   const monetizationEnabled = isMonetizationEnabled();
   // This pure normalization is cheap; avoiding manual memoization keeps the
   // React Compiler's generated memoization consistent with this component.
@@ -1133,57 +1437,95 @@ export function SkillsStudioView({
       id: (configurationDraft || capabilityProfile)?.projectSkillDeck.supportCardIds[index],
     })),
   ].map((item) => ({ ...item, card: item.id ? resolveDeckCard(item.id) : null }));
-  const supportDeckCount = deckSummaryCards.filter((item) => item.slot.startsWith('辅卡') && item.card).length;
-  const deckEmptyHint = projectDeckIds.length === 0
-    ? '可添加 1 张主卡、2 张辅卡'
-    : supportDeckCount < 2
-      ? `还可添加 ${2 - supportDeckCount} 张辅卡`
-      : '作品卡组已满';
-  const activeFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === configurationDraft?.activeFlowId);
-  const currentGuardrailIds = (configurationDraft || capabilityProfile)?.guardrailIds || [];
-  const isGuardrailCandidate = (asset: CuratedProductSkill) => (
-    getGovernanceCapabilityType(asset) === 'guardrail' && currentGuardrailIds.includes(asset.id)
+  const supportDeckCount = deckSummaryCards.filter(
+    (item) => item.slot.startsWith('辅卡') && item.card
+  ).length;
+  const deckEmptyHint =
+    projectDeckIds.length === 0
+      ? '可添加 1 张主卡、2 张辅卡'
+      : supportDeckCount < 2
+        ? `还可添加 ${2 - supportDeckCount} 张辅卡`
+        : '作品卡组已满';
+  const activeFlow = SKILL_SERIES_FLOWS.find(
+    (flow) => flow.id === configurationDraft?.activeFlowId
   );
-  const hasLegacyConfiguration = Boolean(effectiveNovel?.projectPreferenceProfile && effectiveNovel.projectPreferenceProfile.capabilityModelVersion !== 3);
+  const currentGuardrailIds = (configurationDraft || capabilityProfile)?.guardrailIds || [];
+  const isGuardrailCandidate = (asset: CuratedProductSkill) =>
+    getGovernanceCapabilityType(asset) === 'guardrail' && currentGuardrailIds.includes(asset.id);
+  const hasLegacyConfiguration = Boolean(
+    effectiveNovel?.projectPreferenceProfile &&
+    effectiveNovel.projectPreferenceProfile.capabilityModelVersion !== 3
+  );
   const baselineToken = getCapabilityConfigurationBaselineToken(capabilityProfile);
-  const selectedPackageRestricted = Boolean(selectedPackage && selectedPackage.type === 'paid' && monetizationEnabled && isFreeNovel);
-  const packageHasStaleSelection = packageComponents.some((component) => isPackageStepSelected(component) && isConfigurationPackageComponent(component));
-  const packageHasResults = packageComponents.some((component) => packageComponentResults[component.step.id] || packageComponentResults[component.assetId]);
-  const packageApplyDestination: CapabilityApplyDestination = packageComponents.some((component) => {
-    const status = packageComponentResults[component.step.id] || packageComponentResults[component.assetId];
-    return Boolean(status && isWorldCandidateArtifact(component.manifest?.outputArtifact));
-  })
+  const selectedPackageRestricted = Boolean(
+    selectedPackage && selectedPackage.type === 'paid' && monetizationEnabled && isFreeNovel
+  );
+  const packageHasStaleSelection = packageComponents.some(
+    (component) => isPackageStepSelected(component) && isConfigurationPackageComponent(component)
+  );
+  const packageHasResults = packageComponents.some(
+    (component) =>
+      packageComponentResults[component.step.id] || packageComponentResults[component.assetId]
+  );
+  const packageApplyDestination: CapabilityApplyDestination = packageComponents.some(
+    (component) => {
+      const status =
+        packageComponentResults[component.step.id] || packageComponentResults[component.assetId];
+      return Boolean(status && isWorldCandidateArtifact(component.manifest?.outputArtifact));
+    }
+  )
     ? 'world'
     : packageComponents.some((component) => {
-      const status = packageComponentResults[component.step.id] || packageComponentResults[component.assetId];
-      return Boolean(status && isOutlineCandidateOutput(component.manifest?.output)
-        && !isWorldCandidateArtifact(component.manifest?.outputArtifact));
-    })
+          const status =
+            packageComponentResults[component.step.id] ||
+            packageComponentResults[component.assetId];
+          return Boolean(
+            status &&
+            isOutlineCandidateOutput(component.manifest?.output) &&
+            !isWorldCandidateArtifact(component.manifest?.outputArtifact)
+          );
+        })
       ? 'outline'
       : 'return';
-  const packageApplyOutlineAssetId = packageComponents.find((component) => {
-    const status = packageComponentResults[component.step.id] || packageComponentResults[component.assetId];
-    return Boolean(status && isOutlineCandidateOutput(component.manifest?.output)
-      && !isWorldCandidateArtifact(component.manifest?.outputArtifact));
-  })?.assetId || null;
+  const packageApplyOutlineAssetId =
+    packageComponents.find((component) => {
+      const status =
+        packageComponentResults[component.step.id] || packageComponentResults[component.assetId];
+      return Boolean(
+        status &&
+        isOutlineCandidateOutput(component.manifest?.output) &&
+        !isWorldCandidateArtifact(component.manifest?.outputArtifact)
+      );
+    })?.assetId || null;
   const packageApplyButtonLabel = getCapabilityApplyButtonLabel(packageApplyDestination);
-  const packageSubmitButtonLabel = getPackageSubmitButtonLabel(packageHasResults, packageSelections.length);
-  const packageEmptySelectionHint = getPackageEmptySelectionHint(packageHasResults, packageSelections.length, configurationDirty && !staleConfigurationSession);
+  const packageSubmitButtonLabel = getPackageSubmitButtonLabel(
+    packageHasResults,
+    packageSelections.length
+  );
+  const packageEmptySelectionHint = getPackageEmptySelectionHint(
+    packageHasResults,
+    packageSelections.length,
+    configurationDirty && !staleConfigurationSession
+  );
   const missingRequiredPackageLabels = packageComponents
     .filter((component) => component.step.required && !isPackageStepSelected(component))
     .map(getPackageComponentLabel);
   const packageMissingRequiredSelection = missingRequiredPackageLabels.length > 0;
   const packageSubmitDisabledReason = !selectedNovel
-    ? packageSelections.length > 0 ? '请先在书库选择作品后再启用所选能力' : '请先在书库选择作品'
+    ? packageSelections.length > 0
+      ? '请先在书库选择作品后再启用所选能力'
+      : '请先在书库选择作品'
     : selectedPackageRestricted && packageSelections.length > 0
       ? '当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。'
       : packageSelections.length === 0
-      ? packageHasResults ? '如需继续提交，请先勾选新能力' : '至少选择一项能力'
-      : packageMissingRequiredSelection
-        ? `请先选择必需能力：${missingRequiredPackageLabels.join('、')}`
-      : staleConfigurationSession && packageHasStaleSelection
-        ? '本次配置已变化，请先重新预览'
-        : null;
+        ? packageHasResults
+          ? '如需继续提交，请先勾选新能力'
+          : '至少选择一项能力'
+        : packageMissingRequiredSelection
+          ? `请先选择必需能力：${missingRequiredPackageLabels.join('、')}`
+          : staleConfigurationSession && packageHasStaleSelection
+            ? '本次配置已变化，请先重新预览'
+            : null;
 
   useEffect(() => {
     if (previousNovelIdRef.current === selectedNovel?.id) return;
@@ -1207,7 +1549,13 @@ export function SkillsStudioView({
     setConfigurationError(null);
     setConfigurationApplyFailed(false);
     setLeavePromptOpen(false);
-  }, [getInitialCapabilityTab, initialStage, selectedNovel, setCandidateCardIds, setPendingCandidateId]);
+  }, [
+    getInitialCapabilityTab,
+    initialStage,
+    selectedNovel,
+    setCandidateCardIds,
+    setPendingCandidateId,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1218,19 +1566,27 @@ export function SkillsStudioView({
       sessionContextRef.current = null;
       configurationSessionIdRef.current = null;
       setStaleConfigurationSession(false);
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
     const readGeneration = getDatabaseGenerationReader();
     if (!readGeneration) {
       setDatabaseGeneration(0);
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
-    void readGeneration().then((generation) => {
-      if (!cancelled) setDatabaseGeneration(generation);
-    }).catch(() => {
-      if (!cancelled) setDatabaseGeneration(null);
-    });
-    return () => { cancelled = true; };
+    void readGeneration()
+      .then((generation) => {
+        if (!cancelled) setDatabaseGeneration(generation);
+      })
+      .catch(() => {
+        if (!cancelled) setDatabaseGeneration(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedNovel?.id]);
 
   useEffect(() => {
@@ -1240,23 +1596,34 @@ export function SkillsStudioView({
     const contextChanged = sessionContextRef.current !== contextKey;
     // 自家 apply 造成的上下文变化只在短暂窗口内被豁免一次；超过窗口的
     // flag 视为残留（如幂等应用未改变 baseline），避免吞掉真正的外部漂移。
-    // eslint-disable-next-line react-hooks/purity
-    const flagAge = selfAppliedContextRef.current ? Date.now() - selfAppliedContextRef.current : Number.POSITIVE_INFINITY;
+    const flagAge = selfAppliedContextRef.current
+      ? // eslint-disable-next-line react-hooks/purity
+        Date.now() - selfAppliedContextRef.current
+      : Number.POSITIVE_INFINITY;
     if (contextChanged && flagAge < 5000) {
       selfAppliedContextRef.current = 0;
       sessionContextRef.current = contextKey;
       return;
     }
     const latest = loadLatestCapabilityConfigurationSession(selectedNovel.id);
-    const restored = loadCapabilityConfigurationSession(selectedNovel.id, databaseGeneration, baselineToken);
-    const stale = Boolean(latest && isCapabilityConfigurationSessionStale(latest, databaseGeneration, baselineToken));
+    const restored = loadCapabilityConfigurationSession(
+      selectedNovel.id,
+      databaseGeneration,
+      baselineToken
+    );
+    const stale = Boolean(
+      latest && isCapabilityConfigurationSessionStale(latest, databaseGeneration, baselineToken)
+    );
     sessionContextRef.current = contextKey;
     setStaleConfigurationSession(stale);
     const sessionToRestore = restored || latest;
     const sessionPrefix = `capability:${selectedNovel.id}:`;
-    configurationSessionIdRef.current = sessionToRestore?.sessionId
-      || (configurationSessionIdRef.current?.startsWith(sessionPrefix) ? configurationSessionIdRef.current : null)
-      || `${sessionPrefix}${createProductEventSessionId('configuration')}`;
+    configurationSessionIdRef.current =
+      sessionToRestore?.sessionId ||
+      (configurationSessionIdRef.current?.startsWith(sessionPrefix)
+        ? configurationSessionIdRef.current
+        : null) ||
+      `${sessionPrefix}${createProductEventSessionId('configuration')}`;
     if (!sessionToRestore) {
       // The novel-switch effect already clears project-bound state. Avoid
       // overwriting a user's first click while the initial generation read
@@ -1300,19 +1667,38 @@ export function SkillsStudioView({
     const restoreScroll = () => {
       if (studioScrollRef.current) studioScrollRef.current.scrollTop = sessionToRestore.scrollTop;
     };
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(restoreScroll);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+      window.requestAnimationFrame(restoreScroll);
     else restoreScroll();
-    const restoredDraftToken = getCapabilityConfigurationBaselineToken(sessionToRestore.configurationDraft);
-    const hasPendingSessionWork = sessionToRestore.candidateCardIds.length > 0
-      || (sessionToRestore.pendingPackageSteps?.length || 0) > 0
-      || Boolean(sessionToRestore.pendingCandidateId);
+    const restoredDraftToken = getCapabilityConfigurationBaselineToken(
+      sessionToRestore.configurationDraft
+    );
+    const hasPendingSessionWork =
+      sessionToRestore.candidateCardIds.length > 0 ||
+      (sessionToRestore.pendingPackageSteps?.length || 0) > 0 ||
+      Boolean(sessionToRestore.pendingCandidateId);
     setConfigurationDirty(Boolean(restoredDraftToken !== baselineToken || hasPendingSessionWork));
-  // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getInitialCapabilityTab, initialStage, selectedNovel?.id, databaseGeneration, baselineToken, effectiveNovel?.projectPreferenceProfile, setCandidateCardIds, setPendingCandidateId]);
+    // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    getInitialCapabilityTab,
+    initialStage,
+    selectedNovel?.id,
+    databaseGeneration,
+    baselineToken,
+    effectiveNovel?.projectPreferenceProfile,
+    setCandidateCardIds,
+    setPendingCandidateId,
+  ]);
 
   useEffect(() => {
-    if (staleConfigurationSession || !selectedNovel?.id || databaseGeneration === null || sessionContextRef.current !== `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`) return;
+    if (
+      staleConfigurationSession ||
+      !selectedNovel?.id ||
+      databaseGeneration === null ||
+      sessionContextRef.current !== `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`
+    )
+      return;
     const session: CapabilityConfigurationSession = {
       version: 1,
       novelId: selectedNovel.id,
@@ -1332,7 +1718,21 @@ export function SkillsStudioView({
       updatedAt: 0,
     };
     saveCapabilityConfigurationSession(session);
-  }, [staleConfigurationSession, selectedNovel?.id, databaseGeneration, baselineToken, configurationDraft, pendingPackageSteps, candidateCardIds, pendingCandidateId, activeTab, selectedCapability, selectedCategory, selectedSkillId, configurationDirty]);
+  }, [
+    staleConfigurationSession,
+    selectedNovel?.id,
+    databaseGeneration,
+    baselineToken,
+    configurationDraft,
+    pendingPackageSteps,
+    candidateCardIds,
+    pendingCandidateId,
+    activeTab,
+    selectedCapability,
+    selectedCategory,
+    selectedSkillId,
+    configurationDirty,
+  ]);
 
   useEffect(() => {
     if (!configurationDirty) {
@@ -1340,12 +1740,14 @@ export function SkillsStudioView({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfigurationDraft(capabilityProfile);
     }
-  // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveNovel?.id, effectiveNovel?.projectPreferenceProfile, configurationDirty]);
 
   type CapabilityProfileDraft = ReturnType<typeof buildV3CapabilityProfile>['capabilityProfile'];
-  type CapabilityProfileUpdate = CapabilityProfileDraft | ((current: CapabilityProfileDraft | null) => CapabilityProfileDraft | null);
+  type CapabilityProfileUpdate =
+    | CapabilityProfileDraft
+    | ((current: CapabilityProfileDraft | null) => CapabilityProfileDraft | null);
 
   const stageConfiguration = (profileOrUpdate: CapabilityProfileUpdate) => {
     if (staleConfigurationSession) {
@@ -1353,9 +1755,8 @@ export function SkillsStudioView({
       return;
     }
     setConfigurationDraft((current) => {
-      const next = typeof profileOrUpdate === 'function'
-        ? profileOrUpdate(current)
-        : profileOrUpdate;
+      const next =
+        typeof profileOrUpdate === 'function' ? profileOrUpdate(current) : profileOrUpdate;
       return next || null;
     });
     setConfigurationDirty(true);
@@ -1367,12 +1768,15 @@ export function SkillsStudioView({
     if (!selectedNovel) return;
     const manifest = getCapabilityManifest(asset);
     stageConfiguration((current) => {
-      const withMembership = upsertCapabilityMembership(current || getProjectCapabilityProfile(effectiveNovel), {
-        sourceId: asset.parentSkillId || asset.id,
-        sourceVersion: manifest?.version || '1',
-        sourceType: manifest?.sourceType || asset.sourceType,
-        persistedSkillId,
-      });
+      const withMembership = upsertCapabilityMembership(
+        current || getProjectCapabilityProfile(effectiveNovel),
+        {
+          sourceId: asset.parentSkillId || asset.id,
+          sourceVersion: manifest?.version || '1',
+          sourceType: manifest?.sourceType || asset.sourceType,
+          persistedSkillId,
+        }
+      );
       return buildV3CapabilityProfile(effectiveNovel, withMembership).capabilityProfile;
     });
   };
@@ -1394,7 +1798,7 @@ export function SkillsStudioView({
     profileOverride?: CapabilityProfileDraft | null,
     projectLaunchAssetId?: string,
     worldCapabilityLaunch?: WorldCapabilityLaunchIntent,
-    packageStepsOverride?: EnhancementPackageStep[],
+    packageStepsOverride?: EnhancementPackageStep[]
   ) => {
     const draft = profileOverride || configurationDraft;
     if (!selectedNovel || !draft || applyingConfigurationRef.current) return;
@@ -1405,7 +1809,11 @@ export function SkillsStudioView({
       setConfigurationApplyFailed(false);
       const nextProfile = buildV3CapabilityProfile(effectiveNovel, draft);
       const databaseGeneration = await getDatabaseGenerationSafe();
-      const preview = await previewCapabilityConfiguration(selectedNovel.id, databaseGeneration, nextProfile.capabilityProfile!);
+      const preview = await previewCapabilityConfiguration(
+        selectedNovel.id,
+        databaseGeneration,
+        nextProfile.capabilityProfile!
+      );
       if (staleConfigurationSession) {
         setStaleConfigurationSession(false);
         setConfigurationError('草稿已按当前作品状态重新预览。请再次点击应用配置以写入作品。');
@@ -1423,14 +1831,27 @@ export function SkillsStudioView({
         required: step.required,
         ...(step.dependsOn ? { dependsOn: [...step.dependsOn] } : {}),
       }));
-      const applied = await applyCapabilityConfiguration(selectedNovel.id, databaseGeneration, preview.previewToken, nextProfile.capabilityProfile!, selectedPackageSteps, targetChapterId);
+      const applied = await applyCapabilityConfiguration(
+        selectedNovel.id,
+        databaseGeneration,
+        preview.previewToken,
+        nextProfile.capabilityProfile!,
+        selectedPackageSteps,
+        targetChapterId
+      );
       // Our own apply will move the baseline the session effect watches; let it
       // re-anchor instead of resetting the open dialog as external drift.
       // eslint-disable-next-line react-hooks/purity
       selfAppliedContextRef.current = Date.now();
       const appliedProfile = { ...nextProfile, capabilityProfile: applied.profile };
       const appliedNovel = { ...selectedNovel, projectPreferenceProfile: appliedProfile };
-      setUserNovels((prev) => prev.map((entry) => entry.id === selectedNovel.id ? { ...entry, projectPreferenceProfile: appliedProfile } : entry));
+      setUserNovels((prev) =>
+        prev.map((entry) =>
+          entry.id === selectedNovel.id
+            ? { ...entry, projectPreferenceProfile: appliedProfile }
+            : entry
+        )
+      );
       onNovelUpdated?.(appliedNovel);
       setConfigurationDirty(false);
       setStaleConfigurationSession(false);
@@ -1449,9 +1870,8 @@ export function SkillsStudioView({
           } else {
             for (const component of packageComponents) {
               if (!isPackageStepSelected(component)) continue;
-              next[component.step.id] = component.step.mode === 'configure'
-                ? 'configured'
-                : 'recommended';
+              next[component.step.id] =
+                component.step.mode === 'configure' ? 'configured' : 'recommended';
             }
           }
           return next;
@@ -1468,10 +1888,23 @@ export function SkillsStudioView({
         objectId: projectDeckIds.length > 0 ? projectDeckIds.join(',') : undefined,
       });
       if (returnToWriting) {
-        void recordCapabilityEvent({ eventName: 'capability_returned_to_editor', stage: 'advanced', result: 'success', novelId: selectedNovel.id, action: 'apply-and-return' });
+        void recordCapabilityEvent({
+          eventName: 'capability_returned_to_editor',
+          stage: 'advanced',
+          result: 'success',
+          novelId: selectedNovel.id,
+          action: 'apply-and-return',
+        });
         if (destination === 'world') {
-          onNavigate?.('world', { capabilityApplied: true, targetFocus: 'workspace-world', worldCapabilityLaunch });
-        } else if (destination === 'outline' && (projectLaunchAssetId || packageApplyOutlineAssetId)) {
+          onNavigate?.('world', {
+            capabilityApplied: true,
+            targetFocus: 'workspace-world',
+            worldCapabilityLaunch,
+          });
+        } else if (
+          destination === 'outline' &&
+          (projectLaunchAssetId || packageApplyOutlineAssetId)
+        ) {
           // eslint-disable-next-line react-hooks/purity
           const launchToken = Date.now();
           onLaunchCapability?.({
@@ -1515,26 +1948,41 @@ export function SkillsStudioView({
     setCandidateCardIds([]);
     setPendingCandidateId(null);
     setLeavePromptOpen(false);
-    if (selectedNovel?.id) void recordCapabilityEvent({ eventName: 'capability_config_cancelled', stage: 'advanced', result: 'success', novelId: selectedNovel.id });
+    if (selectedNovel?.id)
+      void recordCapabilityEvent({
+        eventName: 'capability_config_cancelled',
+        stage: 'advanced',
+        result: 'success',
+        novelId: selectedNovel.id,
+      });
     onNavigate?.(selectedNovel ? returnView : 'library');
   };
 
   const handleApplyProjectTechnique = async (asset: CuratedProductSkill) => {
     if (!selectedNovel?.id || getGovernanceCapabilityType(asset) !== 'technique') return;
     const manifest = getCapabilityManifest(asset);
-    if (manifest.outputArtifact === 'worldBibleCandidate' || manifest.outputArtifact === 'characterCardCandidate') {
-      const persistedId = manifest.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
+    if (
+      manifest.outputArtifact === 'worldBibleCandidate' ||
+      manifest.outputArtifact === 'characterCardCandidate'
+    ) {
+      const persistedId =
+        manifest.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
       if (!persistedId) return;
-      const current = upsertCapabilityMembership(configurationDraft || getProjectCapabilityProfile(effectiveNovel), {
-        sourceId: asset.parentSkillId || asset.id,
-        sourceVersion: manifest.version || '1',
-        sourceType: manifest.sourceType || asset.sourceType,
-        persistedSkillId: persistedId,
-      });
+      const current = upsertCapabilityMembership(
+        configurationDraft || getProjectCapabilityProfile(effectiveNovel),
+        {
+          sourceId: asset.parentSkillId || asset.id,
+          sourceVersion: manifest.version || '1',
+          sourceType: manifest.sourceType || asset.sourceType,
+          persistedSkillId: persistedId,
+        }
+      );
       const projectTechniques = current?.projectTechniqueIds || current?.favoriteTechniqueIds || [];
       const nextProfile = buildV3CapabilityProfile(effectiveNovel, {
         ...current,
-        projectTechniqueIds: projectTechniques.includes(persistedId) ? projectTechniques : [...projectTechniques, persistedId],
+        projectTechniqueIds: projectTechniques.includes(persistedId)
+          ? projectTechniques
+          : [...projectTechniques, persistedId],
         capabilityMemberships: current.capabilityMemberships,
       }).capabilityProfile;
       stageConfiguration(nextProfile);
@@ -1548,18 +1996,24 @@ export function SkillsStudioView({
       });
       return;
     }
-    const persistedId = manifest.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
+    const persistedId =
+      manifest.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
     if (!persistedId) return;
-    const current = upsertCapabilityMembership(configurationDraft || getProjectCapabilityProfile(effectiveNovel), {
-      sourceId: asset.parentSkillId || asset.id,
-      sourceVersion: manifest.version || '1',
-      sourceType: manifest.sourceType || asset.sourceType,
-      persistedSkillId: persistedId,
-    });
+    const current = upsertCapabilityMembership(
+      configurationDraft || getProjectCapabilityProfile(effectiveNovel),
+      {
+        sourceId: asset.parentSkillId || asset.id,
+        sourceVersion: manifest.version || '1',
+        sourceType: manifest.sourceType || asset.sourceType,
+        persistedSkillId: persistedId,
+      }
+    );
     const projectTechniques = current?.projectTechniqueIds || current?.favoriteTechniqueIds || [];
     const nextProfile = buildV3CapabilityProfile(effectiveNovel, {
       ...current,
-      projectTechniqueIds: projectTechniques.includes(persistedId) ? projectTechniques : [...projectTechniques, persistedId],
+      projectTechniqueIds: projectTechniques.includes(persistedId)
+        ? projectTechniques
+        : [...projectTechniques, persistedId],
       capabilityMemberships: current.capabilityMemberships,
     }).capabilityProfile;
     stageConfiguration(nextProfile);
@@ -1567,15 +2021,19 @@ export function SkillsStudioView({
       true,
       manifest.stages.includes('planner') ? 'outline' : 'return',
       nextProfile,
-      asset.id,
+      asset.id
     );
   };
 
   const cancelPendingCandidate = () => {
     if (pendingCandidateId && selectedNovel?.id) {
       void recordCapabilityEvent({
-        eventName: 'capability_config_cancelled', stage: 'advanced', result: 'success',
-        novelId: selectedNovel.id, objectId: pendingCandidateId, action: 'conflict',
+        eventName: 'capability_config_cancelled',
+        stage: 'advanced',
+        result: 'success',
+        novelId: selectedNovel.id,
+        objectId: pendingCandidateId,
+        action: 'conflict',
       });
     }
     setPendingCandidateId(null);
@@ -1586,7 +2044,7 @@ export function SkillsStudioView({
       if (staleConfigurationSession) setConfigurationError('旧草稿只读，请先重新预览本次配置。');
       return;
     }
-    setCandidateCardIds((ids) => ids.includes(skillId) ? ids : [...ids, skillId]);
+    setCandidateCardIds((ids) => (ids.includes(skillId) ? ids : [...ids, skillId]));
     setConfigurationDirty(true);
     setConfigurationError(null);
     setConfigurationApplyFailed(false);
@@ -1599,16 +2057,21 @@ export function SkillsStudioView({
     }
     if (isLicensedEnhancementGated(getCapabilityManifest(asset)?.sourceType, isFreeNovel)) {
       dispatchCapabilityUnavailable({
-          limitType: 'extractSkill',
-          count: 5,
-          max: 5,
-          error: '当前商业化实验配置未开放该授权增强能力；基础写作和 BYOK 主链仍可继续。',
-          novelId: selectedNovel?.id || '',
+        limitType: 'extractSkill',
+        count: 5,
+        max: 5,
+        error: '当前商业化实验配置未开放该授权增强能力；基础写作和 BYOK 主链仍可继续。',
+        novelId: selectedNovel?.id || '',
       });
       return null;
     }
 
-    const existing = savedSkills.find((skill) => (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id) && skill.sourceType === asset.sourceType && skill.version === (Number(getCatalogCapabilityManifest(asset.id)?.version) || 1));
+    const existing = savedSkills.find(
+      (skill) =>
+        (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id) &&
+        skill.sourceType === asset.sourceType &&
+        skill.version === (Number(getCatalogCapabilityManifest(asset.id)?.version) || 1)
+    );
     if (existing) {
       stageAssetMembership(asset, existing.id);
       return existing.id;
@@ -1631,15 +2094,29 @@ export function SkillsStudioView({
       let persistedSkillId = newSkill.id;
       try {
         const updated = await syncSkillFeedbackScores();
-        const persisted = updated.find((skill) => (skill.parentSkillId || skill.id) === (newSkill.parentSkillId || newSkill.id) && skill.sourceType === newSkill.sourceType && skill.version === newSkill.version);
+        const persisted = updated.find(
+          (skill) =>
+            (skill.parentSkillId || skill.id) === (newSkill.parentSkillId || newSkill.id) &&
+            skill.sourceType === newSkill.sourceType &&
+            skill.version === newSkill.version
+        );
         persistedSkillId = persisted?.id || newSkill.id;
         setSavedSkills(persisted ? updated : [...updated, newSkill]);
       } catch (syncError) {
         logger.warn('Skill feedback refresh failed after creation:', syncError);
-        setSavedSkills((current) => current.some((skill) => skill.id === newSkill.id) ? current : [...current, newSkill]);
+        setSavedSkills((current) =>
+          current.some((skill) => skill.id === newSkill.id) ? current : [...current, newSkill]
+        );
       }
       stageAssetMembership(asset, persistedSkillId);
-      void recordCapabilityEvent({ eventName: 'skill_card_added', stage: 'import', result: 'success', novelId: selectedNovel?.id, objectId: persistedSkillId, sourceType: asset.sourceType });
+      void recordCapabilityEvent({
+        eventName: 'skill_card_added',
+        stage: 'import',
+        result: 'success',
+        novelId: selectedNovel?.id,
+        objectId: persistedSkillId,
+        sourceType: asset.sourceType,
+      });
       return persistedSkillId;
     } catch (err) {
       logger.warn('Failed to clone asset:', err);
@@ -1651,7 +2128,10 @@ export function SkillsStudioView({
 
   // Single-verb enable (plan 001): staging is an implementation detail — every
   // equip action applies immediately and offers a 5s undo via toast.
-  const applyStagedProfileImmediately = async (capabilityProfile: CapabilityProfileDraft, assetTitle: string) => {
+  const applyStagedProfileImmediately = async (
+    capabilityProfile: CapabilityProfileDraft,
+    assetTitle: string
+  ) => {
     const preProfile = selectedNovel?.projectPreferenceProfile
       ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile))
       : null;
@@ -1659,7 +2139,8 @@ export function SkillsStudioView({
     toast(`已启用「${assetTitle}」`, 'success', 5000, {
       label: '撤销',
       onClick: () => {
-        if (preProfile) void applyConfiguration(false, 'return', preProfile as CapabilityProfileDraft);
+        if (preProfile)
+          void applyConfiguration(false, 'return', preProfile as CapabilityProfileDraft);
       },
     });
   };
@@ -1679,7 +2160,10 @@ export function SkillsStudioView({
       return;
     }
     if (type === 'technique') {
-      const persistedId = getCapabilityManifest(asset)?.sourceType !== 'built-in' ? await handleImportAsset(asset) : asset.id;
+      const persistedId =
+        getCapabilityManifest(asset)?.sourceType !== 'built-in'
+          ? await handleImportAsset(asset)
+          : asset.id;
       if (!persistedId) return;
       await equipPersistedTechnique(asset, persistedId);
       return;
@@ -1694,11 +2178,14 @@ export function SkillsStudioView({
       const deckResult = addCardToProjectDeck(base, persistedId);
       if (deckResult.requiresReplacement) {
         // Deck full: keep the old candidate flow — replacement needs a choice.
-        setCandidateCardIds((ids) => ids.includes(persistedId) ? ids : [...ids, persistedId]);
+        setCandidateCardIds((ids) => (ids.includes(persistedId) ? ids : [...ids, persistedId]));
         toast('作品卡组已满：已加入候选，替换主/辅卡后生效。', 'info', 6500);
         return;
       }
-      const nextProfile = buildV3CapabilityProfile(effectiveNovel, deckResult.profile).capabilityProfile;
+      const nextProfile = buildV3CapabilityProfile(
+        effectiveNovel,
+        deckResult.profile
+      ).capabilityProfile;
       stageConfiguration(nextProfile);
       await applyStagedProfileImmediately(nextProfile, asset.title);
       return;
@@ -1744,12 +2231,15 @@ export function SkillsStudioView({
   // 供目录克隆与消毒副本两条路径共用，避免消毒后启用被目录克隆门槛拦下。
   const equipPersistedTechnique = async (asset: CuratedProductSkill, persistedId: string) => {
     const manifest = getCapabilityManifest(asset);
-    const current = upsertCapabilityMembership(configurationDraft || getProjectCapabilityProfile(effectiveNovel), {
-      sourceId: asset.parentSkillId || asset.id,
-      sourceVersion: manifest?.version || '1',
-      sourceType: manifest?.sourceType || asset.sourceType,
-      persistedSkillId: persistedId,
-    });
+    const current = upsertCapabilityMembership(
+      configurationDraft || getProjectCapabilityProfile(effectiveNovel),
+      {
+        sourceId: asset.parentSkillId || asset.id,
+        sourceVersion: manifest?.version || '1',
+        sourceType: manifest?.sourceType || asset.sourceType,
+        persistedSkillId: persistedId,
+      }
+    );
     const favorites = current?.favoriteTechniqueIds || [];
     const nextFavorites = favorites.includes(persistedId)
       ? favorites.filter((id) => id !== persistedId)
@@ -1761,7 +2251,14 @@ export function SkillsStudioView({
     });
     stageConfiguration(nextProfile.capabilityProfile);
     await applyStagedProfileImmediately(nextProfile.capabilityProfile, asset.title);
-    void recordCapabilityEvent({ eventName: 'technique_favorited', stage: 'advanced', result: 'success', novelId: selectedNovel?.id || '', objectId: asset.id, sourceType: asset.sourceType });
+    void recordCapabilityEvent({
+      eventName: 'technique_favorited',
+      stage: 'advanced',
+      result: 'success',
+      novelId: selectedNovel?.id || '',
+      objectId: asset.id,
+      sourceType: asset.sourceType,
+    });
   };
 
   // 004 消毒并启用：调服务端消毒端点落库脱敏副本，再走既有装配链路
@@ -1772,17 +2269,24 @@ export function SkillsStudioView({
       return;
     }
     try {
-      const response = await fetch(`/api/skills/sanitize/${encodeURIComponent(asset.id)}`, { method: 'POST' });
+      const response = await fetch(`/api/skills/sanitize/${encodeURIComponent(asset.id)}`, {
+        method: 'POST',
+      });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         toast(body.error || '消毒失败，请重试。', 'error');
         return;
       }
       const cloneId = `sanitized-${asset.id}`;
-      const alreadyFavorited = ((configurationDraft || getProjectCapabilityProfile(effectiveNovel))?.favoriteTechniqueIds || []).includes(cloneId);
+      const alreadyFavorited = (
+        (configurationDraft || getProjectCapabilityProfile(effectiveNovel))?.favoriteTechniqueIds ||
+        []
+      ).includes(cloneId);
       // eslint-disable-next-line react-hooks/purity
       const sanitizedSkill = buildSanitizedSkillStub(asset, Date.now());
-      setSavedSkills((current) => current.some((skill) => skill.id === cloneId) ? current : [...current, sanitizedSkill]);
+      setSavedSkills((current) =>
+        current.some((skill) => skill.id === cloneId) ? current : [...current, sanitizedSkill]
+      );
       if (!alreadyFavorited) {
         // 直接装配已落库的消毒副本：目录克隆门槛（candidate 状态/证据分）不适用于显式消毒
         await equipPersistedTechnique(asset, cloneId);
@@ -1800,10 +2304,14 @@ export function SkillsStudioView({
     }
     const manifest = getCapabilityManifest(asset);
     const launchStage = selectedCategory === 'all' ? initialStage : selectedCategory;
-    const plannerOnly = manifest.stages.includes('planner')
-      && !manifest.stages.includes('writer')
-      && !manifest.stages.includes('critic');
-    if (plannerOnly && (Boolean(targetChapterId) || (launchStage && launchStage !== 'creative-setup'))) {
+    const plannerOnly =
+      manifest.stages.includes('planner') &&
+      !manifest.stages.includes('writer') &&
+      !manifest.stages.includes('critic');
+    if (
+      plannerOnly &&
+      (Boolean(targetChapterId) || (launchStage && launchStage !== 'creative-setup'))
+    ) {
       toast('该能力仅支持设定与大纲阶段，请切换到「① 立设定与大纲」后再运行。', 'info');
       setSelectedCategory('creative-setup');
       return;
@@ -1813,9 +2321,17 @@ export function SkillsStudioView({
       manifest.runtimeStatus === 'active' &&
       manifest.allowedScopes.includes('chapter');
     if (getGovernanceCapabilityType(asset) === 'overlay' || canUseAsChapterSkillCard) {
-      const savedSkill = savedSkills.find((skill) => skill.id === asset.id || skill.parentSkillId === asset.id);
-      const sessionCardIds = getTrustedSessionCardIds([asset.id, savedSkill?.id || ''], savedSkills);
-      if (!sessionCardIds.length) { toast('该卡暂不可作为本章使用卡运行。', 'info'); return; }
+      const savedSkill = savedSkills.find(
+        (skill) => skill.id === asset.id || skill.parentSkillId === asset.id
+      );
+      const sessionCardIds = getTrustedSessionCardIds(
+        [asset.id, savedSkill?.id || ''],
+        savedSkills
+      );
+      if (!sessionCardIds.length) {
+        toast('该卡暂不可作为本章使用卡运行。', 'info');
+        return;
+      }
       // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       onLaunchCapability?.({
@@ -1826,21 +2342,37 @@ export function SkillsStudioView({
         targetChapterId,
         sessionCardIds,
       });
-      void recordCapabilityEvent({ eventName: 'deconstruction_card_trial', stage: 'drafting', result: 'success', novelId: selectedNovel?.id, objectId: sessionCardIds[0] });
+      void recordCapabilityEvent({
+        eventName: 'deconstruction_card_trial',
+        stage: 'drafting',
+        result: 'success',
+        novelId: selectedNovel?.id,
+        objectId: sessionCardIds[0],
+      });
       return;
     }
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const launchAction = getDirectExecLaunchAction(asset);
     if (!launchAction) return;
-    onLaunchCapability?.({ action: launchAction, assetId: asset.id, launchToken: now, novelId: selectedNovel.id, targetChapterId });
+    onLaunchCapability?.({
+      action: launchAction,
+      assetId: asset.id,
+      launchToken: now,
+      novelId: selectedNovel.id,
+      targetChapterId,
+    });
   };
 
-  const getDirectExecLaunchAction = (asset: CuratedProductSkill): 'run-diagnostic' | 'run-utility' | null => {
+  const getDirectExecLaunchAction = (
+    asset: CuratedProductSkill
+  ): 'run-diagnostic' | 'run-utility' | null => {
     const manifest = getCapabilityManifest(asset);
-    const isPreviewOnlyTransform = manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
+    const isPreviewOnlyTransform =
+      manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
     if (manifest.action === 'run-diagnostic') return 'run-diagnostic';
-    if (isPreviewOnlyTransform || getGovernanceCapabilityType(asset) === 'utility') return 'run-utility';
+    if (isPreviewOnlyTransform || getGovernanceCapabilityType(asset) === 'utility')
+      return 'run-utility';
     return null;
   };
 
@@ -1848,11 +2380,12 @@ export function SkillsStudioView({
     applyResult: CapabilityApplicationStatus,
     step: EnhancementPackageStep,
     manifest: ReturnType<typeof getCatalogCapabilityManifest> | undefined,
-    asset: CuratedProductSkill | null,
+    asset: CuratedProductSkill | null
   ): string | null => {
     if (applyResult !== 'recommended' && applyResult !== 'run') return null;
     if (!asset || !manifest || step.mode !== 'run-now') return null;
-    const isPreviewOnlyTransform = manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
+    const isPreviewOnlyTransform =
+      manifest.output === 'transform-preview' && manifest.sideEffect === 'preview-only';
     if (manifest.action === 'run-diagnostic') return '运行审稿诊断';
     if (isPreviewOnlyTransform) return '生成精修预览';
     if (getGovernanceCapabilityType(asset) === 'utility') return '运行辅助动作';
@@ -1881,11 +2414,18 @@ export function SkillsStudioView({
     if (!selectedPackageId || packageSelections.length > 0) return;
     const action = packageResultActionRef.current;
     const applyAction = packageApplyActionRef.current;
-    const target = action || (configurationDirty && !staleConfigurationSession ? applyAction : null);
+    const target =
+      action || (configurationDirty && !staleConfigurationSession ? applyAction : null);
     if (!target) return;
     target.focus();
     target.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
-  }, [configurationDirty, packageComponentResults, packageSelections.length, selectedPackageId, staleConfigurationSession]);
+  }, [
+    configurationDirty,
+    packageComponentResults,
+    packageSelections.length,
+    selectedPackageId,
+    staleConfigurationSession,
+  ]);
 
   const launchTechnique = (asset: CuratedProductSkill, scope: 'project' | 'chapter') => {
     if (!selectedNovel?.id) {
@@ -1911,12 +2451,17 @@ export function SkillsStudioView({
   };
 
   const handleUseTechnique = (asset: CuratedProductSkill) => launchTechnique(asset, 'chapter');
-  const handleUseProjectTechnique = (asset: CuratedProductSkill) => launchTechnique(asset, 'project');
+  const handleUseProjectTechnique = (asset: CuratedProductSkill) =>
+    launchTechnique(asset, 'project');
 
   // Single-verb enable: stage the selected steps AND apply them in one action.
   // Returns the built profile so the caller (dialog button) can hand it to
   // applyConfiguration; returns null when staging produced nothing usable.
-  const handleApplyPackage = async (): Promise<{ capabilityProfile: CapabilityProfileDraft; steps: EnhancementPackageStep[] } | null | undefined> => {
+  const handleApplyPackage = async (): Promise<
+    | { capabilityProfile: CapabilityProfileDraft; steps: EnhancementPackageStep[] }
+    | null
+    | undefined
+  > => {
     setPackageResultLaunchFeedbackAssetId(null);
     if (!selectedPackage || !selectedNovel) {
       setConfigurationError('请先选择作品，再启用能力包。');
@@ -1936,12 +2481,13 @@ export function SkillsStudioView({
       setConfigurationError('每部作品只能选择一个创作流程，请在能力包中只保留一个流程。');
       return;
     }
-    const baseProfile = configurationDraft || getProjectCapabilityProfile(effectiveNovel) || {
-      version: 3 as const,
-      projectSkillDeck: { supportCardIds: [], updatedAt: 0 },
-      favoriteTechniqueIds: [],
-      capabilityMemberships: [],
-    };
+    const baseProfile = configurationDraft ||
+      getProjectCapabilityProfile(effectiveNovel) || {
+        version: 3 as const,
+        projectSkillDeck: { supportCardIds: [], updatedAt: 0 },
+        favoriteTechniqueIds: [],
+        capabilityMemberships: [],
+      };
     let nextProfile = baseProfile;
     const nextCandidates: string[] = [];
     const nextPendingSteps: EnhancementPackageStep[] = [];
@@ -1952,39 +2498,70 @@ export function SkillsStudioView({
         if (activeFlowId && activeFlowId !== component.flow.id && typeof window !== 'undefined') {
           // 003：包内流程切换同样给出替换清单。
           const previousFlow = SKILL_SERIES_FLOWS.find((flow) => flow.id === activeFlowId);
-          const confirmedReplace = await appConfirm('替换当前创作流程？', `切换到「${component.flow.name || component.flow.id}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`, { confirmLabel: '确认替换' });
+          const confirmedReplace = await appConfirm(
+            '替换当前创作流程？',
+            `切换到「${component.flow.name || component.flow.id}」将替换当前流程「${previousFlow?.name || activeFlowId}」；以下内容将被重置：流程步骤进度。`,
+            { confirmLabel: '确认替换' }
+          );
           if (!confirmedReplace) {
-            setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'conflict' }));
+            setPackageComponentResults((current) => ({
+              ...current,
+              [component.step.id]: 'conflict',
+            }));
             continue;
           }
         }
         nextProfile = { ...nextProfile, activeFlowId: component.flow.id };
         profileChanged = true;
         nextPendingSteps.push(component.step);
-        setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'recommended' }));
+        setPackageComponentResults((current) => ({
+          ...current,
+          [component.step.id]: 'recommended',
+        }));
       } else if (component.asset) {
         const type = getGovernanceCapabilityType(component.asset);
         if (type === 'diagnostic' || type === 'utility') {
-          setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'recommended' }));
+          setPackageComponentResults((current) => ({
+            ...current,
+            [component.step.id]: 'recommended',
+          }));
           nextPendingSteps.push(component.step);
-          void recordCapabilityEvent({ eventName: 'capability_package_component_selected', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: component.asset.id });
+          void recordCapabilityEvent({
+            eventName: 'capability_package_component_selected',
+            stage: 'advanced',
+            result: 'success',
+            novelId: selectedNovel.id,
+            objectId: component.asset.id,
+          });
           continue;
         }
         if (type !== 'technique' && type !== 'skill-card') continue;
         const manifest = getCapabilityManifest(component.asset);
         if (isLicensedEnhancementGated(manifest.sourceType, isFreeNovel)) {
-          setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'unavailable' }));
+          setPackageComponentResults((current) => ({
+            ...current,
+            [component.step.id]: 'unavailable',
+          }));
           dispatchCapabilityUnavailable({
-            limitType: 'extractSkill', count: 5, max: 5,
+            limitType: 'extractSkill',
+            count: 5,
+            max: 5,
             error: '当前商业化实验配置未开放该授权增强能力；其他已选能力仍可继续配置。',
             novelId: selectedNovel.id,
           });
           continue;
         }
-        const existing = savedSkills.find((skill) => (skill.parentSkillId || skill.id) === (component.asset?.parentSkillId || component.asset?.id)
-          && skill.sourceType === component.asset?.sourceType
-          && skill.version === (Number(manifest.version) || 1));
-        const persistedId = manifest.sourceType === 'built-in' && type === 'technique' ? component.asset.id : existing?.id;
+        const existing = savedSkills.find(
+          (skill) =>
+            (skill.parentSkillId || skill.id) ===
+              (component.asset?.parentSkillId || component.asset?.id) &&
+            skill.sourceType === component.asset?.sourceType &&
+            skill.version === (Number(manifest.version) || 1)
+        );
+        const persistedId =
+          manifest.sourceType === 'built-in' && type === 'technique'
+            ? component.asset.id
+            : existing?.id;
         if (!persistedId) {
           setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'skipped' }));
           continue;
@@ -2001,19 +2578,33 @@ export function SkillsStudioView({
         // and its source mapping is lost on the next refresh.
         profileChanged = true;
         nextPendingSteps.push(component.step);
-        if (type === 'technique' && component.step.scope === 'project' && !(nextProfile.projectTechniqueIds || []).includes(persistedId)) {
-          nextProfile = { ...nextProfile, projectTechniqueIds: [...(nextProfile.projectTechniqueIds || []), persistedId] };
+        if (
+          type === 'technique' &&
+          component.step.scope === 'project' &&
+          !(nextProfile.projectTechniqueIds || []).includes(persistedId)
+        ) {
+          nextProfile = {
+            ...nextProfile,
+            projectTechniqueIds: [...(nextProfile.projectTechniqueIds || []), persistedId],
+          };
         } else if (type === 'skill-card') {
           const deckResult = addCardToProjectDeck(nextProfile, persistedId);
           if (deckResult.requiresReplacement) nextCandidates.push(persistedId);
           else nextProfile = deckResult.profile;
         }
-        setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'recommended' }));
+        setPackageComponentResults((current) => ({
+          ...current,
+          [component.step.id]: 'recommended',
+        }));
       } else {
-        setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'unavailable' }));
+        setPackageComponentResults((current) => ({
+          ...current,
+          [component.step.id]: 'unavailable',
+        }));
       }
     }
-    if (profileChanged) stageConfiguration(buildV3CapabilityProfile(effectiveNovel, nextProfile).capabilityProfile);
+    if (profileChanged)
+      stageConfiguration(buildV3CapabilityProfile(effectiveNovel, nextProfile).capabilityProfile);
     if (nextPendingSteps.length > 0) {
       setPendingPackageSteps((current) => [
         ...current.filter((step) => !nextPendingSteps.some((next) => next.id === step.id)),
@@ -2029,7 +2620,13 @@ export function SkillsStudioView({
       delete rest[selectedPackage.id];
       return rest;
     });
-    void recordCapabilityEvent({ eventName: 'capability_package_expanded', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: selectedPackage.id });
+    void recordCapabilityEvent({
+      eventName: 'capability_package_expanded',
+      stage: 'advanced',
+      result: 'success',
+      novelId: selectedNovel.id,
+      objectId: selectedPackage.id,
+    });
     if (!profileChanged) return null;
     return {
       capabilityProfile: buildV3CapabilityProfile(effectiveNovel, nextProfile).capabilityProfile,
@@ -2040,37 +2637,57 @@ export function SkillsStudioView({
   return (
     <div className="h-full flex bg-transparent relative overflow-hidden">
       <div ref={studioScrollRef} className="flex-1 overflow-y-auto p-8 relative z-10">
-
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-serif font-bold text-theme-text flex items-center justify-center gap-3">
             <Wand2 size={28} className="text-theme-accent" />
             作品能力中心
           </h1>
-          <p className="text-theme-muted mt-2">管理作品默认能力与本章写法；应用配置后，作品卡组影响后续正文，本章使用规则只影响当前章。</p>
+          <p className="text-theme-muted mt-2">
+            管理作品默认能力与本章写法；应用配置后，作品卡组影响后续正文，本章使用规则只影响当前章。
+          </p>
         </div>
 
         <div className="max-w-6xl mx-auto mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
             <div className="text-xs font-bold text-theme-text">当前创作流程</div>
-            <p className="mt-2 text-sm font-semibold text-theme-accent">{activeFlow?.name || '未选择流程'}</p>
-            <p className="mt-1 text-[11px] text-theme-muted">{activeFlow ? '当前作品已选择' : '手写流程不受影响'}</p>
+            <p className="mt-2 text-sm font-semibold text-theme-accent">
+              {activeFlow?.name || '未选择流程'}
+            </p>
+            <p className="mt-1 text-[11px] text-theme-muted">
+              {activeFlow ? '当前作品已选择' : '手写流程不受影响'}
+            </p>
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
             <div className="text-xs font-bold text-theme-text">常用技法</div>
-            <p className="mt-2 text-sm font-semibold text-theme-accent">{(configurationDraft || capabilityProfile)?.favoriteTechniqueIds.length || 0} 张已收藏</p>
+            <p className="mt-2 text-sm font-semibold text-theme-accent">
+              {(configurationDraft || capabilityProfile)?.favoriteTechniqueIds.length || 0} 张已收藏
+            </p>
             <p className="mt-1 text-[11px] text-theme-muted">按阶段选择，不占作品卡组</p>
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
             <div className="text-xs font-bold text-theme-text">作品卡组</div>
-            <p className="mt-2 text-sm font-semibold text-theme-accent">{projectDeckIds.length} / 3</p>
-            <p className="mt-1 text-[11px] text-theme-muted">仅拆书卡占用：一张主卡，最多两张辅卡</p>
+            <p className="mt-2 text-sm font-semibold text-theme-accent">
+              {projectDeckIds.length} / 3
+            </p>
+            <p className="mt-1 text-[11px] text-theme-muted">
+              仅拆书卡占用：一张主卡，最多两张辅卡
+            </p>
             <div className="mt-2 space-y-1 text-[10px] leading-4">
               {deckSummaryCards.map(({ slot, card }) => (
-                <p key={slot} className={cn('truncate', card ? 'text-theme-text' : 'text-theme-muted')}>
-                  <span className="font-bold text-theme-text">{slot}：</span>{card ? `${card.title} · 用途：${getDeckDimensionSummary(card.dimensions)}` : '未设置'}
+                <p
+                  key={slot}
+                  className={cn('truncate', card ? 'text-theme-text' : 'text-theme-muted')}
+                >
+                  <span className="font-bold text-theme-text">{slot}：</span>
+                  {card
+                    ? `${card.title} · 用途：${getDeckDimensionSummary(card.dimensions)}`
+                    : '未设置'}
                 </p>
               ))}
-              <p className="text-theme-muted"><span className="font-bold text-theme-text">空位：</span>{deckEmptyHint}</p>
+              <p className="text-theme-muted">
+                <span className="font-bold text-theme-text">空位：</span>
+                {deckEmptyHint}
+              </p>
             </div>
           </div>
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
@@ -2084,26 +2701,48 @@ export function SkillsStudioView({
                 管理
               </button>
             </div>
-            <p className="mt-2 text-sm font-semibold text-emerald-600">默认 {getCoreDefaultGuardrailCount()} 条已自动生效</p>
-            <p className="mt-1 text-[11px] text-theme-muted">增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。</p>
+            <p className="mt-2 text-sm font-semibold text-emerald-600">
+              默认 {getCoreDefaultGuardrailCount()} 条已自动生效
+            </p>
+            <p className="mt-1 text-[11px] text-theme-muted">
+              增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。
+            </p>
           </div>
         </div>
 
         {hasLegacyConfiguration && (
           <div className="max-w-6xl mx-auto mb-6 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-theme-text">
             <div className="font-bold">旧配置待整理</div>
-            <p className="mt-1 text-xs text-theme-muted">检测到历史能力配置。这里仅提供迁移预览，不会静默改写；现有写作流程继续可用。</p>
-            <button type="button" className="mt-3 rounded-lg border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-700" onClick={async () => {
-              if (!selectedNovel) return;
-              setMigrationBusy(true); setMigrationError(null);
-              try { const generation = await getDatabaseGenerationSafe(); setMigrationPreview(await previewCapabilityMigration(selectedNovel.id, generation)); }
-              catch (error) { setMigrationError(error instanceof Error ? error.message : '迁移预览失败'); }
-              finally { setMigrationBusy(false); }
-            }}>查看整理入口</button>
+            <p className="mt-1 text-xs text-theme-muted">
+              检测到历史能力配置。这里仅提供迁移预览，不会静默改写；现有写作流程继续可用。
+            </p>
+            <button
+              type="button"
+              className="mt-3 rounded-lg border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-700"
+              onClick={async () => {
+                if (!selectedNovel) return;
+                setMigrationBusy(true);
+                setMigrationError(null);
+                try {
+                  const generation = await getDatabaseGenerationSafe();
+                  setMigrationPreview(
+                    await previewCapabilityMigration(selectedNovel.id, generation)
+                  );
+                } catch (error) {
+                  setMigrationError(error instanceof Error ? error.message : '迁移预览失败');
+                } finally {
+                  setMigrationBusy(false);
+                }
+              }}
+            >
+              查看整理入口
+            </button>
           </div>
         )}
 
-        {selectedNovel && <LegacyArtifactStructuringPrompt key={selectedNovel.id} novelId={selectedNovel.id} />}
+        {selectedNovel && (
+          <LegacyArtifactStructuringPrompt key={selectedNovel.id} novelId={selectedNovel.id} />
+        )}
 
         <div className="max-w-6xl mx-auto mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
           <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
@@ -2113,13 +2752,24 @@ export function SkillsStudioView({
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               {[
-                { label: '分镜', detail: '影响下一章的场景选择、冲突推进和节奏密度。', icon: BrainCircuit },
+                {
+                  label: '分镜',
+                  detail: '影响下一章的场景选择、冲突推进和节奏密度。',
+                  icon: BrainCircuit,
+                },
                 { label: '正文', detail: '约束文风、句法、人物口吻和叙事颗粒度。', icon: PenLine },
-                { label: '审查', detail: '帮助 AI 用同一套标准检查跑偏、重复和节奏问题。', icon: CheckCircle2 },
+                {
+                  label: '审查',
+                  detail: '帮助 AI 用同一套标准检查跑偏、重复和节奏问题。',
+                  icon: CheckCircle2,
+                },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4">
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-theme-border bg-theme-bg/50 p-4"
+                  >
                     <div className="flex items-center gap-2 text-sm font-bold text-theme-text">
                       <Icon size={15} className="text-theme-accent" />
                       {item.label}
@@ -2133,10 +2783,24 @@ export function SkillsStudioView({
 
           <div className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm">
             <div className="text-sm font-bold text-theme-text">当前作品</div>
-            <p className="mt-2 text-xs leading-5 text-theme-muted">{selectedNovel ? `《${selectedNovel.title}》能力配置` : '先在书库选择作品，再管理能力。'}</p>
-            {stageLaunchHint && <p className="mt-2 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-xs leading-5 text-theme-text">{stageLaunchHint}</p>}
+            <p className="mt-2 text-xs leading-5 text-theme-muted">
+              {selectedNovel
+                ? `《${selectedNovel.title}》能力配置`
+                : '先在书库选择作品，再管理能力。'}
+            </p>
+            {stageLaunchHint && (
+              <p className="mt-2 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-xs leading-5 text-theme-text">
+                {stageLaunchHint}
+              </p>
+            )}
             {returnHint && <p className="mt-2 text-xs leading-5 text-theme-muted">{returnHint}</p>}
-            <button type="button" onClick={handleReturnToWriting} className="mt-4 w-full rounded-2xl border border-theme-border px-4 py-3 text-sm font-bold text-theme-text transition-colors hover:border-theme-accent">{returnLabel}</button>
+            <button
+              type="button"
+              onClick={handleReturnToWriting}
+              className="mt-4 w-full rounded-2xl border border-theme-border px-4 py-3 text-sm font-bold text-theme-text transition-colors hover:border-theme-accent"
+            >
+              {returnLabel}
+            </button>
           </div>
         </div>
 
@@ -2147,10 +2811,10 @@ export function SkillsStudioView({
               type="button"
               onClick={() => setActiveTab('mySkills')}
               className={cn(
-                "pb-4 text-base font-bold transition-all relative",
+                'pb-4 text-base font-bold transition-all relative',
                 activeTab === 'mySkills'
-                  ? "text-theme-text font-black"
-                  : "text-theme-muted hover:text-theme-text"
+                  ? 'text-theme-text font-black'
+                  : 'text-theme-muted hover:text-theme-text'
               )}
             >
               我的能力卡
@@ -2162,13 +2826,16 @@ export function SkillsStudioView({
               type="button"
               onClick={() => setActiveTab('plaza')}
               className={cn(
-                "pb-4 text-base font-bold transition-all relative flex items-center gap-1.5",
+                'pb-4 text-base font-bold transition-all relative flex items-center gap-1.5',
                 activeTab === 'plaza'
-                  ? "text-theme-text font-black"
-                  : "text-theme-muted hover:text-theme-text"
+                  ? 'text-theme-text font-black'
+                  : 'text-theme-muted hover:text-theme-text'
               )}
             >
-              <Sparkles size={14} className={cn("text-amber-500", activeTab === 'plaza' && "animate-pulse")} />
+              <Sparkles
+                size={14}
+                className={cn('text-amber-500', activeTab === 'plaza' && 'animate-pulse')}
+              />
               能力商店
               {activeTab === 'plaza' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" />
@@ -2178,7 +2845,10 @@ export function SkillsStudioView({
         </div>
 
         {(configurationDirty || configurationError) && (
-          <div className="max-w-6xl mx-auto mb-6 rounded-xl border border-theme-accent/40 bg-theme-accent/5 p-4" role="status">
+          <div
+            className="max-w-6xl mx-auto mb-6 rounded-xl border border-theme-accent/40 bg-theme-accent/5 p-4"
+            role="status"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-bold text-theme-text">本次配置</div>
@@ -2187,26 +2857,62 @@ export function SkillsStudioView({
                     ? '这是旧版本草稿，仅供查看。请先重新预览，确认当前作品状态后再应用。'
                     : '本次配置仍待应用；应用成功后才更新作品状态。'}
                 </p>
-                {!staleConfigurationSession && <p className="mt-1 text-xs text-theme-muted">{CAPABILITY_RETURN_EFFECT_HINT}</p>}
-                {configurationError && <p role="alert" className="mt-1 text-xs text-red-600">{configurationError}</p>}
+                {!staleConfigurationSession && (
+                  <p className="mt-1 text-xs text-theme-muted">{CAPABILITY_RETURN_EFFECT_HINT}</p>
+                )}
+                {configurationError && (
+                  <p role="alert" className="mt-1 text-xs text-red-600">
+                    {configurationError}
+                  </p>
+                )}
               </div>
               {candidateCardIds.length > 0 && (
                 <div className="w-full rounded-lg border border-theme-border bg-theme-bg/40 p-3">
                   <div className="text-xs font-bold text-theme-text">待提交的卡组位置</div>
-                  <p className="mt-1 text-[11px] text-theme-muted">选择主卡或辅卡后仍是待提交状态；点击应用配置才会写入作品卡组。</p>
+                  <p className="mt-1 text-[11px] text-theme-muted">
+                    选择主卡或辅卡后仍是待提交状态；点击应用配置才会写入作品卡组。
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {candidateCardIds.map((id) => (
-                      <span key={id} className="inline-flex items-center gap-1 rounded border border-theme-border px-2 py-1 text-[11px] text-theme-text">
-                        {CURATED_PRODUCT_SKILLS.find((asset) => asset.id === id)?.title || savedSkills.find((skill) => skill.id === id)?.name || id}
-                        <button type="button" disabled={staleConfigurationSession} onClick={() => stageCandidateCard(id, 'main')} className="rounded border border-theme-border px-1.5 py-0.5 text-[10px]">设为主卡</button>
-                        <button type="button" disabled={staleConfigurationSession} onClick={() => stageCandidateCard(id, 'support')} className="rounded border border-theme-border px-1.5 py-0.5 text-[10px]">设为辅卡</button>
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 rounded border border-theme-border px-2 py-1 text-[11px] text-theme-text"
+                      >
+                        {CURATED_PRODUCT_SKILLS.find((asset) => asset.id === id)?.title ||
+                          savedSkills.find((skill) => skill.id === id)?.name ||
+                          id}
+                        <button
+                          type="button"
+                          disabled={staleConfigurationSession}
+                          onClick={() => stageCandidateCard(id, 'main')}
+                          className="rounded border border-theme-border px-1.5 py-0.5 text-[10px]"
+                        >
+                          设为主卡
+                        </button>
+                        <button
+                          type="button"
+                          disabled={staleConfigurationSession}
+                          onClick={() => stageCandidateCard(id, 'support')}
+                          className="rounded border border-theme-border px-1.5 py-0.5 text-[10px]"
+                        >
+                          设为辅卡
+                        </button>
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-              <button type="button" onClick={() => void applyConfiguration(true)} disabled={!selectedNovel || isApplyingConfiguration} className="rounded-lg bg-theme-text px-4 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50">
-                {staleConfigurationSession ? '重新预览本次配置' : configurationApplyFailed ? '重试应用配置并返回写作' : '应用配置并返回写作'}
+              <button
+                type="button"
+                onClick={() => void applyConfiguration(true)}
+                disabled={!selectedNovel || isApplyingConfiguration}
+                className="rounded-lg bg-theme-text px-4 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
+              >
+                {staleConfigurationSession
+                  ? '重新预览本次配置'
+                  : configurationApplyFailed
+                    ? '重试应用配置并返回写作'
+                    : '应用配置并返回写作'}
               </button>
             </div>
           </div>
@@ -2222,7 +2928,7 @@ export function SkillsStudioView({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                  {savedSkills.map(s => (
+                  {savedSkills.map((s) => (
                     <SkillCard
                       key={s.id}
                       skill={s}
@@ -2230,13 +2936,17 @@ export function SkillsStudioView({
                       onOpen={() => setSelectedSkillId(s.id)}
                       onDelete={() => handleDeleteSkill(s.id)}
                       userNovels={userNovels}
-                      onEquip={isRuntimeReadySkillCard(s) ? (novelId) => {
-                        if (novelId !== selectedNovel?.id) {
-                          setConfigurationError('请先切换到目标作品，再启用所选能力。');
-                          return;
-                        }
-                        addCandidateSkill(s.id);
-                      } : undefined}
+                      onEquip={
+                        isRuntimeReadySkillCard(s)
+                          ? (novelId) => {
+                              if (novelId !== selectedNovel?.id) {
+                                setConfigurationError('请先切换到目标作品，再启用所选能力。');
+                                return;
+                              }
+                              addCandidateSkill(s.id);
+                            }
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -2250,7 +2960,8 @@ export function SkillsStudioView({
                 </div>
                 <h3 className="text-xl font-bold text-theme-text mb-2">你还没有保存能力卡</h3>
                 <p className="text-sm max-w-md text-theme-muted mb-8 leading-relaxed">
-                  这里还没有可配置到作品的专属 AI 写作能力。先生成或挑选能力卡，再选择卡组位置或应用配置；使用范围会在卡片上标明。
+                  这里还没有可配置到作品的专属 AI
+                  写作能力。先生成或挑选能力卡，再选择卡组位置或应用配置；使用范围会在卡片上标明。
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                   <button
@@ -2278,292 +2989,433 @@ export function SkillsStudioView({
         {/* Plaza Tab Content */}
         {activeTab === 'plaza' && (
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
-            <div role="tablist" aria-label="能力治理类别" className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-3">
-              {([
-                ['flow', '创作流程'], ['technique', '写作技法'], ['skill-card', '拆书卡'], ['diagnostic-tools', '审稿与精修'], ['optional-style', '文风与正文'],
-              ] as const).map(([id, label]) => (
-                <button key={id} role="tab" aria-selected={selectedCapability === id} type="button" onClick={() => setSelectedCapability(id)} className={cn('px-3 py-2 rounded-lg text-xs font-bold border', selectedCapability === id ? 'bg-theme-sidebar border-theme-accent text-theme-text' : 'border-transparent text-theme-muted hover:text-theme-text')}>
+            <div
+              role="tablist"
+              aria-label="能力治理类别"
+              className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-3"
+            >
+              {(
+                [
+                  ['flow', '创作流程'],
+                  ['technique', '写作技法'],
+                  ['skill-card', '拆书卡'],
+                  ['diagnostic-tools', '审稿与精修'],
+                  ['optional-style', '文风与正文'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={selectedCapability === id}
+                  type="button"
+                  onClick={() => setSelectedCapability(id)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-xs font-bold border',
+                    selectedCapability === id
+                      ? 'bg-theme-sidebar border-theme-accent text-theme-text'
+                      : 'border-transparent text-theme-muted hover:text-theme-text'
+                  )}
+                >
                   {label} <span className="ml-1 text-[10px]">{capabilityTabCount(id)}</span>
                 </button>
               ))}
-              <button role="tab" aria-selected={selectedCapability === 'packages'} type="button" onClick={() => setSelectedCapability('packages')} className={cn('px-3 py-2 rounded-lg text-xs font-bold border', selectedCapability === 'packages' ? 'bg-theme-sidebar border-theme-accent text-theme-text' : 'border-transparent text-theme-muted hover:text-theme-text')}>
+              <button
+                role="tab"
+                aria-selected={selectedCapability === 'packages'}
+                type="button"
+                onClick={() => setSelectedCapability('packages')}
+                className={cn(
+                  'px-3 py-2 rounded-lg text-xs font-bold border',
+                  selectedCapability === 'packages'
+                    ? 'bg-theme-sidebar border-theme-accent text-theme-text'
+                    : 'border-transparent text-theme-muted hover:text-theme-text'
+                )}
+              >
                 能力包 <span className="ml-1 text-[10px]">{capabilityTabCount('packages')}</span>
               </button>
             </div>
             {/* 次级阶段过滤 */}
-            {selectedCapability !== 'packages' && <div className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-4">
-              <button type="button" onClick={() => setSelectedCategory('all')} className={cn('px-3 py-2 rounded-lg text-xs font-bold border', selectedCategory === 'all' ? 'border-theme-accent text-theme-text' : 'border-transparent text-theme-muted')}>全部阶段</button>
-              {([
-                { id: 'creative-setup', label: '① 立设定与大纲', desc: '世界观、人设、黄金三章' },
-                { id: 'active-drafting', label: '② 写正文与提速', desc: '流程、口吻、场面推进' },
-                { id: 'style-polish', label: '③ 审稿与精修', desc: '去AI腔、套话、逻辑检查' },
-                { id: 'commercial-sign', label: '④ 过签与平台检查', desc: '番茄阅文、爽点、完读率' },
-              ] as const).map((cat) => {
-                const isSelected = selectedCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      "px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex flex-col items-start gap-0.5 border text-left",
-                      isSelected
-                        ? "bg-theme-sidebar border-theme-accent text-theme-text shadow-sm"
-                        : "bg-transparent border-transparent text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/30"
-                    )}
-                  >
-                    <span>{cat.label}</span>
-                    <span className="text-[9px] font-normal opacity-80 scale-90 origin-left block truncate max-w-[120px]">
-                      {cat.desc}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>}
-
-            {selectedCapability === 'packages' && <section aria-labelledby="capability-packages-title" className="space-y-3">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <h2 id="capability-packages-title" className="text-sm font-bold text-theme-text">能力包</h2>
-                  <p className="mt-1 text-[11px] text-theme-muted">能力包会把流程、技法、拆书卡和辅助动作拆成可勾选步骤；勾选后点「启用所选」即生效，可撤销。</p>
-                </div>
-                <span className="shrink-0 text-[10px] text-theme-muted">勾选待提交</span>
-              </div>
-              <div className="space-y-5">
-                {groupedPackages.map((group) => (
-                  <section key={group.id} aria-labelledby={`capability-package-group-${group.id}`} className="space-y-2">
-                    <h3 id={`capability-package-group-${group.id}`} className="text-[11px] font-bold text-theme-text">{group.title}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {group.packages.map((pkg) => (
-                        <div key={pkg.id} className="rounded-xl border border-theme-border/70 bg-theme-sidebar p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h4 className="text-xs font-bold text-theme-text">{pkg.name}</h4>
-                              <div className="mt-1 flex flex-wrap gap-1.5">
-                                <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] font-bold text-theme-text">{getPackageUseLabel(pkg.id)}</span>
-                                <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] text-theme-muted">{getPackageStageSummary(pkg)}</span>
-                              </div>
-                              <p className="mt-1 text-[10px] leading-4 text-theme-muted">{pkg.intendedOutcome || pkg.description}</p>
-                              {(packageSelectionDrafts[pkg.id]?.length || 0) > 0 && <p className="mt-1 text-[10px] font-bold text-theme-accent">已勾选 {packageSelectionDrafts[pkg.id].length} 项，待提交</p>}
-                            </div>
-                            <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold', pkg.type === 'paid' ? isFreeNovel ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/10 text-emerald-600')}>
-                              {getPackageAvailabilityLabel(pkg, !isFreeNovel, monetizationEnabled)}
-                            </span>
-                          </div>
-                          <div className="mt-3 flex items-center justify-between gap-2">
-                            <span className="text-[10px] text-theme-muted">{getEnhancementPackageSteps(pkg).length} 项能力</span>
-                            <button type="button" className="rounded-lg border border-theme-border px-3 py-1.5 text-[10px] font-bold text-theme-text hover:border-theme-accent" onClick={() => {
-                              setSelectedPackageId(pkg.id);
-                              setPackageResultLaunchFeedbackAssetId(null);
-                              setPackageSelections(packageSelectionDrafts[pkg.id] || []);
-                            }}>
-                              {getPackageOpenButtonLabel(pkg, !isFreeNovel, monetizationEnabled)}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </section>}
-
-            {/* 货架卡主渲染区域 */}
-            {selectedCapability !== 'packages' && <div className="space-y-8">
-              <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
-                <h2 className="text-base font-bold text-theme-text">
-                  {selectedCategory === 'all' ? '全部阶段' : selectedCategory === 'creative-setup' ? '① 立设定与大纲' :
-                   selectedCategory === 'active-drafting' ? '② 写正文与提速' :
-                   selectedCategory === 'style-polish' ? '③ 审稿与精修' : '④ 过签与平台检查'}
-                </h2>
-                <p className="text-[11px] text-theme-muted mt-1">
-                  {selectedCategory === 'all' ? '跨阶段浏览设定、大纲、正文、审稿与精修能力，按当前创作节点选择并应用。' : selectedCategory === 'creative-setup' ? '先选世界观、人设与黄金三章能力，搭好长篇骨架再开写。' :
-                   selectedCategory === 'active-drafting' ? '选择作者流程、口吻技法和场面推进卡，让章节写作更稳定。' :
-                   selectedCategory === 'style-polish' ? '写完后先跑审稿卡，再用精修卡处理套话、逻辑和局部润色。' :
-                   '准备投平台前，用过签检查、爽点评分和完读率诊断做最后校准。'}
-                </p>
-              </div>
-
-              {/* 创作流程的唯一选择与详情入口 */}
-              {selectedCapability === 'flow' && (selectedCategory === 'all' || selectedCategory === 'creative-setup' || selectedCategory === 'active-drafting') && (
-                <div className="space-y-6 pb-6 border-b border-theme-border/20 text-left">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-amber-500 animate-pulse" />
-                    <div>
-                      <h3 className="text-xs font-bold text-theme-text">创作流程目录</h3>
-                      <p className="mt-1 text-[10px] text-theme-muted">这里是唯一的创作流程选择与详情入口。</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {SKILL_SERIES_FLOWS.filter((flow) => visibleFlowIds.includes(flow.id)).map((flow) => {
-                      const meta = goldenFlowMetadata[flow.id] || { target: '通用作者', output: '全生命周期大纲正文', color: 'from-theme-border/20 to-theme-border/10 border-theme-border/30' };
-                      const isActive = configurationDraft?.activeFlowId === flow.id;
-                      const isLocked = isLicensedEnhancementGated(getCatalogCapabilityManifest(flow.id)?.sourceType, isFreeNovel);
-
-                      return (
-                        <div
-                          key={flow.id}
-                          className={cn(
-                            "relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left",
-                            meta.color,
-                            isActive
-                              ? "ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]"
-                              : "hover:border-theme-border/80 hover:shadow-sm"
-                          )}
-                        >
-                          <div>
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
-                                <span className="truncate">{flow.name}</span>
-                              </h3>
-                              <div className="flex gap-1 shrink-0">
-                                {isActive && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                    已选流程
-                                  </span>
-                                )}
-                                {isLocked && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                    授权增强
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
-                              {flow.description}
-                            </p>
-
-                            <div className="space-y-1.5 mb-4 text-[10px]">
-                              <div className="flex justify-between border-b border-theme-border/10 pb-1">
-                                <span className="text-theme-muted">适用人群:</span>
-                                <span className="text-theme-text font-medium">{meta.target}</span>
-                              </div>
-                              <div className="flex justify-between pt-0.5">
-                                <span className="text-theme-muted">预期产物:</span>
-                                <span className="text-theme-text font-medium">{meta.output}</span>
-                              </div>
-                            </div>
-
-                            {/* 进度节点迷你时间轴预览 */}
-                            <FlowTimelinePreview flow={flow} />
-                          </div>
-
-                          <div className="mt-5">
-                            <button
-                              type="button"
-                              onClick={(event) => { flowDetailTriggerRef.current = event.currentTarget; setSelectedFlowDetail(flow); }}
-                              className={cn(
-                                "w-full py-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
-                                isActive
-                                  ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"
-                                  : isLocked
-                                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                                    : "bg-theme-text text-theme-bg hover:opacity-90"
-                              )}
-                            >
-                              免密预览流程详情
-                              {isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* 推荐的辅助写作精品卡 */}
-              <div className="space-y-4">
-                {selectedCategory === 'active-drafting' && (
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-theme-accent animate-pulse" />
-                    <h3 className="text-xs font-bold text-theme-text">辅助写作推荐能力卡</h3>
-                  </div>
-                )}
-
-                {selectedCapability === 'optional-style' && filteredCuratedSkills.length > 0 && (() => {
-                  // 013：文风与正文货架二级分组 + 适合度排序
-                  const novelText = [selectedNovel?.title, selectedNovel?.summary].filter(Boolean).join('\n');
-                  const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
-                  const novelGenreTokens = deriveNovelGenreTokens(novelText, novelTags);
-                  const novelPlatform = novelText.includes('番茄') ? 'tomato' : undefined;
-                  const shelf = groupStyleShelf(
-                    availableCuratedSkills.map((asset) => ({
-                      ...asset,
-                      isFavorited: isTechniqueFavorited(asset) || isGuardrailCandidate(asset),
-                      isCloning: cloningAssetId === asset.id,
-                      isImported: isAssetPersisted(asset),
-                      asset,
-                      fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
-                    })),
-                  );
-                  /* eslint-disable react-hooks/refs -- click-time closures, not render-time ref reads */
-                  const handlers = {
-                    onImport: handleImportAsset,
-                    onEquip: handleEquipAsset,
-                    onUseTechnique: handleUseTechnique,
-                    onUseProjectTechnique: handleUseProjectTechnique,
-                    onDirectExec: handleDirectExec,
-                    onSanitize: handleSanitizeAndEnable,
-                  };
-                  /* eslint-enable react-hooks/refs */
+            {selectedCapability !== 'packages' && (
+              <div className="flex flex-wrap gap-2 border-b border-theme-border/25 pb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('all')}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-xs font-bold border',
+                    selectedCategory === 'all'
+                      ? 'border-theme-accent text-theme-text'
+                      : 'border-transparent text-theme-muted'
+                  )}
+                >
+                  全部阶段
+                </button>
+                {(
+                  [
+                    {
+                      id: 'creative-setup',
+                      label: '① 立设定与大纲',
+                      desc: '世界观、人设、黄金三章',
+                    },
+                    {
+                      id: 'active-drafting',
+                      label: '② 写正文与提速',
+                      desc: '流程、口吻、场面推进',
+                    },
+                    { id: 'style-polish', label: '③ 审稿与精修', desc: '去AI腔、套话、逻辑检查' },
+                    {
+                      id: 'commercial-sign',
+                      label: '④ 过签与平台检查',
+                      desc: '番茄阅文、爽点、完读率',
+                    },
+                  ] as const
+                ).map((cat) => {
+                  const isSelected = selectedCategory === cat.id;
                   return (
-                    <div className="space-y-4">
-                      {shelf.functional.map((group) => (
-                        <div key={group.key} className="space-y-2">
-                          <h3 className="text-xs font-bold text-theme-text">{group.label}（{group.assets.length}）</h3>
-                          <StyleShelfGrid cards={group.assets} isFreeNovel={isFreeNovel} handlers={handlers} />
-                        </div>
-                      ))}
-                      {shelf.series.map((group) => (
-                        <details key={group.key} className="rounded-xl border border-theme-border/60 bg-theme-bg/40">
-                          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
-                            系列 {group.label}（{group.assets.length}）
-                          </summary>
-                          <div className="px-4 pb-4">
-                            <StyleShelfGrid cards={group.assets} isFreeNovel={isFreeNovel} handlers={handlers} />
-                          </div>
-                        </details>
-                      ))}
-                    </div>
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={cn(
+                        'px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex flex-col items-start gap-0.5 border text-left',
+                        isSelected
+                          ? 'bg-theme-sidebar border-theme-accent text-theme-text shadow-sm'
+                          : 'bg-transparent border-transparent text-theme-muted hover:text-theme-text hover:bg-theme-sidebar/30'
+                      )}
+                    >
+                      <span>{cat.label}</span>
+                      <span className="text-[9px] font-normal opacity-80 scale-90 origin-left block truncate max-w-[120px]">
+                        {cat.desc}
+                      </span>
+                    </button>
                   );
-                })()}
-                {selectedCapability !== 'optional-style' && filteredCuratedSkills.length > 0 ? (
-                  <>
-                    {availableCuratedSkills.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {availableCuratedSkills.map((asset) => (
-                          <PlazaAssetCard
-                            key={asset.id}
-                            asset={asset}
-                            isImported={isAssetPersisted(asset)}
-                            isFavorited={isTechniqueFavorited(asset) || isGuardrailCandidate(asset)}
-                            isCloning={cloningAssetId === asset.id}
-                            selectedNovel={selectedNovel || null}
-                            isFreeNovel={isFreeNovel}
-                            onImport={() => handleImportAsset(asset)}
-                            onEquip={() => handleEquipAsset(asset)}
-                            onUseTechnique={() => handleUseTechnique(asset)}
-                            onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
-                            onDirectExec={() => handleDirectExec(asset)}
-                          />
+                })}
+              </div>
+            )}
+
+            {selectedCapability === 'packages' && (
+              <section aria-labelledby="capability-packages-title" className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <h2
+                      id="capability-packages-title"
+                      className="text-sm font-bold text-theme-text"
+                    >
+                      能力包
+                    </h2>
+                    <p className="mt-1 text-[11px] text-theme-muted">
+                      能力包会把流程、技法、拆书卡和辅助动作拆成可勾选步骤；勾选后点「启用所选」即生效，可撤销。
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[10px] text-theme-muted">勾选待提交</span>
+                </div>
+                <div className="space-y-5">
+                  {groupedPackages.map((group) => (
+                    <section
+                      key={group.id}
+                      aria-labelledby={`capability-package-group-${group.id}`}
+                      className="space-y-2"
+                    >
+                      <h3
+                        id={`capability-package-group-${group.id}`}
+                        className="text-[11px] font-bold text-theme-text"
+                      >
+                        {group.title}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {group.packages.map((pkg) => (
+                          <div
+                            key={pkg.id}
+                            className="rounded-xl border border-theme-border/70 bg-theme-sidebar p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-theme-text">{pkg.name}</h4>
+                                <div className="mt-1 flex flex-wrap gap-1.5">
+                                  <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] font-bold text-theme-text">
+                                    {getPackageUseLabel(pkg.id)}
+                                  </span>
+                                  <span className="rounded border border-theme-border/40 bg-theme-bg px-1.5 py-0.5 text-[9px] text-theme-muted">
+                                    {getPackageStageSummary(pkg)}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-4 text-theme-muted">
+                                  {pkg.intendedOutcome || pkg.description}
+                                </p>
+                                {(packageSelectionDrafts[pkg.id]?.length || 0) > 0 && (
+                                  <p className="mt-1 text-[10px] font-bold text-theme-accent">
+                                    已勾选 {packageSelectionDrafts[pkg.id].length} 项，待提交
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={cn(
+                                  'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold',
+                                  pkg.type === 'paid'
+                                    ? isFreeNovel
+                                      ? 'bg-amber-500/10 text-amber-600'
+                                      : 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-emerald-500/10 text-emerald-600'
+                                )}
+                              >
+                                {getPackageAvailabilityLabel(
+                                  pkg,
+                                  !isFreeNovel,
+                                  monetizationEnabled
+                                )}
+                              </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-theme-muted">
+                                {getEnhancementPackageSteps(pkg).length} 项能力
+                              </span>
+                              <button
+                                type="button"
+                                className="rounded-lg border border-theme-border px-3 py-1.5 text-[10px] font-bold text-theme-text hover:border-theme-accent"
+                                onClick={() => {
+                                  setSelectedPackageId(pkg.id);
+                                  setPackageResultLaunchFeedbackAssetId(null);
+                                  setPackageSelections(packageSelectionDrafts[pkg.id] || []);
+                                }}
+                              >
+                                {getPackageOpenButtonLabel(pkg, !isFreeNovel, monetizationEnabled)}
+                              </button>
+                            </div>
+                          </div>
                         ))}
                       </div>
-                    )}
-                    {lockedCuratedSkills.length > 0 && (
-                      <details className="rounded-xl border border-theme-border/60 bg-theme-bg/40">
-                        <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
-                          需解锁（{lockedCuratedSkills.length}）· 消毒或授权后可用
-                        </summary>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 pb-4">
-                          {lockedCuratedSkills.map((asset) => (
+                    </section>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 货架卡主渲染区域 */}
+            {selectedCapability !== 'packages' && (
+              <div className="space-y-8">
+                <div className="border-l-2 border-theme-accent pl-3.5 mb-6">
+                  <h2 className="text-base font-bold text-theme-text">
+                    {selectedCategory === 'all'
+                      ? '全部阶段'
+                      : selectedCategory === 'creative-setup'
+                        ? '① 立设定与大纲'
+                        : selectedCategory === 'active-drafting'
+                          ? '② 写正文与提速'
+                          : selectedCategory === 'style-polish'
+                            ? '③ 审稿与精修'
+                            : '④ 过签与平台检查'}
+                  </h2>
+                  <p className="text-[11px] text-theme-muted mt-1">
+                    {selectedCategory === 'all'
+                      ? '跨阶段浏览设定、大纲、正文、审稿与精修能力，按当前创作节点选择并应用。'
+                      : selectedCategory === 'creative-setup'
+                        ? '先选世界观、人设与黄金三章能力，搭好长篇骨架再开写。'
+                        : selectedCategory === 'active-drafting'
+                          ? '选择作者流程、口吻技法和场面推进卡，让章节写作更稳定。'
+                          : selectedCategory === 'style-polish'
+                            ? '写完后先跑审稿卡，再用精修卡处理套话、逻辑和局部润色。'
+                            : '准备投平台前，用过签检查、爽点评分和完读率诊断做最后校准。'}
+                  </p>
+                </div>
+
+                {/* 创作流程的唯一选择与详情入口 */}
+                {selectedCapability === 'flow' &&
+                  (selectedCategory === 'all' ||
+                    selectedCategory === 'creative-setup' ||
+                    selectedCategory === 'active-drafting') && (
+                    <div className="space-y-6 pb-6 border-b border-theme-border/20 text-left">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-amber-500 animate-pulse" />
+                        <div>
+                          <h3 className="text-xs font-bold text-theme-text">创作流程目录</h3>
+                          <p className="mt-1 text-[10px] text-theme-muted">
+                            这里是唯一的创作流程选择与详情入口。
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {SKILL_SERIES_FLOWS.filter((flow) => visibleFlowIds.includes(flow.id)).map(
+                          (flow) => {
+                            const meta = goldenFlowMetadata[flow.id] || {
+                              target: '通用作者',
+                              output: '全生命周期大纲正文',
+                              color:
+                                'from-theme-border/20 to-theme-border/10 border-theme-border/30',
+                            };
+                            const isActive = configurationDraft?.activeFlowId === flow.id;
+                            const isLocked = isLicensedEnhancementGated(
+                              getCatalogCapabilityManifest(flow.id)?.sourceType,
+                              isFreeNovel
+                            );
+
+                            return (
+                              <div
+                                key={flow.id}
+                                className={cn(
+                                  'relative rounded-xl p-5 border bg-gradient-to-br flex flex-col justify-between transition-all duration-200 group text-left',
+                                  meta.color,
+                                  isActive
+                                    ? 'ring-1 ring-emerald-500/50 border-emerald-500/40 bg-emerald-500/[0.02]'
+                                    : 'hover:border-theme-border/80 hover:shadow-sm'
+                                )}
+                              >
+                                <div>
+                                  <div className="flex justify-between items-start gap-2 mb-2">
+                                    <h3 className="font-bold text-theme-text text-sm group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
+                                      <span className="truncate">{flow.name}</span>
+                                    </h3>
+                                    <div className="flex gap-1 shrink-0">
+                                      {isActive && (
+                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                          已选流程
+                                        </span>
+                                      )}
+                                      {isLocked && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                          授权增强
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <p className="text-[11px] text-theme-muted mb-3 line-clamp-2 min-h-[2rem]">
+                                    {flow.description}
+                                  </p>
+
+                                  <div className="space-y-1.5 mb-4 text-[10px]">
+                                    <div className="flex justify-between border-b border-theme-border/10 pb-1">
+                                      <span className="text-theme-muted">适用人群:</span>
+                                      <span className="text-theme-text font-medium">
+                                        {meta.target}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between pt-0.5">
+                                      <span className="text-theme-muted">预期产物:</span>
+                                      <span className="text-theme-text font-medium">
+                                        {meta.output}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* 进度节点迷你时间轴预览 */}
+                                  <FlowTimelinePreview flow={flow} />
+                                </div>
+
+                                <div className="mt-5">
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      flowDetailTriggerRef.current = event.currentTarget;
+                                      setSelectedFlowDetail(flow);
+                                    }}
+                                    className={cn(
+                                      'w-full py-2.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1',
+                                      isActive
+                                        ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20'
+                                        : isLocked
+                                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                                          : 'bg-theme-text text-theme-bg hover:opacity-90'
+                                    )}
+                                  >
+                                    免密预览流程详情
+                                    {isActive && (
+                                      <CheckCircle2 size={12} className="text-emerald-500" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {/* 推荐的辅助写作精品卡 */}
+                <div className="space-y-4">
+                  {selectedCategory === 'active-drafting' && (
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-theme-accent animate-pulse" />
+                      <h3 className="text-xs font-bold text-theme-text">辅助写作推荐能力卡</h3>
+                    </div>
+                  )}
+
+                  {selectedCapability === 'optional-style' &&
+                    filteredCuratedSkills.length > 0 &&
+                    (() => {
+                      // 013：文风与正文货架二级分组 + 适合度排序
+                      const novelText = [selectedNovel?.title, selectedNovel?.summary]
+                        .filter(Boolean)
+                        .join('\n');
+                      const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
+                      const novelGenreTokens = deriveNovelGenreTokens(novelText, novelTags);
+                      const novelPlatform = novelText.includes('番茄') ? 'tomato' : undefined;
+                      const shelf = groupStyleShelf(
+                        availableCuratedSkills.map((asset) => ({
+                          ...asset,
+                          isFavorited: isTechniqueFavorited(asset) || isGuardrailCandidate(asset),
+                          isCloning: cloningAssetId === asset.id,
+                          isImported: isAssetPersisted(asset),
+                          asset,
+                          fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
+                        }))
+                      );
+                      /* eslint-disable react-hooks/refs -- click-time closures, not render-time ref reads */
+                      const handlers = {
+                        onImport: handleImportAsset,
+                        onEquip: handleEquipAsset,
+                        onUseTechnique: handleUseTechnique,
+                        onUseProjectTechnique: handleUseProjectTechnique,
+                        onDirectExec: handleDirectExec,
+                        onSanitize: handleSanitizeAndEnable,
+                      };
+                      /* eslint-enable react-hooks/refs */
+                      return (
+                        <div className="space-y-4">
+                          {shelf.functional.map((group) => (
+                            <div key={group.key} className="space-y-2">
+                              <h3 className="text-xs font-bold text-theme-text">
+                                {group.label}（{group.assets.length}）
+                              </h3>
+                              <StyleShelfGrid
+                                cards={group.assets}
+                                isFreeNovel={isFreeNovel}
+                                handlers={handlers}
+                              />
+                            </div>
+                          ))}
+                          {shelf.series.map((group) => (
+                            <details
+                              key={group.key}
+                              className="rounded-xl border border-theme-border/60 bg-theme-bg/40"
+                            >
+                              <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
+                                系列 {group.label}（{group.assets.length}）
+                              </summary>
+                              <div className="px-4 pb-4">
+                                <StyleShelfGrid
+                                  cards={group.assets}
+                                  isFreeNovel={isFreeNovel}
+                                  handlers={handlers}
+                                />
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  {selectedCapability !== 'optional-style' && filteredCuratedSkills.length > 0 ? (
+                    <>
+                      {availableCuratedSkills.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {availableCuratedSkills.map((asset) => (
                             <PlazaAssetCard
                               key={asset.id}
                               asset={asset}
                               isImported={isAssetPersisted(asset)}
-                              isFavorited={isTechniqueFavorited(asset) || isGuardrailCandidate(asset)}
+                              isFavorited={
+                                isTechniqueFavorited(asset) || isGuardrailCandidate(asset)
+                              }
                               isCloning={cloningAssetId === asset.id}
                               selectedNovel={selectedNovel || null}
                               isFreeNovel={isFreeNovel}
@@ -2572,68 +3424,163 @@ export function SkillsStudioView({
                               onUseTechnique={() => handleUseTechnique(asset)}
                               onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
                               onDirectExec={() => handleDirectExec(asset)}
-                              onSanitize={() => void handleSanitizeAndEnable(asset)}
                             />
                           ))}
                         </div>
-                      </details>
-                    )}
-                  </>
-                ) : (
-                  <div className="py-12 text-center text-theme-muted text-xs border border-dashed border-theme-border rounded-lg">
-                    该航道暂无精品卡，敬请期待
-                  </div>
-                )}
+                      )}
+                      {lockedCuratedSkills.length > 0 && (
+                        <details className="rounded-xl border border-theme-border/60 bg-theme-bg/40">
+                          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
+                            需解锁（{lockedCuratedSkills.length}）· 消毒或授权后可用
+                          </summary>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 pb-4">
+                            {lockedCuratedSkills.map((asset) => (
+                              <PlazaAssetCard
+                                key={asset.id}
+                                asset={asset}
+                                isImported={isAssetPersisted(asset)}
+                                isFavorited={
+                                  isTechniqueFavorited(asset) || isGuardrailCandidate(asset)
+                                }
+                                isCloning={cloningAssetId === asset.id}
+                                selectedNovel={selectedNovel || null}
+                                isFreeNovel={isFreeNovel}
+                                onImport={() => handleImportAsset(asset)}
+                                onEquip={() => handleEquipAsset(asset)}
+                                onUseTechnique={() => handleUseTechnique(asset)}
+                                onUseProjectTechnique={() => handleUseProjectTechnique(asset)}
+                                onDirectExec={() => handleDirectExec(asset)}
+                                onSanitize={() => void handleSanitizeAndEnable(asset)}
+                              />
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-12 text-center text-theme-muted text-xs border border-dashed border-theme-border rounded-lg">
+                      该航道暂无精品卡，敬请期待
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>}
+            )}
           </div>
         )}
       </div>
 
       {selectedPackage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true" aria-labelledby="capability-package-title">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="capability-package-title"
+        >
           <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-theme-border bg-theme-sidebar p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 id="capability-package-title" className="text-base font-bold text-theme-text">{selectedPackage.name}</h2>
-                <p className="mt-1 text-xs leading-5 text-theme-muted">勾选要启用的能力，点「启用所选」即生效；运行类启用后可点击对应运行按钮。</p>
+                <h2 id="capability-package-title" className="text-base font-bold text-theme-text">
+                  {selectedPackage.name}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-theme-muted">
+                  勾选要启用的能力，点「启用所选」即生效；运行类启用后可点击对应运行按钮。
+                </p>
                 <div className="mt-2 rounded-lg border border-theme-border/60 bg-theme-bg/60 p-2 text-[10px] leading-4 text-theme-muted">
-                  {selectedPackage.intendedOutcome && <p><span className="font-bold text-theme-text">目标：</span>{selectedPackage.intendedOutcome}</p>}
-                  <p><span className="font-bold text-theme-text">优先：</span>{getPackageRecommendedPath(selectedPackage.id)}</p>
-                  <p><span className="font-bold text-theme-text">提交后：</span>{getPackageNextStepHint(selectedPackage.id)}</p>
+                  {selectedPackage.intendedOutcome && (
+                    <p>
+                      <span className="font-bold text-theme-text">目标：</span>
+                      {selectedPackage.intendedOutcome}
+                    </p>
+                  )}
+                  <p>
+                    <span className="font-bold text-theme-text">优先：</span>
+                    {getPackageRecommendedPath(selectedPackage.id)}
+                  </p>
+                  <p>
+                    <span className="font-bold text-theme-text">提交后：</span>
+                    {getPackageNextStepHint(selectedPackage.id)}
+                  </p>
                 </div>
                 {selectedPackageRestricted && (
-                  <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] leading-4 text-amber-700" role="status">
+                  <div
+                    className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] leading-4 text-amber-700"
+                    role="status"
+                  >
                     当前作品未开通授权增强；你可以先查看步骤，授权后再启用所选能力。
                   </div>
                 )}
-                {packageSelections.length > 0 && <p className="mt-1 text-[10px] font-bold text-theme-accent" role="status">已勾选 {packageSelections.length} 项，待提交</p>}
+                {packageSelections.length > 0 && (
+                  <p className="mt-1 text-[10px] font-bold text-theme-accent" role="status">
+                    已勾选 {packageSelections.length} 项，待提交
+                  </p>
+                )}
               </div>
-              <button type="button" aria-label="关闭能力包" className="rounded-lg p-1 text-theme-muted hover:bg-theme-bg" onClick={() => setSelectedPackageId(null)}><X size={16} /></button>
+              <button
+                type="button"
+                aria-label="关闭能力包"
+                className="rounded-lg p-1 text-theme-muted hover:bg-theme-bg"
+                onClick={() => setSelectedPackageId(null)}
+              >
+                <X size={16} />
+              </button>
             </div>
             <div className="mt-4 space-y-2">
               {packageComponents.map(({ assetId, asset, flow, manifest, step }) => {
                 const component = { assetId, asset, flow, manifest, step };
                 const label = getPackageComponentLabel(component);
-                const persisted = asset ? savedSkills.some((skill) => (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id)
-                  && skill.sourceType === asset.sourceType
-                  && skill.version === (Number(manifest?.version) || 1)) : false;
-                const needsImport = Boolean(asset && manifest && ['technique', 'skill-card'].includes(manifest.kind) && manifest.sourceType !== 'built-in' && !persisted);
-                const selectable = Boolean((flow || asset) && manifest?.runtimeStatus === 'active' && !needsImport);
+                const persisted = asset
+                  ? savedSkills.some(
+                      (skill) =>
+                        (skill.parentSkillId || skill.id) === (asset.parentSkillId || asset.id) &&
+                        skill.sourceType === asset.sourceType &&
+                        skill.version === (Number(manifest?.version) || 1)
+                    )
+                  : false;
+                const needsImport = Boolean(
+                  asset &&
+                  manifest &&
+                  ['technique', 'skill-card'].includes(manifest.kind) &&
+                  manifest.sourceType !== 'built-in' &&
+                  !persisted
+                );
+                const selectable = Boolean(
+                  (flow || asset) && manifest?.runtimeStatus === 'active' && !needsImport
+                );
                 const modeLabel = getPackageModeLabel(step.mode, manifest);
-                const triggerLabel = step.trigger === 'project-setup' ? '立项时' : step.trigger === 'outline' ? '大纲期' : step.trigger === 'before-draft' ? '写前' : step.trigger === 'after-draft' ? '写后' : '阶段节点';
+                const triggerLabel =
+                  step.trigger === 'project-setup'
+                    ? '立项时'
+                    : step.trigger === 'outline'
+                      ? '大纲期'
+                      : step.trigger === 'before-draft'
+                        ? '写前'
+                        : step.trigger === 'after-draft'
+                          ? '写后'
+                          : '阶段节点';
                 const scopeLabel = getPackageScopeLabel(step.scope);
                 const capabilityType = asset ? getGovernanceCapabilityType(asset) : manifest?.kind;
-                const toolLabel = capabilityType === 'diagnostic' || capabilityType === 'utility' ? '不改正文 · ' : '';
-                const action = needsImport ? '先保存到我的能力，再勾选待提交' : `${step.required ? '必选 · ' : ''}${toolLabel}${modeLabel} · ${triggerLabel} · ${scopeLabel}`;
+                const toolLabel =
+                  capabilityType === 'diagnostic' || capabilityType === 'utility'
+                    ? '不改正文 · '
+                    : '';
+                const action = needsImport
+                  ? '先保存到我的能力，再勾选待提交'
+                  : `${step.required ? '必选 · ' : ''}${toolLabel}${modeLabel} · ${triggerLabel} · ${scopeLabel}`;
                 const effectHint = getPackageComponentActionHint(flow, manifest);
-                const staleBlocked = staleConfigurationSession && isConfigurationPackageComponent(component);
-                const missingDependencyLabels = (step.dependsOn || []).map((dependencyId) => {
-                  const dependency = packageComponents.find((candidate) => candidate.step.id === dependencyId);
-                  if (dependency && !isPackageStepSelected(dependency)) return getPackageComponentLabel(dependency);
-                  if (!dependency && !packageSelections.includes(dependencyId)) return dependencyId;
-                  return null;
-                }).filter(Boolean);
+                const staleBlocked =
+                  staleConfigurationSession && isConfigurationPackageComponent(component);
+                const missingDependencyLabels = (step.dependsOn || [])
+                  .map((dependencyId) => {
+                    const dependency = packageComponents.find(
+                      (candidate) => candidate.step.id === dependencyId
+                    );
+                    if (dependency && !isPackageStepSelected(dependency))
+                      return getPackageComponentLabel(dependency);
+                    if (!dependency && !packageSelections.includes(dependencyId))
+                      return dependencyId;
+                    return null;
+                  })
+                  .filter(Boolean);
                 const dependenciesSatisfied = missingDependencyLabels.length === 0;
                 const disabledReason = staleBlocked
                   ? '本次配置已变化，请先重新预览'
@@ -2643,49 +3590,119 @@ export function SkillsStudioView({
                       ? '当前能力暂不可运行'
                       : !dependenciesSatisfied
                         ? `请先选择前置能力：${missingDependencyLabels.join('、')}`
-                      : null;
-                const applyResult = packageComponentResults[step.id] || packageComponentResults[assetId];
-                const selectedPendingSubmit = isPackageStepSelected({ assetId, asset, flow, manifest, step }) && !applyResult;
+                        : null;
+                const applyResult =
+                  packageComponentResults[step.id] || packageComponentResults[assetId];
+                const selectedPendingSubmit =
+                  isPackageStepSelected({ assetId, asset, flow, manifest, step }) && !applyResult;
                 const stepPriorityLabel = needsImport
                   ? '需先保存'
                   : !dependenciesSatisfied
                     ? '依赖未满足'
                     : manifest?.runtimeStatus !== 'active' || staleBlocked
                       ? '不可用'
-                  : step.required
-                    ? '必选'
-                    : step.dependsOn?.length
-                      ? '可选'
-                      : '推荐';
-                const stepPriorityTone = needsImport || !dependenciesSatisfied || manifest?.runtimeStatus !== 'active' || staleBlocked
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-700'
-                  : step.required
-                    ? 'border-theme-accent/40 bg-theme-accent/10 text-theme-accent'
-                    : 'border-theme-border/50 bg-theme-bg text-theme-muted';
-                const resultLaunchLabel = applyResult ? getPackageResultLaunchLabel(applyResult, step, manifest, asset) : null;
-                const resultCandidateId = applyResult === 'recommended' && asset && capabilityType === 'skill-card'
-                  ? (configurationDraft?.capabilityMemberships || []).find((membership) => membership.sourceId === (asset.parentSkillId || asset.id))?.persistedSkillId || null
+                      : step.required
+                        ? '必选'
+                        : step.dependsOn?.length
+                          ? '可选'
+                          : '推荐';
+                const stepPriorityTone =
+                  needsImport ||
+                  !dependenciesSatisfied ||
+                  manifest?.runtimeStatus !== 'active' ||
+                  staleBlocked
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-700'
+                    : step.required
+                      ? 'border-theme-accent/40 bg-theme-accent/10 text-theme-accent'
+                      : 'border-theme-border/50 bg-theme-bg text-theme-muted';
+                const resultLaunchLabel = applyResult
+                  ? getPackageResultLaunchLabel(applyResult, step, manifest, asset)
                   : null;
-                const resultCandidateInDeck = Boolean(resultCandidateId && projectDeckIds.includes(resultCandidateId));
+                const resultCandidateId =
+                  applyResult === 'recommended' && asset && capabilityType === 'skill-card'
+                    ? (configurationDraft?.capabilityMemberships || []).find(
+                        (membership) => membership.sourceId === (asset.parentSkillId || asset.id)
+                      )?.persistedSkillId || null
+                    : null;
+                const resultCandidateInDeck = Boolean(
+                  resultCandidateId && projectDeckIds.includes(resultCandidateId)
+                );
                 return (
-                  <div key={step.id} className={cn('flex items-start gap-3 rounded-lg border border-theme-border p-3', selectable ? 'hover:border-theme-accent' : 'opacity-70')}>
-                    <input type="checkbox" aria-label={`选择 ${label}`} disabled={!selectable || staleBlocked || (!isPackageStepSelected({ assetId, asset, flow, manifest, step }) && !dependenciesSatisfied)} checked={isPackageStepSelected({ assetId, asset, flow, manifest, step })} onChange={(event) => {
-                      if (event.target.checked && !dependenciesSatisfied) return;
-                      const next = event.target.checked ? [...packageSelections.filter((id) => id !== assetId), step.id] : packageSelections.filter((id) => id !== step.id && id !== assetId);
-                      setPackageSelections(next);
-                      if (selectedPackageId) setPackageSelectionDrafts((current) => ({ ...current, [selectedPackageId]: next }));
-                    }} className="mt-0.5" />
+                  <div
+                    key={step.id}
+                    className={cn(
+                      'flex items-start gap-3 rounded-lg border border-theme-border p-3',
+                      selectable ? 'hover:border-theme-accent' : 'opacity-70'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`选择 ${label}`}
+                      disabled={
+                        !selectable ||
+                        staleBlocked ||
+                        (!isPackageStepSelected({ assetId, asset, flow, manifest, step }) &&
+                          !dependenciesSatisfied)
+                      }
+                      checked={isPackageStepSelected({ assetId, asset, flow, manifest, step })}
+                      onChange={(event) => {
+                        if (event.target.checked && !dependenciesSatisfied) return;
+                        const next = event.target.checked
+                          ? [...packageSelections.filter((id) => id !== assetId), step.id]
+                          : packageSelections.filter((id) => id !== step.id && id !== assetId);
+                        setPackageSelections(next);
+                        if (selectedPackageId)
+                          setPackageSelectionDrafts((current) => ({
+                            ...current,
+                            [selectedPackageId]: next,
+                          }));
+                      }}
+                      className="mt-0.5"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-1.5">
                         <span className="text-xs font-bold text-theme-text">{label}</span>
-                        <span className={cn('rounded border px-1.5 py-0.5 text-[9px] font-bold', stepPriorityTone)}>{stepPriorityLabel}</span>
+                        <span
+                          className={cn(
+                            'rounded border px-1.5 py-0.5 text-[9px] font-bold',
+                            stepPriorityTone
+                          )}
+                        >
+                          {stepPriorityLabel}
+                        </span>
                       </span>
-                      <span className="mt-1 block text-[10px] text-theme-muted">{action}{manifest?.sourceType ? ` · ${getCapabilitySourceLabel(manifest.sourceType)}` : ''}{disabledReason ? ` · ${disabledReason}` : ''}</span>
-                      {effectHint && <span className="mt-0.5 block text-[10px] leading-4 text-theme-muted">{effectHint}</span>}
+                      <span className="mt-1 block text-[10px] text-theme-muted">
+                        {action}
+                        {manifest?.sourceType
+                          ? ` · ${getCapabilitySourceLabel(manifest.sourceType)}`
+                          : ''}
+                        {disabledReason ? ` · ${disabledReason}` : ''}
+                      </span>
+                      {effectHint && (
+                        <span className="mt-0.5 block text-[10px] leading-4 text-theme-muted">
+                          {effectHint}
+                        </span>
+                      )}
                       {applyResult && (
                         <span className="mt-1 block space-y-1">
-                          <span role="status" className={cn('block text-[10px] font-bold', applyResult === 'configured' ? 'text-emerald-600' : applyResult === 'unavailable' || applyResult === 'conflict' ? 'text-amber-600' : 'text-theme-muted')}>
-                            {getPackageResultLabel(applyResult, step, manifest, capabilityType, resultCandidateInDeck)}
+                          <span
+                            role="status"
+                            className={cn(
+                              'block text-[10px] font-bold',
+                              applyResult === 'configured'
+                                ? 'text-emerald-600'
+                                : applyResult === 'unavailable' || applyResult === 'conflict'
+                                  ? 'text-amber-600'
+                                  : 'text-theme-muted'
+                            )}
+                          >
+                            {getPackageResultLabel(
+                              applyResult,
+                              step,
+                              manifest,
+                              capabilityType,
+                              resultCandidateInDeck
+                            )}
                           </span>
                           {(resultLaunchLabel || (resultCandidateId && !resultCandidateInDeck)) && (
                             <span className="flex flex-wrap items-center gap-2">
@@ -2700,11 +3717,15 @@ export function SkillsStudioView({
                                   {resultLaunchLabel}
                                 </button>
                               )}
-                              {packageResultLaunchFeedbackAssetId === asset?.id && resultLaunchLabel && (
-                                <span role="status" className="w-full text-[10px] font-bold text-emerald-600">
-                                  已发送到编辑器执行
-                                </span>
-                              )}
+                              {packageResultLaunchFeedbackAssetId === asset?.id &&
+                                resultLaunchLabel && (
+                                  <span
+                                    role="status"
+                                    className="w-full text-[10px] font-bold text-emerald-600"
+                                  >
+                                    已发送到编辑器执行
+                                  </span>
+                                )}
                               {resultCandidateId && !resultCandidateInDeck && (
                                 <>
                                   <button
@@ -2729,7 +3750,14 @@ export function SkillsStudioView({
                           )}
                         </span>
                       )}
-                      {selectedPendingSubmit && <span role="status" className="mt-1 block text-[10px] font-bold text-amber-600">已勾选，待提交到本次配置</span>}
+                      {selectedPendingSubmit && (
+                        <span
+                          role="status"
+                          className="mt-1 block text-[10px] font-bold text-amber-600"
+                        >
+                          已勾选，待提交到本次配置
+                        </span>
+                      )}
                     </span>
                     {needsImport && asset && (
                       <button
@@ -2739,9 +3767,21 @@ export function SkillsStudioView({
                         onClick={async () => {
                           const persistedId = await handleImportAsset(asset);
                           if (persistedId) {
-                            const next = isPackageStepSelected({ assetId, asset, flow, manifest, step }) ? packageSelections : [...packageSelections.filter((id) => id !== assetId), step.id];
+                            const next = isPackageStepSelected({
+                              assetId,
+                              asset,
+                              flow,
+                              manifest,
+                              step,
+                            })
+                              ? packageSelections
+                              : [...packageSelections.filter((id) => id !== assetId), step.id];
                             setPackageSelections(next);
-                            if (selectedPackageId) setPackageSelectionDrafts((current) => ({ ...current, [selectedPackageId]: next }));
+                            if (selectedPackageId)
+                              setPackageSelectionDrafts((current) => ({
+                                ...current,
+                                [selectedPackageId]: next,
+                              }));
                           }
                         }}
                       >
@@ -2754,11 +3794,22 @@ export function SkillsStudioView({
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               {configurationDirty && !staleConfigurationSession && (
-                <p className="w-full basis-full text-[10px] leading-4 text-theme-muted">{CAPABILITY_RETURN_EFFECT_HINT}</p>
+                <p className="w-full basis-full text-[10px] leading-4 text-theme-muted">
+                  {CAPABILITY_RETURN_EFFECT_HINT}
+                </p>
               )}
-              <button type="button" className="flex-1 rounded-lg border border-theme-border px-3 py-2 text-xs font-bold text-theme-text" onClick={() => setSelectedPackageId(null)}>取消</button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-theme-border px-3 py-2 text-xs font-bold text-theme-text"
+                onClick={() => setSelectedPackageId(null)}
+              >
+                取消
+              </button>
               {packageSubmitDisabledReason && packageSelections.length > 0 && (
-                <div className="w-full basis-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-700" role="status">
+                <div
+                  className="w-full basis-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-700"
+                  role="status"
+                >
                   <span id="capability-package-submit-help">{packageSubmitDisabledReason}</span>
                   {!selectedNovel && (
                     <button
@@ -2775,7 +3826,10 @@ export function SkillsStudioView({
                 </div>
               )}
               {packageEmptySelectionHint && (
-                <p className="w-full basis-full text-[10px] leading-4 text-theme-muted" role="status">
+                <p
+                  className="w-full basis-full text-[10px] leading-4 text-theme-muted"
+                  role="status"
+                >
                   {packageEmptySelectionHint}
                 </p>
               )}
@@ -2807,33 +3861,58 @@ export function SkillsStudioView({
                   {packageApplyButtonLabel}
                 </button>
               )}
-              <button type="button" className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50" aria-describedby={packageSubmitDisabledReason && packageSelections.length > 0 ? 'capability-package-submit-help' : undefined} title={packageSubmitDisabledReason || undefined} disabled={Boolean(packageSubmitDisabledReason) || isApplyingConfiguration} onClick={async () => {
-                const preProfile = selectedNovel?.projectPreferenceProfile ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile)) : null;
-                const built = await handleApplyPackage();
-                if (!built || !selectedNovel) return;
-                try {
-                  // Derive the outline launch from the just-staged steps, not
-                  // from packageApplyDestination: result statuses (and thus the
-                  // destination) only exist AFTER applyConfiguration resolves.
-                  const outlineLaunchAssetId = built.steps?.find((step) => {
-                    const manifest = getCatalogCapabilityManifest(step.assetId);
-                    return isOutlineCandidateOutput(manifest?.output) && !isWorldCandidateArtifact(manifest?.outputArtifact);
-                  })?.assetId;
-                  const launchOutline = Boolean(outlineLaunchAssetId);
-                  await applyConfiguration(launchOutline, launchOutline ? 'outline' : packageApplyDestination, built.capabilityProfile, outlineLaunchAssetId, undefined, built.steps);
-                } catch {
-                  // applyConfiguration already toasts the failure; the draft
-                  // stays staged so the user can retry from the dialog.
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
+                aria-describedby={
+                  packageSubmitDisabledReason && packageSelections.length > 0
+                    ? 'capability-package-submit-help'
+                    : undefined
                 }
-                const title = selectedPackage?.name || '所选能力';
-                toast(`已启用「${title}」`, 'success', 5000, {
-                  label: '撤销',
-                  onClick: () => {
-                    if (!preProfile) return;
-                    void applyConfiguration(false, 'return', preProfile);
-                  },
-                });
-              }}>{packageSubmitButtonLabel}</button>
+                title={packageSubmitDisabledReason || undefined}
+                disabled={Boolean(packageSubmitDisabledReason) || isApplyingConfiguration}
+                onClick={async () => {
+                  const preProfile = selectedNovel?.projectPreferenceProfile
+                    ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile))
+                    : null;
+                  const built = await handleApplyPackage();
+                  if (!built || !selectedNovel) return;
+                  try {
+                    // Derive the outline launch from the just-staged steps, not
+                    // from packageApplyDestination: result statuses (and thus the
+                    // destination) only exist AFTER applyConfiguration resolves.
+                    const outlineLaunchAssetId = built.steps?.find((step) => {
+                      const manifest = getCatalogCapabilityManifest(step.assetId);
+                      return (
+                        isOutlineCandidateOutput(manifest?.output) &&
+                        !isWorldCandidateArtifact(manifest?.outputArtifact)
+                      );
+                    })?.assetId;
+                    const launchOutline = Boolean(outlineLaunchAssetId);
+                    await applyConfiguration(
+                      launchOutline,
+                      launchOutline ? 'outline' : packageApplyDestination,
+                      built.capabilityProfile,
+                      outlineLaunchAssetId,
+                      undefined,
+                      built.steps
+                    );
+                  } catch {
+                    // applyConfiguration already toasts the failure; the draft
+                    // stays staged so the user can retry from the dialog.
+                  }
+                  const title = selectedPackage?.name || '所选能力';
+                  toast(`已启用「${title}」`, 'success', 5000, {
+                    label: '撤销',
+                    onClick: () => {
+                      if (!preProfile) return;
+                      void applyConfiguration(false, 'return', preProfile);
+                    },
+                  });
+                }}
+              >
+                {packageSubmitButtonLabel}
+              </button>
             </div>
           </div>
         </div>
@@ -2843,19 +3922,27 @@ export function SkillsStudioView({
         <GuardrailPolicyPanel
           enhancedGuardrails={getConfigurableGuardrailAssets()}
           enabledIds={currentGuardrailIds}
-          onToggle={(asset) => { void handleEquipAsset(asset); }}
+          onToggle={(asset) => {
+            void handleEquipAsset(asset);
+          }}
           onClose={() => setGuardrailPolicyOpen(false)}
         />
       )}
 
       {selectedFlowDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="capability-flow-title" data-capability-flow-dialog="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="capability-flow-title"
+          data-capability-flow-dialog="true"
+        >
           {/* Backdrop with backdrop-blur */}
-          <div 
-            className="absolute inset-0 bg-theme-bg/60 backdrop-blur-md transition-opacity" 
+          <div
+            className="absolute inset-0 bg-theme-bg/60 backdrop-blur-md transition-opacity"
             onClick={() => setSelectedFlowDetail(null)}
           />
-          
+
           {/* Glassmorphism Container */}
           <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-theme-sidebar/95 border border-theme-border/60 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
@@ -2865,9 +3952,16 @@ export function SkillsStudioView({
                   <span className="p-1.5 rounded-lg bg-theme-accent/10 text-theme-accent">
                     <BrainCircuit size={18} />
                   </span>
-                  <h2 id="capability-flow-title" className="text-xl font-serif font-bold text-theme-text">{selectedFlowDetail.name}</h2>
+                  <h2
+                    id="capability-flow-title"
+                    className="text-xl font-serif font-bold text-theme-text"
+                  >
+                    {selectedFlowDetail.name}
+                  </h2>
                 </div>
-                <p className="text-xs text-theme-muted mt-1.5 leading-relaxed">{selectedFlowDetail.description}</p>
+                <p className="text-xs text-theme-muted mt-1.5 leading-relaxed">
+                  {selectedFlowDetail.description}
+                </p>
               </div>
               <button
                 type="button"
@@ -2906,9 +4000,14 @@ export function SkillsStudioView({
                       {/* Quality Gate with amber-themed badge */}
                       {step.qualityGate && (
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/5 text-amber-500 border border-amber-500/10 text-[10px]">
-                          <ShieldAlert size={11} className="shrink-0 text-amber-500/80 animate-pulse" />
+                          <ShieldAlert
+                            size={11}
+                            className="shrink-0 text-amber-500/80 animate-pulse"
+                          />
                           <span className="font-bold shrink-0">质量门栏:</span>
-                          <span className="font-sans line-clamp-1 text-amber-500/90">{step.qualityGate}</span>
+                          <span className="font-sans line-clamp-1 text-amber-500/90">
+                            {step.qualityGate}
+                          </span>
                         </div>
                       )}
 
@@ -2940,13 +4039,19 @@ export function SkillsStudioView({
                   handleActivateFlow(selectedFlowDetail.id);
                 }}
                 className={cn(
-                  "flex-1 py-2.5 text-xs font-bold rounded-xl text-white transition-all flex items-center justify-center gap-1.5",
-                  isLicensedEnhancementGated(getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType, isFreeNovel)
-                    ? "bg-amber-500 hover:bg-amber-600"
-                    : "bg-theme-accent hover:opacity-90"
+                  'flex-1 py-2.5 text-xs font-bold rounded-xl text-white transition-all flex items-center justify-center gap-1.5',
+                  isLicensedEnhancementGated(
+                    getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType,
+                    isFreeNovel
+                  )
+                    ? 'bg-amber-500 hover:bg-amber-600'
+                    : 'bg-theme-accent hover:opacity-90'
                 )}
               >
-                {isLicensedEnhancementGated(getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType, isFreeNovel) && <Lock size={12} />}
+                {isLicensedEnhancementGated(
+                  getCatalogCapabilityManifest(selectedFlowDetail.id)?.sourceType,
+                  isFreeNovel
+                ) && <Lock size={12} />}
                 激活该创作主流程
               </button>
             </div>
@@ -2955,65 +4060,167 @@ export function SkillsStudioView({
       )}
 
       {leavePromptOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true" aria-labelledby="capability-leave-title">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="capability-leave-title"
+        >
           <div className="w-full max-w-md rounded-xl border border-theme-border bg-theme-sidebar p-5 shadow-xl">
-            <h2 id="capability-leave-title" className="text-base font-bold text-theme-text">能力配置尚未应用</h2>
-            <p className="mt-2 text-xs leading-5 text-theme-muted">离开前请选择如何处理当前作品未应用的能力配置。</p>
+            <h2 id="capability-leave-title" className="text-base font-bold text-theme-text">
+              能力配置尚未应用
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-theme-muted">
+              离开前请选择如何处理当前作品未应用的能力配置。
+            </p>
             <div className="mt-5 grid gap-2">
-              <button type="button" className="rounded-lg bg-theme-text px-3 py-2 text-xs font-bold text-theme-bg" onClick={() => setLeavePromptOpen(false)}>继续配置</button>
-              <button type="button" className="rounded-lg border border-red-500/40 px-3 py-2 text-xs font-bold text-red-600" onClick={abandonConfiguration}>放弃变更</button>
-              <button type="button" className="rounded-lg border border-theme-border px-3 py-2 text-xs font-bold text-theme-text disabled:opacity-50" disabled={!selectedNovel || isApplyingConfiguration} onClick={() => { setLeavePromptOpen(false); void applyConfiguration(true); }}>应用并返回</button>
+              <button
+                type="button"
+                className="rounded-lg bg-theme-text px-3 py-2 text-xs font-bold text-theme-bg"
+                onClick={() => setLeavePromptOpen(false)}
+              >
+                继续配置
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-red-500/40 px-3 py-2 text-xs font-bold text-red-600"
+                onClick={abandonConfiguration}
+              >
+                放弃变更
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-theme-border px-3 py-2 text-xs font-bold text-theme-text disabled:opacity-50"
+                disabled={!selectedNovel || isApplyingConfiguration}
+                onClick={() => {
+                  setLeavePromptOpen(false);
+                  void applyConfiguration(true);
+                }}
+              >
+                应用并返回
+              </button>
             </div>
           </div>
         </div>
       )}
       {pendingCandidateId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="w-full max-w-md rounded-xl border border-theme-border bg-theme-sidebar p-5 shadow-xl">
             <h2 className="text-base font-bold text-theme-text">作品卡组已满</h2>
-            <p className="mt-2 text-xs text-theme-muted">请选择要替换的卡片，或取消本次候选配置。</p>
+            <p className="mt-2 text-xs text-theme-muted">
+              请选择要替换的卡片，或取消本次候选配置。
+            </p>
             {(() => {
               const candidate = resolveDeckCard(pendingCandidateId);
               return (
                 <div className="mt-4 rounded-lg border border-theme-accent/30 bg-theme-accent/5 p-3 text-xs">
                   <div className="font-bold text-theme-text">待放入：{candidate.title}</div>
                   <div className="mt-1 text-[10px] text-theme-muted">
-                    来源：{candidate.source} · 版本：{candidate.version} · 卡型：{candidate.cardType}
+                    来源：{candidate.source} · 版本：{candidate.version} · 卡型：
+                    {candidate.cardType}
                   </div>
-                  <div className="mt-1 text-[10px] text-theme-muted">负责维度：{getDeckDimensionSummary(candidate.dimensions)}</div>
+                  <div className="mt-1 text-[10px] text-theme-muted">
+                    负责维度：{getDeckDimensionSummary(candidate.dimensions)}
+                  </div>
                 </div>
               );
             })()}
-            <div className="mt-4 space-y-2">{projectDeckIds.map((id, index) => {
-              const target = resolveDeckCard(id);
-              const candidate = resolveDeckCard(pendingCandidateId);
-              const conflictDimensions = candidate.dimensions.filter((dimension) => target.dimensions.includes(dimension));
-              const lostDimensions = target.dimensions.filter((dimension) => !candidate.dimensions.includes(dimension));
-              const newDimensions = candidate.dimensions.filter((dimension) => !target.dimensions.includes(dimension));
-              const impactRows = [
-                { label: '重叠', value: conflictDimensions.length ? getDeckDimensionSummary(conflictDimensions) : '无' },
-                { label: '会失去', value: lostDimensions.length ? getDeckDimensionSummary(lostDimensions) : '无' },
-                { label: '会新增', value: newDimensions.length ? getDeckDimensionSummary(newDimensions) : '无' },
-              ];
-              return <button key={id} type="button" disabled={staleConfigurationSession || !target.known || !candidate.known} className="w-full rounded-lg border border-theme-border px-3 py-2 text-left text-xs enabled:hover:border-theme-accent disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { const current = configurationDraft || getProjectCapabilityProfile(effectiveNovel); const result = addCardToProjectDeck(current, pendingCandidateId, undefined, id); if (!result.requiresReplacement) { stageConfiguration(buildV3CapabilityProfile(effectiveNovel, result.profile).capabilityProfile); setCandidateCardIds((items) => items.filter((item) => item !== pendingCandidateId)); setPendingCandidateId(null); } }}>
-                <span className="block font-bold">{target.title} · {index === 0 ? '主卡' : `辅卡 ${index}`}</span>
-                <span className="mt-1 block text-[10px] text-theme-muted">来源：{target.source} · 版本：{target.version} · 卡型：{target.cardType}</span>
-                <span className="mt-1 block text-[10px] text-theme-muted">负责维度：{getDeckDimensionSummary(target.dimensions)}</span>
-                {target.known && candidate.known ? (
-                  <span className="mt-2 grid grid-cols-3 gap-1 text-[10px] text-theme-muted">
-                    {impactRows.map((row) => (
-                      <span key={row.label} className="rounded border border-theme-border/40 bg-theme-bg/40 px-1.5 py-1">
-                        <span className="block font-bold text-theme-text">{row.label}</span>
-                        <span className="mt-0.5 block">{row.value}</span>
+            <div className="mt-4 space-y-2">
+              {projectDeckIds.map((id, index) => {
+                const target = resolveDeckCard(id);
+                const candidate = resolveDeckCard(pendingCandidateId);
+                const conflictDimensions = candidate.dimensions.filter((dimension) =>
+                  target.dimensions.includes(dimension)
+                );
+                const lostDimensions = target.dimensions.filter(
+                  (dimension) => !candidate.dimensions.includes(dimension)
+                );
+                const newDimensions = candidate.dimensions.filter(
+                  (dimension) => !target.dimensions.includes(dimension)
+                );
+                const impactRows = [
+                  {
+                    label: '重叠',
+                    value: conflictDimensions.length
+                      ? getDeckDimensionSummary(conflictDimensions)
+                      : '无',
+                  },
+                  {
+                    label: '会失去',
+                    value: lostDimensions.length ? getDeckDimensionSummary(lostDimensions) : '无',
+                  },
+                  {
+                    label: '会新增',
+                    value: newDimensions.length ? getDeckDimensionSummary(newDimensions) : '无',
+                  },
+                ];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={staleConfigurationSession || !target.known || !candidate.known}
+                    className="w-full rounded-lg border border-theme-border px-3 py-2 text-left text-xs enabled:hover:border-theme-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => {
+                      const current =
+                        configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+                      const result = addCardToProjectDeck(
+                        current,
+                        pendingCandidateId,
+                        undefined,
+                        id
+                      );
+                      if (!result.requiresReplacement) {
+                        stageConfiguration(
+                          buildV3CapabilityProfile(effectiveNovel, result.profile).capabilityProfile
+                        );
+                        setCandidateCardIds((items) =>
+                          items.filter((item) => item !== pendingCandidateId)
+                        );
+                        setPendingCandidateId(null);
+                      }
+                    }}
+                  >
+                    <span className="block font-bold">
+                      {target.title} · {index === 0 ? '主卡' : `辅卡 ${index}`}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-theme-muted">
+                      来源：{target.source} · 版本：{target.version} · 卡型：{target.cardType}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-theme-muted">
+                      负责维度：{getDeckDimensionSummary(target.dimensions)}
+                    </span>
+                    {target.known && candidate.known ? (
+                      <span className="mt-2 grid grid-cols-3 gap-1 text-[10px] text-theme-muted">
+                        {impactRows.map((row) => (
+                          <span
+                            key={row.label}
+                            className="rounded border border-theme-border/40 bg-theme-bg/40 px-1.5 py-1"
+                          >
+                            <span className="block font-bold text-theme-text">{row.label}</span>
+                            <span className="mt-0.5 block">{row.value}</span>
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="mt-1 block text-[10px] text-theme-muted">来源、版本或运行时状态未知，暂不能确认替换。</span>
-                )}
-              </button>;
-            })}</div>
-            <button type="button" className="mt-4 w-full rounded-lg border border-theme-border px-3 py-2 text-xs text-theme-muted" onClick={cancelPendingCandidate}>取消</button>
+                    ) : (
+                      <span className="mt-1 block text-[10px] text-theme-muted">
+                        来源、版本或运行时状态未知，暂不能确认替换。
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              className="mt-4 w-full rounded-lg border border-theme-border px-3 py-2 text-xs text-theme-muted"
+              onClick={cancelPendingCandidate}
+            >
+              取消
+            </button>
           </div>
         </div>
       )}
@@ -3027,33 +4234,70 @@ export function SkillsStudioView({
         novelId={selectedNovel?.id || ''}
         chapterId={targetChapterId}
         databaseGeneration={databaseGeneration ?? undefined}
-        styleConfirmationFingerprint={selectedNovel?.projectPreferenceProfile?.writingStyleConfirmation?.fingerprint}
+        styleConfirmationFingerprint={
+          selectedNovel?.projectPreferenceProfile?.writingStyleConfirmation?.fingerprint
+        }
       />
       {migrationPreview && selectedNovel && (
         <CapabilityMigrationPreviewPanel
           preview={migrationPreview}
           error={migrationError}
           busy={migrationBusy}
-          onClose={() => { setMigrationPreview(null); setMigrationError(null); }}
+          onClose={() => {
+            setMigrationPreview(null);
+            setMigrationError(null);
+          }}
           onConfirm={async () => {
-            setMigrationBusy(true); setMigrationError(null);
+            setMigrationBusy(true);
+            setMigrationError(null);
             try {
-              const result = await applyCapabilityMigration(selectedNovel.id, migrationPreview.databaseGeneration, migrationPreview.previewToken);
-              const migratedPreference = buildV3CapabilityProfile(effectiveNovel, result.profile as Partial<ProjectCapabilityProfile>);
+              const result = await applyCapabilityMigration(
+                selectedNovel.id,
+                migrationPreview.databaseGeneration,
+                migrationPreview.previewToken
+              );
+              const migratedPreference = buildV3CapabilityProfile(
+                effectiveNovel,
+                result.profile as Partial<ProjectCapabilityProfile>
+              );
               const profile = migratedPreference.capabilityProfile;
               if (!profile) throw new Error('迁移结果缺少有效能力配置');
-              setUserNovels((prev) => prev.map((entry) => entry.id === selectedNovel.id ? { ...entry, projectPreferenceProfile: migratedPreference } : entry));
+              setUserNovels((prev) =>
+                prev.map((entry) =>
+                  entry.id === selectedNovel.id
+                    ? { ...entry, projectPreferenceProfile: migratedPreference }
+                    : entry
+                )
+              );
               onNovelUpdated?.({ ...selectedNovel, projectPreferenceProfile: migratedPreference });
-              setConfigurationDraft(profile); setConfigurationDirty(false); setMigrationPreview(null);
-              void recordCapabilityEvent({ eventName: 'skill_deck_applied', stage: 'advanced', result: 'success', novelId: selectedNovel.id, objectId: 'migration' });
+              setConfigurationDraft(profile);
+              setConfigurationDirty(false);
+              setMigrationPreview(null);
+              void recordCapabilityEvent({
+                eventName: 'skill_deck_applied',
+                stage: 'advanced',
+                result: 'success',
+                novelId: selectedNovel.id,
+                objectId: 'migration',
+              });
             } catch (error) {
-              const message = error instanceof CapabilityMigrationError && error.status === 409 ? '预览已过期，请重新预览。' : (error instanceof Error ? error.message : '迁移应用失败');
+              const message =
+                error instanceof CapabilityMigrationError && error.status === 409
+                  ? '预览已过期，请重新预览。'
+                  : error instanceof Error
+                    ? error.message
+                    : '迁移应用失败';
               setMigrationError(message);
-            } finally { setMigrationBusy(false); }
+            } finally {
+              setMigrationBusy(false);
+            }
           }}
         />
       )}
-      <AlertDialog open={Boolean(skillToDeleteId)} onOpenChange={(open) => !open && setSkillToDeleteId(null)}>
+      <AlertDialog
+        open={Boolean(skillToDeleteId)}
+        onOpenChange={(open) => !open && setSkillToDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除这张能力卡？</AlertDialogTitle>
@@ -3063,7 +4307,12 @@ export function SkillsStudioView({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={executeDeleteSkill} className="bg-red-600 hover:bg-red-700 text-white font-bold">确认删除</AlertDialogAction>
+            <AlertDialogAction
+              onClick={executeDeleteSkill}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              确认删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

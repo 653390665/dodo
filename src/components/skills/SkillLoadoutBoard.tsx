@@ -45,16 +45,17 @@ export function SkillLoadoutBoard({
 }: SkillLoadoutBoardProps) {
   const normalizedProfile = normalizeProjectPreferenceProfile(novel.projectPreferenceProfile);
   const mountedSkills = useMemo(
-    () => loadout
-      .slice()
-      .sort((left, right) => left.slot - right.slot)
-      .map((entry) => skills.find((skill) => skill.id === entry.skillId))
-      .filter((skill): skill is Skill => Boolean(skill)),
-    [loadout, skills],
+    () =>
+      loadout
+        .slice()
+        .sort((left, right) => left.slot - right.slot)
+        .map((entry) => skills.find((skill) => skill.id === entry.skillId))
+        .filter((skill): skill is Skill => Boolean(skill)),
+    [loadout, skills]
   );
   const unresolvedLoadoutCount = useMemo(
     () => loadout.filter((entry) => !skills.some((skill) => skill.id === entry.skillId)).length,
-    [loadout, skills],
+    [loadout, skills]
   );
   const fit = useMemo(() => {
     const needs = deriveSkillFitNeeds(novel, currentChapter);
@@ -83,10 +84,18 @@ export function SkillLoadoutBoard({
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-theme-muted md:grid-cols-4">
-          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">覆盖 {fit.breakdown.coverageScore}%</div>
-          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">上下文 {fit.breakdown.contextScore}%</div>
-          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">稳定性 {fit.breakdown.stabilityScore}%</div>
-          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">惩罚 {fit.breakdown.conflictPenalty}%</div>
+          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">
+            覆盖 {fit.breakdown.coverageScore}%
+          </div>
+          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">
+            上下文 {fit.breakdown.contextScore}%
+          </div>
+          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">
+            稳定性 {fit.breakdown.stabilityScore}%
+          </div>
+          <div className="rounded-lg border border-theme-border/40 px-2 py-1.5">
+            惩罚 {fit.breakdown.conflictPenalty}%
+          </div>
         </div>
       </section>
 
@@ -95,7 +104,9 @@ export function SkillLoadoutBoard({
           <h3 className="font-semibold text-theme-text">旧配置待整理</h3>
           <p className="mt-1 leading-5">
             历史三槽配置仅供只读查看，不会阻断手写流程；后续请在作品能力中心整理。
-            {unresolvedLoadoutCount > 0 ? ` ${unresolvedLoadoutCount} 项历史能力卡无法解析，已保留原记录。` : ''}
+            {unresolvedLoadoutCount > 0
+              ? ` ${unresolvedLoadoutCount} 项历史能力卡无法解析，已保留原记录。`
+              : ''}
           </p>
         </section>
       ) : null}
@@ -104,7 +115,9 @@ export function SkillLoadoutBoard({
         <div className="flex items-center justify-between gap-2 px-1">
           <h3 className="text-xs font-semibold text-theme-text">当前能力卡</h3>
           <span className="text-[10px] text-theme-muted">
-            {normalizedProfile.tags.length > 0 ? normalizedProfile.tags.slice(0, 3).join('、') : '系统默认笔调'}
+            {normalizedProfile.tags.length > 0
+              ? normalizedProfile.tags.slice(0, 3).join('、')
+              : '系统默认笔调'}
           </span>
         </div>
         {mountedSkills.length === 0 ? (
@@ -116,23 +129,45 @@ export function SkillLoadoutBoard({
           mountedSkills.map((skill) => {
             const channels = getSkillScoreChannels(skill);
             return (
-              <article key={skill.id} className="rounded-xl border border-theme-border/60 bg-theme-sidebar p-4">
+              <article
+                key={skill.id}
+                className="rounded-xl border border-theme-border/60 bg-theme-sidebar p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h4 className="truncate text-sm font-semibold text-theme-text">{skill.name}</h4>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {getSkillRoleTags(skill.dimensionTags).slice(0, 3).map((tag) => (
-                        <span key={tag} className="rounded-full border border-theme-border px-2 py-0.5 text-[10px] text-theme-muted">{tag}</span>
-                      ))}
-                      {skill.primaryDimension ? <span className="text-[10px] text-theme-muted">{getSkillRoleLabel(skill.primaryDimension)}</span> : null}
+                      {getSkillRoleTags(skill.dimensionTags)
+                        .slice(0, 3)
+                        .map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-theme-border px-2 py-0.5 text-[10px] text-theme-muted"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      {skill.primaryDimension ? (
+                        <span className="text-[10px] text-theme-muted">
+                          {getSkillRoleLabel(skill.primaryDimension)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
-                  <span className="shrink-0 text-[10px] text-theme-muted">v{skill.version || 1}</span>
+                  <span className="shrink-0 text-[10px] text-theme-muted">
+                    v{skill.version || 1}
+                  </span>
                 </div>
-                {skill.description ? <p className="mt-2 text-xs leading-5 text-theme-muted">{skill.description}</p> : null}
+                {skill.description ? (
+                  <p className="mt-2 text-xs leading-5 text-theme-muted">{skill.description}</p>
+                ) : null}
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-theme-muted">
-                  <div className="rounded-lg bg-theme-sidebar/60 px-2 py-1">冷启动分 {channels.coldStartScore ?? '—'}</div>
-                  <div className="rounded-lg bg-theme-sidebar/60 px-2 py-1">证据稳定 {channels.evidenceStabilityScore ?? '—'}</div>
+                  <div className="rounded-lg bg-theme-sidebar/60 px-2 py-1">
+                    冷启动分 {channels.coldStartScore ?? '—'}
+                  </div>
+                  <div className="rounded-lg bg-theme-sidebar/60 px-2 py-1">
+                    证据稳定 {channels.evidenceStabilityScore ?? '—'}
+                  </div>
                   <div className="col-span-2 rounded-lg bg-theme-sidebar/60 px-2 py-1">
                     {channels.observedPerformance
                       ? `使用反馈 ${channels.observedPerformance.score}（${channels.observedPerformance.sampleSize}次）`

@@ -11,7 +11,7 @@ export const LONG_REQUEST_TIMEOUT_ROUTES = new Map<string, number>([
 
 export function createRequestTimeoutMiddleware(
   routeTimeouts: ReadonlyMap<string, number> = LONG_REQUEST_TIMEOUT_ROUTES,
-  defaultTimeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+  defaultTimeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS
 ): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     const timeoutMs = routeTimeouts.get(`${req.method} ${req.path}`) ?? defaultTimeoutMs;

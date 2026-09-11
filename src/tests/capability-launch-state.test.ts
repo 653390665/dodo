@@ -69,11 +69,45 @@ describe('independent capability launch state', () => {
     expect(getAuthorFacingCapabilityScopeLabel('single-run')).toBe('仅运行一次');
     expect(getAuthorFacingCapabilityScopeLabel('system')).toBe('系统检查');
     expect(getAuthorFacingCapabilityActionLabel(capability, 'chapter')).toBe('用于本章');
-    expect(getAuthorFacingCapabilityActionLabel(capability, 'project')).toBe('应用配置后设为作品默认');
+    expect(getAuthorFacingCapabilityActionLabel(capability, 'project')).toBe(
+      '应用配置后设为作品默认'
+    );
     expect(getAuthorFacingCapabilityActionLabel(capability, 'system')).toBeUndefined();
-    expect(getAuthorFacingCapabilityActionLabel({ action: 'run-diagnostic', allowedScopes: ['single-run'], sideEffect: 'none' })).toBe('运行审稿诊断');
-    expect(getAuthorFacingCapabilityActionLabel({ action: 'use-technique', allowedScopes: ['chapter', 'single-run'], sideEffect: 'preview-only', output: 'transform-preview' }, 'chapter')).toBe('应用配置后写入本章规则');
-    expect(getAuthorFacingCapabilityActionLabel({ action: 'use-technique', allowedScopes: ['chapter', 'single-run'], sideEffect: 'preview-only', output: 'transform-preview' }, 'single-run')).toBe('生成精修预览');
-    expect(getAuthorFacingCapabilityActionLabel({ action: 'automatic', allowedScopes: ['system'], sideEffect: 'none' })).toBe('保存为系统检查候选');
+    expect(
+      getAuthorFacingCapabilityActionLabel({
+        action: 'run-diagnostic',
+        allowedScopes: ['single-run'],
+        sideEffect: 'none',
+      })
+    ).toBe('运行审稿诊断');
+    expect(
+      getAuthorFacingCapabilityActionLabel(
+        {
+          action: 'use-technique',
+          allowedScopes: ['chapter', 'single-run'],
+          sideEffect: 'preview-only',
+          output: 'transform-preview',
+        },
+        'chapter'
+      )
+    ).toBe('应用配置后写入本章规则');
+    expect(
+      getAuthorFacingCapabilityActionLabel(
+        {
+          action: 'use-technique',
+          allowedScopes: ['chapter', 'single-run'],
+          sideEffect: 'preview-only',
+          output: 'transform-preview',
+        },
+        'single-run'
+      )
+    ).toBe('生成精修预览');
+    expect(
+      getAuthorFacingCapabilityActionLabel({
+        action: 'automatic',
+        allowedScopes: ['system'],
+        sideEffect: 'none',
+      })
+    ).toBe('保存为系统检查候选');
   });
 });

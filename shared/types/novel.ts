@@ -1,5 +1,10 @@
 import type { ProjectPreferenceProfile } from './preferences.js';
-import type { CardSourceKind, MountedSkillLoadoutItem, StoryCardSkillSignal, StoryCardStarterSeeds } from './skills.js';
+import type {
+  CardSourceKind,
+  MountedSkillLoadoutItem,
+  StoryCardSkillSignal,
+  StoryCardStarterSeeds,
+} from './skills.js';
 import type { Foreshadowing } from './world.js';
 import type { ChapterCompletionGate } from './creative-artifacts.js';
 import type { DraftQualitySemanticReview } from '../lib/quality-contract.js';
@@ -36,16 +41,18 @@ export interface Chapter {
   content: string;
   order: number;
   wordCount: number;
-  sceneBeats?: string;     // 规划层：场景大纲/细纲
-  critique?: string;       // 质量层：AI 评审意见
+  sceneBeats?: string; // 规划层：场景大纲/细纲
+  critique?: string; // 质量层：AI 评审意见
   createdAt: number;
   updatedAt: number;
   workflowMeta?: ChapterWorkflowMeta;
 }
 
 export type ChapterAuditStatus = 'pass' | 'fail' | 'unknown' | 'not_run';
-export type ReviewIssueStatus = 'open' | 'previewed' | 'applied' | 'deferred' | 'accepted-risk' | 'rejected' | 'stale';
-export type ChapterReviewGate = 'review-required' | 'needs-action' | 'pass' | 'accepted-risk' | 'unknown';
+export type ReviewIssueStatus =
+  'open' | 'previewed' | 'applied' | 'deferred' | 'accepted-risk' | 'rejected' | 'stale';
+export type ChapterReviewGate =
+  'review-required' | 'needs-action' | 'pass' | 'accepted-risk' | 'unknown';
 export interface ReviewIssue {
   id: string;
   source: 'chapter-audit' | 'production-audit' | 'utility';
@@ -76,7 +83,12 @@ export interface ChapterReviewState {
 }
 export interface ChapterWorkflowMeta {
   version: 1;
-  lastAudit?: { status: ChapterAuditStatus; contentHash: string; completedAt: number; source: 'model' | 'fallback' };
+  lastAudit?: {
+    status: ChapterAuditStatus;
+    contentHash: string;
+    completedAt: number;
+    source: 'model' | 'fallback';
+  };
   reviewState?: ChapterReviewState;
   lastPolish?: { inputHash: string; outputHash: string; completedAt: number };
   capabilityState?: {
@@ -100,13 +112,7 @@ export type ChapterMetadata = Omit<Chapter, 'content' | 'sceneBeats' | 'critique
 
 export type ContinuityIssueSeverity = 'low' | 'medium' | 'high';
 export type ContinuityIssueCategory =
-  | 'character'
-  | 'item'
-  | 'location'
-  | 'power'
-  | 'logic'
-  | 'timeline'
-  | 'foreshadowing';
+  'character' | 'item' | 'location' | 'power' | 'logic' | 'timeline' | 'foreshadowing';
 
 export interface ContinuityIssue {
   severity: ContinuityIssueSeverity;
@@ -198,18 +204,15 @@ export interface ProductionExecutionReceipt {
   resolvedAtGeneration?: number;
   contextDimensions: Array<'world' | 'character' | 'foreshadowing'>;
   contextRefs: Array<{
-    dimension: 'world' | 'character' | 'location' | 'item' | 'faction' | 'powerLevel' | 'foreshadowing';
+    dimension:
+      'world' | 'character' | 'location' | 'item' | 'faction' | 'powerLevel' | 'foreshadowing';
     id: string;
     version: number;
   }>;
 }
 
 export type ChapterProductionRunStatus =
-  | 'running'
-  | 'review_required'
-  | 'applied'
-  | 'rejected'
-  | 'failed';
+  'running' | 'review_required' | 'applied' | 'rejected' | 'failed';
 
 export interface ChapterProductionRun {
   id: string;
@@ -231,9 +234,17 @@ export interface ChapterProductionRun {
 
 export type ChapterProductionRunVersionSource = 'fallback' | 'model';
 export interface ChapterProductionRunVersion {
-  id: string; runId: string; novelId: string; targetChapterId?: string;
-  source: ChapterProductionRunVersionSource; sceneBeats: string; draftContent: string;
-  styleAudit: string; continuityReport: ContinuityReport; contentHash: string; createdAt: number;
+  id: string;
+  runId: string;
+  novelId: string;
+  targetChapterId?: string;
+  source: ChapterProductionRunVersionSource;
+  sceneBeats: string;
+  draftContent: string;
+  styleAudit: string;
+  continuityReport: ContinuityReport;
+  contentHash: string;
+  createdAt: number;
 }
 
 export interface StoryPlanningInput {

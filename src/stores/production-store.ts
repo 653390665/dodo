@@ -23,7 +23,10 @@ export interface ProductionState {
   expectedWordCount: number | '';
   setProductionIntent: (intent: string) => void;
   setActiveProductionRun: (
-    run: ChapterProductionRun | null | ((current: ChapterProductionRun | null) => ChapterProductionRun | null),
+    run:
+      | ChapterProductionRun
+      | null
+      | ((current: ChapterProductionRun | null) => ChapterProductionRun | null)
   ) => void;
   setIsProductionRunning: (running: boolean) => void;
   setIsApplyingProductionRun: (applying: boolean) => void;
@@ -53,14 +56,16 @@ const initialState = {
 export const useProductionStore = create<ProductionState>((set) => ({
   ...initialState,
   setProductionIntent: (intent) => set({ productionIntent: intent }),
-  setActiveProductionRun: (run) => set((state) => ({
-    activeProductionRun: typeof run === 'function' ? run(state.activeProductionRun) : run,
-  })),
+  setActiveProductionRun: (run) =>
+    set((state) => ({
+      activeProductionRun: typeof run === 'function' ? run(state.activeProductionRun) : run,
+    })),
   setIsProductionRunning: (running) => set({ isProductionRunning: running }),
   setIsApplyingProductionRun: (applying) => set({ isApplyingProductionRun: applying }),
-  setProductionError: (error) => set((state) => ({
-    productionError: typeof error === 'function' ? error(state.productionError) : error,
-  })),
+  setProductionError: (error) =>
+    set((state) => ({
+      productionError: typeof error === 'function' ? error(state.productionError) : error,
+    })),
   setProductionBeatsSource: (source) => set({ productionBeatsSource: source }),
   setProductionDraftSource: (source) => set({ productionDraftSource: source }),
   setProductionAuditSource: (source) => set({ productionAuditSource: source }),

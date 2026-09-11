@@ -29,8 +29,10 @@ const oneTimeGrants = new Map<string, OneTimeGrant>();
 
 export function issueOnboardingLlmSession(
   operation: OnboardingLlmOperation,
-  now = Date.now(),
-): { allowed: true; sessionId: string; expiresAt: number } | { allowed: false; status: 429; error: string } {
+  now = Date.now()
+):
+  | { allowed: true; sessionId: string; expiresAt: number }
+  | { allowed: false; status: 429; error: string } {
   if (!activeWindow || activeWindow.expiresAt <= now) {
     activeWindow = { expiresAt: now + SESSION_TTL_MS, remainingGrants: { ...OPERATION_LIMITS } };
     oneTimeGrants.clear();
@@ -48,7 +50,7 @@ export function issueOnboardingLlmSession(
 export function consumeOnboardingLlmSession(
   sessionId: unknown,
   operation: OnboardingLlmOperation,
-  now = Date.now(),
+  now = Date.now()
 ): { allowed: true } | { allowed: false; status: 400; error: string } {
   if (typeof sessionId !== 'string' || !sessionId) {
     return { allowed: false, status: 400, error: '新手引导模型会话无效或已过期，请重试。' };

@@ -21,20 +21,31 @@ export const CHARACTER_CORE_GAP_LABELS: Record<CharacterCoreGap, string> = {
   immutableFacts: '不可变事实',
 };
 
-const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
-const texts = (value: unknown): string[] => Array.isArray(value)
-  ? value.map(text).filter(Boolean)
-  : [];
-const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
-  ? value as Record<string, unknown>
-  : {};
+const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+const texts = (value: unknown): string[] =>
+  Array.isArray(value) ? value.map(text).filter(Boolean) : [];
+const record = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
 export function emptyCharacterCore(): CharacterCore {
   return {
     schemaVersion: 1,
-    desire: '', externalGoal: '', internalNeed: '', fear: '', woundOrFalseBelief: '',
-    strengths: [], flaws: [], contradictions: [], speechPattern: '', habitualActions: [], decisionPattern: '',
-    relationshipTensions: [], arc: { start: '', turns: [], target: '' }, immutableFacts: [],
+    desire: '',
+    externalGoal: '',
+    internalNeed: '',
+    fear: '',
+    woundOrFalseBelief: '',
+    strengths: [],
+    flaws: [],
+    contradictions: [],
+    speechPattern: '',
+    habitualActions: [],
+    decisionPattern: '',
+    relationshipTensions: [],
+    arc: { start: '', turns: [], target: '' },
+    immutableFacts: [],
   };
 }
 
@@ -44,17 +55,24 @@ export function normalizeCharacterCore(value: unknown): CharacterCore {
   const arc = record(source.arc);
   return {
     schemaVersion: 1,
-    desire: text(source.desire), externalGoal: text(source.externalGoal), internalNeed: text(source.internalNeed),
-    fear: text(source.fear), woundOrFalseBelief: text(source.woundOrFalseBelief),
-    strengths: texts(source.strengths), flaws: texts(source.flaws), contradictions: texts(source.contradictions),
-    speechPattern: text(source.speechPattern), habitualActions: texts(source.habitualActions), decisionPattern: text(source.decisionPattern),
+    desire: text(source.desire),
+    externalGoal: text(source.externalGoal),
+    internalNeed: text(source.internalNeed),
+    fear: text(source.fear),
+    woundOrFalseBelief: text(source.woundOrFalseBelief),
+    strengths: texts(source.strengths),
+    flaws: texts(source.flaws),
+    contradictions: texts(source.contradictions),
+    speechPattern: text(source.speechPattern),
+    habitualActions: texts(source.habitualActions),
+    decisionPattern: text(source.decisionPattern),
     relationshipTensions: Array.isArray(source.relationshipTensions)
       ? source.relationshipTensions.flatMap((item) => {
-        const relation = record(item);
-        const characterId = text(relation.characterId);
-        const tension = text(relation.tension);
-        return characterId && tension ? [{ characterId, tension }] : [];
-      })
+          const relation = record(item);
+          const characterId = text(relation.characterId);
+          const tension = text(relation.tension);
+          return characterId && tension ? [{ characterId, tension }] : [];
+        })
       : [],
     arc: { start: text(arc.start), turns: texts(arc.turns), target: text(arc.target) },
     immutableFacts: texts(source.immutableFacts),

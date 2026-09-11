@@ -1,29 +1,29 @@
-@import "tailwindcss";
-@import "./fonts.css";
+@import 'tailwindcss';
+@import './fonts.css';
 
 /* Map Tailwind's dark: variant to the in-app data-theme attribute instead of
    prefers-color-scheme, so manual theme switching keeps these colors in sync. */
 @custom-variant dark (&:where([data-theme="dark"] *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Merriweather", serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
   /* Minimalist Premium Palette — light (default) */
   --color-theme-bg: oklch(0.98 0.005 60);
   --color-theme-sidebar: oklch(0.99 0.003 60);
   --color-theme-border: oklch(0.93 0.005 60);
-  --color-theme-text: oklch(0.20 0.010 60);
-  --color-theme-muted: oklch(0.55 0.010 60);
-  --color-theme-accent: oklch(0.40 0.12 35);
+  --color-theme-text: oklch(0.2 0.01 60);
+  --color-theme-muted: oklch(0.55 0.01 60);
+  --color-theme-accent: oklch(0.4 0.12 35);
   /* Readable text on accent/primary fills (light accent is dark → white text) */
   --color-theme-accent-contrast: oklch(0.99 0.003 60);
   --color-paper: oklch(0.99 0.003 60);
   --color-parchment: oklch(0.99 0.003 60);
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --color-theme-bg: oklch(0.14 0.008 60);
   --color-theme-sidebar: oklch(0.17 0.008 60);
   --color-theme-border: oklch(0.24 0.008 60);
@@ -32,7 +32,7 @@
   --color-theme-muted: oklch(0.62 0.005 60);
   --color-theme-accent: oklch(0.78 0.08 45);
   /* Dark accent is light → contrast text must be dark */
-  --color-theme-accent-contrast: oklch(0.20 0.04 45);
+  --color-theme-accent-contrast: oklch(0.2 0.04 45);
   --color-paper: oklch(0.17 0.008 60);
   --color-parchment: oklch(0.17 0.008 60);
 }
@@ -42,7 +42,6 @@
     @apply bg-theme-bg text-theme-text font-sans antialiased;
     letter-spacing: -0.015em;
   }
-
 }
 
 /* 写作区域基础样式 (Writing Surface) */
@@ -50,19 +49,19 @@
   font-family: var(--font-serif);
   line-height: 1.95;
   font-size: 1.18rem;
-  color: oklch(0.25 0.010 60);
+  color: oklch(0.25 0.01 60);
 }
 
 .writing-surface::placeholder {
-  color: oklch(0.60 0.010 60);
+  color: oklch(0.6 0.01 60);
   opacity: 0.8;
 }
 
-[data-theme="dark"] .writing-surface {
+[data-theme='dark'] .writing-surface {
   color: oklch(0.88 0.005 60);
 }
 
-[data-theme="dark"] .writing-surface::placeholder {
+[data-theme='dark'] .writing-surface::placeholder {
   color: oklch(0.45 0.005 60);
 }
 
@@ -138,10 +137,10 @@
   background-color: color-mix(in oklch, var(--color-theme-text) 25%, transparent);
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
   background-color: color-mix(in oklch, var(--color-theme-text) 15%, transparent);
 }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in oklch, var(--color-theme-text) 30%, transparent);
 }
 

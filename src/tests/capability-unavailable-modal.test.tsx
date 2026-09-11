@@ -17,7 +17,12 @@ describe('capability unavailable modal', () => {
 
   it('renders valid package details and closes via Escape and legacy event', () => {
     render(<PremiumUpgradeModal />);
-    emit('local-capability-unavailable', { limitType: 'extractSkill', packageName: '测试包', packageDesc: '本地说明', error: '不可用' });
+    emit('local-capability-unavailable', {
+      limitType: 'extractSkill',
+      packageName: '测试包',
+      packageDesc: '本地说明',
+      error: '不可用',
+    });
     expect(screen.getByText(/测试包/)).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();

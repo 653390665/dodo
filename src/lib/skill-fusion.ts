@@ -5,7 +5,10 @@ import type {
   SkillUsageRecord,
   SkillDimension,
 } from '../../shared/types';
-import { getAcceptedPreferenceRoles, getRejectedPreferenceRoles } from '../../shared/lib/preference-flywheel';
+import {
+  getAcceptedPreferenceRoles,
+  getRejectedPreferenceRoles,
+} from '../../shared/lib/preference-flywheel';
 import { collectSkillRoleKeys } from '../../shared/lib/skill-language';
 
 export interface FusionSuggestionPair {
@@ -44,16 +47,27 @@ export interface FusionResolutionOptions {
 }
 
 function isAuthorizedRuntimeCard(skill: Skill): boolean {
-  const hasRule = [skill.style, skill.pacing, skill.characterTraits, skill.worldBuilding, skill.plotPattern, skill.foreshadowing, ...(skill.corePatterns || []), ...(skill.fewShots || [])]
-    .some((value) => typeof value === 'string' && value.trim().length > 0);
-  return Boolean(skill.deconstructionCardType && skill.version > 0
-    && !(skill.accessTier === 'paid' && skill.sourceType !== 'licensed')
-    && typeof skill.sourceType === 'string'
-    && ['built-in', 'licensed', 'plaza', 'book-extracted'].includes(skill.sourceType)
-    && (skill as Skill & { isRuntimeReady?: boolean }).isRuntimeReady === true
-    && (skill as Skill & { sanitizationStatus?: string }).sanitizationStatus === 'runtime-ready'
-    && (skill as Skill & { runtimeStatus?: string }).runtimeStatus === 'active'
-    && hasRule);
+  const hasRule = [
+    skill.style,
+    skill.pacing,
+    skill.characterTraits,
+    skill.worldBuilding,
+    skill.plotPattern,
+    skill.foreshadowing,
+    ...(skill.corePatterns || []),
+    ...(skill.fewShots || []),
+  ].some((value) => typeof value === 'string' && value.trim().length > 0);
+  return Boolean(
+    skill.deconstructionCardType &&
+    skill.version > 0 &&
+    !(skill.accessTier === 'paid' && skill.sourceType !== 'licensed') &&
+    typeof skill.sourceType === 'string' &&
+    ['built-in', 'licensed', 'plaza', 'book-extracted'].includes(skill.sourceType) &&
+    (skill as Skill & { isRuntimeReady?: boolean }).isRuntimeReady === true &&
+    (skill as Skill & { sanitizationStatus?: string }).sanitizationStatus === 'runtime-ready' &&
+    (skill as Skill & { runtimeStatus?: string }).runtimeStatus === 'active' &&
+    hasRule
+  );
 }
 
 export function isAuthorizedSkillFusionSource(skill: Skill): boolean {
@@ -66,15 +80,33 @@ export function validatePersistedFusionDraft(skill: Skill): string | null {
   if (!meta?.mainSkillId || !meta.supportSkillId || meta.mainSkillId === meta.supportSkillId) {
     return '融合卡必须包含两个不同来源能力卡 ID';
   }
-  if (!Array.isArray(meta.components) || meta.components.length !== 2
-    || meta.components.some((component) => !component?.skillId || !Number.isInteger(component.version) || component.version <= 0)) {
+  if (
+    !Array.isArray(meta.components) ||
+    meta.components.length !== 2 ||
+    meta.components.some(
+      (component) =>
+        !component?.skillId || !Number.isInteger(component.version) || component.version <= 0
+    )
+  ) {
     return '融合卡 components/version 不完整';
   }
-  if (!meta.dimensionOwners || Object.keys(meta.dimensionOwners).length === 0) return '融合卡 dimensionOwners 不完整';
-  if (!meta.resolvedRules || typeof meta.resolvedRules !== 'object' || !('version' in meta.resolvedRules)) return '融合卡 resolvedRules 不完整';
+  if (!meta.dimensionOwners || Object.keys(meta.dimensionOwners).length === 0)
+    return '融合卡 dimensionOwners 不完整';
+  if (
+    !meta.resolvedRules ||
+    typeof meta.resolvedRules !== 'object' ||
+    !('version' in meta.resolvedRules)
+  )
+    return '融合卡 resolvedRules 不完整';
   const lineage = (meta.resolvedRules as Record<string, unknown>).lineage;
-  if (!lineage || typeof lineage !== 'object' || !Array.isArray((lineage as Record<string, unknown>).sources)) return '融合卡 lineage 不完整';
-  if ((meta.risks || []).some((risk) => /未确认|unconfirmed/i.test(risk))) return '融合卡存在未确认冲突';
+  if (
+    !lineage ||
+    typeof lineage !== 'object' ||
+    !Array.isArray((lineage as Record<string, unknown>).sources)
+  )
+    return '融合卡 lineage 不完整';
+  if ((meta.risks || []).some((risk) => /未确认|unconfirmed/i.test(risk)))
+    return '融合卡存在未确认冲突';
   return null;
 }
 
@@ -106,12 +138,16 @@ function ruleValues(skill: Skill, dimension: SkillDimension): Record<string, unk
 }
 
 function sortedDimensions(mainSkill: Skill, supportSkill: Skill): SkillDimension[] {
-  return Array.from(new Set([
-    ...(mainSkill.dimensionTags || []),
-    ...(supportSkill.dimensionTags || []),
-    mainSkill.primaryDimension,
-    supportSkill.primaryDimension,
-  ].filter((dimension): dimension is SkillDimension => Boolean(dimension)))).sort();
+  return Array.from(
+    new Set(
+      [
+        ...(mainSkill.dimensionTags || []),
+        ...(supportSkill.dimensionTags || []),
+        mainSkill.primaryDimension,
+        supportSkill.primaryDimension,
+      ].filter((dimension): dimension is SkillDimension => Boolean(dimension))
+    )
+  ).sort();
 }
 
 /**
@@ -124,10 +160,15 @@ export function buildResolvedFusionDraft(
   mainSkill: Skill,
   supportSkill: Skill,
   now = Date.now(),
-  options: FusionResolutionOptions = {},
+  options: FusionResolutionOptions = {}
 ): ResolvedFusionDraft {
   if (!isAuthorizedRuntimeCard(mainSkill) || !isAuthorizedRuntimeCard(supportSkill)) {
-    return { status: 'rejected', risks: ['仅允许运行时就绪且已授权的能力卡融合'], conflicts: [], errorCode: 'FUSION_NO_RUNTIME_RULE' };
+    return {
+      status: 'rejected',
+      risks: ['仅允许运行时就绪且已授权的能力卡融合'],
+      conflicts: [],
+      errorCode: 'FUSION_NO_RUNTIME_RULE',
+    };
   }
   if (!mainSkill.id || !supportSkill.id || mainSkill.id === supportSkill.id) {
     return {
@@ -154,11 +195,16 @@ export function buildResolvedFusionDraft(
     // The main card owns any dimension it explicitly declares. If it has no
     // concrete rule for that dimension, the support rule may fill the gap,
     // but ownership remains visible and deterministic.
-    const owner = mainHasRules || (mainSkill.dimensionTags || []).includes(dimension)
-      ? mainSkill.id
-      : supportSkill.id;
+    const owner =
+      mainHasRules || (mainSkill.dimensionTags || []).includes(dimension)
+        ? mainSkill.id
+        : supportSkill.id;
     dimensionOwners[dimension] = owner;
-    if (mainHasRules && supportHasRules && JSON.stringify(mainRules) !== JSON.stringify(supportRules)) {
+    if (
+      mainHasRules &&
+      supportHasRules &&
+      JSON.stringify(mainRules) !== JSON.stringify(supportRules)
+    ) {
       conflicts.push(`${dimension} 维度同时存在主卡和辅卡规则，融合候选保留主卡作为规则来源`);
     }
     resolvedDimensions[dimension] = {
@@ -218,11 +264,12 @@ export function buildResolvedFusionDraft(
     parentSkillId: mainSkill.id,
     lineageRootId: mainSkill.lineageRootId || mainSkill.id,
     sourceBadge: 'fused',
-    dimensionTags: Array.from(new Set([
-      ...(mainSkill.dimensionTags || []),
-      ...(supportSkill.dimensionTags || []),
-    ])),
-    stabilityScore: Math.round(((mainSkill.stabilityScore || 0) + (supportSkill.stabilityScore || 0)) / 2),
+    dimensionTags: Array.from(
+      new Set([...(mainSkill.dimensionTags || []), ...(supportSkill.dimensionTags || [])])
+    ),
+    stabilityScore: Math.round(
+      ((mainSkill.stabilityScore || 0) + (supportSkill.stabilityScore || 0)) / 2
+    ),
     fusionMeta: {
       mainSkillId: mainSkill.id,
       supportSkillId: supportSkill.id,
@@ -276,7 +323,7 @@ export function shouldSuggestFusion(input: {
       record.userAction === 'accepted' &&
       record.fitScore >= input.minimumFitScore &&
       record.mountedSkillIds.includes(input.mainSkillId) &&
-      record.mountedSkillIds.includes(input.supportSkillId),
+      record.mountedSkillIds.includes(input.supportSkillId)
   );
 
   return acceptedMatches.length >= input.minimumAcceptedCount;
@@ -285,7 +332,7 @@ export function shouldSuggestFusion(input: {
 export function pickFusionSuggestionPair(
   mountedSkills: Skill[],
   records: SkillUsageRecord[],
-  projectProfile?: ProjectPreferenceProfile,
+  projectProfile?: ProjectPreferenceProfile
 ): FusionSuggestionPair | null {
   if (mountedSkills.length < 2) {
     return null;
@@ -302,16 +349,14 @@ export function pickFusionSuggestionPair(
           record.userAction === 'accepted' &&
           record.fitScore >= 80 &&
           record.mountedSkillIds.includes(left.id) &&
-          record.mountedSkillIds.includes(right.id),
+          record.mountedSkillIds.includes(right.id)
       ).length;
 
       if (acceptedCoMountCount < 2) continue;
 
       candidates.push({
-        mainSkill:
-          (left.stabilityScore || 0) >= (right.stabilityScore || 0) ? left : right,
-        supportSkill:
-          (left.stabilityScore || 0) >= (right.stabilityScore || 0) ? right : left,
+        mainSkill: (left.stabilityScore || 0) >= (right.stabilityScore || 0) ? left : right,
+        supportSkill: (left.stabilityScore || 0) >= (right.stabilityScore || 0) ? right : left,
         acceptedCoMountCount,
       });
     }
@@ -353,9 +398,8 @@ export function pickFusionSuggestionPair(
 
     return (
       (right.mainSkill.stabilityScore || 0) +
-        (right.supportSkill.stabilityScore || 0) -
-      ((left.mainSkill.stabilityScore || 0) +
-        (left.supportSkill.stabilityScore || 0))
+      (right.supportSkill.stabilityScore || 0) -
+      ((left.mainSkill.stabilityScore || 0) + (left.supportSkill.stabilityScore || 0))
     );
   })[0];
 }

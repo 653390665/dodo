@@ -13,12 +13,7 @@ import { AppDialogHost } from './components/ui/app-confirm';
 import { bindEditorCloseSafety } from './lib/editor-close-handshake';
 
 export default function App() {
-  const {
-    currentView,
-    theme, setTheme,
-    setSettingsOpen,
-    setWorkspaceFocus,
-  } = useAppStore(
+  const { currentView, theme, setTheme, setSettingsOpen, setWorkspaceFocus } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
       theme: state.theme,
@@ -28,10 +23,7 @@ export default function App() {
     }))
   );
 
-  const {
-    continuationLaunchState,
-    setContinuationLaunchState,
-  } = useNovelStore(
+  const { continuationLaunchState, setContinuationLaunchState } = useNovelStore(
     useShallow((state) => ({
       continuationLaunchState: state.continuationLaunchState,
       setContinuationLaunchState: state.setContinuationLaunchState,
@@ -40,7 +32,9 @@ export default function App() {
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => { if (theme === 'system') setTheme('system'); };
+    const onChange = () => {
+      if (theme === 'system') setTheme('system');
+    };
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, [theme, setTheme]);

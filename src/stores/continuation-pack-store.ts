@@ -13,9 +13,7 @@ export interface ContinuationPackState {
   selectedContinuationPackId: string;
   setContinuationPacks: (packs: ContinuationPack[]) => void;
   setSelectedContinuationPackId: (packId: string) => void;
-  setSelectedContinuationPackIdUpdatable: (
-    update: (current: string) => string,
-  ) => void;
+  setSelectedContinuationPackIdUpdatable: (update: (current: string) => string) => void;
 }
 
 export const useContinuationPackStore = create<ContinuationPackState>((set) => ({

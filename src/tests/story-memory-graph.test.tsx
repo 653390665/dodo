@@ -8,7 +8,11 @@ import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
 import { createForeshadowing, listForeshadowings } from '../lib/foreshadowing-client';
 import { startWorldJob } from '../lib/world-job-client';
 
-vi.mock('../lib/chapter-client', () => ({ listChapters: vi.fn(), listChaptersMetadata: vi.fn(), getChapter: vi.fn() }));
+vi.mock('../lib/chapter-client', () => ({
+  listChapters: vi.fn(),
+  listChaptersMetadata: vi.fn(),
+  getChapter: vi.fn(),
+}));
 vi.mock('../lib/foreshadowing-client', () => ({
   createForeshadowing: vi.fn(),
   listForeshadowings: vi.fn(),
@@ -22,10 +26,30 @@ const storyMemory: StoryMemoryProjection = {
   novelId: 'n1',
   generatedAt: 1,
   nodes: [
-    { id: 'n1:chapter:c1', novelId: 'n1', kind: 'chapter', source: { kind: 'chapter', id: 'c1' }, label: '第一章' },
-    { id: 'n1:narrative-promise:p1', novelId: 'n1', kind: 'narrative-promise', source: { kind: 'narrative-promise', id: 'p1' }, label: '戒指秘密' },
+    {
+      id: 'n1:chapter:c1',
+      novelId: 'n1',
+      kind: 'chapter',
+      source: { kind: 'chapter', id: 'c1' },
+      label: '第一章',
+    },
+    {
+      id: 'n1:narrative-promise:p1',
+      novelId: 'n1',
+      kind: 'narrative-promise',
+      source: { kind: 'narrative-promise', id: 'p1' },
+      label: '戒指秘密',
+    },
   ],
-  edges: [{ id: 'n1:edge:planted-in:c1:p1', novelId: 'n1', kind: 'planted-in', source: 'n1:chapter:c1', target: 'n1:narrative-promise:p1' }],
+  edges: [
+    {
+      id: 'n1:edge:planted-in:c1:p1',
+      novelId: 'n1',
+      kind: 'planted-in',
+      source: 'n1:chapter:c1',
+      target: 'n1:narrative-promise:p1',
+    },
+  ],
 };
 
 describe('RelationshipGraph story memory', () => {
@@ -38,7 +62,7 @@ describe('RelationshipGraph story memory', () => {
         items={[]}
         factions={[]}
         storyMemory={storyMemory}
-      />,
+      />
     );
 
     expect(screen.getByRole('img', { name: '故事记忆关系图谱' })).toBeDefined();
@@ -49,21 +73,56 @@ describe('RelationshipGraph story memory', () => {
 
   test('preserves relationship type, tooltip, and enemy styling with story memory', () => {
     const relationship = {
-      id: 'rel-1', novelId: 'n1', sourceType: 'character', sourceId: 'c1', targetType: 'character', targetId: 'c2',
-      relationshipType: 'enemy', description: '旧怨', createdAt: 1,
+      id: 'rel-1',
+      novelId: 'n1',
+      sourceType: 'character',
+      sourceId: 'c1',
+      targetType: 'character',
+      targetId: 'c2',
+      relationshipType: 'enemy',
+      description: '旧怨',
+      createdAt: 1,
     };
     const memory: StoryMemoryProjection = {
-      novelId: 'n1', generatedAt: 1,
+      novelId: 'n1',
+      generatedAt: 1,
       nodes: [
-        { id: 'n1:character:c1', novelId: 'n1', kind: 'character', source: { kind: 'character', id: 'c1' }, label: '甲' },
-        { id: 'n1:character:c2', novelId: 'n1', kind: 'character', source: { kind: 'character', id: 'c2' }, label: '乙' },
+        {
+          id: 'n1:character:c1',
+          novelId: 'n1',
+          kind: 'character',
+          source: { kind: 'character', id: 'c1' },
+          label: '甲',
+        },
+        {
+          id: 'n1:character:c2',
+          novelId: 'n1',
+          kind: 'character',
+          source: { kind: 'character', id: 'c2' },
+          label: '乙',
+        },
       ],
-      edges: [{
-        id: 'n1:edge:relates-to:rel-1', novelId: 'n1', kind: 'relates-to', source: 'n1:character:c1', target: 'n1:character:c2',
-        sourceArtifact: { kind: 'world', id: 'rel-1', version: 1 },
-      }],
+      edges: [
+        {
+          id: 'n1:edge:relates-to:rel-1',
+          novelId: 'n1',
+          kind: 'relates-to',
+          source: 'n1:character:c1',
+          target: 'n1:character:c2',
+          sourceArtifact: { kind: 'world', id: 'rel-1', version: 1 },
+        },
+      ],
     };
-    const { container } = render(<RelationshipGraph relationships={[relationship]} characters={[]} locations={[]} items={[]} factions={[]} storyMemory={memory} />);
+    const { container } = render(
+      <RelationshipGraph
+        relationships={[relationship]}
+        characters={[]}
+        locations={[]}
+        items={[]}
+        factions={[]}
+        storyMemory={memory}
+      />
+    );
 
     expect(screen.getAllByText('enemy')).toHaveLength(1);
     // “旧怨”同时出现在 SVG <title> 与 sr-only 列表中。
@@ -76,11 +135,26 @@ describe('RelationshipGraph story memory', () => {
 
 describe('ForeshadowingPanel legacy recovery', () => {
   test('keeps scan results pending until the author confirms recovery', async () => {
-    vi.mocked(listChaptersMetadata).mockResolvedValue([{
-      id: 'chapter-1', novelId: 'n1', title: '第一章', order: 1, wordCount: 4, createdAt: 1, updatedAt: 1,
-    }]);
+    vi.mocked(listChaptersMetadata).mockResolvedValue([
+      {
+        id: 'chapter-1',
+        novelId: 'n1',
+        title: '第一章',
+        order: 1,
+        wordCount: 4,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
     vi.mocked(getChapter).mockResolvedValue({
-      id: 'chapter-1', novelId: 'n1', title: '第一章', content: '戒指亮起', order: 1, wordCount: 4, createdAt: 1, updatedAt: 1,
+      id: 'chapter-1',
+      novelId: 'n1',
+      title: '第一章',
+      content: '戒指亮起',
+      order: 1,
+      wordCount: 4,
+      createdAt: 1,
+      updatedAt: 1,
     });
     vi.mocked(listForeshadowings).mockResolvedValue([]);
     vi.mocked(createForeshadowing).mockResolvedValue();
@@ -99,8 +173,14 @@ describe('ForeshadowingPanel legacy recovery', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '确认恢复 1 条' }));
     await waitFor(() => expect(createForeshadowing).toHaveBeenCalledTimes(1));
-    expect(createForeshadowing).toHaveBeenCalledWith(expect.objectContaining({
-      novelId: 'n1', title: '戒指秘密', plantedChapterId: 'chapter-1', status: 'planted',
-    }), 7);
+    expect(createForeshadowing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        novelId: 'n1',
+        title: '戒指秘密',
+        plantedChapterId: 'chapter-1',
+        status: 'planted',
+      }),
+      7
+    );
   });
 });

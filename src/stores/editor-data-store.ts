@@ -29,7 +29,12 @@ export interface EditorDataState {
   chapters: ChapterMetadata[];
   projectPreferenceProfile: ProjectPreferenceProfile | undefined;
   setChapters: (value: ChapterMetadata[] | ((cur: ChapterMetadata[]) => ChapterMetadata[])) => void;
-  setProjectPreferenceProfile: (value: ProjectPreferenceProfile | undefined | ((cur: ProjectPreferenceProfile | undefined) => ProjectPreferenceProfile | undefined)) => void;
+  setProjectPreferenceProfile: (
+    value:
+      | ProjectPreferenceProfile
+      | undefined
+      | ((cur: ProjectPreferenceProfile | undefined) => ProjectPreferenceProfile | undefined)
+  ) => void;
   setCharacters: (value: Character[]) => void;
   setLocations: (value: Location[]) => void;
   setItems: (value: Item[]) => void;
@@ -51,8 +56,13 @@ export const useEditorDataStore = create<EditorDataState>((set) => ({
   relationships: [],
   chapters: [],
   projectPreferenceProfile: undefined,
-  setChapters: (value) => set((state) => ({ chapters: typeof value === 'function' ? value(state.chapters) : value })),
-  setProjectPreferenceProfile: (value) => set((state) => ({ projectPreferenceProfile: typeof value === 'function' ? value(state.projectPreferenceProfile) : value })),
+  setChapters: (value) =>
+    set((state) => ({ chapters: typeof value === 'function' ? value(state.chapters) : value })),
+  setProjectPreferenceProfile: (value) =>
+    set((state) => ({
+      projectPreferenceProfile:
+        typeof value === 'function' ? value(state.projectPreferenceProfile) : value,
+    })),
   setCharacters: (value) => set({ characters: value }),
   setLocations: (value) => set({ locations: value }),
   setItems: (value) => set({ items: value }),
@@ -61,14 +71,15 @@ export const useEditorDataStore = create<EditorDataState>((set) => ({
   setSkillUsageRecords: (value) => set({ skillUsageRecords: value }),
   setRelationships: (value) => set({ relationships: value }),
   // 注意：新增实体列表字段时必须同步进本 reset 集合；只清列表类，不清 projectPreferenceProfile（随 fetchAll 覆盖）。
-  resetForNovelSwitch: () => set({
-    chapters: [],
-    characters: [],
-    locations: [],
-    items: [],
-    factions: [],
-    librarySkills: [],
-    skillUsageRecords: [],
-    relationships: [],
-  }),
+  resetForNovelSwitch: () =>
+    set({
+      chapters: [],
+      characters: [],
+      locations: [],
+      items: [],
+      factions: [],
+      librarySkills: [],
+      skillUsageRecords: [],
+      relationships: [],
+    }),
 }));

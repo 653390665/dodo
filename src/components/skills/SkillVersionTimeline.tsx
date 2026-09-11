@@ -7,11 +7,7 @@ interface SkillVersionTimelineProps {
   onSelect: (skill: Skill) => void;
 }
 
-export function SkillVersionTimeline({
-  versions,
-  activeId,
-  onSelect,
-}: SkillVersionTimelineProps) {
+export function SkillVersionTimeline({ versions, activeId, onSelect }: SkillVersionTimelineProps) {
   if (versions.length === 0) {
     return (
       <div className="text-xs text-theme-muted border border-dashed border-theme-border rounded-xl p-4">
@@ -31,7 +27,7 @@ export function SkillVersionTimeline({
             'w-full rounded-xl border p-3 text-left transition-colors',
             version.id === activeId
               ? 'border-theme-accent bg-theme-accent/5'
-              : 'border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/20',
+              : 'border-theme-border bg-theme-sidebar hover:bg-theme-sidebar/20'
           )}
         >
           <div className="flex items-center justify-between gap-3">

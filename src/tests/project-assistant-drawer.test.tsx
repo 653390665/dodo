@@ -35,7 +35,10 @@ function renderDrawer(overrides: Partial<React.ComponentProps<typeof AIAssistant
 }
 
 describe('Project assistant drawer', () => {
-  afterEach(() => { cleanup(); vi.clearAllMocks(); });
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
 
   test('renders a dialog with an explicit mode switch and general assistant by default', () => {
     renderDrawer();
@@ -67,7 +70,9 @@ describe('Project assistant drawer', () => {
     expect(onAssistantModeChange).toHaveBeenCalledWith('bible');
 
     rerender(<AIAssistantDrawer {...props} assistantMode="bible" />);
-    expect(screen.getByRole('button', { name: '设定记忆' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '设定记忆' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
     expect(screen.getByText('设定助手内容')).toBeDefined();
     expect(screen.queryByText('作品助手内容')).toBeNull();
   });

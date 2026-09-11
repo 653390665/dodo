@@ -6,7 +6,27 @@ describe('WritingStyleControl', () => {
   test('shows the compact style receipt and confirms a selected mode once', async () => {
     const onConfirm = vi.fn().mockResolvedValue('fp-confirmed');
     const onGenerate = vi.fn().mockResolvedValue(undefined);
-    render(<WritingStyleControl resolution={{ resolverVersion: 1, fingerprint: 'fp-1', mode: 'writer-skill', summary: '克制短句', sources: [{ kind: 'project-tone', label: '克制' }], allowedModes: ['writer-skill', 'continuation-pack', 'blend'], warnings: [], confirmed: false }} candidates={[{ mode: 'writer-skill', fingerprint: 'fp-writer', summary: '主笔优先', sources: [] }, { mode: 'continuation-pack', fingerprint: 'fp-pack', summary: '资料包优先', sources: [] }, { mode: 'blend', fingerprint: 'fp-blend', summary: '融合', sources: [] }]} onConfirm={onConfirm} onGenerate={onGenerate} />);
+    render(
+      <WritingStyleControl
+        resolution={{
+          resolverVersion: 1,
+          fingerprint: 'fp-1',
+          mode: 'writer-skill',
+          summary: '克制短句',
+          sources: [{ kind: 'project-tone', label: '克制' }],
+          allowedModes: ['writer-skill', 'continuation-pack', 'blend'],
+          warnings: [],
+          confirmed: false,
+        }}
+        candidates={[
+          { mode: 'writer-skill', fingerprint: 'fp-writer', summary: '主笔优先', sources: [] },
+          { mode: 'continuation-pack', fingerprint: 'fp-pack', summary: '资料包优先', sources: [] },
+          { mode: 'blend', fingerprint: 'fp-blend', summary: '融合', sources: [] },
+        ]}
+        onConfirm={onConfirm}
+        onGenerate={onGenerate}
+      />
+    );
 
     expect(screen.getByText(/克制短句/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '资料包优先' }));
@@ -20,7 +40,13 @@ describe('WritingStyleControl', () => {
   test('shows confirmation errors and closes with Escape', async () => {
     const trigger = vi.fn();
     const onConfirm = vi.fn().mockRejectedValue(new Error('服务暂不可用'));
-    render(<WritingStyleControl candidates={[{ mode: 'default', fingerprint: 'fp', summary: '系统默认', sources: [] }]} onConfirm={onConfirm} onGenerate={trigger} />);
+    render(
+      <WritingStyleControl
+        candidates={[{ mode: 'default', fingerprint: 'fp', summary: '系统默认', sources: [] }]}
+        onConfirm={onConfirm}
+        onGenerate={trigger}
+      />
+    );
     const button = screen.getByRole('button', { name: '生成本章正文' });
     fireEvent.click(button);
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -35,23 +61,25 @@ describe('WritingStyleControl', () => {
   test('exposes the primary writing style and skills entry point', () => {
     const onOpenWritingStyle = vi.fn();
     const onManageSkills = vi.fn();
-    render(<WritingStyleControl
-      onOpenWritingStyle={onOpenWritingStyle}
-      onManageSkills={onManageSkills}
-      resolution={{
-        resolverVersion: 1,
-        fingerprint: 'fp-sources',
-        mode: 'skill-deck',
-        summary: '作品卡组：镜头感 · 章末钩子',
-        sources: [
-          { kind: 'skill-deck', id: 'deck-1', label: '作品卡组：镜头感' },
-          { kind: 'writer-session', id: 'chapter-card-1', label: '章末钩子' },
-        ],
-        allowedModes: ['skill-deck'],
-        warnings: [],
-        confirmed: true,
-      }}
-    />);
+    render(
+      <WritingStyleControl
+        onOpenWritingStyle={onOpenWritingStyle}
+        onManageSkills={onManageSkills}
+        resolution={{
+          resolverVersion: 1,
+          fingerprint: 'fp-sources',
+          mode: 'skill-deck',
+          summary: '作品卡组：镜头感 · 章末钩子',
+          sources: [
+            { kind: 'skill-deck', id: 'deck-1', label: '作品卡组：镜头感' },
+            { kind: 'writer-session', id: 'chapter-card-1', label: '章末钩子' },
+          ],
+          allowedModes: ['skill-deck'],
+          warnings: [],
+          confirmed: true,
+        }}
+      />
+    );
     expect(screen.getByRole('button', { name: '查看本章写法' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '查看本章写法' }));
     expect(onOpenWritingStyle).toHaveBeenCalledTimes(1);
@@ -67,7 +95,27 @@ describe('WritingStyleControl', () => {
   test('marks a changed mode stale and does not reuse the confirmed fingerprint', async () => {
     const onConfirm = vi.fn().mockResolvedValue('fp-new');
     const onGenerate = vi.fn().mockResolvedValue(undefined);
-    render(<WritingStyleControl confirmed resolution={{ resolverVersion: 1, fingerprint: 'fp-old', mode: 'writer-skill', summary: '旧写法', sources: [], allowedModes: ['writer-skill', 'blend'], warnings: [], confirmed: true }} candidates={[{ mode: 'writer-skill', fingerprint: 'fp-old', summary: '主笔', sources: [] }, { mode: 'blend', fingerprint: 'fp-new-candidate', summary: '融合', sources: [] }]} onConfirm={onConfirm} onGenerate={onGenerate} />);
+    render(
+      <WritingStyleControl
+        confirmed
+        resolution={{
+          resolverVersion: 1,
+          fingerprint: 'fp-old',
+          mode: 'writer-skill',
+          summary: '旧写法',
+          sources: [],
+          allowedModes: ['writer-skill', 'blend'],
+          warnings: [],
+          confirmed: true,
+        }}
+        candidates={[
+          { mode: 'writer-skill', fingerprint: 'fp-old', summary: '主笔', sources: [] },
+          { mode: 'blend', fingerprint: 'fp-new-candidate', summary: '融合', sources: [] },
+        ]}
+        onConfirm={onConfirm}
+        onGenerate={onGenerate}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: '融合' }));
     expect(screen.getByRole('button', { name: '生成本章正文' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '生成本章正文' }));

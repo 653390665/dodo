@@ -9,7 +9,18 @@ const mockSync = vi.fn();
 const mockResolveConflicts = vi.fn();
 
 function makeSyncResult() {
-  return { created: { characters: 0, locations: 0, items: 0, factions: 0, powerLevels: 0, timelineEvents: 0, relationships: 0 }, skipped: { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 } };
+  return {
+    created: {
+      characters: 0,
+      locations: 0,
+      items: 0,
+      factions: 0,
+      powerLevels: 0,
+      timelineEvents: 0,
+      relationships: 0,
+    },
+    skipped: { characters: 0, locations: 0, items: 0, factions: 0, relationships: 0 },
+  };
 }
 
 vi.mock('../lib/continuation-client', () => ({
@@ -36,7 +47,12 @@ vi.mock('../lib/prompt-client', () => ({
 }));
 
 vi.mock('../components/world-bible/SyncPreviewPanel', () => ({
-  SyncPreviewPanel: ({ extraction, onConfirm, onCancel, isSyncing }: {
+  SyncPreviewPanel: ({
+    extraction,
+    onConfirm,
+    onCancel,
+    isSyncing,
+  }: {
     extraction: { characters: { name: string }[] };
     onConfirm: (s: { characters: { name: string }[] }) => void;
     onCancel: () => void;
@@ -45,18 +61,65 @@ vi.mock('../components/world-bible/SyncPreviewPanel', () => ({
     <div data-testid="sync-preview">
       <span data-testid="preview-char">{extraction.characters[0]?.name ?? 'none'}</span>
       <span data-testid="sync-loading">{isSyncing ? 'loading' : 'idle'}</span>
-      <button data-testid="close-preview" disabled={isSyncing} onClick={onCancel}>关闭预览</button>
-      <button data-testid="confirm-sync" disabled={isSyncing} onClick={() => onConfirm({ characters: extraction.characters })}>确认同步</button>
+      <button data-testid="close-preview" disabled={isSyncing} onClick={onCancel}>
+        关闭预览
+      </button>
+      <button
+        data-testid="confirm-sync"
+        disabled={isSyncing}
+        onClick={() => onConfirm({ characters: extraction.characters })}
+      >
+        确认同步
+      </button>
     </div>
   ),
 }));
 
 import { ContinuationPackView } from '../components/ContinuationPackView';
 
-const mockNovel = { id: 'n1', title: '测试小说', authorId: 'local', summary: '', status: 'ongoing' as const, createdAt: 0, updatedAt: 0 };
+const mockNovel = {
+  id: 'n1',
+  title: '测试小说',
+  authorId: 'local',
+  summary: '',
+  status: 'ongoing' as const,
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 function makePack(id: string, title: string): ContinuationPack {
-  return { id, novelId: 'n1', title, status: 'approved' as const, sourceDocuments: [], canonFacts: [], characterStates: [], plotState: { currentTimeline: '', latestScene: '', unresolvedHooks: [], immediateConflict: '', nextLikelyMove: '' }, styleProfile: { pov: 'third', tense: 'past', pacing: '', dialogueDensity: 'normal', proseTraits: [], avoidTraits: [], sampleEvidence: '' }, contradictions: [], continuationTask: '', sourceMap: { sections: [], keyConflicts: [] }, readingQuestions: [], continuationGaps: [], createdAt: 0, updatedAt: 0 };
+  return {
+    id,
+    novelId: 'n1',
+    title,
+    status: 'approved' as const,
+    sourceDocuments: [],
+    canonFacts: [],
+    characterStates: [],
+    plotState: {
+      currentTimeline: '',
+      latestScene: '',
+      unresolvedHooks: [],
+      immediateConflict: '',
+      nextLikelyMove: '',
+    },
+    styleProfile: {
+      pov: 'third',
+      tense: 'past',
+      pacing: '',
+      dialogueDensity: 'normal',
+      proseTraits: [],
+      avoidTraits: [],
+      sampleEvidence: '',
+    },
+    contradictions: [],
+    continuationTask: '',
+    sourceMap: { sections: [], keyConflicts: [] },
+    readingQuestions: [],
+    continuationGaps: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
 }
 
 async function clickExtractAndPreview() {
@@ -74,8 +137,21 @@ describe('ContinuationPackView A/B late response', () => {
 
   test('approved pack exposes Agent suggestion and saves an edited conflict resolution', async () => {
     const pack = makePack('pack-conflict', '冲突资料包');
-    pack.contradictions = [{ id: 'c-1', severity: 'medium', summary: '编号冲突', conflictingEvidence: ['文档 A', '文档 B'], suggestedResolution: '采用文档 A' }];
-    const updatedPack = { ...pack, contradictions: [{ ...pack.contradictions[0], acceptedResolution: '采用文档 B', resolvedAt: 10 }] };
+    pack.contradictions = [
+      {
+        id: 'c-1',
+        severity: 'medium',
+        summary: '编号冲突',
+        conflictingEvidence: ['文档 A', '文档 B'],
+        suggestedResolution: '采用文档 A',
+      },
+    ];
+    const updatedPack = {
+      ...pack,
+      contradictions: [
+        { ...pack.contradictions[0], acceptedResolution: '采用文档 B', resolvedAt: 10 },
+      ],
+    };
     mockListPacks.mockResolvedValue([pack]);
     mockResolveConflicts.mockResolvedValue(updatedPack);
 
@@ -85,40 +161,73 @@ describe('ContinuationPackView A/B late response', () => {
     fireEvent.change(textarea, { target: { value: '采用文档 B' } });
     fireEvent.click(screen.getByRole('button', { name: '保存裁决' }));
 
-    await waitFor(() => expect(mockResolveConflicts).toHaveBeenCalledWith({
-      packId: 'pack-conflict',
-      novelId: 'n1',
-      conflictResolutions: [{ contradictionId: 'c-1', resolution: '采用文档 B' }],
-    }));
+    await waitFor(() =>
+      expect(mockResolveConflicts).toHaveBeenCalledWith({
+        packId: 'pack-conflict',
+        novelId: 'n1',
+        conflictResolutions: [{ contradictionId: 'c-1', resolution: '采用文档 B' }],
+      })
+    );
     expect(await screen.findByText('已处理')).toBeTruthy();
   });
 
   test('approved pack can apply Agent suggestion without editing', async () => {
     const pack = makePack('pack-agent', '建议资料包');
-    pack.contradictions = [{ id: 'c-agent', severity: 'medium', summary: '编号冲突', conflictingEvidence: ['文档 A'], suggestedResolution: '采用文档 A' }];
+    pack.contradictions = [
+      {
+        id: 'c-agent',
+        severity: 'medium',
+        summary: '编号冲突',
+        conflictingEvidence: ['文档 A'],
+        suggestedResolution: '采用文档 A',
+      },
+    ];
     mockListPacks.mockResolvedValue([pack]);
-    mockResolveConflicts.mockResolvedValue({ ...pack, contradictions: [{ ...pack.contradictions[0], acceptedResolution: '采用文档 A', resolvedAt: 11 }] });
+    mockResolveConflicts.mockResolvedValue({
+      ...pack,
+      contradictions: [
+        { ...pack.contradictions[0], acceptedResolution: '采用文档 A', resolvedAt: 11 },
+      ],
+    });
 
     render(<ContinuationPackView novel={mockNovel} initialActivePackId="pack-agent" />);
     const applyButton = await screen.findByRole('button', { name: '采用 Agent 建议' });
     expect((applyButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(applyButton);
 
-    await waitFor(() => expect(mockResolveConflicts).toHaveBeenCalledWith({
-      packId: 'pack-agent',
-      novelId: 'n1',
-      conflictResolutions: [{ contradictionId: 'c-agent', resolution: '采用文档 A' }],
-    }));
+    await waitFor(() =>
+      expect(mockResolveConflicts).toHaveBeenCalledWith({
+        packId: 'pack-agent',
+        novelId: 'n1',
+        conflictResolutions: [{ contradictionId: 'c-agent', resolution: '采用文档 A' }],
+      })
+    );
     expect(await screen.findByText('已处理')).toBeTruthy();
   });
 
   test('draft high contradiction requires explicit resolution and submits it on approval', async () => {
     const pack = makePack('pack-draft-conflict', '待审核资料包');
     pack.status = 'draft';
-    pack.contradictions = [{ id: 'c-high', severity: 'high', summary: '关键设定冲突', conflictingEvidence: ['文档 A', '文档 B'], suggestedResolution: '采用文档 A' }];
-    const approvedPack = { ...pack, status: 'approved' as const, contradictions: [{ ...pack.contradictions[0], acceptedResolution: '采用文档 B', resolvedAt: 12 }] };
+    pack.contradictions = [
+      {
+        id: 'c-high',
+        severity: 'high',
+        summary: '关键设定冲突',
+        conflictingEvidence: ['文档 A', '文档 B'],
+        suggestedResolution: '采用文档 A',
+      },
+    ];
+    const approvedPack = {
+      ...pack,
+      status: 'approved' as const,
+      contradictions: [
+        { ...pack.contradictions[0], acceptedResolution: '采用文档 B', resolvedAt: 12 },
+      ],
+    };
     mockListPacks.mockResolvedValue([pack]);
-    const approve = vi.mocked((await import('../lib/continuation-client')).approveContinuationImport);
+    const approve = vi.mocked(
+      (await import('../lib/continuation-client')).approveContinuationImport
+    );
     approve.mockResolvedValue({ novel: mockNovel, pack: approvedPack });
 
     render(<ContinuationPackView novel={mockNovel} initialActivePackId="pack-draft-conflict" />);
@@ -133,37 +242,67 @@ describe('ContinuationPackView A/B late response', () => {
     expect(approveButton.disabled).toBe(false);
     fireEvent.click(approveButton);
 
-    await waitFor(() => expect(approve).toHaveBeenCalledWith({
-      packId: 'pack-draft-conflict',
-      mode: 'existing',
-      existingNovelId: 'n1',
-      conflictResolutions: [{ contradictionId: 'c-high', resolution: '采用文档 B' }],
-    }));
-    expect(await within(screen.getByLabelText('当前资料包：待审核资料包')).findByText('资料包已确认')).toBeTruthy();
+    await waitFor(() =>
+      expect(approve).toHaveBeenCalledWith({
+        packId: 'pack-draft-conflict',
+        mode: 'existing',
+        existingNovelId: 'n1',
+        conflictResolutions: [{ contradictionId: 'c-high', resolution: '采用文档 B' }],
+      })
+    );
+    expect(
+      await within(screen.getByLabelText('当前资料包：待审核资料包')).findByText('资料包已确认')
+    ).toBeTruthy();
   });
 
   test.each([
-    ['成功', (resolveA: (value: unknown) => void) => resolveA({
-      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
-      extraction: {
-        characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-        relationships: [], globalOutline: '', worldRules: '',
-      },
-    })],
-    ['失败', (_resolveA: (value: unknown) => void, rejectA: (reason?: unknown) => void) => rejectA(new Error('A late failure'))],
+    [
+      '成功',
+      (resolveA: (value: unknown) => void) =>
+        resolveA({
+          packId: 'pack-a',
+          novelId: 'n1',
+          databaseGeneration: 1,
+          extraction: {
+            characters: [
+              { name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] },
+            ],
+            locations: [],
+            items: [],
+            factions: [],
+            powerLevels: [],
+            timelineEvents: [],
+            relationships: [],
+            globalOutline: '',
+            worldRules: '',
+          },
+        }),
+    ],
+    [
+      '失败',
+      (_resolveA: (value: unknown) => void, rejectA: (reason?: unknown) => void) =>
+        rejectA(new Error('A late failure')),
+    ],
   ])('T1: A 迟到%s不影响 B 的预览、错误和 loading', async (_label, settleA) => {
     let resolveA!: (v: unknown) => void;
     let rejectA!: (e?: unknown) => void;
     let resolveB!: (v: unknown) => void;
     let rejectB!: (e?: unknown) => void;
-    const pendingA = new Promise((resolve, reject) => { resolveA = resolve; rejectA = reject; });
-    const pendingB = new Promise(r => { resolveB = r; });
+    const pendingA = new Promise((resolve, reject) => {
+      resolveA = resolve;
+      rejectA = reject;
+    });
+    const pendingB = new Promise((r) => {
+      resolveB = r;
+    });
 
-    mockExtract
-      .mockImplementationOnce(() => pendingA)
-      .mockImplementationOnce(() => pendingB);
-    mockSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectB = reject; }));
+    mockExtract.mockImplementationOnce(() => pendingA).mockImplementationOnce(() => pendingB);
+    mockSync.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectB = reject;
+        })
+    );
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A'), makePack('pack-b', 'Pack B')]);
 
     render(<ContinuationPackView novel={mockNovel} />);
@@ -176,11 +315,21 @@ describe('ContinuationPackView A/B late response', () => {
 
     await act(async () => {
       resolveB({
-        packId: 'pack-b', novelId: 'n1', databaseGeneration: 1,
+        packId: 'pack-b',
+        novelId: 'n1',
+        databaseGeneration: 1,
         extraction: {
-          characters: [{ name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
+          characters: [
+            { name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] },
+          ],
+          locations: [],
+          items: [],
+          factions: [],
+          powerLevels: [],
+          timelineEvents: [],
+          relationships: [],
+          globalOutline: '',
+          worldRules: '',
         },
       });
     });
@@ -192,11 +341,15 @@ describe('ContinuationPackView A/B late response', () => {
     expect((screen.getByTestId('confirm-sync') as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByText('Pack A').closest('button') as HTMLButtonElement).disabled).toBe(true);
 
-    await act(async () => { settleA(resolveA, rejectA); });
+    await act(async () => {
+      settleA(resolveA, rejectA);
+    });
     expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色');
     expect(screen.getByTestId('sync-loading').textContent).toBe('loading');
 
-    await act(async () => { rejectB(new Error('B sync failure')); });
+    await act(async () => {
+      rejectB(new Error('B sync failure'));
+    });
     await waitFor(() => expect(screen.getByText('同步失败：B sync failure')).toBeDefined());
     expect(screen.getByTestId('preview-char').textContent).toBe('PackB角色');
     expect(screen.getByTestId('sync-loading').textContent).toBe('idle');
@@ -206,14 +359,27 @@ describe('ContinuationPackView A/B late response', () => {
     let resolveSync!: (value: unknown) => void;
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A')]);
     mockExtract.mockResolvedValueOnce({
-      packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+      packId: 'pack-a',
+      novelId: 'n1',
+      databaseGeneration: 1,
       extraction: {
         characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-        relationships: [], globalOutline: '', worldRules: '',
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        relationships: [],
+        globalOutline: '',
+        worldRules: '',
       },
     });
-    mockSync.mockImplementationOnce(() => new Promise(resolve => { resolveSync = resolve; }));
+    mockSync.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSync = resolve;
+        })
+    );
 
     const { unmount, container } = render(<ContinuationPackView novel={mockNovel} />);
     await waitFor(() => expect(screen.getByText('Pack A')).toBeDefined());
@@ -224,13 +390,17 @@ describe('ContinuationPackView A/B late response', () => {
     await waitFor(() => expect(screen.getByTestId('sync-loading').textContent).toBe('loading'));
 
     unmount();
-    await act(async () => { resolveSync(makeSyncResult()); });
+    await act(async () => {
+      resolveSync(makeSyncResult());
+    });
     expect(container.innerHTML).toBe('');
   });
 
   test('T3.4: switching packs cancels pending extraction and starts new one', async () => {
     let resolveA!: (v: unknown) => void;
-    const pendingA = new Promise(r => { resolveA = r; });
+    const pendingA = new Promise((r) => {
+      resolveA = r;
+    });
 
     mockExtract.mockImplementationOnce(() => pendingA);
 
@@ -246,15 +416,28 @@ describe('ContinuationPackView A/B late response', () => {
 
     // Extraction for A is in-flight (never resolved yet)
     expect(mockExtract).toHaveBeenCalledTimes(1);
-    expect(mockExtract).toHaveBeenCalledWith('pack-a', 'n1', expect.any(AbortSignal), expect.any(Function));
+    expect(mockExtract).toHaveBeenCalledWith(
+      'pack-a',
+      'n1',
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
 
     // Now mock pack B's extraction to resolve immediately
     mockExtract.mockResolvedValueOnce({
-      packId: 'pack-b', novelId: 'n1', databaseGeneration: 1,
+      packId: 'pack-b',
+      novelId: 'n1',
+      databaseGeneration: 1,
       extraction: {
         characters: [{ name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] }],
-        locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-        relationships: [], globalOutline: '', worldRules: '',
+        locations: [],
+        items: [],
+        factions: [],
+        powerLevels: [],
+        timelineEvents: [],
+        relationships: [],
+        globalOutline: '',
+        worldRules: '',
       },
     });
 
@@ -266,11 +449,19 @@ describe('ContinuationPackView A/B late response', () => {
     // Let A resolve
     await act(async () => {
       resolveA({
-        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+        packId: 'pack-a',
+        novelId: 'n1',
+        databaseGeneration: 1,
         extraction: {
           characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
+          locations: [],
+          items: [],
+          factions: [],
+          powerLevels: [],
+          timelineEvents: [],
+          relationships: [],
+          globalOutline: '',
+          worldRules: '',
         },
       });
     });
@@ -287,13 +478,29 @@ describe('ContinuationPackView A/B late response', () => {
 
     // Verify extractPackEntities was called for both packs
     expect(mockExtract).toHaveBeenCalledTimes(2);
-    expect(mockExtract).toHaveBeenNthCalledWith(1, 'pack-a', 'n1', expect.any(AbortSignal), expect.any(Function));
-    expect(mockExtract).toHaveBeenNthCalledWith(2, 'pack-b', 'n1', expect.any(AbortSignal), expect.any(Function));
+    expect(mockExtract).toHaveBeenNthCalledWith(
+      1,
+      'pack-a',
+      'n1',
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
+    expect(mockExtract).toHaveBeenNthCalledWith(
+      2,
+      'pack-b',
+      'n1',
+      expect.any(AbortSignal),
+      expect.any(Function)
+    );
   });
 
   test('extraction failure stays inside the selected pack card', async () => {
     const failure = Object.assign(new Error('字段格式不符合要求'), {
-      code: 'EXTRACTION_SCHEMA_MISMATCH', jobId: 'job-b', databaseGeneration: 1, batch: 24, totalBatches: 28,
+      code: 'EXTRACTION_SCHEMA_MISMATCH',
+      jobId: 'job-b',
+      databaseGeneration: 1,
+      batch: 24,
+      totalBatches: 28,
     });
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A'), makePack('pack-b', 'Pack B')]);
     mockExtract.mockRejectedValueOnce(failure);
@@ -316,8 +523,18 @@ describe('ContinuationPackView A/B late response', () => {
     mockExtract
       // Deliberately ignore AbortSignal: this simulates a transport that cannot
       // stop A after the user switches to B.
-      .mockImplementationOnce((_packId: string, _novelId: string, _signal: AbortSignal) => new Promise(r => { resolveA = r; }))
-      .mockImplementationOnce(() => new Promise(r => { resolveB = r; }));
+      .mockImplementationOnce(
+        (_packId: string, _novelId: string, _signal: AbortSignal) =>
+          new Promise((r) => {
+            resolveA = r;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((r) => {
+            resolveB = r;
+          })
+      );
 
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A'), makePack('pack-b', 'Pack B')]);
 
@@ -338,11 +555,21 @@ describe('ContinuationPackView A/B late response', () => {
     // Now resolve B first (B completes before A's late response)
     await act(async () => {
       resolveB({
-        packId: 'pack-b', novelId: 'n1', databaseGeneration: 1,
+        packId: 'pack-b',
+        novelId: 'n1',
+        databaseGeneration: 1,
         extraction: {
-          characters: [{ name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
+          characters: [
+            { name: 'PackB角色', role: 'protagonist', summary: '', bio: '', traits: [] },
+          ],
+          locations: [],
+          items: [],
+          factions: [],
+          powerLevels: [],
+          timelineEvents: [],
+          relationships: [],
+          globalOutline: '',
+          worldRules: '',
         },
       });
     });
@@ -352,11 +579,19 @@ describe('ContinuationPackView A/B late response', () => {
     // A ignores the abort and returns after B: its stale result must be discarded.
     await act(async () => {
       resolveA({
-        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+        packId: 'pack-a',
+        novelId: 'n1',
+        databaseGeneration: 1,
         extraction: {
           characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
+          locations: [],
+          items: [],
+          factions: [],
+          powerLevels: [],
+          timelineEvents: [],
+          relationships: [],
+          globalOutline: '',
+          worldRules: '',
         },
       });
     });
@@ -367,7 +602,12 @@ describe('ContinuationPackView A/B late response', () => {
 
   test('T3.4c: late response after unmount does not update state', async () => {
     let resolveA!: (v: unknown) => void;
-    mockExtract.mockImplementationOnce((_packId: string, _novelId: string, _signal: AbortSignal) => new Promise(r => { resolveA = r; }));
+    mockExtract.mockImplementationOnce(
+      (_packId: string, _novelId: string, _signal: AbortSignal) =>
+        new Promise((r) => {
+          resolveA = r;
+        })
+    );
     mockListPacks.mockResolvedValue([makePack('pack-a', 'Pack A')]);
 
     const { unmount, container } = render(<ContinuationPackView novel={mockNovel} />);
@@ -379,11 +619,19 @@ describe('ContinuationPackView A/B late response', () => {
     unmount();
     await act(async () => {
       resolveA({
-        packId: 'pack-a', novelId: 'n1', databaseGeneration: 1,
+        packId: 'pack-a',
+        novelId: 'n1',
+        databaseGeneration: 1,
         extraction: {
           characters: [{ name: 'PackA角色', role: 'supporting', summary: '', bio: '', traits: [] }],
-          locations: [], items: [], factions: [], powerLevels: [], timelineEvents: [],
-          relationships: [], globalOutline: '', worldRules: '',
+          locations: [],
+          items: [],
+          factions: [],
+          powerLevels: [],
+          timelineEvents: [],
+          relationships: [],
+          globalOutline: '',
+          worldRules: '',
         },
       });
     });
@@ -393,21 +641,35 @@ describe('ContinuationPackView A/B late response', () => {
 
   test('续写缺口可交给设定助手，并携带完整缺口上下文', async () => {
     const pack = makePack('pack-gap', '缺口资料包');
-    pack.continuationGaps = [{
-      id: 'gap-1',
-      severity: 'medium',
-      description: '年轻外勤搭档细节未展开',
-      suggestedDirection: '补充二十年前共事片段',
-      relatedFacts: ['顾铁峰曾与苏老板共事'],
-    }];
+    pack.continuationGaps = [
+      {
+        id: 'gap-1',
+        severity: 'medium',
+        description: '年轻外勤搭档细节未展开',
+        suggestedDirection: '补充二十年前共事片段',
+        relatedFacts: ['顾铁峰曾与苏老板共事'],
+      },
+    ];
     mockListPacks.mockResolvedValue([pack]);
     const onOpenGapAssistant = vi.fn();
 
-    render(<ContinuationPackView novel={mockNovel} initialActivePackId="pack-gap" onOpenGapAssistant={onOpenGapAssistant} />);
+    render(
+      <ContinuationPackView
+        novel={mockNovel}
+        initialActivePackId="pack-gap"
+        onOpenGapAssistant={onOpenGapAssistant}
+      />
+    );
 
-    fireEvent.click(await screen.findByRole('button', { name: '交给 AI 协作助手处理：年轻外勤搭档细节未展开' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: '交给 AI 协作助手处理：年轻外勤搭档细节未展开' })
+    );
 
-    expect(onOpenGapAssistant).toHaveBeenCalledWith(pack.continuationGaps[0], '缺口资料包', 'pack-gap');
+    expect(onOpenGapAssistant).toHaveBeenCalledWith(
+      pack.continuationGaps[0],
+      '缺口资料包',
+      'pack-gap'
+    );
     expect(screen.getByText('生成补充草稿，确认后再写入设定。')).toBeDefined();
   });
 });

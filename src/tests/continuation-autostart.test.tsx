@@ -7,16 +7,35 @@ const { startStream, ProductionStyleConfirmationRequiredErrorMock } = vi.hoisted
     onEvent({
       type: 'done',
       run: {
-        id: 'run-1', novelId: 'novel-1', status: 'review_required', userIntent: '继续写冲突',
-        sceneBeats: '', draftContent: '', styleAudit: '',
-        continuityReport: { score: 70, issues: [], proposedPatch: { characterUpdates: [], itemUpdates: [], foreshadowingUpdates: [], timelineEventsToCreate: [], foreshadowingsToCreate: [] } },
-        createdAt: 1, updatedAt: 1,
+        id: 'run-1',
+        novelId: 'novel-1',
+        status: 'review_required',
+        userIntent: '继续写冲突',
+        sceneBeats: '',
+        draftContent: '',
+        styleAudit: '',
+        continuityReport: {
+          score: 70,
+          issues: [],
+          proposedPatch: {
+            characterUpdates: [],
+            itemUpdates: [],
+            foreshadowingUpdates: [],
+            timelineEventsToCreate: [],
+            foreshadowingsToCreate: [],
+          },
+        },
+        createdAt: 1,
+        updatedAt: 1,
       },
     });
   }),
   ProductionStyleConfirmationRequiredErrorMock: class extends Error {
     readonly code = 'STYLE_CONFIRMATION_REQUIRED';
-    constructor(readonly resolution?: unknown, readonly candidates?: unknown[]) {
+    constructor(
+      readonly resolution?: unknown,
+      readonly candidates?: unknown[]
+    ) {
       super('Writing style confirmation is required');
       this.name = 'ProductionStyleConfirmationRequiredError';
     }
@@ -40,21 +59,41 @@ describe('continuation production autostart', () => {
       onEvent({
         type: 'done',
         run: {
-          id: 'run-flushed', novelId: 'novel-1', status: 'review_required', userIntent: '继续写冲突',
-          sceneBeats: '', draftContent: '', styleAudit: '',
-          continuityReport: { score: 70, issues: [], proposedPatch: { characterUpdates: [], itemUpdates: [], foreshadowingUpdates: [], timelineEventsToCreate: [], foreshadowingsToCreate: [] } },
-          createdAt: 1, updatedAt: 1,
+          id: 'run-flushed',
+          novelId: 'novel-1',
+          status: 'review_required',
+          userIntent: '继续写冲突',
+          sceneBeats: '',
+          draftContent: '',
+          styleAudit: '',
+          continuityReport: {
+            score: 70,
+            issues: [],
+            proposedPatch: {
+              characterUpdates: [],
+              itemUpdates: [],
+              foreshadowingUpdates: [],
+              timelineEventsToCreate: [],
+              foreshadowingsToCreate: [],
+            },
+          },
+          createdAt: 1,
+          updatedAt: 1,
         },
       });
     });
     const flushPendingEditorWrites = vi.fn(async () => {
       order.push('flush');
     });
-    const { result } = renderHook(() => useChapterProductionFlow({
-      novelId: 'novel-1', currentChapterId: 'chapter-1',
-      flushPendingEditorWrites,
-      refreshChapters: vi.fn().mockResolvedValue([]), setCurrentChapter: vi.fn(),
-    }));
+    const { result } = renderHook(() =>
+      useChapterProductionFlow({
+        novelId: 'novel-1',
+        currentChapterId: 'chapter-1',
+        flushPendingEditorWrites,
+        refreshChapters: vi.fn().mockResolvedValue([]),
+        setCurrentChapter: vi.fn(),
+      })
+    );
 
     await act(async () => {
       await result.current.handleStartProductionRun('继续写冲突');
@@ -65,14 +104,16 @@ describe('continuation production autostart', () => {
   });
 
   test('intentOverride enters initial run and stream request payload', async () => {
-    const { result } = renderHook(() => useChapterProductionFlow({
-      novelId: 'novel-1',
-      currentChapterId: 'chapter-1',
-      continuationPackId: 'pack-1',
-      sessionCardIds: ['deconstruct-card-pacing'],
-      refreshChapters: vi.fn().mockResolvedValue([]),
-      setCurrentChapter: vi.fn(),
-    }));
+    const { result } = renderHook(() =>
+      useChapterProductionFlow({
+        novelId: 'novel-1',
+        currentChapterId: 'chapter-1',
+        continuationPackId: 'pack-1',
+        sessionCardIds: ['deconstruct-card-pacing'],
+        refreshChapters: vi.fn().mockResolvedValue([]),
+        setCurrentChapter: vi.fn(),
+      })
+    );
 
     await act(async () => {
       await result.current.handleStartProductionRun('继续写冲突');
@@ -85,7 +126,7 @@ describe('continuation production autostart', () => {
         sessionCardIds: ['deconstruct-card-pacing'],
       }),
       expect.any(Function),
-      expect.any(AbortSignal),
+      expect.any(AbortSignal)
     );
     expect(result.current.activeProductionRun?.userIntent).toBe('继续写冲突');
     expect(result.current.productionIntent).toBe('继续写冲突');
@@ -94,28 +135,69 @@ describe('continuation production autostart', () => {
   test('style confirmation retry preserves the original production input and does not loop', async () => {
     startStream.mockReset();
     startStream
-      .mockRejectedValueOnce(new ProductionStyleConfirmationRequiredErrorMock({
-        resolution: { mode: 'default', fingerprint: 'fp-1', summary: 'default', sources: [], allowedModes: ['default'], warnings: [], confirmed: false, resolverVersion: 1 },
-        candidates: [],
-      }))
-      .mockRejectedValueOnce(new ProductionStyleConfirmationRequiredErrorMock({
-        resolution: { mode: 'default', fingerprint: 'fp-2', summary: 'default', sources: [], allowedModes: ['default'], warnings: [], confirmed: false, resolverVersion: 1 },
-        candidates: [],
-      }));
+      .mockRejectedValueOnce(
+        new ProductionStyleConfirmationRequiredErrorMock({
+          resolution: {
+            mode: 'default',
+            fingerprint: 'fp-1',
+            summary: 'default',
+            sources: [],
+            allowedModes: ['default'],
+            warnings: [],
+            confirmed: false,
+            resolverVersion: 1,
+          },
+          candidates: [],
+        })
+      )
+      .mockRejectedValueOnce(
+        new ProductionStyleConfirmationRequiredErrorMock({
+          resolution: {
+            mode: 'default',
+            fingerprint: 'fp-2',
+            summary: 'default',
+            sources: [],
+            allowedModes: ['default'],
+            warnings: [],
+            confirmed: false,
+            resolverVersion: 1,
+          },
+          candidates: [],
+        })
+      );
     const onStyleConfirmationRequired = vi.fn();
-    const { result } = renderHook(() => useChapterProductionFlow({
-      novelId: 'novel-1', currentChapterId: 'chapter-1', continuationPackId: 'pack-1',
-      refreshChapters: vi.fn().mockResolvedValue([]), setCurrentChapter: vi.fn(), onStyleConfirmationRequired,
-    }));
+    const { result } = renderHook(() =>
+      useChapterProductionFlow({
+        novelId: 'novel-1',
+        currentChapterId: 'chapter-1',
+        continuationPackId: 'pack-1',
+        refreshChapters: vi.fn().mockResolvedValue([]),
+        setCurrentChapter: vi.fn(),
+        onStyleConfirmationRequired,
+      })
+    );
 
-    await act(async () => { await result.current.handleStartProductionRun('保留输入'); });
-    const firstPrompt = onStyleConfirmationRequired.mock.calls[0][0] as { retry?: (fingerprint: string) => Promise<void> };
+    await act(async () => {
+      await result.current.handleStartProductionRun('保留输入');
+    });
+    const firstPrompt = onStyleConfirmationRequired.mock.calls[0][0] as {
+      retry?: (fingerprint: string) => Promise<void>;
+    };
     expect(firstPrompt.retry).toEqual(expect.any(Function));
-    await act(async () => { await firstPrompt.retry?.('fp-confirmed'); });
+    await act(async () => {
+      await firstPrompt.retry?.('fp-confirmed');
+    });
 
-    expect(startStream).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      userIntent: '保留输入', continuationPackId: 'pack-1', writingStyleFingerprint: 'fp-confirmed',
-    }), expect.any(Function), expect.any(AbortSignal));
+    expect(startStream).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        userIntent: '保留输入',
+        continuationPackId: 'pack-1',
+        writingStyleFingerprint: 'fp-confirmed',
+      }),
+      expect.any(Function),
+      expect.any(AbortSignal)
+    );
     expect(onStyleConfirmationRequired).toHaveBeenCalledTimes(1);
     expect(result.current.productionIntent).toBe('保留输入');
   });
@@ -127,10 +209,14 @@ describe('continuation production autostart', () => {
         signal.addEventListener('abort', () => reject(signal.reason), { once: true });
       });
     });
-    const { result } = renderHook(() => useChapterProductionFlow({
-      novelId: 'novel-1', currentChapterId: 'chapter-1',
-      refreshChapters: vi.fn().mockResolvedValue([]), setCurrentChapter: vi.fn(),
-    }));
+    const { result } = renderHook(() =>
+      useChapterProductionFlow({
+        novelId: 'novel-1',
+        currentChapterId: 'chapter-1',
+        refreshChapters: vi.fn().mockResolvedValue([]),
+        setCurrentChapter: vi.fn(),
+      })
+    );
 
     let pending: Promise<void> | undefined;
     await act(async () => {

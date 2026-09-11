@@ -1,5 +1,18 @@
 import React from 'react';
-import { BookOpen, BookTemplate, ChevronDown, ChevronLeft, ChevronRight, Lightbulb, MoreHorizontal, PenTool, Settings, Sparkles, Upload, Wand2 } from 'lucide-react';
+import {
+  BookOpen,
+  BookTemplate,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Lightbulb,
+  MoreHorizontal,
+  PenTool,
+  Settings,
+  Sparkles,
+  Upload,
+  Wand2,
+} from 'lucide-react';
 
 import { ViewType, WorkspaceNavKey } from '../../shared/types';
 import { cn } from '../lib/utils';
@@ -24,7 +37,7 @@ interface NavItem {
 
 export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false,
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
   const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(false);
   const isAdvancedVisible = isAdvancedOpen || currentView === 'factory' || currentView === 'skills';
@@ -60,42 +73,40 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
   ];
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = item.id === 'ai'
-      ? isAIAssistantOpen
-      : item.id === 'workspace'
-        ? currentView === 'workspace' || currentView === 'editor'
-        : currentView === item.id;
+    const isActive =
+      item.id === 'ai'
+        ? isAIAssistantOpen
+        : item.id === 'workspace'
+          ? currentView === 'workspace' || currentView === 'editor'
+          : currentView === item.id;
     const key = item.navKey || item.id;
     const button = (
       <button
         onClick={() => onNavigate(item.id, item.navKey)}
         aria-label={item.label}
         className={cn(
-          "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-[background-color,border-color,box-shadow,color] duration-200 group relative",
+          'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-[background-color,border-color,box-shadow,color] duration-200 group relative',
           isActive
-            ? "bg-theme-sidebar shadow-sm border border-theme-border text-theme-text font-semibold"
-            : "text-theme-muted hover:bg-theme-border/30 hover:text-theme-text"
+            ? 'bg-theme-sidebar shadow-sm border border-theme-border text-theme-text font-semibold'
+            : 'text-theme-muted hover:bg-theme-border/30 hover:text-theme-text'
         )}
       >
-        <item.icon size={16} className={cn(
-          "transition-colors",
-          isActive ? "text-theme-text" : "text-theme-muted group-hover:text-theme-text"
-        )} />
-        {!isCollapsed && (
-          <span className="text-sm">{item.label}</span>
-        )}
+        <item.icon
+          size={16}
+          className={cn(
+            'transition-colors',
+            isActive ? 'text-theme-text' : 'text-theme-muted group-hover:text-theme-text'
+          )}
+        />
+        {!isCollapsed && <span className="text-sm">{item.label}</span>}
       </button>
     );
 
     if (isCollapsed) {
       return (
         <Tooltip key={key}>
-          <TooltipTrigger asChild>
-            {button}
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {item.label}
-          </TooltipContent>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent side="right">{item.label}</TooltipContent>
         </Tooltip>
       );
     }
@@ -104,22 +115,29 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
   };
 
   return (
-    <div
-      className="h-full bg-transparent flex flex-col transition-[width] duration-300 z-50 py-2"
-    >
+    <div className="h-full bg-transparent flex flex-col transition-[width] duration-300 z-50 py-2">
       {/* Header */}
       <div className="px-4 mb-8 flex items-center justify-between">
         {!isCollapsed && (
-          <h2 className="text-xl font-serif font-black tracking-tight text-theme-text">INK<span className="text-theme-muted font-light">FLOW</span></h2>
+          <h2 className="text-xl font-serif font-black tracking-tight text-theme-text">
+            INK<span className="text-theme-muted font-light">FLOW</span>
+          </h2>
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-label={isCollapsed ? "展开侧边栏" : "折叠侧边栏"}
+          aria-label={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
           aria-expanded={!isCollapsed}
           aria-controls="sidebar-nav-panel"
-          className={cn("p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted transition-colors", isCollapsed && "mx-auto")}
+          className={cn(
+            'p-1.5 hover:bg-theme-border/50 rounded-lg text-theme-muted transition-colors',
+            isCollapsed && 'mx-auto'
+          )}
         >
-          {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
+          {isCollapsed ? (
+            <ChevronRight size={16} aria-hidden="true" />
+          ) : (
+            <ChevronLeft size={16} aria-hidden="true" />
+          )}
         </button>
       </div>
 
@@ -129,7 +147,11 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
           <div className="flex flex-col gap-1 pr-1.5 pb-4">
             {mainItems.map(renderNavItem)}
 
-            <div className="pt-3 mt-3 border-t border-theme-border/50" role="group" aria-label="创作工具">
+            <div
+              className="pt-3 mt-3 border-t border-theme-border/50"
+              role="group"
+              aria-label="创作工具"
+            >
               {!isCollapsed && (
                 <div className="px-3 py-1 text-[10px] font-bold text-theme-muted/50 uppercase tracking-wider">
                   创作工具
@@ -138,7 +160,19 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
               {renderNavItem(continuationItem)}
               <button
                 type="button"
-                onClick={() => setIsAdvancedOpen((open) => { const next = !open; if (next) void recordProductEvent({ eventName: 'advanced_tools_open', stage: 'advanced', result: 'success', objectId: 'sidebar-advanced' }).catch(() => undefined); return next; })}
+                onClick={() =>
+                  setIsAdvancedOpen((open) => {
+                    const next = !open;
+                    if (next)
+                      void recordProductEvent({
+                        eventName: 'advanced_tools_open',
+                        stage: 'advanced',
+                        result: 'success',
+                        objectId: 'sidebar-advanced',
+                      }).catch(() => undefined);
+                    return next;
+                  })
+                }
                 aria-label="高级工具"
                 aria-expanded={isAdvancedVisible}
                 aria-controls="sidebar-advanced-tools"
@@ -155,7 +189,10 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
                 )}
               </button>
               {isAdvancedVisible && (
-                <div id="sidebar-advanced-tools" className={cn('mt-1 space-y-1', !isCollapsed && 'pl-2')}>
+                <div
+                  id="sidebar-advanced-tools"
+                  className={cn('mt-1 space-y-1', !isCollapsed && 'pl-2')}
+                >
                   {advancedItems.map(renderNavItem)}
                 </div>
               )}
@@ -177,9 +214,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
                 <Settings size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">
-              系统设置
-            </TooltipContent>
+            <TooltipContent side="right">系统设置</TooltipContent>
           </Tooltip>
         ) : (
           <button

@@ -1,11 +1,11 @@
-
 import type { ContextReceipt } from './continuation.js';
 import type { ProjectCapabilityProfile } from './preferences.js';
 import type { EnhancementPackageStep } from './prompt-assets-governed.js';
 
 export type CapabilityStage = 'planner' | 'writer' | 'critic';
 
-export type CapabilityApplicationStatus = 'configured' | 'scheduled' | 'run' | 'recommended' | 'unavailable' | 'conflict' | 'skipped';
+export type CapabilityApplicationStatus =
+  'configured' | 'scheduled' | 'run' | 'recommended' | 'unavailable' | 'conflict' | 'skipped';
 export interface CapabilityApplicationItemResult {
   readonly capabilityId: string;
   readonly stepId?: string;
@@ -24,22 +24,46 @@ export interface CapabilityApplicationResult {
   readonly profile?: ProjectCapabilityProfile;
 }
 
-export function isCapabilityApplicationResult(value: unknown): value is CapabilityApplicationResult {
+export function isCapabilityApplicationResult(
+  value: unknown
+): value is CapabilityApplicationResult {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
-  if (typeof item.applied !== 'boolean' || typeof item.idempotent !== 'boolean' || typeof item.databaseGeneration !== 'number' || !Array.isArray(item.items)) return false;
+  if (
+    typeof item.applied !== 'boolean' ||
+    typeof item.idempotent !== 'boolean' ||
+    typeof item.databaseGeneration !== 'number' ||
+    !Array.isArray(item.items)
+  )
+    return false;
   return item.items.every((entry) => {
     if (!entry || typeof entry !== 'object') return false;
     const row = entry as Record<string, unknown>;
-    return typeof row.capabilityId === 'string'
-      && (row.stepId === undefined || typeof row.stepId === 'string')
-      && ['configured', 'scheduled', 'run', 'recommended', 'unavailable', 'conflict', 'skipped'].includes(String(row.status));
+    return (
+      typeof row.capabilityId === 'string' &&
+      (row.stepId === undefined || typeof row.stepId === 'string') &&
+      [
+        'configured',
+        'scheduled',
+        'run',
+        'recommended',
+        'unavailable',
+        'conflict',
+        'skipped',
+      ].includes(String(row.status))
+    );
   });
 }
 export interface ExecutionCanon {
   readonly novelId: string;
   readonly styleAnchors: readonly string[];
-  readonly pack: Readonly<{ id: string; status: 'draft' | 'approved'; context: string; receipt: Readonly<ContextReceipt>; styleProfile: Readonly<Record<string, unknown>> }> | null;
+  readonly pack: Readonly<{
+    id: string;
+    status: 'draft' | 'approved';
+    context: string;
+    receipt: Readonly<ContextReceipt>;
+    styleProfile: Readonly<Record<string, unknown>>;
+  }> | null;
 }
 export interface ExecutionFlowStep {
   readonly activeFlowId: string;
@@ -58,7 +82,11 @@ export interface ExecutionRoleSkills {
   readonly writer: readonly RoleSkillSnapshot[];
   readonly critic: readonly RoleSkillSnapshot[];
 }
-export interface RoleSkillSnapshot { readonly stage: CapabilityStage; readonly version: number; readonly rules: Readonly<Record<string, unknown>>; }
+export interface RoleSkillSnapshot {
+  readonly stage: CapabilityStage;
+  readonly version: number;
+  readonly rules: Readonly<Record<string, unknown>>;
+}
 export interface ExecutionOverlay {
   readonly id: string;
   readonly version: string | number;

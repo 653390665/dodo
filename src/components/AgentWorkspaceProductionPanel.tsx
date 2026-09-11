@@ -27,9 +27,7 @@ import { PlanningTab } from './book-factory/PlanningTab';
 import { QualityTab } from './book-factory/QualityTab';
 import { getProjectCapabilityCardCount } from '../lib/capability-card-count';
 import { resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
-import type {
-  WritingStyleMode,
-} from '../lib/writing-style-client';
+import type { WritingStyleMode } from '../lib/writing-style-client';
 
 type ProductionAgentTab = Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'>;
 
@@ -47,14 +45,17 @@ interface AgentWorkspaceProductionPanelProps {
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   onOpenBibleAssistant?: (prompt: string) => void;
   projectTechniqueId?: string;
-  onGenerateOutline: (outline?: string, options?: {
-    techniqueId?: string;
-    outlineSourceSelection?: {
-      continuationPackId: string;
-      primaryDocumentId: string;
-      referenceDocumentIds: string[];
-    };
-  }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
+  onGenerateOutline: (
+    outline?: string,
+    options?: {
+      techniqueId?: string;
+      outlineSourceSelection?: {
+        continuationPackId: string;
+        primaryDocumentId: string;
+        referenceDocumentIds: string[];
+      };
+    }
+  ) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
   onGlobalOutlineChange: (outline: string) => void;
@@ -145,7 +146,9 @@ export function AgentWorkspaceProductionPanel({
   const reviewIssues = currentChapter?.workflowMeta?.reviewState?.issues;
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
-  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  const selectedContinuationPackId = useContinuationPackStore(
+    (state) => state.selectedContinuationPackId
+  );
   // 011 Phase 3：辅助数据集订阅 store
   const _librarySkills = useEditorDataStore((state) => state.librarySkills);
   const relationships = useEditorDataStore((state) => state.relationships);
@@ -178,12 +181,15 @@ export function AgentWorkspaceProductionPanel({
 
   const activeSkillsCount = React.useMemo(
     () => getProjectCapabilityCardCount(novel, mountedSkillLoadout),
-    [mountedSkillLoadout, novel],
+    [mountedSkillLoadout, novel]
   );
 
   const capabilityEffectSummary = React.useMemo(() => {
-    const capabilityProfile = projectPreferenceProfile?.capabilityProfile || novel.projectPreferenceProfile?.capabilityProfile;
-    const resolveName = (id: string | undefined) => id ? resolveCapabilityDisplayName(id, _librarySkills || []) : null;
+    const capabilityProfile =
+      projectPreferenceProfile?.capabilityProfile ||
+      novel.projectPreferenceProfile?.capabilityProfile;
+    const resolveName = (id: string | undefined) =>
+      id ? resolveCapabilityDisplayName(id, _librarySkills || []) : null;
     const projectCardNames = [
       resolveName(capabilityProfile?.projectSkillDeck.mainCardId),
       ...(capabilityProfile?.projectSkillDeck.supportCardIds || []).map(resolveName),
@@ -195,7 +201,12 @@ export function AgentWorkspaceProductionPanel({
       .map(resolveName)
       .filter((name): name is string => Boolean(name));
     return { projectCardNames, favoriteTechniqueNames, chapterCardNames };
-  }, [_librarySkills, novel.projectPreferenceProfile?.capabilityProfile, projectPreferenceProfile?.capabilityProfile, stackedDeconstructionCardIds]);
+  }, [
+    _librarySkills,
+    novel.projectPreferenceProfile?.capabilityProfile,
+    projectPreferenceProfile?.capabilityProfile,
+    stackedDeconstructionCardIds,
+  ]);
 
   const bibleEntitiesCount = React.useMemo(() => {
     return (
@@ -241,11 +252,11 @@ export function AgentWorkspaceProductionPanel({
         renderContextReceipt={renderContextReceipt}
         capabilityEffectSummary={capabilityEffectSummary}
         onSwitchTab={onSwitchTab}
-              onConfirmWritingStyle={onConfirmWritingStyle}
-              onGenerateWithWritingStyle={onGenerateWithWritingStyle}
-              onQuickGenerate={onQuickGenerate}
-              quickGenerateDisabled={quickGenerateDisabled}
-              onOpenWritingStyle={onOpenWritingStyle}
+        onConfirmWritingStyle={onConfirmWritingStyle}
+        onGenerateWithWritingStyle={onGenerateWithWritingStyle}
+        onQuickGenerate={onQuickGenerate}
+        quickGenerateDisabled={quickGenerateDisabled}
+        onOpenWritingStyle={onOpenWritingStyle}
       />
     );
   }

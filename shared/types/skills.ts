@@ -1,10 +1,4 @@
-export type SkillDimension =
-  | 'style'
-  | 'character'
-  | 'world'
-  | 'power'
-  | 'plot'
-  | 'pacing';
+export type SkillDimension = 'style' | 'character' | 'world' | 'power' | 'plot' | 'pacing';
 
 export interface SkillCompositionProfile {
   styleWeight: number;
@@ -89,11 +83,7 @@ export interface Skill {
 export type BookEvidenceStage = 'opening' | 'early-mid' | 'mid' | 'late-mid' | 'climax';
 
 export type SkillEvidenceCoverage =
-  | 'full-book-stable'
-  | 'opening-heavy'
-  | 'mid-book-heavy'
-  | 'climax-heavy'
-  | 'weak-evidence';
+  'full-book-stable' | 'opening-heavy' | 'mid-book-heavy' | 'climax-heavy' | 'weak-evidence';
 
 export interface BookEvidenceSegment {
   id: string;
@@ -197,11 +187,7 @@ export interface StoryCardSkillSignal {
 }
 
 export type CardSourceKind =
-  | 'ai-generated'
-  | 'book-extracted'
-  | 'user-uploaded'
-  | 'manual'
-  | 'fused';
+  'ai-generated' | 'book-extracted' | 'user-uploaded' | 'manual' | 'fused';
 
 export interface StorySkillRecommendation {
   skillId: string;

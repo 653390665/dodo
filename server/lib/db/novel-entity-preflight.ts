@@ -18,7 +18,8 @@ interface PreflightContext {
 }
 
 function quotaLimitsEqual(left: unknown, right: unknown): boolean {
-  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return left === right;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object')
+    return left === right;
   const leftRecord = left as Record<string, unknown>;
   const rightRecord = right as Record<string, unknown>;
   const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
@@ -36,30 +37,34 @@ export function preflightNovelEntity(
   method: 'createNovel' | 'updateNovel' | 'createNovelWithChapter',
   entity: Record<string, unknown>,
   updateNovelId: string | undefined,
-  ctx: PreflightContext,
+  ctx: PreflightContext
 ): void {
   const mountedSkillLoadout = Array.isArray(entity?.mountedSkillLoadout)
     ? entity.mountedSkillLoadout.map((entry) => {
-      if (!entry || typeof entry !== 'object') return entry;
-      const skillId = (entry as Record<string, unknown>).skillId;
-      if (typeof skillId !== 'string') return entry;
-      const skill = ctx.getSkill(skillId);
-      return skill?.parentSkillId
-        ? { ...(entry as Record<string, unknown>), parentSkillId: skill.parentSkillId }
-        : entry;
-    })
+        if (!entry || typeof entry !== 'object') return entry;
+        const skillId = (entry as Record<string, unknown>).skillId;
+        if (typeof skillId !== 'string') return entry;
+        const skill = ctx.getSkill(skillId);
+        return skill?.parentSkillId
+          ? { ...(entry as Record<string, unknown>), parentSkillId: skill.parentSkillId }
+          : entry;
+      })
     : entity?.mountedSkillLoadout;
   validateMountedSkillLoadout(mountedSkillLoadout);
 
   const profile = entity?.projectPreferenceProfile;
-  const hasQuotaLimits = profile && typeof profile === 'object'
-    && Object.prototype.hasOwnProperty.call(profile, 'quotaLimits');
-  const commercialMode = profile && typeof profile === 'object'
-    ? (profile as Record<string, unknown>).commercialMode
-    : undefined;
-  const quotaLimits = profile && typeof profile === 'object'
-    ? (profile as Record<string, unknown>).quotaLimits
-    : undefined;
+  const hasQuotaLimits =
+    profile &&
+    typeof profile === 'object' &&
+    Object.prototype.hasOwnProperty.call(profile, 'quotaLimits');
+  const commercialMode =
+    profile && typeof profile === 'object'
+      ? (profile as Record<string, unknown>).commercialMode
+      : undefined;
+  const quotaLimits =
+    profile && typeof profile === 'object'
+      ? (profile as Record<string, unknown>).quotaLimits
+      : undefined;
 
   if (method === 'createNovel' || method === 'createNovelWithChapter') {
     if (profile && typeof profile === 'object') {
@@ -81,9 +86,9 @@ export function preflightNovelEntity(
     throw new DbEntitlementBoundaryError('付费作品权益不可降级或覆盖');
   }
   if (hasQuotaLimits && !quotaLimitsEqual(quotaLimits, existingProfile?.quotaLimits)) {
-    throw new DbEntitlementBoundaryError(existingIsPaid
-      ? '付费作品权益不可降级或覆盖'
-      : '客户端不得修改付费权益');
+    throw new DbEntitlementBoundaryError(
+      existingIsPaid ? '付费作品权益不可降级或覆盖' : '客户端不得修改付费权益'
+    );
   }
   if (profile && typeof profile === 'object') {
     const incomingProfile = profile as Record<string, unknown>;
@@ -98,9 +103,9 @@ export function preflightNovelEntity(
     if (incomingProfile.weights && typeof incomingProfile.weights === 'object') {
       mergedProfile.weights = {
         ...(existingProfile?.weights && typeof existingProfile.weights === 'object'
-          ? existingProfile.weights as Record<string, unknown>
+          ? (existingProfile.weights as Record<string, unknown>)
           : {}),
-        ...incomingProfile.weights as Record<string, unknown>,
+        ...(incomingProfile.weights as Record<string, unknown>),
       };
     }
     entity.projectPreferenceProfile = normalizeProjectPreferenceProfile(mergedProfile);

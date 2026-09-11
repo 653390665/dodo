@@ -1,12 +1,14 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Novel } from '../../shared/types';
 
-const { startWorldJob, createOutline, activateOutline, flushPendingEditorWrites } = vi.hoisted(() => ({
-  startWorldJob: vi.fn(),
-  createOutline: vi.fn(),
-  activateOutline: vi.fn(),
-  flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
-}));
+const { startWorldJob, createOutline, activateOutline, flushPendingEditorWrites } = vi.hoisted(
+  () => ({
+    startWorldJob: vi.fn(),
+    createOutline: vi.fn(),
+    activateOutline: vi.fn(),
+    flushPendingEditorWrites: vi.fn().mockResolvedValue(undefined),
+  })
+);
 
 vi.mock('../lib/world-job-client', () => ({ startWorldJob }));
 vi.mock('../lib/outline-client', () => ({ createOutline, activateOutline }));
@@ -61,7 +63,7 @@ describe('approvedOutlinePackId filtering (client-side)', () => {
       '/api/generate-outline',
       expect.objectContaining({ continuationPackId: 'pack-approved' }),
       expect.anything(),
-      expect.anything(),
+      expect.anything()
     );
   });
 

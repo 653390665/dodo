@@ -29,5 +29,6 @@ export const useOutlineContentStore = create<OutlineContentState>((set, get) => 
     })),
   setGlobalOutlineRaw: (value) => set({ globalOutline: value }),
   setOutlineError: (value) => set({ outlineError: value }),
-  resetOutlineContent: () => set({ globalOutline: '', outlineError: null, outlineRevision: get().outlineRevision + 1 }),
+  resetOutlineContent: () =>
+    set({ globalOutline: '', outlineError: null, outlineRevision: get().outlineRevision + 1 }),
 }));

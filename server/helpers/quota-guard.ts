@@ -8,9 +8,9 @@ import { getDatabaseGeneration, runInSerializedWrite } from '../lib/db-instance.
  * Default free-tier quota configuration
  */
 export const DEFAULT_QUOTA_MAX = {
-  extractSkill: 5,     // 免费拆书萃取次数上限
-  generateProse: 10,   // 免费正文生成次数上限
-  advancedAudit: 5,    // 免费智能审稿与高级诊断次数上限
+  extractSkill: 5, // 免费拆书萃取次数上限
+  generateProse: 10, // 免费正文生成次数上限
+  advancedAudit: 5, // 免费智能审稿与高级诊断次数上限
 };
 
 export type QuotaLimitType = 'extractSkill' | 'generateProse' | 'advancedAudit';
@@ -28,7 +28,12 @@ export interface QuotaCheckResult {
   error?: string;
   reservationId?: string;
   databaseGeneration?: number;
-  code?: 'NOVEL_ID_REQUIRED' | 'NOVEL_NOT_FOUND' | 'QUOTA_EXCEEDED' | 'DATABASE_CHANGED' | 'RATE_LIMITED';
+  code?:
+    | 'NOVEL_ID_REQUIRED'
+    | 'NOVEL_NOT_FOUND'
+    | 'QUOTA_EXCEEDED'
+    | 'DATABASE_CHANGED'
+    | 'RATE_LIMITED';
 }
 
 const NOVEL_ID_REQUIRED_ERROR = '必须绑定现有作品才能调用此 AI 功能';
@@ -101,7 +106,7 @@ export function isMonetizationEnabled(): boolean {
 export function checkQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
-  accessContext: QuotaAccessContext = 'enhanced-workflow',
+  accessContext: QuotaAccessContext = 'enhanced-workflow'
 ): QuotaCheckResult {
   if (!novelId) {
     return missingNovelResult(novelId);
@@ -127,7 +132,7 @@ export function checkQuota(
     return { allowed: true };
   }
 
-  const limits: QuotaLimits = profile.quotaLimits || {} as QuotaLimits;
+  const limits: QuotaLimits = profile.quotaLimits || ({} as QuotaLimits);
 
   let max = DEFAULT_QUOTA_MAX[limitType];
   let count = 0;
@@ -166,7 +171,7 @@ export function checkQuota(
 export function consumeQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
-  accessContext: QuotaAccessContext = 'enhanced-workflow',
+  accessContext: QuotaAccessContext = 'enhanced-workflow'
 ): void {
   if (!novelId) return;
 
@@ -213,7 +218,7 @@ export function consumeQuota(
 function checkAndConsumeQuotaSync(
   novelId: string,
   limitType: QuotaLimitType,
-  accessContext: QuotaAccessContext = 'enhanced-workflow',
+  accessContext: QuotaAccessContext = 'enhanced-workflow'
 ): QuotaCheckResult {
   const novel = getNovel(novelId);
   if (!novel) {
@@ -297,7 +302,7 @@ function checkAndConsumeQuotaSync(
 export async function checkAndConsumeQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
-  accessContext: QuotaAccessContext = 'enhanced-workflow',
+  accessContext: QuotaAccessContext = 'enhanced-workflow'
 ): Promise<QuotaCheckResult> {
   if (!novelId) {
     return missingNovelResult(novelId);
@@ -361,7 +366,7 @@ function decrementQuotaCounter(novelId: string, limitType: QuotaLimitType): void
 export async function reserveQuota(
   novelId: string | undefined,
   limitType: QuotaLimitType,
-  accessContext: QuotaAccessContext = 'enhanced-workflow',
+  accessContext: QuotaAccessContext = 'enhanced-workflow'
 ): Promise<QuotaCheckResult> {
   await pruneReservations();
   if (!novelId) {
@@ -450,7 +455,7 @@ export function commitQuotaReservation(reservationId: string | undefined): boole
  */
 export async function settleQuotaReservation(
   reservationId: string | undefined,
-  contentDelivered: boolean,
+  contentDelivered: boolean
 ): Promise<boolean> {
   if (contentDelivered) {
     return commitQuotaReservation(reservationId);
@@ -466,13 +471,10 @@ export async function settleQuotaReservation(
  */
 export function rebaseActiveQuotaReservationsAfterRollback(
   previousGeneration: number,
-  restoredGeneration: number,
+  restoredGeneration: number
 ): void {
   for (const reservation of quotaReservations.values()) {
-    if (
-      reservation.status === 'active'
-      && reservation.databaseGeneration === previousGeneration
-    ) {
+    if (reservation.status === 'active' && reservation.databaseGeneration === previousGeneration) {
       reservation.databaseGeneration = restoredGeneration;
     }
   }

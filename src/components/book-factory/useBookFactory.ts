@@ -3,7 +3,13 @@ import { toast } from '../../lib/toast';
 import { logger } from '../../lib/client-logger';
 import { listNovels } from '../../lib/novel-client';
 import { createSkill } from '../../lib/skill-client';
-import { extractSkill, checkSkillExtractionJob, cancelSkillExtractionJob, QuotaError, type ExtractSkillResponse } from '../../lib/prompt-client';
+import {
+  extractSkill,
+  checkSkillExtractionJob,
+  cancelSkillExtractionJob,
+  QuotaError,
+  type ExtractSkillResponse,
+} from '../../lib/prompt-client';
 import { readDraftStream } from '../../lib/draft-stream';
 import { useNovelStore } from '../../stores/novel-store';
 import { recordProductEvent } from '../../lib/product-events-client';
@@ -26,7 +32,12 @@ import type {
 } from '../../../shared/types';
 import { CARD_STAGE_MAP, type CapabilityStage } from '../../../shared/types/capability-execution';
 import { generateClientId } from '../../lib/id';
-import { confirmWritingStyle, type WritingStyleCandidate, type WritingStyleMode, type WritingStyleResolution } from '../../lib/writing-style-client';
+import {
+  confirmWritingStyle,
+  type WritingStyleCandidate,
+  type WritingStyleMode,
+  type WritingStyleResolution,
+} from '../../lib/writing-style-client';
 
 const STAGE_SLOT: Record<CapabilityStage, number> = { planner: 0, writer: 1, critic: 2 };
 
@@ -43,7 +54,9 @@ export interface BuildDeckMountPlanResult {
   unknownCards: Skill[];
 }
 
-export function getCardMountStages(cardType?: Skill['deconstructionCardType']): readonly CapabilityStage[] {
+export function getCardMountStages(
+  cardType?: Skill['deconstructionCardType']
+): readonly CapabilityStage[] {
   if (!cardType) return [];
   return CARD_STAGE_MAP[cardType] || [];
 }
@@ -51,7 +64,7 @@ export function getCardMountStages(cardType?: Skill['deconstructionCardType']): 
 export function buildDeckMountPlan(
   cards: Skill[],
   existingLoadout: MountedSkillLoadoutItem[],
-  requestedStage?: CapabilityStage,
+  requestedStage?: CapabilityStage
 ): BuildDeckMountPlanResult {
   const nextBySlot = new Map(existingLoadout.map((entry) => [entry.slot, entry]));
   const replacementSlots: number[] = [];
@@ -121,18 +134,28 @@ function isRuntimeReadyDeckCard(card: Skill): boolean {
     sanitizationStatus?: string;
     runtimeStatus?: string;
   };
-  const hasExecutableRule = [card.style, card.pacing, card.characterTraits, card.worldBuilding, card.plotPattern, card.foreshadowing, ...(card.corePatterns || []), ...(card.fewShots || [])]
-    .some((value) => typeof value === 'string' && value.trim().length > 0);
-  const authorizedSource = !card.sourceType || ['built-in', 'licensed', 'plaza', 'book-extracted'].includes(card.sourceType);
+  const hasExecutableRule = [
+    card.style,
+    card.pacing,
+    card.characterTraits,
+    card.worldBuilding,
+    card.plotPattern,
+    card.foreshadowing,
+    ...(card.corePatterns || []),
+    ...(card.fewShots || []),
+  ].some((value) => typeof value === 'string' && value.trim().length > 0);
+  const authorizedSource =
+    !card.sourceType ||
+    ['built-in', 'licensed', 'plaza', 'book-extracted'].includes(card.sourceType);
   return Boolean(
-    card.version > 0
-      && authorizedSource
-      && card.accessTier !== 'paid'
-      && hasExecutableRule
-      && metadata.deconstructionCardType
-      && metadata.isRuntimeReady === true
-      && metadata.sanitizationStatus === 'runtime-ready'
-      && metadata.runtimeStatus === 'active',
+    card.version > 0 &&
+    authorizedSource &&
+    card.accessTier !== 'paid' &&
+    hasExecutableRule &&
+    metadata.deconstructionCardType &&
+    metadata.isRuntimeReady === true &&
+    metadata.sanitizationStatus === 'runtime-ready' &&
+    metadata.runtimeStatus === 'active'
   );
 }
 
@@ -143,7 +166,7 @@ function isRuntimeReadyDeckCard(card: Skill): boolean {
 export function buildProjectSkillDeckPreview(
   cards: Skill[],
   updatedAt = Date.now(),
-  selection?: ProjectSkillDeckSelection,
+  selection?: ProjectSkillDeckSelection
 ): ProjectSkillDeckPreview {
   const uniqueCards: Skill[] = [];
   const seen = new Set<string>();
@@ -162,7 +185,7 @@ export function buildProjectSkillDeckPreview(
     .map((id) => cardCandidates.find((card) => card.id === id))
     .filter((card): card is Skill => Boolean(card && card.id !== selectedMain?.id));
   const acceptedCards = selection
-    ? [ ...(selectedMain ? [selectedMain] : []), ...selectedSupports ]
+    ? [...(selectedMain ? [selectedMain] : []), ...selectedSupports]
     : cardCandidates;
   const acceptedIds = new Set(acceptedCards.map((card) => card.id));
   const rejectedCards = [
@@ -171,13 +194,17 @@ export function buildProjectSkillDeckPreview(
   ];
   const conflicts = selection
     ? [
-      ...(selectedSupportIds.length > 2 ? ['PROJECT_DECK_SUPPORT_LIMIT'] : []),
-      ...(selection.mainCardId && !selectedMain ? ['PROJECT_DECK_MAIN_NOT_FOUND'] : []),
-      ...selectedSupportIds.filter((id) => !cardCandidates.some((card) => card.id === id)).map(() => 'PROJECT_DECK_SUPPORT_NOT_FOUND'),
-    ]
+        ...(selectedSupportIds.length > 2 ? ['PROJECT_DECK_SUPPORT_LIMIT'] : []),
+        ...(selection.mainCardId && !selectedMain ? ['PROJECT_DECK_MAIN_NOT_FOUND'] : []),
+        ...selectedSupportIds
+          .filter((id) => !cardCandidates.some((card) => card.id === id))
+          .map(() => 'PROJECT_DECK_SUPPORT_NOT_FOUND'),
+      ]
     : [];
   const warnings = [
-    nonCardSkills.length > 0 ? '只有拆书卡可以提交到作品卡组待选，写作技法或流程请在能力中心单独使用' : '',
+    nonCardSkills.length > 0
+      ? '只有拆书卡可以提交到作品卡组待选，写作技法或流程请在能力中心单独使用'
+      : '',
     cardCandidates.length > 3 ? '作品卡组最多包含 1 张主卡和 2 张辅卡，超出卡片请单独保存' : '',
     selectedSupportIds.length > 2 ? '已选择超过 2 张辅卡，请移除多余卡片后再保存' : '',
   ].filter(Boolean);
@@ -202,10 +229,15 @@ export const buildSkillDeckPreview = buildProjectSkillDeckPreview;
 
 export function updateProjectSkillDeck(
   profile: ProjectPreferenceProfile | undefined,
-  deck: ProjectSkillDeck,
+  deck: ProjectSkillDeck
 ): ProjectPreferenceProfile {
   const supportIds = deck.supportCardIds || [];
-  if (!deck.mainCardId || supportIds.length > 2 || new Set(supportIds).size !== supportIds.length || supportIds.includes(deck.mainCardId)) {
+  if (
+    !deck.mainCardId ||
+    supportIds.length > 2 ||
+    new Set(supportIds).size !== supportIds.length ||
+    supportIds.includes(deck.mainCardId)
+  ) {
     throw new Error('Invalid project skill deck selection');
   }
   const normalizedSupport = supportIds.filter(Boolean);
@@ -235,7 +267,7 @@ export function updateProjectSkillDeck(
 
 export function buildProjectSkillDeckUpdatePayload(
   profile: ProjectPreferenceProfile | undefined,
-  deck: ProjectSkillDeck,
+  deck: ProjectSkillDeck
 ): { projectPreferenceProfile: ProjectPreferenceProfile } {
   return { projectPreferenceProfile: updateProjectSkillDeck(profile, deck) };
 }
@@ -285,14 +317,18 @@ function decodeTextArrayBuffer(buffer: ArrayBuffer): string {
 // 标准化技能配置
 export function normalizeSkillConfig(data: Partial<Skill> | Record<string, unknown>): Skill {
   const rec = asRecord(data);
-  const primaryDimension = (typeof rec.primaryDimension === 'string' && ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(rec.primaryDimension))
-    ? (rec.primaryDimension as SkillDimension)
-    : 'style';
-  
+  const primaryDimension =
+    typeof rec.primaryDimension === 'string' &&
+    ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(rec.primaryDimension)
+      ? (rec.primaryDimension as SkillDimension)
+      : 'style';
+
   // 修复：检查是否为空数组或过滤后为空
   let dimensionTags: SkillDimension[] = ['style' as const];
   if (Array.isArray(rec.dimensionTags) && rec.dimensionTags.length > 0) {
-    const filtered = asStringArray(rec.dimensionTags).filter((t) => ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(t)) as SkillDimension[];
+    const filtered = asStringArray(rec.dimensionTags).filter((t) =>
+      ['style', 'character', 'world', 'power', 'plot', 'pacing'].includes(t)
+    ) as SkillDimension[];
     if (filtered.length > 0) {
       dimensionTags = filtered;
     }
@@ -323,11 +359,7 @@ export function normalizeSkillConfigs(data: unknown): Skill[] {
     return [];
   }
   const rec = asRecord(data);
-  const rawSkills = Array.isArray(rec.skills)
-    ? rec.skills
-    : Array.isArray(data)
-      ? data
-      : [data];
+  const rawSkills = Array.isArray(rec.skills) ? rec.skills : Array.isArray(data) ? data : [data];
   return (rawSkills as Array<Partial<Skill> | Record<string, unknown>>).map(normalizeSkillConfig);
 }
 
@@ -346,17 +378,21 @@ export function countChineseCharacters(text: string): number {
 }
 
 export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
-  const selectedNovel = useNovelStore(state => state.selectedNovel);
-  const [fileContent, setFileContent] = useState("");
+  const selectedNovel = useNovelStore((state) => state.selectedNovel);
+  const [fileContent, setFileContent] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [skillCards, setSkillCards] = useState<Skill[]>([]);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
-  const [deckMeta, setDeckMeta] = useState<{ mainCardId?: string; supportCount?: number } | null>(null);
+  const [deckMeta, setDeckMeta] = useState<{ mainCardId?: string; supportCount?: number } | null>(
+    null
+  );
   const [deck, setDeck] = useState<AggregatedSkillDeck | null>(null);
-  const [segmentLabels, setSegmentLabels] = useState<Array<{ id: string; stage: BookEvidenceStage; label: string }>>([]);
+  const [segmentLabels, setSegmentLabels] = useState<
+    Array<{ id: string; stage: BookEvidenceStage; label: string }>
+  >([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editableJson, setEditableJson] = useState("");
+  const [editableJson, setEditableJson] = useState('');
 
   // 轮询状态
   const [extractionSource, setExtractionSource] = useState<'fallback' | 'model' | null>(null);
@@ -364,18 +400,32 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   const [isModelPending, setIsModelPending] = useState(false);
   const [extractionWarnings, setExtractionWarnings] = useState<string[]>([]);
   const [extractionStatusNote, setExtractionStatusNote] = useState<string | null>(null);
-  const [extractionQuality, setExtractionQuality] = useState<ExtractSkillResponse['quality'] | null>(null);
+  const [extractionQuality, setExtractionQuality] = useState<
+    ExtractSkillResponse['quality'] | null
+  >(null);
 
   // 风格测试状态
-  const [testInput, setTestInput] = useState("");
-  const [testOutput, setTestOutput] = useState("");
+  const [testInput, setTestInput] = useState('');
+  const [testOutput, setTestOutput] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ skillId: string; status: 'idle' | 'running' | 'success' | 'error'; output: string; error?: string }>({ skillId: '', status: 'idle', output: '' });
-  const [testStyleResolution, setTestStyleResolution] = useState<WritingStyleResolution | null>(null);
+  const [testResult, setTestResult] = useState<{
+    skillId: string;
+    status: 'idle' | 'running' | 'success' | 'error';
+    output: string;
+    error?: string;
+  }>({ skillId: '', status: 'idle', output: '' });
+  const [testStyleResolution, setTestStyleResolution] = useState<WritingStyleResolution | null>(
+    null
+  );
   const [testStyleCandidates, setTestStyleCandidates] = useState<WritingStyleCandidate[]>([]);
-  const [testStyleFingerprint, setTestStyleFingerprint] = useState<string | undefined>(chapterContext.styleConfirmationFingerprint || chapterContext.writingStyleFingerprint);
-  const testRunRef = useRef<{ seq: number; controller: AbortController | null }>({ seq: 0, controller: null });
+  const [testStyleFingerprint, setTestStyleFingerprint] = useState<string | undefined>(
+    chapterContext.styleConfirmationFingerprint || chapterContext.writingStyleFingerprint
+  );
+  const testRunRef = useRef<{ seq: number; controller: AbortController | null }>({
+    seq: 0,
+    controller: null,
+  });
 
   // 装备状态
   const [showEquipPanel, setShowEquipPanel] = useState(false);
@@ -413,11 +463,12 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       const databaseGeneration = await getDatabaseGenerationSnapshot();
       const baselineToken = getCapabilityConfigurationBaselineToken(capabilityProfile);
       const latest = loadLatestCapabilityConfigurationSession(novel.id);
-      const reusableLatest = latest
-        && latest.databaseGeneration === databaseGeneration
-        && latest.baselineToken === baselineToken
-        ? latest
-        : null;
+      const reusableLatest =
+        latest &&
+        latest.databaseGeneration === databaseGeneration &&
+        latest.baselineToken === baselineToken
+          ? latest
+          : null;
 
       saveCapabilityConfigurationSession({
         version: 1,
@@ -481,7 +532,18 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
               ...prev,
               `AI 深度分析未完成：${job.error || '模型响应失败'}。当前显示的是本地保底提炼结果。`,
             ]);
-            setExtractionQuality((current) => current || { passed: false, anchoringScore: 0, genericSkillCount: 0, totalSkillCount: 0, genericDetails: [], fieldCompleteness: 0, issue: job.error || 'AI 深度分析失败' });
+            setExtractionQuality(
+              (current) =>
+                current || {
+                  passed: false,
+                  anchoringScore: 0,
+                  genericSkillCount: 0,
+                  totalSkillCount: 0,
+                  genericDetails: [],
+                  fieldCompleteness: 0,
+                  issue: job.error || 'AI 深度分析失败',
+                }
+            );
             setIsModelPending(false);
           }
           return;
@@ -489,14 +551,39 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
         if (!cancelled && attempts < MAX_POLL_ATTEMPTS) {
           setTimeout(poll, 2000);
         } else if (!cancelled) {
-          setExtractionWarnings((prev) => [...prev, 'AI 深度分析超时，当前显示的是本地保底提炼结果。']);
-          setExtractionQuality((current) => current || { passed: false, anchoringScore: 0, genericSkillCount: 0, totalSkillCount: 0, genericDetails: [], fieldCompleteness: 0, issue: 'AI 深度分析超时' });
+          setExtractionWarnings((prev) => [
+            ...prev,
+            'AI 深度分析超时，当前显示的是本地保底提炼结果。',
+          ]);
+          setExtractionQuality(
+            (current) =>
+              current || {
+                passed: false,
+                anchoringScore: 0,
+                genericSkillCount: 0,
+                totalSkillCount: 0,
+                genericDetails: [],
+                fieldCompleteness: 0,
+                issue: 'AI 深度分析超时',
+              }
+          );
           setIsModelPending(false);
         }
       } catch (e) {
         if (!cancelled) {
           setExtractionWarnings((prev) => [...prev, `AI 深度分析轮询出错：${String(e)}。`]);
-          setExtractionQuality((current) => current || { passed: false, anchoringScore: 0, genericSkillCount: 0, totalSkillCount: 0, genericDetails: [], fieldCompleteness: 0, issue: 'AI 深度分析轮询失败' });
+          setExtractionQuality(
+            (current) =>
+              current || {
+                passed: false,
+                anchoringScore: 0,
+                genericSkillCount: 0,
+                totalSkillCount: 0,
+                genericDetails: [],
+                fieldCompleteness: 0,
+                issue: 'AI 深度分析轮询失败',
+              }
+          );
           setIsModelPending(false);
         }
       }
@@ -524,12 +611,18 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     setTestResult({ skillId: currentSkillId, status: 'idle', output: '' });
     setTestStyleResolution(null);
     setTestStyleCandidates([]);
-    setTestStyleFingerprint(chapterContext.styleConfirmationFingerprint || chapterContext.writingStyleFingerprint);
-  }, [chapterContext.styleConfirmationFingerprint, chapterContext.writingStyleFingerprint, selectedSkill?.id]);
+    setTestStyleFingerprint(
+      chapterContext.styleConfirmationFingerprint || chapterContext.writingStyleFingerprint
+    );
+  }, [
+    chapterContext.styleConfirmationFingerprint,
+    chapterContext.writingStyleFingerprint,
+    selectedSkill?.id,
+  ]);
 
   const updateSelectedSkill = (updater: (skill: Skill) => Skill) => {
     setSkillCards((current) =>
-      current.map((skill, index) => (index === selectedSkillIndex ? updater(skill) : skill)),
+      current.map((skill, index) => (index === selectedSkillIndex ? updater(skill) : skill))
     );
   };
 
@@ -562,7 +655,13 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     const startedAt = Date.now();
     let completionResult: 'success' | 'failure' = 'success';
     let completionErrorCode: string | undefined;
-    void recordProductEvent({ eventName: 'factory_start', stage: 'advanced', result: 'success', objectId: selectedNovel?.id, durationMs: 0 }).catch(() => undefined);
+    void recordProductEvent({
+      eventName: 'factory_start',
+      stage: 'advanced',
+      result: 'success',
+      objectId: selectedNovel?.id,
+      durationMs: 0,
+    }).catch(() => undefined);
     setIsAnalyzing(true);
     setSkillCards([]);
     setSelectedSkillIndex(0);
@@ -571,7 +670,7 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     setDeckMeta(null);
     setSegmentLabels([]);
     setIsEditing(false);
-    setEditableJson("");
+    setEditableJson('');
     setExtractionSource(null);
     setExtractionJobId(null);
     setIsModelPending(false);
@@ -597,7 +696,9 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       setShowEquipPanel(false);
       setDeckMeta({
         mainCardId: data.deck?.mainCard?.id,
-        supportCount: Array.isArray(data.deck?.supportCards) ? data.deck.supportCards.length : Math.max(0, normalized.length - 1),
+        supportCount: Array.isArray(data.deck?.supportCards)
+          ? data.deck.supportCards.length
+          : Math.max(0, normalized.length - 1),
       });
       setSegmentLabels(Array.isArray(data.segments) ? data.segments : []);
       setEditableJson(JSON.stringify(normalized[0] || {}, null, 2));
@@ -612,19 +713,24 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       }
     } catch (e) {
       completionResult = 'failure';
-      completionErrorCode = e instanceof QuotaError || isQuotaErrorLike(e) ? 'QUOTA_LIMIT_EXCEEDED' : 'FACTORY_ANALYSIS_FAILED';
+      completionErrorCode =
+        e instanceof QuotaError || isQuotaErrorLike(e)
+          ? 'QUOTA_LIMIT_EXCEEDED'
+          : 'FACTORY_ANALYSIS_FAILED';
       if (e instanceof QuotaError || isQuotaErrorLike(e)) {
         const quotaLike = e instanceof QuotaError ? e : e;
         // 抛出全局自定义事件以触发毛玻璃升舱弹窗
-        window.dispatchEvent(new CustomEvent('local-capability-unavailable', {
-          detail: {
-            limitType: quotaLike.limitType || 'extractSkill',
-            count: quotaLike.count ?? 5,
-            max: quotaLike.max ?? 5,
-            error: e instanceof Error ? e.message : String(e),
-            novelId: selectedNovel?.id || undefined, // 带上当前小说ID (Novel ID pass-through for upgrade tracking)
-          }
-        }));
+        window.dispatchEvent(
+          new CustomEvent('local-capability-unavailable', {
+            detail: {
+              limitType: quotaLike.limitType || 'extractSkill',
+              count: quotaLike.count ?? 5,
+              max: quotaLike.max ?? 5,
+              error: e instanceof Error ? e.message : String(e),
+              novelId: selectedNovel?.id || undefined, // 带上当前小说ID (Novel ID pass-through for upgrade tracking)
+            },
+          })
+        );
       }
       const errorMessage = e instanceof Error ? e.message : String(e);
       const isInputError = /文本|字符|中文|过短|输入/i.test(errorMessage);
@@ -637,7 +743,14 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       setExtractionStatusNote(statusNote);
       setExtractionWarnings([errorMessage]);
     } finally {
-      void recordProductEvent({ eventName: 'factory_complete', stage: 'advanced', result: completionResult, errorCode: completionErrorCode, objectId: selectedNovel?.id, durationMs: Date.now() - startedAt }).catch(() => undefined);
+      void recordProductEvent({
+        eventName: 'factory_complete',
+        stage: 'advanced',
+        result: completionResult,
+        errorCode: completionErrorCode,
+        objectId: selectedNovel?.id,
+        durationMs: Date.now() - startedAt,
+      }).catch(() => undefined);
       setIsAnalyzing(false);
     }
   };
@@ -654,7 +767,9 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     }
     const chineseCount = countChineseCharacters(testInput);
     if (chineseCount < MIN_BOOK_FACTORY_TEXT_CHARS) {
-      setTestError(`试跑需要至少 ${MIN_BOOK_FACTORY_TEXT_CHARS} 个有效中文字符，当前为 ${chineseCount} 个。`);
+      setTestError(
+        `试跑需要至少 ${MIN_BOOK_FACTORY_TEXT_CHARS} 个有效中文字符，当前为 ${chineseCount} 个。`
+      );
       return;
     }
     const skillId = selectedSkill.id;
@@ -667,7 +782,8 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     setTestOutput('');
     setTestResult({ skillId, status: 'running', output: '' });
     try {
-      const savedTestSkillId = savedDeckSourceMap[selectedSkill.id] || savedSkillSourceMap[selectedSkill.id];
+      const savedTestSkillId =
+        savedDeckSourceMap[selectedSkill.id] || savedSkillSourceMap[selectedSkill.id];
       const response = await fetch('/api/orchestrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -675,20 +791,25 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
         body: JSON.stringify({
           draftingSurface: 'workspace-draft',
           reviewSurface: 'chapter-review',
-          contextStr: "风格模拟测试场景。",
+          contextStr: '风格模拟测试场景。',
           sceneBeats: testInput,
           maxIterations: 1,
-          draftContent: "",
+          draftContent: '',
           includeCritic: false,
           novelId: selectedNovel.id,
           chapterId: chapterContext.chapterId,
           databaseGeneration: chapterContext.databaseGeneration,
-          ...((fingerprintOverride || testStyleFingerprint) ? { styleConfirmationFingerprint: fingerprintOverride || testStyleFingerprint, writingStyleFingerprint: fingerprintOverride || testStyleFingerprint } : {}),
+          ...(fingerprintOverride || testStyleFingerprint
+            ? {
+                styleConfirmationFingerprint: fingerprintOverride || testStyleFingerprint,
+                writingStyleFingerprint: fingerprintOverride || testStyleFingerprint,
+              }
+            : {}),
           ...(savedTestSkillId ? { sessionCardIds: [savedTestSkillId] } : {}),
-        })
+        }),
       });
       if (!response.ok) {
-        const data = await response.json().catch(() => ({})) as {
+        const data = (await response.json().catch(() => ({}))) as {
           code?: string;
           error?: string;
           resolution?: WritingStyleResolution;
@@ -704,8 +825,9 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       }
       let streamedText = '';
       streamedText = await readDraftStream(response, {
-          onToken: (token) => {
-          if (testRunRef.current.seq !== seq || testRunRef.current.controller !== controller) return;
+        onToken: (token) => {
+          if (testRunRef.current.seq !== seq || testRunRef.current.controller !== controller)
+            return;
           streamedText += token;
           setTestOutput(streamedText);
           setTestResult({ skillId, status: 'running', output: streamedText });
@@ -729,7 +851,11 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   };
 
   const handleConfirmTestStyle = async (mode: WritingStyleMode) => {
-    if (!selectedNovel?.id || !chapterContext.chapterId || chapterContext.databaseGeneration === undefined) {
+    if (
+      !selectedNovel?.id ||
+      !chapterContext.chapterId ||
+      chapterContext.databaseGeneration === undefined
+    ) {
       throw new Error('试跑需要绑定当前章节和数据库版本');
     }
     const response = await confirmWritingStyle(selectedNovel.id, {
@@ -763,7 +889,10 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       });
       return id;
     } catch (error) {
-      toast(error instanceof Error ? `能力卡保存失败：${error.message}` : '能力卡保存失败，请重试', 'error');
+      toast(
+        error instanceof Error ? `能力卡保存失败：${error.message}` : '能力卡保存失败，请重试',
+        'error'
+      );
       throw error;
     } finally {
       setIsSaving(false);
@@ -773,7 +902,12 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   const handleEquipSkill = async () => {
     if (!equipNovelId || !selectedSavedSkillId || isSaving) return;
     if (isModelPending || extractionQuality?.passed === false) {
-      toast(isModelPending ? 'AI 深度拆书尚未完成，暂不能提交卡片。' : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`, 'error');
+      toast(
+        isModelPending
+          ? 'AI 深度拆书尚未完成，暂不能提交卡片。'
+          : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`,
+        'error'
+      );
       return;
     }
     if (!selectedSkill || !isRuntimeReadyDeckCard(selectedSkill)) {
@@ -795,7 +929,12 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   const handleSaveSelectedSkill = async () => {
     if (!selectedSkill || isSaving) return;
     if (isModelPending || extractionQuality?.passed === false) {
-      toast(isModelPending ? 'AI 深度拆书尚未完成，暂不能保存卡片。' : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`, 'error');
+      toast(
+        isModelPending
+          ? 'AI 深度拆书尚未完成，暂不能保存卡片。'
+          : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`,
+        'error'
+      );
       return;
     }
     if (selectedSavedSkillId) {
@@ -812,18 +951,30 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     setEquipNovelId('');
   };
 
-  const handleSaveDeck = async (): Promise<{ savedIds: string[]; sourceMap: Record<string, string> }> => {
+  const handleSaveDeck = async (): Promise<{
+    savedIds: string[];
+    sourceMap: Record<string, string>;
+  }> => {
     if (!deck) return { savedIds: [], sourceMap: {} };
     if (isModelPending || extractionQuality?.passed === false) {
-      toast(isModelPending ? 'AI 深度拆书尚未完成，暂不能保存卡组。' : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`, 'error');
+      toast(
+        isModelPending
+          ? 'AI 深度拆书尚未完成，暂不能保存卡组。'
+          : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`,
+        'error'
+      );
       return { savedIds: [], sourceMap: {} };
     }
     if (savedDeckIds.length > 0) return { savedIds: savedDeckIds, sourceMap: savedDeckSourceMap };
     setIsSaving(true);
     try {
-    const deckGroupId = generateClientId();
+      const deckGroupId = generateClientId();
       const preview = buildProjectSkillDeckPreview(deck.supportCards, Date.now(), deckSelection);
-      if (!deckSelection.mainCardId || preview.conflicts.length > 0 || preview.acceptedCards.length === 0) {
+      if (
+        !deckSelection.mainCardId ||
+        preview.conflicts.length > 0 ||
+        preview.acceptedCards.length === 0
+      ) {
         toast('请先选择一张主卡，并确认辅卡不超过 2 张且均可运行。', 'error');
         return { savedIds: [], sourceMap: {} };
       }
@@ -862,8 +1013,13 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
       });
       setSavedDeckIds(savedIds);
       setSavedDeckSourceMap(sourceMap);
-      setLastSavedSkillId(deckSelection.mainCardId ? sourceMap[deckSelection.mainCardId] || '' : '');
-      toast(`卡组草稿已保存：${deckSelection.mainCardId || '待选择主卡'} + ${Math.max(0, allCards.length - 1)} 辅卡；提交到作品卡组待选后仍需应用配置。`, 'success');
+      setLastSavedSkillId(
+        deckSelection.mainCardId ? sourceMap[deckSelection.mainCardId] || '' : ''
+      );
+      toast(
+        `卡组草稿已保存：${deckSelection.mainCardId || '待选择主卡'} + ${Math.max(0, allCards.length - 1)} 辅卡；提交到作品卡组待选后仍需应用配置。`,
+        'success'
+      );
       return { savedIds, sourceMap };
     } finally {
       setIsSaving(false);
@@ -873,19 +1029,29 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   const handleEquipDeck = async () => {
     if (!equipNovelId || !deck || isSaving) return;
     if (isModelPending || extractionQuality?.passed === false) {
-      toast(isModelPending ? 'AI 深度拆书尚未完成，暂不能提交卡组。' : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`, 'error');
+      toast(
+        isModelPending
+          ? 'AI 深度拆书尚未完成，暂不能提交卡组。'
+          : `拆书质量门禁未通过${extractionQuality?.issue ? `：${extractionQuality.issue}` : ''}，请修正或重新拆书。`,
+        'error'
+      );
       return;
     }
     const novel = userNovels.find((n) => n.id === equipNovelId);
     if (!novel) return;
     const preview = buildProjectSkillDeckPreview(deck.supportCards, Date.now(), deckSelection);
-    if (!deckSelection.mainCardId || preview.conflicts.length > 0 || preview.acceptedCards.length === 0) {
+    if (
+      !deckSelection.mainCardId ||
+      preview.conflicts.length > 0 ||
+      preview.acceptedCards.length === 0
+    ) {
       toast('请先选择一张主卡，并确认辅卡不超过 2 张且均可运行。', 'error');
       return;
     }
-    const savedDeck = savedDeckIds.length > 0
-      ? { savedIds: savedDeckIds, sourceMap: savedDeckSourceMap }
-      : await handleSaveDeck();
+    const savedDeck =
+      savedDeckIds.length > 0
+        ? { savedIds: savedDeckIds, sourceMap: savedDeckSourceMap }
+        : await handleSaveDeck();
     if (savedDeck.savedIds.length === 0) return;
     if (preview.rejectedCards.length > 0) {
       toast(preview.warnings[0] || '超出作品卡组上限的卡片仍保留为能力卡', 'error');
@@ -912,24 +1078,30 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   };
 
   return {
-    fileContent, setFileContent,
+    fileContent,
+    setFileContent,
     isAnalyzing,
     skillCards,
-    selectedSkillIndex, setSelectedSkillIndex,
+    selectedSkillIndex,
+    setSelectedSkillIndex,
     deckMeta,
     deck,
     segmentLabels,
     isSaving,
-    isEditing, setIsEditing,
-    editableJson, setEditableJson,
+    isEditing,
+    setIsEditing,
+    editableJson,
+    setEditableJson,
     extractionSource,
     isModelPending,
     extractionWarnings,
     extractionStatusNote,
     extractionQuality,
     selectedSkill,
-    testInput, setTestInput: handleTestInputChange,
-    testOutput, setTestOutput,
+    testInput,
+    setTestInput: handleTestInputChange,
+    testOutput,
+    setTestOutput,
     testResult,
     testError,
     testStyleResolution,
@@ -937,13 +1109,17 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     onConfirmTestStyle: handleConfirmTestStyle,
     onGenerateWithTestStyle: (fingerprint?: string) => handleTestDrive(fingerprint),
     isTesting,
-    showEquipPanel, setShowEquipPanel,
-    equipNovelId, setEquipNovelId,
+    showEquipPanel,
+    setShowEquipPanel,
+    equipNovelId,
+    setEquipNovelId,
     userNovels,
-    lastSavedSkillId, selectedSavedSkillId,
+    lastSavedSkillId,
+    selectedSavedSkillId,
     savedDeckIds,
     savedDeckSourceMap,
-    deckSelection, setDeckSelection,
+    deckSelection,
+    setDeckSelection,
     handleFileUpload,
     handleAnalyze,
     handleTestDrive,

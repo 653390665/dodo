@@ -34,12 +34,11 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
   onToggleVolume,
   previewChapterIds,
 }: ChapterSidebarProps) {
-
   const groupedChapters = React.useMemo(() => {
     const groups: { volumeName: string; chapters: ChapterMetadata[] }[] = [];
     const volMap = new Map<string, ChapterMetadata[]>();
 
-    chapters.forEach(c => {
+    chapters.forEach((c) => {
       const vName = c.volumeName || '正文卷';
       if (!volMap.has(vName)) {
         volMap.set(vName, []);
@@ -60,7 +59,7 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
             // Small screens: float over the content instead of squeezing the
             // editor down to a sliver (mirrors the AgentWorkspace drawer).
             'max-md:absolute max-md:inset-y-3 max-md:left-3 max-md:z-30 max-md:w-[min(280px,calc(100%-1.5rem))] max-md:rounded-3xl max-md:border max-md:border-theme-border max-md:bg-theme-sidebar/95 max-md:shadow-2xl max-md:backdrop-blur-sm',
-            'md:relative md:border-r md:border-theme-border',
+            'md:relative md:border-r md:border-theme-border'
           )}
         >
           <div className="p-4 border-b border-theme-border bg-transparent sticky top-0 z-10 flex items-center justify-between">
@@ -72,7 +71,9 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
             >
               <ChevronLeft size={18} aria-hidden="true" />
             </button>
-            <h2 className="text-sm font-bold uppercase tracking-widest text-theme-muted truncate max-w-[120px]">{novel.title}</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-theme-muted truncate max-w-[120px]">
+              {novel.title}
+            </h2>
             <button
               onClick={() => onAddChapter()}
               className="p-2 hover:opacity-90 bg-theme-accent text-theme-accent-contrast rounded-lg transition-[background-color,opacity,box-shadow] duration-200"
@@ -83,7 +84,7 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {groupedChapters.map(group => (
+            {groupedChapters.map((group) => (
               <div key={group.volumeName} className="space-y-1">
                 {/* Volume Header */}
                 <div className="group/vol flex items-center gap-1">
@@ -99,7 +100,9 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
                     ) : (
                       <Folder size={14} className="text-theme-muted" aria-hidden="true" />
                     )}
-                    <span className="text-xs font-bold truncate flex-1 text-left">{group.volumeName}</span>
+                    <span className="text-xs font-bold truncate flex-1 text-left">
+                      {group.volumeName}
+                    </span>
                     <span className="text-[10px] text-theme-muted opacity-0 group-hover/vol:opacity-100 group-focus-within/vol:opacity-100 transition-opacity">
                       {group.chapters.length}章
                     </span>
@@ -115,15 +118,18 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
 
                 {/* Volume Chapters */}
                 {expandedVolumes.includes(group.volumeName) && (
-                  <div id={`chapter-volume-${encodeURIComponent(group.volumeName)}`} className="pl-3 relative before:absolute before:left-3.5 before:top-0 before:bottom-0 before:w-px before:bg-theme-border/50 space-y-1">
+                  <div
+                    id={`chapter-volume-${encodeURIComponent(group.volumeName)}`}
+                    className="pl-3 relative before:absolute before:left-3.5 before:top-0 before:bottom-0 before:w-px before:bg-theme-border/50 space-y-1"
+                  >
                     {group.chapters.map((chapter) => (
                       <div key={chapter.id} className="relative">
                         <div
                           className={cn(
-                            "group px-3 py-2.5 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow,color] duration-200 flex items-center justify-between ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/50",
+                            'group px-3 py-2.5 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow,color] duration-200 flex items-center justify-between ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent/50',
                             currentChapter?.id === chapter.id
-                              ? "bg-theme-sidebar shadow-sm border border-theme-border text-theme-text relative before:absolute before:-left-3.5 before:top-1/2 before:-mt-px before:w-3 before:h-0.5 before:bg-theme-accent z-10"
-                              : "text-theme-muted hover:bg-theme-border/40 z-10"
+                              ? 'bg-theme-sidebar shadow-sm border border-theme-border text-theme-text relative before:absolute before:-left-3.5 before:top-1/2 before:-mt-px before:w-3 before:h-0.5 before:bg-theme-accent z-10'
+                              : 'text-theme-muted hover:bg-theme-border/40 z-10'
                           )}
                         >
                           <button
@@ -146,7 +152,10 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
                             </span>
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); onDeleteChapter(chapter.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteChapter(chapter.id);
+                            }}
                             className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 hover:text-red-600 transition-opacity ml-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60 rounded"
                             aria-label={`删除章节：${chapter.title}`}
                           >
@@ -157,12 +166,21 @@ export const ChapterSidebar = React.memo(function ChapterSidebar({
                         {/* Third Level: Beats */}
                         {currentChapter?.id === chapter.id && currentChapter?.sceneBeats && (
                           <div className="pl-7 mt-0.5 space-y-1 mb-2 relative before:absolute before:left-[17px] before:top-0 before:-bottom-2 before:w-px before:bg-theme-border/30">
-                            {currentChapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).slice(0, 4).map((beat, i) => (
-                              <div key={`${currentChapter.id}-beat-${beat.trim().slice(0, 15)}-${i}`} className="text-[10px] text-theme-muted truncate relative before:absolute before:-left-2.5 before:top-1/2 before:-mt-px before:w-2 before:h-px before:bg-theme-border/30">
-                                {beat.replace(/^[-* 0-9.]+\s*/, '').trim() || beat}
-                              </div>
-                            ))}
-                            {currentChapter.sceneBeats.split('\n').filter(b => b.trim().length > 0).length > 4 && (
+                            {currentChapter.sceneBeats
+                              .split('\n')
+                              .filter((b) => b.trim().length > 0)
+                              .slice(0, 4)
+                              .map((beat, i) => (
+                                <div
+                                  key={`${currentChapter.id}-beat-${beat.trim().slice(0, 15)}-${i}`}
+                                  className="text-[10px] text-theme-muted truncate relative before:absolute before:-left-2.5 before:top-1/2 before:-mt-px before:w-2 before:h-px before:bg-theme-border/30"
+                                >
+                                  {beat.replace(/^[-* 0-9.]+\s*/, '').trim() || beat}
+                                </div>
+                              ))}
+                            {currentChapter.sceneBeats
+                              .split('\n')
+                              .filter((b) => b.trim().length > 0).length > 4 && (
                               <div className="text-[9px] text-theme-muted/50 pl-0.5">...</div>
                             )}
                           </div>

@@ -12,7 +12,8 @@ function ensureContainer(): HTMLDivElement {
     toastContainer = document.createElement('div');
     // data marker lets test teardown sweep toasts injected into document.body.
     toastContainer.setAttribute('data-inkflow-toasts', '');
-    toastContainer.className = 'fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none';
+    toastContainer.className =
+      'fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none';
     toastContainer.setAttribute('role', 'status');
     toastContainer.setAttribute('aria-live', 'polite');
     toastContainer.setAttribute('aria-atomic', 'true');
@@ -31,7 +32,7 @@ export function toast(
   message: string,
   type: ToastType = 'info',
   durationMs?: number,
-  action?: { label: string; onClick: () => void },
+  action?: { label: string; onClick: () => void }
 ): void {
   const container = ensureContainer();
 
@@ -49,7 +50,8 @@ export function toast(
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = action.label;
-    btn.className = 'shrink-0 rounded-lg border border-current/40 px-2 py-1 text-xs font-bold underline underline-offset-2';
+    btn.className =
+      'shrink-0 rounded-lg border border-current/40 px-2 py-1 text-xs font-bold underline underline-offset-2';
     btn.addEventListener('click', () => {
       clearTimeout(dismissTimer);
       el.remove();
@@ -63,7 +65,6 @@ export function toast(
 
   container.appendChild(el);
 
-  let dismissTimer: number | undefined;
   // Animate in
   requestAnimationFrame(() => {
     el.style.opacity = '1';
@@ -71,7 +72,7 @@ export function toast(
   });
 
   // Auto-dismiss
-  dismissTimer = window.setTimeout(() => {
+  const dismissTimer = window.setTimeout(() => {
     el.style.opacity = '0';
     el.style.transform = 'translateX(20px)';
     setTimeout(() => el.remove(), 200);

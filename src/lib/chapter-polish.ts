@@ -91,7 +91,11 @@ function splitParagraphs(text: string): string[] {
     .filter(Boolean);
 }
 
-function findParagraphBounds(content: string, start: number, end: number): { start: number; end: number } {
+function findParagraphBounds(
+  content: string,
+  start: number,
+  end: number
+): { start: number; end: number } {
   const beforeBreak = content.lastIndexOf('\n\n', start);
   const afterBreak = content.indexOf('\n\n', end);
   return {
@@ -125,13 +129,25 @@ function classifyIssueType(context: string): SelectedRewriteTarget['issueType'] 
   if (/(写弱|缺失|分镜|关键道具|没写|执行情况)/.test(context)) {
     return 'scene-execution';
   }
-  if (/(AI套话|AI腔|套话|陈词滥调|解释感|exposition-dump|解释道|说明|描述感|tell-dont-show|眼神里充满了|心中燃起了|胸中涌动|不得不说|难以抑制|无力感|情绪模板)/i.test(context)) {
+  if (
+    /(AI套话|AI腔|套话|陈词滥调|解释感|exposition-dump|解释道|说明|描述感|tell-dont-show|眼神里充满了|心中燃起了|胸中涌动|不得不说|难以抑制|无力感|情绪模板)/i.test(
+      context
+    )
+  ) {
     return 'style-slop';
   }
-  if (/(动作链|弱动作|拖沓|动作模糊|没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat|做出了反应|采取了行动|试图)/i.test(context)) {
+  if (
+    /(动作链|弱动作|拖沓|动作模糊|没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat|做出了反应|采取了行动|试图)/i.test(
+      context
+    )
+  ) {
     return 'action-chain';
   }
-  if (/(通用收尾|陈词收尾|收尾陈词|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending|hook-ending)/i.test(context)) {
+  if (
+    /(通用收尾|陈词收尾|收尾陈词|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending|hook-ending)/i.test(
+      context
+    )
+  ) {
     return 'hook-ending';
   }
   return 'general';
@@ -139,7 +155,7 @@ function classifyIssueType(context: string): SelectedRewriteTarget['issueType'] 
 
 function classifyIssueSubtype(
   issueType: SelectedRewriteTarget['issueType'],
-  context: string,
+  context: string
 ): SelectedRewriteTarget['issueSubtype'] {
   switch (issueType) {
     case 'duplicate':
@@ -154,17 +170,25 @@ function classifyIssueSubtype(
       return 'scene-layer-missing';
     case 'style-slop':
       if (/(AI套话|AI腔|套话|陈词滥调)/.test(context)) return 'ai-cliche';
-      if (/(tell-dont-show|描述感|说明|眼神里充满了|心中燃起了|胸中涌动|难以抑制|无力感)/.test(context)) return 'tell-dont-show';
-      if (/(解释感|exposition-dump|解释道|原因在于|这意味着|这是因为|不得不说)/.test(context)) return 'exposition-dump';
+      if (
+        /(tell-dont-show|描述感|说明|眼神里充满了|心中燃起了|胸中涌动|难以抑制|无力感)/.test(
+          context
+        )
+      )
+        return 'tell-dont-show';
+      if (/(解释感|exposition-dump|解释道|原因在于|这意味着|这是因为|不得不说)/.test(context))
+        return 'exposition-dump';
       if (/(情感|情绪|情绪模板)/.test(context)) return 'template-emotion';
       if (/(节奏单调|句式|字数相同|等长)/.test(context)) return 'sentence-monotony';
       return 'ai-cliche';
     case 'action-chain':
-      if (/(没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat)/.test(context)) return 'dialogue-without-beat';
+      if (/(没有Beat|对白突兀无前因|无动作穿插|干说对白|dialogue-without-beat)/.test(context))
+        return 'dialogue-without-beat';
       if (/(弱动作|做出了反应|采取了行动|试图)/.test(context)) return 'weak-action-chain';
       return 'weak-action-chain';
     case 'hook-ending':
-      if (/(通用收尾|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending)/.test(context)) return 'generic-ending';
+      if (/(通用收尾|消失在夜色中|转身离去|转身走开|嘴角勾起|generic-ending)/.test(context))
+        return 'generic-ending';
       return 'generic-ending';
     default:
       return 'general';
@@ -202,9 +226,14 @@ function issuePriority(issueSubtype: SelectedRewriteTarget['issueSubtype']): num
   }
 }
 
-function buildRewriteIssueSignals(
-  critique: string,
-): Map<string, { issueType: SelectedRewriteTarget['issueType']; issueSubtype: SelectedRewriteTarget['issueSubtype']; priority: number }> {
+function buildRewriteIssueSignals(critique: string): Map<
+  string,
+  {
+    issueType: SelectedRewriteTarget['issueType'];
+    issueSubtype: SelectedRewriteTarget['issueSubtype'];
+    priority: number;
+  }
+> {
   const structured = extractStructuredAudit(critique);
   if (structured) {
     return new Map(
@@ -217,11 +246,18 @@ function buildRewriteIssueSignals(
             issueSubtype: issue.issueSubtype,
             priority: issuePriority(issue.issueSubtype),
           },
-        ]),
+        ])
     );
   }
 
-  const signals = new Map<string, { issueType: SelectedRewriteTarget['issueType']; issueSubtype: SelectedRewriteTarget['issueSubtype']; priority: number }>();
+  const signals = new Map<
+    string,
+    {
+      issueType: SelectedRewriteTarget['issueType'];
+      issueSubtype: SelectedRewriteTarget['issueSubtype'];
+      priority: number;
+    }
+  >();
   const lines = critique.split('\n');
   let inActionableSection = false;
   let issueHeading = '';
@@ -275,12 +311,12 @@ export function extractPolishTargetsFromCritique(critique: string): ExtractedPol
       duplicateTargets: uniqueInOrder(
         structured.fatalIssues
           .filter((issue) => issue.issueType === 'duplicate')
-          .map((issue) => normalizeSnippet(issue.snippet)),
+          .map((issue) => normalizeSnippet(issue.snippet))
       ),
       rewriteTargets: uniqueInOrder(
         structured.fatalIssues
           .filter((issue) => issue.issueType !== 'duplicate')
-          .map((issue) => normalizeSnippet(issue.snippet)),
+          .map((issue) => normalizeSnippet(issue.snippet))
       ),
     };
   }
@@ -320,7 +356,10 @@ export function extractPolishTargetsFromCritique(critique: string): ExtractedPol
   };
 }
 
-export function removeRepeatedQuotedBlocks(content: string, quotedSnippets: string[]): { content: string; removedCount: number } {
+export function removeRepeatedQuotedBlocks(
+  content: string,
+  quotedSnippets: string[]
+): { content: string; removedCount: number } {
   const paragraphs = content.split(/\n{2,}/);
   const keep = new Array(paragraphs.length).fill(true);
   let removedCount = 0;
@@ -366,7 +405,11 @@ export function removeRepeatedQuotedBlocks(content: string, quotedSnippets: stri
   };
 }
 
-export function findPatchWindow(content: string, snippet: string, contextChars = 240): PolishTargetWindow | null {
+export function findPatchWindow(
+  content: string,
+  snippet: string,
+  contextChars = 240
+): PolishTargetWindow | null {
   const targetText = normalizeSnippet(snippet);
   if (!targetText) return null;
   let matchedText = targetText;
@@ -397,7 +440,11 @@ export function findPatchWindow(content: string, snippet: string, contextChars =
   };
 }
 
-export function applyPatchWindow(content: string, window: PolishTargetWindow, replacement: string): string {
+export function applyPatchWindow(
+  content: string,
+  window: PolishTargetWindow,
+  replacement: string
+): string {
   return `${content.slice(0, window.start)}${replacement.trim()}${content.slice(window.end)}`;
 }
 
@@ -408,7 +455,7 @@ function scoreRewriteTarget(
     issueType: SelectedRewriteTarget['issueType'];
     issueSubtype: SelectedRewriteTarget['issueSubtype'];
     priority: number;
-  },
+  }
 ): SelectedRewriteTarget | null {
   const normalized = normalizeSnippet(snippet);
   const issueType = signal?.issueType || 'general';
@@ -452,10 +499,22 @@ function scoreRewriteTarget(
   };
 }
 
-export function selectRewriteTargetsForPatch(content: string, rewriteTargets: string[], limit = 3, critique = ''): SelectedRewriteTarget[] {
+export function selectRewriteTargetsForPatch(
+  content: string,
+  rewriteTargets: string[],
+  limit = 3,
+  critique = ''
+): SelectedRewriteTarget[] {
   const signals = critique
     ? buildRewriteIssueSignals(critique)
-    : new Map<string, { issueType: SelectedRewriteTarget['issueType']; issueSubtype: SelectedRewriteTarget['issueSubtype']; priority: number }>();
+    : new Map<
+        string,
+        {
+          issueType: SelectedRewriteTarget['issueType'];
+          issueSubtype: SelectedRewriteTarget['issueSubtype'];
+          priority: number;
+        }
+      >();
   return rewriteTargets
     .map((snippet) => scoreRewriteTarget(content, snippet, signals.get(normalizeSnippet(snippet))))
     .filter((entry): entry is SelectedRewriteTarget => Boolean(entry))
@@ -469,7 +528,10 @@ export function selectRewriteTargetsForPatch(content: string, rewriteTargets: st
     .slice(0, limit);
 }
 
-export function validatePolishCandidate(original: string, candidate: string): { ok: boolean; reason?: string } {
+export function validatePolishCandidate(
+  original: string,
+  candidate: string
+): { ok: boolean; reason?: string } {
   const trimmedCandidate = candidate.trim();
   if (!trimmedCandidate) {
     return { ok: false, reason: 'empty-result' };

@@ -55,8 +55,6 @@ import { useEditorGenerationStore } from '../stores/editor-generation-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorDataStore } from '../stores/editor-data-store';
 
-
-
 function isProductionAgentTab(
   tab: AgentTab
 ): tab is Extract<AgentTab, 'production' | 'outline' | 'planning' | 'quality'> {
@@ -122,14 +120,17 @@ interface AgentWorkspaceProps {
   onApplyProductionRun: (runOverride?: ChapterProductionRun) => Promise<void>;
   onOpenBibleAssistant?: (prompt: string) => void;
   projectTechniqueId?: string;
-  onGenerateOutline: (outline?: string, options?: {
-    techniqueId?: string;
-    outlineSourceSelection?: {
-      continuationPackId: string;
-      primaryDocumentId: string;
-      referenceDocumentIds: string[];
-    };
-  }) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
+  onGenerateOutline: (
+    outline?: string,
+    options?: {
+      techniqueId?: string;
+      outlineSourceSelection?: {
+        continuationPackId: string;
+        primaryDocumentId: string;
+        referenceDocumentIds: string[];
+      };
+    }
+  ) => Promise<{ candidateId: string; content: string; databaseGeneration: number } | void>;
   onAdoptOutline: (outline: string) => Promise<boolean>;
   onCanonicalOutlineChange?: (outline: string) => void;
   onGlobalOutlineChange: (outline: string) => void;
@@ -262,11 +263,14 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   const projectPreferenceProfile = useEditorDataStore((state) => state.projectPreferenceProfile);
   // 011 Phase 1：选包域订阅 store
   const continuationPacks = useContinuationPackStore((state) => state.continuationPacks);
-  const selectedContinuationPackId = useContinuationPackStore((state) => state.selectedContinuationPackId);
+  const selectedContinuationPackId = useContinuationPackStore(
+    (state) => state.selectedContinuationPackId
+  );
   const [bibleSearch, setBibleSearch] = React.useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
   const [skillsPanelRevision, setSkillsPanelRevision] = React.useState(0);
-  const [skillsProfileOverride, setSkillsProfileOverride] = React.useState<ProjectPreferenceProfile | null>(null);
+  const [skillsProfileOverride, setSkillsProfileOverride] =
+    React.useState<ProjectPreferenceProfile | null>(null);
   const skillsPanelContextRef = React.useRef('');
   const skillsPanelRequestRef = React.useRef(0);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
@@ -278,8 +282,17 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   }, [novel.id]);
 
   // 与 EditorView 既有语义一致：加载未完成时回退默认画像
-  const DEFAULT_PROJECT_PROFILE = { contract: {} as never, tags: [] as string[], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [] as never[], rejectedDimensions: [] as never[], notes: [] as string[], evidenceCount: 0 } as never;
-  const profileForSkills = skillsProfileOverride || projectPreferenceProfile || DEFAULT_PROJECT_PROFILE;
+  const DEFAULT_PROJECT_PROFILE = {
+    contract: {} as never,
+    tags: [] as string[],
+    weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
+    acceptedDimensions: [] as never[],
+    rejectedDimensions: [] as never[],
+    notes: [] as string[],
+    evidenceCount: 0,
+  } as never;
+  const profileForSkills =
+    skillsProfileOverride || projectPreferenceProfile || DEFAULT_PROJECT_PROFILE;
 
   const reloadWritingProfile = React.useCallback(async () => {
     const requestContext = `${novel.id}:${currentChapter?.id || ''}`;
@@ -287,8 +300,14 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
     skillsPanelRequestRef.current = requestId;
     try {
       const freshNovel = await getNovel(novel.id);
-      if (skillsPanelContextRef.current !== requestContext || skillsPanelRequestRef.current !== requestId) return;
-      setSkillsProfileOverride(normalizeProjectPreferenceProfile(freshNovel?.projectPreferenceProfile));
+      if (
+        skillsPanelContextRef.current !== requestContext ||
+        skillsPanelRequestRef.current !== requestId
+      )
+        return;
+      setSkillsProfileOverride(
+        normalizeProjectPreferenceProfile(freshNovel?.projectPreferenceProfile)
+      );
       setSkillsPanelRevision((revision) => revision + 1);
       void recordProductEvent({
         eventName: 'writing_style_panel_recovered',
@@ -298,7 +317,11 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
         chapterId: currentChapter?.id,
       });
     } catch {
-      if (skillsPanelContextRef.current !== requestContext || skillsPanelRequestRef.current !== requestId) return;
+      if (
+        skillsPanelContextRef.current !== requestContext ||
+        skillsPanelRequestRef.current !== requestId
+      )
+        return;
       // Keep the current profile when the refresh request is unavailable.
       void recordProductEvent({
         eventName: 'writing_style_panel_error',
@@ -417,7 +440,9 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
   const activeEntityNames = propActiveEntityNames ?? localActiveEntityNames;
   const activeMoreItem = MORE_MENU_ITEMS.find(([tab]) => tab === agentTab);
   // 005-S4：候选接受旗标订阅 store
-  const isAcceptingAiContentCandidate = useEditorGenerationStore((state) => state.isAcceptingAiCandidate);
+  const isAcceptingAiContentCandidate = useEditorGenerationStore(
+    (state) => state.isAcceptingAiCandidate
+  );
 
   React.useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -978,37 +1003,43 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
           <div key={agentTab}>
             <ErrorBoundary
               key={`knowledge-panel-${agentTab}-${agentTab === 'skills' ? skillsPanelRevision : 0}`}
-              onError={agentTab === 'skills' ? () => {
-                void recordProductEvent({
-                  eventName: 'writing_style_panel_error',
-                  stage: 'drafting',
-                  result: 'failure',
-                  novelId: novel.id,
-                  chapterId: currentChapter?.id,
-                  errorCode: 'WRITING_STYLE_PANEL_RENDER_FAILED',
-                });
-              } : undefined}
-              fallback={agentTab === 'skills' ? (
- <div role="alert" className="space-y-3 rounded-xl alert-warning p-4 text-xs">
-                  <p>写法面板暂时不可用，正文仍可继续编辑。</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void reloadWritingProfile()}
-                      className="rounded-lg border border-amber-400 px-3 py-1.5 font-semibold"
-                    >
-                      重新读取写法画像
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentTab('production')}
-                      className="rounded-lg border border-theme-border px-3 py-1.5 font-semibold text-theme-text"
-                    >
-                      返回写作
-                    </button>
+              onError={
+                agentTab === 'skills'
+                  ? () => {
+                      void recordProductEvent({
+                        eventName: 'writing_style_panel_error',
+                        stage: 'drafting',
+                        result: 'failure',
+                        novelId: novel.id,
+                        chapterId: currentChapter?.id,
+                        errorCode: 'WRITING_STYLE_PANEL_RENDER_FAILED',
+                      });
+                    }
+                  : undefined
+              }
+              fallback={
+                agentTab === 'skills' ? (
+                  <div role="alert" className="space-y-3 rounded-xl alert-warning p-4 text-xs">
+                    <p>写法面板暂时不可用，正文仍可继续编辑。</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void reloadWritingProfile()}
+                        className="rounded-lg border border-amber-400 px-3 py-1.5 font-semibold"
+                      >
+                        重新读取写法画像
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAgentTab('production')}
+                        className="rounded-lg border border-theme-border px-3 py-1.5 font-semibold text-theme-text"
+                      >
+                        返回写作
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : undefined}
+                ) : undefined
+              }
             >
               <AgentWorkspaceKnowledgePanel
                 agentTab={agentTab}

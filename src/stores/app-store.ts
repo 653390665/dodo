@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { VIEW_TYPES } from '../../shared/types';
-import type { AssistantMode, AssistantSurfaceContext, ViewType, WorkspaceFocus } from '../../shared/types';
+import type {
+  AssistantMode,
+  AssistantSurfaceContext,
+  ViewType,
+  WorkspaceFocus,
+} from '../../shared/types';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -20,10 +25,13 @@ function getStoredTheme(): Theme {
 function applyTheme(theme: Theme) {
   // 增加 Node/SSR 环境的安全防线，若在 headless/Node 运行环境中无 window 或 document，静默退场
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
-  
-  const resolved = theme === 'system'
-    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : theme;
+
+  const resolved =
+    theme === 'system'
+      ? window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme;
   document.documentElement.dataset.theme = resolved;
 }
 
@@ -72,10 +80,10 @@ export const useAppStore = create<AppState>((set) => {
     assistantSurfaceContext: null,
     aiDrawerTab: 'cards',
     setCurrentView: (currentView) => {
-      try { 
+      try {
         // 增加非浏览器环境下的 LocalStorage 写入安全卫士
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('inkflow-last-view', currentView); 
+          localStorage.setItem('inkflow-last-view', currentView);
         }
       } catch {}
       set({ currentView });
@@ -83,20 +91,21 @@ export const useAppStore = create<AppState>((set) => {
     setWorkspaceFocus: (workspaceFocus) => set({ workspaceFocus }),
     setTheme: (theme) => {
       applyTheme(theme);
-      try { 
+      try {
         // 增加非浏览器环境下的 LocalStorage 写入安全卫士
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(THEME_KEY, theme); 
+          localStorage.setItem(THEME_KEY, theme);
         }
       } catch {}
       set({ theme });
     },
     setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
-    openAssistant: (assistantMode, assistantSurfaceContext) => set({
-      isAIAssistantOpen: true,
-      assistantMode,
-      assistantSurfaceContext,
-    }),
+    openAssistant: (assistantMode, assistantSurfaceContext) =>
+      set({
+        isAIAssistantOpen: true,
+        assistantMode,
+        assistantSurfaceContext,
+      }),
     closeAssistant: () => set({ isAIAssistantOpen: false, assistantSurfaceContext: null }),
     setAIDrawerTab: (aiDrawerTab) => set({ aiDrawerTab }),
   };

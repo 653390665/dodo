@@ -23,7 +23,7 @@ const args = [
   '--dist-url=https://www.electronjs.org/headers',
   '--runtime=electron',
   '--build-from-source',
-  '--verbose'
+  '--verbose',
 ];
 
 console.log(`Executing: npx ${args.join(' ')} inside ${betterSqlite3Dir}`);
@@ -31,7 +31,7 @@ console.log(`Executing: npx ${args.join(' ')} inside ${betterSqlite3Dir}`);
 const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
   cwd: betterSqlite3Dir,
   stdio: 'inherit',
-  shell: process.platform === 'win32'
+  shell: process.platform === 'win32',
 });
 
 child.on('close', (code) => {

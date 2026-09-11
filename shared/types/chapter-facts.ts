@@ -1,4 +1,5 @@
-export type ChapterFactKind = 'character' | 'item' | 'timeline' | 'location' | 'power' | 'narrative-promise';
+export type ChapterFactKind =
+  'character' | 'item' | 'timeline' | 'location' | 'power' | 'narrative-promise';
 export type ChapterFactDecision = 'accepted' | 'rejected' | 'pending';
 
 export interface ChapterFactTarget {
