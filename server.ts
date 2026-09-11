@@ -108,7 +108,9 @@ async function startServer() {
   const serveStaticApp = () => {
     const distPath = process.env.INKFLOW_STATIC_DIR || path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Express 5 (path-to-regexp v8): '*' is invalid and '/*splat' does not match
+    // the bare root path, so register both explicitly (GET-only, like before).
+    app.get(['/', '/*splat'], (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   };

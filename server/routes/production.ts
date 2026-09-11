@@ -999,7 +999,7 @@ export function registerProductionRoutes(app: Express) {
       if (typeof novelId !== 'string' || !Number.isInteger(databaseGeneration)) {
         return res.status(400).json({ code: 'CHAPTER_FACT_INVALID_INPUT', error: '候选预览参数无效' });
       }
-      return res.json(previewChapterFactCandidate({ novelId, runId: req.params.runId, databaseGeneration }));
+      return res.json(previewChapterFactCandidate({ novelId, runId: (req.params.runId as string), databaseGeneration }));
     } catch (error) {
       if (error instanceof ChapterFactCandidateError) {
         return res.status(error.code.includes('NOT_FOUND') ? 404 : 409).json({ code: error.code, error: error.message });
@@ -1022,7 +1022,7 @@ export function registerProductionRoutes(app: Express) {
         return res.status(400).json({ code: 'CHAPTER_FACT_INVALID_INPUT', error: '事实确认参数无效' });
       }
       const result = await applyChapterFactCandidate({
-        novelId: body.novelId, runId: req.params.runId, databaseGeneration: body.databaseGeneration,
+        novelId: body.novelId, runId: (req.params.runId as string), databaseGeneration: body.databaseGeneration,
         candidateId: body.candidateId, manuscriptContentHash: body.manuscriptContentHash,
         storyMemoryFingerprint: body.storyMemoryFingerprint,
         ...(body.selectedFactIds === undefined ? {} : { selectedFactIds: body.selectedFactIds }),
@@ -1042,7 +1042,7 @@ export function registerProductionRoutes(app: Express) {
   app.post('/api/chapter-production-runs/:runId/apply', validate(chapterProductionApplySchema), async (req, res) => {
     try {
       const { novelId, chapterId: requestedChapterId, databaseGeneration } = req.body;
-      const run = db.getChapterProductionRun(req.params.runId);
+      const run = db.getChapterProductionRun((req.params.runId as string));
       if (!run) {
         return res.status(404).json({ error: '生成任务不存在，请刷新后重试。' });
       }

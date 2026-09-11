@@ -13,9 +13,15 @@ interface OneTimeGrant {
 }
 
 const SESSION_TTL_MS = 15 * 60_000;
+
+// E2E 全套共享一个 webServer 进程：该配额窗是模块级全局态，向导类用例超过
+// 6 个即触发跨用例 429（立项方案不渲染）。playwright.config 以该乘数放宽；
+// 生产缺省 1，行为不变。
+const GRANT_SCALE = Math.max(1, Number(process.env.INKFLOW_ONBOARDING_GRANT_SCALE) || 1);
+
 const OPERATION_LIMITS: Record<OnboardingLlmOperation, number> = {
-  'story-cards': 6,
-  inspiration: 12,
+  'story-cards': 6 * GRANT_SCALE,
+  inspiration: 12 * GRANT_SCALE,
 };
 
 let activeWindow: OnboardingWindow | null = null;

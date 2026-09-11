@@ -25,10 +25,10 @@ function normalizeCapabilityProfile(value: unknown): ProjectCapabilityProfile {
 async function handle(req: Request, res: Response, confirm: boolean) {
   try {
     const resolveAndConfirm = () => {
-      const result = resolveWritingStyleRequest(req.params.novelId, req.body);
+      const result = resolveWritingStyleRequest((req.params.novelId as string), req.body);
       if (confirm) {
         const profile = normalizeProjectPreferenceProfile(result.novel.projectPreferenceProfile);
-        db.updateNovel(req.params.novelId, { projectPreferenceProfile: {
+        db.updateNovel((req.params.novelId as string), { projectPreferenceProfile: {
           ...profile,
           writingStyleConfirmation: {
             mode: result.resolution.mode,
@@ -64,14 +64,14 @@ async function handle(req: Request, res: Response, confirm: boolean) {
 
 export function registerWritingStyleRoutes(app: Express): void {
   app.post('/api/novels/:novelId/capabilities/configuration/preview', validate(capabilityConfigurationPreviewSchema), (req, res) => {
-    const novel = db.getNovel(req.params.novelId);
+    const novel = db.getNovel((req.params.novelId as string));
     if (!novel) return res.status(404).json({ code: 'NOVEL_NOT_FOUND', error: '作品不存在' });
     if (req.body.databaseGeneration !== getDatabaseGeneration()) return res.status(409).json({ code: 'DATABASE_GENERATION_MISMATCH', error: '数据库已变化，请刷新后重试' });
     try {
       const profile = normalizeCapabilityProfile(req.body.capabilityProfile);
-      validateCapabilityProfile(req.params.novelId, profile);
+      validateCapabilityProfile((req.params.novelId as string), profile);
       const previewToken = randomUUID();
-      configurationPreviews.set(previewToken, { novelId: req.params.novelId, generation: req.body.databaseGeneration, profile, expiresAt: Date.now() + PREVIEW_TTL });
+      configurationPreviews.set(previewToken, { novelId: (req.params.novelId as string), generation: req.body.databaseGeneration, profile, expiresAt: Date.now() + PREVIEW_TTL });
       return res.json({ previewToken, databaseGeneration: req.body.databaseGeneration, profile, warnings: [], conflicts: [] });
     } catch (error) {
       if (error instanceof WritingStyleRequestError) return res.status(400).json({ code: error.code, error: error.message });
@@ -79,10 +79,10 @@ export function registerWritingStyleRoutes(app: Express): void {
     }
   });
   app.post('/api/novels/:novelId/capabilities/configuration/apply', validate(capabilityConfigurationApplySchema), async (req, res) => {
-    const novel = db.getNovel(req.params.novelId);
+    const novel = db.getNovel((req.params.novelId as string));
     if (!novel) return res.status(404).json({ code: 'NOVEL_NOT_FOUND', error: '作品不存在' });
     const preview = configurationPreviews.get(req.body.previewToken);
-    if (!preview || preview.expiresAt < Date.now() || preview.novelId !== req.params.novelId || preview.generation !== req.body.databaseGeneration || req.body.databaseGeneration !== getDatabaseGeneration()) {
+    if (!preview || preview.expiresAt < Date.now() || preview.novelId !== (req.params.novelId as string) || preview.generation !== req.body.databaseGeneration || req.body.databaseGeneration !== getDatabaseGeneration()) {
       return res.status(409).json({ code: 'CAPABILITY_CONFIGURATION_STALE', error: '能力配置预览已过期，请重新预览' });
     }
     if (preview.claimed) {
@@ -104,10 +104,10 @@ export function registerWritingStyleRoutes(app: Express): void {
         }
       }
       if (JSON.stringify(preview.profile) !== JSON.stringify(requestedProfile)) return res.status(409).json({ code: 'CAPABILITY_CONFIGURATION_CHANGED', error: '能力配置已变化，请重新预览' });
-      validateCapabilityProfile(req.params.novelId, requestedProfile);
+      validateCapabilityProfile((req.params.novelId as string), requestedProfile);
       const guarded = await runInSerializedWriteForGeneration(req.body.databaseGeneration, () => {
         return runInTransaction(() => {
-          const current = db.getNovel(req.params.novelId);
+          const current = db.getNovel((req.params.novelId as string));
           if (!current) throw new WritingStyleRequestError(404, 'NOVEL_NOT_FOUND', '作品不存在');
           const scheduledTechniques = packageSteps.filter((step: CapabilityPackageStep) => step.mode === 'schedule' && step.scope === 'chapter');
           const validScheduledTechniques = scheduledTechniques.map((step: CapabilityPackageStep) => {
@@ -118,7 +118,7 @@ export function registerWritingStyleRoutes(app: Express): void {
             return { step, manifest };
           });
           const targetChapter = req.body.targetChapterId ? db.getChapter(req.body.targetChapterId) : undefined;
-          if (req.body.targetChapterId && (!targetChapter || targetChapter.novelId !== req.params.novelId)) {
+          if (req.body.targetChapterId && (!targetChapter || targetChapter.novelId !== (req.params.novelId as string))) {
             throw new WritingStyleRequestError(400, 'CAPABILITY_TARGET_CHAPTER_INVALID', '目标章节不属于当前作品');
           }
           if (targetChapter && validScheduledTechniques.length > 0) {
@@ -131,7 +131,7 @@ export function registerWritingStyleRoutes(app: Express): void {
                 ...(targetChapter.workflowMeta || { version: 1 as const }),
                 capabilityState: {
                   ...(existing || { techniqueIds: [], overlayCardIds: [] }),
-                  novelId: req.params.novelId,
+                  novelId: (req.params.novelId as string),
                   databaseGeneration: req.body.databaseGeneration,
                   techniqueIds,
                   techniqueVersions,
@@ -143,7 +143,7 @@ export function registerWritingStyleRoutes(app: Express): void {
             });
           }
           const currentProfile = normalizeProjectPreferenceProfile(current.projectPreferenceProfile);
-          db.updateNovel(req.params.novelId, { projectPreferenceProfile: { ...currentProfile, capabilityModelVersion: 3, capabilityProfile: requestedProfile } });
+          db.updateNovel((req.params.novelId as string), { projectPreferenceProfile: { ...currentProfile, capabilityModelVersion: 3, capabilityProfile: requestedProfile } });
           return targetChapter ? new Set(validScheduledTechniques.map(({ step }: { step: CapabilityPackageStep }) => step.stepId)) : new Set<string>();
         });
       });

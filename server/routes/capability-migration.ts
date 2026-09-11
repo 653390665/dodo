@@ -19,7 +19,7 @@ function stale(res: Response, message = '迁移预览已过期，请重新预览
 
 export function registerCapabilityMigrationRoutes(app: Express): void {
   app.post('/api/novels/:novelId/capabilities/migration/preview', validate(requestSchema), (req, res) => {
-    const novel = getNovel(req.params.novelId);
+    const novel = getNovel((req.params.novelId as string));
     if (!novel) return res.status(404).json({ code: 'NOVEL_NOT_FOUND', error: '作品不存在' });
     if (req.body.databaseGeneration !== getDatabaseGeneration()) return stale(res, '数据库已变化，请刷新后重试');
     const preview = buildCapabilityMigrationPreview(novel, listSkills());
@@ -38,10 +38,10 @@ export function registerCapabilityMigrationRoutes(app: Express): void {
   app.post(['/api/novels/:novelId/capabilities/migration/apply', '/api/novels/:novelId/capabilities/migration/confirm'], validate(applySchema), async (req, res) => {
     if (req.body.databaseGeneration !== getDatabaseGeneration()) return stale(res, '数据库已变化，请刷新后重试');
     const previous = applied.get(req.body.previewToken);
-    if (previous && previous.novelId === req.params.novelId && previous.generation === req.body.databaseGeneration) return res.json({ applied: true, idempotent: true, databaseGeneration: previous.generation, profile: previous.profile });
+    if (previous && previous.novelId === (req.params.novelId as string) && previous.generation === req.body.databaseGeneration) return res.json({ applied: true, idempotent: true, databaseGeneration: previous.generation, profile: previous.profile });
     const preview = previews.get(req.body.previewToken);
-    if (!preview || preview.novelId !== req.params.novelId || preview.generation !== req.body.databaseGeneration || preview.expiresAt < Date.now()) return stale(res);
-    const currentBefore = getNovel(req.params.novelId);
+    if (!preview || preview.novelId !== (req.params.novelId as string) || preview.generation !== req.body.databaseGeneration || preview.expiresAt < Date.now()) return stale(res);
+    const currentBefore = getNovel((req.params.novelId as string));
     if (!currentBefore) return res.status(404).json({ code: 'NOVEL_NOT_FOUND', error: '作品不存在' });
     if (migrationProjectProfileFingerprint(currentBefore.projectPreferenceProfile) !== preview.projectProfileFingerprint) {
       return stale(res, '项目配置已变化，请重新预览迁移');
@@ -49,7 +49,7 @@ export function registerCapabilityMigrationRoutes(app: Express): void {
     const currentReceipt = (currentBefore.projectPreferenceProfile as Record<string, unknown> | undefined)?.migrationReceipt as { token?: string; generation?: number } | undefined;
     if (currentReceipt?.token === req.body.previewToken && currentReceipt?.generation === req.body.databaseGeneration) return res.json({ applied: true, idempotent: true, databaseGeneration: req.body.databaseGeneration, profile: currentBefore.projectPreferenceProfile });
     const guarded = await runInSerializedWriteForGeneration(req.body.databaseGeneration, () => {
-      const novel = getNovel(req.params.novelId);
+      const novel = getNovel((req.params.novelId as string));
       if (!novel) return undefined;
       if (migrationProjectProfileFingerprint(novel.projectPreferenceProfile) !== preview.projectProfileFingerprint) return 'STALE_CANDIDATE' as const;
       if (novel.projectPreferenceProfile?.capabilityModelVersion === 3) return novel.projectPreferenceProfile;
@@ -59,13 +59,13 @@ export function registerCapabilityMigrationRoutes(app: Express): void {
       const migrated = mergeMigratedProfile(novel.projectPreferenceProfile, preview.capabilityProfile) as Record<string, unknown>;
       validateCapabilityProfile(novel.id, migrated.capabilityProfile);
       migrated.migrationReceipt = { token: req.body.previewToken, generation: req.body.databaseGeneration };
-      updateNovel(req.params.novelId, { projectPreferenceProfile: migrated as unknown as ProjectPreferenceProfile });
-      return getNovel(req.params.novelId)?.projectPreferenceProfile;
+      updateNovel((req.params.novelId as string), { projectPreferenceProfile: migrated as unknown as ProjectPreferenceProfile });
+      return getNovel((req.params.novelId as string))?.projectPreferenceProfile;
     });
     if (!guarded.executed) return stale(res, '数据库已变化，请刷新后重试');
     if (guarded.result === 'STALE_CANDIDATE') return stale(res, '迁移候选已变化，请重新预览');
     if (!guarded.result) return res.status(404).json({ code: 'NOVEL_NOT_FOUND', error: '作品不存在' });
-    applied.set(req.body.previewToken, { novelId: req.params.novelId, generation: req.body.databaseGeneration, profile: guarded.result });
+    applied.set(req.body.previewToken, { novelId: (req.params.novelId as string), generation: req.body.databaseGeneration, profile: guarded.result });
     previews.delete(req.body.previewToken);
     return res.json({ applied: true, databaseGeneration: req.body.databaseGeneration, profile: guarded.result });
   });

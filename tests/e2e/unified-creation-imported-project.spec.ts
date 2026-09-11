@@ -123,11 +123,11 @@ test.describe('统一创作旅程：导入作品', () => {
     await expect.poll(() => fixture.accepted).toBe(true);
     expect(fixture.candidateImpactKinds).toEqual(['master-outline', 'narrative-promise']);
     expect(fixture.unexpectedCanonWrites).toBe(0);
-    await page.getByRole('button', { name: '总览', exact: true }).click();
-    await page.getByRole('button', { name: '世界设定', exact: true }).click();
+    await page.getByTestId('workspace-family-switcher').getByRole('button', { name: '总览', exact: true }).click();
+    await page.getByTestId('workspace-family-switcher').getByRole('button', { name: '设定', exact: true }).click();
     await expect(page.getByRole('textbox', { name: '描述小说的起承转合、主线任务、结局走向' })).toHaveValue(novel.globalOutline);
     await expect(page.getByRole('textbox', { name: '例如：修仙体系境界、魔法运转原理、科技文明等级' })).toHaveValue(novel.worldRules);
-    await page.getByRole('button', { name: '总览', exact: true }).click();
+    await page.getByTestId('workspace-family-switcher').getByRole('button', { name: '总览', exact: true }).click();
     const candidate = page.getByRole('button', { name: /开始按资料续写/ }).first();
     await expect(candidate).toBeVisible();
     await candidate.click();

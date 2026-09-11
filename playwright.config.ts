@@ -55,6 +55,11 @@ export default defineConfig({
       INKFLOW_ENABLE_DEV_AUTH_TOKEN: 'true',
       INKFLOW_DB_PATH: 'test-results/inkflow-e2e.db',
       INKFLOW_CONFIG_DIR: 'test-results/e2e-config',
+      // 全套 29 用例共享一个服务端，向导密集用例会耗尽 5 令牌突发预算造成跨用例 429
+      INKFLOW_RATE_LIMIT_SCALE: '20',
+      // onboarding 配额窗（story-cards 15min/6 次）同样是模块级全局态，向导类用例
+      // 超过 6 个后立项方案不渲染；放大到全套件够用
+      INKFLOW_ONBOARDING_GRANT_SCALE: '20',
     },
   },
 });
