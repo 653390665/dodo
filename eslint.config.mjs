@@ -79,6 +79,14 @@ export default tseslint.config(
       'no-cond-assign': 'warn',
     },
   },
+  // 1b. UI 原语文件（component + 配套 hook/助手同文件导出）——react-refresh 误报，
+  //     规则假设单文件单组件；计划 195 Phase 1 登记。
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
   // 2. 后端 Node.js / Electron 宿主与脚本环境及共享配置代码规则
   {
     files: [

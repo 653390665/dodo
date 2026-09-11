@@ -1401,7 +1401,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
     if (resolved.action === 'use-project-technique') {
       // External capability launches are consumed after editor data is ready.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- consume capability launch once editor data is ready
       setProjectTechniqueId(resolved.projectTechniqueId || resolved.assetId);
       setIsAgentSidebarOpen(true);
       setAgentTab('outline');
@@ -1521,7 +1521,7 @@ export function EditorView({ novel, initialChapterId, launchState = null, onLaun
 
     hasConsumedContinuationLaunchUiRef.current = true;
 
-    /* eslint-disable react-hooks/set-state-in-effect */
+    /* eslint-disable react-hooks/set-state-in-effect -- one-shot launch UI provisioning */
     // Only open assistant sidebar for planning, production, quality, or legacy launch events
     if (launchState.source === 'cockpit-next-chapter') {
       void handleAddChapter();

@@ -141,7 +141,7 @@ export function OutlineTab({
     currentNovelRef.current = novelId;
     operationSeq.current += 1;
     // Reset draft controls at the novel boundary; these states intentionally mirror external selection.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset draft controls at novel boundary
     setSelectedOutlineId('');
     setSelectedReferenceIds([]);
     setPendingCandidate(null);
@@ -152,7 +152,7 @@ export function OutlineTab({
   }, [novelId, globalOutline]);
   React.useEffect(() => {
     if (!draftDirty) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror external outline while clean
       setDraftOutline(globalOutline);
     }
   }, [globalOutline, draftDirty]);

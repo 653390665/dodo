@@ -224,7 +224,7 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
     prepareAbortRef.current?.abort();
     prepareAbortRef.current = null;
     // This effect resets transient UI state when the bound novel/pack changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient sync state at novel/pack boundary
     setPreparedSync(null);
     setSyncError(null);
     setSyncErrorCode(null);
@@ -260,7 +260,7 @@ export function WorldBibleAssistant({ novel, onClose, continuationPackId }: { no
     if (continuationPackId) return;
     const title = latestUserText.match(/资料包《([^》]+)》/)?.[1]?.trim();
     if (!title) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- derived suggestion reset when title no longer matches
       setInferredContinuationPack(null);
       return;
     }

@@ -120,7 +120,7 @@ export function ProjectCockpitView({
   };
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
+    /* eslint-disable react-hooks/set-state-in-effect -- data fetching on mount */
     fetchProjectData();
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount or initialNovel change

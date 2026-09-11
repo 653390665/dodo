@@ -34,7 +34,7 @@ export function useEditorUiState(novelId: string) {
 
   // Reset agent sidebar when active novel changes
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient UI state on novel switch
     setIsAgentSidebarOpen(false);
   }, [novelId]);
 

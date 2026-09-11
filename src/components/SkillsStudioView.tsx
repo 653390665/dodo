@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, 
 import { appConfirm } from './ui/app-confirm';
 import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
+import { useSkillsCandidateStore } from '../stores/skills-candidate-store';
 import { CURATED_PRODUCT_SKILLS, ENHANCEMENT_PACKAGES, getEnhancementPackageSteps, sanitizeWhiteLabelText, SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlow } from '../../shared/types/prompt-assets-governed';
 import { createProductEventId, createProductEventSessionId, recordProductEvent } from '../lib/product-events-client';
@@ -791,8 +792,11 @@ export function SkillsStudioView({
   const [packageSelectionDrafts, setPackageSelectionDrafts] = useState<Record<string, string[]>>({});
   const [packageComponentResults, setPackageComponentResults] = useState<Record<string, CapabilityApplicationStatus>>({});
   const [packageResultLaunchFeedbackAssetId, setPackageResultLaunchFeedbackAssetId] = useState<string | null>(null);
-  const [candidateCardIds, setCandidateCardIds] = useState<string[]>([]);
-  const [pendingCandidateId, setPendingCandidateId] = useState<string | null>(null);
+  // Plan 195 Phase 2：候选卡簇状态迁 skills-candidate-store（setter 镜像 useState 语义，调用点零改动）。
+  const candidateCardIds = useSkillsCandidateStore((state) => state.candidateCardIds);
+  const setCandidateCardIds = useSkillsCandidateStore((state) => state.setCandidateCardIds);
+  const pendingCandidateId = useSkillsCandidateStore((state) => state.pendingCandidateId);
+  const setPendingCandidateId = useSkillsCandidateStore((state) => state.setPendingCandidateId);
   const [migrationPreview, setMigrationPreview] = useState<CapabilityMigrationPreview | null>(null);
   const [migrationBusy, setMigrationBusy] = useState(false);
   const [migrationError, setMigrationError] = useState<string | null>(null);
@@ -1186,7 +1190,7 @@ export function SkillsStudioView({
     previousNovelIdRef.current = selectedNovel?.id || null;
     if (!selectedNovel?.id) return;
     // A work switch invalidates every session-bound configuration control.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- work switch invalidates session-bound draft
     setConfigurationDraft(getProjectCapabilityProfile(selectedNovel));
     setCandidateCardIds([]);
     setPendingCandidateId(null);
@@ -1203,13 +1207,13 @@ export function SkillsStudioView({
     setConfigurationError(null);
     setConfigurationApplyFailed(false);
     setLeavePromptOpen(false);
-  }, [getInitialCapabilityTab, initialStage, selectedNovel]);
+  }, [getInitialCapabilityTab, initialStage, selectedNovel, setCandidateCardIds, setPendingCandidateId]);
 
   useEffect(() => {
     let cancelled = false;
     if (!selectedNovel?.id) {
       // This effect owns the external database-generation snapshot and must clear it when the work changes.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear external generation snapshot at work boundary
       setDatabaseGeneration(null);
       sessionContextRef.current = null;
       configurationSessionIdRef.current = null;
@@ -1277,7 +1281,7 @@ export function SkillsStudioView({
       return;
     }
     // Hydrate the draft from the persisted session after the external snapshot is available.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate draft from persisted session after snapshot
     setConfigurationDraft(sessionToRestore.configurationDraft || capabilityProfile);
     setCandidateCardIds(sessionToRestore.candidateCardIds);
     setPendingPackageSteps(sessionToRestore.pendingPackageSteps || []);
@@ -1305,7 +1309,7 @@ export function SkillsStudioView({
     setConfigurationDirty(Boolean(restoredDraftToken !== baselineToken || hasPendingSessionWork));
   // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getInitialCapabilityTab, initialStage, selectedNovel?.id, databaseGeneration, baselineToken, effectiveNovel?.projectPreferenceProfile]);
+  }, [getInitialCapabilityTab, initialStage, selectedNovel?.id, databaseGeneration, baselineToken, effectiveNovel?.projectPreferenceProfile, setCandidateCardIds, setPendingCandidateId]);
 
   useEffect(() => {
     if (staleConfigurationSession || !selectedNovel?.id || databaseGeneration === null || sessionContextRef.current !== `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`) return;

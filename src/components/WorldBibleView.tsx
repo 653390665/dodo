@@ -342,7 +342,7 @@ export function WorldBibleView({
   }, [novel]);
 
   useEffect(() => {
-    fetchAll(); // eslint-disable-line react-hooks/set-state-in-effect
+    fetchAll(); // eslint-disable-line react-hooks/set-state-in-effect -- initial fetch + external-change resubscription
     return subscribeToChanges(fetchAll);
   }, [fetchAll]);
 

@@ -70,7 +70,7 @@ export function OutlineGovernancePanel({
     currentNovelRef.current = novelId;
     opSeq.current += 1;
     // Reset transient controls when the user changes作品; this is an intentional external-sync boundary.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient controls at novel boundary
     setBusy(null);
     setError(null);
     activeMasterRef.current = undefined;
@@ -123,7 +123,7 @@ export function OutlineGovernancePanel({
   const activeMaster = masters.find((a) => a.status === 'active');
   React.useEffect(() => {
     if (selectedMasterId && !masters.some((a) => a.id === selectedMasterId))
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fall back to active master when selection vanished
       setSelectedMasterId(activeMaster?.id || '');
   }, [selectedMasterId, activeMaster?.id, masters]);
   if (!novelId) return null;
