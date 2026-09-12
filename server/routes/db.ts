@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
 import type { Express, Request, Response } from 'express';
 import * as db from '../lib/db';
@@ -377,7 +378,8 @@ export function registerDbRoutes(app: Express) {
     try {
       const tempBackupPath = await runInSerializedWrite(async () => {
         if (!isDbInitialized()) return null;
-        const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        // 与导入侧 createImportTempPath（server/lib/db-import.ts）保持同一随机源策略
+        const uniqueId = randomUUID();
         const backupPath = `${DB_PATH}-${uniqueId}.temp-export`;
         // 使用 better-sqlite3 提供的符合事务一致性快照的备份 API
         await getDb().backup(backupPath);

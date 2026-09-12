@@ -204,8 +204,43 @@ export function setCurrentInitiator(val: string | undefined): void {
   currentInitiator = val;
 }
 
+// --- 206：SSE notify 负载观测（为 Plan 183 推迟的 generation 抑制立项供数） ---
+// 阈值触发单条汇总日志；窗口 1 分钟，跨窗去重（至少间隔 5 分钟才再记），
+// 常规流量零日志噪音。阈值可用 INKFLOW_NOTIFY_PROBE_THRESHOLD 覆盖（测试用）。
+const NOTIFY_PROBE_WINDOW_MS = 60_000;
+const NOTIFY_PROBE_LOG_GAP_MS = 5 * 60_000;
+let notifyProbeWindowStart = 0;
+let notifyProbeCount = 0;
+let notifyProbeLastLoggedAt = 0;
+
+function getNotifyProbeThreshold(): number {
+  const raw = Number(process.env.INKFLOW_NOTIFY_PROBE_THRESHOLD);
+  return Number.isFinite(raw) && raw > 0 ? raw : 120;
+}
+
+function recordNotifyProbe(): void {
+  const now = notifyProbeNow();
+  if (!notifyProbeWindowStart || now - notifyProbeWindowStart >= NOTIFY_PROBE_WINDOW_MS) {
+    if (
+      notifyProbeCount >= getNotifyProbeThreshold() &&
+      now - notifyProbeLastLoggedAt >= NOTIFY_PROBE_LOG_GAP_MS
+    ) {
+      logger.info('db notify 负载观测（plan 206 埋点）', {
+        notificationsPerMinute: notifyProbeCount,
+        subscribers: listeners.size,
+        threshold: getNotifyProbeThreshold(),
+      });
+      notifyProbeLastLoggedAt = now;
+    }
+    notifyProbeWindowStart = now;
+    notifyProbeCount = 0;
+  }
+  notifyProbeCount += 1;
+}
+
 /** Notify all registered listeners. Called after every write operation. */
 export function notify(): void {
+  recordNotifyProbe();
   const initiator = currentInitiator;
   for (const fn of listeners) {
     try {
@@ -215,3 +250,21 @@ export function notify(): void {
     }
   }
 }
+
+let notifyProbeNow = () => Date.now();
+
+export const __notifyProbeTestHooks = {
+  setClock: (fn: () => number) => {
+    notifyProbeNow = fn;
+  },
+  snapshot: () => ({
+    count: notifyProbeCount,
+    windowStart: notifyProbeWindowStart,
+    lastLoggedAt: notifyProbeLastLoggedAt,
+  }),
+  reset: () => {
+    notifyProbeWindowStart = 0;
+    notifyProbeCount = 0;
+    notifyProbeLastLoggedAt = 0;
+  },
+};
