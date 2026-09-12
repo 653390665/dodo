@@ -5,7 +5,6 @@ import {
   getLastConfigError,
   reloadConfig,
   saveConfig,
-  updateCachedApiKey,
   getLivenessStatus,
   setLivenessStatus,
 } from '../lib/config';
@@ -71,20 +70,6 @@ export function registerConfigRoutes(app: Express) {
     } catch (e) {
       logger.error('POST /api/config error:', e);
       res.status(500).json({ error: 'Failed to save config' });
-    }
-  });
-
-  app.post('/api/config/sync', validate(configSchema), (req, res) => {
-    try {
-      const { apiKey } = req.body;
-      if (apiKey !== undefined) {
-        updateCachedApiKey(apiKey);
-      }
-      reloadConfig();
-      res.json({ ok: true });
-    } catch (e) {
-      logger.error('POST /api/config/sync error:', e);
-      res.status(500).json({ error: 'Failed to sync config' });
     }
   });
 

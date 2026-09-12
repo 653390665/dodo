@@ -74,7 +74,10 @@ test('POST /api/config keeps the stored API key when the body sends an empty key
 
   // 落盘文件仍持有加密后的既有 Key，而不是被清空。
   const raw = JSON.parse(fs.readFileSync(configFilePath, 'utf-8')) as { apiKey?: string };
-  assert.ok(raw.apiKey && raw.apiKey.startsWith('enc:'), 'empty key must not wipe the stored key at rest');
+  assert.ok(
+    raw.apiKey && raw.apiKey.startsWith('enc:'),
+    'empty key must not wipe the stored key at rest'
+  );
   assert.equal(reloadConfig().apiKey, 'sk-existing');
 });
 
@@ -92,16 +95,7 @@ test('POST /api/config persists a new non-empty key', async () => {
   assert.equal(reloadConfig().apiKey, 'sk-new-key');
 });
 
-test('POST /api/config/sync updates the cached key env without persisting it', async () => {
+test('POST /api/config/sync is no longer registered (plan 202 dead-route removal)', async () => {
   const response = await postConfig({ apiKey: 'sk-sync-key' }, '/api/config/sync');
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true });
-
-  // updateCachedApiKey 语义：同步值进入 INKFLOW_SECURE_API_KEY（Electron 模式的权威来源）。
-  assert.equal(process.env.INKFLOW_SECURE_API_KEY, 'sk-sync-key');
-
-  // 但 sync 不落盘：文件里的 Key 仍是上一次 POST /api/config 保存的值。
-  const raw = JSON.parse(fs.readFileSync(configFilePath, 'utf-8')) as { apiKey?: string };
-  assert.ok(raw.apiKey && raw.apiKey.startsWith('enc:'));
-  assert.equal(reloadConfig().apiKey, 'sk-new-key');
+  assert.equal(response.status, 404);
 });
