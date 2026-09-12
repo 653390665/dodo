@@ -260,7 +260,21 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | DONE（竖切片落地：`/api/search-similar` + `searchSimilar` 投影扩展 chapterId + QuickSearchOverlay + Cmd+K 快捷键（输入豁免前处理）+ editorReturnTarget 跳章；琥珀色诚实降级 unavailable/unindexed 两态；README:238 宣称回填。关键事实：向量索引唯一写入点是生产 apply 且每章 1 chunk，手写正文不入索引——检索面只是「AI 写过的章」；换模型后旧索引被静默排除。开放问题 6 项见 `docs/prd/2026-09-cmdk-semantic-search.md` §6） | 175 |
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
+| 196 | Vite 6→7 升级（190 Step3 遗留） | TODO | 190 |
+| 197 | 185 拍板出路 b：生成侧为 45 张 sanitize-required 候选产消毒副本 + 渲染切副本单源化 | TODO | — |
+| 198 | 无 Key 全章生产修复：保底草稿句式池多样性改造（默认 4000 字过质量门） | TODO | — |
+| 199 | 陈旧 E2E spec 债清偿：8 个 spec 对照现行契约重写 | TODO | — |
+| 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | TODO | — |
+| 201 | Cmd+K 后续：手写正文防抖回填索引 + 代际过期诚实提示（194 §6 #1/#4） | TODO | 194 |
+| 202 | config/sync 死代码移除（0 生产调用方已实证） | TODO | — |
+| 203 | 195 切片 A：配置会话簇 → skills-configuration-store（自应用豁免窗口语义锁定） | TODO | — |
+| 204 | 195 切片 B：增强包/选择簇 → skills-package-store（与 A 可并行） | TODO | — |
+| 205 | 195 切片 C：货架数据 hook + CandidateTray/StyleShelf/PackageConfigDialog 拆分 | TODO | 203, 204 |
+| 206 | 小额收口：导出临时文件名 randomUUID + SSE notify 负载埋点（183 推迟项供数） | TODO | — |
 
+### Round 31 说明（2026-09-12）
+
+来源：Round 30（173-195）执行完毕后的遗留项与执行期发现。四个方向经产品拍板：①185 走「扩过滤器保特性」；②8 个陈旧 E2E spec 全部重写；③195 三切片入批实施；④无 Key 全章生产写修复计划。锚点经当日只读勘察核实（SANITIZE_REQUIRED_CATALOG 为提案名非代码实体，真实机制是 generate-public-catalog.ts:53 的 isPublicRuntimeAsset；capability-governance 在 src/lib/ 非 server/capabilities/；config/sync 0 生产调用方；db.ts:380 为 Math.random 残留现址）。
 ### Plan 166 复核（2026-08-23）
 
 Plan 166 的结构信号、数字单位误报边界、审稿局部上下文窗口和机械预览诚实状态已通过复核；定向 Node 49/49、frontend 825/825、typecheck、lint、build、目标 Chromium 1/1、桌面/移动 E2E 12/12、diff check 均通过。真实 Provider 仍保持 `audit_response_unparseable` 失败，不计为文学质量通过。
