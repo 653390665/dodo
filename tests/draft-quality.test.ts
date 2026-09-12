@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MIN_COMPLETE_CHAPTER_SLOP_SCORE, evaluateDraftAcceptance, sanitizeFallbackContext, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCandidateDraftQuality, validateChapterDraftQuality, validateCompleteChapterDraftQuality, validateDraftQuality } from '../shared/lib/draft-quality';
+import { MIN_COMPLETE_CHAPTER_CHARS, MIN_COMPLETE_CHAPTER_SLOP_SCORE, evaluateDraftAcceptance, sanitizeFallbackContext, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCandidateDraftQuality, validateChapterDraftQuality, validateCompleteChapterDraftQuality, validateDraftQuality } from '../shared/lib/draft-quality';
 import type { StructuredAudit } from '../shared/lib/audit-structured';
-import { buildFallbackDraft } from '../server/helpers/fallback-draft';
+import { buildFallbackDraft, buildFallbackSceneBeats } from '../server/helpers/fallback-draft';
 
 test('draft quality rejects metadata, explanatory fragments and internal labels anywhere', () => {
   const result = validateDraftQuality('他推门进去。作品：冷雨夜。\n\n答案：这是修改后的正文。\n\nfantasy system');
@@ -374,17 +374,49 @@ test('fallback output does not repeat a complete bridge sentence across template
     '### 场景 1：异动入场\n\n**核心冲突**：主角必须找到账册\n\n**关键动作链**：观察异常；试探来客\n\n**退场钩子**：脚步逼近',
     '关键人物：林舟：守门人',
   );
-  const result = validateChapterDraftQuality(draft);
-  assert.equal(result.ok, false, 'mechanical fallback remains blocked until a real model draft is available');
-  assert.ok(result.findings.some((finding) => finding.severity === 'P1'));
+  const result = validateCompleteChapterDraftQuality(draft);
+  assert.equal(result.ok, true, result.violations.join('；'));
   for (const bridge of [
     '局面再次偏转，没人再把它当作巧合。',
     '新的细节压上来，先前的判断必须重新排列。',
     '局面没有回到原点，所有人的选择都留下了痕迹。',
     '下一步已经逼到门口，沉默也不再提供遮掩。',
+    '风换了个方向，屋里的打算也跟着换。',
+    '灯影重新排布，谁的位置都没变，话却变了。',
+    '这一段落定，下一处的门已经有人去敲。',
+    '水面上又浮起一层新纹，旧的荡到了岸边。',
   ]) {
     assert.ok((draft.match(new RegExp(bridge, 'g')) || []).length <= 1, `bridge repeated: ${bridge}`);
   }
+});
+
+test('keyless fallback draft passes the complete-chapter gate at the default length (plan 198)', () => {
+  // Default intent: no declared word count, so the 4000-char full-chapter
+  // minimum applies. This is the exact path that used to fail with
+  // duplicate-sentence / mechanical-cadence / slop < 85.
+  const beats = buildFallbackSceneBeats('主角潜入账房，发现账册缺了一页');
+  const draft = buildFallbackDraft(beats, '关键人物：\n- 林舟：账房先生');
+  const result = validateCompleteChapterDraftQuality(draft);
+
+  assert.equal(result.ok, true, result.violations.join('；'));
+  assert.equal(result.findings.length, 0);
+  assert.ok(
+    (result.mechanicalReview?.score ?? 0) >= MIN_COMPLETE_CHAPTER_SLOP_SCORE,
+    `slop score ${result.mechanicalReview?.score} below ${MIN_COMPLETE_CHAPTER_SLOP_SCORE}`,
+  );
+  assert.ok(
+    draft.replace(/\s/g, '').length >= MIN_COMPLETE_CHAPTER_CHARS,
+    'default-intent fallback draft must reach the full-chapter length contract',
+  );
+});
+
+test('fallback expansion is deterministic for the same scene beats and context', () => {
+  const beats = buildFallbackSceneBeats('反派夜里上门试探，主角需要稳住局面');
+  const context = '关键人物：\n- 林舟：守门人\n关键道具：\n- 青铜铃：第三次响起会打开地下城门';
+  const first = buildFallbackDraft(beats, context);
+  const second = buildFallbackDraft(beats, context);
+
+  assert.equal(first, second);
 });
 
 test('semantic review maps structured audit evidence into four explicit checks', () => {

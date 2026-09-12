@@ -8,6 +8,9 @@ import { test, expect } from '@playwright/test';
  *   start-stream（SSE）→ run 评审态 → apply 治理拒绝 → getChapter 回读，
  * 断言保底 run 真实产生且 plan165 严格门拒绝未审稿的保底草稿、作者正文保留。
  *
+ * Plan 198：意图不再声明「本章写800字」。默认章长（4000 字）下保底草稿
+ * 改造后可直接通过流内完整章质量门，无需低字数 workaround。
+ *
  * 说明：生产页签同名按钮（写法区预览 vs 生产动作）存在 aria 禁用态翻转，
  * UI 点击驱动无法稳定锚定（Plan 187 执行报告已记录），按计划的降级条款改为
  * HTTP 层真实管线契约验证；UI 部分仍完整走真实向导与编辑器。
@@ -122,7 +125,7 @@ test('真实生产管线：start-stream → 保底 run → apply → 章节回�
         novelId: novel.id,
         chapterId: chapter.id,
         databaseGeneration,
-        userIntent: '本章写800字：真实管线验证生成保底正文',
+        userIntent: '真实管线验证生成保底正文',
         ...(styleFingerprint ? { styleConfirmationFingerprint: styleFingerprint } : {}),
       }),
     });

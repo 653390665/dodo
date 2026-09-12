@@ -51,16 +51,24 @@ before(async () => {
     if (String(url).startsWith(baseUrl) && typeof init?.body === 'string') {
       try {
         const body = JSON.parse(init.body) as Record<string, unknown>;
-        const fingerprint = typeof body.novelId === 'string' ? styleFingerprints.get(body.novelId) : undefined;
+        const fingerprint =
+          typeof body.novelId === 'string' ? styleFingerprints.get(body.novelId) : undefined;
         if (typeof body.novelId === 'string') {
-          init = { ...init, body: JSON.stringify({
-            ...body,
-            chapterId: body.chapterId || `${body.novelId}-chapter`,
-            databaseGeneration: body.databaseGeneration ?? readDatabaseGeneration(),
-            ...(fingerprint && !body.styleConfirmationFingerprint ? { styleConfirmationFingerprint: fingerprint } : {}),
-          }) };
+          init = {
+            ...init,
+            body: JSON.stringify({
+              ...body,
+              chapterId: body.chapterId || `${body.novelId}-chapter`,
+              databaseGeneration: body.databaseGeneration ?? readDatabaseGeneration(),
+              ...(fingerprint && !body.styleConfirmationFingerprint
+                ? { styleConfirmationFingerprint: fingerprint }
+                : {}),
+            }),
+          };
         }
-      } catch { /* pass through */ }
+      } catch {
+        /* pass through */
+      }
     }
     return originalFetch(url, init);
   };
@@ -82,7 +90,9 @@ after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   closeDb();
-  try { fs.rmSync(testDir, { force: true, recursive: true }); } catch {}
+  try {
+    fs.rmSync(testDir, { force: true, recursive: true });
+  } catch {}
 });
 
 /**
@@ -99,7 +109,13 @@ async function setupNovel(id: string) {
     status: 'ongoing',
     projectPreferenceProfile: {
       tags: [],
-      weights: { styleWeight: 0.5, characterWeight: 0.5, worldWeight: 0.5, plotWeight: 0.5, pacingWeight: 0.5 },
+      weights: {
+        styleWeight: 0.5,
+        characterWeight: 0.5,
+        worldWeight: 0.5,
+        plotWeight: 0.5,
+        pacingWeight: 0.5,
+      },
       acceptedDimensions: [],
       rejectedDimensions: [],
       notes: [],
@@ -111,8 +127,14 @@ async function setupNovel(id: string) {
     updatedAt: now,
   });
   db.createChapter({
-    id: `${id}-chapter`, novelId: id, title: 'Chapter', content: '', order: 1,
-    wordCount: 0, createdAt: now, updatedAt: now,
+    id: `${id}-chapter`,
+    novelId: id,
+    title: 'Chapter',
+    content: '',
+    order: 1,
+    wordCount: 0,
+    createdAt: now,
+    updatedAt: now,
   });
   styleFingerprints.set(id, confirmWritingStyleForTest(id));
 }
@@ -122,20 +144,25 @@ async function setupNovel(id: string) {
  */
 async function waitForReservation(
   novelId: string,
-  expected: 'committed' | 'refunded',
+  expected: 'committed' | 'refunded'
 ): Promise<string> {
   const { __quotaTestHooks } = await import('../server/helpers/quota-guard');
   let reservationId: string | undefined;
-  await waitFor(() => {
-    const r = Array.from(__quotaTestHooks.quotaReservations.values())
-      .find((c) => c.novelId === novelId && c.status === expected);
-    if (r) reservationId = r.id;
-    return !!r;
-  }, 2_000, `reservation ${expected} for ${novelId}`);
+  await waitFor(
+    () => {
+      const r = Array.from(__quotaTestHooks.quotaReservations.values()).find(
+        (c) => c.novelId === novelId && c.status === expected
+      );
+      if (r) reservationId = r.id;
+      return !!r;
+    },
+    2_000,
+    `reservation ${expected} for ${novelId}`
+  );
   return reservationId!;
 }
 
-test('start-stream rejects a mechanical fallback without exposing or persisting prose', async () => {
+test('start-stream persists a passing fallback draft into review with provenance intact', async () => {
   const novelId = 'prod-disconnect-normal';
   await setupNovel(novelId);
   const db = await import('../server/lib/db');
@@ -155,13 +182,25 @@ test('start-stream rejects a mechanical fallback without exposing or persisting 
     },
   });
   db.createCharacter({
-    id: `${novelId}-character`, novelId, name: '角色证据-林舟', role: 'protagonist',
-    summary: '只用左手解读导师暗号', traits: ['克制'], bio: '', createdAt: now, updatedAt: now,
+    id: `${novelId}-character`,
+    novelId,
+    name: '角色证据-林舟',
+    role: 'protagonist',
+    summary: '只用左手解读导师暗号',
+    traits: ['克制'],
+    bio: '',
+    createdAt: now,
+    updatedAt: now,
   });
   db.createForeshadowing({
-    id: `${novelId}-foreshadowing`, novelId, title: '伏笔证据-青铜铃',
-    description: '第三次响起会打开地下城门', status: 'planted', relatedCharacterIds: [],
-    createdAt: now, updatedAt: now,
+    id: `${novelId}-foreshadowing`,
+    novelId,
+    title: '伏笔证据-青铜铃',
+    description: '第三次响起会打开地下城门',
+    status: 'planted',
+    relatedCharacterIds: [],
+    createdAt: now,
+    updatedAt: now,
   });
   styleFingerprints.set(novelId, confirmWritingStyleForTest(novelId));
 
@@ -179,31 +218,25 @@ test('start-stream rejects a mechanical fallback without exposing or persisting 
   assert.equal(response.status, 200);
   const text = await response.text();
   assert.match(text, /"type":"run_created"/);
-  assert.doesNotMatch(text, /"type":"fallback_draft_token"/);
-  assert.doesNotMatch(text, /"type":"fallback_draft_done"/);
-  assert.doesNotMatch(text, /"type":"done"/);
-  const events = text
-    .split('\n')
-    .filter((line) => line.startsWith('data: '))
-    .map((line) => JSON.parse(line.slice(6)) as {
-      type: string;
-      code?: string;
-      retriable?: boolean;
-      violations?: string[];
-    });
-  const error = events.find((event) => event.type === 'error');
-  assert.equal(error?.code, 'DRAFT_QUALITY_GATE_FAILED');
-  assert.equal(error?.retriable, true);
-  assert.ok(error?.violations?.length);
+  // plan 198：保底草稿过完整章质量门 → 正常发草稿事件并进入评审态
+  assert.match(text, /"type":"fallback_draft_token"/);
+  assert.match(text, /"type":"fallback_draft_done"/);
+  assert.match(text, /"type":"done"/);
+  assert.doesNotMatch(text, /DRAFT_QUALITY_GATE_FAILED/);
 
   const [run] = db.listChapterProductionRuns(novelId);
-  assert.ok(run, 'quality failure should remain visible as a failed run');
-  assert.equal(run.status, 'failed');
-  assert.equal(run.draftContent, '');
-  assert.equal(db.listChapterProductionRunVersions(run.id).length, 0);
+  assert.ok(run, 'fallback draft should persist as a reviewable run');
+  assert.equal(run.status, 'review_required');
+  assert.ok(run.draftContent.length >= 4000, 'default-intent draft meets the 4000-char floor');
+  assert.equal(run.continuityReport.auditMeta?.source, 'fallback');
+  assert.equal(db.listChapterProductionRunVersions(run.id).length, 1);
   assert.ok(run.continuityReport.executionReceipt?.capabilityRefs.includes('prose-action-booster'));
-  assert.deepEqual(run.continuityReport.executionReceipt?.contextDimensions, ['world', 'character', 'foreshadowing']);
-  await waitForReservation(novelId, 'refunded');
+  assert.deepEqual(run.continuityReport.executionReceipt?.contextDimensions, [
+    'world',
+    'character',
+    'foreshadowing',
+  ]);
+  await waitForReservation(novelId, 'committed');
 });
 
 test('start-stream disconnect before fallback write refunds quota', async () => {
@@ -290,20 +323,22 @@ test('start-stream invalid fallback does not enter the model queue in test env',
 
   assert.equal(response.status, 200);
   const text = await response.text();
-  assert.match(text, /"code":"DRAFT_QUALITY_GATE_FAILED"/);
-  assert.doesNotMatch(text, /"type":"fallback_draft_token"/);
-  assert.doesNotMatch(text, /"type":"done"/);
+  // plan 198：保底过门后 test env 走短路径——发 fallback 草稿事件 + done，仍不进 model 写队列
+  assert.match(text, /"type":"fallback_draft_token"/);
+  assert.match(text, /"type":"fallback_draft_done"/);
+  assert.match(text, /"type":"done"/);
+  assert.doesNotMatch(text, /DRAFT_QUALITY_GATE_FAILED/);
   assert.equal(modelWriteReached, false);
 
   const db = await import('../server/lib/db');
   const runs = db.listChapterProductionRuns(novelId);
   assert.ok(runs.length > 0, 'should have a production run');
   const run = runs[0];
-  assert.equal(run.draftContent, '');
-  assert.equal(run.status, 'failed');
-  assert.equal(db.listChapterProductionRunVersions(run.id).length, 0);
+  assert.ok(run.draftContent.length >= 4000);
+  assert.equal(run.status, 'review_required');
+  assert.equal(db.listChapterProductionRunVersions(run.id).length, 1);
 
-  await waitForReservation(novelId, 'refunded');
+  await waitForReservation(novelId, 'committed');
   __productionTestHooks.preModelWriteHook = null;
 });
 
