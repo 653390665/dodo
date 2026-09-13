@@ -316,8 +316,11 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
     await expect(productionTab).toBeVisible();
     await productionTab.click();
 
+    // 契约基线 2026-09-12：写法确认触发钮未确认态名为「生成本章正文」，
+    // 点击后弹「确认本次写法」弹窗（plan 199 步 1）
     const styleAction = page.getByTestId('agent-workspace-scroll-region')
-      .getByRole('button', { name: '确认并生成', exact: true });
+      .getByRole('button', { name: /生成本章正文/ })
+      .first();
     await expect(styleAction).toBeVisible();
     await styleAction.click();
     const styleDialog = page.getByRole('dialog', { name: '确认本次写法' });
@@ -351,17 +354,12 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
 
     // 8. Click the "导出" (Export) button in the status bar to verify the export download triggers successfully
     // 点击状态栏中的 "导出" 按钮，验证导出下载是否成功触发
-    // Set up dialog handler to automatically accept and choose EPUB format
-    // 设置对话框处理器以自动接受并选择 EPUB 格式
-    page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('导出为 EPUB？');
-      await dialog.accept();
-    });
-
+    // 契约基线 2026-09-12：导出为下拉菜单（导出 EPUB / 导出 TXT），无原生确认框
     const downloadPromise = page.waitForEvent('download');
-    const exportButton = page.locator('button:has-text("导出")');
+    const exportButton = page.getByRole('button', { name: '导出', exact: true });
     await expect(exportButton).toBeVisible();
     await exportButton.click();
+    await page.getByRole('menuitem', { name: '导出 EPUB' }).click();
 
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toContain('epub');

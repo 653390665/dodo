@@ -151,7 +151,8 @@ test.describe('统一创作旅程：新建作品', () => {
     await expect(acceptedPlan).toHaveValue('固定分镜：调查者进入废墟；发现未熄灭的灯。');
     await workspace.getByRole('button', { name: '生成正文', exact: true }).click();
     await workspace.getByRole('textbox', { name: '生产意图' }).fill('按已确认分镜生成第一章正文。');
-    const generate = workspace.getByRole('button', { name: /确认并生成|按「.*」扩写正文/ }).first();
+    // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」（弹窗内才是「确认并生成」）
+    const generate = workspace.getByRole('button', { name: /生成本章正文|确认并生成|按「.*」扩写正文/ }).first();
     await generate.click();
     const styleDialog = workspace.getByRole('dialog', { name: '确认本次写法' });
     if (await styleDialog.count()) await styleDialog.getByRole('button', { name: '确认并生成', exact: true }).click();
@@ -171,7 +172,7 @@ test.describe('统一创作旅程：新建作品', () => {
     await completion.getByRole('checkbox', { name: '确认接受未审阅风险' }).check();
     await expect(acceptRisk).toBeEnabled();
     await acceptRisk.click();
-    const factConfirm = page.getByRole('button', { name: '确认事实并写入', exact: true });
+    const factConfirm = page.getByRole('button', { name: /确认事实并写入|接受正文后确认事实/ });
     await expect(factConfirm).toBeVisible();
     await expect(factConfirm).toBeEnabled();
     await factConfirm.click();
@@ -201,6 +202,7 @@ test.describe('统一创作旅程：新建作品', () => {
     if (await flow.count()) await flow.click();
     const editor = page.locator('textarea[placeholder="在这里开始书写这一章……"]');
     await expect(editor).toBeVisible({ timeout: 15_000 });
+
     await editor.fill('模型不可用时仍保留手动正文。');
     await page.getByRole('button', { name: '完成本章', exact: true }).click();
     const completion = page.getByRole('region', { name: '章节完成审阅' });
@@ -209,7 +211,8 @@ test.describe('统一创作旅程：新建作品', () => {
     await completion.getByRole('checkbox', { name: '确认接受未审阅风险' }).check();
     await expect(acceptRisk).toBeEnabled();
     await acceptRisk.click();
-    const facts = page.getByRole('button', { name: '确认事实并写入', exact: true });
+    // 契约基线 2026-09-12：按钮文案动态（可确认→「确认事实并写入」，否则→「接受正文后确认事实」）
+    const facts = page.getByRole('button', { name: /确认事实并写入|接受正文后确认事实/ });
     await expect(facts).toBeVisible();
     await expect(facts).toBeEnabled();
     await facts.click();

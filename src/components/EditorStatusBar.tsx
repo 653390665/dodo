@@ -97,7 +97,8 @@ export function EditorStatusBar({
   };
 
   return (
-    <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted overflow-hidden">
+    <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted">
+      {/* 不加 overflow-hidden：导出菜单 bottom-full 向上弹出，根节点裁剪会让菜单整个不可点（plan 199 步 1 修复） */}
       <div className="flex items-center gap-3 min-w-0 overflow-hidden">
         {launchState?.approvedPackId && (
           <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">

@@ -171,7 +171,8 @@ test.describe('Plan150 writing style confirmation', () => {
     await editor.fill('用户正文保留：城门在雨中开启。');
     const style = page.getByRole('region', { name: '本次写法' });
     await expect(style).toBeVisible({ timeout: 15000 });
-    await style.getByRole('button', { name: '确认并生成', exact: true }).click();
+    // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」，弹窗内仍是「确认并生成」
+    await style.getByRole('button', { name: /生成本章正文|确认并生成/ }).first().click();
     await style.getByRole('dialog', { name: '确认本次写法' }).getByRole('button', { name: '确认并生成', exact: true }).click();
     await expect.poll(() => state.draftCalls).toBe(1);
     await expect(editor).toHaveValue('用户正文保留：城门在雨中开启。');
@@ -200,7 +201,8 @@ test.describe('Plan150 writing style confirmation', () => {
     await expect.poll(() => state.draftCalls).toBe(2);
     await expect(style.getByRole('button', { name: '确认并生成', exact: true })).toBeVisible();
     await expect(style).toContainText('新的融合写法');
-    await style.getByRole('button', { name: '确认并生成', exact: true }).click();
+    // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」，弹窗内仍是「确认并生成」
+    await style.getByRole('button', { name: /生成本章正文|确认并生成/ }).first().click();
     await style.getByRole('dialog', { name: '确认本次写法' }).getByRole('button', { name: '确认并生成', exact: true }).click();
     await expect.poll(() => state.draftCalls).toBe(3);
     const resumedCandidate = page.locator('section[aria-label="AI 正文候选"], section[aria-label="智能管家正文候选"]');

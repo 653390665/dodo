@@ -362,9 +362,15 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
     const favorite = card.getByRole('button', { name: '收藏为常用技法', exact: true });
     if (await favorite.count()) await favorite.click();
   }
-  const applyConfiguration = page.getByRole('button', { name: '应用配置并返回写作', exact: true });
+  // 契约基线 2026-09-12：拆为「应用配置后设为作品默认」+「回到刚才章节写作」两个动作
+  const applyConfiguration = page.getByRole('button', { name: '应用配置后设为作品默认', exact: true }).first();
   await expect(applyConfiguration).toBeVisible();
   await applyConfiguration.click();
+  // 契约基线 2026-09-12：应用配置后自动返回写作；如仍停留在能力中心则点「回到刚才章节写作」
+  const backToWriting = page.getByRole('button', { name: '回到刚才章节写作', exact: true });
+  if (await backToWriting.isVisible().catch(() => false)) {
+    await backToWriting.click();
+  }
   await expect(page.locator('textarea[placeholder="在这里开始书写这一章……"]')).toBeVisible({ timeout: 15_000 });
   clicked.push('世界观96、角色91、黄金三章95');
 
