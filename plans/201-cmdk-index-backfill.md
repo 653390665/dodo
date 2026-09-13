@@ -93,4 +93,41 @@ Plan 194 spike 实测发现：向量索引唯一写入点是「生产 run 被接
 
 ## Maintenance notes
 
+### Step 1 勘察结论（2026-09-12 定稿）
+
+- **单章删除/重写清理现状**：落地前 `DELETE FROM vector_chunks` 仅有两处——`deleteNovel`
+  （书级，`server/lib/db/novels.ts` 级联）与 db-import 整表重建；**单章删除不清 chunk**，
+  孤儿 chunk 仍参与检索（searchSimilar 只按 novel_id 过滤）；重写仅 apply 路径覆盖
+  （addChunk upsert 同 id），助手改写路径不更新索引。
+- **挂点**：`server/lib/db/chapters.ts` 的 `updateChapter`（内容真变化时）与
+  `deleteChapter`。updateChapter 的服务端调用方：/api/db 代理（编辑器保存）、
+  production apply（content 同 draftContent，flush 时按内容 hash 去重跳过，无重复 embed）、
+  writing-style（仅 workflowMeta，不触发）。入队同步返回、零 await——**正文保存路径
+  与 embedding 完全隔离，写事务外异步执行**。
+- **节流策略**：进程内防抖队列（`server/lib/chapter-index.ts`）——60s 窗口聚合脏章节
+  （`INKFLOW_INDEX_BACKFILL_DEBOUNCE_MS` 可覆盖）；同章去重只保留最新意图；窗口到期
+  串行回填（避免 embedding 风暴）；内容长度阈值：非空白字符 ≥ 100
+  （`INKFLOW_INDEX_BACKFILL_MIN_CHARS` 可覆盖）；flush 时重读当前库最新内容
+  （不携带旧文本入队，天然规避换库问题），与已索引文本一致则跳过（防重复 embed）。
+- **失败语义**：embedding 失败 / `VectorIndexGenerationMismatchError`（换库代际更替）
+  → 只记日志，不重试不抛出；下次保存自动重新入队。upsert 顺序为
+  delete 旧 chunk → embed → insert（按计划 delete-first），embedding 失败时该章诚实
+  处于未索引态，等待下次保存重试。
+
+### 落地记录（2026-09-12）
+
+- 改动文件：`server/vector-store.ts`（`upsertChapterChunk`/`deleteChapterChunks`/
+  `getChapterChunkText`/`searchSimilarWithStats`，`searchSimilar` 改为委托保持旧契约，
+  `story-context.ts` 消费点不受扰）；新增 `server/lib/chapter-index.ts`（防抖编排）；
+  `server/lib/db/chapters.ts`（updateChapter/deleteChapter 挂点）；
+  `server/routes/search.ts`（stale/staleExcluded，阈值 0.5）；`QuickSearchOverlay.tsx`
+  （琥珀「建议重建」+ unindexed/idle 文案诚实化）。
+- 已知边界：助手改写（`acceptChapterContentCandidate`）未挂钩点——apply 路径由
+  addChunk 覆盖，纯助手改写的索引会滞后一次保存；194 §6 #1 已按此口径标记解决。
+- 测试：`tests/chapter-index-backfill.test.ts`（6 例：回填命中/幂等/删章清理/
+  embedding 失败不阻塞/代际降级/长度阈值）+ `tests/search-similar-contract.test.ts`
+  （3 例：stale:true 附排除计数/新鲜 stale:false/unavailable 路径契约）。
+  注意两文件内的 embedding 令牌桶（5 令牌/文件进程）需在 afterEach 调
+  `__rateLimitTestHooks.reset()`。
+
 落地后 194 §6 的 #1/#4 标记已解决；分块（#3）若立项可直接复用 upsertChapterChunk 的 index 维度。

@@ -1,13 +1,14 @@
 # Plan 194 Spike — Cmd/Ctrl+K 语义检索（相似段落跳转）设计文档
 
-> 状态：竖切片原型已落地（服务端端点 + 面板 + 快捷键），本文档记录设计取舍、
-> 诚实边界与开放问题。这不是完整功能交付；扩展为命令面板需另立计划。
+> 状态：竖切片原型已落地（服务端端点 + 面板 + 快捷键）；Plan 201 补齐手写正文
+> 章级回填与索引代际过期提示。本文档记录设计取舍、诚实边界与开放问题。
+> 扩展为命令面板需另立计划。
 
 ## 1. 竖切片范围（已实现）
 
 | 组件 | 位置 | 说明 |
 | --- | --- | --- |
-| 检索端点 | `server/routes/search.ts` → `POST /api/search-similar` | zod 校验 `{novelId, query≤500, limit≤20}`；返回 `{available, embeddingStatus, indexed, hits[]}` |
+| 检索端点 | `server/routes/search.ts` → `POST /api/search-similar` | zod 校验 `{novelId, query≤500, limit≤20}`；返回 `{available, embeddingStatus, indexed, stale, staleExcluded, hits[]}`（stale 维度为 Plan 201 新增） |
 | 命中携带章节 | `server/vector-store.ts` `searchSimilar` | 返回值新增 `chapterId`（表里本来就有，纯投影扩展；`story-context.ts` 的既有消费点不受影响） |
 | 快捷键 | `src/lib/keyboard-shortcuts.ts` `search` | `Cmd/Ctrl+K`；AppShell 在**输入框豁免之前**处理（命令面板语义：输入焦点下也能唤起） |
 | 检索面板 | `src/components/QuickSearchOverlay.tsx` | 300ms 防抖 + AbortController；↑↓ 选择、Enter 跳转、Esc 关闭；点结果跳章 |
@@ -18,19 +19,22 @@
 
 **检索面**：仅本书正文 chunks（`vector_chunks.novel_id` 过滤）。不做设定库双源（见开放问题 #2）。
 
+**索引覆盖范围（Plan 201 更新）**：索引写入点有两个——①「生产 run 被接受写入」时按章
+upsert 一条 chunk（`server/routes/production.ts` apply 路径，每章 1 chunk，全文）；
+②Plan 201 新增「编辑器手写正文」章级回填：`updateChapter` 内容变化后在服务端侧
+经 60s 防抖队列异步 `upsertChapterChunk`（`server/lib/chapter-index.ts` 编排，
+embedding 失败只记日志、绝不阻塞保存）。单章删除会同步清理该章 chunk。
+因此本功能检索面已覆盖手写正文（保存后约 1 分钟内入索引）+ AI 生产写入的章
+（开放问题 #1 已解决）。
+
 **诚实降级契约**（沿用 `docs/specs/llm-status-honesty.md` 的琥珀色语义，不假装空结果）：
 
 | 服务端状态 | 响应 | 面板呈现 |
 | --- | --- | --- |
 | embedding `initializing`/`unavailable` | `available:false` + 状态值 | 琥珀色提示「语义索引当前不可用（状态：…）」 |
 | `available:true` 但 `getChunkCount()==0` | `indexed:false` | 琥珀色提示「本书还没有可检索的索引」+ 说明索引覆盖范围 |
+| 兼容过滤排除比例 > 50%（旧代际索引） | `stale:true` + `staleExcluded` 计数 | 琥珀色提示「检测到 X 条旧代际索引未参与检索，建议重建」（Plan 201） |
 | 正常 | `hits[]`（可能为空） | 结果列表；空结果会提示「模型或索引代际不一致时旧索引会被排除」 |
-
-**索引覆盖范围（spike 发现的关键事实）**：`addChunk` 的唯一调用点在
-`server/routes/production.ts:1269` —— 只有「生产 run 被接受写入」时按章写一条 chunk
-（每章 1 chunk，全文）。**编辑器手写、自动保存、助手改写均不入索引**。
-因此本功能目前的检索面是「AI 生产写过的章」，对手写百万字作者的诉求只算部分满足
-（开放问题 #1）。
 
 ## 3. 模型治理现状（STOP 条件核查结论）
 
@@ -56,17 +60,24 @@
 4. ↑↓ 选择 + Enter（或点击）→ 关闭面板并打开编辑器对应章。
 5. 无 Key + 断网（embedding unavailable）时按 Cmd+K 搜索 → 琥珀色降级提示，非空结果伪装。
 6. 新书（未接受过任何生产写入）搜索 → 「还没有可检索的索引」提示。
+7. **（Plan 201）手写正文回填**：编辑器里手写一段新正文 → 保存 → 等待约 1 分钟
+   （防抖回填窗口）→ Cmd+K 用该段内容的同义表述检索 → 命中手写章节；删章后检索不再命中该章。
+8. **（Plan 201）代际过期提示**：换 embedding 模型配置后检索 → 命中数明显偏少时出现
+   琥珀色「检测到 X 条旧代际索引未参与检索，建议重建」。
 
 ## 6. 开放问题（产品拍板后另立计划）
 
-1. **手写正文不入索引**：自动保存/助手改写是否建索引？成本：每章 1 次 embedding
-   （本地模型 CPU 几百毫秒）+ 写放大；建议防抖批量回填 + 只在章节完成态建。
+1. ~~**手写正文不入索引**~~ **已解决（Plan 201）**：`updateChapter` 内容变化后经 60s
+   防抖队列异步章级回填（`server/lib/chapter-index.ts`），embedding 失败不阻塞保存；
+   助手改写路径（`acceptChapterContentCandidate`）暂未挂钩点（apply 路径已由 addChunk 覆盖），
+   如需覆盖另立小计划。
 2. **设定库双源检索**：characters/worldRules/伏笔等结构化文本是否入向量库；
    命中后跳设定视图的路由语义需产品定义。
 3. **每章仅 1 chunk**：长章全文单 chunk 会稀释相似度信号；分块策略（按场景/字数）
-   与 `chunk_index` 字段已预留，需定分块粒度与重建脚本。
-4. **索引代际静默失效**：换 embedding 模型/导入旧库后旧索引被静默排除；
-   应在面板呈现「索引已过期，建议重建」提示，需代际标记 UI。
+   与 `chunk_index` 字段已预留（`upsertChapterChunk` 已支持 index 维度），需定分块粒度与重建脚本。
+4. ~~**索引代际静默失效**~~ **已解决（Plan 201）**：检索响应带 `stale`/`staleExcluded`
+   （兼容过滤排除比例 > 50% 触发），面板呈现琥珀「建议重建」提示；「重建」动作本身
+   （批量重嵌全书）仍未立项。
 5. **命令面板化路径**：当前是纯检索面板；若扩展命令（设置项/动作/视图跳转），
    建议引入 cmdk 类分组渲染，检索结果作为其中一个 section，快捷键注册复用
    `keyboard-shortcuts.ts`。

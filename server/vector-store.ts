@@ -36,6 +36,16 @@ export class VectorIndexGenerationMismatchError extends Error {
   }
 }
 
+async function buildStoredEmbedding(text: string, novelId: string): Promise<StoredEmbedding> {
+  const embedded = await embedWithMetadata(text, novelId);
+  return {
+    values: embedded.values,
+    modelId: embedded.modelId,
+    dimensions: embedded.values.length,
+    contentHash: createHash('sha256').update(text).digest('hex'),
+  };
+}
+
 /** Add a text chunk to the vector store (async, auto-embeds) */
 export async function addChunk(
   novelId: string,
@@ -44,13 +54,7 @@ export async function addChunk(
   text: string
 ): Promise<void> {
   const generation = getDatabaseGeneration();
-  const embedded = await embedWithMetadata(text, novelId);
-  const embedding: StoredEmbedding = {
-    values: embedded.values,
-    modelId: embedded.modelId,
-    dimensions: embedded.values.length,
-    contentHash: createHash('sha256').update(text).digest('hex'),
-  };
+  const embedding = await buildStoredEmbedding(text, novelId);
   const id = `${novelId}_${chapterId}_${index}`;
 
   const guarded = await runInSerializedWriteForGeneration(generation, () => {
@@ -81,6 +85,24 @@ export function searchSimilar(
   queryModelId: string,
   topK: number = 5
 ): Array<{ text: string; score: number; chapterId: string }> {
+  return searchSimilarWithStats(queryEmbedding, novelId, queryModelId, topK).hits;
+}
+
+export interface SearchSimilarStats {
+  hits: Array<{ text: string; score: number; chapterId: string }>;
+  /** 本次扫描的本书 chunk 总数 */
+  scanned: number;
+  /** 因模型/维度不兼容被静默排除、未参与检索的 chunk 数（Plan 201 代际过期提示依据） */
+  excludedIncompatible: number;
+}
+
+/** Search top-k similar chunks and expose compatibility-exclusion stats. */
+export function searchSimilarWithStats(
+  queryEmbedding: number[],
+  novelId: string,
+  queryModelId: string,
+  topK: number = 5
+): SearchSimilarStats {
   const db = getDb();
   const rows = db
     .prepare(
@@ -95,6 +117,7 @@ export function searchSimilar(
     logger.info('searchSimilar 全表扫描规模达到调查阈值', { novelId, chunks: rows.length, topK });
   }
 
+  let excludedIncompatible = 0;
   const scored = rows
     .map((row) => {
       let stored = embeddingCache.get(row.id);
@@ -110,6 +133,7 @@ export function searchSimilar(
         stored.modelId !== 'legacy:unknown' &&
         stored.modelId === queryModelId &&
         stored.dimensions === queryEmbedding.length;
+      if (!compatible) excludedIncompatible += 1;
       return {
         text: row.text,
         score: compatible
@@ -120,7 +144,7 @@ export function searchSimilar(
     })
     .filter((row) => Number.isFinite(row.score));
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topK);
+  return { hits: scored.slice(0, topK), scanned: rows.length, excludedIncompatible };
 }
 
 /** Remove all chunks for a novel (e.g., on deletion) */
@@ -135,6 +159,56 @@ export function deleteNovel(novelId: string): void {
       embeddingCache.delete(key);
     }
   }
+}
+
+function pruneChapterCache(novelId: string, chapterId: string): void {
+  const prefix = `${novelId}_${chapterId}_`;
+  for (const key of embeddingCache.keys()) {
+    if (key.startsWith(prefix)) {
+      embeddingCache.delete(key);
+    }
+  }
+}
+
+/** Remove all chunks of a single chapter (Plan 201：删章/重写清理，此前仅 deleteNovel 级联清理） */
+export function deleteChapterChunks(novelId: string, chapterId: string): void {
+  const db = getDb();
+  db.prepare('DELETE FROM vector_chunks WHERE novel_id = ? AND chapter_id = ?').run(
+    novelId,
+    chapterId
+  );
+  pruneChapterCache(novelId, chapterId);
+}
+
+/** 已索引的某章 index-0 文本（无则 undefined），供回填按内容去重、避免重复 embed。 */
+export function getChapterChunkText(
+  novelId: string,
+  chapterId: string,
+  index: number = 0
+): string | undefined {
+  const db = getDb();
+  const row = db
+    .prepare(
+      'SELECT text FROM vector_chunks WHERE novel_id = ? AND chapter_id = ? AND chunk_index = ?'
+    )
+    .get(novelId, chapterId, index) as { text: string } | undefined;
+  return row?.text;
+}
+
+/**
+ * Plan 201 — 章级 upsert：先清该章全部旧 chunk，再按 index 0 重写。
+ * delete 与 embed 均在写事务外执行（调用方保证异步回填语境）；embedding 失败时
+ * 旧 chunk 已清除（诚实语义：该章暂不可检索，下次保存自动重试），错误向上抛出，
+ * 由回填编排（server/lib/chapter-index.ts）捕获记日志，绝不影响正文保存。
+ * 数据库代际不匹配时 addChunk 抛出 VectorIndexGenerationMismatchError（静默丢弃）。
+ */
+export async function upsertChapterChunk(
+  novelId: string,
+  chapterId: string,
+  text: string
+): Promise<void> {
+  deleteChapterChunks(novelId, chapterId);
+  await addChunk(novelId, chapterId, 0, text);
 }
 
 /** Export raw chunks for debugging */

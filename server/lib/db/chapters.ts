@@ -15,6 +15,7 @@ import { getDb, notify, runInTransaction } from '../db-instance.js';
 import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow.js';
 import { evaluateDraftAcceptance } from '../../../shared/lib/draft-quality.js';
 import type { DraftAcceptanceSource } from '../../../shared/lib/quality-contract.js';
+import { scheduleChapterIndexBackfill, scheduleChapterIndexRemoval } from '../chapter-index.js';
 
 const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>({
   tableName: 'chapters',
@@ -101,12 +102,33 @@ export function createChapter(chapter: Chapter): void {
   chapterCrud.create(chapter);
 }
 
+/**
+ * Plan 201 触发点：content 变化的更新在序列化写完成后入队章级索引回填。
+ * 入队同步返回、零 await——embedding 全程在写事务外的防抖队列中执行，
+ * 失败只记日志（见 server/lib/chapter-index.ts），绝不阻塞/失败正文保存。
+ */
 export function updateChapter(id: string, data: Partial<Chapter>): boolean {
-  return chapterCrud.update(id, data);
+  const touchesContent = data.content !== undefined;
+  // 变更检测读在更新前：仅内容真的变化时才入队，跳过 workflowMeta 等元数据写
+  const before = touchesContent ? chapterCrud.get(id) : undefined;
+  const updated = chapterCrud.update(id, data);
+  if (updated && before && before.content !== data.content) {
+    scheduleChapterIndexBackfill(before.novelId, id, () => {
+      const current = chapterCrud.get(id);
+      return current && current.novelId === before.novelId ? current : undefined;
+    });
+  }
+  return updated;
 }
 
+/** Plan 201 触发点：单章删除后清理其 vector_chunks 残留（此前仅 deleteNovel 级联清理）。 */
 export function deleteChapter(id: string): boolean {
-  return chapterCrud.delete(id);
+  const existing = chapterCrud.get(id);
+  const deleted = chapterCrud.delete(id);
+  if (deleted && existing) {
+    scheduleChapterIndexRemoval(existing.novelId, id);
+  }
+  return deleted;
 }
 
 const chapterVersionCrud = createCrudHelpers<

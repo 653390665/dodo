@@ -14,6 +14,9 @@ interface SearchResponse {
   available: boolean;
   embeddingStatus: string;
   indexed: boolean;
+  /** Plan 201：兼容过滤排除比例 > 50% 时为 true（旧代际索引未参与检索） */
+  stale: boolean;
+  staleExcluded: number;
   hits: SearchHit[];
 }
 
@@ -37,6 +40,7 @@ export function QuickSearchOverlay({ novel, onClose, onJump }: QuickSearchOverla
     'idle' | 'loading' | 'ready' | 'unavailable' | 'unindexed' | 'error'
   >('idle');
   const [embeddingStatus, setEmbeddingStatus] = useState('');
+  const [staleExcluded, setStaleExcluded] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -85,14 +89,17 @@ export function QuickSearchOverlay({ novel, onClose, onJump }: QuickSearchOverla
         if (!payload.available) {
           setEmbeddingStatus(payload.embeddingStatus);
           setState('unavailable');
+          setStaleExcluded(0);
           setHits([]);
           return;
         }
         if (!payload.indexed) {
           setState('unindexed');
+          setStaleExcluded(0);
           setHits([]);
           return;
         }
+        setStaleExcluded(payload.stale ? payload.staleExcluded : 0);
         setHits(payload.hits);
         setActiveIndex(0);
         setState('ready');
@@ -158,7 +165,7 @@ export function QuickSearchOverlay({ novel, onClose, onJump }: QuickSearchOverla
         <div className="max-h-[50vh] overflow-y-auto" data-testid="quick-search-results">
           {displayState === 'idle' && (
             <p className="px-4 py-6 text-xs text-theme-muted">
-              输入关键词，按语义检索已接受写入的章节内容（非字符串匹配）。
+              输入关键词，按语义检索本书正文（手写保存与生产写入的章节，非字符串匹配）。
             </p>
           )}
           {displayState === 'loading' && (
@@ -175,12 +182,18 @@ export function QuickSearchOverlay({ novel, onClose, onJump }: QuickSearchOverla
           {displayState === 'unindexed' && (
             <div className="px-4 py-6 text-xs">
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-amber-800">
-                本书还没有可检索的索引。当前索引仅覆盖「通过生产流程接受写入」的章节内容，手写正文暂不入库。
+                本书还没有可检索的索引。生产流程接受写入的章节立即入索引；编辑器手写正文在保存后约 1
+                分钟内自动入索引，稍后再试。
               </p>
             </div>
           )}
           {displayState === 'error' && (
             <p className="px-4 py-6 text-xs text-rose-600">检索失败，请稍后重试。</p>
+          )}
+          {displayState === 'ready' && staleExcluded > 0 && (
+            <p className="mx-4 mt-3 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-800">
+              检测到 {staleExcluded} 条旧代际索引未参与检索，建议重建索引。
+            </p>
           )}
           {displayState === 'ready' && hits.length === 0 && (
             <p className="px-4 py-6 text-xs text-theme-muted">
