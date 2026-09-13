@@ -34,6 +34,10 @@ import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
 import { useSkillsCandidateStore } from '../stores/skills-candidate-store';
 import {
+  computePackageSubmitDisabledReason,
+  useSkillsPackageStore,
+} from '../stores/skills-package-store';
+import {
   getDatabaseGenerationSafe,
   getInitialCapabilityTab,
   useSkillsConfigurationStore,
@@ -976,17 +980,25 @@ export function SkillsStudioView({
   const [selectedFlowDetail, setSelectedFlowDetail] = useState<SkillSeriesFlow | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [guardrailPolicyOpen, setGuardrailPolicyOpen] = useState(false);
-  const [packageSelections, setPackageSelections] = useState<string[]>([]);
-  const [pendingPackageSteps, setPendingPackageSteps] = useState<EnhancementPackageStep[]>([]);
-  const [packageSelectionDrafts, setPackageSelectionDrafts] = useState<Record<string, string[]>>(
-    {}
+  // Plan 195 切片 B：增强包选择簇迁 skills-package-store（setter 镜像 useState 语义，调用点零改动）。
+  const packageSelections = useSkillsPackageStore((state) => state.packageSelections);
+  const setPackageSelections = useSkillsPackageStore((state) => state.setPackageSelections);
+  const pendingPackageSteps = useSkillsPackageStore((state) => state.pendingPackageSteps);
+  const setPendingPackageSteps = useSkillsPackageStore((state) => state.setPendingPackageSteps);
+  const packageSelectionDrafts = useSkillsPackageStore((state) => state.packageSelectionDrafts);
+  const setPackageSelectionDrafts = useSkillsPackageStore(
+    (state) => state.setPackageSelectionDrafts
   );
-  const [packageComponentResults, setPackageComponentResults] = useState<
-    Record<string, CapabilityApplicationStatus>
-  >({});
-  const [packageResultLaunchFeedbackAssetId, setPackageResultLaunchFeedbackAssetId] = useState<
-    string | null
-  >(null);
+  const packageComponentResults = useSkillsPackageStore((state) => state.packageComponentResults);
+  const setPackageComponentResults = useSkillsPackageStore(
+    (state) => state.setPackageComponentResults
+  );
+  const packageResultLaunchFeedbackAssetId = useSkillsPackageStore(
+    (state) => state.packageResultLaunchFeedbackAssetId
+  );
+  const setPackageResultLaunchFeedbackAssetId = useSkillsPackageStore(
+    (state) => state.setPackageResultLaunchFeedbackAssetId
+  );
   // Plan 195 Phase 2：候选卡簇状态迁 skills-candidate-store（setter 镜像 useState 语义，调用点零改动）。
   const candidateCardIds = useSkillsCandidateStore((state) => state.candidateCardIds);
   const setCandidateCardIds = useSkillsCandidateStore((state) => state.setCandidateCardIds);
@@ -1501,22 +1513,16 @@ export function SkillsStudioView({
   const missingRequiredPackageLabels = packageComponents
     .filter((component) => component.step.required && !isPackageStepSelected(component))
     .map(getPackageComponentLabel);
-  const packageMissingRequiredSelection = missingRequiredPackageLabels.length > 0;
-  const packageSubmitDisabledReason = !selectedNovel
-    ? packageSelections.length > 0
-      ? '请先在书库选择作品后再启用所选能力'
-      : '请先在书库选择作品'
-    : selectedPackageRestricted && packageSelections.length > 0
-      ? '当前作品未开通授权增强；可查看步骤，需授权后再启用所选能力。'
-      : packageSelections.length === 0
-        ? packageHasResults
-          ? '如需继续提交，请先勾选新能力'
-          : '至少选择一项能力'
-        : packageMissingRequiredSelection
-          ? `请先选择必需能力：${missingRequiredPackageLabels.join('、')}`
-          : staleConfigurationSession && packageHasStaleSelection
-            ? '本次配置已变化，请先重新预览'
-            : null;
+  // Plan 195 切片 B：提交禁用口径收口为包 store 模块的纯函数（原派生块逐分支等价迁入）。
+  const packageSubmitDisabledReason = computePackageSubmitDisabledReason({
+    hasNovel: Boolean(selectedNovel),
+    restrictedPackage: selectedPackageRestricted,
+    selectionCount: packageSelections.length,
+    packageHasResults,
+    missingRequiredLabels: missingRequiredPackageLabels,
+    staleConfigurationSession,
+    packageHasStaleSelection,
+  });
 
   // Plan 195 切片 A：会话编排下沉 configuration store；视图层仅提供会话绑定控件的
   // 读写桥（setter 稳定，useMemo 缓存不改变 effect 触发时机）。
@@ -1563,7 +1569,8 @@ export function SkillsStudioView({
       },
       setPendingPackageSteps,
     }),
-    []
+    // 包/配置 store 的 setter 是模块级稳定引用，memo 实际永不失效（与 useState setter 同语义）。
+    [setPackageSelectionDrafts, setPackageSelections, setPendingPackageSteps]
   );
 
   useEffect(() => {
@@ -1609,8 +1616,14 @@ export function SkillsStudioView({
     sessionViewBridge,
   ]);
 
-  // 配置会话簇 store 的生命周期对齐原 useState 的按挂载初始化语义（见 store resetForRemount 注释）。
-  useEffect(() => () => useSkillsConfigurationStore.getState().resetForRemount(), []);
+  // 配置会话簇/增强包簇 store 的生命周期对齐原 useState 的按挂载初始化语义（见各 store resetForRemount 注释）。
+  useEffect(
+    () => () => {
+      useSkillsConfigurationStore.getState().resetForRemount();
+      useSkillsPackageStore.getState().resetForRemount();
+    },
+    []
+  );
 
   useEffect(() => {
     useSkillsConfigurationStore.getState().persistSession({
