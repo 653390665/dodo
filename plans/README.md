@@ -262,15 +262,15 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
 | 196 | Vite 6→7 升级（190 Step3 遗留） | DONE（vite ^6.4.3→^7.3.6；plugin-react 挪 devDependencies 并留 5.2.0——npm latest 6.x 仅支持 vite 8，按 peer 冲突门保留；vitest 4.1.9 peer 兼容零升级；vite.config 零迁移；三链路绿（build 分包齐/dev 冒烟含模块转换/test:frontend 884/884）+ E2E 21/8 基线 + build-server 冒烟。190 行 Step3 可勾销） | 190 |
 | 197 | 185 拍板出路 b：生成侧为 45 张 sanitize-required 候选产消毒副本 + 渲染切副本单源化 | BLOCKED（Step 3 硬 STOP 门触发：44/45 副本主体为占位骨架——根因是源目录 rawPrivateConfigs 的 template 本就是 `[商业定制专属提示词体]…骨架推进。` 占位符，真实正文从未入库；现行「消毒并启用」端点落库的同样是骨架。消毒本身无损（损失>50% 为 0）。Step 1-2 已落地提交：过滤器单源化 + SANITIZED_SKILL_COPIES 45 张纯新增（零消费面）+ freshness 断言；Step 4 渲染切换未做。出路需再拍板：a 补真实正文（重新生成源目录）b 砍「消毒并启用」特性 c 接受骨架现状（不推荐）。统计与样例见 plans/notes-197-semantics.md） | 185 |
-| 198 | 无 Key 全章生产修复：保底草稿句式池多样性改造（默认 4000 字过质量门） | TODO | — |
-| 199 | 陈旧 E2E spec 债清偿：8 个 spec 对照现行契约重写 | TODO | — |
+| 198 | 无 Key 全章生产修复：保底草稿句式池多样性改造（默认 4000 字过质量门） | DONE（e72ceee：FNV-1a+mulberry32 确定性洗牌 + 句式池扩容（模板16→40/turn16→40/支持句72/桥8/短拍20）+ 双拍夹持布局；14 intent 全部 findings=[] slop 96-100；确定性逐字节断言保留；4 个钉旧契约的生产测试翻转为新语义；E2E 撤 800 字 workaround；基线与实测见 plans/notes-198-repro.md | — |
+| 199 | 陈旧 E2E spec 债清偿：8 个 spec 对照现行契约重写 | PARTIAL（f44adb2：core-flow 2/2 绿（写法弹窗链+菜单式导出+精确名）；unified-imported 绿（世界书「世界设定」页签重锚+驾驶舱 CTA 接入续写）；附带产品修复：EditorStatusBar overflow-hidden 裁剪导出菜单致其完全不可点（1 类名）。仍红 5 个均归因：unified-new×2 与完成风暴（P1：factPanelNeedsGate 自动重跑完成，事实待确认时 10 秒 283 次调用——需专项）；plan150 需按 start-stream 重排 mock 场景；mobile:119 待 205；full-browser 元素不稳定待查 | — |
 | 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | DONE（7 列 ensureColumn additive 落库 + mapper 读写补齐；新增 roundtrip 单测 5 例；原型 P10/P14 断言转真 14 断言全过） | — |
 | 201 | Cmd+K 后续：手写正文防抖回填索引 + 代际过期诚实提示（194 §6 #1/#4） | DONE（updateChapter/deleteChapter 挂点 + 60s 防抖回填队列 server/lib/chapter-index.ts + upsertChapterChunk/deleteChapterChunks；search-similar 响应 stale/staleExcluded + overlay 琥珀「建议重建」+ unindexed 文案更新；新增 9 单测全绿 + 回归全绿，见 plans/201 Maintenance notes） | 194 |
-| 202 | config/sync 死代码移除（0 生产调用方已实证） | TODO | — |
+| 202 | config/sync 死代码移除（0 生产调用方已实证） | DONE（85764ea：路由删除 + 契约测试改 404 防复活断言；updateCachedApiKey 保留供直调 | — |
 | 203 | 195 切片 A：配置会话簇 → skills-configuration-store（自应用豁免窗口语义锁定） | DONE（三 state+databaseGeneration 与五段 effect 全部下沉；豁免窗口 flagAge<5000 逐行等价搬移并单测锁定（含突变验证）；新单测 skills-configuration-session.test.tsx；store 增 resetForRemount 对齐 useState 按挂载生命周期（修跨挂载代际残留竞态）；lint 抑制 15→8；plan158 38/38+全量 885/885+tsc 0+eslint 0） | — |
 | 204 | 195 切片 B：增强包/选择簇 → skills-package-store（与 A 可并行） | TODO | — |
 | 205 | 195 切片 C：货架数据 hook + CandidateTray/StyleShelf/PackageConfigDialog 拆分 | TODO | 203, 204 |
-| 206 | 小额收口：导出临时文件名 randomUUID + SSE notify 负载埋点（183 推迟项供数） | TODO | — |
+| 206 | 小额收口：导出临时文件名 randomUUID + SSE notify 负载埋点（183 推迟项供数） | DONE（d0d0600：导出临时名 randomUUID 对齐导入侧先例，server/ Math.random 归零；notify 探针（阈值 120/分钟、5 分钟去重、可注入时钟单测）；E2E 观测窗口未触发阈值——183 generation 抑制暂无立项依据，留生产观测 | — |
 
 ### Round 31 说明（2026-09-12）
 
