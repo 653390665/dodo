@@ -13,7 +13,6 @@ import {
 import { cn } from '../lib/utils';
 import { logger } from '../lib/client-logger';
 import { subscribeToChanges } from '../lib/db-transport';
-import * as dbTransport from '../lib/db-transport';
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
@@ -34,6 +33,13 @@ import { appConfirm } from './ui/app-confirm';
 import { GuardrailPolicyPanel } from './skills/GuardrailPolicyPanel';
 import { toast } from '../lib/toast';
 import { useSkillsCandidateStore } from '../stores/skills-candidate-store';
+import {
+  getDatabaseGenerationSafe,
+  getInitialCapabilityTab,
+  useSkillsConfigurationStore,
+  type CapabilityStudioTab,
+  type ConfigurationSessionViewBridge,
+} from '../stores/skills-configuration-store';
 import {
   CURATED_PRODUCT_SKILLS,
   ENHANCEMENT_PACKAGES,
@@ -115,14 +121,9 @@ import { LegacyArtifactStructuringPrompt } from './LegacyArtifactStructuringProm
 import {
   clearLatestCapabilityConfigurationSession,
   getCapabilityConfigurationBaselineToken,
-  isCapabilityConfigurationSessionStale,
   loadLatestCapabilityConfigurationSession,
-  loadCapabilityConfigurationSession,
-  saveCapabilityConfigurationSession,
-  type CapabilityConfigurationSession,
 } from '../lib/capability-configuration-session';
 
-type DatabaseGenerationReader = () => Promise<number>;
 type SkillsStudioNavigateContext = {
   capabilityApplied?: boolean;
   targetFocus?: 'workspace-world';
@@ -190,21 +191,6 @@ function getPackageEmptySelectionHint(
   if (!hasResults || selectionCount > 0) return null;
   if (hasPendingConfiguration) return null;
   return '勾选后点击「启用所选」即生效，可撤销。';
-}
-
-function getDatabaseGenerationReader(): DatabaseGenerationReader | null {
-  try {
-    const reader = (
-      dbTransport as unknown as { getDatabaseGenerationSnapshot?: DatabaseGenerationReader }
-    ).getDatabaseGenerationSnapshot;
-    return typeof reader === 'function' ? reader : null;
-  } catch {
-    return null;
-  }
-}
-
-async function getDatabaseGenerationSafe(): Promise<number> {
-  return (await getDatabaseGenerationReader()?.()) ?? 0;
 }
 
 function getPackageModeLabel(
@@ -1009,7 +995,8 @@ export function SkillsStudioView({
   const [migrationPreview, setMigrationPreview] = useState<CapabilityMigrationPreview | null>(null);
   const [migrationBusy, setMigrationBusy] = useState(false);
   const [migrationError, setMigrationError] = useState<string | null>(null);
-  const [databaseGeneration, setDatabaseGeneration] = useState<number | null>(null);
+  // Plan 195 切片 A：外部数据库代际快照随会话簇迁 skills-configuration-store。
+  const databaseGeneration = useSkillsConfigurationStore((state) => state.databaseGeneration);
   const [leavePromptOpen, setLeavePromptOpen] = useState(false);
   const studioScrollRef = useRef<HTMLDivElement | null>(null);
   const sessionContextRef = useRef<string | null>(null);
@@ -1185,12 +1172,8 @@ export function SkillsStudioView({
     }
   };
 
-  type StoreTab = GovernanceCapabilityType | 'diagnostic-tools' | 'packages' | 'optional-style';
-  const getInitialCapabilityTab = React.useCallback(
-    (stage?: GovernanceStage): StoreTab => (stage === 'style-polish' ? 'diagnostic-tools' : 'flow'),
-    []
-  );
-  const [selectedCapability, setSelectedCapability] = useState<StoreTab>('flow');
+  // Plan 195 切片 A：能力页签初始值纯函数迁 configuration store（getInitialCapabilityTab）。
+  const [selectedCapability, setSelectedCapability] = useState<CapabilityStudioTab>('flow');
   const [selectedCategory, setSelectedCategory] = useState<GovernanceStage | 'all'>(
     initialStage || 'all'
   );
@@ -1272,7 +1255,7 @@ export function SkillsStudioView({
     ),
     ...getSanitizeRequiredAssets().filter((asset) => !sanitizedCloneIds.has(asset.id)),
   ];
-  const capabilityTabCount = (id: StoreTab) => {
+  const capabilityTabCount = (id: CapabilityStudioTab) => {
     if (id === 'flow') return visibleFlowCount;
     if (id === 'packages') return visiblePackageCount;
     if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
@@ -1423,9 +1406,17 @@ export function SkillsStudioView({
   // This pure normalization is cheap; avoiding manual memoization keeps the
   // React Compiler's generated memoization consistent with this component.
   const capabilityProfile = getProjectCapabilityProfile(effectiveNovel);
-  const [configurationDraft, setConfigurationDraft] = useState(capabilityProfile);
-  const [configurationDirty, setConfigurationDirty] = useState(false);
-  const [staleConfigurationSession, setStaleConfigurationSession] = useState(false);
+  // Plan 195 切片 A：配置会话三 state 迁 skills-configuration-store（setter 镜像 useState 语义，调用点零改动）。
+  const configurationDraft = useSkillsConfigurationStore((state) => state.configurationDraft);
+  const setConfigurationDraft = useSkillsConfigurationStore((state) => state.setConfigurationDraft);
+  const configurationDirty = useSkillsConfigurationStore((state) => state.configurationDirty);
+  const setConfigurationDirty = useSkillsConfigurationStore((state) => state.setConfigurationDirty);
+  const staleConfigurationSession = useSkillsConfigurationStore(
+    (state) => state.staleConfigurationSession
+  );
+  const setStaleConfigurationSession = useSkillsConfigurationStore(
+    (state) => state.setStaleConfigurationSession
+  );
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [configurationApplyFailed, setConfigurationApplyFailed] = useState(false);
   const [isApplyingConfiguration, setIsApplyingConfiguration] = useState(false);
@@ -1527,202 +1518,125 @@ export function SkillsStudioView({
             ? '本次配置已变化，请先重新预览'
             : null;
 
-  useEffect(() => {
-    if (previousNovelIdRef.current === selectedNovel?.id) return;
-    previousNovelIdRef.current = selectedNovel?.id || null;
-    if (!selectedNovel?.id) return;
-    // A work switch invalidates every session-bound configuration control.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- work switch invalidates session-bound draft
-    setConfigurationDraft(getProjectCapabilityProfile(selectedNovel));
-    setCandidateCardIds([]);
-    setPendingCandidateId(null);
-    setActiveTab(initialStage ? 'plaza' : 'mySkills');
-    setSelectedCapability(getInitialCapabilityTab(initialStage));
-    setSelectedCategory(initialStage || 'all');
-    setSelectedSkillId(null);
-    setPackageSelections([]);
-    setPendingPackageSteps([]);
-    setPackageSelectionDrafts({});
-    setSelectedPackageId(null);
-    setSelectedFlowDetail(null);
-    setConfigurationDirty(false);
-    setConfigurationError(null);
-    setConfigurationApplyFailed(false);
-    setLeavePromptOpen(false);
-  }, [
-    getInitialCapabilityTab,
-    initialStage,
-    selectedNovel,
-    setCandidateCardIds,
-    setPendingCandidateId,
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!selectedNovel?.id) {
-      // This effect owns the external database-generation snapshot and must clear it when the work changes.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear external generation snapshot at work boundary
-      setDatabaseGeneration(null);
-      sessionContextRef.current = null;
-      configurationSessionIdRef.current = null;
-      setStaleConfigurationSession(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-    const readGeneration = getDatabaseGenerationReader();
-    if (!readGeneration) {
-      setDatabaseGeneration(0);
-      return () => {
-        cancelled = true;
-      };
-    }
-    void readGeneration()
-      .then((generation) => {
-        if (!cancelled) setDatabaseGeneration(generation);
-      })
-      .catch(() => {
-        if (!cancelled) setDatabaseGeneration(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedNovel?.id]);
-
-  useEffect(() => {
-    if (!selectedNovel?.id || databaseGeneration === null) return;
-    const contextKey = `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`;
-    const hadSessionContext = sessionContextRef.current !== null;
-    const contextChanged = sessionContextRef.current !== contextKey;
-    // 自家 apply 造成的上下文变化只在短暂窗口内被豁免一次；超过窗口的
-    // flag 视为残留（如幂等应用未改变 baseline），避免吞掉真正的外部漂移。
-    const flagAge = selfAppliedContextRef.current
-      ? // eslint-disable-next-line react-hooks/purity
-        Date.now() - selfAppliedContextRef.current
-      : Number.POSITIVE_INFINITY;
-    if (contextChanged && flagAge < 5000) {
-      selfAppliedContextRef.current = 0;
-      sessionContextRef.current = contextKey;
-      return;
-    }
-    const latest = loadLatestCapabilityConfigurationSession(selectedNovel.id);
-    const restored = loadCapabilityConfigurationSession(
-      selectedNovel.id,
-      databaseGeneration,
-      baselineToken
-    );
-    const stale = Boolean(
-      latest && isCapabilityConfigurationSessionStale(latest, databaseGeneration, baselineToken)
-    );
-    sessionContextRef.current = contextKey;
-    setStaleConfigurationSession(stale);
-    const sessionToRestore = restored || latest;
-    const sessionPrefix = `capability:${selectedNovel.id}:`;
-    configurationSessionIdRef.current =
-      sessionToRestore?.sessionId ||
-      (configurationSessionIdRef.current?.startsWith(sessionPrefix)
-        ? configurationSessionIdRef.current
-        : null) ||
-      `${sessionPrefix}${createProductEventSessionId('configuration')}`;
-    if (!sessionToRestore) {
-      // The novel-switch effect already clears project-bound state. Avoid
-      // overwriting a user's first click while the initial generation read
-      // finishes; only a later database-generation change needs another reset.
-      if (contextChanged && hadSessionContext) {
-        setConfigurationDraft(capabilityProfile);
-        setCandidateCardIds([]);
-        setPendingCandidateId(null);
-        setActiveTab(initialStage ? 'plaza' : 'mySkills');
-        setSelectedCapability(getInitialCapabilityTab(initialStage));
-        setSelectedCategory(initialStage || 'all');
+  // Plan 195 切片 A：会话编排下沉 configuration store；视图层仅提供会话绑定控件的
+  // 读写桥（setter 稳定，useMemo 缓存不改变 effect 触发时机）。
+  const sessionViewBridge = useMemo<ConfigurationSessionViewBridge>(
+    () => ({
+      resetSessionBoundView: (stage) => {
+        setActiveTab(stage ? 'plaza' : 'mySkills');
+        setSelectedCapability(getInitialCapabilityTab(stage));
+        setSelectedCategory(stage || 'all');
+        setSelectedSkillId(null);
+        setPackageSelections([]);
+        setPendingPackageSteps([]);
+        setPackageSelectionDrafts({});
+        setSelectedPackageId(null);
+        setSelectedFlowDetail(null);
+        setConfigurationError(null);
+        setConfigurationApplyFailed(false);
+        setLeavePromptOpen(false);
+      },
+      resetForContextChange: (stage) => {
+        setActiveTab(stage ? 'plaza' : 'mySkills');
+        setSelectedCapability(getInitialCapabilityTab(stage));
+        setSelectedCategory(stage || 'all');
         setSelectedSkillId(null);
         setPackageSelections([]);
         setPendingPackageSteps([]);
         setSelectedPackageId(null);
         setSelectedFlowDetail(null);
-        setConfigurationDirty(false);
         setConfigurationError(null);
         setConfigurationApplyFailed(false);
         setLeavePromptOpen(false);
-      }
-      return;
-    }
-    // Hydrate the draft from the persisted session after the external snapshot is available.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate draft from persisted session after snapshot
-    setConfigurationDraft(sessionToRestore.configurationDraft || capabilityProfile);
-    setCandidateCardIds(sessionToRestore.candidateCardIds);
-    setPendingPackageSteps(sessionToRestore.pendingPackageSteps || []);
-    setPendingCandidateId(sessionToRestore.pendingCandidateId);
-    if (initialStage) {
-      setActiveTab('plaza');
-      setSelectedCapability(getInitialCapabilityTab(initialStage));
-      setSelectedCategory(initialStage);
-      setSelectedSkillId(null);
-    } else {
-      setActiveTab(sessionToRestore.activeTab);
-      setSelectedCapability(sessionToRestore.selectedCapability);
-      setSelectedCategory(sessionToRestore.selectedCategory);
-      setSelectedSkillId(sessionToRestore.selectedAssetId);
-    }
-    const restoreScroll = () => {
-      if (studioScrollRef.current) studioScrollRef.current.scrollTop = sessionToRestore.scrollTop;
-    };
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
-      window.requestAnimationFrame(restoreScroll);
-    else restoreScroll();
-    const restoredDraftToken = getCapabilityConfigurationBaselineToken(
-      sessionToRestore.configurationDraft
-    );
-    const hasPendingSessionWork =
-      sessionToRestore.candidateCardIds.length > 0 ||
-      (sessionToRestore.pendingPackageSteps?.length || 0) > 0 ||
-      Boolean(sessionToRestore.pendingCandidateId);
-    setConfigurationDirty(Boolean(restoredDraftToken !== baselineToken || hasPendingSessionWork));
-    // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      },
+      restoreViewForStage: (stage) => {
+        setActiveTab('plaza');
+        setSelectedCapability(getInitialCapabilityTab(stage));
+        setSelectedCategory(stage);
+        setSelectedSkillId(null);
+      },
+      restoreViewFromSession: (view) => {
+        setActiveTab(view.activeTab);
+        setSelectedCapability(view.selectedCapability);
+        setSelectedCategory(view.selectedCategory);
+        setSelectedSkillId(view.selectedAssetId);
+      },
+      setPendingPackageSteps,
+    }),
+    []
+  );
+
+  useEffect(() => {
+    if (previousNovelIdRef.current === selectedNovel?.id) return;
+    previousNovelIdRef.current = selectedNovel?.id || null;
+    if (!selectedNovel?.id) return;
+    // A work switch invalidates every session-bound configuration control.
+    useSkillsConfigurationStore
+      .getState()
+      .onWorkSwitch(selectedNovel, { initialStage, viewBridge: sessionViewBridge });
+  }, [initialStage, selectedNovel, sessionViewBridge]);
+
+  useEffect(
+    () =>
+      useSkillsConfigurationStore.getState().onGenerationSnapshot(selectedNovel?.id ?? null, {
+        sessionContextRef,
+        configurationSessionIdRef,
+      }),
+    [selectedNovel?.id]
+  );
+
+  useEffect(() => {
+    // 会话恢复编排（含自应用豁免窗口 flagAge<5000 语义）在 configuration store 的
+    // hydrateSession 中逐行等价承载；capabilityProfile 由持久化偏好引用派生。
+    useSkillsConfigurationStore.getState().hydrateSession({
+      novelId: selectedNovel?.id ?? null,
+      databaseGeneration,
+      baselineToken,
+      projectPreferenceProfile: effectiveNovel?.projectPreferenceProfile ?? null,
+      initialStage,
+      sessionContextRef,
+      configurationSessionIdRef,
+      selfAppliedContextRef,
+      scrollRef: studioScrollRef,
+      viewBridge: sessionViewBridge,
+    });
   }, [
-    getInitialCapabilityTab,
-    initialStage,
     selectedNovel?.id,
     databaseGeneration,
     baselineToken,
     effectiveNovel?.projectPreferenceProfile,
-    setCandidateCardIds,
-    setPendingCandidateId,
+    initialStage,
+    sessionViewBridge,
   ]);
 
+  // 配置会话簇 store 的生命周期对齐原 useState 的按挂载初始化语义（见 store resetForRemount 注释）。
+  useEffect(() => () => useSkillsConfigurationStore.getState().resetForRemount(), []);
+
   useEffect(() => {
-    if (
-      staleConfigurationSession ||
-      !selectedNovel?.id ||
-      databaseGeneration === null ||
-      sessionContextRef.current !== `${selectedNovel.id}:${databaseGeneration}:${baselineToken}`
-    )
-      return;
-    const session: CapabilityConfigurationSession = {
-      version: 1,
-      novelId: selectedNovel.id,
+    useSkillsConfigurationStore.getState().persistSession({
+      novelId: selectedNovel?.id ?? null,
       databaseGeneration,
       baselineToken,
+      staleConfigurationSession,
+      configurationDirty,
       configurationDraft,
       pendingPackageSteps,
-      sessionId: configurationSessionIdRef.current || undefined,
       candidateCardIds,
       pendingCandidateId,
       activeTab,
       selectedCapability,
       selectedCategory,
       selectedAssetId: selectedSkillId,
-      scrollTop: studioScrollRef.current?.scrollTop || 0,
-      // Session ordering is not used for restoration; keep this value deterministic.
-      updatedAt: 0,
-    };
-    saveCapabilityConfigurationSession(session);
+      sessionContextRef,
+      configurationSessionIdRef,
+      scrollRef: studioScrollRef,
+    });
   }, [
     staleConfigurationSession,
     selectedNovel?.id,
     databaseGeneration,
     baselineToken,
+    configurationDirty,
     configurationDraft,
     pendingPackageSteps,
     candidateCardIds,
@@ -1731,17 +1645,14 @@ export function SkillsStudioView({
     selectedCapability,
     selectedCategory,
     selectedSkillId,
-    configurationDirty,
   ]);
 
   useEffect(() => {
-    if (!configurationDirty) {
-      // Keep the local draft aligned with the server profile when no edits are staged.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setConfigurationDraft(capabilityProfile);
-    }
-    // capabilityProfile is derived on render; the persisted preference reference is the stable trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useSkillsConfigurationStore.getState().syncDraftWithProfile({
+      novelId: effectiveNovel?.id ?? null,
+      projectPreferenceProfile: effectiveNovel?.projectPreferenceProfile ?? null,
+      configurationDirty,
+    });
   }, [effectiveNovel?.id, effectiveNovel?.projectPreferenceProfile, configurationDirty]);
 
   type CapabilityProfileDraft = ReturnType<typeof buildV3CapabilityProfile>['capabilityProfile'];

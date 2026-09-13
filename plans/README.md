@@ -267,7 +267,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | DONE（7 列 ensureColumn additive 落库 + mapper 读写补齐；新增 roundtrip 单测 5 例；原型 P10/P14 断言转真 14 断言全过） | — |
 | 201 | Cmd+K 后续：手写正文防抖回填索引 + 代际过期诚实提示（194 §6 #1/#4） | DONE（updateChapter/deleteChapter 挂点 + 60s 防抖回填队列 server/lib/chapter-index.ts + upsertChapterChunk/deleteChapterChunks；search-similar 响应 stale/staleExcluded + overlay 琥珀「建议重建」+ unindexed 文案更新；新增 9 单测全绿 + 回归全绿，见 plans/201 Maintenance notes） | 194 |
 | 202 | config/sync 死代码移除（0 生产调用方已实证） | TODO | — |
-| 203 | 195 切片 A：配置会话簇 → skills-configuration-store（自应用豁免窗口语义锁定） | TODO | — |
+| 203 | 195 切片 A：配置会话簇 → skills-configuration-store（自应用豁免窗口语义锁定） | DONE（三 state+databaseGeneration 与五段 effect 全部下沉；豁免窗口 flagAge<5000 逐行等价搬移并单测锁定（含突变验证）；新单测 skills-configuration-session.test.tsx；store 增 resetForRemount 对齐 useState 按挂载生命周期（修跨挂载代际残留竞态）；lint 抑制 15→8；plan158 38/38+全量 885/885+tsc 0+eslint 0） | — |
 | 204 | 195 切片 B：增强包/选择簇 → skills-package-store（与 A 可并行） | TODO | — |
 | 205 | 195 切片 C：货架数据 hook + CandidateTray/StyleShelf/PackageConfigDialog 拆分 | TODO | 203, 204 |
 | 206 | 小额收口：导出临时文件名 randomUUID + SSE notify 负载埋点（183 推迟项供数） | TODO | — |
