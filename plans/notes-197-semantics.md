@@ -92,3 +92,15 @@
 2. **真正的瓶颈在源数据**：`rawPrivateConfigs` 只有 scorecard 元数据，真实正文从未入库。要「扩过滤器保特性」成立，需先把 44 张候选的真实正文补进治理目录（或确认正文不存在而砍特性）。
 3. **与 Safety Sandbox Door 的张力**：tests/prompt-assets-governed.test.ts:845 要求公开目录导出 template 必须为空。副本携带消毒后主体，只能放独立导出（本次用 `SANITIZED_SKILL_COPIES`）规避；若后续走渲染切换，该不变式边界需要产品层面重新拍板。
 4. raw-comp-brand-detector 副本（grade F、score 45）不满足 `validateAssetV2` 的 runtime-ready 准入（score<60/grade F）；运行时端点同样不校验——若后续上货架，需要决定准入规则。
+
+## 协调者决定（2026-09-12，主会话）
+
+按计划 STOP action「重新评估砍特性分支」评估后裁定：
+
+1. **Step 4（渲染切换）取消**。前提不成立：候选的 prompt 主体在源目录从未存在（44/45 为占位骨架），切换只会把空心卡推上公开货架。185 的「渲染只消费 sanitized 副本」对**有真实内容的卡**维持既定语义；候选类卡维持现状（不上架）。
+2. **Step 1-2 保留**：过滤器单源化 + `SANITIZED_SKILL_COPIES` 独立导出是对运行时先例的诚实显式化（零消费面、新鲜度守卫齐全）。
+3. **185 的根因改判**：不是工程问题，是**内容缺失**——`rawPrivateConfigs` 只有 scorecard 元数据。要让「消毒并启用」成为真特性，前置是把 44 张候选的真实正文补进治理目录（内容采购/授权任务）。在此之前运行时特性保持原样（空壳启用，与改动前行为一致，无新增退化）。
+4. 附带裁决：raw-comp-brand-detector 副本 grade F/score 45 不满足 runtime-ready 准入（<60），与运行时端点的宽松行为不一致——若未来上架，准入按 `validateAssetV2` 收紧；另行知会产品。
+5. Safety Sandbox Door 不变式（公开目录 template 为空）经 `SANITIZED_SKILL_COPIES` 独立导出维持，未被破坏。
+
+状态：Plan 197 = STOP-RESOLVED（Step 1-2 DONE，Step 4 取消有据）；Plan 185 = BLOCKED→**根因改判：内容缺失（CONTENT-GATED）**，工程侧无进一步动作项。
