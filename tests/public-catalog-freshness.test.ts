@@ -6,6 +6,7 @@ import {
   CURATED_PRODUCT_SKILLS as SOURCE_CURATED,
   PROMPT_GOVERNANCE_CATALOG as SOURCE_CATALOG,
   ENHANCEMENT_PACKAGES as SOURCE_PACKAGES,
+  isPublicRuntimeAsset,
 } from '../shared/lib/prompt-governance-catalog.js';
 import { sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
 import {
@@ -14,6 +15,7 @@ import {
   CURATED_PRODUCT_SKILLS as PUBLIC_CURATED,
   PROMPT_GOVERNANCE_CATALOG as PUBLIC_CATALOG,
   ENHANCEMENT_PACKAGES as PUBLIC_PACKAGES,
+  SANITIZED_SKILL_COPIES as PUBLIC_COPIES,
 } from '../shared/lib/public-skill-catalog.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
@@ -32,7 +34,7 @@ const TEXT_KEYS_TO_SANITIZE = new Set([
   'whyUpgrade',
   'riskNotes',
   'qualityGate',
-  'recommendationReason'
+  'recommendationReason',
 ]);
 
 function cleanText(text: string): string {
@@ -53,22 +55,13 @@ function cleanText(text: string): string {
   return s;
 }
 
-function isPublicRuntimeAsset(asset: GovernedPromptAsset): boolean {
-  return (
-    asset.placementTier !== 'sanitize-required' &&
-    asset.placementTier !== 'research-only' &&
-    asset.sanitizationStatus !== 'needs-sanitization' &&
-    asset.processDecision !== 'research-only' &&
-    asset.evidenceLevel !== 'test-fixture' &&
-    asset.isRuntimeReady !== false &&
-    asset.isWhiteLabeled !== false
-  );
-}
+// isPublicRuntimeAsset 自 shared/lib/prompt-governance-catalog.ts 单源导入（Plan 197 Step 1），
+// 不再本地复制；生成脚本与守卫共用同一准入判定。
 
 function cloneAndSanitize<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) {
-    return obj.map(item => cloneAndSanitize(item)) as unknown as T;
+    return obj.map((item) => cloneAndSanitize(item)) as unknown as T;
   }
   if (typeof obj === 'object') {
     const copy: Record<string, unknown> = {};
@@ -94,25 +87,78 @@ function cloneAndSanitize<T>(obj: T): T {
 
 /** 复刻脚本输出语义：JSON 序列化落盘再被 import（undefined 键会被丢弃）。 */
 function pipeline<T>(items: T[], filterUnsafe: boolean): T[] {
-  const filtered = filterUnsafe ? items.filter(item => isPublicRuntimeAsset(item as unknown as GovernedPromptAsset)) : items;
-  return JSON.parse(JSON.stringify(filtered.map(item => cloneAndSanitize(item))));
+  const filtered = filterUnsafe
+    ? items.filter((item) => isPublicRuntimeAsset(item as unknown as GovernedPromptAsset))
+    : items;
+  return JSON.parse(JSON.stringify(filtered.map((item) => cloneAndSanitize(item))));
 }
 
-const REMIX_HINT = '生成副本已陈旧：请重新运行 `node --import tsx scripts/generate-public-catalog.ts` 再生 shared/lib/public-skill-catalog.ts（渲染层数据源必须与消毒管线输出逐字节一致）。';
+// ─── 生成侧消毒副本镜像（Plan 197 Step 2）────────────────────────────────────
+// 镜像 scripts/generate-public-catalog.ts 的 collectSanitizeCandidates /
+// buildSanitizedCopy；脚本管线若变更，必须同步此处。
 
-function assertFresh(name: string, source: unknown[], publicCopy: unknown[], filterUnsafe: boolean): void {
+const SANITIZED_COPY_NOTE = '生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。';
+
+function sanitizeCopyText(text: string | undefined): string {
+  return text ? cleanText(text) : '';
+}
+
+function collectSanitizeCandidates(): GovernedPromptAsset[] {
+  const seen = new Set<string>();
+  const merged = [...SOURCE_REGISTRY, ...SOURCE_CATALOG].filter((asset) =>
+    seen.has(asset.id) ? false : (seen.add(asset.id), true)
+  );
+  return merged.filter(
+    (asset) =>
+      asset.placementTier === 'sanitize-required' &&
+      asset.sanitizationStatus === 'needs-sanitization' &&
+      asset.runtimeStatus === 'candidate' &&
+      asset.sourceGroup !== 'test-fixture'
+  );
+}
+
+function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
+  return {
+    ...asset,
+    id: `sanitized-${asset.id}`,
+    title: sanitizeCopyText(asset.title),
+    goal: sanitizeCopyText(asset.goal),
+    template: sanitizeCopyText(asset.template),
+    successSignal: sanitizeCopyText(asset.successSignal),
+    recommendationReason: asset.recommendationReason
+      ? sanitizeCopyText(asset.recommendationReason)
+      : asset.recommendationReason,
+    riskNotes: [SANITIZED_COPY_NOTE],
+    sanitizationStatus: 'runtime-ready',
+    runtimeStatus: 'active',
+    placementTier: 'optional-style',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'plaza',
+  };
+}
+
+const REMIX_HINT =
+  '生成副本已陈旧：请重新运行 `node --import tsx scripts/generate-public-catalog.ts` 再生 shared/lib/public-skill-catalog.ts（渲染层数据源必须与消毒管线输出逐字节一致）。';
+
+function assertFresh(
+  name: string,
+  source: unknown[],
+  publicCopy: unknown[],
+  filterUnsafe: boolean
+): void {
   const expected = pipeline(source, filterUnsafe);
   const sourceIds = expected.map((item: any) => item.id);
   const publicIds = publicCopy.map((item: any) => item.id);
   assert.deepEqual(
     publicIds,
     sourceIds,
-    `${name} 条数/id 集合不一致（源管线 ${sourceIds.length} 条 vs 副本 ${publicIds.length} 条；首个差异: 源=${sourceIds.find(id => !publicIds.includes(id))} 副本多出=${publicIds.find(id => !sourceIds.includes(id))}）。${REMIX_HINT}`,
+    `${name} 条数/id 集合不一致（源管线 ${sourceIds.length} 条 vs 副本 ${publicIds.length} 条；首个差异: 源=${sourceIds.find((id) => !publicIds.includes(id))} 副本多出=${publicIds.find((id) => !sourceIds.includes(id))}）。${REMIX_HINT}`
   );
   assert.deepEqual(
     publicCopy,
     expected,
-    `${name} 存在字段与 sanitize(源) 不一致（副本陈旧或被手工编辑）。${REMIX_HINT}`,
+    `${name} 存在字段与 sanitize(源) 不一致（副本陈旧或被手工编辑）。${REMIX_HINT}`
   );
 }
 
@@ -125,4 +171,49 @@ test('public-skill-catalog is fresh: equals sanitize pipeline over the source ca
 
 test('public ENHANCEMENT_PACKAGES is fresh: equals sanitize pipeline over the source packages', () => {
   assertFresh('ENHANCEMENT_PACKAGES', SOURCE_PACKAGES, PUBLIC_PACKAGES, false);
+});
+
+test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-required candidate', () => {
+  const candidates = collectSanitizeCandidates();
+  // Plan 197 口径锚定：45 张非 test-fixture 的 sanitize-required 候选各产一张副本
+  assert.equal(
+    PUBLIC_COPIES.length,
+    45,
+    `sanitized copies count should be 45, got ${PUBLIC_COPIES.length}`
+  );
+  assert.equal(
+    candidates.length,
+    45,
+    `sanitize-required candidates count should be 45, got ${candidates.length}`
+  );
+
+  // 副本 id 集合与候选一一对应（同序）
+  assert.deepEqual(
+    PUBLIC_COPIES.map((copy) => copy.id),
+    candidates.map((asset) => `sanitized-${asset.id}`),
+    `sanitized copies must correspond 1:1 to sanitize-required candidates. ${REMIX_HINT}`
+  );
+
+  // 逐字节新鲜：等于镜像副本管线输出
+  const expectedCopies = JSON.parse(JSON.stringify(candidates.map(buildSanitizedCopy)));
+  assert.deepEqual(
+    PUBLIC_COPIES,
+    expectedCopies,
+    `SANITIZED_SKILL_COPIES 存在字段与 sanitize(源) 不一致（副本陈旧或被手工编辑）。${REMIX_HINT}`
+  );
+
+  // 每张副本必须通过公开运行时准入过滤器，且治理状态与运行时消毒先例一致
+  for (const copy of PUBLIC_COPIES) {
+    assert.equal(
+      isPublicRuntimeAsset(copy as unknown as GovernedPromptAsset),
+      true,
+      `sanitized copy ${copy.id} must pass isPublicRuntimeAsset`
+    );
+    assert.equal(copy.sanitizationStatus, 'runtime-ready', `copy ${copy.id} sanitizationStatus`);
+    assert.equal(copy.runtimeStatus, 'active', `copy ${copy.id} runtimeStatus`);
+    assert.equal(copy.placementTier, 'optional-style', `copy ${copy.id} placementTier`);
+    assert.equal(copy.isWhiteLabeled, true, `copy ${copy.id} isWhiteLabeled`);
+    assert.equal(copy.isRuntimeReady, true, `copy ${copy.id} isRuntimeReady`);
+    assert.equal(copy.sourceType, 'plaza', `copy ${copy.id} sourceType（镜像运行时端点）`);
+  }
 });

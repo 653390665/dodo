@@ -2482,3 +2482,22 @@ export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [...buildRealAss
 // Re-export focused sub-modules to preserve backwards compatibility for existing importers.
 export * from './enhancement-packages.js';
 export * from './curated-product-skills.js';
+
+/**
+ * 公开运行时资产准入过滤器（单一事实来源）。
+ *
+ * scripts/generate-public-catalog.ts（生成公开目录）与
+ * tests/public-catalog-freshness.test.ts（新鲜度守卫）共用本判定，
+ * 任何条件变更都会同时影响生成产物与守卫结果，修改前须同步评估两侧语义。
+ */
+export function isPublicRuntimeAsset(asset: GovernedPromptAsset): boolean {
+  return (
+    asset.placementTier !== 'sanitize-required' &&
+    asset.placementTier !== 'research-only' &&
+    asset.sanitizationStatus !== 'needs-sanitization' &&
+    asset.processDecision !== 'research-only' &&
+    asset.evidenceLevel !== 'test-fixture' &&
+    asset.isRuntimeReady !== false &&
+    asset.isWhiteLabeled !== false
+  );
+}

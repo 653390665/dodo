@@ -261,7 +261,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | DONE（竖切片落地：`/api/search-similar` + `searchSimilar` 投影扩展 chapterId + QuickSearchOverlay + Cmd+K 快捷键（输入豁免前处理）+ editorReturnTarget 跳章；琥珀色诚实降级 unavailable/unindexed 两态；README:238 宣称回填。关键事实：向量索引唯一写入点是生产 apply 且每章 1 chunk，手写正文不入索引——检索面只是「AI 写过的章」；换模型后旧索引被静默排除。开放问题 6 项见 `docs/prd/2026-09-cmdk-semantic-search.md` §6） | 175 |
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
 | 196 | Vite 6→7 升级（190 Step3 遗留） | DONE（vite ^6.4.3→^7.3.6；plugin-react 挪 devDependencies 并留 5.2.0——npm latest 6.x 仅支持 vite 8，按 peer 冲突门保留；vitest 4.1.9 peer 兼容零升级；vite.config 零迁移；三链路绿（build 分包齐/dev 冒烟含模块转换/test:frontend 884/884）+ E2E 21/8 基线 + build-server 冒烟。190 行 Step3 可勾销） | 190 |
-| 197 | 185 拍板出路 b：生成侧为 45 张 sanitize-required 候选产消毒副本 + 渲染切副本单源化 | TODO | — |
+| 197 | 185 拍板出路 b：生成侧为 45 张 sanitize-required 候选产消毒副本 + 渲染切副本单源化 | BLOCKED（Step 3 硬 STOP 门触发：44/45 副本主体为占位骨架——根因是源目录 rawPrivateConfigs 的 template 本就是 `[商业定制专属提示词体]…骨架推进。` 占位符，真实正文从未入库；现行「消毒并启用」端点落库的同样是骨架。消毒本身无损（损失>50% 为 0）。Step 1-2 已落地提交：过滤器单源化 + SANITIZED_SKILL_COPIES 45 张纯新增（零消费面）+ freshness 断言；Step 4 渲染切换未做。出路需再拍板：a 补真实正文（重新生成源目录）b 砍「消毒并启用」特性 c 接受骨架现状（不推荐）。统计与样例见 plans/notes-197-semantics.md） | 185 |
 | 198 | 无 Key 全章生产修复：保底草稿句式池多样性改造（默认 4000 字过质量门） | TODO | — |
 | 199 | 陈旧 E2E spec 债清偿：8 个 spec 对照现行契约重写 | TODO | — |
 | 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | DONE（7 列 ensureColumn additive 落库 + mapper 读写补齐；新增 roundtrip 单测 5 例；原型 P10/P14 断言转真 14 断言全过） | — |

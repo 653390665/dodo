@@ -6,6 +6,7 @@ import {
   CURATED_PRODUCT_SKILLS,
   PROMPT_GOVERNANCE_CATALOG,
   ENHANCEMENT_PACKAGES,
+  isPublicRuntimeAsset,
 } from '../shared/lib/prompt-governance-catalog.js';
 import { sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
@@ -20,7 +21,7 @@ const TEXT_KEYS_TO_SANITIZE = new Set([
   'whyUpgrade',
   'riskNotes',
   'qualityGate',
-  'recommendationReason'
+  'recommendationReason',
 ]);
 
 /**
@@ -50,17 +51,8 @@ function cleanText(text: string): string {
   return s;
 }
 
-function isPublicRuntimeAsset(asset: GovernedPromptAsset): boolean {
-  return (
-    asset.placementTier !== 'sanitize-required' &&
-    asset.placementTier !== 'research-only' &&
-    asset.sanitizationStatus !== 'needs-sanitization' &&
-    asset.processDecision !== 'research-only' &&
-    asset.evidenceLevel !== 'test-fixture' &&
-    asset.isRuntimeReady !== false &&
-    asset.isWhiteLabeled !== false
-  );
-}
+// isPublicRuntimeAsset 已单源化至 shared/lib/prompt-governance-catalog.ts（Plan 197 Step 1），
+// 生成脚本与新鲜度守卫共用同一判定。
 
 /**
  * 深度克隆并脱敏对象，清空 "template" 属性并对文本字段进行白标清洗
@@ -69,7 +61,7 @@ function isPublicRuntimeAsset(asset: GovernedPromptAsset): boolean {
 function cloneAndSanitize<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) {
-    return obj.map(item => cloneAndSanitize(item)) as unknown as T;
+    return obj.map((item) => cloneAndSanitize(item)) as unknown as T;
   }
   if (typeof obj === 'object') {
     const copy: Record<string, unknown> = {};
@@ -93,6 +85,56 @@ function cloneAndSanitize<T>(obj: T): T {
   return obj;
 }
 
+// ─── 生成侧消毒副本（Plan 197 Step 2）─────────────────────────────────────────
+// 镜像运行时先例 POST /api/skills/sanitize/:assetId（server/routes/skills.ts）：
+// id = 'sanitized-' + asset.id，文案字段走白标清洗管线，runtime-ready + active，
+// sourceType 'plaza'。与公开目录本体的区别：副本保留消毒后的提示词主体
+// （运行时端点把 asset.template 消毒后写入 style 字段，不物理清空），
+// placementTier 提升为公开档 'optional-style'。test-fixture 候选不产副本（与货架口径一致）。
+
+const SANITIZED_COPY_NOTE = '生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。';
+
+function sanitizeCopyText(text: string | undefined): string {
+  return text ? cleanText(text) : '';
+}
+
+function collectSanitizeCandidates(): GovernedPromptAsset[] {
+  const seen = new Set<string>();
+  const merged = [...GOVERNED_ASSETS_V2_REGISTRY, ...PROMPT_GOVERNANCE_CATALOG].filter((asset) =>
+    seen.has(asset.id) ? false : (seen.add(asset.id), true)
+  );
+  return merged.filter(
+    (asset) =>
+      asset.placementTier === 'sanitize-required' &&
+      asset.sanitizationStatus === 'needs-sanitization' &&
+      asset.runtimeStatus === 'candidate' &&
+      asset.sourceGroup !== 'test-fixture'
+  );
+}
+
+function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
+  return {
+    ...asset,
+    id: `sanitized-${asset.id}`,
+    title: sanitizeCopyText(asset.title),
+    goal: sanitizeCopyText(asset.goal),
+    template: sanitizeCopyText(asset.template),
+    successSignal: sanitizeCopyText(asset.successSignal),
+    recommendationReason: asset.recommendationReason
+      ? sanitizeCopyText(asset.recommendationReason)
+      : asset.recommendationReason,
+    // 源候选的 riskNotes 为「未清洗，禁止直接加载」，对 runtime-ready 副本已不成立，
+    //替换为如实描述生成侧消毒结果（镜像运行时端点不携带源 riskNotes 的语义）。
+    riskNotes: [SANITIZED_COPY_NOTE],
+    sanitizationStatus: 'runtime-ready',
+    runtimeStatus: 'active',
+    placementTier: 'optional-style',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'plaza',
+  };
+}
+
 function generate() {
   console.log('Starting white-label physical catalog sanitization pipeline...');
 
@@ -105,11 +147,17 @@ function generate() {
   const cleanedCatalog = cloneAndSanitize(publicCatalog);
   const cleanedPackages = cloneAndSanitize(ENHANCEMENT_PACKAGES);
 
+  const sanitizeCandidates = collectSanitizeCandidates();
+  const sanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
+
   console.log(`Cleaned ${cleanedAssetsRegistry.length} registry assets.`);
   console.log(`Cleaned ${cleanedFlows.length} series flows.`);
   console.log(`Cleaned ${cleanedCuratedSkills.length} curated skills.`);
   console.log(`Cleaned ${cleanedCatalog.length} total catalog assets.`);
   console.log(`Cleaned ${cleanedPackages.length} enhancement packages.`);
+  console.log(
+    `Generated ${sanitizedCopies.length} sanitized copies from ${sanitizeCandidates.length} sanitize-required candidates.`
+  );
 
   const outputPath = path.resolve(process.cwd(), 'shared/lib/public-skill-catalog.ts');
 
@@ -131,6 +179,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = ${JSON.stringify(cleanedFlo
 export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = ${JSON.stringify(cleanedCuratedSkills, null, 2)};
 
 export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(cleanedCatalog, null, 2)};
+
+export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = ${JSON.stringify(sanitizedCopies, null, 2)};
 
 export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = ${JSON.stringify(cleanedPackages, null, 2)};
 
