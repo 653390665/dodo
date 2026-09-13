@@ -13,6 +13,8 @@ function skillRow(overrides: Partial<SkillRow>): SkillRow {
     version: 1, parent_skill_id: null, lineage_root_id: null, primary_dimension: null,
     dimension_tags: '[]', composition_profile: '{}', usage_stats: '{}', feedback_score: 0,
     fusion_meta: null, method_chain: null, why_this_skill_works: null, source_badge: null,
+    deck_group_id: null, deconstruction_card_type: null, sanitization_status: null,
+    runtime_status: null, source_type: null, access_tier: null, is_runtime_ready: null,
     created_at: 0, updated_at: null,
     ...overrides,
   };

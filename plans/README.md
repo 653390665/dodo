@@ -256,7 +256,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | DONE（db.ts 1136→283；flush 契约以 flush:false 保留；边界矩阵 1 处现行违规显式豁免待产品定夺） | 186 |
 | 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | PARTIAL（Step1✓ 5ff0f28；Step2✓ Express 5.2.1 + 通配符修复 + 类型断言 fa4761e——今日双全量 1179/884 + E2E 全部在该状态下验证；Step4✓ 删除无消费方的 pnpm/allowScripts 块 + npm install 一致性验证；Step3 ✗ Vite 6→7 未做——三条链路大版本验证工作量独立，遗留另跑。附带修复：E2E 马拉松 429 根因（onboarding 配额窗与 LLM 令牌桶均为模块级全局态，第 7 个向导用例起全体 429）——加 INKFLOW_RATE_LIMIT_SCALE / INKFLOW_ONBOARDING_GRANT_SCALE 旋钮（默认 1 行为不变），29 用例套件 21 绿；剩余 8 个失败均为预存陈旧 spec（8eaf51b 改名 + Plan175 switcher 双「总览」+ 生产治理门禁前的断言），root cause 见 187 行 | 186, 187 |
 | 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | DONE（13 项归档；pre-commit node 直调+prepare；CI format 门已加——全仓 format 已于 728d845 执行转绿（并修正 format 脚本 glob 与 CI check 口径不一致的隐患）；env 实为 11 个 INKFLOW_*） | — |
-| 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | DONE（设计文档+原型 14 断言；实测发现 schema 缺口 deck_group_id 不落库——实施前置；开放问题见 PRD §6 待产品拍板） | — |
+| 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | DONE（设计文档+原型 14 断言；schema 缺口已由 plan 200 落库修复，实施前置已就绪；开放问题见 PRD §6 待产品拍板） | — |
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
 | 194 | [方向 Spike] Cmd+K 语义检索窄切口（相似段落跳转） | DONE（竖切片落地：`/api/search-similar` + `searchSimilar` 投影扩展 chapterId + QuickSearchOverlay + Cmd+K 快捷键（输入豁免前处理）+ editorReturnTarget 跳章；琥珀色诚实降级 unavailable/unindexed 两态；README:238 宣称回填。关键事实：向量索引唯一写入点是生产 apply 且每章 1 chunk，手写正文不入索引——检索面只是「AI 写过的章」；换模型后旧索引被静默排除。开放问题 6 项见 `docs/prd/2026-09-cmdk-semantic-search.md` §6） | 175 |
 | 195 | SkillsStudioView 分解一期（lint 抑制清账 + 状态入 store 先行 + Phase 3 评估） | DONE（62 条分类 0 过时；候选簇入 store 1/≤3 块；三切片评估见 notes-195-phase3-assessment） | — |
@@ -264,7 +264,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 197 | 185 拍板出路 b：生成侧为 45 张 sanitize-required 候选产消毒副本 + 渲染切副本单源化 | TODO | — |
 | 198 | 无 Key 全章生产修复：保底草稿句式池多样性改造（默认 4000 字过质量门） | TODO | — |
 | 199 | 陈旧 E2E spec 债清偿：8 个 spec 对照现行契约重写 | TODO | — |
-| 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | TODO | — |
+| 200 | 技能卡治理字段落库（deck_group_id 等 7 列，192 实施前置；schema additive 已审批载体） | DONE（7 列 ensureColumn additive 落库 + mapper 读写补齐；新增 roundtrip 单测 5 例；原型 P10/P14 断言转真 14 断言全过） | — |
 | 201 | Cmd+K 后续：手写正文防抖回填索引 + 代际过期诚实提示（194 §6 #1/#4） | TODO | 194 |
 | 202 | config/sync 死代码移除（0 生产调用方已实证） | TODO | — |
 | 203 | 195 切片 A：配置会话簇 → skills-configuration-store（自应用豁免窗口语义锁定） | TODO | — |

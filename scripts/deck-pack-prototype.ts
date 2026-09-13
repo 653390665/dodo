@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { initDb } from '../server/lib/db-init.ts';
 import { createSkill, getSkill, listSkills } from '../server/lib/db/skills.ts';
+import { getDb } from '../server/lib/db-instance.ts';
 import { sanitizeWhiteLabelText } from '../shared/lib/public-skill-catalog.ts';
 import type { Skill } from '../shared/types/skills.ts';
 
@@ -17,6 +18,17 @@ let failures = 0;
 function check(name: string, cond: boolean, detail = ''): void {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : ` :: ${detail}`}`);
   if (!cond) failures += 1;
+}
+
+/** Plan 200 后治理字段已真实落库：直接读 skills 列断言真值，而非 mapper 合成值。 */
+function readGovernanceColumns(id: string): Record<string, unknown> {
+  return getDb()
+    .prepare(
+      `SELECT deck_group_id, deconstruction_card_type, sanitization_status,
+              runtime_status, source_type, is_runtime_ready
+       FROM skills WHERE id = ?`
+    )
+    .get(id) as Record<string, unknown>;
 }
 
 const TEXT_FIELDS: Array<keyof Skill> = [
@@ -139,19 +151,44 @@ for (const orig of fixtures) {
     && back.style === sanitizeWhiteLabelText(orig.style), JSON.stringify({ back: back.description }));
   check(`P8 ${orig.id} 联系方式类白标已物理剥离`, !back.description.includes('abc12345') && !back.description.includes('微信'));
   check(`P9 ${orig.id} version 重置=1`, back.version === 1);
-  check(`P10 ${orig.id} runtime 治理=active+runtime-ready+book-extracted`, back.runtimeStatus === 'active' && back.sanitizationStatus === 'runtime-ready' && back.isRuntimeReady === true && back.sourceType === 'book-extracted');
+  // Plan 200 后治理字段以落库值为准：同时断 DB 原始列 + mapper 读回
+  const govRow = readGovernanceColumns(newId);
+  check(
+    `P10 ${orig.id} runtime 治理落库真值=active+runtime-ready+book-extracted`,
+    back.runtimeStatus === 'active' &&
+      back.sanitizationStatus === 'runtime-ready' &&
+      back.isRuntimeReady === true &&
+      back.sourceType === 'book-extracted' &&
+      govRow.runtime_status === 'active' &&
+      govRow.sanitization_status === 'runtime-ready' &&
+      govRow.is_runtime_ready === 1 &&
+      govRow.source_type === 'book-extracted' &&
+      govRow.deconstruction_card_type === orig.deconstructionCardType,
+    JSON.stringify({ back, govRow })
+  );
   check(`P11 ${orig.id} 非文本字段保真`, back.deconstructionCardType === orig.deconstructionCardType && back.primaryDimension === orig.primaryDimension);
   // 注意：DB mapper 读取会补 runtime 默认值，P12 只能断言在 zip 导出层
   const zipCard = JSON.parse(await unpack.file(`cards/${orig.id}.json`)!.async('string'));
   check(`P12 ${orig.id} 运行时/治理字段未导出（zip 层）`, zipCard.usageStats === undefined && zipCard.feedbackScore === undefined && zipCard.accessTier === undefined && zipCard.sourceType === undefined);
 }
 const world = getSkill(importMap.get('skill-world-002')!)!;
+const styleBack = getSkill(importMap.get('skill-style-001')!)!;
 check('P13 血缘重映射', world.parentSkillId === importMap.get('skill-style-001'));
-// 发现（已记入 PRD §2）：skills 表 insertColumns 不含 deck_group_id，
-// deck 分组不落库——分组保真只能在 zip/manifest 层断言。
+// Plan 200 后 deck_group_id 已落库：分组保真断 DB 读回 + 原始列（跨会话不再断裂）。
 const zipStyle = JSON.parse(await unpack.file('cards/skill-style-001.json')!.async('string'));
 const zipWorld = JSON.parse(await unpack.file('cards/skill-world-002.json')!.async('string'));
-check('P14 deckGroup 分组保真（manifest 层；DB 列缺失为已登记发现）', zipStyle.deckGroupId === zipWorld.deckGroupId && zipWorld.deckGroupId === deckId);
+const govStyle = readGovernanceColumns(importMap.get('skill-style-001')!);
+const govWorld = readGovernanceColumns(importMap.get('skill-world-002')!);
+check(
+  'P14 deckGroup 分组保真（DB 落库 + zip 层）',
+  styleBack.deckGroupId === world.deckGroupId &&
+    styleBack.deckGroupId === importMap.get(deckId) &&
+    govStyle.deck_group_id === importMap.get(deckId) &&
+    govWorld.deck_group_id === importMap.get(deckId) &&
+    zipStyle.deckGroupId === zipWorld.deckGroupId &&
+    zipWorld.deckGroupId === deckId,
+  JSON.stringify({ styleBack: styleBack.deckGroupId, govStyle, govWorld })
+);
 
 // ── 5. 清理与总结 ──
 rmSync(tmp, { recursive: true, force: true });

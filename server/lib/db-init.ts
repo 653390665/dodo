@@ -683,6 +683,15 @@ export function initDb(dbPath?: string): void {
   ensureColumn('skills', 'method_chain', 'TEXT DEFAULT NULL');
   ensureColumn('skills', 'why_this_skill_works', 'TEXT');
   ensureColumn('skills', 'source_badge', 'TEXT');
+  // Plan 200: 治理/分组字段落库（additive）。存量行走 NULL → mapper 回退 fusion_meta
+  // envelope / 运行时按 manifest 重判定；is_runtime_ready 1/0/NULL 对应 true/false/unknown。
+  ensureColumn('skills', 'deck_group_id', 'TEXT');
+  ensureColumn('skills', 'deconstruction_card_type', 'TEXT');
+  ensureColumn('skills', 'sanitization_status', 'TEXT');
+  ensureColumn('skills', 'runtime_status', 'TEXT');
+  ensureColumn('skills', 'source_type', 'TEXT');
+  ensureColumn('skills', 'access_tier', 'TEXT');
+  ensureColumn('skills', 'is_runtime_ready', 'INTEGER');
   ensureColumn('continuation_packs', 'source_map', "TEXT DEFAULT '{}'");
   ensureColumn('continuation_packs', 'reading_questions', "TEXT DEFAULT '[]'");
   ensureColumn('continuation_packs', 'continuation_gaps', "TEXT DEFAULT '[]'");

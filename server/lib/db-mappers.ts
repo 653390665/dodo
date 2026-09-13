@@ -133,6 +133,13 @@ export interface SkillRow {
   method_chain: string | null;
   why_this_skill_works: string | null;
   source_badge: Skill['sourceBadge'] | null;
+  deck_group_id: string | null;
+  deconstruction_card_type: Skill['deconstructionCardType'] | null;
+  sanitization_status: Skill['sanitizationStatus'] | null;
+  runtime_status: Skill['runtimeStatus'] | null;
+  source_type: Skill['sourceType'] | null;
+  access_tier: Skill['accessTier'] | null;
+  is_runtime_ready: number | null;
   created_at: number;
   updated_at: number | null;
 }
@@ -252,16 +259,21 @@ export function rowToSkill(row: SkillRow): Skill {
     usageStats: safeJsonParse<SkillUsageStats>(row.usage_stats, {} as SkillUsageStats),
     feedbackScore: row.feedback_score ?? undefined,
     fusionMeta,
-    deconstructionCardType: fusionMeta?.deconstructionCardType || undefined,
+    deconstructionCardType:
+      row.deconstruction_card_type || fusionMeta?.deconstructionCardType || undefined,
     executionScore: fusionMeta?.executionScore || undefined,
-    accessTier: fusionMeta?.accessTier || undefined,
+    accessTier: row.access_tier || fusionMeta?.accessTier || undefined,
     methodChain: safeJsonParse<SkillMethodChain | undefined>(row.method_chain, undefined),
     whyThisSkillWorks: row.why_this_skill_works || undefined,
     sourceBadge: row.source_badge || undefined,
-    sourceType: envelope?.sourceType,
-    isRuntimeReady: envelope?.isRuntimeReady,
-    sanitizationStatus: envelope?.sanitizationStatus,
-    runtimeStatus: envelope?.runtimeStatus,
+    deckGroupId: row.deck_group_id || undefined,
+    sourceType: row.source_type || envelope?.sourceType,
+    isRuntimeReady:
+      row.is_runtime_ready === null || row.is_runtime_ready === undefined
+        ? envelope?.isRuntimeReady
+        : row.is_runtime_ready === 1,
+    sanitizationStatus: row.sanitization_status || envelope?.sanitizationStatus,
+    runtimeStatus: row.runtime_status || envelope?.runtimeStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? undefined,
   } as Skill;
@@ -588,6 +600,13 @@ export function skillToRow(s: Skill): DbRow {
     method_chain: s.methodChain ? JSON.stringify(s.methodChain) : null,
     why_this_skill_works: s.whyThisSkillWorks || null,
     source_badge: s.sourceBadge || null,
+    deck_group_id: s.deckGroupId || null,
+    deconstruction_card_type: s.deconstructionCardType || null,
+    sanitization_status: s.sanitizationStatus || null,
+    runtime_status: s.runtimeStatus || null,
+    source_type: s.sourceType || null,
+    access_tier: s.accessTier || null,
+    is_runtime_ready: s.isRuntimeReady === undefined ? null : s.isRuntimeReady ? 1 : 0,
     created_at: s.createdAt,
     updated_at: s.updatedAt || null,
   };

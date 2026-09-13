@@ -93,4 +93,10 @@ roundtrip 新单测 + 原型断言 + 后端全量 + E2E 冒烟。
 
 ## Maintenance notes
 
-完成后 192 行的「schema 缺口」备注解除；deck pack 实施计划可直接引用落库字段。
+**已完成（2026-09-12）**。Step 1 勘察结论：现行 additive 机制为 `server/lib/db-init.ts` 的 `ensureColumn`（PRAGMA table_info 守卫 + ALTER TABLE ADD COLUMN，:159-165），启动期对空库与既有库统一执行，无需新迁移框架。7 列已在该文件 skills additive 区块登记（全部可空、无默认值，存量行走 NULL）：
+
+- `deck_group_id` TEXT、`deconstruction_card_type` TEXT、`sanitization_status` TEXT、`runtime_status` TEXT、`source_type` TEXT、`access_tier` TEXT、`is_runtime_ready` INTEGER（1/0/NULL ↔ true/false/unknown）
+
+mapper 读取采用「列优先、fusion_meta envelope 兜底」：新写入以落库列为准，存量行（列 NULL）沿用 envelope 读值，不改既有行语义；`deck_group_id` 无 envelope 历史，直接读列。落库门禁 `validateSkillCardForScope` 无需改码——`getSkill`/`listSkills`/`updateSkill` 合并基座经 mapper 读到的即是落库列值，拒绝码语义不变。
+
+192 行的「schema 缺口」备注已解除；deck pack 实施计划（192）可直接引用落库字段。验证：skills 相关 14 文件 64 用例绿（含新增 `tests/skills-governance-columns.test.ts` 5 例 roundtrip/门禁语义）、原型 14 断言全过（P10/P14 改断 DB 原始列真值）、E2E 冒烟 2 spec 绿、tsc 0 错误、eslint --max-warnings=0 通过。
