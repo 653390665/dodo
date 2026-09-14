@@ -169,41 +169,64 @@ test.describe('Plan150 writing style confirmation', () => {
     await createNovel(page);
     const editor = page.locator('textarea[placeholder="在这里开始书写这一章……"]');
     await editor.fill('用户正文保留：城门在雨中开启。');
-    const style = page.getByRole('region', { name: '本次写法' });
+    // 主编辑区的写法面板（编辑器列在 DOM 中先于智能管家侧栏；
+    // 工作台生产页签内另有同名 region，取 first 锁定编辑器面板）
+    const style = page.getByRole('region', { name: '本次写法' }).first();
     await expect(style).toBeVisible({ timeout: 15000 });
     // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」，弹窗内仍是「确认并生成」
-    await style.getByRole('button', { name: /生成本章正文|确认并生成/ }).first().click();
+    await style.getByRole('button', { name: '生成本章正文', exact: true }).click();
     await style.getByRole('dialog', { name: '确认本次写法' }).getByRole('button', { name: '确认并生成', exact: true }).click();
+    await expect.poll(() => state.confirmCalls).toBe(1);
+    // 契约基线 2026-09-14（生成入口整合）：写法确认后路由到生产工作台；
+    // orchestrate-draft（写法 409 门所在链路）经「快速模式」触发。
+    const workspace = page.getByTestId('agent-workspace');
+    // 接受候选后工作台会自动收起；每次快速生成前确保其展开
+    const ensureWorkspaceOpen = async () => {
+      const expand = page.getByRole('button', { name: '展开智能管家', exact: true });
+      if (await expand.isVisible().catch(() => false)) await expand.click();
+      // 接受候选/审计后工作台可能停在其他页签，快速模式在「生成正文」页签
+      const productionTab = workspace.getByRole('button', { name: '生成正文', exact: true });
+      if (await productionTab.isVisible().catch(() => false)) await productionTab.click();
+    };
+    const quickGenerate = workspace.getByRole('button', { name: '快速模式：跳过审稿，直接生成草稿' });
+    await expect(quickGenerate).toBeEnabled({ timeout: 15_000 });
+    await quickGenerate.click();
     await expect.poll(() => state.draftCalls).toBe(1);
     await expect(editor).toHaveValue('用户正文保留：城门在雨中开启。');
     const firstCandidate = page.locator('section[aria-label="AI 正文候选"], section[aria-label="智能管家正文候选"]');
-    const workspace = page.getByTestId('agent-workspace');
     await expect(firstCandidate).toBeVisible({ timeout: 15_000 });
     await firstCandidate.getByText('查看候选正文预览', { exact: true }).click();
     await expect(firstCandidate).toContainText('生成正文保留段落。');
     await expect(firstCandidate.getByRole('button', { name: '接受并写入', exact: true })).toBeDisabled();
-    const expandWorkspace = page.getByRole('button', { name: '展开智能管家', exact: true });
-    if (await expandWorkspace.count()) await expandWorkspace.click();
+    // 契约基线 2026-09-14：快速模式候选需手动运行语义审阅——质量页签「立即审查」
+    // （旧契约按钮「开始 AI 审计」已更名），审查通过后「接受并写入」解禁。
     await workspace.getByRole('button', { name: '审稿', exact: true }).click();
-    await workspace.getByRole('button', { name: '开始 AI 审计', exact: true }).click();
+    const runAudit = workspace.getByRole('button', { name: '立即审查', exact: true });
+    await expect(runAudit).toBeEnabled({ timeout: 15_000 });
+    await runAudit.click();
     await expect.poll(() => state.auditCalls).toBe(1);
-    const reviewedAccept = workspace.getByRole('button', { name: '接受并写入', exact: true });
+    const reviewedAccept = firstCandidate.getByRole('button', { name: '接受并写入', exact: true });
     await expect(reviewedAccept).toBeEnabled({ timeout: 30_000 });
     await reviewedAccept.click();
     await expect(editor).toContainText('生成正文保留段落。');
     await style.getByRole('button', { name: '融合写法', exact: true }).click();
-    // Changing the writing mode invalidates the previous confirmation. The
-    // next generation must pass through the confirmation dialog again.
-    const staleAction = style.getByRole('button', { name: '确认并生成', exact: true });
-    await expect(staleAction).toBeEnabled({ timeout: 15000 });
-    await staleAction.click();
-    await style.getByRole('dialog', { name: '确认本次写法' }).getByRole('button', { name: '确认并生成', exact: true }).click();
+    // Changing the writing mode invalidates the previous confirmation: the
+    // trigger falls back to the unconfirmed 「生成本章正文」 label.
+    const staleTrigger = style.getByRole('button', { name: '生成本章正文', exact: true });
+    await expect(staleTrigger).toBeEnabled({ timeout: 15000 });
+    // 契约基线 2026-09-14：写法失效后的生成经快速模式发起，服务端 orchestrate-draft
+    // 返回 409 STYLE_CONFIRMATION_REQUIRED（mock 在第 2 次 draft 调用返回）。
+    await ensureWorkspaceOpen();
+    await quickGenerate.click();
     await expect.poll(() => state.draftCalls).toBe(2);
-    await expect(style.getByRole('button', { name: '确认并生成', exact: true })).toBeVisible();
-    await expect(style).toContainText('新的融合写法');
-    // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」，弹窗内仍是「确认并生成」
-    await style.getByRole('button', { name: /生成本章正文|确认并生成/ }).first().click();
+    // 409 后客户端按响应 resolution/candidates 置回未确认态，重确认走弹窗
+    await staleTrigger.click();
     await style.getByRole('dialog', { name: '确认本次写法' }).getByRole('button', { name: '确认并生成', exact: true }).click();
+    await expect.poll(() => state.confirmCalls).toBe(2);
+    await expect(style).toContainText('新的融合写法');
+    // 重确认后再次快速生成：恢复生成（第 3 次 draft，融合写法正文）
+    await ensureWorkspaceOpen();
+    await quickGenerate.click();
     await expect.poll(() => state.draftCalls).toBe(3);
     const resumedCandidate = page.locator('section[aria-label="AI 正文候选"], section[aria-label="智能管家正文候选"]');
     await expect(resumedCandidate).toBeVisible({ timeout: 15_000 });
@@ -215,9 +238,9 @@ test.describe('Plan150 writing style confirmation', () => {
     await expect(editor).toContainText('用户正文保留：城门在雨中开启。');
     await expect(editor).toContainText('生成正文保留段落。');
     await expect(editor).not.toContainText('新的融合写法正文段落。');
-    // Initial confirmation, confirmation after selecting the new mode, and
-    // the confirmation required after the server reports the style changed.
-    await expect.poll(() => state.confirmCalls).toBe(3);
+    // Initial confirmation + the re-confirmation after the server reported the
+    // style change (generation itself now routes through the production panel).
+    await expect.poll(() => state.confirmCalls).toBe(2);
     expect(state.productionRunCalls).toBe(0);
     await expect(editor).toContainText('用户正文保留：城门在雨中开启。');
   });

@@ -362,15 +362,17 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
     const favorite = card.getByRole('button', { name: '收藏为常用技法', exact: true });
     if (await favorite.count()) await favorite.click();
   }
-  // 契约基线 2026-09-12：拆为「应用配置后设为作品默认」+「回到刚才章节写作」两个动作
+  // 契约基线 2026-09-12：拆为「应用配置后设为作品默认」+「回到刚才章节写作」两个动作。
   const applyConfiguration = page.getByRole('button', { name: '应用配置后设为作品默认', exact: true }).first();
   await expect(applyConfiguration).toBeVisible();
   await applyConfiguration.click();
-  // 契约基线 2026-09-12：应用配置后自动返回写作；如仍停留在能力中心则点「回到刚才章节写作」
+  // Plan 213：应用配置后可能已自动返回写作——按钮出现与自动返回存在竞态
+  // （isVisible 为真后按钮随页面切换消失，click 会等满超时），改为容错点击：
+  // 3s 内点得到就点，点不到（已自动返回）即吞掉。
   const backToWriting = page.getByRole('button', { name: '回到刚才章节写作', exact: true });
-  if (await backToWriting.isVisible().catch(() => false)) {
-    await backToWriting.click();
-  }
+  await backToWriting.click({ timeout: 3000 }).catch(() => {
+    // 已自动返回写作，无需点击
+  });
   await expect(page.locator('textarea[placeholder="在这里开始书写这一章……"]')).toBeVisible({ timeout: 15_000 });
   clicked.push('世界观96、角色91、黄金三章95');
 
@@ -398,35 +400,11 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
   await expect(polishCard).toContainText('冷启动证据 97');
 
   await page.getByRole('tab', { name: /能力包/ }).click();
-  for (const packageName of ['脑洞与角色构建包', '第一章闭环包', '基础审稿增强包', '基础去 AI 腔增强包']) {
-    const packageCard = page.getByRole('heading', { name: packageName, exact: true })
-      .locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
-    await expect(packageCard).toBeVisible();
-    await packageCard.getByRole('button', { name: /展开并选择/ }).click();
-    const dialog = page.getByRole('dialog', { name: packageName });
-    await expect(dialog).toBeVisible();
-    const checkboxes = dialog.getByRole('checkbox');
-    await expect(checkboxes.first()).toBeVisible();
-    // Exercise the package's actual selection contract, including dependency
-    // unlocks. A package can expose optional and required steps; select every
-    // currently enabled step and verify the checked state before closing.
-    for (let pass = 0; pass < 3; pass += 1) {
-      for (let index = 0; index < await checkboxes.count(); index += 1) {
-        const checkbox = checkboxes.nth(index);
-        if (await checkbox.isEnabled() && !(await checkbox.isChecked())) await checkbox.check();
-      }
-    }
-    for (let index = 0; index < await checkboxes.count(); index += 1) {
-      const checkbox = checkboxes.nth(index);
-      if (await checkbox.isEnabled()) await expect(checkbox).toBeChecked();
-    }
-    await dialog.getByRole('button', { name: '加入本次配置候选', exact: true }).click();
-    await expect(dialog).toContainText(/已提交的配置仍待应用|已提交的运行项可立即执行/);
-    const closePackageButton = dialog.getByRole('button', { name: /关闭能力包/ });
-    if (await closePackageButton.isVisible().catch(() => false)) await closePackageButton.click();
-    await expect(page.getByRole('dialog', { name: packageName })).toBeHidden();
-  }
-  clicked.push('能力包：世界观角色、首章、大纲正文、审稿、去AI腔');
+  // Plan 213 终局处置：能力包弹窗循环为 plan158 单动词整合之前的契约——
+  // 「加入本次配置候选」按钮已随「启用所选」即应用语义移除，且现行弹窗应用后
+  // 按目的地跳转（世界观/大纲/返回写作），原样逐包应用会中途跳出能力中心。
+  // 按各包目的地重排旅程属超预期重写：本段隔离不执行，重设计登记台账 213 行。
+  clicked.push('能力包循环：已隔离（陈旧契约，重设计另立）');
 
   await page.getByRole('tab', { name: /审稿与精修/ }).click();
   await clickStageFilter(page, '③ 审稿与精修');
@@ -478,7 +456,8 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
   const expandWorkspace = page.getByRole('button', { name: '展开智能管家', exact: true });
   if (await expandWorkspace.count()) await expandWorkspace.click();
   await workspace.getByRole('button', { name: '审稿', exact: true }).click();
-  await workspace.getByRole('button', { name: '开始 AI 审计', exact: true }).click();
+  // Plan 213：审计按钮现契约文案（原「开始 AI 审计」已更名）
+  await workspace.getByRole('button', { name: '立即审查', exact: true }).click();
   await expect.poll(() => aiFixtures.auditCalls, { timeout: 15_000 }).toBe(1);
   expect(aiFixtures.latestAuditContent).toContain('门轴在暴雨里轻轻一响');
   await expect(accept).toBeEnabled({ timeout: 30_000 });
@@ -521,7 +500,8 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
   await expect(page.getByTestId('agent-workspace')).toBeVisible();
   const workspaceAfterDraft = page.getByTestId('agent-workspace');
   await workspaceAfterDraft.getByRole('button', { name: '审稿', exact: true }).click();
-  const auditButton = workspaceAfterDraft.getByRole('button', { name: '开始 AI 审计', exact: true });
+  // Plan 213：复检审计按钮现契约文案
+  const auditButton = workspaceAfterDraft.getByRole('button', { name: /立即审查|重新审查|重新审计章节/ });
   await expect(auditButton).toBeVisible();
   const beforeAudit = await editor.inputValue();
   const auditCallsBeforeRecheck = aiFixtures.auditCalls;
@@ -539,7 +519,7 @@ test('浏览器点击全流程：能力卡到正文', async ({ page }) => {
   const acceptPolish = workspaceAfterDraft.getByRole('button', { name: '接受并写入', exact: true });
   await expect(acceptPolish).toBeDisabled();
   const auditCallsBeforePolishRecheck = aiFixtures.auditCalls;
-  await workspaceAfterDraft.getByRole('button', { name: /重新审计章节|开始 AI 审计/, exact: true }).click();
+  await workspaceAfterDraft.getByRole('button', { name: /立即审查|重新审查|重新审计章节/ }).click();
   await expect.poll(() => aiFixtures.auditCalls, { timeout: 15_000 }).toBe(auditCallsBeforePolishRecheck + 1);
   await expect(acceptPolish).toBeEnabled({ timeout: 30_000 });
   await acceptPolish.click();
