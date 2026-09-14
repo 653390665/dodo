@@ -35,6 +35,7 @@
 - **SQLite 备份/导出/导入**（`server/routes/db.ts`）→ `docs/specs/sqlite-backup.md`。不变式：运行中禁止物理拷贝 `data.db`（WAL 下丢最新数据、可损坏主库）；一律 `db.backup()` 快照导出，流结束或异常时同步清理临时文件；仅单例未初始化时允许降级直传。
 - **LLM/API Key 状态展示**（`src/lib/llm-availability.ts` 及欢迎页、状态栏）→ `docs/specs/llm-status-honesty.md`。不变式：检测失败统一标记 `'unknown'` 并渲染琥珀色降级视觉与离线指引横幅，状态展示必须诚实。
 - **驾驶舱 → 编辑器跨视图路由**（`launchState`）→ `docs/specs/cockpit-routing.md`。不变式：带意图的推荐动作（如 `'cockpit-audit'`/`'cockpit-polish'`）在数据就绪后静默自动执行，而非停留静态面板切换。
+- **能力治理消毒/白标安全**（`src/lib/capability-governance.ts` 及货架投影面）→ `docs/specs/capability-sanitize.md`。不变式：渲染投影只允许 `getOptionalStyleAssets` 可选集与 `getSanitizeRequiredAssets` 白名单两条路径；未消毒候选原貌（正文）禁止直达用户渲染。
 
 ## Multi-Agent Development (多 Agent 并发)
 - 触发：跨物理边界的多文件 feature、高风险重构、或用户明确要求并发交付时，启用三角色并发模型（Coordinator / Implementer / Gatekeeper），完整流程见 `docs/specs/multi-agent-workflow.md`。

@@ -7,7 +7,7 @@ import type { Novel } from '../types.js';
 import {
   GOVERNED_ASSETS_V2_REGISTRY,
   SKILL_SERIES_FLOWS,
-  PROMPT_GOVERNANCE_CATALOG,
+  PUBLIC_SKILL_GOVERNANCE_CATALOG,
 } from './public-skill-catalog.js';
 
 // ── V2 Intelligent Recommendation Router ──
@@ -28,7 +28,7 @@ export interface RecommendationInput {
  */
 export function recommendPromptAssets(input: RecommendationInput): GovernedPromptAsset[] {
   // 1. 置信度物理过滤与安全拦截门禁
-  const availableAssets = PROMPT_GOVERNANCE_CATALOG.filter((asset) => {
+  const availableAssets = PUBLIC_SKILL_GOVERNANCE_CATALOG.filter((asset) => {
     if (input.excludeAssetIds && input.excludeAssetIds.includes(asset.id)) {
       return false;
     }

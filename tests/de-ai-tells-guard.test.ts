@@ -5,7 +5,7 @@ import { initDb } from '../server/lib/db-init.js';
 import * as db from '../server/lib/db.js';
 import { resolveWritingStyleRequest } from '../server/helpers/writing-style-service.js';
 import { recommendPromptAssets } from '../shared/lib/prompt-assets-governed.js';
-import { PROMPT_GOVERNANCE_CATALOG as PUBLIC_CATALOG } from '../shared/lib/public-skill-catalog.js';
+import { PUBLIC_SKILL_GOVERNANCE_CATALOG as PUBLIC_CATALOG } from '../shared/lib/public-skill-catalog.js';
 import { PROMPT_GOVERNANCE_CATALOG as SOURCE_CATALOG, GOVERNED_ASSETS_V2_REGISTRY } from '../shared/lib/prompt-governance-catalog.js';
 import { validateAssetV2 } from '../shared/lib/prompt-assets-governed.js';
 import { DEFAULT_PROMPT_TEMPLATES } from '../shared/config/prompt-templates.js';

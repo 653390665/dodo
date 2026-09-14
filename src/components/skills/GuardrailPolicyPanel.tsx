@@ -1,6 +1,6 @@
 import { CheckCircle2, ShieldAlert, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { PROMPT_GOVERNANCE_CATALOG } from '../../../shared/lib/public-skill-catalog';
+import { PUBLIC_SKILL_GOVERNANCE_CATALOG } from '../../../shared/lib/public-skill-catalog';
 import type { CuratedProductSkill } from '../../../shared/types';
 
 interface GuardrailPolicyPanelProps {
@@ -15,7 +15,7 @@ interface GuardrailPolicyPanelProps {
 
 /** core-default 护栏由运行时无条件注入全部三阶段，这里只读展示。 */
 function getCoreDefaultGuardrails() {
-  return PROMPT_GOVERNANCE_CATALOG.filter(
+  return PUBLIC_SKILL_GOVERNANCE_CATALOG.filter(
     (asset) =>
       asset.placementTier === 'core-default' && asset.primaryCategory === 'quality-guardrail'
   );

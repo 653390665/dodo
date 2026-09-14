@@ -906,7 +906,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
   }
 ];
 
-export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
+export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   {
     "id": "inspirationSystem",
     "title": "灵感助手",

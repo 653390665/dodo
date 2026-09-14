@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import {
   CURATED_PRODUCT_SKILLS,
-  PROMPT_GOVERNANCE_CATALOG,
+  PUBLIC_SKILL_GOVERNANCE_CATALOG,
 } from '../../../shared/lib/public-skill-catalog';
 
 import type {
@@ -103,7 +103,7 @@ export function useEditorIntelligenceContext({
         });
         return;
       }
-      const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === skillId);
+      const asset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find((entry) => entry.id === skillId);
       if (!asset) return;
       base.push({
         id: asset.id,

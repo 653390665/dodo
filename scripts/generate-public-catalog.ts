@@ -178,7 +178,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = ${JSON.stringify(cleanedFlo
 
 export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = ${JSON.stringify(cleanedCuratedSkills, null, 2)};
 
-export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(cleanedCatalog, null, 2)};
+export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(cleanedCatalog, null, 2)};
 
 export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = ${JSON.stringify(sanitizedCopies, null, 2)};
 

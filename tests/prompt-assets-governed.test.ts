@@ -11,7 +11,7 @@ import {
   validateAssetV2,
   GOVERNED_ASSETS_V2_REGISTRY,
   recommendPromptAssets,
-  PROMPT_GOVERNANCE_CATALOG,
+  PUBLIC_SKILL_GOVERNANCE_CATALOG,
   SKILL_SERIES_FLOWS,
   getPromptAssetAction,
   recommendOpeningGovernance,
@@ -395,7 +395,7 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
     assert.equal(recommendedContainsUnsafe, false, `Recommended list must not contain unsafe asset: ${unsafe.id}`);
   }
 
-  const publicUnsafeAssets = PROMPT_GOVERNANCE_CATALOG.filter(
+  const publicUnsafeAssets = PUBLIC_SKILL_GOVERNANCE_CATALOG.filter(
     asset =>
       asset.placementTier === 'sanitize-required' ||
       asset.placementTier === 'research-only' ||
@@ -409,7 +409,7 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
   const polishRecommended = recommendPromptAssets({ currentStage: 'polish' });
   const guardrailsRecommended = polishRecommended.filter(a => a.primaryCategory === 'quality-guardrail');
   if (guardrailsRecommended.length > 1) {
-    const maxScore = Math.max(...PROMPT_GOVERNANCE_CATALOG.filter(a => a.primaryCategory === 'quality-guardrail' && a.isWhiteLabeled && a.isRuntimeReady).map(a => a.score || 0));
+    const maxScore = Math.max(...PUBLIC_SKILL_GOVERNANCE_CATALOG.filter(a => a.primaryCategory === 'quality-guardrail' && a.isWhiteLabeled && a.isRuntimeReady).map(a => a.score || 0));
     for (const asset of guardrailsRecommended) {
       assert.ok((asset.score || 0) >= maxScore, `Asset ${asset.id} score (${asset.score}) should be equal to max score ${maxScore} in its category`);
     }
@@ -464,7 +464,7 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
 
 test('recommendPromptAssets is side-effect free, immutable and idempotent (V2.1.1 stability)', () => {
   // 1. 调用前确认目录大库资产对象没有 recommendationReason
-  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+  for (const asset of PUBLIC_SKILL_GOVERNANCE_CATALOG) {
     assert.equal(asset.recommendationReason, undefined, `Catalog asset ${asset.id} should NOT have recommendationReason before any recommendation call`);
   }
 
@@ -479,7 +479,7 @@ test('recommendPromptAssets is side-effect free, immutable and idempotent (V2.1.
   }
 
   // 4. 再次检查，大库原资产仍没有被污染
-  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+  for (const asset of PUBLIC_SKILL_GOVERNANCE_CATALOG) {
     assert.equal(asset.recommendationReason, undefined, `Catalog asset ${asset.id} should remain untouched (no side-effects)`);
   }
 
@@ -844,7 +844,7 @@ test('Phase 10: Adaptive Dimension System mounts signals correctly', () => {
 
 test('Safety Sandbox Door: public-skill-catalog template-leak and brand-leak protection', () => {
   // 1. 验证所有导出资产的 template 必须全部为空字符串 "" 或者不存在
-  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+  for (const asset of PUBLIC_SKILL_GOVERNANCE_CATALOG) {
     assert.ok(asset.template === undefined || asset.template === '', `Asset ${asset.id} should not leak template`);
   }
   for (const asset of GOVERNED_ASSETS_V2_REGISTRY) {
@@ -853,7 +853,7 @@ test('Safety Sandbox Door: public-skill-catalog template-leak and brand-leak pro
 
   // 2. 验证序列化后不包含敏感品牌名、微信号、QQ群等
   const serialized = JSON.stringify({
-    PROMPT_GOVERNANCE_CATALOG,
+    PUBLIC_SKILL_GOVERNANCE_CATALOG,
     GOVERNED_ASSETS_V2_REGISTRY,
     SKILL_SERIES_FLOWS,
     ENHANCEMENT_PACKAGES
@@ -879,15 +879,15 @@ test('Safety Sandbox Door: public-skill-catalog template-leak and brand-leak pro
   }
 
   // 3. 验证 Quota Guard 判定对免费高分能力放行，对 licensed 大包卡控
-  const freeHighAsset = PROMPT_GOVERNANCE_CATALOG.find(a => a.id === 'plaza-golden-three');
-  const licensedAsset = PROMPT_GOVERNANCE_CATALOG.find(a => a.id === 'tomato-opening-validator');
+  const freeHighAsset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find(a => a.id === 'plaza-golden-three');
+  const licensedAsset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find(a => a.id === 'tomato-opening-validator');
 
   assert.ok(freeHighAsset, 'Should find free asset');
   assert.ok(licensedAsset, 'Should find licensed asset');
 });
 
 test('public catalog normalizes one-click asset copy into confirmable tool names', () => {
-  const serializedPublicCatalog = JSON.stringify(PROMPT_GOVERNANCE_CATALOG);
+  const serializedPublicCatalog = JSON.stringify(PUBLIC_SKILL_GOVERNANCE_CATALOG);
   for (const forbidden of [
     '一键生成章节梗概',
     '长篇一键破解爆款小说并生成脑洞',

@@ -8,7 +8,7 @@ import { CARD_STAGE_MAP, type CapabilityStage } from '../../shared/types/capabil
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import {
   CURATED_PRODUCT_SKILLS,
-  PROMPT_GOVERNANCE_CATALOG,
+  PUBLIC_SKILL_GOVERNANCE_CATALOG,
 } from '../../shared/lib/public-skill-catalog';
 
 export type AuthorFacingCapabilityCardCategory =
@@ -229,7 +229,7 @@ function isWriterTechnique(id: string, requiredScope?: 'chapter'): boolean {
 
 function getWriterGuardrailIds(configuredIds: string[]): string[] {
   const runtimeReady = (id: string) => {
-    const asset = PROMPT_GOVERNANCE_CATALOG.find((candidate) => candidate.id === id);
+    const asset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find((candidate) => candidate.id === id);
     return (
       asset &&
       asset.isRuntimeReady &&
@@ -240,11 +240,11 @@ function getWriterGuardrailIds(configuredIds: string[]): string[] {
         : GOVERNED_STAGE_MAP[asset.stage] === 'writer')
     );
   };
-  const defaults = PROMPT_GOVERNANCE_CATALOG.filter(
+  const defaults = PUBLIC_SKILL_GOVERNANCE_CATALOG.filter(
     (asset) => asset.placementTier === 'core-default' && runtimeReady(asset.id)
   ).map((asset) => asset.id);
   const configured = configuredIds.filter((id) => {
-    const asset = PROMPT_GOVERNANCE_CATALOG.find((candidate) => candidate.id === id);
+    const asset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find((candidate) => candidate.id === id);
     return asset?.primaryCategory === 'quality-guardrail' && runtimeReady(id);
   });
   return uniqueIds([...defaults, ...configured]);
@@ -258,7 +258,7 @@ export function resolveCapabilityDisplayName(
   return (
     librarySkills.find((skill) => skill.id === id)?.name ||
     CURATED_PRODUCT_SKILLS.find((asset) => asset.id === id)?.title ||
-    PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id)?.title ||
+    PUBLIC_SKILL_GOVERNANCE_CATALOG.find((asset) => asset.id === id)?.title ||
     id
   );
 }
