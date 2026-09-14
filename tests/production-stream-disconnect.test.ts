@@ -398,3 +398,102 @@ test('start-stream does not write fallback when response is already destroyed', 
   __productionTestHooks.preFallbackWriteHook = null;
   __productionTestHooks.disconnectObservedHook = null;
 });
+
+test('start-stream hands a quality-rejected model draft to review instead of dropping it', async () => {
+  const db = await import('../server/lib/db');
+  const { getConfig } = await import('../server/lib/config');
+  const novelId = 'prod-quality-handoff';
+  await setupNovel(novelId);
+  const fingerprint = styleFingerprints.get(novelId);
+
+  // Pollution: a control character reaches the manuscript through both
+  // deterministic paths, so every gate evaluation fails (P0 finding):
+  // - worldRules feeds writerContext, which the pipeline uses to expand and
+  //   validate every writer draft and fallback construction attempt;
+  // - intent feeds the route-level fallback prose, keeping
+  //   fallbackPersisted=false so the handoff branch is reachable.
+  db.updateNovel(novelId, {
+    worldRules: '潮汐城的旧契约在午夜生效并反噬违约者\u0007',
+  });
+
+  const previousEnv = process.env.NODE_ENV;
+  const previousMonetization = process.env.INKFLOW_ENABLE_MONETIZATION;
+  const config = getConfig();
+  const originalKey = config.apiKey;
+  const originalFetch = globalThis.fetch;
+  // Leave the test-env fast path so the route enters the real pipeline; keep
+  // the quota ledger on (it defaults to NODE_ENV === 'test') so the committed
+  // reservation stays assertable.
+  process.env.NODE_ENV = 'development';
+  process.env.INKFLOW_ENABLE_MONETIZATION = 'true';
+  config.apiKey = 'quality-handoff-key';
+
+  const modelDraft = '夜色渐深，他推门而入，看见桌上多了一封没有署名的信。';
+  // Keep the request wrapper from before() for the HTTP call itself; the mock
+  // below only serves the pipeline's LLM fetches.
+  const httpFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    // Every pipeline call (planner + writer attempts) returns the same short
+    // draft. It always fails the 4000-char gate, and every fallback
+    // construction fails on the polluted context, so after the final writer
+    // retry the pipeline raises DraftQualityRejectionError carrying this draft.
+    const content = modelDraft;
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: 'stop' }] })}\n\n`
+          )
+        );
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    return {
+      ok: true,
+      status: 200,
+      body: stream,
+      json: async () => ({ choices: [{ message: { content } }] }),
+    } as Response;
+  }) as typeof fetch;
+
+  try {
+    const response = await httpFetch(`${baseUrl}/api/chapter-production-runs/start-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novelId,
+        targetChapterId: '',
+        userIntent: '雨夜码头追击走私船行动\u0007',
+        continuationPackId: '',
+        styleConfirmationFingerprint: fingerprint,
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    const text = await response.text();
+    assert.match(text, /正文未通过质量门禁，已作为待改进草稿保存在预览中/);
+    assert.match(text, /"type":"done"/);
+    assert.doesNotMatch(text, /PRODUCTION_STREAM_FAILED/);
+
+    const [run] = db.listChapterProductionRuns(novelId);
+    assert.ok(run, 'quality-rejected run should persist');
+    assert.equal(run.status, 'review_required');
+    // The pipeline pads the model draft to the chapter floor before gating,
+    // so the persisted preview is the model draft (padded), not a fallback.
+    assert.ok(run.draftContent.includes(modelDraft));
+    assert.match(run.styleAudit, /未通过质量门禁/);
+    assert.equal(run.continuityReport.degradation?.draftSource, 'model');
+    assert.equal(run.continuityReport.degradation?.qualityRejected, true);
+    assert.equal(db.listChapterProductionRunVersions(run.id).length, 1);
+    // Quota committed for the delivered preview — not refunded.
+    await waitForReservation(novelId, 'committed');
+  } finally {
+    globalThis.fetch = originalFetch;
+    config.apiKey = originalKey;
+    if (previousEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnv;
+    if (previousMonetization === undefined) delete process.env.INKFLOW_ENABLE_MONETIZATION;
+    else process.env.INKFLOW_ENABLE_MONETIZATION = previousMonetization;
+  }
+});

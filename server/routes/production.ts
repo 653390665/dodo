@@ -597,6 +597,48 @@ export function registerProductionRoutes(app: Express) {
       let fallbackPersisted = false;
       let streamDatabaseGeneration = requestDatabaseGeneration;
 
+      // ── Quality-rejection handoff (shared by the pipeline catch chain and
+      // the fatal outer catch): all writer attempts and the deterministic
+      // fallback failed the gate, but a model draft exists. Persist it as a
+      // review_required preview so the user keeps the paid-for material and
+      // can make an informed override decision, instead of receiving nothing.
+      // Throws on persistence failure so callers can fall through to generic
+      // failure handling.
+      const attemptQualityRejectionHandoff = async (e: DraftQualityRejectionError) => {
+        if (streamDatabaseGeneration !== undefined) {
+          await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
+            db.updateChapterProductionRun(runId!, {
+              status: 'review_required',
+              draftContent: e.draft,
+              styleAudit: `未通过质量门禁${typeof e.mechanicalScore === 'number' ? `（机械审查 ${e.mechanicalScore.toFixed(1)}）` : ''}：${e.violations.join('；')}`,
+              continuityReport: {
+                ...db.getChapterProductionRun(runId!)!.continuityReport,
+                auditMeta: { status: 'unknown', source: 'model' },
+                degradation: {
+                  beatsSource: e.beatsSource,
+                  draftSource: 'model',
+                  qualityRejected: true,
+                },
+              },
+            });
+            createProductionVersion(db.getChapterProductionRun(runId!)!, 'model');
+          });
+        }
+        commitQuotaReservation(reservationId);
+        contentDelivered = true;
+        if (isResponseWritable(res) && !clientAbortController.signal.aborted) {
+          sseWrite(res, {
+            type: 'status',
+            message: '正文未通过质量门禁，已作为待改进草稿保存在预览中。',
+          });
+          sseWrite(res, {
+            type: 'done',
+            run: attachReviewVersion(db.getChapterProductionRun(runId!)),
+          });
+          res.end();
+        }
+      };
+
       try {
         const {
           targetChapterId = '',
@@ -1140,6 +1182,19 @@ export function registerProductionRoutes(app: Express) {
               res.end();
               return;
             }
+            // The pipeline rejected every candidate but a model draft exists
+            // and no fallback was persisted: hand it to the user as a
+            // review_required preview instead of dropping paid-for material.
+            if (err instanceof DraftQualityRejectionError && runId && !fallbackPersisted) {
+              try {
+                await attemptQualityRejectionHandoff(err);
+                cleanupStream();
+                return;
+              } catch (persistError) {
+                logger.error('Quality-rejection handoff failed:', persistError);
+                // fall through to the generic failure handling below
+              }
+            }
             if (!fallbackPersisted) {
               await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
                 db.updateChapterProductionRun(runId!, {
@@ -1189,44 +1244,12 @@ export function registerProductionRoutes(app: Express) {
         logger.error('Chapter production stream fatal error:', e);
 
         // ── Quality-rejection handoff ──
-        // All writer attempts (and the fallback) failed the gate, but a model
-        // draft exists. Persist it as a review_required preview so the user
-        // keeps the paid-for material and can make an informed override
-        // decision, instead of receiving nothing.
+        // Synchronous fatalities keep the same handoff semantics as the
+        // pipeline catch chain: persist the model draft as a review_required
+        // preview instead of refunding into nothing.
         if (e instanceof DraftQualityRejectionError && runId) {
           try {
-            if (streamDatabaseGeneration !== undefined) {
-              await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
-                db.updateChapterProductionRun(runId!, {
-                  status: 'review_required',
-                  draftContent: e.draft,
-                  styleAudit: `未通过质量门禁${typeof e.mechanicalScore === 'number' ? `（机械审查 ${e.mechanicalScore.toFixed(1)}）` : ''}：${e.violations.join('；')}`,
-                  continuityReport: {
-                    ...db.getChapterProductionRun(runId!)!.continuityReport,
-                    auditMeta: { status: 'unknown', source: 'model' },
-                    degradation: {
-                      beatsSource: e.beatsSource,
-                      draftSource: 'model',
-                      qualityRejected: true,
-                    },
-                  },
-                });
-                createProductionVersion(db.getChapterProductionRun(runId!)!, 'model');
-              });
-            }
-            commitQuotaReservation(reservationId);
-            contentDelivered = true;
-            if (isResponseWritable(res) && !clientAbortController.signal.aborted) {
-              sseWrite(res, {
-                type: 'status',
-                message: '正文未通过质量门禁，已作为待改进草稿保存在预览中。',
-              });
-              sseWrite(res, {
-                type: 'done',
-                run: attachReviewVersion(db.getChapterProductionRun(runId!)),
-              });
-              res.end();
-            }
+            await attemptQualityRejectionHandoff(e);
             return;
           } catch (persistError) {
             logger.error('Quality-rejection handoff failed:', persistError);
