@@ -254,7 +254,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 187 | 测试补强二期：四大视图 E2E + 真实管线旅程 + CI 去重与覆盖率棘轮 | DONE（6 步全落：4 视图 journey spec 全真实无 stub——world 走 reload 会话恢复、agent 走「生成本章正文」+「确认本次写法」弹窗链、factory 保底萃取同步返回、cockpit 主推荐卡；real-pipeline HTTP 驱动 3/3 稳定；CI 去重 + timeout 25；前端棘轮 40/33/32/42→59/52/55/61（实测 59.27/52.5/55.33/61.64）；后端口径：24 路由 3 个零挂载（capability-recommendations/chapter-completion/legacy-artifact-structuring），node 原生报告以测试文件为分母、换 c8 仅结论不实施；池韧性实测 threads+1worker RSS 495MB 无 OOM，不换 forks，3 个 unhandled rejection 系 mock 缺 export 已修）。附带发现：①默认章长 4000 字下无 Key 保底草稿必挂质量门（模板重复密度）→ run failed，全链路到 review_required 需意图声明低字数；②Plan 183 的 500ms 合并窗口破坏 db-client 同步断言，测试改用 flushPendingNotifications()（本计划修复）；③生产页签同名按钮 aria 态翻转仍是 UI 驱动脆弱点，管线段按计划降级 HTTP 契约 | 186 |
 | 188 | 前端传输收敛（统一 request/config-client/组件裸 fetch 入 client/compat shim 清理） | DONE（22 shim 全删；裸 fetch 22→12 白名单 8 文件有据；HttpApiError payload 为批准偏差） | — |
 | 189 | 服务端架构收敛（db.ts 职责拆分/SSE 助手统一/continuation job 管理器/边界测试矩阵） | DONE（db.ts 1136→283；flush 契约以 flush:false 保留；边界矩阵 1 处现行违规显式豁免待产品定夺） | 186 |
-| 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | PARTIAL（Step1✓ 5ff0f28；Step2✓ Express 5.2.1 + 通配符修复 + 类型断言 fa4761e——今日双全量 1179/884 + E2E 全部在该状态下验证；Step4✓ 删除无消费方的 pnpm/allowScripts 块 + npm install 一致性验证；Step3 ✗ Vite 6→7 未做——三条链路大版本验证工作量独立，遗留另跑。附带修复：E2E 马拉松 429 根因（onboarding 配额窗与 LLM 令牌桶均为模块级全局态，第 7 个向导用例起全体 429）——加 INKFLOW_RATE_LIMIT_SCALE / INKFLOW_ONBOARDING_GRANT_SCALE 旋钮（默认 1 行为不变），29 用例套件 21 绿；剩余 8 个失败均为预存陈旧 spec（8eaf51b 改名 + Plan175 switcher 双「总览」+ 生产治理门禁前的断言），root cause 见 187 行 | 186, 187 |
+| 190 | 依赖升级战役（@huggingface/transformers/Express 5/Vite 7/包管理器配置收敛） | DONE（2026-09-14 核销：Step1✓ 5ff0f28、Step2✓ Express 5.2.1 fa4761e、Step4✓ pnpm/allowScripts 清理；Step3 Vite 6→7 已由 196 落地（vite ^7.3.6 三链路绿，196 行注明「190 行 Step3 可勾销」）——本行 PARTIAL 为账面滞后，四步全部收口。附带修复（限流旋钮/429 根因）保留原记录效力 | 186, 187 |
 | 191 | 文档与 DX 修复（README 失实宣称/死链/账目双头/pre-commit/format 门/env 清单/根目录归档） | DONE（13 项归档；pre-commit node 直调+prepare；CI format 门已加——全仓 format 已于 728d845 执行转绿（并修正 format 脚本 glob 与 CI check 口径不一致的隐患）；env 实为 11 个 INKFLOW_*） | — |
 | 192 | [方向 Spike] 能力卡 Deck 导出导入格式设计 | DONE（设计文档+原型 14 断言；schema 缺口已由 plan 200 落库修复，实施前置已就绪；开放问题见 PRD §6 待产品拍板） | — |
 | 193 | [方向 Spike] 拆书工厂接入文档解析管线（docx/长文本） | DONE（设计文档 + 原型 90 断言；开放问题见文档 §7，待产品拍板） | — |
@@ -274,6 +274,8 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 207 | 完成风暴修复：fact 面板自动补跑限次（needsGate 语义收窄 + once-per-candidate 兜底） | DONE（本批：effect 抽为 useCompletionAutoGate hook（src/lib/hooks/）——needsGate 收窄至「门未评估（undefined/drafting）且手上无本章 completionResult」（已评估门/已持有审阅结果不再补跑，出路在面板确认与风险接受）；attemptKey=章节+候选 runId 同键至多补跑一次，换候选重新武装；新组件回归 6 用例（风暴场景/GET 冲门/换候选/静默条件）；前端全量 895/895 + typecheck 0 + unified-creation ×2 E2E 转绿（completionCalls toBe(1) 探测通过，10 秒 283 次归零）。执行注记：E2E 服务 dist 构建产物——改源码后必须先 npm run build 再跑 E2E，否则测的是旧代码 | 199 |
 | 208 | 导出菜单 portal 化：fixed 定位脱离编辑器堆叠命中区（199 归因的 P2 小项） | DONE（本批：菜单 createPortal(document.body) + fixed 定位（打开时按触发按钮 rect 锚定一次；scroll（捕获）/resize 关闭；外点判定同时豁免菜单与触发按钮）；role/aria 与导出 fetch 逻辑不变，零新依赖；新增导出菜单单测 5 用例（portal 挂载点/选中导出/Escape/外点/aria-expanded）；前端全量 900/900 + typecheck 0 + build 绿；core-flow E2E 3 连跑全绿（命中区脆弱性消除） | — |
 | 209 | 弹窗 aria id 硬化（useId 配对）+ act() 警告清理（205 遗留小项） | DONE（本批：PackageConfigDialog 2 组 + SkillsStudioView 2 处弹窗 aria 配对 id 改 useId；2 处字面量 id 断言改关系断言（describedby 解析到 dialog 内禁用原因元素）；act 噪音 268 行→约 20 行（-93%）：异步 apply/导入/技法点击包进 await act + 宏任务冲刷、helper（openPackages/openPlaza/settleStudio）act 化、candidates 文件补 toast mock（真 toast 5s 定时器在 cleanup 后触发 DOM 更新的假警告）。按 STOP 条件归因：剩余 5 块「not configured to support act」为 React19 + RTL asyncWrapper（waitFor/findBy 窗口内 act 环境置 false）与 zustand 外部 store 通知交错的库间噪音，非组件缺陷，彻底归零需 RTL 升级或 fake-timers 专项——另立不阻塞。受影响四套件 48/48 绿、前端全量 900/900、typecheck 0 | 203, 204, 205 |
+| 210 | 197 出路 a 执行：源目录真实正文重建（44 张）+ 渲染切副本单源化（197 Step 4，185 收口） | TODO | 197 |
+| 211 | act() 警告彻底归零专项（209 遗留收口：RTL 环境窗与 zustand 通知交错噪音） | TODO | 209 |
 
 ### Round 31 说明（2026-09-12）
 
@@ -282,6 +284,10 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 ### Round 32 说明（2026-09-14）
 
 来源：Round 31 收尾时汇报的遗留问题清单，经两项只读子代理勘察核实机制后立项三项（计划文档含完整机制锚点，基于 `95aefc3`）：①207 完成风暴（P1——纯前端 effect 自激循环：factPanelNeedsGate 把已评估门视为待补跑且无 once 标记，10 秒 283 次 POST /complete，落地后解阻塞 unified-new×2）；②208 导出菜单命中区（P2——199 归因项，portal 化修复，仓库零 createPortal 先例故用 React 原生 portal，不加依赖）；③209 弹窗 aria id 硬化 + act() 警告清理（205 遗留小项）。执行顺序 207→208→209（相互独立）。197/185 维持 BLOCKED 待产品拍板（出路 a 补真实正文 / b 砍特性 / c 接受骨架现状），本轮不含；plan150 start-stream 与 full-browser 维持缓议。
+
+### Round 32 补记（2026-09-14）
+
+用户拍板：①197/185 走**出路 a**——补真实正文重新生成源目录，随后完成 197 Step 4（渲染切副本单源化），立项 210 执行；②act 归零专项立项 211（出路选型执行时定案，RTL 升级需审批）；③190 台账核销（Step3 已由 196 落地，PARTIAL 为账面滞后）。
 
 ### Plan 166 复核（2026-08-23）
 
