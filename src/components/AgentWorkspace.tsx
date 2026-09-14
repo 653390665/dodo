@@ -31,6 +31,7 @@ import {
   ViewType,
 } from '../../shared/types';
 import type { ChapterVersionMeta } from '../lib/chapter-client';
+import { useLocalEntityScan } from '../lib/hooks/useLocalEntityScan';
 import { cn } from '../lib/utils';
 import { IdeaFragmentBoard } from './IdeaFragmentBoard';
 import { ForeshadowingPanel } from './ForeshadowingPanel';
@@ -91,15 +92,6 @@ const MORE_MENU_GROUPS: ReadonlyArray<{ label: string; items: readonly MoreMenuI
 ];
 const MORE_MENU_ITEMS = MORE_MENU_GROUPS.flatMap((group) => group.items);
 const GLOBAL_RELATIONSHIP_PREVIEW_LIMIT = 6;
-
-function hashEntityScanInput(value: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
 
 interface AgentWorkspaceProps {
   novel: Novel;
@@ -345,9 +337,6 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
     });
   }, [agentTab, currentChapter?.id, novel.id]);
 
-  const [localActiveEntityNames, setLocalActiveEntityNames] = React.useState<string[]>([]);
-  const lastEntityScanHashRef = React.useRef('');
-  const [selection, setSelection] = React.useState({ start: -1, end: -1 });
   const approvedContinuationPack = React.useMemo(
     () =>
       continuationPacks.find(
@@ -356,86 +345,16 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
     [continuationPacks, selectedContinuationPackId]
   );
 
-  React.useEffect(() => {
-    const textarea = contentRef?.current;
-    if (!textarea) return;
-    const updateSelection = () =>
-      setSelection({ start: textarea.selectionStart, end: textarea.selectionEnd });
-    updateSelection();
-    textarea.addEventListener('select', updateSelection);
-    textarea.addEventListener('keyup', updateSelection);
-    textarea.addEventListener('mouseup', updateSelection);
-    return () => {
-      textarea.removeEventListener('select', updateSelection);
-      textarea.removeEventListener('keyup', updateSelection);
-      textarea.removeEventListener('mouseup', updateSelection);
-    };
-  }, [contentRef, currentChapter?.id]);
-
-  const entityScanHash = React.useMemo(
-    () =>
-      hashEntityScanInput(
-        [
-          currentChapter?.id || '',
-          currentChapter?.content || '',
-          String(selection.start),
-          String(selection.end),
-          ...characters.map((entity) => entity.name),
-          ...locations.map((entity) => entity.name),
-          ...items.map((entity) => entity.name),
-          ...factions.map((entity) => entity.name),
-        ].join('\u0000')
-      ),
-    [currentChapter?.id, currentChapter?.content, characters, locations, items, factions, selection]
-  );
-
-  React.useEffect(() => {
-    if (lastEntityScanHashRef.current === entityScanHash) return;
-    const timer = setTimeout(() => {
-      lastEntityScanHashRef.current = entityScanHash;
-      if (!currentChapter || !currentChapter.content) {
-        setLocalActiveEntityNames([]);
-        return;
-      }
-
-      const fullText = currentChapter.content;
-      let textToScan = fullText;
-      const textarea = contentRef?.current;
-      if (textarea) {
-        const cursor = textarea.selectionStart || 0;
-        const minIdx = Math.max(0, cursor - 1500);
-        const maxIdx = Math.min(fullText.length, cursor + 500);
-        textToScan = fullText.substring(minIdx, maxIdx);
-      }
-
-      const matched: string[] = [];
-
-      characters.forEach((c) => {
-        if (c.name && textToScan.includes(c.name)) {
-          matched.push(c.name);
-        }
-      });
-      locations.forEach((l) => {
-        if (l.name && textToScan.includes(l.name)) {
-          matched.push(l.name);
-        }
-      });
-      items.forEach((i) => {
-        if (i.name && textToScan.includes(i.name)) {
-          matched.push(i.name);
-        }
-      });
-      factions.forEach((f) => {
-        if (f.name && textToScan.includes(f.name)) {
-          matched.push(f.name);
-        }
-      });
-
-      setLocalActiveEntityNames(matched);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [entityScanHash, currentChapter, characters, locations, items, factions, contentRef]);
+  // Plan 222：实体扫描去状态化——selection 事件不再 setState（每键重渲源），
+  // 防抖定时器内直读 textarea 选区与全文哈希，输入真变化才扫描。
+  const localActiveEntityNames = useLocalEntityScan({
+    contentRef,
+    currentChapter,
+    characters,
+    locations,
+    items,
+    factions,
+  });
 
   const activeEntityNames = propActiveEntityNames ?? localActiveEntityNames;
   const activeMoreItem = MORE_MENU_ITEMS.find(([tab]) => tab === agentTab);
