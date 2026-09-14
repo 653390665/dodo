@@ -13,6 +13,7 @@
     "clean": "rm -rf dist dist-electron release",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test node --test --test-concurrency=4 --test-timeout=45000 --import tsx --import ./tests/helpers/test-db-preload.ts tests/*.test.ts",
+    "test:unit": "npm test && npm run test:frontend",
     "test:coverage:backend": "NODE_ENV=test node --test --test-concurrency=1 --test-timeout=45000 --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 --import tsx --import ./tests/helpers/test-db-preload.ts tests/*.test.ts",
     "test:all": "npm test && npm run test:frontend && npm run build && npx playwright test",
     "test:watch": "NODE_ENV=test node --test --watch --test-concurrency=4 --test-timeout=45000 --import tsx --import ./tests/helpers/test-db-preload.ts tests/*.test.ts",

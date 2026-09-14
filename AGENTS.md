@@ -22,6 +22,13 @@
 - Run the smallest relevant validation after edits.
 - If project metadata is incomplete, inspect the repository and infer the real commands before making changes.
 
+### 测试命令地图（改哪里跑什么）
+- 改 `server/`、`shared/` 后端逻辑 → `npm test`（定向：`node --test --import tsx tests/<file>`；注意 `npm test` 只覆盖后端 node:test）
+- 改 `src/` 前端 → `npm run test:frontend -- src/tests/<file>`（全量：`npm run test:frontend`，vitest）
+- 改 `shared/` 前后端共享契约 → 两者都跑
+- UI 主链路改动 → `npx playwright test`（webServer 已自动前置 `npm run build`，改源码后无需手动构建）
+- 提交前一键：`npm run test:unit`（前后端两套单测，不含 build/E2E）
+
 ## Technical Invariants (技术不变式)
 改动以下领域时，先读对应规范文档再动手：
 
