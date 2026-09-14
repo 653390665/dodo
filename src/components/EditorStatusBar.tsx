@@ -166,7 +166,7 @@ export function EditorStatusBar({
           {exportMenuOpen ? (
             <div
               role="menu"
-              className="absolute bottom-full right-0 z-30 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl"
+              className="absolute bottom-full right-0 z-50 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl"
             >
               <button
                 type="button"
