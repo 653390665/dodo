@@ -276,6 +276,14 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 209 | 弹窗 aria id 硬化（useId 配对）+ act() 警告清理（205 遗留小项） | DONE（本批：PackageConfigDialog 2 组 + SkillsStudioView 2 处弹窗 aria 配对 id 改 useId；2 处字面量 id 断言改关系断言（describedby 解析到 dialog 内禁用原因元素）；act 噪音 268 行→约 20 行（-93%）：异步 apply/导入/技法点击包进 await act + 宏任务冲刷、helper（openPackages/openPlaza/settleStudio）act 化、candidates 文件补 toast mock（真 toast 5s 定时器在 cleanup 后触发 DOM 更新的假警告）。按 STOP 条件归因：剩余 5 块「not configured to support act」为 React19 + RTL asyncWrapper（waitFor/findBy 窗口内 act 环境置 false）与 zustand 外部 store 通知交错的库间噪音，非组件缺陷，彻底归零需 RTL 升级或 fake-timers 专项——另立不阻塞。受影响四套件 48/48 绿、前端全量 900/900、typecheck 0 | 203, 204, 205 |
 | 210 | 197 出路 a 执行：源目录真实正文重建（44 张）+ 渲染切副本单源化（197 Step 4，185 收口） | DONE（本批：realTemplates 映射为 44 张 sanitize-required 候选写入真实正文（120-300 字编号规则指令式，形态对齐 de-ai-tells-guard；不含署名/联系方式/竞品/水印词，正文零消毒命中），buildRealAssets 改 `realTemplates[p.id] ?? 骨架回退`；重生成后副本复测：仅剩骨架 44→**0**、平均主体 33→125 字、失效数 0≤15 STOP 门通过（notes-197-semantics.md 补记）；渲染切副本：getOptionalStyleAssets 合并 SANITIZED_SKILL_COPIES（45 张副本入可选文风集）、getSanitizeRequiredAssets/isSanitizeRequiredAsset 排除已有副本候选（需解锁分组仅剩 2 张非候选平台锁定卡，消毒并启用按钮对目录候选收口）；plan158 断言过渡：45 锚点/004 重写为副本单源化语义、010 删除（运行时端点 UI 链路随单源化消失，端点保留无自动化覆盖）；plan158 37/37 + 前端全量 899/899 + typecheck 0 + freshness 3/3 + 生成幂等 | 197 |
 | 211 | act() 警告彻底归零专项（209 遗留收口：RTL 环境窗与 zustand 通知交错噪音） | TODO | 209 |
+| 212 | E2E 自动 build 守卫——消灭「测旧 dist」陷阱（207 执行发现的结构性修复） | TODO | — |
+| 213 | plan199 尾巴终局处置：plan150 desktop 用例 + full-browser hit-target（实测仍红，2026-09-14） | TODO | 212 |
+| 214 | 全量跑批饥饿治理——「昨绿今挂」总根因（Round 31 定性；Next 占位） | TODO | 212 |
+| 215 | 33 张 ready 条目骨架正文补齐（210 同病灶收尾；Next 占位） | TODO | 210 |
+
+### Round 33 说明（2026-09-14）
+
+路线图思路（roadmap-planning 轻量应用）经用户确认：**Now**（Round 33，小而确定清账）= 211 选型收口 + 212 build 守卫 + 213 两个缓议 E2E 终局处置（实测证据：plan150 desktop 用例 draftCalls=0、full-browser「回到刚才章节写作」click 超时，aad58c2 构建后复测）；**Next**（Round 34 占位）= 214 跑批饥饿治理（「昨绿今挂」总根因，杠杆项）+ 215 ready 骨架正文补齐（数据诚实度）；**Later**（触发式，不排期）= 183 generation 抑制（等 notify 探针生产数据越线）、192/193/194 spike 实施（等 PRD 开放问题拍板）。主题化原则：A 测试与验证基建可信度 / B 数据诚实度尾巴 / C 触发式观察——C 不进路线图，留台账被探针与拍板唤醒。
 
 ### Round 31 说明（2026-09-12）
 
