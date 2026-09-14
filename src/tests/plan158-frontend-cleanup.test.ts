@@ -158,6 +158,7 @@ describe('Plan158 frontend legacy cleanup', () => {
 
   test('capability center and writing style use author-facing card copy', () => {
     const studio = readSource('src/components/SkillsStudioView.tsx');
+    const packageDialog = readSource('src/components/skills/PackageConfigDialog.tsx');
     const stageCards = readSource('src/lib/capability-stage-cards.ts');
     const preference = readSource('src/components/skills/ProjectPreferencePanel.tsx');
     const loadout = readSource('src/components/skills/SkillLoadoutBoard.tsx');
@@ -186,8 +187,9 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(studio).toContain('作品卡组');
     expect(studio).toContain('拆书卡');
     expect(studio).toContain('管理作品默认能力与本章写法');
-    expect(studio).toContain('本章使用规则只影响当前章');
-    expect(studio).toContain('本章使用规则只影响当前章；系统护栏参与生成与审稿检查。');
+    // Plan 195 切片 C：应用效果提示语随包配置弹窗迁 skills/PackageConfigDialog。
+    expect(packageDialog).toContain('本章使用规则只影响当前章');
+    expect(packageDialog).toContain('本章使用规则只影响当前章；系统护栏参与生成与审稿检查。');
     expect(studio).not.toContain('本章技法只影响当前章');
     expect(appShell).toContain('本章使用规则只影响当前章');
     expect(appShell).not.toContain('本章技法只影响当前章');
@@ -207,12 +209,12 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(stageCards).toContain('配置到作品：应用配置后写入大纲技法');
     expect(stageCards).toContain('配置到作品：应用配置后写入设定素材');
     expect(stageCards).toContain('配置到作品：应用配置后写入作品默认配置');
-    expect(studio).toContain('配置到作品：应用配置后写入创作流程');
+    expect(packageDialog).toContain('配置到作品：应用配置后写入创作流程');
     expect(stageCards).toContain('应用配置后设为作品默认');
     expect(stageCards).toContain('应用配置后写入本章规则');
     expect(stageCards).toContain('应用配置后可写入本章规则');
     expect(studio).toContain('勾选后点「启用所选」即生效，可撤销。');
-    expect(studio).toContain('先勾开篇结构，再按需选择正文表达技法');
+    expect(packageDialog).toContain('先勾开篇结构，再按需选择正文表达技法');
     expect(studio).not.toContain('先加入本次配置候选，再按每步结果确认下一步');
     expect(studio).not.toContain('先勾开篇结构，再按需启用正文表达技法');
     expect(studio).not.toContain('点击应用后才保存到作品');
@@ -228,14 +230,14 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(studio).not.toContain('重新预览当前配置');
     expect(studio).not.toContain('当前配置仍待应用');
     expect(studio).not.toContain('当前配置已变化');
-    expect(studio).toContain('下一步：审稿诊断待运行');
-    expect(studio).toContain('下一步：辅助动作待运行');
-    expect(studio).toContain('下一步：应用配置后写入作品');
-    expect(studio).toContain('下一步：应用配置后写入本章规则');
-    expect(studio).toContain('下一步：应用配置后写入作品卡组');
-    expect(studio).toContain('下一步：应用配置后写入写前提醒');
-    expect(studio).toContain('下一步：应用配置后写入创作流程');
-    expect(studio).toContain('下一步：选择卡组位置后应用');
+    expect(packageDialog).toContain('下一步：审稿诊断待运行');
+    expect(packageDialog).toContain('下一步：辅助动作待运行');
+    expect(packageDialog).toContain('下一步：应用配置后写入作品');
+    expect(packageDialog).toContain('下一步：应用配置后写入本章规则');
+    expect(packageDialog).toContain('下一步：应用配置后写入作品卡组');
+    expect(packageDialog).toContain('下一步：应用配置后写入写前提醒');
+    expect(packageDialog).toContain('下一步：应用配置后写入创作流程');
+    expect(packageDialog).toContain('下一步：选择卡组位置后应用');
     expect(studio).not.toContain('下一步：应用配置后保存作品卡组');
     expect(studio).not.toContain('下一步：应用配置后保存为本章规则');
     expect(studio).not.toContain('下一步：应用配置后保存到作品');
@@ -246,7 +248,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(studio).toContain('流程、技法、拆书卡和辅助动作');
     expect(studio).not.toContain('下一步：工具待运行');
     expect(studio).not.toContain('流程、技法、拆书卡和工具');
-    expect(studio).toContain('结果：不可用，已跳过');
+    expect(packageDialog).toContain('结果：不可用，已跳过');
     expect(studio).not.toContain('不自动应用');
     expect(studio).toContain('能力配置尚未应用');
     expect(studio).toContain('未应用的能力配置');

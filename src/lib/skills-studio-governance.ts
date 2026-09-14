@@ -274,3 +274,38 @@ export function getCapabilityScope(
 ): CapabilityManifestEntry['allowedScopes'][number] {
   return manifest.allowedScopes[0] || 'single-run';
 }
+
+export function getDeckDimensionLabel(dimension: string): string {
+  const labels: Record<string, string> = {
+    style: '文风',
+    hook: '钩子',
+    pacing: '节奏',
+    world: '世界观',
+    worldview: '世界观',
+    character: '人物',
+    plot: '剧情',
+    conflict: '冲突',
+    platform: '平台',
+    'style-reference': '文风',
+    'utility-tool': '工具',
+    'author-workflow': '结构',
+    'platform-criteria': '平台',
+    'quality-guardrail': '护栏',
+    'constellation-pack': '题材',
+    'skill-card': '拆书',
+  };
+  return labels[dimension] || dimension;
+}
+
+export function getDeckDimensionSummary(dimensions: string[]): string {
+  const labels = [...new Set(dimensions.map(getDeckDimensionLabel).filter(Boolean))];
+  return labels.length ? labels.join('、') : '未标注';
+}
+
+export function isOutlineCandidateOutput(output: string | undefined): boolean {
+  return output === 'outline-candidate' || output === 'artifact-candidate';
+}
+
+export function isWorldCandidateArtifact(outputArtifact: string | undefined): boolean {
+  return outputArtifact === 'worldBibleCandidate' || outputArtifact === 'characterCardCandidate';
+}
