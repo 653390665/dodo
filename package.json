@@ -31,7 +31,7 @@
     "smoke:packaged-editor": "node scripts/packaged-editor-lifecycle.mjs",
     "build:electron": "npm run build && node scripts/build-server.mjs && node scripts/build-electron.mjs && node scripts/rebuild.mjs",
     "package": "npm run build:electron && node scripts/package-electron.mjs && npm run smoke:package-artifacts",
-    "prepare": "cp scripts/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit || true",
+    "prepare": "cp scripts/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit || { echo 'warn: pre-commit 安装失败，提交门未生效' >&2; }",
     "electron:dev": "node scripts/dev-electron.mjs",
     "dev:web": "INKFLOW_ENABLE_DEV_AUTH_TOKEN=true ELECTRON_RUN_AS_NODE=1 npx electron --import tsx server.ts",
     "eval:chapter-mechanical": "node --import tsx scripts/run-chapter-mechanical-acceptance.ts",
