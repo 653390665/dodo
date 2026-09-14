@@ -107,7 +107,8 @@ test('Pixel 5 writing-style confirmation dialog stays inside viewport', async ({
   if (await enable.count()) await enable.click();
   const style = page.getByRole('region', { name: '本次写法' });
   await expect(style).toBeVisible({ timeout: 15000 });
-  await style.getByRole('button', { name: '确认并生成', exact: true }).click();
+  // 契约基线 2026-09-12：未确认态触发钮为「生成本章正文」，点击后弹「确认本次写法」（plan 199 步 7）
+  await style.getByRole('button', { name: /生成本章正文|确认并生成/ }).first().click();
   const dialog = style.getByRole('dialog', { name: '确认本次写法' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toBeInViewport();
@@ -142,7 +143,9 @@ test('Pixel 5 capability studio keeps current-work context and governed actions 
   await expect(page.getByText('作品卡组', { exact: true })).toBeVisible();
   await expect(page.getByText('护栏状态', { exact: true })).toBeVisible();
   await page.getByTestId('app-shell-main').getByRole('button', { name: '能力商店', exact: true }).click();
-  for (const label of ['创作流程', '写作技法', '拆书卡', '审稿与精修', '系统护栏']) {
+  // 契约基线 2026-09-14（plan 199 步 8 / 205 落地后）：广场页签为五类 + 能力包，
+  // 系统护栏不再是页签（护栏状态在作品能力中心面板内展示）。
+  for (const label of ['创作流程', '写作技法', '拆书卡', '审稿与精修', '文风与正文', '能力包']) {
     await expect(page.getByRole('tab', { name: new RegExp(`^${label}\\s+\\d+$`) })).toBeVisible();
   }
   const flowTab = page.getByRole('tab', { name: /^创作流程\s+\d+$/ });
@@ -163,8 +166,8 @@ test('Pixel 5 capability studio keeps current-work context and governed actions 
   await expect(page.getByRole('button', { name: '应用配置后设为作品默认', exact: true }).first()).toBeVisible();
   await page.getByRole('tab', { name: /^审稿与精修\s+\d+$/ }).click();
   await expect(page.getByText('运行审稿诊断', { exact: true }).first()).toBeVisible();
-  await page.getByRole('tab', { name: /^系统护栏\s+\d+$/ }).click();
-  await expect(page.getByRole('tab', { name: /^系统护栏\s+\d+$/ })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: /^文风与正文\s+\d+$/ }).click();
+  await expect(page.getByRole('tab', { name: /^文风与正文\s+\d+$/ })).toHaveAttribute('aria-selected', 'true');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });
