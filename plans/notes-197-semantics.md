@@ -3,6 +3,24 @@
 > 测量时间：2026-09-12。对象：`shared/lib/public-skill-catalog.ts` 新增导出 `SANITIZED_SKILL_COPIES` 的 45 张消毒副本（由 `scripts/generate-public-catalog.ts` 从 45 张非 test-fixture 的 sanitize-required 候选生成）。
 > 一次性脚本：对每张副本测量 标题/描述/prompt 主体（template）的空主体、占位骨架、相对源的长度损失，并复算 `analyzeAndSanitize` 命中数。
 
+## 出路 a 复测（Plan 210，2026-09-14）
+
+44 张源候选的真实正文经 `realTemplates` 映射入库（plan 210 Step 1）后重生成，同口径复测：
+
+| 指标 | 2026-09-12 | 2026-09-14（出路 a 后） |
+|---|---|---|
+| 副本总数 | 45 | 45 |
+| 仅剩骨架 | 44 | **0** |
+| 薄弱（<40 字） | 1（brand-detector） | 1（brand-detector，34→26 字，既有项不变） |
+| 平均主体长度 | ~33 字 | **125 字** |
+| 失效数（STOP 门槛 ≤15） | 44 → STOP | **0 → 通过** |
+
+源候选复测：45 张中仅剩骨架 0、真实但 <100 字 1（brand-detector）。消毒命中仅来自标题/goal 的署名剥离（预期行为），正文零命中。STOP 门解除，进入 197 Step 4（渲染切换，plan 210 Step 3）。
+
+---
+
+## 原始测量（2026-09-12，STOP 判定依据，存底）
+
 ## 结论（STOP 门判定）
 
 | 指标 | 数值 |

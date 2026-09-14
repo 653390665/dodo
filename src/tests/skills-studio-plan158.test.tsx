@@ -895,10 +895,10 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(screen.getByText('④ 过签与平台检查'));
     expect(screen.getByRole('heading', { name: '番茄爽文爆款完读率诊断评分仪' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '海外主流网文海外通吃爽点自检仪' })).toBeTruthy();
-    // 001 目标 5 + 004：不可用卡折叠进"需解锁"分组；45 张待消毒候选带"消毒并启用"
-    expect(screen.getAllByText('暂不可运行').length).toBeGreaterThanOrEqual(47);
-    expect(screen.getAllByText('消毒并启用').length).toBeGreaterThanOrEqual(45);
-    expect(screen.getByText(/需解锁（\d+/)).toBeTruthy();
+    // Plan 210 单源化：45 张候选已内置生成侧消毒副本——候选退出「需解锁」分组
+    // （组内仅剩 2 张非候选的平台锁定卡），「消毒并启用」运行时入口对目录候选收口。
+    expect(screen.getByText(/需解锁（2/)).toBeTruthy();
+    expect(screen.queryByText('消毒并启用')).toBeNull();
     expect(screen.queryByText('该航道暂无精品卡，敬请期待')).toBeNull();
   });
 
@@ -1763,64 +1763,27 @@ describe('Plan 158 capability center', () => {
     expect(cardHeadings.length).toBeGreaterThanOrEqual(73);
   }, 15_000);
 
-  test('010 J6 sanitize-and-enable runs the full seam: endpoint -> savedSkills -> enable -> fold exit', async () => {
-    // 端点 mock：返回消毒成功
-    const sanitizeCalls: string[] = [];
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string | URL | Request) => {
-        const assetId = String(url).split('/').pop() || '';
-        sanitizeCalls.push(assetId);
-        return {
-          ok: true,
-          json: async () => ({
-            skillId: `sanitized-${assetId}`,
-            alreadySanitized: false,
-            sanitizationHits: { contacts: 1, authors: 1, brands: 0, watermarks: 0 },
-            runtimeStatus: 'active',
-          }),
-        } as Response;
-      })
-    );
+  // Plan 210：原「010 J6 sanitize-and-enable full seam」用例删除——生成侧消毒副本
+  // 单源化后，目录候选不再有「消毒并启用」UI 入口，运行时端点
+  // POST /api/skills/sanitize 保留供未来用户自产卡场景（当前无自动化覆盖，见 210 台账）。
 
+  test('004 sanitize-required candidates ship with built-in sanitized copies', async () => {
+    const { getOptionalStyleAssets, getSanitizeRequiredAssets } = await import('../lib/capability-governance');
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();
 
-    const before = screen.getAllByRole('button', { name: '消毒并启用' }).length;
-    const btns = screen.getAllByRole('button', { name: '消毒并启用' });
-    await act(async () => {
-      fireEvent.click(btns[0]);
-    });
-    const { toast } = await import('../lib/toast');
-
-    // 端点被以候选 assetId 调用
-    await waitFor(() => expect(sanitizeCalls.length).toBeGreaterThan(0));
-    const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
-    // 启用链路走通：消毒后立即应用配置
-    await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
-    // 该卡移出需解锁分组（消毒按钮总数减少 1）
-    await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: '消毒并启用' }).length).toBe(before - 1)
-    );
-    // 撤销 toast 出现（启用链路的既有语义保持）
-    // toast 被 mock，断言调用而非渲染
-    await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith(
-        '已消毒并启用该能力卡（原作者署名与私有引用已剥离）。',
-        'success',
-        5000
-      )
-    );
-    vi.unstubAllGlobals();
-  }, 15_000);
-
-  test('004 offers sanitize-and-enable for locked candidate cards', async () => {
-    render(<SkillsStudioView selectedNovel={novel} />);
-    await openPlaza();
-
-    expect(await screen.findByText(/需解锁（\d+/)).toBeTruthy();
-    const sanitizeButtons = screen.getAllByRole('button', { name: '消毒并启用' });
-    // 46 张 sanitize-required 候选中 1 张 test-fixture 不上货架 → 45
-    expect(sanitizeButtons.length).toBeGreaterThanOrEqual(45);
+    // Plan 210 单源化：45 张候选全部带生成侧消毒副本——
+    // 候选退出需解锁分组（UI 分组断言见 author-facing 用例）、运行时消毒入口收口，
+    // 副本以正式文风卡进入可选集。
+    expect(screen.queryByRole('button', { name: '消毒并启用' })).toBeNull();
+    const optional = getOptionalStyleAssets();
+    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(45);
+    // 白标生效：副本标题不再带作者署名（如「沐殇专用克苏鲁标题」→「克苏鲁标题」）
+    const copyTitles = optional
+      .filter((asset) => asset.id === 'sanitized-private-221')
+      .map((asset) => asset.title);
+    expect(copyTitles).toEqual(['克苏鲁标题']);
+    // 无副本的候选仍会进需解锁分组（当前为 0，契约保留）
+    expect(getSanitizeRequiredAssets().length).toBe(0);
   }, 15_000);
 });
