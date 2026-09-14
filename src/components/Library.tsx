@@ -248,7 +248,8 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       a.href = url;
       a.download = `${novel.title}.txt`;
       a.click();
-      URL.revokeObjectURL(url);
+      // 延迟 revoke（对齐 download-client）：同步 revoke 在部分浏览器会使下载中断
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch {
       toast('导出失败', 'error');
     }

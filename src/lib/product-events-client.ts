@@ -62,7 +62,8 @@ export async function exportProductEvents(): Promise<void> {
   anchor.href = url;
   anchor.download = 'inkflow-product-events.json';
   anchor.click();
-  URL.revokeObjectURL(url);
+  // 延迟 revoke（对齐 download-client）：同步 revoke 在部分浏览器会使下载中断
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 export async function clearProductEvents(): Promise<void> {
   const response = await fetch('/api/product-events', { method: 'DELETE' });
