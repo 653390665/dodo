@@ -506,35 +506,70 @@ test('provider smoke reports stable sanitized outcomes without real network call
 
 test('live-only without credentials skips before processing samples', () => {
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-provider-eval-'));
+  const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-provider-eval-report-'));
   try {
     const result = spawnSync(process.execPath, [
       '--import', 'tsx', 'scripts/run-chapter-llm-acceptance.ts', '--live-only',
     ], {
       cwd: process.cwd(),
       encoding: 'utf8',
-      env: { ...process.env, INKFLOW_CONFIG_DIR: configDir, INKFLOW_SECURE_API_KEY: '', API_KEY: '' },
+      env: {
+        ...process.env,
+        INKFLOW_CONFIG_DIR: configDir,
+        INKFLOW_SECURE_API_KEY: '',
+        API_KEY: '',
+        // 报告写临时目录：SKIP 路径同样会写报告，不能污染仓库已提交的 fixture
+        INKFLOW_PROVIDER_EVAL_REPORT_DIR: reportDir,
+      },
       timeout: 15_000,
     });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), 'SKIP: provider credentials not configured');
+    assert.ok(
+      fs.existsSync(path.join(reportDir, 'chapter-llm-acceptance-report.json')),
+      'SKIP report should land in the overridden report dir'
+    );
   } finally {
     fs.rmSync(configDir, { recursive: true, force: true });
+    fs.rmSync(reportDir, { recursive: true, force: true });
   }
 });
 
 test('deterministic evaluation completes all samples and writes honest reports', async () => {
-  const result = await runChapterProviderEvaluation('deterministic');
-  assert.equal(result.exitCode, 0);
-  assert.equal(result.report.samples.length, 3);
-  assert.ok(result.report.samples.every((item) => item.status === 'FALLBACK'));
-  assert.ok(result.report.calls.every((item) => item.status === 'FALLBACK'));
-  assert.deepEqual(result.report.calls.filter((item) => item.phase === 're-audit').map((item) => item.sample), ['slop-heavy', 'action-weak']);
-  assert.deepEqual(result.report.metrics.p0EscapeRate, { value: 0, numerator: 0, denominator: 1 });
-  assert.deepEqual(result.report.metrics.p1MissRate, { value: 0, numerator: 0, denominator: 2 });
-  assert.deepEqual(result.report.metrics.polishAcceptanceRate, { value: 1, numerator: 2, denominator: 2 });
+  // 仓库 fixture 快照：评测报告只允许写进临时目录，工作区必须保持干净
+  const repoJsonPath = 'tests/fixtures/chapter-llm-acceptance-report.json';
+  const repoMarkdownPath = 'tests/fixtures/chapter-llm-acceptance-report.md';
+  const repoJsonBefore = fs.readFileSync(repoJsonPath, 'utf8');
+  const repoMarkdownBefore = fs.readFileSync(repoMarkdownPath, 'utf8');
 
-  const markdown = fs.readFileSync('tests/fixtures/chapter-llm-acceptance-report.md', 'utf8');
-  const json = fs.readFileSync('tests/fixtures/chapter-llm-acceptance-report.json', 'utf8');
-  assert.doesNotMatch(markdown, /Pure Live|95\s*\/\s*100|98\s*\/\s*100|100% 远程|完美|超凡/);
-  assert.doesNotMatch(`${markdown}\n${json}`, /configured-test-key|provider\.test|【当前任务】|完整正文/);
+  const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-provider-eval-report-'));
+  try {
+    const result = await runChapterProviderEvaluation('deterministic', { reportDir });
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.report.samples.length, 3);
+    assert.ok(result.report.samples.every((item) => item.status === 'FALLBACK'));
+    assert.ok(result.report.calls.every((item) => item.status === 'FALLBACK'));
+    assert.deepEqual(result.report.calls.filter((item) => item.phase === 're-audit').map((item) => item.sample), ['slop-heavy', 'action-weak']);
+    assert.deepEqual(result.report.metrics.p0EscapeRate, { value: 0, numerator: 0, denominator: 1 });
+    assert.deepEqual(result.report.metrics.p1MissRate, { value: 0, numerator: 0, denominator: 2 });
+    assert.deepEqual(result.report.metrics.polishAcceptanceRate, { value: 1, numerator: 2, denominator: 2 });
+
+    const markdown = fs.readFileSync(path.join(reportDir, 'chapter-llm-acceptance-report.md'), 'utf8');
+    const json = fs.readFileSync(path.join(reportDir, 'chapter-llm-acceptance-report.json'), 'utf8');
+    assert.doesNotMatch(markdown, /Pure Live|95\s*\/\s*100|98\s*\/\s*100|100% 远程|完美|超凡/);
+    assert.doesNotMatch(`${markdown}\n${json}`, /configured-test-key|provider\.test|【当前任务】|完整正文/);
+
+    assert.equal(
+      fs.readFileSync(repoJsonPath, 'utf8'),
+      repoJsonBefore,
+      'repo fixture must not be rewritten by test runs'
+    );
+    assert.equal(
+      fs.readFileSync(repoMarkdownPath, 'utf8'),
+      repoMarkdownBefore,
+      'repo fixture must not be rewritten by test runs'
+    );
+  } finally {
+    fs.rmSync(reportDir, { recursive: true, force: true });
+  }
 });

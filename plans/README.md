@@ -295,6 +295,8 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 
 **执行收口（2026-09-15，同日）**：216-223 八计划全部 DONE（214/215 维持 Round 34 Next 占位）。执行期偏差两处已记入对应行：217 走范围内升级 0.8.15 而非 overrides 强钉 ^0.9（上游补丁版落在 mammoth 自身 semver 内，零 breaking 风险）；220 Step 3 StyleShelf memo 降级为遗留（父级引用不稳定，单独 memo 无效）。前端棘轮基线按新分母重锚 66/59/59/68（222 新增 3 用例后全量 902/902）。
 
+**批后清账（2026-09-15）**：修掉「每次全量后端测试污染 tests/fixtures」的重复陷阱——根因是 provider-quality 测试的确定性/SKIP 评测把报告写回仓库 fixtures（SKIP 单跑还会覆盖已提交报告内容）。修法：`run-chapter-llm-acceptance.ts` 报告目录支持 `options.reportDir` 与 `INKFLOW_PROVIDER_EVAL_REPORT_DIR` 双通道覆盖（默认仍写 fixtures，`eval:provider-quality` 刻意重生成行为不变）；测试一律写临时目录并新增「仓库 fixture 未被动过」断言。实测：套件 22/22 绿且 git status 干净；CLI 重生成路径端到端可用。
+
 ### 审计 backlog（第三梯队，未立项，按需取用）
 
 - PERF-01：start-stream 保底草稿「假打字回放」串行推迟模型管线 0.3-1.3s（production.ts:370-385、765；与 ARCH-03 拆分同计划处理）

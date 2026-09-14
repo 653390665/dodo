@@ -157,6 +157,8 @@ export type EvaluationGenerateText = (
 
 export interface ProviderEvaluationOptions {
   generateText?: EvaluationGenerateText;
+  /** 报告输出目录覆盖（Plan 223 后续清账：测试写临时目录，仓库 fixtures 只在刻意重生成时变更）。 */
+  reportDir?: string;
 }
 
 interface AuditParseResult {
@@ -178,8 +180,19 @@ function isAuditPhase(phase: EvaluationPhase): boolean {
 
 const FIXTURES_DIR = path.join(process.cwd(), 'tests/fixtures');
 const FIXTURE_PATH = path.join(FIXTURES_DIR, 'chapter-quality-evaluation.json');
-const JSON_REPORT_PATH = path.join(FIXTURES_DIR, 'chapter-llm-acceptance-report.json');
-const MARKDOWN_REPORT_PATH = path.join(FIXTURES_DIR, 'chapter-llm-acceptance-report.md');
+
+// 报告输出目录：默认仓库 fixtures（供 eval:provider-quality 刻意重生成）；
+// 测试/CLI 经 options.reportDir 或 INKFLOW_PROVIDER_EVAL_REPORT_DIR 指到临时目录，
+// 避免每次测试运行都用新时间戳污染工作区（甚至单独跑 SKIP 用例时覆盖已提交报告）。
+const ENV_REPORT_DIR = process.env.INKFLOW_PROVIDER_EVAL_REPORT_DIR?.trim() || undefined;
+
+function resolveReportPaths(reportDir?: string): { json: string; markdown: string } {
+  const dir = path.resolve(reportDir || ENV_REPORT_DIR || FIXTURES_DIR);
+  return {
+    json: path.join(dir, 'chapter-llm-acceptance-report.json'),
+    markdown: path.join(dir, 'chapter-llm-acceptance-report.md'),
+  };
+}
 
 const P1_CODES = new Set(['duplicate-paragraph', 'symbol-noise', 'template-residue']);
 
@@ -812,8 +825,10 @@ function formatRate(rate: MetricRate): string {
   return rate.value === null ? `null (${rate.numerator}/${rate.denominator})` : `${(rate.value * 100).toFixed(1)}% (${rate.numerator}/${rate.denominator})`;
 }
 
-function writeReport(report: EvaluationReport): void {
-  fs.writeFileSync(JSON_REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+function writeReport(report: EvaluationReport, reportDir?: string): void {
+  const paths = resolveReportPaths(reportDir);
+  fs.mkdirSync(path.dirname(paths.json), { recursive: true });
+  fs.writeFileSync(paths.json, `${JSON.stringify(report, null, 2)}\n`);
   const sampleRows = report.samples.map((sample) => (
     `| ${sample.id} | ${sample.status} | ${sample.errorCode || '-'} | ${sample.qualityFindings.join(', ') || '-'} | ${sample.defectDetected ? 'yes' : 'no'} | ${sample.candidateProduced ? 'yes' : 'no'} | ${sample.accepted ? 'yes' : 'no'} |`
   )).join('\n');
@@ -854,7 +869,7 @@ ${sampleRows}
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 ${callRows || '| - | - | - | - | - | - | - | - | - | - | - | 0 | 0 |'}
 `;
-  fs.writeFileSync(MARKDOWN_REPORT_PATH, markdown);
+  fs.writeFileSync(paths.markdown, markdown);
 }
 
 export async function runChapterProviderEvaluation(
@@ -886,7 +901,7 @@ export async function runChapterProviderEvaluation(
       contractCases,
       metrics: calculateEvaluationMetrics(samples, contractCases),
     };
-    writeReport(report);
+    writeReport(report, options.reportDir);
     process.stdout.write('SKIP: provider credentials not configured\n');
     return { exitCode: 0, report };
   }
@@ -910,7 +925,7 @@ export async function runChapterProviderEvaluation(
     contractCases,
     metrics: calculateEvaluationMetrics(samples, contractCases),
   };
-  writeReport(report);
+  writeReport(report, options.reportDir);
   const failed = contractFailed || samples.some((sample) => sample.errorCode !== null);
   process.stdout.write(`REPORT: ${overallStatus}; metrics=${JSON.stringify(report.metrics)}\n`);
   return { exitCode: failed ? 1 : 0, report };
