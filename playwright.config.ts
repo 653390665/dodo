@@ -42,9 +42,11 @@ export default defineConfig({
   webServer: {
     // E2E runs against the already-built bundle so Vite middleware startup does not
     // consume the readiness budget or make startup timing-dependent.
-    // Plan 212: 前置自动构建——服务的是 dist 产物，不 build 就会测到旧代码
-    // （207 执行期实测陷阱：源码改动后 E2E 全跑在旧 bundle 上）。
-    command: 'npm run build && DISABLE_VITE_DEV_MIDDLEWARE=1 node --import tsx server.ts',
+    // Plan 212: 服务的是 dist 产物，不 build 就会测到旧代码（207 执行期实测陷阱）。
+    // Plan 223①: build.yml 与 test:all 已前置 npm run build——此处不再重复构建，
+    // 只做存在性守卫，dist 缺失时明确报错而不是静默跑旧 bundle 或起不来。
+    command:
+      'node -e "require(\'fs\').existsSync(\'dist/index.html\') || (console.error(\'dist 缺失：先运行 npm run build 再跑 E2E\'), process.exit(1))" && DISABLE_VITE_DEV_MIDDLEWARE=1 node --import tsx server.ts',
     url: 'http://localhost:3001/api/dev-auth-token',
     reuseExistingServer: false,
     // A fresh isolated SQLite database runs additive schema setup before the
