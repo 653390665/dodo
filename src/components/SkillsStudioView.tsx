@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useId } from 'react';
 import {
   BrainCircuit,
   CheckCircle2,
@@ -395,6 +395,9 @@ export function SkillsStudioView({
   // Plan 195 切片 A：外部数据库代际快照随会话簇迁 skills-configuration-store。
   const databaseGeneration = useSkillsConfigurationStore((state) => state.databaseGeneration);
   const [leavePromptOpen, setLeavePromptOpen] = useState(false);
+  // Plan 209：弹窗 aria 配对 id 改 useId 派生——多实例/测试残留 DOM 时固定 id 会串名。
+  const flowDialogTitleId = useId();
+  const leaveDialogTitleId = useId();
   const studioScrollRef = useRef<HTMLDivElement | null>(null);
   const sessionContextRef = useRef<string | null>(null);
   // Set when a context change (baseline token / generation) was caused by our
@@ -2717,7 +2720,7 @@ export function SkillsStudioView({
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="capability-flow-title"
+          aria-labelledby={flowDialogTitleId}
           data-capability-flow-dialog="true"
         >
           {/* Backdrop with backdrop-blur */}
@@ -2736,7 +2739,7 @@ export function SkillsStudioView({
                     <BrainCircuit size={18} />
                   </span>
                   <h2
-                    id="capability-flow-title"
+                    id={flowDialogTitleId}
                     className="text-xl font-serif font-bold text-theme-text"
                   >
                     {selectedFlowDetail.name}
@@ -2847,10 +2850,10 @@ export function SkillsStudioView({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="capability-leave-title"
+          aria-labelledby={leaveDialogTitleId}
         >
           <div className="w-full max-w-md rounded-xl border border-theme-border bg-theme-sidebar p-5 shadow-xl">
-            <h2 id="capability-leave-title" className="text-base font-bold text-theme-text">
+            <h2 id={leaveDialogTitleId} className="text-base font-bold text-theme-text">
               能力配置尚未应用
             </h2>
             <p className="mt-2 text-xs leading-5 text-theme-muted">

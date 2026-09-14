@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SkillsStudioView } from '../components/SkillsStudioView';
 import type { ProjectCapabilityProfile } from '../../shared/types';
 
@@ -126,7 +126,10 @@ describe('Plan 203 capability configuration session', () => {
 
     // 勾选写前规则并提交：单动词启用即应用，应用会移动 baseline（上下文漂移）。
     fireEvent.click(within(dialog).getAllByRole('checkbox')[0]);
-    fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
 
     // 豁免窗口：自家 apply 造成的上下文变化只重锚会话，不按外部漂移重置

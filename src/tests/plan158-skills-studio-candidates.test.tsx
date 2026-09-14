@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SkillsStudioView } from '../components/SkillsStudioView';
+
+// Plan 209：mock toast——真实 toast 的 5s 自动消除定时器会在测试结束后触发
+// DOM 更新，产生 act 环境已重置的假警告。
+vi.mock('../lib/toast', () => ({ toast: vi.fn() }));
 
 const { savedCards } = vi.hoisted(() => ({
   savedCards: [
@@ -126,9 +130,13 @@ const novel = {
 };
 
 async function openPackages() {
-  fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  });
   await waitFor(() => expect(screen.getByRole('tab', { name: /能力包/ })).toBeTruthy());
-  fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+  });
 }
 
 describe('Plan 158 capability candidates', () => {
@@ -196,7 +204,10 @@ describe('Plan 158 capability candidates', () => {
     expect(within(dialog).getByRole('button', { name: '启用所选' }).hasAttribute('disabled')).toBe(
       false
     );
-    fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
     expect(onNavigate).not.toHaveBeenCalledWith('editor');
   });
 
@@ -225,7 +236,10 @@ describe('Plan 158 capability candidates', () => {
       .filter((checkbox) => !checkbox.hasAttribute('disabled'));
     expect(selectable.length).toBeGreaterThan(0);
     fireEvent.click(selectable[0]);
-    fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
 
     // 单动词：启用即写入作品卡组（主卡槽位）
     const { applyCapabilityConfiguration: applyMock } =
@@ -258,7 +272,10 @@ describe('Plan 158 capability candidates', () => {
       .getByText(/先保存到我的能力，再勾选待提交/)
       .closest('div.rounded-lg') as HTMLElement;
     expect(within(importGatedRow).getByText('需先保存')).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
 
     await waitFor(() =>
       expect(
@@ -270,8 +287,12 @@ describe('Plan 158 capability candidates', () => {
     expect(within(dialog).getByText('已勾选 1 项，待提交')).toBeTruthy();
     expect(within(dialog).getByText('已勾选，待提交到本次配置')).toBeTruthy();
     expect(within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器')).toBeTruthy();
+    // Plan 209 关系断言：aria-describedby 指向 dialog 内承载禁用原因的元素（useId 派生，不再钉字面量）
+    const submitButton = within(dialog).getByRole('button', { name: '启用所选' });
+    const describedById = submitButton.getAttribute('aria-describedby');
+    expect(describedById).toBeTruthy();
     expect(
-      within(dialog).getByRole('button', { name: '启用所选' }).getAttribute('aria-describedby')
-    ).toBe('capability-package-submit-help');
+      within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器').id
+    ).toBe(describedById);
   });
 });

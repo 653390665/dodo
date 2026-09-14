@@ -117,21 +117,32 @@ vi.mock('../lib/product-events-client', () => ({
 async function settleStudio() {
   // SkillsStudio hydrates its generation/session state in an effect. Let that
   // first pass finish before asserting or clicking the tab bar.
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  // Plan 209：水合更新收进 act，消除 mount 后落空套的 act 警告。
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 async function openPlaza() {
   await settleStudio();
-  fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  });
   await waitFor(() => expect(screen.getByRole('tab', { name: /写作技法/ })).toBeTruthy());
-  fireEvent.click(screen.getByRole('tab', { name: /写作技法/ }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('tab', { name: /写作技法/ }));
+  });
 }
 
 async function openPackages() {
   await settleStudio();
-  fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /^能力商店$/ }));
+  });
   await waitFor(() => expect(screen.getByRole('tab', { name: /能力包/ })).toBeTruthy());
-  fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+  });
 }
 
 describe('Plan 158 capability center', () => {
@@ -203,7 +214,10 @@ describe('Plan 158 capability center', () => {
     };
     novelClientMock.listNovels.mockResolvedValueOnce([novelWithFlow]);
     render(<SkillsStudioView selectedNovel={novelWithFlow} />);
-    fireEvent.click(await screen.findByRole('button', { name: '能力商店' }));
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: '能力商店' }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
 
     expect(await screen.findByText('创作流程目录')).toBeTruthy();
     expect(screen.getByRole('heading', { name: '名家短篇/老福特流' })).toBeTruthy();
@@ -213,7 +227,9 @@ describe('Plan 158 capability center', () => {
     expect(screen.queryByText('名家作者流程包')).toBeNull();
     expect(screen.queryByText('高级作者流程大包')).toBeNull();
     expect(screen.queryByRole('heading', { name: '能力包' })).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /能力包/ }));
+    });
     expect(await screen.findByRole('heading', { name: '能力包' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: '创作流程目录' })).toBeNull();
     expect(screen.getByText(/勾选后点「启用所选」即生效，可撤销。/)).toBeTruthy();
@@ -403,9 +419,11 @@ describe('Plan 158 capability center', () => {
       .getByRole('heading', { name: '黄金三章核心冲突大纲展开器' })
       .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(
-      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
-    );
+    await act(async () => {
+      fireEvent.click(
+        within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+      );
+    });
 
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
@@ -442,9 +460,11 @@ describe('Plan 158 capability center', () => {
       .getByRole('heading', { name: '场景肢体动作与画面张力正文器' })
       .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(
-      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
-    );
+    await act(async () => {
+      fireEvent.click(
+        within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+      );
+    });
 
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
@@ -503,9 +523,11 @@ describe('Plan 158 capability center', () => {
       .getByRole('heading', { name: /长篇超宏大世界观设定器/ })
       .closest('div.bg-theme-sidebar');
     expect(card).not.toBeNull();
-    fireEvent.click(
-      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
-    );
+    await act(async () => {
+      fireEvent.click(
+        within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+      );
+    });
 
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     expect(onNavigate).not.toHaveBeenCalled();
@@ -543,9 +565,11 @@ describe('Plan 158 capability center', () => {
     const card = screen
       .getByRole('heading', { name: /长篇超宏大世界观设定器/ })
       .closest('div.bg-theme-sidebar');
-    fireEvent.click(
-      within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
-    );
+    await act(async () => {
+      fireEvent.click(
+        within(card as HTMLElement).getByRole('button', { name: '应用配置后设为作品默认' })
+      );
+    });
 
     expect(await screen.findByText('配置写入失败')).toBeTruthy();
     expect(onNavigate).not.toHaveBeenCalled();
@@ -1587,7 +1611,10 @@ describe('Plan 158 capability center', () => {
     const submit = within(dialog).getByRole('button', { name: '启用所选' });
     expect(submit.hasAttribute('disabled')).toBe(true);
     expect(within(dialog).getByText('请先在书库选择作品后再启用所选能力')).toBeTruthy();
-    expect(submit.getAttribute('aria-describedby')).toBe('capability-package-submit-help');
+    // Plan 209 关系断言：aria-describedby 指向 dialog 内承载禁用原因的元素（useId 派生，不再钉字面量）
+    expect(within(dialog).getByText('请先在书库选择作品后再启用所选能力').id).toBe(
+      submit.getAttribute('aria-describedby')
+    );
     expect(submit.getAttribute('title')).toBe('请先在书库选择作品后再启用所选能力');
 
     fireEvent.click(within(dialog).getByRole('button', { name: '去书库选择作品' }));
@@ -1761,7 +1788,9 @@ describe('Plan 158 capability center', () => {
 
     const before = screen.getAllByRole('button', { name: '消毒并启用' }).length;
     const btns = screen.getAllByRole('button', { name: '消毒并启用' });
-    fireEvent.click(btns[0]);
+    await act(async () => {
+      fireEvent.click(btns[0]);
+    });
     const { toast } = await import('../lib/toast');
 
     // 端点被以候选 assetId 调用

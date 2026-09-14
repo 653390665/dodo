@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import { useId } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { toast } from '../../lib/toast';
@@ -244,6 +245,9 @@ export function PackageConfigDialog({
   const savedSkills = useSkillsShelfStore((state) => state.savedSkills);
   // 组件顶部解构 ref 对象，渲染期仅附加 ref 本体（不读 current）。
   const { result: resultActionRef, apply: applyActionRef } = actionRefs;
+  // Plan 209：dialog aria 配对 id 改 useId 派生——多实例/测试残留 DOM 时固定 id 会串名。
+  const packageTitleId = useId();
+  const packageSubmitHelpId = useId();
   if (!selectedPackage) return null;
   const restricted = Boolean(
     selectedPackage.type === 'paid' && isMonetizationEnabled() &&
@@ -343,12 +347,12 @@ export function PackageConfigDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="capability-package-title"
+      aria-labelledby={packageTitleId}
     >
       <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-theme-border bg-theme-sidebar p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 id="capability-package-title" className="text-base font-bold text-theme-text">
+            <h2 id={packageTitleId} className="text-base font-bold text-theme-text">
               {selectedPackage.name}
             </h2>
             <p className="mt-1 text-xs leading-5 text-theme-muted">
@@ -679,7 +683,7 @@ export function PackageConfigDialog({
               className="w-full basis-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-700"
               role="status"
             >
-              <span id="capability-package-submit-help">{packageSubmitDisabledReason}</span>
+              <span id={packageSubmitHelpId}>{packageSubmitDisabledReason}</span>
               {!selectedNovel && (
                 <button
                   type="button"
@@ -729,7 +733,7 @@ export function PackageConfigDialog({
             className="flex-1 rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-50"
             aria-describedby={
               packageSubmitDisabledReason && packageSelections.length > 0
-                ? 'capability-package-submit-help'
+                ? packageSubmitHelpId
                 : undefined
             }
             title={packageSubmitDisabledReason || undefined}
