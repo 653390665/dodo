@@ -61,7 +61,6 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@axe-core/react": "^4.12.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@testing-library/react": "^16.3.2",
@@ -71,7 +70,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "4.1.9",
-    "autoprefixer": "^10.4.21",
     "axe-core": "^4.12.1",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
