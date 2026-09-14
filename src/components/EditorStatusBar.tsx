@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Download, FileText } from 'lucide-react';
 import { exportChapterToPdf } from '../lib/pdf-export';
 import { toast } from '../lib/toast';
@@ -53,22 +54,42 @@ export function EditorStatusBar({
           ? 'bg-green-600'
           : 'bg-gray-400';
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
+  const [exportMenuPosition, setExportMenuPosition] = React.useState<{
+    bottom: number;
+    right: number;
+  } | null>(null);
+  const exportTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const exportMenuRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (!exportMenuOpen) return;
+    // 菜单 portal 到 body + fixed 定位（plan 208）：打开时按触发按钮视口坐标锚定一次，
+    // 脱离编辑器堆叠上下文——bottom-full 弹层在 textarea 命中区之下导致 E2E/用户点不中。
+    const rect = exportTriggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setExportMenuPosition({
+        bottom: window.innerHeight - rect.top + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setExportMenuOpen(false);
     };
-    const onClick = (event: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setExportMenuOpen(false);
-      }
+    const close = () => setExportMenuOpen(false);
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (exportMenuRef.current?.contains(target)) return;
+      if (exportTriggerRef.current?.contains(target)) return;
+      setExportMenuOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('mousedown', onClick);
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
     };
   }, [exportMenuOpen]);
   const handleExport = async (format: 'epub' | 'txt') => {
@@ -98,7 +119,7 @@ export function EditorStatusBar({
 
   return (
     <div className="h-9 bg-theme-sidebar border-t border-theme-border px-4 flex items-center justify-between shrink-0 text-[11px] text-theme-muted">
-      {/* 不加 overflow-hidden：导出菜单 bottom-full 向上弹出，根节点裁剪会让菜单整个不可点（plan 199 步 1 修复） */}
+      {/* 导出菜单已 portal 到 body + fixed 定位（plan 208），命中区不再依赖状态栏堆叠/裁剪 */}
       <div className="flex items-center gap-3 min-w-0 overflow-hidden">
         {launchState?.approvedPackId && (
           <span className="inline-flex items-center rounded-full bg-theme-accent/10 px-2 py-1 text-[10px] font-bold text-theme-accent">
@@ -154,8 +175,9 @@ export function EditorStatusBar({
           </span>
         </div>
         <div className="hidden sm:block h-3 w-px bg-theme-border/50" />
-        <div ref={exportMenuRef} className="relative">
+        <div>
           <button
+            ref={exportTriggerRef}
             onClick={() => setExportMenuOpen((open) => !open)}
             aria-haspopup="menu"
             aria-expanded={exportMenuOpen}
@@ -163,10 +185,27 @@ export function EditorStatusBar({
           >
             <Download size={12} aria-hidden="true" /> 导出
           </button>
-          {exportMenuOpen ? (
+        </div>
+        <button
+          onClick={() => {
+            if (currentChapter) exportChapterToPdf(currentChapter, novelTitle);
+          }}
+          className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
+        >
+          <FileText size={12} aria-hidden="true" /> 导出 PDF
+        </button>
+      </div>
+      {exportMenuOpen && exportMenuPosition
+        ? createPortal(
             <div
+              ref={exportMenuRef}
               role="menu"
-              className="absolute bottom-full right-0 z-50 mb-1 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl"
+              style={{
+                position: 'fixed',
+                bottom: exportMenuPosition.bottom,
+                right: exportMenuPosition.right,
+              }}
+              className="z-50 min-w-[120px] rounded-xl border border-theme-border bg-theme-sidebar p-1 shadow-xl"
             >
               <button
                 type="button"
@@ -184,18 +223,10 @@ export function EditorStatusBar({
               >
                 导出 TXT
               </button>
-            </div>
-          ) : null}
-        </div>
-        <button
-          onClick={() => {
-            if (currentChapter) exportChapterToPdf(currentChapter, novelTitle);
-          }}
-          className="flex items-center gap-1 text-[11px] font-medium text-theme-accent hover:opacity-80 transition-opacity"
-        >
-          <FileText size={12} aria-hidden="true" /> 导出 PDF
-        </button>
-      </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

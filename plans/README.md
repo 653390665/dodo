@@ -272,7 +272,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 205 | 195 切片 C：货架数据 hook + CandidateTray/StyleShelf/PackageConfigDialog 拆分 | DONE（本批：useSkillsShelfData+skills-shelf-store；PlazaAssetCard/StyleShelf/CandidateTray/PackageConfigDialog 落 skills/；弹窗自订阅三 store、15 props（受限包自算，onRepreview 收口守卫）；视图 4245→2990 行净减 1255；plan158 文案守卫断言重锚新文件（语义不变）。空载全量 889/889 + mobile E2E 5/5。遗留小项：弹窗 aria-labelledby 固定 id 在多渲染残留时可串名（跑批饥饿下显形，已立项 209） | 203, 204 |
 | 206 | 小额收口：导出临时文件名 randomUUID + SSE notify 负载埋点（183 推迟项供数） | DONE（d0d0600：导出临时名 randomUUID 对齐导入侧先例，server/ Math.random 归零；notify 探针（阈值 120/分钟、5 分钟去重、可注入时钟单测）；E2E 观测窗口未触发阈值——183 generation 抑制暂无立项依据，留生产观测 | — |
 | 207 | 完成风暴修复：fact 面板自动补跑限次（needsGate 语义收窄 + once-per-candidate 兜底） | DONE（本批：effect 抽为 useCompletionAutoGate hook（src/lib/hooks/）——needsGate 收窄至「门未评估（undefined/drafting）且手上无本章 completionResult」（已评估门/已持有审阅结果不再补跑，出路在面板确认与风险接受）；attemptKey=章节+候选 runId 同键至多补跑一次，换候选重新武装；新组件回归 6 用例（风暴场景/GET 冲门/换候选/静默条件）；前端全量 895/895 + typecheck 0 + unified-creation ×2 E2E 转绿（completionCalls toBe(1) 探测通过，10 秒 283 次归零）。执行注记：E2E 服务 dist 构建产物——改源码后必须先 npm run build 再跑 E2E，否则测的是旧代码 | 199 |
-| 208 | 导出菜单 portal 化：fixed 定位脱离编辑器堆叠命中区（199 归因的 P2 小项） | TODO | — |
+| 208 | 导出菜单 portal 化：fixed 定位脱离编辑器堆叠命中区（199 归因的 P2 小项） | DONE（本批：菜单 createPortal(document.body) + fixed 定位（打开时按触发按钮 rect 锚定一次；scroll（捕获）/resize 关闭；外点判定同时豁免菜单与触发按钮）；role/aria 与导出 fetch 逻辑不变，零新依赖；新增导出菜单单测 5 用例（portal 挂载点/选中导出/Escape/外点/aria-expanded）；前端全量 900/900 + typecheck 0 + build 绿；core-flow E2E 3 连跑全绿（命中区脆弱性消除） | — |
 | 209 | 弹窗 aria id 硬化（useId 配对）+ act() 警告清理（205 遗留小项） | TODO | — |
 
 ### Round 31 说明（2026-09-12）
