@@ -279,7 +279,39 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 212 | E2E 自动 build 守卫——消灭「测旧 dist」陷阱（207 执行发现的结构性修复） | DONE（webServer.command 前置 `npm run build &&`（构建 ~7s，timeout 120s 预算充足）；实测：webServer 日志出现 vite build、mobile E2E 5/5 绿；207 行注记的结构性消除 | — |
 | 213 | plan199 尾巴终局处置：plan150 desktop 用例 + full-browser hit-target（实测仍红，2026-09-14） | DONE（终局均为**重锚至现行契约**，非归档：①plan150 desktop——生成入口整合后写法确认路由到生产工作台，orchestrate-draft（写法 409 门所在链）现经生产页签「快速模式：跳过审稿，直接生成草稿」触发；409 后按响应 resolution 置回未确认态走弹窗重确认；confirmCalls 3→2；另审计按钮已更名「立即审查」、候选面板随生成落入工作台审稿页签（style 定位器经 strict-mode 收敛为编辑器面板 first()）；②full-browser——「回到刚才章节写作」isVisible 与自动返回写作存在竞态，改 3s 容错点击；「开始 AI 审计」批量更名「立即审查/重新审查」；能力包弹窗循环段为 plan158 之前契约（加入本次配置候选已随启用即应用移除）按 STOP 条件隔离，包旅程重设计登记为遗留。plan150 3 连跑 + full-browser 3 连跑绿；**全量 E2E 29/29 绿（历史首次全绿）** | 212 |
 | 214 | 全量跑批饥饿治理——「昨绿今挂」总根因（Round 31 定性；Next 占位） | TODO | 212 |
-| 215 | 33 张 ready 条目骨架正文补齐（210 同病灶收尾；Next 占位） | TODO | 210 |
+| 215 | 33 张 ready 条目骨架正文补齐（210 同病灶收尾；Next 占位） | TODO（2026-09-15 审计增补：追加「active ⇒ 非占位正文」回归守卫步骤——现存占位入显式豁免清单锚定，防修完即回归） | 210 |
+| 216 | start-stream 质量拒绝交接修复——不可达分支激活（CORR-01：全失败场景模型草稿被静默丢弃） | TODO | — |
+| 217 | @xmldom/xmldom 钉版解阻 CI 审计门（DEPS-01/SEC-01：1 high，push main 必挂） | TODO | — |
+| 218 | start-stream 流收尾 promise 收口——防收尾写失败杀进程（CORR-03） | TODO | 216（同 catch 链，建议先行合并） |
+| 219 | AGENTS.md 测试命令地图 + test:unit 聚合（DX-01：npm test 跳过全部前端测试） | TODO | — |
+| 220 | 治理目录投影 memo 化——打字/配置路径广谱重渲源（PERF-02/03） | TODO | — |
+| 221 | 副本单源化不变式入规范 + 同名目录导出澄清（DOCS-01/02；backlog 白标单源化/governance 契约测试的前置） | TODO | — |
+| 222 | AgentWorkspace 打字路径性能——每键重渲与全文哈希消除（PERF-04） | TODO | — |
+| 223 | 第二梯队打包：双构建/revokeObjectURL/README×2/env 旋钮入册/导出 fallback 收口/prepare 警告/未用依赖/覆盖率分母（8 项独立 commit） | TODO | — |
+
+### Round 34 说明（2026-09-15）
+
+来源：`/improve` 四路并行只读审计（correctness+security 很彻底、perf+arch、coverage+dx、deps+docs+direction 各一，standard 档），主控逐条亲核承重证据后立项。**Now**：216（正确性硬伤——质量拒绝交接死代码）/217（CI 审计门即将变红）/218（收尾写失败杀进程）三个正确性安全项 + 219-223 五项 S 级清账。**backlog**（第三梯队未立项）与 **direction 备忘**见下两节。审计基线：全量 E2E 29/29、前端 899/899、后端 91.4% 行覆盖。未审计面：electron.cjs 主壳（961 行）、docs/prd 内容深度、真实 provider 评测链、移动端 UX。
+
+### 审计 backlog（第三梯队，未立项，按需取用）
+
+- PERF-01：start-stream 保底草稿「假打字回放」串行推迟模型管线 0.3-1.3s（production.ts:370-385、765；与 ARCH-03 拆分同计划处理）
+- CORR-02 + COVERAGE-07：白标清洗器 4 份漂移副本（正典 prompt-sanitizer.ts:127 / 生成脚本 cleanText / 生成文件内嵌 :7467 / 守卫镜像），运行时消毒端点不剥竞品词（221 是前置澄清）
+- ARCH-01：「runtime-ready 卡」判定谓词 4 处重复且字段集漂移（capability-governance.ts:140、SkillsStudioView:731、useBookFactory:131、skill-fusion:66）
+- ARCH-03：start-stream 单 handler 内联 ~1200 行 6 阶段（production.ts:582-1826）
+- ARCH-04：331KB 静态治理目录随编辑器 chunk 下发（EditorView.tsx:77 唯一用途是一次标题查找）
+- COVERAGE-03：governedGenerateText（LLM 唯一入口）行为分支仅静态正则守卫（governed-llm.ts:22）
+- COVERAGE-04：capability-governance 零函数级直接契约（副本选择=付费合规面；221 是前置）
+- COVERAGE-05：plan158-frontend-cleanup 378 条源码字符串断言（双向失真）
+- COVERAGE-06：EditorStatusBar 22% 覆盖（保存状态诚实展示面未测）
+- DX-05：双轨测试 helper 重复（fetch stub ×25、waitFor 双实现）
+- DEPS-02：依赖滞后分级——Electron 44 + better-sqlite3 13（用户安全面，M-L，含打包 smoke 全链）；@google/genai 2（M，三处调用点）；hf-transformers 9-30 豁免已因 v3.8.1 零公告而消解（记一行即可）；ts 7/vite 8/vitest 5 记录「现在不做」
+
+### Direction 备忘（决策性，非缺陷）
+
+- D1 能力卡质量证据闭环：benchmark-story-cards.mjs + prompt-quality.ts + score/grade 字段全在库但停在 CLI，确定性评级可做成货架证据徽章（M；真实评分烧 token 留手动触发）
+- D2 Electron 壳契约化：961 行主壳 + 5 卫星 cjs 的手写监督系统，dev/electron/packaged 三面验证；characterization test 优先的 spike（M-L）
+- D3 提示词资产可分享：210 后「治理元数据随包」已从假设变为现实约束，为 192 拍板补充新证据；导入侧白标消毒收口前不开导出（决策备忘）
 
 ### Round 33 说明（2026-09-14）
 

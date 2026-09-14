@@ -27,11 +27,18 @@
 
 ### Step 3: 重生成 + 验证 + 台账
 
-重跑生成脚本（freshness 守卫）、骨架计数归零断言、前端全量；台账落账。
+重跑生成脚本（freshness 守卫）、前端全量；台账落账。
+
+### Step 4: 回归守卫（2026-09-15 审计增补）
+
+新增守卫断言（freshness 或独立目录测试）：`runtimeStatus === 'active' ⇒ template 不以 '[商业定制专属提示词体]' 开头`。现存 33 张占位在本计划修完前先入**显式豁免清单**（数组锚定 id，修一张删一张），防止：任何人删掉一条 `realTemplates` 条目即静默降级为骨架，且全套测试保持全绿。
+
+**Verify**: 守卫测试绿；人为删除一条 realTemplates 条目 → 守卫红（突变验证后还原）
 
 ## Done criteria
 
 - [ ] rawPrivateConfigs 骨架模板归零（或仅剩显式豁免清单并有据）
+- [ ] 「active ⇒ 非占位正文」守卫断言落地（含豁免清单锚定）
 - [ ] freshness + 前端全量绿；台账落账
 
 ## STOP conditions
