@@ -42,7 +42,9 @@ export default defineConfig({
   webServer: {
     // E2E runs against the already-built bundle so Vite middleware startup does not
     // consume the readiness budget or make startup timing-dependent.
-    command: 'DISABLE_VITE_DEV_MIDDLEWARE=1 node --import tsx server.ts',
+    // Plan 212: 前置自动构建——服务的是 dist 产物，不 build 就会测到旧代码
+    // （207 执行期实测陷阱：源码改动后 E2E 全跑在旧 bundle 上）。
+    command: 'npm run build && DISABLE_VITE_DEV_MIDDLEWARE=1 node --import tsx server.ts',
     url: 'http://localhost:3001/api/dev-auth-token',
     reuseExistingServer: false,
     // A fresh isolated SQLite database runs additive schema setup before the
