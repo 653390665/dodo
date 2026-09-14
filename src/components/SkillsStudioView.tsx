@@ -74,6 +74,7 @@ import {
   getCoreDefaultGuardrailCount,
   getOptionalStyleAssets,
   getSanitizeRequiredAssets,
+  type GovernanceCapabilityType,
   type GovernanceStage,
 } from '../lib/capability-governance';
 import {
@@ -127,6 +128,10 @@ type CapabilityApplyDestination = 'return' | 'world' | 'outline';
 
 // 004：文风与正文货架总数（目录静态，模块级只算一次）。研究口径 74 含 1 张 test-fixture，实际投影 73。
 const OPTIONAL_STYLE_SHELF_COUNT = getOptionalStyleAssets().length;
+
+// Plan 220：护栏投影同样目录静态——弹窗按键重渲不再重复扫描治理目录。
+const CONFIGURABLE_GUARDRAIL_ASSETS = getConfigurableGuardrailAssets();
+const CORE_DEFAULT_GUARDRAIL_COUNT = getCoreDefaultGuardrailCount();
 
 // 004：消毒落库副本的前端占位（真实持久化以服务端消毒端点为准）。
 // 模块级纯数据构造，避免组件体内 Date.now() 触发 react-hooks/purity。
@@ -633,26 +638,36 @@ export function SkillsStudioView({
   }, [selectedCapability, selectedCategory]);
   // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
   // 004：待消毒候选卡也投影进该分组，提供"消毒并启用"入口。
-  const availableCuratedSkills = filteredCuratedSkills.filter(
-    (asset) => getCapabilityManifest(asset).runtimeStatus === 'active'
+  // Plan 220：投影收进 memo——弹窗按键重渲不再全量重筛货架与治理目录。
+  const availableCuratedSkills = useMemo(
+    () =>
+      filteredCuratedSkills.filter(
+        (asset) => getCapabilityManifest(asset).runtimeStatus === 'active'
+      ),
+    [filteredCuratedSkills]
   );
   // 已消毒（落库存在 sanitized- 副本）的候选不再出现在"需解锁"分组；
   // 消毒副本本身可在"我的能力"中查看与使用。
-  const sanitizedCloneIds = new Set(
-    savedSkills
-      .filter((skill) => String(skill.id).startsWith('sanitized-'))
-      .map((skill) => skill.parentSkillId || skill.id)
+  const sanitizedCloneIds = useMemo(
+    () =>
+      new Set(
+        savedSkills
+          .filter((skill) => String(skill.id).startsWith('sanitized-'))
+          .map((skill) => skill.parentSkillId || skill.id)
+      ),
+    [savedSkills]
   );
-  const lockedCuratedSkills = [
-    ...filteredCuratedSkills.filter(
-      (asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'
-    ),
-    ...getSanitizeRequiredAssets().filter((asset) => !sanitizedCloneIds.has(asset.id)),
-  ];
-  const capabilityTabCount = (id: CapabilityStudioTab) => {
-    if (id === 'flow') return visibleFlowCount;
-    if (id === 'packages') return visiblePackageCount;
-    if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
+  const lockedCuratedSkills = useMemo(
+    () => [
+      ...filteredCuratedSkills.filter(
+        (asset) => getCapabilityManifest(asset).runtimeStatus !== 'active'
+      ),
+      ...getSanitizeRequiredAssets().filter((asset) => !sanitizedCloneIds.has(asset.id)),
+    ],
+    [filteredCuratedSkills, sanitizedCloneIds]
+  );
+  // Plan 220：页签计数按 selectedCategory 预计算一次（原每渲染 6 次 × 每次多趟目录筛选）。
+  const shelfTabCounts = useMemo(() => {
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
       return (
@@ -662,22 +677,49 @@ export function SkillsStudioView({
           manifest.runtimeStatus === 'unavailable')
       );
     };
-    if (id === 'diagnostic-tools') {
-      return (
-        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'diagnostic').filter(isVisibleShelfAsset)
-          .length +
-        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'utility').filter(isVisibleShelfAsset).length +
-        filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'technique').filter(
-          (asset) =>
-            getCapabilityManifest(asset).output === 'transform-preview' &&
-            isVisibleShelfAsset(asset)
-        ).length
-      );
-    }
-    const assets = filterGovernedAssets(CURATED_PRODUCT_SKILLS, id).filter(isVisibleShelfAsset);
-    return id === 'technique'
-      ? assets.filter((asset) => getCapabilityManifest(asset).output !== 'transform-preview').length
-      : assets.length;
+    const countFor = (id: GovernanceCapabilityType | 'diagnostic-tools'): number => {
+      if (id === 'diagnostic-tools') {
+        return (
+          filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'diagnostic').filter(isVisibleShelfAsset)
+            .length +
+          filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'utility').filter(isVisibleShelfAsset)
+            .length +
+          filterGovernedAssets(CURATED_PRODUCT_SKILLS, 'technique').filter(
+            (asset) =>
+              getCapabilityManifest(asset).output === 'transform-preview' &&
+              isVisibleShelfAsset(asset)
+          ).length
+        );
+      }
+      const assets = filterGovernedAssets(CURATED_PRODUCT_SKILLS, id).filter(isVisibleShelfAsset);
+      return id === 'technique'
+        ? assets.filter((asset) => getCapabilityManifest(asset).output !== 'transform-preview')
+            .length
+        : assets.length;
+    };
+    const counts = {} as Record<CapabilityStudioTab, number>;
+    (
+      [
+        'technique',
+        'skill-card',
+        'diagnostic',
+        'utility',
+        'guardrail',
+        'role-skill',
+        'overlay',
+        'diagnostic-tools',
+      ] as const
+    ).forEach((id) => {
+      counts[id] = countFor(id);
+    });
+    return counts;
+  }, [selectedCategory]);
+
+  const capabilityTabCount = (id: CapabilityStudioTab) => {
+    if (id === 'flow') return visibleFlowCount;
+    if (id === 'packages') return visiblePackageCount;
+    if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
+    return shelfTabCounts[id] ?? 0;
   };
 
   const selectedPackage = selectedPackageId
@@ -1959,7 +2001,7 @@ export function SkillsStudioView({
               </button>
             </div>
             <p className="mt-2 text-sm font-semibold text-emerald-600">
-              默认 {getCoreDefaultGuardrailCount()} 条已自动生效
+              默认 {CORE_DEFAULT_GUARDRAIL_COUNT} 条已自动生效
             </p>
             <p className="mt-1 text-[11px] text-theme-muted">
               增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。
@@ -2706,7 +2748,7 @@ export function SkillsStudioView({
 
       {guardrailPolicyOpen && selectedNovel && (
         <GuardrailPolicyPanel
-          enhancedGuardrails={getConfigurableGuardrailAssets()}
+          enhancedGuardrails={CONFIGURABLE_GUARDRAIL_ASSETS}
           enabledIds={currentGuardrailIds}
           onToggle={(asset) => {
             void handleEquipAsset(asset);

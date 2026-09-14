@@ -324,8 +324,32 @@ export function getCoreDefaultGuardrailCount(): number {
 // 与沉睡目录合并后供给文风可选集；候选原貌仅保留在「需解锁」投影中。
 const RUNTIME_STYLE_CATALOG = [...PROMPT_GOVERNANCE_CATALOG, ...SANITIZED_SKILL_COPIES];
 
+// Plan 220：投影谓词模块级预计算——打字/弹窗按键路径的每次重渲不再全量扫描目录。
+const SANITIZED_COPY_IDS: ReadonlySet<string> = new Set(
+  SANITIZED_SKILL_COPIES.map((copy) => copy.id)
+);
 const hasGeneratedSanitizedCopy = (assetId: string): boolean =>
-  SANITIZED_SKILL_COPIES.some((copy) => copy.id === `sanitized-${assetId}`);
+  SANITIZED_COPY_IDS.has(`sanitized-${assetId}`);
+
+const SANITIZE_REQUIRED_CATALOG_ASSETS = PROMPT_GOVERNANCE_CATALOG.filter(
+  (asset) =>
+    asset.placementTier === 'sanitize-required' &&
+    asset.runtimeStatus === 'candidate' &&
+    asset.sanitizationStatus === 'needs-sanitization' &&
+    asset.sourceGroup !== 'test-fixture' &&
+    !hasGeneratedSanitizedCopy(asset.id)
+);
+
+// 注意：与 getSanitizeRequiredAssets 的白名单谓词刻意不同构——本判定面向单卡
+// 「消毒并启用」入口展示，历史行为不含 placementTier/sourceGroup 过滤，保持等价。
+const SANITIZE_REQUIRED_ASSET_IDS: ReadonlySet<string> = new Set(
+  PROMPT_GOVERNANCE_CATALOG.filter(
+    (asset) =>
+      asset.runtimeStatus === 'candidate' &&
+      asset.sanitizationStatus === 'needs-sanitization' &&
+      !hasGeneratedSanitizedCopy(asset.id)
+  ).map((asset) => asset.id)
+);
 
 /** 004：文风与正文卡（optional-style 且运行就绪），从沉睡目录投影到货架。 */
 export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductSkill[] {
@@ -386,14 +410,7 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
 /** 004：待消毒卡（sanitize-required candidate）投影，只进"需解锁"分组。
  * Plan 210：已有生成侧消毒副本的候选不再进本分组——其副本已作为正式文风卡可选用。 */
 export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
-  return PROMPT_GOVERNANCE_CATALOG.filter(
-    (asset) =>
-      asset.placementTier === 'sanitize-required' &&
-      asset.runtimeStatus === 'candidate' &&
-      asset.sanitizationStatus === 'needs-sanitization' &&
-      asset.sourceGroup !== 'test-fixture' &&
-      !hasGeneratedSanitizedCopy(asset.id)
-  ).map((asset) => ({
+  return SANITIZE_REQUIRED_CATALOG_ASSETS.map((asset) => ({
     id: asset.id,
     title: asset.title,
     curatedCategory: 'style' as const,
@@ -424,13 +441,8 @@ export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
 }
 
 /** 004：该资产是否为待消毒候选（决定货架卡是否展示"消毒并启用"）。
- * Plan 210：已有生成侧消毒副本的候选返回 false——不再展示运行时消毒入口。 */
+ * Plan 210：已有生成侧消毒副本的候选返回 false——不再展示运行时消毒入口。
+ * Plan 220：O(1) 查询，模块加载时预计算。 */
 export function isSanitizeRequiredAsset(assetId: string): boolean {
-  const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === assetId);
-  return Boolean(
-    asset &&
-    asset.runtimeStatus === 'candidate' &&
-    asset.sanitizationStatus === 'needs-sanitization' &&
-    !hasGeneratedSanitizedCopy(assetId)
-  );
+  return SANITIZE_REQUIRED_ASSET_IDS.has(assetId);
 }
