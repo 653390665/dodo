@@ -183,21 +183,17 @@ test('GET /api/db/export-file creates a readable snapshot and removes the temp e
   assert.deepEqual(tempExports, []);
 });
 
-test('GET /api/db/export-file falls back to an existing DB file when uninitialized', async () => {
+test('GET /api/db/export-file returns 404 instead of serving the raw file when uninitialized', async () => {
   db.closeDb();
   assert.equal(dbInstance.isDbInitialized(), false);
   assert.equal(fs.existsSync(dbPath), true);
 
+  // Plan 223⑤：WAL 未 checkpoint 时裸下发主库可能缺最新提交——未初始化时
+  // 如实 404，不再存在裸文件 fallback（docs/specs/sqlite-backup.md 精神）。
   const response = await fetch(`${baseUrl}/api/db/export-file`);
-  assert.equal(response.status, 200);
-  const fallbackPath = workspace.path('fallback-download.db');
-  fs.writeFileSync(fallbackPath, Buffer.from(await response.arrayBuffer()));
-  const fallback = openReadOnlyDb(fallbackPath);
-  try {
-    assert.equal(fallback.pragma('quick_check', { simple: true }), 'ok');
-  } finally {
-    fallback.close();
-  }
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string };
+  assert.match(body.error || '', /未就绪|初始化/);
 });
 
 test('GET /api/db/export-file returns 404 when no database file exists', async () => {

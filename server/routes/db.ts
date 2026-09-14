@@ -399,10 +399,11 @@ export function registerDbRoutes(app: Express) {
             logger.error('下载数据库备份文件失败:', err);
           }
         });
-      } else if (existsSync(DB_PATH)) {
-        res.download(DB_PATH, 'inkflow-data.db');
       } else {
-        res.status(404).json({ error: '数据文件不存在，请先初始化系统。' });
+        // Plan 223⑤：不再裸下发主库文件——WAL 未 checkpoint 时裸拷贝可能缺最新
+        // 提交，与 docs/specs/sqlite-backup.md「一律 backup() 快照」精神一致；
+        // 未初始化（无法快照）时如实 404，前端走 downloadAuthenticatedFile 错误路径。
+        res.status(404).json({ error: '数据文件未就绪，无法生成一致性导出，请先初始化系统。' });
       }
     } catch (e) {
       logger.error('导出数据库失败:', e);
