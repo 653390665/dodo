@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { logger } from '../lib/client-logger';
+import {
+  extractUnresolvedTechniqueIds,
+  stripUnresolvedTechniqueRefs,
+} from '../lib/capability-technique-cleanup';
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
@@ -1099,13 +1103,28 @@ export function SkillsStudioView({
     try {
       setConfigurationError(null);
       setConfigurationApplyFailed(false);
-      const nextProfile = buildV3CapabilityProfile(effectiveNovel, draft);
       const databaseGeneration = await getDatabaseGenerationSafe();
-      const preview = await previewCapabilityConfiguration(
+      let workingDraft = draft;
+      let preview = await previewCapabilityConfiguration(
         selectedNovel.id,
         databaseGeneration,
-        nextProfile.capabilityProfile!
+        buildV3CapabilityProfile(effectiveNovel, workingDraft).capabilityProfile!
       );
+      // 失效技法引用自动摘除：服务端预览对失效 id 降级为 warnings，
+      // 这里从草稿摘除后重新预览（预览令牌与提交配置必须一致，不能复用旧 token）。
+      const unresolvedIds = extractUnresolvedTechniqueIds(preview.warnings || []);
+      if (unresolvedIds.length > 0) {
+        workingDraft = stripUnresolvedTechniqueRefs(workingDraft, unresolvedIds);
+        setConfigurationDraft(workingDraft);
+        setConfigurationDirty(true);
+        toast(`已移除失效技法引用：${unresolvedIds.join('、')}，正在按当前配置重新应用。`, 'info');
+        preview = await previewCapabilityConfiguration(
+          selectedNovel.id,
+          databaseGeneration,
+          buildV3CapabilityProfile(effectiveNovel, workingDraft).capabilityProfile!
+        );
+      }
+      const nextProfile = buildV3CapabilityProfile(effectiveNovel, workingDraft);
       if (staleConfigurationSession) {
         setStaleConfigurationSession(false);
         setConfigurationError('草稿已按当前作品状态重新预览。请再次点击应用配置以写入作品。');

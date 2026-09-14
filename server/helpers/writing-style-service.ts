@@ -19,6 +19,7 @@ import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.
 import { resolveSkillLoadout } from '../../shared/lib/skill-model.js';
 import * as db from '../lib/db.js';
 import { isMonetizationEnabled } from './quota-guard.js';
+import { logger } from '../logger';
 import { buildSkillsPrompt } from './prompt-helpers.js';
 import {
   resolveCuratedTechniquePrompt,
@@ -430,7 +431,7 @@ function hasCapabilityV3(novel: Novel): boolean {
 }
 
 /** Validate a proposed v3 project profile without mutating the database. */
-export function validateCapabilityProfile(novelId: string, value: unknown): void {
+export function validateCapabilityProfile(novelId: string, value: unknown): string[] {
   if (!value || typeof value !== 'object')
     throw new WritingStyleRequestError(400, 'CAPABILITY_PROFILE_INVALID', '能力配置格式无效');
   const profile = value as Record<string, unknown>;
@@ -634,16 +635,23 @@ export function validateCapabilityProfile(novelId: string, value: unknown): void
       );
     }
   }
+  // 技法收藏是偏好不是刚性依赖：失效引用降级为 warnings，不再 400 锁死整个配置。
+  const warnings: string[] = [];
   if (profile.favoriteTechniqueIds !== undefined) {
-    buildTechniques(
-      resolveFavoriteTechniqueIdsFromProfile(profile, profile.favoriteTechniqueIds as string[])
+    warnings.push(
+      ...buildTechniquesResilient(
+        resolveFavoriteTechniqueIdsFromProfile(profile, profile.favoriteTechniqueIds as string[])
+      ).warnings
     );
   }
   if (profile.projectTechniqueIds !== undefined) {
-    buildTechniques(
-      resolveFavoriteTechniqueIdsFromProfile(profile, profile.projectTechniqueIds as string[])
+    warnings.push(
+      ...buildTechniquesResilient(
+        resolveFavoriteTechniqueIdsFromProfile(profile, profile.projectTechniqueIds as string[])
+      ).warnings
     );
   }
+  return warnings;
 }
 
 function resolveFavoriteTechniqueIdsFromProfile(
@@ -1050,7 +1058,11 @@ function buildGuardrails(novel: Novel): ExecutionGuardrail[] {
     });
 }
 
-function buildTechniques(ids: string[]): ExecutionTechniques {
+function buildTechniquesResilient(ids: string[]): {
+  techniques: ExecutionTechniques;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
   const techniqueIds = [
     ...new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
   ];
@@ -1061,16 +1073,18 @@ function buildTechniques(ids: string[]): ExecutionTechniques {
   };
   for (const id of techniqueIds) {
     const manifest = capabilityManifestFor(id);
-    if (!manifest) throw new WritingStyleRequestError(400, 'TECHNIQUE_NOT_FOUND', '技法不存在', id);
-    if (manifest.kind !== 'technique')
-      throw new WritingStyleRequestError(400, 'TECHNIQUE_KIND_INVALID', '该能力不是阶段技法', id);
-    if (manifest.runtimeStatus !== 'active')
-      throw new WritingStyleRequestError(
-        400,
-        'TECHNIQUE_NOT_RUNTIME_READY',
-        '阶段技法当前不可运行',
-        id
-      );
+    if (!manifest) {
+      warnings.push(`TECHNIQUE_UNRESOLVED:${id}`);
+      continue;
+    }
+    if (manifest.kind !== 'technique') {
+      warnings.push(`TECHNIQUE_KIND_INVALID:${id}`);
+      continue;
+    }
+    if (manifest.runtimeStatus !== 'active') {
+      warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
+      continue;
+    }
     const catalog = PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id);
     const runtimePrompt = resolveRuntimeCuratedPrompts([
       {
@@ -1095,12 +1109,8 @@ function buildTechniques(ids: string[]): ExecutionTechniques {
         )
       : Boolean(prompt);
     if (!canRun) {
-      throw new WritingStyleRequestError(
-        400,
-        'TECHNIQUE_NOT_RUNTIME_READY',
-        '阶段技法当前不可运行',
-        id
-      );
+      warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
+      continue;
     }
     for (const stage of manifest.stages) {
       result[stage].push({
@@ -1112,7 +1122,7 @@ function buildTechniques(ids: string[]): ExecutionTechniques {
       });
     }
   }
-  return result;
+  return { techniques: result, warnings };
 }
 
 function resolveFavoriteTechniqueIds(novel: Novel): string[] {
@@ -1488,7 +1498,17 @@ export function resolveWritingStyleRequest(
         : pack
           ? 'continuation-pack'
           : 'default');
-  const techniques = buildTechniques([...projectTechniqueIds, ...chapterTechniqueIds]);
+  const techniqueBuild = buildTechniquesResilient([
+    ...projectTechniqueIds,
+    ...chapterTechniqueIds,
+  ]);
+  if (techniqueBuild.warnings.length > 0) {
+    logger.warn(
+      'Writing style resolution skipped unavailable technique references:',
+      techniqueBuild.warnings
+    );
+  }
+  const techniques = techniqueBuild.techniques;
   const writerSnapshot = writerSkill
     ? {
         id: writerSkill.id,

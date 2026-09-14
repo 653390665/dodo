@@ -111,7 +111,8 @@ export function registerWritingStyleRoutes(app: Express): void {
           .json({ code: 'DATABASE_GENERATION_MISMATCH', error: '数据库已变化，请刷新后重试' });
       try {
         const profile = normalizeCapabilityProfile(req.body.capabilityProfile);
-        validateCapabilityProfile(req.params.novelId as string, profile);
+        // Plan 追加（技法容错）：失效技法引用降级为 warnings，不再 400 锁死配置。
+        const warnings = validateCapabilityProfile(req.params.novelId as string, profile);
         const previewToken = randomUUID();
         configurationPreviews.set(previewToken, {
           novelId: req.params.novelId as string,
@@ -123,7 +124,7 @@ export function registerWritingStyleRoutes(app: Express): void {
           previewToken,
           databaseGeneration: req.body.databaseGeneration,
           profile,
-          warnings: [],
+          warnings,
           conflicts: [],
         });
       } catch (error) {

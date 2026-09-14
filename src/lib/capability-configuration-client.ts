@@ -44,7 +44,7 @@ export function previewCapabilityConfiguration(
   novelId: string,
   databaseGeneration: number,
   capabilityProfile: ProjectCapabilityProfile
-): Promise<{ previewToken: string; databaseGeneration: number }> {
+): Promise<{ previewToken: string; databaseGeneration: number; warnings?: string[] }> {
   const payload: ConfigurationPayload = { databaseGeneration, capabilityProfile };
   return request(
     `/api/novels/${encodeURIComponent(novelId)}/capabilities/configuration/preview`,

@@ -152,7 +152,7 @@ test('capability configuration rejects guardrail candidates that cannot run as s
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
 });
 
-test('capability configuration rejects non-technique favorite capabilities before saving', async () => {
+test('capability configuration reports non-technique favorite capabilities as warnings', async () => {
   closeDb(); initDb(':memory:');
   createNovel({ id: 'config-technique', title: 'Config', authorId: 'local', summary: '', status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], projectPreferenceProfile: profile(), createdAt: 1, updatedAt: 1 });
   const app = express(); app.use(express.json()); registerWritingStyleRoutes(app);
@@ -164,8 +164,10 @@ test('capability configuration rejects non-technique favorite capabilities befor
       databaseGeneration: generation,
       capabilityProfile: { ...profile().capabilityProfile, favoriteTechniqueIds: ['style-ancient-elegance'] },
     }) });
-    assert.equal(response.status, 400);
-    assert.equal((await response.json() as { code: string }).code, 'TECHNIQUE_KIND_INVALID');
+    // 技法收藏是偏好不是刚性依赖：非技法/失效引用降级为 warnings，不再 400 锁死配置
+    assert.equal(response.status, 200);
+    const body = await response.json() as { warnings: string[] };
+    assert.deepEqual(body.warnings, ['TECHNIQUE_KIND_INVALID:style-ancient-elegance']);
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
 });
 
@@ -210,5 +212,33 @@ test('capability configuration persists a normalized source-to-skill membership 
     const rejected = await fetch(`${base}/api/novels/config-membership/capabilities/configuration/preview`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ databaseGeneration: generation, capabilityProfile: mismatch }) });
     assert.equal(rejected.status, 400);
     assert.equal((await rejected.json() as { code: string }).code, 'CAPABILITY_MEMBERSHIP_MISMATCH');
+  } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
+});
+
+test('capability configuration degrades unknown technique references to warnings instead of rejecting', async () => {
+  closeDb(); initDb(':memory:');
+  createNovel({ id: 'config-stale-technique', title: 'Config', authorId: 'local', summary: '', status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], projectPreferenceProfile: profile(), createdAt: 1, updatedAt: 1 });
+  const app = express(); app.use(express.json()); registerWritingStyleRoutes(app);
+  const server = app.listen(0); await new Promise<void>((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  try {
+    const generation = getDatabaseGeneration();
+    // 模拟历史草稿：收藏引用了服务端 manifest 解析不出的技法 id（曾以 400「技法不存在」锁死配置）
+    const capabilityProfile = {
+      ...profile().capabilityProfile,
+      favoriteTechniqueIds: ['square-183', 'sanitized-gone-card'],
+      projectTechniqueIds: ['legacy-technique-id'],
+    };
+    const preview = await fetch(`${base}/api/novels/config-stale-technique/capabilities/configuration/preview`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ databaseGeneration: generation, capabilityProfile }) });
+    assert.equal(preview.status, 200);
+    const previewBody = await preview.json() as { previewToken: string; warnings: string[] };
+    assert.ok(
+      previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:square-183') &&
+      previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:sanitized-gone-card') &&
+      previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:legacy-technique-id'),
+      `warnings should name every unresolved id, got: ${JSON.stringify(previewBody.warnings)}`
+    );
+    const applied = await fetch(`${base}/api/novels/config-stale-technique/capabilities/configuration/apply`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ databaseGeneration: generation, previewToken: previewBody.previewToken, capabilityProfile }) });
+    assert.equal(applied.status, 200);
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
 });
