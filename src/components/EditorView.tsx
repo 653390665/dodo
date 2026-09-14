@@ -30,6 +30,7 @@ import { WritingSurface } from './WritingSurface';
 import { WritingStyleControl } from './WritingStyleControl';
 import { EditorModals, EditorModalsHandle } from './EditorModals';
 import { useEditorData } from '../lib/hooks/useEditorData';
+import { useCompletionAutoGate } from '../lib/hooks/useCompletionAutoGate';
 import { useChapterProductionFlow } from '../lib/hooks/useChapterProductionFlow';
 import { listChapterProductionRunBadges } from '../lib/chapter-production-db-client';
 import { getChapterVersion, type ChapterVersionMeta } from '../lib/chapter-client';
@@ -1239,27 +1240,33 @@ export function EditorView({
   );
 
   // When a fact-candidate panel appears for a chapter whose completion gate
-  // hasn't been evaluated yet (e.g. right after accepting a production run),
-  // run the completion review once so the gate — and with it the fact
-  // confirm button — becomes actionable instead of permanently disabled.
+  // hasn't been evaluated yet (undefined/drafting, e.g. right after accepting
+  // a production run), run the completion review once so the gate — and with
+  // it the fact confirm button — becomes actionable instead of permanently
+  // disabled. review-required/needs-action 已属评估结果：出路在面板确认或
+  // 重试按钮，不在重跑（Plan 207——原先把已评估门也视为待补跑，effect 自激
+  // 循环 10 秒打出 283 次 POST /complete）。
   const factPanelNeedsGate = Boolean(
     completionFactCandidate &&
     completionChapterId === currentChapter?.id &&
     currentChapter &&
-    currentChapter.workflowMeta?.completionGate !== 'ready' &&
-    currentChapter.workflowMeta?.completionGate !== 'accepted-risk'
+    // 手上已持有本章审阅结果 = 门已评估（GET 刷新可能把乐观门冲回未评估态，
+    // 但审阅区已在展示评估结果——出路在风险接受/事实确认，不再打 POST）。
+    !(completionResult && completionChapterId === currentChapter.id) &&
+    (currentChapter.workflowMeta?.completionGate === undefined ||
+      currentChapter.workflowMeta?.completionGate === 'drafting')
   );
-  React.useEffect(() => {
-    if (!factPanelNeedsGate || isCompletingChapter) return;
-    // handleCompleteChapter flips completionRequestInFlightRef/setIsCompletingChapter
-    // synchronously; defer so the effect body isn't a direct setState-in-effect.
-    const timer = window.setTimeout(() => {
-      if (!factPanelNeedsGate || isCompletingChapter) return;
+  useCompletionAutoGate({
+    needsGate: factPanelNeedsGate,
+    inFlight: isCompletingChapter,
+    attemptKey:
+      completionFactCandidate && completionChapterId
+        ? `${completionChapterId}:${completionFactCandidate.runId}`
+        : null,
+    onComplete: () => {
       void handleCompleteChapter();
-    }, 0);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the pending panel or busy flag changes
-  }, [factPanelNeedsGate, isCompletingChapter]);
+    },
+  });
 
   const handleOpenCompletionFacts = React.useCallback(async () => {
     const runId = currentChapter?.workflowMeta?.factCandidateRunId;
