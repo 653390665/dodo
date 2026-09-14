@@ -497,3 +497,111 @@ test('start-stream hands a quality-rejected model draft to review instead of dro
     else process.env.INKFLOW_ENABLE_MONETIZATION = previousMonetization;
   }
 });
+
+test('start-stream finalizer write failure degrades instead of killing the process', async () => {
+  const db = await import('../server/lib/db');
+  const { getConfig } = await import('../server/lib/config');
+  const novelId = 'prod-finalizer-failure';
+  await setupNovel(novelId);
+  const fingerprint = styleFingerprints.get(novelId);
+
+  // Same pollution as the handoff test: intent keeps the route fallback
+  // unpersisted, worldRules makes every pipeline fallback construction fail,
+  // and the fetch mock never yields a model draft — so the pipeline rejects
+  // with a plain gate error and the finalizer must mark the run failed.
+  db.updateNovel(novelId, {
+    worldRules: '潮汐城的旧契约在午夜生效并反噬违约者\u0007',
+  });
+
+  const previousEnv = process.env.NODE_ENV;
+  const previousMonetization = process.env.INKFLOW_ENABLE_MONETIZATION;
+  const config = getConfig();
+  const originalKey = config.apiKey;
+  const originalFetch = globalThis.fetch;
+  process.env.NODE_ENV = 'development';
+  process.env.INKFLOW_ENABLE_MONETIZATION = 'true';
+  config.apiKey = 'finalizer-failure-key';
+
+  // The first pipeline fetch (planner) blocks until the test has closed the
+  // database, guaranteeing the finalizer runs against a closed DB.
+  let releasePipeline: () => void = () => {};
+  const pipelineGate = new Promise<void>((resolve) => {
+    releasePipeline = resolve;
+  });
+  let fetchCallCount = 0;
+  const httpFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    fetchCallCount += 1;
+    if (fetchCallCount === 1) await pipelineGate;
+    throw new Error('provider unavailable');
+  }) as typeof fetch;
+
+  const unhandled: unknown[] = [];
+  const onUnhandledRejection = (reason: unknown) => {
+    unhandled.push(reason);
+  };
+  process.on('unhandledRejection', onUnhandledRejection);
+
+  try {
+    const response = await httpFetch(`${baseUrl}/api/chapter-production-runs/start-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novelId,
+        targetChapterId: '',
+        userIntent: '雨夜码头追击走私船行动\u0007',
+        continuationPackId: '',
+        styleConfirmationFingerprint: fingerprint,
+      }),
+    });
+    assert.equal(response.status, 200);
+
+    // Phase 1 is done once the fallback provenance event arrives; the async
+    // pipeline starts right after.
+    const reader = response.body?.getReader();
+    assert.ok(reader);
+    const decoder = new TextDecoder();
+    let received = '';
+    while (!received.includes('"type":"fallback_continuity"')) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      received += decoder.decode(chunk.value, { stream: true });
+    }
+
+    // Close the database so the finalizer write genuinely fails.
+    db.closeDb();
+    releasePipeline();
+
+    // Drain the rest of the stream manually (the body was already opened via
+    // the reader above, so response.text() is unavailable).
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      received += decoder.decode(chunk.value, { stream: true });
+    }
+    // The stream still terminates with a proper error event instead of
+    // hanging or crashing (the pipeline rejected with the fallback gate
+    // error, so the quality-failure message is expected here).
+    assert.match(received, /模型正文也未通过质量门禁，请重试或调整写法。/);
+    assert.match(received, /"type":"error"/);
+    // The finalizer write and refund failures were downgraded to logs —
+    // no unhandledRejection reached the process.
+    assert.equal(unhandled.length, 0);
+
+    // The failure path was actually exercised: the decision-record write
+    // threw, so the run never left 'running'.
+    db.initDb(databasePath);
+    const [run] = db.listChapterProductionRuns(novelId);
+    assert.ok(run);
+    assert.equal(run.status, 'running');
+    assert.equal(db.listChapterProductionRunVersions(run.id).length, 0);
+  } finally {
+    process.off('unhandledRejection', onUnhandledRejection);
+    globalThis.fetch = originalFetch;
+    config.apiKey = originalKey;
+    if (previousEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnv;
+    if (previousMonetization === undefined) delete process.env.INKFLOW_ENABLE_MONETIZATION;
+    else process.env.INKFLOW_ENABLE_MONETIZATION = previousMonetization;
+  }
+});

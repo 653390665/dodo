@@ -1170,7 +1170,11 @@ export function registerProductionRoutes(app: Express) {
                 } catch (writeError) {
                   logger.error('Failed to mark aborted production run:', writeError);
                 }
-                await refundQuota(reservationId);
+                try {
+                  await refundQuota(reservationId);
+                } catch (refundError) {
+                  logger.error('Failed to refund aborted production reservation:', refundError);
+                }
               }
               cleanupStream();
               return;
@@ -1196,13 +1200,25 @@ export function registerProductionRoutes(app: Express) {
               }
             }
             if (!fallbackPersisted) {
-              await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
-                db.updateChapterProductionRun(runId!, {
-                  status: 'failed',
-                  errorMessage: err instanceof Error ? err.message : String(err),
+              // Finalizer writes must never escape this handler: a failed
+              // decision record or refund is a local, degradeable fault, while
+              // an unhandledRejection here would take down the whole process
+              // (server.ts exits on unhandled rejections).
+              try {
+                await runInSerializedWriteForGeneration(streamDatabaseGeneration, () => {
+                  db.updateChapterProductionRun(runId!, {
+                    status: 'failed',
+                    errorMessage: err instanceof Error ? err.message : String(err),
+                  });
                 });
-              });
-              await refundQuota(reservationId);
+              } catch (writeError) {
+                logger.error('Failed to mark failed production run:', writeError);
+              }
+              try {
+                await refundQuota(reservationId);
+              } catch (refundError) {
+                logger.error('Failed to refund production reservation:', refundError);
+              }
               const qualityFailure =
                 err instanceof Error && err.message.startsWith('DRAFT_QUALITY_GATE_FAILED:');
               const violations =
@@ -1235,6 +1251,12 @@ export function registerProductionRoutes(app: Express) {
             });
             cleanupStream();
             res.end();
+          })
+          // Terminal safety net: the finalizer above is the end of the
+          // promise chain, so anything it throws would surface as an
+          // unhandledRejection and kill the process.
+          .catch((hookError) => {
+            logger.error('production stream finalizer failed:', hookError);
           });
 
         // NOTE: stream stays open; heartbeat keeps connection alive until AI pipeline completes
