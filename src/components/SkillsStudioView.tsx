@@ -139,6 +139,12 @@ const OPTIONAL_STYLE_SHELF_COUNT = getOptionalStyleAssets().length;
 const CONFIGURABLE_GUARDRAIL_ASSETS = getConfigurableGuardrailAssets();
 const CORE_DEFAULT_GUARDRAIL_COUNT = getCoreDefaultGuardrailCount();
 
+// Plan 230：新用户保底配置——官方去AI味卡（95 分）+ 官方主流程；护栏 12 条 core-default 已自动生效。
+const STARTER_PROFILE_PRESET = {
+  activeFlowId: 'xiaofeiji-novel-flow',
+  favoriteTechniqueIds: ['de-ai-tells-guard'],
+};
+
 // 004：消毒落库副本的前端占位（真实持久化以服务端消毒端点为准）。
 // 模块级纯数据构造，避免组件体内 Date.now() 触发 react-hooks/purity。
 function buildSanitizedSkillStub(asset: CuratedProductSkill, timestamp: number): Skill {
@@ -871,6 +877,14 @@ export function SkillsStudioView({
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [configurationApplyFailed, setConfigurationApplyFailed] = useState(false);
   const [isApplyingConfiguration, setIsApplyingConfiguration] = useState(false);
+  // Plan 230：零配置检测——收藏/流程/卡组全空且没有待应用草稿时，提供保底配置导购。
+  const isStarterEligible =
+    Boolean(selectedNovel) &&
+    !configurationDirty &&
+    !staleConfigurationSession &&
+    (capabilityProfile?.favoriteTechniqueIds?.length ?? 0) === 0 &&
+    !capabilityProfile?.activeFlowId &&
+    !capabilityProfile?.projectSkillDeck?.mainCardId;
   const projectDeckIds = getProjectDeckIds(configurationDraft || capabilityProfile);
   const deckSummaryCards = [
     { slot: '主卡', id: (configurationDraft || capabilityProfile)?.projectSkillDeck.mainCardId },
@@ -2123,6 +2137,30 @@ export function SkillsStudioView({
               <p className="mt-2 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-xs leading-5 text-theme-text">
                 {stageLaunchHint}
               </p>
+            )}
+            {isStarterEligible && (
+              <div
+                className="mt-3 rounded-xl border border-theme-accent/30 bg-theme-accent/5 p-3"
+                data-testid="starter-config-card"
+              >
+                <p className="text-xs leading-5 text-theme-text">
+                  保底配置：官方去 AI 味规则卡（95 分）+ 长篇商业连载流程；护栏默认已生效。
+                </p>
+                <button
+                  type="button"
+                  data-testid="apply-starter-config"
+                  onClick={() => {
+                    const presetProfile =
+                      buildV3CapabilityProfile(effectiveNovel, STARTER_PROFILE_PRESET)
+                        .capabilityProfile;
+                    if (presetProfile) void applyConfiguration(true, 'return', presetProfile);
+                  }}
+                  disabled={isApplyingConfiguration}
+                  className="mt-2 w-full rounded-lg bg-theme-accent px-3 py-2 text-xs font-bold text-theme-accent-contrast disabled:opacity-60"
+                >
+                  {isApplyingConfiguration ? '正在套用…' : '套用保底配置并返回写作'}
+                </button>
+              </div>
             )}
             {returnHint && <p className="mt-2 text-xs leading-5 text-theme-muted">{returnHint}</p>}
             <button
