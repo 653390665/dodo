@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock, Loader2, Play, XCircle } from 'luci
 
 import type { ChapterProductionRun } from '../../shared/types';
 import { listChapterProductionRuns } from '../lib/chapter-production-db-client';
+import { buildCapabilityReceipt } from '../lib/capability-receipt';
 import { ChapterFactCandidateReview } from './ChapterFactCandidateReview';
 import { applyChapterFactCandidate, previewChapterFactCandidate } from '../lib/chapter-fact-client';
 import type { ChapterFactCandidate } from '../../shared/types/chapter-facts';
@@ -111,6 +112,10 @@ export function ProductionRunReview({
   const factCandidateRunId = displayRun?.id;
   const factCandidateRunStatus = displayRun?.status;
   const factCandidateGeneration = displayRun?.continuityReport.databaseGeneration;
+  // Plan 224 回执出口：本次生成实际消费的能力清单（旧 run 无回执时整条静默）。
+  const capabilityReceipt = buildCapabilityReceipt(
+    displayRun?.continuityReport.executionReceipt?.capabilityRefs
+  );
 
   const loadHistory = useCallback(async () => {
     if (!novelId) return;
@@ -422,6 +427,32 @@ export function ProductionRunReview({
                 </div>
               ) : null}
             </section>
+            {capabilityReceipt.length > 0 ? (
+              <section>
+                <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">
+                  能力回执
+                </div>
+                <div
+                  className="mt-2 flex flex-wrap gap-1.5"
+                  data-testid="capability-receipt"
+                  role="status"
+                >
+                  {capabilityReceipt.map((entry) => (
+                    <span
+                      key={entry.id}
+                      title={
+                        entry.resolved
+                          ? '本次生成实际消费的能力'
+                          : `能力 ${entry.id} 已不在目录中`
+                      }
+                      className="rounded-full border border-theme-border bg-theme-bg/60 px-2 py-0.5 text-[10px] font-bold text-theme-muted"
+                    >
+                      {entry.title}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <section>
               <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">
                 连续性问题

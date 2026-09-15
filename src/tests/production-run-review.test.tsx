@@ -357,3 +357,28 @@ describe('ProductionRunReview', () => {
     expect(screen.queryByRole('button', { name: '开始生产一章' })).toBeNull();
   });
 });
+
+test('renders capability receipt chips when the run carries an execution receipt', async () => {
+  listChapterProductionRunsMock.mockResolvedValue([]);
+  const run = createRun('receipt-run', 'review_required', completeDraft('回执样本'));
+  (run.continuityReport as unknown as { executionReceipt: unknown }).executionReceipt = {
+    version: 1 as const,
+    capabilityRefs: ['core-slop-shield', 'xiaofeiji-novel-flow', 'gone-card-900'],
+    writingStyleFingerprint: 'fp',
+    contextDimensions: ['world'],
+    contextRefs: [],
+  };
+  renderReview(run, false);
+  const receipt = await screen.findByTestId('capability-receipt');
+  expect(receipt.textContent).toContain('去 AI 腔与废话净化器');
+  expect(receipt.textContent).toContain('长篇商业连载流程');
+  expect(receipt.textContent).toContain('gone-card-900');
+});
+
+test('omits the capability receipt section for legacy runs without a receipt', async () => {
+  listChapterProductionRunsMock.mockResolvedValue([]);
+  const run = createRun('legacy-run', 'review_required', completeDraft('无回执样本'));
+  renderReview(run, false);
+  await waitFor(() => expect(screen.getByRole('button', { name: /接受并写入/ })).toBeTruthy());
+  expect(screen.queryByTestId('capability-receipt')).toBeNull();
+});
