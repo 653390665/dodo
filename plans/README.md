@@ -296,10 +296,10 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 229 | 系列套牌——系列实体化 + 套内有序 + 同工位互斥（克苏鲁/宝可梦系列的序性从未被系统表达） | DONE（63f2182：套牌卡面（名称/张数/工位/套牌第N张·工位序号标注/整剂启用/从第N张继续）；发现目录序≠工序序（克苏鲁正文在目录排世界观光之前）→ 套内改工位推进序+工位内标题细分排序，整剂启用按工序序入草稿；handleApplyDeck 批量+一次应用，选用前 detectStationConflicts 阻断并说明（互斥只约束套牌卡，非套牌卡保留自由组合）；groupStyleShelf 套牌识别单源化到 craft 签名（顺带修复：extractSeriesKey 缺品牌前缀规则，克苏鲁/宝可梦无连字符卡此前从未归组）；PlazaAssetCard 套牌归属提示。套牌 5 例 + 前端全量 930/930） | 227 |
 | 230 | 新用户保底配置——一键「套用推荐配置」+ 空状态导购（F1：145 张卡对零导购的死状态） | DONE（3c473c6：STARTER_PROFILE_PRESET（小飞机流程+去AI味护栏）+ starter-config-card 一键套用；isStarterEligible 判定） | 225 |
 | 231 | 占位文案治理——47 张广场卡真实定位补写或退稿隔离（A2：`发挥广场精品提示词`×47） | DONE（7f23934：squareGoals 47 条真实定位语逐张补写；STOP 评估：空模板是解耦运行时设计（210 真实模板存在）而非占位缺陷，保留并按卡面说明改写 goal；catalog-copy-uniqueness 守护零占位+跨卡唯一） | 225 |
-| 232 | 套牌准入白名单 + 品牌双政策统一——空标题卡/括号破损/名实不符/假套牌四症状同修（第二诊·病根 A） | TODO | — |
-| 233 | 目录准入规则 + 源头文案修复——垃圾标题卡不入册 + `and fallback profile` 改写（第二诊·病根 B） | TODO | — |
-| 234 | 消毒副本文案变体——构建期按类别改写，消除「同一句话墙」（第二诊·病根 C） | TODO | 233 |
-| 235 | 导购前置——无作品态保底可见性 + 零收藏能力卡地图前置（第二诊·缺口 D） | TODO | — |
+| 232 | 套牌准入白名单 + 品牌双政策统一——空标题卡/括号破损/名实不符/假套牌四症状同修（第二诊·病根 A） | DONE（04c10b5：extractSeriesId 改白名单准入（克苏鲁/宝可梦/锅盖/猫头鹰/一次一章；CONFIRMED_BRACKET_SERIES 预留）；Step 1 枚举核对——【风华出品】25张混装/lwl 13张上传者杂集/【小飞鸡】6张三步与长篇混装均非连贯方子不入册；括号套牌名补全闭括号；getOptionalStyleAssets 过滤渲染剥空标题卡（sanitized-private-186 fire角色定制，过滤判定与渲染路径同源用 public-skill-catalog 版 sanitizer——两份 sanitizer 实现合一为遗留债）；StyleShelf misc:* 显示「其他」。craft 非白名单断言 + plan158 45→44 重锚 + capability-shelf 夹具重锚） | — |
+| 233 | 目录准入规则 + 源头文案修复——垃圾标题卡不入册 + `and fallback profile` 改写（第二诊·病根 B） | DONE（f01058d：生成器准入——垃圾标题边界匹配/渲染剥空镜像检查/标准化标题去重（保底过「番茄正文过保底2」），排除计数留痕；45→38 张副本（排除 6 张垃圾 13.3%≤15% STOP 线 + 去重 1 张）；发现候选直接从源目录进前端，前端 SANITIZE_REQUIRED 双谓词同规则准入+同键冗余兜底（private-170 不回落需解锁）；creative-* 定位语改纯中文；freshness 镜像同步重锚 45→38 + catalog-copy-uniqueness 三断言） | — |
+| 234 | 消毒副本文案变体——构建期按类别改写，消除「同一句话墙」（第二诊·病根 C） | DONE（8cc2373：商业词正则抽 shared COMMERCIAL_COPY_PATTERN 单源；buildSanitizedCopy 构建期改写——goal 按 primaryCategory 桶轮换变体（卡名入文案），signal 改写为短效果声明，37 处改写后 38/38 goal 互异，「同一句话墙」消除；运行时替换不再触发（保留兜底）；freshness 镜像同步（计数器归零后字节对比）+ 无商业词/同句≤6 两断言） | 233 |
+| 235 | 导购前置——无作品态保底可见性 + 零收藏能力卡地图前置（第二诊·缺口 D） | DONE（概览「当前作品」卡无作品时展示 cold-start-guide（保底配置预览+先选作品指引，应用语义不变）；概览新增 skill-map-preview 静态指引卡（零收藏可见，SkillMapPanel 零收藏返回 null 按 STOP 预案降级纯静态）；新节点全 testid additive；组件测试 2 例） | — |
 
 ### Round 36 说明（2026-09-16）
 
