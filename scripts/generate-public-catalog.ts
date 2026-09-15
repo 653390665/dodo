@@ -98,18 +98,75 @@ function sanitizeCopyText(text: string | undefined): string {
   return text ? cleanText(text) : '';
 }
 
+// ─── Plan 233 目录准入规则（生成侧守门，排除动作全部留痕）────────────────────
+// 垃圾标题：测试/内测卡与 test 边界匹配——只拦「以测试开头/结尾」「以内测开头/结尾」
+// 与整名等值，不误伤语义完整标题（如「A/B 测试设计器」不在本目录域）。
+const JUNK_TITLE_PATTERN = /(^测试)|(^内测)|(^test)|(测试$)|(内测$)|(test$)/i;
+
+// 镜像渲染路径那份 sanitizeWhiteLabelText（public-skill-catalog 生成副本，含
+// 「X出品/X专用/X定制/X私有化/X自用」通配剥除）的品牌剥除规则：整名被剥空的卡
+// 上架即空标题卡（如 private-186「fire角色定制」），源头不入册。
+function renderPathTitleCollapsesToEmpty(title: string): boolean {
+  return (
+    !title
+      .replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/g, '')
+      .replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '')
+      .trim()
+      ? true
+      : false
+  );
+}
+
+// 标准化去重键：去空白 + 去结尾数字（「番茄正文过保底」vs「…2」这类改名重投）。
+function normalizedTitleKey(title: string): string {
+  return title.replace(/\s+/g, '').replace(/\d+$/, '');
+}
+
 function collectSanitizeCandidates(): GovernedPromptAsset[] {
   const seen = new Set<string>();
   const merged = [...GOVERNED_ASSETS_V2_REGISTRY, ...PROMPT_GOVERNANCE_CATALOG].filter((asset) =>
     seen.has(asset.id) ? false : (seen.add(asset.id), true)
   );
-  return merged.filter(
+  const eligible = merged.filter(
     (asset) =>
       asset.placementTier === 'sanitize-required' &&
       asset.sanitizationStatus === 'needs-sanitization' &&
       asset.runtimeStatus === 'candidate' &&
       asset.sourceGroup !== 'test-fixture'
   );
+  const junk = eligible.filter(
+    (asset) =>
+      JUNK_TITLE_PATTERN.test(asset.title.trim()) ||
+      renderPathTitleCollapsesToEmpty(asset.title.trim())
+  );
+  if (junk.length > 0) {
+    console.log(
+      `Excluded ${junk.length} junk-title candidates: [${junk.map((a) => a.id).join(', ')}]`
+    );
+  }
+  const kept = eligible.filter((asset) => !junk.includes(asset));
+  // 标准化标题去重：同键保留分高者，平分保留标题更短者（原始版优于数字后缀版）。
+  const byKey = new Map<string, GovernedPromptAsset>();
+  const dups: string[] = [];
+  for (const asset of kept) {
+    const key = normalizedTitleKey(asset.title);
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, asset);
+      continue;
+    }
+    const challenger =
+      (asset.score || 0) > (current.score || 0) ||
+      ((asset.score || 0) === (current.score || 0) && asset.title.length < current.title.length)
+        ? asset
+        : current;
+    dups.push((challenger === asset ? current : asset).id);
+    byKey.set(key, challenger);
+  }
+  if (dups.length > 0) {
+    console.log(`Deduped ${dups.length} normalized-title duplicates: [${dups.join(', ')}]`);
+  }
+  return kept.filter((asset) => byKey.get(normalizedTitleKey(asset.title)) === asset);
 }
 
 function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
@@ -138,8 +195,29 @@ function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
 function generate() {
   console.log('Starting white-label physical catalog sanitization pipeline...');
 
-  const publicAssetsRegistry = GOVERNED_ASSETS_V2_REGISTRY.filter(isPublicRuntimeAsset);
-  const publicCatalog = PROMPT_GOVERNANCE_CATALOG.filter(isPublicRuntimeAsset);
+  // Plan 233 准入规则对公共池源头生效：垃圾标题/渲染空标题的源卡连同其消毒候选
+  // 一并不入册（否则副本被排除后源卡回落「需解锁」组重新露出）。
+  const admitPublicAsset = (asset: GovernedPromptAsset): boolean =>
+    !JUNK_TITLE_PATTERN.test((asset.title || '').trim()) &&
+    !renderPathTitleCollapsesToEmpty((asset.title || '').trim());
+  const admittedOut = [
+    ...GOVERNED_ASSETS_V2_REGISTRY.filter(isPublicRuntimeAsset),
+    ...PROMPT_GOVERNANCE_CATALOG.filter(isPublicRuntimeAsset),
+  ].filter((asset) => !admitPublicAsset(asset));
+  if (admittedOut.length > 0) {
+    console.log(
+      `Excluded ${admittedOut.length} junk assets from public pools: [${admittedOut
+        .map((a) => a.id)
+        .join(', ')}]`
+    );
+  }
+
+  const publicAssetsRegistry = GOVERNED_ASSETS_V2_REGISTRY.filter(isPublicRuntimeAsset).filter(
+    admitPublicAsset
+  );
+  const publicCatalog = PROMPT_GOVERNANCE_CATALOG.filter(isPublicRuntimeAsset).filter(
+    admitPublicAsset
+  );
 
   const cleanedAssetsRegistry = cloneAndSanitize(publicAssetsRegistry);
   const cleanedFlows = cloneAndSanitize(SKILL_SERIES_FLOWS);

@@ -4056,7 +4056,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-1",
     "title": "玄幻题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 玄幻题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供玄幻题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4094,7 +4094,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-2",
     "title": "修真题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 修真题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供修真题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4133,7 +4133,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-3",
     "title": "都市异能题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 都市异能题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供都市异能题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4171,7 +4171,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-4",
     "title": "重生题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 重生题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供重生题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4211,7 +4211,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-5",
     "title": "穿越题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 穿越题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供穿越题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4249,7 +4249,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-6",
     "title": "快穿题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 快穿题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供快穿题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4287,7 +4287,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-7",
     "title": "末世题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 末世题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供末世题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4326,7 +4326,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-8",
     "title": "科幻题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 科幻题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供科幻题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4364,7 +4364,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-9",
     "title": "悬疑推理题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 悬疑推理题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供悬疑推理题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4402,7 +4402,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-10",
     "title": "言情题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 言情题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供言情题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4440,7 +4440,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-11",
     "title": "宫斗宅斗题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 宫斗宅斗题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供宫斗宅斗题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4479,7 +4479,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-12",
     "title": "群像剧题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 群像剧题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供群像剧题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4517,7 +4517,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-13",
     "title": "权谋历史题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 权谋历史题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供权谋历史题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4555,7 +4555,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-14",
     "title": "电竞游戏题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 电竞游戏题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供电竞游戏题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4594,7 +4594,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-15",
     "title": "轻小说风格题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 轻小说风格题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供轻小说风格题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -4632,7 +4632,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "creative-16",
     "title": "追妻火葬场题材大类配置模板",
     "stage": "polish",
-    "goal": "题材风格包提供 追妻火葬场题材大类配置模板 相关的题材背景支撑 and fallback profile。",
+    "goal": "题材风格包提供追妻火葬场题材大类配置模板题材的背景支撑与配置基线。",
     "inputs": [
       "content"
     ],
@@ -6327,111 +6327,6 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
-    "id": "sanitized-private-198",
-    "title": "测试审稿",
-    "stage": "polish",
-    "goal": "利用定制付费资产 测试审稿 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是网文审稿检查器。对给定章节输出审稿结论：1）硬伤清单——时间线冲突、人物行为与既有动机矛盾、设定自我打脸，逐条引用原文位置；2）节奏诊断——连续三段无冲突即标记拖沓，钩子缺失即标提醒；3）对白检查——口癖漂移、信息倾倒；4）结论分「可发布/需小修/需重写」三档并给理由。输出：结构化审稿单。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 64,
-    "grade": "D",
-    "primaryCategory": "quality-guardrail",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:201",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-197",
-    "title": "测试黄金一章",
-    "stage": "polish",
-    "goal": "利用定制付费资产 测试黄金一章 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是黄金第一章写手。按作品设定写第一章：1）第一段交代主角与日常裂缝，第三段出现改变命运的触发事件；2）章内完成「拒绝—被迫—初次尝试—小胜但代价」闭环；3）埋一条贯穿全书的暗线（物件/对话/异象）；4）结尾钩子指向第二章的不可逆选择。输出：三千字上下的完整第一章。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 56,
-    "grade": "D",
-    "primaryCategory": "utility-tool",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:202",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-195",
-    "title": "测试",
-    "stage": "polish",
-    "goal": "利用定制付费资产 测试 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是通用续写工具。输入正文片段后续写一段：1）延续既有的人称、时态与段落密度；2）推进至少一个具体事件，不做静态抒情；3）新出场元素至多一个且须与既有伏笔挂钩；4）风格强度保持原作水平，不刻意升格。输出：续写文本，不重复原文。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 56,
-    "grade": "D",
-    "primaryCategory": "utility-tool",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:203",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-192",
     "title": "正文",
     "stage": "polish",
@@ -6642,41 +6537,6 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
-    "id": "sanitized-private-186",
-    "title": "fire角色定制",
-    "stage": "polish",
-    "goal": "利用定制付费资产 fire角色定制 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是角色定制器。按用户给出的身份与关系需求生成角色：1）先确认角色在故事中的功能（推动/映照/阻力），再填血肉；2）输出欲望、恐惧、习惯动作、口癖、秘密五件套，彼此互为因果；3）给两条可立即使用的出场演示（动作+台词）。输出：角色设定卡。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 63,
-    "grade": "D",
-    "primaryCategory": "utility-tool",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:210",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-185",
     "title": "大纲",
     "stage": "polish",
@@ -6712,41 +6572,6 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
-    "id": "sanitized-private-170",
-    "title": "番茄正文过保底2",
-    "stage": "polish",
-    "goal": "利用定制付费资产 番茄正文过保底2 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你面向平台保底与留存指标写作，是保底正文的强化变体：1）开篇即冲突，禁止超过两句的设定交代；2）每五百字必须有一次情绪波动点（怒/爽/悬/暖轮换）；3）关键剧情前置到章节前半，后半留反转与钩子；4）字数达标且水分率控制——重复信息、无功能对话一律删除；5）每十章复盘一次追读断点并给出下一卷钩子方案。输出：可直接发布的正文。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 68,
-    "grade": "D",
-    "primaryCategory": "platform-criteria",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:212",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-169",
     "title": "番茄正文过保底",
     "stage": "polish",
@@ -6777,41 +6602,6 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "isRuntimeReady": true,
     "sourceType": "plaza",
     "sourceRef": "prompt-asset-scorecard.md:213",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-167",
-    "title": "名家长篇大纲测试",
-    "stage": "polish",
-    "goal": "利用定制付费资产 名家长篇大纲测试 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是长篇大纲写手。按题材与核心悬念输出百万字体量的大纲骨架：1）卷结构——每卷一个地图/一个对手/一层真相，共五至七卷；2）每卷三百字梗概+卷末大钩子；3）主角实力与信息量双曲线爬升，标注每个瓶颈与突破方式；4）反派势力分层递进，最终反派的动机在第二卷埋线。输出：分卷大纲骨架。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 65,
-    "grade": "D",
-    "primaryCategory": "author-workflow",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:215",
     "sourceGroup": "private",
     "evidenceLevel": "scored-from-source",
     "processDecision": "sanitize"
@@ -6882,41 +6672,6 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "isRuntimeReady": true,
     "sourceType": "plaza",
     "sourceRef": "prompt-asset-scorecard.md:219",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-106",
-    "title": "私密内测",
-    "stage": "polish",
-    "goal": "利用定制付费资产 私密内测 全链路推进长篇正文或提供题材适配。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是正文基准写手。按章节梗概续写：1）叙述连贯优先，先保证事件链完整再追求文采；2）每个人物出场时用一条可感知特征锚定；3）对白推进信息，叙述推进情绪，两者不重叠；4）禁止连续两段以上纯对话或纯叙述。输出：正文文本。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 56,
-    "grade": "D",
-    "primaryCategory": "style-reference",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:236",
     "sourceGroup": "private",
     "evidenceLevel": "scored-from-source",
     "processDecision": "sanitize"

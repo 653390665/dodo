@@ -335,13 +335,34 @@ const SANITIZED_COPY_IDS: ReadonlySet<string> = new Set(
 const hasGeneratedSanitizedCopy = (assetId: string): boolean =>
   SANITIZED_COPY_IDS.has(`sanitized-${assetId}`);
 
+// Plan 233 准入（与生成器 collectSanitizeCandidates 同规则）：垃圾标题（测试/内测边界）
+// 与渲染剥空标题的候选不进「需解锁」供给——生成器排除其副本后，源候选若不过滤
+// 会回落到消毒入口重新露出（fire角色定制/测试审稿等 6 张）。
+const JUNK_TITLE_PATTERN = /(^测试)|(^内测)|(^test)|(测试$)|(内测$)|(test$)/i;
+const admittedTitle = (title: string): boolean =>
+  Boolean(title?.trim()) &&
+  !JUNK_TITLE_PATTERN.test(title.trim()) &&
+  sanitizeWhiteLabelText(title).trim().length > 0;
+
+// Plan 233 去重兜底：候选自身无副本、但标准化标题与某张在架副本同键（改名重投，
+// 如「番茄正文过保底2」vs 已上架的「番茄正文过保底」）→ 冗余候选，不进消毒入口。
+const COPY_TITLE_KEYS: ReadonlySet<string> = new Set(
+  SANITIZED_SKILL_COPIES.map((copy) =>
+    (copy.title || '').replace(/\s+/g, '').replace(/\d+$/, '')
+  )
+);
+const redundantWithExistingCopy = (title: string): boolean =>
+  COPY_TITLE_KEYS.has((title || '').replace(/\s+/g, '').replace(/\d+$/, ''));
+
 const SANITIZE_REQUIRED_CATALOG_ASSETS = PROMPT_GOVERNANCE_CATALOG.filter(
   (asset) =>
     asset.placementTier === 'sanitize-required' &&
     asset.runtimeStatus === 'candidate' &&
     asset.sanitizationStatus === 'needs-sanitization' &&
     asset.sourceGroup !== 'test-fixture' &&
-    !hasGeneratedSanitizedCopy(asset.id)
+    !hasGeneratedSanitizedCopy(asset.id) &&
+    admittedTitle(asset.title) &&
+    !redundantWithExistingCopy(asset.title)
 );
 
 // 注意：与 getSanitizeRequiredAssets 的白名单谓词刻意不同构——本判定面向单卡
@@ -351,7 +372,9 @@ const SANITIZE_REQUIRED_ASSET_IDS: ReadonlySet<string> = new Set(
     (asset) =>
       asset.runtimeStatus === 'candidate' &&
       asset.sanitizationStatus === 'needs-sanitization' &&
-      !hasGeneratedSanitizedCopy(asset.id)
+      !hasGeneratedSanitizedCopy(asset.id) &&
+      admittedTitle(asset.title) &&
+      !redundantWithExistingCopy(asset.title)
   ).map((asset) => asset.id)
 );
 

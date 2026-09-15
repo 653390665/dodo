@@ -103,18 +103,58 @@ function sanitizeCopyText(text: string | undefined): string {
   return text ? cleanText(text) : '';
 }
 
+// Plan 233 准入规则镜像（与 scripts/generate-public-catalog.ts 保持一致）。
+const JUNK_TITLE_PATTERN = /(^测试)|(^内测)|(^test)|(测试$)|(内测$)|(test$)/i;
+
+function renderPathTitleCollapsesToEmpty(title: string): boolean {
+  return (
+    !title
+      .replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/g, '')
+      .replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '')
+      .trim()
+      ? true
+      : false
+  );
+}
+
+function normalizedTitleKey(title: string): string {
+  return title.replace(/\s+/g, '').replace(/\d+$/, '');
+}
+
 function collectSanitizeCandidates(): GovernedPromptAsset[] {
   const seen = new Set<string>();
   const merged = [...SOURCE_REGISTRY, ...SOURCE_CATALOG].filter((asset) =>
     seen.has(asset.id) ? false : (seen.add(asset.id), true)
   );
-  return merged.filter(
+  const eligible = merged.filter(
     (asset) =>
       asset.placementTier === 'sanitize-required' &&
       asset.sanitizationStatus === 'needs-sanitization' &&
       asset.runtimeStatus === 'candidate' &&
       asset.sourceGroup !== 'test-fixture'
   );
+  const junk = eligible.filter(
+    (asset) =>
+      JUNK_TITLE_PATTERN.test(asset.title.trim()) ||
+      renderPathTitleCollapsesToEmpty(asset.title.trim())
+  );
+  const kept = eligible.filter((asset) => !junk.includes(asset));
+  const byKey = new Map<string, GovernedPromptAsset>();
+  for (const asset of kept) {
+    const key = normalizedTitleKey(asset.title);
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, asset);
+      continue;
+    }
+    const challenger =
+      (asset.score || 0) > (current.score || 0) ||
+      ((asset.score || 0) === (current.score || 0) && asset.title.length < current.title.length)
+        ? asset
+        : current;
+    byKey.set(key, challenger);
+  }
+  return kept.filter((asset) => byKey.get(normalizedTitleKey(asset.title)) === asset);
 }
 
 function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
@@ -175,16 +215,18 @@ test('public ENHANCEMENT_PACKAGES is fresh: equals sanitize pipeline over the so
 
 test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-required candidate', () => {
   const candidates = collectSanitizeCandidates();
-  // Plan 197 口径锚定：45 张非 test-fixture 的 sanitize-required 候选各产一张副本
+  // Plan 233 重锚 45→38：准入规则排除 6 张垃圾标题候选（测试审稿/测试黄金一章/测试/
+  // fire角色定制/风华长篇大纲测试/私密内测）+ 去重 1 张（番茄正文过保底2）。
+  // 口径不变：每张准入候选各产一张副本。
   assert.equal(
     PUBLIC_COPIES.length,
-    45,
-    `sanitized copies count should be 45, got ${PUBLIC_COPIES.length}`
+    38,
+    `sanitized copies count should be 38, got ${PUBLIC_COPIES.length}`
   );
   assert.equal(
     candidates.length,
-    45,
-    `sanitize-required candidates count should be 45, got ${candidates.length}`
+    38,
+    `sanitize-required candidates count should be 38, got ${candidates.length}`
   );
 
   // 副本 id 集合与候选一一对应（同序）

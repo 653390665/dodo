@@ -1772,14 +1772,15 @@ describe('Plan 158 capability center', () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();
 
-    // Plan 210 单源化：45 张候选全部带生成侧消毒副本——
+    // Plan 210 单源化：候选全部带生成侧消毒副本——
     // 候选退出需解锁分组（UI 分组断言见 author-facing 用例）、运行时消毒入口收口，
     // 副本以正式文风卡进入可选集。
     expect(screen.queryByRole('button', { name: '消毒并启用' })).toBeNull();
     const optional = getOptionalStyleAssets();
     // Plan 232 重锚 45→44：sanitized-private-186（fire角色定制）整名被白标清洗清空，
     // 空标题卡不再入货架（过滤判定与渲染路径同源，见 capability-governance）。
-    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(44);
+    // Plan 233 再锚 44→38：生成器准入规则源头排除 6 张垃圾标题 + 去重 1 张改名重投。
+    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(38);
     // 白标生效：副本标题不再带作者署名（如「沐殇专用克苏鲁标题」→「克苏鲁标题」）
     const copyTitles = optional
       .filter((asset) => asset.id === 'sanitized-private-221')

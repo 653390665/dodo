@@ -2476,7 +2476,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
       id: c.id,
       title: c.title,
       stage: 'polish',
-      goal: `题材风格包提供 ${c.title} 相关的题材背景支撑 and fallback profile。`,
+      goal: `题材风格包提供${c.title}题材的背景支撑与配置基线。`,
       inputs: ['content'],
       template: `[题材风格配置体] 提供 ${c.title} 相关的读者期待和红线约束。`,
       outputShape: 'plain-text',
