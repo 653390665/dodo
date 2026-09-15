@@ -78,6 +78,7 @@ import {
   getCoreDefaultGuardrailCount,
   getOptionalStyleAssets,
   getSanitizeRequiredAssets,
+  partitionShelfBySupply,
   type GovernanceCapabilityType,
   type GovernanceStage,
 } from '../lib/capability-governance';
@@ -725,6 +726,11 @@ export function SkillsStudioView({
     if (id === 'optional-style') return OPTIONAL_STYLE_SHELF_COUNT;
     return shelfTabCounts[id] ?? 0;
   };
+  // Plan 225 供给分区：官方规范（保修）与社区配方（自验）分两区渲染。
+  const supplyPartitions = useMemo(
+    () => partitionShelfBySupply(availableCuratedSkills),
+    [availableCuratedSkills]
+  );
 
   const selectedPackage = selectedPackageId
     ? ENHANCEMENT_PACKAGES.find((pkg) => pkg.id === selectedPackageId) || null
@@ -2660,25 +2666,51 @@ export function SkillsStudioView({
 
                   {selectedCapability === 'optional-style' &&
                     filteredCuratedSkills.length > 0 && (
-                      /* Plan 195 切片 C Step 2：货架分组渲染迁 skills/StyleShelf（判定谓词由视图传入）。 */
-                      <StyleShelf
-                        selectedNovel={selectedNovel}
-                        assets={availableCuratedSkills}
-                        isFavorited={(asset) =>
-                          isTechniqueFavorited(asset) || isGuardrailCandidate(asset)
-                        }
-                        isImported={isAssetPersisted}
-                        cloningAssetId={cloningAssetId}
-                        isFreeNovel={isFreeNovel}
-                        handlers={{
-                          onImport: handleImportAsset,
-                          onEquip: handleEquipAsset,
-                          onUseTechnique: handleUseTechnique,
-                          onUseProjectTechnique: handleUseProjectTechnique,
-                          onDirectExec: handleDirectExec,
-                          onSanitize: handleSanitizeAndEnable,
-                        }}
-                      />
+                      /* Plan 195 切片 C Step 2：货架分组渲染迁 skills/StyleShelf。 */
+                      /* Plan 225：供给分区——官方规范（保修）与社区配方（自验）先分区再列卡。 */
+                      <div className="space-y-8">
+                        {[
+                          { key: 'official', label: '官方规范', note: '随版本升级 · 效果由 InkFlow 保修', assets: supplyPartitions.official },
+                          { key: 'community', label: '社区配方', note: '社区供给 · 已消毒 · 效果请自验', assets: supplyPartitions.community },
+                        ]
+                          .filter((region) => region.assets.length > 0)
+                          .map((region) => (
+                            <section key={region.key}>
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <h3 className="text-xs font-bold text-theme-text">
+                                  {region.label}
+                                  <span className="ml-2 text-[10px] font-normal text-theme-muted">
+                                    {region.assets.length} 张
+                                  </span>
+                                </h3>
+                                <span
+                                  className="rounded-full border border-theme-border px-2 py-0.5 text-[10px] text-theme-muted"
+                                  title={region.note}
+                                >
+                                  {region.note}
+                                </span>
+                              </div>
+                              <StyleShelf
+                                selectedNovel={selectedNovel}
+                                assets={region.assets}
+                                isFavorited={(asset) =>
+                                  isTechniqueFavorited(asset) || isGuardrailCandidate(asset)
+                                }
+                                isImported={isAssetPersisted}
+                                cloningAssetId={cloningAssetId}
+                                isFreeNovel={isFreeNovel}
+                                handlers={{
+                                  onImport: handleImportAsset,
+                                  onEquip: handleEquipAsset,
+                                  onUseTechnique: handleUseTechnique,
+                                  onUseProjectTechnique: handleUseProjectTechnique,
+                                  onDirectExec: handleDirectExec,
+                                  onSanitize: handleSanitizeAndEnable,
+                                }}
+                              />
+                            </section>
+                          ))}
+                      </div>
                     )}
                   {selectedCapability !== 'optional-style' && filteredCuratedSkills.length > 0 ? (
                     <>

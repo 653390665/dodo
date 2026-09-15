@@ -446,3 +446,23 @@ export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
 export function isSanitizeRequiredAsset(assetId: string): boolean {
   return SANITIZE_REQUIRED_ASSET_IDS.has(assetId);
 }
+
+/** Plan 225 供给分区：官方规范 = 产品签字保修（随版本升级）；其余 = 社区配方（自带自验）。 */
+export function isOfficialSupplyAsset(asset: CuratedProductSkill): boolean {
+  return (asset.sourceType || asset.capabilityManifest?.sourceType) === 'built-in';
+}
+
+export function isSanitizedCopyAsset(asset: CuratedProductSkill): boolean {
+  return asset.id.startsWith('sanitized-');
+}
+
+export function partitionShelfBySupply<T extends CuratedProductSkill>(
+  assets: readonly T[]
+): { official: T[]; community: T[] } {
+  const official: T[] = [];
+  const community: T[] = [];
+  for (const asset of assets) {
+    (isOfficialSupplyAsset(asset) ? official : community).push(asset);
+  }
+  return { official, community };
+}

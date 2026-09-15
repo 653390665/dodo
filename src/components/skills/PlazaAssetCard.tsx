@@ -74,6 +74,8 @@ export function PlazaAssetCard({
   );
   const unavailable = manifest?.runtimeStatus !== 'active';
   const isBuiltIn = manifest?.sourceType === 'built-in';
+  // Plan 225 签字语义：官方保修 vs 社区自验；消毒副本单独标注。
+  const isSanitizedCopy = asset.id.startsWith('sanitized-');
   const cardCategory = manifest ? getAuthorFacingCapabilityCardCategory(manifest) : null;
   const useHint = cardCategory ? getAuthorFacingCapabilityUseHint(cardCategory) : null;
   const entryHint = manifest
@@ -109,6 +111,34 @@ export function PlazaAssetCard({
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-theme-text text-sm leading-snug flex items-center gap-2">
             <span className="truncate">{cleanTitle}</span>
+            {isBuiltIn && (
+              <span
+                title="随版本升级 · 效果由 InkFlow 保修"
+                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/25"
+              
+                aria-hidden="true"
+              >
+                官方保修
+              </span>
+            )}
+            {!isBuiltIn &&
+              (isSanitizedCopy ? (
+                <span
+                  title="社区供给 · 已完成白标消毒 · 效果请自验"
+                  aria-hidden="true"
+                  className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-sky-500/10 text-sky-600 border border-sky-500/25"
+                >
+                  已消毒
+                </span>
+              ) : (
+                <span
+                  title="社区供给 · 效果请自验"
+                  aria-hidden="true"
+                  className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-theme-bg text-theme-muted border border-theme-border"
+                >
+                  社区配方
+                </span>
+              ))}
             {isLicensed && (
               <span
                 aria-hidden="true"
