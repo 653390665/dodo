@@ -2212,6 +2212,19 @@ export function SkillsStudioView({
                 ? `《${selectedNovel.title}》能力配置`
                 : '先在书库选择作品，再管理能力。'}
             </p>
+            {/* Plan 235：无作品新用户的保底导购——预览保底配置，指引先选作品。 */}
+            {!selectedNovel && (
+              <div
+                className="mt-3 rounded-xl border border-theme-accent/30 bg-theme-accent/5 p-3"
+                data-testid="cold-start-guide"
+              >
+                <p className="text-xs font-bold text-theme-text">新手从保底配置开始</p>
+                <p className="mt-1 text-xs leading-5 text-theme-muted">
+                  保底配置预览：官方去 AI 味规则卡（95 分）+ 长篇商业连载流程；护栏默认已生效。
+                  在书库选择作品后，可回到这里一键套用。
+                </p>
+              </div>
+            )}
             {stageLaunchHint && (
               <p className="mt-2 rounded-lg border border-theme-accent/30 bg-theme-accent/5 px-3 py-2 text-xs leading-5 text-theme-text">
                 {stageLaunchHint}
@@ -2250,6 +2263,20 @@ export function SkillsStudioView({
               {returnLabel}
             </button>
           </div>
+
+          {/* Plan 235：零收藏用户的能力地图前置指引（静态，数据齐后再看完整地图）。 */}
+          {savedSkills.length === 0 && (
+            <div
+              className="rounded-3xl border border-theme-border bg-theme-sidebar p-5 shadow-sm"
+              data-testid="skill-map-preview"
+            >
+              <div className="text-sm font-bold text-theme-text">能力地图</div>
+              <p className="mt-2 text-xs leading-5 text-theme-muted">
+                还没有收藏能力卡。进能力商店从「这章要解决什么」挑第一张；
+                六维（文风 / 人物 / 世界 / 战力 / 剧情 / 节奏）随收藏逐步点亮。
+              </p>
+            </div>
+          )}
         </div>
 
         {/* TAB Switcher */}
