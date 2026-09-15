@@ -119,6 +119,12 @@ export function whiteLabelSanitize(text: string): string {
 }
 
 /**
+ * 商业承诺词（Plan 234 单源）：展示文案命中即视为携带未白标的商业信息，
+ * 生成器据此在构建期改写消毒副本文案，运行时 getCapabilityDisplayText 据此兜底替换。
+ */
+export const COMMERCIAL_COPY_PATTERN = /(购买|会员|付费|无限调用|订阅|充值)/;
+
+/**
  * 白标物理净化函数：剔除一切 QQ 群、微信、盗贴标记、联系方式及竞品水印，实现“防漏安全护栏”。
  *
  * 注意：本函数为轻量级纯文本替换，适用于快速清理展示文本；

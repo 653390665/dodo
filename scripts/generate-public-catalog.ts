@@ -8,7 +8,7 @@ import {
   ENHANCEMENT_PACKAGES,
   isPublicRuntimeAsset,
 } from '../shared/lib/prompt-governance-catalog.js';
-import { sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
+import { COMMERCIAL_COPY_PATTERN, sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
 // Define the keys that contain sanitizable human-facing text
@@ -94,6 +94,66 @@ function cloneAndSanitize<T>(obj: T): T {
 
 const SANITIZED_COPY_NOTE = '生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。';
 
+// ─── Plan 234 消毒副本文案变体（构建期改写）────────────────────────────────
+// 源候选的 goal 模板含商业承诺词（如「利用定制付费资产…」），原样透传会在渲染时
+// 被 getCapabilityDisplayText 塌缩成同一句「广场共享能力…」（31/38 张同句）。
+// 构建期按 primaryCategory 桶轮换改写（卡名入文案保证跨卡可辨），改写后不含
+// 商业词，运行时替换自然不触发（保留兜底）。
+type GoalVariantFactory = (cardTitle: string) => string;
+
+const SANITIZED_GOAL_VARIANTS: Record<string, GoalVariantFactory[]> = {
+  'constellation-pack': [
+    (t) => `题材风格包：围绕「${t}」提供题材背景与配置基线，效果以实际运行为准。`,
+    (t) => `「${t}」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。`,
+    (t) => `面向「${t}」的共享题材模板：提供背景支撑与配置起点。`,
+  ],
+  'utility-tool': [
+    (t) => `「${t}」的社区工具卡：按卡面说明辅助相应环节，效果请以实际生成验证。`,
+    (t) => `共享工具提示词（${t}）：作用范围见卡面，效果因作品而异。`,
+    (t) => `${t}：社区供给的辅助工具，写作效果以运行为准。`,
+  ],
+  'author-workflow': [
+    (t) => `「${t}」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。`,
+    (t) => `共享写作提示词（${t}）：聚焦卡面场景，效果因作品而异。`,
+    (t) => `${t}：社区贡献的写作配方，生成效果以运行为准。`,
+  ],
+};
+
+const SANITIZED_GOAL_DEFAULT_VARIANTS: GoalVariantFactory[] = [
+  (t) => `广场共享写作卡（${t}）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。`,
+  (t) => `社区贡献的写作配方（${t}），效果请以实际生成验证。`,
+  (t) => `${t}：广场共享提示词模板，写作效果因作品而异。`,
+];
+
+const SANITIZED_SIGNAL_VARIANTS = [
+  '实际效果以运行结果为准。',
+  '效果请以实际生成验证。',
+  '社区供给 · 效果请自验。',
+];
+
+let sanitizedCopyRewrites = 0;
+let sanitizedSignalRewrites = 0;
+
+function rewriteSanitizedCopyText(
+  field: 'goal' | 'successSignal',
+  text: string | undefined,
+  cardTitle: string,
+  primaryCategory: string | undefined
+): string {
+  const clean = sanitizeCopyText(text);
+  if (!clean || !COMMERCIAL_COPY_PATTERN.test(clean)) return clean;
+  if (field === 'successSignal') {
+    const signal = SANITIZED_SIGNAL_VARIANTS[sanitizedSignalRewrites % SANITIZED_SIGNAL_VARIANTS.length];
+    sanitizedSignalRewrites += 1;
+    return signal;
+  }
+  sanitizedCopyRewrites += 1;
+  const bucket = primaryCategory ? SANITIZED_GOAL_VARIANTS[primaryCategory] : undefined;
+  const variants = bucket ?? SANITIZED_GOAL_DEFAULT_VARIANTS;
+  const variant = variants[sanitizedCopyRewrites % variants.length];
+  return variant(cardTitle);
+}
+
 function sanitizeCopyText(text: string | undefined): string {
   return text ? cleanText(text) : '';
 }
@@ -170,13 +230,21 @@ function collectSanitizeCandidates(): GovernedPromptAsset[] {
 }
 
 function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
+  const cardTitle = sanitizeCopyText(asset.title);
+  const goal = rewriteSanitizedCopyText('goal', asset.goal, cardTitle, asset.primaryCategory);
+  const successSignal = rewriteSanitizedCopyText(
+    'successSignal',
+    asset.successSignal,
+    cardTitle,
+    asset.primaryCategory
+  );
   return {
     ...asset,
     id: `sanitized-${asset.id}`,
-    title: sanitizeCopyText(asset.title),
-    goal: sanitizeCopyText(asset.goal),
+    title: cardTitle,
+    goal,
     template: sanitizeCopyText(asset.template),
-    successSignal: sanitizeCopyText(asset.successSignal),
+    successSignal,
     recommendationReason: asset.recommendationReason
       ? sanitizeCopyText(asset.recommendationReason)
       : asset.recommendationReason,
@@ -226,7 +294,14 @@ function generate() {
   const cleanedPackages = cloneAndSanitize(ENHANCEMENT_PACKAGES);
 
   const sanitizeCandidates = collectSanitizeCandidates();
+  sanitizedCopyRewrites = 0;
+  sanitizedSignalRewrites = 0;
   const sanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
+  if (sanitizedCopyRewrites + sanitizedSignalRewrites > 0) {
+    console.log(
+      `Rewrote ${sanitizedCopyRewrites} goals + ${sanitizedSignalRewrites} signals into de-commercialized variants (plan 234).`
+    );
+  }
 
   console.log(`Cleaned ${cleanedAssetsRegistry.length} registry assets.`);
   console.log(`Cleaned ${cleanedFlows.length} series flows.`);

@@ -5,6 +5,7 @@ import {
   PUBLIC_SKILL_GOVERNANCE_CATALOG,
   SANITIZED_SKILL_COPIES,
 } from '../shared/lib/public-skill-catalog.js';
+import { COMMERCIAL_COPY_PATTERN } from '../shared/lib/prompt-sanitizer.js';
 
 /**
  * Plan 231：目录文案治理守护。
@@ -47,4 +48,33 @@ test('catalog rejects junk titles, cross-ASCII mixed copy, and duplicate submiss
   }
   const dupKeys = [...keys.entries()].filter(([, count]) => count > 1);
   assert.deepEqual(dupKeys, [], `消毒副本标准化标题重复：${JSON.stringify(dupKeys)}`);
+});
+
+/**
+ * Plan 234：消毒副本构建期改写守护——商业承诺词构建期清除，
+ * 变体改写后不得再塌缩成同一句话墙（同句 goal ≤ 6 张）。
+ */
+test('sanitized copies are de-commercialized with distinct variant copy', () => {
+  const withCommercial = SANITIZED_SKILL_COPIES.filter(
+    (copy) =>
+      COMMERCIAL_COPY_PATTERN.test(copy.goal || '') ||
+      COMMERCIAL_COPY_PATTERN.test(copy.successSignal || '')
+  );
+  assert.deepEqual(
+    withCommercial,
+    [],
+    `消毒副本仍含商业词：${withCommercial.map((c) => c.id).join(', ')}`
+  );
+
+  const goalCounts = new Map<string, number>();
+  for (const copy of SANITIZED_SKILL_COPIES) {
+    const goal = copy.goal || '';
+    goalCounts.set(goal, (goalCounts.get(goal) || 0) + 1);
+  }
+  const overused = [...goalCounts.entries()].filter(([, count]) => count > 6);
+  assert.deepEqual(
+    overused,
+    [],
+    `同句 goal 超过 6 张：${JSON.stringify(overused)}`
+  );
 });

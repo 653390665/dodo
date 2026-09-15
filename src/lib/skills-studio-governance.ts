@@ -10,6 +10,7 @@ import type { CuratedProductSkill } from '../../shared/types/prompt-assets-gover
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityManifestEntry } from '../../shared/types/capability-manifest';
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile';
+import { COMMERCIAL_COPY_PATTERN } from '../../shared/lib/prompt-sanitizer';
 
 export type RoleSkillSlot = 'planner' | 'writer' | 'critic';
 
@@ -225,7 +226,7 @@ export function getCapabilityDisplayText(
   sourceType: CuratedProductSkill['sourceType']
 ): string {
   const clean = text.trim();
-  if (!/(购买|会员|付费|无限调用|订阅|充值)/.test(clean)) return clean;
+  if (!COMMERCIAL_COPY_PATTERN.test(clean)) return clean;
   return sourceType === 'licensed'
     ? '授权增强能力，具体效果以实际运行结果为准。'
     : sourceType === 'built-in'
