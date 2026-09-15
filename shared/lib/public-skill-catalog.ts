@@ -1226,7 +1226,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-183",
     "title": "长篇拆书器<十章版>",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 长篇拆书器<十章版> 局部润色、对白动作强化或题材契合度。",
+    "goal": "按十章粒度拆解成品小说，输出结构、节奏与钩子清单供仿写参考。",
     "inputs": [
       "content"
     ],
@@ -1261,7 +1261,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-182",
     "title": "爆款书名简介策划引擎！",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款书名简介策划引擎！ 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成书名与简介组合，突出题材卖点与点击诱因。",
     "inputs": [
       "content"
     ],
@@ -1296,7 +1296,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-176",
     "title": "长篇正文~超强口语化推进剧情",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 长篇正文~超强口语化推进剧情 局部润色、对白动作强化或题材契合度。",
+    "goal": "以口语化叙述推进长篇正文，重事件链与对白密度。",
     "inputs": [
       "content"
     ],
@@ -1331,7 +1331,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-174",
     "title": "番茄长篇正文通用",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 番茄长篇正文通用 局部润色、对白动作强化或题材契合度。",
+    "goal": "番茄平台长篇正文通用写法，短段落快节奏维持翻页率。",
     "inputs": [
       "content"
     ],
@@ -1366,7 +1366,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-122",
     "title": "短篇文章逻辑检测分析器",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 短篇文章逻辑检测分析器 局部润色、对白动作强化或题材契合度。",
+    "goal": "检测短篇逻辑漏洞，输出问题清单与修补建议。",
     "inputs": [
       "content"
     ],
@@ -1401,7 +1401,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-114",
     "title": "小说起名器（短篇为主）",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 小说起名器（短篇为主） 局部润色、对白动作强化或题材契合度。",
+    "goal": "为短篇生成书名候选，兼顾题材关键词与记忆点。",
     "inputs": [
       "content"
     ],
@@ -1436,7 +1436,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-109",
     "title": "爆款短篇第三步",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款短篇第三步 局部润色、对白动作强化或题材契合度。",
+    "goal": "爆款短篇三步法的收束步，完成反转与结尾回收。",
     "inputs": [
       "content"
     ],
@@ -1471,7 +1471,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-108",
     "title": "爆款短篇第二步",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款短篇第二步 局部润色、对白动作强化或题材契合度。",
+    "goal": "爆款短篇三步法的展开步，推进冲突与信息增量。",
     "inputs": [
       "content"
     ],
@@ -1506,7 +1506,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-107",
     "title": "爆款短篇第一步",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款短篇第一步 局部润色、对白动作强化或题材契合度。",
+    "goal": "爆款短篇三步法的起笔步，确立入事件点与钩子。",
     "inputs": [
       "content"
     ],
@@ -1541,7 +1541,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-104",
     "title": "lwl-网络流行语和热门梗润色",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-网络流行语和热门梗润色 局部润色、对白动作强化或题材契合度。",
+    "goal": "以网络流行语与热梗润色文本拉近代入感，过时梗需人工复核。",
     "inputs": [
       "content"
     ],
@@ -1576,7 +1576,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-103",
     "title": "章节梗概生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 章节梗概生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "把正文压缩为章节梗概，供大纲对齐与续写衔接。",
     "inputs": [
       "content"
     ],
@@ -1611,7 +1611,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-94",
     "title": "长篇爆款拆解与脑洞生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 长篇爆款拆解与脑洞生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "拆解长篇爆款的结构要素，并派生可写的脑洞方向。",
     "inputs": [
       "content"
     ],
@@ -1646,7 +1646,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-93",
     "title": "短篇破解爆款备用版",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 短篇破解爆款备用版 局部润色、对白动作强化或题材契合度。",
+    "goal": "短篇爆款拆解备用版，输出结构与钩子分析。",
     "inputs": [
       "content"
     ],
@@ -1681,7 +1681,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-88",
     "title": "短篇破解爆款第一步",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 短篇破解爆款第一步 局部润色、对白动作强化或题材契合度。",
+    "goal": "短篇爆款仿写第一步，提炼样本的开篇与结构模板。",
     "inputs": [
       "content"
     ],
@@ -1716,7 +1716,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-87",
     "title": "锅盖拆书《灵光版》",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 锅盖拆书《灵光版》 局部润色、对白动作强化或题材契合度。",
+    "goal": "拆书提取灵感碎片，整理可复用的桥段与设定。",
     "inputs": [
       "content"
     ],
@@ -1751,7 +1751,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-82",
     "title": "根据卷纲生成15章大纲",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 根据卷纲生成15章大纲 局部润色、对白动作强化或题材契合度。",
+    "goal": "由卷纲展开十五章级章节大纲，含每章目标与钩子。",
     "inputs": [
       "content"
     ],
@@ -1786,7 +1786,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-81",
     "title": "生成卷纲并确定总章节数",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 生成卷纲并确定总章节数 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成卷纲并给出总章节规模建议，理顺主线节奏。",
     "inputs": [
       "content"
     ],
@@ -1821,7 +1821,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-80",
     "title": "世界观生成器",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 世界观生成器 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成世界观设定集（地理、规则、势力），供设定库收录。",
     "inputs": [
       "content"
     ],
@@ -1856,7 +1856,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-79",
     "title": "爆款拆解与脑洞生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款拆解与脑洞生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "从爆款样本提炼结构要素，生成可写的脑洞方向。",
     "inputs": [
       "content"
     ],
@@ -1891,7 +1891,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-78",
     "title": "降 AI 润色 1.0",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 降 AI 润色 1.0 局部润色、对白动作强化或题材契合度。",
+    "goal": "对正文做去机器痕迹润色，替换模板句式与堆砌词。",
     "inputs": [
       "content"
     ],
@@ -1926,7 +1926,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-76",
     "title": "结构工坊-脑洞生成-番茄爆款",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-脑洞生成-番茄爆款 局部润色、对白动作强化或题材契合度。",
+    "goal": "面向番茄爆款的脑洞生成，突出题材张力与差异点。",
     "inputs": [
       "content"
     ],
@@ -1961,7 +1961,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-74",
     "title": "长短篇通用正文",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 长短篇通用正文 局部润色、对白动作强化或题材契合度。",
+    "goal": "长短篇通用正文写法，平衡事件推进与场景细节。",
     "inputs": [
       "content"
     ],
@@ -1996,7 +1996,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-61",
     "title": "lwl-事件生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-事件生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成可接入主线的事件候选，含起因与后果钩子。",
     "inputs": [
       "content"
     ],
@@ -2031,7 +2031,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-60",
     "title": "lwl-爆款短篇仿写与黄金开篇",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-爆款短篇仿写与黄金开篇 局部润色、对白动作强化或题材契合度。",
+    "goal": "仿写爆款短篇，重点打磨黄金开篇前三段。",
     "inputs": [
       "content"
     ],
@@ -2066,7 +2066,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-56",
     "title": "lwl-简介生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-简介生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成平台简介，突出冲突卖点与阅读预期。",
     "inputs": [
       "content"
     ],
@@ -2101,7 +2101,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-55",
     "title": "lwl-生成角色",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-生成角色 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成角色设定卡：身份、动机、缺陷与成长弧线。",
     "inputs": [
       "content"
     ],
@@ -2136,7 +2136,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-54",
     "title": "lwl-世界观生成专家",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-世界观生成专家 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成世界观核心规则与冲突源，避免设定空转。",
     "inputs": [
       "content"
     ],
@@ -2171,7 +2171,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-53",
     "title": "lwl-世界观生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-世界观生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成基础世界观框架：时代、地理与秩序。",
     "inputs": [
       "content"
     ],
@@ -2206,7 +2206,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-43",
     "title": "结构工坊-番茄短篇-清澈版",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-番茄短篇-清澈版 局部润色、对白动作强化或题材契合度。",
+    "goal": "番茄短篇清澈版结构模板，强调叙述干净、信息清晰。",
     "inputs": [
       "content"
     ],
@@ -2241,7 +2241,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-42",
     "title": "结构工坊-通用章节大纲",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-通用章节大纲 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成通用章节大纲，含场景切分与章末钩子。",
     "inputs": [
       "content"
     ],
@@ -2276,7 +2276,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-41",
     "title": "结构工坊-大纲生成-设定强化+节奏",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-大纲生成-设定强化+节奏 局部润色、对白动作强化或题材契合度。",
+    "goal": "大纲生成（设定强化向），强化规则运用与节奏布点。",
     "inputs": [
       "content"
     ],
@@ -2311,7 +2311,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-39",
     "title": "结构工坊-大纲生成-三幕式",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-大纲生成-三幕式 局部润色、对白动作强化或题材契合度。",
+    "goal": "按三幕式生成大纲，明确转折点与幕间钩子。",
     "inputs": [
       "content"
     ],
@@ -2346,7 +2346,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-38",
     "title": "结构工坊-大纲生成-基础版",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 结构工坊-大纲生成-基础版 局部润色、对白动作强化或题材契合度。",
+    "goal": "基础版大纲生成，先保事件链完整再优化细节。",
     "inputs": [
       "content"
     ],
@@ -2381,7 +2381,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-27",
     "title": "爆款-番茄风【金手指】",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 爆款-番茄风【金手指】 局部润色、对白动作强化或题材契合度。",
+    "goal": "设计番茄风金手指设定，绑定成长线与打脸节奏。",
     "inputs": [
       "content"
     ],
@@ -2416,7 +2416,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-26",
     "title": "一次一章-【续写】",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 一次一章-【续写】 局部润色、对白动作强化或题材契合度。",
+    "goal": "一次一章的续写卡，按本章目标直接续写正文。",
     "inputs": [
       "content"
     ],
@@ -2451,7 +2451,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-22",
     "title": "lwl-章节列表生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-章节列表生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "生成章节列表（每章一句目标），搭建全书骨架。",
     "inputs": [
       "content"
     ],
@@ -2486,7 +2486,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-21",
     "title": "猫头鹰-短篇故事脑洞生成",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 猫头鹰-短篇故事脑洞生成 局部润色、对白动作强化或题材契合度。",
+    "goal": "短篇脑洞生成，输出可展开的故事核。",
     "inputs": [
       "content"
     ],
@@ -2521,7 +2521,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-20",
     "title": "猫头鹰-短篇拆书",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 猫头鹰-短篇拆书 局部润色、对白动作强化或题材契合度。",
+    "goal": "拆解短篇样本的结构与技巧，输出仿写要点。",
     "inputs": [
       "content"
     ],
@@ -2556,7 +2556,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-19",
     "title": "lwl-知乎短文",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-知乎短文 局部润色、对白动作强化或题材契合度。",
+    "goal": "知乎体短文写法：第一人称冲突开场与反转结构。",
     "inputs": [
       "content"
     ],
@@ -2591,7 +2591,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-18",
     "title": "lwl-生成新角色",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-生成新角色 局部润色、对白动作强化或题材契合度。",
+    "goal": "在现有设定上生成新角色，绑定关系网与冲突位。",
     "inputs": [
       "content"
     ],
@@ -2626,7 +2626,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-13",
     "title": "lwl-文本润色",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-文本润色 局部润色、对白动作强化或题材契合度。",
+    "goal": "通用文本润色，改善语句通顺度与画面感。",
     "inputs": [
       "content"
     ],
@@ -2661,7 +2661,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-12",
     "title": "lwl-顶级提示0.01",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-顶级提示0.01 局部润色、对白动作强化或题材契合度。",
+    "goal": "通用正文提示词，作为正文基础质量的兜底。",
     "inputs": [
       "content"
     ],
@@ -2696,7 +2696,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-11",
     "title": "锅盖第一人称短片写作",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 锅盖第一人称短片写作 局部润色、对白动作强化或题材契合度。",
+    "goal": "第一人称短篇写法，强化声音质感与代入视角。",
     "inputs": [
       "content"
     ],
@@ -2731,7 +2731,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-10",
     "title": "锅盖男频正文直出",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 锅盖男频正文直出 局部润色、对白动作强化或题材契合度。",
+    "goal": "男频正文直出写法，重冲突升级与爽点兑现。",
     "inputs": [
       "content"
     ],
@@ -2766,7 +2766,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-9",
     "title": "锅盖润色扩写，去AI味",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 锅盖润色扩写，去AI味 局部润色、对白动作强化或题材契合度。",
+    "goal": "润色扩写并去 AI 味，扩充细节同时保持语言自然。",
     "inputs": [
       "content"
     ],
@@ -2801,7 +2801,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-7",
     "title": "lwl-爆款续写",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-爆款续写 局部润色、对白动作强化或题材契合度。",
+    "goal": "按爆款样本的节奏续写正文，维持钩子密度。",
     "inputs": [
       "content"
     ],
@@ -2836,7 +2836,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "square-3",
     "title": "lwl-AI润色指令",
     "stage": "polish",
-    "goal": "发挥广场精品提示词 lwl-AI润色指令 局部润色、对白动作强化或题材契合度。",
+    "goal": "AI 痕迹润色指令，压缩翻译腔与套话密度。",
     "inputs": [
       "content"
     ],
