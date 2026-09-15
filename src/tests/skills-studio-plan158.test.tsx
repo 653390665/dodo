@@ -1777,7 +1777,9 @@ describe('Plan 158 capability center', () => {
     // 副本以正式文风卡进入可选集。
     expect(screen.queryByRole('button', { name: '消毒并启用' })).toBeNull();
     const optional = getOptionalStyleAssets();
-    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(45);
+    // Plan 232 重锚 45→44：sanitized-private-186（fire角色定制）整名被白标清洗清空，
+    // 空标题卡不再入货架（过滤判定与渲染路径同源，见 capability-governance）。
+    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(44);
     // 白标生效：副本标题不再带作者署名（如「沐殇专用克苏鲁标题」→「克苏鲁标题」）
     const copyTitles = optional
       .filter((asset) => asset.id === 'sanitized-private-221')

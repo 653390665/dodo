@@ -53,6 +53,24 @@ describe('craft signature (plan 227)', () => {
     expect(deck!.cards.map((c) => c.asset.title.startsWith('克苏鲁')).every(Boolean)).toBe(true);
   });
 
+  test('非白名单前缀不再成套（plan 232）：lwl/风华出品/小飞鸡一律散卡', () => {
+    for (const asset of getOptionalStyleAssets()) {
+      const sig = getCraftSignature(asset);
+      if (sig.seriesId) {
+        expect(
+          ['克苏鲁', '宝可梦', '锅盖', '猫头鹰', '一次一章'],
+          `${asset.id} 的套牌 ${sig.seriesId} 不在白名单`
+        ).toContain(sig.seriesId);
+      }
+    }
+    // 货架上只剩白名单套牌
+    const deckIds = getSeriesDecks(getOptionalStyleAssets()).map((d) => d.seriesId);
+    expect(deckIds).toContain('克苏鲁');
+    expect(deckIds).not.toContain('lwl');
+    expect(deckIds.some((id) => id.includes('风华出品'))).toBe(false);
+    expect(deckIds.some((id) => id.includes('小飞鸡'))).toBe(false);
+  });
+
   test('同工位互斥：两套正文配方同为 prose 工位且冲突；去AI味属 guardrail 工位不冲突', () => {
     const proseA = card('square-10'); // 锅盖男频正文直出
     const proseB = card('square-174'); // 番茄长篇正文通用

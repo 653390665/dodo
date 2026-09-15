@@ -28,6 +28,8 @@ const STATION_LABELS: Record<string, string> = {
 };
 
 function stationLabel(station: string): string {
+  // Plan 232：misc:* 是推导兜底桶，不把内部枚举裸漏给用户。
+  if (station.startsWith('misc:')) return '其他';
   return STATION_LABELS[station] ?? station;
 }
 

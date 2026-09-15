@@ -35,21 +35,36 @@ const CRAFT_OVERRIDES: Record<string, Partial<CraftSignature>> = {
 
 const POLISH_PATTERN = /润色|去\s*AI|改写|净化|降\s*AI/;
 
-/** 与 capability-shelf 的 extractSeriesKey 同源：套牌识别靠卡面前缀。 */
+/**
+ * Plan 232 套牌准入白名单：只有确认「一剂按序连用的方子」的品牌才建套牌。
+ * 枚举核对（2026-09-16，全库前缀≥2 组）：【风华出品】25 张（正文/拆书/审稿/私有化
+ * 流程混装）、lwl 13 张（上传者工具杂集）、【小飞鸡】6 张（爆款短篇第一步→第三步
+ * 与长篇卡混装）均非连贯方子，不入白名单——前缀相似≠成套。
+ * 小飞鸡「爆款短篇」三步子序列若要成套，需子序列抽取能力，另行立项。
+ */
+const CONFIRMED_SERIES_PREFIXES = ['克苏鲁', '宝可梦', '锅盖', '猫头鹰', '一次一章'] as const;
+
+/** 括号品牌白名单（当前为空：已验证系列均无括号前缀；新增成套括号品牌在此登记）。 */
+const CONFIRMED_BRACKET_SERIES = new Set<string>([]);
+
+/** 套牌识别：白名单外的任何前缀一律散卡（不自动成组）。 */
 function extractSeriesId(title: string): string | null {
   const branded = title.match(/^【([^】]+)】/);
-  if (branded) return `【${branded[1]}`;
+  if (branded) {
+    const label = `【${branded[1]}】`;
+    return CONFIRMED_BRACKET_SERIES.has(label) ? label : null;
+  }
   const dashed = title.match(/^([A-Za-z]+)-/);
-  if (dashed) return dashed[1];
+  if (dashed) {
+    return (CONFIRMED_SERIES_PREFIXES as readonly string[]).includes(dashed[1]) ? dashed[1] : null;
+  }
   const cn = title.match(/^([一-龥]{2,6})-(?=[一-龥])/);
-  if (cn) return cn[1];
-  // Plan 229：无连字符的已知品牌前缀（克苏鲁标题/克苏鲁正文…是一剂方子）。
-  const brandedPrefix = BRAND_SERIES_PREFIXES.find((prefix) => title.startsWith(prefix));
+  if (cn) {
+    return (CONFIRMED_SERIES_PREFIXES as readonly string[]).includes(cn[1]) ? cn[1] : null;
+  }
+  const brandedPrefix = CONFIRMED_SERIES_PREFIXES.find((prefix) => title.startsWith(prefix));
   return brandedPrefix ?? null;
 }
-
-/** 无连字符的品牌系列前缀（与 dash 规则互补；只列确认成套的品牌，防误归组）。 */
-const BRAND_SERIES_PREFIXES = ['克苏鲁', '宝可梦', '锅盖', '猫头鹰', '一次一章'] as const;
 
 /**
  * 工位推导（按文本语义，顺序敏感）：

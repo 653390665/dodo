@@ -1,4 +1,8 @@
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog';
+// 注意：此处刻意用渲染路径同源的那份 sanitizeWhiteLabelText（public-skill-catalog 生成副本，
+// 规则比 prompt-sanitizer 宽，含「X定制/X出品」通配），保证「过滤判定」与「卡面渲染」一致——
+// 否则 sanitized-private-186（fire角色定制）这类卡会漏进货架变空标题卡。两份实现合一见 233。
+import { sanitizeWhiteLabelText } from '../../shared/lib/public-skill-catalog';
 import {
   CURATED_PRODUCT_SKILLS,
   SANITIZED_SKILL_COPIES,
@@ -376,6 +380,8 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
       asset.isRuntimeReady === true &&
       asset.sanitizationStatus === 'runtime-ready' &&
       asset.sourceGroup !== 'test-fixture' &&
+      // Plan 232：整名只有品牌词的卡经白标清洗后标题为空，无身份不入货架。
+      sanitizeWhiteLabelText(asset.title).trim().length > 0 &&
       (!stage || (displayMap[asset.stage] || ['style-polish']).includes(stage))
   ).map((asset) => ({
     id: asset.id,
