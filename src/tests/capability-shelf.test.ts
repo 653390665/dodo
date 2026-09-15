@@ -59,8 +59,12 @@ describe('groupStyleShelf', () => {
     expect(total).toBe(cards.length);
   });
 
-  test('同前缀 ≥3 张折叠为系列组，不足 3 张归功能组', () => {
+  test('白名单前缀 ≥3 张折叠为套牌组，非白名单同前缀与不足 3 张归功能组（plan 232）', () => {
     const cards = [
+      card('cs1', '克苏鲁大纲'),
+      card('cs2', '克苏鲁细纲'),
+      card('cs3', '克苏鲁章纲'),
+      // 非白名单品牌前缀：不再自动成套（232 准入白名单）
       card('fh1', '【风华出品】长短篇通用正文'),
       card('fh2', '【风华出品】短篇拆文仿写'),
       card('fh3', '【风华出品】老福特编辑审稿'),
@@ -69,7 +73,12 @@ describe('groupStyleShelf', () => {
     const shelf = groupStyleShelf(cards);
     expect(shelf.series).toHaveLength(1);
     expect(shelf.series[0].assets).toHaveLength(3);
-    expect(shelf.functional.some((group) => group.assets.some((a) => a.id === 'solo'))).toBe(true);
+    expect(shelf.series[0].key).toBe('克苏鲁');
+    expect(
+      shelf.functional.some((group) =>
+        group.assets.some((a) => ['fh1', 'fh2', 'fh3', 'solo'].includes(a.id))
+      )
+    ).toBe(true);
   });
 
   test('与创作流程步骤同源的卡打 inFlow 标记', () => {
