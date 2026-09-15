@@ -27,8 +27,11 @@ export interface CraftSignature {
   seriesOrder: number | null;
 }
 
-/** 推导歧义的显式覆盖（id → 部分签名）。228 落地的重构卡在此登记 mode: 'refine'。 */
-const CRAFT_OVERRIDES: Record<string, Partial<CraftSignature>> = {};
+/** 推导歧义的显式覆盖（id → 部分签名）。228 的重构卡在此登记 mode: 'refine'。 */
+const CRAFT_OVERRIDES: Record<string, Partial<CraftSignature>> = {
+  'refine-character-rebuild': { mode: 'refine' },
+  'refine-outline-rebuild': { mode: 'refine' },
+};
 
 const POLISH_PATTERN = /润色|去\s*AI|改写|净化|降\s*AI/;
 

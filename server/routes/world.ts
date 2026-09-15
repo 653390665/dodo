@@ -843,7 +843,7 @@ ${genderConstraint}
     const governedBibleKind =
       techniqueId === 'bible-world-builder'
         ? 'world'
-        : techniqueId === 'bible-character-arc'
+        : techniqueId === 'bible-character-arc' || techniqueId === 'refine-character-rebuild'
           ? 'character'
           : undefined;
     let selectedCharacter: ReturnType<typeof db.getCharacter>;

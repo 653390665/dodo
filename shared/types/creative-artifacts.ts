@@ -107,7 +107,13 @@ export interface ArtifactCapabilityContract {
   operations: ArtifactOperation[];
   allowedScopes: Array<'project' | 'volume' | 'chapter' | 'selection' | 'single-run'>;
   requiredInputs: CreativeArtifactKind[];
-  output: 'diagnostic' | 'artifact-candidate' | 'transform-preview' | 'configuration';
+  /** 'outline-candidate' marks planner cards whose output is an outline candidate, not a stored artifact. */
+  output:
+    | 'diagnostic'
+    | 'artifact-candidate'
+    | 'transform-preview'
+    | 'configuration'
+    | 'outline-candidate';
   canonEffect: 'none' | 'candidate-only';
 }
 

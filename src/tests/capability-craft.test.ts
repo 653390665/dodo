@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { PUBLIC_SKILL_GOVERNANCE_CATALOG } from '../../shared/lib/public-skill-catalog';
+import {
+  CURATED_PRODUCT_SKILLS,
+  PUBLIC_SKILL_GOVERNANCE_CATALOG,
+} from '../../shared/lib/public-skill-catalog';
 import { getOptionalStyleAssets } from '../lib/capability-governance';
 import {
   detectStationConflicts,
@@ -9,8 +12,9 @@ import {
 } from '../lib/capability-craft';
 
 const byId = new Map(PUBLIC_SKILL_GOVERNANCE_CATALOG.map((a) => [a.id, a]));
+const curatedById = new Map(CURATED_PRODUCT_SKILLS.map((a) => [a.id, a]));
 const card = (id: string) => {
-  const asset = byId.get(id);
+  const asset = byId.get(id) ?? curatedById.get(id);
   if (!asset) throw new Error(`missing fixture card: ${id}`);
   return asset;
 };
@@ -29,6 +33,15 @@ describe('craft signature (plan 227)', () => {
     const guard = getCraftSignature(card('core-slop-shield'));
     expect(guard.mode).toBe('inspect');
     expect(guard.station).toBe('guardrail');
+  });
+
+  test('重构卡经覆盖表识别为 refine 模式（plan 228）', () => {
+    const charSig = getCraftSignature(card('refine-character-rebuild'));
+    expect(charSig.mode).toBe('refine');
+    expect(charSig.station).toBe('concept');
+    const outlineSig = getCraftSignature(card('refine-outline-rebuild'));
+    expect(outlineSig.mode).toBe('refine');
+    expect(outlineSig.station).toBe('outline');
   });
 
   test('克苏鲁品牌前缀识别为同一套牌且按顺序编号（数据源=文风货架）', () => {

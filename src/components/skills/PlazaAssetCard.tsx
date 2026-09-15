@@ -21,6 +21,13 @@ import {
   getAuthorFacingCapabilityScopeLabel,
   getAuthorFacingCapabilityUseHint,
 } from '../../lib/capability-stage-cards';
+import { getCraftSignature } from '../../lib/capability-craft';
+
+/** Plan 228 绑定确认：重构卡的 inputs 标签 → 用户资料叫法。 */
+const REFINE_INPUT_LABELS: Record<string, string> = {
+  characters: '现有角色设定',
+  'chapters-outline': '现有大纲资料',
+};
 
 export function PlazaAssetCard({
   asset,
@@ -100,6 +107,12 @@ export function PlazaAssetCard({
   const defaultActionLabel = manifest ? getAuthorFacingCapabilityActionLabel(manifest) : undefined;
   const favoriteActionLabel = cardCategory === '精修卡' ? '收藏为常用精修卡' : '收藏为常用技法';
   const actionHint = manifest ? getAuthorFacingCapabilityActionHint(manifest) : null;
+  // Plan 228：重构模式（来料加工）卡——既有资料为主输入，产物走候选。
+  const isRefine = getCraftSignature(asset).mode === 'refine';
+  const refineInputLabel = asset.inputs
+    .map((input) => REFINE_INPUT_LABELS[input])
+    .filter(Boolean)
+    .join('、');
 
   return (
     <div className="bg-theme-sidebar rounded-lg p-5 border border-theme-border/40 hover:border-theme-border/85 hover:shadow-md transition-all duration-200 flex flex-col text-left relative overflow-hidden">
@@ -145,6 +158,14 @@ export function PlazaAssetCard({
                 className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20"
               >
                 授权增强
+              </span>
+            )}
+            {isRefine && (
+              <span
+                aria-hidden="true"
+                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-violet-500/10 text-violet-600 border border-violet-500/25"
+              >
+                来料加工
               </span>
             )}
           </h3>
@@ -198,6 +219,14 @@ export function PlazaAssetCard({
             {useHint && <p>{useHint}</p>}
             {entryHint && <p>{entryHint}</p>}
           </div>
+        )}
+        {isRefine && refineInputLabel && (
+          <p
+            className="mt-1 text-[10px] leading-4 text-violet-600 dark:text-violet-300"
+            data-testid="refine-binding-hint"
+          >
+            来料加工：以你的{refineInputLabel}为主输入，保留既定事实做重组；产物先出候选，确认后才写入。
+          </p>
         )}
       </div>
 

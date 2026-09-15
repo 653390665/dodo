@@ -725,6 +725,36 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "actionType": "equip"
   },
   {
+    "id": "refine-character-rebuild",
+    "title": "人设重构器：既定资料保留重组",
+    "curatedCategory": "bible",
+    "goal": "以你现有的角色设定为主输入做结构性重组：保留既定事实，消解矛盾、补齐动机与成长弧光，不新增与现有设定冲突的事实。",
+    "successSignal": "既有设定事实全部保留，人设矛盾被消解，动机与弧光更完整。",
+    "score": 90,
+    "grade": "A",
+    "sourceType": "built-in",
+    "primaryCategory": "author-workflow",
+    "inputs": [
+      "characters"
+    ],
+    "actionType": "equip"
+  },
+  {
+    "id": "refine-outline-rebuild",
+    "title": "大纲重构器：既定资料保留重组",
+    "curatedCategory": "opening",
+    "goal": "以你现有的大纲与设定资料为主输入做结构性重组：保留既定事实，修补断点、拉齐因果、强化钩子与爽点分布，不新增与现有设定冲突的事实。",
+    "successSignal": "既有大纲事实全部保留，因果链闭合，钩子与爽点分布更合理。",
+    "score": 90,
+    "grade": "A",
+    "sourceType": "built-in",
+    "primaryCategory": "author-workflow",
+    "inputs": [
+      "chapters-outline"
+    ],
+    "actionType": "equip"
+  },
+  {
     "id": "prose-mouth-flavor",
     "title": "超强口语化推进剧情正文器",
     "curatedCategory": "prose",

@@ -168,6 +168,49 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
     },
     'characterCardCandidate'
   ),
+  // 重构模式（Plan 228）：来料加工——把用户既有资料当主输入，产物一律走候选。
+  'refine-character-rebuild': technique(
+    ['planner'],
+    'built-in',
+    {
+      input: 'outline-source',
+      output: 'artifact-candidate',
+      allowedScopes: ['project'],
+      persistence: 'project',
+      sideEffect: 'configuration',
+      usageModes: ['single-run', 'flow-step'],
+      artifactContract: {
+        artifactKinds: ['character'],
+        operations: ['restructure'],
+        allowedScopes: ['project', 'single-run'],
+        requiredInputs: ['character'],
+        output: 'artifact-candidate',
+        canonEffect: 'candidate-only',
+      },
+    },
+    'characterCardCandidate'
+  ),
+  'refine-outline-rebuild': technique(
+    ['planner'],
+    'built-in',
+    {
+      input: 'outline-source',
+      output: 'outline-candidate',
+      allowedScopes: ['project'],
+      persistence: 'project',
+      sideEffect: 'configuration',
+      usageModes: ['single-run', 'flow-step'],
+      artifactContract: {
+        artifactKinds: ['master-outline', 'volume-outline', 'chapter-outline'],
+        operations: ['restructure', 'optimize'],
+        allowedScopes: ['project', 'single-run'],
+        requiredInputs: ['master-outline'],
+        output: 'outline-candidate',
+        canonEffect: 'candidate-only',
+      },
+    },
+    'outline-candidate'
+  ),
   'prose-mouth-flavor': technique(
     ['writer'],
     'plaza',
