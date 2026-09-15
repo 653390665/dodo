@@ -86,15 +86,20 @@ export function StyleShelf({
   const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
   const novelGenreTokens = deriveNovelGenreTokens(novelText, novelTags);
   const novelPlatform = novelText.includes('番茄') ? 'tomato' : undefined;
+  // Plan 226：有作品上下文时按适合度降序（无上下文保持目录序）。
+  const hasFitnessContext = novelGenreTokens.length > 0 || Boolean(novelPlatform);
+  const decorated = assets.map((asset) => ({
+    ...asset,
+    isFavorited: isFavorited(asset),
+    isCloning: cloningAssetId === asset.id,
+    isImported: isImported(asset),
+    asset,
+    fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
+  }));
   const shelf = groupStyleShelf(
-    assets.map((asset) => ({
-      ...asset,
-      isFavorited: isFavorited(asset),
-      isCloning: cloningAssetId === asset.id,
-      isImported: isImported(asset),
-      asset,
-      fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
-    }))
+    hasFitnessContext
+      ? decorated.sort((a, b) => b.fitness.score - a.fitness.score)
+      : decorated
   );
   return (
     <div className="space-y-4">

@@ -16,6 +16,7 @@ import {
   extractUnresolvedTechniqueIds,
   stripUnresolvedTechniqueRefs,
 } from '../lib/capability-technique-cleanup';
+import { CAPABILITY_SYMPTOMS, filterBySymptom } from '../lib/capability-symptoms';
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
@@ -578,6 +579,8 @@ export function SkillsStudioView({
 
   // Plan 195 切片 A：能力页签初始值纯函数迁 configuration store（getInitialCapabilityTab）。
   const [selectedCapability, setSelectedCapability] = useState<CapabilityStudioTab>('flow');
+  // Plan 226 症候入口：当前选中的「这章要解决什么」，null = 未筛选。
+  const [activeSymptomKey, setActiveSymptomKey] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<GovernanceStage | 'all'>(
     initialStage || 'all'
   );
@@ -608,7 +611,11 @@ export function SkillsStudioView({
     if (selectedCapability === 'packages') return [];
     const stage = selectedCategory === 'all' ? undefined : selectedCategory;
     // 004：文风与正文分组——optional-style 治理资产投影上货架（实测 73 张；研究口径 74 含 1 张 test-fixture）
-    if (selectedCapability === 'optional-style') return getOptionalStyleAssets(stage);
+    if (selectedCapability === 'optional-style') {
+      const styleAssets = getOptionalStyleAssets(stage);
+      // Plan 226 症候入口：选中症候时只看「能解决这个问题的卡」。
+      return activeSymptomKey ? filterBySymptom(styleAssets, activeSymptomKey) : styleAssets;
+    }
     const isVisibleShelfAsset = (asset: CuratedProductSkill) => {
       const manifest = getCapabilityManifest(asset);
       return (
@@ -640,7 +647,7 @@ export function SkillsStudioView({
       return assets.filter((asset) => getCapabilityManifest(asset).output !== 'transform-preview');
     }
     return assets;
-  }, [selectedCapability, selectedCategory]);
+  }, [selectedCapability, selectedCategory, activeSymptomKey]);
   // 001 目标 5：不可用卡不再与可用卡同屏混排，折叠进底部"需解锁"分组。
   // 004：待消毒候选卡也投影进该分组，提供"消毒并启用"入口。
   // Plan 220：投影收进 memo——弹窗按键重渲不再全量重筛货架与治理目录。
@@ -2313,6 +2320,47 @@ export function SkillsStudioView({
         {/* Plaza Tab Content */}
         {activeTab === 'plaza' && (
           <div className="max-w-6xl mx-auto space-y-8 pb-12 text-left">
+            {/* Plan 226 症候入口：先说「要解决什么」，再看货架。 */}
+            <div
+              className="flex flex-wrap items-center gap-2"
+              data-testid="symptom-nav"
+              aria-label="按要解决的问题筛选能力卡"
+            >
+              <span className="text-[11px] font-bold text-theme-muted">这章要解决什么：</span>
+              {CAPABILITY_SYMPTOMS.map((symptom) => {
+                const active = activeSymptomKey === symptom.key;
+                return (
+                  <button
+                    key={symptom.key}
+                    type="button"
+                    aria-pressed={active}
+                    title={symptom.hint}
+                    onClick={() => {
+                      setActiveSymptomKey((prev) => (prev === symptom.key ? null : symptom.key));
+                      if (selectedCapability !== 'optional-style')
+                        setSelectedCapability('optional-style');
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
+                      active
+                        ? 'bg-theme-accent/15 border-theme-accent text-theme-accent'
+                        : 'border-theme-border text-theme-muted hover:text-theme-text'
+                    )}
+                  >
+                    {symptom.label}
+                  </button>
+                );
+              })}
+              {activeSymptomKey && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSymptomKey(null)}
+                  className="px-2 py-1 rounded-full text-[11px] text-theme-muted hover:text-theme-text border border-dashed border-theme-border"
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
             <div
               role="tablist"
               aria-label="能力治理类别"

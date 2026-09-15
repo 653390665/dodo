@@ -149,7 +149,9 @@ export function PlazaAssetCard({
             )}
           </h3>
           <div className="text-[10px] text-theme-muted tracking-wide mt-1 flex flex-wrap items-center gap-1.5">
-            <span>{Number.isFinite(asset.score) ? `冷启动证据 ${asset.score}` : '证据待积累'}</span>
+            <span title="官方基准评测对卡面提示词的冷启动质量评分（45-98 分），仅代表提示词本身的质量，不代表你的生成效果。">
+              {Number.isFinite(asset.score) ? `冷启动证据 ${asset.score}` : '证据待积累'}
+            </span>
             <span className="text-theme-border/60">·</span>
             <span className="text-[9px] px-1 py-0.2 bg-theme-bg rounded text-theme-muted">
               {manifest ? getCapabilitySourceLabel(manifest.sourceType) : '来源未知'}
