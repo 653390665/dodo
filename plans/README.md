@@ -288,6 +288,14 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 221 | 副本单源化不变式入规范 + 同名目录导出澄清（DOCS-01/02；backlog 白标单源化/governance 契约测试的前置） | DONE（本批：新建 docs/specs/capability-sanitize.md（白标泄露失效模式/两条合法渲染路径/实现锚点/守护测试/已知缺口）+ AGENTS.md 不变式第四条；public-skill-catalog 同名导出重命名 PUBLIC_SKILL_GOVERNANCE_CATALOG（生成器 emit 模板+生成产物+6 消费方+3 测试文件同步；源注册表名不动）——同名消除后导错路径 typecheck 直接报错。执行注意：全局替换曾误伤 3 个测试的源注册表侧 import，已逐一修复并加 grep 清扫验证。typecheck 0 + freshness 3/3 + 前后端全量绿） | — |
 | 222 | AgentWorkspace 打字路径性能——每键重渲与全文哈希消除（PERF-04） | DONE（本批：实体扫描 effect 抽为 useLocalEntityScan hook（plan207 先例）：selection 事件去状态化——监听只调度 400ms 防抖，定时器内直读 textarea 选区+当时全文做哈希，输入真变化才扫描；删除 selection state 与渲染期全文 join 哈希 memo。STOP 评估：selection 除扫描外零消费方，无需停止。新增 hook 定向测试 3 例（fake timers）：防抖窗口不扫/同光标重复 keyup 不重扫（结果引用稳定）/章节清空清列表。typecheck 0 + 前端全量 902/902） | — |
 | 223 | 第二梯队打包：双构建/revokeObjectURL/README×2/env 旋钮入册/导出 fallback 收口/prepare 警告/未用依赖/覆盖率分母（8 项独立 commit） | DONE（8/8 各自 commit：①webServer 去重 build 改 dist 存在性守卫（删 dist 明确报错/重建后 mobile 5/5，启动 35.9s→19.4s）；②product-events/Library 两处 revoke 延迟对齐（download-client 同步 revoke 仅剩失败清理路径保留）；③README 防抖 3 秒→1 秒 + 状态表 2026-09-15 复核 210/215/216 现状；④.env.example 增 6 旋钮小节（排除哨兵串与应用常量两个假阳性，默认值取自各读取点）；⑤导出裸文件 fallback 改 404（STOP 评估：唯一真实消费方 downloadAuthenticatedFile 非 200 走错误路径，依赖裸下发的只有契约测试本身——按 213 先例重锚断言 404+不下发字节；export/backup 6/6 绿）；⑥prepare || true 改显式 stderr 警告；⑦删 autoprefixer/@axe-core/react（build 绿；测试用裸 axe-core 保留）；⑧覆盖率 include src/** + 输出目录 coverage/frontend 分离 + 棘轮按新分母实测重锚 66/59/59/68（实测 66.45/59.43/59.44/68.83，远高于旧失真基线，STOP 不触发）） | — |
+| 224 | 回执出口——生成结果渲染能力消费凭证（C1/G1：应用后零回执，价值闭环断在验证环节） | TODO | — |
+| 225 | 货架分区——官方规范/社区配方两层供给 + 签字语义标（A1：内置与开放的边界从未被表达） | TODO | — |
+| 226 | 症候入口与分数诚实——「这章要解决什么」任务导航 + 适合度理由上架 + 证据分定义（P0-B/A3/B1） | TODO | 225 |
+| 227 | 工序签名——卡目录补全「输入料/产出物/方向/工位/套牌」craft 数据模型（228/229 地基） | TODO | — |
+| 228 | 重构模式——来料加工管线，人设/大纲重构首两张卡（迁移者入口，候选+diff 安全落地） | TODO | 227 |
+| 229 | 系列套牌——系列实体化 + 套内有序 + 同工位互斥（克苏鲁/宝可梦系列的序性从未被系统表达） | TODO | 227 |
+| 230 | 新用户保底配置——一键「套用推荐配置」+ 空状态导购（F1：145 张卡对零导购的死状态） | TODO | 225 |
+| 231 | 占位文案治理——47 张广场卡真实定位补写或退稿隔离（A2：`发挥广场精品提示词`×47） | TODO | 225 |
 
 ### Round 34 说明（2026-09-15）
 
@@ -296,6 +304,10 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 **执行收口（2026-09-15，同日）**：216-223 八计划全部 DONE（214/215 维持 Round 34 Next 占位）。执行期偏差两处已记入对应行：217 走范围内升级 0.8.15 而非 overrides 强钉 ^0.9（上游补丁版落在 mammoth 自身 semver 内，零 breaking 风险）；220 Step 3 StyleShelf memo 降级为遗留（父级引用不稳定，单独 memo 无效）。前端棘轮基线按新分母重锚 66/59/59/68（222 新增 3 用例后全量 902/902）。
 
 **批后清账（2026-09-15）**：修掉「每次全量后端测试污染 tests/fixtures」的重复陷阱——根因是 provider-quality 测试的确定性/SKIP 评测把报告写回仓库 fixtures（SKIP 单跑还会覆盖已提交报告内容）。修法：`run-chapter-llm-acceptance.ts` 报告目录支持 `options.reportDir` 与 `INKFLOW_PROVIDER_EVAL_REPORT_DIR` 双通道覆盖（默认仍写 fixtures，`eval:provider-quality` 刻意重生成行为不变）；测试一律写临时目录并新增「仓库 fixture 未被动过」断言。实测：套件 22/22 绿且 git status 干净；CLI 重生成路径端到端可用。
+
+### Round 35 说明（2026-09-15）
+
+来源：pm-router × 八刀法四轮产品思考（选择困难 → 能力商店全面诊断 → 供给边界 → 工序与系列），主控亲读代码 + 实时页面取证后立项。主题：**能力商店工序化**——把「收藏卡牌」重铸为「工序算子」：货架分区（签字定责）、症候入口（处方化）、回执出口（价值闭环）、craft 签名（数据地基）、重构模式（迁移者入口）、系列套牌（序性与互斥）、保底配置（成长引导）、文案治理（供给质量）。**依赖图**：224 独立；225 → 226/230/231；227 → 228/229；执行建议 224 → 225 → 226/230/231 并行 → 227 → 228/229 并行。**待拍板项（决策，非缺陷）**：商业化门禁默认关（`isMonetizationEnabled` 默认仅 NODE_ENV=test 开启）使 paid 包/授权增强在真实环境形同虚设——要么承认当前免费并隐藏 paid 语义，要么真开门；在拍板前任何 paid 相关计划不动。**与存量关系**：214/215 维持 Next 占位；诊断维度 C2（遥测唯一读者是设置页 7 天指标）、G2（三种持久化语义混合）、T1（331KB 目录随编辑器 chunk，ARCH-04）本轮不立项留 backlog；D1 benchmark 基建被 227（签名可验证性）与 231（文案真实性）引用为验证手段。
 
 ### 审计 backlog（第三梯队，未立项，按需取用）
 
