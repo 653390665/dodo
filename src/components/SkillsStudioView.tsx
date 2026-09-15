@@ -17,6 +17,7 @@ import {
   stripUnresolvedTechniqueRefs,
 } from '../lib/capability-technique-cleanup';
 import { CAPABILITY_SYMPTOMS, filterBySymptom } from '../lib/capability-symptoms';
+import { detectStationConflicts, getCraftSignature } from '../lib/capability-craft';
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
@@ -1296,8 +1297,38 @@ export function SkillsStudioView({
     onNavigate?.(selectedNovel ? returnView : 'library');
   };
 
+  // Plan 229：把配置草稿里的技法 id 解析回目录资产（供同工位互斥检测）。
+  const craftAssetsForConfiguredIds = (): CuratedProductSkill[] => {
+    const draft = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+    const configuredIds = [
+      ...(draft?.projectTechniqueIds || []),
+      ...(draft?.favoriteTechniqueIds || []),
+    ];
+    return configuredIds
+      .map((id) => {
+        const saved = savedSkills.find((skill) => skill.id === id);
+        const sourceId = saved?.parentSkillId || id;
+        return CURATED_PRODUCT_SKILLS.find((asset) => asset.id === sourceId) || null;
+      })
+      .filter((asset): asset is CuratedProductSkill => Boolean(asset));
+  };
+
+  // Plan 229：同工位互斥文案（套牌卡专用——非套牌卡保留自由组合）。
+  const blockIfStationConflicts = (asset: CuratedProductSkill, configured: CuratedProductSkill[]) => {
+    const signature = getCraftSignature(asset);
+    if (!signature.seriesId) return true;
+    const conflicts = detectStationConflicts(configured, asset);
+    if (conflicts.length === 0) return true;
+    toast(
+      `已选《${conflicts[0].title}》与《${asset.title}》同工位互斥；两套配方不能混用，如需更换请先移除已选卡。`,
+      'error'
+    );
+    return false;
+  };
+
   const handleApplyProjectTechnique = async (asset: CuratedProductSkill) => {
     if (!selectedNovel?.id || getGovernanceCapabilityType(asset) !== 'technique') return;
+    if (!blockIfStationConflicts(asset, craftAssetsForConfiguredIds())) return;
     const manifest = getCapabilityManifest(asset);
     if (
       manifest.outputArtifact === 'worldBibleCandidate' ||
@@ -1362,6 +1393,54 @@ export function SkillsStudioView({
       asset.id
     );
   };
+
+  // Plan 229：整剂启用/从第 N 张继续——按序批量入草稿后一次应用；批内同样跑同工位互斥。
+  const handleApplyDeck = async (cards: CuratedProductSkill[]) => {
+    if (!selectedNovel?.id || cards.length === 0) return;
+    if (staleConfigurationSession) {
+      setConfigurationError('旧草稿只读，请先重新预览本次配置。');
+      return;
+    }
+    const configured = craftAssetsForConfiguredIds();
+    for (const card of cards) {
+      if (!blockIfStationConflicts(card, configured)) return;
+      configured.push(card);
+    }
+    let working = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+    for (const card of cards) {
+      const manifest = getCapabilityManifest(card);
+      const persistedId =
+        manifest.sourceType !== 'built-in' ? await handleImportAsset(card) : card.id;
+      if (!persistedId || !working) return;
+      const withMembership = upsertCapabilityMembership(working, {
+        sourceId: card.parentSkillId || card.id,
+        sourceVersion: manifest.version || '1',
+        sourceType: manifest.sourceType || card.sourceType,
+        persistedSkillId: persistedId,
+      });
+      if (!withMembership) return;
+      const projectTechniques =
+        withMembership.projectTechniqueIds || withMembership.favoriteTechniqueIds || [];
+      const built = buildV3CapabilityProfile(effectiveNovel, {
+        ...withMembership,
+        projectTechniqueIds: projectTechniques.includes(persistedId)
+          ? projectTechniques
+          : [...projectTechniques, persistedId],
+        capabilityMemberships: withMembership.capabilityMemberships,
+      }).capabilityProfile;
+      if (!built) return;
+      working = built;
+    }
+    if (!working) return;
+    stageConfiguration(working);
+    await applyConfiguration(false, 'return', working);
+  };
+
+  // Plan 229：「从第 N 张继续」的推算口径——卡的源 id 已在配置草稿技法里。
+  const isDeckCardConfigured = (asset: CuratedProductSkill) =>
+    craftAssetsForConfiguredIds().some(
+      (entry) => (entry.parentSkillId || entry.id) === (asset.parentSkillId || asset.id)
+    );
 
   const cancelPendingCandidate = () => {
     if (pendingCandidateId && selectedNovel?.id) {
@@ -2785,6 +2864,8 @@ export function SkillsStudioView({
                                 isImported={isAssetPersisted}
                                 cloningAssetId={cloningAssetId}
                                 isFreeNovel={isFreeNovel}
+                                onApplyDeck={handleApplyDeck}
+                                isCardConfigured={isDeckCardConfigured}
                                 handlers={{
                                   onImport: handleImportAsset,
                                   onEquip: handleEquipAsset,

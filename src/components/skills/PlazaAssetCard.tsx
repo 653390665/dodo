@@ -43,6 +43,7 @@ export function PlazaAssetCard({
   onDirectExec,
   onSanitize,
   fitnessChip,
+  deckBadge,
 }: {
   asset: CuratedProductSkill;
   isImported: boolean;
@@ -57,6 +58,8 @@ export function PlazaAssetCard({
   onDirectExec: () => void;
   onSanitize?: () => void;
   fitnessChip?: { score: number; reasons: string[] };
+  /** 套牌上下文标注（套牌第 N 张 · 工位），由货架传入。 */
+  deckBadge?: string;
 }) {
   const isLicensed = getCapabilityManifest(asset)?.sourceType === 'licensed';
   const cleanTitle = sanitizeWhiteLabelText(asset.title);
@@ -108,11 +111,16 @@ export function PlazaAssetCard({
   const favoriteActionLabel = cardCategory === '精修卡' ? '收藏为常用精修卡' : '收藏为常用技法';
   const actionHint = manifest ? getAuthorFacingCapabilityActionHint(manifest) : null;
   // Plan 228：重构模式（来料加工）卡——既有资料为主输入，产物走候选。
-  const isRefine = getCraftSignature(asset).mode === 'refine';
+  const craftSignature = getCraftSignature(asset);
+  const isRefine = craftSignature.mode === 'refine';
   const refineInputLabel = asset.inputs
     .map((input) => REFINE_INPUT_LABELS[input])
     .filter(Boolean)
     .join('、');
+  // Plan 229：套牌归属提示（系列卡单用时建议按序连用）。
+  const deckHint = craftSignature.seriesId
+    ? `本卡属「${craftSignature.seriesId}」套牌，建议按序连用。`
+    : null;
 
   return (
     <div className="bg-theme-sidebar rounded-lg p-5 border border-theme-border/40 hover:border-theme-border/85 hover:shadow-md transition-all duration-200 flex flex-col text-left relative overflow-hidden">
@@ -185,6 +193,14 @@ export function PlazaAssetCard({
                 适合度 {fitnessChip.score}
               </span>
             )}
+            {deckBadge && (
+              <span
+                className="text-[9px] px-1 py-0.2 bg-violet-500/10 rounded text-violet-600 dark:text-violet-300 font-bold"
+                aria-hidden="true"
+              >
+                {deckBadge}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -227,6 +243,9 @@ export function PlazaAssetCard({
           >
             来料加工：以你的{refineInputLabel}为主输入，保留既定事实做重组；产物先出候选，确认后才写入。
           </p>
+        )}
+        {!deckBadge && deckHint && (
+          <p className="mt-1 text-[10px] leading-4 text-theme-muted">{deckHint}</p>
         )}
       </div>
 

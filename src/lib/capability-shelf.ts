@@ -1,4 +1,5 @@
 import { SKILL_SERIES_FLOWS } from '../../shared/lib/public-skill-catalog';
+import { getCraftSignature } from './capability-craft';
 
 /**
  * 013：文风与正文货架的分类学 + 适合度评分（纯展示层计算，不写入资产）。
@@ -97,16 +98,7 @@ export function deriveNovelGenreTokens(novelText: string, tags: ReadonlyArray<st
   return [...tokens];
 }
 
-/** 系列前缀：【品牌】、品牌- 前缀。 */
-function extractSeriesKey(title: string): string | null {
-  const branded = title.match(/^【([^】]+)】/);
-  if (branded) return `【${branded[1]}】`;
-  const dashed = title.match(/^([A-Za-z]+)-/);
-  if (dashed) return dashed[1];
-  const cn = title.match(/^([一-龥]{2,6})-(?=[一-龥])/);
-  if (cn) return cn[1];
-  return null;
-}
+/** 系列前缀识别已并入 capability-craft 的 craft 签名（Plan 229 单源化），此处不再保留副本。 */
 
 /** 与创作流程步骤同源的资产 id（双重身份：流程步骤 + 独立卡）。 */
 export function getFlowStepAssetIds(): ReadonlySet<string> {
@@ -152,7 +144,9 @@ export function groupStyleShelf<T extends StyleShelfCard>(
   assets: ReadonlyArray<T>
 ): GroupedStyleShelf<T> {
   const enriched = assets.map((asset) => {
-    const seriesKey = extractSeriesKey(asset.title);
+    // Plan 229：套牌识别改读 craft 签名（与 getSeriesDecks/互斥检测同一事实源，
+    // 覆盖 extractSeriesKey 缺失的品牌前缀系列，如 克苏鲁标题/宝可梦正文）。
+    const seriesKey = getCraftSignature(asset).seriesId;
     return { ...asset, inFlow: getFlowStepAssetIds().has(asset.id), seriesKey };
   });
 
