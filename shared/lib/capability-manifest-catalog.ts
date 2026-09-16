@@ -342,6 +342,7 @@ function getShelfManifestIndex(): Map<string, CapabilityManifestEntry> {
   if (shelfManifestIndex) return shelfManifestIndex;
   const index = new Map<string, CapabilityManifestEntry>();
   for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+    if ((asset.sourceGroup || '') === 'test-fixture') continue;
     // 分支一：上架的 active 散卡（square-*/private-84系/creative-* 等）
     if (asset.runtimeStatus === 'active' && asset.placementTier === 'optional-style' && !CURATED_DEFINITIONS[asset.id]) {
       index.set(asset.id, {
@@ -378,25 +379,6 @@ function getShelfManifestIndex(): Map<string, CapabilityManifestEntry> {
         usageModes: ['persistent-rule', 'single-run'],
       });
     }
-    if (asset.runtimeStatus === 'active' && asset.placementTier === 'optional-style') continue;
-    if (asset.placementTier === 'sanitize-required' && asset.runtimeStatus === 'candidate') continue;
-    index.set(asset.id, {
-      id: asset.id,
-      version: '1',
-      kind: 'technique',
-      stages: shelfStages(asset.stage),
-      input: 'text',
-      output: 'configuration',
-      action: 'use-technique',
-      allowedScopes: ['project', 'chapter'],
-      persistence: 'chapter-session',
-      sideEffect: 'configuration',
-      runtimeStatus: 'active',
-      sourceType: asset.sourceType || 'plaza',
-      usageModes: ['persistent-rule', 'single-run'],
-    });
-    // 消毒副本：与源候选同 manifest（id 不同），运行态 active。
-    index.set(`sanitized-${asset.id}`, { ...index.get(asset.id)!, id: `sanitized-${asset.id}` });
   }
   shelfManifestIndex = index;
   return index;

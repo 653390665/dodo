@@ -224,6 +224,7 @@ test('capability configuration degrades unknown technique references to warnings
   try {
     const generation = getDatabaseGeneration();
     // 模拟历史草稿：收藏引用了服务端 manifest 解析不出的技法 id（曾以 400「技法不存在」锁死配置）
+    // Plan 242 重锚：square-183 现已可解析（货架 manifest 派生），仅两个真正失效的 id 应告警。
     const capabilityProfile = {
       ...profile().capabilityProfile,
       favoriteTechniqueIds: ['square-183', 'sanitized-gone-card'],
@@ -233,7 +234,7 @@ test('capability configuration degrades unknown technique references to warnings
     assert.equal(preview.status, 200);
     const previewBody = await preview.json() as { previewToken: string; warnings: string[] };
     assert.ok(
-      previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:square-183') &&
+      !previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:square-183') &&
       previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:sanitized-gone-card') &&
       previewBody.warnings.includes('TECHNIQUE_UNRESOLVED:legacy-technique-id'),
       `warnings should name every unresolved id, got: ${JSON.stringify(previewBody.warnings)}`
