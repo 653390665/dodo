@@ -249,7 +249,7 @@ export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
     actionType: 'equip',
     capabilityManifest: {
       id: asset.id,
-      version: 'catalog',
+      version: getCatalogCapabilityManifest(asset.id)?.version || '1',
       kind: 'guardrail',
       stages: getExecutionStagesForGuardrail(asset),
       input: 'text',
@@ -295,7 +295,7 @@ function getAssetCapabilityManifest(
   if (!('deconstructionCardType' in asset) || !asset.deconstructionCardType) return undefined;
   return {
     id: asset.id,
-    version: 'catalog',
+    version: getCatalogCapabilityManifest(asset.id)?.version || '1',
     kind: 'skill-card',
     stages: [...CARD_STAGE_MAP[asset.deconstructionCardType]],
     input: 'text',
@@ -420,7 +420,7 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
     curationTier: asset.curationTier,
     capabilityManifest: {
       id: asset.id,
-      version: 'catalog',
+      version: getCatalogCapabilityManifest(asset.id)?.version || '1',
       kind: 'technique' as const,
       stages: [stageMap[asset.stage] || 'writer'],
       input: 'text',
@@ -453,7 +453,7 @@ export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
     actionType: 'equip' as const,
     capabilityManifest: {
       id: asset.id,
-      version: 'catalog',
+      version: getCatalogCapabilityManifest(asset.id)?.version || '1',
       kind: 'technique' as const,
       stages: ['writer'],
       input: 'text',
