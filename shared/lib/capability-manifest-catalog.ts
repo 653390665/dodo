@@ -2,6 +2,7 @@ import type { CapabilityManifestEntry } from '../types/capability-manifest.js';
 import type { CapabilityUsageMode } from '../types/creative-artifacts.js';
 import type { CapabilityStage } from '../types/capability-execution.js';
 import type { DeconstructionCardType } from '../types/skills.js';
+import { PROMPT_GOVERNANCE_CATALOG } from './prompt-governance-catalog.js';
 
 type ManifestDefinition = Omit<CapabilityManifestEntry, 'id'>;
 
@@ -309,6 +310,9 @@ export function getCatalogCapabilityManifest(assetId: string): CapabilityManifes
       sourceType: 'built-in',
     });
   }
+  // Plan 242：货架派生 manifest 兜底（散卡/消毒副本/题材模板等上架卡）。
+  const derived = getShelfManifestIndex().get(assetId);
+  if (derived) return derived;
   return undefined;
 }
 
@@ -316,4 +320,84 @@ export function listCatalogCapabilityManifests(): CapabilityManifestEntry[] {
   return [...Object.keys(CURATED_DEFINITIONS), ...FLOW_IDS]
     .map((id) => getCatalogCapabilityManifest(id))
     .filter((entry): entry is CapabilityManifestEntry => Boolean(entry));
+}
+
+// ─── Plan 242：货架派生 manifest（CORR-02 家族收口）──────────────────────────
+// 文风货架的散卡/消毒副本/题材模板此前不在 CURATED_DEFINITIONS 中，导致
+// cloneAssetToSkill / launchTechnique 等治理链路查表失败 → 配置静默失败。
+// 这里按源目录条目派生 technique manifest：只覆盖 runtime-active 的上架卡；
+// sanitized-* 副本剥前缀取源条目、runtimeStatus 恒为 active（副本即运行态）。
+
+type ShelfStage = string | undefined;
+
+function shelfStages(stage: ShelfStage): CapabilityStage[] {
+  if (stage === 'planning' || stage === 'foundation') return ['planner'];
+  if (stage === 'review') return ['critic'];
+  return ['writer'];
+}
+
+let shelfManifestIndex: Map<string, CapabilityManifestEntry> | null = null;
+
+function getShelfManifestIndex(): Map<string, CapabilityManifestEntry> {
+  if (shelfManifestIndex) return shelfManifestIndex;
+  const index = new Map<string, CapabilityManifestEntry>();
+  for (const asset of PROMPT_GOVERNANCE_CATALOG) {
+    // 分支一：上架的 active 散卡（square-*/private-84系/creative-* 等）
+    if (asset.runtimeStatus === 'active' && asset.placementTier === 'optional-style' && !CURATED_DEFINITIONS[asset.id]) {
+      index.set(asset.id, {
+        id: asset.id,
+        version: '1',
+        kind: 'technique',
+        stages: shelfStages(asset.stage),
+        input: 'text',
+        output: 'configuration',
+        action: 'use-technique',
+        allowedScopes: ['project', 'chapter'],
+        persistence: 'chapter-session',
+        sideEffect: 'configuration',
+        runtimeStatus: 'active',
+        sourceType: asset.sourceType || 'plaza',
+        usageModes: ['persistent-rule', 'single-run'],
+      });
+    }
+    // 分支二：sanitize-required 候选 → 生成侧消毒副本（sanitized-*，运行态 active）
+    if (asset.placementTier === 'sanitize-required' && asset.runtimeStatus === 'candidate' && asset.sourceGroup !== 'test-fixture') {
+      index.set(`sanitized-${asset.id}`, {
+        id: `sanitized-${asset.id}`,
+        version: '1',
+        kind: 'technique',
+        stages: shelfStages(asset.stage),
+        input: 'text',
+        output: 'configuration',
+        action: 'use-technique',
+        allowedScopes: ['project', 'chapter'],
+        persistence: 'chapter-session',
+        sideEffect: 'configuration',
+        runtimeStatus: 'active',
+        sourceType: asset.sourceType || 'plaza',
+        usageModes: ['persistent-rule', 'single-run'],
+      });
+    }
+    if (asset.runtimeStatus === 'active' && asset.placementTier === 'optional-style') continue;
+    if (asset.placementTier === 'sanitize-required' && asset.runtimeStatus === 'candidate') continue;
+    index.set(asset.id, {
+      id: asset.id,
+      version: '1',
+      kind: 'technique',
+      stages: shelfStages(asset.stage),
+      input: 'text',
+      output: 'configuration',
+      action: 'use-technique',
+      allowedScopes: ['project', 'chapter'],
+      persistence: 'chapter-session',
+      sideEffect: 'configuration',
+      runtimeStatus: 'active',
+      sourceType: asset.sourceType || 'plaza',
+      usageModes: ['persistent-rule', 'single-run'],
+    });
+    // 消毒副本：与源候选同 manifest（id 不同），运行态 active。
+    index.set(`sanitized-${asset.id}`, { ...index.get(asset.id)!, id: `sanitized-${asset.id}` });
+  }
+  shelfManifestIndex = index;
+  return index;
 }
