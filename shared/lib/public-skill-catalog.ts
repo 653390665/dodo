@@ -607,7 +607,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
   {
     "id": "tianma-outline-flow",
     "name": "结构工坊大纲流",
-    "description": "结构工坊大纲定制流，聚焦于细致的大纲规划、设定强化以及高潮情节的黄金节奏排布。",
+    "description": "流，聚焦于细致的大纲规划、设定强化以及高潮情节的黄金节奏排布。",
     "steps": [
       {
         "id": "tianma-outline-flow-step1",
@@ -2901,7 +2901,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-193",
     "title": "正文去AI高频词+润色",
     "stage": "polish",
-    "goal": "利用定制付费资产 正文去AI高频词+润色 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 正文去AI高频词+润色 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -2936,7 +2936,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-181",
     "title": "五个长篇脑洞",
     "stage": "polish",
-    "goal": "利用定制付费资产 五个长篇脑洞 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 五个长篇脑洞 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -2971,7 +2971,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-180",
     "title": "长篇正文<配套使用>",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇正文<配套使用> 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇正文<配套使用> 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3006,7 +3006,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-179",
     "title": "长篇通用章纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇通用章纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇通用章纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3041,7 +3041,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-178",
     "title": "长篇细纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇细纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇细纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3076,7 +3076,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-177",
     "title": "长篇超宏大世界观",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇超宏大世界观 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇超宏大世界观 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3111,7 +3111,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-175",
     "title": "长篇通用大纲-万字版",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇通用大纲-万字版 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇通用大纲-万字版 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3146,7 +3146,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-157",
     "title": "长篇角色卡生成",
     "stage": "polish",
-    "goal": "利用定制付费资产 长篇角色卡生成 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 长篇角色卡生成 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3181,7 +3181,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-168",
     "title": "章纲自适应续写",
     "stage": "polish",
-    "goal": "利用定制付费资产 章纲自适应续写 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 章纲自适应续写 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3216,7 +3216,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-163",
     "title": "短篇拆文仿写",
     "stage": "polish",
-    "goal": "利用定制付费资产 短篇拆文仿写 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 短篇拆文仿写 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3251,7 +3251,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-162",
     "title": "老福特编辑审稿",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特编辑审稿 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特编辑审稿 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3286,7 +3286,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-144",
     "title": "私有化流程6",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程6 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程6 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3321,7 +3321,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-143",
     "title": "私有化流程5",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程5 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程5 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3356,7 +3356,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-142",
     "title": "私有化流程4",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程4 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程4 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3391,7 +3391,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-141",
     "title": "私有化流程3",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程3 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程3 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3426,7 +3426,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-140",
     "title": "私有化流程2",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程2 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程2 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3461,7 +3461,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-139",
     "title": "私有化流程1",
     "stage": "polish",
-    "goal": "利用定制付费资产 私有化流程1 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 私有化流程1 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3496,7 +3496,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-132",
     "title": "女频过七猫保底",
     "stage": "polish",
-    "goal": "利用定制付费资产 女频过七猫保底 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 女频过七猫保底 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3531,7 +3531,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-131",
     "title": "自用长篇正文",
     "stage": "polish",
-    "goal": "利用定制付费资产 自用长篇正文 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 自用长篇正文 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3566,7 +3566,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-130",
     "title": "黄金手术刀",
     "stage": "polish",
-    "goal": "利用定制付费资产 黄金手术刀 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 黄金手术刀 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3601,7 +3601,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-129",
     "title": "老福特通用正文",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特通用正文 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特通用正文 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3636,7 +3636,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-128",
     "title": "老福特乙女大纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特乙女大纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特乙女大纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3671,7 +3671,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-127",
     "title": "老福特观影大纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特观影大纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特观影大纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3706,7 +3706,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-126",
     "title": "老福特耽美大纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特耽美大纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特耽美大纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3741,7 +3741,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-125",
     "title": "老福特爽文大纲",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特爽文大纲 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特爽文大纲 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3776,7 +3776,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-124",
     "title": "老福特脑洞生成器",
     "stage": "polish",
-    "goal": "利用定制付费资产 老福特脑洞生成器 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 老福特脑洞生成器 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3811,7 +3811,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-123",
     "title": "融梗换心候选生成",
     "stage": "polish",
-    "goal": "利用定制付费资产 融梗换心候选生成 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 融梗换心候选生成 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3846,7 +3846,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-101",
     "title": "金牌主编改稿",
     "stage": "polish",
-    "goal": "利用定制付费资产 金牌主编改稿 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 金牌主编改稿 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3881,7 +3881,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-100",
     "title": "金牌主编审稿",
     "stage": "polish",
-    "goal": "利用定制付费资产 金牌主编审稿 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 金牌主编审稿 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3914,9 +3914,9 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "private-89",
-    "title": "短篇专用大纲生成",
+    "title": "大纲生成",
     "stage": "polish",
-    "goal": "利用定制付费资产 短篇专用大纲生成 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 大纲生成 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3951,7 +3951,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-86",
     "title": "降 AI 润色 2.0",
     "stage": "polish",
-    "goal": "利用定制付费资产 降 AI 润色 2.0 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 降 AI 润色 2.0 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -3986,7 +3986,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-85",
     "title": "对话情绪拉扯增幅器",
     "stage": "polish",
-    "goal": "利用定制付费资产 对话情绪拉扯增幅器 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 对话情绪拉扯增幅器 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -4021,7 +4021,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "id": "private-84",
     "title": "超强文风自适应续写",
     "stage": "polish",
-    "goal": "利用定制付费资产 超强文风自适应续写 全链路推进长篇正文或提供题材适配。",
+    "goal": "付费资产 超强文风自适应续写 全链路推进长篇正文或提供题材适配。",
     "inputs": [
       "content"
     ],
@@ -5487,45 +5487,10 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "sourceType": "plaza"
   },
   {
-    "id": "sanitized-private-222",
-    "title": "正文提示词",
-    "stage": "polish",
-    "goal": "社区贡献的写作配方（正文提示词），效果请以实际生成验证。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是一名长篇网文正文写手。按给定章节梗概续写正文：1）以短段落推进，每段不超过三行，动作先于心理描写；2）对白占比不低于四成，口语化、带潜台词，禁止书面腔；3）每章至少一个冲突升级点与一个信息增量，结尾留钩子；4）禁止总结式收尾与重复交代已知信息。输出：直接输出正文，不要任何解释或标题。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 63,
-    "grade": "D",
-    "primaryCategory": "style-reference",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:177",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-221",
     "title": "克苏鲁标题",
     "stage": "polish",
-    "goal": "面向「克苏鲁标题」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「克苏鲁标题」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -5560,7 +5525,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-220",
     "title": "克苏鲁简介与书名",
     "stage": "polish",
-    "goal": "题材风格包：围绕「克苏鲁简介与书名」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「克苏鲁简介与书名」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -5595,7 +5560,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-219",
     "title": "克苏鲁配角信息卡",
     "stage": "polish",
-    "goal": "「克苏鲁配角信息卡」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「克苏鲁配角信息卡」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -5630,7 +5595,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-218",
     "title": "克苏鲁主角及主角团核心成员信息卡",
     "stage": "polish",
-    "goal": "面向「克苏鲁主角及主角团核心成员信息卡」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「克苏鲁主角及主角团核心成员信息卡」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -5665,7 +5630,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-217",
     "title": "克苏鲁正文",
     "stage": "polish",
-    "goal": "题材风格包：围绕「克苏鲁正文」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「克苏鲁正文」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -5700,7 +5665,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-216",
     "title": "克苏鲁章纲",
     "stage": "polish",
-    "goal": "「克苏鲁章纲」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「克苏鲁章纲」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -5735,7 +5700,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-215",
     "title": "克苏鲁细纲",
     "stage": "polish",
-    "goal": "面向「克苏鲁细纲」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「克苏鲁细纲」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -5770,7 +5735,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-214",
     "title": "克苏鲁大纲",
     "stage": "polish",
-    "goal": "题材风格包：围绕「克苏鲁大纲」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「克苏鲁大纲」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -5805,7 +5770,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-213",
     "title": "克苏鲁世界观",
     "stage": "polish",
-    "goal": "「克苏鲁世界观」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「克苏鲁世界观」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -5840,7 +5805,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-212",
     "title": "宝可梦简介",
     "stage": "polish",
-    "goal": "面向「宝可梦简介」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「宝可梦简介」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -5875,7 +5840,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-211",
     "title": "宝可梦书名与简介",
     "stage": "polish",
-    "goal": "题材风格包：围绕「宝可梦书名与简介」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「宝可梦书名与简介」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -5910,7 +5875,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-210",
     "title": "宝可梦配角信息卡",
     "stage": "polish",
-    "goal": "「宝可梦配角信息卡」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「宝可梦配角信息卡」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -5945,7 +5910,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-209",
     "title": "宝可梦正文",
     "stage": "polish",
-    "goal": "面向「宝可梦正文」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「宝可梦正文」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -5980,7 +5945,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-208",
     "title": "宝可梦细纲",
     "stage": "polish",
-    "goal": "题材风格包：围绕「宝可梦细纲」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「宝可梦细纲」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -6015,7 +5980,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-207",
     "title": "宝可梦章纲",
     "stage": "polish",
-    "goal": "「宝可梦章纲」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「宝可梦章纲」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -6050,7 +6015,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-206",
     "title": "宝可梦系统信息卡",
     "stage": "polish",
-    "goal": "面向「宝可梦系统信息卡」的共享题材模板：提供背景支撑与配置起点。",
+    "goal": "「宝可梦系统信息卡」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
     "inputs": [
       "content"
     ],
@@ -6085,7 +6050,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-205",
     "title": "宝可梦信息卡",
     "stage": "polish",
-    "goal": "题材风格包：围绕「宝可梦信息卡」提供题材背景与配置基线，效果以实际运行为准。",
+    "goal": "面向「宝可梦信息卡」的共享题材模板：提供背景支撑与配置起点。",
     "inputs": [
       "content"
     ],
@@ -6120,7 +6085,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-204",
     "title": "宝可梦主角信息卡",
     "stage": "polish",
-    "goal": "「宝可梦主角信息卡」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。",
+    "goal": "题材风格包：围绕「宝可梦主角信息卡」提供题材背景与配置基线，效果以实际运行为准。",
     "inputs": [
       "content"
     ],
@@ -6155,7 +6120,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-203",
     "title": "提示词",
     "stage": "polish",
-    "goal": "提示词：社区供给的辅助工具，写作效果以运行为准。",
+    "goal": "共享工具提示词（提示词）：作用范围见卡面，效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6188,9 +6153,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-202",
-    "title": "沐殇定制细纲",
+    "title": "细纲",
     "stage": "polish",
-    "goal": "「沐殇定制细纲」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。",
+    "goal": "细纲：社区贡献的写作配方，生成效果以运行为准。",
     "inputs": [
       "content"
     ],
@@ -6223,9 +6188,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-201",
-    "title": "沐殇定制大纲",
+    "title": "大纲",
     "stage": "polish",
-    "goal": "共享写作提示词（沐殇定制大纲）：聚焦卡面场景，效果因作品而异。",
+    "goal": "「大纲」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。",
     "inputs": [
       "content"
     ],
@@ -6258,9 +6223,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-200",
-    "title": "沐殇定制章纲",
+    "title": "章纲",
     "stage": "polish",
-    "goal": "沐殇定制章纲：社区贡献的写作配方，生成效果以运行为准。",
+    "goal": "共享写作提示词（章纲）：聚焦卡面场景，效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6293,9 +6258,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-199",
-    "title": "沐殇定制正文提示词",
+    "title": "正文提示词",
     "stage": "polish",
-    "goal": "广场共享写作卡（沐殇定制正文提示词）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。",
+    "goal": "正文提示词：广场共享提示词模板，写作效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6327,115 +6292,10 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
-    "id": "sanitized-private-192",
-    "title": "正文",
-    "stage": "polish",
-    "goal": "社区贡献的写作配方（正文），效果请以实际生成验证。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是爽感节奏型正文写手。按梗概续写：1）前三段内必须出现冲突或反转信号；2）主角行动果决，禁止犹豫内耗超过两句；3）打脸、升级、获利的爽点按「压抑两拍、释放一拍」的节奏布点；4）每千字至少一个小高潮，章末情绪推到顶。输出：正文，不解释。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 63,
-    "grade": "D",
-    "primaryCategory": "style-reference",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:204",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-191",
-    "title": "章纲",
-    "stage": "polish",
-    "goal": "章纲：社区贡献的写作配方，生成效果以运行为准。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是章纲写手。输入情节目标后输出本章规划：1）开篇接上章钩子，三段内推进新事件；2）中段一次冲突升级，代价可见；3）结尾按「断在动作最紧处」或「断在信息揭晓前一刻」二选一；4）列出本章新增伏笔与回收的旧伏笔编号。输出：本章章纲。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 67,
-    "grade": "D",
-    "primaryCategory": "author-workflow",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:205",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
-    "id": "sanitized-private-190",
-    "title": "细纲",
-    "stage": "polish",
-    "goal": "「细纲」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是细纲写手。把本章章纲细化为写作节拍：1）每节拍一句话，含「谁、做什么、结果如何、情绪走向」；2）对白与叙述的比例在节拍级标注；3）关键转折前安排一次误导拍；4）总节拍数与目标字数匹配（约每五百字一拍）。输出：节拍化细纲。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 67,
-    "grade": "D",
-    "primaryCategory": "author-workflow",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:206",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-189",
     "title": "书名+简介",
     "stage": "polish",
-    "goal": "共享工具提示词（书名+简介）：作用范围见卡面，效果因作品而异。",
+    "goal": "「书名+简介」的社区工具卡：按卡面说明辅助相应环节，效果请以实际生成验证。",
     "inputs": [
       "content"
     ],
@@ -6470,7 +6330,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-188",
     "title": "世界观",
     "stage": "polish",
-    "goal": "世界观：社区供给的辅助工具，写作效果以运行为准。",
+    "goal": "共享工具提示词（世界观）：作用范围见卡面，效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6505,7 +6365,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-187",
     "title": "脑洞",
     "stage": "polish",
-    "goal": "「脑洞」的社区工具卡：按卡面说明辅助相应环节，效果请以实际生成验证。",
+    "goal": "脑洞：社区供给的辅助工具，写作效果以运行为准。",
     "inputs": [
       "content"
     ],
@@ -6537,45 +6397,10 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
-    "id": "sanitized-private-185",
-    "title": "大纲",
-    "stage": "polish",
-    "goal": "共享写作提示词（大纲）：聚焦卡面场景，效果因作品而异。",
-    "inputs": [
-      "content"
-    ],
-    "template": "你是大纲整合器。把碎片化的创意整理成可用大纲：1）先归纳核心冲突一句话与主题一句；2）按起承转合排布已有关卡/事件，缺口明确标注「待补」；3）人物弧线与事件线并排对照；4）输出三部分：核心陈述、分卷结构、风险清单（最可能崩坏的两处）。输出：结构化大纲草案。",
-    "outputShape": "plain-text",
-    "riskNotes": [
-      "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"
-    ],
-    "successSignal": "长篇节奏感和对白质量有大幅上升。",
-    "licenseStatus": "user-authorized",
-    "sanitizationStatus": "runtime-ready",
-    "sanitizationHits": {
-      "contacts": 0,
-      "authors": 0,
-      "brands": 0,
-      "watermarks": 0
-    },
-    "runtimeStatus": "active",
-    "placementTier": "optional-style",
-    "score": 67,
-    "grade": "D",
-    "primaryCategory": "author-workflow",
-    "isWhiteLabeled": true,
-    "isRuntimeReady": true,
-    "sourceType": "plaza",
-    "sourceRef": "prompt-asset-scorecard.md:211",
-    "sourceGroup": "private",
-    "evidenceLevel": "scored-from-source",
-    "processDecision": "sanitize"
-  },
-  {
     "id": "sanitized-private-169",
     "title": "番茄正文过保底",
     "stage": "polish",
-    "goal": "番茄正文过保底：广场共享提示词模板，写作效果因作品而异。",
+    "goal": "广场共享写作卡（番茄正文过保底）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。",
     "inputs": [
       "content"
     ],
@@ -6610,7 +6435,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-161",
     "title": "新版过朱雀",
     "stage": "polish",
-    "goal": "广场共享写作卡（新版过朱雀）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。",
+    "goal": "社区贡献的写作配方（新版过朱雀），效果请以实际生成验证。",
     "inputs": [
       "content"
     ],
@@ -6645,7 +6470,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "id": "sanitized-private-158",
     "title": "短篇直出",
     "stage": "polish",
-    "goal": "社区贡献的写作配方（短篇直出），效果请以实际生成验证。",
+    "goal": "短篇直出：广场共享提示词模板，写作效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6678,9 +6503,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-92",
-    "title": "短篇专用导语仿写",
+    "title": "导语仿写",
     "stage": "polish",
-    "goal": "短篇专用导语仿写：社区贡献的写作配方，生成效果以运行为准。",
+    "goal": "「导语仿写」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。",
     "inputs": [
       "content"
     ],
@@ -6713,9 +6538,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-91",
-    "title": "短篇专用导语生成",
+    "title": "导语生成",
     "stage": "polish",
-    "goal": "「短篇专用导语生成」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。",
+    "goal": "共享写作提示词（导语生成）：聚焦卡面场景，效果因作品而异。",
     "inputs": [
       "content"
     ],
@@ -6748,9 +6573,9 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   },
   {
     "id": "sanitized-private-90",
-    "title": "短篇专用正文",
+    "title": "正文",
     "stage": "polish",
-    "goal": "共享写作提示词（短篇专用正文）：聚焦卡面场景，效果因作品而异。",
+    "goal": "正文：社区贡献的写作配方，生成效果以运行为准。",
     "inputs": [
       "content"
     ],
@@ -6914,7 +6739,7 @@ export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = [
     "id": "paid-author-flows",
     "name": "名家作者流程包",
     "type": "paid",
-    "description": "完整复现名家等名家作者的定制创作全流程。",
+    "description": "完整复现名家、创作全流程。",
     "whyUpgrade": "您的创作已经初具规模，此时升级名家流程包可以像金牌主编一样进行多轮、系统化的步骤推荐，彻底打通人设到黄金正文的连贯叙事脉络！",
     "assets": [
       "xiaofeiji-novel-flow",
@@ -7246,16 +7071,6 @@ export function getEnhancementPackageSteps(pkg: EnhancementPackage): readonly En
   }));
 }
 
-/**
- * 白标物理净化函数：剔除联系方式、外链与作者签名式标识。
- */
-export function sanitizeWhiteLabelText(text: string): string {
-  if (!text) return '';
-  let s = text;
-  s = s.replace(/(?:qq\s*群|群号|扣扣群|企鹅群)[:：]?\s*\d+/gi, '');
-  s = s.replace(/(?:https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,6}(?:\/\S*)?/gi, m => (m.includes('localhost') || m.includes('api') ? m : ''));
-  s = s.replace(/(?:微信号|微信|vx号|vx|we\s*chat)\s*[:：]?\s*[a-zA-Z0-9_-]{5,20}/gi, '');
-  s = s.replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/gi, '');
-  s = s.replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '');
-  return s;
-}
+// Plan 236（CORR-02）：白标清洗器单源化——本文件不再内嵌漂移的函数副本，
+// 统一 re-export 正典实现（shared/lib/prompt-sanitizer.ts，行为取并集）。
+export { sanitizeWhiteLabelText } from './prompt-sanitizer.js';

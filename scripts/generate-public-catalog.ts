@@ -177,9 +177,10 @@ function renderPathTitleCollapsesToEmpty(title: string): boolean {
   );
 }
 
-// 标准化去重键：去空白 + 去结尾数字（「番茄正文过保底」vs「…2」这类改名重投）。
+// 标准化去重键：先过渲染路径 sanitizer（Plan 236 合一后品牌剥除一致），再去空白/结尾数字
+// ——「沐殇定制细纲」与「细纲」这类换皮重投在合一后互为同卡。
 function normalizedTitleKey(title: string): string {
-  return title.replace(/\s+/g, '').replace(/\d+$/, '');
+  return sanitizeWhiteLabelText(title).replace(/\s+/g, '').replace(/\d+$/, '');
 }
 
 function collectSanitizeCandidates(): GovernedPromptAsset[] {
@@ -443,19 +444,9 @@ export function getEnhancementPackageSteps(pkg: EnhancementPackage): readonly En
   }));
 }
 
-/**
- * 白标物理净化函数：剔除联系方式、外链与作者签名式标识。
- */
-export function sanitizeWhiteLabelText(text: string): string {
-  if (!text) return '';
-  let s = text;
-  s = s.replace(/(?:qq\\s*群|群号|扣扣群|企鹅群)[:：]?\\s*\\d+/gi, '');
-  s = s.replace(/(?:https?:\\/\\/)?[\\w.-]+\\.[a-zA-Z]{2,6}(?:\\/\\S*)?/gi, m => (m.includes('localhost') || m.includes('api') ? m : ''));
-  s = s.replace(/(?:微信号|微信|vx号|vx|we\\s*chat)\\s*[:：]?\\s*[a-zA-Z0-9_-]{5,20}/gi, '');
-  s = s.replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/gi, '');
-  s = s.replace(/[\\u4e00-\\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '');
-  return s;
-}
+// Plan 236（CORR-02）：白标清洗器单源化——本文件不再内嵌漂移的函数副本，
+// 统一 re-export 正典实现（shared/lib/prompt-sanitizer.ts，行为取并集）。
+export { sanitizeWhiteLabelText } from './prompt-sanitizer.js';
 `;
 
   fs.writeFileSync(outputPath, tsContent, 'utf-8');

@@ -1,7 +1,6 @@
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog';
-// 注意：此处刻意用渲染路径同源的那份 sanitizeWhiteLabelText（public-skill-catalog 生成副本，
-// 规则比 prompt-sanitizer 宽，含「X定制/X出品」通配），保证「过滤判定」与「卡面渲染」一致——
-// 否则 sanitized-private-186（fire角色定制）这类卡会漏进货架变空标题卡。两份实现合一见 233。
+// 白标清洗器已单源化（Plan 236/CORR-02）：public-skill-catalog re-export 正典实现，
+// 此处经该入口引用即与渲染路径、消毒端点同一行为；过滤判定与卡面渲染天然一致。
 import { sanitizeWhiteLabelText } from '../../shared/lib/public-skill-catalog';
 import {
   CURATED_PRODUCT_SKILLS,
@@ -347,12 +346,12 @@ const admittedTitle = (title: string): boolean =>
 // Plan 233 去重兜底：候选自身无副本、但标准化标题与某张在架副本同键（改名重投，
 // 如「番茄正文过保底2」vs 已上架的「番茄正文过保底」）→ 冗余候选，不进消毒入口。
 const COPY_TITLE_KEYS: ReadonlySet<string> = new Set(
-  SANITIZED_SKILL_COPIES.map((copy) =>
-    (copy.title || '').replace(/\s+/g, '').replace(/\d+$/, '')
-  )
+  SANITIZED_SKILL_COPIES.map((copy) => sanitizeWhiteLabelText(copy.title || '').replace(/\s+/g, '').replace(/\d+$/, ''))
 );
 const redundantWithExistingCopy = (title: string): boolean =>
-  COPY_TITLE_KEYS.has((title || '').replace(/\s+/g, '').replace(/\d+$/, ''));
+  COPY_TITLE_KEYS.has(
+    sanitizeWhiteLabelText(title || '').replace(/\s+/g, '').replace(/\d+$/, '')
+  );
 
 const SANITIZE_REQUIRED_CATALOG_ASSETS = PROMPT_GOVERNANCE_CATALOG.filter(
   (asset) =>

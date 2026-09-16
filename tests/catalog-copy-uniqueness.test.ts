@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   PUBLIC_SKILL_GOVERNANCE_CATALOG,
   SANITIZED_SKILL_COPIES,
+  sanitizeWhiteLabelText,
 } from '../shared/lib/public-skill-catalog.js';
 import { COMMERCIAL_COPY_PATTERN } from '../shared/lib/prompt-sanitizer.js';
 
@@ -40,10 +41,12 @@ test('catalog rejects junk titles, cross-ASCII mixed copy, and duplicate submiss
     assert.deepEqual(mixed, [], `中英混排 goal：${mixed.map((a) => a.id).join(', ')}`);
   }
 
-  // 消毒副本标准化标题（去空白/去结尾数字）不得重复——改名重投只留一张
+  // 消毒副本标准化标题（渲染 sanitizer 剥品牌后去空白/去结尾数字）不得重复——换皮重投只留一张
   const keys = new Map<string, number>();
   for (const copy of SANITIZED_SKILL_COPIES) {
-    const key = (copy.title || '').replace(/\s+/g, '').replace(/\d+$/, '');
+    const key = sanitizeWhiteLabelText(copy.title || '')
+      .replace(/\s+/g, '')
+      .replace(/\d+$/, '');
     keys.set(key, (keys.get(key) || 0) + 1);
   }
   const dupKeys = [...keys.entries()].filter(([, count]) => count > 1);

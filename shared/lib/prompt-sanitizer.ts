@@ -137,10 +137,15 @@ export function sanitizeWhiteLabelText(text: string): string {
   s = s.replace(/(?:https?:\/\/)?[\w.-]+\.[a-zA-Z]{2,6}(?:\/\S*)?/gi, (m) =>
     m.includes('localhost') || m.includes('api') ? m : ''
   );
-  s = s.replace(/(?:知轩藏书|精校版|校对版|精校完本|精校无错|精校电子书)/gi, '');
+  s = s.replace(/(?:知轩藏书|精校版|校对版|精校完本|精校电子书)/gi, '');
   s = s.replace(/(?:微信号|微信|vx号|vx|wechat)\s*[:：]?\s*[a-zA-Z0-9_-]{5,20}/gi, '');
   s = s.replace(/【(?:风华出品|小飞鸡|天马|私有化|自用)】/gi, '');
   s = s.replace(/(?:风华出品|小飞鸡出品|风华出品的|沐殇专用|乐乐乐专用|牧殇角色|fire定制)/gi, '');
+  // Plan 236 并集：吸收生成文件内嵌副本的通配剥除（X出品/X专用/X定制 及括号变体），
+  // 使正典与渲染路径行为一致——此前生成版更宽，导致「消毒端点不剥竞品词」与
+  // 前端过滤判定被迫依赖生成副本的分裂（CORR-02）。
+  s = s.replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/gi, '');
+  s = s.replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '');
   return s;
 }
 

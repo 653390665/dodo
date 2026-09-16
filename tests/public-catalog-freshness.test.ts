@@ -174,7 +174,7 @@ function renderPathTitleCollapsesToEmpty(title: string): boolean {
 }
 
 function normalizedTitleKey(title: string): string {
-  return title.replace(/\s+/g, '').replace(/\d+$/, '');
+  return sanitizeWhiteLabelText(title).replace(/\s+/g, '').replace(/\d+$/, '');
 }
 
 function collectSanitizeCandidates(): GovernedPromptAsset[] {
@@ -281,16 +281,17 @@ test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-requi
   const candidates = collectSanitizeCandidates();
   // Plan 233 重锚 45→38：准入规则排除 6 张垃圾标题候选（测试审稿/测试黄金一章/测试/
   // fire角色定制/风华长篇大纲测试/私密内测）+ 去重 1 张（番茄正文过保底2）。
-  // 口径不变：每张准入候选各产一张副本。
+  // Plan 236 再锚 38→33：sanitizer 合一后去重键含品牌剥除——「沐殇定制细纲 vs 细纲」
+  // 等 5 对换皮重投互为同卡，只留一张。口径不变：每张准入候选各产一张副本。
   assert.equal(
     PUBLIC_COPIES.length,
-    38,
-    `sanitized copies count should be 38, got ${PUBLIC_COPIES.length}`
+    33,
+    `sanitized copies count should be 33, got ${PUBLIC_COPIES.length}`
   );
   assert.equal(
     candidates.length,
-    38,
-    `sanitize-required candidates count should be 38, got ${candidates.length}`
+    33,
+    `sanitize-required candidates count should be 33, got ${candidates.length}`
   );
 
   // 副本 id 集合与候选一一对应（同序）

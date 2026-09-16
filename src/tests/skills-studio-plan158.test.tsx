@@ -1780,7 +1780,9 @@ describe('Plan 158 capability center', () => {
     // Plan 232 重锚 45→44：sanitized-private-186（fire角色定制）整名被白标清洗清空，
     // 空标题卡不再入货架（过滤判定与渲染路径同源，见 capability-governance）。
     // Plan 233 再锚 44→38：生成器准入规则源头排除 6 张垃圾标题 + 去重 1 张改名重投。
-    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(38);
+    // Plan 236 再锚 38→33：sanitizer 合一后去重键含品牌剥除，5 对换皮重投（沐殇定制细纲
+    // vs 细纲 等）互为同卡只留一张。
+    expect(optional.filter((asset) => asset.id.startsWith('sanitized-')).length).toBe(33);
     // 白标生效：副本标题不再带作者署名（如「沐殇专用克苏鲁标题」→「克苏鲁标题」）
     const copyTitles = optional
       .filter((asset) => asset.id === 'sanitized-private-221')
