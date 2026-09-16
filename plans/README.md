@@ -307,7 +307,7 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 | 239 | 社区配方分层呈现——原料库默认折叠（第三轮审查） | DONE（StyleShelf filterActive 语义：默认浏览态纯社区散卡组归「原料库（N 张 · 社区散卡）」折叠（含定位说明），官方/套牌不折叠；症候激活全展开；测试镜像两区结构 7 例） | 237 |
 
 | DONE（打标 82 张：featured 25 / standard 36 / suspect-duplicate 21（test-fixture 不打）；curationTier 字段贯通 GovernedPromptAsset/ScorecardMeta/四构造循环/生成文件/前端投影；可审计清单 plans/240-curation-tags.md；零行为变化。全量 936/936） | — |
-| 241 | 反馈环第一口数据——章节完成轻量反馈 → observedPerformance（处方 5，Round 38 主菜） | TODO | 240 |
+| DONE（5c1f9b4：执行发现反馈聚合基建整条已存在（skill_usage_records 表→summarize→syncSkillFeedbackScores→feedbackScore），241 真实缺口仅为采集点——new ChapterCapabilityFeedbackBar 挂在章节完成评审面板下方，👍/😐/👎 单击即提交（映射 accepted/revised/rejected + fitScore 85/55/15），提交后立即聚合；幂等走 localStorage（done/dismissed:<chapterId>），服务端保持 append-only。测试：前端 3 例 + 后端聚合链 2 例（rejected 反馈激活 observedPerformance sampleSize=1、feedbackScore 写回、同章重完成 append 语义）。全量 939/939。供给路径四步全部就绪：折叠(239)→打标(240)→埋点(241)→数据驱动淘汰（攒数据后拍板） | 240 |
 
 ### Round 36 说明（2026-09-16）
 
@@ -324,6 +324,8 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 用户批准供给路径全案：**241 反馈环（处方 5 正式立项）**为主菜——章节完成时点一次性轻量反馈（👍/😐/👎）→ capability_feedback 事件 → observedPerformance 聚合 → 适合度反馈权重激活 + 能力卡地图计数增长；**240 策展打标**为其先验（三档元数据，零行为变化）。淘汰决策等 241 数据 + 240 先验共同支撑后再拍板。
 
 **Round 38 执行启动（2026-09-16）**：240 DONE。241 反馈环留待独立窗口执行（动章节完成时点主链路，计划已含两条 STOP 预案）。
+
+**Round 38 执行收口（2026-09-16 同日）**：240 DONE（打标 82 张）+ 241 DONE（反馈环采集点上线）。执行要点：241 复用既有 skill_usage_records 聚合基建而非新建事件通道（计划假设的 product-event 落库降级为不需要——usage record 即反馈的存储本体），幂等边界在客户端 localStorage。**供给路径四步全部就绪**，淘汰决策等反馈样本积累后与 240 策展先验共同拍板。
 
 ### Round 34 说明（2026-09-15）
 
