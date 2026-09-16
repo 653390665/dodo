@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     css: false, // 禁用 CSS 解析以大幅提高测试速度
     pool: 'threads',
+    // Plan 214（2026-09-16）：全量三连实测 0 失败（329/338/306s，dev server 同开负载），
+    // 饥饿伪影在 maxWorkers:1 串行池下未复现——参数固化维持现状，勿改回并行默认。
     maxWorkers: 1,
     testTimeout: 30_000,
     include: ['src/tests/**/*.test.tsx', 'src/tests/**/*.test.ts'],
