@@ -2691,7 +2691,11 @@ export function EditorView({
             key={currentChapter.id}
             novelId={novel.id}
             chapterId={currentChapter.id}
-            cardIds={currentChapter?.workflowMeta?.capabilityState?.techniqueIds || []}
+            cardIds={
+              currentChapter?.workflowMeta?.capabilityState?.techniqueIds?.length
+                ? currentChapter.workflowMeta.capabilityState.techniqueIds
+                : (novel.projectPreferenceProfile?.capabilityProfile?.projectTechniqueIds || [])
+            }
           />
         ) : null}
 
