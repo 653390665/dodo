@@ -101,4 +101,32 @@ describe('StyleShelf 系列套牌（plan 229）', () => {
     expect(screen.queryByTestId('apply-deck')).toBeNull();
     expect(screen.getAllByTestId('series-deck').length).toBeGreaterThanOrEqual(2);
   });
+
+  test('无作品上下文不渲染适合度分；有作品上下文时恢复（plan 237）', () => {
+    const { unmount } = renderShelf({ onApplyDeck: noop });
+    expect(screen.queryByText(/适合度/)).toBeNull();
+    unmount();
+
+    render(
+      <StyleShelf
+        selectedNovel={{
+          id: 'n1',
+          title: '番茄玄幻长篇',
+          authorId: 'local',
+          summary: '',
+          status: 'ongoing' as const,
+          createdAt: 1,
+          updatedAt: 1,
+        }}
+        assets={getOptionalStyleAssets()}
+        isFavorited={() => false}
+        isImported={() => false}
+        cloningAssetId={null}
+        isFreeNovel={false}
+        handlers={handlers}
+        onApplyDeck={noop}
+      />
+    );
+    expect(screen.getAllByText(/适合度/).length).toBeGreaterThan(0);
+  });
 });

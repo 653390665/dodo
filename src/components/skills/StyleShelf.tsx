@@ -11,7 +11,8 @@ import { PlazaAssetCard } from './PlazaAssetCard';
 
 interface StyleShelfCardWithFitness {
   asset: CuratedProductSkill;
-  fitness: { score: number; reasons: string[] };
+  /** Plan 237：无作品上下文时为 null——噪声分不渲染（排序保持目录序）。 */
+  fitness: { score: number; reasons: string[] } | null;
   isImported: boolean;
   isFavorited: boolean;
   isCloning: boolean;
@@ -100,7 +101,7 @@ function StyleShelfGrid({ cards, isFreeNovel, deckBadges, handlers }: StyleShelf
           onSanitize={
             isSanitizeRequiredAsset(asset.id) ? () => handlers.onSanitize(asset) : undefined
           }
-          fitnessChip={{ score: fitness.score, reasons: fitness.reasons }}
+          fitnessChip={fitness ? { score: fitness.score, reasons: fitness.reasons } : undefined}
           deckBadge={deckBadges?.[index]}
         />
       ))}
@@ -145,6 +146,7 @@ export function StyleShelf({
   const novelGenreTokens = deriveNovelGenreTokens(novelText, novelTags);
   const novelPlatform = novelText.includes('番茄') ? 'tomato' : undefined;
   // Plan 226：有作品上下文时按适合度降序（无上下文保持目录序）。
+  // Plan 237：无上下文时适合度是无含义的噪声分（题材/平台/反馈权重全空），不渲染。
   const hasFitnessContext = novelGenreTokens.length > 0 || Boolean(novelPlatform);
   const decorated = assets.map((asset) => ({
     ...asset,
@@ -152,11 +154,13 @@ export function StyleShelf({
     isCloning: cloningAssetId === asset.id,
     isImported: isImported(asset),
     asset,
-    fitness: computeCardFitness(asset, { novelGenreTokens, novelPlatform }),
+    fitness: hasFitnessContext
+      ? computeCardFitness(asset, { novelGenreTokens, novelPlatform })
+      : null,
   }));
   const shelf = groupStyleShelf(
     hasFitnessContext
-      ? decorated.sort((a, b) => b.fitness.score - a.fitness.score)
+      ? decorated.sort((a, b) => (b.fitness?.score ?? 0) - (a.fitness?.score ?? 0))
       : decorated
   );
   const deckBadgeFor = (groupAssets: StyleShelfCardWithFitness[], index: number) => {
