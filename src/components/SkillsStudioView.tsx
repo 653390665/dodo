@@ -1442,6 +1442,17 @@ export function SkillsStudioView({
       (entry) => (entry.parentSkillId || entry.id) === (asset.parentSkillId || asset.id)
     );
 
+  // Plan 238：迁移者指引显示条件——尚未配置任一重构卡时不打扰已采用用户。
+  const REFINERY_CARD_SOURCE_IDS = new Set(['refine-character-rebuild', 'refine-outline-rebuild']);
+  const showMigrateGuide = !craftAssetsForConfiguredIds().some((entry) =>
+    REFINERY_CARD_SOURCE_IDS.has(entry.parentSkillId || entry.id)
+  );
+  const goToRefineCards = () => {
+    setActiveTab('plaza');
+    setSelectedCapability('technique');
+    setSelectedCategory('creative-setup');
+  };
+
   const cancelPendingCandidate = () => {
     if (pendingCandidateId && selectedNovel?.id) {
       void recordCapabilityEvent({
@@ -2275,6 +2286,28 @@ export function SkillsStudioView({
                 还没有收藏能力卡。进能力商店从「这章要解决什么」挑第一张；
                 六维（文风 / 人物 / 世界 / 战力 / 剧情 / 节奏）随收藏逐步点亮。
               </p>
+            </div>
+          )}
+
+          {/* Plan 238：迁移者入口——已有大纲/人设资料的用户直达重构卡。 */}
+          {showMigrateGuide && (
+            <div
+              className="rounded-3xl border border-violet-500/30 bg-theme-sidebar p-5 shadow-sm"
+              data-testid="migrate-guide"
+            >
+              <div className="text-sm font-bold text-theme-text">已有大纲或人设资料？</div>
+              <p className="mt-2 text-xs leading-5 text-theme-muted">
+                不必从灵感开始。重构卡以你的既有资料为主输入做结构性重组：保留既定事实，
+                产物先出候选，确认后才写入。
+              </p>
+              <button
+                type="button"
+                data-testid="go-refine-cards"
+                onClick={goToRefineCards}
+                className="mt-3 w-full rounded-2xl border border-violet-500/35 px-4 py-2.5 text-sm font-bold text-violet-600 dark:text-violet-300 transition-colors hover:bg-violet-500/10"
+              >
+                查看重构卡（写作技法 · ① 立设定与大纲）
+              </button>
             </div>
           )}
         </div>

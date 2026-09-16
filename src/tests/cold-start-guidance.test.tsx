@@ -99,4 +99,21 @@ describe('Plan 235 冷启动导购前置', () => {
     expect(screen.queryByTestId('cold-start-guide')).toBeNull();
     expect(screen.getByTestId('skill-map-preview')).toBeTruthy();
   });
+
+  test('迁移者指引卡可见，点击落在写作技法页签的①阶段（plan 238）', async () => {
+    render(<SkillsStudioView selectedNovel={undefined} />);
+    await settleStudio();
+
+    const guide = screen.getByTestId('migrate-guide');
+    expect(guide.textContent).toContain('已有大纲或人设资料');
+    expect(guide.textContent).toContain('先出候选');
+
+    await act(async () => {
+      screen.getByTestId('go-refine-cards').click();
+    });
+    await settleStudio();
+    expect(screen.getByRole('tab', { name: /写作技法/ })).toBeTruthy();
+    expect(screen.getAllByText(/① 立设定与大纲/).length).toBeGreaterThan(0);
+    expect(await screen.findByText(/人设重构器/)).toBeTruthy();
+  });
 });
