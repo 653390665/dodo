@@ -2924,6 +2924,7 @@ export function SkillsStudioView({
                                 isImported={isAssetPersisted}
                                 cloningAssetId={cloningAssetId}
                                 isFreeNovel={isFreeNovel}
+                                filterActive={Boolean(activeSymptomKey)}
                                 onApplyDeck={handleApplyDeck}
                                 isCardConfigured={isDeckCardConfigured}
                                 handlers={{

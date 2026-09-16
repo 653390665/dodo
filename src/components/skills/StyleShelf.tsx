@@ -1,6 +1,6 @@
 import type { Novel } from '../../../shared/types';
 import type { CuratedProductSkill } from '../../../shared/types/prompt-assets-governed';
-import { isSanitizeRequiredAsset } from '../../lib/capability-governance';
+import { isOfficialSupplyAsset, isSanitizeRequiredAsset } from '../../lib/capability-governance';
 import { getCraftSignature } from '../../lib/capability-craft';
 import {
   computeCardFitness,
@@ -123,12 +123,15 @@ interface StyleShelfProps {
   onApplyDeck?: (cards: CuratedProductSkill[]) => void;
   /** 套牌卡是否已进入当前配置草稿（用于「从第 N 张继续」推算）。 */
   isCardConfigured?: (asset: CuratedProductSkill) => boolean;
+  /** Plan 238/226：症候或筛选激活时全部展开（用户带着意图来，不折叠）。 */
+  filterActive?: boolean;
 }
 
 /**
  * 013：文风与正文货架（Plan 195 切片 C Step 2 自 SkillsStudioView 内联迁出）。
  * 二级分组 + 适合度排序 + 分组渲染；判定谓词由视图传入（读会话草稿/货架数据）。
  * Plan 229：系列分组升级为套牌卡面——名称、卡数、工位、序号、整剂启用/从第 N 张继续。
+ * Plan 239：默认浏览态下社区散卡组归入「原料库」默认折叠——官方/套牌/症候动线不折叠。
  */
 export function StyleShelf({
   selectedNovel,
@@ -140,6 +143,7 @@ export function StyleShelf({
   handlers,
   onApplyDeck,
   isCardConfigured,
+  filterActive = false,
 }: StyleShelfProps) {
   const novelText = [selectedNovel?.title, selectedNovel?.summary].filter(Boolean).join('\n');
   const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
@@ -174,9 +178,20 @@ export function StyleShelf({
     if (firstMissing === 0) return null;
     return `从第 ${firstMissing + 1} 张继续`;
   };
+  // Plan 239：默认浏览态下纯社区散卡组归入「原料库」折叠；官方组/症候过滤态全部展开。
+  const isLibraryGroup = (group: (typeof shelf.functional)[number]) =>
+    group.assets.length > 0 &&
+    group.assets.every((entry) => !isOfficialSupplyAsset(entry.asset));
+  const libraryGroups = filterActive
+    ? []
+    : shelf.functional.filter(isLibraryGroup);
+  const expandedGroups = filterActive
+    ? shelf.functional
+    : shelf.functional.filter((group) => !libraryGroups.includes(group));
+  const libraryCardCount = libraryGroups.reduce((sum, group) => sum + group.assets.length, 0);
   return (
     <div className="space-y-4">
-      {shelf.functional.map((group) => (
+      {expandedGroups.map((group) => (
         <div key={group.key} className="space-y-2">
           <h3 className="text-xs font-bold text-theme-text">
             {group.label}（{group.assets.length}）
@@ -184,6 +199,33 @@ export function StyleShelf({
           <StyleShelfGrid cards={group.assets} isFreeNovel={isFreeNovel} handlers={handlers} />
         </div>
       ))}
+      {libraryGroups.length > 0 && (
+        <details
+          data-testid="raw-supply-library"
+          className="rounded-xl border border-theme-border/60 bg-theme-bg/40"
+        >
+          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
+            原料库（{libraryCardCount} 张 · 社区散卡）
+            <span className="ml-2 font-normal">
+              无保修、不成套；需要时展开挑选，或用「这章要解决什么」按症候筛选
+            </span>
+          </summary>
+          <div className="px-4 pb-4 space-y-4">
+            {libraryGroups.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <h4 className="text-xs font-bold text-theme-muted">
+                  {group.label}（{group.assets.length}）
+                </h4>
+                <StyleShelfGrid
+                  cards={group.assets}
+                  isFreeNovel={isFreeNovel}
+                  handlers={handlers}
+                />
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
       {shelf.series.map((group) => {
         const orderedCards = orderDeckCards(group.assets.map((entry) => entry.asset));
         const deckSignatureStations = [

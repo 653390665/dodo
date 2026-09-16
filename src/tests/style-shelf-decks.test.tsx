@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import { getOptionalStyleAssets } from '../lib/capability-governance';
+import { getOptionalStyleAssets, isOfficialSupplyAsset } from '../lib/capability-governance';
 import { getCraftSignature } from '../lib/capability-craft';
 import { StyleShelf } from '../components/skills/StyleShelf';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
@@ -17,8 +17,10 @@ const handlers = {
 };
 
 const renderShelf = (overrides?: {
+  assets?: CuratedProductSkill[];
   onApplyDeck?: (cards: CuratedProductSkill[]) => void;
   isCardConfigured?: (asset: CuratedProductSkill) => boolean;
+  filterActive?: boolean;
 }) =>
   render(
     <StyleShelf
@@ -128,5 +130,50 @@ describe('StyleShelf 系列套牌（plan 229）', () => {
       />
     );
     expect(screen.getAllByText(/适合度/).length).toBeGreaterThan(0);
+  });
+
+  test('默认浏览态社区散卡归入原料库折叠，过滤激活时全部展开（plan 239）', () => {
+    // 镜像生产两区结构：官方区（built-in）与社区区各自一个 StyleShelf 实例
+    const all = getOptionalStyleAssets();
+    const official = all.filter((asset) => isOfficialSupplyAsset(asset));
+    const community = all.filter((asset) => !isOfficialSupplyAsset(asset));
+
+    const { unmount } = render(
+      <>
+        <StyleShelf
+          selectedNovel={undefined}
+          assets={official}
+          isFavorited={() => false}
+          isImported={() => false}
+          cloningAssetId={null}
+          isFreeNovel={false}
+          handlers={handlers}
+        />
+        <StyleShelf
+          selectedNovel={undefined}
+          assets={community}
+          isFavorited={() => false}
+          isImported={() => false}
+          cloningAssetId={null}
+          isFreeNovel={false}
+          handlers={handlers}
+          onApplyDeck={noop}
+        />
+      </>
+    );
+    const libraries = screen.getAllByTestId('raw-supply-library');
+    expect(libraries).toHaveLength(1); // 官方区无原料库，社区区一个
+    const decks = screen.getAllByTestId('series-deck');
+    const deckCardCount = decks.reduce(
+      (sum, node) => sum + (node.textContent?.match(/套牌第\d+张/g)?.length ?? 0),
+      0
+    );
+    const expectedLibrary = community.length - deckCardCount;
+    expect(libraries[0].textContent).toContain(`原料库（${expectedLibrary} 张 · 社区散卡）`);
+    unmount();
+
+    // 过滤激活：原料库消失，全部展开
+    renderShelf({ assets: community, filterActive: true });
+    expect(screen.queryByTestId('raw-supply-library')).toBeNull();
   });
 });
