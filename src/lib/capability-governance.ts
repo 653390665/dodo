@@ -417,6 +417,7 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
     primaryCategory: asset.primaryCategory || 'style-reference',
     inputs: asset.inputs || ['content'],
     actionType: 'equip' as const,
+    curationTier: asset.curationTier,
     capabilityManifest: {
       id: asset.id,
       version: 'catalog',

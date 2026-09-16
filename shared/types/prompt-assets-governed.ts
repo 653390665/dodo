@@ -77,6 +77,9 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
   /** 作者或贡献者标识 */
   author?: string;
 
+  /** Plan 240 人工策展档位：featured=独立方法论 / standard=普通供给 / suspect-duplicate=疑似同质重复。仅供下架决策与治理查询，不影响排序与展示。 */
+  curationTier?: 'featured' | 'standard' | 'suspect-duplicate';
+
   /** 关联的特定作者创作流 ID */
   authorFlowId?: string;
 
@@ -246,6 +249,8 @@ export interface CuratedProductSkill {
   primaryCategory: string;
   inputs: string[];
   actionType: 'direct-exec' | 'equip' | 'import';
+  /** Plan 240 人工策展档位（散卡治理用，见 GovernedPromptAsset.curationTier）。 */
+  curationTier?: 'featured' | 'standard' | 'suspect-duplicate';
   parentSkillId?: string;
   capabilityManifest?: CapabilityManifestEntry;
 }

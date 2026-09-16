@@ -154,6 +154,7 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
   },
   {
     id: 'raw-comp-brand-detector',
+    curationTier: 'featured',
     title: '墨流竞品检测模板',
     stage: 'review',
     goal: '检测墨流编辑器生成的敏感段落',
@@ -691,11 +692,14 @@ interface ScorecardMeta {
   cat: PromptCategoryV2;
   tier: PlacementTier;
   sourceType: 'built-in' | 'plaza' | 'licensed';
+  /** Plan 240 人工策展档位（可选；缺省视为 standard）。 */
+  curationTier?: 'featured' | 'standard' | 'suspect-duplicate';
 }
 
 const rawSquareConfigs: ScorecardMeta[] = [
   {
     id: 'square-183',
+    curationTier: 'featured',
     title: '【小飞鸡】长篇拆书器<十章版>',
     score: 88,
     line: 117,
@@ -714,6 +718,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-176',
+    curationTier: 'featured',
     title: '【小飞鸡】长篇正文~超强口语化推进剧情',
     score: 86,
     line: 119,
@@ -723,6 +728,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-174',
+    curationTier: 'standard',
     title: '【小飞鸡】番茄长篇正文通用',
     score: 86,
     line: 120,
@@ -750,6 +756,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-109',
+    curationTier: 'featured',
     title: '【小飞鸡】爆款短篇第三步',
     score: 82,
     line: 123,
@@ -759,6 +766,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-108',
+    curationTier: 'featured',
     title: '【小飞鸡】爆款短篇第二步',
     score: 86,
     line: 124,
@@ -768,6 +776,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-107',
+    curationTier: 'featured',
     title: '【小飞鸡】爆款短篇第一步',
     score: 82,
     line: 125,
@@ -777,6 +786,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-104',
+    curationTier: 'standard',
     title: 'lwl-网络流行语和热门梗润色',
     score: 74,
     line: 126,
@@ -876,6 +886,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-76',
+    curationTier: 'featured',
     title: '天马-脑洞生成-番茄爆款',
     score: 74,
     line: 137,
@@ -885,6 +896,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-74',
+    curationTier: 'standard',
     title: '【风华出品】长短篇通用正文',
     score: 79,
     line: 138,
@@ -894,6 +906,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-61',
+    curationTier: 'standard',
     title: 'lwl-事件生成',
     score: 74,
     line: 139,
@@ -903,6 +916,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-60',
+    curationTier: 'featured',
     title: 'lwl-爆款短篇仿写与黄金开篇',
     score: 74,
     line: 140,
@@ -912,6 +926,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-56',
+    curationTier: 'standard',
     title: 'lwl-简介生成',
     score: 74,
     line: 141,
@@ -921,6 +936,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-55',
+    curationTier: 'standard',
     title: 'lwl-生成角色',
     score: 74,
     line: 142,
@@ -930,6 +946,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-54',
+    curationTier: 'standard',
     title: 'lwl-世界观生成专家',
     score: 78,
     line: 143,
@@ -939,6 +956,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-53',
+    curationTier: 'standard',
     title: 'lwl-世界观生成',
     score: 78,
     line: 144,
@@ -948,6 +966,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-43',
+    curationTier: 'featured',
     title: '天马-番茄短篇-清澈版',
     score: 74,
     line: 145,
@@ -993,6 +1012,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-27',
+    curationTier: 'featured',
     title: '爆款-番茄风【金手指】',
     score: 74,
     line: 150,
@@ -1038,6 +1058,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-19',
+    curationTier: 'standard',
     title: 'lwl-知乎短文',
     score: 74,
     line: 155,
@@ -1047,6 +1068,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-18',
+    curationTier: 'standard',
     title: 'lwl-生成新角色',
     score: 74,
     line: 156,
@@ -1056,6 +1078,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-13',
+    curationTier: 'standard',
     title: 'lwl-文本润色',
     score: 74,
     line: 157,
@@ -1065,6 +1088,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-12',
+    curationTier: 'suspect-duplicate',
     title: 'lwl-顶级提示0.01',
     score: 74,
     line: 158,
@@ -1101,6 +1125,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-7',
+    curationTier: 'featured',
     title: 'lwl-爆款续写',
     score: 74,
     line: 162,
@@ -1110,6 +1135,7 @@ const rawSquareConfigs: ScorecardMeta[] = [
   },
   {
     id: 'square-3',
+    curationTier: 'standard',
     title: 'lwl-AI润色指令',
     score: 74,
     line: 163,
@@ -1368,6 +1394,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-203',
+    curationTier: 'suspect-duplicate',
     title: '牧殇角色提示词',
     score: 68,
     line: 196,
@@ -1377,6 +1404,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-202',
+    curationTier: 'suspect-duplicate',
     title: '沐殇定制细纲',
     score: 67,
     line: 197,
@@ -1386,6 +1414,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-201',
+    curationTier: 'suspect-duplicate',
     title: '沐殇定制大纲',
     score: 67,
     line: 198,
@@ -1395,6 +1424,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-200',
+    curationTier: 'suspect-duplicate',
     title: '沐殇定制章纲',
     score: 67,
     line: 199,
@@ -1404,6 +1434,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-199',
+    curationTier: 'suspect-duplicate',
     title: '沐殇定制正文提示词',
     score: 63,
     line: 200,
@@ -1467,6 +1498,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-189',
+    curationTier: 'suspect-duplicate',
     title: 'fire定制书名+简介',
     score: 63,
     line: 207,
@@ -1476,6 +1508,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-188',
+    curationTier: 'suspect-duplicate',
     title: 'fire定制世界观',
     score: 67,
     line: 208,
@@ -1485,6 +1518,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-187',
+    curationTier: 'suspect-duplicate',
     title: 'fire定制脑洞',
     score: 63,
     line: 209,
@@ -1521,6 +1555,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-169',
+    curationTier: 'suspect-duplicate',
     title: '番茄正文过保底',
     score: 68,
     line: 213,
@@ -1530,6 +1565,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-168',
+    curationTier: 'standard',
     title: '章纲自适应续写',
     score: 72,
     line: 214,
@@ -1548,6 +1584,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-163',
+    curationTier: 'featured',
     title: '【风华出品】短篇拆文仿写',
     score: 76,
     line: 216,
@@ -1557,6 +1594,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-162',
+    curationTier: 'featured',
     title: '【风华出品】老福特编辑审稿',
     score: 76,
     line: 217,
@@ -1566,6 +1604,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-161',
+    curationTier: 'suspect-duplicate',
     title: '新版过朱雀',
     score: 56,
     line: 218,
@@ -1575,6 +1614,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-158',
+    curationTier: 'suspect-duplicate',
     title: '短篇直出',
     score: 68,
     line: 219,
@@ -1584,6 +1624,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-144',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程6',
     score: 73,
     line: 220,
@@ -1593,6 +1634,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-143',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程5',
     score: 73,
     line: 221,
@@ -1602,6 +1644,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-142',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程4',
     score: 73,
     line: 222,
@@ -1611,6 +1654,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-141',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程3',
     score: 73,
     line: 223,
@@ -1620,6 +1664,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-140',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程2',
     score: 73,
     line: 224,
@@ -1629,6 +1674,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-139',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】私有化流程1',
     score: 73,
     line: 225,
@@ -1638,6 +1684,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-132',
+    curationTier: 'featured',
     title: '【风华出品】女频过七猫保底',
     score: 73,
     line: 226,
@@ -1647,6 +1694,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-131',
+    curationTier: 'standard',
     title: '【风华出品】自用长篇正文',
     score: 76,
     line: 227,
@@ -1656,6 +1704,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-130',
+    curationTier: 'featured',
     title: '【风华出品】黄金手术刀',
     score: 76,
     line: 228,
@@ -1665,6 +1714,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-129',
+    curationTier: 'standard',
     title: '【风华出品】老福特通用正文',
     score: 73,
     line: 229,
@@ -1674,6 +1724,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-128',
+    curationTier: 'featured',
     title: '【风华出品】老福特乙女大纲',
     score: 76,
     line: 230,
@@ -1683,6 +1734,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-127',
+    curationTier: 'featured',
     title: '【风华出品】老福特观影大纲',
     score: 76,
     line: 231,
@@ -1692,6 +1744,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-126',
+    curationTier: 'featured',
     title: '【风华出品】老福特耽美大纲',
     score: 76,
     line: 232,
@@ -1701,6 +1754,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-125',
+    curationTier: 'featured',
     title: '【风华出品】老福特爽文大纲',
     score: 76,
     line: 233,
@@ -1710,6 +1764,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-124',
+    curationTier: 'standard',
     title: '【风华出品】老福特脑洞生成器',
     score: 73,
     line: 234,
@@ -1719,6 +1774,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-123',
+    curationTier: 'featured',
     title: '【风华出品】一键融梗换心',
     score: 73,
     line: 235,
@@ -1737,6 +1793,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-101',
+    curationTier: 'standard',
     title: '【风华出品】金牌主编改稿',
     score: 73,
     line: 237,
@@ -1746,6 +1803,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-100',
+    curationTier: 'standard',
     title: '【风华出品】金牌主编审稿',
     score: 76,
     line: 238,
@@ -1755,6 +1813,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-92',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】短篇专用导语仿写',
     score: 68,
     line: 239,
@@ -1764,6 +1823,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-91',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】短篇专用导语生成',
     score: 68,
     line: 240,
@@ -1773,6 +1833,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-90',
+    curationTier: 'suspect-duplicate',
     title: '【风华出品】短篇专用正文',
     score: 68,
     line: 241,
@@ -1782,6 +1843,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-89',
+    curationTier: 'standard',
     title: '【风华出品】短篇专用大纲生成',
     score: 72,
     line: 242,
@@ -1791,6 +1853,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-86',
+    curationTier: 'featured',
     title: '【风华出品】一键润色降ai 2.0',
     score: 76,
     line: 243,
@@ -1800,6 +1863,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-85',
+    curationTier: 'featured',
     title: '【风华出品】对话情绪拉扯增幅器',
     score: 73,
     line: 244,
@@ -1809,6 +1873,7 @@ const rawPrivateConfigs: ScorecardMeta[] = [
   },
   {
     id: 'private-84',
+    curationTier: 'featured',
     title: '【风华出品】超强文风自适应续写',
     score: 73,
     line: 245,
@@ -2070,6 +2135,7 @@ const rawSupplementConfigs: ScorecardMeta[] = [
   },
   {
     id: 'chapter-blueprint-prompt',
+    curationTier: 'featured',
     title: '章节正文写作 prompt',
     score: 84,
     line: 33,
@@ -2097,6 +2163,7 @@ const rawSupplementConfigs: ScorecardMeta[] = [
   },
   {
     id: 'opening-templates-library',
+    curationTier: 'standard',
     title: '开头模板库',
     score: 78,
     line: 36,
@@ -2124,6 +2191,7 @@ const rawSupplementConfigs: ScorecardMeta[] = [
   },
   {
     id: 'tomato-sweet-formula',
+    curationTier: 'featured',
     title: '爽点核心公式',
     score: 85,
     line: 39,
@@ -2390,6 +2458,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
   for (const s of rawSquareConfigs) {
     const isPassed = s.score >= 70;
     assets.push({
+      curationTier: s.curationTier,
       id: s.id,
       title: s.title,
       stage: 'polish',
@@ -2423,6 +2492,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
     // 强制拦截分值 < 70 的低分/未清洗资产
     const isReady = p.score >= 70 && p.tier !== 'sanitize-required';
     assets.push({
+      curationTier: p.curationTier,
       id: p.id,
       title: p.title,
       stage: 'polish',
@@ -2474,6 +2544,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
 
     assets.push({
       id: c.id,
+      curationTier: 'standard',
       title: c.title,
       stage: 'polish',
       goal: `题材风格包提供${c.title}题材的背景支撑与配置基线。`,
@@ -2526,6 +2597,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
     }
 
     assets.push({
+      curationTier: su.curationTier,
       id: su.id,
       title: su.title,
       stage,

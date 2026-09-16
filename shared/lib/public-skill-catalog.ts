@@ -1253,6 +1253,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-183",
     "title": "长篇拆书器<十章版>",
     "stage": "polish",
@@ -1323,6 +1324,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-176",
     "title": "长篇正文~超强口语化推进剧情",
     "stage": "polish",
@@ -1358,6 +1360,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-174",
     "title": "番茄长篇正文通用",
     "stage": "polish",
@@ -1463,6 +1466,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-109",
     "title": "爆款短篇第三步",
     "stage": "polish",
@@ -1498,6 +1502,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-108",
     "title": "爆款短篇第二步",
     "stage": "polish",
@@ -1533,6 +1538,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-107",
     "title": "爆款短篇第一步",
     "stage": "polish",
@@ -1568,6 +1574,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-104",
     "title": "lwl-网络流行语和热门梗润色",
     "stage": "polish",
@@ -1953,6 +1960,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-76",
     "title": "结构工坊-脑洞生成-番茄爆款",
     "stage": "polish",
@@ -1988,6 +1996,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-74",
     "title": "长短篇通用正文",
     "stage": "polish",
@@ -2023,6 +2032,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-61",
     "title": "lwl-事件生成",
     "stage": "polish",
@@ -2058,6 +2068,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-60",
     "title": "lwl-爆款短篇仿写与黄金开篇",
     "stage": "polish",
@@ -2093,6 +2104,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-56",
     "title": "lwl-简介生成",
     "stage": "polish",
@@ -2128,6 +2140,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-55",
     "title": "lwl-生成角色",
     "stage": "polish",
@@ -2163,6 +2176,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-54",
     "title": "lwl-世界观生成专家",
     "stage": "polish",
@@ -2198,6 +2212,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-53",
     "title": "lwl-世界观生成",
     "stage": "polish",
@@ -2233,6 +2248,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-43",
     "title": "结构工坊-番茄短篇-清澈版",
     "stage": "polish",
@@ -2408,6 +2424,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-27",
     "title": "爆款-番茄风【金手指】",
     "stage": "polish",
@@ -2583,6 +2600,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-19",
     "title": "lwl-知乎短文",
     "stage": "polish",
@@ -2618,6 +2636,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-18",
     "title": "lwl-生成新角色",
     "stage": "polish",
@@ -2653,6 +2672,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-13",
     "title": "lwl-文本润色",
     "stage": "polish",
@@ -2688,6 +2708,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "square-12",
     "title": "lwl-顶级提示0.01",
     "stage": "polish",
@@ -2828,6 +2849,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "square-7",
     "title": "lwl-爆款续写",
     "stage": "polish",
@@ -2863,6 +2885,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "square-3",
     "title": "lwl-AI润色指令",
     "stage": "polish",
@@ -3178,6 +3201,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-168",
     "title": "章纲自适应续写",
     "stage": "polish",
@@ -3213,6 +3237,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-163",
     "title": "短篇拆文仿写",
     "stage": "polish",
@@ -3248,6 +3273,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-162",
     "title": "老福特编辑审稿",
     "stage": "polish",
@@ -3283,6 +3309,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-144",
     "title": "私有化流程6",
     "stage": "polish",
@@ -3318,6 +3345,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-143",
     "title": "私有化流程5",
     "stage": "polish",
@@ -3353,6 +3381,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-142",
     "title": "私有化流程4",
     "stage": "polish",
@@ -3388,6 +3417,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-141",
     "title": "私有化流程3",
     "stage": "polish",
@@ -3423,6 +3453,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-140",
     "title": "私有化流程2",
     "stage": "polish",
@@ -3458,6 +3489,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "private-139",
     "title": "私有化流程1",
     "stage": "polish",
@@ -3493,6 +3525,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-132",
     "title": "女频过七猫保底",
     "stage": "polish",
@@ -3528,6 +3561,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-131",
     "title": "自用长篇正文",
     "stage": "polish",
@@ -3563,6 +3597,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-130",
     "title": "黄金手术刀",
     "stage": "polish",
@@ -3598,6 +3633,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-129",
     "title": "老福特通用正文",
     "stage": "polish",
@@ -3633,6 +3669,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-128",
     "title": "老福特乙女大纲",
     "stage": "polish",
@@ -3668,6 +3705,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-127",
     "title": "老福特观影大纲",
     "stage": "polish",
@@ -3703,6 +3741,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-126",
     "title": "老福特耽美大纲",
     "stage": "polish",
@@ -3738,6 +3777,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-125",
     "title": "老福特爽文大纲",
     "stage": "polish",
@@ -3773,6 +3813,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-124",
     "title": "老福特脑洞生成器",
     "stage": "polish",
@@ -3808,6 +3849,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-123",
     "title": "融梗换心候选生成",
     "stage": "polish",
@@ -3843,6 +3885,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-101",
     "title": "金牌主编改稿",
     "stage": "polish",
@@ -3878,6 +3921,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-100",
     "title": "金牌主编审稿",
     "stage": "polish",
@@ -3913,6 +3957,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "private-89",
     "title": "大纲生成",
     "stage": "polish",
@@ -3948,6 +3993,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-86",
     "title": "降 AI 润色 2.0",
     "stage": "polish",
@@ -3983,6 +4029,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-85",
     "title": "对话情绪拉扯增幅器",
     "stage": "polish",
@@ -4018,6 +4065,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "private-84",
     "title": "超强文风自适应续写",
     "stage": "polish",
@@ -4054,6 +4102,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-1",
+    "curationTier": "standard",
     "title": "玄幻题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供玄幻题材大类配置模板题材的背景支撑与配置基线。",
@@ -4092,6 +4141,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-2",
+    "curationTier": "standard",
     "title": "修真题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供修真题材大类配置模板题材的背景支撑与配置基线。",
@@ -4131,6 +4181,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-3",
+    "curationTier": "standard",
     "title": "都市异能题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供都市异能题材大类配置模板题材的背景支撑与配置基线。",
@@ -4169,6 +4220,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-4",
+    "curationTier": "standard",
     "title": "重生题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供重生题材大类配置模板题材的背景支撑与配置基线。",
@@ -4209,6 +4261,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-5",
+    "curationTier": "standard",
     "title": "穿越题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供穿越题材大类配置模板题材的背景支撑与配置基线。",
@@ -4247,6 +4300,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-6",
+    "curationTier": "standard",
     "title": "快穿题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供快穿题材大类配置模板题材的背景支撑与配置基线。",
@@ -4285,6 +4339,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-7",
+    "curationTier": "standard",
     "title": "末世题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供末世题材大类配置模板题材的背景支撑与配置基线。",
@@ -4324,6 +4379,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-8",
+    "curationTier": "standard",
     "title": "科幻题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供科幻题材大类配置模板题材的背景支撑与配置基线。",
@@ -4362,6 +4418,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-9",
+    "curationTier": "standard",
     "title": "悬疑推理题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供悬疑推理题材大类配置模板题材的背景支撑与配置基线。",
@@ -4400,6 +4457,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-10",
+    "curationTier": "standard",
     "title": "言情题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供言情题材大类配置模板题材的背景支撑与配置基线。",
@@ -4438,6 +4496,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-11",
+    "curationTier": "standard",
     "title": "宫斗宅斗题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供宫斗宅斗题材大类配置模板题材的背景支撑与配置基线。",
@@ -4477,6 +4536,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-12",
+    "curationTier": "standard",
     "title": "群像剧题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供群像剧题材大类配置模板题材的背景支撑与配置基线。",
@@ -4515,6 +4575,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-13",
+    "curationTier": "standard",
     "title": "权谋历史题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供权谋历史题材大类配置模板题材的背景支撑与配置基线。",
@@ -4553,6 +4614,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-14",
+    "curationTier": "standard",
     "title": "电竞游戏题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供电竞游戏题材大类配置模板题材的背景支撑与配置基线。",
@@ -4592,6 +4654,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-15",
+    "curationTier": "standard",
     "title": "轻小说风格题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供轻小说风格题材大类配置模板题材的背景支撑与配置基线。",
@@ -4630,6 +4693,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
   },
   {
     "id": "creative-16",
+    "curationTier": "standard",
     "title": "追妻火葬场题材大类配置模板",
     "stage": "polish",
     "goal": "题材风格包提供追妻火葬场题材大类配置模板题材的背景支撑与配置基线。",
@@ -4852,6 +4916,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "chapter-blueprint-prompt",
     "title": "章节正文写作 prompt",
     "stage": "drafting",
@@ -4957,6 +5022,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "standard",
     "id": "opening-templates-library",
     "title": "开头模板库",
     "stage": "planning",
@@ -5062,6 +5128,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "processDecision": "adopt"
   },
   {
+    "curationTier": "featured",
     "id": "tomato-sweet-formula",
     "title": "爽点核心公式",
     "stage": "planning",
@@ -5462,6 +5529,7 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
 export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   {
     "id": "sanitized-raw-comp-brand-detector",
+    "curationTier": "featured",
     "title": "外部工具竞品检测模板",
     "stage": "review",
     "goal": "检测外部工具编辑器生成的敏感段落",
@@ -6117,6 +6185,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-203",
     "title": "提示词",
     "stage": "polish",
@@ -6152,6 +6221,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-202",
     "title": "细纲",
     "stage": "polish",
@@ -6187,6 +6257,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-201",
     "title": "大纲",
     "stage": "polish",
@@ -6222,6 +6293,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-200",
     "title": "章纲",
     "stage": "polish",
@@ -6257,6 +6329,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-199",
     "title": "正文提示词",
     "stage": "polish",
@@ -6292,6 +6365,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-189",
     "title": "书名+简介",
     "stage": "polish",
@@ -6327,6 +6401,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-188",
     "title": "世界观",
     "stage": "polish",
@@ -6362,6 +6437,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-187",
     "title": "脑洞",
     "stage": "polish",
@@ -6397,6 +6473,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-169",
     "title": "番茄正文过保底",
     "stage": "polish",
@@ -6432,6 +6509,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-161",
     "title": "新版过朱雀",
     "stage": "polish",
@@ -6467,6 +6545,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-158",
     "title": "短篇直出",
     "stage": "polish",
@@ -6502,6 +6581,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-92",
     "title": "导语仿写",
     "stage": "polish",
@@ -6537,6 +6617,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-91",
     "title": "导语生成",
     "stage": "polish",
@@ -6572,6 +6653,7 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
     "processDecision": "sanitize"
   },
   {
+    "curationTier": "suspect-duplicate",
     "id": "sanitized-private-90",
     "title": "正文",
     "stage": "polish",
