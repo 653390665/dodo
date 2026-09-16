@@ -84,6 +84,7 @@ import type { ChapterCompletionResult } from '../../shared/lib/chapter-completio
 import type { ChapterFactCandidate } from '../../shared/types/chapter-facts';
 import { applyChapterFactCandidate, previewChapterFactCandidate } from '../lib/chapter-fact-client';
 import { ChapterCompletionReview } from './ChapterCompletionReview';
+import { ChapterCapabilityFeedbackBar } from './ChapterCapabilityFeedbackBar';
 import { ChapterFactCandidateReview } from './ChapterFactCandidateReview';
 
 interface EditorViewProps {
@@ -2681,6 +2682,16 @@ export function EditorView({
             onAcceptRisk={handleAcceptCompletionRisk}
             onPreviewRevision={(issueId) => void handlePreviewReviewIssue(issueId)}
             reviewIssues={currentChapter?.workflowMeta?.reviewState?.issues}
+          />
+        ) : null}
+
+        {/* Plan 241：章节完成时点的轻量能力反馈（唯一采集点；本章提交/忽略后不再问）。 */}
+        {completionResult && completionChapterId === currentChapter?.id ? (
+          <ChapterCapabilityFeedbackBar
+            key={currentChapter.id}
+            novelId={novel.id}
+            chapterId={currentChapter.id}
+            cardIds={currentChapter?.workflowMeta?.capabilityState?.techniqueIds || []}
           />
         ) : null}
 
