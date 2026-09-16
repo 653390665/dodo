@@ -39,7 +39,13 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
   const [isCollapsed, setIsCollapsed] = React.useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
-  const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(false);
+  // Plan 245：展开状态会话级持久化——切到编辑器等视图后不再自动折叠（此前导致
+  // 能力中心/拆书工厂入口"消失"，需反复展开才能进入，实测导航踩坑两次）。
+  const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(() =>
+    typeof window !== 'undefined'
+      ? window.sessionStorage.getItem('inkflow-advanced-tools-open') === '1'
+      : false
+  );
   const isAdvancedVisible = isAdvancedOpen || currentView === 'factory' || currentView === 'skills';
 
   React.useEffect(() => {
@@ -163,6 +169,7 @@ export function Sidebar({ currentView, onNavigate, user: _user, isAIAssistantOpe
                 onClick={() =>
                   setIsAdvancedOpen((open) => {
                     const next = !open;
+                    window.sessionStorage.setItem('inkflow-advanced-tools-open', next ? '1' : '0');
                     if (next)
                       void recordProductEvent({
                         eventName: 'advanced_tools_open',

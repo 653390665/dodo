@@ -513,3 +513,23 @@ test('QualityTab recommended asset execution rules check', () => {
   };
   assert.equal(getPromptAssetAction(sanitizeRequiredAsset), null);
 });
+
+test('plan244：对白带动作穿插的行不再被误判为「缺少Beat/Narration」', () => {
+  // 服务器日志实录的误杀样本：对白行带说话人动作，旧启发式按纯对白三连误报
+  const withBeats = scoreSlop(
+    '“昭哥，警报——”\n\n“我知道。”林昭打断他，手指碰到穿梭艇舱门把手时，掌心的汗瞬间被金属吸走，留下一点微凉。他偏过头，下巴朝B-2方向抬了一下，“你先去把B-2的应急阀关了。”\n\n“那你呢？”'
+  );
+  assert.equal(
+    withBeats.hits.filter((hit) => (hit.suggestion || '').includes('Beat/Narration')).length,
+    0,
+    '带动作穿插的对白不应被误判'
+  );
+
+  // 真阳性保留：三行裸对白（无任何说话人动作/标签）仍命中
+  const bare = scoreSlop('“你先说。”\n“不说。”\n“那你走吧。”');
+  assert.equal(
+    bare.hits.filter((hit) => (hit.suggestion || '').includes('Beat/Narration')).length,
+    1,
+    '裸对白三连仍应命中'
+  );
+});

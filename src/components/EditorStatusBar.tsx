@@ -44,7 +44,7 @@ export function EditorStatusBar({
           ? '正文已保存'
           : resolvedSaveStatus === 'failed'
             ? '保存失败，请重试'
-            : '尚未检测到保存结果';
+            : '等待首次保存';
   const saveStatusDot =
     resolvedSaveStatus === 'failed'
       ? 'bg-red-600'
@@ -138,7 +138,7 @@ export function EditorStatusBar({
                 : 'text-red-600'
           }
         >
-          索引{' '}
+          语义检索{' '}
           {embeddingStatus === 'ready'
             ? '可用'
             : embeddingStatus === 'fallback'
@@ -146,7 +146,7 @@ export function EditorStatusBar({
               : embeddingStatus === 'initializing'
                 ? '初始化中'
                 : embeddingStatus === 'unavailable'
-                  ? '降级'
+                  ? '待重建'
                   : '未知'}
         </span>
         <span className="hidden sm:inline tabular-nums">

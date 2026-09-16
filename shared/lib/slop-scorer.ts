@@ -335,6 +335,15 @@ function scanStructuralSignals(text: string, paragraphs: ParagraphRecord[]): Slo
   return hits;
 }
 
+/** Plan 244：引号闭合后的实质叙述判定——说话人标签或动作穿插（≥2 字符）视为有 Beat。 */
+function hasNarrationAfterQuote(line: string): boolean {
+  // 取第一个闭合引号——说话人动作/标签出现在台词闭合处之后；
+  // 行尾再接第二段引号（如“……，”他说，“……”）不影响该判定。
+  const closing = line.search(/[”"]/);
+  if (closing < 0 || closing >= line.length - 1) return false;
+  return line.slice(closing + 1).trim().length >= 2;
+}
+
 /**
  * Score text and return hits + overall score (0-100, higher = cleaner).
  */
@@ -354,19 +363,26 @@ export function scoreSlop(text: string): SlopReport {
     // Check dialogue without beat
     const trimmed = line.trim();
     if (trimmed.startsWith('“') || trimmed.startsWith('"')) {
-      if (consecutiveDialogueCount === 0) {
-        dialogueStartIdx = i;
-      }
-      consecutiveDialogueCount++;
-      if (consecutiveDialogueCount >= 3) {
-        hits.push({
-          category: 'action_chain',
-          line: lineNum,
-          snippet: lines.slice(dialogueStartIdx, i + 1).join('\n'),
-          suggestion:
-            '对白突兀无前因/无动作穿插（缺少Beat/Narration）— 建议在台词间穿插人物微表情或环境微动作',
-        });
+      // Plan 244：引号闭合后带实质叙述（说话人动作/微表情/标签）的行视为「有 Beat」，
+      // 清零计数——此前整行只要以引号开头就按纯对白累计，导致带动作穿插的对白被误杀。
+      const hasBeat = hasNarrationAfterQuote(trimmed);
+      if (hasBeat) {
         consecutiveDialogueCount = 0;
+      } else {
+        if (consecutiveDialogueCount === 0) {
+          dialogueStartIdx = i;
+        }
+        consecutiveDialogueCount++;
+        if (consecutiveDialogueCount >= 3) {
+          hits.push({
+            category: 'action_chain',
+            line: lineNum,
+            snippet: lines.slice(dialogueStartIdx, i + 1).join('\n'),
+            suggestion:
+              '对白突兀无前因/无动作穿插（缺少Beat/Narration）— 建议在台词间穿插人物微表情或环境微动作',
+          });
+          consecutiveDialogueCount = 0;
+        }
       }
     } else if (trimmed.length > 0) {
       consecutiveDialogueCount = 0;
