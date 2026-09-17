@@ -1141,19 +1141,22 @@ test('Plan 143: DeepSeek omits only thinking after rejection and completes in JS
   assert.deepEqual(result.requestBodies[1].response_format, { type: 'json_object' });
 });
 
-test('Plan 143: two DeepSeek parameter rejections stop without parser or resume fallback', async () => {
+test('Plan 143: repeated DeepSeek parameter rejections stop without parser or resume fallback', async () => {
   const beforeCharacters = listCharacters(NOVEL_ID).length;
   const result = await runDeepSeekProviderResponses(makePack('t143-deepseek-parameter-error', NOVEL_ID, 'approved'), [
     { status: 400, body: { error: { param: 'thinking', code: 'invalid_request_error' } } },
     { status: 422, body: { error: { param: 'response_format', code: 'unsupported_parameter' } } },
+    // Plain-fallback request is rejected again — the chain must stop instead of
+    // falling into parser/resume fallback.
+    { status: 400, body: { error: { param: 'temperature', code: 'invalid_param' } } },
   ]);
 
   assert.equal(result.job.status, 'failed');
   assert.equal(result.job.code, 'EXTRACTION_PROVIDER_PARAMETER');
-  assert.equal(result.job.outputDiagnostic?.rejectedParameter, 'response_format');
-  assert.equal(result.job.outputDiagnostic?.compatibilityMode, 'omit_thinking');
-  assert.equal(result.job.outputDiagnostic?.providerRequestCount, 2);
-  assert.equal(result.job.failedChunk?.providerRequestCount, 2);
+  assert.equal(result.job.outputDiagnostic?.rejectedParameter, 'unknown');
+  assert.equal(result.job.outputDiagnostic?.compatibilityMode, 'plain_fallback');
+  assert.equal(result.job.outputDiagnostic?.providerRequestCount, 3);
+  assert.equal(result.job.failedChunk?.providerRequestCount, 3);
   assert.equal(result.job.result, undefined);
   assert.equal(listCharacters(NOVEL_ID).length, beforeCharacters);
   const resume = await fetch(`${baseUrl}/api/continuation-packs/jobs/${result.job.jobId}/resume`, {
@@ -1161,7 +1164,13 @@ test('Plan 143: two DeepSeek parameter rejections stop without parser or resume 
     body: JSON.stringify({ databaseGeneration: getDatabaseGeneration() }),
   });
   assert.equal(resume.status, 409);
-  assert.equal(result.requestBodies.length, 2);
+  assert.equal(result.requestBodies.length, 3);
+  assert.deepEqual(result.requestBodies[0].thinking, { type: 'disabled' });
+  assert.deepEqual(result.requestBodies[0].response_format, { type: 'json_object' });
+  assert.equal('thinking' in result.requestBodies[1], false);
+  assert.deepEqual(result.requestBodies[1].response_format, { type: 'json_object' });
+  assert.equal('thinking' in result.requestBodies[2], false);
+  assert.equal('response_format' in result.requestBodies[2], false);
 });
 
 test('T7.1: type-aware relationship lookup uses type-prefixed key', async () => {
