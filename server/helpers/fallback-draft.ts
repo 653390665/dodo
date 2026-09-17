@@ -511,7 +511,13 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
 }
 
 export function buildFallbackSceneBeats(userIntent: string) {
-  const intent = String(userIntent || '').trim() || '主角面对新的局势变化，被迫做出选择';
+  // The intent is concatenated into the “核心冲突：${intent}，但信息并不完整…”
+  // template. Strip trailing punctuation first, otherwise an intent like
+  // “……结尾留悬念。” composes into the broken fragment “结尾留悬念。，但…”.
+  const intent =
+    String(userIntent || '')
+      .trim()
+      .replace(/[。．.！？!?；;，,、\s]+$/, '') || '主角面对新的局势变化，被迫做出选择';
   return [
     `### 场景 1：异动入场\n\n**入场钩子**：一个异常声音或突发消息打断原本平静的局面。\n\n**核心冲突**：${intent}，但信息并不完整，角色只能先试探。\n\n**关键动作链**：角色观察异常；对方给出含糊回应；一个细节暴露真正风险。\n\n**退场钩子**：新的脚步声、信物或消息把局势推向下一场。`,
     `### 场景 2：试探加深\n\n**入场钩子**：角色主动抛出一个问题或动作诱饵。\n\n**核心冲突**：双方围绕真实目的互相遮掩。\n\n**关键动作链**：试探被接住；旧线索浮出；角色意识到眼前不是偶然。\n\n**退场钩子**：关键人物或危险信号正式出现。`,

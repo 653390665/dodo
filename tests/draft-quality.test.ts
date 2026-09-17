@@ -419,6 +419,21 @@ test('fallback expansion is deterministic for the same scene beats and context',
   assert.equal(first, second);
 });
 
+test('fallback scene beats strip trailing intent punctuation before template concatenation', () => {
+  // An intent ending with a period used to compose the broken fragment
+  // “……结尾留悬念。，但信息并不完整”.
+  const beats = buildFallbackSceneBeats('主角追查密道来信，结尾留悬念。');
+
+  assert.doesNotMatch(beats, /。，/g, 'no punctuation-doubled fragment may appear');
+  assert.doesNotMatch(beats, /[。！？；，][，,]/g);
+  assert.match(beats, /\*\*核心冲突\*\*[：:]主角追查密道来信，结尾留悬念，但信息并不完整/);
+
+  // A purely punctuated intent falls back to the default intent instead of
+  // concatenating an empty conflict line.
+  const punctuated = buildFallbackSceneBeats('。！？');
+  assert.match(punctuated, /\*\*核心冲突\*\*[：:]主角面对新的局势变化，被迫做出选择，但信息并不完整/);
+});
+
 test('semantic review maps structured audit evidence into four explicit checks', () => {
   const audit: StructuredAudit = {
     score: 48,
