@@ -2588,7 +2588,7 @@ export function EditorView({
               disabled={isGeneratingContent || !currentChapter?.sceneBeats}
               onConfirm={handleConfirmWritingStyle}
               onGenerate={handleWritingStyleGenerate}
-              generateLabel="去生成本章正文"
+              generateLabel="重新生成正文"
               onOpenWritingStyle={() => {
                 setAgentTab('skills');
                 setIsAgentSidebarOpen(true);
