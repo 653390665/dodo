@@ -1253,11 +1253,12 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
           compatibilityMode = 'omit_thinking';
           continue;
         }
-        if (
-          !isDeepSeekProvider(config.baseUrl) &&
-          includeResponseFormat &&
-          error.rejectedParameter === 'response_format'
-        ) {
+        // DeepSeek requires the literal word "json" in the prompt before it
+        // accepts response_format:{type:'json_object'} and otherwise 400s.
+        // Prompts such as the Chinese-only outline template never contain it,
+        // so DeepSeek must also be allowed to drop response_format and retry
+        // as plain text instead of failing the request outright.
+        if (includeResponseFormat && error.rejectedParameter === 'response_format') {
           includeResponseFormat = false;
           compatibilityMode = 'plain_fallback';
           continue;

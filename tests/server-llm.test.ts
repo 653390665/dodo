@@ -329,33 +329,68 @@ test('DeepSeek omits thinking after a retryable socket failure and keeps JSON mo
   }
 });
 
-test('DeepSeek rejects a second parameter variant without plain fallback', async () => {
+test('DeepSeek falls back to plain text after response_format rejection', async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
+  const bodies: Array<Record<string, unknown>> = [];
+  let diagnostic: any;
   globalThis.fetch = async (_url, init) => {
     calls += 1;
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-    assert.deepEqual(body.response_format, { type: 'json_object' });
+    bodies.push(body);
     if (calls === 1) return new Response(JSON.stringify({ error: { param: 'thinking', code: 'invalid_param' } }), { status: 400 });
-    assert.equal('thinking' in body, false);
-    return new Response(JSON.stringify({ error: { param: 'response_format', code: 'unsupported_json' } }), { status: 422 });
+    if (calls === 2) return new Response(JSON.stringify({ error: { param: 'response_format', code: 'unsupported_json' } }), { status: 422 });
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }), { status: 200 });
   };
   try {
-    await assert.rejects(
-      generateText(
-        { apiKey: 'mock-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
-        { prompt: '输出 JSON', responseMimeType: 'application/json', disableThinking: true, maxAttempts: 1 },
-      ),
-      (error: any) => {
-        assert.equal(error.code, 'parameter_incompatible');
-        assert.equal(error.httpStatus, 422);
-        assert.equal(error.rejectedParameter, 'response_format');
-        assert.equal(error.compatibilityMode, 'omit_thinking');
-        assert.equal(error.providerRequestCount, 2);
-        return true;
-      },
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      { prompt: '输出 JSON', responseMimeType: 'application/json', disableThinking: true, maxAttempts: 1, onComplete: value => { diagnostic = value.outputDiagnostic; } },
     );
+    assert.equal(result, '{"ok":true}');
+    assert.equal(calls, 3);
+    assert.deepEqual(bodies[0]?.thinking, { type: 'disabled' });
+    assert.deepEqual(bodies[0]?.response_format, { type: 'json_object' });
+    assert.equal('thinking' in (bodies[1] || {}), false);
+    assert.deepEqual(bodies[1]?.response_format, { type: 'json_object' });
+    assert.equal('thinking' in (bodies[2] || {}), false);
+    assert.equal('response_format' in (bodies[2] || {}), false);
+    assert.equal(diagnostic.compatibilityMode, 'plain_fallback');
+    assert.equal(diagnostic.responseFormatMode, 'plain_fallback');
+    assert.equal(diagnostic.providerRequestCount, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('DeepSeek outline prompt without the json keyword degrades to plain text instead of 400', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let firstBody: Record<string, unknown> | undefined;
+  let secondBody: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    if (calls === 1) {
+      firstBody = body;
+      // DeepSeek's real rejection when the prompt lacks the word "json".
+      return new Response(
+        JSON.stringify({ error: { message: "Content Must contain the word 'json' in order to use response format of json_object", type: 'invalid_request_error' } }),
+        { status: 400 },
+      );
+    }
+    secondBody = body;
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '第一卷：主角发现密道。' } }] }), { status: 200 });
+  };
+  try {
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      { prompt: '请根据预计总字数，将整部小说合理地划分为几个大卷。请直接输出 markdown 格式的全局大纲。', outputMode: 'audit-json', disableThinking: true, maxAttempts: 1 },
+    );
+    assert.equal(result, '第一卷：主角发现密道。');
     assert.equal(calls, 2);
+    assert.deepEqual(firstBody?.response_format, { type: 'json_object' });
+    assert.equal('response_format' in (secondBody || {}), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
