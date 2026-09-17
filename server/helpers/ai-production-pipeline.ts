@@ -579,32 +579,50 @@ export async function runProductionPipeline(params: {
       currentDraft,
     });
 
-    try {
-      criticFeedback = await generateText(
-        getConfig(),
-        {
-          prompt: criticPrompt + AUDIT_OUTPUT_CONTRACT,
-          ...CRITIC_LLM_OPTIONS,
-          signal: progress.signal,
-          novelId,
-          outputMode: 'audit-json',
-          responseMimeType: 'application/json',
-        },
-        {
-          operation: 'production-pipeline-critic',
-          novelId,
-          timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
-          concurrency: 2,
-          signal: progress.signal,
-        }
-      );
-      criticAvailable = true;
-    } catch (err) {
-      throwIfAborted(progress.signal);
-      logger.warn('Critic fell back — accepting draft', err);
-      criticFeedback = '审计不可用：模型审计请求失败，保留草稿预览。';
-      auditStatus = 'unknown';
-      auditScore = 0;
+    // A provider can answer 200 yet return an unparseable audit payload
+    // (invalid_json — the five-dim contract did not pass). That is a transient
+    // formatting failure: retry the critic once with the same params before
+    // honestly reporting the audit as unknown.
+    const CRITIC_PARSE_RETRIES = 1;
+    for (let criticAttempt = 0; ; criticAttempt += 1) {
+      try {
+        criticFeedback = await generateText(
+          getConfig(),
+          {
+            prompt: criticPrompt + AUDIT_OUTPUT_CONTRACT,
+            ...CRITIC_LLM_OPTIONS,
+            signal: progress.signal,
+            novelId,
+            outputMode: 'audit-json',
+            responseMimeType: 'application/json',
+          },
+          {
+            operation: 'production-pipeline-critic',
+            novelId,
+            timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
+            concurrency: 2,
+            signal: progress.signal,
+          }
+        );
+        criticAvailable = true;
+      } catch (err) {
+        throwIfAborted(progress.signal);
+        logger.warn('Critic fell back — accepting draft', err);
+        criticFeedback = '审计不可用：模型审计请求失败，保留草稿预览。';
+        auditStatus = 'unknown';
+        auditScore = 0;
+        break;
+      }
+      const parseDiagnostic = parseAuditResponseWithDiagnostics(criticFeedback).diagnostic;
+      if (parseDiagnostic && criticAttempt < CRITIC_PARSE_RETRIES) {
+        throwIfAborted(progress.signal);
+        criticAvailable = false;
+        logger.warn(
+          `Critic audit failed the structured contract (${parseDiagnostic.code}) — retrying once`
+        );
+        continue;
+      }
+      break;
     }
 
     // Only structured audits are trusted; unavailable or unparseable audits stay UNKNOWN.
