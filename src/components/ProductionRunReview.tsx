@@ -347,12 +347,13 @@ export function ProductionRunReview({
             <section>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 分镜
-                {beatsSource === 'fallback' && (
+                {/* Plan 246：徽标数据源改为 displayRun 的 DB 字段优先（旧逻辑只读直播 prop，刷新后丢失） */}
+                {(displayRun?.continuityReport.degradation?.beatsSource ?? beatsSource) === 'fallback' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
                     ⚠️ 分镜降级
                   </span>
                 )}
-                {beatsSource === 'model' && (
+                {(displayRun?.continuityReport.degradation?.beatsSource ?? beatsSource) === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">
                     AI 分镜
                   </span>

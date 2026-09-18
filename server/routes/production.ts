@@ -528,6 +528,8 @@ export function registerProductionRoutes(app: Express) {
           contextReceipt,
           executionReceipt,
           auditMeta: { status: 'not_run' as const, source: 'fallback' as const },
+          // Plan 246：保底 run 必须标记降级来源，否则 UI 徽标无法区分模型分镜与模板分镜
+          degradation: { beatsSource: 'fallback' as const, draftSource: 'fallback' as const },
         };
 
         const fallbackWrite = await runInSerializedWriteForGeneration(
@@ -822,6 +824,8 @@ export function registerProductionRoutes(app: Express) {
           contextReceipt,
           executionReceipt,
           auditMeta: { status: 'not_run' as const, source: 'fallback' as const },
+          // Plan 246：保底 run 必须标记降级来源，否则 UI 徽标无法区分模型分镜与模板分镜
+          degradation: { beatsSource: 'fallback' as const, draftSource: 'fallback' as const },
         };
         // Audit and provenance are diagnostic events, not manuscript content;
         // emit them even when the fallback draft is rejected so clients can
