@@ -19,8 +19,7 @@ export async function runOnboardingToEditor(page: Page): Promise<void> {
   await page.locator('button:has-text("唤醒灵感，智能开书立项")').click();
   await expect(page.locator('h2:has-text("立项推荐方案方向")')).toBeVisible({ timeout: 30_000 });
   await page.locator('button:has-text("选择此立项")').first().click();
-  await page.locator('button:has-text("接受治理规划立项")').click();
-  await page.getByRole('button', { name: '确认选项并继续', exact: true }).click();
+  await page.getByRole('button', { name: '确认创作方向', exact: true }).click();
   await page.locator('button:has-text("选择推荐创作流程")').click();
 
   const editorTextarea = page.locator('textarea[placeholder="在这里开始书写这一章……"]');

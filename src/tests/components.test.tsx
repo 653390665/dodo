@@ -1806,13 +1806,13 @@ describe('InkFlow Frontend Accessibility & A11y Suite', () => {
           />
         );
 
-        // 点击立项卡片 → 打开「智能开书配置推荐」弹窗
+        // 点击立项卡片 → 打开「创作方向确认」弹窗（F6：合并流程推荐与内容清单）
         fireEvent.click(screen.getByRole('button', { name: /雨夜酒馆里的复仇刀客/ }));
-        expect(screen.getByText('智能开书配置推荐')).toBeTruthy();
+        expect(screen.getByText('创作方向确认')).toBeTruthy();
 
         // Escape 关闭弹窗（Plan 181：弹层统一支持 Esc）
         fireEvent.keyDown(window, { key: 'Escape' });
-        expect(screen.queryByText('智能开书配置推荐')).toBeNull();
+        expect(screen.queryByText('创作方向确认')).toBeNull();
       } finally {
         storyCardsMockState.cards = [];
       }

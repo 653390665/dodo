@@ -282,7 +282,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(welcome).toContain('能力卡配置');
     expect(welcome).toContain('生成拆书卡');
     expect(welcome).toContain('深度导入已有资产大纲');
-    expect(welcome).toContain('自适应推荐分析');
+    expect(welcome).toContain('推荐理由：');
     expect(welcome).toContain('选择推荐创作流程');
     expect(welcome).toContain('选择此立项');
     expect(welcome).toContain('从模糊灵感整理立项候选');
@@ -291,7 +291,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(welcome).toContain('保存文风滤镜与创作规则，配置后参与后续生成。');
     expect(welcome).toContain('提供可选创作流程');
     expect(welcome).toContain('生成错别字与大路货词汇精修预览');
-    expect(welcome).toContain('生成核心主角候选，确认后写入第一章主角人设卡。');
+    expect(welcome).toContain('开书后生成核心主角候选，确认后写入第一章。');
     expect(welcome).toContain('保存作品和第一章后打开编辑器，进入空白正文编辑区。');
     expect(worldBible).toContain('生成大纲与设定拆解草稿，确认后再导入');
     expect(welcome).not.toContain('启用推荐创作流程');
@@ -307,7 +307,7 @@ describe('Plan158 frontend legacy cleanup', () => {
     expect(welcome).not.toContain('一键定向精修重写');
     expect(welcome).not.toContain('自动生成核心主角，写入第一章主角人设卡。');
     expect(worldBible).not.toContain('一键完成大纲与设定的多层析拆解');
-    expect(welcome).toContain('纳入高连贯性检查候选');
+    expect(welcome).toContain('设定力量等级与升级规则，避免写到后期战力失衡。');
     expect(welcome).not.toContain('自动纳入高连贯性升级检查');
     expect(appShell).toContain('能力卡配置');
     expect(bookFactoryUse).toContain('提交到作品卡组待选');

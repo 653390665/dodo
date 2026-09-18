@@ -134,8 +134,7 @@ test.describe('统一创作旅程：新建作品', () => {
     await expect(page.getByRole('heading', { name: /立项推荐方案方向/ })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /选择此立项/ }).first().click();
     await expect(page.getByText(/世界|角色|主纲|规划/).first()).toBeVisible();
-    await page.getByRole('button', { name: /接受治理规划立项/ }).click();
-    await page.getByRole('button', { name: '确认选项并继续', exact: true }).click();
+    await page.getByRole('button', { name: '确认创作方向', exact: true }).click();
     const flow = page.getByRole('button', { name: /选择推荐创作流程/ });
     if (await flow.count()) await flow.click();
 
@@ -196,8 +195,7 @@ test.describe('统一创作旅程：新建作品', () => {
     await page.getByRole('button', { name: /唤醒灵感，智能开书立项/ }).click();
     await expect(page.getByRole('heading', { name: /立项推荐方案方向/ })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /选择此立项/ }).first().click();
-    await page.getByRole('button', { name: /接受治理规划立项/ }).click();
-    await page.getByRole('button', { name: '确认选项并继续', exact: true }).click();
+    await page.getByRole('button', { name: '确认创作方向', exact: true }).click();
     const flow = page.getByRole('button', { name: /选择推荐创作流程/ });
     if (await flow.count()) await flow.click();
     const editor = page.locator('textarea[placeholder="在这里开始书写这一章……"]');

@@ -169,14 +169,8 @@ export function WelcomeView({
     'ready' | 'initializing' | 'fallback' | 'unavailable' | 'unknown'
   >('unknown');
 
-  // 新开书拦截确认弹窗与引导气泡状态
-  const [showConfirmDetailsModal, setShowConfirmDetailsModal] = useState(false);
-  const [confirmModalData, setConfirmModalData] = useState<{
-    card: StoryIdeaCard;
-    tags: string[];
-    useWorkflow: boolean;
-    defaultFlowId: string;
-  } | null>(null);
+  // 新开书「创作方向确认」弹窗（合并流程推荐与内容清单）与引导气泡状态
+  const [useRecommendedFlow, setUseRecommendedFlow] = useState(true);
 
   const [showGuidedBubble, setShowGuidedBubble] = useState(false);
   const [bubbleData, setConfirmBubbleData] = useState<{
@@ -209,19 +203,7 @@ export function WelcomeView({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedCardForRec, recResult]);
 
-  // 「生成设定确认单」为确认单类弹窗，防误触：仅支持 Esc，不做遮罩点击关闭
-  useEffect(() => {
-    if (!(showConfirmDetailsModal && confirmModalData)) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowConfirmDetailsModal(false);
-        setConfirmModalData(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showConfirmDetailsModal, confirmModalData]);
-
+  // 「创作方向确认」为确认单类弹窗，防误触：仅支持 Esc，不做遮罩点击关闭
   useEffect(() => {
     if (!(showGuidedBubble && bubbleData)) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -260,7 +242,7 @@ export function WelcomeView({
   }, []);
 
   /**
-   * 点击生成卡片逻辑
+   * 点击生成卡片逻辑：直接打开「创作方向确认」弹窗（F6 合并流程推荐与内容清单两层确认）
    */
   const handleCardClick = (card: StoryIdeaCard) => {
     const result = recommendOpeningGovernance({
@@ -270,6 +252,8 @@ export function WelcomeView({
       targetWordCount: planning.expectedWordCount,
       tags: [],
     });
+    setUseRecommendedFlow(true);
+    setConfirmError(null);
     setSelectedCardForRec(card);
     setRecResult(result);
   };
@@ -1153,8 +1137,8 @@ export function WelcomeView({
                   <div className="rounded border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 flex items-center gap-2">
                     <Loader2 size={12} className="animate-spin text-amber-500 shrink-0" />
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
-                      模型响应尚未完成。您仍可继续本地编辑、保存和整理作品，连接恢复后再重试 AI
-                      生成。
+                      AI 正在生成，请稍候。您也可以先继续本地编辑、保存和整理作品，稍后再回来查看 AI
+                      结果。
                     </p>
                   </div>
                 )}
@@ -1290,10 +1274,10 @@ export function WelcomeView({
           </div>
         </div>
 
-        {/* ==================== 智能开书治理配置推荐磨砂面板 ==================== */}
+        {/* ==================== 创作方向确认（F6：合并“流程推荐”与“内容清单”两层确认） ==================== */}
         {selectedCardForRec && recResult && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/60 backdrop-blur-md p-4 animate-fade-in"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/80 backdrop-blur-md p-4 animate-fade-in"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setSelectedCardForRec(null);
@@ -1301,19 +1285,19 @@ export function WelcomeView({
               }
             }}
           >
-            <div className="bg-theme-sidebar border border-theme-border/50 max-w-md w-full rounded-lg p-5 shadow-xl relative overflow-hidden flex flex-col gap-4 animate-scale-in max-h-[85vh] overflow-y-auto">
-              {/* 高级控制台色边彩条 design */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-theme-accent/20 via-theme-accent to-theme-accent/20" />
+            <div className="bg-theme-sidebar border border-theme-border/50 max-w-lg w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-4 animate-scale-in max-h-[90vh] overflow-y-auto text-left">
+              {/* Decorative line */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
 
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded bg-theme-accent/10 text-theme-accent border border-theme-accent/20 shrink-0">
-                    <Sparkles size={16} />
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+                    <FileCheck size={18} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-theme-text">智能开书配置推荐</h3>
-                    <p className="text-[9px] text-theme-muted font-mono">
-                      INKFLOW GOVERNANCE ENGINE
+                    <h3 className="text-sm font-bold text-theme-text">创作方向确认</h3>
+                    <p className="text-[10px] text-theme-muted mt-0.5">
+                      选好创作流程、勾选开书时要生成的内容，确认后就能开始创作。
                     </p>
                   </div>
                 </div>
@@ -1336,283 +1320,220 @@ export function WelcomeView({
                 </div>
               )}
 
-              <div className="space-y-4 text-xs">
-                <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">
-                    选定主线 hook
-                  </span>
-                  <p className="text-xs font-bold text-theme-text leading-relaxed">
-                    《{selectedCardForRec.hook.slice(0, 18)}》
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1">
-                    自适应推荐分析
-                  </span>
-                  <p className="text-[11px] text-theme-muted leading-relaxed bg-theme-bg/30 p-2.5 rounded border border-theme-border/30">
-                    {recResult.explanation}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-[9px] font-mono font-bold text-theme-muted uppercase tracking-wider block mb-1.5">
-                    流程引擎引导规划
-                  </span>
-                  <div className="flex flex-col gap-2">
-                    {/* 智能匹配工作流 */}
-                    <div className="flex items-center justify-between p-2.5 rounded border border-theme-accent/20 bg-theme-accent/5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex size-5 items-center justify-center rounded bg-theme-accent/10 text-theme-accent text-[10px] shrink-0 font-serif">
-                          ⚡
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-bold text-theme-text truncate">
-                            {recResult.activeSeriesId === 'tomato-platform-flow'
-                              ? '番茄脑洞文爆款创作流'
-                              : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
-                                ? '长篇商业连载流程'
-                                : '通用型多阶智能创作流'}
-                          </div>
-                          <div className="text-[9px] text-theme-muted truncate">
-                            {recResult.activeSeriesId === 'tomato-platform-flow'
-                              ? '契合快节奏签约、黄金三章爆发设定'
-                              : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
-                                ? '聚焦精细大纲拟定、多视角人物重塑'
-                                : '全链路覆盖灵感卡片、分镜精细打磨和质检'}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-theme-accent/10 text-theme-accent shrink-0 ml-2">
-                        工作流
-                      </span>
-                    </div>
-
-                    {/* 自适应题材标签 */}
-                    {recResult.tagsToApply.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {recResult.tagsToApply.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[9px] font-bold px-2 py-0.5 rounded bg-theme-sidebar border border-theme-border/50 text-theme-text flex items-center gap-1"
-                          >
-                            <span className="w-1 h-1 rounded-full bg-theme-accent animate-pulse" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="text-[10px] text-theme-muted leading-relaxed">
+                开书方向：《{selectedCardForRec.hook.slice(0, 18)}》
               </div>
-
-              <div className="border-t border-theme-border/20 my-0.5" />
-
-              <div className="grid grid-cols-2 gap-3 mt-1.5">
-                <button
-                  onClick={() => {
-                    const card = selectedCardForRec;
-                    setSelectedCardForRec(null);
-                    setRecResult(null);
-
-                    // 前置拦截：打开“生成设定确认单”
-                    setConfirmModalData({
-                      card,
-                      tags: [],
-                      useWorkflow: false,
-                      defaultFlowId: 'generic-novel-flow',
-                    });
-                    setShowConfirmDetailsModal(true);
-                  }}
-                  className="px-3 py-2 rounded border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-[11px] font-bold transition-all text-center"
-                >
-                  跳过流程推荐开书
-                </button>
-                <button
-                  onClick={() => {
-                    const card = selectedCardForRec;
-                    const tags = recResult.tagsToApply;
-                    const defaultFlowId = recResult.activeSeriesId || 'generic-novel-flow';
-                    setSelectedCardForRec(null);
-                    setRecResult(null);
-
-                    // 前置拦截：打开“生成设定确认单”
-                    setConfirmModalData({
-                      card,
-                      tags,
-                      useWorkflow: true,
-                      defaultFlowId,
-                    });
-                    setShowConfirmDetailsModal(true);
-                  }}
-                  className="px-3 py-2 rounded bg-theme-text text-theme-bg hover:opacity-90 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
-                >
-                  <Sparkles size={11} />
-                  接受治理规划立项
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ==================== 1. 生成设定确认单 (Setting Confirmation Checklist) ==================== */}
-        {showConfirmDetailsModal && confirmModalData && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-theme-bg/80 backdrop-blur-md p-4 animate-fade-in">
-            <div className="bg-theme-sidebar border border-theme-border/50 max-w-lg w-full rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5 animate-scale-in max-h-[90vh] overflow-y-auto text-left">
-              {/* Decorative line */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
-
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
-                    <FileCheck size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-theme-text flex items-center gap-2">
-                      生成设定确认单
-                      <span className="text-[9px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest font-mono">
-                        CONFIRM CHECKLIST
-                      </span>
-                    </h3>
-                    <p className="text-[10px] text-theme-muted mt-0.5">
-                      请勾选并确认即将导入设定工坊的虚构资产清单
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowConfirmDetailsModal(false);
-                    setConfirmModalData(null);
-                  }}
-                  className="text-theme-muted hover:text-theme-text text-xs p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="border-t border-theme-border/20 my-0.5" />
 
               <div className="space-y-3.5 text-xs">
-                {/* Checklist items */}
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
-                  <input
-                    type="checkbox"
-                    id="chk-char"
-                    checked={confirmedItems.character}
-                    onChange={(e) =>
-                      setConfirmedItems({ ...confirmedItems, character: e.target.checked })
-                    }
-                    className="mt-1 accent-amber-500"
-                  />
-                  <label htmlFor="chk-char" className="flex-1 cursor-pointer select-none">
-                    <div className="font-bold text-theme-text flex items-center gap-1.5">
-                      <span>待导入角色 (Protagonist)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
-                        角色库
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
-                      主角设定:{' '}
-                      {confirmModalData.card.protagonist ||
-                        '生成核心主角候选，确认后写入第一章主角人设卡。'}
-                    </p>
-                  </label>
+                <div>
+                  <span className="text-[10px] font-bold text-theme-text block mb-1.5">
+                    第 1 步 · 选择创作流程
+                  </span>
+                  <div className="flex flex-col gap-2">
+                    {/* 使用推荐创作流程 */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded border cursor-pointer transition-colors ${
+                        useRecommendedFlow
+                          ? 'border-theme-accent/40 bg-theme-accent/5'
+                          : 'border-theme-border/40 bg-theme-bg/30 hover:border-theme-border'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="opening-flow-choice"
+                        className="mt-0.5 accent-amber-500"
+                        checked={useRecommendedFlow}
+                        onChange={() => setUseRecommendedFlow(true)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-theme-text">
+                          使用推荐创作流程：
+                          {recResult.activeSeriesId === 'tomato-platform-flow'
+                            ? '番茄脑洞文爆款创作流'
+                            : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
+                              ? '长篇商业连载流程'
+                              : '通用智能创作流程'}
+                        </div>
+                        <div className="text-[10px] text-theme-muted leading-relaxed mt-0.5">
+                          {recResult.activeSeriesId === 'tomato-platform-flow'
+                            ? '契合快节奏签约、黄金三章爆发设定。'
+                            : recResult.activeSeriesId === 'xiaofeiji-novel-flow'
+                              ? '聚焦精细大纲拟定、多视角人物重塑。'
+                              : '全链路覆盖灵感卡片、分镜精细打磨和质检。'}
+                        </div>
+                        <div className="text-[10px] text-theme-muted leading-relaxed mt-1.5 bg-theme-bg/30 p-2 rounded border border-theme-border/30">
+                          推荐理由：{recResult.explanation}
+                        </div>
+                        {recResult.tagsToApply.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {recResult.tagsToApply.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-[9px] font-bold px-2 py-0.5 rounded bg-theme-sidebar border border-theme-border/50 text-theme-text flex items-center gap-1"
+                              >
+                                <span className="w-1 h-1 rounded-full bg-theme-accent animate-pulse" />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+
+                    {/* 暂不使用推荐流程 */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded border cursor-pointer transition-colors ${
+                        !useRecommendedFlow
+                          ? 'border-theme-accent/40 bg-theme-accent/5'
+                          : 'border-theme-border/40 bg-theme-bg/30 hover:border-theme-border'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="opening-flow-choice"
+                        className="mt-0.5 accent-amber-500"
+                        checked={!useRecommendedFlow}
+                        onChange={() => setUseRecommendedFlow(false)}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-bold text-theme-text">
+                          暂不使用推荐，直接开书
+                        </div>
+                        <div className="text-[10px] text-theme-muted leading-relaxed mt-0.5">
+                          使用通用小说主流程，之后仍可随时调整。
+                        </div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
-                  <input
-                    type="checkbox"
-                    id="chk-world"
-                    checked={confirmedItems.world}
-                    onChange={(e) =>
-                      setConfirmedItems({ ...confirmedItems, world: e.target.checked })
-                    }
-                    className="mt-1 accent-amber-500"
-                  />
-                  <label htmlFor="chk-world" className="flex-1 cursor-pointer select-none">
-                    <div className="font-bold text-theme-text flex items-center gap-1.5">
-                      <span>世界观设定 (World Seed)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
-                        虚构创世
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
-                      世界设定: {confirmModalData.card.starterSeeds.worldSeed}
-                    </p>
-                  </label>
-                </div>
+                <div className="border-t border-theme-border/20" />
 
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
-                  <input
-                    type="checkbox"
-                    id="chk-power"
-                    checked={confirmedItems.power}
-                    onChange={(e) =>
-                      setConfirmedItems({ ...confirmedItems, power: e.target.checked })
-                    }
-                    className="mt-1 accent-amber-500"
-                  />
-                  <label htmlFor="chk-power" className="flex-1 cursor-pointer select-none">
-                    <div className="font-bold text-theme-text flex items-center gap-1.5">
-                      <span>力量与战力等级体系 (Power System)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
-                        规则树
-                      </span>
+                <div>
+                  <span className="text-[10px] font-bold text-theme-text block mb-2">
+                    第 2 步 · 勾选开书时要生成的内容
+                  </span>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                      <input
+                        type="checkbox"
+                        id="chk-char"
+                        checked={confirmedItems.character}
+                        onChange={(e) =>
+                          setConfirmedItems({ ...confirmedItems, character: e.target.checked })
+                        }
+                        className="mt-1 accent-amber-500"
+                      />
+                      <label htmlFor="chk-char" className="flex-1 cursor-pointer select-none">
+                        <div className="font-bold text-theme-text flex items-center gap-1.5">
+                          <span>主角设定</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                            人物档案
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                          主角设定:{' '}
+                          {selectedCardForRec.protagonist ||
+                            '暂无；开书后生成核心主角候选，确认后写入第一章。'}
+                        </p>
+                      </label>
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
-                      基于该小说的虚构底层规则及升级序列，纳入高连贯性检查候选，确认后用于防止大后期失衡。
-                    </p>
-                  </label>
-                </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
-                  <input
-                    type="checkbox"
-                    id="chk-conflict"
-                    checked={confirmedItems.conflict}
-                    onChange={(e) =>
-                      setConfirmedItems({ ...confirmedItems, conflict: e.target.checked })
-                    }
-                    className="mt-1 accent-amber-500"
-                  />
-                  <label htmlFor="chk-conflict" className="flex-1 cursor-pointer select-none">
-                    <div className="font-bold text-theme-text flex items-center gap-1.5">
-                      <span>核心冲突与金手指 (Conflict & Hooks)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
-                        大纲规划
-                      </span>
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                      <input
+                        type="checkbox"
+                        id="chk-world"
+                        checked={confirmedItems.world}
+                        onChange={(e) =>
+                          setConfirmedItems({ ...confirmedItems, world: e.target.checked })
+                        }
+                        className="mt-1 accent-amber-500"
+                      />
+                      <label htmlFor="chk-world" className="flex-1 cursor-pointer select-none">
+                        <div className="font-bold text-theme-text flex items-center gap-1.5">
+                          <span>世界观设定</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                            世界规则
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                          世界设定：{selectedCardForRec.starterSeeds.worldSeed}
+                        </p>
+                      </label>
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
-                      主线冲突: {confirmModalData.card.coreConflict}
-                    </p>
-                  </label>
-                </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
-                  <input
-                    type="checkbox"
-                    id="chk-plat"
-                    checked={confirmedItems.platform}
-                    onChange={(e) =>
-                      setConfirmedItems({ ...confirmedItems, platform: e.target.checked })
-                    }
-                    className="mt-1 accent-amber-500"
-                  />
-                  <label htmlFor="chk-plat" className="flex-1 cursor-pointer select-none">
-                    <div className="font-bold text-theme-text flex items-center gap-1.5">
-                      <span>自适应适配平台标准 (Platform Target)</span>
-                      <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
-                        白标质检
-                      </span>
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                      <input
+                        type="checkbox"
+                        id="chk-power"
+                        checked={confirmedItems.power}
+                        onChange={(e) =>
+                          setConfirmedItems({ ...confirmedItems, power: e.target.checked })
+                        }
+                        className="mt-1 accent-amber-500"
+                      />
+                      <label htmlFor="chk-power" className="flex-1 cursor-pointer select-none">
+                        <div className="font-bold text-theme-text flex items-center gap-1.5">
+                          <span>力量体系</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                            等级规则
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                          设定力量等级与升级规则，避免写到后期战力失衡。
+                        </p>
+                      </label>
                     </div>
-                    <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
-                      目标发布:{' '}
-                      {confirmModalData.useWorkflow &&
-                      confirmModalData.defaultFlowId === 'tomato-platform-flow'
-                        ? '番茄小说爆款规则协议'
-                        : '经典网络文学通用标准'}
-                    </p>
-                  </label>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                      <input
+                        type="checkbox"
+                        id="chk-conflict"
+                        checked={confirmedItems.conflict}
+                        onChange={(e) =>
+                          setConfirmedItems({ ...confirmedItems, conflict: e.target.checked })
+                        }
+                        className="mt-1 accent-amber-500"
+                      />
+                      <label htmlFor="chk-conflict" className="flex-1 cursor-pointer select-none">
+                        <div className="font-bold text-theme-text flex items-center gap-1.5">
+                          <span>核心冲突与金手指</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                            大纲规划
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-theme-muted mt-1 leading-relaxed line-clamp-2">
+                          主线冲突：{selectedCardForRec.coreConflict}
+                        </p>
+                      </label>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-theme-border/40 bg-theme-bg/30">
+                      <input
+                        type="checkbox"
+                        id="chk-plat"
+                        checked={confirmedItems.platform}
+                        onChange={(e) =>
+                          setConfirmedItems({ ...confirmedItems, platform: e.target.checked })
+                        }
+                        className="mt-1 accent-amber-500"
+                      />
+                      <label htmlFor="chk-plat" className="flex-1 cursor-pointer select-none">
+                        <div className="font-bold text-theme-text flex items-center gap-1.5">
+                          <span>目标平台标准</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-theme-sidebar rounded text-theme-muted border border-theme-border/20">
+                            发布平台
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-theme-muted mt-1 leading-relaxed">
+                          目标发布：{' '}
+                          {useRecommendedFlow && recResult.activeSeriesId === 'tomato-platform-flow'
+                            ? '番茄小说平台规则'
+                            : '网络文学通用标准'}
+                        </p>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1621,8 +1542,8 @@ export function WelcomeView({
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => {
-                    setShowConfirmDetailsModal(false);
-                    setConfirmModalData(null);
+                    setSelectedCardForRec(null);
+                    setRecResult(null);
                   }}
                   className="py-3 rounded-xl border border-theme-border bg-theme-bg text-theme-muted hover:text-theme-text hover:bg-theme-sidebar text-xs font-bold transition-all text-center"
                 >
@@ -1630,23 +1551,24 @@ export function WelcomeView({
                 </button>
                 <button
                   onClick={() => {
+                    if (!(selectedCardForRec && recResult)) return;
                     if (
                       !confirmedItems.character ||
                       !confirmedItems.world ||
                       !confirmedItems.conflict
                     ) {
-                      setConfirmError('角色、世界设定、核心冲突为必需项，请先勾选。');
+                      setConfirmError('主角、世界观、核心冲突为必需项，请先勾选。');
                       return;
                     }
-                    const data = confirmModalData;
-                    setShowConfirmDetailsModal(false);
-                    setConfirmModalData(null);
-
-                    // 打开智能引导气泡弹窗
+                    const card = selectedCardForRec;
+                    setSelectedCardForRec(null);
+                    setRecResult(null);
                     setConfirmBubbleData({
-                      card: buildConfirmedCard(data.card),
-                      tags: data.tags,
-                      defaultFlowId: data.defaultFlowId,
+                      card: buildConfirmedCard(card),
+                      tags: useRecommendedFlow ? recResult.tagsToApply : [],
+                      defaultFlowId: useRecommendedFlow
+                        ? recResult.activeSeriesId || 'generic-novel-flow'
+                        : 'generic-novel-flow',
                     });
                     setShowGuidedBubble(true);
                   }}
@@ -1654,7 +1576,7 @@ export function WelcomeView({
                   className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
                 >
                   <Sparkles size={14} />
-                  确认选项并继续
+                  确认创作方向
                 </button>
               </div>
             </div>

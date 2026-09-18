@@ -1,4 +1,12 @@
-import { AlertTriangle, ArrowRight, CheckCircle2, FileWarning, Upload, Eye } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  FileWarning,
+  GitBranch,
+  Upload,
+  Eye,
+} from 'lucide-react';
 
 import { buildCreationIntentDraft } from '../../shared/lib/continuation-pack';
 
@@ -12,6 +20,7 @@ interface ContinuationOverviewPanelProps {
   onStartWriting: (packId: string, prefillIntent?: string) => void;
   onStartStoryboard?: (packId: string, continuationTask?: string) => void;
   onOpenWorldSetup: () => void;
+  onOpenGraph?: () => void;
 }
 
 export function ContinuationOverviewPanel({
@@ -22,6 +31,7 @@ export function ContinuationOverviewPanel({
   onStartWriting,
   onStartStoryboard,
   onOpenWorldSetup,
+  onOpenGraph,
 }: ContinuationOverviewPanelProps) {
   const primaryPack = state.primaryPack;
   const hasReviewItems =
@@ -157,11 +167,24 @@ export function ContinuationOverviewPanel({
                 : `当前资料包：${primaryPack?.title || '未接入'}。生成预览时会预选该资料包。`}
             </p>
           </div>
-          {primaryPack ? (
-            <div className="rounded-full border border-theme-border bg-theme-sidebar/20 px-3 py-1 text-xs text-theme-muted">
-              更新于 {new Date(primaryPack.updatedAt).toLocaleString('zh-CN')}
-            </div>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-3">
+            {onOpenGraph ? (
+              <button
+                type="button"
+                onClick={onOpenGraph}
+                title="查看人物、地点、道具、势力之间的关系图谱"
+                className="inline-flex items-center gap-1.5 rounded-full border border-theme-border bg-theme-sidebar/20 px-3 py-1 text-xs font-bold text-theme-text transition-colors hover:border-theme-accent hover:text-theme-accent"
+              >
+                <GitBranch size={13} />
+                关系图谱
+              </button>
+            ) : null}
+            {primaryPack ? (
+              <div className="rounded-full border border-theme-border bg-theme-sidebar/20 px-3 py-1 text-xs text-theme-muted">
+                更新于 {new Date(primaryPack.updatedAt).toLocaleString('zh-CN')}
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 

@@ -1455,6 +1455,7 @@ export function WorldBibleView({
                 <div key="overview">
                   <ContinuationOverviewPanel
                     state={overviewState}
+                    onOpenGraph={() => setActiveTab('graph')}
                     onImport={() => setActiveTab('pack-management')}
                     onReviewDraft={(packId) => {
                       setRequestedReviewPackId(packId);
@@ -1737,6 +1738,9 @@ export function WorldBibleView({
                         else if (type === 'item') setActiveTab('items');
                         else if (type === 'faction') setActiveTab('factions');
                       }}
+                      onGoToWorldBible={(tab) =>
+                        setActiveTab((tab || 'characters') as 'characters' | 'graph')
+                      }
                     />
                   </div>
 

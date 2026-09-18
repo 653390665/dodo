@@ -204,17 +204,11 @@ test.describe('InkFlow Core End-to-End & Interaction Flow', () => {
     await expect(firstDirectionCard).toBeVisible();
     await firstDirectionCard.click();
 
-    // Handle "智能开书配置推荐" modal dialog and accept recommendation
-    // 处理 "智能开书配置推荐" 模态框并接受推荐
-    const acceptRecommendationButton = page.locator('button:has-text("接受治理规划立项")');
-    await expect(acceptRecommendationButton).toBeVisible();
-    await acceptRecommendationButton.click();
-
-    // Handle "生成设定确认单" (confirm checklist) modal.
-    // 处理“生成设定确认单”，确认本次实际勾选的立项摘要。
-    const confirmWriteButton = page.getByRole('button', { name: '确认选项并继续', exact: true });
-    await expect(confirmWriteButton).toBeVisible();
-    await confirmWriteButton.click();
+    // Handle the merged "创作方向确认" modal (F6: flow recommendation + checklist in one step).
+    // 处理合并后的“创作方向确认”弹窗（F6：流程推荐与内容清单合为一个确认步骤）。
+    const confirmDirectionButton = page.getByRole('button', { name: '确认创作方向', exact: true });
+    await expect(confirmDirectionButton).toBeVisible();
+    await confirmDirectionButton.click();
 
     // Choose the recommended flow inside the onboarding bubble and enter the editor.
     // 在智能引导弹窗中选择推荐创作流程并进入编辑器。
