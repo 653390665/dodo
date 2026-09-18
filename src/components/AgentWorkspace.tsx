@@ -745,15 +745,14 @@ export const AgentWorkspace = React.memo(function AgentWorkspace({
                   }
                   hasGlobalRelationships={relationships.length > 0}
                 />
-                {showingGlobalRelationships && (
-                  <button
-                    type="button"
-                    onClick={() => navigateToWorldBible('graph')}
-                    className="w-full rounded-lg border border-theme-border/60 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-border/20 transition-colors"
-                  >
-                    查看完整关系图
-                  </button>
-                )}
+                {/* Plan 249：完整图谱入口不再仅在全局关系预览时出现——始终可达 */}
+                <button
+                  type="button"
+                  onClick={() => navigateToWorldBible('graph')}
+                  className="w-full rounded-lg border border-theme-border/60 px-3 py-2 text-[10px] font-bold text-theme-muted hover:bg-theme-border/20 transition-colors"
+                >
+                  查看完整关系图
+                </button>
               </div>
 
               {/* 3. 出场实体卡片 */}

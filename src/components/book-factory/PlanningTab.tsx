@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from '../../lib/toast';
 import {
   Feather,
   ListOrdered,
@@ -146,7 +147,13 @@ export function PlanningTab({
       return;
     }
 
-    if (!onPreferenceProfileChange || isSavingStep) return;
+    // Plan 248：静默 return 改为 toast 提示（此前点击无任何反馈）
+    if (!onPreferenceProfileChange || isSavingStep) {
+      if (!isSavingStep) {
+        toast('配置回调未就绪，请刷新页面后重试。', 'error');
+      }
+      return;
+    }
 
     setIsSavingStep(true);
     try {

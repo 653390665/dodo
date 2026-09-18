@@ -639,7 +639,10 @@ export async function runProductionPipeline(params: {
       score: auditStatus === 'unknown' ? undefined : auditScore,
     });
 
-    if (isValid || auditStatus === 'unknown') break;
+    // Plan 247：unknown（审稿不可验证）不再直接 break——追加一次 critic 复核
+    // （让 Writer 重写后 Critic 重新审稿），复核仍 unknown 则在下方诚实降级。
+    if (isValid) break;
+    if (auditStatus === 'unknown' && attempt >= 1) break;
 
     // Retry: feed critic feedback to next Writer iteration
     if (attempt < MAX_RETRIES) {
