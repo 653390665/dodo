@@ -1321,7 +1321,7 @@ export function WorldBibleView({
 
         <div className="pt-6 text-xs text-theme-muted">
           或者您也可以点击右上角的{' '}
-          <strong className="text-theme-text font-bold">“智能导入设定文档”</strong>，由 AI
+          <strong className="text-theme-text font-bold">上传设定文档（AI 解析）</strong>，由 AI
           生成大纲与设定拆解草稿，确认后再导入。
         </div>
       </div>
@@ -1374,7 +1374,7 @@ export function WorldBibleView({
             className="flex items-center gap-2 px-4 py-2 bg-theme-bg border border-theme-border/80 text-theme-text rounded-xl shadow-sm hover:bg-theme-sidebar transition-all font-medium text-sm disabled:opacity-50"
           >
             {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {isImporting ? 'AI 解析中...' : '智能导入设定文档'}
+            {isImporting ? 'AI 解析中...' : '上传设定文档（AI 解析）'}
           </button>
           <button
             type="button"

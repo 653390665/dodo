@@ -1,0 +1,105 @@
+// InkFlow 风险网络：11 项有证据的风险 → 7 项受影响架构能力
+// 生产者：architecture-visualization:risk-quality-reviewer
+// 编号与 architecture-review.md 严格一致；逐条证据锚点以报告为准，本图只表达牵连关系。
+// 读法：左列风险，右列能力。节点填充色 = 处置优先级（与 remediation-plan 的 P 级同源）。
+//       置信 C=本轮亲读源码/实测得到；M=机制已核实、结果需打包件实测。
+//       虚线边 = 间接或条件性牵连；实线 = 直接生效路径；粗边 = 零容差项。
+
+digraph risk_map {
+    rankdir=TB;
+    splines=true;
+    nodesep=0.45;
+    ranksep=1.2;
+    fontname="Helvetica";
+    fontsize=13;
+    labelloc=t;
+    label="InkFlow 风险地图（2026-09-18 诊断轮）\n节点色=处置优先级，非严重度；边=风险如何伤到能力";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.09"];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // ============ 优先级色：红 P0 本轮必修 / 橙 P1 尽快 / 紫 P2 清账 / 灰 P3 观察 / 绿 已销账 ============
+
+    // ---------------- 仓库与交付过程 ----------------
+    subgraph cluster_hygiene {
+        label="仓库卫生与交付过程（本轮新增的一族问题）";
+        fontsize=13; style="rounded,dashed"; color="#ef5350"; fontcolor="#ef5350";
+        bgcolor="#2a1214";
+
+        R1 [label="R1 [C] 4.1GB 外来项目残留 .tdai/\ngitignored 但 eslint 未忽略\n→ lint 永久红：927 err 全在 .tdai，产品侧 0\n→ lint:fix 会改写 21 个外来文件（git 不可恢复）", fillcolor="#b71c1c", fontcolor="#ffffff"];
+        R3 [label="R3 [C] 16MB agent 截图产物\n未跟踪 且 未被 ignore\n一次 git add -A 即入历史", fillcolor="#b71c1c", fontcolor="#ffffff"];
+        R10 [label="R10 [C] ≥3 个 agent 会话共用同一检出\ntsc 单次 16-18 分钟 / 前端套件 2416s（基线 306-338s ≈8x）\nHEAD 在诊断期间被别会话移动", fillcolor="#e65100", fontcolor="#ffffff"];
+        R8 [label="R8 [C] 无 engines、无 .nvmrc\nCI=22 / 本机=22 / 工具环境=24\nnpm 12.0.2 自报不支持 node 22.22.0", fillcolor="#4527a0", fontcolor="#d1c4e9"];
+    }
+
+    // ---------------- 白标合规 ----------------
+    subgraph cluster_sanitize {
+        label="白标合规（未消毒原文不得触达作者）";
+        fontsize=13; style="rounded,dashed"; color="#ffb74d"; fontcolor="#ffb74d";
+        bgcolor="#2a1c08";
+
+        R2 [label="R2 [C] 运行时只用轻量消毒器\n含竞品词正则的 analyzeAndSanitize 只在构建期\nserver 侧 11 处调用全指向 sanitizeWhiteLabelText", fillcolor="#b71c1c", fontcolor="#ffffff"];
+        R5 [label="R5 [C] 准入谓词手抄 13 份 / 7 文件\n跨 src 与 server 两侧复制\nskill-fusion 用 as 断言绕过类型检查", fillcolor="#e65100", fontcolor="#ffffff"];
+    }
+
+    // ---------------- 诚实性与数据 ----------------
+    subgraph cluster_honesty {
+        label="诚实性（作者看到的 == 系统做的）";
+        fontsize=13; style="rounded,dashed"; color="#4dd0e1"; fontcolor="#4dd0e1";
+        bgcolor="#0f2a33";
+
+        R4 [label="R4 [C] 降级徽标只补了一半\n分镜已改读 DB，正文与告警条仍读内存 prop\nPlan 246 第3条（旧数据兜底）未实现", fillcolor="#e65100", fontcolor="#ffffff"];
+        R11 [label="R11 [C] 'rejected' 死字面量\nProductionRunStatus 声明、服务端零写入\n（creative-artifacts 的 rejected 是真写的）", fillcolor="#37474f", fontcolor="#b0bec5"];
+        R6 [label="R6 [M] 打包态模型路径未钉住\n→ app.asar.unpacked/.cache 与 /models\n首启必联网拉权重，更新即清缓存", fillcolor="#e65100", fontcolor="#ffffff"];
+        R7 [label="R7 [C] 长作业持久化语义三种\nauditJobs / parseDocJobs 进程内 Map（均有 prune）\nextractionJobs 落库；提交门不跑测试", fillcolor="#4527a0", fontcolor="#d1c4e9"];
+    }
+
+    // ---------------- 知识治理 ----------------
+    subgraph cluster_ledger {
+        label="项目自有风险台账的可信度";
+        fontsize=13; style="rounded,dashed"; color="#b0bec5"; fontcolor="#b0bec5";
+        bgcolor="#1a1f22";
+
+        R9 [label="R9 [C] 台账指针失实\nARCH-01 记 4 处实为 13 处、2 个路径已失效\nCORR-02 记为已修实则修了一半", fillcolor="#4527a0", fontcolor="#d1c4e9"];
+    }
+
+    // ---------------- 受影响能力 ----------------
+    subgraph cluster_assets {
+        label="受影响能力 / 产品承诺";
+        fontsize=13; style="rounded,dashed"; color="#9e9e9e"; fontcolor="#9e9e9e";
+        bgcolor="#15181a";
+
+        A1 [label="白标安全不变式\ndocs/specs/capability-sanitize.md\nAGENTS.md 不变式四", fillcolor="#263238", fontcolor="#eceff1"];
+        A2 [label="诚实性承诺\nllm-status-honesty.md", fillcolor="#263238", fontcolor="#eceff1"];
+        A3 [label="可信的校验回路\ntypecheck / lint / 测试\n能给 agent 可信反馈", fillcolor="#263238", fontcolor="#eceff1"];
+        A4 [label="作品数据完整性\n作者稿件不被静默覆盖或丢失", fillcolor="#263238", fontcolor="#eceff1"];
+        A5 [label="本地优先承诺\n作品记忆不出机", fillcolor="#263238", fontcolor="#eceff1"];
+        A6 [label="可重现构建\n本机绿 == CI 绿 == 打包件绿", fillcolor="#263238", fontcolor="#eceff1"];
+        A7 [label="可维护性\n判据单源、改一处生效", fillcolor="#263238", fontcolor="#eceff1"];
+    }
+
+    // ================= 风险 → 能力 =================
+    R1  -> A3 [label="唯一的静态门被打死\n红门 == 无门", color="#ef5350", penwidth=2];
+    R3  -> A3 [label="仓库污染", color="#ef5350"];
+    R3  -> A4 [label="二进制入历史不可逆", color="#ef5350", style=dashed];
+    R10 -> A3 [label="校验信号被拖成假红/假慢", color="#ffb74d", penwidth=2];
+    R10 -> A4 [label="便利用 checkout/stash 吃掉他人在途工作", color="#ef5350", penwidth=2];
+    R8  -> A6 [label="原生模块 ABI 漂移", color="#b0bec5"];
+
+    R2  -> A1 [label="裸竞品词穿过运行时消毒", color="#ffb74d", penwidth=2];
+    R5  -> A1 [label="收紧准入要人肉改 13 处", color="#ffb74d"];
+    R5  -> A7 [label="谓词漂移无编译期保护", color="#ffb74d", style=dashed];
+    R9  -> A1 [label="CORR-02 被记为已闭\n→ 无人再去修", color="#ffb74d", style=dashed];
+
+    R4  -> A2 [label="降级被伪装成成功", color="#4dd0e1", penwidth=2];
+    R4  -> A4 [label="作者据失真徽标取舍该稿", color="#4dd0e1", style=dashed];
+    R11 -> A2 [label="读代码者误以为存在拒绝语义", color="#9e9e9e", style=dotted];
+    R6  -> A5 [label="首启必须联网抓权重", color="#4dd0e1", penwidth=2];
+    R6  -> A6 [label="更新即清缓存", color="#4dd0e1", style=dashed];
+    R7  -> A4 [label="重启丢在途长作业", color="#4dd0e1", style=dashed];
+    R9  -> A7 [label="按失效指针排下一轮工", color="#b0bec5"];
+
+    { rank=same; R1; R3; R10; R8; }
+    { rank=same; R2; R5; }
+    { rank=same; R4; R11; R6; R7; }
+}

@@ -1,0 +1,128 @@
+// 模块 / 分层地图：依赖只能单向，且由测试强制
+// 生产者：system-modeler + graphviz（C4 容器视图见 inkflow.structurizr.dsl）
+// 关键事实：这不是「目录像分层」，而是 tests/architecture-boundaries.test.ts 用断言钉住的分层。
+// 证据：inkflow.evidence.md §A
+
+digraph module_map {
+    rankdir=TB;
+    newrank=true;
+    splines=true;
+    nodesep=0.42;
+    ranksep=0.9;
+    fontname="Helvetica";
+    fontsize=13;
+    labelloc=t;
+    label="InkFlow 分层与依赖方向\nshared/ 是无依赖领域内核：server 与 src 各自单向依赖它，彼此不得直接 import";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", margin="0.14,0.08"];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // ============ Electron 外壳 ============
+    subgraph cluster_shell {
+        label="桌面外壳（根目录 *.cjs，约 1.4k 行）";
+        fontsize=13; color="#b39ddb"; fontcolor="#b39ddb"; style="rounded,dashed"; bgcolor="#1a1330";
+        sh_main    [label="electron.cjs\n派生/守护后端子进程\n端口握手 · 关闭握手 · 重启退避", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        sh_preload [label="electron-preload.cjs\n固定 8 方法桥", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        sh_sec     [label="electron-security.cjs\n信任判定：身份已验 + sender==mainWindow + origin 相符", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        sh_restart [label="electron-server-restart.cjs\nterminateChild 五步\n+ 端口 pin 防不安全重载", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        sh_main -> sh_restart [color="#b39ddb"];
+        sh_main -> sh_sec [color="#b39ddb"];
+    }
+
+    // ============ src/ 前端 ============
+    subgraph cluster_src {
+        label="src/ 渲染层（约 89.8k 行，361 个 ts/tsx）";
+        fontsize=13; color="#f3e5f5"; fontcolor="#f3e5f5"; style="rounded,dashed"; bgcolor="#200f2e";
+
+        vi_views [label="components/ 视图面\nAppShell 无路由库：VIEW_TYPES 枚举 + workspaceFocus 手工切换\nEditor · WorldBible · SkillsStudio · BookFactory · Cockpit · Welcome 向导", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+        vi_rev   [label="候选审阅面（裁决 UI）\nAiCandidateReview 单一实现\n+ ProductionRunReview · FactCandidateReview · WorldCandidateReview · SyncPreviewPanel", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+        vi_gov   [label="capability-governance.ts\n货架投影面：唯二合法渲染路径\ngetOptionalStyleAssets / getSanitizeRequiredAssets", fillcolor="#4a1010", fontcolor="#ffcdd2"];
+        vi_st    [label="stores/ 14 个 Zustand\n仅 2 个自管 localStorage，全仓无 persist 中间件\n候选态 与 Canon 态分家存放", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+        vi_hk    [label="lib/hooks/\nPersistence(681) · GenerationFlow(593) · ProductionFlow(498) · EditorData(376)", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+        vi_tr    [label="lib/ 传输层\nmain.tsx 挂载前改写 window.fetch 注入 Bearer\ndb-transport(RPC+SSE) · http(REST) · sse-client(流) · *-client(30+)", fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        vi_wk    [label="workers/\n仅 1 个：zip 解压（CPU 密集 + 30s 硬超时 terminate）", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+
+        vi_views -> vi_rev;
+        vi_views -> vi_gov;
+        vi_views -> vi_st;
+        vi_hk -> vi_st;
+        vi_hk -> vi_tr;
+        vi_rev -> vi_tr;
+        vi_gov -> vi_tr;
+        vi_views -> vi_wk [style=dotted];
+    }
+
+    // ============ shared/ 内核 ============
+    subgraph cluster_shared {
+        label="shared/ 领域内核（约 23.5k 行，零 I/O 依赖）— 架构脊柱";
+        fontsize=13; color="#ffe082"; fontcolor="#ffe082"; style="rounded,dashed"; bgcolor="#241a05";
+        sh_types [label="types/ 17 模块 + barrel\ntypes.ts 只做再导出，本体不在此\n实体/契约单一词汇表", fillcolor="#4a3208", fontcolor="#ffe082"];
+        sh_lib   [label="lib/ 52 模块 纯领域函数\nprompt-sanitizer · story-state-ledger · story-memory-projection\nquality-gates · slop-scorer · canon/outline 结构 · continuation-pack", fillcolor="#4a3208", fontcolor="#ffe082"];
+        sh_cfg   [label="config/ 随包资产（非运行时配置）\nprompt-templates · genre-profiles · prompt-chains · souls", fillcolor="#3a2b0a", fontcolor="#ffecb3"];
+        sh_types -> sh_lib;
+        sh_cfg -> sh_lib;
+    }
+
+    // ============ server/ ============
+    subgraph cluster_server {
+        label="server/ Express（约 32.7k 行，96 个 ts）— 唯一写入者";
+        fontsize=13; color="#4dd0e1"; fontcolor="#4dd0e1"; style="rounded,dashed"; bgcolor="#0f2a33";
+
+        sv_entry [label="server.ts (203 行)\nhelmet CSP · loopback 绑定 · 请求关联 id\n致命关闭：排空写队列 vs 4s 竞速", fillcolor="#12353f", fontcolor="#b2ebf2"];
+        sv_rt    [label="routes/ 23 个 register 模块 + chapter-completion\nPOST /api/db = 75 方法白名单 RPC 分派\n其余为领域 REST", fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        sv_cap   [label="capabilities/\nmanifest(3 源合并 + 执行门) · migration(v3) · outline-source(跨作品守卫)", fillcolor="#4a1010", fontcolor="#ffcdd2"];
+        sv_llm   [label="lib/server-llm.ts (1425 行)\n4 家 Provider 分派 · ProviderError 分类\n重试/参数降级 · 生成前后双门 + 自我纠错 1 次", fillcolor="#5d4207", fontcolor="#ffe082"];
+        sv_hlp   [label="helpers/\nai-production-pipeline · chapter-fact-candidates\ncreative-artifact-candidates · writing-style-service(1741)", fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        sv_db    [label="lib/db/ 20 模块 + barrel\ntransaction(3 行封装 better-sqlite3)\natomic-creates · canon-patches · chapters · world …", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        sv_inst  [label="lib/db-instance.ts\n单例 · FIFO 串行写 · databaseGeneration\n· 变更 pub/sub", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        sv_emb   [label="embedding.ts + vector-store.ts\n本地 q8 512 维 · 线性余弦全表扫描\n无 Key 抛错不伪造", fillcolor="#4a3208", fontcolor="#ffe082"];
+        sv_sec   [label="middleware/\nauth(Bearer 0600 + timingSafe + 短期 SSE token)\nrate-limit(令牌桶，按 handler 选择性挂载)", fillcolor="#12353f", fontcolor="#b2ebf2"];
+
+        sv_entry -> sv_rt -> sv_cap;
+        sv_rt -> sv_hlp;
+        sv_hlp -> sv_db;
+        sv_hlp -> sv_llm;
+        sv_cap -> sv_llm [style=dotted, label="能力执行需生成"];
+        sv_db -> sv_inst;
+        sv_emb -> sv_inst;
+        sv_rt -> sv_sec;
+    }
+
+    // ============ 本机存储 ============
+    subgraph cluster_store {
+        label="本机持久化（永不进 bundle）";
+        fontsize=13; color="#66bb6a"; fontcolor="#66bb6a"; style="rounded,dashed"; bgcolor="#0d1f12";
+        st_db  [label="~/.inkflow/data.db\n28 表 · WAL · foreign_keys=ON · busy_timeout 5s\nschema 靠幂等 CREATE IF NOT EXISTS + ensureColumn ALTER\n（无版本化迁移表）", shape=cylinder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        st_bak [label="启动一致性快照 data.db.bak\ndb.backup() → 只读连接验 application_id(0x494e4b46)\n+ 必需表/索引 → 0600 → 原子改名", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        st_cf  [label="~/.inkflow/config.json · .auth-token · .server-identity\n打包态 API Key 只经 env 注入子进程，不落 config.json", fillcolor="#33272a", fontcolor="#ffcdd2"];
+    }
+
+    // ============ 跨层依赖（合法方向） ============
+    sh_preload -> vi_tr [label="注入 token", color="#b39ddb"];
+    sh_main    -> sv_entry [label="spawn + stdout {port}", color="#b39ddb", penwidth=2];
+    vi_tr      -> sv_rt    [label="HTTP 127.0.0.1\nRPC + REST", color="#4dd0e1", penwidth=2];
+    sv_rt      -> vi_tr    [label="SSE 变更推送", style=dashed, color="#4dd0e1"];
+    vi_hk      -> sh_lib   [label="import", color="#ffe082", penwidth=2];
+    vi_gov     -> sh_lib   [label="import", color="#ffe082"];
+    sv_hlp     -> sh_lib   [label="import", color="#ffe082", penwidth=2];
+    sv_cap     -> sh_cfg   [label="import", color="#ffe082"];
+    sv_llm     -> sh_lib   [label="import sanitizer/quality", color="#ffe082"];
+    sv_db      -> st_db    [label="读 / 串行写", color="#66bb6a", penwidth=2];
+    sv_inst    -> st_db    [label="db.backup() 快照", color="#66bb6a"];
+    sv_entry   -> st_cf    [color="#ef5350"];
+    sv_entry   -> st_bak   [label="启动时生成", color="#66bb6a"];
+
+    // ============ 被禁止的方向（测试断言为空集） ============
+    subgraph cluster_forbidden {
+        label="禁止边（由 architecture-boundaries.test.ts 断言违规集为空）";
+        fontsize=12; color="#ef5350"; fontcolor="#ef5350"; style="rounded,dashed"; bgcolor="#1f0d0d";
+        f1 [label="server/ ↛ src/", fillcolor="#4a1414", fontcolor="#ffcdd2"];
+        f2 [label="src/ ↛ server/\n例外 1 个：src/tests/p0-ai-trust.test.ts（登记在册）", fillcolor="#4a1414", fontcolor="#ffcdd2"];
+        f3 [label="shared/ ↛ src/ 且 ↛ server/\n（内核必须层无关）", fillcolor="#4a1414", fontcolor="#ffcdd2"];
+        f4 [label="生产代码 ↛ tests/", fillcolor="#4a1414", fontcolor="#ffcdd2"];
+        f5 [label="components/ ↛ 裸 fetch()\n须走 src/lib 客户端\n例外 3 个：流式 bio / 流式扩写 / 二进制导出", fillcolor="#4a1414", fontcolor="#ffcdd2"];
+    }
+
+    note1 [label="读法：内核 shared/lib 被两侧同时 import，是「治理语义前后端一致」的唯一支点。\n它也最易膨胀：public-skill-catalog.ts 单文件 7158 行（生成产物）。", shape=note, fillcolor="#3a2f00", fontcolor="#fff176", style=filled];
+    f5 -> note1 [style=invis];
+}

@@ -1,0 +1,114 @@
+// 四类候选、四套存储、四条裁决路径 —— 技术下钻视图
+// 生产者：flow-visualizer + graphviz（业务泳道见 flow-chapter-candidate.dot）
+// 核心事实：InkFlow 没有统一的「候选表」。候选按内容形态分落四处，
+//           其中两处的「候选」甚至不入库。把四条路径混成一条即为误读。
+// 证据：inkflow.evidence.md §C
+
+digraph candidate_stores {
+    rankdir=TB;
+    splines=true;
+    nodesep=0.5;
+    ranksep=0.95;
+    fontname="Helvetica";
+    fontsize=13;
+    labelloc=t;
+    label="AI 产出的四种形态 → 四种候选存储 → 四个确认端点\n注意 A/B 入库、C/D 不入库：结构差异决定了门的位置不同";
+
+    node [fontname="Helvetica", fontsize=11, style="rounded,filled", margin="0.14,0.08"];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // ---------- 提案侧 ----------
+    subgraph cluster_propose {
+        label="提案：能力卡产出必须声明 canonEffect，不得直写权威存储";
+        fontsize=13; color="#4dd0e1"; fontcolor="#4dd0e1"; style="rounded,dashed"; bgcolor="#0f2a33";
+
+        capability [label="CapabilityManifest\noutput: artifact-candidate | outline-candidate | transform-preview\ncanonEffect: none | candidate-only", shape=record, fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        preexec    [label="执行前门\nvalidateArtifactCapabilityExecutionRequest\nvalidateCapabilityInvocation", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        capability -> preexec [color="#4dd0e1"];
+    }
+
+    // ---------- A：大纲 Canon ----------
+    subgraph cluster_A {
+        label="A 大纲 Canon（入库候选）";
+        fontsize=13; color="#66bb6a"; fontcolor="#66bb6a"; style="rounded,dashed"; bgcolor="#0f2412";
+
+        tblA  [label="表 canon_patches\nstatus='pending'\noperations: create-master | replace | create-scoped\nbase_fingerprint", shape=folder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        admA  [label="accept 端点\nCAS: getCanonFingerprint vs base_fingerprint\n不符 → 写 'stale' 并中止", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        effA  [label="落库效果：新建 outline_artifact(source='ai-proposal')\n+ activate\n+ replace 时镜像 novels.global_outline", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        admA -> effA [color="#66bb6a"];
+    }
+
+    // ---------- B：设定结构化核 ----------
+    subgraph cluster_B {
+        label="B 世界设定结构化核（入库候选）";
+        fontsize=13; color="#66bb6a"; fontcolor="#66bb6a"; style="rounded,dashed"; bgcolor="#0f2412";
+
+        tblB  [label="表 creative_artifact_candidates\nproposed_core / diff / impact_report\nstatus='pending'", shape=folder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        admB  [label="accept 端点\nCAS: fingerprint + version 双重比对\n不符 → 标记 'stale' 后抛错", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        effB  [label="落库效果：写 versions + upsert cores\n钉 provenance(sourceCandidateId, capabilityVersions)\n+ 级联 impact_report.reviewRequired → 'review-required'", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        admB -> effB [color="#66bb6a"];
+    }
+
+    // ---------- C：章节正文 ----------
+    subgraph cluster_C {
+        label="C 章节正文（不入库：候选只活在前端预览）";
+        fontsize=13; color="#ffcc80"; fontcolor="#ffcc80"; style="rounded,dashed"; bgcolor="#2a1c08";
+
+        tblC  [label="无候选表\n前端预览态 + baselineHash + 所属 run\n（结构事实：正文候选不落库）", shape=note, fillcolor="#4a3208", fontcolor="#ffe082"];
+        admC  [label="RPC acceptChapterContentCandidate\n① 归属校验 ② baselineHash CAS\n③ 落库边界质量门", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        effC  [label="落库效果：旧文本先入 chapter_versions\n再 UPDATE chapters.content\n同一事务", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        backC [label="反向：恢复历史版本\n前端按 id 取全文 → 常规 updateChapter\n无服务端 restore 端点，也不经过本图任何门\n（照样带 databaseGeneration 守卫）", fillcolor="#14304a", fontcolor="#b3e5fc"];
+        admC -> effC [color="#66bb6a"];
+    }
+
+    // ---------- D：章节事实 ----------
+    subgraph cluster_D {
+        label="D 连续性事实（不入库：读时从 run 派生）";
+        fontsize=13; color="#ffcc80"; fontcolor="#ffcc80"; style="rounded,dashed"; bgcolor="#2a1c08";
+
+        tblD  [label="无候选表\n由 run.continuityReport.proposedPatch 读时派生\nstatus 恒为 'pending'", shape=note, fillcolor="#4a3208", fontcolor="#ffe082"];
+        admD  [label="fact-candidate/apply\n① 顺序门（C 未 applied 即拒）\n② storyMemory CAS ③ 逐条 evidenceSpan 仍需逐字命中正文", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        effD  [label="落库效果：仅 accepted 事实写权威表\nupdateItem/updateLocation/\nupdatePowerLevel/createTimelineEvent/\nnarrativePromiseCore", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        admD -> effD [color="#66bb6a"];
+    }
+
+    preexec -> tblA [label="大纲类", color="#4dd0e1"];
+    preexec -> tblB [label="设定类", color="#4dd0e1"];
+    preexec -> tblC [label="正文类", color="#ffb74d"];
+    preexec -> tblD [label="事实类", color="#ffb74d"];
+
+    tblA -> admA [label="作者裁决", color="#ffd54f"];
+    tblB -> admB [label="作者裁决", color="#ffd54f"];
+    tblC -> admC [label="作者裁决", color="#ffd54f"];
+    tblD -> admD [label="作者裁决", color="#ffd54f"];
+
+    // ---------- 横切：所有路径共用的并发契约 ----------
+    subgraph cluster_txn {
+        label="横切并发契约（四条路径同构）";
+        fontsize=13; color="#b39ddb"; fontcolor="#b39ddb"; style="rounded,dashed"; bgcolor="#1a1330";
+
+        fifo   [label="FIFO 串行写队列\nrunInSerializedWrite", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        gen    [label="databaseGeneration 乐观并发\nDB 被换库 → 丢弃在途写入\n→ 409 *_GENERATION_STALE", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        txn    [label="单事务：状态翻转 + 权威写入 + 审计留档\n失败整体回滚（测试已证）", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        notify [label="仅在实际变更时 notify()\n→ SSE 广播 → 前端 500ms 合并刷新", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        fifo -> gen -> txn -> notify [color="#b39ddb"];
+    }
+
+    admA -> fifo [style=dotted, color="#b39ddb"];
+    admB -> fifo [style=dotted, color="#b39ddb"];
+    admC -> fifo [style=dotted, color="#b39ddb"];
+    admD -> fifo [style=dotted, color="#b39ddb"];
+
+    // ---------- 跨类依赖：C 是 D 的前置 ----------
+    effC -> admD [label="顺序依赖：正文先落库\n事实才可裁决", color="#ef5350", penwidth=2];
+
+    // ---------- C 的反向通道：版本回退（已证实，但不过裁决门） ----------
+    effC -> backC [label="反向通道", color="#ffd54f", style=bold];
+    gap1 [label="缺口：回退前不给被覆盖的当前文本留快照\n（版本表只在 effC 与显式「保存版本」时写入）\n中间态只活在会话内的前端 undo 栈", shape=note, fillcolor="#3a2f00", fontcolor="#fff176", style="filled"];
+    effC -> gap1 [style=dotted, color="#fff176"];
+
+    gap2 [label="未证实：legacy-artifact-structuring/confirm 与\ncapability-migration/apply|confirm 是否为第五、六类裁决门\n（路由存在，语义未读）", shape=note, fillcolor="#3a2f00", fontcolor="#fff176", style="filled"];
+    capability -> gap2 [style=dotted, color="#fff176"];
+
+    { rank=same; tblA; tblB; tblC; tblD; }
+}

@@ -1,0 +1,113 @@
+// 运行时拓扑：三种启动形态下，进程/端口/文件/网络分别落在哪
+// 生产者：deployment-topology-analyzer 场景（此处作为 system-modeler 的支撑视图）
+// 判读：竖排三区 = 三种互斥启动形态。跨区箭头 = 同一份代码在不同形态下的不同连法。
+// 证据：inkflow.evidence.md §D
+
+digraph runtime_topology {
+    rankdir=TB;
+    newrank=true;
+    splines=true;
+    nodesep=0.5;
+    ranksep=1.0;
+    fontname="Helvetica";
+    fontsize=13;
+    labelloc=t;
+    label="InkFlow 运行时拓扑（current-state）\n贯穿三态的硬约束：Express 只 bind 127.0.0.1，数据只落 ~/.inkflow，模型调用只经后端";
+
+    node [fontname="Helvetica", fontsize=11, style="rounded,filled", margin="0.14,0.08"];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // ==================== 形态 1：Web 开发态 ====================
+    subgraph cluster_dev {
+        label="① npm run dev —— 单进程";
+        fontsize=13; color="#80cbc4"; fontcolor="#80cbc4"; style="rounded,dashed"; bgcolor="#0c1f1e";
+
+        d_proc [label="一个 Node 进程（tsx server.ts）\nExpress 5 + Vite middlewareMode 同进程内联", fillcolor="#12353f", fontcolor="#b2ebf2"];
+        d_port [label="127.0.0.1:3000（PORT 默认）\nEADDRINUSE 时可 +1 重试至 PORT+50", shape=diamond, fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        d_brz  [label="浏览器（人开）\nHMR 24679", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+        d_tok  [label="INKFLOW_ENABLE_DEV_AUTH_TOKEN=true\n→ 铸造 /api/dev-auth-token\n仅 loopback 可读，非本机 socket 直接 404\n且 NODE_ENV 不得为 production", shape=note, fillcolor="#33272a", fontcolor="#ffcdd2"];
+        d_proc -> d_port;
+        d_brz -> d_port [label="HTTP + SSE", color="#4dd0e1"];
+        d_port -> d_tok [style=invis];
+    }
+
+    // ==================== 形态 2：Electron 开发态 ====================
+    subgraph cluster_ede {
+        label="② npm run electron:dev —— 两进程，但外壳不派生";
+        fontsize=13; color="#b39ddb"; fontcolor="#b39ddb"; style="rounded,dashed"; bgcolor="#1a1330";
+
+        e_script [label="scripts/dev-electron.mjs\n先编 main.cjs", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        e_srv    [label="后端进程 A\nnpx electron --import tsx server.ts\nELECTRON_RUN_AS_NODE=1 · INKFLOW_ELECTRON_MODE=true", fillcolor="#12353f", fontcolor="#b2ebf2"];
+        e_app    [label="Electron 进程 B（外壳）\nisDev=!app.isPackaged → 不 spawn\n只 waitForServer(3000) 后 loadURL", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        e_script -> e_srv [label="spawn"];
+        e_script -> e_app [label="4s 后 spawn"];
+        e_app -> e_srv [label="探活 /api/identity\n50 × 200ms", color="#b39ddb"];
+    }
+
+    // ==================== 形态 3：打包桌面态 ====================
+    subgraph cluster_pack {
+        label="③ 打包发布 —— 主进程派生子进程（非 utilityProcess）";
+        fontsize=13; color="#ffcc80"; fontcolor="#ffcc80"; style="rounded,dashed"; bgcolor="#2a1c08";
+
+        pk_main [label="Electron 主进程\nchild_process.spawn(process.execPath)\n+ ELECTRON_RUN_AS_NODE=1\n+ INKFLOW_FIXED_PORT=true（禁漂移）", fillcolor="#2a1f4a", fontcolor="#d1c4e9"];
+        pk_srv  [label="后端子进程\napp.asar.unpacked/dist-electron/server.cjs\n静态资源 app.asar/dist → INKFLOW_STATIC_DIR", fillcolor="#12353f", fontcolor="#b2ebf2"];
+        pk_ren  [label="渲染进程\nsandbox:true · contextIsolation:true\nnodeIntegration:false", fillcolor="#2e1a47", fontcolor="#f3e5f5"];
+
+        pk_hs   [label="端口发现握手\n子进程 stdout 只在 NODE_ENV=production 吐 {\"port\":n}\n访问日志刻意走 stderr 以保持 stdout 可解析", shape=note, fillcolor="#4a3208", fontcolor="#ffe082"];
+        pk_trust[label="信任前置：/api/identity 探活通过才 loadURL\n未过 → 拒绝加载", shape=note, fillcolor="#33272a", fontcolor="#ffcdd2"];
+        pk_res  [label="守护与自愈\n10s 看门狗 · performServerRestart 单飞\nterminate 五步(kill→5s→SIGKILL→2s)\n旧子进程未死 → 拒绝起替代\n重启换端口 → 「refusing unsafe renderer reload」\n退避 min(3000n,15s) / min(5000n,30s)", fillcolor="#4a1414", fontcolor="#ef9a9a"];
+        pk_close[label="关闭握手 idle→awaiting-renderer→complete|blocked (5s)\nattemptId 校验丢弃迟到回复\nblocked → 四按钮恢复对话框：\n重试 / 导出到文件 / 放弃(销毁 webContents) / 取消", fillcolor="#4a1414", fontcolor="#ef9a9a"];
+
+        pk_main -> pk_srv [label="spawn + 读 stdout", penwidth=2];
+        pk_srv -> pk_hs [style=dotted];
+        pk_main -> pk_ren [label="preload 固定 8 方法\n不暴露 require/fs/通用 IPC"];
+        pk_main -> pk_trust [style=dotted];
+        pk_main -> pk_res [style=dotted];
+        pk_main -> pk_close [style=dotted];
+        pk_ren -> pk_srv [label="HTTP + SSE\norigin 必须 === 已验 app origin", color="#4dd0e1"];
+    }
+
+    // ==================== 共享持久化（三态一致） ====================
+    subgraph cluster_data {
+        label="持久化：三态同路径，永不进 bundle";
+        fontsize=13; color="#66bb6a"; fontcolor="#66bb6a"; style="rounded,dashed"; bgcolor="#0d1f12";
+        dt_db   [label="~/.inkflow/data.db (+-wal/-shm)\nINKFLOW_DB_PATH 可覆盖；:memory: 支持", shape=cylinder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        dt_cf   [label="~/.inkflow/config.json 0600\nAES-256-GCM(以 hostname:username:inkflow-v1 派生) 前缀 enc:\n打包态 apiKey 恒写空串，真值走 INKFLOW_SECURE_API_KEY env\n→ Electron safeStorage → secure-key.bin", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        dt_tok  [label="~/.inkflow/.auth-token 64hex 0600\n~/.inkflow/.server-identity 仅 INKFLOW_ELECTRON_MODE 写", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        dt_bak  [label="data.db.bak 启动一致性快照\n导入前滚动备份，保留 5 份", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        dt_wgt  [label="嵌入模型权重缓存\n推断：仓库未设 cacheDir → 默认落在 bundle 内 unpacked 树\n打包态首启若卷只读则可能失败（未运行时度量）", shape=note, fillcolor="#4a3208", fontcolor="#fff176"];
+    }
+    d_proc -> dt_db [color="#66bb6a"];
+    e_srv -> dt_db [color="#66bb6a"];
+    pk_srv -> dt_db [color="#66bb6a", penwidth=2];
+    pk_srv -> dt_cf;
+    pk_srv -> dt_tok;
+    pk_srv -> dt_bak [label="db.backup()"];
+    pk_main -> dt_cf [label="safeStorage 读写密钥"];
+    pk_srv -> dt_wgt [style=dotted, color="#fff176"];
+
+    // ==================== 出网面（唯一的信任外沿） ====================
+    subgraph cluster_net {
+        label="出网（唯一跨信任边界处）";
+        fontsize=13; color="#ef5350"; fontcolor="#ef5350"; style="rounded,dashed"; bgcolor="#1f0d0d";
+        n_llm [label="外部大模型 BYOK\nHTTPS POST {baseUrl}/chat/completions\n或 @google/genai SDK\n失败分类：authentication/billing/rate_limit/timeout/\nempty_response/quality_rejected", fillcolor="#4a1414", fontcolor="#ef9a9a"];
+        n_hf  [label="HuggingFace Hub\n权重首次拉取（推断）", fillcolor="#4a1414", fontcolor="#ef9a9a"];
+    }
+    pk_srv -> n_llm [label="仅后端可出网", color="#ef5350", penwidth=2];
+    pk_srv -> n_hf  [style=dotted, color="#ef5350"];
+
+    // ==================== 测试态（隔离契约） ====================
+    subgraph cluster_e2e {
+        label="④ E2E / CI 隔离契约（不属发布态，但是拓扑的一部分）";
+        fontsize=12; color="#90a4ae"; fontcolor="#cfd8dc"; style="rounded,dashed"; bgcolor="#14181a";
+        x_e2e [label="Playwright：serve 已构建 dist（DISABLE_VITE_DEV_MIDDLEWARE=1）\nPORT=3001 · workers=1 · 独立 INKFLOW_DB_PATH 与 INKFLOW_CONFIG_DIR\nconfig.json 指向 http://127.0.0.1:9/offline-e2e（黑洞端口）\n→ 永不读真实凭证、永不真调 Provider", fillcolor="#263238", fontcolor="#cfd8dc"];
+        x_unit[label="后端 node --test 并发 4：test-db-preload 给每个 worker 独立临时库\n禁止写入运行中的 data.db（AGENTS.md 硬隔离）", fillcolor="#263238", fontcolor="#cfd8dc"];
+        x_ci  [label="CI 单闸 build.yml：check(typecheck/lint/prettier/npm audit 零豁免/\n双端覆盖率棘轮/E2E/runtime-smoke) → mac·win·linux 并行 package\n→ smoke:packaged-editor 打真二进制\n仅 upload-artifact，无 GitHub Release 发布步骤", fillcolor="#263238", fontcolor="#cfd8dc"];
+        x_ci -> x_e2e;
+        x_ci -> x_unit;
+    }
+    x_e2e -> dt_db [style=dotted, color="#90a4ae"];
+
+    note2 [label="关键非显性约束：重启必须 pin 端口。渲染层内存里挂着未落盘写入队列，\n换端口重载会让它连到另一台服务器 —— 故代码选择「宁可不重载」。", shape=note, fillcolor="#3a2f00", fontcolor="#fff176", style=filled];
+    pk_res -> note2 [style=invis];
+}

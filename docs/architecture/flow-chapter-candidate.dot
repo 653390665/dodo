@@ -1,0 +1,119 @@
+// 章节生产：从创作意图到正文落库 —— 业务主链路（actor / action / outcome）
+// 生产者：flow-visualizer + graphviz
+// 事实源：本 DOT。任何 SVG/PNG 均为派生件。证据：inkflow.evidence.md §C
+// 布局：rankdir=TB，面向 Qoder DOT 预览器（横向长条会在视口外起始）
+//
+// 读法：四个泳道 = 四个责任主体。实线 = 有行为证据（路由/写函数/测试）。
+//       虚线(dashed) = 失败/降级分支。dotted + note = 仅声明未接线，或已证实的缺口。
+
+digraph flow_chapter_candidate {
+    rankdir=TB;
+    splines=true;
+    nodesep=0.55;
+    ranksep=0.85;
+    fontname="Helvetica";
+    fontsize=13;
+    labelloc=t;
+    label="InkFlow 章节生产主链路：AI 提议 → 作者裁决 → 才落库\n（current-state，证据见 .evidence.md，2026-09-18）";
+
+    node [fontname="Helvetica", fontsize=12, shape=box, style="rounded,filled", margin="0.16,0.09"];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // ================= 泳道 1：作者 =================
+    subgraph cluster_author {
+        label="作者（唯一人类责任主体）";
+        fontsize=14; style="rounded,dashed"; color="#ffd54f"; fontcolor="#ffd54f";
+        bgcolor="#2a2410";
+
+        intent   [label="① 输入本章创作意图\n「这一章要写主角在雨夜酒馆试探掌柜」", fillcolor="#4a3208", fontcolor="#ffe082"];
+        review   [label="⑥ 预览比对\n正文候选 vs 原文\n连续性冲突逐条裁决", fillcolor="#4a3208", fontcolor="#ffe082"];
+        decide   [label="⑦a 接受并写入正文", shape=diamond, fillcolor="#1b5e20", fontcolor="#c8e6c9"];
+        decideF  [label="⑦b 单独裁决\n连续性事实", shape=diamond, fillcolor="#1b5e20", fontcolor="#c8e6c9"];
+        restore  [label="⑦c 恢复某个历史版本\n（前端按 id 取全文 → 走常规保存）", fillcolor="#1b5e20", fontcolor="#c8e6c9"];
+        reject   [label="拒绝 / 弃用\nrun → 'rejected'?", fillcolor="#4a1414", fontcolor="#ef9a9a"];
+    }
+
+    // ================= 泳道 2：InkFlow 治理层 =================
+    subgraph cluster_govern {
+        label="InkFlow 治理层（Express：装配、门禁、裁决落库）";
+        fontsize=14; style="rounded,dashed"; color="#4dd0e1"; fontcolor="#4dd0e1";
+        bgcolor="#0f2a33";
+
+        mount    [label="② 解析已挂载能力卡\n校验 runtime-ready + 消毒状态\n冻结 capabilityVersion", fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        assemble [label="③ 装配上下文账本\n实体状态 / 未回收伏笔\n每维度钉版本号", fillcolor="#1b3a4b", fontcolor="#e1f5fe"];
+        gate1    [label="生成质量门\nvalidateDraftQuality\n(P0/P1)", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        gate2    [label="落库边界质量门\n拒绝则整笔不写", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        cas1     [label="baselineHash CAS\n正文被改过 → 判定过期", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        cas2     [label="storyMemoryFingerprint CAS\n+ 逐条 evidenceSpan 仍需逐字命中当前正文", shape=hexagon, fillcolor="#37474f", fontcolor="#b0bec5"];
+        order    [label="顺序门\n正文未确认 → 事实不得写", shape=hexagon, fillcolor="#4a1414", fontcolor="#ef9a9a"];
+    }
+
+    // ================= 泳道 3：外部模型 =================
+    subgraph cluster_llm {
+        label="外部大模型（BYOK + 需网络）";
+        fontsize=14; style="rounded,dashed"; color="#ffb74d"; fontcolor="#ffb74d";
+        bgcolor="#2a1c08";
+
+        beats    [label="④ 生成分镜 / 细纲", fillcolor="#5d4207", fontcolor="#ffe082"];
+        draft    [label="⑤ 生成正文草稿", fillcolor="#5d4207", fontcolor="#ffe082"];
+        audit    [label="⑤ 文风审计（去 AI 味）", fillcolor="#5d4207", fontcolor="#ffe082"];
+        fallback [label="本地降级 / 全失败\n草稿以「待改进预览」交付\n不伪装成功", fillcolor="#33220a", fontcolor="#ffcc80"];
+    }
+
+    // ================= 泳道 4：本机存储 =================
+    subgraph cluster_store {
+        label="本机作品记忆（SQLite WAL，永不出机）";
+        fontsize=14; style="rounded,dashed"; color="#66bb6a"; fontcolor="#66bb6a";
+        bgcolor="#0f2412";
+
+        runrow   [label="生产运行记录\nrunning → review_required → applied | failed", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        version  [label="修改前版本留档\n（旧文本进版本表，不是新文本）", fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        content  [label="章节正文", shape=cylinder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+        facts    [label="作品 Canon\n道具/地点/境界/时间线/伏笔", shape=cylinder, fillcolor="#1b3320", fontcolor="#b9f6ca"];
+    }
+
+    // ---------------- 主链路（全部有行为证据） ----------------
+    intent   -> mount                    [label="同步 HTTP", color="#4dd0e1"];
+    mount    -> assemble                 [color="#4dd0e1"];
+    assemble -> beats                    [label="HTTPS", color="#ffb74d"];
+    beats    -> draft                    [label="HTTPS", color="#ffb74d"];
+    draft    -> audit                    [label="HTTPS", color="#ffb74d"];
+    audit    -> gate1                    [color="#b0bec5"];
+    gate1    -> runrow                   [label="落为候选\nstatus=review_required", color="#66bb6a"];
+    runrow   -> review                   [label="SSE 推送变更后渲染", style=dashed, color="#4dd0e1"];
+
+    review   -> decide                   [color="#ffd54f"];
+    decide   -> cas1                     [label="POST apply", color="#ffd54f"];
+    cas1     -> gate2                    [color="#b0bec5"];
+    gate2    -> version                  [label="先存旧文", color="#66bb6a"];
+    version  -> content                  [label="同一事务内改写", color="#66bb6a"];
+    content  -> runrow                   [label="status=applied", style=dashed, color="#66bb6a"];
+
+    review   -> decideF                  [color="#ffd54f"];
+    decideF  -> order                    [label="POST fact-candidate/apply", color="#ffd54f"];
+    order    -> cas2                     [color="#b0bec5"];
+    cas2     -> facts                    [label="仅写 accepted 事实", color="#66bb6a"];
+
+    // ---------------- 分支与失败路径 ----------------
+    gate1    -> fallback   [label="质量不达标\nself-correction 重试 1 次仍败", style=dashed, color="#ff8a65"];
+    fallback -> review     [label="以待改进预览交付", style=dashed, color="#ff8a65"];
+    cas1     -> reject     [label="CHAPTER_CANDIDATE_STALE\n整笔不写", style=dashed, color="#ef5350"];
+    gate2    -> reject     [label="QUALITY_FAILED\n整笔不写", style=dashed, color="#ef5350"];
+    order    -> reject     [label="MANUSCRIPT_NOT_ACCEPTED", style=dashed, color="#ef5350"];
+    cas2     -> facts      [label="未提及事实留在 pending", style=dotted, color="#9e9e9e", constraint=false];
+
+    // ---------------- 版本回退（已证实，但它不是第四道门） ----------------
+    review    -> restore  [label="想回到旧稿", color="#ffd54f"];
+    restore   -> version  [label="getChapterVersion(id)\n版本列表只含投影，全文按 id 单取", color="#a5d6a7"];
+    restore   -> content  [label="常规 updateChapter 写盘\n照样带 databaseGeneration 守卫", color="#4dd0e1"];
+    restore   -> gap_undo  [style=dotted, color="#fff176", constraint=false];
+    gap_undo  [label="缺口：回退前不给「被覆盖的当前文本」留快照\n常规 updateChapter 不写版本表\n中间态只活在会话内的前端 undo 栈", shape=note, fillcolor="#3a2f00", fontcolor="#fff176", style="filled"];
+
+    reject -> deadstate [label="'rejected' 仅声明", style=dotted, color="#9e9e9e"];
+    deadstate [label="'rejected' 状态字面量存在于类型\n未找到任何写入代码\n= 死字面量，非业务事实", shape=note, fillcolor="#33272a", fontcolor="#f8bbd0", style="filled"];
+
+    // rank 提示
+    { rank=same; beats; draft; audit; }
+    { rank=same; review; }
+    { rank=same; gate2; order; }
+}
