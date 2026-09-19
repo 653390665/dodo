@@ -4,6 +4,7 @@ import { getConfig } from '../lib/config';
 import type { Skill } from '../../shared/types';
 
 import { resolveRuntimeCuratedPrompts } from './curated-skill-runtime.js';
+import { escapePromptText } from '../../shared/lib/prompt-fence';
 
 export function buildSkillsPrompt(skills: Skill[]) {
   if (!skills || skills.length === 0) return '';
@@ -256,13 +257,8 @@ export function resolveChainPrompt(
 
 /** Keep user text data-only when embedded in XML-like prompt delimiters. */
 export function wrapUserInput(text: string): string {
-  const escaped = String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-  return `<user_input>\n${escaped}\n</user_input>`;
+  // Plan 253：转义逻辑收敛到 shared/lib/prompt-fence 单源，输出保持逐字节不变。
+  return `<user_input>\n${escapePromptText(text)}\n</user_input>`;
 }
 
 export function buildPromptTemplateTest(
