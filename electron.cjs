@@ -158,7 +158,8 @@ function writeStartupLog(message) {
   try {
     const redacted = String(message).replace(STARTUP_LOG_REDACTION, '[redacted]');
     fs.mkdirSync(path.dirname(startupLogPath), { recursive: true });
-    fs.appendFileSync(startupLogPath, `[${new Date().toISOString()}] ${redacted}\n`);
+    fs.appendFileSync(startupLogPath, `[${new Date().toISOString()}] ${redacted}\n`, { mode: 0o600 });
+    try { fs.chmodSync(startupLogPath, 0o600); } catch {}
   } catch {}
 }
 
