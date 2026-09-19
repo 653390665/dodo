@@ -36,23 +36,24 @@ export function buildSkillsPrompt(skills: Skill[]) {
   prompt += `以下 ${resolvedSkills.length} 张能力卡会共同影响本次写作，请把它们融合成统一、自然的行文效果：\n\n`;
 
   prompt += `核心描述基调 (Primary Voice):\n`;
-  prompt += `- 基于《${primarySkill.name}》：${primarySkill.style}\n`;
-  if (primarySkill.sentenceStructure) prompt += `  句法要求："${primarySkill.sentenceStructure}"\n`;
-  prompt += `  节奏推进遵循："${primarySkill.pacing}"\n`;
+  // Plan 253：能力卡字段属于不可信文本（尤其 book-extracted 卡），一律转义后作为数据嵌入。
+  prompt += `- 基于《${escapePromptText(primarySkill.name)}》：${escapePromptText(primarySkill.style)}\n`;
+  if (primarySkill.sentenceStructure) prompt += `  句法要求："${escapePromptText(primarySkill.sentenceStructure)}"\n`;
+  prompt += `  节奏推进遵循："${escapePromptText(primarySkill.pacing)}"\n`;
   if (primarySkill.characterTraits)
-    prompt += `  核心人物特征模版："${primarySkill.characterTraits}"\n`;
+    prompt += `  核心人物特征模版："${escapePromptText(primarySkill.characterTraits)}"\n`;
   if (primarySkill.worldBuilding)
-    prompt += `  世界观/力量体系感："${primarySkill.worldBuilding}"\n`;
-  if (primarySkill.plotPattern) prompt += `  剧情/爽点套路结构："${primarySkill.plotPattern}"\n`;
-  if (primarySkill.foreshadowing) prompt += `  悬念及伏笔手法："${primarySkill.foreshadowing}"\n`;
+    prompt += `  世界观/力量体系感："${escapePromptText(primarySkill.worldBuilding)}"\n`;
+  if (primarySkill.plotPattern) prompt += `  剧情/爽点套路结构："${escapePromptText(primarySkill.plotPattern)}"\n`;
+  if (primarySkill.foreshadowing) prompt += `  悬念及伏笔手法："${escapePromptText(primarySkill.foreshadowing)}"\n`;
   prompt += `\n`;
 
   if (secondarySkills.length > 0) {
     prompt += `辅助能力卡：\n`;
     secondarySkills.forEach((s) => {
-      prompt += `- 融合《${s.name}》：在描写层引入其"${s.style}"的色彩。`;
-      if (s.characterTraits) prompt += `引入人物特征：${s.characterTraits}。`;
-      if (s.plotPattern) prompt += `借鉴剧情节奏：${s.plotPattern}。`;
+      prompt += `- 融合《${escapePromptText(s.name)}》：在描写层引入其"${escapePromptText(s.style)}"的色彩。`;
+      if (s.characterTraits) prompt += `引入人物特征：${escapePromptText(s.characterTraits)}。`;
+      if (s.plotPattern) prompt += `借鉴剧情节奏：${escapePromptText(s.plotPattern)}。`;
       prompt += `\n`;
     });
     prompt += `\n`;
@@ -60,18 +61,18 @@ export function buildSkillsPrompt(skills: Skill[]) {
 
   prompt += `全局语法规约 (Global Constraints):\n`;
   if (allImagery.length > 0)
-    prompt += `- 【核心意象群】：${allImagery.join('、')} (在描写中高频出现这些符号)\n`;
+    prompt += `- 【核心意象群】：${escapePromptText(allImagery.join('、'))} (在描写中高频出现这些符号)\n`;
   if (allVocabulary.length > 0)
-    prompt += `- 【标志性词汇】：${allVocabulary.join('、')} (优先使用这些具有辨识度的词汇)\n`;
+    prompt += `- 【标志性词汇】：${escapePromptText(allVocabulary.join('、'))} (优先使用这些具有辨识度的词汇)\n`;
   if (allCorePatterns.length > 0)
-    prompt += `- 【核心行文套路】：${allCorePatterns.join('、')} (在构建桥段时，请采纳这些模式)\n`;
+    prompt += `- 【核心行文套路】：${escapePromptText(allCorePatterns.join('、'))} (在构建桥段时，请采纳这些模式)\n`;
   if (allBannedElements.length > 0)
-    prompt += `- 【绝对禁忌红线】：${allBannedElements.join('、')} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
+    prompt += `- 【绝对禁忌红线】：${escapePromptText(allBannedElements.join('、'))} (如果你在文中写出这些设定或词汇，总编会立刻撕碎草稿)\n\n`;
 
   prompt += `风格对标样例 (Composite Few-Shots):\n`;
   resolvedSkills.forEach((s) => {
     (Array.isArray(s.fewShots) ? s.fewShots : []).slice(0, 2).forEach((fs: string) => {
-      prompt += `  * "${fs}" (来自 ${s.name})\n`;
+      prompt += `  * "${escapePromptText(fs)}" (来自 ${escapePromptText(s.name)})\n`;
     });
   });
 
@@ -83,51 +84,51 @@ export function buildSkillsPrompt(skills: Skill[]) {
 
     deconstructionCards.forEach((s) => {
       const type = s.deconstructionCardType!;
-      prompt += `<deconstruction_${type} name="${s.name}">\n`;
-      prompt += `  <card_scope>${s.description}</card_scope>\n`;
+      prompt += `<deconstruction_${type} name="${escapePromptText(s.name)}">\n`;
+      prompt += `  <card_scope>${escapePromptText(s.description)}</card_scope>\n`;
 
       if (type === 'style-card' && s.style) {
         prompt += `  <style_rendering_rules>\n`;
-        prompt += `    ${s.style}\n`;
+        prompt += `    ${escapePromptText(s.style)}\n`;
         prompt += `  </style_rendering_rules>\n`;
       }
       if (type === 'character-card' && s.characterTraits) {
         prompt += `  <character_interaction_rules>\n`;
-        prompt += `    ${s.characterTraits}\n`;
+        prompt += `    ${escapePromptText(s.characterTraits)}\n`;
         prompt += `  </character_interaction_rules>\n`;
       }
       if (type === 'pacing-card' && s.pacing) {
         prompt += `  <pacing_density_rules>\n`;
-        prompt += `    ${s.pacing}\n`;
+        prompt += `    ${escapePromptText(s.pacing)}\n`;
         prompt += `  </pacing_density_rules>\n`;
       }
       if (type === 'worldview-card' && s.worldBuilding) {
         prompt += `  <world_logic_rules>\n`;
-        prompt += `    ${s.worldBuilding}\n`;
+        prompt += `    ${escapePromptText(s.worldBuilding)}\n`;
         prompt += `  </world_logic_rules>\n`;
       }
       if (type === 'conflict-card' && s.plotPattern) {
         prompt += `  <conflict_tension_rules>\n`;
-        prompt += `    ${s.plotPattern}\n`;
+        prompt += `    ${escapePromptText(s.plotPattern)}\n`;
         prompt += `  </conflict_tension_rules>\n`;
       }
       if (type === 'hook-card' && s.foreshadowing) {
         prompt += `  <hook_suspense_rules>\n`;
-        prompt += `    ${s.foreshadowing}\n`;
+        prompt += `    ${escapePromptText(s.foreshadowing)}\n`;
         prompt += `  </hook_suspense_rules>\n`;
       }
       if (type === 'platform-card') {
         prompt += `  <platform_preference_rules>\n`;
-        if (s.style) prompt += `    风格规约: ${s.style}\n`;
-        if (s.pacing) prompt += `    节奏规约: ${s.pacing}\n`;
-        if (s.plotPattern) prompt += `    情节爽点: ${s.plotPattern}\n`;
+        if (s.style) prompt += `    风格规约: ${escapePromptText(s.style)}\n`;
+        if (s.pacing) prompt += `    节奏规约: ${escapePromptText(s.pacing)}\n`;
+        if (s.plotPattern) prompt += `    情节爽点: ${escapePromptText(s.plotPattern)}\n`;
         prompt += `  </platform_preference_rules>\n`;
       }
 
       if (Array.isArray(s.fewShots) && s.fewShots.length > 0) {
         prompt += `  <transferable_few_shots>\n`;
         s.fewShots.forEach((shot: string, idx: number) => {
-          prompt += `    <shot_${idx + 1}>${shot}</shot_${idx + 1}>\n`;
+          prompt += `    <shot_${idx + 1}>${escapePromptText(shot)}</shot_${idx + 1}>\n`;
         });
         prompt += `  </transferable_few_shots>\n`;
       }
