@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 
-import { registerSkillsRoutes } from '../server/routes/skills';
+import { registerSkillsRoutes, finalizeExtractedCard } from '../server/routes/skills';
 import * as db from '../server/lib/db';
 import { initDb } from '../server/lib/db';
 import { PROMPT_GOVERNANCE_CATALOG } from '../shared/lib/prompt-governance-catalog';
@@ -30,6 +30,60 @@ async function withServer(run: (baseUrl: string) => Promise<void>) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }
+
+test('finalizeExtractedCard strips contacts/brands from card text and records hits', () => {
+  const card = finalizeExtractedCard(
+    {
+      name: '墨流写作助手 风格卡',
+      // 说明：sanitizeWhiteLabelText 预清洗会先剥微信号/竞品词（既有管线顺序），
+      // analyzeAndSanitize 统计到的是预清洗覆盖不到的模式：裸手机号、水印、裸作者名。
+      description: '想要了解更多，请联系微信号：abc12345，欢迎交流。备用电话 13812345678。',
+      style: '冷峻短句。证据：加我微信 vx_abc12345 领取完整资料。',
+      pacing: '节奏偏紧',
+      fewShots: ['夜雨拍窗，他按刀而立。图片右下角带水印。墨流编辑器出品。'],
+      deconstructionCardType: 'style-card',
+    },
+    'deck-skill-1'
+  ) as Record<string, unknown>;
+
+  // 联系方式与竞品词被物理剥除
+  const text = JSON.stringify(card);
+  assert.equal(text.includes('abc12345'), false);
+  assert.equal(text.includes('墨流'), false);
+  assert.equal(text.includes('vx_abc12345'), false);
+  assert.equal(text.includes('13812345678'), false);
+  assert.equal(text.includes('水印'), false);
+  assert.ok(String(card.name).includes('风格卡'));
+
+  // 命中统计落库：analyzeAndSanitize 层面的命中非空
+  const hits = card.sanitizationHits as Record<string, number>;
+  assert.ok(hits && typeof hits === 'object');
+  assert.ok(hits.contacts > 0, 'contacts hits should be recorded');
+  assert.ok(hits.watermarks > 0, 'watermark hits should be recorded');
+
+  // 三旗标语义保持不变
+  assert.equal(card.isRuntimeReady, true);
+  assert.equal(card.sanitizationStatus, 'runtime-ready');
+  assert.equal(card.runtimeStatus, 'active');
+});
+
+test('finalizeExtractedCard records a zero-hit scan object for clean cards', () => {
+  const card = finalizeExtractedCard(
+    {
+      name: '冷峻刀锋',
+      description: '冷峻短句的风格卡。',
+      style: '冷峻短句，动作清晰。',
+      pacing: '节奏偏紧',
+      deconstructionCardType: 'style-card',
+    },
+    'deck-skill-1'
+  ) as Record<string, unknown>;
+
+  assert.equal(String(card.name), '冷峻刀锋');
+  const hits = card.sanitizationHits as Record<string, number>;
+  assert.ok(hits && typeof hits === 'object');
+  assert.ok(Object.keys(hits).length > 0, 'scan record must exist even with zero hits');
+});
 
 test('sanitize endpoint rejects unknown and non-candidate assets', async () => {
   await withServer(async (baseUrl) => {
