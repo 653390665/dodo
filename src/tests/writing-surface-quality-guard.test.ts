@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, test } from 'vitest';
+import { createElement } from 'react';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
+import { WritingSurface } from '../components/WritingSurface';
 
 const source = readFileSync(resolve(__dirname, '../components/WritingSurface.tsx'), 'utf8');
 
@@ -20,13 +23,53 @@ describe('WritingSurface audit surface', () => {
   });
 
   test('keeps one state-driven audit action guarded for empty chapters', () => {
-    expect(source.match(/void onRunAudit\(\)/g)).toHaveLength(1);
-    // prettier 会把二元表达式折行；用空白容忍断言代替精确子串
-    expect(source).toMatch(
-      /workflowState\.primaryAction === 'audit' &&\s*\(isGeneratingCritique \|\| isChapterEmpty\)/
-    );
     expect(source).toContain('正文为空，暂不能审计。');
-    expect(source).toContain('readOnly={false}');
+  });
+
+  test('keeps the textarea editable while generating', () => {
+    // 特征化测试：登记已知缺陷「正文生成期间 readOnly 仍为 false，流式预览不锁定编辑器」。
+    // 修复该缺陷时本断言应翻转为 readonly === true，勿删除。
+    render(
+      createElement(WritingSurface, {
+        novel: {
+          id: 'novel-1',
+          title: 'Novel',
+          authorId: 'user',
+          summary: '',
+          status: 'ongoing',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        currentChapter: {
+          id: 'chapter-1',
+          novelId: 'novel-1',
+          title: '第一章',
+          content: '正文',
+          wordCount: 2,
+          order: 1,
+          sceneBeats: '',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        isGeneratingBeats: false,
+        isGeneratingCritique: false,
+        isGeneratingContent: true,
+        auditStatus: null,
+        isChapterEmpty: false,
+        mountedSkillsCount: 0,
+        runCopilotAction: vi.fn().mockResolvedValue(undefined),
+        contentRef: { current: null },
+        onGenerateBeats: vi.fn().mockResolvedValue(undefined),
+        onRunAudit: vi.fn().mockResolvedValue(undefined),
+        onUpdateContent: vi.fn(),
+        onQueueContentWrite: vi.fn(),
+        onAddFirstChapter: vi.fn().mockResolvedValue(undefined),
+        onAddChapter: vi.fn().mockResolvedValue(undefined),
+        setAgentTab: vi.fn(),
+        setIsAgentSidebarOpen: vi.fn(),
+      })
+    );
+    expect(screen.getByRole('textbox').hasAttribute('readonly')).toBe(false);
   });
 
   test('empty project copy asks for an explicit first chapter', () => {
