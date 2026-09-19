@@ -301,6 +301,217 @@ test('start-stream disconnect before fallback write refunds quota', async () => 
   __productionTestHooks.disconnectObservedHook = null;
 });
 
+test('start-stream pipeline settling after disconnect leaves the run without a terminal state', async () => {
+  // 特征化测试：登记已知缺陷「客户端断开时，pipeline settlement 后 .then finalizer
+  // 内的断连守卫直接 return，不做 run 终态化——run 行永远停留 'running'，
+  // 模型结果不落库、也无任何失败/评审终态标记」。
+  // 修复该缺陷时，本断言应翻转为「run 有明确终态（failed/review_required）」，勿删除。
+  // 注：审计原引 .then 首个守卫（`if (aborted || !isResponseWritable(res)) return;`）
+  // 在当前实现下不可达——pipeline 的全部 LLM 调用都接入了 clientAbortController.signal，
+  // 断连后剩余调用必然 reject 并进入会终态化 run 的 .catch 分支；真实可复现的
+  // 「停留 running」路径是 .then 内 model-write 前后的断连守卫（preModelWriteHook
+  // 阻塞期间断连），本用例以仓库现成的 preModelWriteHook 确定性驱动该路径。
+  const db = await import('../server/lib/db');
+  const { getConfig } = await import('../server/lib/config');
+  const { __productionTestHooks } = await import('../server/routes/production');
+  const novelId = 'prod-disconnect-stuck-running';
+  await setupNovel(novelId);
+  // 干净的正文证据（无控制字符）让 pipeline 内部保底构建可通过质量门；
+  // 只有 intent 携带控制字符：路由级保底草稿必然门禁失败（run 保持 'running'、
+  // fallbackPersisted=false），pipeline settlement 后才会走到 model-write 守卫。
+  db.updateNovel(novelId, {
+    worldRules: '潮汐城每逢午夜倒流，旧契约在倒流中重新生效',
+  });
+  const now = Date.now();
+  db.createCharacter({
+    id: `${novelId}-character`,
+    novelId,
+    name: '林舟',
+    role: 'protagonist',
+    summary: '只用左手解读导师暗号',
+    traits: ['克制'],
+    bio: '',
+    createdAt: now,
+    updatedAt: now,
+  });
+  db.createForeshadowing({
+    id: `${novelId}-foreshadowing`,
+    novelId,
+    title: '青铜铃',
+    description: '第三次响起会打开地下城门',
+    status: 'planted',
+    relatedCharacterIds: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+  styleFingerprints.set(novelId, confirmWritingStyleForTest(novelId));
+
+  const previousEnv = process.env.NODE_ENV;
+  const previousMonetization = process.env.INKFLOW_ENABLE_MONETIZATION;
+  const config = getConfig();
+  const originalKey = config.apiKey;
+  const originalFetch = globalThis.fetch;
+  // 离开 test-env 快路径，让路由进入 Phase 2 真实 pipeline（同 handoff 用例）。
+  process.env.NODE_ENV = 'development';
+  process.env.INKFLOW_ENABLE_MONETIZATION = 'true';
+  config.apiKey = 'disconnect-stuck-running-key';
+
+  // pipeline 正常跑完（planner 干净放行、writer 抛错走 validated fallback、
+  // critic 返回 pass 审计），在 model-write 排队处用既有 hook 阻塞，制造
+  // 「pipeline 已 resolve、run 尚未终态化」的断连窗口。
+  let releaseModelWrite!: () => void;
+  const modelWriteGate = new Promise<void>((resolve) => {
+    releaseModelWrite = resolve;
+  });
+
+  const sseTextResponse = (content: string) => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: 'stop' }] })}\n\n`
+          )
+        );
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    return {
+      ok: true,
+      status: 200,
+      body: stream,
+      json: async () => ({ choices: [{ message: { content } }] }),
+    } as Response;
+  };
+  const passingAudit = JSON.stringify({
+    score: 90,
+    fatalIssues: [],
+    surgerySuggestions: [],
+    sceneChecks: [],
+    evidence: [
+      {
+        category: 'scene_execution',
+        severity: 'low',
+        quote: '雨夜码头',
+        explanation: '场景推进成立',
+        suggestedFix: '保持',
+      },
+      {
+        category: 'character_state',
+        severity: 'low',
+        quote: '林舟',
+        explanation: '人物状态一致',
+        suggestedFix: '保持',
+      },
+      {
+        category: 'hard_canon',
+        severity: 'low',
+        quote: '潮汐城',
+        explanation: '无硬性设定冲突',
+        suggestedFix: '保持',
+      },
+      {
+        category: 'foreshadowing',
+        severity: 'low',
+        quote: '青铜铃',
+        explanation: '伏笔已埋',
+        suggestedFix: '保持',
+      },
+    ],
+  });
+
+  const httpFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url, init) => {
+    const body = typeof init?.body === 'string' ? init.body : '';
+    if (body.includes('fatalIssues')) {
+      // Critic 调用：正常返回 pass 审计，让 pipeline 在断连前完整 resolve。
+      return sseTextResponse(passingAudit);
+    }
+    if (body.includes('顶级责编')) {
+      // Planner 调用：返回干净分镜（无 '### 场景' 标题，保持整章写作路径）。
+      return sseTextResponse('场景一：雨夜码头对峙，林舟收伞入场，远处青铜铃第一次响起。');
+    }
+    // Writer 调用：抛错让 pipeline 走内部 validated fallback（干净上下文必过门）。
+    throw new Error('writer provider unavailable');
+  }) as typeof fetch;
+
+  try {
+    // 本文件 start-stream 用例数已超出令牌桶突发预算，发请求前重置限流器
+    // （仓库既有测试惯例，见 world-llm-endpoints.test.ts）。
+    const { __rateLimitTestHooks } = await import('../server/middleware/rate-limit');
+    __rateLimitTestHooks.reset();
+    let resolveDisconnectObserved!: () => void;
+    const disconnectObserved = new Promise<void>((resolve) => {
+      resolveDisconnectObserved = resolve;
+    });
+    __productionTestHooks.disconnectObservedHook = resolveDisconnectObserved;
+    __productionTestHooks.preModelWriteHook = () => modelWriteGate;
+    const controller = new AbortController();
+    const response = await httpFetch(`${baseUrl}/api/chapter-production-runs/start-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        novelId,
+        targetChapterId: '',
+        userIntent: '雨夜码头追击走私船行动\u0007',
+        continuationPackId: '',
+        styleConfirmationFingerprint: styleFingerprints.get(novelId),
+      }),
+    });
+    assert.equal(response.status, 200);
+
+    // 读到 model_beats 事件：证明 pipeline 已 resolve 并进入 model-write 排队阻塞。
+    const reader = response.body?.getReader();
+    assert.ok(reader);
+    const decoder = new TextDecoder();
+    let received = '';
+    while (!received.includes('"type":"model_beats"')) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      received += decoder.decode(chunk.value, { stream: true });
+    }
+    assert.ok(received.includes('"type":"model_beats"'), 'pipeline should settle before abort');
+
+    // pipeline 已 resolve、写入被 hook 阻塞：此刻断开客户端再放行写入。
+    controller.abort();
+    await disconnectObserved;
+    releaseModelWrite();
+    __productionTestHooks.disconnectObservedHook = null;
+    __productionTestHooks.preModelWriteHook = null;
+
+    // Settlement 窗口：放行后写入队列回调命中断连守卫直接返回，无终态化写入；
+    // 持续轮询确认 run 在整个窗口内停留 'running'（缺陷本身）。
+    let polls = 0;
+    await waitFor(
+      () => {
+        polls += 1;
+        const [current] = db.listChapterProductionRuns(novelId);
+        assert.ok(current, 'run should exist');
+        assert.equal(current.status, 'running');
+        return polls >= 8;
+      },
+      2_000,
+      'run stays running across the settlement window'
+    );
+
+    // 缺陷的另一面：配额已 commit，但 run 永远停在 'running'、模型结果未落库。
+    const [run] = db.listChapterProductionRuns(novelId);
+    assert.ok(run);
+    assert.equal(run.draftContent, '');
+    await waitForReservation(novelId, 'committed');
+  } finally {
+    globalThis.fetch = originalFetch;
+    config.apiKey = originalKey;
+    if (previousEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnv;
+    if (previousMonetization === undefined) delete process.env.INKFLOW_ENABLE_MONETIZATION;
+    else process.env.INKFLOW_ENABLE_MONETIZATION = previousMonetization;
+    __productionTestHooks.disconnectObservedHook = null;
+    __productionTestHooks.preModelWriteHook = null;
+  }
+});
+
 test('start-stream invalid fallback does not enter the model queue in test env', async () => {
   const { __productionTestHooks } = await import('../server/routes/production');
   const novelId = 'prod-disconnect-model-queue';
