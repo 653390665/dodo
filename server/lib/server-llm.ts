@@ -1409,7 +1409,7 @@ export async function generateEmbedding(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Embedding request failed (${response.status}): ${errorText}`);
+      throw new Error(`Embedding request failed (${response.status}): ${errorText.slice(0, 300)}`);
     }
 
     const data = await response.json();
