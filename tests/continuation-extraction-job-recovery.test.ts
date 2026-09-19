@@ -139,6 +139,77 @@ test('stale terminal extraction jobs are pruned from persisted storage after ttl
   }
 });
 
+test('ttl prune aborts and deletes a still-running parse-doc job past its creation ttl', async () => {
+  // 特征化测试：登记已知缺陷「parse-doc 任务 TTL 清理只看 createdAt、不区分是否运行中」：
+  // 一个正在解析（running、LLM 调用悬而未决）的任务，只要创建时间超过 30 分钟 TTL，
+  // pruneParseDocJobs 的 `job.createdAt < cutoff` 分支就会 abort 底层解析并直接删除
+  // 任务记录（404 PARSE_DOC_JOB_EXPIRED），任务不留任何终态。
+  // 修复该缺陷时，本断言应翻转为「运行中任务不被 TTL 清理」，勿删除。
+  const originalConfig = { apiKey: getConfig().apiKey, baseUrl: getConfig().baseUrl, model: getConfig().model };
+  const originalFetch = globalThis.fetch;
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkflow-parsedoc-ttl-config-'));
+  fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ apiKey: 'test-key', baseUrl: 'https://recovery.test/v1', model: 'test-model' }));
+  process.env.INKFLOW_CONFIG_DIR = configDir;
+  reloadConfig();
+
+  let releaseParse!: () => void;
+  const parseGate = new Promise<void>((resolve) => { releaseParse = resolve; });
+  let parseAbortedObserved = false;
+  let resolveParseAborted!: () => void;
+  const parseAborted = new Promise<void>((resolve) => { resolveParseAborted = resolve; });
+  globalThis.fetch = async (input, init) => {
+    if (String(input).includes('/chat/completions')) {
+      init?.signal?.addEventListener('abort', () => {
+        parseAbortedObserved = true;
+        resolveParseAborted();
+      });
+      await parseGate;
+      return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: valid } }] }));
+    }
+    return originalFetch(input, init);
+  };
+  const { server, baseUrl } = await startServer();
+  try {
+    const started = await fetch(`${baseUrl}/api/parse-doc`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        novelId,
+        filename: '设定.txt',
+        filedata: Buffer.from('这是用于 TTL 清理特征化测试的设定资料文本，长度满足上传校验要求。').toString('base64'),
+      }),
+    });
+    assert.equal(started.status, 202, await started.clone().text());
+    const { jobId, databaseGeneration } = await started.json() as { jobId: string; databaseGeneration: number };
+
+    // 等待解析真正进入运行中（LLM 调用已发出且被 mock 阻塞、尚未返回）。
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // 时间前拨超过 TTL（30 分钟）触发 prune：运行中任务同样被 abort + 删除。
+    const realNow = Date.now;
+    let jobResponse: Response;
+    try {
+      Date.now = () => realNow() + 31 * 60 * 1000;
+      jobResponse = await fetch(`${baseUrl}/api/parse-doc/jobs/${encodeURIComponent(jobId)}?databaseGeneration=${databaseGeneration}`);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(jobResponse.status, 404);
+    assert.equal(((await jobResponse.json()) as any).code, 'PARSE_DOC_JOB_EXPIRED');
+    // 缺陷的另一半：任务仍在运行即被 abort（abort 在 prune 内同步触发）。
+    await Promise.race([parseAborted, new Promise((resolve) => setTimeout(resolve, 500))]);
+    assert.equal(parseAbortedObserved, true);
+  } finally {
+    releaseParse();
+    server.close();
+    globalThis.fetch = originalFetch;
+    getConfig().apiKey = originalConfig.apiKey; getConfig().baseUrl = originalConfig.baseUrl; getConfig().model = originalConfig.model;
+    delete process.env.INKFLOW_CONFIG_DIR;
+    fs.rmSync(configDir, { recursive: true, force: true });
+    reloadConfig();
+  }
+});
+
 test('cancel hydrates persisted terminal extraction jobs without pretending to cancel', async () => {
   const generation = getDatabaseGeneration();
   createContinuationExtractionJob({
