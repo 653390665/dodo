@@ -115,6 +115,18 @@ describe('draft generation save and stream gates', () => {
     expect(mocks.createChapterVersion).not.toHaveBeenCalled();
     expect(props.recordSkillUsage).not.toHaveBeenCalled();
     expect(props.setCurrentChapter).toHaveBeenCalledWith(expect.any(Function));
+    // 特征化测试：登记已知缺陷「流式期间用户输入在失败回滚时被静默丢弃」。
+    // 修复该缺陷时，本断言应翻转为「用户输入保留」，勿删除。
+    const rollbackUpdater = props.setCurrentChapter.mock.calls.find(
+      (call) => typeof call[0] === 'function'
+    )?.[0] as (prev: Chapter) => Chapter;
+    const stateDuringStream: Chapter = {
+      ...chapter,
+      content: `${chapter.content}用户流式期间的手打输入`,
+    };
+    const restored = rollbackUpdater(stateDuringStream);
+    expect(restored.content).toBe(chapter.content);
+    expect(restored.content).not.toContain('用户流式期间的手打输入');
     const runningState = props.setAiActionState.mock.calls[0]?.[0];
     const errorUpdater = props.setAiActionState.mock.calls[1]?.[0];
     expect(errorUpdater).toBeTypeOf('function');
