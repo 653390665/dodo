@@ -443,6 +443,58 @@ describe('AppShell project assistant wiring', () => {
     );
   });
 
+  test('assistant apply writes the chapter without a database generation guard', async () => {
+    // 特征化测试：登记已知缺陷「助手正文写入 updateChapter 不带 databaseGeneration」：
+    // 跨标签页并发切换数据库代际时，这次写入没有代际校验（盲写窗口）。
+    // 修复该缺陷时，本断言应翻转为「调用携带 databaseGeneration」，勿删除。
+    const generatedDraft = Array.from({ length: 40 }, (_, index) =>
+      [
+        `生成场景${index + 1}从一声门响开始，林舟先确认水痕方向，再把手从桌沿收回。`,
+        '对方的停顿托住了下一句对白，灯影沿着地面移动，逼得两人的站位同时改变。',
+        '他将线索压回袖中，听见远处锁舌回应，局势因此向门外又推进一步。',
+        '雨声盖住半句话，留下的空白反而指向更近的危险。',
+      ].join('')
+    ).join('\n\n');
+    mocks.updateChapter.mockResolvedValue(true);
+    mocks.getChapter.mockResolvedValue({
+      id: 'chapter-a',
+      novelId: novelA.id,
+      title: '第一章',
+      content: 'baseline',
+      wordCount: 8,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    useAppStore.setState({
+      isAIAssistantOpen: true,
+      currentView: 'editor',
+      workspaceFocus: 'editor',
+    });
+    useNovelStore.setState({
+      assistantLaunchContext: {
+        source: 'editor',
+        novelId: novelA.id,
+        novelTitle: novelA.title,
+        chapterId: 'chapter-a',
+      },
+    });
+    render(<AppShell />);
+    await waitFor(() => expect(mocks.drawerPropsHistory.at(-1)?.isOpen).toBe(true));
+    const drawer = mocks.drawerPropsHistory.at(-1)!;
+
+    // 附加 40 段长文确保拼接后的整章能通过完整章质量门，走进写入分支。
+    await act(async () => drawer.handleApplyAssistantToContent(generatedDraft));
+
+    expect(mocks.updateChapter).toHaveBeenCalledTimes(1);
+    const patch = mocks.updateChapter.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).not.toHaveProperty('databaseGeneration');
+    expect(patch).toMatchObject({
+      content: expect.stringContaining('生成场景40'),
+      wordCount: expect.any(Number),
+      updatedAt: expect.any(Number),
+    });
+  });
+
   test('inerts the sidebar and main content while the assistant is open', async () => {
     useAppStore.setState({ isAIAssistantOpen: true });
     render(<AppShell />);
