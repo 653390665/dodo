@@ -146,6 +146,10 @@ export function sanitizeWhiteLabelText(text: string): string {
   // 前端过滤判定被迫依赖生成副本的分裂（CORR-02）。
   s = s.replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/gi, '');
   s = s.replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '');
+  // Plan M5（CORR-02 收尾）：竞品词剥除并入正典——此前竞品正则只在 analyzeAndSanitize
+  // （命中统计版），运行时消毒端点调用的 sanitizeWhiteLabelText 不剥「墨流」等竞品词，
+  // 白标合规零容差项。
+  s = s.replace(/(?:墨\s*流\s*(?:写\s*作\s*(?:助\s*手|软\s*件)?|编\s*辑\s*器)?|moliu)/gi, '');
   return s;
 }
 

@@ -67,7 +67,7 @@ digraph lifecycle_states {
             r_rev   [label="review_required", fillcolor="#4a3208", fontcolor="#ffe082"];
             r_app   [label="applied", fillcolor="#1b5e20", fontcolor="#c8e6c9"];
             r_fail  [label="failed", fillcolor="#4a1414", fontcolor="#ef9a9a"];
-            r_rej   [label="rejected", fillcolor="#2a2a2a", fontcolor="#9e9e9e", style="filled,dotted"];
+            r_rej   [label="rejected（类型已声明\n无代码路径写入）", fillcolor="#2a2a2a", fontcolor="#9e9e9e", style="filled,dotted"];
             r_run  -> r_rev  [label="生成完成待裁决", color="#66bb6a"];
             r_run  -> r_fail [color="#66bb6a"];
             r_rev  -> r_app  [label="apply 通过全部 CAS", color="#66bb6a"];

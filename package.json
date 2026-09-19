@@ -6,6 +6,9 @@
   "author": "InkFlow",
   "type": "module",
   "main": "dist-electron/main.cjs",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "INKFLOW_ENABLE_DEV_AUTH_TOKEN=true tsx server.ts",
     "build": "vite build",
@@ -20,9 +23,9 @@
     "test:frontend": "vitest -c vitest.config.frontend.ts run",
     "test:coverage:frontend": "vitest -c vitest.config.frontend.ts run --coverage",
     "test:frontend:watch": "vitest -c vitest.config.frontend.ts",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint server src shared tests scripts --max-warnings=0",
     "lint:any": "node scripts/lint-any.mjs",
-    "lint:fix": "eslint . --fix",
+    "lint:fix": "eslint server src shared tests scripts --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"server/**/*.ts\" \"server/**/*.{json}\" \"shared/**/*.ts\" \"shared/**/*.{json}\" \"server.ts\" \"scripts/**/*.mjs\" \"*.{ts,mts}\"",
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
     "smoke:provider-quality": "node --import tsx scripts/provider-quality-smoke.ts",

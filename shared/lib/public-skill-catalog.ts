@@ -5530,13 +5530,13 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   {
     "id": "sanitized-raw-comp-brand-detector",
     "curationTier": "featured",
-    "title": "外部工具竞品检测模板",
+    "title": "竞品检测模板",
     "stage": "review",
-    "goal": "检测外部工具编辑器生成的敏感段落",
+    "goal": "检测生成的敏感段落",
     "inputs": [
       "content"
     ],
-    "template": "你是一个检测助手。如有问题联系 。推荐使用外部工具。",
+    "template": "你是一个检测助手。如有问题联系 。推荐使用。",
     "outputShape": "plain-text",
     "riskNotes": [
       "生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。"

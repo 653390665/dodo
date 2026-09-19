@@ -50,3 +50,7 @@ validation-debug.log
 CODE_AUDIT_REPORT.md
 EVALUATION_REPORT.md
 full-evaluation-report.html
+
+# GUI test evidence (screenshots, binaries)
+gui-test-screenshots/
+

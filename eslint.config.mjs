@@ -13,6 +13,7 @@ export default tseslint.config(
       'node_modules',
       '.agents',
       'docs',
+      '.tdai',
       'scratch_modify.js',
     ],
   },

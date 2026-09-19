@@ -105,6 +105,14 @@ export function ProductionRunReview({
   const visibleError = error;
   const visibleRunError = displayRun?.errorMessage;
   const auditNeedsConfirmation = auditStatus === 'unknown' || auditStatus === 'not_run';
+  // Plan M4：分镜/正文徽标统一派生——displayRun 的 DB 字段优先，直播 prop 兜底，
+  // 历史存量纯保底 run（无 degradation 字段）从 auditMeta.source 推断。
+  const effectiveBeatsSource =
+    displayRun?.continuityReport.degradation?.beatsSource ??
+    (auditSource === 'fallback' ? 'fallback' : beatsSource);
+  const effectiveDraftSource =
+    displayRun?.continuityReport.degradation?.draftSource ??
+    (auditSource === 'fallback' ? 'fallback' : draftSource);
   const hasVerifiedScore =
     (auditStatus === 'pass' || auditStatus === 'fail') &&
     typeof displayRun?.continuityReport.score === 'number' &&
@@ -348,12 +356,12 @@ export function ProductionRunReview({
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 分镜
                 {/* Plan 246：徽标数据源改为 displayRun 的 DB 字段优先（旧逻辑只读直播 prop，刷新后丢失） */}
-                {(displayRun?.continuityReport.degradation?.beatsSource ?? beatsSource) === 'fallback' && (
+                {effectiveBeatsSource === 'fallback' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
                     ⚠️ 分镜降级
                   </span>
                 )}
-                {(displayRun?.continuityReport.degradation?.beatsSource ?? beatsSource) === 'model' && (
+                {effectiveBeatsSource === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">
                     AI 分镜
                   </span>
@@ -375,12 +383,12 @@ export function ProductionRunReview({
             <section>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-theme-muted">
                 正文预览
-                {draftSource === 'fallback' && (
+                {effectiveDraftSource === 'fallback' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">
                     ⚠️ 草稿降级
                   </span>
                 )}
-                {draftSource === 'model' && (
+                {effectiveDraftSource === 'model' && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">
                     AI 正文
                   </span>
