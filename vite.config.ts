@@ -8,6 +8,11 @@ const isPlaywrightTest = process.env.PLAYWRIGHT_TEST === 'true';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: './',
+  // 依赖扫描只认真实入口：默认 **/*.html 会把 docs/archive 的历史报告 HTML
+  // 拽进 dep-scan（2026-09-20 实测导致预打包失败跳过，前端裸导入 404）。
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
