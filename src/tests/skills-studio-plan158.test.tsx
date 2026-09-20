@@ -179,7 +179,7 @@ describe('Plan 158 capability center', () => {
     expect(within(deckSummary).getByText('主卡：')).toBeTruthy();
     expect(within(deckSummary).getAllByText('未设置').length).toBeGreaterThan(0);
     expect(within(deckSummary).getByText('空位：')).toBeTruthy();
-    expect(within(deckSummary).getByText('可添加 1 张主卡、2 张辅卡')).toBeTruthy();
+    expect(within(deckSummary).getByText('可添加 1 张主卡、4 张辅卡')).toBeTruthy();
     expect(screen.getByText('护栏状态')).toBeTruthy();
     // 003：护栏状态卡如实标注默认护栏已自动生效，不再叫"系统检查候选"
     expect(screen.getByText(/已自动生效/)).toBeTruthy();
@@ -965,11 +965,17 @@ describe('Plan 158 capability center', () => {
   }, 15_000);
 
   test('routes a full deck replacement through the reachable pending candidate dialog', async () => {
+    // Plan 256：满卡组 = 1 主 + 4 辅；主卡槽被占时新增必须走替换。
     const fullDeck = {
       version: 3 as const,
       projectSkillDeck: {
         mainCardId: 'style-ancient-elegance',
-        supportCardIds: ['deconstruct-golden-climax', 'deconstruct-suspense-hook'],
+        supportCardIds: [
+          'deconstruct-golden-climax',
+          'deconstruct-suspense-hook',
+          'deconstruct-support-3',
+          'deconstruct-support-4',
+        ],
         updatedAt: 1,
       },
       favoriteTechniqueIds: [],

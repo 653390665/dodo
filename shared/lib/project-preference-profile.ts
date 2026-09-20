@@ -6,6 +6,9 @@ import type {
   ProjectSkillDeck,
 } from '../types/preferences.js';
 
+/** 作品卡组辅卡容量上限（Plan 256：由 2 扩至 4；服务端校验与 UI 槽位共用此常量）。 */
+export const PROJECT_DECK_MAX_SUPPORT_CARDS = 4;
+
 const DEFAULT_WEIGHTS: ProjectPreferenceWeights = {
   styleWeight: 0.5,
   characterWeight: 0.5,

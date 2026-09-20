@@ -9,7 +9,10 @@ import type {
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityManifestEntry } from '../../shared/types/capability-manifest';
-import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile';
+import {
+  normalizeProjectPreferenceProfile,
+  PROJECT_DECK_MAX_SUPPORT_CARDS,
+} from '../../shared/lib/project-preference-profile';
 import { COMMERCIAL_COPY_PATTERN } from '../../shared/lib/prompt-sanitizer';
 
 export type RoleSkillSlot = 'planner' | 'writer' | 'critic';
@@ -178,7 +181,9 @@ export function addCardToProjectDeck(
   };
   const current = getProjectDeckIds(base);
   if (current.includes(cardId)) return { profile: base, requiresReplacement: false };
-  if (current.length >= 3 && !replaceId) return { profile: base, requiresReplacement: true };
+  // Plan 256：卡组总容量 = 1 主 + PROJECT_DECK_MAX_SUPPORT_CARDS 辅，与服务端校验同源。
+  if (current.length >= 1 + PROJECT_DECK_MAX_SUPPORT_CARDS && !replaceId)
+    return { profile: base, requiresReplacement: true };
 
   let mainCardId = base.projectSkillDeck.mainCardId;
   let supportCardIds = [...base.projectSkillDeck.supportCardIds];
@@ -187,7 +192,8 @@ export function addCardToProjectDeck(
     supportCardIds = supportCardIds.filter((id) => id !== replaceId);
   }
   if (target === 'support' || (!target && mainCardId)) {
-    if (supportCardIds.length >= 2) return { profile: base, requiresReplacement: true };
+    if (supportCardIds.length >= PROJECT_DECK_MAX_SUPPORT_CARDS)
+      return { profile: base, requiresReplacement: true };
     supportCardIds.push(cardId);
   } else {
     mainCardId = cardId;
