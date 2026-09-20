@@ -343,6 +343,13 @@ vi.mock('../components/SkillsStudioView', () => ({
     </div>
   ),
 }));
+const editorLaunchProbe = vi.hoisted(() => ({
+  mountSequence: 0,
+  deliveries: [] as Array<{ mountId: number; launchToken: number | null }>,
+  consumedTokens: [] as number[],
+  consumeOnMount: false,
+}));
+
 vi.mock('../components/EditorView', () => ({
   EditorView: ({
     capabilityLaunchState,
@@ -350,6 +357,7 @@ vi.mock('../components/EditorView', () => ({
     initialChapterId,
     onNavigate,
     onChapterContextChange,
+    onCapabilityLaunchConsumed,
   }: {
     capabilityLaunchState?: CapabilityLaunchState | null;
     launchState?: { source?: string; targetChapterId?: string } | null;
@@ -362,6 +370,7 @@ vi.mock('../components/EditorView', () => ({
       chapterId?: string;
       writingStyleFingerprint?: string;
     }) => void;
+    onCapabilityLaunchConsumed?: (launchToken: number) => void;
   }) => {
     React.useEffect(() => {
       onChapterContextChange?.({
@@ -369,8 +378,26 @@ vi.mock('../components/EditorView', () => ({
         writingStyleFingerprint: 'style-fingerprint-2',
       });
     }, [onChapterContextChange]);
+    const [mountId] = React.useState(() => {
+      editorLaunchProbe.mountSequence += 1;
+      return editorLaunchProbe.mountSequence;
+    });
+    React.useEffect(() => {
+      // 挂载期探针：记录本次挂载收到的 capability launch 投递；consumeOnMount
+      // 模拟真实 EditorView 数据就绪后的消费时机（未就绪时残留 launch 不被消费）。
+      editorLaunchProbe.deliveries.push({
+        mountId,
+        launchToken: capabilityLaunchState?.launchToken ?? null,
+      });
+      if (editorLaunchProbe.consumeOnMount && capabilityLaunchState) {
+        editorLaunchProbe.consumedTokens.push(capabilityLaunchState.launchToken);
+        onCapabilityLaunchConsumed?.(capabilityLaunchState.launchToken);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- 探针只记录挂载时的一次投递
+    }, []);
     return (
       <div>
+        <div>EDITOR_MOUNT:{mountId}</div>
         <div>
           EDITOR:{capabilityLaunchState?.action}:{capabilityLaunchState?.assetId}:SOURCE:
           {launchState?.source || 'none'}:TARGET:{launchState?.targetChapterId}:INITIAL:
@@ -447,6 +474,10 @@ describe('AppShell capability launch', () => {
     localStorage.clear();
     vi.clearAllMocks();
     toastMock.mockClear();
+    editorLaunchProbe.mountSequence = 0;
+    editorLaunchProbe.deliveries = [];
+    editorLaunchProbe.consumedTokens = [];
+    editorLaunchProbe.consumeOnMount = false;
     useNovelStore.setState({
       selectedNovel: novel,
       continuationLaunchState: null,
@@ -697,5 +728,65 @@ describe('AppShell capability launch', () => {
     await waitFor(() => expect(screen.getByTestId('workspace-family-switcher')).toBeDefined());
     expect(screen.queryByText('COCKPIT_OVERVIEW')).toBeNull();
     expect(screen.queryByText(/EDITOR:/)).toBeNull();
+  });
+
+  test('redelivers a stale capability launch to the editor after navigating away and back', async () => {
+    // 特征化测试：登记已知缺陷「App.tsx 离开编辑器视图时只清 continuationLaunchState、
+    // 不清 capabilityLaunchState」：未被消费的旧 launch 残留在 store 中，离开再返回
+    // 编辑器时会被重新投递给新挂载的 EditorView 并被迟到消费。
+    // 修复该缺陷时，本断言应翻转为「离开编辑器即清 capabilityLaunchState，投递仅 1 次」，勿删除。
+    editorLaunchProbe.consumeOnMount = false; // 模拟首次访问时编辑器数据未就绪、消费被跳过
+    useNovelStore.setState({
+      capabilityLaunchState: {
+        novelId: 'novel-1',
+        launchToken: 201,
+        action: 'use-overlay',
+        assetId: 'overlay-1',
+      },
+    });
+    useAppStore.setState({ currentView: 'editor', workspaceFocus: 'editor' });
+    render(<AppShell />);
+
+    await waitFor(() => expect(editorLaunchProbe.deliveries.length).toBe(1));
+    expect(editorLaunchProbe.consumedTokens).toEqual([]);
+    expect(useNovelStore.getState().capabilityLaunchState?.launchToken).toBe(201);
+
+    act(() => useAppStore.setState({ currentView: 'library' }));
+    // 缺陷核心：离开编辑器后 capabilityLaunchState 依然残留。
+    expect(useNovelStore.getState().capabilityLaunchState?.launchToken).toBe(201);
+
+    // 返回编辑器：EditorView 重挂载，残留 launch 被重新投递并消费。
+    editorLaunchProbe.consumeOnMount = true; // 模拟本次数据就绪、编辑器正常消费
+    act(() => useAppStore.setState({ currentView: 'editor', workspaceFocus: 'editor' }));
+    await waitFor(() => expect(editorLaunchProbe.deliveries.length).toBe(2));
+    await waitFor(() => expect(editorLaunchProbe.consumedTokens).toEqual([201]));
+    expect(useNovelStore.getState().capabilityLaunchState).toBeNull();
+  });
+
+  test('remounts the whole editor when the continuation pack id changes within the same novel', async () => {
+    // 特征化测试：登记已知缺陷「AppShell 以 `${novelId}:${approvedPackId || 'default'}`
+    // 作为 EditorView 的 key：同一作品写作中途换续写包会重挂载整个编辑器，
+    // 本地 UI 态与 undo 栈全部丢失」。
+    // 修复该缺陷时（key 不再随 approvedPackId 变化），本断言应翻转为「挂载序号不变」，勿删除。
+    useAppStore.setState({ currentView: 'editor', workspaceFocus: 'editor' });
+    render(<AppShell />);
+
+    await waitFor(() => expect(screen.getByText('EDITOR_MOUNT:1')).toBeDefined());
+    expect(useNovelStore.getState().continuationLaunchState).toBeNull();
+
+    act(() =>
+      useNovelStore.setState({
+        continuationLaunchState: {
+          approvedPackId: 'pack-b',
+          launchToken: 202,
+          shouldOpenProductionPanel: true,
+          source: 'storyboard',
+          novelId: 'novel-1',
+        },
+      })
+    );
+
+    await waitFor(() => expect(screen.getByText('EDITOR_MOUNT:2')).toBeDefined());
+    expect(screen.queryByText('EDITOR_MOUNT:1')).toBeNull();
   });
 });
