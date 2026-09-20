@@ -17,6 +17,36 @@ interface PreflightContext {
   getSkill: (skillId: string) => { parentSkillId?: string } | undefined;
 }
 
+/** Plan 257：新书默认创作流程——官方全内置流程（大纲→正文→去AI护栏闭环）。 */
+export const DEFAULT_NEW_NOVEL_ACTIVE_FLOW_ID = 'generic-novel-flow';
+
+/**
+ * Plan 257：客户端新建作品且未携带 v3 能力配置时，默认激活 generic-novel-flow，
+ * 新用户开箱即得官方内置创作闭环。建档时已带 v3 能力档案（含显式选择的其他
+ * flow，或显式初始化但未选）则原样保留。仅在 createNovel / createNovelWithChapter
+ * 建档漏斗生效：既有作品走 updateNovel 合并分支，无 activeFlowId 的历史数据保持
+ * 未选择态不迁移，用户事后显式清除流程也不会被再次注入；服务端内部直建
+ * （db.createNovel，如资料包批准建档）同样不受影响。
+ */
+function applyNewNovelFlowDefault(entity: Record<string, unknown>): void {
+  const profile = entity.projectPreferenceProfile;
+  if (
+    profile &&
+    typeof profile === 'object' &&
+    (profile as { capabilityModelVersion?: unknown }).capabilityModelVersion === 3
+  ) {
+    return;
+  }
+  entity.projectPreferenceProfile = normalizeProjectPreferenceProfile({
+    ...(profile && typeof profile === 'object' ? profile : {}),
+    capabilityModelVersion: 3,
+    capabilityProfile: {
+      version: 3,
+      activeFlowId: DEFAULT_NEW_NOVEL_ACTIVE_FLOW_ID,
+    },
+  });
+}
+
 function quotaLimitsEqual(left: unknown, right: unknown): boolean {
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object')
     return left === right;
@@ -70,6 +100,8 @@ export function preflightNovelEntity(
     if (profile && typeof profile === 'object') {
       entity.projectPreferenceProfile = normalizeProjectPreferenceProfile(profile);
     }
+    // Plan 257：新书默认创作流程（必须在通用归一化之后、入库之前落定）。
+    applyNewNovelFlowDefault(entity);
     if (commercialMode === 'paid' || hasQuotaLimits) {
       throw new DbEntitlementBoundaryError('客户端不得设置付费权益');
     }

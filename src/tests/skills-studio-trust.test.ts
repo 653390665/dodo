@@ -66,7 +66,9 @@ describe('SkillsStudioView score trust guard', () => {
       evaluationFeedback: '',
       version: 3,
       createdAt: 0,
-      sourceType: 'plaza',
+      // Plan 257：源卡双层转 built-in，克隆占位随 manifest 同为 built-in
+      // （存量 plaza 克隆由 migrate-builtin-clone-source.ts 一次性迁移）。
+      sourceType: 'built-in',
       sourceBadge: 'manual',
       deconstructionCardType: 'pacing-card',
       executionScore: 80,

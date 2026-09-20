@@ -20,7 +20,8 @@ const { savedCards } = vi.hoisted(() => ({
       parentSkillId: 'deconstruct-golden-climax',
       primaryDimension: 'pacing' as const,
       dimensionTags: ['pacing' as const],
-      sourceType: 'plaza',
+      // Plan 257：源卡已转 built-in，克隆占位随 manifest 同为 built-in。
+      sourceType: 'built-in',
       sourceBadge: 'manual' as const,
       deconstructionCardType: 'pacing-card' as const,
       isRuntimeReady: true,
@@ -39,7 +40,8 @@ const { savedCards } = vi.hoisted(() => ({
       version: 3,
       parentSkillId: 'prose-mouth-flavor',
       primaryDimension: 'style' as const,
-      sourceType: 'plaza',
+      // Plan 257：源卡已转 built-in，克隆占位随 manifest 同为 built-in。
+      sourceType: 'built-in',
       sourceBadge: 'manual' as const,
       createdAt: 1,
     },
