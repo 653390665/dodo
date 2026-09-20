@@ -158,6 +158,97 @@ function sanitizeCopyText(text: string | undefined): string {
   return text ? cleanText(text) : '';
 }
 
+// ─── Plan 258 散卡层治理：占位空壳评分惩罚（Step 1）──────────────────────────
+// 依据（三路审查实证）：square-* 批量投喂的模板体只有「广场优秀提示词模版体」占位句，
+// 却按 scorecard 分拿 74-88 高分（47 张），「88 分的卡没有正文」直接误导用户；
+// sanitized-raw-comp-brand-detector 正文消毒后仅剩 22 字残缺句。
+// 规则：占位/残缺正文 → score 封顶 60（grade 按源映射同步校准）。
+// 只改分与档，卡片数量守恒；licensed/private-* 付费版块与白标精选不在此规则射程
+// （它们的正文为真实内容，占位判定天然不命中）。
+//
+// 可单测性约定：本脚本 import 即执行 generate()，测试无法直接 import 本文件，
+// 因此 tests/public-catalog-governance.test.ts 与 tests/public-catalog-freshness.test.ts
+// 按仓内镜像惯例复制此处纯函数；脚本规则若变更必须同步两处镜像。
+
+// 占位标记：square 批量投喂循环（prompt-governance-catalog.ts rawSquareConfigs）
+// 写入的模板占位句特征词。
+const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
+// 消毒副本运行时正文的最短可信长度（字符）。扫描实证：真实副本正文最短 103 字，
+// 残缺壳（sanitized-raw-comp-brand-detector）22 字，取 80 居中分离。计划建议值 120
+// 会误伤 9 张 103-119 字的真实 private 副本（private-* 分档不在治理射程），据证据否决；
+// 源卡级禁用本数值阈值——源级真实正文最短 23 字（内置工具卡）与占位句 37-50 字区间
+// 交叠，任何数值阈值都必然误伤真实卡，源级仅用「标记命中或模板为空」判定。
+const PLACEHOLDER_BODY_MIN_LENGTH = 80;
+// 占位惩罚封顶分：占位/残缺正文的卡评分不得高于此值。
+const PLACEHOLDER_SCORE_CAP = 60;
+
+type PlaceholderPredicate = (template: string | undefined) => boolean;
+
+/**
+ * 源卡占位判定（公共目录/注册表条目）：模板为空或命中占位标记。
+ * 不使用数值长度阈值（会误伤真实短卡，见 PLACEHOLDER_BODY_MIN_LENGTH 注释）。
+ */
+function isPlaceholderSourceBody(template: string | undefined): boolean {
+  return !template || template.includes(PLACEHOLDER_TEMPLATE_MARKER);
+}
+
+/**
+ * 消毒副本占位判定：源级判定之外，运行时正文低于可信长度阈值同样视为占位
+ * （残缺壳经白标清洗后只剩联系方式残句）。
+ */
+function isPlaceholderRuntimeBody(template: string | undefined): boolean {
+  if (isPlaceholderSourceBody(template)) return true;
+  return (template as string).length < PLACEHOLDER_BODY_MIN_LENGTH;
+}
+
+/**
+ * 与 prompt-governance-catalog.ts square 投喂循环一致的 grade 映射
+ * （≥90 A / ≥80 B / 其余 C），封顶降分后同步校准，避免「60 分 B 级」的新脱钩。
+ */
+function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
+  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
+}
+
+/**
+ * 占位评分惩罚（纯函数）：命中占位判定且 score 高于封顶值时，把 score 降到封顶
+ * 并同步校准 grade；已低于封顶的卡原样返回（封顶只降不升，保留原 grade 语义）。
+ */
+function applyPlaceholderScorePenalty(
+  asset: GovernedPromptAsset,
+  isPlaceholder: PlaceholderPredicate
+): GovernedPromptAsset {
+  if (!isPlaceholder(asset.template)) return asset;
+  if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
+  return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
+}
+
+/** 源卡惩罚入口（绑定源级占位判定）。 */
+function applyPlaceholderScorePenaltySource(asset: GovernedPromptAsset): GovernedPromptAsset {
+  return applyPlaceholderScorePenalty(asset, isPlaceholderSourceBody);
+}
+
+/** 消毒副本惩罚入口（绑定副本运行时正文占位判定）。 */
+function applyPlaceholderScorePenaltyCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
+  return applyPlaceholderScorePenalty(asset, isPlaceholderRuntimeBody);
+}
+
+/** 治理前后差异留痕：score/curationTier 被改动的卡逐张列出，供生成日志审计。 */
+function diffGovernanceChanges(before: GovernedPromptAsset[], after: GovernedPromptAsset[]): string[] {
+  const afterById = new Map(after.map((asset) => [asset.id, asset]));
+  return before
+    .map((asset) => {
+      const governed = afterById.get(asset.id);
+      if (!governed) return '';
+      const parts: string[] = [];
+      if (governed.score !== asset.score) parts.push(`score ${asset.score}→${governed.score}`);
+      if (governed.curationTier !== asset.curationTier) {
+        parts.push(`curationTier ${asset.curationTier || '-'}→${governed.curationTier || '-'}`);
+      }
+      return parts.length > 0 ? `${asset.id}（${parts.join('，')}）` : '';
+    })
+    .filter((entry) => entry !== '');
+}
+
 // ─── Plan 233 目录准入规则（生成侧守门，排除动作全部留痕）────────────────────
 // 垃圾标题：测试/内测卡与 test 边界匹配——只拦「以测试开头/结尾」「以内测开头/结尾」
 // 与整名等值，不误伤语义完整标题（如「A/B 测试设计器」不在本目录域）。
@@ -288,16 +379,33 @@ function generate() {
     admitPublicAsset
   );
 
-  const cleanedAssetsRegistry = cloneAndSanitize(publicAssetsRegistry);
+  // Plan 258 散卡层治理：占位空壳评分惩罚。必须在 cloneAndSanitize 之前对源卡执行
+  // ——克隆会把 template 物理清空，克隆后无法再做占位判定。
+  const governedAssetsRegistry = publicAssetsRegistry.map(applyPlaceholderScorePenaltySource);
+  const governedCatalog = publicCatalog.map(applyPlaceholderScorePenaltySource);
+
+  const cleanedAssetsRegistry = cloneAndSanitize(governedAssetsRegistry);
   const cleanedFlows = cloneAndSanitize(SKILL_SERIES_FLOWS);
   const cleanedCuratedSkills = cloneAndSanitize(CURATED_PRODUCT_SKILLS);
-  const cleanedCatalog = cloneAndSanitize(publicCatalog);
+  const cleanedCatalog = cloneAndSanitize(governedCatalog);
   const cleanedPackages = cloneAndSanitize(ENHANCEMENT_PACKAGES);
 
   const sanitizeCandidates = collectSanitizeCandidates();
   sanitizedCopyRewrites = 0;
   sanitizedSignalRewrites = 0;
-  const sanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
+  const rawSanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
+  // Plan 258：副本惩罚判定基准为副本自身的运行时正文（消毒后残缺句）。
+  const sanitizedCopies = rawSanitizedCopies.map(applyPlaceholderScorePenaltyCopy);
+  const penaltyLog = [
+    ...diffGovernanceChanges(publicAssetsRegistry, governedAssetsRegistry),
+    ...diffGovernanceChanges(publicCatalog, governedCatalog),
+    ...diffGovernanceChanges(rawSanitizedCopies, sanitizedCopies),
+  ];
+  if (penaltyLog.length > 0) {
+    console.log(
+      `Plan 258 placeholder penalty applied to ${penaltyLog.length} cards:\n  ${penaltyLog.join('\n  ')}`
+    );
+  }
   if (sanitizedCopyRewrites + sanitizedSignalRewrites > 0) {
     console.log(
       `Rewrote ${sanitizedCopyRewrites} goals + ${sanitizedSignalRewrites} signals into de-commercialized variants (plan 234).`
