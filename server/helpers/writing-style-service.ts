@@ -623,10 +623,14 @@ export function validateCapabilityProfile(novelId: string, value: unknown): stri
     }
     const savedSourceId = saved.parentSkillId || saved.id;
     const sourceMatches = savedSourceId === sourceId && String(saved.version) === sourceVersion;
+    // 治理重分类（如 plaza→built-in）会让 membership 里记录的来源类型过期；
+    // 以 manifest 现值为准：本地卡与目录现值一致即视为匹配（过期副本在下次
+    // 应用配置时自愈），仅"本地卡与目录都不认可"才判失配。
     const typeMatches =
       sourceType === 'book-extracted'
         ? saved.sourceBadge === 'book-extracted'
-        : saved.sourceType === sourceType;
+        : saved.sourceType === sourceType ||
+          capabilityManifestFor(savedSourceId)?.sourceType === saved.sourceType;
     if (!sourceMatches || !typeMatches) {
       throw new WritingStyleRequestError(
         400,

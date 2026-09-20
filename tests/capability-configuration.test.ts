@@ -215,6 +215,34 @@ test('capability configuration persists a normalized source-to-skill membership 
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
 });
 
+test('capability configuration accepts memberships stale after governance reclassification (plan 257/259)', async () => {
+  closeDb(); initDb(':memory:');
+  createNovel({ id: 'config-reclassified', title: 'Config', authorId: 'local', summary: '', status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], projectPreferenceProfile: profile(), createdAt: 1, updatedAt: 1 });
+  // 模拟治理翻转后的存量形态：本地卡已被迁移为 built-in（Plan 257/259），
+  // 但作品配置里记录的 membership.sourceType 还是翻转前的 plaza。
+  createSkill({
+    id: 'persisted-deconstruct', name: 'Deconstruct', description: '', style: 'short sentences', pacing: '',
+    stabilityScore: 95, evaluationFeedback: '', version: 3, parentSkillId: 'deconstruct-golden-climax',
+    sourceType: 'built-in', sourceBadge: 'manual', executionScore: 95,
+    isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active', createdAt: 1,
+  });
+  const app = express(); app.use(express.json()); registerWritingStyleRoutes(app);
+  const server = app.listen(0); await new Promise<void>((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  try {
+    const generation = getDatabaseGeneration();
+    const staleMembership = { sourceId: 'deconstruct-golden-climax', sourceVersion: '3', sourceType: 'plaza', persistedSkillId: 'persisted-deconstruct' };
+    const capabilityProfile = { ...profile().capabilityProfile, capabilityMemberships: [staleMembership] };
+    const preview = await fetch(`${base}/api/novels/config-reclassified/capabilities/configuration/preview`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ databaseGeneration: generation, capabilityProfile }) });
+    assert.equal(preview.status, 200);
+    const applied = await fetch(`${base}/api/novels/config-reclassified/capabilities/configuration/apply`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ databaseGeneration: generation, previewToken: (await preview.json() as { previewToken: string }).previewToken, capabilityProfile }) });
+    assert.equal(applied.status, 200);
+    // apply 原样持久化提交内容：过期副本不改写（校验层已容错），
+    // 用户下次经货架应用配置时 membership 由 upsertCapabilityMembership 自愈为现值。
+    assert.equal(getNovel('config-reclassified')?.projectPreferenceProfile?.capabilityProfile?.capabilityMemberships?.[0]?.sourceType, 'plaza');
+  } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); closeDb(); }
+});
+
 test('capability configuration degrades unknown technique references to warnings instead of rejecting', async () => {
   closeDb(); initDb(':memory:');
   createNovel({ id: 'config-stale-technique', title: 'Config', authorId: 'local', summary: '', status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], projectPreferenceProfile: profile(), createdAt: 1, updatedAt: 1 });
