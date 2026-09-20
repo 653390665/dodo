@@ -1,3 +1,5 @@
+import type { SanitizationHits } from './prompt-assets-governed';
+
 export type SkillDimension = 'style' | 'character' | 'world' | 'power' | 'plot' | 'pacing';
 
 export interface SkillCompositionProfile {
@@ -74,6 +76,7 @@ export interface Skill {
   isRuntimeReady?: boolean;
   sanitizationStatus?: 'raw' | 'needs-sanitization' | 'sanitized' | 'runtime-ready';
   runtimeStatus?: 'candidate' | 'direct-use-test' | 'active' | 'deprecated' | 'rejected';
+  sanitizationHits?: SanitizationHits; // 白标扫描命中记录（Plan 253：finalizeExtractedCard 产出，manifest 门禁读取）
   accessTier?: 'free' | 'paid'; // 卡片访问等级：free (免费版可用), paid (仅专业版可用)
   sourceType?: 'built-in' | 'licensed' | 'plaza' | string; // 卡片来源类型：built-in (官方免费), licensed (授权付费), plaza (广场免费)
   createdAt: number;

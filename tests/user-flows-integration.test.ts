@@ -17,7 +17,6 @@ import {
   listSkills,
   syncSkillFeedbackScores
 } from '../server/lib/db';
-import type { Skill } from '../shared/types';
 import {
   saveConfig,
   reloadConfig,
@@ -295,7 +294,7 @@ test.describe('InkFlow End-to-End User Flows Integration Tests', () => {
       sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
       createdAt: Date.now(),
       updatedAt: Date.now()
-    } as Skill);
+    });
 
     // 2. Verify creation of skill
     const retrievedSkill = getSkill(extractedSkillId);

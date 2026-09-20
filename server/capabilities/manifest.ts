@@ -204,7 +204,7 @@ export function validateSkillCardForScope(
   }
   // Plan 253 Step 5：book-extracted 卡必须留有内容扫描记录（finalizeExtractedCard 产出），
   // 防止绕过消毒管线的卡直达运行时。
-  const sanitizationHits = (value as { sanitizationHits?: unknown }).sanitizationHits;
+  const sanitizationHits = value.sanitizationHits;
   const hitsMissing =
     !sanitizationHits ||
     typeof sanitizationHits !== 'object' ||

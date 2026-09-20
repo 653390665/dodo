@@ -11,7 +11,7 @@ import { advanceDatabaseGeneration, drainWriteQueue, getDatabaseGeneration } fro
 import { DEFAULT_QUOTA_MAX } from '../server/helpers/quota-guard.js';
 import { getConfig } from '../server/lib/config.js';
 import { __rateLimitTestHooks } from '../server/middleware/rate-limit.js';
-import type { Novel, Skill } from '../shared/types';
+import type { Novel } from '../shared/types';
 import { resolveWritingStyleRequest } from '../server/helpers/writing-style-service.js';
 
 const originalFetch = globalThis.fetch;
@@ -408,7 +408,7 @@ describe('audit / rewrite route integration', () => {
       sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
       createdAt: 1,
       updatedAt: 1,
-    } as Skill);
+    });
     const novel = mockNovel('novel-audit-technique-prompt');
     novel.projectPreferenceProfile = {
       ...novel.projectPreferenceProfile!,
