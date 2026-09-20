@@ -593,6 +593,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **book-factory 第三处容量闸未收编**：`src/components/book-factory/useBookFactory.ts` 的 `PROJECT_DECK_SUPPORT_LIMIT`（3 辅卡 throw、文案"辅卡不超过 2 张"）——拆书工作台独立选择流，需单独计划收编到 `PROJECT_DECK_MAX_SUPPORT_CARDS`。
 - **生成侧联动闸**：`TOO_MANY_EFFECTIVE_SKILL_CARDS` 仍限"卡组+本章卡 ≤ 6"——1 主 + 4 辅后本章 overlay 余量仅 1 张，超出将 400。属 prompt 预算语义，改动需单独评估，勿当作 bug 上报。
 - Round 44 遗留维持：预清洗计数口径暂缓；`lwl-` 扩词表需重锚公开目录。
+- **private-175 白标接入 DONE（2026-09-20 第五轮，已合并）**：用户产品规则追加——「完整系列=付费，散单卡=内置；调用能力卡时优先启用流程卡」。长篇商业连载流程的大纲方法论卡 private-175（小飞鸡·长篇通用大纲-万字版，88 分，user-authorized 白标资产）接入大纲生成通道：私表模板 + manifest 层 technique 条目（planner/project/outline-source→outline-candidate）。配套 `OUTLINE_MAX_TOKENS` 8192→32768（万字级技法完整输出需要，16k 仍截断）。产出候选两版存入大纲治理待用户裁决：100 章/18 万精修版（`4e10c5b7`，重构器）与 60 章/18 万架构方案（`de0234c0`，百万字大纲法）；380 章细纲库主纲维持 active 未动。
+- ** licensed 语义修正**：`licensed` = 自有付费版块内容（非外部授权）；宝可梦套牌=用户自选题材（商标风险用户自担，维持套牌定位）。
 - **257 全部收口（2026-09-20 第二轮）**：Step 3 新书默认流程落地——`/api/db` 建档漏斗 `preflightNovelEntity` create 分支注入 `activeFlowId: 'generic-novel-flow'`（仅新建且无 v3 档案；显式清除/服务端内部直建不注入，6 用例锁定语义），合并后主干后端 1232/1232。
 - **258 散卡层治理 DONE（2026-09-20 第三轮，已合并）**：占位空壳评分封顶 60（47 张，占位卡 ≥70 分归零）+ featured 守卫（featured 25→14，占位/残缺清零，平均分 76）+ 幂等与守恒验证（总数 127、licensed/白标层零变化）。执行者基于证据否决计划建议的 120 字阈值（会误伤 9 张真实卡），校准为副本级 80 字 + 源级标记判定。合并后主干后端 1243/1243。
 - **259 功能类单卡内置扩容 DONE（2026-09-20 第四轮，已合并）**：用户产品规则「题材/渠道类=付费，构架/审查/评估/写作质量类单卡=内置」。3 张双层翻转：bible-world-builder 96（构架·设定，付费旗舰按规则免费化）、opening-novelty-hook 92（评估·开篇质检）、de-ai-rhythm-restorer 92（写作质量·去AI）。迁移脚本扩至 7 源 id 并放宽 licensed→built-in 谓词（存量 bible 克隆为 licensed 期产物），生产库迁移 1 行幂等。官方组 11→14。付费版块新叙事：题材包（克苏鲁/古言）+ 平台包（番茄/海外/老福特）+ 完整链路管线。合并后主干 1243/1243 + 前端 145 文件全绿。
