@@ -575,6 +575,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 ### 本轮未立项（防重复审计）
 
 > **2026-09-20 补充（用户上报「我的能力卡」残留【小飞鸡】品牌）**：根因是货架克隆路径（SkillsStudioView `cloneAssetToSkill`）把未消毒的广场原始标题直接落库，且旧克隆卡缺 `deconstructionCardType` 本就无法过产品级 update 门禁。已修（commit `fix(capabilities) 清除能力卡品牌残留`）：克隆函数接入 sanitizeWhiteLabelText 防新增；`scripts/reclean-skill-brands.ts` 存量重洗（幂等，重写 2 张）；db/skills.ts 增维护专用 `updateSkillRowForMaintenance`（跳过门禁直写，清洗工具用）；renderer-db-boundary 守卫精确化（禁 optimizeDeps include/exclude、放行 entries 入口限定）。`lwl-` 前缀不在词表维持原样（扩词表需同步重锚公开目录，另行决策）；`锅盖` 为 Plan 232 白名单套牌保留。
+>
+> **2026-09-20 补充②（用户上报「原料库 86 张太多」）**：诊断=现关键词分桶四成挤在「正文润色与文风」兜底桶，而治理标 `primaryCategory`/`curationTier` 元数据已存在但 UI 未用。用户裁决：原料库内按用途二级分组 + 疑似重复先标记不并入（符合 Plan 241 反馈门槛，当前样本仅 1 条）。已落地（`b178f74`）：StyleShelf 原料库按 primaryCategory 二级分组（创作流程 17/成套配方/实用工具/文风参考/质量护栏/平台标准/其他，按规模排序），suspect-duplicate 单列置底标灰；补守恒+置底+计数镜像回归测试；前端 944/944。
 
 - **S7 dev-token 生产 bundle localhost 启发式**（main.tsx:15）：服务端双重 opt-in + loopback 绑定已兜底，防御纵深改进，暂缓。
 - **S8 SSE token 走 query string**（db-transport.ts:170）：同第 30 轮排除结论（已治理口径），EventSource 平台限制，暂缓。
