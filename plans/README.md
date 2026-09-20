@@ -557,3 +557,26 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **sqlite-vec/向量检索索引化**：当前量级（≤数千 chunk）无实证瓶颈；Plan 184 Step 4 仅埋点调查，超阈值另立计划。
 - **全量依赖大版本扫荡**（React 19 等已当前；非核心滞后项）：无证据支撑收益，仅处理有硬 deadline 的 @xenova/transformers（Plan 190）。
 - **「驾驶舱点击自动执行无确认」类上报**：`docs/specs/cockpit-routing.md` 既定设计，不作为发现。
+
+---
+
+## Round 44（2026-09-20）：第一期完整审查——注入链收口 + 测试守护 + 卫生小件（253–255）
+
+审计基准 `391abf4`。工具：improve (standard) + security 分发（insecure-defaults / secure-code-guardian 视角）+ supply-chain-risk-auditor + 文档对账。三路子代理审计 + 头号发现人工逐行复核；findings 共 22 条，立项 3 包（下表）。与历史 DONE 计划归账：110/111/116/121/128/130/132 各覆盖窄路径，本轮 P1 残留为其分支缝隙，后续修复按「缝隙收口」立项，勿重复审计。**253 即第 30 轮排除项「wrapUserInput 全量推广」的收口执行**——当时暂缓理由（模板质量回归）由计划内重锚机制与 STOP 预案承接，且本轮新增证据（续写包「硬设定」指令框、book-extracted 卡通道）使风险升级为应修。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 253 | 不可信内容通道注入围栏收口——续写包/技能卡过围栏 + book-extracted 卡落库内容扫描（plans/253-injection-channel-fencing.md） | DONE（4.5/5，2026-09-20：Steps 1-4 落地+围栏 label 逐段唯一防质量门误判；worktree `advisor/253-injection-fencing` 5 commits（b65b3ba…b6ce307），审查者独立复核 typecheck 0 错、后端全量 1220/1220、定向 55/55、范围合规 7 文件。**Step 5 manifest hits 门禁按 STOP 预案回退**：12 个 fixture 测试红>阈值 5（fixture 直造三旗标卡绕过 finalizeExtractedCard）——待决：改 fixture 或收窄门禁到抽取流路径。审查 NOTES：sanitizeWhiteLabelText 预清洗先于 analyzeAndSanitize，微信/竞品词被剥但计不进 hits（既有管线顺序，候选后续项） | — |
+| 254 | 已知缺陷特征化测试守护——两处固化断言改正 + 五条 P1 盲区补特征测试（plans/254-p1-blindspot-characterization.md） | DONE（2026-09-20：六条特征化用例落地，worktree `advisor/254-p1-characterization` 6 commits 待合并；审查者独立复核后端 1215/1215 + 前端 143 文件全绿、范围合规 6 测试文件、特征化注释齐全。**机制修正**：原审计指认 production.ts:1087 早退分支不可达——:1083 已向 pipeline 传 abort signal，断连后走 `.catch` 终态化 failed；真实可达同族缺陷在 :1102/:1156 preModelWriteHook 窗口（run 停 running + 模型结果不落库 + 配额已 commit），测试已按可达路径登记。另：consumeCapabilityLaunch 消费即清 store，「二次消费回调」不可达，以「残留 launch 重投递 2 次」探针替代） | — |
+| 255 | 日志卫生与仓库账实对齐——logger.error 脱敏 + ID 字符集 + 启动日志 0600 + dev 漏洞清零 + 过时账目销账（plans/255-log-repo-hygiene.md） | DONE（2026-09-20：六步全落地，worktree `advisor/255-log-repo-hygiene` 6 commits 待合并；审查者复核 typecheck 0 + 后端 1213/1213 + 主仓 node_modules 完好。audit 5→3（仅剩 vitest 链 3 moderate，--force 升级待操作者批准）；85 截图 untrack 磁盘保留；electron 启动日志 0600 + 存量 chmod 修复。**MEMORY.md 销账由审查者直接应用于主仓**（该文件在基准分支实为已追踪，1160fc6 入库，与「不入库」声明矛盾已登记待决）。validation.ts:578 的 parseDocSchema.novelId 为独立 schema 有意不动） | — |
+
+三者无文件交集，可并行；建议顺序 253 → 254 → 255（安全优先）。
+
+### 本轮未立项（防重复审计）
+
+- **S7 dev-token 生产 bundle localhost 启发式**（main.tsx:15）：服务端双重 opt-in + loopback 绑定已兜底，防御纵深改进，暂缓。
+- **S8 SSE token 走 query string**（db-transport.ts:170）：同第 30 轮排除结论（已治理口径），EventSource 平台限制，暂缓。
+- **S9 JSON 抽取无尺寸/危险键防护 + catalog freshness 守卫为脚本手工镜像**：本机单用户风险低；守卫镜像随 236 遗留债（两份 sanitizer 合一）一并观察。
+- **T4 db-transport 重连零直测 / T5 shared/lib 六库零直测 / T6 job 测试真 sleep flaky / T7 components.test.tsx 巨型杂烩**：测试建设 backlog，随触碰对应模块时补。
+- **D2 npm 12 与 Node 22.22 版本错配告警**：环境项，已随 255 在 MEMORY.md 登记。
+- **查证干净、勿再作为发现上报**：渲染层 XSS 面（ReactMarkdown 安全默认/无 dangerouslySetInnerHTML）、Electron 四开关 + IPC sender 校验、SQL 全参数化、db 导入校验链、认证 fail-closed、zip/docx 预检、dev-token 服务端双重 opt-in、16 个 INKFLOW_* env 无 fail-open、生产运行时依赖零漏洞（5 条通告均在 dev 工具链）。
