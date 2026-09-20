@@ -222,7 +222,7 @@ test('generate-outline validates, budgets, and rejects unusable model output', a
     assert.match(JSON.stringify(requests[0]?.messages), /计划回收区间：6-7/);
     assert.match(JSON.stringify(requests[0]?.messages), /本章不得揭示旧王身份/);
     assert.doesNotMatch(JSON.stringify(requests[0]?.messages), /plannedAction=payoff/);
-    assert.equal(requests[0]?.max_tokens, 8192);
+    assert.equal(requests[0]?.max_tokens, 32768);
 
     __rateLimitTestHooks.reset();
     output = '无技法结构化来源的大纲结果。';

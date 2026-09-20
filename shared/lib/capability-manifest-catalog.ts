@@ -235,6 +235,28 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
     },
     'outline-candidate'
   ),
+  // Plan 259 后续：长篇商业连载流程的章纲卡同步接入（章纲/分镜阶段技法）。
+  'private-179': technique(
+    ['planner'],
+    'licensed',
+    {
+      input: 'outline-source',
+      output: 'outline-candidate',
+      allowedScopes: ['project'],
+      persistence: 'project',
+      sideEffect: 'configuration',
+      usageModes: ['single-run', 'flow-step'],
+      artifactContract: {
+        artifactKinds: ['chapter-outline'],
+        operations: ['restructure'],
+        allowedScopes: ['project', 'single-run'],
+        requiredInputs: ['volume-outline'],
+        output: 'outline-candidate',
+        canonEffect: 'candidate-only',
+      },
+    },
+    'outline-candidate'
+  ),
   'prose-mouth-flavor': technique(
     ['writer'],
     'built-in',

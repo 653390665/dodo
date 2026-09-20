@@ -720,7 +720,9 @@ function resolveProjectSkillDeck(novel: Novel): {
     const skill = db.getSkill(id);
     if (skill) {
       try {
-        return { ...projectSavedSkill(skill, novel), source: 'project' as const };
+        // Plan 259：白标占位克隆先经运行时还原，避免占位符直入 writer 合同与总览。
+        const [resolvedSkill] = resolveRuntimeCuratedPrompts([skill]);
+        return { ...projectSavedSkill(resolvedSkill, novel), source: 'project' as const };
       } catch (error) {
         if (error instanceof WritingStyleRequestError) {
           throw new WritingStyleRequestError(
@@ -793,7 +795,9 @@ function resolveSessionAssets(novel: Novel, ids: string[]): RuntimeSessionAsset[
     if (!savedSkill)
       throw new WritingStyleRequestError(400, 'UNKNOWN_SESSION_CARD', '本章使用卡不存在', id);
     try {
-      return { ...projectSavedSkill(savedSkill, novel), source: 'chapter' as const };
+      // Plan 259：与卡组路径同口径，占位克隆先还原再投影。
+      const [resolvedSkill] = resolveRuntimeCuratedPrompts([savedSkill]);
+      return { ...projectSavedSkill(resolvedSkill, novel), source: 'chapter' as const };
     } catch (error) {
       if (error instanceof WritingStyleRequestError && !error.sessionCardId) {
         throw new WritingStyleRequestError(error.status, error.code, error.message, id);

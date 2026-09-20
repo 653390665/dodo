@@ -799,3 +799,33 @@ test('resolved execution snapshot is frozen at the requested generation', () => 
     assert.equal(Object.isFrozen(resolved.executionSnapshot.techniques), true);
   } finally { closeDb(); }
 });
+
+test('project deck resolves curated placeholder clones instead of leaking the runtime placeholder (plan 259)', () => {
+  closeDb(); initDb(':memory:');
+  try {
+    db.createSkill(savedCardSkill('deconstruct-golden-climax-clone-1', 'pacing-card', {
+      version: 3,
+      parentSkillId: 'deconstruct-golden-climax',
+      sourceBadge: 'manual',
+      sourceType: 'built-in',
+      style: 'INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER',
+      description: 'INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER',
+      pacing: '成功形成结构化的、可用于本地套用创作的高爽剧情黄金节奏排卡。',
+    }));
+    const current = novel();
+    current.projectPreferenceProfile = {
+      ...current.projectPreferenceProfile!, capabilityModelVersion: 3,
+      capabilityProfile: {
+        version: 3,
+        projectSkillDeck: { mainCardId: 'deconstruct-golden-climax-clone-1', supportCardIds: [], updatedAt: 1 },
+        favoriteTechniqueIds: [],
+      },
+    };
+    db.createNovel(current);
+    const resolved = resolveWritingStyleRequest(current.id);
+    const snapText = JSON.stringify(resolved.executionSnapshot);
+    // 占位符必须被私表模板还原（deconstruct-golden-climax 的拆书方法论）
+    assert.equal(snapText.includes('INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER'), false);
+    assert.match(snapText, /资深网文拆书专家/);
+  } finally { closeDb(); }
+});
