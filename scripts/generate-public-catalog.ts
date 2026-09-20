@@ -181,6 +181,9 @@ const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
 const PLACEHOLDER_BODY_MIN_LENGTH = 80;
 // 占位惩罚封顶分：占位/残缺正文的卡评分不得高于此值。
 const PLACEHOLDER_SCORE_CAP = 60;
+// featured 档最低分门槛（Plan 258 Step 2）：低于此分或正文占位的卡不得挂 featured
+// ——审查实证 sanitized-raw-comp-brand-detector（45 分、正文残缺）挂 featured 档失守。
+const FEATURED_MIN_SCORE = 70;
 
 type PlaceholderPredicate = (template: string | undefined) => boolean;
 
@@ -230,6 +233,33 @@ function applyPlaceholderScorePenaltySource(asset: GovernedPromptAsset): Governe
 /** 消毒副本惩罚入口（绑定副本运行时正文占位判定）。 */
 function applyPlaceholderScorePenaltyCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
   return applyPlaceholderScorePenalty(asset, isPlaceholderRuntimeBody);
+}
+
+/**
+ * featured 授予守卫（纯函数）：score < FEATURED_MIN_SCORE 或正文占位的卡
+ * 拒绝 featured 档，已挂的降 standard；其余档位原样返回。
+ */
+function applyFeaturedGuard(
+  asset: GovernedPromptAsset,
+  isPlaceholder: PlaceholderPredicate
+): GovernedPromptAsset {
+  if (asset.curationTier !== 'featured') return asset;
+  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
+    return { ...asset, curationTier: 'standard' };
+  }
+  return asset;
+}
+
+/** 源卡治理组合：先惩罚后守卫（封顶后 60 < 70 自然触发降档）。 */
+function applySourceCardGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
+  const penalized = applyPlaceholderScorePenaltySource(asset);
+  return applyFeaturedGuard(penalized, isPlaceholderSourceBody);
+}
+
+/** 消毒副本治理组合：判定基准为副本自身的运行时正文。 */
+function applySanitizedCopyGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
+  const penalized = applyPlaceholderScorePenaltyCopy(asset);
+  return applyFeaturedGuard(penalized, isPlaceholderRuntimeBody);
 }
 
 /** 治理前后差异留痕：score/curationTier 被改动的卡逐张列出，供生成日志审计。 */
@@ -379,10 +409,11 @@ function generate() {
     admitPublicAsset
   );
 
-  // Plan 258 散卡层治理：占位空壳评分惩罚。必须在 cloneAndSanitize 之前对源卡执行
-  // ——克隆会把 template 物理清空，克隆后无法再做占位判定。
-  const governedAssetsRegistry = publicAssetsRegistry.map(applyPlaceholderScorePenaltySource);
-  const governedCatalog = publicCatalog.map(applyPlaceholderScorePenaltySource);
+  // Plan 258 散卡层治理：占位空壳评分惩罚 + featured 授予守卫。必须在
+  // cloneAndSanitize 之前对源卡执行——克隆会把 template 物理清空，克隆后
+  // 无法再做占位判定。组合顺序：先惩罚（封顶 60）后守卫（60 < 70 降档）。
+  const governedAssetsRegistry = publicAssetsRegistry.map(applySourceCardGovernance);
+  const governedCatalog = publicCatalog.map(applySourceCardGovernance);
 
   const cleanedAssetsRegistry = cloneAndSanitize(governedAssetsRegistry);
   const cleanedFlows = cloneAndSanitize(SKILL_SERIES_FLOWS);
@@ -394,8 +425,8 @@ function generate() {
   sanitizedCopyRewrites = 0;
   sanitizedSignalRewrites = 0;
   const rawSanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
-  // Plan 258：副本惩罚判定基准为副本自身的运行时正文（消毒后残缺句）。
-  const sanitizedCopies = rawSanitizedCopies.map(applyPlaceholderScorePenaltyCopy);
+  // Plan 258：副本治理判定基准为副本自身的运行时正文（消毒后残缺句）。
+  const sanitizedCopies = rawSanitizedCopies.map(applySanitizedCopyGovernance);
   const penaltyLog = [
     ...diffGovernanceChanges(publicAssetsRegistry, governedAssetsRegistry),
     ...diffGovernanceChanges(publicCatalog, governedCatalog),
@@ -403,7 +434,7 @@ function generate() {
   ];
   if (penaltyLog.length > 0) {
     console.log(
-      `Plan 258 placeholder penalty applied to ${penaltyLog.length} cards:\n  ${penaltyLog.join('\n  ')}`
+      `Plan 258 governance (score cap + featured guard) applied to ${penaltyLog.length} cards:\n  ${penaltyLog.join('\n  ')}`
     );
   }
   if (sanitizedCopyRewrites + sanitizedSignalRewrites > 0) {

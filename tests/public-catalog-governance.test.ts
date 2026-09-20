@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plan 258 散卡层治理单测：占位空壳评分惩罚。
+// Plan 258 散卡层治理单测：占位空壳评分惩罚 + featured 授予守卫。
 // 以下纯函数镜像自 scripts/generate-public-catalog.ts（该脚本 import 即执行
 // generate()，测试无法直接 import）。镜像仅覆盖纯函数行为；镜像与生成器的
 // 一致性由 tests/public-catalog-freshness.test.ts 的逐字节比对兜底——脚本
@@ -12,6 +12,7 @@ import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed
 
 const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
 const PLACEHOLDER_BODY_MIN_LENGTH = 80;
+const FEATURED_MIN_SCORE = 70;
 const PLACEHOLDER_SCORE_CAP = 60;
 
 type PlaceholderPredicate = (template: string | undefined) => boolean;
@@ -36,6 +37,17 @@ function applyPlaceholderScorePenalty(
   if (!isPlaceholder(asset.template)) return asset;
   if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
   return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
+}
+
+function applyFeaturedGuard(
+  asset: GovernedPromptAsset,
+  isPlaceholder: PlaceholderPredicate
+): GovernedPromptAsset {
+  if (asset.curationTier !== 'featured') return asset;
+  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
+    return { ...asset, curationTier: 'standard' };
+  }
+  return asset;
 }
 
 function makeCard(overrides: Partial<GovernedPromptAsset>): GovernedPromptAsset {
@@ -104,4 +116,41 @@ test('副本级判定继承源级规则：标记命中与空模板同样占位',
   const empty = makeCard({ template: undefined, score: 80, grade: 'B' });
   assert.equal(applyPlaceholderScorePenalty(empty, isPlaceholderRuntimeBody).score, 60);
 });
+
+// ─── featured 授予守卫（Step 2）────────────────────────────────────────────
+
+test('featured 且 score 低于门槛 → 降 standard', () => {
+  const card = makeCard({ curationTier: 'featured', score: 45, grade: 'F' });
+  assert.equal(applyFeaturedGuard(card, isPlaceholderSourceBody).curationTier, 'standard');
+});
+
+test('featured 但正文占位 → 即使高分也降 standard', () => {
+  const card = makeCard({
+    curationTier: 'featured',
+    score: 88,
+    grade: 'B',
+    template: '[广场优秀提示词模版体] 占位句。',
+  });
+  assert.equal(applyFeaturedGuard(card, isPlaceholderSourceBody).curationTier, 'standard');
+});
+
+test('featured 且高分真实正文 → 保留 featured', () => {
+  const card = makeCard({ curationTier: 'featured', score: 85, grade: 'B' });
+  assert.equal(applyFeaturedGuard(card, isPlaceholderSourceBody), card);
+});
+
+test('featured 分数门槛边界：70 保留、69 降档', () => {
+  const atThreshold = makeCard({ curationTier: 'featured', score: 70, grade: 'C' });
+  assert.equal(applyFeaturedGuard(atThreshold, isPlaceholderSourceBody), atThreshold);
+  const below = makeCard({ curationTier: 'featured', score: 69, grade: 'C' });
+  assert.equal(applyFeaturedGuard(below, isPlaceholderSourceBody).curationTier, 'standard');
+});
+
+test('非 featured 档位不受守卫影响', () => {
+  const standard = makeCard({ curationTier: 'standard', score: 30, grade: 'F' });
+  assert.equal(applyFeaturedGuard(standard, isPlaceholderSourceBody), standard);
+  const suspect = makeCard({ curationTier: 'suspect-duplicate', score: 65, grade: 'C' });
+  assert.equal(applyFeaturedGuard(suspect, isPlaceholderRuntimeBody), suspect);
+});
+
 
