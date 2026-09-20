@@ -14,6 +14,7 @@ import type {
   RoleSkillSnapshot,
 } from '../../shared/types.js';
 import { CARD_STAGE_MAP } from '../../shared/types.js';
+import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile.js';
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
 import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.js';
 import { resolveSkillLoadout } from '../../shared/lib/skill-model.js';
@@ -461,7 +462,7 @@ export function validateCapabilityProfile(novelId: string, value: unknown): stri
   const supportIds = deckRecord.supportCardIds;
   if (
     !Array.isArray(supportIds) ||
-    supportIds.length > 2 ||
+    supportIds.length > PROJECT_DECK_MAX_SUPPORT_CARDS ||
     supportIds.some((id) => typeof id !== 'string' || !id.trim())
   ) {
     throw new WritingStyleRequestError(400, 'PROJECT_SKILL_DECK_INVALID', '作品卡组格式无效');
@@ -705,11 +706,11 @@ function resolveProjectSkillDeck(novel: Novel): {
       'PROJECT_SKILL_DECK_DUPLICATE',
       '作品卡组能力卡不能重复'
     );
-  if (supportIds.length > 2)
+  if (supportIds.length > PROJECT_DECK_MAX_SUPPORT_CARDS)
     throw new WritingStyleRequestError(
       400,
       'PROJECT_SKILL_DECK_TOO_MANY_SUPPORTS',
-      '作品卡组最多两张副卡'
+      `作品卡组最多${PROJECT_DECK_MAX_SUPPORT_CARDS}张副卡`
     );
   const cards = uniqueIds.map((id) => {
     const skill = db.getSkill(id);
