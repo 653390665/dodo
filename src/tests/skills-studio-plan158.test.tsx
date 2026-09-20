@@ -531,9 +531,11 @@ describe('Plan 158 capability center', () => {
 
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     expect(onNavigate).not.toHaveBeenCalled();
+    // Plan 259：bible-world-builder 双层转 built-in 后走内置直通捷径（组件内
+    // Plan 257 先例），projectTechniqueIds 直接记资产 id，不再先克隆占位。
     expect(
       vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3].projectTechniqueIds
-    ).toContain('persisted-skill-1');
+    ).toContain('bible-world-builder');
     await act(async () =>
       resolveApply?.({
         profile: vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)![3],
@@ -1301,15 +1303,36 @@ describe('Plan 158 capability center', () => {
         '配置到作品：应用配置后写入设定素材，并前往世界观继续整理。'
       ).length
     ).toBeGreaterThan(0);
+    // Plan 259：bible-world-builder 转内置后，包内两卡均为 built-in，无需先保存，
+    // 直接勾选即可（沿用 Plan 257 拆书卡重锚先例）。
     await act(async () => {
       fireEvent.click(
-        within(onboardingDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' })
+        within(onboardingDialog).getByRole('checkbox', {
+          name: '选择 长篇超宏大世界观设定器',
+        })
       );
     });
-    const onboardingCheckboxes = within(onboardingDialog).getAllByRole('checkbox');
-    await waitFor(() => expect((onboardingCheckboxes[0] as HTMLInputElement).checked).toBe(true));
-    fireEvent.click(onboardingCheckboxes[1]);
-    await waitFor(() => expect((onboardingCheckboxes[1] as HTMLInputElement).checked).toBe(true));
+    fireEvent.click(
+      within(onboardingDialog).getByRole('checkbox', { name: '选择 核心角色人设卡与成长弧光生成' })
+    );
+    await waitFor(() =>
+      expect(
+        (
+          within(onboardingDialog).getByRole('checkbox', {
+            name: '选择 长篇超宏大世界观设定器',
+          }) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
+    await waitFor(() =>
+      expect(
+        (
+          within(onboardingDialog).getByRole('checkbox', {
+            name: '选择 核心角色人设卡与成长弧光生成',
+          }) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
     fireEvent.click(within(onboardingDialog).getByRole('button', { name: '启用所选' }));
     expect(
       await within(onboardingDialog).findAllByText('下一步：应用配置后前往世界观设定')
@@ -1397,13 +1420,33 @@ describe('Plan 158 capability center', () => {
       .closest('div.rounded-xl') as HTMLElement;
     fireEvent.click(within(onboardingPackage).getByRole('button', { name: '展开并选择' }));
     const dialog = await screen.findByRole('dialog', { name: '脑洞与角色构建包' });
+    // Plan 259：包内两卡均为 built-in，直接勾选，无需先保存。
     await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
+      fireEvent.click(
+        within(dialog).getByRole('checkbox', { name: '选择 长篇超宏大世界观设定器' })
+      );
     });
-    const checkboxes = within(dialog).getAllByRole('checkbox');
-    await waitFor(() => expect((checkboxes[0] as HTMLInputElement).checked).toBe(true));
-    fireEvent.click(checkboxes[1]);
-    await waitFor(() => expect((checkboxes[1] as HTMLInputElement).checked).toBe(true));
+    fireEvent.click(
+      within(dialog).getByRole('checkbox', { name: '选择 核心角色人设卡与成长弧光生成' })
+    );
+    await waitFor(() =>
+      expect(
+        (
+          within(dialog).getByRole('checkbox', {
+            name: '选择 长篇超宏大世界观设定器',
+          }) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
+    await waitFor(() =>
+      expect(
+        (
+          within(dialog).getByRole('checkbox', {
+            name: '选择 核心角色人设卡与成长弧光生成',
+          }) as HTMLInputElement
+        ).checked
+      ).toBe(true)
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: '启用所选' }));
 
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
@@ -1591,18 +1634,21 @@ describe('Plan 158 capability center', () => {
     expect(within(unavailableDialog).getAllByText(/当前能力暂不可运行/).length).toBeGreaterThan(0);
 
     fireEvent.click(within(unavailableDialog).getByRole('button', { name: '关闭能力包' }));
-    const importPackage = screen.getByText('高级审稿与局部手术包').closest('div.rounded-xl');
+    // Plan 259：de-ai-rhythm-restorer 转内置后「高级审稿与局部手术包」三卡全内置，
+    // 不再有保存门；本断言改由仍含 licensed/plaza 风格卡（skill-card）的
+    // 「神作拆书与文风融合包」承载同一语义。
+    const importPackage = screen.getByText('神作拆书与文风融合包').closest('div.rounded-xl');
     expect(importPackage).not.toBeNull();
     fireEvent.click(
       within(importPackage as HTMLElement).getByRole('button', { name: '展开并选择' })
     );
-    const importDialog = await screen.findByRole('dialog', { name: '高级审稿与局部手术包' });
+    const importDialog = await screen.findByRole('dialog', { name: '神作拆书与文风融合包' });
     expect(
       within(importDialog).getAllByText(/先保存到我的能力，再勾选待提交/).length
     ).toBeGreaterThan(0);
     expect(
-      within(importDialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' })
-    ).toBeTruthy();
+      within(importDialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' }).length
+    ).toBeGreaterThan(0);
     expect(within(importDialog).queryByText(/加入后可勾选|加入后再提交|加入并选中/)).toBeNull();
   }, 15_000);
 

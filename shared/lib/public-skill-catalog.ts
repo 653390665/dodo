@@ -687,7 +687,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "开局爽点、金手指节奏与完读率预测通过。",
     "score": 92,
     "grade": "A",
-    "sourceType": "licensed",
+    "sourceType": "built-in",
     "primaryCategory": "quality-guardrail",
     "inputs": [
       "content"
@@ -702,7 +702,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "力量体系极其严密，世界观代入感和背景宏大感极强。",
     "score": 96,
     "grade": "S",
-    "sourceType": "licensed",
+    "sourceType": "built-in",
     "primaryCategory": "author-workflow",
     "inputs": [
       "idea"
@@ -837,7 +837,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "句子节奏疏密有致，通俗易懂且带有高超的行文灵性。",
     "score": 92,
     "grade": "A",
-    "sourceType": "plaza",
+    "sourceType": "built-in",
     "primaryCategory": "quality-guardrail",
     "inputs": [
       "content"

@@ -271,17 +271,25 @@ describe('Plan 158 capability candidates', () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPackages();
 
-    const packageCard = screen.getByText('高级审稿与局部手术包').closest('div.rounded-xl');
+    // Plan 259：de-ai-rhythm-restorer 转内置后「高级审稿与局部手术包」不再有保存门，
+    // 就地导入语义改由仍含 licensed/plaza 风格卡的「神作拆书与文风融合包」承载。
+    const packageCard = screen.getByText('神作拆书与文风融合包').closest('div.rounded-xl');
     expect(packageCard).not.toBeNull();
     fireEvent.click(within(packageCard as HTMLElement).getByRole('button', { name: '展开并选择' }));
 
-    const dialog = await screen.findByRole('dialog', { name: '高级审稿与局部手术包' });
+    const dialog = await screen.findByRole('dialog', { name: '神作拆书与文风融合包' });
     const importGatedRow = within(dialog)
-      .getByText(/先保存到我的能力，再勾选待提交/)
-      .closest('div.rounded-lg') as HTMLElement;
+      .getAllByText(/先保存到我的能力，再勾选待提交/)[0]
+      ?.closest('div.rounded-lg') as HTMLElement;
     expect(within(importGatedRow).getByText('需先保存')).toBeTruthy();
+    // 内置卡行不出现保存门（克苏鲁/古言卡才有）。
+    expect(
+      within(dialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' }).length
+    ).toBe(2);
     await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: '保存到我的能力，并勾选待提交' }));
+      fireEvent.click(
+        within(dialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' })[0]
+      );
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
@@ -294,13 +302,5 @@ describe('Plan 158 capability candidates', () => {
     );
     expect(within(dialog).getByText('已勾选 1 项，待提交')).toBeTruthy();
     expect(within(dialog).getByText('已勾选，待提交到本次配置')).toBeTruthy();
-    expect(within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器')).toBeTruthy();
-    // Plan 209 关系断言：aria-describedby 指向 dialog 内承载禁用原因的元素（useId 派生，不再钉字面量）
-    const submitButton = within(dialog).getByRole('button', { name: '启用所选' });
-    const describedById = submitButton.getAttribute('aria-describedby');
-    expect(describedById).toBeTruthy();
-    expect(
-      within(dialog).getByText('请先选择必需能力：深度AI句式与套话物理抹除器').id
-    ).toBe(describedById);
   });
 });
