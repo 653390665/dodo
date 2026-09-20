@@ -283,6 +283,23 @@ function cloneAssetToSkill(asset: CuratedProductSkill): Skill | null {
   };
 }
 
+// Plan 256：已生效配置总览的工位中文标签（与 StyleShelf 的 STATION_LABELS 同款映射，
+// 按计划约定在本组件内内联，不跨组件文件 import）。
+const OVERVIEW_STATION_LABELS: Record<string, string> = {
+  outline: '大纲',
+  deconstruct: '拆书',
+  concept: '设定命名',
+  'platform-check': '平台检验',
+  prose: '正文',
+  guardrail: '护栏',
+};
+
+function overviewStationLabel(station: string): string {
+  // misc:* 是推导兜底桶，不把内部枚举裸漏给用户。
+  if (station.startsWith('misc:')) return '其他';
+  return OVERVIEW_STATION_LABELS[station] ?? station;
+}
+
 const goldenFlowMetadata: Record<string, { target: string; output: string; color: string }> = {
   'xiaofeiji-novel-flow': {
     target: '精品长篇写手 / 进阶故事创作者',
@@ -911,6 +928,40 @@ export function SkillsStudioView({
     (flow) => flow.id === configurationDraft?.activeFlowId
   );
   const currentGuardrailIds = (configurationDraft || capabilityProfile)?.guardrailIds || [];
+  // Plan 256：已生效配置总览——占格卡组、不占格技法与护栏按工位分组，容量语义如实标注。
+  const overviewTechniqueIds = (configurationDraft || capabilityProfile)?.projectTechniqueIds || [];
+  const resolveOverviewAsset = (id: string) => {
+    const saved = savedSkills.find((skill) => skill.id === id);
+    const sourceId = saved?.parentSkillId || id;
+    const entry = CURATED_PRODUCT_SKILLS.find((asset) => asset.id === sourceId);
+    return {
+      id,
+      title: saved?.name || entry?.title || id,
+      primaryCategory: entry?.primaryCategory,
+    };
+  };
+  const toOverviewEntry = (id: string) => {
+    const asset = resolveOverviewAsset(id);
+    return {
+      id,
+      name: asset.title,
+      station: overviewStationLabel(getCraftSignature(asset).station),
+    };
+  };
+  const overviewDeckEntries = deckSummaryCards.flatMap((item) =>
+    item.card && item.id ? [toOverviewEntry(item.id)] : []
+  );
+  const overviewTechniqueEntries = overviewTechniqueIds.map(toOverviewEntry);
+  const groupOverviewByStation = (entries: ReturnType<typeof toOverviewEntry>[]) => {
+    const groups = new Map<string, string[]>();
+    for (const entry of entries) {
+      groups.set(entry.station, [...(groups.get(entry.station) || []), entry.name]);
+    }
+    return [...groups.entries()];
+  };
+  const overviewDeckGroups = groupOverviewByStation(overviewDeckEntries);
+  const overviewTechniqueGroups = groupOverviewByStation(overviewTechniqueEntries);
+  const overviewEmpty = overviewDeckEntries.length === 0 && overviewTechniqueEntries.length === 0;
   const isGuardrailCandidate = (asset: CuratedProductSkill) =>
     getGovernanceCapabilityType(asset) === 'guardrail' && currentGuardrailIds.includes(asset.id);
   const hasLegacyConfiguration = Boolean(
@@ -2147,6 +2198,55 @@ export function SkillsStudioView({
               增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。
             </p>
           </div>
+        </div>
+
+        {/* Plan 256：已生效配置总览——占格的卡组与不占格的技法/护栏按工位分组呈现。 */}
+        <div className="max-w-6xl mx-auto mb-8 rounded-2xl border border-theme-border bg-theme-sidebar p-4">
+          <div className="text-xs font-bold text-theme-text">已生效能力总览</div>
+          {overviewEmpty ? (
+            <p className="mt-2 text-[11px] text-theme-muted">从能力商店选用卡组或技法</p>
+          ) : (
+            <div className="mt-2 grid gap-4 text-[11px] leading-5 md:grid-cols-3">
+              <section>
+                <p className="font-bold text-theme-text">
+                  {`拆书卡组 ${overviewDeckEntries.length} 张（占卡组格）`}
+                </p>
+                {overviewDeckGroups.map(([station, names]) => (
+                  <p key={station} className="mt-1 text-theme-text">
+                    <span className="text-theme-muted">{station}：</span>
+                    {names.join('、')}
+                  </p>
+                ))}
+                {overviewDeckEntries.length === 0 && (
+                  <p className="mt-1 text-theme-muted">未设置</p>
+                )}
+              </section>
+              <section>
+                <p className="font-bold text-theme-text">
+                  {`作品默认技法 ${overviewTechniqueEntries.length} 张（不占格 · 无上限）`}
+                </p>
+                {overviewTechniqueGroups.map(([station, names]) => (
+                  <p key={station} className="mt-1 text-theme-text">
+                    <span className="text-theme-muted">{station}：</span>
+                    {names.join('、')}
+                  </p>
+                ))}
+                {overviewTechniqueEntries.length === 0 && (
+                  <p className="mt-1 text-theme-muted">未设置</p>
+                )}
+              </section>
+              <section>
+                <p className="font-bold text-theme-text">护栏（默认自动生效）</p>
+                <p className="mt-1 text-theme-text">
+                  {`默认 ${CORE_DEFAULT_GUARDRAIL_COUNT} 条自动生效${
+                    currentGuardrailIds.length > 0
+                      ? `，另开启增强护栏 ${currentGuardrailIds.length} 条`
+                      : ''
+                  }`}
+                </p>
+              </section>
+            </div>
+          )}
         </div>
 
         {hasLegacyConfiguration && (
