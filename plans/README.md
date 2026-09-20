@@ -593,6 +593,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **book-factory 第三处容量闸未收编**：`src/components/book-factory/useBookFactory.ts` 的 `PROJECT_DECK_SUPPORT_LIMIT`（3 辅卡 throw、文案"辅卡不超过 2 张"）——拆书工作台独立选择流，需单独计划收编到 `PROJECT_DECK_MAX_SUPPORT_CARDS`。
 - **生成侧联动闸**：`TOO_MANY_EFFECTIVE_SKILL_CARDS` 仍限"卡组+本章卡 ≤ 6"——1 主 + 4 辅后本章 overlay 余量仅 1 张，超出将 400。属 prompt 预算语义，改动需单独评估，勿当作 bug 上报。
 - Round 44 遗留维持：预清洗计数口径暂缓；`lwl-` 扩词表需重锚公开目录。
+- **257 全部收口（2026-09-20 第二轮）**：Step 3 新书默认流程落地——`/api/db` 建档漏斗 `preflightNovelEntity` create 分支注入 `activeFlowId: 'generic-novel-flow'`（仅新建且无 v3 档案；显式清除/服务端内部直建不注入，6 用例锁定语义），合并后主干后端 1232/1232。
+- **258 散卡层治理 DONE（2026-09-20 第三轮，已合并）**：占位空壳评分封顶 60（47 张，占位卡 ≥70 分归零）+ featured 守卫（featured 25→14，占位/残缺清零，平均分 76）+ 幂等与守恒验证（总数 127、licensed/白标层零变化）。执行者基于证据否决计划建议的 120 字阈值（会误伤 9 张真实卡），校准为副本级 80 字 + 源级标记判定。合并后主干后端 1243/1243。
 
 - **S7 dev-token 生产 bundle localhost 启发式**（main.tsx:15）：服务端双重 opt-in + loopback 绑定已兜底，防御纵深改进，暂缓。
 - **S8 SSE token 走 query string**（db-transport.ts:170）：同第 30 轮排除结论（已治理口径），EventSource 平台限制，暂缓。
