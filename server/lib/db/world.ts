@@ -251,7 +251,7 @@ function validateRelationship(rel: {
     !ENTITY_TYPES.includes(rel.targetType as EntityType)
   ) {
     throw new Error(
-      `Invalid entity type: sourceType="${rel.sourceType}", targetType="${rel.targetType}". Must be one of: ${ENTITY_TYPES.join(', ')}`
+      `Invalid entity type: sourceType="${rel.sourceType.replace(/[\r\n\t]+/g, ' ')}", targetType="${rel.targetType.replace(/[\r\n\t]+/g, ' ')}". Must be one of: ${ENTITY_TYPES.join(', ')}`
     );
   }
   if (rel.sourceType === rel.targetType && rel.sourceId === rel.targetId) {

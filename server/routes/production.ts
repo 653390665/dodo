@@ -554,7 +554,7 @@ export function registerProductionRoutes(app: Express) {
 
         return res.json({ run: attachReviewVersion(db.getChapterProductionRun(runId)) });
       } catch (e) {
-        logger.error(String(e));
+        logger.error('chapter production start failed', e);
         const message = e instanceof Error ? e.message : String(e);
         if (runId) {
           await runInSerializedWriteForGeneration(requestDatabaseGeneration, () => {
