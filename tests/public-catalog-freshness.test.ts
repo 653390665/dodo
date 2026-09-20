@@ -87,10 +87,15 @@ function cloneAndSanitize<T>(obj: T): T {
 
 /** 复刻脚本输出语义：JSON 序列化落盘再被 import（undefined 键会被丢弃）。 */
 function pipeline<T>(items: T[], filterUnsafe: boolean): T[] {
-  const filtered = filterUnsafe
-    ? items.filter((item) => isPublicRuntimeAsset(item as unknown as GovernedPromptAsset))
-    : items;
-  return JSON.parse(JSON.stringify(filtered.map((item) => cloneAndSanitize(item))));
+  let governed = items;
+  if (filterUnsafe) {
+    // Plan 258：治理（占位惩罚 + featured 守卫）必须在 cloneAndSanitize 之前
+    // 执行——克隆后 template 物理清空，无法再做占位判定。
+    governed = (items as GovernedPromptAsset[])
+      .filter((item) => isPublicRuntimeAsset(item))
+      .map(applySourceCardGovernance) as unknown as T[];
+  }
+  return JSON.parse(JSON.stringify(governed.map((item) => cloneAndSanitize(item))));
 }
 
 // ─── 生成侧消毒副本镜像（Plan 197 Step 2）────────────────────────────────────
@@ -242,6 +247,60 @@ function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
   };
 }
 
+// ─── Plan 258 镜像：散卡层治理（占位空壳评分惩罚 + featured 授予守卫）────────
+// 镜像 scripts/generate-public-catalog.ts 的治理纯函数；脚本规则若变更，
+// 必须同步此处与 tests/public-catalog-governance.test.ts。
+
+const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
+const PLACEHOLDER_BODY_MIN_LENGTH = 80;
+const FEATURED_MIN_SCORE = 70;
+const PLACEHOLDER_SCORE_CAP = 60;
+
+type PlaceholderPredicate = (template: string | undefined) => boolean;
+
+function isPlaceholderSourceBody(template: string | undefined): boolean {
+  return !template || template.includes(PLACEHOLDER_TEMPLATE_MARKER);
+}
+
+function isPlaceholderRuntimeBody(template: string | undefined): boolean {
+  if (isPlaceholderSourceBody(template)) return true;
+  return (template as string).length < PLACEHOLDER_BODY_MIN_LENGTH;
+}
+
+function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
+  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
+}
+
+function applyPlaceholderScorePenalty(
+  asset: GovernedPromptAsset,
+  isPlaceholder: PlaceholderPredicate
+): GovernedPromptAsset {
+  if (!isPlaceholder(asset.template)) return asset;
+  if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
+  return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
+}
+
+function applyFeaturedGuard(
+  asset: GovernedPromptAsset,
+  isPlaceholder: PlaceholderPredicate
+): GovernedPromptAsset {
+  if (asset.curationTier !== 'featured') return asset;
+  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
+    return { ...asset, curationTier: 'standard' };
+  }
+  return asset;
+}
+
+function applySourceCardGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
+  const penalized = applyPlaceholderScorePenalty(asset, isPlaceholderSourceBody);
+  return applyFeaturedGuard(penalized, isPlaceholderSourceBody);
+}
+
+function applySanitizedCopyGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
+  const penalized = applyPlaceholderScorePenalty(asset, isPlaceholderRuntimeBody);
+  return applyFeaturedGuard(penalized, isPlaceholderRuntimeBody);
+}
+
 const REMIX_HINT =
   '生成副本已陈旧：请重新运行 `node --import tsx scripts/generate-public-catalog.ts` 再生 shared/lib/public-skill-catalog.ts（渲染层数据源必须与消毒管线输出逐字节一致）。';
 
@@ -301,10 +360,13 @@ test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-requi
     `sanitized copies must correspond 1:1 to sanitize-required candidates. ${REMIX_HINT}`
   );
 
-  // 逐字节新鲜：等于镜像副本管线输出（改写轮换计数器先归零，与生成器口径一致）
+  // 逐字节新鲜：等于镜像副本管线输出（改写轮换计数器先归零，与生成器口径一致；
+  // Plan 258 副本治理与生成器同序：构建后逐张过占位惩罚 + featured 守卫）
   sanitizedCopyRewrites = 0;
   sanitizedSignalRewrites = 0;
-  const expectedCopies = JSON.parse(JSON.stringify(candidates.map(buildSanitizedCopy)));
+  const expectedCopies = JSON.parse(
+    JSON.stringify(candidates.map(buildSanitizedCopy).map(applySanitizedCopyGovernance))
+  );
   assert.deepEqual(
     PUBLIC_COPIES,
     expectedCopies,
