@@ -133,9 +133,11 @@ test('fusionMeta round-trip through create and read', () => {
     const now = Date.now();
     createSkill(baseSkill());
     createSkill(baseSkill({ id: 'char-1', sourceBadge: 'book-extracted', sourceType: 'book-extracted', deconstructionCardType: 'style-card', executionScore: 80,
-      isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active' } as Partial<Skill>));
+      isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active',
+      sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 } } as Partial<Skill>));
     updateSkill('skill-v1', { sourceBadge: 'book-extracted', sourceType: 'book-extracted', deconstructionCardType: 'style-card', executionScore: 80,
-      isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active' } as Partial<Skill>);
+      isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active',
+      sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 } } as Partial<Skill>);
     createSkill({
       id: 'fusion-1',
       name: '冷峻刀锋 · 压抑对峙 融合版',
@@ -163,6 +165,7 @@ test('fusionMeta round-trip through create and read', () => {
       isRuntimeReady: true,
       sanitizationStatus: 'runtime-ready',
       runtimeStatus: 'active',
+      sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
       createdAt: now,
     } as Skill);
 
@@ -232,6 +235,7 @@ test('runtime-ready skill payloads round-trip through create and update', () => 
       id: 'runtime-card', sourceType: 'book-extracted', sourceBadge: 'book-extracted',
       deconstructionCardType: 'style-card', executionScore: 80,
       isRuntimeReady: true, sanitizationStatus: 'runtime-ready', runtimeStatus: 'active',
+      sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
     } as Partial<Skill>);
     createSkill(card);
     updateSkill(card.id, { description: 'updated card' });
