@@ -574,6 +574,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 
 ### 本轮未立项（防重复审计）
 
+> **2026-09-20 补充（用户上报「我的能力卡」残留【小飞鸡】品牌）**：根因是货架克隆路径（SkillsStudioView `cloneAssetToSkill`）把未消毒的广场原始标题直接落库，且旧克隆卡缺 `deconstructionCardType` 本就无法过产品级 update 门禁。已修（commit `fix(capabilities) 清除能力卡品牌残留`）：克隆函数接入 sanitizeWhiteLabelText 防新增；`scripts/reclean-skill-brands.ts` 存量重洗（幂等，重写 2 张）；db/skills.ts 增维护专用 `updateSkillRowForMaintenance`（跳过门禁直写，清洗工具用）；renderer-db-boundary 守卫精确化（禁 optimizeDeps include/exclude、放行 entries 入口限定）。`lwl-` 前缀不在词表维持原样（扩词表需同步重锚公开目录，另行决策）；`锅盖` 为 Plan 232 白名单套牌保留。
+
 - **S7 dev-token 生产 bundle localhost 启发式**（main.tsx:15）：服务端双重 opt-in + loopback 绑定已兜底，防御纵深改进，暂缓。
 - **S8 SSE token 走 query string**（db-transport.ts:170）：同第 30 轮排除结论（已治理口径），EventSource 平台限制，暂缓。
 - **S9 JSON 抽取无尺寸/危险键防护 + catalog freshness 守卫为脚本手工镜像**：本机单用户风险低；守卫镜像随 236 遗留债（两份 sanitizer 合一）一并观察。
