@@ -935,7 +935,7 @@ describe('Plan 158 capability center', () => {
     expect(vi.mocked(applyCapabilityConfiguration)).not.toHaveBeenCalled();
   });
 
-  test('shows a plaza technique as favorited after its imported id is staged', async () => {
+  test('shows a built-in technique as favorited with its asset id staged', async () => {
     render(<SkillsStudioView selectedNovel={novel} />);
     await openPlaza();
 
@@ -953,13 +953,15 @@ describe('Plan 158 capability center', () => {
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');
     await waitFor(() => expect(vi.mocked(applyCapabilityConfiguration)).toHaveBeenCalled());
     const appliedProfile = vi.mocked(applyCapabilityConfiguration).mock.calls.at(-1)?.[3];
-    expect(appliedProfile?.favoriteTechniqueIds).toContain('persisted-skill-1');
+    // Plan 257：卡转 built-in 后收藏走 asset.id 捷径，不再克隆出独立 persisted id；
+    // membership 仍需完整登记 sourceId → persistedSkillId 映射。
+    expect(appliedProfile?.favoriteTechniqueIds).toContain('prose-mouth-flavor');
     expect(appliedProfile?.capabilityMemberships).toContainEqual(
       expect.objectContaining({
         sourceId: 'prose-mouth-flavor',
         sourceVersion: '3',
-        sourceType: 'plaza',
-        persistedSkillId: 'persisted-skill-1',
+        sourceType: 'built-in',
+        persistedSkillId: 'prose-mouth-flavor',
       })
     );
   }, 15_000);
@@ -1481,20 +1483,22 @@ describe('Plan 158 capability center', () => {
     expect(
       within(deckDialog).getAllByText('卡组位置：先选主卡或辅卡，应用配置后写入作品卡组。').length
     ).toBeGreaterThan(0);
+    // Plan 257：拆书卡转 built-in 后无需先手动导入，直接勾选即可——启用时由
+    // handleImportAsset 克隆占位（persisted-skill-1），服务端 db.getSkill 始终有本地行。
     await act(async () => {
       fireEvent.click(
-        within(deckDialog).getAllByRole('button', { name: '保存到我的能力，并勾选待提交' })[0]
+        within(deckDialog).getByRole('checkbox', {
+          name: '选择 神作黄金高爽节奏与钩子拆书卡',
+        })
       );
     });
-    await waitFor(() =>
-      expect(
-        (
-          within(deckDialog).getByRole('checkbox', {
-            name: '选择 神作黄金高爽节奏与钩子拆书卡',
-          }) as HTMLInputElement
-        ).checked
-      ).toBe(true)
-    );
+    expect(
+      (
+        within(deckDialog).getByRole('checkbox', {
+          name: '选择 神作黄金高爽节奏与钩子拆书卡',
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(true);
     fireEvent.click(within(deckDialog).getByRole('button', { name: '启用所选' }));
 
     expect(await within(deckDialog).findByText('下一步：应用配置后写入作品卡组')).toBeTruthy();

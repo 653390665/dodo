@@ -1464,8 +1464,14 @@ export function SkillsStudioView({
     let working = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
     for (const card of cards) {
       const manifest = getCapabilityManifest(card);
+      // Plan 257：built-in 捷径仅限 technique——skill-card（拆书卡）一律经
+      // handleImportAsset 克隆占位，保证 deck 的服务端解析（db.getSkill）始终
+      // 有本地行；克隆已带与资产一致的 sourceType，运行时由
+      // resolveRuntimeCuratedPrompts 还原官方提示词。
       const persistedId =
-        manifest.sourceType !== 'built-in' ? await handleImportAsset(card) : card.id;
+        manifest.sourceType !== 'built-in' || getGovernanceCapabilityType(card) !== 'technique'
+          ? await handleImportAsset(card)
+          : card.id;
       if (!persistedId || !working) return;
       const withMembership = upsertCapabilityMembership(working, {
         sourceId: card.parentSkillId || card.id,
@@ -2048,10 +2054,15 @@ export function SkillsStudioView({
             skill.sourceType === component.asset?.sourceType &&
             skill.version === (Number(manifest.version) || 1)
         );
+        // Plan 257：built-in 捷径仅限 technique；skill-card（拆书卡）缺本地克隆时
+        // 一律经 handleImportAsset 克隆占位——包内启用后服务端 db.getSkill 解析
+        // 需要本地行；克隆带与资产一致的 sourceType，运行时由
+        // resolveRuntimeCuratedPrompts 还原官方提示词。handleImportAsset 内部
+        // 自带去重，命中既有克隆时原样返回其 id。
         const persistedId =
           manifest.sourceType === 'built-in' && type === 'technique'
             ? component.asset.id
-            : existing?.id;
+            : existing?.id ?? (await handleImportAsset(component.asset));
         if (!persistedId) {
           setPackageComponentResults((current) => ({ ...current, [component.step.id]: 'skipped' }));
           continue;
