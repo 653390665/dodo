@@ -121,7 +121,13 @@ const novel = {
       version: 3 as const,
       projectSkillDeck: {
         mainCardId: 'legacy-unknown-card',
-        supportCardIds: ['style-ancient-elegance', 'deconstruct-suspense-hook'],
+        // Plan 256：满卡组 = 1 主 + 4 辅，替换弹窗语义对齐新容量。
+        supportCardIds: [
+          'style-ancient-elegance',
+          'deconstruct-suspense-hook',
+          'deconstruct-support-extra-1',
+          'deconstruct-support-extra-2',
+        ],
         updatedAt: 1,
       },
       favoriteTechniqueIds: [],

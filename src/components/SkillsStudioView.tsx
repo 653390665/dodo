@@ -22,6 +22,7 @@ import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
 import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer';
+import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
@@ -892,7 +893,7 @@ export function SkillsStudioView({
   const projectDeckIds = getProjectDeckIds(configurationDraft || capabilityProfile);
   const deckSummaryCards = [
     { slot: '主卡', id: (configurationDraft || capabilityProfile)?.projectSkillDeck.mainCardId },
-    ...[0, 1].map((index) => ({
+    ...Array.from({ length: PROJECT_DECK_MAX_SUPPORT_CARDS }, (_, index) => ({
       slot: `辅卡 ${index + 1}`,
       id: (configurationDraft || capabilityProfile)?.projectSkillDeck.supportCardIds[index],
     })),
@@ -902,9 +903,9 @@ export function SkillsStudioView({
   ).length;
   const deckEmptyHint =
     projectDeckIds.length === 0
-      ? '可添加 1 张主卡、2 张辅卡'
-      : supportDeckCount < 2
-        ? `还可添加 ${2 - supportDeckCount} 张辅卡`
+      ? `可添加 1 张主卡、${PROJECT_DECK_MAX_SUPPORT_CARDS} 张辅卡`
+      : supportDeckCount < PROJECT_DECK_MAX_SUPPORT_CARDS
+        ? `还可添加 ${PROJECT_DECK_MAX_SUPPORT_CARDS - supportDeckCount} 张辅卡`
         : '作品卡组已满';
   const activeFlow = SKILL_SERIES_FLOWS.find(
     (flow) => flow.id === configurationDraft?.activeFlowId
@@ -2105,10 +2106,10 @@ export function SkillsStudioView({
           <div className="rounded-2xl border border-theme-border bg-theme-sidebar p-4">
             <div className="text-xs font-bold text-theme-text">作品卡组</div>
             <p className="mt-2 text-sm font-semibold text-theme-accent">
-              {projectDeckIds.length} / 3
+              {`${projectDeckIds.length} / ${1 + PROJECT_DECK_MAX_SUPPORT_CARDS}`}
             </p>
             <p className="mt-1 text-[11px] text-theme-muted">
-              仅拆书卡占用：一张主卡，最多两张辅卡
+              {`仅拆书卡占用：一张主卡，最多${PROJECT_DECK_MAX_SUPPORT_CARDS}张辅卡`}
             </p>
             <div className="mt-2 space-y-1 text-[10px] leading-4">
               {deckSummaryCards.map(({ slot, card }) => (

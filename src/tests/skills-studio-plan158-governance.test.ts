@@ -67,13 +67,21 @@ describe('Plan 158 project capability deck', () => {
     ).capabilityProfile!;
     expect(explicit.projectTechniqueIds).toEqual(['project-only']);
   });
-  test('keeps one main card and at most two support cards', () => {
+  test('keeps one main card and at most four support cards (Plan 256 扩容)', () => {
     let profile = buildV3CapabilityProfile(null, {}).capabilityProfile!;
     profile = addCardToProjectDeck(profile, 'main').profile;
     profile = addCardToProjectDeck(profile, 'support-1').profile;
     profile = addCardToProjectDeck(profile, 'support-2').profile;
-    expect(getProjectDeckIds(profile)).toEqual(['main', 'support-1', 'support-2']);
-    expect(addCardToProjectDeck(profile, 'support-3').requiresReplacement).toBe(true);
+    profile = addCardToProjectDeck(profile, 'support-3').profile;
+    profile = addCardToProjectDeck(profile, 'support-4').profile;
+    expect(getProjectDeckIds(profile)).toEqual([
+      'main',
+      'support-1',
+      'support-2',
+      'support-3',
+      'support-4',
+    ]);
+    expect(addCardToProjectDeck(profile, 'support-5').requiresReplacement).toBe(true);
   });
 
   test('requires an explicit replacement and preserves the other cards', () => {
