@@ -124,12 +124,12 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
     'chapterPlan'
   ),
   'opening-novelty-hook': {
-    ...diagnostic(['planner'], 'licensed'),
+    ...diagnostic(['planner'], 'built-in'),
     displayStages: ['creative-setup'],
   },
   'bible-world-builder': technique(
     ['planner'],
-    'licensed',
+    'built-in',
     {
       input: 'outline-source',
       output: 'artifact-candidate',
@@ -255,7 +255,7 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
   ),
   'de-ai-rhythm-restorer': technique(
     ['writer', 'critic'],
-    'plaza',
+    'built-in',
     {
       input: 'text',
       output: 'transform-preview',
