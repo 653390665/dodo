@@ -212,6 +212,29 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
     },
     'outline-candidate'
   ),
+  // Plan 259 后续：长篇商业连载流程的大纲方法论卡（user-authorized 白标资产）接入
+  // 项目大纲生成通道——百万字级五卷/三线架构法，补内置层超长篇架构缺口。
+  'private-175': technique(
+    ['planner'],
+    'licensed',
+    {
+      input: 'outline-source',
+      output: 'outline-candidate',
+      allowedScopes: ['project'],
+      persistence: 'project',
+      sideEffect: 'configuration',
+      usageModes: ['single-run', 'flow-step'],
+      artifactContract: {
+        artifactKinds: ['master-outline', 'volume-outline'],
+        operations: ['restructure', 'optimize'],
+        allowedScopes: ['project', 'single-run'],
+        requiredInputs: ['master-outline'],
+        output: 'outline-candidate',
+        canonEffect: 'candidate-only',
+      },
+    },
+    'outline-candidate'
+  ),
   'prose-mouth-flavor': technique(
     ['writer'],
     'built-in',
