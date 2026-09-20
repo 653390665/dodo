@@ -21,6 +21,7 @@ import { detectStationConflicts, getCraftSignature } from '../lib/capability-cra
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
+import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
 import { SkillMapPanel } from './skills/SkillMapPanel';
@@ -252,10 +253,12 @@ function cloneAssetToSkill(asset: CuratedProductSkill): Skill | null {
 
   const baseSkill: Skill = {
     id: `${asset.id}-clone-${Date.now()}`,
-    name: asset.title,
-    description: asset.goal || '',
+    // Plan 253 后续：货架候选标题可能是未消毒的广场原文（含【小飞鸡】等上传者品牌），
+    // 克隆落库前必须过白标清洗，否则存量脏名会经「我的能力卡」直达用户。
+    name: sanitizeWhiteLabelText(asset.title),
+    description: sanitizeWhiteLabelText(asset.goal || ''),
     style: 'INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER',
-    pacing: asset.successSignal || '',
+    pacing: sanitizeWhiteLabelText(asset.successSignal || ''),
     stabilityScore: asset.score,
     evaluationFeedback: asset.successSignal || '从能力货架导入',
     version: Number(getCatalogCapabilityManifest(asset.id)?.version) || 1,

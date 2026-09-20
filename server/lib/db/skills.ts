@@ -190,6 +190,15 @@ export function updateSkill(id: string, data: Partial<Skill>): void {
   skillCrud.update(id, data);
 }
 
+/**
+ * 维护脚本专用：跳过 validateSkillPersistence 直接改行。
+ * 存量治理前的旧卡（缺 deconstructionCardType / 三旗标）无法通过产品级门禁，
+ * 清洗类工具（scripts/reclean-skill-brands.ts）用本通道回写；数据责任在调用方。
+ */
+export function updateSkillRowForMaintenance(id: string, data: Partial<Skill>): boolean {
+  return skillCrud.update(id, data);
+}
+
 export function listSkillVersions(skillId: string): Skill[] {
   const skill = getSkill(skillId);
   if (!skill) return [];
