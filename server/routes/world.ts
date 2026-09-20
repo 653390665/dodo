@@ -147,7 +147,7 @@ const OUTLINE_TOTAL_CHAR_BUDGET = 180_000;
 const ACTIVE_OUTLINE_CHAR_BUDGET = 60_000;
 // Plan 259 后续：万字级大纲技法（private-175 百万字架构法）的完整输出需要 >8k tokens，
 // 8_192 会触发 OUTLINE_TRUNCATED；v4 代模型输出上限 ≥16k。
-const OUTLINE_MAX_TOKENS = 16_384;
+const OUTLINE_MAX_TOKENS = 32_768;
 
 type WorldExecutionStage = 'planner' | 'writer' | 'critic';
 type WorldExecutionContract = ReturnType<typeof resolveProjectExecutionContract>;
