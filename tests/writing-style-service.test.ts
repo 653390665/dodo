@@ -370,6 +370,93 @@ test('v3 project deck builds one main card, two supports, overlays, and a skill-
   } finally { closeDb(); }
 });
 
+// Plan 256：辅卡容量 2→4 的服务端校验边界（4 张通过、5 张 400、主卡必填不回归）。
+test('v3 project deck accepts four support cards under the expanded capacity', () => {
+  closeDb(); initDb(':memory:');
+  try {
+    for (const [id, type] of [
+      ['main-card', 'style-card'],
+      ['support-1', 'worldview-card'],
+      ['support-2', 'pacing-card'],
+      ['support-3', 'style-card'],
+      ['support-4', 'worldview-card'],
+    ] as const) {
+      db.createSkill(savedCardSkill(id, type));
+    }
+    db.createNovel({
+      ...novel(),
+      projectPreferenceProfile: {
+        ...novel().projectPreferenceProfile!, capabilityModelVersion: 3,
+        capabilityProfile: {
+          version: 3,
+          projectSkillDeck: {
+            mainCardId: 'main-card',
+            supportCardIds: ['support-1', 'support-2', 'support-3', 'support-4'],
+            updatedAt: 1,
+          },
+          favoriteTechniqueIds: [],
+        },
+      },
+    });
+    const resolved = resolveWritingStyleRequest('novel-1');
+    assert.equal(resolved.resolution.mode, 'skill-deck');
+    assert.deepEqual(
+      resolved.executionSnapshot.skillStack.projectSupportCards.map((card) => card.id),
+      ['support-1', 'support-2', 'support-3', 'support-4']
+    );
+  } finally { closeDb(); }
+});
+
+test('v3 project deck rejects five support cards beyond the expanded capacity', () => {
+  closeDb(); initDb(':memory:');
+  try {
+    db.createSkill(savedCardSkill('main-card', 'style-card'));
+    db.createNovel({
+      ...novel(),
+      projectPreferenceProfile: {
+        ...novel().projectPreferenceProfile!, capabilityModelVersion: 3,
+        capabilityProfile: {
+          version: 3,
+          projectSkillDeck: {
+            mainCardId: 'main-card',
+            supportCardIds: ['s1', 's2', 's3', 's4', 's5'],
+            updatedAt: 1,
+          },
+          favoriteTechniqueIds: [],
+        },
+      },
+    });
+    assert.throws(
+      () => resolveWritingStyleRequest('novel-1'),
+      (error) => error instanceof WritingStyleRequestError
+        && error.status === 400
+        && error.code === 'PROJECT_SKILL_DECK_INVALID'
+    );
+  } finally { closeDb(); }
+});
+
+test('v3 project deck with support cards still requires an explicit main card', () => {
+  closeDb(); initDb(':memory:');
+  try {
+    db.createNovel({
+      ...novel(),
+      projectPreferenceProfile: {
+        ...novel().projectPreferenceProfile!, capabilityModelVersion: 3,
+        capabilityProfile: {
+          version: 3,
+          projectSkillDeck: { supportCardIds: ['s1'], updatedAt: 1 },
+          favoriteTechniqueIds: [],
+        },
+      },
+    });
+    assert.throws(
+      () => resolveWritingStyleRequest('novel-1'),
+      (error) => error instanceof WritingStyleRequestError
+        && error.code === 'PROJECT_SKILL_DECK_MAIN_REQUIRED'
+    );
+  } finally { closeDb(); }
+});
+
 test('v3 planner-only project deck is visible in writing style sources', () => {
   closeDb(); initDb(':memory:');
   try {
