@@ -18,6 +18,16 @@ interface StyleShelfCardWithFitness {
   isCloning: boolean;
 }
 
+/** 散卡 primaryCategory 中文标签（治理目录既有人工标注，Plan 234/240）。 */
+const RAW_SUPPLY_CATEGORY_LABELS: Record<string, string> = {
+  'author-workflow': '创作流程',
+  'constellation-pack': '成套配方',
+  'utility-tool': '实用工具',
+  'style-reference': '文风参考',
+  'quality-guardrail': '质量护栏',
+  'platform-criteria': '平台标准',
+};
+
 /** Plan 229 工位中文名（仅套牌卡面展示用；misc:* 原样透出）。 */
 const STATION_LABELS: Record<string, string> = {
   outline: '大纲',
@@ -189,6 +199,27 @@ export function StyleShelf({
     ? shelf.functional
     : shelf.functional.filter((group) => !libraryGroups.includes(group));
   const libraryCardCount = libraryGroups.reduce((sum, group) => sum + group.assets.length, 0);
+  // Plan 253 后续（2026-09-20 用户裁决）：原料库内按 primaryCategory 二级分组，
+  // suspect-duplicate 档置底单列——先标记不并入，真并入等反馈数据（Plan 241 门槛）。
+  const libraryEntries = libraryGroups.flatMap((group) => group.assets);
+  const librarySuspect = libraryEntries.filter(
+    (entry) => entry.asset.curationTier === 'suspect-duplicate'
+  );
+  const libraryNormal = libraryEntries.filter(
+    (entry) => entry.asset.curationTier !== 'suspect-duplicate'
+  );
+  const libraryGroupsByCategory = (() => {
+    const byLabel = new Map<string, Array<(typeof libraryEntries)[number]>>();
+    for (const entry of libraryNormal) {
+      const label = RAW_SUPPLY_CATEGORY_LABELS[entry.asset.primaryCategory] ?? '其他';
+      const bucket = byLabel.get(label) ?? [];
+      bucket.push(entry);
+      byLabel.set(label, bucket);
+    }
+    return [...byLabel.entries()]
+      .map(([label, assets]) => ({ label, assets }))
+      .sort((a, b) => b.assets.length - a.assets.length);
+  })();
   return (
     <div className="space-y-4">
       {expandedGroups.map((group) => (
@@ -207,12 +238,12 @@ export function StyleShelf({
           <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-theme-muted">
             原料库（{libraryCardCount} 张 · 社区散卡）
             <span className="ml-2 font-normal">
-              无保修、不成套；需要时展开挑选，或用「这章要解决什么」按症候筛选
+              已按用途分类；无保修、不成套，需要时展开挑选，或用「这章要解决什么」按症候筛选
             </span>
           </summary>
           <div className="px-4 pb-4 space-y-4">
-            {libraryGroups.map((group) => (
-              <div key={group.key} className="space-y-2">
+            {libraryGroupsByCategory.map((group) => (
+              <div key={group.label} className="space-y-2">
                 <h4 className="text-xs font-bold text-theme-muted">
                   {group.label}（{group.assets.length}）
                 </h4>
@@ -223,6 +254,21 @@ export function StyleShelf({
                 />
               </div>
             ))}
+            {librarySuspect.length > 0 && (
+              <div className="space-y-2 opacity-75">
+                <h4 className="text-xs font-bold text-theme-muted">
+                  ⚠ 疑似重复 · 待裁决（{librarySuspect.length}）
+                  <span className="ml-2 font-normal">
+                    与现有卡高度相似；反馈数据攒够前不自动并入
+                  </span>
+                </h4>
+                <StyleShelfGrid
+                  cards={librarySuspect}
+                  isFreeNovel={isFreeNovel}
+                  handlers={handlers}
+                />
+              </div>
+            )}
           </div>
         </details>
       )}

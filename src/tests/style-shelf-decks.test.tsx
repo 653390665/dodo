@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 
 import { getOptionalStyleAssets, isOfficialSupplyAsset } from '../lib/capability-governance';
 import { getCraftSignature } from '../lib/capability-craft';
+import { groupStyleShelf } from '../lib/capability-shelf';
 import { StyleShelf } from '../components/skills/StyleShelf';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
 
@@ -175,5 +176,49 @@ describe('StyleShelf 系列套牌（plan 229）', () => {
     // 过滤激活：原料库消失，全部展开
     renderShelf({ assets: community, filterActive: true });
     expect(screen.queryByTestId('raw-supply-library')).toBeNull();
+  });
+
+  test('原料库内按用途二级分组，疑似重复档置底待裁决（plan 253 后续）', () => {
+    const all = getOptionalStyleAssets();
+    const community = all.filter((asset) => !isOfficialSupplyAsset(asset));
+    renderShelf({ assets: community });
+    const library = screen.getByTestId('raw-supply-library');
+    const text = library.textContent ?? '';
+    expect(text).toContain('已按用途分类');
+    expect(text).toContain('创作流程（');
+    expect(text).toContain('成套配方（');
+    expect(text).toContain('实用工具（');
+    expect(text).toContain('文风参考（');
+    // 疑似重复档置底：位于所有用途分组之后
+    const suspectIdx = text.indexOf('疑似重复 · 待裁决');
+    expect(suspectIdx).toBeGreaterThan(-1);
+    for (const label of ['创作流程（', '成套配方（', '实用工具（', '文风参考（', '质量护栏（']) {
+      const idx = text.indexOf(label);
+      if (idx >= 0) expect(suspectIdx).toBeGreaterThan(idx);
+    }
+    // 无丢卡：summary 总数 = 各分组计数 + 疑似重复计数
+    const counts = [...text.matchAll(/（(\d+) 张|（(\d+)）/g)].map((m) => Number(m[1] ?? m[2]));
+    const total = counts[0];
+    expect(total).toBeGreaterThan(0);
+    expect(counts.slice(1).reduce((sum, n) => sum + n, 0)).toBe(total);
+    // 疑似重复计数镜像：与组件同源的 groupStyleShelf 判定原料库成员（functional 组即
+    // 非套牌散卡），再数治理标 suspect-duplicate。
+    const grouped = groupStyleShelf(
+      community.map((asset) => ({ id: asset.id, title: asset.title, goal: asset.goal }))
+    );
+    const assetById = new Map(community.map((asset) => [asset.id, asset]));
+    const libraryIds = new Set(
+      grouped.functional.flatMap((group) =>
+        group.assets.flatMap((card) => {
+          const asset = assetById.get(card.id);
+          return asset && !isOfficialSupplyAsset(asset) ? [card.id] : [];
+        })
+      )
+    );
+    const expectedSuspect = community.filter(
+      (asset) => libraryIds.has(asset.id) && asset.curationTier === 'suspect-duplicate'
+    ).length;
+    expect(expectedSuspect).toBeGreaterThan(0);
+    expect(text).toContain(`疑似重复 · 待裁决（${expectedSuspect}）`);
   });
 });
