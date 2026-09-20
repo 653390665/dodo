@@ -8,7 +8,8 @@ import {
   wrapUserInput,
   buildSkillsPrompt,
 } from '../helpers/prompt-helpers';
-import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer.js';
+import { sanitizeWhiteLabelText, analyzeAndSanitize } from '../../shared/lib/prompt-sanitizer.js';
+import type { SanitizationHits } from '../../shared/types/prompt-assets-governed.js';
 
 function sanitizeSkillFields<T>(skill: T): T {
   if (!skill || typeof skill !== 'object') return skill;
@@ -37,7 +38,33 @@ function sanitizeSkillFields<T>(skill: T): T {
   return sanitized as T;
 }
 
-function finalizeExtractedCard<T extends object>(skill: T, fallbackId: string): T {
+// Plan 253：book-extracted 卡落库前必须扫描的展开文本字段（与 sanitizeSkillFields 覆盖面一致并扩展列表字段）。
+const SKILL_SCAN_STRING_FIELDS = [
+  'name',
+  'description',
+  'style',
+  'sentenceStructure',
+  'pacing',
+  'characterTraits',
+  'worldBuilding',
+  'plotPattern',
+  'foreshadowing',
+] as const;
+const SKILL_SCAN_LIST_FIELDS = [
+  'vocabulary',
+  'imagery',
+  'fewShots',
+  'corePatterns',
+  'bannedElements',
+  'bannedWords',
+] as const;
+
+/**
+ * 收口 book-extracted 抽取卡的落库出口（导出仅供测试观测）。
+ * 三旗标保持 runtime-ready/active 不变，但所有展开文本字段会先过
+ * analyzeAndSanitize 物理剥除并累计命中到 sanitizationHits。
+ */
+export function finalizeExtractedCard<T extends object>(skill: T, fallbackId: string): T {
   const source = skill as Record<string, unknown>;
   const sourceCardId =
     typeof source.sourceCardId === 'string' && source.sourceCardId.trim()
@@ -52,6 +79,28 @@ function finalizeExtractedCard<T extends object>(skill: T, fallbackId: string): 
     sanitizationStatus: 'runtime-ready',
     runtimeStatus: 'active',
   }) as Record<string, unknown>;
+  const hits: SanitizationHits = { contacts: 0, authors: 0, brands: 0, watermarks: 0 };
+  const scanText = (value: string): string => {
+    const result = analyzeAndSanitize(value);
+    hits.contacts += result.hits.contacts;
+    hits.authors += result.hits.authors;
+    hits.brands += result.hits.brands;
+    hits.watermarks += result.hits.watermarks;
+    return result.sanitizedText;
+  };
+  for (const field of SKILL_SCAN_STRING_FIELDS) {
+    if (typeof normalized[field] === 'string') {
+      normalized[field] = scanText(normalized[field] as string);
+    }
+  }
+  for (const field of SKILL_SCAN_LIST_FIELDS) {
+    if (Array.isArray(normalized[field])) {
+      normalized[field] = (normalized[field] as unknown[]).map((item) =>
+        typeof item === 'string' ? scanText(item) : item
+      );
+    }
+  }
+  normalized.sanitizationHits = { ...hits };
   const stringList = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   const hasRule = [

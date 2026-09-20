@@ -4,6 +4,7 @@ import type {
   ContinuationSourceKind,
 } from '../types';
 import { isContinuationContradictionResolved } from './continuation-import-flow';
+import { fenceUntrustedText } from './prompt-fence';
 import type { ContextReceipt } from '../types';
 
 function digest(input: string): string {
@@ -120,37 +121,36 @@ export function buildSourceMapContext(pack: ContinuationPack): string {
     .slice(0, 5)
     .map((c) => `- ${c}`)
     .join('\n');
-  return [
-    '【资料结构地图】',
+  const body = [
     sections || '- 暂无',
-    conflicts.length ? `\n【资料间冲突】\n${conflicts}` : '',
+    conflicts ? `\n【资料间冲突】\n${conflicts}` : '',
   ]
     .filter(Boolean)
     .join('\n');
+  // Plan 253：资料内容过数据围栏，框架标签留在围栏外。
+  return ['【资料结构地图】', fenceUntrustedText('续写资料·结构地图', body)].join('\n');
 }
 
 export function buildReadingQuestionsContext(pack: ContinuationPack): string {
   const questions = pack.readingQuestions;
   if (!questions || questions.length === 0) return '';
-  return [
-    '【资料审读问题】',
-    ...questions
-      .slice(0, 8)
-      .map((q, i) => `${i + 1}. [${q.category}] ${q.question}\n   上下文：${q.context}`),
-  ].join('\n');
+  const body = questions
+    .slice(0, 8)
+    .map((q, i) => `${i + 1}. [${q.category}] ${q.question}\n   上下文：${q.context}`)
+    .join('\n');
+  return ['【资料审读问题】', fenceUntrustedText('续写资料·审读问题', body)].join('\n');
 }
 
 export function buildContinuationGapsContext(pack: ContinuationPack): string {
   const gaps = pack.continuationGaps;
   if (!gaps || gaps.length === 0) return '';
-  return [
-    '【续写缺口】',
-    ...gaps
-      .slice(0, 6)
-      .map(
-        (g, i) => `${i + 1}. [${g.severity}] ${g.description}\n   建议方向：${g.suggestedDirection}`
-      ),
-  ].join('\n');
+  const body = gaps
+    .slice(0, 6)
+    .map(
+      (g, i) => `${i + 1}. [${g.severity}] ${g.description}\n   建议方向：${g.suggestedDirection}`
+    )
+    .join('\n');
+  return ['【续写缺口】', fenceUntrustedText('续写资料·续写缺口', body)].join('\n');
 }
 
 /**
@@ -226,15 +226,29 @@ export function buildContinuationContext(
     .slice(0, 10)
     .map((contradiction) => `- ${contradiction.summary}：${contradiction.acceptedResolution}`)
     .join('\n');
+  const plotStateBody = [
+    `时间线：${pack.plotState?.currentTimeline || '未设定'}`,
+    `最近场景：${pack.plotState?.latestScene || '未设定'}`,
+    `即时冲突：${pack.plotState?.immediateConflict || '未设定'}`,
+    `下一步：${pack.plotState?.nextLikelyMove || '未设定'}`,
+  ].join('\n');
 
+  // Plan 253：来自资料包的自由文本段一律过 <user_data> 数据围栏，
+  // 框架标签保留在围栏外且只做描述（资料内容不得携带指令语义）。
+  // 各段 label 带·段名后缀：label 是我们写入的脚手架行，逐段唯一可避免
+  // 消费侧（如保底草稿质量门）把重复 scaffold 行误判为高密度重复句。
   return [
-    `【资料包续写任务】${pack.continuationTask}`,
-    `【硬设定，不可违背】\n${hardFacts || '- 暂无'}`,
-    `【当前剧情状态】\n时间线：${pack.plotState?.currentTimeline || '未设定'}\n最近场景：${pack.plotState?.latestScene || '未设定'}\n即时冲突：${pack.plotState?.immediateConflict || '未设定'}\n下一步：${pack.plotState?.nextLikelyMove || '未设定'}`,
-    `【未解决伏笔】\n${hooks || '- 暂无'}`,
-    `【人物当前状态】\n${characters || '- 暂无'}`,
-    options.includeStyle === false ? '' : `【风格约束】\n${style}`,
-    conflictResolutions ? `【冲突裁决，优先遵循】\n${conflictResolutions}` : '',
+    `【资料包续写任务】\n${fenceUntrustedText('续写资料·续写任务', pack.continuationTask || '')}`,
+    `【硬设定资料】\n${hardFacts ? fenceUntrustedText('续写资料·硬设定', hardFacts) : '- 暂无'}`,
+    `【当前剧情状态】\n${fenceUntrustedText('续写资料·剧情状态', plotStateBody)}`,
+    `【未解决伏笔】\n${hooks ? fenceUntrustedText('续写资料·伏笔', hooks) : '- 暂无'}`,
+    `【人物当前状态】\n${characters ? fenceUntrustedText('续写资料·人物', characters) : '- 暂无'}`,
+    options.includeStyle === false
+      ? ''
+      : `【风格约束】\n${fenceUntrustedText('续写资料·风格', style)}`,
+    conflictResolutions
+      ? `【冲突裁决，优先遵循】\n${fenceUntrustedText('续写资料·冲突裁决', conflictResolutions)}`
+      : '',
     sourceMap,
     readingQuestions,
     continuationGaps,
