@@ -274,6 +274,7 @@ export function rowToSkill(row: SkillRow): Skill {
         : row.is_runtime_ready === 1,
     sanitizationStatus: row.sanitization_status || envelope?.sanitizationStatus,
     runtimeStatus: row.runtime_status || envelope?.runtimeStatus,
+    sanitizationHits: envelope?.sanitizationHits,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? undefined,
   } as Skill;
@@ -563,7 +564,7 @@ export function skillToRow(s: Skill): DbRow {
     fusionMeta.accessTier = s.accessTier;
   }
   const extended = s as Skill & Record<string, unknown>;
-  for (const key of ['sourceType', 'isRuntimeReady', 'sanitizationStatus', 'runtimeStatus']) {
+  for (const key of ['sourceType', 'isRuntimeReady', 'sanitizationStatus', 'runtimeStatus', 'sanitizationHits']) {
     if (extended[key] !== undefined) fusionMeta[key] = extended[key];
   }
   const serializedFusionMeta =
