@@ -578,6 +578,22 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 >
 > **2026-09-20 补充②（用户上报「原料库 86 张太多」）**：诊断=现关键词分桶四成挤在「正文润色与文风」兜底桶，而治理标 `primaryCategory`/`curationTier` 元数据已存在但 UI 未用。用户裁决：原料库内按用途二级分组 + 疑似重复先标记不并入（符合 Plan 241 反馈门槛，当前样本仅 1 条）。已落地（`b178f74`）：StyleShelf 原料库按 primaryCategory 二级分组（创作流程 17/成套配方/实用工具/文风参考/质量护栏/平台标准/其他，按规模排序），suspect-duplicate 单列置底标灰；补守恒+置底+计数镜像回归测试；前端 944/944。
 
+---
+
+## Round 45（2026-09-20）：配置容量扩容与已生效总览（256）
+
+用户实证痛点：能力卡库存多但「作品卡组」恒 3/3 满；套牌/链路卡整剂启用走 `projectTechniqueIds`（无上限数组）不占格——同为"作品默认配置"，容量语义与 UI 呈现割裂。真实模型为四条泳道：卡组 deck（1 主+≤2 辅，仅拆书卡，服务端硬校验）/ 作品默认技法（无上限）/ 收藏（回退）/ 护栏+章级 overlay。用户裁决：辅卡 2→4 + 含已生效总览。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 256 | 拆书卡组容量扩容（辅卡 2→4，常量 `PROJECT_DECK_MAX_SUPPORT_CARDS` 单源：服务端双校验点+UI 槽位+文案共用）+ 已生效配置总览（卡组/技法/护栏按工位分组，占格与容量语义如实标注）（plans/256-deck-capacity-overview.md） | DONE（已合并 `85a44c8`；主干后端 1225/1225 + 前端 144 文件全绿；执行中获批扩展范围：`skills-studio-governance.addCardToProjectDeck` 加卡闸同步常量化，否则扩容对加卡链路不生效） | — |
+
+### Round 45 遗留与联动（防重复审计）
+
+- **book-factory 第三处容量闸未收编**：`src/components/book-factory/useBookFactory.ts` 的 `PROJECT_DECK_SUPPORT_LIMIT`（3 辅卡 throw、文案"辅卡不超过 2 张"）——拆书工作台独立选择流，需单独计划收编到 `PROJECT_DECK_MAX_SUPPORT_CARDS`。
+- **生成侧联动闸**：`TOO_MANY_EFFECTIVE_SKILL_CARDS` 仍限"卡组+本章卡 ≤ 6"——1 主 + 4 辅后本章 overlay 余量仅 1 张，超出将 400。属 prompt 预算语义，改动需单独评估，勿当作 bug 上报。
+- Round 44 遗留维持：预清洗计数口径暂缓；`lwl-` 扩词表需重锚公开目录。
+
 - **S7 dev-token 生产 bundle localhost 启发式**（main.tsx:15）：服务端双重 opt-in + loopback 绑定已兜底，防御纵深改进，暂缓。
 - **S8 SSE token 走 query string**（db-transport.ts:170）：同第 30 轮排除结论（已治理口径），EventSource 平台限制，暂缓。
 - **S9 JSON 抽取无尺寸/危险键防护 + catalog freshness 守卫为脚本手工镜像**：本机单用户风险低；守卫镜像随 236 遗留债（两份 sanitizer 合一）一并观察。
