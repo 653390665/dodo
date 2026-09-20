@@ -762,7 +762,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "情节极速推进，文字白话却极具画面代入感与情绪爽感。",
     "score": 93,
     "grade": "A",
-    "sourceType": "plaza",
+    "sourceType": "built-in",
     "primaryCategory": "author-workflow",
     "inputs": [
       "scene-outline"
@@ -792,7 +792,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "段落逻辑漏洞尽显，诊断意见极其具体具有手术级可操作性。",
     "score": 92,
     "grade": "A",
-    "sourceType": "plaza",
+    "sourceType": "built-in",
     "primaryCategory": "quality-guardrail",
     "inputs": [
       "content"
@@ -912,7 +912,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "成功形成结构化的、可用于本地套用创作的高爽剧情黄金节奏排卡。",
     "score": 95,
     "grade": "S",
-    "sourceType": "plaza",
+    "sourceType": "built-in",
     "primaryCategory": "skill-card",
     "inputs": [
       "content"
@@ -927,7 +927,7 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = [
     "successSignal": "完美解析出悬念铺垫时间线与心跳波形图，形成极品钩子模版。",
     "score": 91,
     "grade": "A",
-    "sourceType": "plaza",
+    "sourceType": "built-in",
     "primaryCategory": "skill-card",
     "inputs": [
       "content"

@@ -214,7 +214,7 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
   ),
   'prose-mouth-flavor': technique(
     ['writer'],
-    'plaza',
+    'built-in',
     {
       input: 'text',
       output: 'configuration',
@@ -238,7 +238,7 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
     },
     'draft'
   ),
-  'audit-logical-sanity': { ...diagnostic(['critic'], 'plaza'), runtimeStatus: 'unavailable' },
+  'audit-logical-sanity': { ...diagnostic(['critic'], 'built-in'), runtimeStatus: 'unavailable' },
   'audit-cliche-detector': diagnostic(['critic'], 'built-in'),
   'de-ai-slop-shield': technique(
     ['writer', 'critic'],
@@ -278,8 +278,8 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
   },
   'style-cthulhu-mystique': skillCard(['writer'], 'licensed', 'style-card'),
   'style-ancient-elegance': skillCard(['writer'], 'plaza', 'style-card'),
-  'deconstruct-golden-climax': skillCard(['planner', 'writer'], 'plaza', 'pacing-card'),
-  'deconstruct-suspense-hook': skillCard(['planner', 'writer'], 'plaza', 'hook-card'),
+  'deconstruct-golden-climax': skillCard(['planner', 'writer'], 'built-in', 'pacing-card'),
+  'deconstruct-suspense-hook': skillCard(['planner', 'writer'], 'built-in', 'hook-card'),
 };
 
 const FLOW_IDS = new Set([
