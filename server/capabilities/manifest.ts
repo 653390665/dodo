@@ -160,6 +160,10 @@ export class SkillCardValidationError extends Error {
   }
 }
 
+// Plan 253 上线时刻：此前落库的存量 book-extracted 卡无扫描记录，读路径豁免；
+// 新卡一律由 finalizeExtractedCard 产出 hits，绕过者在门禁处拒绝。
+const BOOK_EXTRACTED_HITS_REQUIRED_SINCE = Date.parse('2026-09-20T00:00:00+00:00');
+
 /** Single server-side gate for persisted/project/chapter capability cards. */
 export function validateSkillCardForScope(
   skill: Skill,
@@ -196,6 +200,25 @@ export function validateSkillCardForScope(
     throw new SkillCardValidationError(
       'SKILL_CARD_NOT_RUNTIME_READY',
       '能力卡尚未达到 runtime-ready'
+    );
+  }
+  // Plan 253 Step 5：book-extracted 卡必须留有内容扫描记录（finalizeExtractedCard 产出），
+  // 防止绕过消毒管线的卡直达运行时。
+  const sanitizationHits = (value as { sanitizationHits?: unknown }).sanitizationHits;
+  const hitsMissing =
+    !sanitizationHits ||
+    typeof sanitizationHits !== 'object' ||
+    Array.isArray(sanitizationHits) ||
+    Object.keys(sanitizationHits).length === 0;
+  // 存量豁免：createdAt 缺失/非法的旧卡按豁免处理（fail-open），新卡写入必经 finalize 兜底。
+  const createdAtAfterCutoff =
+    typeof skill.createdAt === 'number' &&
+    Number.isFinite(skill.createdAt) &&
+    skill.createdAt >= BOOK_EXTRACTED_HITS_REQUIRED_SINCE;
+  if (String(skill.sourceType) === 'book-extracted' && hitsMissing && createdAtAfterCutoff) {
+    throw new SkillCardValidationError(
+      'SKILL_CARD_SANITIZATION_HITS_MISSING',
+      'book-extracted 卡缺少消毒扫描记录（sanitizationHits）'
     );
   }
   const hasRules = [

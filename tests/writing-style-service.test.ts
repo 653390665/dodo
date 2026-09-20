@@ -26,6 +26,7 @@ function savedCardSkill(id: string, cardType: Skill['deconstructionCardType'], o
     isRuntimeReady: true,
     sanitizationStatus: 'runtime-ready',
     runtimeStatus: 'active',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
     deconstructionCardType: cardType,
     executionScore: 85,
     style: 'saved style rule',
