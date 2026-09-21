@@ -133,15 +133,17 @@ const WRITER_LLM_OPTIONS = {
   timeoutMs:
     Number(process.env.INKFLOW_WRITER_TIMEOUT_MS) > 0
       ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
-      : 90_000,
-  maxAttempts: 1,
-  maxTokens: 8192,
+      : 180_000,
+  maxAttempts: 2,
+  maxTokens: 16_384,
 } as const;
 
 // Per-scene budget for split-scene generation (scheme C): one scene is a few
 // hundred characters, so a fraction of the whole-chapter budget suffices and
 // slow upstreams can finish within the per-call window.
-const WRITER_SCENE_MAX_TOKENS = 2400;
+// Plan 260 后续：场景预算从 2400 提至 4096——11 张技法卡注入后单场景 prompt
+// 变长，模型需要更多输出 token 才能完成场景叙事而不截断。
+const WRITER_SCENE_MAX_TOKENS = 4096;
 /** Minimum scene blocks for split generation; below this, single-shot the chapter. */
 const MIN_SCENES_FOR_SPLIT = 2;
 
@@ -342,7 +344,7 @@ export async function runProductionPipeline(params: {
       skillsInfo: writerSkillsInfo,
       sceneBeats,
       criticFeedback: criticFeedback || '初稿阶段，请全力输出。',
-    });
+    }) + '\n\n【输出纪律】只写叙事正文。正文中禁止出现设定说明、世界规则、角色介绍、场景标题、分镜指令或任何非故事内容的文字。上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。';
 
     draftSource = 'model';
     try {
