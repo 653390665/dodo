@@ -1139,11 +1139,17 @@ function buildTechniquesResilient(ids: string[]): {
   }
   // Plan 260 后续：技法 prompt 预算——按优先级排序后，单阶段总字数超出预算时
   // 从尾部截断（低优先级技法被跳过），防止 prompt 污染和风格互扰。
+  // Plan 260 后续②：同阶段技法数量上限——卡太多时模型无法同时满足所有风格指令。
   const TECHNIQUE_PROMPT_BUDGET = 4000;
+  const MAX_TECHNIQUES_PER_STAGE = 4;
   for (const stage of ['planner', 'writer', 'critic'] as const) {
     let totalLen = 0;
     const kept: ExecutionTechnique[] = [];
     for (const t of result[stage]) {
+      if (kept.length >= MAX_TECHNIQUES_PER_STAGE) {
+        warnings.push(`TECHNIQUE_BUDGET_EXCEEDED:${t.id}`);
+        continue;
+      }
       const pLen = (t.prompt || '').length;
       if (totalLen + pLen > TECHNIQUE_PROMPT_BUDGET && kept.length > 0) {
         warnings.push(`TECHNIQUE_BUDGET_EXCEEDED:${t.id}`);
