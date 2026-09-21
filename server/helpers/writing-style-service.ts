@@ -16,6 +16,7 @@ import type {
 import { CARD_STAGE_MAP } from '../../shared/types.js';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile.js';
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
+import { SANITIZED_SKILL_COPIES } from '../../shared/lib/public-skill-catalog.js';
 import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.js';
 import { resolveSkillLoadout } from '../../shared/lib/skill-model.js';
 import * as db from '../lib/db.js';
@@ -1094,7 +1095,10 @@ function buildTechniquesResilient(ids: string[]): {
       warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
       continue;
     }
-    const catalog = PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id);
+    // Plan 259 后续：消毒副本（sanitized-*）同样可作为技法运行——
+    // 它们的运行时正文在 SANITIZED_SKILL_COPIES（模板真实且已消毒），此前从未接入技法解析。
+    const catalog = PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id)
+      ?? SANITIZED_SKILL_COPIES.find((asset: { id: string }) => asset.id === id);
     const runtimePrompt = resolveRuntimeCuratedPrompts([
       {
         id,
