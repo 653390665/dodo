@@ -183,10 +183,15 @@ const MIN_SCENES_FOR_SPLIT = 2;
 // Plan 261：输出纪律同时压两类已确诊失败——(1) 分镜元数据被复述进正文；
 // (2) 单发全章时模型写完一遍不收笔，重开第二/第三版本（run 91f03710 实测
 // "三个版本的追逐场景"，critic 直接给出 54 分）。
+// Plan 261 修复⑪：硬设定红线——角色的认知状态/能力边界是既定事实
+//（run R fatalIssue#2：设定"觉醒但未自知"却被写成主动观察），违反即废稿级。
 const WRITER_OUTPUT_DISCIPLINE =
   '\n\n【输出纪律】只写一遍叙事正文，写完本章结尾立即停笔。禁止重写、续写或输出同一情节的多个版本。' +
   '正文中禁止出现设定说明、世界规则、角色介绍、场景标题、分镜指令或任何非故事内容的文字。' +
-  '上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。';
+  '上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。' +
+  '【硬设定红线】上下文中的角色当前状态与世界规则是既定事实，正文不得与之冲突：' +
+  '角色的认知状态（如"未自知""不知情"）、能力边界、已知与未知信息不可颠倒；' +
+  '角色触碰设定边界的反应必须写成不自知、不可控、事后困惑，禁止让角色主动运用其尚未自觉的能力。';
 
 /**
  * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
@@ -195,10 +200,32 @@ const WRITER_OUTPUT_DISCIPLINE =
  * 字数约束则会被保底草稿当提示句吸收。这里剥掉约束、按出现顺序重编号。
  */
 export function normalizePlannerBeats(beats: string): string {
-  let sceneNo = 0;
-  return String(beats || '')
+  const stripped = String(beats || '')
     .replace(/（(?:≤|不超过\s*)[0-9]+\s*字）/g, '')
-    .replace(/\((?:≤|不超过\s*)[0-9]+\s*字\)/g, '')
+    .replace(/\((?:≤|不超过\s*)[0-9]+\s*字\)/g, '');
+  // Plan 261 修复⑨：只保留场景块——planner 常在分镜头尾携带策划表格
+  // （"## 本章节奏核验""规则伏笔清单""章末钩子选择"），最后一个场景块会把
+  // 它们一并带进 writer prompt，被整段抄进正文末尾（run R fatalIssue#1：
+  // 元数据残留强制 FAIL）。非场景标题的段落整段剥除。
+  const keptLines: string[] = [];
+  let dropping = false;
+  for (const rawLine of stripped.split('\n')) {
+    const trimmed = rawLine.trim();
+    const isHeading = /^#{1,4}\s/.test(trimmed);
+    // 场景头同时接受编号与占位符（"场景 N"）——占位符行是场景块本体，
+    // 不能当策划段落剥掉（剥除后由下方 renumber 收编）。
+    const isSceneHeading = /^#{0,3}\s*\**\s*场景\s*(?:\d+|[NＮn]+)/.test(trimmed);
+    if (isHeading || isSceneHeading) dropping = !isSceneHeading;
+    if (dropping) continue;
+    // 显式策划残留行（可能以粗体而非标题出现）也剥除
+    if (/^#{0,4}\s*\**\s*(?:本章节奏核验|规则伏笔清单|章末钩子选择|推荐\s?[AB])/.test(trimmed)) {
+      continue;
+    }
+    keptLines.push(rawLine);
+  }
+  let sceneNo = 0;
+  return keptLines
+    .join('\n')
     .replace(
       /(^|\n)(#{0,3}\s*\**\s*)场景\s*(?:[NＮn]+|[0-9]+)(\s*[：:，,])/g,
       (_match, newline: string, prefix: string, sep: string) => {
@@ -730,6 +757,11 @@ export async function runProductionPipeline(params: {
       status: auditStatus,
       score: auditStatus === 'unknown' ? undefined : auditScore,
     });
+
+    // Plan 261 修复⑩：attempt1 达高分区（≥70）即收稿——重试轮实测常深度退化
+    //（run R：74→8→38），且 70-79 的稿由最优稿营救/review_required 人工收尾
+    // 兜底，继续重试是负资产（多花两轮 LLM 调用换更差的稿）。
+    if (auditStatus === 'fail' && auditScore >= 70) break;
 
     // Plan 247：unknown（审稿不可验证）不再直接 break——追加一次 critic 复核
     // （让 Writer 重写后 Critic 重新审稿），复核仍 unknown 则在下方诚实降级。
