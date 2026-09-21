@@ -1137,6 +1137,23 @@ function buildTechniquesResilient(ids: string[]): {
       });
     }
   }
+  // Plan 260 后续：技法 prompt 预算——按优先级排序后，单阶段总字数超出预算时
+  // 从尾部截断（低优先级技法被跳过），防止 prompt 污染和风格互扰。
+  const TECHNIQUE_PROMPT_BUDGET = 4000;
+  for (const stage of ['planner', 'writer', 'critic'] as const) {
+    let totalLen = 0;
+    const kept: ExecutionTechnique[] = [];
+    for (const t of result[stage]) {
+      const pLen = (t.prompt || '').length;
+      if (totalLen + pLen > TECHNIQUE_PROMPT_BUDGET && kept.length > 0) {
+        warnings.push(`TECHNIQUE_BUDGET_EXCEEDED:${t.id}`);
+        continue;
+      }
+      totalLen += pLen;
+      kept.push(t);
+    }
+    result[stage] = kept;
+  }
   return { techniques: result, warnings };
 }
 
