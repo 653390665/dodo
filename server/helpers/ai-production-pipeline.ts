@@ -565,6 +565,25 @@ export async function runProductionPipeline(params: {
           }
         );
       }
+      // Plan 261 修复⑭：模型空稿/超短稿（<200 有效字符）是模型侧间歇性空响应
+      //（run T 实测 0 token），此前被 ensureMinimumDraftLength 用模板段落+分镜
+      // 提示句填充成数千字"元数据汤"，critic 全程在审计填充稿——真模型稿从未
+      // 被重试（run S/T/U 三连崩坏的真因）。空稿不再填充：直接重试模型；
+      // 重试耗尽才走保底降级。
+      const modelDraftCompactChars = String(currentDraft).replace(/\s/g, '').length;
+      if (modelDraftCompactChars < 200) {
+        logger.warn('[pipeline] writer returned an empty/tiny draft; retrying model', {
+          novelId,
+          modelDraftCompactChars,
+        });
+        if (attempt < MAX_RETRIES) {
+          criticFeedback = '【生成器提示】上一轮模型未返回正文（空响应）。请直接输出完整的叙事正文，不要输出任何说明。';
+          writerRetryFeedback = criticFeedback;
+          progress.onPhase?.('retry');
+          continue;
+        }
+        throw new Error('empty_model_draft');
+      }
       currentDraft = ensureMinimumDraftLength(
         currentDraft,
         sceneBeats,
