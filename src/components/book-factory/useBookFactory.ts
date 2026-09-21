@@ -373,6 +373,18 @@ export interface BookFactoryChapterContext {
 
 export const MIN_BOOK_FACTORY_TEXT_CHARS = 50;
 
+// 与 /api/extract-skill 校验 schema 的 skills 上限（max(3)）保持一致。
+export const MAX_DECONSTRUCT_GUIDE_CARDS = 3;
+
+export function toggleDeconstructGuideCard(
+  current: string[],
+  id: string,
+  max = MAX_DECONSTRUCT_GUIDE_CARDS
+): string[] {
+  if (current.includes(id)) return current.filter((existing) => existing !== id);
+  return current.length >= max ? current : [...current, id];
+}
+
 export function countChineseCharacters(text: string): number {
   return (text.match(/[一-鿿]/g) || []).length;
 }
@@ -436,6 +448,11 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
   const [savedDeckIds, setSavedDeckIds] = useState<string[]>([]);
   const [savedDeckSourceMap, setSavedDeckSourceMap] = useState<Record<string, string>>({});
   const [deckSelection, setDeckSelection] = useState<ProjectSkillDeckSelection>({});
+  const [selectedDeconstructCardIds, setSelectedDeconstructCardIds] = useState<string[]>([]);
+
+  const toggleDeconstructCard = (id: string) => {
+    setSelectedDeconstructCardIds((current) => toggleDeconstructGuideCard(current, id));
+  };
 
   const lastSeenInputRef = useRef(fileContent);
 
@@ -679,7 +696,11 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     setExtractionQuality(null);
 
     try {
-      const data = await extractSkill(fileContent, selectedNovel.id);
+      const data = await extractSkill(
+        fileContent,
+        selectedNovel.id,
+        selectedDeconstructCardIds
+      );
       const normalized = normalizeSkillConfigs(data);
       if (normalized.length === 0) {
         throw new Error('拆书接口返回成功，但没有可展示的拆书卡。');
@@ -1120,6 +1141,8 @@ export function useBookFactory(chapterContext: BookFactoryChapterContext = {}) {
     savedDeckSourceMap,
     deckSelection,
     setDeckSelection,
+    selectedDeconstructCardIds,
+    toggleDeconstructCard,
     handleFileUpload,
     handleAnalyze,
     handleTestDrive,

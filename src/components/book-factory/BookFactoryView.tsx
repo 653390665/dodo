@@ -28,6 +28,8 @@ export function BookFactoryView(context: BookFactoryChapterContext = {}) {
             isAnalyzing={factory.isAnalyzing}
             onFileUpload={factory.handleFileUpload}
             onAnalyze={factory.handleAnalyze}
+            selectedDeconstructCardIds={factory.selectedDeconstructCardIds}
+            onToggleDeconstructCard={factory.toggleDeconstructCard}
           />
           <BookFactoryOutput
             isAnalyzing={factory.isAnalyzing}

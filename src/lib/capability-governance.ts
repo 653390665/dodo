@@ -225,6 +225,23 @@ export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
   }));
 }
 
+/** 拆书工厂「指导卡」选择项：官方内置拆书卡 + 治理目录 runtime-ready 拆书卡的壳投影。 */
+export function getFactoryDeconstructCardOptions(): CuratedProductSkill[] {
+  const curated = CURATED_PRODUCT_SKILLS.filter((asset) => {
+    const manifest = getCatalogCapabilityManifest(asset.id);
+    return (
+      manifest?.kind === 'skill-card' &&
+      manifest.runtimeStatus === 'active' &&
+      Boolean(manifest.deconstructionCardType)
+    );
+  });
+  const curatedIds = new Set(curated.map((asset) => asset.id));
+  return [
+    ...curated,
+    ...getGovernedOverlayDisplayAssets().filter((asset) => !curatedIds.has(asset.id)),
+  ];
+}
+
 /** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关。 */
 export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
   return PROMPT_GOVERNANCE_CATALOG.filter(

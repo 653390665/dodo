@@ -24,6 +24,31 @@ test('extractSkill surfaces rejected reason from input gate', async () => {
   }
 });
 
+test('extractSkill forwards deconstruct guide card ids as id-only skills', async () => {
+  const originalFetch = globalThis.fetch;
+  const capturedBodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = async (_input, init) => {
+    capturedBodies.push(JSON.parse(String(init?.body || '{}')) as Record<string, unknown>);
+    return {
+      ok: true,
+      json: async () => ({ skills: [], deck: {}, segments: [], source: 'fallback' }),
+    } as Response;
+  };
+
+  try {
+    await extractSkill('样本正文足够长', 'novel-1', ['deconstruct-golden-climax', 'extra-id']);
+    await extractSkill('样本正文足够长', 'novel-1');
+    assert.deepEqual(capturedBodies[0], {
+      text: '样本正文足够长',
+      novelId: 'novel-1',
+      skills: [{ id: 'deconstruct-golden-climax' }, { id: 'extra-id' }],
+    });
+    assert.deepEqual(capturedBodies[1], { text: '样本正文足够长', novelId: 'novel-1' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('refineSetupTask returns refined text payload', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input) => {

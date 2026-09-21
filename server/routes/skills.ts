@@ -135,6 +135,7 @@ import {
   evaluateSkillOutputQuality,
 } from '../../shared/lib/quality-gates';
 import { buildBookEvidenceSegments } from '../../shared/lib/book-skill-segmentation';
+import { resolveTrustedDeconstructSkills } from '../helpers/deconstruct-guidance';
 import { buildSkillDeckFromEvidence } from '../../shared/lib/book-skill-aggregation';
 import { collectSegmentEvidence } from '../../shared/lib/book-skill-evidence';
 import type { SegmentSkillEvidence, Skill } from '../../shared/types';
@@ -395,14 +396,9 @@ export function registerSkillsRoutes(app: Express) {
         }
       }
 
-      // Filter out any skills that are meant for book deconstruction/decompile
-      const deconstructSkills = (activeSkills || []).filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (s: any) =>
-          (s.id && s.id.startsWith('deconstruct-')) ||
-          s.deconstructionCardType !== undefined ||
-          s.curatedCategory === 'deconstruct'
-      );
+      // 拆书指导卡信任门禁：客户端入参只读 id，正文一律由服务端从
+      // 私表/库内/治理目录解析，未消毒候选正文不得进入拆书 prompt。
+      const deconstructSkills = resolveTrustedDeconstructSkills(activeSkills || []);
 
       const deconstructSkillsInfo =
         deconstructSkills.length > 0 ? buildSkillsPrompt(deconstructSkills) : undefined;

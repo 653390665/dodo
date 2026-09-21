@@ -94,11 +94,22 @@ export class QuotaError extends Error {
   }
 }
 
-export async function extractSkill(text: string, novelId?: string): Promise<ExtractSkillResponse> {
+export async function extractSkill(
+  text: string,
+  novelId?: string,
+  deconstructCardIds: string[] = []
+): Promise<ExtractSkillResponse> {
   const res = await fetch('/api/extract-skill', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, novelId }),
+    body: JSON.stringify({
+      text,
+      novelId,
+      // 只传 id：指导卡正文由服务端从可信源解析，前端不持卡面内容。
+      ...(deconstructCardIds.length > 0
+        ? { skills: deconstructCardIds.slice(0, 3).map((id) => ({ id })) }
+        : {}),
+    }),
   });
   const data = await res.json();
   if (data && data.quotaExceeded) {
