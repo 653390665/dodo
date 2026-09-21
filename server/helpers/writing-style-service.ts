@@ -1127,6 +1127,13 @@ function buildTechniquesResilient(ids: string[]): {
       warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
       continue;
     }
+    // Plan 261 修复⑧：壳卡守门——plaza 引用壳（"[XX体] 围绕 X 执行"式转投文本，
+    // 30-48 字、无实际指导）治理面全标 isRuntimeReady=true，装备后会静默注入
+    // 废话占技法槽。这类卡在技法解析层诚实拦下；真卡零误伤（44 张实测）。
+    if (prompt && prompt.length < 80 && /^\[[^\]]{2,14}体\]/.test(prompt)) {
+      warnings.push(`SHELL_CARD_SKIPPED:${id}`);
+      continue;
+    }
     for (const stage of manifest.stages) {
       result[stage].push({
         id,
