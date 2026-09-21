@@ -71,6 +71,10 @@ export function expandDraftToMinimum(
   const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   const normalizedBeats = String(sceneBeats || '').trim();
   const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, ''));
+  // Plan 261：过滤世界规则/设定说明类 hint——这些是背景信息而非叙事线索，
+  // 嵌入正文会导致设定文档泄漏（如"裂隙是超自然力量来源"直接出现在段落里）。
+  const SETTING_RESIDUE = /裂隙是|锚点机制|公理|鬼市规则|机械化改造|世界规则|力量体系|设定[：:]/;
+  const filteredContext = contextLines.filter((line) => !SETTING_RESIDUE.test(line));
   const isFallbackTemplate = /异动入场|试探加深|悬念收束/.test(normalizedBeats);
   const beatHints = isFallbackTemplate
     ? sanitizeFallbackContext(
@@ -80,7 +84,7 @@ export function expandDraftToMinimum(
         0,
         12
       );
-  const hints = [...beatHints, ...contextLines].filter(Boolean);
+  const hints = [...beatHints, ...filteredContext].filter(Boolean);
   const seed = hints[0] || '这场变故没有给任何人留下退路';
   const hintSentence = (hint: string) => `${hint.replace(/[。！？!?；;，,]+$/, '')}。`;
 
