@@ -497,6 +497,29 @@ export function validateCompleteChapterDraftQuality(
     });
   }
   const mechanical = scoreSlop(text);
+  // Plan 261 修复⑫：分镜/资料字段回声检测——writer 偶发把 beats 字段行
+  //（出场人物/关键动作链…）与场景头整段抄进正文（run S：3 连发 5 分汤稿）。
+  // 在稿级校验就地打回触发重写，而不是烧完一轮 critic 才由审稿发现。
+  const BEATS_FIELD_RESIDUE =
+    /^\s*(?:#{0,4}\s*)?(?:\*\*)?\s*(?:出场人物|入场钩子|核心冲突|关键动作链|关键道具\/?信息|情绪转折|退场钩子|连接上一场景)\s*(?:\*\*)?\s*[：:]/;
+  const residueLines = text
+    .split('\n')
+    .filter(
+      (line) =>
+        BEATS_FIELD_RESIDUE.test(line) || /^\s*#{0,4}\s*场景\s*\d+\s*[：:]/.test(line.trim())
+    );
+  if (residueLines.length >= 2 && !findings.some((finding) => finding.code === 'metadata-residue')) {
+    findings.push({
+      code: 'metadata-residue',
+      message: `正文混入 ${residueLines.length} 处分镜/资料字段行（如「${residueLines[0].trim().slice(0, 30)}」），属于创作元数据残留，需要重写为纯叙事正文`,
+      severity: 'P1',
+      category: 'template',
+      evidence: residueLines.slice(0, 3).map((line, index) => ({
+        line: index + 1,
+        snippet: line.trim().slice(0, 60),
+      })),
+    });
+  }
   const mechanicalReview: DraftQualityMechanicalReview = {
     status: mechanical.score >= MIN_COMPLETE_CHAPTER_SLOP_SCORE ? 'pass' : 'needs-action',
     score: mechanical.score,

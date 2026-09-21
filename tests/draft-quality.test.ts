@@ -483,3 +483,36 @@ test('structured audit does not claim untouched dimensions passed without eviden
   assert.equal(review.status, 'unknown');
   assert.deepEqual(review.checks.map((check) => check.status), ['unknown', 'unknown', 'unknown', 'unknown']);
 });
+
+// Plan 261 修复⑫：writer 把 beats 字段行/场景头整段抄进正文时，稿级校验
+// 必须就地打回（run S：3 连发 5 分汤稿直到 critic 才发现）。
+test('complete chapter quality rejects beats-field echo as metadata residue', () => {
+  const soup = [
+    '### 场景 1：桥下复勘',
+    '',
+    '**出场人物**：左妄、赵桂芳',
+    '**入场钩子**：赵桂芳蹲在桥墩下。',
+    '**关键动作链**：左妄把照片翻面→拨出时间23:47→摸到第二张工牌',
+    '**关键道具/信息**：陈德胜手机通话记录单',
+    '**情绪转折**：从谨慎询问→被迫入局',
+    '**退场钩子**：赵桂芳说"两人死前一晚都值夜班"。',
+    '**连接上一场景**：接上一章结尾。',
+  ].join('\n');
+  const result = validateCompleteChapterDraftQuality(soup);
+
+  assert.equal(result.ok, false);
+  const finding = result.findings.find((item) => item.code === 'metadata-residue');
+  assert.equal(finding?.severity, 'P1');
+  assert.ok((finding?.message || '').includes('元数据残留'));
+});
+
+test('complete chapter quality allows prose that merely mentions scene-like words', () => {
+  const prose = Array.from(
+    { length: 30 },
+    (_, index) =>
+      `第${index + 1}次确认后，左妄把工牌翻过来，指甲在背面"112"的刻痕上停了一瞬，门外的雨还没停。`
+  ).join('\n\n');
+  const result = validateCompleteChapterDraftQuality(prose);
+
+  assert.ok(!result.findings.some((finding) => finding.code === 'metadata-residue'));
+});
