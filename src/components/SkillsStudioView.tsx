@@ -20,7 +20,7 @@ import { CAPABILITY_SYMPTOMS, filterBySymptom } from '../lib/capability-symptoms
 import { detectStationConflicts, getCraftSignature } from '../lib/capability-craft';
 import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
-import { Skill, Novel, ViewType, ProjectCapabilityProfile } from '../../shared/types';
+import { Skill, Novel, ViewType, ProjectCapabilityProfile, TechniquePriorityRole } from '../../shared/types';
 import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile';
 import { SkillCard } from './skills/SkillCard';
@@ -299,6 +299,13 @@ function overviewStationLabel(station: string): string {
   if (station.startsWith('misc:')) return '其他';
   return OVERVIEW_STATION_LABELS[station] ?? station;
 }
+
+// Plan 260：技法装配角色徽标文案——与生成侧注入标注（基调/强化/季节技法）一一对应。
+const TECHNIQUE_ROLE_LABELS: Record<TechniquePriorityRole, string> = {
+  base: '基调',
+  accent: '强化',
+  seasonal: '季节',
+};
 
 const goldenFlowMetadata: Record<string, { target: string; output: string; color: string }> = {
   'xiaofeiji-novel-flow': {
@@ -960,7 +967,13 @@ export function SkillsStudioView({
     return [...groups.entries()];
   };
   const overviewDeckGroups = groupOverviewByStation(overviewDeckEntries);
-  const overviewTechniqueGroups = groupOverviewByStation(overviewTechniqueEntries);
+  // Plan 260：技法装配角色——未标注的技法按语义视为强化（与生成侧归一一致）。
+  const techniqueRoleById = new Map<string, TechniquePriorityRole>();
+  for (const priority of (configurationDraft || capabilityProfile)?.techniquePriorities || []) {
+    if (priority.role === 'base' || priority.role === 'accent' || priority.role === 'seasonal') {
+      techniqueRoleById.set(priority.id, priority.role);
+    }
+  }
   const overviewEmpty = overviewDeckEntries.length === 0 && overviewTechniqueEntries.length === 0;
   const isGuardrailCandidate = (asset: CuratedProductSkill) =>
     getGovernanceCapabilityType(asset) === 'guardrail' && currentGuardrailIds.includes(asset.id);
@@ -1648,6 +1661,86 @@ export function SkillsStudioView({
     });
   };
 
+  // Plan 260：技法装配控件（设为基调/上移/下移）——直接改 profile 的
+  // techniquePriorities + projectTechniqueIds 顺序后走既有应用链路（带撤销）。
+  const applyTechniqueAssemblyProfile = async (
+    nextIds: string[],
+    rolesById: Map<string, TechniquePriorityRole>,
+    label: string
+  ) => {
+    if (!selectedNovel?.id) return;
+    const current = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+    // 任一控件落笔后把 priorities 归整为「每卡一条、order=数组下标」的显式形态，
+    // 与生成侧 base → accent(order) → seasonal(order) 的注入排序一一对应。
+    const nextProfile = buildV3CapabilityProfile(effectiveNovel, {
+      ...(current || {}),
+      projectTechniqueIds: nextIds,
+      techniquePriorities: nextIds.map((id, index) => ({
+        id,
+        role: rolesById.get(id) ?? ('accent' as const),
+        order: index,
+      })),
+    }).capabilityProfile;
+    if (!nextProfile) return;
+    stageConfiguration(nextProfile);
+    const preProfile = selectedNovel.projectPreferenceProfile
+      ? JSON.parse(JSON.stringify(selectedNovel.projectPreferenceProfile))
+      : null;
+    await applyConfiguration(false, 'return', nextProfile);
+    toast(`已更新技法装配：${label}`, 'success', 5000, {
+      label: '撤销',
+      onClick: () => {
+        if (preProfile)
+          void applyConfiguration(false, 'return', preProfile as CapabilityProfileDraft);
+      },
+    });
+  };
+
+  const techniqueEntryName = (id: string) =>
+    overviewTechniqueEntries.find((entry) => entry.id === id)?.name || id;
+
+  const handleTechniqueSetBase = (id: string) => {
+    if (staleConfigurationSession) {
+      setConfigurationError('旧草稿只读，请先重新预览本次配置。');
+      return;
+    }
+    const current = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+    // 基调唯一：设为基调时把其余 base 卡降级为强化，避免互斥风格互相干扰。
+    const rolesById = new Map<string, TechniquePriorityRole>();
+    for (const priority of current?.techniquePriorities || []) {
+      if (priority.id === id) continue;
+      rolesById.set(priority.id, priority.role === 'base' ? 'accent' : priority.role);
+    }
+    rolesById.set(id, 'base');
+    const ids = current?.projectTechniqueIds || [];
+    void applyTechniqueAssemblyProfile(
+      [id, ...ids.filter((value) => value !== id)],
+      rolesById,
+      `「${techniqueEntryName(id)}」设为基调`
+    );
+  };
+
+  const handleTechniqueMove = (id: string, direction: -1 | 1) => {
+    if (staleConfigurationSession) {
+      setConfigurationError('旧草稿只读，请先重新预览本次配置。');
+      return;
+    }
+    const current = configurationDraft || getProjectCapabilityProfile(effectiveNovel);
+    const ids = [...(current?.projectTechniqueIds || [])];
+    const index = ids.indexOf(id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ids.length) return;
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const rolesById = new Map<string, TechniquePriorityRole>(
+      (current?.techniquePriorities || []).map((priority) => [priority.id, priority.role])
+    );
+    void applyTechniqueAssemblyProfile(
+      ids,
+      rolesById,
+      `「${techniqueEntryName(id)}」顺序已调整`
+    );
+  };
+
   const handleEquipAsset = async (asset: CuratedProductSkill) => {
     if (!selectedNovel) {
       toast('请先选择一个作品再配置能力。', 'info');
@@ -2236,14 +2329,58 @@ export function SkillsStudioView({
                 <p className="font-bold text-theme-text">
                   {`作品默认技法 ${overviewTechniqueEntries.length} 张（不占格 · 无上限）`}
                 </p>
-                {overviewTechniqueGroups.map(([station, names]) => (
-                  <p key={station} className="mt-1 text-theme-text">
-                    <span className="text-theme-muted">{station}：</span>
-                    {names.join('、')}
-                  </p>
-                ))}
-                {overviewTechniqueEntries.length === 0 && (
+                {overviewTechniqueEntries.length === 0 ? (
                   <p className="mt-1 text-theme-muted">未设置</p>
+                ) : (
+                  // Plan 260：逐卡呈现装配角色与顺序控件；基调卡在生成 prompt 中排首位。
+                  <ol className="mt-1 space-y-1">
+                    {overviewTechniqueEntries.map((entry, index) => {
+                      const role = techniqueRoleById.get(entry.id) ?? 'accent';
+                      return (
+                        <li
+                          key={entry.id}
+                          className="flex flex-wrap items-center gap-1 text-theme-text"
+                        >
+                          <span className="text-theme-muted">{index + 1}.</span>
+                          <span>{entry.name}</span>
+                          <span
+                            className={cn(
+                              'rounded border px-1 text-[10px] font-bold',
+                              role === 'base' && 'border-amber-500/50 text-amber-600',
+                              role === 'accent' && 'border-theme-border text-theme-muted',
+                              role === 'seasonal' && 'border-sky-500/50 text-sky-600'
+                            )}
+                          >
+                            {TECHNIQUE_ROLE_LABELS[role]}
+                          </span>
+                          <span className="text-theme-muted">· {entry.station}</span>
+                          <button
+                            type="button"
+                            className="rounded border border-theme-border px-1 text-[10px] font-bold text-theme-text hover:bg-theme-border/30"
+                            onClick={() => handleTechniqueSetBase(entry.id)}
+                          >
+                            设为基调
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-theme-border px-1 text-[10px] font-bold text-theme-text hover:bg-theme-border/30 disabled:opacity-40"
+                            disabled={index === 0}
+                            onClick={() => handleTechniqueMove(entry.id, -1)}
+                          >
+                            上移
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-theme-border px-1 text-[10px] font-bold text-theme-text hover:bg-theme-border/30 disabled:opacity-40"
+                            disabled={index === overviewTechniqueEntries.length - 1}
+                            onClick={() => handleTechniqueMove(entry.id, 1)}
+                          >
+                            下移
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 )}
               </section>
               <section>

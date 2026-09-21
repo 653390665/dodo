@@ -5,22 +5,31 @@ import { closeDb, getDatabaseGeneration } from '../server/lib/db-instance.js';
 import { initDb } from '../server/lib/db-init.js';
 import * as db from '../server/lib/db.js';
 import { createChapter } from '../server/lib/db/chapters.js';
-import {
-  resolveWritingStyleRequest,
-} from '../server/helpers/writing-style-service.js';
+import { resolveWritingStyleRequest } from '../server/helpers/writing-style-service.js';
 import { normalizeProjectPreferenceProfile } from '../shared/lib/project-preference-profile.js';
 import type { Novel, Skill } from '../shared/types.js';
 
 function skill(id: string, version = 1): Skill {
   return {
-    id, name: id, description: `${id} description`, style: `${id} style`, pacing: `${id} pacing`,
-    stabilityScore: 90, evaluationFeedback: '', version, createdAt: 1,
+    id,
+    name: id,
+    description: `${id} description`,
+    style: `${id} style`,
+    pacing: `${id} pacing`,
+    stabilityScore: 90,
+    evaluationFeedback: '',
+    version,
+    createdAt: 1,
   } as Skill;
 }
 
 function novel(id = 'novel-1'): Novel {
   return {
-    id, title: 'Novel', authorId: 'author', summary: '', status: 'ongoing',
+    id,
+    title: 'Novel',
+    authorId: 'author',
+    summary: '',
+    status: 'ongoing',
     mountedSkillIds: ['planner', 'writer', 'critic'],
     mountedSkillLoadout: [
       { slot: 0, skillId: 'planner', weight: 1, lockedDimensions: [] },
@@ -28,11 +37,23 @@ function novel(id = 'novel-1'): Novel {
       { slot: 2, skillId: 'critic', weight: 1, lockedDimensions: [] },
     ],
     projectPreferenceProfile: {
-      tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 },
-      acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0,
-      skillLoadoutSchemaVersion: 2, contract: { styleAnchors: ['克制', '短句'] },
+      tags: [],
+      weights: {
+        styleWeight: 1,
+        characterWeight: 1,
+        worldWeight: 1,
+        plotWeight: 1,
+        pacingWeight: 1,
+      },
+      acceptedDimensions: [],
+      rejectedDimensions: [],
+      notes: [],
+      evidenceCount: 0,
+      skillLoadoutSchemaVersion: 2,
+      contract: { styleAnchors: ['克制', '短句'] },
     },
-    createdAt: 1, updatedAt: 1,
+    createdAt: 1,
+    updatedAt: 1,
   };
 }
 
@@ -84,11 +105,13 @@ test('keeps techniquePriorities absent for legacy profiles and empty for malform
 });
 
 test('orders techniques base, accent by order, seasonal by order and annotates roles', () => {
-  closeDb(); initDb(':memory:');
+  closeDb();
+  initDb(':memory:');
   try {
     const base = novel();
     base.projectPreferenceProfile = {
-      ...base.projectPreferenceProfile!, capabilityModelVersion: 3,
+      ...base.projectPreferenceProfile!,
+      capabilityModelVersion: 3,
       capabilityProfile: {
         version: 3,
         projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
@@ -129,16 +152,20 @@ test('orders techniques base, accent by order, seasonal by order and annotates r
     const criticPrompt = resolved.executionSnapshot.stagePrompts.critic;
     assert.match(criticPrompt, /【阶段技法：de-ai-slop-shield】/);
     assert.doesNotMatch(criticPrompt, /【基调技法：de-ai-slop-shield】/);
-  } finally { closeDb(); }
+  } finally {
+    closeDb();
+  }
 });
 
 test('keeps legacy byte-identical output when techniquePriorities is absent or empty', () => {
-  closeDb(); initDb(':memory:');
+  closeDb();
+  initDb(':memory:');
   try {
     for (const id of ['planner', 'writer', 'critic']) db.createSkill(skill(id));
     const withoutField = { ...novel('novel-legacy'), updatedAt: 1 };
     withoutField.projectPreferenceProfile = {
-      ...withoutField.projectPreferenceProfile!, capabilityModelVersion: 3,
+      ...withoutField.projectPreferenceProfile!,
+      capabilityModelVersion: 3,
       capabilityProfile: {
         version: 3,
         projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
@@ -152,7 +179,8 @@ test('keeps legacy byte-identical output when techniquePriorities is absent or e
       id: 'novel-empty',
       capabilityProfile: undefined,
       projectPreferenceProfile: {
-        ...withoutField.projectPreferenceProfile!, capabilityModelVersion: 3,
+        ...withoutField.projectPreferenceProfile!,
+        capabilityModelVersion: 3,
         capabilityProfile: {
           version: 3,
           projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
@@ -176,13 +204,19 @@ test('keeps legacy byte-identical output when techniquePriorities is absent or e
     assert.match(writerPrompt, /【阶段技法：prose-mouth-flavor】/);
     assert.doesNotMatch(writerPrompt, /基调技法|强化技法|季节技法/);
     // 空 priorities 数组与缺省字段逐字节一致。
-    assert.equal(empty.executionSnapshot.stagePrompts.writer, legacy.executionSnapshot.stagePrompts.writer);
+    assert.equal(
+      empty.executionSnapshot.stagePrompts.writer,
+      legacy.executionSnapshot.stagePrompts.writer
+    );
     assert.deepEqual(empty.executionSnapshot.techniques, legacy.executionSnapshot.techniques);
-  } finally { closeDb(); }
+  } finally {
+    closeDb();
+  }
 });
 
 test('resolves roles through membership mapping for persisted plaza techniques', () => {
-  closeDb(); initDb(':memory:');
+  closeDb();
+  initDb(':memory:');
   try {
     db.createSkill({
       ...skill('persisted-mouth-flavor', 3),
@@ -192,18 +226,21 @@ test('resolves roles through membership mapping for persisted plaza techniques',
     });
     const base = novel();
     base.projectPreferenceProfile = {
-      ...base.projectPreferenceProfile!, capabilityModelVersion: 3,
+      ...base.projectPreferenceProfile!,
+      capabilityModelVersion: 3,
       capabilityProfile: {
         version: 3,
         projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
         favoriteTechniqueIds: [],
         projectTechniqueIds: ['persisted-mouth-flavor'],
-        capabilityMemberships: [{
-          sourceId: 'prose-mouth-flavor',
-          sourceVersion: '3',
-          sourceType: 'plaza',
-          persistedSkillId: 'persisted-mouth-flavor',
-        }],
+        capabilityMemberships: [
+          {
+            sourceId: 'prose-mouth-flavor',
+            sourceVersion: '3',
+            sourceType: 'plaza',
+            persistedSkillId: 'persisted-mouth-flavor',
+          },
+        ],
         techniquePriorities: [{ id: 'persisted-mouth-flavor', role: 'base', order: 0 }],
       },
     };
@@ -216,15 +253,19 @@ test('resolves roles through membership mapping for persisted plaza techniques',
       resolved.executionSnapshot.stagePrompts.writer,
       /【基调技法：prose-mouth-flavor】/
     );
-  } finally { closeDb(); }
+  } finally {
+    closeDb();
+  }
 });
 
 test('chapter techniques stay unannotated and last while project base leads the stage', () => {
-  closeDb(); initDb(':memory:');
+  closeDb();
+  initDb(':memory:');
   try {
     const base = novel();
     base.projectPreferenceProfile = {
-      ...base.projectPreferenceProfile!, capabilityModelVersion: 3,
+      ...base.projectPreferenceProfile!,
+      capabilityModelVersion: 3,
       capabilityProfile: {
         version: 3,
         projectSkillDeck: { supportCardIds: [], updatedAt: 1 },
@@ -234,8 +275,27 @@ test('chapter techniques stay unannotated and last while project base leads the 
       },
     };
     db.createNovel(base);
-    createChapter({ id: 'chapter-1', novelId: base.id, title: '第一章', content: '', order: 1, wordCount: 0, createdAt: 1, updatedAt: 1,
-      workflowMeta: { version: 1, capabilityState: { novelId: base.id, databaseGeneration: getDatabaseGeneration(), techniqueIds: ['prose-mouth-flavor'], overlayCardIds: [], techniqueVersions: { 'prose-mouth-flavor': 3 }, updatedAt: 1 } } });
+    createChapter({
+      id: 'chapter-1',
+      novelId: base.id,
+      title: '第一章',
+      content: '',
+      order: 1,
+      wordCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      workflowMeta: {
+        version: 1,
+        capabilityState: {
+          novelId: base.id,
+          databaseGeneration: getDatabaseGeneration(),
+          techniqueIds: ['prose-mouth-flavor'],
+          overlayCardIds: [],
+          techniqueVersions: { 'prose-mouth-flavor': 3 },
+          updatedAt: 1,
+        },
+      },
+    });
 
     const resolved = resolveWritingStyleRequest(base.id, { chapterId: 'chapter-1' });
 
@@ -248,6 +308,11 @@ test('chapter techniques stay unannotated and last while project base leads the 
     assert.match(writerPrompt, /【阶段技法：prose-mouth-flavor】/);
     assert.doesNotMatch(writerPrompt, /强化技法：prose-mouth-flavor|季节技法/);
     assert.match(writerPrompt, /【基调技法：prose-action-booster】/);
-    assert.ok(writerPrompt.indexOf('【基调技法：prose-action-booster】') < writerPrompt.indexOf('【阶段技法：prose-mouth-flavor】'));
-  } finally { closeDb(); }
+    assert.ok(
+      writerPrompt.indexOf('【基调技法：prose-action-booster】') <
+        writerPrompt.indexOf('【阶段技法：prose-mouth-flavor】')
+    );
+  } finally {
+    closeDb();
+  }
 });
