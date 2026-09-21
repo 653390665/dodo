@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs';
 import { governedGenerateText as generateText } from './governed-llm';
 import { getConfig, type AppConfig } from '../lib/config';
 import { logger } from '../logger';
@@ -199,40 +200,47 @@ const WRITER_OUTPUT_DISCIPLINE =
  * （run 5b206afb / run N 实测）。占位符让 splitSceneBeats 无法识别场景块，
  * 字数约束则会被保底草稿当提示句吸收。这里剥掉约束、按出现顺序重编号。
  */
+/**
+ * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
+ * 原样回声——场景头带占位符「场景 N」、字段带「（≤20字）」字数约束
+ * （run 5b206afb / run N 实测）。占位符让 splitSceneBeats 无法识别场景块，
+ * 字数约束则会被保底草稿当提示句吸收。这里剥掉约束、按出现顺序重编号。
+ *
+ * Plan 261 修复⑮（⑨ 的修正）：策划表格只发生在「最后一个场景块之后」——
+ * 改为切掉最后一个场景块之后的尾部，而不是按行级标题开关过滤。⑨ 的行级
+ * 过滤在 planner 场景头格式变化时（中文数字/粗体/无标题行）会把整个分镜
+ * 剥成空串，writer 拿空分镜裸写（run W：model beats len=0，三 attempt 全崩）。
+ * 空分镜比脏分镜更具破坏性：无法识别场景块时原文保留，绝不返回空。
+ */
 export function normalizePlannerBeats(beats: string): string {
   const stripped = String(beats || '')
     .replace(/（(?:≤|不超过\s*)[0-9]+\s*字）/g, '')
     .replace(/\((?:≤|不超过\s*)[0-9]+\s*字\)/g, '');
-  // Plan 261 修复⑨：只保留场景块——planner 常在分镜头尾携带策划表格
-  // （"## 本章节奏核验""规则伏笔清单""章末钩子选择"），最后一个场景块会把
-  // 它们一并带进 writer prompt，被整段抄进正文末尾（run R fatalIssue#1：
-  // 元数据残留强制 FAIL）。非场景标题的段落整段剥除。
-  const keptLines: string[] = [];
-  let dropping = false;
-  for (const rawLine of stripped.split('\n')) {
-    const trimmed = rawLine.trim();
-    const isHeading = /^#{1,4}\s/.test(trimmed);
-    // 场景头同时接受编号与占位符（"场景 N"）——占位符行是场景块本体，
-    // 不能当策划段落剥掉（剥除后由下方 renumber 收编）。
-    const isSceneHeading = /^#{0,3}\s*\**\s*场景\s*(?:\d+|[NＮn]+)/.test(trimmed);
-    if (isHeading || isSceneHeading) dropping = !isSceneHeading;
-    if (dropping) continue;
-    // 显式策划残留行（可能以粗体而非标题出现）也剥除
-    if (/^#{0,4}\s*\**\s*(?:本章节奏核验|规则伏笔清单|章末钩子选择|推荐\s?[AB])/.test(trimmed)) {
-      continue;
-    }
-    keptLines.push(rawLine);
+
+  // 找出所有场景块的起止（与 splitSceneBeats 同一判定）。
+  const SCENE_HEADING = /^#{0,3}\s*\**\s*场景\s*(?:\d+|[NＮn]+)/;
+  const lines = stripped.split('\n');
+  const sceneStarts: number[] = [];
+  lines.forEach((line, index) => {
+    if (SCENE_HEADING.test(line.trim())) sceneStarts.push(index);
+  });
+
+  let kept = stripped;
+  if (sceneStarts.length >= 1) {
+    // 保留从第一个场景块到末个场景块的最后内容为止；策划尾巴
+    //（节奏核验/伏笔清单/钩子选择表）只可能出现在末个场景块之后。
+    const lastStart = sceneStarts[sceneStarts.length - 1];
+    kept = lines.slice(sceneStarts[0], lastStart + 1).join('\n').trimEnd();
   }
+
   let sceneNo = 0;
-  return keptLines
-    .join('\n')
-    .replace(
-      /(^|\n)(#{0,3}\s*\**\s*)场景\s*(?:[NＮn]+|[0-9]+)(\s*[：:，,])/g,
-      (_match, newline: string, prefix: string, sep: string) => {
-        sceneNo += 1;
-        return `${newline}${prefix}场景 ${sceneNo}${sep}`;
-      }
-    );
+  return kept.replace(
+    /(^|\n)(#{0,3}\s*\**\s*)场景\s*(?:[NＮn]+|[0-9]+)(\s*[：:，,])/g,
+    (_match, newline: string, prefix: string, sep: string) => {
+      sceneNo += 1;
+      return `${newline}${prefix}场景 ${sceneNo}${sep}`;
+    }
+  );
 }
 
 /**
@@ -455,6 +463,15 @@ export async function runProductionPipeline(params: {
 
     draftSource = 'model';
     try {
+      // 诊断工具（env 门控）：采集实际发出的 writer prompt，用于离线复现实验。
+      if (process.env.DEBUG_WRITER_PROMPT === '1') {
+        try {
+          appendFileSync(
+            `/tmp/writer-prompts-${process.env.DEBUG_WRITER_PROMPT_TAG || 'default'}.jsonl`,
+            JSON.stringify({ t: Date.now(), attempt, prompt: writerPrompt }) + '\n'
+          );
+        } catch { /* 诊断采集失败不影响主流程 */ }
+      }
       let streamedWriterText = '';
       const writerConfig = resolveWriterConfig(getConfig());
       const sceneSections = splitSceneBeats(sceneBeats);

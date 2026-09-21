@@ -95,3 +95,26 @@ test('normalizePlannerBeats renumbers placeholder scenes and strips char budgets
   assert.ok(!normalized.includes('≤20字'), 'char budgets stripped');
   assert.ok(!normalized.includes('不超过 8 字'), 'char budgets stripped (long form)');
 });
+
+// Plan 261 修复⑮：⑨ 的行级过滤在场景头格式变化时会把整个分镜剥成空串
+//（run W：model beats len=0，writer 拿空分镜裸写后三 attempt 全崩）。
+test('normalizePlannerBeats never returns empty for non-empty planner output', () => {
+  // 场景头为粗体+中文数字（旧正则不识别的格式）——必须原文保留而非剥空。
+  const nonStandard = [
+    '# 第二章 分镜',
+    '',
+    '**场景一**：桥墩淤痕',
+    '赵桂芳攥着工牌。',
+    '**场景二**：苏记赊账',
+    '左妄把 BP 机拍在柜台上。',
+  ].join('\n');
+  const normalized = normalizePlannerBeats(nonStandard);
+  assert.ok(normalized.length > 0, 'must not return empty');
+  assert.ok(normalized.includes('场景一'), 'content preserved verbatim');
+  assert.ok(normalized.includes('场景二'), 'content preserved verbatim');
+
+  // 纯文本无任何场景头——原文保留。
+  const plain = '本章按时间顺序推进：先桥墩，再苏记，最后夜市。';
+  assert.equal(normalizePlannerBeats(plain), plain);
+  assert.equal(normalizePlannerBeats(''), '');
+});
