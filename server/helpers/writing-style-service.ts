@@ -1021,6 +1021,11 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
     asset.runtimeStatus === 'active' &&
     asset.sanitizationStatus === 'runtime-ready'
   );
+  // Plan 261 修复⑬：壳资产不注入流程步骤 prompt——小飞鸡流程的"脑洞灵感闪耀"
+  // 步骤资产是引用壳，挂到 writer 阶段等于让写手收到"围绕书名简介引擎执行"
+  // 的错位指令（run S/T 崩坏主因之一）。
+  const assetIsShell = isShellTemplatePrompt(asset?.template);
+  const assetUsable = assetRunnable && !assetIsShell;
   const stepContract = [
     `【流程步骤：${step.name}】`,
     `【步骤输入】${step.input}`,
@@ -1036,11 +1041,25 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
     stage: asset ? stageForGovernedAsset(asset) : null,
     assetId: step.assetId,
     qualityGate: step.qualityGate,
-    prompt: assetRunnable
+    prompt: assetUsable
       ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
       : stepContract,
-    ...(assetRunnable ? {} : { warning: 'FLOW_STEP_ASSET_UNAVAILABLE' }),
+    ...(assetUsable
+      ? {}
+      : assetRunnable
+        ? { warning: 'FLOW_STEP_ASSET_SHELL' }
+        : { warning: 'FLOW_STEP_ASSET_UNAVAILABLE' }),
   };
+}
+
+/**
+ * Plan 261 修复⑧⑬：壳卡判定——"[XX体] 围绕 X 执行"式引用壳（<80 字、无实际
+ * 写作指导）。这类卡治理面标 isRuntimeReady=true，但内容只是对另一个不存在的
+ * 提示词名的转投；装备为技法或注入阶段 prompt 都只会制造噪音，诱发模型抄录
+ * 结构化材料。真卡（含 55-66 字短指令）实测零误伤。
+ */
+export function isShellTemplatePrompt(prompt: string | undefined): boolean {
+  return Boolean(prompt && prompt.length < 80 && /^\[[^\]]{2,14}体\]/.test(prompt));
 }
 
 function buildGuardrails(novel: Novel): ExecutionGuardrail[] {
@@ -1062,6 +1081,9 @@ function buildGuardrails(novel: Novel): ExecutionGuardrail[] {
     .flatMap((asset) =>
       stagesForAsset(asset).map((stage) => ({ id: asset.id, stage, prompt: asset.template }))
     )
+    // Plan 261 修复⑬：壳卡不进护栏通道——writer 曾同时收到"围绕逻辑检测分析器
+    // 执行""围绕书名简介引擎执行"等互相矛盾的引用壳指令（run S/T 崩坏主因）。
+    .filter((guardrail) => !isShellTemplatePrompt(guardrail.prompt))
     .filter((guardrail) => {
       const key = `${guardrail.id}\u0000${guardrail.stage}`;
       if (seen.has(key)) return false;
@@ -1127,10 +1149,8 @@ function buildTechniquesResilient(ids: string[]): {
       warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
       continue;
     }
-    // Plan 261 修复⑧：壳卡守门——plaza 引用壳（"[XX体] 围绕 X 执行"式转投文本，
-    // 30-48 字、无实际指导）治理面全标 isRuntimeReady=true，装备后会静默注入
-    // 废话占技法槽。这类卡在技法解析层诚实拦下；真卡零误伤（44 张实测）。
-    if (prompt && prompt.length < 80 && /^\[[^\]]{2,14}体\]/.test(prompt)) {
+    // Plan 261 修复⑧：壳卡不进技法通道（判定与护栏通道共用 isShellTemplatePrompt）。
+    if (isShellTemplatePrompt(prompt)) {
       warnings.push(`SHELL_CARD_SKIPPED:${id}`);
       continue;
     }
@@ -1756,7 +1776,7 @@ export function resolveWritingStyleRequest(
       packStyleProfile,
       writerPromptAssets,
       stageSkills.critic[0],
-      flowStep?.stage === 'critic' ? flowStep.prompt : undefined
+      flowStep?.stage === 'critic' && !isShellTemplatePrompt(flowStep.prompt) ? flowStep.prompt : undefined
     ),
     buildTechniquePrompt(techniques.critic, techniqueRoleById),
   ]
@@ -1787,7 +1807,7 @@ export function resolveWritingStyleRequest(
     buildSkillsPrompt(stageSkills.planner),
     buildPlannerSessionPrompt(sessionAssets),
     buildTechniquePrompt(techniques.planner, techniqueRoleById),
-    flowStep?.stage === 'planner' ? `【当前流程步骤】\n${flowStep.prompt}` : '',
+    flowStep?.stage === 'planner' && !isShellTemplatePrompt(flowStep.prompt) ? `【当前流程步骤】\n${flowStep.prompt}` : '',
     guardrailPrompt('planner'),
   ]
     .filter(Boolean)
@@ -1813,7 +1833,7 @@ export function resolveWritingStyleRequest(
           writerSkill,
           packStyleProfile,
           writerPromptAssets,
-          flowStep?.stage === 'writer' ? flowStep.prompt : undefined
+          flowStep?.stage === 'writer' && !isShellTemplatePrompt(flowStep.prompt) ? flowStep.prompt : undefined
         ),
         buildTechniquePrompt(techniques.writer, techniqueRoleById),
         guardrailPrompt('writer'),

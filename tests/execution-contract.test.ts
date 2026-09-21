@@ -100,7 +100,10 @@ test('flow step snapshot projects execution inputs and excludes pack style from 
     assert.match(contract.flowStep?.prompt || '', /步骤输入.*idea/s);
     assert.match(contract.flowStep?.prompt || '', /预期输出.*hook-idea/s);
     assert.match(contract.flowStep?.prompt || '', /质量门/);
-    assert.match(contract.flowStep?.prompt || '', /可运行资产 Prompt/);
+    // Plan 261 修复⑬：该步骤资产是引用壳，不得注入 prompt（只保留步骤契约）。
+    assert.equal(contract.flowStep?.warning, 'FLOW_STEP_ASSET_SHELL');
+    assert.doesNotMatch(contract.flowStep?.prompt || '', /可运行资产 Prompt/);
+    assert.doesNotMatch(contract.flowStep?.prompt || '', /广场优秀提示词模版体/);
     assert.equal(Object.isFrozen(contract.flowStep), true);
     assert.equal(Object.isFrozen(contract.canon.pack), true);
     assert.equal(Object.isFrozen(contract.canon.pack?.receipt), true);

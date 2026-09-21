@@ -571,9 +571,9 @@ test('v3 configured guardrails are appended to the execution snapshot', () => {
 
     const resolved = resolveWritingStyleRequest(current.id);
 
-    assert.equal(resolved.executionSnapshot.guardrails.some((guardrail) => guardrail.id === 'square-13'), true);
-    assert.equal(resolved.executionSnapshot.capabilityRefs?.includes('square-13'), true);
-    assert.match(resolved.executionSnapshot.stagePrompts.writer, /lwl-文本润色/);
+    // Plan 261 修复⑬：square-13 是引用壳卡，配置后也不得注入任何阶段 prompt。
+    assert.equal(resolved.executionSnapshot.guardrails.some((guardrail) => guardrail.id === 'square-13'), false);
+    assert.doesNotMatch(resolved.executionSnapshot.stagePrompts.writer, /lwl-文本润色/);
     assert.equal(resolved.executionSnapshot.guardrails.filter((guardrail) => guardrail.id === 'core-slop-shield').length, 1);
   } finally { closeDb(); }
 });
