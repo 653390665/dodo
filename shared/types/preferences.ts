@@ -58,12 +58,23 @@ export interface CapabilityMembership {
   sourceType: 'built-in' | 'plaza' | 'licensed' | 'book-extracted';
 }
 
+/** Plan 260：技法装配角色。base=基调（冲突时胜出），accent=强化，seasonal=按卷启停。 */
+export type TechniquePriorityRole = 'base' | 'accent' | 'seasonal';
+
+export interface TechniquePriority {
+  id: string;
+  role: TechniquePriorityRole;
+  order: number;
+}
+
 export interface ProjectCapabilityProfile {
   version: 3;
   activeFlowId?: string;
   projectSkillDeck: ProjectSkillDeck;
   favoriteTechniqueIds: string[];
   projectTechniqueIds?: string[];
+  /** Plan 260：技法装配优先度。缺省时保持旧版装配顺序（向后兼容）。 */
+  techniquePriorities?: TechniquePriority[];
   guardrailIds?: string[];
   capabilityMemberships?: CapabilityMembership[];
   migrationPendingIds?: string[];

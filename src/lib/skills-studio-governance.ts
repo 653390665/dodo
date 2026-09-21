@@ -5,6 +5,7 @@ import type {
   Novel,
   ProjectCapabilityProfile,
   ProjectPreferenceProfile,
+  TechniquePriority,
 } from '../../shared/types';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
@@ -71,6 +72,20 @@ export function getProjectCapabilityProfile(
             ),
           ]
         : [],
+    // Plan 260：装配优先度必须随 profile 存活——否则徽标读不到，且后续装备操作
+    // 重建 profile 时会把已保存的基调/顺序静默丢掉。
+    techniquePriorities: Array.isArray(profile.techniquePriorities)
+      ? profile.techniquePriorities
+          .filter(
+            (priority): priority is TechniquePriority =>
+              Boolean(priority) &&
+              typeof (priority as TechniquePriority).id === 'string' &&
+              ((priority as TechniquePriority).role === 'base' ||
+                (priority as TechniquePriority).role === 'accent' ||
+                (priority as TechniquePriority).role === 'seasonal')
+          )
+          .map((priority) => ({ ...priority }))
+      : undefined,
     guardrailIds: Array.isArray(profile.guardrailIds)
       ? [
           ...new Set(

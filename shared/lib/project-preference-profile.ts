@@ -4,6 +4,8 @@ import type {
   ProjectPreferenceProfile,
   ProjectPreferenceWeights,
   ProjectSkillDeck,
+  TechniquePriority,
+  TechniquePriorityRole,
 } from '../types/preferences.js';
 
 /** 作品卡组辅卡容量上限（Plan 256：由 2 扩至 4；服务端校验与 UI 槽位共用此常量）。 */
@@ -79,6 +81,31 @@ function normalizeCapabilityMemberships(value: unknown): CapabilityMembership[] 
   return result;
 }
 
+const TECHNIQUE_PRIORITY_ROLES = new Set<string>(['base', 'accent', 'seasonal']);
+
+/**
+ * Plan 260：技法装配优先度归一化——按 id 去重（首见生效）、role 白名单校验、
+ * order 缺省按出现序填充。字段整体缺省时保持缺省（不注入空数组），旧 profile 行为不变。
+ */
+function normalizeTechniquePriorities(value: unknown): TechniquePriority[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: TechniquePriority[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === 'string' ? row.id.trim() : '';
+    const role = row.role;
+    if (!id || typeof role !== 'string' || !TECHNIQUE_PRIORITY_ROLES.has(role)) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const order =
+      typeof row.order === 'number' && Number.isFinite(row.order) ? row.order : result.length;
+    result.push({ id, role: role as TechniquePriorityRole, order });
+  }
+  return result;
+}
+
 function normalizeCapabilityProfile(value: unknown): ProjectCapabilityProfile {
   const source = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
   const rawDeck =
@@ -109,6 +136,9 @@ function normalizeCapabilityProfile(value: unknown): ProjectCapabilityProfile {
     favoriteTechniqueIds: normalizedIds(source.favoriteTechniqueIds),
     ...(source.projectTechniqueIds !== undefined
       ? { projectTechniqueIds: normalizedIds(source.projectTechniqueIds) }
+      : {}),
+    ...(source.techniquePriorities !== undefined
+      ? { techniquePriorities: normalizeTechniquePriorities(source.techniquePriorities) }
       : {}),
     ...(source.guardrailIds !== undefined
       ? { guardrailIds: normalizedIds(source.guardrailIds) }
