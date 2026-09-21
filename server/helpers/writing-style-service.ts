@@ -12,6 +12,8 @@ import type {
   ExecutionOverlay,
   ExecutionGuardrail,
   RoleSkillSnapshot,
+  TechniquePriority,
+  TechniquePriorityRole,
 } from '../../shared/types.js';
 import { CARD_STAGE_MAP } from '../../shared/types.js';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile.js';
@@ -1138,23 +1140,107 @@ function buildTechniquesResilient(ids: string[]): {
   return { techniques: result, warnings };
 }
 
-function resolveFavoriteTechniqueIds(novel: Novel): string[] {
-  if (!hasCapabilityV3(novel)) return [];
+/** Plan 260：装配角色的注入桶序——base 优先，其次 accent，再次 seasonal，未标注殿后。 */
+const TECHNIQUE_ROLE_BUCKET: Record<TechniquePriorityRole, number> = {
+  base: 0,
+  accent: 1,
+  seasonal: 2,
+};
+
+/** Plan 260：planner/writer 段内技法 prompt 的角色标注前缀。 */
+const TECHNIQUE_ROLE_LABELS: Record<TechniquePriorityRole, string> = {
+  base: '基调技法',
+  accent: '强化技法',
+  seasonal: '季节技法',
+};
+
+function normalizeTechniquePriorityRoles(
+  priorities: TechniquePriority[] | undefined
+): Map<string, TechniquePriorityRole> {
+  const roleByRawId = new Map<string, TechniquePriorityRole>();
+  for (const priority of priorities || []) {
+    if (!priority || typeof priority.id !== 'string') continue;
+    const id = priority.id.trim();
+    const role = priority.role;
+    if (!id || (role !== 'base' && role !== 'accent' && role !== 'seasonal')) continue;
+    roleByRawId.set(id, role);
+  }
+  return roleByRawId;
+}
+
+/**
+ * Plan 260：按装配优先度排序作品技法——base → accent(order) → seasonal(order) →
+ * 未标注按原序。未标注的作品技法视为 accent（order 取原数组下标）。无 priorities
+ * 时原样返回，注入行为与旧版逐字节一致（向后兼容）。
+ */
+function sortTechniqueIdsByPriority(
+  ids: string[],
+  priorities: TechniquePriority[] | undefined,
+  roleByRawId: Map<string, TechniquePriorityRole>
+): string[] {
+  if (!priorities || priorities.length === 0) return ids;
+  const orderByRawId = new Map<string, number>();
+  for (const priority of priorities) {
+    if (priority && typeof priority.id === 'string' && Number.isFinite(priority.order)) {
+      orderByRawId.set(priority.id.trim(), priority.order);
+    }
+  }
+  return ids
+    .map((id, index) => ({
+      id,
+      index,
+      role: roleByRawId.get(id) ?? ('accent' as const),
+      order: orderByRawId.get(id) ?? index,
+    }))
+    .sort((a, b) => {
+      const bucket = TECHNIQUE_ROLE_BUCKET[a.role] - TECHNIQUE_ROLE_BUCKET[b.role];
+      if (bucket !== 0) return bucket;
+      if (a.order !== b.order) return a.order - b.order;
+      return a.index - b.index;
+    })
+    .map((item) => item.id);
+}
+
+/**
+ * Plan 260：解析作品默认技法（含优先度）。ids 为排序后的运行时技法 ID；
+ * roleById 以运行时 id 为键（含持久化卡回溯源 ID 的映射），供注入 prompt 时标注角色。
+ * 无 priorities 字段时 roleById 为空 Map，装配行为与旧版完全一致。
+ */
+function resolveProjectTechniquePlan(novel: Novel): {
+  ids: string[];
+  roleById: Map<string, TechniquePriorityRole>;
+} {
+  if (!hasCapabilityV3(novel)) return { ids: [], roleById: new Map() };
   const profile = novel.projectPreferenceProfile!.capabilityProfile!;
   const membershipByPersistedId = new Map(
     (profile.capabilityMemberships || [])
       .filter((membership) => membership.persistedSkillId)
       .map((membership) => [membership.persistedSkillId!, membership])
   );
-  const ids = profile.projectTechniqueIds ?? profile.favoriteTechniqueIds ?? [];
-  return ids.map((id) => {
+  const priorities = profile.techniquePriorities;
+  const roleByRawId = normalizeTechniquePriorityRoles(priorities);
+  const rawIds = sortTechniqueIdsByPriority(
+    profile.projectTechniqueIds ?? profile.favoriteTechniqueIds ?? [],
+    priorities,
+    roleByRawId
+  );
+  const roleById = new Map<string, TechniquePriorityRole>();
+  const hasPriorities = Boolean(priorities && priorities.length > 0);
+  const ids = rawIds.map((id) => {
+    let resolved = id;
     const manifest = capabilityManifestFor(id);
-    if (manifest?.kind === 'technique') return id;
-    const membership = membershipByPersistedId.get(id);
-    if (!membership) return id;
-    const sourceManifest = capabilityManifestFor(membership.sourceId);
-    return sourceManifest?.kind === 'technique' ? membership.sourceId : id;
+    if (manifest?.kind !== 'technique') {
+      const membership = membershipByPersistedId.get(id);
+      if (membership) {
+        const sourceManifest = capabilityManifestFor(membership.sourceId);
+        if (sourceManifest?.kind === 'technique') resolved = membership.sourceId;
+      }
+    }
+    const role = roleByRawId.get(id) ?? (hasPriorities ? 'accent' : undefined);
+    if (role) roleById.set(resolved, role);
+    return resolved;
   });
+  return { ids, roleById };
 }
 
 function resolveChapterCapabilityState(
@@ -1298,9 +1384,24 @@ function buildSkillStack(
   };
 }
 
-function buildTechniquePrompt(techniques: readonly ExecutionTechnique[]): string {
+/**
+ * Plan 260：技法 prompt 注入格式。带装配角色的技法在 planner/writer 段内以
+ * 【基调技法/强化技法/季节技法】标注（仅 base 用「基调」）；无角色（如本章技法）
+ * 与 critic 段保持旧版【阶段技法】格式，保证无 priorities 时不改一字节。
+ */
+function buildTechniquePrompt(
+  techniques: readonly ExecutionTechnique[],
+  roleById?: ReadonlyMap<string, TechniquePriorityRole>
+): string {
   return techniques
-    .map((technique) => `【阶段技法：${technique.id}】\n${technique.prompt}`)
+    .map((technique) => {
+      const role = roleById?.get(technique.id);
+      const label =
+        role && (technique.stage === 'planner' || technique.stage === 'writer')
+          ? TECHNIQUE_ROLE_LABELS[role]
+          : '阶段技法';
+      return `【${label}：${technique.id}】\n${technique.prompt}`;
+    })
     .join('\n\n');
 }
 
@@ -1455,7 +1556,9 @@ export function resolveWritingStyleRequest(
   if (input.sessionCardIds !== undefined && !Array.isArray(input.sessionCardIds)) {
     throw new WritingStyleRequestError(400, 'INVALID_SESSION_CARD_IDS', '本章使用卡 ID 格式无效');
   }
-  const projectTechniqueIds = resolveFavoriteTechniqueIds(novel);
+  // Plan 260：作品技法按装配优先度排序后注入；roleById 供段内角色标注。
+  const { ids: projectTechniqueIds, roleById: techniqueRoleById } =
+    resolveProjectTechniquePlan(novel);
   const combinedSessionCardIds = [...chapterState.overlayCardIds, ...(input.sessionCardIds || [])];
   if (combinedSessionCardIds.length > 6)
     throw new WritingStyleRequestError(400, 'TOO_MANY_SESSION_CARDS', '本章使用卡最多使用 6 张');
@@ -1625,7 +1728,7 @@ export function resolveWritingStyleRequest(
       stageSkills.critic[0],
       flowStep?.stage === 'critic' ? flowStep.prompt : undefined
     ),
-    buildTechniquePrompt(techniques.critic),
+    buildTechniquePrompt(techniques.critic, techniqueRoleById),
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -1653,7 +1756,7 @@ export function resolveWritingStyleRequest(
   const plannerStagePrompt = [
     buildSkillsPrompt(stageSkills.planner),
     buildPlannerSessionPrompt(sessionAssets),
-    buildTechniquePrompt(techniques.planner),
+    buildTechniquePrompt(techniques.planner, techniqueRoleById),
     flowStep?.stage === 'planner' ? `【当前流程步骤】\n${flowStep.prompt}` : '',
     guardrailPrompt('planner'),
   ]
@@ -1682,7 +1785,7 @@ export function resolveWritingStyleRequest(
           writerPromptAssets,
           flowStep?.stage === 'writer' ? flowStep.prompt : undefined
         ),
-        buildTechniquePrompt(techniques.writer),
+        buildTechniquePrompt(techniques.writer, techniqueRoleById),
         guardrailPrompt('writer'),
       ]
         .filter(Boolean)
