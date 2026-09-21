@@ -1,6 +1,9 @@
 import { scoreSlop } from '../../shared/lib/slop-scorer';
 import { MIN_COMPLETE_CHAPTER_SLOP_SCORE } from '../../shared/lib/draft-quality';
 
+/** Plan 261 修复⑦：分数达标时容忍的 P1 残留条数（零违规对场景级生成过严）。 */
+const GUARD_TOLERANT_VIOLATIONS = 2;
+
 /**
  * PROMPT_GUARD_RULES
  * Hardcore anti-AI-slop rules injected at the system instruction level.
@@ -155,7 +158,11 @@ export function checkOutputGuard(text: string): OutputGuardResult {
   // Keep the Provider output gate aligned with the complete-chapter contract.
   // Short fragments can still be previewed by their caller; this gate only
   // decides whether a prose response needs a corrective retry.
-  const pass = report.score >= MIN_COMPLETE_CHAPTER_SLOP_SCORE && violations.length === 0;
+  // Plan 261 修复⑦：零违规门槛对场景级生成过严（一个"非常"即枪毙整场景，
+  // 跳场景后在拼接稿上留下叙事断缝）。分数达标时容忍 ≤2 条残留，纠错重试
+  // 仍先行，剩余小瑕疵交给 critic 审稿与问题单处理。
+  const pass =
+    report.score >= MIN_COMPLETE_CHAPTER_SLOP_SCORE && violations.length <= GUARD_TOLERANT_VIOLATIONS;
 
   return {
     pass,

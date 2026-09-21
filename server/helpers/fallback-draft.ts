@@ -80,10 +80,11 @@ export function expandDraftToMinimum(
     ? sanitizeFallbackContext(
         normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1] || ''
       ).slice(0, 2)
-    : sanitizeFallbackContext(normalizedBeats.replace(/\*\*/g, '').replace(/^#+\s*/gm, '')).slice(
-        0,
-        12
-      );
+    : sanitizeFallbackContext(normalizedBeats.replace(/\*\*/g, '').replace(/^#+\s*/gm, ''))
+        // Plan 261 修复⑤：场景头行（"场景 1：案发现场"）是结构标签不是叙事线索，
+        // 吸收进提示句会把分镜元数据拼进保底正文。
+        .filter((line) => !/^场景\s*\d*/.test(line))
+        .slice(0, 12);
   const hints = [...beatHints, ...filteredContext].filter(Boolean);
   const seed = hints[0] || '这场变故没有给任何人留下退路';
   const hintSentence = (hint: string) => `${hint.replace(/[。！？!?；;，,]+$/, '')}。`;

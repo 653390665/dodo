@@ -1141,7 +1141,7 @@ function buildTechniquesResilient(ids: string[]): {
   // 从尾部截断（低优先级技法被跳过），防止 prompt 污染和风格互扰。
   // Plan 260 后续②：同阶段技法数量上限——卡太多时模型无法同时满足所有风格指令。
   const TECHNIQUE_PROMPT_BUDGET = 4000;
-  const MAX_TECHNIQUES_PER_STAGE = 4;
+  const MAX_TECHNIQUES_PER_STAGE = 6;
   for (const stage of ['planner', 'writer', 'critic'] as const) {
     let totalLen = 0;
     const kept: ExecutionTechnique[] = [];

@@ -75,6 +75,39 @@ export function classifyCriticFeedback(
   return { status: score >= SCORE_THRESHOLD && !hasCriticalIssue ? 'pass' : 'fail', score };
 }
 
+/**
+ * Plan 261 修复③：把 critic 的结构化审计 JSON 蒸馏成 writer 能执行的纯文本重写指令。
+ * 原始 JSON 直接回注时，flash 模型会复述审计里的结构化引用（场景标题、字段名、箭头），
+ * 产出"元数据汤"而非正文（run 6b941a03 实测：attempt2/3 可读性 1-2 分）。
+ * 解析失败时原样返回（可能本来就是纯文本/unknown 文案）。
+ */
+export function buildCriticRetryFeedback(rawFeedback: string): string {
+  const parsed = parseAuditResponseWithDiagnostics(rawFeedback);
+  if (parsed.diagnostic || (!parsed.fiveDim && !parsed.structured)) return rawFeedback;
+
+  const lines: string[] = [
+    '【重写指令】上一稿未通过审稿。请重写整章为一遍干净的叙事正文：禁止输出大纲、场景标题、人物表、字段名、箭头（→）、省略号连写或任何结构化内容；禁止复述本段审计意见；保持人物与剧情连续，把每个场景写成可读的故事。',
+  ];
+  if (parsed.fiveDim) {
+    lines.push(`上一稿总分：${parsed.fiveDim.totalScore}/50。`);
+    for (const [dim, item] of Object.entries(parsed.fiveDim.scores)) {
+      if (item?.reason) lines.push(`- ${dim}（${item.score}/10）：${item.reason}`);
+    }
+    if (parsed.fiveDim.failReason) lines.push(`- 未过审原因：${parsed.fiveDim.failReason}`);
+  } else if (parsed.structured) {
+    lines.push(`上一稿总分：${parsed.structured.score}/100。`);
+    for (const issue of parsed.structured.fatalIssues.slice(0, 6)) {
+      const where = issue.snippet ? `原文「${issue.snippet.slice(0, 60)}」` : '';
+      lines.push(`- [${issue.severity}] ${where}${issue.explanation}；修法：${issue.patchHint}`);
+    }
+  }
+  const suggestions = parsed.fiveDim?.surgerySuggestions ?? [];
+  for (const suggestion of suggestions.slice(0, 4)) {
+    if (typeof suggestion === 'string' && suggestion.trim()) lines.push(`- 修改建议：${suggestion}`);
+  }
+  return lines.join('\n');
+}
+
 export interface PipelineProgress {
   onPhase?: (phase: 'planner' | 'writer' | 'critic' | 'retry') => void;
   onWriterToken?: (chunk: string) => void;
@@ -147,17 +180,48 @@ const WRITER_SCENE_MAX_TOKENS = 4096;
 /** Minimum scene blocks for split generation; below this, single-shot the chapter. */
 const MIN_SCENES_FOR_SPLIT = 2;
 
+// Plan 261：输出纪律同时压两类已确诊失败——(1) 分镜元数据被复述进正文；
+// (2) 单发全章时模型写完一遍不收笔，重开第二/第三版本（run 91f03710 实测
+// "三个版本的追逐场景"，critic 直接给出 54 分）。
+const WRITER_OUTPUT_DISCIPLINE =
+  '\n\n【输出纪律】只写一遍叙事正文，写完本章结尾立即停笔。禁止重写、续写或输出同一情节的多个版本。' +
+  '正文中禁止出现设定说明、世界规则、角色介绍、场景标题、分镜指令或任何非故事内容的文字。' +
+  '上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。';
+
 /**
- * Split structured scene beats into per-scene blocks ("### 场景 N" headings —
- * the format produced by both the planner and buildFallbackSceneBeats).
+ * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
+ * 原样回声——场景头带占位符「场景 N」、字段带「（≤20字）」字数约束
+ * （run 5b206afb / run N 实测）。占位符让 splitSceneBeats 无法识别场景块，
+ * 字数约束则会被保底草稿当提示句吸收。这里剥掉约束、按出现顺序重编号。
+ */
+export function normalizePlannerBeats(beats: string): string {
+  let sceneNo = 0;
+  return String(beats || '')
+    .replace(/（(?:≤|不超过\s*)[0-9]+\s*字）/g, '')
+    .replace(/\((?:≤|不超过\s*)[0-9]+\s*字\)/g, '')
+    .replace(
+      /(^|\n)(#{0,3}\s*\**\s*)场景\s*(?:[NＮn]+|[0-9]+)(\s*[：:，,])/g,
+      (_match, newline: string, prefix: string, sep: string) => {
+        sceneNo += 1;
+        return `${newline}${prefix}场景 ${sceneNo}${sep}`;
+      }
+    );
+}
+
+/**
+ * Split structured scene beats into per-scene blocks. Planner output uses
+ * "## 场景 N" / "### 场景 N" headings (H2 observed from model planners,
+ * H3 from buildFallbackSceneBeats); both must split or the writer silently
+ * falls back to single-shot whole-chapter generation (Plan 261: that path is
+ * where multi-take and metadata-echo degradation concentrate).
  * Returns an empty array when there are fewer than two scenes; callers then
  * keep the single-shot whole-chapter path.
  */
 export function splitSceneBeats(beats: string): string[] {
   const blocks = String(beats || '')
-    .split(/(?=###\s*场景)/)
+    .split(/(?=^#{0,3}\s*\**\s*场景\s*\d+)/m)
     .map((block) => block.trim())
-    .filter((block) => block.length > 0 && /^###\s*场景/.test(block));
+    .filter((block) => block.length > 0 && /^#{0,3}\s*\**\s*场景\s*\d+/.test(block));
   return blocks.length >= MIN_SCENES_FOR_SPLIT ? blocks : [];
 }
 
@@ -176,7 +240,9 @@ const CRITIC_LLM_OPTIONS = {
   // Structured audit JSON (scores, fatalIssues, surgerySuggestions) needs
   // headroom; reasoning-heavy models also burn tokens on chain-of-thought, so
   // a tight budget truncates the JSON mid-field (diagnosed 'truncated').
-  maxTokens: 4000,
+  // Plan 261：五维+证据契约在富上下文下 4000 tokens 会截断（run 5b206afb 两次
+  // unknown），提到 6000 保证 JSON 完整闭合。
+  maxTokens: 6000,
   disableThinking: true,
 } as const;
 
@@ -284,8 +350,11 @@ export async function runProductionPipeline(params: {
       getConfig(),
       {
         prompt: plannerPrompt,
-        timeoutMs: 8_000,
-        maxAttempts: 1,
+        // Plan 261：8s 对 flash+富上下文（技法卡/资料包注入后）几乎必超时，
+        // 超时即静默降级到无故事细节的模板分镜，writer 随之产出多版本拼接稿。
+        // 规划是全章骨架，预算对齐 writer 量级并允许一次重试。
+        timeoutMs: 45_000,
+        maxAttempts: 2,
         // Planner beats are structure, not prose: pin thinking off and give the
         // budget headroom so reasoning-heavy models don't burn it on
         // chain-of-thought and truncate the scene breakdown.
@@ -297,12 +366,13 @@ export async function runProductionPipeline(params: {
       {
         operation: 'production-pipeline-planner',
         novelId,
-        timeoutMs: 8_000,
+        timeoutMs: 45_000,
         concurrency: 2,
         signal: progress.signal,
       }
     );
     beatsSource = 'model';
+    sceneBeats = normalizePlannerBeats(sceneBeats);
   } catch (err) {
     throwIfAborted(progress.signal);
     logger.warn('Planner fell back to deterministic beats', err);
@@ -317,6 +387,8 @@ export async function runProductionPipeline(params: {
   const criticSkillsInfo = stagePrompts.critic;
   let currentDraft = '';
   let criticFeedback = '';
+  // Plan 261 修复③：writer 重试实际消费的反馈——critic JSON 蒸馏后的纯文本指令。
+  let writerRetryFeedback = '';
   let auditScore = 0;
   let auditStatus: PipelineResult['auditStatus'] = 'unknown';
   let draftSource: PipelineResult['source'] = 'model';
@@ -325,6 +397,12 @@ export async function runProductionPipeline(params: {
   let lastModelDraft = '';
   let lastViolations: string[] = [];
   let lastMechanicalScore: number | undefined;
+  // Plan 261 修复⑥：全 attempts 未过线时营救得分最高的模型稿——重试轮常退化，
+  // 最后一稿往往是最差的；交付 60+ 的最优 attempt（review_required 交人审），
+  // 远好于掉进保底模板稿（实测只有 12 分）。
+  let bestAttemptDraft = '';
+  let bestAttemptAudit = '';
+  let bestAttemptScore = 0;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     attempts = attempt + 1;
@@ -343,8 +421,10 @@ export async function runProductionPipeline(params: {
       contextStr: augmentedContexts.writer,
       skillsInfo: writerSkillsInfo,
       sceneBeats,
-      criticFeedback: criticFeedback || '初稿阶段，请全力输出。',
-    }) + '\n\n【输出纪律】只写叙事正文。正文中禁止出现设定说明、世界规则、角色介绍、场景标题、分镜指令或任何非故事内容的文字。上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。';
+      criticFeedback: criticFeedback
+        ? writerRetryFeedback || criticFeedback
+        : '初稿阶段，请全力输出。',
+    }) + WRITER_OUTPUT_DISCIPLINE;
 
     draftSource = 'model';
     try {
@@ -376,10 +456,12 @@ export async function runProductionPipeline(params: {
               (isFinalScene
                 ? '\n\n（本章最终场景：按分镜收束本章悬念，给出章节结尾。）'
                 : '\n\n（写完本场景即停，不要越到下一场景。）'),
-            criticFeedback:
-              criticFeedback ||
-              (i === 0 ? '初稿阶段，请全力输出。' : '继续本章的下一场景，保持人物与节奏连贯。'),
-          });
+            criticFeedback: criticFeedback
+              ? writerRetryFeedback || criticFeedback
+              : i === 0
+                ? '初稿阶段，请全力输出。'
+                : '继续本章的下一场景，保持人物与节奏连贯。',
+          }) + WRITER_OUTPUT_DISCIPLINE;
           try {
             const sectionText = await generateText(
               writerConfig,
@@ -407,7 +489,7 @@ export async function runProductionPipeline(params: {
             const trimmed = String(sectionText).trim();
             if (trimmed) {
               parts.push(trimmed);
-              previousTail = trimmed.slice(-280);
+              previousTail = trimmed.slice(-600);
             }
           } catch (sceneErr) {
             // Split-mode scene guard is a filter, not a hard gate: a single
@@ -634,6 +716,14 @@ export async function runProductionPipeline(params: {
       auditStatus = classification.status;
       if (auditStatus === 'unknown') criticFeedback = UNKNOWN_CRITIC_FEEDBACK;
     }
+    // Plan 261 修复③：重写轮只消费蒸馏后的指令，原始 JSON 审计仅用于展示/落库。
+    writerRetryFeedback = auditStatus === 'pass' ? '' : buildCriticRetryFeedback(criticFeedback);
+
+    if (draftSource === 'model' && currentDraft && auditStatus === 'fail' && auditScore > bestAttemptScore) {
+      bestAttemptScore = auditScore;
+      bestAttemptDraft = currentDraft;
+      bestAttemptAudit = criticFeedback;
+    }
 
     const isValid = auditStatus === 'pass';
     progress.onCriticDone?.(criticFeedback, isValid, {
@@ -650,6 +740,20 @@ export async function runProductionPipeline(params: {
     if (attempt < MAX_RETRIES) {
       progress.onPhase?.('retry');
     }
+  }
+
+  // Plan 261 修复⑥：最优 attempt 营救——门槛（80）未过但最优稿 ≥60 时，
+  // 用它替代最后一稿交付（auditStatus 保持 fail，分数如实展示，由人决定取舍）。
+  if (
+    draftSource === 'model' &&
+    auditStatus === 'fail' &&
+    bestAttemptDraft &&
+    bestAttemptScore >= 60 &&
+    currentDraft !== bestAttemptDraft
+  ) {
+    currentDraft = bestAttemptDraft;
+    criticFeedback = bestAttemptAudit;
+    auditScore = bestAttemptScore;
   }
 
   return {
