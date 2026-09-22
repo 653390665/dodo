@@ -313,12 +313,24 @@ test('fallback context removes evidence labels and empty chapter placeholders', 
 });
 
 test('draft quality rejects duplicate paragraphs and reasoning blocks', () => {
-  const paragraph = '雨点砸在窗纸上，他把账册压进袖口。';
+  const paragraph =
+    '雨点砸在窗纸上，密得像一层灰幕。他把账册压进袖口，转身吹熄了桌上的灯，靴底碾过满地的碎玻璃，整间屋子只剩下雨声、心跳，和门外那双没有走远的脚步。';
   const result = validateDraftQuality(`${paragraph}\n\n<think>先分析再写</think>\n\n${paragraph}`);
 
   assert.equal(result.ok, false);
   assert.ok(result.violations.includes('正文包含模型推理标签'));
   assert.ok(result.violations.includes('正文包含重复段落'));
+});
+
+// Plan 261 修复⑯：短转场句的偶发重复在多场景长章节里近乎必然，降为 P2 建议，
+// 不再整稿否决——长段（≥50 有效字符）整段重复才保持 P1。
+test('draft quality downgrades short duplicate transition lines to advisory', () => {
+  const paragraph = '雨点砸在窗纸上，他把账册压进袖口。';
+  const result = validateDraftQuality(`${paragraph}\n\n他推门出去，巷子里只剩雨声。\n\n${paragraph}`);
+
+  const finding = result.findings.find((item) => item.code === 'duplicate-paragraph');
+  assert.ok(finding);
+  assert.equal(finding.severity, 'P2');
 });
 
 test('draft quality rejects mojibake, symbol noise and generation residue', () => {

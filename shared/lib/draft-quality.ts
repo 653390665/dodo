@@ -355,8 +355,22 @@ export function validateDraftQuality(
     addFinding('markdown-residue', '正文包含 Markdown 标记或分镜模板残留', 'P1', 'template');
 
   for (const paragraph of paragraphs) counts.set(paragraph, (counts.get(paragraph) || 0) + 1);
-  if ([...counts.values()].some((count) => count > 1))
-    addFinding('duplicate-paragraph', '正文包含重复段落', 'P1', 'duplication');
+  // Plan 261 修复⑯：重复段落按严重内容分级——多场景长章节由 5 段独立生成
+  // 拼装，短转场句（"他没有接话。"类）跨场景偶发重复近乎必然，P1 整稿否决
+  // 会把 1.4 万字可用模型稿全部丢进保底（run Z 实测）。长段（≥50 有效字符）
+  // 整段重复才是结构性缺陷，保持 P1；短句重复降为 P2 改写建议。
+  const duplicatedParagraphs = [...counts.entries()].filter(([, count]) => count > 1);
+  if (duplicatedParagraphs.length > 0) {
+    const hasLongDuplicate = duplicatedParagraphs.some(
+      ([paragraph]) => paragraph.replace(/\s/g, '').length >= 50
+    );
+    addFinding(
+      'duplicate-paragraph',
+      hasLongDuplicate ? '正文包含重复段落' : '正文包含重复段落（短转场句，建议改写去重）',
+      hasLongDuplicate ? 'P1' : 'P2',
+      'duplication'
+    );
+  }
   const sentences = text
     .split(/[。！？!?；;\n]+/)
     .map(normalizeParagraph)
