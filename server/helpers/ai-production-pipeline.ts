@@ -531,7 +531,12 @@ export async function runProductionPipeline(params: {
               {
                 prompt: sectionPrompt,
                 ...WRITER_LLM_OPTIONS,
-                maxTokens: WRITER_SCENE_MAX_TOKENS,
+                // Plan 261 修复⑱配套：模型会顶满 token 预算写作（实测 1536
+                // tokens ≈ 2200 字/场景），非末场景收紧到 2/3（≈1400 字），
+                // 4 场景整章落在 ~6000 字目标区间；末场景保完整预算收好结尾。
+                maxTokens: isFinalScene
+                  ? WRITER_SCENE_MAX_TOKENS
+                  : Math.round(WRITER_SCENE_MAX_TOKENS * 0.67),
                 // Reasoning chains would eat the per-scene token budget and leave
                 // the prose truncated empty (finish_reason=length).
                 disableThinking: true,
