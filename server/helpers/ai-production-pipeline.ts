@@ -525,6 +525,7 @@ export async function runProductionPipeline(params: {
                 : '继续本章的下一场景，保持人物与节奏连贯。',
           }) + WRITER_OUTPUT_DISCIPLINE;
           const callT0 = Date.now();
+          let sceneTruncated = false;
           try {
             const sectionText = await generateText(
               writerConfig,
@@ -544,6 +545,9 @@ export async function runProductionPipeline(params: {
                 onToken: (token) => {
                   streamedWriterText += token;
                 },
+                onComplete: (info) => {
+                  sceneTruncated = Boolean(info?.truncated);
+                },
                 novelId,
               },
               {
@@ -554,7 +558,44 @@ export async function runProductionPipeline(params: {
                 signal: progress.signal,
               }
             );
-            const trimmed = String(sectionText).trim();
+            let trimmed = String(sectionText).trim();
+            // Plan 261 修复⑲：截断续写——场景被 token 上限拦腰切断会在正文里
+            // 留下物理伤口（run AH：「特事」「空气里有股」「关东煮的」三处断句、
+            // 场景 4 缺失）。检测 finish_reason=length 后补一次续写调用，从中断
+            // 处无缝写完本场景；续写预算为场景上限的一半。
+            if (sceneTruncated && trimmed && !progress.signal?.aborted) {
+              logger.warn(
+                `[pipeline] scene ${i + 1}/${sceneSections.length} hit token cap; continuing`,
+              );
+              const continuation = await generateText(
+                writerConfig,
+                {
+                  prompt:
+                    sectionPrompt +
+                    `\n\n【你已写出的部分（在末尾被截断）】\n…${trimmed.slice(-400)}\n\n从中断处无缝续写，写完本场景剩余内容并按退场钩子收束。禁止重复已写内容，禁止重新开场。`,
+                  maxTokens: Math.round(WRITER_SCENE_MAX_TOKENS * 0.5),
+                  disableThinking: true,
+                  signal: progress.signal,
+                  novelId,
+                },
+                {
+                  operation: 'production-pipeline-writer-continue',
+                  novelId,
+                  timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+                  concurrency: 2,
+                  signal: progress.signal,
+                }
+              );
+              const continuationText = String(continuation).trim();
+              debugLogWriter({
+                kind: 'scene-continuation',
+                scene: i + 1,
+                respChars: continuationText.length,
+              });
+              if (continuationText) {
+                trimmed = `${trimmed}\n${continuationText}`.replace(/(.{2})\n{2,}(?=\S)/, '$1\n');
+              }
+            }
             debugLogWriter({
               kind: 'scene-call',
               scene: i + 1,
