@@ -177,10 +177,11 @@ const WRITER_LLM_OPTIONS = {
 // slow upstreams can finish within the per-call window.
 // Plan 260 后续：场景预算从 2400 提至 4096——11 张技法卡注入后单场景 prompt
 // 变长，模型需要更多输出 token 才能完成场景叙事而不截断。
-// Plan 261 修复⑰：单章目标 4000-6000 字——场景预算收敛到 2048（≈1300 字
-// 硬上限/场景），配合篇幅指令把整章压回目标区间并压缩输出成本（输出 token
-// 是单章成本的大头，4-8 元/百万）。
-const WRITER_SCENE_MAX_TOKENS = 2048;
+// Plan 261 修复⑰：单章目标 4000-6000 字——场景预算收敛到 1536
+//（token 化比例随文本波动，实测 1536 tokens ≈ 2200-3400 字场景硬上限），
+// 配合篇幅指令把整章压回目标区间并压缩输出成本（输出 token 是单章成本
+// 的大头，4-8 元/百万）。
+const WRITER_SCENE_MAX_TOKENS = 1536;
 /** Minimum scene blocks for split generation; below this, single-shot the chapter. */
 const MIN_SCENES_FOR_SPLIT = 2;
 
