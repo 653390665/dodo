@@ -56,6 +56,45 @@ export function extractXigangEntries(markdown: string): XigangEntry[] {
   return entries;
 }
 
+
+export interface AffinityEdge {
+  itemName: string;
+  characterName: string;
+}
+
+/** 道具描述中点名的角色 → 道具与角色的关联边（description 含角色名即命中）。 */
+export function extractCharacterItemAffinityEdges(
+  items: Array<{ id: string; name: string; description: string }>,
+  characterNames: Set<string>
+): AffinityEdge[] {
+  const edges: AffinityEdge[] = [];
+  for (const item of items) {
+    for (const name of characterNames) {
+      if (name.length >= 2 && String(item.description || '').includes(name)) {
+        edges.push({ itemName: item.name, characterName: name });
+      }
+    }
+  }
+  return edges;
+}
+
+/** 角色小传/当前状态中提到的地点 → 角色-地点 居住/常驻边。 */
+export function extractCharacterLocationEdges(
+  characters: Array<{ id: string; name: string; bio: string; current_state: string }>,
+  locationNames: Set<string>
+): Array<{ characterId: string; locationId: string; locationName: string }> {
+  const edges: Array<{ characterId: string; locationId: string; locationName: string }> = [];
+  for (const char of characters) {
+    const text = `${char.bio || ''} ${char.current_state || ''}`;
+    for (const loc of locationNames) {
+      if (loc.length >= 2 && text.includes(loc)) {
+        edges.push({ characterId: char.id, locationId: loc, locationName: loc });
+      }
+    }
+  }
+  return edges;
+}
+
 export interface LedgerRow {
   title: string;
   description: string;
@@ -158,6 +197,11 @@ export const RELATIONSHIP_TYPE_SYNONYMS: Record<string, string> = {
   伙伴: '同伴',
   同行者: '同伴',
   旧搭档: '旧识',
+  邻居: '邻里',
+  友邻: '邻里',
+  前同事: '旧识',
+  '医患/互相需要': '医患',
+  唯一电话线: '唯一通讯渠道',
 };
 
 export function normalizeRelationshipType(relationshipType: string): string {

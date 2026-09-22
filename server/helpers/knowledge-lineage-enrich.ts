@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../lib/db-instance.js';
 import {
+  extractCharacterItemAffinityEdges,
+  extractCharacterLocationEdges,
   extractForeshadowingLedger,
   extractPowerHolderEdges,
   extractRelicHolderEdges,
@@ -21,6 +23,8 @@ export interface LineageReport {
   ledgerSkipped: number;
   powerEdgesAdded: number;
   relicEdgesAdded: number;
+  affinityEdgesAdded: number;
+  residenceEdgesAdded: number;
   relicUnmatched: string[];
   relationshipTypesNormalized: number;
   coverage: {
@@ -123,6 +127,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     ledgerSkipped: 0,
     powerEdgesAdded: 0,
     relicEdgesAdded: 0,
+    affinityEdgesAdded: 0,
+    residenceEdgesAdded: 0,
     relicUnmatched: [],
     relationshipTypesNormalized: 0,
     coverage: { characters: 0, items: 0, locations: 0, factions: 0, powerLevels: 0, timelineEvents: 0, foreshadowings: 0, edges: 0 },
@@ -232,6 +238,43 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     }
   }
 
+  // ㉑b 亲和边补齐：孤立道具/地点与角色的关联（description/小传点名即命中）
+  const itemRowsAll = db
+    .prepare('SELECT id, name, description FROM items WHERE novel_id = ?')
+    .all(novelId) as Array<{ id: string; name: string; description: string }>;
+  const itemIdByExactAll = new Map(itemRowsAll.map((r) => [r.name, r.id]));
+  const locationRowsAll = db
+    .prepare('SELECT id, name FROM locations WHERE novel_id = ?')
+    .all(novelId) as Array<{ id: string; name: string }>;
+  const characterRowsForAffinity = db
+    .prepare('SELECT id, name, bio, current_state FROM characters WHERE novel_id = ?')
+    .all(novelId) as Array<{ id: string; name: string; bio: string; current_state: string }>;
+  const affinityEdges = extractCharacterItemAffinityEdges(
+    itemRowsAll,
+    new Set(characterNames)
+  );
+  const locationEdges = extractCharacterLocationEdges(
+    characterRowsForAffinity,
+    new Set(locationRowsAll.map((r) => r.name))
+  );
+  let affinityAdded = 0;
+  let residenceAdded = 0;
+  for (const edge of affinityEdges) {
+    const itemId = itemIdByExactAll.get(edge.itemName) || itemIdByExactAll.get(edge.itemName.slice(0, 6));
+    const charId = nameToId.get(edge.characterName);
+    if (!itemId || !charId) continue;
+    if (edgeExists(db, novelId, charId, itemId, '关联')) continue;
+    insertEdge.run(randomUUID(), novelId, 'character', charId, 'item', itemId, '关联', `${edge.characterName}与${edge.itemName}存在关联（道具描述点名）`, Date.now());
+    affinityAdded += 1;
+  }
+  for (const edge of locationEdges) {
+    const locationId = locationRowsAll.find((r) => r.name === edge.locationName)?.id;
+    if (!locationId) continue;
+    if (edgeExists(db, novelId, edge.characterId, locationId, '居住')) continue;
+    insertEdge.run(randomUUID(), novelId, 'character', edge.characterId, 'location', locationId, '居住', `${edge.locationName}为相关地点（角色小传点名）`, Date.now());
+    residenceAdded += 1;
+  }
+
   // ⑤ 关系类型归一化
   const normalizeStmt = db.prepare(
     'UPDATE entity_relationships SET relationshipType = ? WHERE novelId = ? AND relationshipType = ?'
@@ -241,6 +284,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     const result = normalizeStmt.run(canonical, novelId, synonym);
     report.relationshipTypesNormalized += result.changes;
   }
+  report.affinityEdgesAdded = affinityAdded;
+  report.residenceEdgesAdded = residenceAdded;
 
   // 覆盖度报告
   const count = (sql: string) =>

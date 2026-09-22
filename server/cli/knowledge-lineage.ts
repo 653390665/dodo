@@ -25,5 +25,6 @@ if (report.relicUnmatched.length > 0) {
   for (const item of report.relicUnmatched.slice(0, 8)) console.log(`  - ${item}`);
 }
 console.log(`关系类型归一化: ${report.relationshipTypesNormalized} 行`);
+console.log(`亲和边: +${report.affinityEdgesAdded} | 居住边: +${report.residenceEdgesAdded}`);
 console.log('=== 覆盖度 ===');
 console.log(JSON.stringify(report.coverage, null, 1));
