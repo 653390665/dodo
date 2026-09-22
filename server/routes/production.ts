@@ -19,7 +19,7 @@ import { buildFallbackSceneBeats, buildFallbackDraft } from '../helpers/fallback
 import { buildEmptyContinuityReport, buildContractPrompt } from '../helpers/production-helpers';
 import { recordChapterDecision } from '../../shared/lib/preference-flywheel';
 import { addChunk } from '../vector-store';
-import { runLineageEnrichment } from '../helpers/knowledge-lineage-enrich.js';
+import { runLineageEnrichment, settleForeshadowingsOnApply } from '../helpers/knowledge-lineage-enrich.js';
 import { EmbeddingUnavailableError } from '../embedding';
 import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel';
 import {
@@ -1696,6 +1696,15 @@ export function registerProductionRoutes(app: Express) {
         // 知识谱系回写（幂等）：细纲伏笔台账/遗物与公理持有边随接受流程同步
         try {
           runLineageEnrichment(run.novelId);
+          const appliedChapterOrder = db
+            .listChaptersMetadata(run.novelId)
+            .find((meta) => meta.id === chapterId)?.order;
+          if (appliedChapterOrder) {
+            const settled = settleForeshadowingsOnApply(run.novelId, appliedChapterOrder);
+            if (settled.paidOff > 0) {
+              logger.info(`[apply] foreshadowings paid off at ${settled.chapterNo}: ${settled.paidOff}`);
+            }
+          }
         } catch (lineageErr) {
           logger.warn('Knowledge lineage resync failed after apply', lineageErr);
         }

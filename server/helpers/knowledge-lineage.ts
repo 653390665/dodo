@@ -95,6 +95,54 @@ export function extractCharacterLocationEdges(
   return edges;
 }
 
+export interface ElementProposal {
+  name: string;
+  description: string;
+  firstSeenChapter: string;
+  sourceField: string;
+}
+
+/**
+ * Phase2 补充：叙事元素实体化提案——从细纲条目的"关键道具/信息"与
+ * "伏笔埋点"字段提取库中尚不存在的元素（如"外卖订单""便利贴"），
+ * 生成提案供确认后入道具库并连边。提案制：只产出候选，不直接写库。
+ */
+export function extractElementProposals(
+  entries: XigangEntry[],
+  existingItemNames: Set<string>
+): ElementProposal[] {
+  const proposals: ElementProposal[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    for (const fieldName of ['关键道具/信息', '伏笔埋点']) {
+      const value = (entry.fields[fieldName] || '').trim();
+      if (!value) continue;
+      for (const sentence of value.split(/[。；\n]/)) {
+        // "X=Y" 取 X；纯名词短语取整句
+        const candidate = sentence.split(/[=＝]/)[0].trim();
+        const name = candidate.split(/[，,、]/)[0].trim().replace(/^[\s-]*/, '');
+        if (name.length < 2 || name.length > 24) continue;
+        if (/^(?:无|待定|本场景|承接)/.test(name)) continue;
+        const dedupeKey = name;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const inLibrary = [...existingItemNames].some(
+          (itemName) => itemName.includes(name) || name.includes(itemName)
+        );
+        if (inLibrary) continue;
+        seen.add(dedupeKey);
+        proposals.push({
+          name,
+          description: sentence.slice(0, 160),
+          firstSeenChapter: entry.chapterNo,
+          sourceField: fieldName,
+        });
+      }
+    }
+  }
+  return proposals;
+}
+
 export interface LedgerRow {
   title: string;
   description: string;

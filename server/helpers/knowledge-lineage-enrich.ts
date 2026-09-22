@@ -9,6 +9,7 @@ import {
   extractXigangEntries,
   RELATIONSHIP_TYPE_SYNONYMS,
 } from './knowledge-lineage.js';
+import { resolveCuratedTechniquePrompt } from './curated-skill-runtime.js';
 import type { Foreshadowing } from '../../shared/types';
 
 /**
@@ -108,6 +109,10 @@ export function loadChapterContract(novelId: string, chapterOrder: number): Chap
     entry.fields['伏笔埋点'] ? `- 伏笔埋点应包含：${entry.fields['伏笔埋点']}` : '',
     ledgerRows.length ? `- 伏笔台账：本章应埋设 ${ledgerRows.length} 条（${ledgerRows.map((r) => r.title).join('；')}）` : '',
     entry.fields['章末钩子'] ? `- 章末钩子应兑现：${entry.fields['章末钩子']}` : '',
+    // ㉒ 黄金三章维度：Ch1-3 审计显式核查金手指/钩子/反派智商
+    chapterOrder <= 3
+      ? `- 【黄金三章自查】${resolveCuratedTechniquePrompt('opening-novelty-hook') || '金手指是否在前三章显露、反派智商是否在线、剧情钩子是否合理'}`
+      : '',
   ].filter(Boolean).join('\n');
   return {
     chapterNo,
@@ -117,6 +122,24 @@ export function loadChapterContract(novelId: string, chapterOrder: number): Chap
     foreshadowingTasks: ledgerRows.map((r) => r.description),
     payoffNote: ledgerRows[0]?.payoffNote || '',
   };
+}
+
+/**
+ * 伏笔状态机闭环（Phase2）：本章接受入库时，把细纲指定在本章回收的
+ * 伏笔标记为 payoff（已回收）。确定性 UPDATE，幂等。
+ */
+export function settleForeshadowingsOnApply(
+  novelId: string,
+  chapterOrder: number
+): { paidOff: number; chapterNo: string } {
+  const database = getDb();
+  const chapterNo = `Ch${String(chapterOrder).padStart(3, '0')}`;
+  const result = database
+    .prepare(
+      "UPDATE foreshadowings SET status = 'payoff', updated_at = ? WHERE novel_id = ? AND payoff_chapter_id = ? AND status != 'payoff'"
+    )
+    .run(Date.now(), novelId, chapterNo);
+  return { paidOff: result.changes, chapterNo };
 }
 
 export function runLineageEnrichment(novelId: string): LineageReport {
