@@ -291,6 +291,9 @@ function initializeProductionRun(
   const timelineEvents = db.listTimelineEvents(novelId);
   const foreshadowings = db.listForeshadowings(novelId);
   const executionSnapshot = writingStyle.executionSnapshot;
+  const currentChapterOrder = targetChapterId
+    ? chapterMetas.find((chapter) => chapter.id === targetChapterId)?.order
+    : getNextChapterOrder(chapterMetas);
   const ledger = buildStoryStateLedger({
     novel,
     chapters: recentChapters,
@@ -301,9 +304,7 @@ function initializeProductionRun(
     powerLevels,
     timelineEvents,
     foreshadowings,
-    currentChapterOrder: targetChapterId
-      ? chapterMetas.find((chapter) => chapter.id === targetChapterId)?.order
-      : getNextChapterOrder(chapterMetas),
+    currentChapterOrder,
   });
   const intent = normalizeProductionIntent(userIntent);
   const rawPlannerContext = buildProductionPlannerContext(ledger);
@@ -1051,6 +1052,9 @@ export function registerProductionRoutes(app: Express) {
 
         runProductionPipeline({
           novelId,
+          chapterOrder: db.listChaptersMetadata(novelId).find(
+            (meta) => meta.id === resolvedTargetChapterId
+          )?.order,
           userIntent: intent,
           contextStr: finalPipelineContext,
           stageContexts,

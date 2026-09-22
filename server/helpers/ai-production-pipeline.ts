@@ -19,6 +19,7 @@ import {
   resolveEffectiveMinDraftChars,
   validateCompleteChapterDraftQuality,
 } from '../../shared/lib/draft-quality';
+import { loadChapterContract } from './knowledge-lineage-enrich.js';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -356,6 +357,7 @@ function buildValidatedFallbackDraft(
  */
 export async function runProductionPipeline(params: {
   novelId: string;
+  chapterOrder?: number;
   userIntent: string;
   contextStr: string;
   stageContexts?: { planner: string; writer: string; critic: string };
@@ -365,6 +367,7 @@ export async function runProductionPipeline(params: {
 }): Promise<PipelineResult> {
   const {
     novelId,
+    chapterOrder,
     userIntent,
     contextStr,
     stageContexts,
@@ -373,6 +376,12 @@ export async function runProductionPipeline(params: {
     progress = {},
   } = params;
   const minDraftChars = resolveEffectiveMinDraftChars(userIntent);
+  // Plan 261 Phase2：细纲权威合同 + 伏笔台账——planner 照合同展开分镜，
+  // critic 拿红线/伏笔做核对清单（素材路由：细纲=任务书+核查清单）。
+  const chapterContract = chapterOrder ? loadChapterContract(novelId, chapterOrder) : null;
+  if (chapterContract) {
+    logger.info('[pipeline] chapter contract loaded', { novelId, chapterNo: chapterContract.chapterNo });
+  }
 
   // Build learned preference context
   const learnedContext =
@@ -408,7 +417,7 @@ export async function runProductionPipeline(params: {
     contextStr: augmentedContexts.planner,
     skillsInfo: stagePrompts.planner,
     userIntent: wrapUserInput(userIntent),
-  }) + PLANNER_LENGTH_CONTRACT;
+  }) + PLANNER_LENGTH_CONTRACT + (chapterContract ? '\n\n' + chapterContract.contractText : '');
 
   let sceneBeats: string;
   let beatsSource: PipelineResult['beatsSource'];

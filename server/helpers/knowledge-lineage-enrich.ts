@@ -70,6 +70,51 @@ function edgeExists(
   );
 }
 
+
+export interface ChapterContract {
+  chapterNo: string;
+  title: string;
+  contractText: string;
+  checklistText: string;
+  foreshadowingTasks: string[];
+  payoffNote: string;
+}
+
+/**
+ * Phase2：按章节序号加载逐章细纲条目，生成 planner 任务书（contractText）
+ * 与 critic 核对清单（checklistText）。资料包无细纲或无本章条目时返回 null。
+ */
+export function loadChapterContract(novelId: string, chapterOrder: number): ChapterContract | null {
+  const db = getDb();
+  const chapterNo = `Ch${String(chapterOrder).padStart(3, '0')}`;
+  const docs = packSourceDocuments(db, novelId);
+  const xigangDoc = docs.find((d) => d.filename.includes('逐章细纲'));
+  if (!xigangDoc) return null;
+  const entry = extractXigangEntries(xigangDoc.text).find((e) => e.chapterNo === chapterNo);
+  if (!entry) return null;
+  const ledgerRows = extractForeshadowingLedger([entry]);
+  const contractText = [
+    `【权威细纲合同 · ${chapterNo}】本章分镜必须从以下合同展开：核心事件、场景锚点、关键道具、伏笔埋点、章末钩子逐项落实；禁止另行编造核心事件或替换伏笔。`,
+    `- 章节标题：${entry.title}`,
+    ...Object.entries(entry.fields).map(([k, v]) => `- ${k}：${v}`),
+  ].join('\n');
+  const checklistText = [
+    `【审计核对清单 · ${chapterNo}】以下各项逐条核查，未兑现须在 fatalIssues 中指出：`,
+    entry.fields['红线自查'] ? `- 红线自查：${entry.fields['红线自查']}` : '',
+    entry.fields['伏笔埋点'] ? `- 伏笔埋点应包含：${entry.fields['伏笔埋点']}` : '',
+    ledgerRows.length ? `- 伏笔台账：本章应埋设 ${ledgerRows.length} 条（${ledgerRows.map((r) => r.title).join('；')}）` : '',
+    entry.fields['章末钩子'] ? `- 章末钩子应兑现：${entry.fields['章末钩子']}` : '',
+  ].filter(Boolean).join('\n');
+  return {
+    chapterNo,
+    title: entry.title,
+    contractText,
+    checklistText,
+    foreshadowingTasks: ledgerRows.map((r) => r.description),
+    payoffNote: ledgerRows[0]?.payoffNote || '',
+  };
+}
+
 export function runLineageEnrichment(novelId: string): LineageReport {
   const db = getDb();
   const report: LineageReport = {
