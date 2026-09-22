@@ -1,0 +1,165 @@
+
+/**
+ * Plan 261 知识谱系常驻模块：把资料包里的权威素材（逐章细纲/遗物体系/公理）
+ * 解析成结构化资产并入库（伏笔台账、图谱边），提供覆盖度报告。
+ *
+ * 设计约束：
+ * - 幂等：重复运行不产生重复行（台账按 title+plantedChapterId 去重，边按
+ *   source+target+type 去重）。
+ * - 提案制：写入的都是从用户资产解析出的确定性事实，不自动删除任何既有行。
+ * - 可重跑：资料包文档更新后重新运行即可增量补齐。
+ */
+
+export interface XigangEntry {
+  chapterNo: string;
+  title: string;
+  fields: Record<string, string>;
+}
+
+/** 从逐章细纲 markdown 解析每章条目（### Ch001 · 标题 + 字段行）。 */
+export function extractXigangEntries(markdown: string): XigangEntry[] {
+  const entries: XigangEntry[] = [];
+  const lines = String(markdown || '').split('\n');
+  let current: XigangEntry | null = null;
+  let lastField: string | null = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const heading = line.match(/^###\s+(Ch\d+(?:_\d+)?)\s*·\s*(.+)$/);
+    if (heading) {
+      if (current) entries.push(current);
+      current = { chapterNo: heading[1], title: heading[2].trim(), fields: {} };
+      lastField = null;
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith('### ')) {
+      // 单元标题（"### U01 · 入队"）等非章节小节——先落袋当前条目再挂起，
+      // 继续扫描后续 Ch 条目（run 首测：此处 break/丢弃导致只解析到 5 条）。
+      if (current) entries.push(current);
+      current = null;
+      lastField = null;
+      continue;
+    }
+    const field = line.match(/^(?:-\s*)?\*\*([^*]+)\*\*[：:]\s*(.*)$/);
+    if (field) {
+      const key = field[1].trim();
+      current.fields[key] = field[2].trim();
+      lastField = key;
+      continue;
+    }
+    if (line && lastField && !line.startsWith('---') && !line.startsWith('|')) {
+      current.fields[lastField] += `\n${line}`;
+    }
+  }
+  if (current) entries.push(current);
+  return entries;
+}
+
+export interface LedgerRow {
+  title: string;
+  description: string;
+  plantedChapter: string;
+  payoffChapter: string | null;
+  payoffNote: string;
+}
+
+/**
+ * 从细纲条目提取伏笔台账行——每条"伏笔埋点"句拆一行，
+ * 回收章字段（如 "Ch005（暴走骑手首次击退）/ Ch006"）归并进行内。
+ */
+export function extractForeshadowingLedger(entries: XigangEntry[]): LedgerRow[] {
+  const rows: LedgerRow[] = [];
+  for (const entry of entries) {
+    const plant = (entry.fields['伏笔埋点'] || '').trim();
+    if (!plant) continue;
+    const payoffRaw = (entry.fields['回收章'] || '').trim();
+    const payoffMatch = payoffRaw.match(/Ch\d+/);
+    const sentences = plant
+      .split(/[。；]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 6);
+    for (const sentence of sentences) {
+      const title = sentence.split(/[=＝]/)[0].slice(0, 40);
+      rows.push({
+        title,
+        description: sentence,
+        plantedChapter: entry.chapterNo,
+        payoffChapter: payoffMatch ? payoffMatch[0] : null,
+        payoffNote: payoffRaw,
+      });
+    }
+  }
+  return rows;
+}
+
+export interface RelicEdge {
+  no: string;
+  itemName: string;
+  holderName: string;
+  level: string;
+  note: string;
+}
+
+/** 从遗物体系档案的"完整索引表"解析 遗物→当前持有人 边。 */
+export function extractRelicHolderEdges(relicDoc: string): RelicEdge[] {
+  const edges: RelicEdge[] = [];
+  for (const rawLine of String(relicDoc || '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line.startsWith('|') || line.includes('---')) continue;
+    const cells = line
+      .split('|')
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    // 标准表列序：NO. | 名称 | 等级 | 来源 | 当前持有人 | 登场单元 | 功能简述 | ...
+    if (cells.length < 5 || !/^\d{3}$/.test(cells[0])) continue;
+    const holder = cells[4].replace(/（[^）]*）/g, '').trim();
+    if (!holder) continue;
+    edges.push({
+      no: cells[0],
+      itemName: cells[1],
+      holderName: holder,
+      level: cells[2] || '',
+      note: cells[6] || '',
+    });
+  }
+  return edges;
+}
+
+export interface PowerEdge {
+  powerName: string;
+  holderName: string;
+}
+
+/** 从力量体系描述（"左妄持有，不锻炼"）解析 公理→持有者 边。 */
+export function extractPowerHolderEdges(
+  powerRows: Array<{ name: string; description: string }>,
+  characterNames: Set<string>
+): PowerEdge[] {
+  const edges: PowerEdge[] = [];
+  for (const row of powerRows) {
+    const head = String(row.description || '').split(/[，,；;]/)[0].trim();
+    const holder = [...characterNames].find((name) => head.startsWith(name));
+    if (holder) edges.push({ powerName: row.name, holderName: holder });
+  }
+  return edges;
+}
+
+/** 关系类型同义归一（保守映射，只合并语义完全相同的写法）。 */
+export const RELATIONSHIP_TYPE_SYNONYMS: Record<string, string> = {
+  债主: '债务',
+  欠债: '债务',
+  债权人: '债务',
+  '债主-欠债人': '债务',
+  房东房客: '房东-房客',
+  '租户-房东': '房东-房客',
+  镜像关系: '镜像',
+  专属镜像: '镜像',
+  伙伴: '同伴',
+  同行者: '同伴',
+  旧搭档: '旧识',
+};
+
+export function normalizeRelationshipType(relationshipType: string): string {
+  return RELATIONSHIP_TYPE_SYNONYMS[relationshipType] || relationshipType;
+}
