@@ -169,7 +169,7 @@ const WRITER_LLM_OPTIONS = {
       ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
       : 180_000,
   maxAttempts: 2,
-  maxTokens: 16_384,
+  maxTokens: 8_192,
 } as const;
 
 // Per-scene budget for split-scene generation (scheme C): one scene is a few
@@ -177,7 +177,10 @@ const WRITER_LLM_OPTIONS = {
 // slow upstreams can finish within the per-call window.
 // Plan 260 后续：场景预算从 2400 提至 4096——11 张技法卡注入后单场景 prompt
 // 变长，模型需要更多输出 token 才能完成场景叙事而不截断。
-const WRITER_SCENE_MAX_TOKENS = 4096;
+// Plan 261 修复⑰：单章目标 4000-6000 字——场景预算收敛到 2048（≈1300 字
+// 硬上限/场景），配合篇幅指令把整章压回目标区间并压缩输出成本（输出 token
+// 是单章成本的大头，4-8 元/百万）。
+const WRITER_SCENE_MAX_TOKENS = 2048;
 /** Minimum scene blocks for split generation; below this, single-shot the chapter. */
 const MIN_SCENES_FOR_SPLIT = 2;
 
@@ -192,7 +195,9 @@ const WRITER_OUTPUT_DISCIPLINE =
   '上下文中的背景信息仅供你理解世界，不要在正文中复述或解释。' +
   '【硬设定红线】上下文中的角色当前状态与世界规则是既定事实，正文不得与之冲突：' +
   '角色的认知状态（如"未自知""不知情"）、能力边界、已知与未知信息不可颠倒；' +
-  '角色触碰设定边界的反应必须写成不自知、不可控、事后困惑，禁止让角色主动运用其尚未自觉的能力。';
+  '角色触碰设定边界的反应必须写成不自知、不可控、事后困惑，禁止让角色主动运用其尚未自觉的能力。' +
+  '【篇幅控制】整章正文控制在约4000-6000字（含标点）：每个场景约800-1200字，' +
+  '写完该场景立即转入下一场景，禁止在单个场景内超篇幅展开；宁短勿水，删掉不推动剧情的描写。';
 
 /**
  * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
