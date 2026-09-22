@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { getDb } from '../lib/db-instance.js';
 import {
   extractCharacterItemAffinityEdges,
+  extractWorldviewHints,
   extractCharacterLocationEdges,
   extractForeshadowingLedger,
   extractPowerHolderEdges,
   extractRelicHolderEdges,
+  extractOutlineUnit,
   extractXigangEntries,
   RELATIONSHIP_TYPE_SYNONYMS,
 } from './knowledge-lineage.js';
@@ -140,6 +142,26 @@ export function settleForeshadowingsOnApply(
     )
     .run(Date.now(), novelId, chapterNo);
   return { paidOff: result.changes, chapterNo };
+}
+
+export function loadWorldviewHints(novelId: string, castNames: string[]) {
+  try {
+    const docs = packSourceDocuments(getDb(), novelId);
+    const metaDoc = docs.find((d) => d.filename.includes('元设定'))?.text || '';
+    return extractWorldviewHints(metaDoc, castNames);
+  } catch {
+    return extractWorldviewHints('', []);
+  }
+}
+
+export function loadOutlineUnit(novelId: string, chapterOrder: number) {
+  try {
+    const docs = packSourceDocuments(getDb(), novelId);
+    const outlineDoc = docs.find((d) => d.filename.includes('剧情大纲'))?.text || '';
+    return extractOutlineUnit(outlineDoc, chapterOrder);
+  } catch {
+    return null;
+  }
 }
 
 export function runLineageEnrichment(novelId: string): LineageReport {

@@ -255,3 +255,107 @@ export const RELATIONSHIP_TYPE_SYNONYMS: Record<string, string> = {
 export function normalizeRelationshipType(relationshipType: string): string {
   return RELATIONSHIP_TYPE_SYNONYMS[relationshipType] || relationshipType;
 }
+
+export interface WorldviewHints {
+  redLines: string;
+  axioms: string;
+  bannedWords: string;
+  signatureWords: string;
+  voiceLines: string;
+  hintsBlock: string;
+}
+
+function parseMarkdownRows(section: string): string[][] {
+  return section
+    .split('\n')
+    .filter((line) => line.trim().startsWith('|') && !line.includes('---') && !/编号|公理\s*\|\s*内容/.test(line))
+    .map((line) =>
+      line
+        .split('|')
+        .map((c) => c.trim().replace(/\*\*/g, ''))
+        .filter((c) => c.length > 0)
+    );
+}
+
+function cutSection(text: string, startTitle: string, maxLen: number): string {
+  const idx = text.indexOf(startTitle);
+  if (idx < 0) return '';
+  const rest = text.slice(idx + startTitle.length);
+  const next = rest.search(/\n## /);
+  return rest.slice(0, next > 0 ? Math.min(next, maxLen) : maxLen);
+}
+
+/**
+ * Phase3：世界观化用提示——从元设定 D3 提取创作红线/四公理/禁忌词/
+ * 推荐词/出场角色语言调性，组成 writer 的化用提示块（紧凑，防复述）。
+ */
+export function extractWorldviewHints(
+  metaDoc: string,
+  castNames: string[] = []
+): WorldviewHints {
+  const text = String(metaDoc || '');
+  if (!text) {
+    return { redLines: '', axioms: '', bannedWords: '', signatureWords: '', voiceLines: '', hintsBlock: '' };
+  }
+
+  const redRows = parseMarkdownRows(cutSection(text, '## 一、五条创作红线', 3000));
+  const redLines = redRows.slice(0, 6)
+    .map((cells) => '- ' + (cells[0] || '') + (cells[1] ? '（' + cells[1] + '）' : '') + ': ' + (cells[2] || '').slice(0, 90))
+    .join('\n');
+
+  const axiomRows = parseMarkdownRows(cutSection(text, '## 七、四公理', 2000));
+  const axioms = axiomRows.slice(0, 5)
+    .map((cells) => '- ' + (cells[0] || '') + ': ' + (cells[1] || '').slice(0, 80) + '（化用：' + (cells[2] || '').slice(0, 50) + '）')
+    .join('\n');
+
+  const bannedRaw = cutSection(text, '### 4.1 禁忌词', 300);
+  const bannedMatch = bannedRaw.match(/[❌]\s*([^\n]+)/);
+  const bannedWords = bannedMatch ? bannedMatch[1].trim() : '';
+  const sigRaw = cutSection(text, '### 4.2 推荐词', 300);
+  const sigMatch = sigRaw.match(/[✅]\s*([^\n]+)/);
+  const signatureWords = sigMatch ? sigMatch[1].trim() : '';
+
+  const voiceRows = parseMarkdownRows(cutSection(text, '### 4.3 角色语言调性速查', 3000));
+  const voiceLines = voiceRows
+    .filter((cells) => castNames.some((name) => (cells[0] || "").includes(name)))
+    .slice(0, 6)
+    .map((cells) => '- ' + (cells[0] || '') + ': ' + (cells[1] || '') + '，' + (cells[3] || '').slice(0, 40))
+    .join('\n');
+
+  const parts: string[] = ['【世界观化用提示——化用规则感与语调，禁止直白复述本块】'];
+  if (redLines) parts.push('创作红线（违反即崩设定）：\n' + redLines);
+  if (axioms) parts.push('深渊四公理（异象的因果规则）：\n' + axioms);
+  if (bannedWords) parts.push('禁忌词（永不出现在正文）：' + bannedWords);
+  if (signatureWords) parts.push('标志性用语（优先自然使用）：' + signatureWords);
+  if (voiceLines) parts.push('角色语言调性：\n' + voiceLines);
+  const hintsBlock = parts.join('\n');
+
+  return { redLines, axioms, bannedWords, signatureWords, voiceLines, hintsBlock };
+}
+export function extractOutlineUnit(
+  outlineDoc: string,
+  chapterOrder: number
+): { unitLine: string; unitSummary: string } | null {
+  const text = String(outlineDoc || '');
+  if (!text) return null;
+  const unitHead = text.match(/【(卷[一二三四][^】]*Ch[\d-]+)】/);
+  if (!unitHead) return null;
+  const rangeMatch = unitHead[1].match(/Ch(\d+)-(\d+)/);
+  if (!rangeMatch) return null;
+  const lo = Number(rangeMatch[1]);
+  const hi = Number(rangeMatch[2]);
+  if (chapterOrder < lo || chapterOrder > hi) {
+    // 章节不在卷一区间时，仍返回卷一结构信息的第一段供定位参考
+  }
+  const sectionStart = text.indexOf(unitHead[0]);
+  const rest = text.slice(sectionStart + unitHead[0].length);
+  const nextVolume = rest.search(/【卷[一二三四]/);
+  const section = rest.slice(0, nextVolume > 0 ? nextVolume : 1500);
+  const summary = section
+    .split('\n')
+    .filter((l) => l.trim() && !l.trim().startsWith('#'))
+    .slice(0, 4)
+    .join('\n')
+    .slice(0, 600);
+  return { unitLine: unitHead[1], unitSummary: summary };
+}

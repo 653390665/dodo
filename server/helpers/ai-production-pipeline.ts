@@ -19,7 +19,7 @@ import {
   resolveEffectiveMinDraftChars,
   validateCompleteChapterDraftQuality,
 } from '../../shared/lib/draft-quality';
-import { loadChapterContract } from './knowledge-lineage-enrich.js';
+import { loadChapterContract, loadOutlineUnit, loadWorldviewHints } from './knowledge-lineage-enrich.js';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -412,12 +412,16 @@ export async function runProductionPipeline(params: {
     preferredTemplateKey: 'editorAgent',
   });
 
-  const plannerPrompt = renderPromptTemplate(plannerAsset.template, {
+  let plannerPrompt = renderPromptTemplate(plannerAsset.template, {
     PLANNER_SOUL,
     contextStr: augmentedContexts.planner,
     skillsInfo: stagePrompts.planner,
     userIntent: wrapUserInput(userIntent),
   }) + PLANNER_LENGTH_CONTRACT + (chapterContract ? '\n\n' + chapterContract.contractText : '');
+  const outlineUnit = chapterOrder ? loadOutlineUnit(novelId, chapterOrder) : null;
+  if (outlineUnit) {
+    plannerPrompt += '\n\n【大纲定位】本章位于 ' + outlineUnit.unitLine + '。本章及相邻章节的大纲要点：\n' + outlineUnit.unitSummary;
+  }
 
   let sceneBeats: string;
   let beatsSource: PipelineResult['beatsSource'];
@@ -457,6 +461,10 @@ export async function runProductionPipeline(params: {
   }
 
   const contextEntityFilter = extractBeatCast(sceneBeats);
+  const worldviewHints = loadWorldviewHints(novelId, contextEntityFilter || []);
+  const worldviewHintsSuffix = worldviewHints.hintsBlock
+    ? '\n\n' + worldviewHints.hintsBlock
+    : '';
   // ================================================================
   // Phase 2–3: Writer → Critic loop
   // ================================================================
@@ -499,7 +507,7 @@ export async function runProductionPipeline(params: {
       criticFeedback: criticFeedback
         ? writerRetryFeedback || criticFeedback
         : '初稿阶段，请全力输出。',
-    }) + WRITER_OUTPUT_DISCIPLINE;
+    }) + worldviewHintsSuffix + WRITER_OUTPUT_DISCIPLINE;
 
     draftSource = 'model';
     try {
@@ -547,7 +555,7 @@ export async function runProductionPipeline(params: {
               : i === 0
                 ? '初稿阶段，请全力输出。'
                 : '继续本章的下一场景，保持人物与节奏连贯。',
-          }) + WRITER_OUTPUT_DISCIPLINE;
+          }) + worldviewHintsSuffix + WRITER_OUTPUT_DISCIPLINE;
           const callT0 = Date.now();
           let sceneTruncated = false;
           try {
