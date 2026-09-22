@@ -9,6 +9,36 @@ import {
 } from '../helpers/prompt-guard';
 import { getDb } from './db-instance.js';
 
+/**
+ * 缓存取证（env 门控 DEBUG_LLM_USAGE=1）：记录每次调用的 token 用量与
+ * DeepSeek 前缀缓存命中（prompt_cache_hit_tokens），用于成本归因与
+ * 缓存有效性验证。取证失败不影响主流程。
+ */
+function logLlmUsage(
+  config: AppConfig,
+  options: { prompt?: string; systemInstruction?: string },
+  usage: Record<string, unknown> | undefined,
+  extra: { ms: number; finishReason?: string }
+) {
+  if (process.env.DEBUG_LLM_USAGE !== '1') return;
+  try {
+    const promptChars = (options.prompt || '').length + (options.systemInstruction || '').length;
+    console.info(
+      '[llm-usage] ' +
+        JSON.stringify({
+          provider: getProviderName(config.baseUrl),
+          model: config.model,
+          promptChars,
+          promptTokens: Number(usage?.prompt_tokens) || 0,
+          cacheHit: Number(usage?.prompt_cache_hit_tokens) || 0,
+          cacheMiss: Number(usage?.prompt_cache_miss_tokens) || 0,
+          completionTokens: Number(usage?.completion_tokens) || 0,
+          ...extra,
+        })
+    );
+  } catch { /* 取证日志失败不影响主流程 */ }
+}
+
 export type OutputDiagnostic = {
   provider: 'deepseek' | 'minimax' | 'google' | 'openai-compatible';
   responseFormatMode: 'json_object' | 'plain_fallback' | 'none';
@@ -365,6 +395,10 @@ export function buildOpenAICompatibleChatRequest(
   }
   if (isDeepSeekProvider(config.baseUrl) && disableThinking) {
     request.thinking = { type: 'disabled' };
+  }
+  if (request.stream && isDeepSeekProvider(config.baseUrl)) {
+    // 缓存取证：要求 DeepSeek 在流式末帧返回 usage（含 prompt_cache_hit/miss）。
+    request.stream_options = { include_usage: true };
   }
   if (responseMimeType === 'application/json' && includeResponseFormat) {
     // Siliconflow's API gateway fails or drops connection when response_format is sent
@@ -737,6 +771,10 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     onToken,
   } = options;
   const traceId = options.traceId || `llm_${randomUUID()}`;
+  const usageLogStart = Date.now();
+  // Plan 261 缓存取证：跨 attempt/分支共享的 usage 捕获（流式末帧或非流式 body）。
+  let capturedUsage: Record<string, unknown> | undefined;
+  let usageFinishReason: string | undefined;
 
   if (!config.apiKey) {
     throw providerError({
@@ -1062,6 +1100,11 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               const choice = asRecord(asArray(asRecord(parsed).choices)[0]);
               const chunkFinishReason = String(choice.finish_reason || choice.finishReason || '');
               if (chunkFinishReason) finishReason = chunkFinishReason;
+              const chunkUsage = asRecord(parsed).usage;
+              if (chunkUsage && typeof chunkUsage === 'object') {
+                capturedUsage = asRecord(chunkUsage);
+                usageFinishReason = finishReason;
+              }
               if (typeof token === 'string' && token) {
                 if (controller.signal.aborted) {
                   throw controller.signal.reason || new Error('AbortError');
@@ -1151,12 +1194,18 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
                 thinkTagState: sanitized.thinkTagState,
               },
             });
+
+            logLlmUsage(config, options, capturedUsage, { ms: Date.now() - usageLogStart, finishReason: usageFinishReason });
             return sanitized.text;
           } else {
             const data = await response.json();
             const finishReason = String(
               asRecord(asArray(asRecord(data).choices)[0]).finish_reason || ''
             );
+            if (data.usage && typeof data.usage === 'object') {
+              capturedUsage = asRecord(data.usage);
+              usageFinishReason = finishReason || undefined;
+            }
             const firstChoice = asRecord(asArray(asRecord(data).choices)[0]);
             const message = asRecord(firstChoice.message);
             const text = extractOpenAIMessageText(message);
