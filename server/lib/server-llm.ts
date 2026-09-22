@@ -587,7 +587,7 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildCharacterRelationshipContext(novelId: string, entityFilter?: string[]): string {
+export function buildCharacterRelationshipContext(novelId: string, entityFilter?: string[]): string {
   try {
     const database = getDb();
     const characters = database
