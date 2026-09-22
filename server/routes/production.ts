@@ -19,6 +19,7 @@ import { buildFallbackSceneBeats, buildFallbackDraft } from '../helpers/fallback
 import { buildEmptyContinuityReport, buildContractPrompt } from '../helpers/production-helpers';
 import { recordChapterDecision } from '../../shared/lib/preference-flywheel';
 import { addChunk } from '../vector-store';
+import { runLineageEnrichment } from '../helpers/knowledge-lineage-enrich.js';
 import { EmbeddingUnavailableError } from '../embedding';
 import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel';
 import {
@@ -1692,7 +1693,13 @@ export function registerProductionRoutes(app: Express) {
         const chapterId = guarded.result;
 
         // Background-index chapter for vector RAG (don't block the response)
-        addChunk(run.novelId, chapterId!, 0, applyRun.draftContent).catch((e) => {
+        // 知识谱系回写（幂等）：细纲伏笔台账/遗物与公理持有边随接受流程同步
+        try {
+          runLineageEnrichment(run.novelId);
+        } catch (lineageErr) {
+          logger.warn('Knowledge lineage resync failed after apply', lineageErr);
+        }
+                addChunk(run.novelId, chapterId!, 0, applyRun.draftContent).catch((e) => {
           if (e instanceof EmbeddingUnavailableError) {
             logger.warn(
               'Semantic retrieval unavailable; chapter was saved without vector indexing'
