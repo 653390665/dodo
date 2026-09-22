@@ -587,10 +587,7 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildCharacterRelationshipContext(
-  novelId: string,
-  entityFilter?: string[]
-): string {
+function buildCharacterRelationshipContext(novelId: string, entityFilter?: string[]): string {
   try {
     const database = getDb();
     const characters = database
@@ -609,10 +606,12 @@ function buildCharacterRelationshipContext(
 
     const relationships = database
       .prepare(
-        'SELECT sourceId, targetId, relationshipType, description FROM entity_relationships WHERE novelId = ?'
+        'SELECT sourceType, sourceId, targetType, targetId, relationshipType, description FROM entity_relationships WHERE novelId = ?'
       )
       .all(novelId) as Array<{
+      sourceType: string;
       sourceId: string;
+      targetType: string;
       targetId: string;
       relationshipType: string;
       description: string;
@@ -620,29 +619,72 @@ function buildCharacterRelationshipContext(
 
     if (characters.length === 0) return '';
 
-    // 知识图谱选择性调用：细纲点名实体 → 只保留被点名角色 + 其一跳关系边。
-    // 全量图谱（88 角色 + 269 边）灌进每次调用会稀释注意力——角色声线串味、
-    // 指代混乱（信息谱系本意是"参考与调用"，不是全量倾倒）。
-    let filteredCharacters = characters;
-    let filteredRelationships = relationships;
+    // 知识图谱选择性调用：细纲点名实体 → 只保留被点名角色 + 其关系边。
+    // 全量图谱（88 角色 + 269 边）灌进每次调用会稀释注意力。
     const filterNames = (entityFilter || []).map((n) => n.trim()).filter(Boolean);
-    if (filterNames.length > 0) {
-      const nameSet = new Set(filterNames);
-      const matched = characters.filter((char) => nameSet.has(char.name));
-      const matchedIds = new Set(matched.map((c) => c.id));
-      filteredRelationships = relationships.filter(
-        (rel) => matchedIds.has(rel.sourceId) && matchedIds.has(rel.targetId)
+    const nameSet = new Set(filterNames);
+    const matched = filterNames.length
+      ? characters.filter((char) => nameSet.has(char.name))
+      : characters;
+    const matchedIds = new Set(matched.map((c) => c.id));
+    const charEdges = relationships.filter(
+      (rel) =>
+        rel.sourceType === 'character' &&
+        rel.targetType === 'character' &&
+        matchedIds.has(rel.sourceId) &&
+        matchedIds.has(rel.targetId)
+    );
+
+    // 其他维度：节点被细纲点名，或是出场角色的直接关联边目标。
+    const dimensionRelevant = <T extends { id: string; name: string }>(
+      rows: T[],
+      nodeType: string
+    ): T[] => {
+      const byName = rows.filter((row) => nameSet.has(row.name));
+      const byEdge = rows.filter((row) =>
+        relationships.some(
+          (rel) =>
+            rel.targetType === nodeType &&
+            rel.targetId === row.id &&
+            rel.sourceType === 'character' &&
+            matchedIds.has(rel.sourceId)
+        )
       );
-      // 一跳邻居：与出场角色有关系但未出场者，只保留名字进关系描述，不占独立条目。
-      filteredCharacters = matched;
-    }
+      const merged = new Map<string, T>();
+      for (const row of [...byName, ...byEdge]) merged.set(row.id, row);
+      return [...merged.values()].slice(0, 10);
+    };
+
+    const items = dimensionRelevant(
+      database
+        .prepare('SELECT id, name, description, type FROM items WHERE novel_id = ?')
+        .all(novelId) as Array<{ id: string; name: string; description: string; type: string }>,
+      'item'
+    );
+    const locations = dimensionRelevant(
+      database
+        .prepare('SELECT id, name, description, region FROM locations WHERE novel_id = ?')
+        .all(novelId) as Array<{ id: string; name: string; description: string; region: string }>,
+      'location'
+    );
+    const factions = dimensionRelevant(
+      database
+        .prepare('SELECT id, name, description, leader FROM factions WHERE novel_id = ?')
+        .all(novelId) as Array<{ id: string; name: string; description: string; leader: string }>,
+      'faction'
+    );
+    const powers = dimensionRelevant(
+      database
+        .prepare('SELECT id, name, description, tier FROM power_levels WHERE novel_id = ?')
+        .all(novelId) as Array<{ id: string; name: string; description: string; tier: string }>,
+      'power'
+    );
 
     let context = '\n\n【全局角色设定与人物关系图谱（剧情一致性对齐防崩坏）】\n';
     context += '角色名册：\n';
     const charMap = new Map<string, string>();
-    for (const char of filteredCharacters) {
+    for (const char of matched) {
       charMap.set(char.id, char.name);
-
       let traitsStr = '';
       try {
         if (char.traits) {
@@ -652,19 +694,45 @@ function buildCharacterRelationshipContext(
       } catch {
         traitsStr = char.traits || '';
       }
-
       context += `- **${char.name}** (${char.role || '配角'}): ${char.summary || ''}\n`;
       if (traitsStr) context += `  * 标签特质: ${traitsStr}\n`;
       if (char.bio) context += `  * 背景小传: ${char.bio}\n`;
       if (char.current_state) context += `  * 当前状态/处境: ${char.current_state}\n`;
     }
 
-    if (filteredRelationships.length > 0) {
+    if (charEdges.length > 0) {
       context += '\n人物情感/阵营羁绊：\n';
-      for (const rel of filteredRelationships) {
+      for (const rel of charEdges) {
         const sourceName = charMap.get(rel.sourceId) || rel.sourceId;
         const targetName = charMap.get(rel.targetId) || rel.targetId;
         context += `- **${sourceName}** 与 **${targetName}** 之间的关系为 [${rel.relationshipType || '普通羁绊'}]: ${rel.description || ''}\n`;
+      }
+    }
+
+    // Plan 261 修复㉑：图谱消费扩展到全维度——道具/地点/势力/公理此前
+    // 只有边没有渲染，writer 无法调用细纲点名的道具与世界观规则。
+    if (items.length > 0) {
+      context += '\n本章道具谱系：\n';
+      for (const item of items) {
+        context += `- **${item.name}**${item.type ? `（${item.type}）` : ''}: ${(item.description || '').slice(0, 120)}\n`;
+      }
+    }
+    if (locations.length > 0) {
+      context += '\n关键地点：\n';
+      for (const loc of locations) {
+        context += `- **${loc.name}**${loc.region ? `（${loc.region}）` : ''}: ${(loc.description || '').slice(0, 100)}\n`;
+      }
+    }
+    if (factions.length > 0) {
+      context += '\n相关势力：\n';
+      for (const faction of factions) {
+        context += `- **${faction.name}**${faction.leader ? `（首领：${faction.leader}）` : ''}: ${(faction.description || '').slice(0, 100)}\n`;
+      }
+    }
+    if (powers.length > 0) {
+      context += '\n力量体系/公理（化用其规则感，禁止直白复述）：\n';
+      for (const power of powers) {
+        context += `- **${power.name}**${power.tier ? `（${power.tier}）` : ''}: ${(power.description || '').slice(0, 100)}\n`;
       }
     }
     return context;
