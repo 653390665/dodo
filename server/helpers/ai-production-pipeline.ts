@@ -201,6 +201,16 @@ const WRITER_OUTPUT_DISCIPLINE =
   '写完该场景立即转入下一场景，禁止在单个场景内超篇幅展开；宁短勿水，删掉不推动剧情的描写。';
 
 /**
+ * Plan 261 修复⑱：篇幅合同注入 planner——场景数 × 每场景字数 = 成稿长度。
+ * 模板默认“3-5 个场景”会让 flash 顶格输出 5 场，叠加不守字数指令的 writer
+ * 就是 1.4-1.9 万字失控稿（run R/AB 实测）。场景数收到 4 个，与 writer 端
+ * 1,536 token 场景硬上限、4000-6000 字篇幅指令共同构成三级字数控制。
+ */
+const PLANNER_LENGTH_CONTRACT =
+  '\n\n【篇幅合同】本章成稿目标 4000-6000 字。请设计 4 个场景分镜（不要输出 5 个），' +
+  '每个场景承载约 1200 字正文；场景数量直接决定成稿长度，宁精勿多，合并可合并的场景。';
+
+/**
  * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
  * 原样回声——场景头带占位符「场景 N」、字段带「（≤20字）」字数约束
  * （run 5b206afb / run N 实测）。占位符让 splitSceneBeats 无法识别场景块，
@@ -382,7 +392,7 @@ export async function runProductionPipeline(params: {
     contextStr: augmentedContexts.planner,
     skillsInfo: stagePrompts.planner,
     userIntent: wrapUserInput(userIntent),
-  });
+  }) + PLANNER_LENGTH_CONTRACT;
 
   let sceneBeats: string;
   let beatsSource: PipelineResult['beatsSource'];
