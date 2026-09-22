@@ -463,15 +463,17 @@ export async function runProductionPipeline(params: {
 
     draftSource = 'model';
     try {
-      // 诊断工具（env 门控）：采集实际发出的 writer prompt，用于离线复现实验。
-      if (process.env.DEBUG_WRITER_PROMPT === '1') {
+      // 诊断工具（env 门控）：采集实际发出的 writer prompt 与每次调用的收发
+      // 元数据（prompt 长度 / 响应长度 / 耗时），用于离线复现实验与容量取证。
+      const debugWriterPromptEnabled = process.env.DEBUG_WRITER_PROMPT === '1';
+      const debugWriterLogFile = `/tmp/writer-prompts-${process.env.DEBUG_WRITER_PROMPT_TAG || 'default'}.jsonl`;
+      const debugLogWriter = (payload: Record<string, unknown>) => {
+        if (!debugWriterPromptEnabled) return;
         try {
-          appendFileSync(
-            `/tmp/writer-prompts-${process.env.DEBUG_WRITER_PROMPT_TAG || 'default'}.jsonl`,
-            JSON.stringify({ t: Date.now(), attempt, prompt: writerPrompt }) + '\n'
-          );
+          appendFileSync(debugWriterLogFile, JSON.stringify({ t: Date.now(), attempt, ...payload }) + '\n');
         } catch { /* 诊断采集失败不影响主流程 */ }
-      }
+      };
+      debugLogWriter({ kind: 'whole-chapter-prompt', promptLen: writerPrompt.length, prompt: writerPrompt });
       let streamedWriterText = '';
       const writerConfig = resolveWriterConfig(getConfig());
       const sceneSections = splitSceneBeats(sceneBeats);
@@ -506,6 +508,7 @@ export async function runProductionPipeline(params: {
                 ? '初稿阶段，请全力输出。'
                 : '继续本章的下一场景，保持人物与节奏连贯。',
           }) + WRITER_OUTPUT_DISCIPLINE;
+          const callT0 = Date.now();
           try {
             const sectionText = await generateText(
               writerConfig,
@@ -531,11 +534,29 @@ export async function runProductionPipeline(params: {
               }
             );
             const trimmed = String(sectionText).trim();
+            debugLogWriter({
+              kind: 'scene-call',
+              scene: i + 1,
+              total: sceneSections.length,
+              promptLen: sectionPrompt.length,
+              respChars: trimmed.length,
+              streamedTokens: streamedWriterText.length,
+              ms: Date.now() - callT0,
+            });
             if (trimmed) {
               parts.push(trimmed);
               previousTail = trimmed.slice(-600);
             }
           } catch (sceneErr) {
+            debugLogWriter({
+              kind: 'scene-call-error',
+              scene: i + 1,
+              total: sceneSections.length,
+              promptLen: sectionPrompt.length,
+              streamedTokens: streamedWriterText.length,
+              ms: Date.now() - callT0,
+              error: sceneErr instanceof Error ? sceneErr.message.slice(0, 120) : String(sceneErr).slice(0, 120),
+            });
             // Split-mode scene guard is a filter, not a hard gate: a single
             // cliche hit in one scene must not kill the whole chapter. Skip
             // the rejected scene, note it for the critic, and let the
