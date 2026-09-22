@@ -49,6 +49,12 @@ export const PROMPT_TEMPLATE_DEFINITIONS: PromptTemplateDefinition[] = [
     variables: ['WRITER_SOUL', 'contextStr', 'skillsInfo', 'sceneBeats', 'criticFeedback'],
   },
   {
+    key: 'orchestrateWriterSlim',
+    label: '正文生成（精简）',
+    description: '生产管线 flash 专用 Writer 提示词：细纲为主，规则精简到 8 条。',
+    variables: ['WRITER_SOUL', 'contextStr', 'skillsInfo', 'sceneBeats', 'criticFeedback'],
+  },
+  {
     key: 'orchestrateCritic',
     label: '正文生成内审',
     description: '正文生成链路中用于回看初稿的 Critic 提示词。',
@@ -184,6 +190,30 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptTemplates = {
 5. 道具必须和动作绑定
 6. 每个场景必须覆盖分镜要求的至少2个关键动作，未覆盖视为FAIL
   `.trim(),
+    orchestrateWriterSlim: `
+{{WRITER_SOUL}}
+
+【硬规则——只遵守以下 6 条，与能力卡、分镜共同生效】
+1. 严格按【分镜蓝图】写叙事正文：完整连贯的中文句子，每段交代谁在做什么、看到什么、局势如何变化；按蓝图顺序写，写完本场景即停。
+2. 单一视角连续叙事：禁止人物小传、作者解释、纲要总结；人物动机用动作与后果呈现，不用旁白解释。
+3. 对白由具体压力触发：人物开口前先有观察、停顿或动作；对白带神态、环境或肢体反应，禁止对白变成信息广播。每个场景至少一轮有张力的对话。
+4. 关键信息分两步释放：先给异样、试探或铺垫，再给揭露；不自说自话。
+5. 场景收束用本场景独有的动作、声音或物件细节，禁用"转身离去""消失在夜色"等套路收尾。
+6. 输出无格式纯正文：禁止 Markdown、场景标题、分镜指令、设定说明或任何非故事文字；写完立即停笔，禁止重写或输出多个版本。分镜中点名的道具、动作与线索必须在正文中兑现。
+
+【世界观与人物志】
+{{contextStr}}
+
+【能力卡规则】
+{{skillsInfo}}
+
+【分镜蓝图 (Beats)】
+{{sceneBeats}}
+
+【总编的审读建议】
+{{criticFeedback}}
+`.trim(),
+
   manualAudit: `
 金牌总编·结构化审计。只评估输入正文，不要改写正文。
 

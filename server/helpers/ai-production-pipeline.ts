@@ -3,7 +3,7 @@ import { governedGenerateText as generateText } from './governed-llm';
 import { getConfig, type AppConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { AUDIT_OUTPUT_CONTRACT, renderPromptTemplate, wrapUserInput } from './prompt-helpers';
+import { AUDIT_OUTPUT_CONTRACT, getPromptTemplate, renderPromptTemplate, wrapUserInput } from './prompt-helpers';
 import {
   convertFiveDimToStructured,
   parseAuditResponseWithDiagnostics,
@@ -209,6 +209,22 @@ const WRITER_OUTPUT_DISCIPLINE =
 const PLANNER_LENGTH_CONTRACT =
   '\n\n【篇幅合同】本章成稿目标 4000-6000 字。请设计 4 个场景分镜（不要输出 5 个），' +
   '每个场景承载约 1200 字正文；场景数量直接决定成稿长度，宁精勿多，合并可合并的场景。';
+
+/**
+ * Plan 261 修复⑳：从分镜的出场人物行提取本章卡司——知识图谱按卡司选择性
+ * 调用（88 角色全量灌入每次调用会稀释注意力）。提取失败返回 undefined，
+ * 回退全量图谱。
+ */
+function extractBeatCast(beats: string): string[] | undefined {
+  const names: string[] = [];
+  for (const m of String(beats || '').matchAll(/\*\*出场人物\*\*[：:](.+)/g)) {
+    for (const name of m[1].split(/[、,，/]/)) {
+      const cleaned = name.trim().replace(/（[^）]*）/g, '').trim();
+      if (cleaned && cleaned.length <= 12 && !/^(?:无|待定)/.test(cleaned)) names.push(cleaned);
+    }
+  }
+  return names.length > 0 ? [...new Set(names)] : undefined;
+}
 
 /**
  * Plan 261 修复④：planner 输出归一化。flash 会把 planner prompt 的格式模板
@@ -431,6 +447,7 @@ export async function runProductionPipeline(params: {
     beatsSource = 'fallback';
   }
 
+  const contextEntityFilter = extractBeatCast(sceneBeats);
   // ================================================================
   // Phase 2–3: Writer → Critic loop
   // ================================================================
@@ -461,11 +478,9 @@ export async function runProductionPipeline(params: {
     progress.onPhase?.('writer');
 
     // --- Writer ---
-    const writerAsset = resolvePromptAssetForSurface({
-      surface: 'workspace-draft',
-      promptTemplates: getConfig().promptTemplates,
-      preferredTemplateKey: 'orchestrateWriter',
-    });
+    // Plan 261 修复⑳：flash 管线走精简模板（8 条核心规则，细纲为主）——
+    // 全量 20 条规则模板是为编辑器/pro 场景设计的，指令过载会稀释服从率。
+    const writerAsset = { template: getPromptTemplate('orchestrateWriterSlim') };
 
     const writerPrompt = renderPromptTemplate(writerAsset.template, {
       WRITER_SOUL,
@@ -548,6 +563,7 @@ export async function runProductionPipeline(params: {
                 onComplete: (info) => {
                   sceneTruncated = Boolean(info?.truncated);
                 },
+                contextEntityFilter,
                 novelId,
               },
               {
@@ -576,6 +592,7 @@ export async function runProductionPipeline(params: {
                   maxTokens: Math.round(WRITER_SCENE_MAX_TOKENS * 0.5),
                   disableThinking: true,
                   signal: progress.signal,
+                  contextEntityFilter,
                   novelId,
                 },
                 {
@@ -654,6 +671,7 @@ export async function runProductionPipeline(params: {
             onToken: (token) => {
               streamedWriterText += token;
             },
+            contextEntityFilter,
             novelId,
           },
           {

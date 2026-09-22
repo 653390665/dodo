@@ -77,6 +77,11 @@ export interface GenerateTextOptions {
   signal?: AbortSignal;
   onToken?: (token: string) => void;
   novelId?: string;
+  /**
+   * 知识图谱选择性调用：只注入与这些实体名相关的角色节点与关系边。
+   * 缺省时维持全量图谱注入（向后兼容）。细纲点名实体由调用方提取。
+   */
+  contextEntityFilter?: string[];
   onComplete?: (metadata: {
     finishReason?: string;
     truncated: boolean;
@@ -582,7 +587,10 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildCharacterRelationshipContext(novelId: string): string {
+function buildCharacterRelationshipContext(
+  novelId: string,
+  entityFilter?: string[]
+): string {
   try {
     const database = getDb();
     const characters = database
@@ -612,10 +620,27 @@ function buildCharacterRelationshipContext(novelId: string): string {
 
     if (characters.length === 0) return '';
 
+    // 知识图谱选择性调用：细纲点名实体 → 只保留被点名角色 + 其一跳关系边。
+    // 全量图谱（88 角色 + 269 边）灌进每次调用会稀释注意力——角色声线串味、
+    // 指代混乱（信息谱系本意是"参考与调用"，不是全量倾倒）。
+    let filteredCharacters = characters;
+    let filteredRelationships = relationships;
+    const filterNames = (entityFilter || []).map((n) => n.trim()).filter(Boolean);
+    if (filterNames.length > 0) {
+      const nameSet = new Set(filterNames);
+      const matched = characters.filter((char) => nameSet.has(char.name));
+      const matchedIds = new Set(matched.map((c) => c.id));
+      filteredRelationships = relationships.filter(
+        (rel) => matchedIds.has(rel.sourceId) && matchedIds.has(rel.targetId)
+      );
+      // 一跳邻居：与出场角色有关系但未出场者，只保留名字进关系描述，不占独立条目。
+      filteredCharacters = matched;
+    }
+
     let context = '\n\n【全局角色设定与人物关系图谱（剧情一致性对齐防崩坏）】\n';
     context += '角色名册：\n';
     const charMap = new Map<string, string>();
-    for (const char of characters) {
+    for (const char of filteredCharacters) {
       charMap.set(char.id, char.name);
 
       let traitsStr = '';
@@ -634,9 +659,9 @@ function buildCharacterRelationshipContext(novelId: string): string {
       if (char.current_state) context += `  * 当前状态/处境: ${char.current_state}\n`;
     }
 
-    if (relationships.length > 0) {
+    if (filteredRelationships.length > 0) {
       context += '\n人物情感/阵营羁绊：\n';
-      for (const rel of relationships) {
+      for (const rel of filteredRelationships) {
         const sourceName = charMap.get(rel.sourceId) || rel.sourceId;
         const targetName = charMap.get(rel.targetId) || rel.targetId;
         context += `- **${sourceName}** 与 **${targetName}** 之间的关系为 [${rel.relationshipType || '普通羁绊'}]: ${rel.description || ''}\n`;

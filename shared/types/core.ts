@@ -201,6 +201,7 @@ export type PromptTemplateKey =
   | 'editorAgent'
   | 'manualAudit'
   | 'orchestrateWriter'
+  | 'orchestrateWriterSlim'
   | 'orchestrateCritic'
   | 'extractSkill'
   | 'generateOutline';
