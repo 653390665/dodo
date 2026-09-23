@@ -70,6 +70,10 @@ test('normalizePlannerBeats strips planning sections and keeps scene blocks', ()
   assert.ok(normalized.includes('场景 1：桥墩淤痕'), 'scene 1 kept');
   assert.ok(normalized.includes('场景 2：苏记赊账'), 'scene 2 kept');
   assert.ok(normalized.includes('入场钩子'), 'scene field lines kept');
+  assert.ok(
+    normalized.includes('赊新账还是交代去处'),
+    'last scene body kept（2026-09-23 修复：原实现会连末场景正文一起切掉）'
+  );
   assert.ok(!normalized.includes('节奏核验'), 'planning table stripped');
   assert.ok(!normalized.includes('伏笔清单'), 'foreshadow ledger stripped');
   assert.ok(!normalized.includes('钩子选择'), 'hook options stripped');
@@ -117,4 +121,20 @@ test('normalizePlannerBeats never returns empty for non-empty planner output', (
   const plain = '本章按时间顺序推进：先桥墩，再苏记，最后夜市。';
   assert.equal(normalizePlannerBeats(plain), plain);
   assert.equal(normalizePlannerBeats(''), '');
+});
+
+// 2026-09-23 链路取证：原实现切到「末个场景标题」为止，单场景分镜会被截成只剩标题，
+// writer 拿不到任何分镜字段、extractBeatCast 也返回 undefined（图谱过滤随之失效）。
+test('normalizePlannerBeats keeps a single scene block intact', () => {
+  const beats = [
+    '## 场景 1：只有一场',
+    '',
+    '**出场人物**：林舟',
+    '**核心冲突**：独自推进。',
+    '**退场钩子**：门后有人。',
+  ].join('\n');
+  const normalized = normalizePlannerBeats(beats);
+  assert.ok(normalized.includes('**出场人物**：林舟'), 'cast line kept');
+  assert.ok(normalized.includes('独自推进'), 'scene body kept');
+  assert.ok(normalized.includes('门后有人'), 'exit hook kept');
 });

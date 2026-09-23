@@ -265,10 +265,21 @@ export function normalizePlannerBeats(beats: string): string {
 
   let kept = stripped;
   if (sceneStarts.length >= 1) {
-    // 保留从第一个场景块到末个场景块的最后内容为止；策划尾巴
-    //（节奏核验/伏笔清单/钩子选择表）只可能出现在末个场景块之后。
+    // 保留第一个场景块到末个场景块正文结束，只剥离末场景之后的「策划尾巴」
+    //（节奏核验/伏笔清单/钩子选择表——以非场景小标题开头）。
+    // 修正（2026-09-23 链路取证）：原实现切到「末个场景标题」为止，
+    // 会把末场景正文一并丢弃（单场景输出甚至只剩一行标题）——writer 因此拿不到
+    // 末场分镜，extractBeatCast 也漏掉只在末场出场的人物，图谱过滤随之失效。
     const lastStart = sceneStarts[sceneStarts.length - 1];
-    kept = lines.slice(sceneStarts[0], lastStart + 1).join('\n').trimEnd();
+    let tailStart = lines.length;
+    for (let index = lastStart + 1; index < lines.length; index += 1) {
+      const trimmed = lines[index].trim();
+      if (/^#{1,6}\s+\S/.test(trimmed) && !SCENE_HEADING.test(trimmed)) {
+        tailStart = index;
+        break;
+      }
+    }
+    kept = lines.slice(sceneStarts[0], tailStart).join('\n').trimEnd();
   }
 
   let sceneNo = 0;

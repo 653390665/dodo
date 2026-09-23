@@ -765,10 +765,13 @@ export async function generateText(
     return generateTextRaw(config, options);
   }
 
-  // Build character relationship context if novelId is present
+  // Build character relationship context if novelId is present.
+  // contextEntityFilter 是调用方（如章节生产管线按分镜 cast + 伏笔关联角色）给出的实体过滤面；
+  // 此前这里漏传第二个参数，导致「图谱选择性调用」只在类型上存在、实际每次注入全量图谱
+  // （2026-09-23 行为取证：分镜只点名林舟时，writer 仍收到未出场的苏晚）。
   let updatedSystemInstruction = options.systemInstruction;
   if (options.novelId && isCreativeWritingRequest(options.prompt, options.systemInstruction)) {
-    const charContext = buildCharacterRelationshipContext(options.novelId);
+    const charContext = buildCharacterRelationshipContext(options.novelId, options.contextEntityFilter);
     if (charContext) {
       updatedSystemInstruction = (options.systemInstruction || '') + charContext;
     }

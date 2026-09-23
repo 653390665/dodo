@@ -222,11 +222,11 @@ function toForeshadowing(row: ForeshadowingRow): Foreshadowing {
 /**
  * Phase4（知识图谱参与生成链路）：把已入库的伏笔台账读成生成期上下文。
  *
- * 这是 `foreshadowings` 表在生成链路上的唯一读点。此前该表只被写入
- * （导入时入库、apply 时置 payoff），planner/writer/critic 各自重新解析资料包，
- * 因此「前文埋了但一直没回收」的跨章状态从未进入生成。这里把它变成：
- * - 本章应埋 / 本章应回收 → 明确的执行与核对项；
- * - 前文未回收 → 连续性提示，防止长线伏笔被写丢。
+ * 注意与既有读点的分工（2026-09-23 更正）：`story-state-ledger` 已通过
+ * `db.listForeshadowings` 把「开放伏笔」扁平清单渲染进 planner/writer 上下文；
+ * 本函数不是唯一读点，而是提供它缺的两件事：
+ * - 本章应埋 / 本章应回收 的行动分组（扁平清单不区分二者）；
+ * - critic 的逐条核对清单，以及供图谱过滤使用的关联角色名。
  */
 export function loadForeshadowingContext(
   novelId: string,
