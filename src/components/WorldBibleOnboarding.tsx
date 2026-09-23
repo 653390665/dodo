@@ -171,7 +171,7 @@ export function WorldBibleOnboarding({
                       推荐的角色写作配置
                     </h3>
                     <p className="mt-1 text-sm text-theme-muted">
-                      基于你选中的故事方案，提供可选的角色写作配置；不会自动写入作品。
+                      基于你选中的故事方案推荐最贴合的能力卡；确认后将挂载到当前作品卡槽，参与后续生成。
                     </p>
                   </div>
                   <div className="space-y-3">
@@ -190,7 +190,7 @@ export function WorldBibleOnboarding({
                     disabled={onboarding.acceptedRecommendedSkills}
                     className="mt-4 w-full rounded-full bg-theme-accent px-4 py-3 text-sm font-bold text-theme-accent-contrast disabled:opacity-60"
                   >
-                    {onboarding.acceptedRecommendedSkills ? '已加入待确认配置' : '加入待确认配置'}
+                    {onboarding.acceptedRecommendedSkills ? '已挂载到作品卡槽' : '挂载到当前作品'}
                   </button>
                 </div>
               )}

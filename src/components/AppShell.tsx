@@ -36,6 +36,7 @@ import type {
   CapabilityLaunchState,
   ContinuationEditorLaunchState,
   ContinuationGap,
+  ProjectPreferenceProfile,
   SetupTaskKey,
   StoryIdeaCard,
   StoryPlanningInput,
@@ -68,6 +69,7 @@ import { createNovelWithChapter } from '../lib/novel-client';
 import { listCharacters, listTimelineEvents } from '../lib/world-client';
 import { listForeshadowings } from '../lib/foreshadowing-client';
 import {
+  buildAcceptedSkillLoadout,
   buildProjectPreferenceProfileFromPlanning,
   buildSetupTasksFromStoryCard,
   countCompletedSetupTasks,
@@ -322,6 +324,10 @@ export function AppShell() {
     chapterId?: string;
   } | null>(null);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
+  const [welcomeSeedPrefill, setWelcomeSeedPrefill] = useState<{
+    text: string;
+    token: number;
+  } | null>(null);
   const [editorChapterContext, setEditorChapterContext] = useState<{
     novelId: string;
     chapterId?: string;
@@ -987,6 +993,24 @@ export function AppShell() {
     }
   };
 
+  // 首页 → 灵感孵化：带着首页输入的种子打开方案卡流程
+  const handleHatchFromWelcome = (seedText: string, planning: StoryPlanningInput) => {
+    const seed = seedText.trim();
+    if (!seed) return;
+    handleCreateDraftFromIdea({ ideaSeed: seed, chatContext: seed, planning });
+  };
+
+  // 灵感孵化 → 首页：带种子回快速开书向导
+  const handleQuickCreateFromDrawer = (seedText: string) => {
+    const seed = seedText.trim();
+    if (!seed) return;
+    closeAssistant();
+    setWelcomeSeedPrefill((previous) => ({ text: seed, token: (previous?.token ?? 0) + 1 }));
+    if (useAppStore.getState().currentView !== 'welcome') {
+      void handleNavigate('welcome');
+    }
+  };
+
   const handleSelectStoryCard = async (
     card: StoryIdeaCard,
     planning?: StoryPlanningInput,
@@ -1171,6 +1195,31 @@ export function AppShell() {
     const acceptedSkillIds = onboardingDraft.recommendedSkills
       .map((entry) => entry.skillId)
       .slice(0, 3);
+    const { additions, nextLoadout, nextSkillIds } = buildAcceptedSkillLoadout(
+      selectedNovel.mountedSkillLoadout || [],
+      acceptedSkillIds
+    );
+    if (additions.length > 0) {
+      const versionedProfile = {
+        ...(selectedNovel.projectPreferenceProfile || {}),
+        skillLoadoutSchemaVersion: 2,
+      } as ProjectPreferenceProfile;
+      const persisted = await updateNovel(selectedNovel.id, {
+        mountedSkillIds: nextSkillIds,
+        mountedSkillLoadout: nextLoadout,
+        projectPreferenceProfile: versionedProfile,
+      }).catch(() => false);
+      if (!persisted) {
+        toast('能力卡挂载失败，请稍后重试', 'error');
+        return;
+      }
+      setSelectedNovel({
+        ...selectedNovel,
+        mountedSkillIds: nextSkillIds,
+        mountedSkillLoadout: nextLoadout,
+        projectPreferenceProfile: versionedProfile,
+      });
+    }
     setOnboardingDraft((prev) =>
       prev
         ? {
@@ -1268,6 +1317,8 @@ export function AppShell() {
                   onNavigateToFactory={() => {
                     void handleNavigate('factory');
                   }}
+                  onHatchIdea={handleHatchFromWelcome}
+                  seedPrefill={welcomeSeedPrefill}
                 />
               </ErrorBoundary>
             )}
@@ -1548,6 +1599,7 @@ export function AppShell() {
           selectedNovel={selectedNovel}
           assistantMode={assistantMode}
           onAssistantModeChange={(mode) => openAssistant(mode, assistantSurfaceContext)}
+          onQuickCreate={handleQuickCreateFromDrawer}
         />
       </Suspense>
 

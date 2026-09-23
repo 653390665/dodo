@@ -139,9 +139,12 @@ describe('Plan158 frontend legacy cleanup', () => {
       appShell.indexOf('if (loading)')
     );
     expect(acceptRecommendedSkillsBlock).toContain('acceptedRecommendedSkills: true');
-    expect(acceptRecommendedSkillsBlock).not.toContain('updateNovel(');
-    expect(acceptRecommendedSkillsBlock).not.toContain('mountedSkillIds');
-    expect(acceptRecommendedSkillsBlock).not.toContain('mountedSkillLoadout');
+    // 接受推荐后按编辑器同一约定真正挂载到作品卡槽（plan262 入口收敛修复）
+    expect(acceptRecommendedSkillsBlock).toContain('buildAcceptedSkillLoadout(');
+    expect(acceptRecommendedSkillsBlock).toContain('updateNovel(');
+    expect(acceptRecommendedSkillsBlock).toContain('mountedSkillIds');
+    expect(acceptRecommendedSkillsBlock).toContain('mountedSkillLoadout');
+    expect(acceptRecommendedSkillsBlock).toContain('skillLoadoutSchemaVersion: 2');
     expect(appShell).not.toContain('进入作品后可直接写作、设定和挂载技能。');
     expect(appShell).not.toContain('进入作品后可直接写作、设定和配置能力卡。');
     expect(appShell).not.toContain('编辑器会汇总章节、分镜、世界观与能力卡配置');

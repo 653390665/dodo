@@ -7,7 +7,7 @@ export interface SidebarNavItem {
 }
 
 const SIDEBAR_MAIN_ITEMS: SidebarNavItem[] = [
-  { id: 'welcome', label: '开始创作' },
+  { id: 'welcome', label: '首页' },
   { id: 'library', label: '我的书库' },
   { id: 'workspace', label: '创作工作台', navKey: 'workspace-editor' },
   { id: 'ai', label: 'AI 协作' },

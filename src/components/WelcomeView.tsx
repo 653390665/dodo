@@ -39,6 +39,10 @@ interface WelcomeViewProps {
   onSelectNovel: (novel: Novel) => void;
   onStartContinuationImport: () => void;
   onNavigateToFactory?: () => void;
+  /** 把当前灵感送入 AI 协作的「灵感孵化」（方案卡）流程 */
+  onHatchIdea?: (seedText: string, planning: StoryPlanningInput) => void;
+  /** 从灵感孵化带种子回填快速开书输入框；token 变化触发回填 */
+  seedPrefill?: { text: string; token: number } | null;
 }
 
 /**
@@ -138,9 +142,22 @@ export function WelcomeView({
   onSelectNovel,
   onStartContinuationImport,
   onNavigateToFactory,
+  onHatchIdea,
+  seedPrefill,
 }: WelcomeViewProps) {
-  // 受控状态管理
-  const [input, setInput] = useState('');
+  // 受控状态管理。
+  // 输入框草稿记录「写入时生效的孵化种子 token」：seedPrefill.token 变化时派生值自动切到新种子，
+  // 用户编辑后以草稿为准。这样无需在 effect / render 期 setState（react-hooks 规则零容忍）。
+  const [inputDraft, setInputDraft] = useState<{ token: number | null; text: string }>({
+    token: null,
+    text: '',
+  });
+  const input =
+    inputDraft.token === (seedPrefill?.token ?? null)
+      ? inputDraft.text
+      : (seedPrefill?.text ?? inputDraft.text);
+  const setInput = (text: string) =>
+    setInputDraft({ token: seedPrefill?.token ?? null, text });
   const [chatContext] = useState('');
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [totalNovelCount, setTotalNovelCount] = useState(0); // 动态记录作品库总数
@@ -800,7 +817,20 @@ export function WelcomeView({
                       </div>
 
                       {/* 控制栏 */}
-                      <div className="flex justify-end pt-1">
+                      <div className="flex items-center justify-between pt-1">
+                        {onHatchIdea ? (
+                          <button
+                            type="button"
+                            disabled={!input.trim()}
+                            onClick={() => onHatchIdea(input.trim(), planning)}
+                            title="带着这个灵感进入 AI 协作的灵感孵化，生成多张可选方案卡"
+                            className="text-[10px] px-2.5 py-1.5 rounded-lg border border-theme-border/60 bg-theme-sidebar/30 hover:border-theme-accent/50 hover:bg-theme-sidebar/80 text-theme-text/85 transition-all cursor-pointer font-sans font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            让 AI 多出几个方案
+                          </button>
+                        ) : (
+                          <span />
+                        )}
                         <button
                           type="button"
                           disabled={!input.trim() && !selectedGenre}
@@ -1299,6 +1329,24 @@ export function WelcomeView({
                     <p className="text-[10px] text-theme-muted mt-0.5">
                       选好创作流程、勾选开书时要生成的内容，确认后就能开始创作。
                     </p>
+                    {onHatchIdea && selectedCardForRec ? (
+                      <p className="text-[10px] text-theme-muted mt-1">
+                        拿不准方向？
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const seed = selectedCardForRec.hook;
+                            setSelectedCardForRec(null);
+                            setRecResult(null);
+                            onHatchIdea(seed, planning);
+                          }}
+                          className="text-theme-accent font-bold hover:underline cursor-pointer"
+                        >
+                          去灵感孵化
+                        </button>
+                        ，让 AI 多出几个方案再决定。
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <button

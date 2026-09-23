@@ -33,6 +33,7 @@ export function AIAssistantDrawer({
   selectedNovel,
   assistantMode,
   onAssistantModeChange,
+  onQuickCreate,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -57,6 +58,7 @@ export function AIAssistantDrawer({
   selectedNovel?: Novel | null;
   assistantMode: AssistantMode;
   onAssistantModeChange: (mode: AssistantMode) => void;
+  onQuickCreate?: (seedText: string) => void;
 }) {
   // Focus trap, Escape key handler, and Focus restoration for AIAssistantDrawer
   useEffect(() => {
@@ -130,36 +132,60 @@ export function AIAssistantDrawer({
       >
         {showOnboardingDraft && onboardingDraft ? (
           <div className="h-full flex flex-col">
-            <div className="shrink-0 p-4 border-b border-theme-border flex items-center justify-between bg-theme-sidebar">
-              <div className="flex gap-2">
+            <div className="shrink-0 p-4 border-b border-theme-border bg-theme-sidebar">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-theme-text">灵感孵化</div>
+                  <p className="text-[10px] text-theme-muted mt-0.5 leading-relaxed">
+                    在这里慢慢孵化灵感、混搭方案卡；想快速开书，随时回首页。
+                  </p>
+                </div>
                 <button
-                  onClick={() => setAIDrawerTab('cards')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'cards'
-                      ? 'bg-theme-text text-theme-bg'
-                      : 'text-theme-muted hover:bg-theme-sidebar'
-                  }`}
+                  onClick={onClose}
+                  aria-label="关闭 AI 协作助手"
+                  className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all"
                 >
-                  方案卡
-                </button>
-                <button
-                  onClick={() => setAIDrawerTab('chat')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                    aiDrawerTab === 'chat'
-                      ? 'bg-theme-text text-theme-bg'
-                      : 'text-theme-muted hover:bg-theme-sidebar'
-                  }`}
-                >
-                  灵感对话
+                  <X size={20} />
                 </button>
               </div>
-              <button
-                onClick={onClose}
-                aria-label="关闭 AI 协作助手"
-                className="p-2 rounded-full text-theme-muted hover:bg-theme-sidebar/50 transition-all"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center justify-between mt-2.5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAIDrawerTab('cards')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                      aiDrawerTab === 'cards'
+                        ? 'bg-theme-text text-theme-bg'
+                        : 'text-theme-muted hover:bg-theme-sidebar'
+                    }`}
+                  >
+                    方案卡
+                  </button>
+                  <button
+                    onClick={() => setAIDrawerTab('chat')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                      aiDrawerTab === 'chat'
+                        ? 'bg-theme-text text-theme-bg'
+                        : 'text-theme-muted hover:bg-theme-sidebar'
+                    }`}
+                  >
+                    灵感对话
+                  </button>
+                </div>
+                {onQuickCreate ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const selectedCard = onboardingDraft.cards.find(
+                        (card) => card.id === onboardingDraft.selectedCardId
+                      );
+                      onQuickCreate((selectedCard?.hook || onboardingDraft.ideaSeed).trim());
+                    }}
+                    className="text-[10px] px-2.5 py-1.5 rounded-lg border border-theme-border/60 bg-theme-sidebar/30 hover:border-theme-accent/50 hover:bg-theme-sidebar/80 text-theme-text/85 transition-all cursor-pointer font-sans font-bold"
+                  >
+                    直接快速开书
+                  </button>
+                ) : null}
+              </div>
             </div>
             {aiDrawerTab === 'cards' ? (
               <div className="flex-1 overflow-y-auto px-6 py-8 bg-theme-bg/30">

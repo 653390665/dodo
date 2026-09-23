@@ -1,4 +1,5 @@
 import type {
+  MountedSkillLoadoutItem,
   ProjectPreferenceProfile,
   SetupTaskDraft,
   Skill,
@@ -201,4 +202,43 @@ export function normalizeStoryCardsResponse(raw: string): StoryIdeaCard[] {
   const parsed = JSON.parse(cleaned);
   const cards = Array.isArray(parsed?.cards) ? parsed.cards : Array.isArray(parsed) ? parsed : [];
   return cards;
+}
+
+const MAX_SKILL_SLOTS = 3;
+
+export interface AcceptedSkillLoadoutResult {
+  /** 新增的卡槽条目；为空表示没有需要写库的变更 */
+  additions: MountedSkillLoadoutItem[];
+  nextLoadout: MountedSkillLoadoutItem[];
+  nextSkillIds: string[];
+}
+
+/**
+ * 把孵化推荐里接受的卡并入作品现有卡槽，与编辑器装配保持同一持久化约定：
+ * 槽位 0-2、weight 1、按 skillId 去重、按槽位排序。已挂载的卡跳过；
+ * 空闲槽位不足时先到先得。
+ */
+export function buildAcceptedSkillLoadout(
+  currentLoadout: MountedSkillLoadoutItem[],
+  acceptedSkillIds: string[]
+): AcceptedSkillLoadoutResult {
+  const occupiedSlots = new Set(currentLoadout.map((entry) => entry.slot));
+  const mountedIds = new Set(currentLoadout.map((entry) => entry.skillId));
+  const additions: MountedSkillLoadoutItem[] = [];
+  let slot = 0;
+  for (const skillId of acceptedSkillIds) {
+    if (mountedIds.has(skillId)) continue;
+    while (occupiedSlots.has(slot) && slot < MAX_SKILL_SLOTS) slot += 1;
+    if (slot >= MAX_SKILL_SLOTS) break;
+    additions.push({ slot, skillId, weight: 1, lockedDimensions: [] });
+    occupiedSlots.add(slot);
+    mountedIds.add(skillId);
+    slot += 1;
+  }
+  const nextLoadout = [...currentLoadout, ...additions].sort((a, b) => a.slot - b.slot);
+  return {
+    additions,
+    nextLoadout,
+    nextSkillIds: nextLoadout.map((entry) => entry.skillId),
+  };
 }

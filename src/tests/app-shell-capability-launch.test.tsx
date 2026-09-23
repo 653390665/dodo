@@ -175,7 +175,7 @@ vi.mock('../components/WorldBibleView', () => ({
           <div>ONBOARDING_ACCEPTED:{String(onboarding.acceptedRecommendedSkills)}</div>
           <div>ONBOARDING_ACCEPTED_IDS:{onboarding.acceptedSkillIds.join(',') || 'none'}</div>
           <button type="button" onClick={() => onboarding.onAcceptRecommendedSkills()}>
-            加入待确认配置
+            挂载到当前作品
           </button>
         </>
       ) : null}
@@ -529,7 +529,8 @@ describe('AppShell capability launch', () => {
     expect(useAppStore.getState().currentView).toBe('skills');
   });
 
-  test('onboarding recommended capability cards stay pending instead of writing legacy mounted slots', async () => {
+  test('onboarding accepted capability cards mount to novel slots with versioned profile', async () => {
+    vi.mocked(api.updateNovel).mockResolvedValue(true);
     useAppStore.setState({ currentView: 'welcome', workspaceFocus: 'world' });
     render(<AppShell />);
 
@@ -539,16 +540,38 @@ describe('AppShell capability launch', () => {
     );
     expect(screen.getByText('ONBOARDING_ACCEPTED_IDS:none')).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: '加入待确认配置' }));
+    fireEvent.click(screen.getByRole('button', { name: '挂载到当前作品' }));
     await waitFor(() => expect(screen.getByText('ONBOARDING_ACCEPTED:true')).toBeDefined());
     expect(screen.getByText('ONBOARDING_ACCEPTED_IDS:recommended-card')).toBeDefined();
 
-    expect(vi.mocked(api.updateNovel)).not.toHaveBeenCalledWith(
+    expect(vi.mocked(api.updateNovel)).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        mountedSkillIds: expect.any(Array),
+        mountedSkillIds: ['recommended-card'],
+        mountedSkillLoadout: [
+          { slot: 0, skillId: 'recommended-card', weight: 1, lockedDimensions: [] },
+        ],
+        projectPreferenceProfile: expect.objectContaining({ skillLoadoutSchemaVersion: 2 }),
       })
     );
+    expect(useNovelStore.getState().selectedNovel?.mountedSkillIds).toEqual(['recommended-card']);
+  });
+
+  test('keeps onboarding cards pending when the mount write fails', async () => {
+    vi.mocked(api.updateNovel).mockResolvedValue(false);
+    useAppStore.setState({ currentView: 'welcome', workspaceFocus: 'world' });
+    render(<AppShell />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '用番茄流程开书并补设定' }));
+    await waitFor(() =>
+      expect(screen.getByText(/ONBOARDING_RECOMMENDED:推荐能力卡/)).toBeDefined()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '挂载到当前作品' }));
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith('能力卡挂载失败，请稍后重试', 'error')
+    );
+    expect(screen.getByText('ONBOARDING_ACCEPTED:false')).toBeDefined();
     expect(useNovelStore.getState().selectedNovel?.mountedSkillIds).toEqual([]);
   });
 
