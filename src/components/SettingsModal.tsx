@@ -1535,7 +1535,7 @@ export function SettingsModal({
                         <div>
                           <span className="text-theme-muted">样本数（去重对象）</span>
                           <div className="font-semibold text-theme-text">
-                            {productMetrics.sampleSize}
+                            {productMetrics.distinctObjectIds}
                           </div>
                         </div>
                         <div>
@@ -1603,12 +1603,14 @@ export function SettingsModal({
                               <b className="text-theme-text">
                                 {productMetrics.writingActivation.editorEntries}
                               </b>
+                              <span className="text-theme-muted">（会话 {productMetrics.writingActivation.editorEntrySessions}）</span>
                             </span>
                             <span>
                               首次输入：
                               <b className="text-theme-text">
                                 {productMetrics.writingActivation.firstInputs}
                               </b>
+                              <span className="text-theme-muted">（会话 {productMetrics.writingActivation.firstInputSessions}）</span>
                             </span>
                             <span>
                               内容保存：

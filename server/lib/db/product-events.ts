@@ -217,7 +217,7 @@ export function getProductEventMetrics(days = 30): ProductEventMetrics {
         .filter((e) => e.eventName === name && (!result || e.result === result) && e.objectId)
         .map((e) => e.objectId)
     ).size;
-  const sampleSize = new Set(events.filter((e) => e.objectId).map((e) => e.objectId)).size;
+  const distinctObjectIds = new Set(events.filter((e) => e.objectId).map((e) => e.objectId)).size;
   const metric = (n: number, d: number) => ({
     value: d ? Math.min(1, n / d) : null,
     numerator: n,
@@ -394,13 +394,25 @@ export function getProductEventMetrics(days = 30): ProductEventMetrics {
         )
         .map((event) => event.novelId as string)
     );
+  // editor_enter 每次进入编辑器/刷新都会上报，dev 热重载会放大它的分母；
+  // 同时暴露按 sessionId 去重的口径，供判断真实流失时使用。
+  const uniqueSessionEvent = (eventName: ProductEventName) =>
+    new Set(
+      events
+        .filter(
+          (event) => event.eventName === eventName && event.result === 'success' && event.sessionId
+        )
+        .map((event) => event.sessionId as string)
+    );
   const activeNovels = new Set(
     events
       .filter((event) => event.result === 'success' && event.novelId)
       .map((event) => event.novelId as string)
   );
   const editorEntries = uniqueNovelEvent('editor_enter');
+  const editorEntrySessions = uniqueSessionEvent('editor_enter');
   const firstInputs = uniqueNovelEvent('first_content_input');
+  const firstInputSessions = uniqueSessionEvent('first_content_input');
   const contentSaves = uniqueNovelEvent('content_save');
   const continuationSkips = uniqueNovelEvent('continuation_skip');
   const firstRequestByNovel = new Map<string, ProductEvent>();
@@ -425,7 +437,9 @@ export function getProductEventMetrics(days = 30): ProductEventMetrics {
   );
   const writingActivation = {
     editorEntries: editorEntries.size,
+    editorEntrySessions: editorEntrySessions.size,
     firstInputs: firstInputs.size,
+    firstInputSessions: firstInputSessions.size,
     contentSaves: contentSaves.size,
     continuationSkips: continuationSkips.size,
     entryToFirstInput: metric(
@@ -582,7 +596,7 @@ export function getProductEventMetrics(days = 30): ProductEventMetrics {
   };
   return {
     rangeDays,
-    sampleSize,
+    distinctObjectIds,
     northStar: { acceptedChapters: chapterIds.size, activeNovels: activeNovels.size },
     rates: {
       previewAcceptance: metric(accepted, preview),

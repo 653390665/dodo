@@ -51,7 +51,7 @@ describe('Settings local metrics', () => {
   test('loads only when data tab opens and displays null as 暂无', async () => {
     getProductMetrics.mockResolvedValue({
       rangeDays: 7,
-      sampleSize: 0,
+      distinctObjectIds: 0,
       northStar: { acceptedChapters: 0 },
       rates: { previewAcceptance: null, syncCompletion: null, criticUnknown: null, conflict: null },
       generationLatencyMs: { p50: null, p95: null },
@@ -68,7 +68,7 @@ describe('Settings local metrics', () => {
   test('exports and confirms clear before refreshing', async () => {
     getProductMetrics.mockResolvedValue({
       rangeDays: 7,
-      sampleSize: 4,
+      distinctObjectIds: 4,
       northStar: { acceptedChapters: 1 },
       rates: {
         previewAcceptance: { value: 0.5, numerator: 1, denominator: 2 },
@@ -101,13 +101,15 @@ describe('Settings local metrics', () => {
   test('shows writing activation counts and conversion rates', async () => {
     getProductMetrics.mockResolvedValue({
       rangeDays: 7,
-      sampleSize: 2,
+      distinctObjectIds: 2,
       northStar: { acceptedChapters: 0, activeNovels: 2 },
       rates: { previewAcceptance: null, syncCompletion: null, criticUnknown: null, conflict: null },
       generationLatencyMs: { p50: null, p95: null },
       writingActivation: {
         editorEntries: 2,
+        editorEntrySessions: 2,
         firstInputs: 1,
+        firstInputSessions: 1,
         contentSaves: 1,
         continuationSkips: 1,
         entryToFirstInput: { value: 0.5, numerator: 1, denominator: 2 },
@@ -132,7 +134,7 @@ describe('Settings local metrics', () => {
   test('shows capability lifecycle metrics with rates and integer view changes', async () => {
     getProductMetrics.mockResolvedValue({
       rangeDays: 7,
-      sampleSize: 3,
+      distinctObjectIds: 3,
       northStar: { acceptedChapters: 1 },
       rates: { previewAcceptance: null, syncCompletion: null, criticUnknown: null, conflict: null },
       generationLatencyMs: { p50: null, p95: null },
@@ -165,7 +167,7 @@ describe('Settings local metrics', () => {
   test('does not crash when legacy metrics omit capabilities', async () => {
     getProductMetrics.mockResolvedValue({
       rangeDays: 7,
-      sampleSize: 1,
+      distinctObjectIds: 1,
       northStar: { acceptedChapters: 0 },
       rates: { previewAcceptance: null, syncCompletion: null, criticUnknown: null, conflict: null },
       generationLatencyMs: { p50: null, p95: null },

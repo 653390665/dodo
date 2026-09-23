@@ -1,5 +1,13 @@
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { resetProductEventOnceMemory, resetProductEventOnceStorage } from '../lib/telemetry-once';
+
+// 一次性埋点去重是跨挂载/跨刷新的全局状态，测试间必须隔离，
+// 否则同一 novel+chapter/fingerprint 会污染后续用例的埋点断言。
+beforeEach(() => {
+  resetProductEventOnceMemory();
+  resetProductEventOnceStorage();
+});
 
 // Automatically cleanup DOM elements after each test
 afterEach(() => {

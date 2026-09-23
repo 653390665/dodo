@@ -58,7 +58,7 @@ test('product events are additive and metrics are privacy-safe', () => {
   createProductEvent({ eventName: 'continuation_conflict', stage: 'review', result: 'success', objectId: 'conflict1' });
   createProductEvent({ eventName: 'scene_plan', stage: 'planning', result: 'success' });
   const metrics = getProductEventMetrics(7);
-  assert.equal(metrics.sampleSize, 7);
+  assert.equal(metrics.distinctObjectIds, 7);
   assert.equal(metrics.northStar.acceptedChapters, 1);
   assert.deepEqual(metrics.rates.previewAcceptance, { value: 0.5, numerator: 1, denominator: 2 });
   assert.deepEqual(metrics.rates.criticUnknown, { value: 1, numerator: 1, denominator: 1 });
@@ -228,16 +228,18 @@ test('writing activation metrics count distinct novels and expose honest convers
   closeDb();
   initDb(':memory:');
   clearProductEvents();
-  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-1' });
-  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-1' });
-  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-2' });
-  createProductEvent({ eventName: 'first_content_input', stage: 'drafting', result: 'success', novelId: 'novel-1', chapterId: 'chapter-1', objectId: 'chapter-1' });
-  createProductEvent({ eventName: 'content_save', stage: 'drafting', result: 'success', novelId: 'novel-1', chapterId: 'chapter-1', objectId: 'chapter-1' });
+  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-1', sessionId: 's1' });
+  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-1', sessionId: 's2' });
+  createProductEvent({ eventName: 'editor_enter', stage: 'drafting', result: 'success', novelId: 'novel-2', sessionId: 's3' });
+  createProductEvent({ eventName: 'first_content_input', stage: 'drafting', result: 'success', novelId: 'novel-1', chapterId: 'chapter-1', objectId: 'chapter-1', sessionId: 's1' });
+  createProductEvent({ eventName: 'content_save', stage: 'drafting', result: 'success', novelId: 'novel-1', chapterId: 'chapter-1', objectId: 'chapter-1', sessionId: 's1' });
   createProductEvent({ eventName: 'continuation_skip', stage: 'sync', result: 'success', novelId: 'novel-2', chapterId: 'chapter-2' });
   const writing = getProductEventMetrics(7).writingActivation;
   assert.deepEqual(writing, {
     editorEntries: 2,
+    editorEntrySessions: 3,
     firstInputs: 1,
+    firstInputSessions: 1,
     contentSaves: 1,
     continuationSkips: 1,
     entryToFirstInput: { value: 0.5, numerator: 1, denominator: 2 },

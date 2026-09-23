@@ -115,7 +115,8 @@ export interface ProductEventMetrics {
     conflict: RateMetric;
   };
   generationLatencyMs: { p50: number | null; p95: number | null };
-  sampleSize: number;
+  /** 有 objectId 的不同对象数。注意：这不是事件条数（原字段名 sampleSize 易被误读）。 */
+  distinctObjectIds: number;
   stageCompletions: Array<{ stage: ProductEventStage; count: number }>;
   advancedAdoption: Array<{
     eventName: 'advanced_tools_open' | 'factory_start' | 'factory_complete' | 'skill_equip';
@@ -132,10 +133,18 @@ export interface RateMetric {
   denominator: number;
 }
 export interface WritingActivationMetrics {
-  /** Distinct novels with a successful editor entry in the selected range. */
+  /**
+   * Distinct novels with a successful editor entry in the selected range.
+   * 注意：editor_enter 每次进入编辑器/刷新都会上报，开发态热重载会放大这个分母；
+   * 判断真实流失优先看 editorEntrySessions。
+   */
   editorEntries: number;
+  /** Distinct sessions with a successful editor entry（不受 dev reload 放大的口径）。 */
+  editorEntrySessions: number;
   /** Distinct novels with a successful first-content event in the selected range. */
   firstInputs: number;
+  /** Distinct sessions with a successful first-content event. */
+  firstInputSessions: number;
   /** Distinct novels with a successful content-save event in the selected range. */
   contentSaves: number;
   /** Distinct novels with a successful continuation-skip event in the selected range. */

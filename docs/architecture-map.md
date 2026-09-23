@@ -2,6 +2,7 @@
 
 > 生成于 2026-09-19，基于三个只读探索代理对 server/、src/、shared/ 的全量深读，所有结论带 file:line 锚点。
 > 用途：新会话/新协作者的架构入门底图；后续重大重构前对照检查。
+> 复核于 2026-09-23（HEAD `51954f2`）：路由注册 23 个（`routes/index.ts`）+ chapter-completion 单独在 `server.ts` 注册；测试文件数已增长；plan261 知识谱系尚未进本图。数字会继续漂移，涉及计数的结论以复核日为准。
 
 ## 一句话总览
 
@@ -143,10 +144,10 @@ sequenceDiagram
 
 ## 风险与注意点
 
-1. **巨型文件**（2026-09-20 复核修正）：shared/lib/public-skill-catalog.ts 7158 行（脚本生成物，禁手改）、SkillsStudioView.tsx 3314 行、server/routes/continuation.ts 2859 行、EditorView.tsx 2826 行（编排厚：约 2200 行 hook 接线 + 600 行 JSX）、shared/lib/prompt-governance-catalog.ts 2722 行、WorldBibleView.tsx 1935 行、production.ts 1875 行、AppShell.tsx 1575 行。注：WritingSurface.tsx 实为 358 行、ChapterSidebar.tsx 199 行。全库 TODO/FIXME 为 0。
+1. **巨型文件**（2026-09-23 复核）：shared/lib/public-skill-catalog.ts 7158 行（脚本生成物，禁手改）、SkillsStudioView.tsx 3566 行、server/routes/continuation.ts 2859 行、EditorView.tsx 2826 行（编排厚：约 2200 行 hook 接线 + 600 行 JSX）、shared/lib/prompt-governance-catalog.ts 2722 行、WorldBibleView.tsx 1935 行、production.ts 1875 行、AppShell.tsx 1627 行（随未提交的创作入口收敛改动增长）。注：WritingSurface.tsx 实为 358 行、ChapterSidebar.tsx 199 行。全库 TODO/FIXME 为 0。
 2. **内存 job 不持久**：audit/agents 等 job 存内存 Map，进程重启（watchdog 自动重启）后进行中 job 丢失，前端轮询 404。
 3. **向量检索规模瓶颈**：vector_chunks 全表扫描余弦，规模增长后线性变慢。
-4. **测试是护城河**：205 个后端 node:test + 144 个前端 vitest + Playwright E2E；`tests/helpers/test-db-preload.ts:5-16` 按 PID 隔离临时库。改管线行为先跑对应域测试（命令地图见 AGENTS.md）。
+4. **测试是护城河**：212 个后端 node:test 文件 + 149 个前端 vitest 文件 + 16 个 Playwright spec（2026-09-23 实测文件数；生成日原文为 205/144）；`tests/helpers/test-db-preload.ts:5-16` 按 PID 隔离临时库。改管线行为先跑对应域测试（命令地图见 AGENTS.md）。
 
 ## 规范不变式（docs/specs/，改动前必读）
 

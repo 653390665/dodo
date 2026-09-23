@@ -32,6 +32,7 @@ import {
 } from '../editor-write-queue';
 import { updateNovel } from '../novel-client';
 import { recordProductEvent } from '../product-events-client';
+import { claimProductEventOnce } from '../telemetry-once';
 import { toast } from '../toast';
 import { getNextChapterOrder } from '../../../shared/lib/chapter-production';
 import { generateClientId } from '../id';
@@ -82,7 +83,6 @@ export function useEditorPersistence({
   const isMountedRef = useRef(true);
   const hasWriteActivityRef = useRef(false);
   const addChapterInFlightRef = useRef<Promise<void> | null>(null);
-  const firstContentInputChapterIdsRef = useRef(new Set<string>());
 
   // Keep legacy call shape when no snapshot is available; otherwise every
   // operation is bound to this render's generation and can be safely queued.
@@ -135,12 +135,11 @@ export function useEditorPersistence({
   const recordFirstContentInput = useCallback(
     (chapterId: string, previousContent: string, nextContent: string) => {
       if (
-        previousContent.trim() ||
+        nextContent === previousContent ||
         !nextContent.trim() ||
-        firstContentInputChapterIdsRef.current.has(chapterId)
+        !claimProductEventOnce(`first-content-input:${novel.id}:${chapterId}`)
       )
         return;
-      firstContentInputChapterIdsRef.current.add(chapterId);
       void recordProductEvent({
         eventName: 'first_content_input',
         stage: 'drafting',

@@ -8,6 +8,7 @@
 
 digraph flow_chapter_candidate {
     rankdir=TB;
+    newrank=true; // 与 module-map/lifecycle-states/runtime-topology 一致：跨 cluster 的 rank=same 在默认 dot 下会 Abort trap 6
     splines=true;
     nodesep=0.55;
     ranksep=0.85;

@@ -62,4 +62,5 @@
 - 能力库存 174 个治理资产**零废弃**，但用户手动装配为 **0**——根因是三段式提交状态机、7 种动词、启用后跨处配置的交互复杂度；
 - "审稿"存在三套互不相认的实现（manualAudit / orchestrateCritic / 完成审查），四套评分口径；
 - 护栏 core-default 本就自动全局注入，商店呈现与运行时事实错位；
-- 激活漏斗：editor_enter 152 vs first_content_input 0 vs draft_accept 1。
+- ~~激活漏斗：editor_enter 152 vs first_content_input 0 vs draft_accept 1。~~ **已作废（2026-09-23 复核）**：用运行实例的 `GET /api/product-events/metrics?days=90` 实测（去重作品口径）为 `editor_enter 7 作品 / 370 事件 → first_content_input 1 → content_save 2 → draft_accept success 4`；`capabilities.configurationCompletion` 已是 7/8，旧提的"手动装配 0"同样不成立。旧数字既非现状，也不宜再作为优先级依据。
+  另注两条口径：① 该数据来自**开发态实例**（90 天 1016 事件 / 442 会话 / 8 作品），是操作者狗粮而非用户总体，不能外推；② `editor_enter` 每次进入编辑器/刷新都会上报，被 dev reload 放大，判断流失应看 `writingActivation.editorEntrySessions`（见 shared/types/product-events.ts 注释）。

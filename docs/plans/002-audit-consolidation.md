@@ -10,7 +10,9 @@
 | 生产流水线 Critic | `orchestrateCritic` | run.styleAudit | `server/routes/agents.ts:698` |
 | 章节完成审查（自动） | 独立 JSON 审计 | workflowMeta.reviewState + 门禁 | `server/helpers/chapter-completion.ts:70-76` |
 
-四套评分口径（门禁机械分 85 / Critic 阈值 80 / 完成审查 60 分线 / 各自 pass-fail）。用户在三个地方看到三次"审稿"，结论互不引用；精修入口分散且要求预配置。埋点：critic_review 3 / audit 2 / polish 2（对比 editor_enter 152）——采纳无效。
+四套评分口径（门禁机械分 85 / Critic 阈值 80 / 完成审查 60 分线 / 各自 pass-fail）。用户在三个地方看到三次"审稿"，结论互不引用；精修入口分散且要求预配置。埋点：critic_review 3 / audit 2 / polish 2（对比当时记录的 editor_enter 152）——采纳无效。
+
+> **复核 2026-09-23**：`editor_enter 152` 这个基数已作废（实测 90 天为 7 作品 / 370 事件，且被 dev reload 放大）。本节"审稿三套实现互不相认、采纳无效"的结论不因此改变，但引用时不要再引 152，改用 `docs/plans/README.md` 的复核行。
 
 **产品判定（PM）**：审稿应在**每章写入后自动发生一次**（完成审查已承担，且有门禁语义）；精修应**由审稿结论一键触发**，不允许也不需要预配置。
 

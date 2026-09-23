@@ -58,6 +58,7 @@ import {
   WritingStyleRequestError,
 } from '../lib/writing-style-client';
 import { recordProductEvent } from '../lib/product-events-client';
+import { claimProductEventOnce } from '../lib/telemetry-once';
 import { getTrustedSessionCardIds, type GovernanceStage } from '../lib/capability-governance';
 import { executeCapability } from '../lib/capability-client';
 import { resolveEditorCapabilityLaunch } from '../lib/capability-launch';
@@ -223,7 +224,6 @@ export function EditorView({
   const factConfirmationInFlightRef = useRef(false);
   const writingStyleRequestSeqRef = useRef(0);
   const confirmedWritingStyleFingerprintRef = useRef<string | null>(null);
-  const requiredWritingStyleFingerprintsRef = useRef(new Set<string>());
 
   const [showEmptyChapterGuide, setShowEmptyChapterGuide] = useState(() => {
     return localStorage.getItem(`inkflow_editor_empty_chapter_guide_closed:${novel.id}`) !== 'true';
@@ -465,7 +465,10 @@ export function EditorView({
       if (data.candidates) setWritingStyleCandidates(data.candidates);
       pendingWritingStyleActionRef.current = data.retry || null;
       setWritingStyleError(null);
-      if (data.resolution) {
+      if (
+        data.resolution &&
+        claimProductEventOnce(`writing-style-required:${novel.id}:${data.resolution.fingerprint}`)
+      ) {
         void recordProductEvent({
           eventName: 'writing_style_required',
           stage: 'drafting',
@@ -540,7 +543,6 @@ export function EditorView({
 
   useEffect(() => {
     confirmedWritingStyleFingerprintRef.current = null;
-    requiredWritingStyleFingerprintsRef.current.clear();
   }, [novel.id]);
 
   useEffect(() => {
@@ -580,9 +582,10 @@ export function EditorView({
           : null;
         if (
           !response.resolution.confirmed &&
-          !requiredWritingStyleFingerprintsRef.current.has(response.resolution.fingerprint)
+          claimProductEventOnce(
+            `writing-style-required:${novel.id}:${response.resolution.fingerprint}`
+          )
         ) {
-          requiredWritingStyleFingerprintsRef.current.add(response.resolution.fingerprint);
           void recordProductEvent({
             eventName: 'writing_style_required',
             stage: 'drafting',

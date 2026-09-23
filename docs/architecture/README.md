@@ -30,11 +30,13 @@
 - `.structurizr.dsl` → Qoder **Structurizr DSL 预览器**
 - `.dot` → Qoder **DOT 格式预览器**
 
-本仓库未安装 Graphviz，因此未产出 SVG。若要渲染：
+仓库不提交 SVG 派生物（`.dot` 才是事实源）。本机已用 Graphviz 验证全部 6 张 `.dot` 可按下列命令直接渲染：
 
 ```bash
 brew install graphviz
-dot -Tsvg runtime-topology.dot -o runtime-topology.svg
+dot -Tsvg runtime-topology.dot -o runtime-topology.svg   # 逐文件替换文件名即可
+# 注意：candidate-store-model.dot / flow-chapter-candidate.dot 含跨 cluster 的 rank=same，
+#      渲染时必须保留文件内的 newrank=true，否则默认 dot 会 Abort trap 6（与另外三张图一致）
 # DSL 渲染需 Structurizr CLI：https://docs.structurizr.com/cli
 ```
 

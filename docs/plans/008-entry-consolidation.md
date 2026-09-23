@@ -5,7 +5,7 @@
 
 ## 背景（为什么）
 
-激活漏斗 `editor_enter 152 → first_content_input 0 → draft_accept 1` 断在接受：快速模式产出走编辑器横幅、完整生产走生产报告，两套呈现不讲同一个故事；用户看不到"现在轮到你接受/写入了"。006 已交付 `GenerationStatusBar`（订阅 production-store），缺的是 quick 接线与"④ 待写入 → 接受区"的引导跳。
+激活漏斗 `editor_enter 152 → first_content_input 0 → draft_accept 1`（**该基线已于 2026-09-23 作废**：实测 90 天去重作品为 `7 → 1 → 4`，且 `first_content_input` 当日只在"空章节首次写入"触发、系统性低估；详见 `docs/plans/README.md` 复核行）断在接受：快速模式产出走编辑器横幅、完整生产走生产报告，两套呈现不讲同一个故事；用户看不到"现在轮到你接受/写入了"。006 已交付 `GenerationStatusBar`（订阅 production-store），缺的是 quick 接线与"④ 待写入 → 接受区"的引导跳。
 
 ## 目标
 
