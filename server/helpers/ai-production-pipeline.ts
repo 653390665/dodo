@@ -19,7 +19,12 @@ import {
   resolveEffectiveMinDraftChars,
   validateCompleteChapterDraftQuality,
 } from '../../shared/lib/draft-quality';
-import { loadChapterContract, loadOutlineUnit, loadWorldviewHints } from './knowledge-lineage-enrich.js';
+import {
+  loadChapterContract,
+  loadForeshadowingContext,
+  loadOutlineUnit,
+  loadWorldviewHints,
+} from './knowledge-lineage-enrich.js';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -383,6 +388,19 @@ export async function runProductionPipeline(params: {
     logger.info('[pipeline] chapter contract loaded', { novelId, chapterNo: chapterContract.chapterNo });
   }
 
+  // Plan 261 Phase4：已入库伏笔台账 → 生成期上下文（本章应埋 / 本章应回收 / 前文未回收）。
+  // 这是 foreshadowings 表在生成链路上的唯一读点：此前它只被写入，planner/writer/critic
+  // 各自重解析资料包，跨章伏笔状态从未参与生成。
+  const foreshadowingContext = chapterOrder
+    ? loadForeshadowingContext(novelId, chapterOrder)
+    : null;
+  const foreshadowingSuffix = foreshadowingContext?.promptBlock
+    ? '\n\n' + foreshadowingContext.promptBlock
+    : '';
+  const foreshadowingChecklistSuffix = foreshadowingContext?.checklistBlock
+    ? '\n\n' + foreshadowingContext.checklistBlock
+    : '';
+
   // Build learned preference context
   const learnedContext =
     learnedPreferences.length > 0
@@ -417,7 +435,7 @@ export async function runProductionPipeline(params: {
     contextStr: augmentedContexts.planner,
     skillsInfo: stagePrompts.planner,
     userIntent: wrapUserInput(userIntent),
-  }) + PLANNER_LENGTH_CONTRACT + (chapterContract ? '\n\n' + chapterContract.contractText : '');
+  }) + PLANNER_LENGTH_CONTRACT + (chapterContract ? '\n\n' + chapterContract.contractText : '') + foreshadowingSuffix;
   const outlineUnit = chapterOrder ? loadOutlineUnit(novelId, chapterOrder) : null;
   if (outlineUnit) {
     plannerPrompt += '\n\n【大纲定位】本章位于 ' + outlineUnit.unitLine + '。本章及相邻章节的大纲要点：\n' + outlineUnit.unitSummary;
@@ -460,8 +478,16 @@ export async function runProductionPipeline(params: {
     beatsSource = 'fallback';
   }
 
-  const contextEntityFilter = extractBeatCast(sceneBeats);
-  const worldviewHints = loadWorldviewHints(novelId, contextEntityFilter || []);
+  const beatCastFilter = extractBeatCast(sceneBeats);
+  // Plan 261 Phase4：伏笔台账的关联角色并入图谱过滤面——让"应该回收的伏笔"牵出的角色
+  // 即使没被本章分镜点名，也能带出关系边与实体上下文。只在本就有分镜点名实体时扩展，
+  // 保持 buildCharacterRelationshipContext 的"空 filter = 全量图谱"语义不被破坏。
+  const foreshadowingCast = foreshadowingContext?.relatedCharacterNames ?? [];
+  const contextEntityFilter =
+    beatCastFilter && beatCastFilter.length > 0
+      ? [...new Set([...beatCastFilter, ...foreshadowingCast.slice(0, 8)])]
+      : beatCastFilter;
+  const worldviewHints = loadWorldviewHints(novelId, beatCastFilter || []);
   const worldviewHintsSuffix = worldviewHints.hintsBlock
     ? '\n\n' + worldviewHints.hintsBlock
     : '';
@@ -507,7 +533,7 @@ export async function runProductionPipeline(params: {
       criticFeedback: criticFeedback
         ? writerRetryFeedback || criticFeedback
         : '初稿阶段，请全力输出。',
-    }) + worldviewHintsSuffix + WRITER_OUTPUT_DISCIPLINE;
+    }) + worldviewHintsSuffix + foreshadowingSuffix + WRITER_OUTPUT_DISCIPLINE;
 
     draftSource = 'model';
     try {
@@ -555,7 +581,7 @@ export async function runProductionPipeline(params: {
               : i === 0
                 ? '初稿阶段，请全力输出。'
                 : '继续本章的下一场景，保持人物与节奏连贯。',
-          }) + worldviewHintsSuffix + WRITER_OUTPUT_DISCIPLINE;
+          }) + worldviewHintsSuffix + foreshadowingSuffix + WRITER_OUTPUT_DISCIPLINE;
           const callT0 = Date.now();
           let sceneTruncated = false;
           try {
@@ -836,13 +862,16 @@ export async function runProductionPipeline(params: {
       preferredTemplateKey: 'orchestrateCritic',
     });
 
-    const criticPrompt = renderPromptTemplate(criticAsset.template, {
-      CRITIC_SOUL,
-      contextStr: augmentedContexts.critic,
-      skillsInfo: criticSkillsInfo,
-      sceneBeats,
-      currentDraft,
-    });
+    const criticPrompt =
+      renderPromptTemplate(criticAsset.template, {
+        CRITIC_SOUL,
+        contextStr: augmentedContexts.critic,
+        skillsInfo: criticSkillsInfo,
+        sceneBeats,
+        currentDraft,
+      }) +
+      (chapterContract ? '\n\n' + chapterContract.checklistText : '') +
+      foreshadowingChecklistSuffix;
 
     // A provider can answer 200 yet return an unparseable audit payload
     // (invalid_json — the five-dim contract did not pass). That is a transient

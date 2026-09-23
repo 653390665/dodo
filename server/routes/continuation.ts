@@ -15,6 +15,7 @@ import {
   ModelJsonTruncatedError,
 } from '../../shared/lib/model-json';
 import * as db from '../lib/db';
+import { runLineageEnrichment } from '../helpers/knowledge-lineage-enrich';
 import { computeContinuationPackContentHash } from '../lib/db-mappers';
 import { classifyContinuationSource } from '../../shared/lib/continuation-pack';
 import { validate, parseDocSchema, continuationParseSchema, dbIdSchema } from '../validation';
@@ -1673,6 +1674,15 @@ export function registerContinuationRoutes(app: Express) {
           throw new Error('Continuation pack disappeared during approval');
         }
       });
+      // Plan 261 Phase4：确认导入即回写知识谱系（幂等），让细纲伏笔台账在首次
+      // 章节生产前就绪——此前只在章节 apply 后回写，导入后第一次生成读不到台账。
+      if (approvedNovel) {
+        try {
+          runLineageEnrichment(approvedNovel.id);
+        } catch (lineageErr) {
+          logger.warn('Knowledge lineage enrichment failed after approve-import', lineageErr);
+        }
+      }
       pendingContinuationImports.delete(input.packId);
       return res.json({ novel: approvedNovel, pack: approvedPack });
     } catch (error) {
@@ -2840,6 +2850,13 @@ export function registerContinuationRoutes(app: Express) {
 
       // Translate server errors to HTTP status codes
       const result = syncResult.result;
+      // Plan 261 Phase4：实体入世界后立即回写知识谱系（幂等）——此时角色/道具/地点
+      // 才存在，图谱边与台账的 related_character_ids 才能正确落位。
+      try {
+        runLineageEnrichment(novelId);
+      } catch (lineageErr) {
+        logger.warn('Knowledge lineage enrichment failed after sync-to-world', lineageErr);
+      }
       res.json(result);
     } catch (error) {
       logger.error('同步写入失败:', error);
