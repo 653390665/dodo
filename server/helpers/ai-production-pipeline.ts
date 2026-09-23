@@ -319,7 +319,13 @@ function resolveWriterConfig(base: AppConfig): AppConfig {
 }
 
 const CRITIC_LLM_OPTIONS = {
-  timeoutMs: 35_000,
+  // 2026-09-24：与 writer 对称，支持 INKFLOW_CRITIC_TIMEOUT_MS 覆盖。
+  // 起因：走 CLIProxyAPI 的 Claude 在富上下文下 critique 需 35s+，被硬编码 35s
+  // 掐断成 500 → auditStatus=unknown，这不是模型质量结论而是超时口径问题。
+  timeoutMs:
+    Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS) > 0
+      ? Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS)
+      : 35_000,
   maxAttempts: 1,
   // Structured audit JSON (scores, fatalIssues, surgerySuggestions) needs
   // headroom; reasoning-heavy models also burn tokens on chain-of-thought, so
