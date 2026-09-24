@@ -20,3 +20,19 @@ export function escapePromptText(text: string): string {
 export function fenceUntrustedText(label: string, text: string): string {
   return `<user_data label="${escapePromptText(label)}">\n${escapePromptText(text)}\n</user_data>`;
 }
+
+/**
+ * 生成侧收口：剥离模型误抄进正文的围栏标签。
+ *
+ * 背景（2026-09-24 真实 provider 复测）：资料包文本以
+ * `<user_data label="续写资料·…">…</user_data>` 围栏注入 prompt，
+ * Claude 与 Gemini 都会把这行标签当成正文抄出来（成稿里出现
+ * `user_data label="续写资料·续写任务"`），被 critic 判为元数据污染。
+ * 这里在文本出口做确定性剥离——围栏是给模型读的数据边界，不该出现在作品正文里。
+ */
+export function stripUntrustedFenceTags(text: string): string {
+  return String(text ?? '')
+    .replace(/&lt;\/?user_data\b[\s\S]*?&gt;/gi, '')
+    .replace(/<\/?user_data\b[^>]*>/gi, '')
+    .replace(/\buser_data\s+label\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+}

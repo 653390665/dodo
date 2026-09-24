@@ -8,6 +8,7 @@ import {
   isCreativeWritingRequest,
 } from '../helpers/prompt-guard';
 import { getDb } from './db-instance.js';
+import { stripUntrustedFenceTags } from '../../shared/lib/prompt-fence';
 
 /**
  * 缓存取证（env 门控 DEBUG_LLM_USAGE=1）：记录每次调用的 token 用量与
@@ -795,24 +796,29 @@ export async function generateText(
   // 2. Execute raw generation
   const rawResult = await generateTextRaw(config, effectiveOptions);
 
+  // 生成侧收口（Plan 253 后续）：围栏标签是给模型读的数据边界，Claude/Gemini 都会偶发
+  // 把它抄进正文（成稿出现 `user_data label="续写资料·…"`），被 critic 判为元数据污染。
+  // 这里在 prose 出口确定性剥离，后续的质量门与返回都用剥离后的文本。
+  const creativeRequest = isCreativeWritingRequest(options.prompt, updatedSystemInstruction);
+  const stripIfProse = (text: string): string =>
+    creativeRequest ? stripUntrustedFenceTags(text) : text;
+  const rawProse = stripIfProse(rawResult);
+
   // If this request is not creative-writing-related or level is balanced, skip output guard and corrective retry
-  if (
-    guardLevel === 'balanced' ||
-    !isCreativeWritingRequest(options.prompt, updatedSystemInstruction)
-  ) {
-    return rawResult;
+  if (guardLevel === 'balanced' || !creativeRequest) {
+    return rawProse;
   }
 
   // 3. Output Gate: Check for AI slop and cliches
-  const guardResult = checkOutputGuard(rawResult);
+  const guardResult = checkOutputGuard(rawProse);
   if (guardResult.pass) {
-    if (deferQualityGuardedTokens) options.onToken?.(rawResult);
-    return rawResult;
+    if (deferQualityGuardedTokens) options.onToken?.(rawProse);
+    return rawProse;
   }
 
   // 4. Correction Gate: If output failed quality gate, run self-correction retry
   try {
-    const correctionPrompt = buildCorrectionPrompt(rawResult, guardResult.violations);
+    const correctionPrompt = buildCorrectionPrompt(rawProse, guardResult.violations);
     const correctionOptions = {
       ...effectiveOptions,
       prompt: correctionPrompt,
@@ -824,10 +830,11 @@ export async function generateText(
     const correctedResult = await generateTextRaw(config, correctionOptions);
 
     // Validate the corrected result
-    const secondGuardResult = checkOutputGuard(correctedResult);
+    const correctedProse = stripIfProse(correctedResult);
+    const secondGuardResult = checkOutputGuard(correctedProse);
     if (secondGuardResult.pass) {
-      if (deferQualityGuardedTokens) options.onToken?.(correctedResult);
-      return correctedResult;
+      if (deferQualityGuardedTokens) options.onToken?.(correctedProse);
+      return correctedProse;
     }
 
     // A failed correction is not a valid writing result. Returning the raw draft
