@@ -372,13 +372,13 @@ test('Prompt Governance Catalog & Selector V2 checks', () => {
   const supplementCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.sourceGroup === 'fanqie-supplement').length;
   const testFixtureCount = SOURCE_PROMPT_GOVERNANCE_CATALOG.filter(a => a.evidenceLevel === 'test-fixture').length;
 
-  assert.equal(builtInCount, 14, `Built-in assets count should be exactly 14, got ${builtInCount}`);
+  assert.equal(builtInCount, 17, `Built-in assets count should be exactly 17, got ${builtInCount}`);
   assert.equal(squareCount, 50, `Square assets count should be exactly 50, got ${squareCount}`);
   assert.equal(privateCount, 78, `Private assets count should be exactly 78, got ${privateCount}`);
   assert.equal(toolCount, 16, `Creative/tool assets count should be exactly 16, got ${toolCount}`);
   assert.equal(supplementCount, 16, `Platform supplement assets count should be exactly 16, got ${supplementCount}`);
   assert.equal(testFixtureCount, 2, `Test fixture assets count should be exactly 2, got ${testFixtureCount}`);
-  assert.equal(SOURCE_PROMPT_GOVERNANCE_CATALOG.length, 176, `Source catalog size should be exactly 176, got ${SOURCE_PROMPT_GOVERNANCE_CATALOG.length}`);
+  assert.equal(SOURCE_PROMPT_GOVERNANCE_CATALOG.length, 179, `Source catalog size should be exactly 179, got ${SOURCE_PROMPT_GOVERNANCE_CATALOG.length}`);
 
   // 2. 断言安全过滤拦截：
   const allRecommended = recommendPromptAssets({ currentStage: 'planning' });

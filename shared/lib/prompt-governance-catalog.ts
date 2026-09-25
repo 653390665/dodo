@@ -256,6 +256,173 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     isRuntimeReady: true,
     sourceType: 'built-in',
   },
+  // 批次 B 追补（2026-09-28）· 平台链路补正文卡：
+  // 番茄开篇诊断为「真实可运行卡」（自撰内置、正文即注入内容），
+  // 原步骤指向的 tomato-scorecard 是广场转投壳（无可用正文）。
+  {
+    id: 'tomato-opening-diagnostic',
+    title: '番茄开篇诊断器',
+    stage: 'review',
+    goal: '对番茄平台开篇（第 1-3 章）做可复核诊断：钩子强度、信息差、爽点兑现、断章位置、主角能动性与完读风险',
+    inputs: ['content'],
+    template: `【番茄开篇诊断器 · 只诊断不改写】
+
+诊断对象：第 1-3 章正文（含章节标题与断章位置）。
+
+逐项核对，每项给出「证据句片段 → 判断 → 风险等级（high/medium/low）」：
+
+1) 开篇 200 字：是否在第一时间给出「异常处境 / 冲突动作 / 悬念信息」三者之一；若只是环境或背景铺垫，标 high。
+2) 主角能动性：第 1 章主角是否主动做出至少一次带后果的选择；全程被动挨打标 high。
+3) 信息差设计：读者与主角之间的信息差是否明确（读者知道而主角不知道，或反之）；信息差不成立或被一次性倒空，标 medium。
+4) 爽点兑现：第 1-3 章是否至少完成一次「期待 → 兑现」闭环；只有压抑没有兑现，标 high。
+5) 断章位置：每章末是否停在「问题被抛出但未解决」的位置；若停在收束句或总结句，标 medium。
+6) 平台适配：是否出现长篇设定说明或超长心理独白（连续 300 字以上无动作、无对白），标 medium。
+
+输出（严格 JSON，不要额外文字）：
+{
+  "score": 0-100,
+  "verdict": "pass" | "revise",
+  "dimensions": [{ "id": "opening-hook|protagonist-agency|information-gap|payoff-loop|chapter-break|platform-fit", "risk": "high|medium|low", "evidence": "正文原句片段", "note": "为什么" }],
+  "topActions": ["按收益排序的 1-3 条修改方向，只写方向，不写改后正文"]
+}
+
+约束：只诊断，不改写正文；evidence 必须是正文原句片段；拿不到正文时输出 {"score":0,"verdict":"revise","dimensions":[],"topActions":["缺少正文，无法诊断"]}。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '诊断卡：只作为声明阶段（review/critic）的核对清单，不注入写作规则文本',
+      '输出为结构化 JSON，供推进质量门与作者裁决读取，不直接改写正文',
+    ],
+    successSignal: '开篇诊断有可复核证据与修改方向，且不产生直接改写正文的副作用。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'platform-criteria',
+    secondaryCategory: 'quality-guardrail',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  // 批次 B 追补（2026-09-28）· 平台链路补正文卡：
+  // 天马三幕式高潮规划为「真实可运行卡」（自撰内置、正文即注入内容），
+  // 原步骤指向的 square-39 是广场转投壳（无可用正文）。
+  {
+    id: 'tianma-three-act-planner',
+    title: '三幕式高潮规划器',
+    stage: 'planning',
+    goal: '把设定与节奏大纲转成三幕式高潮规划：幕目标、阻力升级、转折点、情绪峰值与幕间钩子，供后续分章',
+    inputs: ['content'],
+    template: `【三幕式高潮规划器 · 只出结构不做正文】
+
+输入：设定与节奏大纲（含主角目标、核心阻力、世界规则与已有节奏设想）。
+
+按三幕结构输出，每幕必须写清「幕目标 → 阻力升级 → 转折点 → 情绪峰值 → 幕间钩子」：
+
+第一幕（建置，约占 1/4）
+- 幕目标：主角要什么、为什么现在就要；
+- 阻力升级：至少两级，每级都要改变主角的行动策略；
+- 第一转折点：把主角推入不可回头的处境；
+- 情绪峰值：第一次小胜或小败；
+- 幕间钩子：读者必须带着一个问题进入第二幕。
+
+第二幕（对抗，约占 1/2）
+- 幕目标：主角换用什么新策略、代价是什么；
+- 阻力升级：至少三级，其中一级必须来自主角自身的缺陷或误判；
+- 中点事件：一次重大反转把赌注抬高（可以是假胜利或惨败）；
+- 情绪峰值：全书情绪最低点，主角失去关键依靠；
+- 幕间钩子：给出进入第三幕的入场理由。
+
+第三幕（解决，约占 1/4）
+- 幕目标：主角如何用前两幕付出的代价换取胜负；
+- 阻力升级：最终对手或最终限制只升级一次，但必须致命；
+- 高潮：胜负由主角自己的选择决定，不能靠外援或巧合；
+- 情绪峰值：兑现第一幕埋下的核心承诺；
+- 收束钩子：留一个可延续的余韵（不为下一卷硬造悬念）。
+
+输出格式（Markdown）：
+## 三幕总览（每幕一句话 + 占比）
+## 第 N 幕
+- 幕目标 / 阻力升级（分级列出）/ 转折点（约第 X 章）/ 情绪峰值 / 幕间钩子
+## 高潮核查
+- 胜负是否由主角选择决定（是/否 + 依据）
+- 第一幕承诺是否兑现（承诺 → 兑现位置）
+- 是否存在「靠巧合或外援解决」的点（列出并给出替换方向）
+
+约束：只输出结构规划，不写章节正文；不使用设定之外的新规则，确有必要时单独标为「待作者确认」。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '规划卡：输出为结构规划与大纳，不生成章节正文',
+      '新设定一律标为「待作者确认」，避免模型自行扩展世界观',
+    ],
+    successSignal: '三幕递进有明确转折点与情绪峰值，高潮由主角选择解决，可直接拆成分章大纲。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  // 批次 B 追补（2026-09-28）· 平台链路补正文卡：
+  // 神作高爽节奏拆解为「真实可运行卡」（自撰内置、正文即注入内容），
+  // 原步骤指向的 deconstruct-card-pacing 是广场转投壳（无可用正文）。
+  {
+    id: 'deconstruction-pacing-dissect',
+    title: '爽感节奏拆解器',
+    stage: 'planning',
+    goal: '把目标作品拆成可复用的节奏卡片：情绪值曲线、爽点类型、信息差、断章手法与回收周期',
+    inputs: ['content'],
+    template: `【爽感节奏拆解器 · 只拆结构不抄原文】
+
+输入：目标作品（至少连续 5 章，或作者指定的章节切片）。
+
+逐章拆解，每章产出一张卡片，再给出跨章汇总：
+
+单章卡片字段：
+- 章节号与标题；
+- 情绪值：开篇 0-10 → 峰值 0-10 → 结尾 0-10（峰值必须能指向具体事件）；
+- 本章爽点：类型（打脸/装逼/资源获取/身份揭露/情感回报/反杀，或其他）+ 兑现位置（章内百分比）+ 兑现前的铺垫章数；
+- 信息差：谁不知道什么、读者何时知道、主角何时知道；
+- 断章手法：悬念句/反转/新问题/未完成动作/意外来客，写实际使用的那一种；
+- 回收周期：本章埋下的钩子预计几章内回收（不确定写「未知」）。
+
+跨章汇总：
+- 情绪曲线：给出 5 章以上的情绪值序列，标出峰值间隔（平均几章一次峰值）；
+- 爽点密度：平均每章爽点数、连续无爽点的最长章数；
+- 断章类型分布与重复度（同一手法连续使用超过 2 次要标出）；
+- 可复用结论：3-5 条「可直接迁移到自己作品」的结构结论（只写结构，不写具体情节）。
+
+输出（严格 JSON）：
+{ "chapters": [{ "order": 1, "mood": { "open": 0, "peak": 0, "close": 0 }, "payoff": { "type": "", "position": 0, "setupChapters": 0 }, "infoGap": "", "breakStyle": "", "hookPaybackIn": 0 }], "summary": { "moodSeries": [], "avgPeakGap": 0, "payoffPerChapter": 0, "longestDrought": 0, "repeatedBreakStyles": [] }, "transferable": [] }
+
+约束：不复制原文；引用只允许短语（≤ 20 字）作为证据；缺章节文本时标注「样本不足」并只输出已有章节。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '拆解卡：只输出结构卡片，不复制原作正文（引用限短语证据）',
+      '拆解结论用于后续作品，不得直接拼入正文',
+    ],
+    successSignal: '产出可复核的节奏卡片与跨章曲线，且结论以结构而非情节复述呈现。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'style-reference',
+    secondaryCategory: 'author-workflow',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
 ];
 
 // ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
@@ -489,9 +656,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'outline',
         output: 'diagnostic-report',
         stage: 'critic',
-        assetId: 'tomato-scorecard', // 真实的番茄评分卡资产
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // 批次 B 追补（2026-09-28）：原 tomato-scorecard 是广场转投壳，改指自撰内置诊断卡（正文可运行）。
+        assetId: 'tomato-opening-diagnostic',
         qualityGate: '开篇大纲契合番茄爆款模型',
         nextStepId: 'tomato-platform-flow-step2',
         switchAllowed: true,
@@ -576,9 +742,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'source-book',
         output: 'deconstruction-cards',
         stage: 'planner',
-        assetId: 'deconstruct-card-pacing', // 真实的节奏拆书卡
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // 批次 B 追补（2026-09-28）：原 deconstruct-card-pacing 是广场转投壳，改指自撰内置拆解卡（正文可运行）。
+        assetId: 'deconstruction-pacing-dissect',
         qualityGate: '拆解出黄金起伏节奏点',
         nextStepId: 'book-deconstruction-flow-step2',
         switchAllowed: true,
@@ -729,9 +894,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'setting-outline',
         output: 'climax-outline',
         stage: 'planner',
-        assetId: 'square-39', // 天马-大纲生成-三幕式
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // 批次 B 追补（2026-09-28）：原 square-39 是广场转投壳，改指自撰内置三幕规划卡（正文可运行）。
+        assetId: 'tianma-three-act-planner',
         qualityGate: '核心冲突具备明确的三幕式递进节奏',
         nextStepId: 'tianma-outline-flow-step4',
         switchAllowed: true,

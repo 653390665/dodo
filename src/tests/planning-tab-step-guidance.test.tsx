@@ -178,7 +178,7 @@ describe('SkillsStudioView 链路详情仅引导标注', () => {
     vi.mocked(applyCapabilityConfiguration).mockClear();
   });
 
-  test('天马链路详情：4 个壳步骤全部带「仅引导」徽标', async () => {
+  test('天马链路详情：3 个壳步骤带「仅引导」徽标（step3 已补正文）', async () => {
     render(<SkillsStudioView selectedNovel={buildNovel([], 'novel-1') as any} />);
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -187,8 +187,8 @@ describe('SkillsStudioView 链路详情仅引导标注', () => {
     await openFlowDetail('tianma-outline-flow');
 
     const tianmaSteps = flowById('tianma-outline-flow').steps;
-    expect(tianmaSteps.filter((step) => step.guidanceOnly === true).length).toBe(4);
-    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(4);
+    expect(tianmaSteps.filter((step) => step.guidanceOnly === true).length).toBe(3);
+    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(3);
   });
 
   test('通用链路详情：无「仅引导」徽标', async () => {

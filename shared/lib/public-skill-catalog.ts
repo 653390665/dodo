@@ -299,6 +299,105 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in"
+  },
+  {
+    "id": "tomato-opening-diagnostic",
+    "title": "番茄开篇诊断器",
+    "stage": "review",
+    "goal": "对番茄平台开篇（第 1-3 章）做可复核诊断：钩子强度、信息差、爽点兑现、断章位置、主角能动性与完读风险",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只作为声明阶段（review/critic）的核对清单，不注入写作规则文本",
+      "输出为结构化 JSON，供推进质量门与作者裁决读取，不直接改写正文"
+    ],
+    "successSignal": "开篇诊断有可复核证据与修改方向，且不产生直接改写正文的副作用。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "tianma-three-act-planner",
+    "title": "三幕式高潮规划器",
+    "stage": "planning",
+    "goal": "把设定与节奏大纲转成三幕式高潮规划：幕目标、阻力升级、转折点、情绪峰值与幕间钩子，供后续分章",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "规划卡：输出为结构规划与大纳，不生成章节正文",
+      "新设定一律标为「待作者确认」，避免模型自行扩展世界观"
+    ],
+    "successSignal": "三幕递进有明确转折点与情绪峰值，高潮由主角选择解决，可直接拆成分章大纲。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "deconstruction-pacing-dissect",
+    "title": "爽感节奏拆解器",
+    "stage": "planning",
+    "goal": "把目标作品拆成可复用的节奏卡片：情绪值曲线、爽点类型、信息差、断章手法与回收周期",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "拆解卡：只输出结构卡片，不复制原作正文（引用限短语证据）",
+      "拆解结论用于后续作品，不得直接拼入正文"
+    ],
+    "successSignal": "产出可复核的节奏卡片与跨章曲线，且结论以结构而非情节复述呈现。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
   }
 ];
 
@@ -532,8 +631,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "outline",
         "output": "diagnostic-report",
         "stage": "critic",
-        "assetId": "tomato-scorecard",
-        "guidanceOnly": true,
+        "assetId": "tomato-opening-diagnostic",
         "qualityGate": "开篇大纲契合番茄爆款模型",
         "nextStepId": "tomato-platform-flow-step2",
         "switchAllowed": true
@@ -613,8 +711,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "source-book",
         "output": "deconstruction-cards",
         "stage": "planner",
-        "assetId": "deconstruct-card-pacing",
-        "guidanceOnly": true,
+        "assetId": "deconstruction-pacing-dissect",
         "qualityGate": "拆解出黄金起伏节奏点",
         "nextStepId": "book-deconstruction-flow-step2",
         "switchAllowed": true
@@ -758,8 +855,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "setting-outline",
         "output": "climax-outline",
         "stage": "planner",
-        "assetId": "square-39",
-        "guidanceOnly": true,
+        "assetId": "tianma-three-act-planner",
         "qualityGate": "核心冲突具备明确的三幕式递进节奏",
         "nextStepId": "tianma-outline-flow-step4",
         "switchAllowed": true,
@@ -5710,6 +5806,117 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "grade": "B",
     "primaryCategory": "utility-tool",
     "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "tomato-opening-diagnostic",
+    "title": "番茄开篇诊断器",
+    "stage": "review",
+    "goal": "对番茄平台开篇（第 1-3 章）做可复核诊断：钩子强度、信息差、爽点兑现、断章位置、主角能动性与完读风险",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只作为声明阶段（review/critic）的核对清单，不注入写作规则文本",
+      "输出为结构化 JSON，供推进质量门与作者裁决读取，不直接改写正文"
+    ],
+    "successSignal": "开篇诊断有可复核证据与修改方向，且不产生直接改写正文的副作用。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "tianma-three-act-planner",
+    "title": "三幕式高潮规划器",
+    "stage": "planning",
+    "goal": "把设定与节奏大纲转成三幕式高潮规划：幕目标、阻力升级、转折点、情绪峰值与幕间钩子，供后续分章",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "规划卡：输出为结构规划与大纳，不生成章节正文",
+      "新设定一律标为「待作者确认」，避免模型自行扩展世界观"
+    ],
+    "successSignal": "三幕递进有明确转折点与情绪峰值，高潮由主角选择解决，可直接拆成分章大纲。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "deconstruction-pacing-dissect",
+    "title": "爽感节奏拆解器",
+    "stage": "planning",
+    "goal": "把目标作品拆成可复用的节奏卡片：情绪值曲线、爽点类型、信息差、断章手法与回收周期",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "拆解卡：只输出结构卡片，不复制原作正文（引用限短语证据）",
+      "拆解结论用于后续作品，不得直接拼入正文"
+    ],
+    "successSignal": "产出可复核的节奏卡片与跨章曲线，且结论以结构而非情节复述呈现。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "secondaryCategory": "author-workflow",
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in",

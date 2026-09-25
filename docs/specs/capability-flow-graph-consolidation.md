@@ -20,7 +20,7 @@ Source: 2026-09-24 会话诊断（能力商店审计 + 链路审计 + 知识图�
 | 目录 | 数量 | 事实 |
 |---|---|---|
 | `listCatalogCapabilityManifests()` | 26 | technique 11 / flow 6 / diagnostic 5 / skill-card 4 |
-| `PROMPT_GOVERNANCE_CATALOG` | 174 | runtime-ready 128；candidate 46；可解析出 manifest 仅 75 |
+| `PROMPT_GOVERNANCE_CATALOG` | 174 → **179**（2026-09-28） | runtime-ready 128（批次 A 口径）；candidate 46；可解析出 manifest 仅 75 |
 | `CURATED_PRODUCT_SKILLS` | 18 | built-in 14 / licensed 3 / plaza 1（多数是 **technique/diagnostic**，不能装备进作品卡组） |
 | `PUBLIC_SKILL_GOVERNANCE_CATALOG` / `SANITIZED_SKILL_COPIES` | 127 / 33 | 公开目录与消毒副本 |
 | `ENHANCEMENT_PACKAGES` | 9 | 4 免费 + 5 付费 |
@@ -36,23 +36,25 @@ Source: 2026-09-24 会话诊断（能力商店审计 + 链路审计 + 知识图�
 ### 2.2 链路：57% 步骤是空壳，质量门只是文本
 
 ```
-6 条链路 / 30 步 / 可运行 13（43.3%）/ 显式「仅引导」17（56.7%）/ 不可用 0 / 静默壳 0
+6 条链路 / 30 步 / 可运行 16（53.3%）/ 显式「仅引导」14（46.7%）/ 不可用 0 / 静默壳 0（2026-09-28 追补后）
 ```
 
 | 链路 | 步数 | 可运行 | 仅引导（显式声明） |
 |---|---|---|---|
 | xiaofeiji-novel-flow 长篇商业连载 | 8 | 6 | 2 |
 | generic-novel-flow 通用长篇 | 6 | 6 | 0（4 步复用 `generateOutline`、2 步复用 `core-slop-shield`） |
-| tomato-platform-flow 番茄平台 | 5 | 0 | **5** |
-| book-deconstruction-flow 拆书转化 | 2 | 0 | **2** |
+| tomato-platform-flow 番茄平台 | 5 | 1 | **4** |
+| book-deconstruction-flow 拆书转化 | 2 | 1 | **1** |
 | fenghua-short-flow 风华短篇 | 5 | 1 | 4 |
-| tianma-outline-flow 天马大纲 | 4 | 0 | **4** |
+| tianma-outline-flow 天马大纲 | 4 | 1 | **3** |
 
 口径：可运行 = 治理面 `isRuntimeReady && runtimeStatus === 'active' && sanitizationStatus === 'runtime-ready'`，
-且正文不是引用壳（`isShellTemplatePrompt`）；17 个壳步骤已在目录显式声明 `guidanceOnly: true`（§5.4），
+且正文不是引用壳（`isShellTemplatePrompt`）；14 个壳步骤已在目录显式声明 `guidanceOnly: true`（§5.4），
 审计脚本断言「声明集合 == 检测到的壳集合」，静默壳 0。
 订正（2026-09-25）：本表初版把 xiaofeiji 记为「5 可运行 / 3 壳」，实测为 **6 / 2**（壳总数 17 不变）；
 初版按资产 `score` 推断，未按壳正文判定。
+订正（2026-09-28）：番茄 / 天马 / 拆书各补 1 张自撰内置卡并改指步骤（§5.4.1）→ 可运行 13→**16**，
+仅引导 17→**14**（番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2）。
 
 另三个结构问题：
 1. **阶段映射偏 writer**：`stageForGovernedAsset`（`writing-style-service.ts:980`）只看资产自身 `stage`，导致"世界观/大纲"步骤也注入 writer 阶段；**已修（§5.3）：步骤显式声明阶段，实测旧口径 25/30 落 writer → 新口径 planner 18 / writer 9 / critic 3**；
@@ -137,7 +139,8 @@ interface FlowStep {
 `refine-outline-rebuild`、`opening-gold-three` 等 7 张）当前确实以**原文常驻注入** project 阶段，
 批次 A 不改变运行时行为，故投影为 `rule`；其真实产出语义（是否应转 `transform` 单次运行）留待批次 B 卡槽位落地后复审。
 
-实践证明：20 张非 flow manifest + 174 张治理资产 → **0 未映射**（`scratch/card-role-coverage.ts`，2026-09-24）。
+实践证明：20 张非 flow manifest + 174 张治理资产 → **0 未映射**（`scratch/card-role-coverage.ts`，2026-09-24；
+2026-09-28 治理资产 179 张复测仍 0 未映射）。
 
 #### 4.2.2 装配字段收敛（批次 A 小类「装配字段收敛」）
 
@@ -413,6 +416,32 @@ B 步骤上，等于伪造归属）：
 
 其余 12 个壳步骤（tomato 5 / book-deconstruction 2 / tianma 4 / fenghua step3）在仓内无同品牌同意图正文
 （「评分」「起名」零命中），保持「仅引导」。
+
+#### 5.4.1 追补（2026-09-28）：平台链路各补 1 条可运行步骤
+
+方向（用户裁决）：给三条全壳链路各补 1 条真正可运行的步骤。约束：**不替换、不改写广场转投壳资产** ——
+`tomato-scorecard` / `hook-system` / `tomato-opening-validator` / `square-39` / `deconstruct-card-pacing` /
+`deconstruct-card-hook` 的正文都是 `[平台能力特化强化体] 导入 …` 占位（来自 `prompt-supplement-fanqie-webnovel.md`
+的转投语），改写它们等于伪造来源。做法：**新增 3 张自撰内置卡**（正文即方法论与输出契约），让步骤改指新卡：
+
+| 新卡（registry id） | 名称 | 分类（score） | 服务步骤（原壳资产） |
+| --- | --- | --- | --- |
+| `tomato-opening-diagnostic` | 番茄开篇诊断器 | platform-criteria / quality-guardrail（82） | tomato-platform-flow step1 番茄开篇诊断（原 `tomato-scorecard`） |
+| `tianma-three-act-planner` | 三幕式高潮规划器 | author-workflow / constellation-pack（80） | tianma-outline-flow step3 天马三幕式高潮规划（原 `square-39`） |
+| `deconstruction-pacing-dissect` | 爽感节奏拆解器 | style-reference / author-workflow（80） | book-deconstruction-flow step1 神作高爽节奏拆解（原 `deconstruct-card-pacing`） |
+
+三张卡均为 `licenseStatus`/`sourceType: 'built-in'`、`sanitizationStatus: 'runtime-ready'`、
+`runtimeStatus: 'active'`、`placementTier: 'agent-guided'`（避开护栏通道 `core-default`，也不触发消毒副本生成）；
+对应三步删除 `guidanceOnly: true` 与壳注释，改指新卡后由 `availability` 判定为 `asset`。
+
+实测（2026-09-28）：`scratch/flow-audit.ts` → 30 步 / **可运行 16（53.3%）/ 仅引导 14（46.7%）/ 不可用 0 / 静默壳 0**；
+逐链路番茄 1/5、天马 1/4、拆书 1/2（三条原均为 0 可运行）；治理目录 176 → **179**（内置 14 → 17），消毒副本仍 33。
+三条集成断言（`tests/flow-step-guidance.test.ts`，共 15/15）：critic 阶段 prompt 含
+「【番茄开篇诊断器 · 只诊断不改写】」，planner 阶段 prompt 含「【三幕式高潮规划器 · 只出结构不做正文】」与
+「【爽感节奏拆解器 · 只拆结构不抄原文】」，且三者均不含壳转投语「平台能力特化强化体」。
+
+残余：其余 14 步仍显式「仅引导」（番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2）；壳资产本身保留在治理目录中
+（未删除，供作者自行引用或后续裁决）；`hook-system` / `square-*` 等同品牌转投壳仍在公开目录按原样呈现。
 
 回归（2026-09-25）：`npx tsc --noEmit` **0**；`npx eslint server src shared tests scripts --max-warnings=0` **0**；
 后端定向 7 文件（flow-step-guidance / execution-contract / flow-step-stage / flow-step-card-slot /
@@ -709,7 +738,7 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 | 批次 | 可测断言 |
 |---|---|
 | A | ① 新增一张卡只改治理货架一处，商店与运行时同时可见；② 旧装配字段读取兼容（迁移测试）；③ 卡面统计脚本输出 role/scope/stage 三维且旧 kind 映射 100% 覆盖 |
-| B | ① 任一步骤挂用户技法/能力卡后，对应阶段 prompt 出现该卡内容（字符命中）；② 质量门未达标时步骤不可推进（或给明确阻塞）；③ 空壳链路可运行步骤占比 ≥80% 或显式标注为引导 |
+| B | ① 任一步骤挂用户技法/能力卡后，对应阶段 prompt 出现该卡内容（字符命中）；② 质量门未达标时步骤不可推进（或给明确阻塞）；③ 空壳链路可运行步骤占比 ≥80% 或显式标注为引导（2026-09-28 追补：三条全壳链路各补 1 条可运行步骤 → 可运行 16/30=53.3%，仍走「显式标注」分支） |
 | C | ① 资料包确认后一键重跑图谱并输出覆盖度（✅ §5.6）；② 至少 1 张图谱卡可装配（✅ §5.5）且进入链路步骤（待第 4 条）；③ 章节删除后相关边/台账被标记 stale 且可查询（✅ §5.7） |
 | D | ① 生产管线 prompt 中出现 RAG 片段 marker（✅ §5.8）；② 驾驶舱显示记忆健康度数值（✅ §5.9）；③ 长篇中段命中率相对基线有可量化提升（✅ §5.10） |
 | 全批次 | 链路稳定性与确定性：30 步契约重复解析指纹一致 / 30×29 零泄漏 / 顺序与时钟无关 / 目录产物逐字节稳定（§5.11） |
@@ -719,10 +748,10 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 | 脚本 | 用途 |
 |---|---|
 | `scratch/capability-audit.ts` | 目录/类型/作用域/来源统计 |
-| `scratch/card-role-coverage.ts` | 角色投影覆盖度（28 张 manifest〔26 非 flow〕+ 176 张治理资产，0 未映射） |
+| `scratch/card-role-coverage.ts` | 角色投影覆盖度（28 张 manifest〔26 非 flow〕+ 179 张治理资产，0 未映射） |
 | `scratch/deck-check2.ts` | 技法通道 vs 能力卡通道的注入实证 |
 | `scratch/flow-audit.ts` | 6 条链路 30 步的可运行/仅引导分布、**声明阶段**分布与语义一致性自校验（§5.3/§5.4 口径） |
-| `scratch/shell-audit.ts` | 17 个壳卡步骤的资产元数据（引用壳形态/长度/治理标记）与可替代候选 |
+| `scratch/shell-audit.ts` | 壳卡步骤的资产元数据（引用壳形态/长度/治理标记）与可替代候选（2026-09-28 追补后 14 个） |
 | `scratch/shell-backfill-audit.ts` | 仓内可运行真实正文资产清单与关键词命中（补正文可行性取证） |
 | `scratch/real-run.ts`（`USE_CPA=1`） | 隔离库真实 provider 章节生产观测 |
 | `scratch/gemini-effort-ab.mjs` | thinking 档 A/B |
@@ -776,8 +805,8 @@ node --test --import tsx tests/flow-step-stage.test.ts      # 纯函数 + 30/30 
 复跑（空壳链路清账）：
 
 ```
-node --import tsx scratch/flow-audit.ts                     # 13 可运行 / 17 仅引导 / 静默壳 0（应 PASS）
-node --test --import tsx tests/flow-step-guidance.test.ts   # 纯函数 + 目录守门 + 集成（12/12）
+node --import tsx scratch/flow-audit.ts                     # 16 可运行 / 14 仅引导 / 静默壳 0（应 PASS）
+node --test --import tsx tests/flow-step-guidance.test.ts   # 纯函数 + 目录守门 + 集成（15/15）
 npx vitest -c vitest.config.frontend.ts run src/tests/planning-tab-step-guidance.test.tsx
 ```
 
@@ -799,8 +828,8 @@ npx vitest -c vitest.config.frontend.ts run src/tests/knowledge-maintenance-pane
 
 ```
 node --test --import tsx tests/knowledge-capabilities.test.ts   # 登记/解析/幂等/清单/错误码/路由（7/7）
-node --test --import tsx tests/prompt-assets-governed.test.ts   # 内置 14 / 源目录 176
-node --import tsx scratch/card-role-coverage.ts                 # 176 张 0 未映射（transform 32）
+node --test --import tsx tests/prompt-assets-governed.test.ts   # 内置 17 / 源目录 179
+node --import tsx scratch/card-role-coverage.ts                 # 179 张 0 未映射（transform 32）
 node --import tsx scratch/stageprompts-snapshot.ts              # 工具卡不得进入三阶段提示（哈希逐项不变）
 ```
 复跑（链路稳定性与确定性）：
