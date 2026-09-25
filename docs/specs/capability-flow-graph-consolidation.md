@@ -675,6 +675,29 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 
 **残余（已登记）**：样本是确定性合成长书，非真实作品；回声口径是「token 是否进入 writer 请求」而非「模型是否实际使用」；planner/critic 两阶段未纳入命中率口径；未接 CI（需手动跑脚本）。
 
+#### 5.11 链路稳定性与确定性（跨链路守卫，2026-09-27）
+
+**目的**：部件级测试（单步各自正确）≠ 链路之间稳定。本节把跨链路不变式钉成测试。
+
+| 不变式 | 断言 | 位置 |
+|---|---|---|
+| 确定性（同进程） | 6 条链路 30 步各解析两次，`{flowStep, stagePrompts, skillStack}` 的 sha256 指纹逐字节一致；30/30 `stageSource==='declared'` | `tests/flow-chain-determinism.test.ts` 用例 1 |
+| 确定性（跨进程） | `scratch/stageprompts-snapshot.ts` 两次独立进程输出 6 场景哈希逐项一致（SNAP_CMP_EXIT=0） | `scratch/snap-compare.py` |
+| 链路间零泄漏 | 30×29=870 组对照：任一步骤的 `【流程步骤：<name>】` marker 不出现在另一链路/另一步骤的 planner·writer·critic 提示词 | 用例 2 |
+| 顺序无关 | 倒序解析其余 29 条链路后，本链路契约指纹不变（无共享可变状态） | 用例 3 |
+| 时钟无关 | `mock.timers` 位移到 1.7e12 / 2e12 两个时刻，取样链路契约指纹不变 | 用例 4 |
+| 状态隔离与幂等 | 跳过记录按 `activeSeriesId` 过滤（flow-a 的 `skipped-step:` 对 flow-b 不可见）；`formatFlowStepSkipTag → parseFlowStepSkipTag` 往返保真（原因含冒号）；连续推进两步标签无重复（不膨胀）；不带原因重新完成清除该步旧记录 | 用例 5 |
+| 定义源稳定 | 公开目录（链路定义唯一来源）重复构建 + 时钟位移后 `renderPublicCatalogModule` 产物逐字节一致（>100_000 字符） | 用例 6 |
+
+**非确定源审计**：`server/helpers/writing-style-service.ts`（2099 行）与 `shared/lib/flow-step-{card-slot,gate,stage,guidance}.ts`、`shared/lib/chapter-production.ts`、`shared/lib/prompt-governance-catalog.ts` 对 `Date.now` / `Math.random` / `randomUUID` / `new Date` / `performance.now` / `crypto` **0 命中**；仅 `server/helpers/ai-production-pipeline.ts` 有 4 处 `Date.now()`（:564 调试日志、:602/:683/:696 耗时统计），均不进入提示词。
+
+**证据（2026-09-27）**：`tests/flow-chain-determinism.test.ts` → 6/6；定向回归（flow-step-card-slot / flow-step-gate / flow-step-stage / flow-step-guidance / execution-contract / flow-chain-determinism / public-catalog-freshness）**76/76**；全量 `npm test` **1380/1380**（基线 1374 + 6）；`npx tsc --noEmit` 0；`npx eslint … --max-warnings=0` 0。
+
+**口径与残余**：
+- 本守卫钉的是**契约层**确定性（图谱过滤、卡槽位、阶段声明、标签推进、目录定义）；**模型输出层**（温度/采样导致的文本差异）不在范围内。
+- 跨进程证据当前由 `scratch/` 工具复跑（未纳入自动化测试）。
+- 集成缝：`resolveProjectExecutionContract(novelId, input?)`（`server/helpers/writing-style-service.ts:2077` ＝ `resolveWritingStyleRequest(...).executionSnapshot`）。
+
 ### 批次 D：长期记忆与可见性
 
 1. 生产管线接入语义检索层（按章取回相关片段）；✅ 2026-09-27（见 §5.8：单源 `buildSemanticRecallSection` + 三阶段末位注入 + 双层预算 + 两条降级零变化）
@@ -689,6 +712,7 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 | B | ① 任一步骤挂用户技法/能力卡后，对应阶段 prompt 出现该卡内容（字符命中）；② 质量门未达标时步骤不可推进（或给明确阻塞）；③ 空壳链路可运行步骤占比 ≥80% 或显式标注为引导 |
 | C | ① 资料包确认后一键重跑图谱并输出覆盖度（✅ §5.6）；② 至少 1 张图谱卡可装配（✅ §5.5）且进入链路步骤（待第 4 条）；③ 章节删除后相关边/台账被标记 stale 且可查询（✅ §5.7） |
 | D | ① 生产管线 prompt 中出现 RAG 片段 marker（✅ §5.8）；② 驾驶舱显示记忆健康度数值（✅ §5.9）；③ 长篇中段命中率相对基线有可量化提升（✅ §5.10） |
+| 全批次 | 链路稳定性与确定性：30 步契约重复解析指纹一致 / 30×29 零泄漏 / 顺序与时钟无关 / 目录产物逐字节稳定（§5.11） |
 
 ## 7. 证据与复跑脚本
 
@@ -779,6 +803,13 @@ node --test --import tsx tests/prompt-assets-governed.test.ts   # 内置 14 / �
 node --import tsx scratch/card-role-coverage.ts                 # 176 张 0 未映射（transform 32）
 node --import tsx scratch/stageprompts-snapshot.ts              # 工具卡不得进入三阶段提示（哈希逐项不变）
 ```
+复跑（链路稳定性与确定性）：
+
+```
+node --test --import tsx tests/flow-chain-determinism.test.ts   # 6/6：指纹一致 / 零泄漏 / 顺序 / 时钟 / 标签隔离 / 目录稳定
+node --import tsx scratch/stageprompts-snapshot.ts              # 两次独立进程比对（scratch/snap-compare.py）
+```
+
 ## 8. 风险与回滚
 
 - **数据模型迁移风险**：`capabilityProfile` 是用户作品数据。迁移必须"只加字段、不删旧字段"，并用双向兼容读取；批次 A 交付前不得改变任何 prompt 内容（可用现有 stagePrompts 快照做回归）。
