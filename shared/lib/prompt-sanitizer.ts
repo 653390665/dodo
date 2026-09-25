@@ -4,6 +4,7 @@ import type {
   PromptCategoryV2,
 } from '../types/prompt-assets-governed.js';
 import { hasRuntimeReadySanitization } from './capability-runtime-readiness.js';
+import { gradeFromScore, isScoreAdoptable } from './prompt-score-policy.js';
 
 /**
  * 物理抹除水印清洗分析器 (White-Label Watermark Sanitizer & Analyzer)
@@ -216,13 +217,9 @@ export function promoteToRuntimeReady(
     );
   }
 
-  let grade: 'A' | 'B' | 'C' | 'D' | 'F' = 'F';
-  if (score >= 90) grade = 'A';
-  else if (score >= 80) grade = 'B';
-  else if (score >= 70) grade = 'C';
-  else if (score >= 60) grade = 'D';
-
-  const isPassed = score >= 70;
+  // Plan 262 B2：分档与门槛单源（shared/lib/prompt-score-policy.ts）。
+  const grade = gradeFromScore(score);
+  const isPassed = isScoreAdoptable(score);
 
   return {
     ...asset,

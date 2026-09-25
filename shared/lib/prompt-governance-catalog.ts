@@ -6,6 +6,7 @@ import type {
   SkillSeriesFlow,
 } from '../types/prompt-assets-governed.js';
 import type { Novel } from '../types.js';
+import { gradeFromScore } from './prompt-score-policy.js';
 
 /**
  * InkFlow 提示词资产分级治理 V2 注册表库 (GOVERNED_ASSETS_V2_REGISTRY)
@@ -2709,7 +2710,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
       runtimeStatus: 'active',
       placementTier: b.tier,
       score: b.score,
-      grade: b.score >= 90 ? 'A' : b.score >= 80 ? 'B' : 'C',
+      grade: gradeFromScore(b.score),
       primaryCategory: b.cat,
       isWhiteLabeled: true,
       isRuntimeReady: true,
@@ -2793,7 +2794,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
       runtimeStatus: isPassed ? 'active' : 'candidate',
       placementTier: s.tier,
       score: s.score,
-      grade: s.score >= 90 ? 'A' : s.score >= 80 ? 'B' : 'C',
+      grade: gradeFromScore(s.score),
       primaryCategory: s.cat,
       isWhiteLabeled: true,
       isRuntimeReady: true,
@@ -2828,7 +2829,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
       runtimeStatus: isReady ? 'active' : 'candidate',
       placementTier: p.tier,
       score: p.score,
-      grade: p.score >= 90 ? 'A' : p.score >= 80 ? 'B' : p.score >= 70 ? 'C' : 'D',
+      grade: gradeFromScore(p.score),
       primaryCategory: p.cat,
       isWhiteLabeled: isReady,
       isRuntimeReady: isReady,
@@ -2931,7 +2932,7 @@ function buildRealAssets(): GovernedPromptAsset[] {
       runtimeStatus: 'active',
       placementTier: su.tier,
       score: su.score,
-      grade: su.score >= 90 ? 'A' : 'B',
+      grade: gradeFromScore(su.score),
       primaryCategory: su.cat,
       isWhiteLabeled: true,
       isRuntimeReady: true,
@@ -2978,7 +2979,11 @@ function buildRealAssets(): GovernedPromptAsset[] {
 /**
  * 沉淀汇聚：100% 真实、零占位虚假 ID 的 160+ 条真实提示词资产元数据目录大库
  */
-export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [...buildRealAssets()];
+// Plan 262 B2：出口归一 —— grade 一律由 score 推导，手写/截断分档不得再漂移。
+export const PROMPT_GOVERNANCE_CATALOG: GovernedPromptAsset[] = buildRealAssets().map((asset) => ({
+  ...asset,
+  grade: gradeFromScore(asset.score),
+}));
 
 // Re-export focused sub-modules to preserve backwards compatibility for existing importers.
 export * from './enhancement-packages.js';

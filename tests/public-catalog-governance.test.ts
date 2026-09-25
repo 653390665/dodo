@@ -41,7 +41,8 @@ test('占位标记命中的高分卡封顶 60 并校准 grade', () => {
   });
   const governed = applyPlaceholderScorePenalty(card, isPlaceholderSourceBody);
   assert.equal(governed.score, 60);
-  assert.equal(governed.grade, 'C');
+  // Plan 262 B2：分档单源后，封顶 60 分落在 D 档（旧实现截断为 C）。
+  assert.equal(governed.grade, 'D');
 });
 
 test('真实正文短卡不受源级惩罚（不依赖长度阈值，不误伤内置工具卡形态）', () => {

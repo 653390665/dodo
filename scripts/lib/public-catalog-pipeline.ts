@@ -22,6 +22,13 @@ import {
   COMMERCIAL_COPY_PATTERN,
   sanitizeWhiteLabelText,
 } from '../../shared/lib/prompt-sanitizer.js';
+// Plan 262 B2：分档与封顶分常量单源（此前本文件自带一份分档实现）。
+import {
+  FEATURED_MIN_SCORE,
+  PLACEHOLDER_SCORE_CAP,
+  gradeFromScore,
+} from '../../shared/lib/prompt-score-policy.js';
+export { FEATURED_MIN_SCORE, PLACEHOLDER_SCORE_CAP } from '../../shared/lib/prompt-score-policy.js';
 import type {
   CuratedProductSkill,
   EnhancementPackage,
@@ -211,10 +218,8 @@ export const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
 // 交叠，任何数值阈值都必然误伤真实卡，源级仅用「标记命中或模板为空」判定。
 export const PLACEHOLDER_BODY_MIN_LENGTH = 80;
 // 占位惩罚封顶分：占位/残缺正文的卡评分不得高于此值。
-export const PLACEHOLDER_SCORE_CAP = 60;
 // featured 档最低分门槛（Plan 258 Step 2）：低于此分或正文占位的卡不得挂 featured
 // ——审查实证 sanitized-raw-comp-brand-detector（45 分、正文残缺）挂 featured 档失守。
-export const FEATURED_MIN_SCORE = 70;
 
 type PlaceholderPredicate = (template: string | undefined) => boolean;
 
@@ -240,7 +245,8 @@ export function isPlaceholderRuntimeBody(template: string | undefined): boolean 
  * （≥90 A / ≥80 B / 其余 C），封顶降分后同步校准，避免「60 分 B 级」的新脱钩。
  */
 export function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
+  // Plan 262 B2：与治理目录同一分档实现（A≥90 / B≥80 / C≥70 / D≥60 / F<60）。
+  return gradeFromScore(score);
 }
 
 /**

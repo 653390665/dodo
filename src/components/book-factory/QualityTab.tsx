@@ -24,6 +24,10 @@ import {
   stripEmbeddedStructuredAudit,
 } from '../../../shared/lib/audit-structured';
 import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow';
+import {
+  SCORE_POLICY_SUMMARY,
+  scoreBadgeLabel,
+} from '../../../shared/lib/prompt-score-policy';
 import { DRAFT_QUALITY_SEMANTIC_LABELS } from '../../../shared/lib/quality-contract';
 import { findPatchWindow } from '../../lib/chapter-polish';
 import {
@@ -462,6 +466,12 @@ export function QualityTab({
             <Compass size={13} aria-hidden="true" />
             <span>智能推荐下一步治理资产 ({recommendedAssets.length})</span>
           </div>
+          <p
+            data-testid="score-policy-note"
+            className="text-[10px] leading-5 text-theme-muted"
+          >
+            {SCORE_POLICY_SUMMARY}
+          </p>
           <div className="space-y-3">
             {recommendedAssets.map((asset) => {
               let sourceLabel = '广场共享';
@@ -532,8 +542,11 @@ export function QualityTab({
                           内测增强
                         </span>
                       )}
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase shrink-0">
-                        {asset.grade}级 ({asset.score}分)
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-theme-border/40 text-theme-muted font-black uppercase shrink-0"
+                        title={SCORE_POLICY_SUMMARY}
+                      >
+                        {scoreBadgeLabel(asset.score)}
                       </span>
                       {isStacked && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0 animate-pulse">

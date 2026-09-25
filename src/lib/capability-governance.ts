@@ -18,6 +18,7 @@ import type {
 import type { Skill } from '../../shared/types/skills';
 import type { WorkflowPhase } from './workflow-state';
 import { CARD_STAGE_MAP } from '../../shared/types/capability-execution';
+import { gradeFromScore } from '../../shared/lib/prompt-score-policy';
 import type { CapabilityManifestEntry } from '../../shared/types/capability-manifest';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityStage } from '../../shared/types/capability-execution';
@@ -216,7 +217,7 @@ export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
     goal: asset.goal,
     successSignal: asset.successSignal,
     score: asset.score || 0,
-    grade: asset.grade || 'B',
+    grade: gradeFromScore(asset.score),
     sourceType: asset.sourceType || 'built-in',
     primaryCategory: asset.primaryCategory || 'style-reference',
     inputs: asset.inputs || ['content'],
@@ -252,7 +253,7 @@ export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
     goal: asset.goal,
     successSignal: asset.successSignal,
     score: asset.score || 0,
-    grade: asset.grade || 'B',
+    grade: gradeFromScore(asset.score),
     sourceType: asset.sourceType || 'built-in',
     primaryCategory: asset.primaryCategory || 'quality-guardrail',
     inputs: asset.inputs || ['content'],
@@ -427,7 +428,7 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
     goal: asset.goal,
     successSignal: asset.successSignal,
     score: asset.score || 0,
-    grade: asset.grade || 'B',
+    grade: gradeFromScore(asset.score),
     sourceType: asset.sourceType || 'built-in',
     primaryCategory: asset.primaryCategory || 'style-reference',
     inputs: asset.inputs || ['content'],
@@ -461,7 +462,7 @@ export function getSanitizeRequiredAssets(): CuratedProductSkill[] {
     goal: asset.goal,
     successSignal: asset.successSignal,
     score: asset.score || 0,
-    grade: asset.grade || 'B',
+    grade: gradeFromScore(asset.score),
     sourceType: (asset.sourceType || 'plaza') as 'built-in' | 'plaza' | 'licensed',
     primaryCategory: asset.primaryCategory || 'style-reference',
     inputs: asset.inputs || ['content'],
