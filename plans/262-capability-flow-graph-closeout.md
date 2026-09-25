@@ -18,7 +18,7 @@
 
 | # | 项 | 现状证据（2026-09-28） | 完成判据 |
 |---|---|---|---|
-| B1 | 护栏语义（假控制） | 12 张 core-default 护栏无条件注入；`guardrailIds=[core-slop-shield]` Δ0（加/删皆无变化），`[private-162]` 才 writer +169；唯一 `stage=review` 护栏是壳卡被过滤 → critic 永无护栏。判定 `isConfigurableGuardrailAsset` = `isRuntimeReadyAsset && primaryCategory==='quality-guardrail'`（`server/helpers/writing-style-service.ts:1151-1155`），`buildGuardrails:1260-1290` 先并全部 core-default 再并配置项 | 配置任一 core-default id 有可解释行为（去重/显式覆盖/UI 标明「已默认启用」）；新增用例钉住；`scratch/g2-guard-probe.ts` Δ 数值写入规格 §5.7 |
+| B1 | 护栏语义（假控制） ✅ 已完成 | 12 张 core-default 护栏无条件注入；`guardrailIds=[core-slop-shield]` Δ0（加/删皆无变化），`[private-162]` 才 writer +169；唯一 `stage=review` 护栏是壳卡被过滤 → critic 永无护栏。判定 `isConfigurableGuardrailAsset` = `isRuntimeReadyAsset && primaryCategory==='quality-guardrail'`（`server/helpers/writing-style-service.ts:1151-1155`），`buildGuardrails:1260-1290` 先并全部 core-default 再并配置项 | 配置任一 core-default id 有可解释行为（去重/显式覆盖/UI 标明「已默认启用」）；新增用例钉住；`scratch/g2-guard-probe.ts` Δ 数值写入规格 §5.7 |
 | B2 | 评分口径显性化 | score 同时是质量分与准入门槛（≥70 采用、<60 不可用、60–69 必 candidate）；UI 仅 `src/components/book-factory/QualityTab.tsx:536` 一行「{grade}级 ({score}分)」 | 卡面/详情解释评分与门槛口径，文案与分档逻辑单源（shared/lib），有测试钉住 |
 | B3 | 清洗滞留清账 | 179→132 公开；`admitPublicAsset` 拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本；`sanitizationHits` 仅 2 张非零 | 每张滞留资产有明确去向（补副本 / 标注不可公开 / 移出候选），`capD-sanitize.ts` 报告数字回写规格 |
 
@@ -63,6 +63,23 @@
 4. D1–D6 长尾
 5. E1 需用户操作；E2/E3/E5 需用户拍板
 
-## 登记
+## 完成记录
+
+### B1 护栏语义（假控制）— 2026-09-28
+
+- 交付：`shared/lib/guardrail-scope.ts`（判据 + 审计单源）；服务端 `isConfigurableGuardrailAsset` 委托
+  `isReadyQualityGuardrail`（零行为变更）；`getGuardrailSelectionAudit` + 面板「已声明但未产生净增（N）」回执区块；
+  `SkillsStudioView` 计数改为 `selectable.length`。
+- 口径：25 张质量护栏 = 12 默认生效 + 9 可选（7 真净增 + 2 引用壳）；实测 core-slop-shield / square-13 配置后
+  stagePrompts 逐字节不变，de-ai-tells-guard writer 541→948，private-162 writer 541→710。
+- 证据：`tests/guardrail-scope.test.ts` 5/5、`src/tests/guardrail-policy-panel.test.tsx` 4/4、前端定向 75/75、
+  tsc 0、eslint 0、快照六场景逐项不变。
+- 残余：写路径仍接受无净增配置（存量兼容）；4 张未就绪护栏去向归 B3。
+
+### 登记
+
+- B1 附带发现（待拍板）：`src/lib/capability-governance.ts:1` 直接 import 源目录 `PROMPT_GOVERNANCE_CATALOG`
+  （含模板全文）进渲染层，可能绕过公开目录的模板剥离面；当前无测试钉住，需决定是否纳入批次 C。
+
 
 - 根账本：`plans/README.md` Round 46（2026-09-28）
