@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  assemblyChannelForCard,
   getProjectDeckCardIds,
   isCapabilityAssemblyMigrated,
   migrateCapabilityAssembly,
+  projectCardsByChannel,
   resolveCapabilityAssembly,
   resolveChapterCards,
   resolveProjectCards,
@@ -245,3 +247,41 @@ test('deprecated 标记在类型层可见（mountedSkillLoadout 两处声明）'
   assert.match(novelTypes, /@deprecated[\s\S]{0,240}?mountedSkillLoadout\?:/);
   assert.match(skillModel, /@deprecated[\s\S]{0,240}?mountedSkillLoadout\?:/);
 });
+
+test('projectCards 分通道：kind/分类 → deck|technique|guardrail，无 manifest 归 deck，可归类为空则忽略', () => {
+  // 货架 quality-guardrail 资产的 manifest kind 是 technique，必须靠治理分类分流
+  assert.equal(assemblyChannelForCard({ kind: 'technique', primaryCategory: 'quality-guardrail' }), 'guardrail');
+  assert.equal(assemblyChannelForCard({ kind: 'technique', primaryCategory: 'author-workflow' }), 'technique');
+  assert.equal(assemblyChannelForCard({ kind: 'skill-card' }), 'deck');
+  assert.equal(assemblyChannelForCard({ kind: 'guardrail' }), 'guardrail');
+  assert.equal(assemblyChannelForCard({ kind: 'flow' }), null);
+  assert.equal(assemblyChannelForCard({}), null);
+
+  const channels = projectCardsByChannel(
+    ['skill-card-a', 'guardrail-a', 'technique-a', 'unknown-a', 'flow-a', ' technique-a '],
+    (id) =>
+      ({
+        'skill-card-a': { kind: 'skill-card' },
+        'guardrail-a': { kind: 'technique', primaryCategory: 'quality-guardrail' },
+        'technique-a': { kind: 'technique' },
+        'flow-a': { kind: 'flow' },
+      })[id]
+  );
+  assert.deepEqual(channels.deck, ['skill-card-a', 'unknown-a']);
+  assert.deepEqual(channels.technique, ['technique-a']);
+  assert.deepEqual(channels.guardrail, ['guardrail-a']);
+});
+
+test('未声明 projectCards 时 projectCardsByChannel 不分流任何 id', () => {
+  assert.deepEqual(projectCardsByChannel(undefined, () => ({ kind: 'technique' })), {
+    deck: [],
+    technique: [],
+    guardrail: [],
+  });
+  assert.deepEqual(projectCardsByChannel([], () => ({ kind: 'technique' })), {
+    deck: [],
+    technique: [],
+    guardrail: [],
+  });
+});
+

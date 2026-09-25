@@ -17,6 +17,10 @@ import type {
 } from '../../shared/types.js';
 import { CARD_STAGE_MAP } from '../../shared/types.js';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile.js';
+import {
+  projectCardsByChannel,
+  type CapabilityAssemblyChannel,
+} from '../../shared/lib/capability-assembly.js';
 import { isShellTemplatePrompt } from '../../shared/lib/prompt-shell.js';
 import {
   renderFlowStepCardBlock,
@@ -801,6 +805,22 @@ function resolveFavoriteTechniqueIdsFromProfile(
   });
 }
 
+/**
+ * P0-①：projectCards 声明的作品级卡面按 kind 分流到既有三通道（只增不改）。
+ * 未声明 projectCards（undefined）或无 v3 profile 时返回空数组——旧通道逐项不变；
+ * kind 无法归类的 id 被忽略（不改变既有报错路径）。
+ */
+function resolveProjectCardsChannel(novel: Novel, channel: CapabilityAssemblyChannel): string[] {
+  if (!hasCapabilityV3(novel)) return [];
+  const declared = novel.projectPreferenceProfile?.capabilityProfile?.projectCards;
+  if (declared === undefined) return [];
+  return projectCardsByChannel(declared, (id) => {
+    const manifest = capabilityManifestFor(id);
+    const asset = PROMPT_GOVERNANCE_CATALOG.find((item) => item.id === id);
+    return { kind: manifest?.kind, primaryCategory: asset?.primaryCategory };
+  })[channel];
+}
+
 function resolveProjectSkillDeck(novel: Novel): {
   mainCard: RuntimeSessionAsset | null;
   supportCards: RuntimeSessionAsset[];
@@ -825,13 +845,17 @@ function resolveProjectSkillDeck(novel: Novel): {
       'PROJECT_SKILL_DECK_DUPLICATE',
       '作品卡组能力卡不能重复'
     );
+  // P0-①：projectCards 声明的作品级卡面（kind → 卡组面）只在旧卡组之后增补，不替换旧字段。
+  const declaredIds = [
+    ...new Set([...uniqueIds, ...resolveProjectCardsChannel(novel, 'deck')]),
+  ];
   if (supportIds.length > PROJECT_DECK_MAX_SUPPORT_CARDS)
     throw new WritingStyleRequestError(
       400,
       'PROJECT_SKILL_DECK_TOO_MANY_SUPPORTS',
       `作品卡组最多${PROJECT_DECK_MAX_SUPPORT_CARDS}张副卡`
     );
-  const cards = uniqueIds.map((id) => {
+  const cards = declaredIds.map((id) => {
     const skill = db.getSkill(id);
     if (skill) {
       try {
@@ -1240,7 +1264,9 @@ function buildGuardrails(novel: Novel): ExecutionGuardrail[] {
   const configuredIds = hasCapabilityV3(novel)
     ? novel.projectPreferenceProfile?.capabilityProfile?.guardrailIds || []
     : [];
-  const configured = configuredIds
+  // P0-①：projectCards 中 kind=guardrail 的 id 也进配置面（与 guardrailIds 并列，不替换）。
+  const declaredGuardrailIds = resolveProjectCardsChannel(novel, 'guardrail');
+  const configured = [...new Set([...configuredIds, ...declaredGuardrailIds])]
     .filter((id) => id !== 'default-guardrail')
     .map((id) => PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id))
     .filter(isConfigurableGuardrailAsset);
@@ -1436,11 +1462,16 @@ function resolveProjectTechniquePlan(novel: Novel): {
   );
   const priorities = profile.techniquePriorities;
   const roleByRawId = normalizeTechniquePriorityRoles(priorities);
-  const rawIds = sortTechniqueIdsByPriority(
+  // P0-①：projectCards 中 kind=technique 的 id 优先于旧技法字段（声明即生效），旧字段保留在后。
+  const declaredTechniqueIds = resolveProjectCardsChannel(novel, 'technique');
+  const legacyTechniqueIds = sortTechniqueIdsByPriority(
     profile.projectTechniqueIds ?? profile.favoriteTechniqueIds ?? [],
     priorities,
     roleByRawId
   );
+  const rawIds = [
+    ...new Set([...declaredTechniqueIds, ...legacyTechniqueIds]),
+  ];
   const roleById = new Map<string, TechniquePriorityRole>();
   const hasPriorities = Boolean(priorities && priorities.length > 0);
   const ids = rawIds.map((id) => {
@@ -1463,7 +1494,8 @@ function resolveProjectTechniquePlan(novel: Novel): {
 function resolveChapterCapabilityState(
   novelId: string,
   chapterId: string | undefined,
-  currentGeneration: number
+  currentGeneration: number,
+  declaredChapterCards: readonly string[] = []
 ): { techniqueIds: string[]; overlayCardIds: string[] } {
   if (!chapterId) return { techniqueIds: [], overlayCardIds: [] };
   const chapter = db.getChapter(chapterId);
@@ -1558,9 +1590,35 @@ function resolveChapterCapabilityState(
       );
     checkVersion(id, overlayVersions[id], actual, 'CAPABILITY_VERSION_STALE');
   }
+  // P0-①：profile.chapterCards 声明的章节面卡（旧字段为 workflowMeta.capabilityState）。
+  // 宽松语义：解析不到 / 缺 chapter scope / 非 active 的 id 一律忽略（不阻断请求，避免唤醒休眠字段造成回归），
+  // 且跳过 stored-version 校验（声明项没有落库版本可对照）。
+  const declaredTechniques: string[] = [];
+  const declaredOverlays: string[] = [];
+  for (const raw of declaredChapterCards) {
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (!id) continue;
+    const manifest = capabilityManifestFor(id);
+    const saved = db.getSkill(id);
+    if (manifest?.kind === 'technique') {
+      if (manifest.allowedScopes.includes('chapter') && manifest.runtimeStatus === 'active') {
+        declaredTechniques.push(id);
+      }
+      continue;
+    }
+    const isOverlay = manifest ? manifest.kind === 'skill-card' : Boolean(saved);
+    if (!isOverlay) continue;
+    if (manifest && !manifest.allowedScopes.includes('chapter')) continue;
+    if (manifest && manifest.runtimeStatus !== 'active') continue;
+    declaredOverlays.push(id);
+  }
   return {
-    techniqueIds: Array.isArray(ids) ? ids : [],
-    overlayCardIds: Array.isArray(overlayIds) ? overlayIds : [],
+    techniqueIds: [
+      ...new Set([...(Array.isArray(ids) ? ids : []), ...declaredTechniques]),
+    ],
+    overlayCardIds: [
+      ...new Set([...(Array.isArray(overlayIds) ? overlayIds : []), ...declaredOverlays]),
+    ],
   };
 }
 
@@ -1738,7 +1796,14 @@ export function resolveWritingStyleRequest(
   if (hasCapabilityV3(novel))
     validateCapabilityProfile(novelId, novel.projectPreferenceProfile?.capabilityProfile);
   const stageSkills = getStageSkills(novel);
-  const chapterState = resolveChapterCapabilityState(novelId, input.chapterId, initialGeneration);
+  const chapterState = resolveChapterCapabilityState(
+    novelId,
+    input.chapterId,
+    initialGeneration,
+    hasCapabilityV3(novel)
+      ? novel.projectPreferenceProfile?.capabilityProfile?.chapterCards ?? []
+      : []
+  );
   const chapterTechniqueIds = chapterState.techniqueIds;
   const writerSkill = stageSkills.writer[0];
   const projectDeck = resolveProjectSkillDeck(novel);
@@ -1776,7 +1841,15 @@ export function resolveWritingStyleRequest(
   // Plan 260：作品技法按装配优先度排序后注入；roleById 供段内角色标注。
   const { ids: projectTechniqueIds, roleById: techniqueRoleById } =
     resolveProjectTechniquePlan(novel);
-  const combinedSessionCardIds = [...chapterState.overlayCardIds, ...(input.sessionCardIds || [])];
+  // P0-①：请求未显式声明本章使用卡时回退到 profile.singleRunCard（显式请求始终优先）。
+  const declaredSingleRunCard =
+    input.sessionCardIds === undefined && hasCapabilityV3(novel)
+      ? novel.projectPreferenceProfile?.capabilityProfile?.singleRunCard?.trim()
+      : undefined;
+  const combinedSessionCardIds = [
+    ...chapterState.overlayCardIds,
+    ...(input.sessionCardIds ?? (declaredSingleRunCard ? [declaredSingleRunCard] : [])),
+  ];
   if (combinedSessionCardIds.length > 6)
     throw new WritingStyleRequestError(400, 'TOO_MANY_SESSION_CARDS', '本章使用卡最多使用 6 张');
   const requestedSessionAssets = resolveSessionAssets(novel, [...new Set(combinedSessionCardIds)]);

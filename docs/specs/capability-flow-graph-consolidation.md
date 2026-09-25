@@ -179,6 +179,37 @@ deprecated 源码断言）；`src/tests/capability-card-count.test.ts` 5/5；`no
 `getProjectDeckIds(getProjectCapabilityProfile(novel))` 字面量钉子）；`npx tsc --noEmit` 0、`npm run lint` 0；
 `npm test` 全量 0（86s）。
 
+#### 4.2.3 装配三字段运行时接线（P0-①，2026-09-28）
+
+批次 A 只落地了「读写单源」，三字段在运行时**无消费点**（`projectCards` / `chapterCards` / `singleRunCard`
+仅被校验与 UI 计数读取）——这是审查认定的 P0-①。本轮把声明接到既有三通道，**只增不改**：
+
+| 字段 | 接线点 | 语义 |
+|---|---|---|
+| `projectCards` | `resolveProjectSkillDeck`（卡组）/ `resolveProjectTechniquePlan`（技法）/ `buildGuardrails`（护栏） | 按 manifest `kind` + 治理 `primaryCategory` 分流；声明项追加在旧字段之后，不替换旧字段 |
+| `chapterCards` | `resolveChapterCapabilityState(novelId, chapterId, generation, declaredChapterCards)` | 仅当带 `chapterId` 生效；technique → `techniqueIds`，skill-card/overlay → `overlayCardIds` |
+| `singleRunCard` | `resolveWritingStyleRequest` 的 `combinedSessionCardIds` | 请求未显式给 `sessionCardIds` 时作为回退（显式数组含空数组优先） |
+
+- 分流单源 `shared/lib/capability-assembly.ts`：`assemblyChannelForKind` / `assemblyChannelForCard` /
+  `projectCardsByChannel(ids, cardOf)`。`assemblyChannelForCard` 先看 `primaryCategory === 'quality-guardrail'`
+  再看 `kind`——**货架 quality-guardrail 资产的 manifest kind 是 `technique`**（目录兜底派生），只看 kind
+  会把护栏卡误投技法通道（实测 `de-ai-tells-guard`、`private-100` 均如此）。
+- 无 manifest 的 id 归卡组面（与旧 `mountedSkillIds` 的可解析语义一致）；`kind` 可归但不在四类内的（如 `flow`）
+  忽略。卡组面仍走原有严格校验（无 `kind=skill-card` + project scope 会 400），不在本轮放宽。
+- `chapterCards` 采用**宽松语义**：解析不到 / 缺 `chapter` scope / 非 `active` 的 id 一律忽略、不阻断请求，
+  且跳过 stored-version 校验（声明项没有落库版本可对照）。理由：该字段此前完全惰性，存量值可能是任意 id，
+  严格模式会把「从未生效的休眠字段」变成全量 400 回归。
+- 证据（2026-09-28）：`tests/capability-assembly-runtime.test.ts` 8/8（基线三通道逐项不变 / 卡组面成主卡 /
+  技法面加长 writer 提示词 / 护栏面与旧 `guardrailIds` 并存 / chapterCards 章节作用域 / 治理货架能力卡经本章
+  使用卡解析 / singleRunCard 回退与显式空数组优先 / 无效 id 宽松忽略）；`tests/capability-assembly.test.ts` 11/11
+  （新增分流单测：quality-guardrail 分类优先级、无 manifest 归 deck、`flow` 忽略、未声明不分流）；
+  定向 4 文件 61/61；`npx tsc --noEmit` 0；`npx eslint … --max-warnings=0` 0；六场景 stagePrompts 快照
+  **逐项哈希不变**（`bare e3b0c442/a911161f/af2071af`、`technique 4ee5c756/9a6bf48b`、`deck ad15f102/35a46c6f/f73b1f25`、
+  `flow-shield 0e7ffd52`、`flow-outline 697f7556/92`、`flow-square 5dde5c7b/59`）——未声明即零行为变化。
+- 残余：三字段仍**无界面写入口**（只能经 profile 写入，UI 计数可读）；`chapterCards` 声明项不写回
+  `chapter.workflowMeta.capabilityState`（作用域不放大）；护栏通道的「假控制」问题（core-default 护栏无条件
+  注入，配置既有护栏 id 无净增）属 P0-②，未在本轮处理。
+
 #### 4.2.1 目录生成单源与新鲜度（批次 A 小类「目录生成与新鲜度」）
 
 `shared/lib/public-skill-catalog.ts`（7158 行）是生成物；生成规则此前存在**三份拷贝**：生成脚本

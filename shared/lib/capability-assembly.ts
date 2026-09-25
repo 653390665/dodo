@@ -74,6 +74,53 @@ function normalizeOptionalCardId(value: unknown): string | undefined {
   return value.trim() || undefined;
 }
 
+/**
+ * P0-①：装配三字段的运行时通道（作品级 projectCards 的 kind → 既有三通道映射）。
+ * 未声明 projectCards 时三通道完全沿用旧路径（projectSkillDeck / projectTechniqueIds / guardrailIds），
+ * 声明时只在对应通道里「增补」，不替换旧字段（避免卡组 UI 后续写入失效）。
+ */
+export type CapabilityAssemblyChannel = 'deck' | 'technique' | 'guardrail';
+
+export function assemblyChannelForKind(kind: string | undefined): CapabilityAssemblyChannel | null {
+  if (kind === 'technique') return 'technique';
+  if (kind === 'guardrail') return 'guardrail';
+  if (kind === 'skill-card' || kind === 'role-skill' || kind === 'overlay') return 'deck';
+  return null;
+}
+
+/** 分流凭证：manifest kind 之外还看治理分类（货架 quality-guardrail 资产的 manifest kind 是 technique）。 */
+export interface CapabilityAssemblyCardRef {
+  kind?: string;
+  primaryCategory?: string;
+}
+
+export function assemblyChannelForCard(
+  card: CapabilityAssemblyCardRef | undefined
+): CapabilityAssemblyChannel | null {
+  if (!card) return null;
+  if (card.primaryCategory === 'quality-guardrail') return 'guardrail';
+  return assemblyChannelForKind(card.kind);
+}
+
+/** 按 kind/分类把 projectCards 分流为三通道 id（无 manifest 的 id 归卡组面，与旧 deck 的可解析语义一致）。 */
+export function projectCardsByChannel(
+  ids: readonly string[] | undefined | null,
+  cardOf: (id: string) => CapabilityAssemblyCardRef | undefined
+): Record<CapabilityAssemblyChannel, string[]> {
+  const channelIds: Record<CapabilityAssemblyChannel, string[]> = {
+    deck: [],
+    technique: [],
+    guardrail: [],
+  };
+  for (const id of normalizeCardIds(ids)) {
+    const card = cardOf(id);
+    const channel = card === undefined ? 'deck' : assemblyChannelForCard(card);
+    if (!channel) continue;
+    channelIds[channel].push(id);
+  }
+  return channelIds;
+}
+
 /** 卡组 ID：主卡 + 辅卡（去重、去空）。与 src/lib/skills-studio-governance.ts 的 getProjectDeckIds 同规则同源。 */
 export function getProjectDeckCardIds(
   profile: ProjectCapabilityProfile | null | undefined
