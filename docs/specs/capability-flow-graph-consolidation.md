@@ -625,6 +625,54 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 `stale` 标记目前无「恢复/清除」入口（重跑 enrich 不清除，符合"只增不删"，但缺少人工确认恢复的动作）；
 章节作用域边的生产写入方仅测试夹具（章节 apply 尚不写边），故边走的是预留的口径匹配路径。
 
+#### 5.12 护栏配置的净增语义（Plan 262 B1）
+
+**问题（2026-09-28 实测）**：`guardrailIds` 里配 core-default 护栏是「假控制」——
+`buildGuardrails`（`server/helpers/writing-style-service.ts:1269`）先**无条件**并入全部
+`placementTier==='core-default'` 且运行时就绪的资产（当前 12 张质量护栏 + core-default 工具资产），
+再并入配置项并按 `id\u0000stage` 去重 ⇒ 配置同一条 Δ 恒为 0，而界面把它算进「增强护栏已开启 N 条」。
+第二种无净增形态是**引用壳**：`square-13` / `square-3` 能通过配置校验，却在注入阶段被壳卡过滤
+（`isShellTemplatePrompt`）丢弃。
+
+**单源 `shared/lib/guardrail-scope.ts`**（纯函数、无 IO）：
+- `isReadyQualityGuardrail`：运行时就绪 && `primaryCategory==='quality-guardrail'`（服务端校验/合并判据，core-default 亦算）；
+- `isDefaultOnGuardrail`：再叠 core-default ⇒ 无条件注入，配置无净增；
+- `isSelectableGuardrail`：非 core-default、非 `sourceGroup==='test-fixture'` ⇒ 真可选；
+- `isShellGuardrail`：可选但模板是 <80 字引用壳 ⇒ 注入被丢，同样无净增；
+- `auditGuardrailSelection(ids, catalog)` → `{ selectable, redundant, unusable }`（trim + 去重；`default-guardrail`
+  占位 id 归 redundant；不可用条目给 `GUARDRAIL_UNUSABLE_NOTE`）；
+- 文案常量 `GUARDRAIL_DEFAULT_ON_LABEL` / `GUARDRAIL_REDUNDANT_NOTE` / `GUARDRAIL_BUILTIN_PLACEHOLDER_NOTE` /
+  `GUARDRAIL_SHELL_NOTE` / `GUARDRAIL_UNUSABLE_NOTE`。
+
+**接线**：
+- 服务端 `isConfigurableGuardrailAsset`（`server/helpers/writing-style-service.ts:1157-1163`）改为委托
+  `isReadyQualityGuardrail`（零行为变更；写路径维持「core-default / 引用壳仍可保存」，避免存量档案重存 400）；
+- `src/lib/capability-governance.ts`：`getConfigurableGuardrailAssets` 走 `isSelectableGuardrail`，
+  新增 `getGuardrailSelectionAudit(ids)`；
+- `GuardrailPolicyPanel` 新增必填 `audit` prop 与「已声明但未产生净增（N）」区块
+  （`data-testid="guardrail-audit"` / `guardrail-redundant-entry-<id>` / `guardrail-unusable-entry-<id>`）；
+- `SkillsStudioView` 两处计数改用 `audit.selectable.length`，并有滞留项时补「另有 N 条已声明但未产生净增」。
+
+**口径（实测 2026-09-28）**：源目录 25 张 `quality-guardrail` = 12 张默认生效（core-default）+ 9 张可选
+（7 张真净增：private-162 / private-130 / private-101 / private-100 / private-86 / private-85 / de-ai-tells-guard；
+2 张引用壳：square-13（37 字）/ square-3（39 字））+ 4 张未就绪。
+
+**证据**：
+- `tests/guardrail-scope.test.ts` **5/5**：分类计数（25 / 9 / 12，shells = {square-13, square-3}）、审计归类
+  （trim 去重、三种 redundant note、unusable）、服务端 Δ 逐字节（baseline = core-slop-shield = square-13：
+  planner `e3b0c442(0)` / writer `a911161f(541)` / critic `af2071af(104)`，护栏列表逐项一致；
+  de-ai-tells-guard → writer `5e33af46(948)`；private-162 → writer `73451d12(710)`）、写路径兼容
+  （core-slop-shield / square-13 / de-ai-tells-guard 通过；core-dialogue-enhancer / ghost-guardrail → 400
+  `CAPABILITY_GUARDRAIL_UNAVAILABLE`）。
+- 前端 `src/tests/guardrail-policy-panel.test.tsx` **4/4**（回执区块三条 / 无条目不渲染 / 审计与目录同源 /
+  开关仍可切换）；前端定向 **75/75**；`npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0；
+  `scratch/stageprompts-snapshot.ts` 六场景逐项哈希不变。
+- 既有用例修正：`src/tests/skills-studio-plan158.test.tsx` 的护栏用例原点击面板第一条（square-13 = 引用壳）
+  并断言「已开启 1 条」，B1 后改为显式点选 de-ai-tells-guard（引用壳会被回执为无净增，不再计入开启数）。
+
+**残余（登记不静默）**：未把「无净增」升级为写路径拒绝（保持兼容，收紧需先迁移存量档案，见 E4/M2 语境）；
+其它装配字段（techniques/deck）暂无同类「净增」审计；4 张未就绪护栏资产的去向归批次 B3 清洗清账。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）

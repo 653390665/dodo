@@ -392,7 +392,16 @@ describe('Plan 158 capability center', () => {
     fireEvent.click(await screen.findByRole('button', { name: '管理' }));
     const policyDialog = await screen.findByRole('dialog', { name: '质量标准' });
     expect(within(policyDialog).getAllByText('已自动生效').length).toBeGreaterThan(0);
-    fireEvent.click(within(policyDialog).getAllByRole('button', { name: /开启增强护栏：/ })[0]);
+    // Plan 262 B1：面板第一条是引用壳（square-13，注入时被丢弃、净增为 0），
+    // 「开启的增强护栏」只认真实生效的卡，因此这里显式点选 de-ai-tells-guard。
+    const { getConfigurableGuardrailAssets } = await import('../lib/capability-governance');
+    const selectableCard = getConfigurableGuardrailAssets().find(
+      (asset) => asset.id === 'de-ai-tells-guard'
+    );
+    expect(selectableCard).toBeTruthy();
+    fireEvent.click(
+      within(policyDialog).getByRole('button', { name: `开启增强护栏：${selectableCard!.title}` })
+    );
 
     await waitFor(() => expect(screen.getByText(/增强护栏已开启 1 条/)).toBeTruthy());
     const { applyCapabilityConfiguration } = await import('../lib/capability-configuration-client');

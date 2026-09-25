@@ -61,6 +61,7 @@ import type {
 } from '../../shared/types/capability-execution.js';
 import { getDatabaseGeneration } from '../lib/db-instance.js';
 import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
+import { isReadyQualityGuardrail } from '../../shared/lib/guardrail-scope.js';
 
 export interface WritingStyleRequestInput {
   chapterId?: string;
@@ -1154,7 +1155,9 @@ function isRuntimePromptAsset(
 function isConfigurableGuardrailAsset(
   asset: GovernedPromptAsset | undefined
 ): asset is GovernedPromptAsset {
-  return Boolean(isRuntimePromptAsset(asset) && asset.primaryCategory === 'quality-guardrail');
+  // Plan 262 B1：判据单源在 shared/lib/guardrail-scope（含 isRuntimeReadyAsset 三项就绪门），
+  // 行为与旧版一致（运行时就绪的质量护栏，core-default 亦算——它只是配置后无净增）。
+  return Boolean(isRuntimePromptAsset(asset) && isReadyQualityGuardrail(asset));
 }
 
 function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {

@@ -1,4 +1,9 @@
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog';
+import {
+  auditGuardrailSelection,
+  isSelectableGuardrail,
+  type GuardrailSelectionAudit,
+} from '../../shared/lib/guardrail-scope';
 // 白标清洗器已单源化（Plan 236/CORR-02）：public-skill-catalog re-export 正典实现，
 // 此处经该入口引用即与渲染路径、消毒端点同一行为；过滤判定与卡面渲染天然一致。
 import { sanitizeWhiteLabelText } from '../../shared/lib/public-skill-catalog';
@@ -237,15 +242,10 @@ export function getFactoryDeconstructCardOptions(): CuratedProductSkill[] {
   ];
 }
 
-/** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关。 */
+/** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关（Plan 262 B1 单源）。 */
 export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
-  return PROMPT_GOVERNANCE_CATALOG.filter(
-    (asset) =>
-      asset.primaryCategory === 'quality-guardrail' &&
-      isRuntimeReadyAsset(asset) &&
-      asset.placementTier !== 'core-default' &&
-      asset.sourceGroup !== 'test-fixture'
-  ).map((asset) => ({
+  const selectable = PROMPT_GOVERNANCE_CATALOG.filter((asset) => isSelectableGuardrail(asset));
+  return selectable.map((asset) => ({
     id: asset.id,
     title: asset.title,
     curatedCategory: asset.stage === 'review' ? 'audit' : 'de-ai',
@@ -273,6 +273,13 @@ export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
       displayStages: getDisplayStagesForGuardrail(asset),
     },
   }));
+}
+
+/** Plan 262 B1：审计当前 `guardrailIds` 的净增情况（无净增 / 不可用逐条给出原因）。 */
+export function getGuardrailSelectionAudit(
+  ids: readonly string[] | null | undefined
+): GuardrailSelectionAudit {
+  return auditGuardrailSelection(ids, PROMPT_GOVERNANCE_CATALOG);
 }
 
 function getExecutionStagesForGuardrail(asset: GovernedPromptAsset): CapabilityStage[] {

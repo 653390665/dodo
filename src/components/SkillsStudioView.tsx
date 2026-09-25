@@ -82,6 +82,7 @@ import {
   getCapabilitySourceLabel,
   getConfigurableGuardrailAssets,
   getCoreDefaultGuardrailCount,
+  getGuardrailSelectionAudit,
   getOptionalStyleAssets,
   getSanitizeRequiredAssets,
   partitionShelfBySupply,
@@ -936,6 +937,7 @@ export function SkillsStudioView({
     (flow) => flow.id === configurationDraft?.activeFlowId
   );
   const currentGuardrailIds = (configurationDraft || capabilityProfile)?.guardrailIds || [];
+  const guardrailAudit = getGuardrailSelectionAudit(currentGuardrailIds);
   // Plan 256：已生效配置总览——占格卡组、不占格技法与护栏按工位分组，容量语义如实标注。
   const overviewTechniqueIds = (configurationDraft || capabilityProfile)?.projectTechniqueIds || [];
   const resolveOverviewAsset = (id: string) => {
@@ -2300,7 +2302,11 @@ export function SkillsStudioView({
               默认 {CORE_DEFAULT_GUARDRAIL_COUNT} 条已自动生效
             </p>
             <p className="mt-1 text-[11px] text-theme-muted">
-              增强护栏已开启 {currentGuardrailIds.length} 条，追加在默认检查之后。
+              {`增强护栏已开启 ${guardrailAudit.selectable.length} 条，追加在默认检查之后。${
+                guardrailAudit.redundant.length + guardrailAudit.unusable.length > 0
+                  ? `另有 ${guardrailAudit.redundant.length + guardrailAudit.unusable.length} 条已声明但未产生净增（见质量标准面板）。`
+                  : ''
+              }`}
             </p>
           </div>
         </div>
@@ -2388,8 +2394,12 @@ export function SkillsStudioView({
                 <p className="font-bold text-theme-text">护栏（默认自动生效）</p>
                 <p className="mt-1 text-theme-text">
                   {`默认 ${CORE_DEFAULT_GUARDRAIL_COUNT} 条自动生效${
-                    currentGuardrailIds.length > 0
-                      ? `，另开启增强护栏 ${currentGuardrailIds.length} 条`
+                    guardrailAudit.selectable.length > 0
+                      ? `，另开启增强护栏 ${guardrailAudit.selectable.length} 条`
+                      : ''
+                  }${
+                    guardrailAudit.redundant.length + guardrailAudit.unusable.length > 0
+                      ? `；另有 ${guardrailAudit.redundant.length + guardrailAudit.unusable.length} 条已声明但未产生净增`
                       : ''
                   }`}
                 </p>
@@ -3282,6 +3292,7 @@ export function SkillsStudioView({
         <GuardrailPolicyPanel
           enhancedGuardrails={CONFIGURABLE_GUARDRAIL_ASSETS}
           enabledIds={currentGuardrailIds}
+          audit={guardrailAudit}
           onToggle={(asset) => {
             void handleEquipAsset(asset);
           }}

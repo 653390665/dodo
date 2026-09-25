@@ -1,6 +1,10 @@
 import { CheckCircle2, ShieldAlert, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { PUBLIC_SKILL_GOVERNANCE_CATALOG } from '../../../shared/lib/public-skill-catalog';
+import {
+  GUARDRAIL_DEFAULT_ON_LABEL,
+  type GuardrailSelectionAudit,
+} from '../../../shared/lib/guardrail-scope';
 import type { CuratedProductSkill } from '../../../shared/types';
 
 interface GuardrailPolicyPanelProps {
@@ -8,6 +12,8 @@ interface GuardrailPolicyPanelProps {
   enhancedGuardrails: CuratedProductSkill[];
   /** 当前已开启的增强护栏 id。 */
   enabledIds: string[];
+  /** Plan 262 B1：已声明护栏的净增审计（无净增 / 不可用逐条回执）。 */
+  audit: GuardrailSelectionAudit;
   /** 开关某条增强护栏（复用能力中心的即时应用 + 撤销链路）。 */
   onToggle: (asset: CuratedProductSkill, next: boolean) => void;
   onClose: () => void;
@@ -28,6 +34,7 @@ function getCoreDefaultGuardrails() {
 export function GuardrailPolicyPanel({
   enhancedGuardrails,
   enabledIds,
+  audit,
   onToggle,
   onClose,
 }: GuardrailPolicyPanelProps) {
@@ -78,12 +85,46 @@ export function GuardrailPolicyPanel({
                 </div>
                 <span className="shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                   <CheckCircle2 size={10} />
-                  已自动生效
+                  {GUARDRAIL_DEFAULT_ON_LABEL}
                 </span>
               </div>
             ))}
           </div>
         </section>
+
+        {(audit.redundant.length > 0 || audit.unusable.length > 0) && (
+          <section
+            className="mt-4"
+            aria-label="已声明但未产生净增的护栏"
+            data-testid="guardrail-audit"
+          >
+            <h3 className="text-xs font-bold text-theme-text">
+              已声明但未产生净增（{audit.redundant.length + audit.unusable.length}）
+            </h3>
+            <div className="mt-2 space-y-1.5">
+              {audit.redundant.map((entry) => (
+                <div
+                  key={`redundant-${entry.id}`}
+                  data-testid={`guardrail-redundant-entry-${entry.id}`}
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2"
+                >
+                  <p className="text-xs font-bold text-theme-text truncate">{entry.title}</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-amber-800">{entry.note}</p>
+                </div>
+              ))}
+              {audit.unusable.map((entry) => (
+                <div
+                  key={`unusable-${entry.id}`}
+                  data-testid={`guardrail-unusable-entry-${entry.id}`}
+                  className="rounded-lg border border-theme-border/60 bg-theme-bg/50 px-3 py-2"
+                >
+                  <p className="text-xs font-bold text-theme-text truncate">{entry.title}</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-theme-muted">{entry.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="mt-4" aria-label="增强护栏">
           <h3 className="text-xs font-bold text-theme-text">增强护栏</h3>
