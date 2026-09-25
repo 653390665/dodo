@@ -325,6 +325,39 @@ const CURATED_DEFINITIONS: Readonly<Record<string, ManifestDefinition>> = {
   'style-ancient-elegance': skillCard(['writer'], 'plaza', 'style-card'),
   'deconstruct-golden-climax': skillCard(['planner', 'writer'], 'built-in', 'pacing-card'),
   'deconstruct-suspense-hook': skillCard(['planner', 'writer'], 'built-in', 'hook-card'),
+  // 批次 C（知识图谱可编排与维护闭环）· 图谱能力卡：工具卡，不注入写作规则文本，
+  // 触发一次服务端动作（见 shared/lib/knowledge-capabilities.ts 与
+  // server/helpers/knowledge-capabilities.ts）。role 投影：utility→transform、diagnostic→diagnostic。
+  'knowledge-extract': {
+    version: '3',
+    kind: 'utility',
+    stages: ['planner'],
+    input: 'text',
+    output: 'diagnostic',
+    action: 'run-utility',
+    allowedScopes: ['project', 'chapter', 'single-run'],
+    persistence: 'project',
+    sideEffect: 'none',
+    runtimeStatus: 'active',
+    sourceType: 'built-in',
+    usageModes: ['single-run'],
+    displayStages: ['creative-setup'],
+  },
+  'foreshadow-settle': {
+    version: '3',
+    kind: 'diagnostic',
+    stages: ['critic'],
+    input: 'text',
+    output: 'diagnostic',
+    action: 'run-diagnostic',
+    allowedScopes: ['project', 'chapter', 'single-run'],
+    persistence: 'project',
+    sideEffect: 'none',
+    runtimeStatus: 'active',
+    sourceType: 'built-in',
+    usageModes: ['single-run'],
+    displayStages: ['style-polish'],
+  },
 };
 
 const FLOW_IDS = new Set([

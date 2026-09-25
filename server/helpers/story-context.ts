@@ -12,6 +12,84 @@ const MAX_ENTITIES_PER_KIND = 12;
 const MAX_TIMELINE_EVENTS = 12;
 const MAX_FORESHADOWINGS = 12;
 
+export const SEMANTIC_RECALL_MARKER = '【语义相关的过往章节片段】';
+export const MAX_SEMANTIC_RECALL_CHARS = 1_200;
+const DEFAULT_SEMANTIC_RECALL_TOP_K = 2;
+
+export interface SemanticRecallSection {
+  marker: string;
+  text: string;
+  hitCount: number;
+  injectedChars: number;
+  truncated: boolean;
+}
+
+/**
+ * Injectable seams. Production always uses the real implementations below;
+ * tests supply stubs because `NODE_ENV=test` disables both local and remote
+ * embedding models, so the hit path is otherwise unreachable.
+ */
+export interface SemanticRecallDeps {
+  getChunkCount: (novelId: string) => number;
+  getEmbeddingStatus: () => { status: string };
+  embedWithMetadata: (text: string, novelId: string) => Promise<{ values: number[]; modelId: string }>;
+  searchSimilar: (
+    values: number[],
+    novelId: string,
+    modelId: string,
+    topK: number
+  ) => Array<{ text: string; score: number; chapterId: string }>;
+}
+
+const SEMANTIC_RECALL_DEPS: SemanticRecallDeps = {
+  getChunkCount,
+  getEmbeddingStatus,
+  embedWithMetadata,
+  searchSimilar,
+};
+
+/**
+ * Best-effort semantic recall for one chapter: embeds the query text and returns
+ * the top similar archived fragments, capped by `maxChars`. Returns null — and
+ * never throws — when the vector index is empty, the embedding provider is not
+ * ready, the query is blank, or no hit survives; callers then degrade to their
+ * keyword-ledger context unchanged.
+ */
+export async function buildSemanticRecallSection(
+  input: { novelId: string; queryText: string; topK?: number; maxChars?: number },
+  deps: SemanticRecallDeps = SEMANTIC_RECALL_DEPS
+): Promise<SemanticRecallSection | null> {
+  try {
+    if (!input.queryText.trim()) return null;
+    if (deps.getChunkCount(input.novelId) <= 0) return null;
+    const embeddingStatus = deps.getEmbeddingStatus();
+    if (embeddingStatus.status !== 'ready' && embeddingStatus.status !== 'fallback') return null;
+    const { values, modelId } = await deps.embedWithMetadata(input.queryText, input.novelId);
+    const hits = deps.searchSimilar(
+      values,
+      input.novelId,
+      modelId,
+      input.topK ?? DEFAULT_SEMANTIC_RECALL_TOP_K
+    );
+    const raw = hits
+      .map((hit) => hit.text.trim())
+      .filter(Boolean)
+      .join('\n---\n');
+    if (!raw) return null;
+    const maxChars = input.maxChars ?? MAX_SEMANTIC_RECALL_CHARS;
+    const text = raw.slice(0, maxChars);
+    return {
+      marker: SEMANTIC_RECALL_MARKER,
+      text,
+      hitCount: hits.length,
+      injectedChars: text.length,
+      truncated: text.length < raw.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function truncate(text: string, maxChars: number): string {
   const normalized = text.trim();
   return normalized.length > maxChars
@@ -123,28 +201,15 @@ export async function buildServerStoryContextWithSemantic(input: {
   clientContext?: string;
 }): Promise<string> {
   const base = buildServerStoryContext(input);
-  try {
-    const novel = db.getNovel(input.novelId);
-    const chapter = db.getChapter(input.chapterId);
-    if (!novel || !chapter) return base;
-    if (getChunkCount(novel.id) <= 0) return base;
-    const embeddingStatus = getEmbeddingStatus();
-    if (embeddingStatus.status !== 'ready' && embeddingStatus.status !== 'fallback') return base;
-    const { values, modelId } = await embedWithMetadata(
-      `${chapter.title}\n${chapter.content || ''}`,
-      novel.id
-    );
-    const hits = searchSimilar(values, novel.id, modelId, 2);
-    if (hits.length === 0) return base;
-    const semanticSection = hits
-      .map((hit) => hit.text.trim())
-      .filter(Boolean)
-      .join('\n---\n')
-      .slice(0, 1200);
-    if (!semanticSection) return base;
-    return `${base}\n\n【语义相关的过往章节片段】\n${semanticSection}`;
-  } catch {
-    // Embedding/search is best-effort; the keyword ledger stays the fallback.
-    return base;
-  }
+  const novel = db.getNovel(input.novelId);
+  const chapter = db.getChapter(input.chapterId);
+  if (!novel || !chapter) return base;
+  // Shared single source with the production pipeline injection; embedding/search
+  // is best-effort and the keyword ledger stays the fallback.
+  const section = await buildSemanticRecallSection({
+    novelId: novel.id,
+    queryText: `${chapter.title}\n${chapter.content || ''}`,
+  });
+  if (!section) return base;
+  return `${base}\n\n${section.marker}\n${section.text}`;
 }

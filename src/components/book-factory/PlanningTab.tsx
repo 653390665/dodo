@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { Chapter, Novel, ProjectPreferenceProfile, AgentTab } from '../../../shared/types';
 import { cn } from '../../lib/utils';
-import { appConfirm } from '../ui/app-confirm';
+import { appConfirm, appPrompt } from '../ui/app-confirm';
 import { canUseEnhancedCapability, dispatchCapabilityUnavailable } from '../../lib/entitlements';
 import {
   SKILL_SERIES_FLOWS,
@@ -24,6 +24,16 @@ import {
   getFlowEnhancementPackage,
   isPackageRestricted,
 } from '../../../shared/lib/prompt-assets-governed.js';
+import {
+  buildFlowStepAdvanceTags,
+  evaluateFlowStepGate,
+  getNovelSkippedSteps,
+} from '../../../shared/lib/flow-step-gate.js';
+import {
+  GUIDANCE_ONLY_HINT,
+  GUIDANCE_ONLY_LABEL,
+} from '../../../shared/lib/flow-step-guidance.js';
+import type { FlowStepEvidenceCounts } from '../../../shared/lib/flow-step-gate.js';
 import { useEditorGenerationStore } from '../../stores/editor-generation-store';
 import { useUserIntentStore } from '../../stores/user-intent-store';
 
@@ -42,14 +52,7 @@ interface PlanningTabProps {
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
   onSwitchTab?: (tab: AgentTab) => void;
   /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
-  stepEvidence?: {
-    ideaChars?: number;
-    worldEntityCount?: number;
-    outlineChars?: number;
-    sceneBeatsChars?: number;
-    draftChars?: number;
-    auditPassed?: boolean;
-  };
+  stepEvidence?: FlowStepEvidenceCounts;
 }
 
 export function PlanningTab({
@@ -136,7 +139,17 @@ export function PlanningTab({
   const [stepError, setStepError] = React.useState<string | null>(null);
   const nextStep = isLastStep ? null : flow.steps[currentStepIndex + 1] || null;
 
-  const handleNextStep = async () => {
+  // 批次 B「质量门判定与推进拦截」：步骤可声明可判定的 gate；未声明 = 不判定（旧行为）。
+  const gateEvaluation = evaluateFlowStepGate({
+    gate: currentStep.gate ?? null,
+    draftText: stepEvidence?.draftText,
+    critic: stepEvidence?.critic ?? null,
+  });
+  const currentStepSkipRecord = getNovelSkippedSteps(novelWithLiveProfile, activeSeriesId).find(
+    (entry) => entry.stepId === currentStep.id
+  );
+
+  const advanceStep = async (skipReason?: string) => {
     if (isRestricted && pkg) {
       dispatchCapabilityUnavailable({
         limitType: 'extractSkill',
@@ -152,6 +165,18 @@ export function PlanningTab({
       if (!isSavingStep) {
         toast('配置回调未就绪，请刷新页面后重试。', 'error');
       }
+      return;
+    }
+
+    // 质量门：未达标不放行；显式带跳过原因时记录原因并放行（逃生门）。
+    const evaluation = evaluateFlowStepGate({
+      gate: currentStep.gate ?? null,
+      draftText: stepEvidence?.draftText,
+      critic: stepEvidence?.critic ?? null,
+      ...(skipReason ? { skipReason } : {}),
+    });
+    if (evaluation.status === 'blocked') {
+      setStepError(`质量门未通过：${evaluation.reasons.join('；')}`);
       return;
     }
 
@@ -173,26 +198,14 @@ export function PlanningTab({
         evidenceCount: 0,
       };
 
-      const oldTags = profile.tags || [];
-      const otherTags = oldTags.filter(
-        (t) =>
-          !t.startsWith(`current-step:${activeSeriesId}:`) &&
-          !t.startsWith(`completed-step:${activeSeriesId}:`)
-      );
-
-      const newCompletedSet = new Set(completedStepIds);
-      newCompletedSet.add(currentStep.id);
-      const newCompletedList = Array.from(newCompletedSet);
-
-      const completedTags = newCompletedList.map((id) => `completed-step:${activeSeriesId}:${id}`);
-      const newTags = [...otherTags, ...completedTags];
-      if (nextStepId) {
-        newTags.push(`current-step:${activeSeriesId}:${nextStepId}`);
-      } else {
-        // Last step — mark the entire flow as completed so we never
-        // fall back to step 1 when the current-step tag is absent.
-        newTags.push(`completed-flow:${activeSeriesId}`);
-      }
+      const newTags = buildFlowStepAdvanceTags({
+        activeSeriesId,
+        tags: profile.tags || [],
+        completedStepIds,
+        currentStepId: currentStep.id,
+        nextStepId,
+        ...(skipReason ? { skipReason } : {}),
+      });
 
       const updatedProfile: ProjectPreferenceProfile = {
         ...profile,
@@ -217,6 +230,20 @@ export function PlanningTab({
     } finally {
       setIsSavingStep(false);
     }
+  };
+
+  const handleNextStep = () => advanceStep();
+
+  const handleSkipStep = async () => {
+    if (isSavingStep) return;
+    const reason = await appPrompt('记录跳过原因', {
+      description: `本步质量门未通过：${gateEvaluation.reasons.join('；')}。跳过原因会写入流程进度，可随时查询。`,
+      placeholder: '例如：初稿尚未定稿，先推进流程',
+      confirmLabel: '记录并跳过',
+    });
+    const normalized = (reason || '').trim();
+    if (!normalized) return;
+    await advanceStep(normalized);
   };
 
   const handleResetFlow = async () => {
@@ -314,6 +341,67 @@ export function PlanningTab({
                 </span>
               </div>
             </div>
+
+            {/* 可判定质量门状态（批次 B）：未通过时推进被拦，可记录原因跳过 */}
+            {currentStep.gate ? (
+              <div
+                role="status"
+                className={cn(
+                  'mt-2 max-w-[55ch] rounded-lg border p-2.5',
+                  gateEvaluation.status === 'pass'
+                    ? 'border-emerald-500/30 bg-emerald-500/10'
+                    : 'border-amber-500/40 bg-amber-500/10'
+                )}
+              >
+                <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block">
+                  可判定质量门：{currentStep.gate.kind}
+                  {typeof currentStep.gate.threshold === 'number'
+                    ? `（阈值 ${currentStep.gate.threshold}）`
+                    : ''}
+                </span>
+                <span
+                  className={cn(
+                    'text-xs leading-relaxed block mt-0.5',
+                    gateEvaluation.status === 'pass'
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-amber-700 dark:text-amber-400'
+                  )}
+                >
+                  {gateEvaluation.status === 'pass'
+                    ? '当前已满足判定条件，可推进。'
+                    : `未通过：${gateEvaluation.reasons.join('；')}`}
+                </span>
+                {gateEvaluation.status === 'blocked' ? (
+                  <button
+                    onClick={handleSkipStep}
+                    disabled={isSavingStep}
+                    className="mt-2 px-2.5 py-1 rounded-md border border-amber-500/40 text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    记录原因并跳过本步
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {/* 可用性提示（批次 B「空壳链路清账」）：仅引导步骤在此明确告知作者 */}
+            {currentStep.guidanceOnly ? (
+              <div
+                role="status"
+                className="mt-2 max-w-[55ch] rounded-lg border border-theme-border/45 bg-theme-bg/40 p-2.5"
+              >
+                <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block">
+                  {GUIDANCE_ONLY_LABEL}
+                </span>
+                <span className="text-xs text-theme-muted leading-relaxed block mt-0.5">
+                  {GUIDANCE_ONLY_HINT}
+                </span>
+              </div>
+            ) : null}
+
+            {currentStepSkipRecord ? (
+              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
+                本步曾有跳过记录：{currentStepSkipRecord.reason}
+              </p>
+            ) : null}
 
             {currentStepTagCompleted &&
             stepEvidenceByOutput &&

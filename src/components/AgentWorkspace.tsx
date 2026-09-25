@@ -47,6 +47,7 @@ import { writeContinuationSyncIntent } from '../lib/continuation-sync-intent';
 import { recordProductEvent } from '../lib/product-events-client';
 import { getNovel } from '../lib/api';
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile';
+import type { FlowStepEvidenceCounts } from '../../shared/lib/flow-step-gate.js';
 import { getProjectCapabilityCardIds } from '../lib/capability-card-count';
 import { resolveCapabilityDisplayName } from '../lib/capability-stage-cards';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -163,14 +164,7 @@ interface AgentWorkspaceProps {
   onQuickGenerate?: () => Promise<void> | void;
   quickGenerateDisabled?: boolean;
   /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
-  stepEvidence?: {
-    ideaChars?: number;
-    worldEntityCount?: number;
-    outlineChars?: number;
-    sceneBeatsChars?: number;
-    draftChars?: number;
-    auditPassed?: boolean;
-  };
+  stepEvidence?: FlowStepEvidenceCounts;
   onPreviewReviewIssue?: (issueId: string) => void | Promise<void>;
   onFixReviewIssues?: (issueIds: string[], scope?: string) => void | Promise<void>;
   onAcceptReviewIssueRisk?: (issueId: string, reason?: string) => void | Promise<void>;

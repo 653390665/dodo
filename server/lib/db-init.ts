@@ -706,6 +706,13 @@ export function initDb(dbPath?: string): void {
   ensureColumn('canon_patches', 'result_json', 'TEXT');
   ensureColumn('canon_patches', 'decided_at', 'INTEGER');
   ensureColumn('canon_patches', 'source_capability_versions', 'TEXT');
+  // 批次 C 知识失效语义：知识行记录摄入来源版本与失效标记（只打标、不删除）。
+  ensureColumn('foreshadowings', 'source_version', 'TEXT');
+  ensureColumn('foreshadowings', 'stale', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('foreshadowings', 'stale_reason', 'TEXT');
+  ensureColumn('entity_relationships', 'source_version', 'TEXT');
+  ensureColumn('entity_relationships', 'stale', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('entity_relationships', 'stale_reason', 'TEXT');
   repairImportedContinuationPackNovelLinks();
 
   // Indexes for foreign-key columns to avoid full table scans

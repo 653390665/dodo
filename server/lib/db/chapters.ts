@@ -16,6 +16,7 @@ import { computeChapterWorkflowHash } from '../../../shared/lib/chapter-workflow
 import { evaluateDraftAcceptance } from '../../../shared/lib/draft-quality.js';
 import type { DraftAcceptanceSource } from '../../../shared/lib/quality-contract.js';
 import { scheduleChapterIndexBackfill, scheduleChapterIndexRemoval } from '../chapter-index.js';
+import { markKnowledgeStaleForDeletedChapter } from './knowledge-staleness.js';
 
 const chapterCrud = createCrudHelpers<Chapter, ReturnType<typeof chapterToRow>>({
   tableName: 'chapters',
@@ -127,6 +128,8 @@ export function deleteChapter(id: string): boolean {
   const deleted = chapterCrud.delete(id);
   if (deleted && existing) {
     scheduleChapterIndexRemoval(existing.novelId, id);
+    // 批次 C：章节删除让引用它的知识行显式失效（只打标、不删除；可查询、可解释）。
+    markKnowledgeStaleForDeletedChapter(existing.novelId, { id, order: existing.order });
   }
   return deleted;
 }

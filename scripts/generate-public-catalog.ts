@@ -1,595 +1,64 @@
+/**
+ * 公开目录生成 CLI（薄壳）。
+ *
+ * 本文件只做三件事：跑管线 → 打印留痕日志 → 写盘。全部纯逻辑（准入、治理、
+ * 消毒、副本、渲染）都在 `scripts/lib/public-catalog-pipeline.ts`，与守卫测试
+ * （tests/public-catalog-freshness.test.ts、tests/public-catalog-governance.test.ts）
+ * 同源 import —— 仓内不再有「需要手工同步的第二份卡面正文/规则」。
+ *
+ * 用法：node --import tsx scripts/generate-public-catalog.ts
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  GOVERNED_ASSETS_V2_REGISTRY,
-  SKILL_SERIES_FLOWS,
-  CURATED_PRODUCT_SKILLS,
-  PROMPT_GOVERNANCE_CATALOG,
-  ENHANCEMENT_PACKAGES,
-  isPublicRuntimeAsset,
-} from '../shared/lib/prompt-governance-catalog.js';
-import { COMMERCIAL_COPY_PATTERN, sanitizeWhiteLabelText } from '../shared/lib/prompt-sanitizer.js';
-import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
-
-// Define the keys that contain sanitizable human-facing text
-const TEXT_KEYS_TO_SANITIZE = new Set([
-  'title',
-  'goal',
-  'successSignal',
-  'description',
-  'name',
-  'whyUpgrade',
-  'riskNotes',
-  'qualityGate',
-  'recommendationReason',
-]);
-
-/**
- * Deep-cleans and sanitizes strings, converting specific brand-related terminology
- * into industry-standard clean text representation.
- */
-function cleanText(text: string): string {
-  if (!text) return '';
-  // 1. Run prompt-governance-catalog's standard white-label sanitizer
-  let s = sanitizeWhiteLabelText(text);
-  // 2. Perform specific map replacements for "小飞鸡" and "风华" as requested
-  s = s.replace(/小飞鸡长篇流/g, '长篇商业连载流程');
-  s = s.replace(/小飞鸡、风华/g, '名家');
-  s = s.replace(/小飞鸡/g, '名家');
-  s = s.replace(/风华/g, '名家');
-  s = s.replace(/天马/g, '结构工坊');
-  s = s.replace(/墨流/g, '外部工具');
-  // 2.5. Normalize author-facing asset names so the public shelf describes
-  // confirmable tools rather than promising automatic one-click outcomes.
-  s = s.replace(/长篇一键破解爆款小说并生成脑洞/g, '长篇爆款拆解与脑洞生成');
-  s = s.replace(/一键破解爆款并生成脑洞/g, '爆款拆解与脑洞生成');
-  s = s.replace(/一键生成章节梗概/g, '章节梗概生成');
-  s = s.replace(/一键润色降ai\s*([0-9.]+)/gi, '降 AI 润色 $1');
-  s = s.replace(/一键融梗换心/g, '融梗换心候选生成');
-  // 3. Final round of system sanitizer just in case
-  s = sanitizeWhiteLabelText(s);
-  return s;
-}
-
-// isPublicRuntimeAsset 已单源化至 shared/lib/prompt-governance-catalog.ts（Plan 197 Step 1），
-// 生成脚本与新鲜度守卫共用同一判定。
-
-/**
- * 深度克隆并脱敏对象，清空 "template" 属性并对文本字段进行白标清洗
- * Deep clones and sanitizes objects, clearing "template" attributes and sanitizing text keys
- */
-function cloneAndSanitize<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map((item) => cloneAndSanitize(item)) as unknown as T;
-  }
-  if (typeof obj === 'object') {
-    const copy: Record<string, unknown> = {};
-    const record = obj as Record<string, unknown>;
-    for (const key in record) {
-      if (Object.prototype.hasOwnProperty.call(record, key)) {
-        const val = record[key];
-        if (key === 'template') {
-          copy[key] = ''; // 物理强制清空提示词模板 / Force set template to empty string physically
-        } else if (TEXT_KEYS_TO_SANITIZE.has(key) && typeof val === 'string') {
-          copy[key] = cleanText(val);
-        } else if (typeof val === 'object') {
-          copy[key] = cloneAndSanitize(val);
-        } else {
-          copy[key] = val;
-        }
-      }
-    }
-    return copy as unknown as T;
-  }
-  return obj;
-}
-
-// ─── 生成侧消毒副本（Plan 197 Step 2）─────────────────────────────────────────
-// 镜像运行时先例 POST /api/skills/sanitize/:assetId（server/routes/skills.ts）：
-// id = 'sanitized-' + asset.id，文案字段走白标清洗管线，runtime-ready + active，
-// sourceType 'plaza'。与公开目录本体的区别：副本保留消毒后的提示词主体
-// （运行时端点把 asset.template 消毒后写入 style 字段，不物理清空），
-// placementTier 提升为公开档 'optional-style'。test-fixture 候选不产副本（与货架口径一致）。
-
-const SANITIZED_COPY_NOTE = '生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。';
-
-// ─── Plan 234 消毒副本文案变体（构建期改写）────────────────────────────────
-// 源候选的 goal 模板含商业承诺词（如「利用定制付费资产…」），原样透传会在渲染时
-// 被 getCapabilityDisplayText 塌缩成同一句「广场共享能力…」（31/38 张同句）。
-// 构建期按 primaryCategory 桶轮换改写（卡名入文案保证跨卡可辨），改写后不含
-// 商业词，运行时替换自然不触发（保留兜底）。
-type GoalVariantFactory = (cardTitle: string) => string;
-
-const SANITIZED_GOAL_VARIANTS: Record<string, GoalVariantFactory[]> = {
-  'constellation-pack': [
-    (t) => `题材风格包：围绕「${t}」提供题材背景与配置基线，效果以实际运行为准。`,
-    (t) => `「${t}」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。`,
-    (t) => `面向「${t}」的共享题材模板：提供背景支撑与配置起点。`,
-  ],
-  'utility-tool': [
-    (t) => `「${t}」的社区工具卡：按卡面说明辅助相应环节，效果请以实际生成验证。`,
-    (t) => `共享工具提示词（${t}）：作用范围见卡面，效果因作品而异。`,
-    (t) => `${t}：社区供给的辅助工具，写作效果以运行为准。`,
-  ],
-  'author-workflow': [
-    (t) => `「${t}」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。`,
-    (t) => `共享写作提示词（${t}）：聚焦卡面场景，效果因作品而异。`,
-    (t) => `${t}：社区贡献的写作配方，生成效果以运行为准。`,
-  ],
-};
-
-const SANITIZED_GOAL_DEFAULT_VARIANTS: GoalVariantFactory[] = [
-  (t) => `广场共享写作卡（${t}）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。`,
-  (t) => `社区贡献的写作配方（${t}），效果请以实际生成验证。`,
-  (t) => `${t}：广场共享提示词模板，写作效果因作品而异。`,
-];
-
-const SANITIZED_SIGNAL_VARIANTS = [
-  '实际效果以运行结果为准。',
-  '效果请以实际生成验证。',
-  '社区供给 · 效果请自验。',
-];
-
-let sanitizedCopyRewrites = 0;
-let sanitizedSignalRewrites = 0;
-
-function rewriteSanitizedCopyText(
-  field: 'goal' | 'successSignal',
-  text: string | undefined,
-  cardTitle: string,
-  primaryCategory: string | undefined
-): string {
-  const clean = sanitizeCopyText(text);
-  if (!clean || !COMMERCIAL_COPY_PATTERN.test(clean)) return clean;
-  if (field === 'successSignal') {
-    const signal = SANITIZED_SIGNAL_VARIANTS[sanitizedSignalRewrites % SANITIZED_SIGNAL_VARIANTS.length];
-    sanitizedSignalRewrites += 1;
-    return signal;
-  }
-  sanitizedCopyRewrites += 1;
-  const bucket = primaryCategory ? SANITIZED_GOAL_VARIANTS[primaryCategory] : undefined;
-  const variants = bucket ?? SANITIZED_GOAL_DEFAULT_VARIANTS;
-  const variant = variants[sanitizedCopyRewrites % variants.length];
-  return variant(cardTitle);
-}
-
-function sanitizeCopyText(text: string | undefined): string {
-  return text ? cleanText(text) : '';
-}
-
-// ─── Plan 258 散卡层治理：占位空壳评分惩罚（Step 1）──────────────────────────
-// 依据（三路审查实证）：square-* 批量投喂的模板体只有「广场优秀提示词模版体」占位句，
-// 却按 scorecard 分拿 74-88 高分（47 张），「88 分的卡没有正文」直接误导用户；
-// sanitized-raw-comp-brand-detector 正文消毒后仅剩 22 字残缺句。
-// 规则：占位/残缺正文 → score 封顶 60（grade 按源映射同步校准）。
-// 只改分与档，卡片数量守恒；licensed/private-* 付费版块与白标精选不在此规则射程
-// （它们的正文为真实内容，占位判定天然不命中）。
-//
-// 可单测性约定：本脚本 import 即执行 generate()，测试无法直接 import 本文件，
-// 因此 tests/public-catalog-governance.test.ts 与 tests/public-catalog-freshness.test.ts
-// 按仓内镜像惯例复制此处纯函数；脚本规则若变更必须同步两处镜像。
-
-// 占位标记：square 批量投喂循环（prompt-governance-catalog.ts rawSquareConfigs）
-// 写入的模板占位句特征词。
-const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
-// 消毒副本运行时正文的最短可信长度（字符）。扫描实证：真实副本正文最短 103 字，
-// 残缺壳（sanitized-raw-comp-brand-detector）22 字，取 80 居中分离。计划建议值 120
-// 会误伤 9 张 103-119 字的真实 private 副本（private-* 分档不在治理射程），据证据否决；
-// 源卡级禁用本数值阈值——源级真实正文最短 23 字（内置工具卡）与占位句 37-50 字区间
-// 交叠，任何数值阈值都必然误伤真实卡，源级仅用「标记命中或模板为空」判定。
-const PLACEHOLDER_BODY_MIN_LENGTH = 80;
-// 占位惩罚封顶分：占位/残缺正文的卡评分不得高于此值。
-const PLACEHOLDER_SCORE_CAP = 60;
-// featured 档最低分门槛（Plan 258 Step 2）：低于此分或正文占位的卡不得挂 featured
-// ——审查实证 sanitized-raw-comp-brand-detector（45 分、正文残缺）挂 featured 档失守。
-const FEATURED_MIN_SCORE = 70;
-
-type PlaceholderPredicate = (template: string | undefined) => boolean;
-
-/**
- * 源卡占位判定（公共目录/注册表条目）：模板为空或命中占位标记。
- * 不使用数值长度阈值（会误伤真实短卡，见 PLACEHOLDER_BODY_MIN_LENGTH 注释）。
- */
-function isPlaceholderSourceBody(template: string | undefined): boolean {
-  return !template || template.includes(PLACEHOLDER_TEMPLATE_MARKER);
-}
-
-/**
- * 消毒副本占位判定：源级判定之外，运行时正文低于可信长度阈值同样视为占位
- * （残缺壳经白标清洗后只剩联系方式残句）。
- */
-function isPlaceholderRuntimeBody(template: string | undefined): boolean {
-  if (isPlaceholderSourceBody(template)) return true;
-  return (template as string).length < PLACEHOLDER_BODY_MIN_LENGTH;
-}
-
-/**
- * 与 prompt-governance-catalog.ts square 投喂循环一致的 grade 映射
- * （≥90 A / ≥80 B / 其余 C），封顶降分后同步校准，避免「60 分 B 级」的新脱钩。
- */
-function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
-}
-
-/**
- * 占位评分惩罚（纯函数）：命中占位判定且 score 高于封顶值时，把 score 降到封顶
- * 并同步校准 grade；已低于封顶的卡原样返回（封顶只降不升，保留原 grade 语义）。
- */
-function applyPlaceholderScorePenalty(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (!isPlaceholder(asset.template)) return asset;
-  if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
-  return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
-}
-
-/** 源卡惩罚入口（绑定源级占位判定）。 */
-function applyPlaceholderScorePenaltySource(asset: GovernedPromptAsset): GovernedPromptAsset {
-  return applyPlaceholderScorePenalty(asset, isPlaceholderSourceBody);
-}
-
-/** 消毒副本惩罚入口（绑定副本运行时正文占位判定）。 */
-function applyPlaceholderScorePenaltyCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
-  return applyPlaceholderScorePenalty(asset, isPlaceholderRuntimeBody);
-}
-
-/**
- * featured 授予守卫（纯函数）：score < FEATURED_MIN_SCORE 或正文占位的卡
- * 拒绝 featured 档，已挂的降 standard；其余档位原样返回。
- */
-function applyFeaturedGuard(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (asset.curationTier !== 'featured') return asset;
-  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
-    return { ...asset, curationTier: 'standard' };
-  }
-  return asset;
-}
-
-/** 源卡治理组合：先惩罚后守卫（封顶后 60 < 70 自然触发降档）。 */
-function applySourceCardGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const penalized = applyPlaceholderScorePenaltySource(asset);
-  return applyFeaturedGuard(penalized, isPlaceholderSourceBody);
-}
-
-/** 消毒副本治理组合：判定基准为副本自身的运行时正文。 */
-function applySanitizedCopyGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const penalized = applyPlaceholderScorePenaltyCopy(asset);
-  return applyFeaturedGuard(penalized, isPlaceholderRuntimeBody);
-}
-
-/** 治理前后差异留痕：score/curationTier 被改动的卡逐张列出，供生成日志审计。 */
-function diffGovernanceChanges(before: GovernedPromptAsset[], after: GovernedPromptAsset[]): string[] {
-  const afterById = new Map(after.map((asset) => [asset.id, asset]));
-  return before
-    .map((asset) => {
-      const governed = afterById.get(asset.id);
-      if (!governed) return '';
-      const parts: string[] = [];
-      if (governed.score !== asset.score) parts.push(`score ${asset.score}→${governed.score}`);
-      if (governed.curationTier !== asset.curationTier) {
-        parts.push(`curationTier ${asset.curationTier || '-'}→${governed.curationTier || '-'}`);
-      }
-      return parts.length > 0 ? `${asset.id}（${parts.join('，')}）` : '';
-    })
-    .filter((entry) => entry !== '');
-}
-
-// ─── Plan 233 目录准入规则（生成侧守门，排除动作全部留痕）────────────────────
-// 垃圾标题：测试/内测卡与 test 边界匹配——只拦「以测试开头/结尾」「以内测开头/结尾」
-// 与整名等值，不误伤语义完整标题（如「A/B 测试设计器」不在本目录域）。
-const JUNK_TITLE_PATTERN = /(^测试)|(^内测)|(^test)|(测试$)|(内测$)|(test$)/i;
-
-// 镜像渲染路径那份 sanitizeWhiteLabelText（public-skill-catalog 生成副本，含
-// 「X出品/X专用/X定制/X私有化/X自用」通配剥除）的品牌剥除规则：整名被剥空的卡
-// 上架即空标题卡（如 private-186「fire角色定制」），源头不入册。
-function renderPathTitleCollapsesToEmpty(title: string): boolean {
-  return (
-    !title
-      .replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/g, '')
-      .replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '')
-      .trim()
-      ? true
-      : false
-  );
-}
-
-// 标准化去重键：先过渲染路径 sanitizer（Plan 236 合一后品牌剥除一致），再去空白/结尾数字
-// ——「沐殇定制细纲」与「细纲」这类换皮重投在合一后互为同卡。
-function normalizedTitleKey(title: string): string {
-  return sanitizeWhiteLabelText(title).replace(/\s+/g, '').replace(/\d+$/, '');
-}
-
-function collectSanitizeCandidates(): GovernedPromptAsset[] {
-  const seen = new Set<string>();
-  const merged = [...GOVERNED_ASSETS_V2_REGISTRY, ...PROMPT_GOVERNANCE_CATALOG].filter((asset) =>
-    seen.has(asset.id) ? false : (seen.add(asset.id), true)
-  );
-  const eligible = merged.filter(
-    (asset) =>
-      asset.placementTier === 'sanitize-required' &&
-      asset.sanitizationStatus === 'needs-sanitization' &&
-      asset.runtimeStatus === 'candidate' &&
-      asset.sourceGroup !== 'test-fixture'
-  );
-  const junk = eligible.filter(
-    (asset) =>
-      JUNK_TITLE_PATTERN.test(asset.title.trim()) ||
-      renderPathTitleCollapsesToEmpty(asset.title.trim())
-  );
-  if (junk.length > 0) {
-    console.log(
-      `Excluded ${junk.length} junk-title candidates: [${junk.map((a) => a.id).join(', ')}]`
-    );
-  }
-  const kept = eligible.filter((asset) => !junk.includes(asset));
-  // 标准化标题去重：同键保留分高者，平分保留标题更短者（原始版优于数字后缀版）。
-  const byKey = new Map<string, GovernedPromptAsset>();
-  const dups: string[] = [];
-  for (const asset of kept) {
-    const key = normalizedTitleKey(asset.title);
-    const current = byKey.get(key);
-    if (!current) {
-      byKey.set(key, asset);
-      continue;
-    }
-    const challenger =
-      (asset.score || 0) > (current.score || 0) ||
-      ((asset.score || 0) === (current.score || 0) && asset.title.length < current.title.length)
-        ? asset
-        : current;
-    dups.push((challenger === asset ? current : asset).id);
-    byKey.set(key, challenger);
-  }
-  if (dups.length > 0) {
-    console.log(`Deduped ${dups.length} normalized-title duplicates: [${dups.join(', ')}]`);
-  }
-  return kept.filter((asset) => byKey.get(normalizedTitleKey(asset.title)) === asset);
-}
-
-function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const cardTitle = sanitizeCopyText(asset.title);
-  const goal = rewriteSanitizedCopyText('goal', asset.goal, cardTitle, asset.primaryCategory);
-  const successSignal = rewriteSanitizedCopyText(
-    'successSignal',
-    asset.successSignal,
-    cardTitle,
-    asset.primaryCategory
-  );
-  return {
-    ...asset,
-    id: `sanitized-${asset.id}`,
-    title: cardTitle,
-    goal,
-    template: sanitizeCopyText(asset.template),
-    successSignal,
-    recommendationReason: asset.recommendationReason
-      ? sanitizeCopyText(asset.recommendationReason)
-      : asset.recommendationReason,
-    // 源候选的 riskNotes 为「未清洗，禁止直接加载」，对 runtime-ready 副本已不成立，
-    //替换为如实描述生成侧消毒结果（镜像运行时端点不携带源 riskNotes 的语义）。
-    riskNotes: [SANITIZED_COPY_NOTE],
-    sanitizationStatus: 'runtime-ready',
-    runtimeStatus: 'active',
-    placementTier: 'optional-style',
-    isWhiteLabeled: true,
-    isRuntimeReady: true,
-    sourceType: 'plaza',
-  };
-}
+  CATALOG_MODULE_PATH,
+  buildPublicCatalogModel,
+  renderPublicCatalogModule,
+} from './lib/public-catalog-pipeline.js';
 
 function generate() {
   console.log('Starting white-label physical catalog sanitization pipeline...');
 
-  // Plan 233 准入规则对公共池源头生效：垃圾标题/渲染空标题的源卡连同其消毒候选
-  // 一并不入册（否则副本被排除后源卡回落「需解锁」组重新露出）。
-  const admitPublicAsset = (asset: GovernedPromptAsset): boolean =>
-    !JUNK_TITLE_PATTERN.test((asset.title || '').trim()) &&
-    !renderPathTitleCollapsesToEmpty((asset.title || '').trim());
-  const admittedOut = [
-    ...GOVERNED_ASSETS_V2_REGISTRY.filter(isPublicRuntimeAsset),
-    ...PROMPT_GOVERNANCE_CATALOG.filter(isPublicRuntimeAsset),
-  ].filter((asset) => !admitPublicAsset(asset));
-  if (admittedOut.length > 0) {
+  const { model, report } = buildPublicCatalogModel();
+
+  if (report.excludedJunkPublic.length > 0) {
     console.log(
-      `Excluded ${admittedOut.length} junk assets from public pools: [${admittedOut
-        .map((a) => a.id)
-        .join(', ')}]`
+      `Excluded ${report.excludedJunkPublic.length} junk assets from public pools: [${report.excludedJunkPublic.join(', ')}]`
+    );
+  }
+  if (report.excludedJunkCandidates.length > 0) {
+    console.log(
+      `Excluded ${report.excludedJunkCandidates.length} junk sanitize candidates: [${report.excludedJunkCandidates.join(', ')}]`
+    );
+  }
+  if (report.dedupedCandidates.length > 0) {
+    console.log(
+      `Deduped ${report.dedupedCandidates.length} sanitize candidates by normalized title: [${report.dedupedCandidates.join(', ')}]`
+    );
+  }
+  if (report.penaltyLog.length > 0) {
+    console.log(
+      `Plan 258 governance (score cap + featured guard) applied to ${report.penaltyLog.length} cards:\n  ${report.penaltyLog.join('\n  ')}`
+    );
+  }
+  if (report.goalRewrites + report.signalRewrites > 0) {
+    console.log(
+      `Rewrote ${report.goalRewrites} goals + ${report.signalRewrites} signals into de-commercialized variants (plan 234).`
     );
   }
 
-  const publicAssetsRegistry = GOVERNED_ASSETS_V2_REGISTRY.filter(isPublicRuntimeAsset).filter(
-    admitPublicAsset
-  );
-  const publicCatalog = PROMPT_GOVERNANCE_CATALOG.filter(isPublicRuntimeAsset).filter(
-    admitPublicAsset
-  );
-
-  // Plan 258 散卡层治理：占位空壳评分惩罚 + featured 授予守卫。必须在
-  // cloneAndSanitize 之前对源卡执行——克隆会把 template 物理清空，克隆后
-  // 无法再做占位判定。组合顺序：先惩罚（封顶 60）后守卫（60 < 70 降档）。
-  const governedAssetsRegistry = publicAssetsRegistry.map(applySourceCardGovernance);
-  const governedCatalog = publicCatalog.map(applySourceCardGovernance);
-
-  const cleanedAssetsRegistry = cloneAndSanitize(governedAssetsRegistry);
-  const cleanedFlows = cloneAndSanitize(SKILL_SERIES_FLOWS);
-  const cleanedCuratedSkills = cloneAndSanitize(CURATED_PRODUCT_SKILLS);
-  const cleanedCatalog = cloneAndSanitize(governedCatalog);
-  const cleanedPackages = cloneAndSanitize(ENHANCEMENT_PACKAGES);
-
-  const sanitizeCandidates = collectSanitizeCandidates();
-  sanitizedCopyRewrites = 0;
-  sanitizedSignalRewrites = 0;
-  const rawSanitizedCopies = sanitizeCandidates.map(buildSanitizedCopy);
-  // Plan 258：副本治理判定基准为副本自身的运行时正文（消毒后残缺句）。
-  const sanitizedCopies = rawSanitizedCopies.map(applySanitizedCopyGovernance);
-  const penaltyLog = [
-    ...diffGovernanceChanges(publicAssetsRegistry, governedAssetsRegistry),
-    ...diffGovernanceChanges(publicCatalog, governedCatalog),
-    ...diffGovernanceChanges(rawSanitizedCopies, sanitizedCopies),
-  ];
-  if (penaltyLog.length > 0) {
-    console.log(
-      `Plan 258 governance (score cap + featured guard) applied to ${penaltyLog.length} cards:\n  ${penaltyLog.join('\n  ')}`
-    );
-  }
-  if (sanitizedCopyRewrites + sanitizedSignalRewrites > 0) {
-    console.log(
-      `Rewrote ${sanitizedCopyRewrites} goals + ${sanitizedSignalRewrites} signals into de-commercialized variants (plan 234).`
-    );
-  }
-
-  console.log(`Cleaned ${cleanedAssetsRegistry.length} registry assets.`);
-  console.log(`Cleaned ${cleanedFlows.length} series flows.`);
-  console.log(`Cleaned ${cleanedCuratedSkills.length} curated skills.`);
-  console.log(`Cleaned ${cleanedCatalog.length} total catalog assets.`);
-  console.log(`Cleaned ${cleanedPackages.length} enhancement packages.`);
+  console.log(`Cleaned ${report.counts.registry} registry assets.`);
+  console.log(`Cleaned ${report.counts.flows} series flows.`);
+  console.log(`Cleaned ${report.counts.curatedSkills} curated skills.`);
+  console.log(`Cleaned ${report.counts.catalog} total catalog assets.`);
+  console.log(`Cleaned ${report.counts.packages} enhancement packages.`);
   console.log(
-    `Generated ${sanitizedCopies.length} sanitized copies from ${sanitizeCandidates.length} sanitize-required candidates.`
+    `Generated ${report.counts.sanitizedCopies} sanitized copies from ${report.counts.sanitizeCandidates} sanitize-required candidates.`
   );
 
-  const outputPath = path.resolve(process.cwd(), 'shared/lib/public-skill-catalog.ts');
-
-  // Hardcode 7 pure functions with accurate TS type definitions to guarantee zero errors
-  const tsContent = `// ─────────────────────────────────────────────────────────────────────────────
-// InkFlow Public Decoupled & Whitewashed Skill Catalog
-// This file is auto-generated by scripts/generate-public-catalog.ts
-// DO NOT EDIT THIS FILE DIRECTLY. ALL INTENDED EDITS MUST BE APPLIED TO
-// THE GENERATION SCRIPT OR THE SOURCE GOVERNANCE CATALOG.
-// ─────────────────────────────────────────────────────────────────────────────
-
-import type { GovernedPromptAsset, EnhancementPackage, EnhancementPackageStep, SkillSeriesFlowStep, SkillSeriesFlow, CuratedProductSkill } from '../types/prompt-assets-governed.js';
-import type { Novel } from '../types.js';
-
-export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = ${JSON.stringify(cleanedAssetsRegistry, null, 2)};
-
-export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = ${JSON.stringify(cleanedFlows, null, 2)};
-
-export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = ${JSON.stringify(cleanedCuratedSkills, null, 2)};
-
-export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(cleanedCatalog, null, 2)};
-
-export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = ${JSON.stringify(sanitizedCopies, null, 2)};
-
-export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = ${JSON.stringify(cleanedPackages, null, 2)};
-
-// ── 7 Core Pure Computational Utility Functions with Strict TS Annotation ──
-
-/**
- * 获取小说在当前流程系列中的最新执行步骤 ID
- */
-export function getNovelCurrentStepId(novel: Novel, activeSeriesId: string): string {
-  const tags = novel.projectPreferenceProfile?.tags || [];
-  const prefix = \`current-step:\${activeSeriesId}:\`;
-  const found = tags.find(t => t.startsWith(prefix));
-  if (found) {
-    return found.slice(prefix.length);
-  }
-  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId);
-  if (flow && flow.steps.length > 0) {
-    return flow.steps[0].id;
-  }
-  return '';
-}
-
-/**
- * 获取当前小说已经执行完毕并标记完成的步骤 ID 列表
- */
-export function getNovelCompletedStepIds(novel: Novel, activeSeriesId: string): string[] {
-  const tags = novel.projectPreferenceProfile?.tags || [];
-  const prefix = \`completed-step:\${activeSeriesId}:\`;
-  return tags
-    .filter(t => t.startsWith(prefix))
-    .map(t => t.slice(prefix.length));
-}
-
-/**
- * 根据当前状态与已完成步骤，路由判定下一步应该执行的创作流步骤
- */
-export function getNextFlowStep(
-  activeSeriesId: string,
-  currentStage: string,
-  completedStepIds: string[]
-): SkillSeriesFlowStep | null {
-  const flow = SKILL_SERIES_FLOWS.find(f => f.id === activeSeriesId);
-  if (!flow) return null;
-
-  // 1. 如果 currentStage 是某个步骤的 ID，直接根据 nextStepId 寻找
-  const currentStep = flow.steps.find(s => s.id === currentStage);
-  if (currentStep) {
-    if (currentStep.nextStepId) {
-      return flow.steps.find(s => s.id === currentStep.nextStepId) || null;
-    }
-    return null; // 已经是最后一步
-  }
-
-  // 2. Fallback：如果 currentStage 为空或外部业务非步骤 ID，返回第一个未完成的步骤
-  const uncompleted = flow.steps.find(s => !completedStepIds.includes(s.id));
-  if (uncompleted) return uncompleted;
-
-  return null;
-}
-
-/**
- * 根据包 ID 判定一个包是否是付费包，并且当前商业模式下是否被拦截。
- */
-export function isPackageRestricted(packageId: string, commercialMode: string = 'free'): boolean {
-  const pkg = ENHANCEMENT_PACKAGES.find(p => p.id === packageId);
-  if (!pkg) return false;
-  return pkg.type === 'paid' && commercialMode !== 'paid';
-}
-
-/**
- * 根据资产 ID 获取对应的增强包配置
- */
-export function getAssetEnhancementPackage(assetId: string): EnhancementPackage | null {
-  let pkgId = '';
-  if (assetId === 'core-dialogue-enhancer' || assetId === 'core-slop-shield') {
-    pkgId = 'paid-advanced-audit-patch';
-  } else if (assetId === 'tomato-opening-validator') {
-    pkgId = 'paid-platform-diagnostics';
-  } else if (assetId === 'plaza-golden-three') {
-    pkgId = 'paid-cross-chapter-continuity';
-  } else if (assetId === 'licensed-cthulhu-style' || assetId === 'ancient-gorgeous-reference') {
-    pkgId = 'paid-deconstruction-fusion';
-  }
-
-  if (!pkgId) return null;
-  return ENHANCEMENT_PACKAGES.find(p => p.id === pkgId) || null;
-}
-
-/**
- * 根据流程 ID 获取对应的增强包配置
- */
-export function getFlowEnhancementPackage(flowId: string): EnhancementPackage | null {
-  if (flowId === 'fenghua-short-flow' || flowId === 'tianma-outline-flow') {
-    return ENHANCEMENT_PACKAGES.find(p => p.id === 'paid-author-flows') || null;
-  }
-  return null;
-}
-
-/**
- * 返回包的步骤配方；对仅有 assets 的旧包保持可读性。
- */
-export function getEnhancementPackageSteps(pkg: EnhancementPackage): readonly EnhancementPackageStep[] {
-  if (pkg.steps?.length) return pkg.steps;
-  return (pkg.assets || []).map((assetId, index) => ({
-    id: \`\${pkg.id}-step-\${index + 1}\`, assetId, mode: 'recommend' as const, trigger: 'milestone' as const,
-    scope: 'single-run' as const, order: index + 1, required: false,
-  }));
-}
-
-// Plan 236（CORR-02）：白标清洗器单源化——本文件不再内嵌漂移的函数副本，
-// 统一 re-export 正典实现（shared/lib/prompt-sanitizer.ts，行为取并集）。
-export { sanitizeWhiteLabelText } from './prompt-sanitizer.js';
-`;
-
-  fs.writeFileSync(outputPath, tsContent, 'utf-8');
-  console.log(`Successfully generated safe public catalog at \${outputPath}`);
+  const outputPath = path.resolve(process.cwd(), CATALOG_MODULE_PATH);
+  fs.writeFileSync(outputPath, renderPublicCatalogModule(model), 'utf-8');
+  console.log(`Successfully generated safe public catalog at ${outputPath}`);
 }
 
 generate();

@@ -46,6 +46,8 @@ import { getWorkflowDisplay } from '../lib/workflow-display-registry';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
 import { LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
 import { fetchLlmConfig } from '../lib/config-client';
+import { MemoryHealthPanel } from './MemoryHealthPanel';
+
 
 interface ProjectCockpitViewProps {
   novel: Novel;
@@ -549,7 +551,7 @@ export function ProjectCockpitView({
                 </div>
               </div>
 
-              {/* Read-only v3 capability summary */}
+
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-theme-text uppercase tracking-wider font-mono flex items-center gap-1">
@@ -593,6 +595,9 @@ export function ProjectCockpitView({
                   </button>
                 </div>
               </div>
+
+              {/* 批次 D：记忆健康度看板（四项指标；数据缺失显示「未知」，不按 0 计） */}
+              <MemoryHealthPanel novelId={novel.id} />
 
               {/* Continuation Packs Detail */}
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-4 space-y-3">

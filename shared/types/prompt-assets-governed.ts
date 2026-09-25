@@ -1,5 +1,7 @@
 import type { PromptAsset } from './core';
 import type { CapabilityManifestEntry } from './capability-manifest';
+import type { CapabilityStage } from './capability-execution';
+import type { CardRole } from '../lib/capability-card-role.js';
 
 /**
  * 提示词清洗状态 (Sanitization Status)
@@ -215,6 +217,33 @@ export interface EnhancementPackageStep {
 export type PackageStep = EnhancementPackageStep;
 export type EnhancementPackageV2 = EnhancementPackage;
 
+/**
+ * 链路步骤的卡片槽位（批次 B「步骤卡片槽位」）。
+ *
+ * 语义：`stages` 声明「这张卡的正文进入哪些阶段的 prompt」；`role` 是声明角色
+ * （投影校验用，见 shared/lib/flow-step-card-slot.ts）；`cardId` 缺省 = 槽位已声明但未挂卡
+ * （合法状态，运行时回退 assetId 旧路径）。
+ */
+export interface FlowStepCardRef {
+  readonly role: CardRole;
+  readonly stages: readonly CapabilityStage[];
+  readonly cardId?: string;
+}
+
+/**
+ * 步骤质量门声明（批次 B「质量门判定与推进拦截」）。
+ *
+ * 语义：`kind` 决定判定源（mechanical → shared 整章交付门 `validateCompleteChapterDraftQuality`；
+ * critic → 服务端 `classifyCriticFeedback` 的分类结果；manual → 显式人工确认）；
+ * `threshold` 当 mechanical 时为最小有效字符数覆盖，当 critic 时为 0-100 分阈值。
+ * **未声明本字段的步骤不做判定**（旧链路行为不变，见 shared/lib/flow-step-gate.ts）。
+ * 人类可读的 `qualityGate` 文案保留，用于提示词与界面展示。
+ */
+export interface FlowStepGate {
+  readonly kind: 'mechanical' | 'critic' | 'manual';
+  readonly threshold?: number;
+}
+
 export interface SkillSeriesFlowStep {
   id: string; // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
   stepNumber: number; // 序号 (1-based)
@@ -222,8 +251,30 @@ export interface SkillSeriesFlowStep {
   description: string; // 步骤具体执行说明
   input: string; // 阶段输入特征
   output: string; // 阶段输出特征
+  /**
+   * 本步目标阶段声明（批次 B「步骤阶段语义化」）：规划/大纲类 → planner，正文类 → writer，
+   * 审稿/诊断类 → critic（语义表见 shared/lib/flow-step-stage.ts）。
+   *
+   * **声明优先**：不再继承关联资产的 `stage`（此前 30 步里 25 步因资产是 polish 而错落 writer）。
+   * 缺省时回退资产 stage 并记 `FLOW_STEP_STAGE_UNDECLARED`（诊断可见，不静默丢 prompt）。
+   */
+  stage?: CapabilityStage;
   assetId: string; // 关联的真实治理资产 ID
-  qualityGate: string; // 本步质量门栏标准
+  /** 步骤卡片槽位：优先于 assetId 解析（缺省 → 回退 assetId 旧路径，行为不变）。 */
+  cardRef?: FlowStepCardRef;
+  qualityGate: string; // 本步质量门栏标准（人类可读文案）
+  /** 可判定的质量门声明（缺省 → 不判定，仅渲染 qualityGate 文案）。 */
+  gate?: FlowStepGate;
+  /**
+   * 「仅引导」声明（批次 B「空壳链路清账」）。关联资产的治理面标 `isRuntimeReady=true`，
+   * 正文却只有「[XX体] 围绕 X 执行」式转投语（引用壳，见 shared/lib/prompt-shell.ts）时，
+   * 本步必须显式声明为「仅引导」：不指望资产生成正文，由作者用自己的模型/素材完成这一步。
+   *
+   * **未声明的壳 = 静默幻觉**（`FLOW_STEP_GUIDANCE_UNDECLARED_SHELL`，仓内必须为 0，
+   * 见 shared/lib/flow-step-guidance.ts）；声明后运行时 availability='guidance'，
+   * UI 必须给出可见提示（GUIDANCE_ONLY_HINT，链路详情 + 推进页两处）。
+   */
+  guidanceOnly?: boolean;
   nextStepId: string | null; // 下一步 ID，尾步骤为 null
   switchAllowed: boolean; // 是否允许中途跳跃切换
   navigateTo?: string; // 完成本步后自动跳转的目标标签页 (如 'bible'/'outline'/'planning'/'production'/'quality')

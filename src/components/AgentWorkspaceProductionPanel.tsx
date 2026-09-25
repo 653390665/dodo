@@ -16,6 +16,7 @@ import type {
   ProjectPreferenceProfile,
 } from '../../shared/types';
 import type { PromptAssetActionKind } from '../../shared/types/prompt-assets-governed';
+import type { FlowStepEvidenceCounts } from '../../shared/lib/flow-step-gate.js';
 import { useProductionStore } from '../stores/production-store';
 import { useContinuationPackStore } from '../stores/continuation-pack-store';
 import { useEditorDataStore } from '../stores/editor-data-store';
@@ -78,14 +79,7 @@ interface AgentWorkspaceProductionPanelProps {
   onQuickGenerate?: () => Promise<void> | void;
   quickGenerateDisabled?: boolean;
   /** Real-artifact counts used to verify wizard progress (PRD Story 5). */
-  stepEvidence?: {
-    ideaChars?: number;
-    worldEntityCount?: number;
-    outlineChars?: number;
-    sceneBeatsChars?: number;
-    draftChars?: number;
-    auditPassed?: boolean;
-  };
+  stepEvidence?: FlowStepEvidenceCounts;
   onRunRecommendedAsset?: (assetId: string, actionKind: PromptAssetActionKind) => Promise<void>;
   onPreferenceProfileChange?: (profile: ProjectPreferenceProfile) => Promise<void>;
   skippedAssetIds?: string[];

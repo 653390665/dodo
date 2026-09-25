@@ -17,7 +17,15 @@ import type {
 } from '../../shared/types.js';
 import { CARD_STAGE_MAP } from '../../shared/types.js';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile.js';
+import { isShellTemplatePrompt } from '../../shared/lib/prompt-shell.js';
+import {
+  renderFlowStepCardBlock,
+  resolveFlowStepCard,
+} from '../../shared/lib/flow-step-card-slot.js';
+import { resolveFlowStepStage } from '../../shared/lib/flow-step-stage.js';
+import { resolveFlowStepAvailability } from '../../shared/lib/flow-step-guidance.js';
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
+import { isRunnableToolManifest } from '../../shared/lib/knowledge-capabilities.js';
 import { SANITIZED_SKILL_COPIES } from '../../shared/lib/public-skill-catalog.js';
 import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.js';
 import { resolveSkillLoadout } from '../../shared/lib/skill-model.js';
@@ -95,7 +103,17 @@ interface RuntimeSessionAsset {
   id: string;
   title: string;
   template: string;
-  deconstructionCardType: NonNullable<GovernedPromptAsset['deconstructionCardType']>;
+  /**
+   * 写作规则卡类型；工具卡（utility/diagnostic）没有卡型 —— 它们不进入
+   * writer/planner/critic 的规则注入通道（过滤按 deconstructionCardType 取值）。
+   */
+  deconstructionCardType?: NonNullable<GovernedPromptAsset['deconstructionCardType']>;
+  /** 批次 C：工具卡元数据（有值时本条目是触发型能力，而非写作规则卡）。 */
+  tool?: {
+    kind: 'utility' | 'diagnostic';
+    action: 'run-utility' | 'run-diagnostic';
+    stages: CapabilityStage[];
+  };
   source?: 'project' | 'chapter';
   version: string | number;
   sourceBadge: string;
@@ -104,7 +122,10 @@ interface RuntimeSessionAsset {
   lineage: Record<string, unknown>;
 }
 
-const SESSION_CARD_TITLES: Record<RuntimeSessionAsset['deconstructionCardType'], string> = {
+const SESSION_CARD_TITLES: Record<
+  NonNullable<RuntimeSessionAsset['deconstructionCardType']>,
+  string
+> = {
   'worldview-card': '世界观拆书卡',
   'character-card': '人物拆书卡',
   'pacing-card': '节奏拆书卡',
@@ -131,7 +152,7 @@ const SESSION_RULE_KEYS = [
 
 function isSupportedCardType(
   value: string | undefined
-): value is RuntimeSessionAsset['deconstructionCardType'] {
+): value is NonNullable<RuntimeSessionAsset['deconstructionCardType']> {
   return Boolean(value && value in CARD_STAGE_MAP);
 }
 
@@ -338,6 +359,62 @@ function projectActiveCatalogSkillCard(
   };
 }
 
+/**
+ * 批次 C（知识图谱可编排）：工具卡投影 —— utility/diagnostic 且动作为运行类的能力卡。
+ *
+ * 与 skill-card 不同，工具卡不注入写作规则文本（`deconstructionCardType` 为空，
+ * writer/planner/critic 的类型过滤不会命中），只在卡组/本章使用卡里作为「可触发入口」
+ * 存在；执行入口在 `server/helpers/knowledge-capabilities.ts`。
+ */
+function projectToolCapabilityAsset(
+  id: string,
+  novel: Novel,
+  scope: 'project' | 'chapter'
+): RuntimeSessionAsset | null {
+  const manifest = capabilityManifestFor(id);
+  if (!isRunnableToolManifest(manifest) || !manifest) return null;
+  if (!manifest.allowedScopes.includes(scope)) return null;
+  if (
+    isMonetizationEnabled() &&
+    manifest.sourceType === 'licensed' &&
+    novel.projectPreferenceProfile?.commercialMode !== 'paid'
+  ) {
+    const scopeLabel = scope === 'project' ? '作品卡组' : '本章使用卡';
+    throw new WritingStyleRequestError(
+      403,
+      'TOOL_CARD_FORBIDDEN',
+      `当前作品无权使用这张${scopeLabel}`,
+      id
+    );
+  }
+  const catalog = PROMPT_GOVERNANCE_CATALOG.find((asset) => asset.id === id);
+  const template = catalog?.template || resolveCuratedTechniquePrompt(id);
+  if (!template) {
+    throw new WritingStyleRequestError(
+      400,
+      'TOOL_CARD_NOT_RUNTIME_READY',
+      '知识能力卡当前不可运行',
+      id
+    );
+  }
+  return {
+    id,
+    title: catalog?.title || id,
+    template,
+    tool: {
+      kind: manifest.kind as 'utility' | 'diagnostic',
+      action: manifest.action as 'run-utility' | 'run-diagnostic',
+      stages: [...manifest.stages],
+    },
+    version: manifest.version,
+    sourceBadge: manifest.sourceType,
+    dimensionOwners: {},
+    resolvedRules: { template },
+    lineage: { catalogId: id, capabilityKind: manifest.kind },
+    source: scope,
+  };
+}
+
 function projectProjectSkillDeckAsset(id: string, novel: Novel): RuntimeSessionAsset {
   const manifest = capabilityManifestFor(id);
   if (
@@ -490,6 +567,11 @@ export function validateCapabilityProfile(novelId: string, value: unknown): stri
     );
   for (const id of ids) {
     const manifest = capabilityManifestFor(id);
+    // 批次 C：工具卡（utility/diagnostic + 运行类动作）可装配进作品卡组，
+    // 作为「可触发入口」存在；它们没有 concept 卡型，不注入写作规则文本。
+    if (isRunnableToolManifest(manifest) && manifest && manifest.allowedScopes.includes('project')) {
+      continue;
+    }
     if (
       manifest &&
       (manifest.kind !== 'skill-card' ||
@@ -570,6 +652,35 @@ export function validateCapabilityProfile(novelId: string, value: unknown): stri
         trimmed
       );
     }
+  }
+  if (
+    profile.projectCards !== undefined &&
+    (!Array.isArray(profile.projectCards) ||
+      profile.projectCards.some((id) => typeof id !== 'string'))
+  ) {
+    throw new WritingStyleRequestError(
+      400,
+      'CAPABILITY_PROJECT_CARDS_INVALID',
+      '作品装配卡片配置无效'
+    );
+  }
+  if (
+    profile.chapterCards !== undefined &&
+    (!Array.isArray(profile.chapterCards) ||
+      profile.chapterCards.some((id) => typeof id !== 'string'))
+  ) {
+    throw new WritingStyleRequestError(
+      400,
+      'CAPABILITY_CHAPTER_CARDS_INVALID',
+      '章节装配卡片配置无效'
+    );
+  }
+  if (profile.singleRunCard !== undefined && typeof profile.singleRunCard !== 'string') {
+    throw new WritingStyleRequestError(
+      400,
+      'CAPABILITY_SINGLE_RUN_CARD_INVALID',
+      '单次运行卡片配置无效'
+    );
   }
   if (
     profile.capabilityMemberships !== undefined &&
@@ -738,6 +849,8 @@ function resolveProjectSkillDeck(novel: Novel): {
         throw error;
       }
     }
+    const toolAsset = projectToolCapabilityAsset(id, novel, 'project');
+    if (toolAsset) return toolAsset;
     return projectProjectSkillDeckAsset(id, novel);
   });
   return { mainCard: cards[0] || null, supportCards: cards.slice(1), all: cards };
@@ -790,10 +903,19 @@ function resolveSessionAssets(novel: Novel, ids: string[]): RuntimeSessionAsset[
           id
         );
       }
+      // 批次 C：工具卡（knowledge-extract / foreshadow-settle 等）没有卡型，
+      // 在写作规则卡投影之前先按「可触发工具」投影，避免误报 UNKNOWN_SESSION_CARD_TYPE。
+      const toolAsset = projectToolCapabilityAsset(id, novel, 'chapter');
+      if (toolAsset) return toolAsset;
       return { ...projectCatalogAsset(asset), source: 'chapter' as const };
     }
     const catalogSkillCard = projectActiveCatalogSkillCard(id, novel, 'chapter');
     if (catalogSkillCard) return { ...catalogSkillCard, source: 'chapter' as const };
+    // 未登记进治理货架、但有工具 manifest 的能力卡同样可解析（保持与卡组路径一致）。
+    const orphanToolAsset = PROMPT_GOVERNANCE_CATALOG.some((asset) => asset.id === id)
+      ? null
+      : projectToolCapabilityAsset(id, novel, 'chapter');
+    if (orphanToolAsset) return orphanToolAsset;
     const savedSkill = db.getSkill(id);
     if (!savedSkill)
       throw new WritingStyleRequestError(400, 'UNKNOWN_SESSION_CARD', '本章使用卡不存在', id);
@@ -977,6 +1099,15 @@ function stagesForAsset(asset: RuntimeSessionAsset | GovernedPromptAsset): Capab
   return stage ? [stage] : [];
 }
 
+/**
+ * 批次 C：ExecutionOverlay.type 是必填字符串；工具卡没有卡型，用 `tool:<kind>`
+ * 显式标注，避免把工具卡伪装成写作规则卡型。
+ */
+function runtimeAssetType(asset: RuntimeSessionAsset): string {
+  if (asset.deconstructionCardType) return asset.deconstructionCardType;
+  return asset.tool ? `tool:${asset.tool.kind}` : 'unknown-card';
+}
+
 function stageForGovernedAsset(asset: GovernedPromptAsset): CapabilityStage | null {
   const stageMap: Record<string, CapabilityStage> = {
     discovery: 'planner',
@@ -1026,24 +1157,75 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
   // 的错位指令（run S/T 崩坏主因之一）。
   const assetIsShell = isShellTemplatePrompt(asset?.template);
   const assetUsable = assetRunnable && !assetIsShell;
+  // 批次 B「步骤卡片槽位」：cardRef 优先，失败/缺省回退上方 assetId 路径（后者逐字节不变）。
+  const cardAttempt = resolveFlowStepCard(step);
+  const card = cardAttempt.resolution;
   const stepContract = [
     `【流程步骤：${step.name}】`,
     `【步骤输入】${step.input}`,
     `【预期输出】${step.output}`,
     `【质量门】${step.qualityGate}`,
   ].join('\n');
+  const assetPrompt = assetUsable
+    ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
+    : stepContract;
+  const cardBlock = card ? renderFlowStepCardBlock(card, stepContract) : undefined;
+  const stagePrompts =
+    card && cardBlock
+      ? (Object.fromEntries(
+          card.stages.map((stage) => [stage, cardBlock])
+        ) as Readonly<Partial<Record<CapabilityStage, string>>>)
+      : undefined;
+  // 槽位声明的元数据始终记录（含解析失败）：卡 ID/角色/诊断可见，注入与否由 stagePrompts 表达。
+  const declaredCardId = typeof step.cardRef?.cardId === 'string' ? step.cardRef.cardId.trim() : '';
+  // 批次 B「步骤阶段语义化」：阶段以 `step.stage` 声明为准，不再由资产 stage 决定注入面
+  // （此前 30 步里 25 步因资产是 polish 而落到 writer）。未声明 → 回退资产 stage 并记诊断。
+  const stageResolution = resolveFlowStepStage(step, {
+    assetStage: asset ? stageForGovernedAsset(asset) : null,
+  });
+  // 批次 B「空壳链路清账」：把「资产是引用壳」这件事显式化到运行时（声明 → guidance；
+  // 未声明的壳 → unavailable + 诊断，不再静默）。
+  const guidanceResolution = resolveFlowStepAvailability({
+    guidanceOnly: step.guidanceOnly,
+    assetRunnable,
+    assetIsShell,
+  });
   return {
     activeFlowId: activeSeriesId,
     currentStep: step.id,
     name: step.name,
     input: step.input,
     output: step.output,
-    stage: asset ? stageForGovernedAsset(asset) : null,
+    availability: guidanceResolution.availability,
+    guidanceOnly: guidanceResolution.declared,
+    ...(guidanceResolution.warnings.length > 0
+      ? { guidanceWarning: guidanceResolution.warnings.join(',') }
+      : {}),
+    stage: stageResolution.stage,
+    stageSource: stageResolution.source,
+    ...(stageResolution.warnings.length > 0
+      ? { stageWarning: stageResolution.warnings.join(',') }
+      : {}),
     assetId: step.assetId,
     qualityGate: step.qualityGate,
-    prompt: assetUsable
-      ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
-      : stepContract,
+    // prompt 语义保持「步骤资产注入文本」（未挂卡时的旧行为逐字节不变）；
+    // 挂卡后的卡片正文按声明阶段落在 stagePrompts，未声明阶段回退本字段。
+    prompt: assetPrompt,
+    ...(stagePrompts ? { stagePrompts } : {}),
+    ...(declaredCardId
+      ? {
+          cardId: declaredCardId,
+          cardRole: card?.role ?? step.cardRef?.role,
+          ...(card ? { cardStages: card.stages } : {}),
+        }
+      : {}),
+    ...(card
+      ? card.warning
+        ? { cardWarning: card.warning }
+        : {}
+      : cardAttempt.warning
+        ? { cardWarning: cardAttempt.warning }
+        : {}),
     ...(assetUsable
       ? {}
       : assetRunnable
@@ -1057,10 +1239,10 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
  * 写作指导）。这类卡治理面标 isRuntimeReady=true，但内容只是对另一个不存在的
  * 提示词名的转投；装备为技法或注入阶段 prompt 都只会制造噪音，诱发模型抄录
  * 结构化材料。真卡（含 55-66 字短指令）实测零误伤。
+ *
+ * 批次 B：实现迁至 shared/lib/prompt-shell.ts（shared 不得反向依赖 server），此处保留导出面。
  */
-export function isShellTemplatePrompt(prompt: string | undefined): boolean {
-  return Boolean(prompt && prompt.length < 80 && /^\[[^\]]{2,14}体\]/.test(prompt));
-}
+export { isShellTemplatePrompt };
 
 function buildGuardrails(novel: Novel): ExecutionGuardrail[] {
   const configuredIds = hasCapabilityV3(novel)
@@ -1413,7 +1595,7 @@ function buildSkillStack(
     version: asset.version,
     source: asset.sourceBadge,
     position,
-    type: asset.deconstructionCardType,
+    type: runtimeAssetType(asset),
     stages: stagesForAsset(asset),
     prompt: asset.template,
     dimensionOwners: asset.dimensionOwners,
@@ -1685,7 +1867,7 @@ export function resolveWritingStyleRequest(
     : undefined;
   const sessionSnapshots = writerSessionAssets.map((asset) => ({
     id: asset.id,
-    type: asset.deconstructionCardType,
+    type: runtimeAssetType(asset),
     version: asset.version,
     source: asset.sourceBadge,
     position: 'chapter',
@@ -1702,7 +1884,7 @@ export function resolveWritingStyleRequest(
       writerSkill: writerSnapshot,
       skillDeck: writerDeckAssets.map((asset) => ({
         id: asset.id,
-        type: asset.deconstructionCardType,
+        type: runtimeAssetType(asset),
         version: asset.version,
         source: asset.sourceBadge,
         position: 'project',
@@ -1765,6 +1947,13 @@ export function resolveWritingStyleRequest(
     };
   });
   const flowStep = buildFlowStep(novel);
+  // 批次 B：步骤挂卡 → 卡片正文进入声明的每个阶段；未挂卡 → 沿用
+  // `stage === 声明阶段 ? prompt : undefined` 单点注入（阶段取自 step.stage 声明，见 buildFlowStep）。
+  const flowStepPromptFor = (stage: CapabilityStage): string | undefined => {
+    const declared = flowStep?.stagePrompts?.[stage];
+    const candidate = declared ?? (flowStep?.stage === stage ? flowStep.prompt : undefined);
+    return candidate && !isShellTemplatePrompt(candidate) ? candidate : undefined;
+  };
   const packStyleProfile = pack?.styleProfile
     ? valueCopy(pack.styleProfile as unknown as Record<string, unknown>)
     : undefined;
@@ -1776,7 +1965,7 @@ export function resolveWritingStyleRequest(
       packStyleProfile,
       writerPromptAssets,
       stageSkills.critic[0],
-      flowStep?.stage === 'critic' && !isShellTemplatePrompt(flowStep.prompt) ? flowStep.prompt : undefined
+      flowStepPromptFor('critic')
     ),
     buildTechniquePrompt(techniques.critic, techniqueRoleById),
   ]
@@ -1803,11 +1992,12 @@ export function resolveWritingStyleRequest(
       .filter((item) => item.stage === stage)
       .map((item) => `【系统护栏：${item.id}】\n${item.prompt}`)
       .join('\n\n');
+  const plannerFlowStepPrompt = flowStepPromptFor('planner');
   const plannerStagePrompt = [
     buildSkillsPrompt(stageSkills.planner),
     buildPlannerSessionPrompt(sessionAssets),
     buildTechniquePrompt(techniques.planner, techniqueRoleById),
-    flowStep?.stage === 'planner' && !isShellTemplatePrompt(flowStep.prompt) ? `【当前流程步骤】\n${flowStep.prompt}` : '',
+    plannerFlowStepPrompt ? `【当前流程步骤】\n${plannerFlowStepPrompt}` : '',
     guardrailPrompt('planner'),
   ]
     .filter(Boolean)
@@ -1833,7 +2023,7 @@ export function resolveWritingStyleRequest(
           writerSkill,
           packStyleProfile,
           writerPromptAssets,
-          flowStep?.stage === 'writer' && !isShellTemplatePrompt(flowStep.prompt) ? flowStep.prompt : undefined
+          flowStepPromptFor('writer')
         ),
         buildTechniquePrompt(techniques.writer, techniqueRoleById),
         guardrailPrompt('writer'),
@@ -1852,6 +2042,7 @@ export function resolveWritingStyleRequest(
         ...overlays.map((item) => item.id),
         ...guardrails.map((item) => item.id),
         ...(flowStep?.assetId ? [flowStep.assetId] : []),
+        ...(flowStep?.cardId ? [flowStep.cardId] : []),
         ...stageSkills.planner.map((skill) => skill.id),
         ...stageSkills.writer.map((skill) => skill.id),
         ...stageSkills.critic.map((skill) => skill.id),

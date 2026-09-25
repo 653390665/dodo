@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../lib/db-instance.js';
+import { countStaleKnowledgeRows, packSourceVersion } from '../lib/db/knowledge-staleness.js';
 import {
   extractCharacterItemAffinityEdges,
   extractWorldviewHints,
@@ -40,6 +41,8 @@ export interface LineageReport {
     timelineEvents: number;
     foreshadowings: number;
     edges: number;
+    staleLedger: number;
+    staleEdges: number;
   };
 }
 
@@ -369,10 +372,12 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     residenceEdgesAdded: 0,
     relicUnmatched: [],
     relationshipTypesNormalized: 0,
-    coverage: { characters: 0, items: 0, locations: 0, factions: 0, powerLevels: 0, timelineEvents: 0, foreshadowings: 0, edges: 0 },
+    coverage: { characters: 0, items: 0, locations: 0, factions: 0, powerLevels: 0, timelineEvents: 0, foreshadowings: 0, edges: 0, staleLedger: 0, staleEdges: 0 },
   };
 
   const docs = packSourceDocuments(db, novelId);
+  // 批次 C：本次摄入写入的行统一记录资料包来源版本（`pack:<id>@<updatedAt>`）。
+  const packStamp = packSourceVersion(novelId);
   const xigangDoc = docs.find((d) => d.filename.includes('逐章细纲'));
   const relicDoc = docs.find((d) => d.filename.includes('遗物体系'));
 
@@ -401,8 +406,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
   );
 
   const insertForeshadowing = db.prepare(
-    `INSERT INTO foreshadowings (id, novel_id, title, description, status, planted_chapter_id, payoff_chapter_id, related_character_ids, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'planted', ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO foreshadowings (id, novel_id, title, description, status, planted_chapter_id, payoff_chapter_id, related_character_ids, notes, created_at, updated_at, source_version)
+     VALUES (?, ?, ?, ?, 'planted', ?, ?, ?, ?, ?, ?, ?)`
   );
   for (const row of extractForeshadowingLedger(entries)) {
     const key = `${row.title}\u0000${row.plantedChapter}`;
@@ -440,7 +445,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
       JSON.stringify(cast.map((name) => nameToId.get(name))),
       row.payoffNote ? `回收：${row.payoffNote}` : null,
       now,
-      now
+      now,
+      packStamp
     );
     report.ledgerInserted += 1;
   }
@@ -451,8 +457,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     .all(novelId) as Array<{ name: string; description: string }>;
   const characterNames = new Set(characterRows.map((c) => c.name));
   const insertEdge = db.prepare(
-    `INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO entity_relationships (id, novelId, sourceType, sourceId, targetType, targetId, relationshipType, description, createdAt, source_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const powerIds = new Map(
     (db.prepare('SELECT id, name FROM power_levels WHERE novel_id = ?').all(novelId) as Array<{ id: string; name: string }>).map(
@@ -464,7 +470,7 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     const holderId = nameToId.get(edge.holderName);
     if (!powerId || !holderId) continue;
     if (edgeExists(db, novelId, holderId, powerId, '持有')) continue;
-    insertEdge.run(randomUUID(), novelId, 'character', holderId, 'power', powerId, '持有', `${edge.holderName}持有${edge.powerName}`, Date.now());
+    insertEdge.run(randomUUID(), novelId, 'character', holderId, 'power', powerId, '持有', `${edge.holderName}持有${edge.powerName}`, Date.now(), packStamp);
     report.powerEdgesAdded += 1;
   }
 
@@ -499,7 +505,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
         itemId,
         '持有',
         `${edge.holderName}持有遗物 NO.${edge.no} ${edge.itemName}（${edge.level}）`,
-        Date.now()
+        Date.now(),
+        packStamp
       );
       report.relicEdgesAdded += 1;
     }
@@ -531,14 +538,14 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     const charId = nameToId.get(edge.characterName);
     if (!itemId || !charId) continue;
     if (edgeExists(db, novelId, charId, itemId, '关联')) continue;
-    insertEdge.run(randomUUID(), novelId, 'character', charId, 'item', itemId, '关联', `${edge.characterName}与${edge.itemName}存在关联（道具描述点名）`, Date.now());
+    insertEdge.run(randomUUID(), novelId, 'character', charId, 'item', itemId, '关联', `${edge.characterName}与${edge.itemName}存在关联（道具描述点名）`, Date.now(), packStamp);
     affinityAdded += 1;
   }
   for (const edge of locationEdges) {
     const locationId = locationRowsAll.find((r) => r.name === edge.locationName)?.id;
     if (!locationId) continue;
     if (edgeExists(db, novelId, edge.characterId, locationId, '居住')) continue;
-    insertEdge.run(randomUUID(), novelId, 'character', edge.characterId, 'location', locationId, '居住', `${edge.locationName}为相关地点（角色小传点名）`, Date.now());
+    insertEdge.run(randomUUID(), novelId, 'character', edge.characterId, 'location', locationId, '居住', `${edge.locationName}为相关地点（角色小传点名）`, Date.now(), packStamp);
     residenceAdded += 1;
   }
 
@@ -557,6 +564,7 @@ export function runLineageEnrichment(novelId: string): LineageReport {
   // 覆盖度报告
   const count = (sql: string) =>
     (db.prepare(sql).get(novelId) as { n: number } | undefined)?.n ?? 0;
+  const staleCounts = countStaleKnowledgeRows(novelId);
   report.coverage = {
     characters: count('SELECT count(*) AS n FROM characters WHERE novel_id = ?'),
     items: count('SELECT count(*) AS n FROM items WHERE novel_id = ?'),
@@ -566,6 +574,8 @@ export function runLineageEnrichment(novelId: string): LineageReport {
     timelineEvents: count('SELECT count(*) AS n FROM timeline_events WHERE novel_id = ?'),
     foreshadowings: count('SELECT count(*) AS n FROM foreshadowings WHERE novel_id = ?'),
     edges: count('SELECT count(*) AS n FROM entity_relationships WHERE novelId = ?'),
+    staleLedger: staleCounts.staleLedger,
+    staleEdges: staleCounts.staleEdges,
   };
   return report;
 }

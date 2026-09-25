@@ -19,3 +19,4 @@ export * from './db/creative-artifacts.js';
 export * from './db/creation-flows.js';
 export * from './db/chapter-completion-attempts.js';
 export * from './db/library.js';
+export * from './db/knowledge-staleness.js';

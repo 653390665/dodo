@@ -61,6 +61,7 @@ export function coerceMountedSkillLoadout(
 
 export interface SkillLoadoutMigrationInput {
   profileVersion?: number;
+  /** @deprecated 旧装配输入；新读取路径见 shared/lib/capability-assembly.ts 的 projectCards（缺省时仍会回退到本字段）。 */
   mountedSkillLoadout?: MountedSkillLoadoutItem[];
   mountedSkillIds?: string[];
 }

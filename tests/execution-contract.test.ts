@@ -143,12 +143,14 @@ test('unavailable flow asset keeps step metadata and records a stable warning', 
   }
 });
 
-test('flow prompt is routed to the asset stage only', () => {
+test('flow prompt is routed to the step declared stage only', () => {
   closeDb(); initDb(':memory:');
   try {
     createNovel({ id: 'writer-flow-contract', title: 'Contract', authorId: 'local', summary: '', status: 'ongoing', mountedSkillIds: [], mountedSkillLoadout: [], projectPreferenceProfile: { tags: ['current-step:generic-novel-flow:generic-novel-flow-step5'], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0, skillLoadoutSchemaVersion: 2, activeSeriesId: 'generic-novel-flow' }, createdAt: 1, updatedAt: 1 });
     const contract = resolveProjectExecutionContract('writer-flow-contract');
+    // 批次 B「步骤阶段语义化」：注入面来自步骤声明（此步声明 writer），不再由资产 stage 推断。
     assert.equal(contract.flowStep?.stage, 'writer');
+    assert.equal(contract.flowStep?.stageSource, 'declared');
     assert.match(contract.stagePrompts.writer, /正文快速初稿/);
     assert.doesNotMatch(contract.stagePrompts.planner, /正文快速初稿/);
     assert.doesNotMatch(contract.stagePrompts.critic, /正文快速初稿/);

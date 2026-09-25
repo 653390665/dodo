@@ -1,54 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
+import {
+  PLACEHOLDER_TEMPLATE_MARKER,
+  PLACEHOLDER_SCORE_CAP,
+  isPlaceholderSourceBody,
+  isPlaceholderRuntimeBody,
+  applyPlaceholderScorePenalty,
+  applyFeaturedGuard,
+} from '../scripts/lib/public-catalog-pipeline.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Plan 258 散卡层治理单测：占位空壳评分惩罚 + featured 授予守卫。
-// 以下纯函数镜像自 scripts/generate-public-catalog.ts（该脚本 import 即执行
-// generate()，测试无法直接 import）。镜像仅覆盖纯函数行为；镜像与生成器的
-// 一致性由 tests/public-catalog-freshness.test.ts 的逐字节比对兜底——脚本
-// 规则变更必须同步本文件与 freshness 镜像两处。
+//
+// 单源（2026-09-24）：这些纯函数从 scripts/lib/public-catalog-pipeline.ts 导入，
+// 生成脚本 scripts/generate-public-catalog.ts 用的是同一实现——本文件旧版曾镜像
+// 一份副本（脚本 import 即执行 generate()，测试无法直接导入），镜像漂移是真实
+// 风险面，已删除。规则变更只需改管线一处，本测试与 freshness 守卫自动跟随。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
-const PLACEHOLDER_BODY_MIN_LENGTH = 80;
-const FEATURED_MIN_SCORE = 70;
-const PLACEHOLDER_SCORE_CAP = 60;
-
-type PlaceholderPredicate = (template: string | undefined) => boolean;
-
-function isPlaceholderSourceBody(template: string | undefined): boolean {
-  return !template || template.includes(PLACEHOLDER_TEMPLATE_MARKER);
-}
-
-function isPlaceholderRuntimeBody(template: string | undefined): boolean {
-  if (isPlaceholderSourceBody(template)) return true;
-  return (template as string).length < PLACEHOLDER_BODY_MIN_LENGTH;
-}
-
-function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
-}
-
-function applyPlaceholderScorePenalty(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (!isPlaceholder(asset.template)) return asset;
-  if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
-  return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
-}
-
-function applyFeaturedGuard(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (asset.curationTier !== 'featured') return asset;
-  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
-    return { ...asset, curationTier: 'standard' };
-  }
-  return asset;
-}
 
 function makeCard(overrides: Partial<GovernedPromptAsset>): GovernedPromptAsset {
   return {

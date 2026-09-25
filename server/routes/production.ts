@@ -21,6 +21,7 @@ import { recordChapterDecision } from '../../shared/lib/preference-flywheel';
 import { addChunk } from '../vector-store';
 import { runLineageEnrichment, settleForeshadowingsOnApply } from '../helpers/knowledge-lineage-enrich.js';
 import { EmbeddingUnavailableError } from '../embedding';
+import { buildSemanticRecallSection } from '../helpers/story-context.js';
 import { summarizeChapterDecisions } from '../../shared/lib/preference-flywheel';
 import {
   runProductionPipeline,
@@ -256,7 +257,8 @@ function initializeProductionRun(
   userIntent: string,
   writingStyle: ResolvedWritingStyleRequest,
   databaseGeneration: number,
-  activeEntityNames?: string[]
+  activeEntityNames?: string[],
+  semanticContext?: string
 ) {
   const novel = db.getNovel(novelId);
   if (!novel) {
@@ -318,6 +320,7 @@ function initializeProductionRun(
     writerContext: rawWriterContext,
     criticContext: rawWriterContext,
     continuationPackContext: packContext,
+    semanticContext,
   });
   const plannerContext = promptContexts.planner;
   const writerContext = promptContexts.writer;
@@ -365,6 +368,7 @@ function initializeProductionRun(
     plannerContext,
     writerContext,
     criticContext,
+    semanticContext: semanticContext ?? '',
     intent,
   };
 }
@@ -721,6 +725,23 @@ export function registerProductionRoutes(app: Express) {
 
         reservationId = reserve.reservationId;
 
+        // Semantic recall is a strictly additive best-effort layer. It runs before
+        // the serialized write queue (embedding/search must never hold the write
+        // lock) and collapses to '' whenever the vector index or embedding provider
+        // is unavailable, so the production contexts degrade to the previous shape.
+        const semanticQueryChapter = resolvedTargetChapterId
+          ? db.getChapter(resolvedTargetChapterId)
+          : undefined;
+        const semanticRecallSection = await buildSemanticRecallSection({
+          novelId,
+          queryText: [semanticQueryChapter?.title, semanticQueryChapter?.sceneBeats, userIntent]
+            .filter(Boolean)
+            .join('\n'),
+        });
+        const semanticRecallContext = semanticRecallSection
+          ? `${semanticRecallSection.marker}\n${semanticRecallSection.text}`
+          : '';
+
         const initialization = await runInSerializedWriteForGeneration(
           requestDatabaseGeneration,
           () =>
@@ -731,7 +752,8 @@ export function registerProductionRoutes(app: Express) {
               userIntent,
               writingStyle,
               requestDatabaseGeneration,
-              activeEntityNames
+              activeEntityNames,
+              semanticRecallContext
             )
         );
         if (!initialization.executed) {
@@ -758,6 +780,7 @@ export function registerProductionRoutes(app: Express) {
           packContext,
           plannerContext,
           writerContext,
+          semanticContext,
           intent,
         } = initialization.result;
 
@@ -950,7 +973,12 @@ export function registerProductionRoutes(app: Express) {
             evidenceCount: 0,
           }
         );
-        const finalPipelineContext = [pipelineContextStr, characterStateStr, contractStr]
+        const finalPipelineContext = [
+          pipelineContextStr,
+          characterStateStr,
+          contractStr,
+          semanticContext,
+        ]
           .filter(Boolean)
           .join('\n\n');
         const stageContexts = {
@@ -993,6 +1021,7 @@ export function registerProductionRoutes(app: Express) {
         const receiptActualText = [
           finalPipelineContext,
           learnedContext,
+          semanticContext,
           stagePrompts.planner,
           stagePrompts.writer,
           stagePrompts.critic,
@@ -1030,6 +1059,13 @@ export function registerProductionRoutes(app: Express) {
             text: contractStr,
             itemCount: contractStr ? 1 : 0,
             version: 'contract-v1',
+          },
+          {
+            id: 'semantic-recall',
+            label: '语义检索片段',
+            text: semanticContext,
+            itemCount: semanticRecallSection?.hitCount ?? 0,
+            version: 'semantic-recall-v1',
           },
           ...stagePromptSources,
           {
@@ -1582,6 +1618,10 @@ export function registerProductionRoutes(app: Express) {
               contentHash: reviewContentHash,
               completedAt: now,
               source: candidateSource === 'model' ? ('model' as const) : ('fallback' as const),
+              // 批次 B：把审稿分数一并落库，critic 步骤质量门需要数值才能判阈值。
+              ...(typeof applyRun.continuityReport.auditMeta?.score === 'number'
+                ? { score: applyRun.continuityReport.auditMeta.score }
+                : {}),
             },
             reviewState: {
               schemaVersion: 1 as const,

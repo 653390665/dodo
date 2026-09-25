@@ -965,6 +965,7 @@ export function EditorView({
   // Stable callbacks/objects for AgentWorkspace's React.memo — inline arrows
   // and object literals were defeating memoization on every render. Declared
   // here because they close over the generation/production hooks above.
+  const chapterLastAudit = currentChapter?.workflowMeta?.lastAudit;
   const stepEvidence = React.useMemo(
     () => ({
       ideaChars: userIntent.trim().length,
@@ -972,6 +973,14 @@ export function EditorView({
       outlineChars: globalOutline.trim().length,
       sceneBeatsChars: currentChapter?.sceneBeats?.length ?? 0,
       draftChars: currentChapter?.wordCount ?? 0,
+      // 批次 B：步骤质量门判定输入（mechanical 用正文全文，critic 用最近审稿分类与分数）。
+      draftText: currentChapter?.content ?? '',
+      critic: {
+        status: chapterLastAudit?.status ?? ('not_run' as const),
+        score: chapterLastAudit?.score,
+      },
+      // 三态保持：没有审稿记录 → undefined（暂无法验证），有记录 → 是否 pass。
+      auditPassed: chapterLastAudit ? chapterLastAudit.status === 'pass' : undefined,
     }),
     [
       userIntent,
@@ -982,6 +991,8 @@ export function EditorView({
       globalOutline,
       currentChapter?.sceneBeats,
       currentChapter?.wordCount,
+      currentChapter?.content,
+      chapterLastAudit,
     ]
   );
   const handlePolishFromAuditCallback = React.useCallback(async () => {

@@ -87,19 +87,33 @@ export function buildProductionPromptContexts(
     writerContext: string;
     criticContext?: string;
     continuationPackContext?: string;
+    /**
+     * Best-effort semantic recall block. Appended after the ledger/pack context so
+     * canon keeps priority and the shared `maxChars` budget decides the truncation.
+     */
+    semanticContext?: string;
   },
   maxChars = DEFAULT_PRODUCTION_CONTEXT_CHAR_LIMIT
 ): { planner: string; writer: string; critic: string } {
-  const { layeredContext, plannerContext, writerContext, criticContext, continuationPackContext } =
-    args;
+  const {
+    layeredContext,
+    plannerContext,
+    writerContext,
+    criticContext,
+    continuationPackContext,
+    semanticContext,
+  } = args;
   return {
     planner: composeUniqueContext(
-      [layeredContext, continuationPackContext || '', plannerContext],
+      [layeredContext, continuationPackContext || '', plannerContext, semanticContext || ''],
       maxChars
     ),
-    writer: composeUniqueContext([writerContext, continuationPackContext || ''], maxChars),
+    writer: composeUniqueContext(
+      [writerContext, continuationPackContext || '', semanticContext || ''],
+      maxChars
+    ),
     critic: composeUniqueContext(
-      [criticContext || writerContext, continuationPackContext || ''],
+      [criticContext || writerContext, continuationPackContext || '', semanticContext || ''],
       maxChars
     ),
   };

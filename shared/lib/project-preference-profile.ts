@@ -147,6 +147,16 @@ function normalizeCapabilityProfile(value: unknown): ProjectCapabilityProfile {
     ...(source.migrationPendingIds !== undefined
       ? { migrationPendingIds: normalizedIds(source.migrationPendingIds) }
       : {}),
+    // 批次 A 装配字段收敛：三字段按「缺省即未声明、显式空数组保留」语义归一化。
+    ...(source.projectCards !== undefined
+      ? { projectCards: normalizedIds(source.projectCards) }
+      : {}),
+    ...(source.chapterCards !== undefined
+      ? { chapterCards: normalizedIds(source.chapterCards) }
+      : {}),
+    ...(source.singleRunCard !== undefined
+      ? { singleRunCard: normalizedOptionalId(source.singleRunCard) }
+      : {}),
   } as ProjectCapabilityProfile;
 }
 

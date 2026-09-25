@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import {
   GOVERNED_ASSETS_V2_REGISTRY as SOURCE_REGISTRY,
@@ -8,7 +11,6 @@ import {
   ENHANCEMENT_PACKAGES as SOURCE_PACKAGES,
   isPublicRuntimeAsset,
 } from '../shared/lib/prompt-governance-catalog.js';
-import { sanitizeWhiteLabelText, COMMERCIAL_COPY_PATTERN } from '../shared/lib/prompt-sanitizer.js';
 import {
   GOVERNED_ASSETS_V2_REGISTRY as PUBLIC_REGISTRY,
   SKILL_SERIES_FLOWS as PUBLIC_FLOWS,
@@ -18,326 +20,79 @@ import {
   SANITIZED_SKILL_COPIES as PUBLIC_COPIES,
 } from '../shared/lib/public-skill-catalog.js';
 import type { GovernedPromptAsset } from '../shared/types/prompt-assets-governed.js';
+import {
+  CATALOG_MODULE_PATH,
+  buildPublicCatalogModel,
+  collectSanitizeCandidates,
+  diffCatalogModuleText,
+  renderPublicCatalogModule,
+} from '../scripts/lib/public-catalog-pipeline.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 以下纯函数镜像自 scripts/generate-public-catalog.ts（TEXT_KEYS_TO_SANITIZE /
-// cleanText / isPublicRuntimeAsset / cloneAndSanitize）。脚本管线若变更，必须
-// 同步此处，否则本守卫会误报/漏报。修改生成脚本消毒逻辑属于安全敏感变更。
+// 生成物新鲜度守卫（单源版）。
+//
+// 旧版（2026-09-24 前）本文件镜像了 ~300 行生成脚本纯函数（TEXT_KEYS_TO_SANITIZE /
+// cleanText / cloneAndSanitize / pipeline / collectSanitizeCandidates /
+// buildSanitizedCopy / Plan 233 准入 / Plan 258 治理），镜像漂移是真实风险面：
+// 脚本规则变更必须手工同步，漏同步则守卫误报或漏报。
+//
+// 现在期望值一律来自 scripts/lib/public-catalog-pipeline.ts —— 与生成脚本
+// scripts/generate-public-catalog.ts 同一实现，仓内不存在第二份卡面正文规则。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TEXT_KEYS_TO_SANITIZE = new Set([
-  'title',
-  'goal',
-  'successSignal',
-  'description',
-  'name',
-  'whyUpgrade',
-  'riskNotes',
-  'qualityGate',
-  'recommendationReason',
-]);
-
-function cleanText(text: string): string {
-  if (!text) return '';
-  let s = sanitizeWhiteLabelText(text);
-  s = s.replace(/小飞鸡长篇流/g, '长篇商业连载流程');
-  s = s.replace(/小飞鸡、风华/g, '名家');
-  s = s.replace(/小飞鸡/g, '名家');
-  s = s.replace(/风华/g, '名家');
-  s = s.replace(/天马/g, '结构工坊');
-  s = s.replace(/墨流/g, '外部工具');
-  s = s.replace(/长篇一键破解爆款小说并生成脑洞/g, '长篇爆款拆解与脑洞生成');
-  s = s.replace(/一键破解爆款并生成脑洞/g, '爆款拆解与脑洞生成');
-  s = s.replace(/一键生成章节梗概/g, '章节梗概生成');
-  s = s.replace(/一键润色降ai\s*([0-9.]+)/gi, '降 AI 润色 $1');
-  s = s.replace(/一键融梗换心/g, '融梗换心候选生成');
-  s = sanitizeWhiteLabelText(s);
-  return s;
-}
-
-// isPublicRuntimeAsset 自 shared/lib/prompt-governance-catalog.ts 单源导入（Plan 197 Step 1），
-// 不再本地复制；生成脚本与守卫共用同一准入判定。
-
-function cloneAndSanitize<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map((item) => cloneAndSanitize(item)) as unknown as T;
-  }
-  if (typeof obj === 'object') {
-    const copy: Record<string, unknown> = {};
-    const record = obj as Record<string, unknown>;
-    for (const key in record) {
-      if (Object.prototype.hasOwnProperty.call(record, key)) {
-        const val = record[key];
-        if (key === 'template') {
-          copy[key] = '';
-        } else if (TEXT_KEYS_TO_SANITIZE.has(key) && typeof val === 'string') {
-          copy[key] = cleanText(val);
-        } else if (typeof val === 'object') {
-          copy[key] = cloneAndSanitize(val);
-        } else {
-          copy[key] = val;
-        }
-      }
-    }
-    return copy as unknown as T;
-  }
-  return obj;
-}
-
-/** 复刻脚本输出语义：JSON 序列化落盘再被 import（undefined 键会被丢弃）。 */
-function pipeline<T>(items: T[], filterUnsafe: boolean): T[] {
-  let governed = items;
-  if (filterUnsafe) {
-    // Plan 258：治理（占位惩罚 + featured 守卫）必须在 cloneAndSanitize 之前
-    // 执行——克隆后 template 物理清空，无法再做占位判定。
-    governed = (items as GovernedPromptAsset[])
-      .filter((item) => isPublicRuntimeAsset(item))
-      .map(applySourceCardGovernance) as unknown as T[];
-  }
-  return JSON.parse(JSON.stringify(governed.map((item) => cloneAndSanitize(item))));
-}
-
-// ─── 生成侧消毒副本镜像（Plan 197 Step 2）────────────────────────────────────
-// 镜像 scripts/generate-public-catalog.ts 的 collectSanitizeCandidates /
-// buildSanitizedCopy；脚本管线若变更，必须同步此处。
-
-const SANITIZED_COPY_NOTE = '生成侧消毒副本：白标清洗完成，原署名与联系方式已剥离。';
-
-function sanitizeCopyText(text: string | undefined): string {
-  return text ? cleanText(text) : '';
-}
-
-// ─── Plan 234 镜像：消毒副本商业文案的构建期改写（与生成器保持一致）──────────
-type GoalVariantFactory = (cardTitle: string) => string;
-
-const SANITIZED_GOAL_VARIANTS: Record<string, GoalVariantFactory[]> = {
-  'constellation-pack': [
-    (t) => `题材风格包：围绕「${t}」提供题材背景与配置基线，效果以实际运行为准。`,
-    (t) => `「${t}」的社区题材支撑卡：补充题材期待与红线约束，请以生成结果自验。`,
-    (t) => `面向「${t}」的共享题材模板：提供背景支撑与配置起点。`,
-  ],
-  'utility-tool': [
-    (t) => `「${t}」的社区工具卡：按卡面说明辅助相应环节，效果请以实际生成验证。`,
-    (t) => `共享工具提示词（${t}）：作用范围见卡面，效果因作品而异。`,
-    (t) => `${t}：社区供给的辅助工具，写作效果以运行为准。`,
-  ],
-  'author-workflow': [
-    (t) => `「${t}」的社区写作配方：服务卡面所示创作环节，效果请以实际生成验证。`,
-    (t) => `共享写作提示词（${t}）：聚焦卡面场景，效果因作品而异。`,
-    (t) => `${t}：社区贡献的写作配方，生成效果以运行为准。`,
-  ],
-};
-
-const SANITIZED_GOAL_DEFAULT_VARIANTS: GoalVariantFactory[] = [
-  (t) => `广场共享写作卡（${t}）：围绕卡面主题提供提示词支持，实际效果以运行结果为准。`,
-  (t) => `社区贡献的写作配方（${t}），效果请以实际生成验证。`,
-  (t) => `${t}：广场共享提示词模板，写作效果因作品而异。`,
-];
-
-const SANITIZED_SIGNAL_VARIANTS = [
-  '实际效果以运行结果为准。',
-  '效果请以实际生成验证。',
-  '社区供给 · 效果请自验。',
-];
-
-let sanitizedCopyRewrites = 0;
-let sanitizedSignalRewrites = 0;
-
-function rewriteSanitizedCopyText(
-  field: 'goal' | 'successSignal',
-  text: string | undefined,
-  cardTitle: string,
-  primaryCategory: string | undefined
-): string {
-  const clean = sanitizeCopyText(text);
-  if (!clean || !COMMERCIAL_COPY_PATTERN.test(clean)) return clean;
-  if (field === 'successSignal') {
-    const signal = SANITIZED_SIGNAL_VARIANTS[sanitizedSignalRewrites % SANITIZED_SIGNAL_VARIANTS.length];
-    sanitizedSignalRewrites += 1;
-    return signal;
-  }
-  sanitizedCopyRewrites += 1;
-  const bucket = primaryCategory ? SANITIZED_GOAL_VARIANTS[primaryCategory] : undefined;
-  const variants = bucket ?? SANITIZED_GOAL_DEFAULT_VARIANTS;
-  const variant = variants[sanitizedCopyRewrites % variants.length];
-  return variant(cardTitle);
-}
-
-// Plan 233 准入规则镜像（与 scripts/generate-public-catalog.ts 保持一致）。
-const JUNK_TITLE_PATTERN = /(^测试)|(^内测)|(^test)|(测试$)|(内测$)|(test$)/i;
-
-function renderPathTitleCollapsesToEmpty(title: string): boolean {
-  return (
-    !title
-      .replace(/【[^】]*(?:出品|专用|定制|私有化|自用)[^】]*】/g, '')
-      .replace(/[\u4e00-\u9fa5A-Za-z0-9_-]{1,24}(?:出品|专用|定制)/g, '')
-      .trim()
-      ? true
-      : false
-  );
-}
-
-function normalizedTitleKey(title: string): string {
-  return sanitizeWhiteLabelText(title).replace(/\s+/g, '').replace(/\d+$/, '');
-}
-
-function collectSanitizeCandidates(): GovernedPromptAsset[] {
-  const seen = new Set<string>();
-  const merged = [...SOURCE_REGISTRY, ...SOURCE_CATALOG].filter((asset) =>
-    seen.has(asset.id) ? false : (seen.add(asset.id), true)
-  );
-  const eligible = merged.filter(
-    (asset) =>
-      asset.placementTier === 'sanitize-required' &&
-      asset.sanitizationStatus === 'needs-sanitization' &&
-      asset.runtimeStatus === 'candidate' &&
-      asset.sourceGroup !== 'test-fixture'
-  );
-  const junk = eligible.filter(
-    (asset) =>
-      JUNK_TITLE_PATTERN.test(asset.title.trim()) ||
-      renderPathTitleCollapsesToEmpty(asset.title.trim())
-  );
-  const kept = eligible.filter((asset) => !junk.includes(asset));
-  const byKey = new Map<string, GovernedPromptAsset>();
-  for (const asset of kept) {
-    const key = normalizedTitleKey(asset.title);
-    const current = byKey.get(key);
-    if (!current) {
-      byKey.set(key, asset);
-      continue;
-    }
-    const challenger =
-      (asset.score || 0) > (current.score || 0) ||
-      ((asset.score || 0) === (current.score || 0) && asset.title.length < current.title.length)
-        ? asset
-        : current;
-    byKey.set(key, challenger);
-  }
-  return kept.filter((asset) => byKey.get(normalizedTitleKey(asset.title)) === asset);
-}
-
-function buildSanitizedCopy(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const cardTitle = sanitizeCopyText(asset.title);
-  const goal = rewriteSanitizedCopyText('goal', asset.goal, cardTitle, asset.primaryCategory);
-  const successSignal = rewriteSanitizedCopyText(
-    'successSignal',
-    asset.successSignal,
-    cardTitle,
-    asset.primaryCategory
-  );
-  return {
-    ...asset,
-    id: `sanitized-${asset.id}`,
-    title: cardTitle,
-    goal,
-    template: sanitizeCopyText(asset.template),
-    successSignal,
-    recommendationReason: asset.recommendationReason
-      ? sanitizeCopyText(asset.recommendationReason)
-      : asset.recommendationReason,
-    riskNotes: [SANITIZED_COPY_NOTE],
-    sanitizationStatus: 'runtime-ready',
-    runtimeStatus: 'active',
-    placementTier: 'optional-style',
-    isWhiteLabeled: true,
-    isRuntimeReady: true,
-    sourceType: 'plaza',
-  };
-}
-
-// ─── Plan 258 镜像：散卡层治理（占位空壳评分惩罚 + featured 授予守卫）────────
-// 镜像 scripts/generate-public-catalog.ts 的治理纯函数；脚本规则若变更，
-// 必须同步此处与 tests/public-catalog-governance.test.ts。
-
-const PLACEHOLDER_TEMPLATE_MARKER = '广场优秀提示词模版体';
-const PLACEHOLDER_BODY_MIN_LENGTH = 80;
-const FEATURED_MIN_SCORE = 70;
-const PLACEHOLDER_SCORE_CAP = 60;
-
-type PlaceholderPredicate = (template: string | undefined) => boolean;
-
-function isPlaceholderSourceBody(template: string | undefined): boolean {
-  return !template || template.includes(PLACEHOLDER_TEMPLATE_MARKER);
-}
-
-function isPlaceholderRuntimeBody(template: string | undefined): boolean {
-  if (isPlaceholderSourceBody(template)) return true;
-  return (template as string).length < PLACEHOLDER_BODY_MIN_LENGTH;
-}
-
-function recalibrateGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-  return score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
-}
-
-function applyPlaceholderScorePenalty(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (!isPlaceholder(asset.template)) return asset;
-  if ((asset.score ?? 0) <= PLACEHOLDER_SCORE_CAP) return asset;
-  return { ...asset, score: PLACEHOLDER_SCORE_CAP, grade: recalibrateGrade(PLACEHOLDER_SCORE_CAP) };
-}
-
-function applyFeaturedGuard(
-  asset: GovernedPromptAsset,
-  isPlaceholder: PlaceholderPredicate
-): GovernedPromptAsset {
-  if (asset.curationTier !== 'featured') return asset;
-  if ((asset.score ?? 0) < FEATURED_MIN_SCORE || isPlaceholder(asset.template)) {
-    return { ...asset, curationTier: 'standard' };
-  }
-  return asset;
-}
-
-function applySourceCardGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const penalized = applyPlaceholderScorePenalty(asset, isPlaceholderSourceBody);
-  return applyFeaturedGuard(penalized, isPlaceholderSourceBody);
-}
-
-function applySanitizedCopyGovernance(asset: GovernedPromptAsset): GovernedPromptAsset {
-  const penalized = applyPlaceholderScorePenalty(asset, isPlaceholderRuntimeBody);
-  return applyFeaturedGuard(penalized, isPlaceholderRuntimeBody);
-}
+const { model: EXPECTED, report: REPORT } = buildPublicCatalogModel();
+const CATALOG_FILE = path.resolve(process.cwd(), CATALOG_MODULE_PATH);
 
 const REMIX_HINT =
   '生成副本已陈旧：请重新运行 `node --import tsx scripts/generate-public-catalog.ts` 再生 shared/lib/public-skill-catalog.ts（渲染层数据源必须与消毒管线输出逐字节一致）。';
 
-function assertFresh(
-  name: string,
-  source: unknown[],
-  publicCopy: unknown[],
-  filterUnsafe: boolean
-): void {
-  const expected = pipeline(source, filterUnsafe);
+function assertFresh(name: string, expected: unknown[], committed: unknown[]): void {
   const sourceIds = expected.map((item: any) => item.id);
-  const publicIds = publicCopy.map((item: any) => item.id);
+  const publicIds = committed.map((item: any) => item.id);
   assert.deepEqual(
     publicIds,
     sourceIds,
-    `${name} 条数/id 集合不一致（源管线 ${sourceIds.length} 条 vs 副本 ${publicIds.length} 条；首个差异: 源=${sourceIds.find((id) => !publicIds.includes(id))} 副本多出=${publicIds.find((id) => !sourceIds.includes(id))}）。${REMIX_HINT}`
+    `${name} 条数/id 集合不一致（管线 ${sourceIds.length} 条 vs 生成物 ${publicIds.length} 条；首个差异: 管线=${sourceIds.find((id) => !publicIds.includes(id))} 生成物多出=${publicIds.find((id) => !sourceIds.includes(id))}）。${REMIX_HINT}`
   );
   assert.deepEqual(
-    publicCopy,
+    committed,
     expected,
-    `${name} 存在字段与 sanitize(源) 不一致（副本陈旧或被手工编辑）。${REMIX_HINT}`
+    `${name} 存在字段与 sanitize(源) 不一致（生成物陈旧或被手工编辑）。${REMIX_HINT}`
   );
 }
 
 test('public-skill-catalog is fresh: equals sanitize pipeline over the source catalog', () => {
-  assertFresh('GOVERNED_ASSETS_V2_REGISTRY', SOURCE_REGISTRY, PUBLIC_REGISTRY, true);
-  assertFresh('SKILL_SERIES_FLOWS', SOURCE_FLOWS, PUBLIC_FLOWS, false);
-  assertFresh('CURATED_PRODUCT_SKILLS', SOURCE_CURATED, PUBLIC_CURATED, false);
-  assertFresh('PUBLIC_SKILL_GOVERNANCE_CATALOG', SOURCE_CATALOG, PUBLIC_CATALOG, true);
+  assertFresh('GOVERNED_ASSETS_V2_REGISTRY', EXPECTED.registry, PUBLIC_REGISTRY);
+  assertFresh('SKILL_SERIES_FLOWS', EXPECTED.flows, PUBLIC_FLOWS);
+  assertFresh('CURATED_PRODUCT_SKILLS', EXPECTED.curatedSkills, PUBLIC_CURATED);
+  assertFresh('PUBLIC_SKILL_GOVERNANCE_CATALOG', EXPECTED.catalog, PUBLIC_CATALOG);
 });
 
 test('public ENHANCEMENT_PACKAGES is fresh: equals sanitize pipeline over the source packages', () => {
-  assertFresh('ENHANCEMENT_PACKAGES', SOURCE_PACKAGES, PUBLIC_PACKAGES, false);
+  assertFresh('ENHANCEMENT_PACKAGES', EXPECTED.packages, PUBLIC_PACKAGES);
+});
+
+test('生成物 id 全部来自源货架（消毒管线不新增、不改名卡片）', () => {
+  const sourceIds = new Set<string>(
+    [
+      ...SOURCE_REGISTRY,
+      ...SOURCE_CATALOG,
+      ...SOURCE_FLOWS,
+      ...SOURCE_CURATED,
+      ...SOURCE_PACKAGES,
+    ].map((item) => (item as { id: string }).id)
+  );
+  for (const item of [...PUBLIC_REGISTRY, ...PUBLIC_CATALOG, ...PUBLIC_FLOWS, ...PUBLIC_CURATED]) {
+    assert.equal(
+      sourceIds.has(item.id),
+      true,
+      `生成物条目 ${item.id} 不在源货架中（管线只允许过滤/消毒，不允许造卡）`
+    );
+  }
 });
 
 test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-required candidate', () => {
-  const candidates = collectSanitizeCandidates();
+  const candidates = collectSanitizeCandidates().candidates;
   // Plan 233 重锚 45→38：准入规则排除 6 张垃圾标题候选（测试审稿/测试黄金一章/测试/
   // fire角色定制/风华长篇大纲测试/私密内测）+ 去重 1 张（番茄正文过保底2）。
   // Plan 236 再锚 38→33：sanitizer 合一后去重键含品牌剥除——「沐殇定制细纲 vs 细纲」
@@ -360,17 +115,13 @@ test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-requi
     `sanitized copies must correspond 1:1 to sanitize-required candidates. ${REMIX_HINT}`
   );
 
-  // 逐字节新鲜：等于镜像副本管线输出（改写轮换计数器先归零，与生成器口径一致；
-  // Plan 258 副本治理与生成器同序：构建后逐张过占位惩罚 + featured 守卫）
-  sanitizedCopyRewrites = 0;
-  sanitizedSignalRewrites = 0;
-  const expectedCopies = JSON.parse(
-    JSON.stringify(candidates.map(buildSanitizedCopy).map(applySanitizedCopyGovernance))
-  );
-  assert.deepEqual(
-    PUBLIC_COPIES,
-    expectedCopies,
-    `SANITIZED_SKILL_COPIES 存在字段与 sanitize(源) 不一致（副本陈旧或被手工编辑）。${REMIX_HINT}`
+  // 逐字段新鲜：与管线同源产出比对（Plan 258 副本治理与生成器同序：
+  // 构建后逐张过占位惩罚 + featured 守卫；改写计数器已显式传入，不再需要手动归零）
+  assertFresh('SANITIZED_SKILL_COPIES', EXPECTED.sanitizedCopies, PUBLIC_COPIES);
+  assert.equal(
+    REPORT.counts.sanitizedCopies,
+    PUBLIC_COPIES.length,
+    '管线报告与生成物副本数必须一致'
   );
 
   // 每张副本必须通过公开运行时准入过滤器，且治理状态与运行时消毒先例一致
@@ -387,4 +138,73 @@ test('SANITIZED_SKILL_COPIES is fresh: one runtime-ready copy per sanitize-requi
     assert.equal(copy.isRuntimeReady, true, `copy ${copy.id} isRuntimeReady`);
     assert.equal(copy.sourceType, 'plaza', `copy ${copy.id} sourceType（镜像运行时端点）`);
   }
+});
+
+// ─── 新鲜度的文件级断言（生成物 = 现场渲染，逐字节）─────────────────────────
+
+test('生成物文件与现场渲染逐字节一致（源 → 生成物；手改产物即红）', () => {
+  const committed = fs.readFileSync(CATALOG_FILE, 'utf-8');
+  const expected = renderPublicCatalogModule(EXPECTED);
+  assert.deepEqual(
+    diffCatalogModuleText(committed, expected),
+    [],
+    `shared/lib/public-skill-catalog.ts 与现场渲染不一致（被手工编辑或源变更后未重跑生成）。${REMIX_HINT}`
+  );
+});
+
+test('负向：手改生成物必被新鲜度测试拦下（单点篡改 → 比对指向具体行）', () => {
+  const committed = fs.readFileSync(CATALOG_FILE, 'utf-8');
+  const expected = renderPublicCatalogModule(EXPECTED);
+  // 前置：仓内产物当前必须新鲜，否则本负向用例失去意义
+  assert.deepEqual(diffCatalogModuleText(committed, expected), [], `前置失败：${REMIX_HINT}`);
+
+  const needle = '"score": 60';
+  const at = committed.indexOf(needle);
+  assert.notEqual(at, -1, '前置：生成物中应存在 Plan 258 治理后的 score 字段（封顶 60）');
+  const tampered = `${committed.slice(0, at)}"score": 61${committed.slice(at + needle.length)}`;
+
+  const diffs = diffCatalogModuleText(tampered, expected);
+  assert.equal(diffs.length > 0, true, '手改生成物（score 60→61）必须被新鲜度比对拦下');
+  assert.match(diffs[0], /^L\d+: /, '差异信息必须指向具体行号，便于定位手改点');
+  // 比对是纯函数：对新鲜内容再次比对仍为空（无缓存/副作用）
+  assert.deepEqual(diffCatalogModuleText(committed, expected), []);
+});
+
+test('负向：结构性比对同样拦下被手改的字段（assertFresh 视角）', () => {
+  const [first, ...rest] = PUBLIC_COPIES;
+  const tamperedCopies = [{ ...first, goal: `${first.goal}（手改）` }, ...rest];
+  assert.throws(
+    () => assertFresh('SANITIZED_SKILL_COPIES', EXPECTED.sanitizedCopies, tamperedCopies),
+    /不一致/,
+    '生成物字段被手改后，结构性新鲜度断言必须失败'
+  );
+});
+
+// ─── 确定性（脚本重复执行输出稳定）───────────────────────────────────────────
+
+test('确定性：重复构建 → 同哈希；改写计数器不跨次漂移', () => {
+  const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+  const first = renderPublicCatalogModule(EXPECTED);
+  const second = buildPublicCatalogModel();
+
+  assert.equal(
+    sha256(first),
+    sha256(renderPublicCatalogModule(second.model)),
+    '同一进程连续两次构建/渲染必须逐字节一致（旧版模块级改写计数器会跨次漂移）'
+  );
+  assert.equal(
+    REPORT.goalRewrites,
+    second.report.goalRewrites,
+    'goal 改写计数器必须可重入（显式传入，不再依赖手动归零）'
+  );
+  assert.equal(
+    REPORT.signalRewrites,
+    second.report.signalRewrites,
+    'successSignal 改写计数器必须可重入'
+  );
+  assert.equal(
+    sha256(first),
+    sha256(fs.readFileSync(CATALOG_FILE, 'utf-8')),
+    `现场渲染必须与仓内生成物哈希一致。${REMIX_HINT}`
+  );
 });

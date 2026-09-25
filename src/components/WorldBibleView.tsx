@@ -118,6 +118,7 @@ import {
 import { GlobalSetupTab } from './world-bible/GlobalSetupTab';
 import { WorldCandidateReview } from './world-bible/WorldCandidateReview';
 import { RelationshipGraph } from './RelationshipGraph';
+import { KnowledgeMaintenancePanel } from './KnowledgeMaintenancePanel';
 import { RelationshipFormDialog } from './world-bible/RelationshipFormDialog';
 import { enqueueLatestCharacterBioCommit, streamCharacterBio } from '../lib/character-bio-stream';
 import {
@@ -1694,6 +1695,8 @@ export function WorldBibleView({
 
               {activeTab === 'graph' && (
                 <div className="h-[calc(100vh-12rem)] bg-theme-sidebar/20 border border-theme-border/30 rounded-2xl p-6 overflow-hidden shadow-inner flex flex-col gap-4">
+                  <KnowledgeMaintenancePanel novelId={novel.id} onCompleted={fetchAll} />
+
                   {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">

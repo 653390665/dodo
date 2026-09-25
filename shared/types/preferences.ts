@@ -78,6 +78,15 @@ export interface ProjectCapabilityProfile {
   guardrailIds?: string[];
   capabilityMemberships?: CapabilityMembership[];
   migrationPendingIds?: string[];
+  /**
+   * 批次 A 装配字段收敛：project 作用域装配卡。存在即权威（含显式空数组）；
+   * 缺省时按旧优先级合并读取：projectSkillDeck → mountedSkillLoadout → mountedSkillIds。
+   */
+  projectCards?: string[];
+  /** 批次 A：chapter 作用域装配卡。存在即权威；缺省时合并读取章节 capabilityState（techniqueIds + overlayCardIds）。 */
+  chapterCards?: string[];
+  /** 批次 A：单次运行卡。存在即权威；缺省时合并读取请求期 sessionCardIds 首项（不落库）。 */
+  singleRunCard?: string;
 }
 
 export type WritingStyleMode =

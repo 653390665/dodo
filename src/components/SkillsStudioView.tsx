@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   ArrowDown,
   Lock,
+  Info,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { logger } from '../lib/client-logger';
@@ -55,6 +56,7 @@ import {
   getEnhancementPackageSteps,
   SKILL_SERIES_FLOWS,
 } from '../../shared/lib/public-skill-catalog';
+import { GUIDANCE_ONLY_HINT, GUIDANCE_ONLY_LABEL } from '../../shared/lib/flow-step-guidance';
 import type {
   CuratedProductSkill,
   EnhancementPackage,
@@ -3367,6 +3369,19 @@ export function SkillsStudioView({
                           <span className="font-sans line-clamp-1 text-amber-500/90">
                             {step.qualityGate}
                           </span>
+                        </div>
+                      )}
+
+                      {/* 可用性标注（批次 B「空壳链路清账」）：壳资产步骤显式标「仅引导」 */}
+                      {step.guidanceOnly && (
+                        <div
+                          role="note"
+                          title={GUIDANCE_ONLY_HINT}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-500/10 text-theme-muted border border-theme-border/45 text-[10px]"
+                        >
+                          <Info size={11} className="shrink-0 opacity-80" />
+                          <span className="font-bold shrink-0">{GUIDANCE_ONLY_LABEL}</span>
+                          <span className="font-sans line-clamp-1 opacity-90">资产生成物不可用，需自备素材</span>
                         </div>
                       )}
 

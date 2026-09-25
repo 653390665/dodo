@@ -8,6 +8,7 @@ import type {
   TechniquePriority,
 } from '../../shared/types';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
+import { getProjectDeckCardIds } from '../../shared/lib/capability-assembly';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityManifestEntry } from '../../shared/types/capability-manifest';
 import {
@@ -107,6 +108,15 @@ export function getProjectCapabilityProfile(
           ),
         ]
       : undefined,
+    // 装配字段收敛（批次 A）：新字段必须随净化读取投影，否则声明即权威的读取路径永远看不到它们。
+    // 保留「缺省即未声明」（undefined ↔ 显式空数组）的区分，只做类型过滤，归一化交给 capability-assembly。
+    projectCards: Array.isArray(profile.projectCards)
+      ? profile.projectCards.filter((id): id is string => typeof id === 'string')
+      : undefined,
+    chapterCards: Array.isArray(profile.chapterCards)
+      ? profile.chapterCards.filter((id): id is string => typeof id === 'string')
+      : undefined,
+    singleRunCard: typeof profile.singleRunCard === 'string' ? profile.singleRunCard : undefined,
   };
 }
 
@@ -176,10 +186,9 @@ export function upsertCapabilityMembership(
 
 export type ProjectDeckTarget = 'main' | 'support';
 
+/** 卡组 ID：实现已收敛到 shared/lib/capability-assembly.ts 的 getProjectDeckCardIds（批次 A 单一事实源）。 */
 export function getProjectDeckIds(profile: ProjectCapabilityProfile | null | undefined): string[] {
-  if (!profile) return [];
-  const ids = [profile.projectSkillDeck.mainCardId, ...profile.projectSkillDeck.supportCardIds];
-  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+  return getProjectDeckCardIds(profile);
 }
 
 export function addCardToProjectDeck(

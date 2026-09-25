@@ -19,6 +19,7 @@ import {
 } from '../lib/db-instance.js';
 import { randomUUID } from 'node:crypto';
 import { normalizeProjectPreferenceProfile } from '../../shared/lib/project-preference-profile.js';
+import { migrateCapabilityAssembly } from '../../shared/lib/capability-assembly.js';
 import type { ProjectCapabilityProfile } from '../../shared/types/preferences.js';
 import type {
   CapabilityApplicationItemResult,
@@ -258,11 +259,17 @@ export function registerWritingStyleRoutes(app: Express): void {
             const currentProfile = normalizeProjectPreferenceProfile(
               current.projectPreferenceProfile
             );
+            // 装配字段收敛（批次 A）：落库前把旧装配数据幂等迁移进 capabilityProfile.projectCards
+            // （仅补写缺省字段，不改既有字段；重复应用结果一致）。读取侧见 shared/lib/capability-assembly.ts。
+            const { profile: assembledProfile } = migrateCapabilityAssembly(requestedProfile, {
+              mountedSkillLoadout: current.mountedSkillLoadout,
+              mountedSkillIds: current.mountedSkillIds,
+            });
             db.updateNovel(req.params.novelId as string, {
               projectPreferenceProfile: {
                 ...currentProfile,
                 capabilityModelVersion: 3,
-                capabilityProfile: requestedProfile,
+                capabilityProfile: assembledProfile ?? requestedProfile,
               },
             });
             return targetChapter

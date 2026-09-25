@@ -17,7 +17,12 @@ export interface Novel {
   status: 'ongoing' | 'completed' | 'hiatus';
   worldRules?: string; // 规划层：全局世界观设定
   globalOutline?: string; // 规划层：全局大纲
+  /**
+   * @deprecated 旧装配字段（批次 A 起读取路径统一到 projectPreferenceProfile.capabilityProfile.projectCards，
+   * 缺省时由 shared/lib/capability-assembly.ts 的合并读取回退到本字段；写入仍保留以兼容历史数据）。
+   */
   mountedSkillIds?: string[]; // 挂载的 Skill IDs
+  /** @deprecated 旧装配字段：读取见 capabilityProfile.projectCards 的合并回退；迁移请用 migrateCapabilityAssembly。 */
   mountedSkillLoadout?: MountedSkillLoadoutItem[];
   projectPreferenceProfile?: ProjectPreferenceProfile;
   createdAt: number;
@@ -88,6 +93,11 @@ export interface ChapterWorkflowMeta {
     contentHash: string;
     completedAt: number;
     source: 'model' | 'fallback';
+    /**
+     * 最近一次审稿的 0-100 分（可选）。步骤质量门（critic 门）需要数值分数才能判定
+     * 阈值，见 shared/lib/flow-step-gate.ts；老数据缺省 → 阈值门判定为「分数不可得」。
+     */
+    score?: number;
   };
   reviewState?: ChapterReviewState;
   lastPolish?: { inputHash: string; outputHash: string; completedAt: number };

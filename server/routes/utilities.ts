@@ -8,6 +8,8 @@ import {
 } from '../capabilities/manifest.js';
 import * as db from '../lib/db.js';
 import { getDatabaseGeneration } from '../lib/db-instance.js';
+import { KnowledgeCapabilityError, runKnowledgeCapability } from '../helpers/knowledge-capabilities.js';
+import { MemoryHealthError, collectMemoryHealth } from '../helpers/memory-health.js';
 import { computeChapterWorkflowHash } from '../../shared/lib/chapter-workflow.js';
 import { scoreSlop } from '../../shared/lib/slop-scorer.js';
 import { buildCapabilityPolishPreview } from '../../shared/lib/slop-rewriter.js';
@@ -45,6 +47,58 @@ function digest(value: string): string {
 export function registerUtilityRoutes(app: Express): void {
   app.get('/api/capabilities/manifest', (_req, res) => {
     res.json({ entries: listCapabilityManifests() });
+  });
+  // 批次 C：图谱能力卡（作品级、无章节上下文）——knowledge-extract 跑幂等谱系抽取并回 coverage，
+  // foreshadow-settle 回未回收伏笔核对清单。写入只发生在既有台账（幂等），不触碰章节正文。
+  app.post('/api/novels/:novelId/knowledge-capabilities/:assetId/run', (req, res) => {
+    const parsed = z
+      .object({ databaseGeneration: z.number().int().nonnegative() })
+      .strict()
+      .safeParse(req.body);
+    if (!parsed.success)
+      return res
+        .status(400)
+        .json({ code: 'KNOWLEDGE_INVALID_INPUT', error: '知识能力卡请求参数无效，请刷新后重试。' });
+    if (parsed.data.databaseGeneration !== getDatabaseGeneration())
+      return res.status(409).json({
+        code: 'DATABASE_GENERATION_STALE',
+        error: '数据库已变化，请刷新后重新运行知识能力卡。',
+      });
+    try {
+      const result = runKnowledgeCapability(req.params.novelId, req.params.assetId);
+      const responseGeneration = getDatabaseGeneration();
+      if (responseGeneration !== parsed.data.databaseGeneration)
+        return res.status(409).json({
+          code: 'DATABASE_GENERATION_STALE',
+          error: '数据库已变化，知识能力卡结果已失效。',
+        });
+      return res.json({
+        ...result,
+        resolvedAtGeneration: responseGeneration,
+        evidence: { databaseGeneration: responseGeneration },
+      });
+    } catch (error) {
+      if (error instanceof KnowledgeCapabilityError)
+        return res.status(error.status).json({ code: error.code, error: error.message });
+      return res.status(500).json({
+        code: 'KNOWLEDGE_INTERNAL_ERROR',
+        error: '知识能力卡执行失败，请稍后重试。',
+      });
+    }
+  });
+  // 批次 D：记忆健康度看板——四项指标只取数，语义与未知口径由 shared/lib/memory-health.ts 单源定义。
+  app.get('/api/novels/:novelId/memory-health', async (req, res) => {
+    try {
+      const snapshot = await collectMemoryHealth(req.params.novelId);
+      return res.json(snapshot);
+    } catch (error) {
+      if (error instanceof MemoryHealthError)
+        return res.status(error.status).json({ code: error.code, error: error.message });
+      return res.status(500).json({
+        code: 'MEMORY_HEALTH_INTERNAL_ERROR',
+        error: '记忆健康度读取失败，请稍后重试。',
+      });
+    }
   });
   app.post('/api/novels/:novelId/capabilities/:assetId/execute', (req, res) => {
     if (

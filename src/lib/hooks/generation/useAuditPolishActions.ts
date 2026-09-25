@@ -403,6 +403,8 @@ export function useAuditPolishActions({
           contentHash,
           completedAt: reviewedAt,
           source: 'model' as const,
+          // 批次 B：持久化数值分数，供 critic 步骤质量门按阈值判定。
+          ...(typeof numericAuditScore === 'number' ? { score: numericAuditScore } : {}),
         },
       };
       const previousReviewState = workflowMeta.reviewState;
