@@ -624,6 +624,7 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 
 - P0-① 已交付：装配三字段（`projectCards`/`chapterCards`/`singleRunCard`）运行时接线，`tests/capability-assembly-runtime.test.ts` 8/8、装配单测 11/11、后端全量 1396/1396、快照六场景逐项不变（规格 §4.2.3）。残余：三字段无界面写入口。
 - B1 已交付（2026-09-28）：护栏“净增语义”单源 `shared/lib/guardrail-scope.ts`（判据 + 审计）＋面板「已声明但未产生净增（N）」回执＋`SkillsStudioView` 计数只认真实生效的增强护栏；实测 `core-slop-shield`/`square-13`（引用壳）配置后 stagePrompts 逐字节不变，`de-ai-tells-guard` writer 541→948、`private-162` writer 541→710；`tests/guardrail-scope.test.ts` 5/5、`src/tests/guardrail-policy-panel.test.tsx` 4/4、后端全量 1401/1401、前端全量 157 files/1007 tests、快照六场景逐项不变（规格 §5.12）。残余：写路径仍宽松（存量兼容）；附带发现 `src/lib/capability-governance.ts:1` 引用源目录模板（疑似绕过模板剥离面）已登记待拍板。
+- B2 已交付（2026-09-28）：评分口径单源 `shared/lib/prompt-score-policy.ts`（分档 A≥90/B≥80/C≥70/D≥60/F<60；门槛 ≥70 可装配 / 60–69 仅候选 / <60 不可用）接线 5 处（sanitizer / 治理目录出口归一 / 生成管线 / 渲染层 4 处假兜底 / QualityTab 口径行+徽标）；修正 7 张漂移卡（`private-197/195/161/106` 56 分 D→F、`opening-templates-library`/`knowledge-extract` 78 分与 `foreshadow-settle` 76 分 B→C），公开目录重生成 51 行全为 grade 行；`tests/prompt-score-policy.test.ts` 6/6、`src/tests/quality-tab-score-policy.test.tsx` 1/1、后端定向 58/58、前端定向 43/43、快照六场景逐项不变（规格 §5.13）。
 - 效果矩阵实测：只有「卡组主卡 / 作品技法 / 切换链路」真正改变三阶段 prompt；`projectCards`/`chapterCards`/`singleRunCard` only 场景 Δ 全 0（接线前）；`guardrailIds` 配 core-default 卡 Δ0（假控制）。
 - 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
 - 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处。

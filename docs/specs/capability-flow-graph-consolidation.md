@@ -673,6 +673,44 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 **残余（登记不静默）**：未把「无净增」升级为写路径拒绝（保持兼容，收紧需先迁移存量档案，见 E4/M2 语境）；
 其它装配字段（techniques/deck）暂无同类「净增」审计；4 张未就绪护栏资产的去向归批次 B3 清洗清账。
 
+#### 5.13 评分口径显性化（Plan 262 B2）
+
+问题：`score` 同时承担「质量分」与「准入门槛」，分档（grade）实现散在三处 ——
+`shared/lib/prompt-sanitizer.ts` `promoteToRuntimeReady` 的完整 A–F 分档、
+`shared/lib/prompt-governance-catalog.ts` 各家族的截断分档（内置/square A–C、private A–D、supplement A/B）、
+`scripts/lib/public-catalog-pipeline.ts` 的 `recalibrateGrade`（A/B/C）；门槛常量亦有副本
+（`PLACEHOLDER_SCORE_CAP` / `FEATURED_MIN_SCORE`）。实测 179 张卡中 7 张 grade 与分数不符：
+`private-197/195/161/106`（56 分标 D）、`opening-templates-library`（78 分标 B）、
+`knowledge-extract`（78 分标 B）、`foreshadow-settle`（76 分标 B）。渲染层另有 4 处
+`grade: asset.grade || 'B'` 假兜底。
+
+单源 `shared/lib/prompt-score-policy.ts`（纯函数、无 IO）：
+
+- 分档 `SCORE_GRADE_BANDS`：A≥90 / B≥80 / C≥70 / D≥60 / F<60（缺分/非有限 → F）；
+- 门槛 `SCORE_ADOPT_MIN = 70`、`SCORE_CANDIDATE_MIN = 60`，`scoreAdmissionOf` → `adopt | candidate | unusable`；
+- 文案 `SCORE_GRADE_LABELS`、`SCORE_ADMISSION_LABELS`、`SCORE_POLICY_SUMMARY`、`scoreBadgeLabel`、`describeScorePolicy`；
+- 生成管线常量 `PLACEHOLDER_SCORE_CAP = 60`、`FEATURED_MIN_SCORE = 70`（由本模块 re-export）。
+
+接线点（5 处）：
+
+| 位置 | 改动 |
+|---|---|
+| `shared/lib/prompt-sanitizer.ts` `promoteToRuntimeReady` | 改用 `gradeFromScore` / `isScoreAdoptable`（行为等价） |
+| `shared/lib/prompt-governance-catalog.ts` 4 处家族分档 + 出口 | 内联三元式改 `gradeFromScore`；`PROMPT_GOVERNANCE_CATALOG` 出口 `.map(asset => ({ ...asset, grade: gradeFromScore(asset.score) }))` 归一（手写 grade 不再漂移） |
+| `scripts/lib/public-catalog-pipeline.ts` | 两个常量改为单源 re-export；`recalibrateGrade` 委托 `gradeFromScore` |
+| `src/lib/capability-governance.ts` 4 处 | `grade: asset.grade || 'B'` → `gradeFromScore(asset.score)` |
+| `src/components/book-factory/QualityTab.tsx` | 推荐区新增口径说明行（`data-testid="score-policy-note"` = `SCORE_POLICY_SUMMARY`）；卡面徽标改 `scoreBadgeLabel(asset.score)`（如 `C级 (78分) · 可装配`），`title` = 口径原文 |
+
+口径：≥70 可装配（A≥90 / B≥80 / C≥70）；60–69 仅候选（D）；<60 不可用（F）。
+
+证据（2026-09-28）：`scratch/b2-probe.ts` 复跑 → 179 张 0 mismatch，grade 分布 A11 / B42 / C79 / D40 / F7（与分数桶一一对应）；
+公开目录重生成 `shared/lib/public-skill-catalog.ts` 51 行变更，逐行核对全部为 `"grade"` 行；
+`tests/prompt-score-policy.test.ts` 6/6（边界值、门槛映射、两份目录零漂移并断言唯一 active 低分豁免为 `test-fixture-lowscore`、7 张修正钉住、管线同源、源码扫描无第二处分档实现）；
+`src/tests/quality-tab-score-policy.test.tsx` 1/1；`tests/public-catalog-governance.test.ts` 占位封顶断言由 C 改 D；
+tsc 0、eslint 0、后端定向 58/58、前端定向 43/43、快照六场景逐项不变。
+
+残余：审稿分 80/60 分档是另一概念（章节审计分），未并入本模块；`shared/lib/curated-product-skills.ts` 的 S/A/B 字母评级为独立模型（登记，未并轨）；`grade` 仍存于资产对象（供展示与 F 拒绝路径），未在类型层分离「分数 / 门槛」。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）
