@@ -20,6 +20,7 @@ import { isShellTemplatePrompt } from './prompt-shell.js';
 import type { CapabilityStage } from '../types/capability-execution.js';
 import type { CapabilityManifestEntry } from '../types/capability-manifest.js';
 import type { FlowStepCardRef, GovernedPromptAsset } from '../types/prompt-assets-governed.js';
+import { isRuntimeReadyAsset } from './capability-runtime-readiness.js';
 
 /** 阶段 canonical 顺序（归一化顺序 + 运行时校验用；类型侧同名类型见 shared/types/capability-execution.ts）。 */
 export const CAPABILITY_STAGES = ['planner', 'writer', 'critic'] as const;
@@ -86,7 +87,7 @@ export function resolveFlowStepCard(
 
   const asset = findAsset(cardId);
   if (!asset) return { resolution: null, warning: 'FLOW_STEP_CARD_UNRESOLVED' };
-  if (!(asset.isRuntimeReady && asset.runtimeStatus === 'active' && asset.sanitizationStatus === 'runtime-ready')) {
+  if (!isRuntimeReadyAsset(asset)) {
     return { resolution: null, warning: 'FLOW_STEP_CARD_NOT_RUNTIME_READY' };
   }
   const template = asset.template ?? '';

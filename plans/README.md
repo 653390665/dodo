@@ -370,7 +370,10 @@ P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱�
 
 - PERF-01：start-stream 保底草稿「假打字回放」串行推迟模型管线 0.3-1.3s（production.ts:370-385、765；与 ARCH-03 拆分同计划处理）
 - CORR-02 + COVERAGE-07：~~白标清洗器 4 份漂移副本~~ 已部分修复（236 合一后仅剩正典+守卫镜像 2 份；竞品词已于 M5 并入正典 sanitizeWhiteLabelText）——核对于 2026-09-18
-- ARCH-01：「runtime-ready 卡」判定谓词重复（原 4 处，CapabilityManifest 派生层落地后部分被 getCatalogCapabilityManifest 取代）——待精确重数，核对于 2026-09-18
+- ARCH-01：「runtime-ready 卡」判定谓词重复 —— **已单源化（M5②，2026-09-28）**：三元判据收进
+  `shared/lib/capability-runtime-readiness.ts`，手抄调用点 14 → 0（唯一定义处 1），守卫
+  `tests/capability-runtime-readiness.test.ts`；附加条件（isWhiteLabeled/grade/score/placementTier）剩余面见
+  `docs/specs/capability-sanitize.md` 已知缺口。核对于 2026-09-28。
 - ARCH-03：start-stream 单 handler 内联 ~1200 行 6 阶段（production.ts:582-1826）
 - ARCH-04：331KB 静态治理目录随编辑器 chunk 下发（EditorView.tsx:77 唯一用途是一次标题查找）
 - COVERAGE-03：governedGenerateText（LLM 唯一入口）行为分支仅静态正则守卫（governed-llm.ts:22）

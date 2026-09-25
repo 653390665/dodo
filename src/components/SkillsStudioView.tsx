@@ -129,6 +129,7 @@ import {
   getCapabilityConfigurationBaselineToken,
   loadLatestCapabilityConfigurationSession,
 } from '../lib/capability-configuration-session';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 type SkillsStudioNavigateContext = {
   capabilityApplied?: boolean;
@@ -830,9 +831,7 @@ export function SkillsStudioView({
     return Boolean(
       ((manifest?.kind === 'skill-card' && manifest.runtimeStatus === 'active') || !manifest) &&
       Boolean(skill.deconstructionCardType) &&
-      skill.isRuntimeReady === true &&
-      skill.sanitizationStatus === 'runtime-ready' &&
-      skill.runtimeStatus === 'active'
+      isRuntimeReadyAsset(skill)
     );
   };
 

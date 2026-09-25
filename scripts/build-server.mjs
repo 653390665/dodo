@@ -18,6 +18,7 @@ await esbuild.build({
   entryPoints: ['server.ts'],
   bundle: true,
   platform: 'node',
+  // target node20 = esbuild 输出语法基线；实际运行时版本以 package.json engines / .nvmrc 为准（M7 复核 2026-09-28）。
   target: 'node20',
   format: 'cjs',
   outfile: 'dist-electron/server.cjs',

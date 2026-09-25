@@ -144,6 +144,8 @@ digraph lifecycle_states {
         u_idea  [label="idea_fragments.status\nraw → expanded 已证实\n'converted' 无写入方", fillcolor="#33272a", fontcolor="#f8bbd0"];
         u_setup [label="SetupTaskStatus\n'empty' / 'drafted' 已证实\n'confirmed' 无写入方", fillcolor="#33272a", fontcolor="#f8bbd0"];
         u_rev   [label="ReviewIssue.status\n7 个字面量，仅前端置位\n无任何服务端路由改写", fillcolor="#33272a", fontcolor="#f8bbd0"];
+        u_run_rej [label="chapter_production_runs.status\n'rejected' 无写入方（M9 处置③）\n语义=保留旧正文后弃用 run", fillcolor="#33272a", fontcolor="#f8bbd0"];
+        u_run_rej -> note1 [style=invis];
         u_novel [label="novels.status\nongoing / completed / hiatus\n仅 CRUD 透传，无状态机代码", fillcolor="#33272a", fontcolor="#f8bbd0"];
     }
 

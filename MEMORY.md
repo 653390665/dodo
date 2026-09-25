@@ -1,6 +1,6 @@
 # MEMORY.md
 
-InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在 `docs/plans/README.md` 与各计划文档**——本文件只放长期事实与指针,不复制会漂移的状态。
+InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在根 `plans/README.md`(主账:历史轮次 + 计划 001 起)与各计划文档**;`docs/plans/README.md` 只是「能力卡整合轮 001–014」的专题账本(双账本问题登记为 plan 191 的 DOCS-3)。——2026-09-28 更正指针,本文件只放长期事实与指针,不复制会漂移的状态。
 
 ## 工作约定(长期有效)
 

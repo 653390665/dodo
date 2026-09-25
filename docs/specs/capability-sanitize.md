@@ -35,6 +35,9 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
   （`onSanitize` 仅在 `isSanitizeRequiredAsset` 为真时展示）。
 - 消毒数据源：`SANITIZED_SKILL_COPIES`（`shared/lib/public-skill-catalog.ts`，生成产物；
   其模板与生成逻辑在 `scripts/generate-public-catalog.ts`）。
+- **判据单源**：`shared/lib/capability-runtime-readiness.ts`（`isRuntimeReadyAsset` /
+  `hasRuntimeReadySanitization`，M5② 收口）。「这张卡能不能用」的三元判定只此一处，禁止再手抄
+  比较；守卫 `tests/capability-runtime-readiness.test.ts` 会扫描仓内源码。
 
 ## 守护测试
 
@@ -45,6 +48,11 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
 
 ## 已知缺口
 
+- **准入判据单源化已完成（M5②，2026-09-28）**：`isRuntimeReady && runtimeStatus === 'active' &&
+  sanitizationStatus === 'runtime-ready'` 原本被手抄在 14 处前后端调用点，现全部改引用
+  `shared/lib/capability-runtime-readiness.ts`（定义处 1，手抄 0）。**剩余面（未一并单源）**：
+  `isWhiteLabeled` / `grade` / `score` / `placementTier` / `deconstructionCardType` 等附加准入条件
+  仍散在各投影函数内，属下一步结构收口。
 - 消毒运行时端点（`/sanitize` 类）无自动化 E2E 覆盖（plan 213 执行记录：010 用例随单源化删除，
   端点保留）。
 - `PROMPT_GOVERNANCE_CATALOG`（`prompt-governance-catalog.ts`，治理注册表源）与

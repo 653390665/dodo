@@ -221,6 +221,13 @@ export interface ProductionExecutionReceipt {
   }>;
 }
 
+/**
+ * 章节生产 run 的状态集合。
+ *
+ * `'rejected'` 属「声明未接线」（remediation-plan M9 处置③，2026-09-28 登记）：全仓未找到写入方，
+ * 类型层保留以备将来接线；「作者拒绝一次生产」的现行语义 = 保留旧正文、run 停留在
+ * review_required 后被弃用。判读规则见 `docs/architecture/lifecycle-states.dot` ③ 区。
+ */
 export type ChapterProductionRunStatus =
   'running' | 'review_required' | 'applied' | 'rejected' | 'failed';
 

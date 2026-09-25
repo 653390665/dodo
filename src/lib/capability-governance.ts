@@ -16,6 +16,7 @@ import { CARD_STAGE_MAP } from '../../shared/types/capability-execution';
 import type { CapabilityManifestEntry } from '../../shared/types/capability-manifest';
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import type { CapabilityStage } from '../../shared/types/capability-execution';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 /** Canonical user-facing capability families. Legacy kinds are read-only compatibility values. */
 export type GovernanceCapabilityType =
@@ -163,9 +164,7 @@ function isGovernedCatalogCardClone(skill: Skill): boolean {
     manifest.runtimeStatus === 'active' &&
     manifest.sourceType === skill.sourceType &&
     manifest.deconstructionCardType === skill.deconstructionCardType &&
-    skill.isRuntimeReady === true &&
-    skill.sanitizationStatus === 'runtime-ready' &&
-    skill.runtimeStatus === 'active'
+    isRuntimeReadyAsset(skill)
   );
 }
 
@@ -180,9 +179,7 @@ export function getTrustedSessionCardIds(ids: string[], savedSkills: Skill[] = [
   const trusted = new Set(
     PROMPT_GOVERNANCE_CATALOG.filter(
       (asset) =>
-        asset.runtimeStatus === 'active' &&
-        asset.isRuntimeReady === true &&
-        asset.sanitizationStatus === 'runtime-ready' &&
+        isRuntimeReadyAsset(asset) &&
         Boolean(asset.deconstructionCardType)
     ).map((asset) => asset.id)
   );
@@ -205,9 +202,7 @@ export function getTrustedSessionCardIds(ids: string[], savedSkills: Skill[] = [
 export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
   return PROMPT_GOVERNANCE_CATALOG.filter(
     (asset) =>
-      asset.runtimeStatus === 'active' &&
-      asset.isRuntimeReady === true &&
-      asset.sanitizationStatus === 'runtime-ready' &&
+      isRuntimeReadyAsset(asset) &&
       Boolean(asset.deconstructionCardType)
   ).map((asset) => ({
     id: asset.id,
@@ -247,9 +242,7 @@ export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
   return PROMPT_GOVERNANCE_CATALOG.filter(
     (asset) =>
       asset.primaryCategory === 'quality-guardrail' &&
-      asset.runtimeStatus === 'active' &&
-      asset.isRuntimeReady === true &&
-      asset.sanitizationStatus === 'runtime-ready' &&
+      isRuntimeReadyAsset(asset) &&
       asset.placementTier !== 'core-default' &&
       asset.sourceGroup !== 'test-fixture'
   ).map((asset) => ({
@@ -415,9 +408,7 @@ export function getOptionalStyleAssets(stage?: GovernanceStage): CuratedProductS
   return RUNTIME_STYLE_CATALOG.filter(
     (asset) =>
       asset.placementTier === 'optional-style' &&
-      asset.runtimeStatus === 'active' &&
-      asset.isRuntimeReady === true &&
-      asset.sanitizationStatus === 'runtime-ready' &&
+      isRuntimeReadyAsset(asset) &&
       asset.sourceGroup !== 'test-fixture' &&
       // Plan 232：整名只有品牌词的卡经白标清洗后标题为空，无身份不入货架。
       sanitizeWhiteLabelText(asset.title).trim().length > 0 &&

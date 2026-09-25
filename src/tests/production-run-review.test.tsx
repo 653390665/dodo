@@ -339,6 +339,29 @@ describe('ProductionRunReview', () => {
     expect(screen.queryByText('undefined/100')).toBeNull();
   });
 
+  test('flags a legacy fallback run in production history without a degradation field', async () => {
+    const legacyFallbackRun = createRun('history-fallback', 'review_required', 'preview');
+    legacyFallbackRun.continuityReport.degradation = undefined;
+    legacyFallbackRun.continuityReport.auditMeta = { status: 'not_run', source: 'fallback' };
+    listChapterProductionRunsMock.mockResolvedValue([legacyFallbackRun]);
+
+    renderReview(null, false);
+
+    expect(await screen.findByText(/含降级/)).toBeTruthy();
+  });
+
+  test('prefers the recorded degradation sources over the audit source in production history', async () => {
+    const recordedRun = createRun('history-recorded', 'review_required', 'preview');
+    recordedRun.continuityReport.degradation = { beatsSource: 'model', draftSource: 'model' };
+    recordedRun.continuityReport.auditMeta = { status: 'not_run', source: 'fallback' };
+    listChapterProductionRunsMock.mockResolvedValue([recordedRun]);
+
+    renderReview(null, false);
+
+    expect(await screen.findByText('history-recorded intent')).toBeTruthy();
+    expect(screen.queryByText(/含降级/)).toBeNull();
+  });
+
   test('hides the legacy start action when writing-style governance owns generation', () => {
     listChapterProductionRunsMock.mockResolvedValue([]);
     render(

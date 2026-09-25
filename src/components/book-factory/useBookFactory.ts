@@ -38,6 +38,7 @@ import {
   type WritingStyleMode,
   type WritingStyleResolution,
 } from '../../lib/writing-style-client';
+import { isRuntimeReadyAsset } from '../../../shared/lib/capability-runtime-readiness.js';
 
 const STAGE_SLOT: Record<CapabilityStage, number> = { planner: 0, writer: 1, critic: 2 };
 
@@ -129,11 +130,6 @@ export interface ProjectSkillDeckSelection {
 }
 
 function isRuntimeReadyDeckCard(card: Skill): boolean {
-  const metadata = card as Skill & {
-    isRuntimeReady?: boolean;
-    sanitizationStatus?: string;
-    runtimeStatus?: string;
-  };
   const hasExecutableRule = [
     card.style,
     card.pacing,
@@ -152,10 +148,8 @@ function isRuntimeReadyDeckCard(card: Skill): boolean {
     authorizedSource &&
     card.accessTier !== 'paid' &&
     hasExecutableRule &&
-    metadata.deconstructionCardType &&
-    metadata.isRuntimeReady === true &&
-    metadata.sanitizationStatus === 'runtime-ready' &&
-    metadata.runtimeStatus === 'active'
+    card.deconstructionCardType &&
+    isRuntimeReadyAsset(card)
   );
 }
 

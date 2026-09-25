@@ -10,6 +10,7 @@ import {
   getRejectedPreferenceRoles,
 } from '../../shared/lib/preference-flywheel';
 import { collectSkillRoleKeys } from '../../shared/lib/skill-language';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 export interface FusionSuggestionPair {
   mainSkill: Skill;
@@ -63,9 +64,7 @@ function isAuthorizedRuntimeCard(skill: Skill): boolean {
     !(skill.accessTier === 'paid' && skill.sourceType !== 'licensed') &&
     typeof skill.sourceType === 'string' &&
     ['built-in', 'licensed', 'plaza', 'book-extracted'].includes(skill.sourceType) &&
-    (skill as Skill & { isRuntimeReady?: boolean }).isRuntimeReady === true &&
-    (skill as Skill & { sanitizationStatus?: string }).sanitizationStatus === 'runtime-ready' &&
-    (skill as Skill & { runtimeStatus?: string }).runtimeStatus === 'active' &&
+    isRuntimeReadyAsset(skill) &&
     hasRule
   );
 }

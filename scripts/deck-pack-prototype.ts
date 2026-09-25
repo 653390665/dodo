@@ -13,6 +13,7 @@ import { createSkill, getSkill, listSkills } from '../server/lib/db/skills.ts';
 import { getDb } from '../server/lib/db-instance.ts';
 import { sanitizeWhiteLabelText } from '../shared/lib/public-skill-catalog.ts';
 import type { Skill } from '../shared/types/skills.ts';
+import { isRuntimeReadyAsset } from '../shared/lib/capability-runtime-readiness.js';
 
 let failures = 0;
 function check(name: string, cond: boolean, detail = ''): void {
@@ -155,9 +156,7 @@ for (const orig of fixtures) {
   const govRow = readGovernanceColumns(newId);
   check(
     `P10 ${orig.id} runtime 治理落库真值=active+runtime-ready+book-extracted`,
-    back.runtimeStatus === 'active' &&
-      back.sanitizationStatus === 'runtime-ready' &&
-      back.isRuntimeReady === true &&
+    isRuntimeReadyAsset(back) &&
       back.sourceType === 'book-extracted' &&
       govRow.runtime_status === 'active' &&
       govRow.sanitization_status === 'runtime-ready' &&

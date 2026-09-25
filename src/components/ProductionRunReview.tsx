@@ -34,6 +34,32 @@ const STATUS_LABELS: Record<string, string> = {
   failed: '失败',
 };
 
+/**
+ * Plan M4（2026-09-28 复核）：降级溯源唯一派生口径。
+ *
+ * 记录字段优先：run 的 `continuityReport.degradation`（新 run 落库时写入）。
+ * 历史存量兜底：早期纯保底 run 无 degradation 字段，但 `auditMeta.source === 'fallback'`
+ * ⇒ 整条流程都走保底，同样应亮「含降级」。详情面板与生产历史列表共用本函数，避免两处口径漂移。
+ */
+function deriveRunDegradation(report?: {
+  degradation?: { beatsSource?: 'fallback' | 'model'; draftSource?: 'fallback' | 'model' } | null;
+  auditMeta?: { source?: 'fallback' | 'model' } | null;
+} | null): {
+  beatsSource?: 'fallback' | 'model';
+  draftSource?: 'fallback' | 'model';
+  degraded: boolean;
+} {
+  const inferredFromAudit: 'fallback' | undefined =
+    report?.auditMeta?.source === 'fallback' ? 'fallback' : undefined;
+  const beatsSource = report?.degradation?.beatsSource ?? inferredFromAudit;
+  const draftSource = report?.degradation?.draftSource ?? inferredFromAudit;
+  return {
+    beatsSource,
+    draftSource,
+    degraded: beatsSource === 'fallback' || draftSource === 'fallback',
+  };
+}
+
 export function ProductionRunReview({
   run,
   userIntent,
@@ -107,12 +133,11 @@ export function ProductionRunReview({
   const auditNeedsConfirmation = auditStatus === 'unknown' || auditStatus === 'not_run';
   // Plan M4：分镜/正文徽标统一派生——displayRun 的 DB 字段优先，直播 prop 兜底，
   // 历史存量纯保底 run（无 degradation 字段）从 auditMeta.source 推断。
-  const effectiveBeatsSource =
-    displayRun?.continuityReport.degradation?.beatsSource ??
-    (auditSource === 'fallback' ? 'fallback' : beatsSource);
-  const effectiveDraftSource =
-    displayRun?.continuityReport.degradation?.draftSource ??
-    (auditSource === 'fallback' ? 'fallback' : draftSource);
+  // Plan M4（2026-09-28 复核）：详情面板与生产历史共用同一派生口径；
+  // 直播 prop（beatsSource/draftSource）仅在 run 记录与 auditMeta 都缺来源时兜底。
+  const runDegradation = deriveRunDegradation(displayRun?.continuityReport);
+  const effectiveBeatsSource = runDegradation.beatsSource ?? beatsSource;
+  const effectiveDraftSource = runDegradation.draftSource ?? draftSource;
   const hasVerifiedScore =
     (auditStatus === 'pass' || auditStatus === 'fail') &&
     typeof displayRun?.continuityReport.score === 'number' &&
@@ -657,9 +682,7 @@ export function ProductionRunReview({
                       >
                         {STATUS_LABELS[item.status] || item.status}
                       </span>
-                      {item.continuityReport.degradation &&
-                      (item.continuityReport.degradation.beatsSource === 'fallback' ||
-                        item.continuityReport.degradation.draftSource === 'fallback') ? (
+                      {deriveRunDegradation(item.continuityReport).degraded ? (
                         <span
                           className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700"
                           title="该次生产中部分阶段降级为基础模板"

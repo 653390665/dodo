@@ -1,7 +1,26 @@
 # 处置计划（按优先级，每条带验收）
 
 来源：`architecture-review.md`。排序依据 = 零容差项优先（作品数据完整性、白标合规）→ 恢复可信反馈回路 → 结构债清账。
-工作量记法 S/M/L 指改动面，不是等待时长。**本轮未执行任何一项**：用户要求的是诊断，M1/M3/M4 属配置与忽略规则改动，等一句确认再动。
+工作量记法 S/M/L 指改动面，不是等待时长。
+
+> **复核于 2026-09-28（HEAD 8a8afb7）**：「本轮未执行任何一项」指 2026-09-18 诊断轮。此后各条已被分批执行，
+> 下列状态以**代码取证**为准（不采信文档自述）；❌ 未做 / ◐ 部分 / ✅ 已做。
+>
+> | 项 | 状态 | 证据（2026-09-28） |
+> |---|---|---|
+> | M1 静态门 | ✅ | `eslint.config.mjs` ignores 含 `.tdai`；`package.json:26` lint 作用域 = `server src shared tests scripts`；`npm run lint` exit 0 |
+> | M2 会话隔离 | ◐ | 未采用 worktree；实践=每单元提交 + 提交前清点工作区（worktree clean）。无竞争的性能基线已可取得（全量后端 86–120s） |
+> | M3 仓库卫生 | ✅ | `.gitignore` 含 `gui-test-screenshots/`；`git ls-files '*.png'` = 0（85 张截图从未入库）；`plans/round4*`、`plans/246-249-round42.md` 已入库 |
+> | M4 降级诚实性 | ✅ | 降级溯源单源 `deriveRunDegradation`（`src/components/ProductionRunReview.tsx`，DB degradation → `auditMeta.source === 'fallback'` → 直播 prop），详情面板与生产历史列表共用；两条历史用例已补（存量纯保底 run 亮「含降级」／记录字段优先不误报），`src/tests/production-run-review.test.tsx` 16/16 |
+> | M5① 竞品词 | ✅ | `shared/lib/prompt-sanitizer.ts:152` 竞品正则并入 + 断言用例 |
+> | M5② 判据单源 | ✅ | 新模块 `shared/lib/capability-runtime-readiness.ts`；手抄判据调用点 14 → 0；守卫 `tests/capability-runtime-readiness.test.ts` |
+> | M5③ 规格诚实描述 | ✅ | `docs/specs/capability-sanitize.md` 已知缺口段 2026-09-28 改写（含剩余面） |
+> | M6 打包态模型路径 | ❌ | `server/embedding.ts` 仍用 transformers.js 默认缓存；需先决定随包附权重或首启联网（产品决策） |
+> | M7 版本声明 | ◐ | `package.json` engines 已有（`>=22.0.0`）；本轮补 `.nvmrc`/`.node-version`（22）与 esbuild target 注释；npm v12.0.2 vs node 22.22.0 的处置仍需操作者决定 |
+> | M8 台账指针 | ✅ | 本条 ARCH-01 终态已回填根 `plans/README.md`；`MEMORY.md` 权威指针更正；`TOOLS.md` npm 与权威指针条目更正 |
+> | M9 死枚举 | ✅ | `shared/types/novel.ts` `'rejected'` 加 JSDoc 声明未接线；`docs/architecture/lifecycle-states.dot` ③ 区补条目（处置③） |
+
+（原句保留在此供对照：「本轮未执行任何一项」——用户要求的是诊断，M1/M3/M4 属配置与忽略规则改动，等一句确认再动。）
 
 ---
 

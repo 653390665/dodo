@@ -3,6 +3,7 @@ import type {
   SanitizationHits,
   PromptCategoryV2,
 } from '../types/prompt-assets-governed.js';
+import { hasRuntimeReadySanitization } from './capability-runtime-readiness.js';
 
 /**
  * 物理抹除水印清洗分析器 (White-Label Watermark Sanitizer & Analyzer)
@@ -288,7 +289,7 @@ export function validateAssetV2(asset: GovernedPromptAsset): boolean {
   }
 
   // 3. 运行时就绪准入控制 (Runtime-ready checks)
-  if (asset.sanitizationStatus === 'runtime-ready') {
+  if (hasRuntimeReadySanitization(asset)) {
     if (!asset.isWhiteLabeled || !asset.isRuntimeReady) {
       return false;
     }

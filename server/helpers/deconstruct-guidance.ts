@@ -4,6 +4,7 @@ import { CURATED_PRODUCT_SKILLS } from '../../shared/lib/curated-product-skills.
 import { getCatalogCapabilityManifest } from '../../shared/lib/capability-manifest-catalog';
 import { resolveCuratedTechniquePrompt } from './curated-skill-runtime';
 import * as db from '../lib/db';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 /**
  * 拆书指导卡信任解析（capability-sanitize 不变式的服务端落点）。
@@ -33,9 +34,7 @@ function isTrustedSavedDeconstructCard(skill: Skill): boolean {
   return Boolean(
     skill.deconstructionCardType &&
       skill.version > 0 &&
-      skill.isRuntimeReady === true &&
-      skill.sanitizationStatus === 'runtime-ready' &&
-      skill.runtimeStatus === 'active' &&
+      isRuntimeReadyAsset(skill) &&
       hasExecutableRule(skill)
   );
 }
@@ -105,9 +104,7 @@ function resolveTrustedDeconstructSkillById(id: string): Skill | null {
   const asset = PROMPT_GOVERNANCE_CATALOG.find((entry) => entry.id === id);
   if (
     asset?.deconstructionCardType &&
-    asset.runtimeStatus === 'active' &&
-    asset.isRuntimeReady === true &&
-    asset.sanitizationStatus === 'runtime-ready' &&
+    isRuntimeReadyAsset(asset) &&
     typeof asset.template === 'string' &&
     asset.template.trim().length > 0
   ) {

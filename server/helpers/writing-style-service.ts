@@ -56,6 +56,7 @@ import type {
   ExecutionTechniques,
 } from '../../shared/types/capability-execution.js';
 import { getDatabaseGeneration } from '../lib/db-instance.js';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 export interface WritingStyleRequestInput {
   chapterId?: string;
@@ -1123,12 +1124,7 @@ function stageForGovernedAsset(asset: GovernedPromptAsset): CapabilityStage | nu
 function isRuntimePromptAsset(
   asset: GovernedPromptAsset | undefined
 ): asset is GovernedPromptAsset {
-  return Boolean(
-    asset &&
-    asset.isRuntimeReady &&
-    asset.runtimeStatus === 'active' &&
-    asset.sanitizationStatus === 'runtime-ready'
-  );
+  return Boolean(asset) && isRuntimeReadyAsset(asset);
 }
 
 function isConfigurableGuardrailAsset(
@@ -1147,11 +1143,7 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
   const step = flow?.steps.find((item) => item.id === currentStep);
   if (!step) return null;
   const asset = PROMPT_GOVERNANCE_CATALOG.find((item) => item.id === step.assetId);
-  const assetRunnable = Boolean(
-    asset?.isRuntimeReady &&
-    asset.runtimeStatus === 'active' &&
-    asset.sanitizationStatus === 'runtime-ready'
-  );
+  const assetRunnable = isRuntimeReadyAsset(asset);
   // Plan 261 修复⑬：壳资产不注入流程步骤 prompt——小飞鸡流程的"脑洞灵感闪耀"
   // 步骤资产是引用壳，挂到 writer 阶段等于让写手收到"围绕书名简介引擎执行"
   // 的错位指令（run S/T 崩坏主因之一）。
@@ -1319,14 +1311,7 @@ function buildTechniquesResilient(ids: string[]): {
       runtimePrompt !== 'INKFLOW_CURATED_RUNTIME_DECOUPLED_PLACEHOLDER'
         ? runtimePrompt
         : catalog?.template;
-    const canRun = catalog
-      ? Boolean(
-          catalog.isRuntimeReady &&
-          catalog.runtimeStatus === 'active' &&
-          catalog.sanitizationStatus === 'runtime-ready' &&
-          prompt
-        )
-      : Boolean(prompt);
+    const canRun = catalog ? Boolean(isRuntimeReadyAsset(catalog) && prompt) : Boolean(prompt);
     if (!canRun) {
       warnings.push(`TECHNIQUE_NOT_RUNTIME_READY:${id}`);
       continue;

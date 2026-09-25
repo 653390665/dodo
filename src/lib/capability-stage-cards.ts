@@ -10,6 +10,7 @@ import {
   CURATED_PRODUCT_SKILLS,
   PUBLIC_SKILL_GOVERNANCE_CATALOG,
 } from '../../shared/lib/public-skill-catalog';
+import { isRuntimeReadyAsset } from '../../shared/lib/capability-runtime-readiness.js';
 
 export type AuthorFacingCapabilityCardCategory =
   '文风卡' | '结构卡' | '世界观卡' | '审稿卡' | '精修卡' | '护栏卡';
@@ -232,9 +233,7 @@ function getWriterGuardrailIds(configuredIds: string[]): string[] {
     const asset = PUBLIC_SKILL_GOVERNANCE_CATALOG.find((candidate) => candidate.id === id);
     return (
       asset &&
-      asset.isRuntimeReady &&
-      asset.runtimeStatus === 'active' &&
-      asset.sanitizationStatus === 'runtime-ready' &&
+      isRuntimeReadyAsset(asset) &&
       (asset.deconstructionCardType
         ? cardTypeSupportsStage(asset.deconstructionCardType, 'writer')
         : GOVERNED_STAGE_MAP[asset.stage] === 'writer')
