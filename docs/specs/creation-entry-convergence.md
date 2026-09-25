@@ -1,7 +1,7 @@
 # 规格：创作入口定位收敛（「首页」×「AI 协作」）
 
 Labels: ready-for-agent
-Status: 待确认（test seams 需实现者复核）
+Status: 已交付（2026-09-28 复核：实现随 commit `9a2c234` 落库，定向测试 `src/tests/creation-entry-convergence.test.tsx` 7/7 + `src/tests/app-shell-capability-launch.test.tsx` 20/20 全绿）
 Source: 会话 JTBD 冲突分析（2026-09）
 
 ## Problem Statement

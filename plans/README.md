@@ -609,3 +609,21 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **T4 db-transport 重连零直测 / T5 shared/lib 六库零直测 / T6 job 测试真 sleep flaky / T7 components.test.tsx 巨型杂烩**：测试建设 backlog，随触碰对应模块时补。
 - **D2 npm 12 与 Node 22.22 版本错配告警**：环境项，已随 255 在 MEMORY.md 登记。
 - **查证干净、勿再作为发现上报**：渲染层 XSS 面（ReactMarkdown 安全默认/无 dangerouslySetInnerHTML）、Electron 四开关 + IPC sender 校验、SQL 全参数化、db 导入校验链、认证 fail-closed、zip/docx 预检、dev-token 服务端双重 opt-in、16 个 INKFLOW_* env 无 fail-open、生产运行时依赖零漏洞（5 条通告均在 dev 工具链）。
+
+---
+
+## Round 46（2026-09-28）：能力卡 / 链路 / 图谱收口 —— P0 剩余 + 链路真实化 + 长尾（262）
+
+来源：会话「诊断审查项目进度与遗留问题」取证（`scratch/auditA-fields.py`、`auditB-prod.py`、`auditC-chains.py`、`auditD-dead.py`、`auditE-effect.ts`、`capB-chain.ts`、`capD-sanitize.ts`、`g2-guard-probe.ts`）+ 规格 `docs/specs/capability-flow-graph-consolidation.md` 各节「残余」汇总。前置：Plan 261 知识谱系、四批次收敛 `7e0efc7`。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 262 | 能力卡 / 链路 / 图谱收口（plans/262-capability-flow-graph-closeout.md）：批次 A 在制品收口（提交 P0-① 单元 + creation-entry 规格状态回填）；批次 B P0 剩余（B1 护栏假控制语义、B2 评分口径显性化、B3 清洗滞留清账）；批次 C 链路真实化（C1 cardRef 挂真实步骤、C2 旧 qualityGate 收敛、C3 人物/道具/副本维度补卡、C4 死字段与半接线清理、C5 步骤引用图谱能力卡）；批次 D 长尾（14 步仅引导、伏笔面板入口、章节回滚 stale、记忆健康度补完、长篇基线补完、三字段 UI 写入口）；批次 E 需拍板（push 凭证、M6 打包模型路径、M7 Node/npm 版本、M2 会话隔离、双账本 DOCS-3、真实数据缺口、架构图集漂移） | IN PROGRESS | 261、7e0efc7 |
+
+### Round 46 关键事实（防重复审计）
+
+- P0-① 已交付：装配三字段（`projectCards`/`chapterCards`/`singleRunCard`）运行时接线，`tests/capability-assembly-runtime.test.ts` 8/8、装配单测 11/11、后端全量 1396/1396、快照六场景逐项不变（规格 §4.2.3）。残余：三字段无界面写入口。
+- 效果矩阵实测：只有「卡组主卡 / 作品技法 / 切换链路」真正改变三阶段 prompt；`projectCards`/`chapterCards`/`singleRunCard` only 场景 Δ 全 0（接线前）；`guardrailIds` 配 core-default 卡 Δ0（假控制）。
+- 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
+- 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处。
+- 清洗面：179→132 公开；拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本。
