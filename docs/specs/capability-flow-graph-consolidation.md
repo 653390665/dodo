@@ -894,6 +894,38 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - 伏笔任务/回收安排进的是 critic 文本清单，不含结构化判定；`payoffNote` 取台账首行，多条伏笔时仍是拼接文本。
 - `foreshadowingTasks` 为描述句拆分结果，无去重与优先级。
 
+### 5.19 步骤引用图谱能力卡（Plan 262 C5）
+
+**问题**：`knowledge-extract` / `foreshadow-settle` 两张图谱能力卡（§5.5）已有 manifest、执行内核与维护面板入口，却没有任何链路步骤引用——「图谱维护」在链路推进里不可见（批次 C 第 4 条）。
+
+**模型：能力引用 ≠ 卡片槽位（两条语义相反的通道）**
+
+| 通道 | 字段 | 行为 |
+| --- | --- | --- |
+| 卡片槽位（§5.1） | `cardRef: { role, stages, cardId? }` | 卡片正文**进**声明阶段 prompt（写作规则） |
+| 能力引用（本节） | `capabilityRef: { assetId }` | **不注入任何文本**；只声明「本步可触发一次确定性动作」并暴露可执行元数据 |
+
+新增 `shared/lib/flow-step-capability-ref.ts`：`resolveFlowStepCapability(step, deps?)` → `{ resolution | warning }`，判定顺序与执行内核同源——manifest 缺失 → `FLOW_STEP_CAPABILITY_UNRESOLVED`；非运行类工具卡（`isRunnableToolManifest` 假）→ `_NOT_RUNNABLE`；运行类但不在 `KNOWLEDGE_CAPABILITY_IDS`（服务端无内核）→ `_NO_KERNEL`；`allowedScopes` 不含 `project` → `_SCOPE_INVALID`；货架资产缺失 / 非 runtime-ready / 引用壳 → `_UNRESOLVED` / `_NOT_RUNTIME_READY` / `_SHELL`。未声明→无诊断，解析失败不静默、也不阻断流程推进（回退旧行为）。`resolution = { assetId, title, kind, action, stages, scope }`（`scope` 固定 `project`）；执行面单源常量 `FLOW_STEP_CAPABILITY_ENDPOINT = 作品级 knowledge-capabilities run 路由`。
+
+**目录落点（两步，均为尾步追加，不动既有编号）**
+
+| 链路 | 步骤 | 引用卡 | stage | gate |
+| --- | --- | --- | --- | --- |
+| 拆书 `book-deconstruction-flow` | `book-deconstruction-flow-step3` 知识谱系抽取（素材 → 图谱） | `knowledge-extract` | planner | advisory（覆盖率数值可读，重复运行新增计数归零） |
+| 小飞鸡 `xiaofeiji-novel-flow` | `xiaofeiji-novel-flow-step9` 伏笔回收诊断 | `foreshadow-settle` | critic | advisory（未回收伏笔清单可读，含欠账条目与建议动作） |
+
+两步均 `navigateTo: bible`、`switchAllowed: true`（原 step2 / step8 的 `nextStepId` 改接新尾步）；新输出类型 `knowledge-lineage` / `foreshadow-checklist` 登记进 `FLOW_OUTPUT_STAGE_CLASS`（planning / review），否则 stage 语义表守门测试报 drift。
+
+**提示词抑制（关键不变式）**：`server/helpers/writing-style-service.ts` 的 `buildFlowStep` 内 `assetPrompt = assetUsable && !capability ? …（步骤合同 + 【可运行资产 Prompt】 + 卡正文） : stepContract;` —— 能力引用步骤只保留步骤合同（【流程步骤】【步骤输入】【预期输出】【质量门】）；工具卡正文既不进 planner / writer / critic 规则数组（`stages: []` 通道），也不进步骤 prompt 与 `stagePrompts`。快照（`ExecutionFlowStep`）新增只读元数据 `capabilityRef` / `capabilityWarning`，写作侧不消费。
+
+**运行入口（推进页）**：`src/components/book-factory/PlanningTab.tsx` 在能力步骤渲染「可执行能力」区块（`step-capability-run` 按钮 + `step-capability-result` 结果 / `step-capability-error` 错误），点击调 `runKnowledgeCapability(novelId, assetId)` → 服务端同一动作（带代际）；结果文案由 `summarizeKnowledgeCapabilityResult` 单源（coverage：细纲条目 / 台账新增 / 图谱边 / 覆盖角色·道具·地点；checklist：未回收 N 条（其中欠账 M 条）+ 欠账 M 条）。运行态与结果按 `assetId` 派生（切步不留残影），失败展示 `code：message`，不假装成功。
+
+**读数变化**：32 步 → **34 步**；可运行 **19 → 21**（59.4% → **61.8%**）；仅引导 13 不变；`gate` kinds advisory 32 / mechanical 1 / critic 1；`byStage` planner 21 / writer 9 / critic 4；串台对照 34×33=1122；被链路引用的资产 **24 → 26 / 182**；`cardRef` 步仍 6（两条通道互不影响）。
+
+**证据**：`tests/flow-step-capability-ref.test.ts` **6/6**（解析器六类诊断码 / 目录面仅两步且卡在运行白名单 / 集成快照与三层提示不含工具卡正文 / 执行面幂等与摘要）；`src/tests/planning-tab-step-capability.test.tsx` **4/4**（入口可见性 / 两个能力 id 调用 / 成功摘要 / 409 错误码文案）；`src/tests/planning-tab-step-progression.test.tsx` **23/23**（小飞鸡尾步 8 → 9）；后端定向 8 文件 **89/89**；tsc 0 / eslint 0；生成物 `scripts/generate-public-catalog.ts` 重跑 diff +42/−2；后端全量 **1436/1436（+6）**、前端全量 **159 files / 1014 tests（+1 文件 / +5 用例）**、快照六场景逐项不变。
+
+**残余**：能力引用目前只支持「作品级同步动作」（服务端 run 路由仅两张卡，`_NO_KERNEL` 是硬边界，新增内核须同步白名单）；运行结果不落库（确定性动作本身幂等，回执只在界面）；`capabilityRef` 尚无其他消费方（生产回执 / 审计未带该元数据）。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）

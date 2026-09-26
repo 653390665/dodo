@@ -185,7 +185,7 @@ describe('PlanningTab Step Progression', () => {
     expect(onSwitchTab).toHaveBeenCalledWith('outline');
   });
 
-  test('last step (step8) — no nextStep, no navigation', async () => {
+  test('last step (step9) — no nextStep, no navigation', async () => {
     const onPreferenceProfileChange = vi.fn().mockResolvedValue(undefined);
     const onSwitchTab = vi.fn();
 
@@ -193,7 +193,7 @@ describe('PlanningTab Step Progression', () => {
       ...mockNovel,
       projectPreferenceProfile: {
         ...mockNovel.projectPreferenceProfile,
-        tags: ['current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8'],
+        tags: ['current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9'],
       },
     };
 
@@ -210,7 +210,7 @@ describe('PlanningTab Step Progression', () => {
     await clickAdvance();
 
     const saved = onPreferenceProfileChange.mock.calls[0][0];
-    expect(saved.tags).toContain('completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8');
+    expect(saved.tags).toContain('completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9');
     expect(saved.tags).toContain('completed-flow:xiaofeiji-novel-flow');
 
     // No nextStep → no navigation
@@ -280,8 +280,8 @@ describe('PlanningTab Step Progression', () => {
         ...mockNovel.projectPreferenceProfile,
         tags: [
           'completed-flow:xiaofeiji-novel-flow',
-          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
-          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
+          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
         ],
       },
     };
@@ -295,7 +295,7 @@ describe('PlanningTab Step Progression', () => {
     // Banner
     expect(screen.getByText(/全流程已完成/)).toBeDefined();
     // Show last step name
-    expect(screen.getByText('正文去AI润色')).toBeDefined();
+    expect(screen.getByText('伏笔回收诊断')).toBeDefined();
   });
 
   test('completed-flow prevents fallback to step 1 when no current-step tag', () => {
@@ -305,14 +305,14 @@ describe('PlanningTab Step Progression', () => {
         ...mockNovel.projectPreferenceProfile,
         tags: [
           'completed-flow:xiaofeiji-novel-flow',
-          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
         ],
       },
     };
 
     render(<PlanningTab {...defaultProps} novel={completedNovel as any} />);
     expect(screen.queryByText('脑洞灵感闪耀')).toBeNull();
-    expect(screen.getByText('正文去AI润色')).toBeDefined();
+    expect(screen.getByText('伏笔回收诊断')).toBeDefined();
   });
 
   // ── Reset ──
@@ -326,8 +326,8 @@ describe('PlanningTab Step Progression', () => {
         ...mockNovel.projectPreferenceProfile,
         tags: [
           'completed-flow:xiaofeiji-novel-flow',
-          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
-          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
+          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
         ],
       },
     };
@@ -377,9 +377,9 @@ describe('PlanningTab Step Progression', () => {
         ...mockNovel.projectPreferenceProfile,
         tags: [
           'completed-flow:xiaofeiji-novel-flow',
-          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'current-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
           'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step1',
-          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step8',
+          'completed-step:xiaofeiji-novel-flow:xiaofeiji-novel-flow-step9',
         ],
       },
     };
@@ -402,7 +402,7 @@ describe('PlanningTab Step Progression', () => {
   test('displayStepNumber and total steps shown correctly', () => {
     render(<PlanningTab {...defaultProps} />);
     const indicator = screen.getByText(
-      (c) => c.includes('步骤') && c.includes('/') && c.includes('8')
+      (c) => c.includes('步骤') && c.includes('/') && c.includes('9')
     );
     expect(indicator).toBeDefined();
   });
@@ -452,6 +452,7 @@ describe('PlanningTab Step Progression', () => {
     { step: 5, name: '故事细纲与高潮铺设', nextName: '章纲逐章展开', navigateTo: 'planning' },
     { step: 6, name: '章纲逐章展开', nextName: '高质量正文起步', navigateTo: 'production' },
     { step: 7, name: '高质量正文起步', nextName: '正文去AI润色', navigateTo: 'quality' },
+    { step: 8, name: '正文去AI润色', nextName: '伏笔回收诊断', navigateTo: 'bible' },
   ];
 
   test.each(stepNavigationCases)(

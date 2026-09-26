@@ -671,7 +671,8 @@ test('Skill Series Flow sequence progression, steps fields and pointer calculato
   // 1. 验证三大主创作系列注册表完整性与字段
   const xiaofeiji = SKILL_SERIES_FLOWS.find(f => f.id === 'xiaofeiji-novel-flow');
   assert.ok(xiaofeiji);
-  assert.equal(xiaofeiji.steps.length, 8);
+  // 批次 C 第 4 条（Plan 262 C5）：尾部追加 step9「伏笔回收诊断」（可执行工具卡）。
+  assert.equal(xiaofeiji.steps.length, 9);
   for (const s of xiaofeiji.steps) {
     assert.ok(s.id);
     // 批次 C「双门合一」：旧 qualityGate 文案迁入 gate.note，字段本身已删除。
@@ -725,9 +726,14 @@ test('Skill Series Flow sequence progression, steps fields and pointer calculato
   assert.ok(nextStepFrom1);
   assert.equal(nextStepFrom1.id, 'xiaofeiji-novel-flow-step2');
 
-  // case 4.2: currentStage 在尾步骤，无 nextStepId
+  // case 4.2: currentStage 有 nextStepId（小飞鸡链 2026-09-28 追加 step9 伏笔回收诊断）
   const nextStepFrom8 = getNextFlowStep('xiaofeiji-novel-flow', 'xiaofeiji-novel-flow-step8', []);
-  assert.equal(nextStepFrom8, null);
+  assert.ok(nextStepFrom8);
+  assert.equal(nextStepFrom8.id, 'xiaofeiji-novel-flow-step9');
+
+  // case 4.2b: 新增尾步（step9）无 nextStepId
+  const nextStepFrom9 = getNextFlowStep('xiaofeiji-novel-flow', 'xiaofeiji-novel-flow-step9', []);
+  assert.equal(nextStepFrom9, null);
 
   // case 4.3: currentStage 不是步骤 ID (非流程内标识)，Fallback 到第一个未完成的步骤
   const nextStepFallbackEmpty = getNextFlowStep('xiaofeiji-novel-flow', 'review', []);

@@ -1,6 +1,10 @@
 import type { ContextReceipt } from './continuation.js';
 import type { ProjectCapabilityProfile } from './preferences.js';
-import type { EnhancementPackageStep, FlowStepGate } from './prompt-assets-governed.js';
+import type {
+  EnhancementPackageStep,
+  FlowStepCapabilityResolution,
+  FlowStepGate,
+} from './prompt-assets-governed.js';
 
 export type CapabilityStage = 'planner' | 'writer' | 'critic';
 
@@ -106,6 +110,13 @@ export interface ExecutionFlowStep {
   readonly cardStages?: readonly CapabilityStage[];
   /** 槽位诊断（FLOW_STEP_CARD_*；空槽不产生诊断）。 */
   readonly cardWarning?: string;
+  /**
+   * 步骤能力引用解析结果（Plan 262 C5）：本步可触发一次的可执行工具卡元数据。
+   * **不进提示词正文**（与 cardRef / assetId 的文本注入路径无关），供界面运行入口与执行回执展示。
+   */
+  readonly capabilityRef?: FlowStepCapabilityResolution;
+  /** 能力引用诊断（FLOW_STEP_CAPABILITY_*；未声明能力引用时不产生）。 */
+  readonly capabilityWarning?: string;
 }
 export interface ExecutionRoleSkills {
   readonly planner: readonly RoleSkillSnapshot[];

@@ -60,6 +60,8 @@ export const FLOW_OUTPUT_STAGE_CLASS: Readonly<Record<string, FlowStepStageClass
   // 批次 C「维度补卡」：道具与遗物清单、副本（事件单元）表均为规划类产物。
   'artifact-list': 'planning',
   'arc-units': 'planning',
+  // 批次 C 第 4 条（Plan 262 C5）：知识谱系覆盖率报告（规划类）与伏笔回收清单（审稿类）。
+  'knowledge-lineage': 'planning',
   // 正文类
   draft: 'drafting',
   'polished-draft': 'drafting',
@@ -72,6 +74,7 @@ export const FLOW_OUTPUT_STAGE_CLASS: Readonly<Record<string, FlowStepStageClass
   'diagnostic-report': 'review',
   'chapters-with-highlights': 'review',
   'chapters-final-checked': 'review',
+  'foreshadow-checklist': 'review',
 };
 
 const STAGE_BY_CLASS: Readonly<Record<FlowStepStageClass, CapabilityStage>> = {

@@ -30,7 +30,7 @@
 | C2 | 旧 `qualityGate` 收敛 ✅ 已完成 | 旧字段 30 处仍进提示词（`writing-style-service.ts:1159/1202` + `SkillsStudioView.tsx:3361/3369`、`PlanningTab.tsx:340`），新 `gate{kind}` 仅 generic step5/step6 | 双门合一（迁移或删除旧字段），提示词与 UI 同源；快照差异记录 |
 | C3 | 维度补卡 ✅ 已完成 | 链路仅引用 22/179 张；人物 1 步、道具 0、副本 0、创意构思 1/4、审稿 1/3、其他 0/4 | 人物/道具/副本各 ≥1 可运行步骤；`capB-chain.ts` 缺口表更新 |
 | C4 | 死字段/半接线清理 ✅ 已完成（2026-09-28） | `foreshadowingTasks` 构建无消费（`server/helpers/knowledge-lineage-enrich.ts:90/128`）；`payoffNote` 部分消费（`:446`）；`ExecutionSnapshot.skillStack`/`techniques` 写入无读方，`overlays`/`sessionCards` 只进回执（`server/lib/db/product-events.ts:536-593`） | 逐项接线或删除，处置登记规格 |
-| C5 | 步骤引用图谱能力卡 | `knowledge-extract`/`foreshadow-settle` 未被任何链路步骤引用（批次 C 第 4 条） | ≥1 步引用并断言执行面 |
+| C5 | 步骤引用图谱能力卡 ✅ 已完成（2026-09-28） | `knowledge-extract`/`foreshadow-settle` 未被任何链路步骤引用（批次 C 第 4 条） | ≥1 步引用并断言执行面 |
 
 ## 批次 D：长尾（已登记残余）
 
@@ -142,6 +142,18 @@
   后端定向 16 文件 158/158；tsc 0 / eslint 0；后端全量 **1430/1430**（+4）、前端全量 **158 files / 1009 tests**（+1）、快照六场景逐项不变（规格 §5.18）。
 - 残余：快照 `techniques`/`skillStack` 字段仍无运行时读方（消费的是局部变量，本次只补证据面）；伏笔任务为文本清单、无结构化判定；
   `payoffNote` 取台账首行（多条伏笔时拼接文本）。
+
+### C5 步骤引用图谱能力卡 — 2026-09-28
+
+- 交付：① 新增能力引用解析面 `shared/lib/flow-step-capability-ref.ts`（六类诊断码；判定与执行内核同源：运行白名单 → 运行类工具卡 → `runtimeStatus` → `allowedScopes` 含 `project` → 货架 runtime-ready → 非壳）；
+  ② 类型与快照接线：`SkillSeriesFlowStep.capabilityRef`、`ExecutionFlowStep.capabilityRef/capabilityWarning`，`buildFlowStep` 暴露只读元数据；
+  ③ 目录落两步：拆书 `book-deconstruction-flow-step3` 知识谱系抽取（`knowledge-extract`，planner）、小飞鸡 `xiaofeiji-novel-flow-step9` 伏笔回收诊断（`foreshadow-settle`，critic），均 advisory 门 + `navigateTo: bible`，原 step2/step8 的 `nextStepId` 改接新尾步；
+  ④ 关键不变式：能力步骤的 `assetPrompt` 只剩步骤合同，工具卡正文不进任何提示词层级；
+  ⑤ 运行入口：`PlanningTab` 「可执行能力」区块 + `runKnowledgeCapability` 客户端 + `summarizeKnowledgeCapabilityResult` 单源摘要（失败显 `code：message`）。
+- 证据：`tests/flow-step-capability-ref.test.ts` 6/6（解析器诊断码 / 目录面 / 集成快照与提示隔离 / 执行面幂等与摘要）；`src/tests/planning-tab-step-capability.test.tsx` 4/4；`src/tests/planning-tab-step-progression.test.tsx` 23/23（尾步 8→9）；后端定向 8 文件 89/89；tsc 0 / eslint 0；生成物重跑 diff +42/−2；
+  后端全量 **1436/1436（+6）**、前端全量 **159 files / 1014 tests（+1 文件 / +5 用例）**、快照六场景逐项不变（规格 §5.19）。
+- 读数：34 步 / 可运行 21（61.8%）/ 仅引导 13；gate kinds advisory 32 + mechanical 1 + critic 1；byStage planner 21 / writer 9 / critic 4；串台对照 34×33=1122；引用资产 26/182。
+- 残余：只支持作品级同步动作（服务端 run 路由仅两张卡，`_NO_KERNEL` 为硬边界）；运行结果不落库；`capabilityRef` 尚无生产回执 / 审计消费方。
 
 ### 登记
 

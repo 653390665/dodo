@@ -645,9 +645,29 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "kind": "advisory",
           "note": "AI腔去化度评测及格 (slop score > 85)"
         },
-        "nextStepId": null,
+        "nextStepId": "xiaofeiji-novel-flow-step9",
         "switchAllowed": true,
         "navigateTo": "quality"
+      },
+      {
+        "id": "xiaofeiji-novel-flow-step9",
+        "stepNumber": 9,
+        "name": "伏笔回收诊断",
+        "description": "读伏笔台账，列出应埋 / 应回收 / 欠账清单，供作者逐条核对回收安排。",
+        "input": "chapter-polished",
+        "output": "foreshadow-checklist",
+        "stage": "critic",
+        "assetId": "foreshadow-settle",
+        "capabilityRef": {
+          "assetId": "foreshadow-settle"
+        },
+        "gate": {
+          "kind": "advisory",
+          "note": "未回收伏笔清单可读（含欠账条目与建议动作）"
+        },
+        "nextStepId": null,
+        "switchAllowed": true,
+        "navigateTo": "bible"
       }
     ]
   },
@@ -910,9 +930,29 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "kind": "advisory",
           "note": "前 3 章核心悬念钩子提炼完毕"
         },
-        "nextStepId": null,
+        "nextStepId": "book-deconstruction-flow-step3",
         "switchAllowed": true,
         "navigateTo": "planning"
+      },
+      {
+        "id": "book-deconstruction-flow-step3",
+        "stepNumber": 3,
+        "name": "知识谱系抽取（素材 → 图谱）",
+        "description": "把已确认资料包的逐章细纲、遗物体系与公理解析入库：伏笔台账、设定实体与图谱边，并回报覆盖率。",
+        "input": "source-book",
+        "output": "knowledge-lineage",
+        "stage": "planner",
+        "assetId": "knowledge-extract",
+        "capabilityRef": {
+          "assetId": "knowledge-extract"
+        },
+        "gate": {
+          "kind": "advisory",
+          "note": "覆盖率数值可读（细纲条目 / 台账新增 / 图谱边），重复运行新增计数归零"
+        },
+        "nextStepId": null,
+        "switchAllowed": true,
+        "navigateTo": "bible"
       }
     ]
   },

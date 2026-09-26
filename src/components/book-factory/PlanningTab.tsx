@@ -34,6 +34,12 @@ import {
   GUIDANCE_ONLY_HINT,
   GUIDANCE_ONLY_LABEL,
 } from '../../../shared/lib/flow-step-guidance.js';
+import { resolveFlowStepCapability } from '../../../shared/lib/flow-step-capability-ref.js';
+import { summarizeKnowledgeCapabilityResult } from '../../../shared/lib/knowledge-capabilities.js';
+import {
+  KnowledgeCapabilityRequestError,
+  runKnowledgeCapability,
+} from '../../lib/knowledge-client';
 import type { FlowStepEvidenceCounts } from '../../../shared/lib/flow-step-gate.js';
 import { useEditorGenerationStore } from '../../stores/editor-generation-store';
 import { useUserIntentStore } from '../../stores/user-intent-store';
@@ -111,6 +117,8 @@ export function PlanningTab({
   const currentStep = currentStepIndex !== -1 ? flow.steps[currentStepIndex] : flow.steps[0];
   const displayStepNumber = currentStepIndex !== -1 ? currentStepIndex + 1 : 1;
   const isLastStep = !currentStep.nextStepId;
+  // 批次 C 第 4 条（Plan 262 C5）：本步声明的可执行工具卡（不注入提示词，只提供运行入口）。
+  const stepCapability = resolveFlowStepCapability(currentStep).resolution;
 
   // PRD Story 5: verify wizard progress against real artifacts. Evidence is
   // keyed by the step's declared `output`; `undefined` means "cannot verify".
@@ -138,6 +146,43 @@ export function PlanningTab({
 
   const [isSavingStep, setIsSavingStep] = React.useState(false);
   const [stepError, setStepError] = React.useState<string | null>(null);
+  // 能力运行态按 assetId 派生存放（避免步骤切换后残留上一步的结果，也不在 effect 里 setState）。
+  const [capabilityRun, setCapabilityRun] = React.useState<{
+    assetId: string;
+    text: string | null;
+    error: string | null;
+  } | null>(null);
+  const [isRunningCapability, setIsRunningCapability] = React.useState(false);
+  const capabilityResult =
+    stepCapability && capabilityRun?.assetId === stepCapability.assetId
+      ? capabilityRun.text
+      : null;
+  const capabilityError =
+    stepCapability && capabilityRun?.assetId === stepCapability.assetId
+      ? capabilityRun.error
+      : null;
+
+  const handleRunCapability = async () => {
+    if (!stepCapability || isRunningCapability) return;
+    const { assetId } = stepCapability;
+    setIsRunningCapability(true);
+    setCapabilityRun({ assetId, text: null, error: null });
+    try {
+      const result = await runKnowledgeCapability(novel.id, assetId);
+      setCapabilityRun({ assetId, text: summarizeKnowledgeCapabilityResult(result), error: null });
+    } catch (error) {
+      setCapabilityRun({
+        assetId,
+        text: null,
+        error:
+          error instanceof KnowledgeCapabilityRequestError
+            ? `${error.code}：${error.message}`
+            : '能力运行失败，请稍后重试。',
+      });
+    } finally {
+      setIsRunningCapability(false);
+    }
+  };
   const nextStep = isLastStep ? null : flow.steps[currentStepIndex + 1] || null;
 
   // 批次 B「质量门判定与推进拦截」：步骤可声明可判定的 gate；未声明 = 不判定（旧行为）。
@@ -397,6 +442,45 @@ export function PlanningTab({
                 <span className="text-xs text-theme-muted leading-relaxed block mt-0.5">
                   {GUIDANCE_ONLY_HINT}
                 </span>
+              </div>
+            ) : null}
+
+            {/* 可执行能力（批次 C 第 4 条）：工具卡不进提示词，只给一个确定性运行入口 */}
+            {stepCapability ? (
+              <div
+                role="status"
+                className="mt-2 max-w-[55ch] rounded-lg border border-theme-accent/25 bg-theme-accent/5 p-2.5"
+              >
+                <span className="text-[10px] font-bold text-theme-accent uppercase tracking-wider block">
+                  可执行能力
+                </span>
+                <span className="text-xs text-theme-muted leading-relaxed block mt-0.5">
+                  {stepCapability.title}：运行一次确定性动作（不改正文，只维护伏笔台账与图谱）。
+                </span>
+                <button
+                  onClick={handleRunCapability}
+                  disabled={isRunningCapability}
+                  data-testid="step-capability-run"
+                  className="mt-2 px-2.5 py-1 rounded-md border border-theme-accent/40 text-[10px] font-semibold text-theme-accent hover:bg-theme-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRunningCapability ? '运行中…' : `运行「${stepCapability.title}」`}
+                </button>
+                {capabilityResult ? (
+                  <span
+                    data-testid="step-capability-result"
+                    className="block mt-1.5 text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400"
+                  >
+                    {capabilityResult}
+                  </span>
+                ) : null}
+                {capabilityError ? (
+                  <span
+                    data-testid="step-capability-error"
+                    className="block mt-1.5 text-[11px] leading-relaxed text-red-600 dark:text-red-400"
+                  >
+                    {capabilityError}
+                  </span>
+                ) : null}
               </div>
             ) : null}
 

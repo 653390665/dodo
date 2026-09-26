@@ -6,7 +6,10 @@
  *
  * 批次 D（2026-09-27）追加只读 `fetchMemoryHealth`：记忆健康度看板四项指标的唯一取数口。
  */
-import type { KnowledgeExtractResult } from '../../shared/lib/knowledge-capabilities';
+import type {
+  KnowledgeCapabilityRunResult,
+  KnowledgeExtractResult,
+} from '../../shared/lib/knowledge-capabilities';
 import type { MemoryHealthMetric } from '../../shared/lib/memory-health';
 import { getDatabaseGenerationSnapshot } from './db-transport';
 
@@ -48,6 +51,15 @@ async function postKnowledgeCapability<T>(
     );
   }
   return payload as T;
+}
+
+/** 通用入口（批次 C 第 4 条，Plan 262 C5）：链路步骤声明的能力卡按 id 触发一次。 */
+export async function runKnowledgeCapability(
+  novelId: string,
+  assetId: string,
+  signal?: AbortSignal
+): Promise<KnowledgeCapabilityRunResult> {
+  return postKnowledgeCapability<KnowledgeCapabilityRunResult>(novelId, assetId, signal);
 }
 
 export async function runKnowledgeExtract(

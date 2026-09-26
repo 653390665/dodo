@@ -26,6 +26,7 @@ import {
   renderFlowStepCardBlock,
   resolveFlowStepCard,
 } from '../../shared/lib/flow-step-card-slot.js';
+import { resolveFlowStepCapability } from '../../shared/lib/flow-step-capability-ref.js';
 import { resolveFlowStepStage } from '../../shared/lib/flow-step-stage.js';
 import { flowStepGatePromptText } from '../../shared/lib/flow-step-gate.js';
 import { resolveFlowStepAvailability } from '../../shared/lib/flow-step-guidance.js';
@@ -1176,6 +1177,10 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
   // 的错位指令（run S/T 崩坏主因之一）。
   const assetIsShell = isShellTemplatePrompt(asset?.template);
   const assetUsable = assetRunnable && !assetIsShell;
+  // 批次 C 第 4 条（Plan 262 C5）：步骤能力引用——可执行工具卡的元数据面。
+  // 只声明动作与展示面，**不进提示词**（工具卡正文不因本字段进入写作规则）。
+  const capabilityAttempt = resolveFlowStepCapability(step);
+  const capability = capabilityAttempt.resolution;
   // 批次 B「步骤卡片槽位」：cardRef 优先，失败/缺省回退上方 assetId 路径（后者逐字节不变）。
   const cardAttempt = resolveFlowStepCard(step);
   const card = cardAttempt.resolution;
@@ -1185,9 +1190,13 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
     `【预期输出】${step.output}`,
     `【质量门】${flowStepGatePromptText(step.gate)}`,
   ].join('\n');
-  const assetPrompt = assetUsable
-    ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
-    : stepContract;
+  // 批次 C 第 4 条（Plan 262 C5）：能力引用步骤的关联资产是「被执行的工具卡」，不是写作指令。
+  // 工具卡正文（触发式动作说明）进 planner/writer 只会变成幻觉源（与 Plan 261 修复⑬ 同类型），
+  // 因此解析出 capabilityRef 时只保留步骤合同；运行入口在界面（POST .../knowledge-capabilities/:id/run）。
+  const assetPrompt =
+    assetUsable && !capability
+      ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
+      : stepContract;
   const cardBlock = card ? renderFlowStepCardBlock(card, stepContract) : undefined;
   const stagePrompts =
     card && cardBlock
@@ -1250,6 +1259,11 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
       : assetRunnable
         ? { warning: 'FLOW_STEP_ASSET_SHELL' }
         : { warning: 'FLOW_STEP_ASSET_UNAVAILABLE' }),
+    ...(capability
+      ? { capabilityRef: capability }
+      : capabilityAttempt.warning
+        ? { capabilityWarning: capabilityAttempt.warning }
+        : {}),
   };
 }
 

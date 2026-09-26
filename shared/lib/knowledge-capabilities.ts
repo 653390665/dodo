@@ -259,3 +259,24 @@ export type KnowledgeCapabilityRunResult = KnowledgeExtractResult | ForeshadowSe
 
 /** 无续写资料包时拒绝重跑（前置校验：明确错误 + 零写入）。 */
 export const KNOWLEDGE_SOURCE_PACK_MISSING = 'KNOWLEDGE_SOURCE_PACK_MISSING';
+
+/**
+ * 能力运行结果 → 界面摘要（运行入口唯一文案源；纯函数，无 IO）。
+ *
+ * 口径与 `KnowledgeMaintenancePanel` 的覆盖率展示一致（区间：细纲/台账/图谱边/覆盖实体），
+ * 但只输出一行摘要 —— 链路步骤里的运行入口不需要铺开十项计数。
+ */
+export function summarizeKnowledgeCapabilityResult(
+  result: KnowledgeCapabilityRunResult
+): string {
+  if (result.kind === 'coverage') {
+    const report = result.coverage;
+    const edges =
+      report.powerEdgesAdded +
+      report.relicEdgesAdded +
+      report.affinityEdgesAdded +
+      report.residenceEdgesAdded;
+    return `细纲条目 ${report.xigangEntries}；台账新增 ${report.ledgerInserted}；图谱边 +${edges}；覆盖角色 ${report.coverage.characters} / 道具 ${report.coverage.items} / 地点 ${report.coverage.locations}`;
+  }
+  return `${result.checklist.summary}；欠账 ${result.checklist.arrears} 条`;
+}

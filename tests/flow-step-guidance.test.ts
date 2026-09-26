@@ -2,7 +2,7 @@
  * 批次 B「空壳链路清账」测试（docs/specs/capability-flow-graph-consolidation.md §5.4）。
  *
  * ① 纯函数：声明/未声明 × 可运行/壳/缺失 的可用性判定与诊断；
- * ② 目录守门：32 步里「声明的仅引导集合 == 检测到的壳集合」，静默壳 0，可运行 19（59.4%）；
+ * ② 目录守门：34 步里「声明的仅引导集合 == 检测到的壳集合」，静默壳 0，可运行 21（61.8%）；
  * ③ 集成：真实链路步骤 → 快照 flowStep.availability / guidanceOnly 与目录一致。
  */
 import assert from 'node:assert/strict';
@@ -71,14 +71,14 @@ test('未声明 + 可运行真资产 → asset；未声明 + 缺失/未就绪 �
   assert.deepEqual([...notReady.warnings], ['FLOW_STEP_GUIDANCE_UNDECLARED_SHELL']);
 });
 
-test('汇总与占比：19/32 → 59.4%；空集合 → 0', () => {
+test('汇总与占比：21/34 → 61.8%；空集合 → 0', () => {
   const resolutions = [
-    ...Array.from({ length: 19 }, () => resolveFlowStepAvailability({ assetRunnable: true })),
+    ...Array.from({ length: 21 }, () => resolveFlowStepAvailability({ assetRunnable: true })),
     ...Array.from({ length: 13 }, () => resolveFlowStepAvailability({ guidanceOnly: true, assetIsShell: true })),
   ];
   const summary = summarizeFlowStepAvailabilities(resolutions);
-  assert.deepEqual(summary, { asset: 19, guidance: 13, unavailable: 0, total: 32 });
-  assert.equal(runnableStepRatio(summary), 59.4);
+  assert.deepEqual(summary, { asset: 21, guidance: 13, unavailable: 0, total: 34 });
+  assert.equal(runnableStepRatio(summary), 61.8);
   assert.equal(runnableStepRatio(summarizeFlowStepAvailabilities([])), 0);
   assert.deepEqual([...FLOW_STEP_AVAILABILITIES], ['asset', 'guidance', 'unavailable']);
   assert.deepEqual([...FLOW_STEP_GUIDANCE_WARNINGS], [
@@ -122,16 +122,16 @@ function auditSteps(): StepAudit[] {
   );
 }
 
-test('目录守门：32 步；声明的仅引导集合 == 检测到的壳集合（13），静默壳 0', () => {
+test('目录守门：34 步；声明的仅引导集合 == 检测到的壳集合（13），静默壳 0', () => {
   const audits = auditSteps();
   const declared = audits.filter((row) => row.step.guidanceOnly === true).map((row) => row.step.id).sort();
   const shells = audits.filter((row) => row.assetIsShell).map((row) => row.step.id).sort();
-  assert.equal(audits.length, 32);
+  assert.equal(audits.length, 34);
   assert.equal(shells.length, 13);
   assert.deepEqual(declared, shells, '壳步骤必须显式声明「仅引导」，且声明不得越界到真资产步骤');
 });
 
-test('目录守门：可运行 19 / 仅引导 13 / 不可用 0，可运行占比 59.4%', () => {
+test('目录守门：可运行 21 / 仅引导 13 / 不可用 0，可运行占比 61.8%', () => {
   const audits = auditSteps();
   const resolutions = audits.map((row) =>
     resolveFlowStepAvailability({
@@ -141,12 +141,12 @@ test('目录守门：可运行 19 / 仅引导 13 / 不可用 0，可运行占比
     })
   );
   assert.deepEqual(summarizeFlowStepAvailabilities(resolutions), {
-    asset: 19,
+    asset: 21,
     guidance: 13,
     unavailable: 0,
-    total: 32,
+    total: 34,
   });
-  assert.equal(runnableStepRatio(summarizeFlowStepAvailabilities(resolutions)), 59.4);
+  assert.equal(runnableStepRatio(summarizeFlowStepAvailabilities(resolutions)), 61.8);
   assert.ok(
     resolutions.every((resolution) => resolution.warnings.length === 0),
     '目录内不得存在静默壳或过度声明'

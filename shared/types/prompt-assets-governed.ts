@@ -252,6 +252,30 @@ export interface FlowStepGate {
   readonly note?: string;
 }
 
+/**
+ * 步骤能力引用（Plan 262 C5「步骤引用图谱能力卡」）：本步可触发一次**可执行工具卡**动作。
+ *
+ * 与 `cardRef`（卡片正文进提示词）语义相反 —— 能力引用不注入任何文本，只声明：
+ * 界面给出运行入口、执行回执标明本步跑过哪张能力卡。判定与执行内核见
+ * shared/lib/flow-step-capability-ref.ts（kind utility/diagnostic + action run-* + active + project 作用域）。
+ */
+export interface FlowStepCapabilityRef {
+  readonly assetId: string;
+}
+
+/** 能力引用解析结果（快照 / 界面展示用；缺失即 null + 诊断码）。 */
+export interface FlowStepCapabilityResolution {
+  readonly assetId: string;
+  /** 货架标题（界面「本步可执行能力：<title>」）。 */
+  readonly title: string;
+  readonly kind: 'utility' | 'diagnostic';
+  readonly action: 'run-utility' | 'run-diagnostic';
+  /** 能力清单声明阶段（仅供展示/诊断，不参与提示词注入）。 */
+  readonly stages: readonly CapabilityStage[];
+  /** 动作作用域（当前仅 project：作品级同步动作）。 */
+  readonly scope: 'project';
+}
+
 export interface SkillSeriesFlowStep {
   id: string; // 步骤唯一物理 ID (如 'xiaofeiji-novel-flow-step1')
   stepNumber: number; // 序号 (1-based)
@@ -270,6 +294,11 @@ export interface SkillSeriesFlowStep {
   assetId: string; // 关联的真实治理资产 ID
   /** 步骤卡片槽位：优先于 assetId 解析（缺省 → 回退 assetId 旧路径，行为不变）。 */
   cardRef?: FlowStepCardRef;
+  /**
+   * 步骤能力引用（Plan 262 C5）：声明本步关联的**可执行工具卡**（knowledge-extract / foreshadow-settle 一类）。
+   * 不注入提示词：工具卡正文不因本字段进入 planner/writer/critic 的写作规则文本。
+   */
+  capabilityRef?: FlowStepCapabilityRef;
   /**
    * 质量门声明（批次 C「双门合一」唯一门槛字段）：`advisory` = 文本验收不拦截，
    * `mechanical`/`critic`/`manual` = 可判定门。旧 `qualityGate: string` 字段已删除，文案迁入 `gate.note`。
