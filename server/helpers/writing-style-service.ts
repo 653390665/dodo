@@ -1104,7 +1104,6 @@ function freezeExecutionSnapshot(snapshot: ExecutionSnapshot): ExecutionSnapshot
       writer: [...snapshot.roleSkills.writer],
       critic: [...snapshot.roleSkills.critic],
     },
-    sessionCards: [...snapshot.sessionCards],
     overlays: [...snapshot.overlays],
     guardrails: [...snapshot.guardrails],
     stagePrompts: { ...snapshot.stagePrompts },
@@ -2076,7 +2075,6 @@ export function resolveWritingStyleRequest(
     techniques: valueCopy(techniques),
     skillStack: valueCopy(skillStack),
     stageSkills: roleSkills,
-    sessionCards: valueCopy(overlays),
     stagePrompts: {
       planner: plannerStagePrompt,
       writer: [

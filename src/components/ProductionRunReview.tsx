@@ -149,6 +149,36 @@ export function ProductionRunReview({
   const capabilityReceipt = buildCapabilityReceipt(
     displayRun?.continuityReport.executionReceipt?.capabilityRefs
   );
+  // Plan 262 C4：卡组结构与三阶段技法此前只在提示词里生效，回执界面看不到分工。
+  const receiptSkillStack = displayRun?.continuityReport.executionReceipt?.skillStack;
+  const receiptTechniques = displayRun?.continuityReport.executionReceipt?.techniques;
+  const receiptTitle = (id: string) => buildCapabilityReceipt([id])[0]?.title ?? id;
+  const skillStackSummary = receiptSkillStack
+    ? [
+        `主卡：${receiptSkillStack.mainCard ? receiptTitle(receiptSkillStack.mainCard) : '无'}`,
+        `作品卡：${
+          receiptSkillStack.projectSupportCards.length
+            ? receiptSkillStack.projectSupportCards.map(receiptTitle).join('、')
+            : '无'
+        }`,
+        `章节卡：${
+          receiptSkillStack.chapterCards.length
+            ? receiptSkillStack.chapterCards.map(receiptTitle).join('、')
+            : '无'
+        }`,
+      ].join('；')
+    : null;
+  const techniqueSummary = receiptTechniques
+    ? ([
+        ['规划', receiptTechniques.planner],
+        ['正文', receiptTechniques.writer],
+        ['审稿', receiptTechniques.critic],
+      ] as const)
+        .map(
+          ([label, ids]) => `${label}：${ids.length ? ids.map(receiptTitle).join('、') : '无'}`
+        )
+        .join('；')
+    : null;
 
   const loadHistory = useCallback(async () => {
     if (!novelId) return;
@@ -461,7 +491,7 @@ export function ProductionRunReview({
                 </div>
               ) : null}
             </section>
-            {capabilityReceipt.length > 0 ? (
+            {capabilityReceipt.length > 0 || skillStackSummary || techniqueSummary ? (
               <section>
                 <div className="text-xs font-bold uppercase tracking-wider text-theme-muted">
                   能力回执
@@ -485,6 +515,22 @@ export function ProductionRunReview({
                     </span>
                   ))}
                 </div>
+                {skillStackSummary ? (
+                  <div
+                    className="mt-2 text-[10px] text-theme-muted"
+                    data-testid="skill-stack-receipt"
+                  >
+                    卡组装配（{skillStackSummary}）
+                  </div>
+                ) : null}
+                {techniqueSummary ? (
+                  <div
+                    className="mt-1 text-[10px] text-theme-muted"
+                    data-testid="technique-receipt"
+                  >
+                    技法（{techniqueSummary}）
+                  </div>
+                ) : null}
               </section>
             ) : null}
             <section>

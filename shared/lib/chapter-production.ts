@@ -30,7 +30,8 @@ export function buildProductionExecutionReceipt(
   snapshot: Pick<
     ExecutionSnapshot,
     'capabilityRefs' | 'writingStyleFingerprint' | 'resolvedAtGeneration'
-  >,
+  > &
+    Partial<Pick<ExecutionSnapshot, 'skillStack' | 'techniques'>>,
   ledger: StoryStateLedger
 ): ProductionExecutionReceipt {
   const contextDimensions: ProductionExecutionReceipt['contextDimensions'] = [];
@@ -63,6 +64,24 @@ export function buildProductionExecutionReceipt(
       : { resolvedAtGeneration: snapshot.resolvedAtGeneration }),
     contextDimensions,
     contextRefs,
+    ...(snapshot.skillStack
+      ? {
+          skillStack: {
+            mainCard: snapshot.skillStack.mainCard?.id ?? null,
+            projectSupportCards: snapshot.skillStack.projectSupportCards.map((card) => card.id),
+            chapterCards: snapshot.skillStack.chapterCards.map((card) => card.id),
+          },
+        }
+      : {}),
+    ...(snapshot.techniques
+      ? {
+          techniques: {
+            planner: snapshot.techniques.planner.map((item) => item.id),
+            writer: snapshot.techniques.writer.map((item) => item.id),
+            critic: snapshot.techniques.critic.map((item) => item.id),
+          },
+        }
+      : {}),
   };
 }
 

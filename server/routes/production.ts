@@ -1010,11 +1010,15 @@ export function registerProductionRoutes(app: Express) {
             (guardrail) => guardrail.stage === stage
           ).length;
           const flowStepCount = executionSnapshot.flowStep?.stage === stage ? 1 : 0;
+          // Plan 262 C4：技法正文确实进了阶段提示词（buildTechniquePrompt），此前未计入，
+          // 导致「阶段能力卡与护栏」条目数少报。
+          const techniqueCount = executionSnapshot.techniques[stage].length;
           return {
             id: `stage-prompt-${stage}`,
             label: stagePromptLabels[stage],
             text: stagePrompts[stage],
-            itemCount: roleSkillCount + overlayCount + guardrailCount + flowStepCount,
+            itemCount:
+              roleSkillCount + overlayCount + guardrailCount + flowStepCount + techniqueCount,
             version: 'execution-snapshot-v1',
           };
         });

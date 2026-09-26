@@ -104,6 +104,8 @@ export function loadChapterContract(novelId: string, chapterOrder: number): Chap
   const entry = extractXigangEntries(xigangDoc.text).find((e) => e.chapterNo === chapterNo);
   if (!entry) return null;
   const ledgerRows = extractForeshadowingLedger([entry]);
+  const foreshadowingTasks = ledgerRows.map((r) => r.description);
+  const payoffNote = ledgerRows[0]?.payoffNote || '';
   const contractText = [
     `【权威细纲合同 · ${chapterNo}】本章分镜必须从以下合同展开：核心事件、场景锚点、关键道具、伏笔埋点、章末钩子逐项落实；禁止另行编造核心事件或替换伏笔。`,
     `- 章节标题：${entry.title}`,
@@ -114,6 +116,12 @@ export function loadChapterContract(novelId: string, chapterOrder: number): Chap
     entry.fields['红线自查'] ? `- 红线自查：${entry.fields['红线自查']}` : '',
     entry.fields['伏笔埋点'] ? `- 伏笔埋点应包含：${entry.fields['伏笔埋点']}` : '',
     ledgerRows.length ? `- 伏笔台账：本章应埋设 ${ledgerRows.length} 条（${ledgerRows.map((r) => r.title).join('；')}）` : '',
+    foreshadowingTasks.length
+      ? `- 伏笔任务（逐条兑现，未兑现须在 fatalIssues 中指出）：\n${foreshadowingTasks
+          .map((task, index) => `  ${index + 1}. ${task}`)
+          .join('\n')}`
+      : '',
+    payoffNote ? `- 回收安排（本条伏笔的回收章与方式）：${payoffNote}` : '',
     entry.fields['章末钩子'] ? `- 章末钩子应兑现：${entry.fields['章末钩子']}` : '',
     // ㉒ 黄金三章维度：Ch1-3 审计显式核查金手指/钩子/反派智商
     chapterOrder <= 3
@@ -125,8 +133,8 @@ export function loadChapterContract(novelId: string, chapterOrder: number): Chap
     title: entry.title,
     contractText,
     checklistText,
-    foreshadowingTasks: ledgerRows.map((r) => r.description),
-    payoffNote: ledgerRows[0]?.payoffNote || '',
+    foreshadowingTasks,
+    payoffNote,
   };
 }
 

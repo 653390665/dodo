@@ -178,7 +178,6 @@ export interface ExecutionSnapshot {
   readonly techniques: ExecutionTechniques;
   readonly skillStack: ExecutionSkillStack;
   readonly stageSkills: ExecutionRoleSkills;
-  readonly sessionCards: readonly ExecutionOverlay[];
   readonly stagePrompts: Readonly<{ planner: string; writer: string; critic: string }>;
   readonly writingStyleSummary: string;
   readonly writingStyleFingerprint: string;

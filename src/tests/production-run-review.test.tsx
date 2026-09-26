@@ -398,6 +398,32 @@ test('renders capability receipt chips when the run carries an execution receipt
   expect(receipt.textContent).toContain('gone-card-900');
 });
 
+test('renders card stack and technique receipts when the run records them', async () => {
+  listChapterProductionRunsMock.mockResolvedValue([]);
+  const run = createRun('stack-run', 'review_required', completeDraft('卡组样本'));
+  (run.continuityReport as unknown as { executionReceipt: unknown }).executionReceipt = {
+    version: 1 as const,
+    capabilityRefs: [],
+    writingStyleFingerprint: 'fp',
+    contextDimensions: [],
+    contextRefs: [],
+    skillStack: {
+      mainCard: 'core-slop-shield',
+      projectSupportCards: ['xiaofeiji-novel-flow'],
+      chapterCards: [],
+    },
+    techniques: { planner: ['gone-tech-1'], writer: [], critic: [] },
+  };
+  renderReview(run, false);
+  const stack = await screen.findByTestId('skill-stack-receipt');
+  expect(stack.textContent).toContain('主卡：去 AI 腔与废话净化器');
+  expect(stack.textContent).toContain('作品卡：长篇商业连载流程');
+  expect(stack.textContent).toContain('章节卡：无');
+  const techniques = await screen.findByTestId('technique-receipt');
+  expect(techniques.textContent).toContain('规划：gone-tech-1');
+  expect(techniques.textContent).toContain('正文：无');
+});
+
 test('omits the capability receipt section for legacy runs without a receipt', async () => {
   listChapterProductionRunsMock.mockResolvedValue([]);
   const run = createRun('legacy-run', 'review_required', completeDraft('无回执样本'));

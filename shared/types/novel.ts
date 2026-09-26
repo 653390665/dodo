@@ -212,6 +212,17 @@ export interface ProductionExecutionReceipt {
   capabilityRefs: string[];
   writingStyleFingerprint: string;
   resolvedAtGeneration?: number;
+  /**
+   * Plan 262 C4（2026-09-28）：本次运行实际装配的卡组结构。
+   * 此前只在 stage 提示词里生效，回执与 UI 都看不到「主卡/作品卡/章节卡」的分工。
+   */
+  skillStack?: {
+    mainCard: string | null;
+    projectSupportCards: string[];
+    chapterCards: string[];
+  };
+  /** Plan 262 C4：三阶段各自生效的技法 id（正文进得去、回执此前记不到）。 */
+  techniques?: { planner: string[]; writer: string[]; critic: string[] };
   contextDimensions: Array<'world' | 'character' | 'foreshadowing'>;
   contextRefs: Array<{
     dimension:

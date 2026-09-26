@@ -26,7 +26,7 @@ test('execution contract freezes one stage snapshot and sanitizes critic prompt'
     ], projectPreferenceProfile: { tags: [], weights: { styleWeight: 1, characterWeight: 1, worldWeight: 1, plotWeight: 1, pacingWeight: 1 }, acceptedDimensions: [], rejectedDimensions: [], notes: [], evidenceCount: 0, skillLoadoutSchemaVersion: 2 }, createdAt: 1, updatedAt: 1 });
     const contract = resolveProjectExecutionContract('contract-novel');
     assert.equal(Object.isFrozen(contract), true);
-    assert.deepEqual(Object.keys(contract).sort(), ['canon', 'capabilityRefs', 'databaseGeneration', 'flowStep', 'guardrails', 'novelId', 'overlays', 'resolvedAtGeneration', 'roleSkills', 'sessionCards', 'skillStack', 'stagePrompts', 'stageSkills', 'techniques', 'writingStyleFingerprint', 'writingStyleSummary'].sort());
+    assert.deepEqual(Object.keys(contract).sort(), ['canon', 'capabilityRefs', 'databaseGeneration', 'flowStep', 'guardrails', 'novelId', 'overlays', 'resolvedAtGeneration', 'roleSkills', 'skillStack', 'stagePrompts', 'stageSkills', 'techniques', 'writingStyleFingerprint', 'writingStyleSummary'].sort());
     assert.equal(contract.databaseGeneration, 0);
     assert.deepEqual(contract.techniques, { planner: [], writer: [], critic: [] });
     assert.equal(contract.skillStack.mainCard, null);
