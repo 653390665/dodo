@@ -1,4 +1,3 @@
-import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog';
 import {
   auditGuardrailSelection,
   isSelectableGuardrail,
@@ -9,6 +8,7 @@ import {
 import { sanitizeWhiteLabelText } from '../../shared/lib/public-skill-catalog';
 import {
   CURATED_PRODUCT_SKILLS,
+  PUBLIC_SHELL_CATALOG,
   SANITIZED_SKILL_COPIES,
 } from '../../shared/lib/public-skill-catalog';
 import type {
@@ -183,7 +183,7 @@ function isTrustedSavedSessionCard(skill: Skill): boolean {
 export function getTrustedSessionCardIds(ids: string[], savedSkills: Skill[] = []): string[] {
   const saved = new Set(savedSkills.filter(isTrustedSavedSessionCard).map((skill) => skill.id));
   const trusted = new Set(
-    PROMPT_GOVERNANCE_CATALOG.filter(
+    PUBLIC_SHELL_CATALOG.filter(
       (asset) =>
         isRuntimeReadyAsset(asset) &&
         Boolean(asset.deconstructionCardType)
@@ -206,7 +206,7 @@ export function getTrustedSessionCardIds(ids: string[], savedSkills: Skill[] = [
 }
 
 export function getGovernedOverlayDisplayAssets(): CuratedProductSkill[] {
-  return PROMPT_GOVERNANCE_CATALOG.filter(
+  return PUBLIC_SHELL_CATALOG.filter(
     (asset) =>
       isRuntimeReadyAsset(asset) &&
       Boolean(asset.deconstructionCardType)
@@ -245,7 +245,7 @@ export function getFactoryDeconstructCardOptions(): CuratedProductSkill[] {
 
 /** 003：增强护栏候选（非 core-default 的质量护栏），供质量标准面板做开关（Plan 262 B1 单源）。 */
 export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
-  const selectable = PROMPT_GOVERNANCE_CATALOG.filter((asset) => isSelectableGuardrail(asset));
+  const selectable = PUBLIC_SHELL_CATALOG.filter((asset) => isSelectableGuardrail(asset));
   return selectable.map((asset) => ({
     id: asset.id,
     title: asset.title,
@@ -280,7 +280,7 @@ export function getConfigurableGuardrailAssets(): CuratedProductSkill[] {
 export function getGuardrailSelectionAudit(
   ids: readonly string[] | null | undefined
 ): GuardrailSelectionAudit {
-  return auditGuardrailSelection(ids, PROMPT_GOVERNANCE_CATALOG);
+  return auditGuardrailSelection(ids, PUBLIC_SHELL_CATALOG);
 }
 
 function getExecutionStagesForGuardrail(asset: GovernedPromptAsset): CapabilityStage[] {
@@ -335,7 +335,7 @@ function getAssetCapabilityManifest(
 
 /** 003：core-default 护栏数量（运行时无条件注入全部三阶段，UI 只读展示）。 */
 export function getCoreDefaultGuardrailCount(): number {
-  return PROMPT_GOVERNANCE_CATALOG.filter(
+  return PUBLIC_SHELL_CATALOG.filter(
     (asset) =>
       asset.placementTier === 'core-default' && asset.primaryCategory === 'quality-guardrail'
   ).length;
@@ -343,7 +343,7 @@ export function getCoreDefaultGuardrailCount(): number {
 
 // Plan 210（197 出路 a）：渲染层只消费 sanitized 副本——生成侧副本（runtime-ready + active）
 // 与沉睡目录合并后供给文风可选集；候选原貌仅保留在「需解锁」投影中。
-const RUNTIME_STYLE_CATALOG = [...PROMPT_GOVERNANCE_CATALOG, ...SANITIZED_SKILL_COPIES];
+const RUNTIME_STYLE_CATALOG = [...PUBLIC_SHELL_CATALOG, ...SANITIZED_SKILL_COPIES];
 
 // Plan 220：投影谓词模块级预计算——打字/弹窗按键路径的每次重渲不再全量扫描目录。
 const SANITIZED_COPY_IDS: ReadonlySet<string> = new Set(
@@ -371,7 +371,7 @@ const redundantWithExistingCopy = (title: string): boolean =>
     sanitizeWhiteLabelText(title || '').replace(/\s+/g, '').replace(/\d+$/, '')
   );
 
-const SANITIZE_REQUIRED_CATALOG_ASSETS = PROMPT_GOVERNANCE_CATALOG.filter(
+const SANITIZE_REQUIRED_CATALOG_ASSETS = PUBLIC_SHELL_CATALOG.filter(
   (asset) =>
     asset.placementTier === 'sanitize-required' &&
     asset.runtimeStatus === 'candidate' &&
@@ -385,7 +385,7 @@ const SANITIZE_REQUIRED_CATALOG_ASSETS = PROMPT_GOVERNANCE_CATALOG.filter(
 // 注意：与 getSanitizeRequiredAssets 的白名单谓词刻意不同构——本判定面向单卡
 // 「消毒并启用」入口展示，历史行为不含 placementTier/sourceGroup 过滤，保持等价。
 const SANITIZE_REQUIRED_ASSET_IDS: ReadonlySet<string> = new Set(
-  PROMPT_GOVERNANCE_CATALOG.filter(
+  PUBLIC_SHELL_CATALOG.filter(
     (asset) =>
       asset.runtimeStatus === 'candidate' &&
       asset.sanitizationStatus === 'needs-sanitization' &&

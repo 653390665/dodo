@@ -22,6 +22,7 @@ import {
   COMMERCIAL_COPY_PATTERN,
   sanitizeWhiteLabelText,
 } from '../../shared/lib/prompt-sanitizer.js';
+import { isShellTemplatePrompt } from '../../shared/lib/prompt-shell.js';
 // Plan 262 B2：分档与封顶分常量单源（此前本文件自带一份分档实现）。
 import {
   FEATURED_MIN_SCORE,
@@ -464,6 +465,7 @@ export interface PublicCatalogModel {
   curatedSkills: CuratedProductSkill[];
   catalog: GovernedPromptAsset[];
   sanitizedCopies: GovernedPromptAsset[];
+  shellCatalog: GovernedPromptAsset[];
   packages: EnhancementPackage[];
 }
 
@@ -481,6 +483,7 @@ export interface CatalogGenerationReport {
     catalog: number;
     packages: number;
     sanitizedCopies: number;
+    shellCatalog: number;
     sanitizeCandidates: number;
   };
 }
@@ -494,6 +497,18 @@ function asSerialized<T>(value: T): T {
  * 跑完整管线（纯函数，可重复调用）：源货架 → 公开池准入 → 治理 → 克隆消毒 →
  * 消毒副本 → 序列化口径。生成脚本写盘、守卫测试比对，都从这里取数。
  */
+/** 按 id 去重（保留首个）：注册表条目为源目录子集，合并时避免重复。 */
+function dedupeById(assets: GovernedPromptAsset[]): GovernedPromptAsset[] {
+  const seen = new Set<string>();
+  const out: GovernedPromptAsset[] = [];
+  for (const asset of assets) {
+    if (seen.has(asset.id)) continue;
+    seen.add(asset.id);
+    out.push(asset);
+  }
+  return out;
+}
+
 export function buildPublicCatalogModel(): {
   model: PublicCatalogModel;
   report: CatalogGenerationReport;
@@ -521,6 +536,16 @@ export function buildPublicCatalogModel(): {
   const cleanedCuratedSkills = cloneAndSanitize(CURATED_PRODUCT_SKILLS);
   const cleanedCatalog = cloneAndSanitize(governedCatalog);
   const cleanedPackages = cloneAndSanitize(ENHANCEMENT_PACKAGES);
+  // Plan 262 B1：渲染层壳目录 —— 全量源资产（含未公开 / 仅内部 / 夹具）物理清空 template 后的投影，
+  // 供前端治理与审计消费。条目 id 与源目录一一对应，但不含任何提示词正文。
+  const shellCatalog = cloneAndSanitize(
+    dedupeById([...PROMPT_GOVERNANCE_CATALOG, ...GOVERNED_ASSETS_V2_REGISTRY]).map((asset) => ({
+      ...asset,
+      // 壳判定必须在清空 template 之前固化：cloneAndSanitize 会把 template 置空，
+      // 之后 isShellTemplatePrompt('') 恒为假，审计面会丢掉「引用壳」这一类。
+      isShellBody: isShellTemplatePrompt(asset.template),
+    }))
+  );
 
   const candidateCollection = collectSanitizeCandidates();
   const counters = createSanitizedCopyRewriteCounters();
@@ -541,6 +566,7 @@ export function buildPublicCatalogModel(): {
     curatedSkills: asSerialized(cleanedCuratedSkills),
     catalog: asSerialized(cleanedCatalog),
     sanitizedCopies: asSerialized(sanitizedCopies),
+    shellCatalog: asSerialized(shellCatalog),
     packages: asSerialized(cleanedPackages),
   };
 
@@ -560,6 +586,7 @@ export function buildPublicCatalogModel(): {
         catalog: model.catalog.length,
         packages: model.packages.length,
         sanitizedCopies: model.sanitizedCopies.length,
+        shellCatalog: model.shellCatalog.length,
         sanitizeCandidates: candidateCollection.candidates.length,
       },
     },
@@ -576,6 +603,7 @@ export function renderPublicCatalogModule(model: PublicCatalogModel): string {
     curatedSkills: cleanedCuratedSkills,
     catalog: cleanedCatalog,
     sanitizedCopies,
+    shellCatalog,
     packages: cleanedPackages,
   } = model;
 
@@ -599,6 +627,8 @@ export const CURATED_PRODUCT_SKILLS: CuratedProductSkill[] = ${JSON.stringify(cl
 export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(cleanedCatalog, null, 2)};
 
 export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = ${JSON.stringify(sanitizedCopies, null, 2)};
+
+export const PUBLIC_SHELL_CATALOG: GovernedPromptAsset[] = ${JSON.stringify(shellCatalog, null, 2)};
 
 export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = ${JSON.stringify(cleanedPackages, null, 2)};
 

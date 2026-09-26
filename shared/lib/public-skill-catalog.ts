@@ -7500,6 +7500,6715 @@ export const SANITIZED_SKILL_COPIES: GovernedPromptAsset[] = [
   }
 ];
 
+export const PUBLIC_SHELL_CATALOG: GovernedPromptAsset[] = [
+  {
+    "id": "inspirationSystem",
+    "title": "灵感助手",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 灵感助手 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 84,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:103",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "storyCards",
+    "title": "故事方案卡",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 故事方案卡 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 83,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:104",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "setupTaskRefine",
+    "title": "设定项细化",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 设定项细化 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:105",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "editorAgent",
+    "title": "分镜生成",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 分镜生成 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:106",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "manualAudit",
+    "title": "AI 审计",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 AI 审计 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:107",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "orchestrateWriter",
+    "title": "正文生成",
+    "stage": "drafting",
+    "goal": "提供内置基础引擎 正文生成 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "flow-default",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:108",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "orchestrateCritic",
+    "title": "正文生成内审",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 正文生成内审 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:109",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "extractSkill",
+    "title": "拆书迈向",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 拆书迈向 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 81,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:110",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "generateOutline",
+    "title": "全局大纲",
+    "stage": "polish",
+    "goal": "提供内置基础引擎 全局大纲 的写作保障，维护写作底线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方内置，高频执行，确保高性能"
+    ],
+    "successSignal": "写作基本流畅，维持良好画面感。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "prompt-asset-scorecard.md:111",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-183",
+    "title": "长篇拆书器<十章版>",
+    "stage": "polish",
+    "goal": "按十章粒度拆解成品小说，输出结构、节奏与钩子清单供仿写参考。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:117",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-182",
+    "title": "爆款书名简介策划引擎！",
+    "stage": "polish",
+    "goal": "生成书名与简介组合，突出题材卖点与点击诱因。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:118",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-176",
+    "title": "长篇正文~超强口语化推进剧情",
+    "stage": "polish",
+    "goal": "以口语化叙述推进长篇正文，重事件链与对白密度。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:119",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-174",
+    "title": "番茄长篇正文通用",
+    "stage": "polish",
+    "goal": "番茄平台长篇正文通用写法，短段落快节奏维持翻页率。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:120",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-122",
+    "title": "短篇文章逻辑检测分析器",
+    "stage": "polish",
+    "goal": "检测短篇逻辑漏洞，输出问题清单与修补建议。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 87,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:121",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-114",
+    "title": "小说起名器（短篇为主）",
+    "stage": "polish",
+    "goal": "为短篇生成书名候选，兼顾题材关键词与记忆点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:122",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-109",
+    "title": "爆款短篇第三步",
+    "stage": "polish",
+    "goal": "爆款短篇三步法的收束步，完成反转与结尾回收。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:123",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-108",
+    "title": "爆款短篇第二步",
+    "stage": "polish",
+    "goal": "爆款短篇三步法的展开步，推进冲突与信息增量。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:124",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-107",
+    "title": "爆款短篇第一步",
+    "stage": "polish",
+    "goal": "爆款短篇三步法的起笔步，确立入事件点与钩子。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:125",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-104",
+    "title": "lwl-网络流行语和热门梗润色",
+    "stage": "polish",
+    "goal": "以网络流行语与热梗润色文本拉近代入感，过时梗需人工复核。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:126",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-103",
+    "title": "章节梗概生成",
+    "stage": "polish",
+    "goal": "把正文压缩为章节梗概，供大纲对齐与续写衔接。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:127",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-94",
+    "title": "长篇爆款拆解与脑洞生成",
+    "stage": "polish",
+    "goal": "拆解长篇爆款的结构要素，并派生可写的脑洞方向。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 83,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:128",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-93",
+    "title": "短篇破解爆款备用版",
+    "stage": "polish",
+    "goal": "短篇爆款拆解备用版，输出结构与钩子分析。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:129",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-88",
+    "title": "短篇破解爆款第一步",
+    "stage": "polish",
+    "goal": "短篇爆款仿写第一步，提炼样本的开篇与结构模板。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:130",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-87",
+    "title": "锅盖拆书《灵光版》",
+    "stage": "polish",
+    "goal": "拆书提取灵感碎片，整理可复用的桥段与设定。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:131",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-82",
+    "title": "根据卷纲生成15章大纲",
+    "stage": "polish",
+    "goal": "由卷纲展开十五章级章节大纲，含每章目标与钩子。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 83,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:132",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-81",
+    "title": "生成卷纲并确定总章节数",
+    "stage": "polish",
+    "goal": "生成卷纲并给出总章节规模建议，理顺主线节奏。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:133",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-80",
+    "title": "世界观生成器",
+    "stage": "polish",
+    "goal": "生成世界观设定集（地理、规则、势力），供设定库收录。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 83,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:134",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-79",
+    "title": "爆款拆解与脑洞生成",
+    "stage": "polish",
+    "goal": "从爆款样本提炼结构要素，生成可写的脑洞方向。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:135",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-78",
+    "title": "降 AI 润色 1.0",
+    "stage": "polish",
+    "goal": "对正文做去机器痕迹润色，替换模板句式与堆砌词。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:136",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-76",
+    "title": "结构工坊-脑洞生成-番茄爆款",
+    "stage": "polish",
+    "goal": "面向番茄爆款的脑洞生成，突出题材张力与差异点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:137",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-74",
+    "title": "长短篇通用正文",
+    "stage": "polish",
+    "goal": "长短篇通用正文写法，平衡事件推进与场景细节。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 79,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:138",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-61",
+    "title": "lwl-事件生成",
+    "stage": "polish",
+    "goal": "生成可接入主线的事件候选，含起因与后果钩子。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:139",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-60",
+    "title": "lwl-爆款短篇仿写与黄金开篇",
+    "stage": "polish",
+    "goal": "仿写爆款短篇，重点打磨黄金开篇前三段。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:140",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-56",
+    "title": "lwl-简介生成",
+    "stage": "polish",
+    "goal": "生成平台简介，突出冲突卖点与阅读预期。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:141",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-55",
+    "title": "lwl-生成角色",
+    "stage": "polish",
+    "goal": "生成角色设定卡：身份、动机、缺陷与成长弧线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:142",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-54",
+    "title": "lwl-世界观生成专家",
+    "stage": "polish",
+    "goal": "生成世界观核心规则与冲突源，避免设定空转。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:143",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-53",
+    "title": "lwl-世界观生成",
+    "stage": "polish",
+    "goal": "生成基础世界观框架：时代、地理与秩序。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:144",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-43",
+    "title": "结构工坊-番茄短篇-清澈版",
+    "stage": "polish",
+    "goal": "番茄短篇清澈版结构模板，强调叙述干净、信息清晰。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:145",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-42",
+    "title": "结构工坊-通用章节大纲",
+    "stage": "polish",
+    "goal": "生成通用章节大纲，含场景切分与章末钩子。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:146",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-41",
+    "title": "结构工坊-大纲生成-设定强化+节奏",
+    "stage": "polish",
+    "goal": "大纲生成（设定强化向），强化规则运用与节奏布点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:147",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-39",
+    "title": "结构工坊-大纲生成-三幕式",
+    "stage": "polish",
+    "goal": "按三幕式生成大纲，明确转折点与幕间钩子。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:148",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-38",
+    "title": "结构工坊-大纲生成-基础版",
+    "stage": "polish",
+    "goal": "基础版大纲生成，先保事件链完整再优化细节。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:149",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-27",
+    "title": "爆款-番茄风【金手指】",
+    "stage": "polish",
+    "goal": "设计番茄风金手指设定，绑定成长线与打脸节奏。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:150",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-26",
+    "title": "一次一章-【续写】",
+    "stage": "polish",
+    "goal": "一次一章的续写卡，按本章目标直接续写正文。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:151",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-22",
+    "title": "lwl-章节列表生成",
+    "stage": "polish",
+    "goal": "生成章节列表（每章一句目标），搭建全书骨架。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:152",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-21",
+    "title": "猫头鹰-短篇故事脑洞生成",
+    "stage": "polish",
+    "goal": "短篇脑洞生成，输出可展开的故事核。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:153",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-20",
+    "title": "猫头鹰-短篇拆书",
+    "stage": "polish",
+    "goal": "拆解短篇样本的结构与技巧，输出仿写要点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:154",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-19",
+    "title": "lwl-知乎短文",
+    "stage": "polish",
+    "goal": "知乎体短文写法：第一人称冲突开场与反转结构。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:155",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-18",
+    "title": "lwl-生成新角色",
+    "stage": "polish",
+    "goal": "在现有设定上生成新角色，绑定关系网与冲突位。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:156",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-13",
+    "title": "lwl-文本润色",
+    "stage": "polish",
+    "goal": "通用文本润色，改善语句通顺度与画面感。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:157",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "square-12",
+    "title": "lwl-顶级提示0.01",
+    "stage": "polish",
+    "goal": "通用正文提示词，作为正文基础质量的兜底。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:158",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-11",
+    "title": "锅盖第一人称短片写作",
+    "stage": "polish",
+    "goal": "第一人称短篇写法，强化声音质感与代入视角。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:159",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-10",
+    "title": "锅盖男频正文直出",
+    "stage": "polish",
+    "goal": "男频正文直出写法，重冲突升级与爽点兑现。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:160",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "square-9",
+    "title": "锅盖润色扩写，去AI味",
+    "stage": "polish",
+    "goal": "润色扩写并去 AI 味，扩充细节同时保持语言自然。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 81,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:161",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "square-7",
+    "title": "lwl-爆款续写",
+    "stage": "polish",
+    "goal": "按爆款样本的节奏续写正文，维持钩子密度。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:162",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "square-3",
+    "title": "lwl-AI润色指令",
+    "stage": "polish",
+    "goal": "AI 痕迹润色指令，压缩翻译腔与套话密度。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "已做水印与敏感署名抹除"
+    ],
+    "successSignal": "文字表现力有局部质量拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 74,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:163",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "private-193",
+    "title": "正文去AI高频词+润色",
+    "stage": "polish",
+    "goal": "付费资产 正文去AI高频词+润色 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 92,
+    "grade": "A",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:169",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-181",
+    "title": "五个长篇脑洞",
+    "stage": "polish",
+    "goal": "付费资产 五个长篇脑洞 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:170",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-180",
+    "title": "长篇正文<配套使用>",
+    "stage": "polish",
+    "goal": "付费资产 长篇正文<配套使用> 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "flow-default",
+    "score": 90,
+    "grade": "A",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:171",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-179",
+    "title": "长篇通用章纲",
+    "stage": "polish",
+    "goal": "付费资产 长篇通用章纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "flow-default",
+    "score": 89,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:172",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-178",
+    "title": "长篇细纲",
+    "stage": "polish",
+    "goal": "付费资产 长篇细纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "flow-default",
+    "score": 91,
+    "grade": "A",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:173",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-177",
+    "title": "长篇超宏大世界观",
+    "stage": "polish",
+    "goal": "付费资产 长篇超宏大世界观 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 89,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:174",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-175",
+    "title": "长篇通用大纲-万字版",
+    "stage": "polish",
+    "goal": "付费资产 长篇通用大纲-万字版 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "flow-default",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:175",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-157",
+    "title": "长篇角色卡生成",
+    "stage": "polish",
+    "goal": "付费资产 长篇角色卡生成 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:176",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-222",
+    "title": "正文提示词",
+    "stage": "polish",
+    "goal": "付费资产 正文提示词 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:177",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": true
+  },
+  {
+    "id": "private-221",
+    "title": "克苏鲁标题",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁标题 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:178",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-220",
+    "title": "克苏鲁简介与书名",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁简介与书名 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:179",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-219",
+    "title": "克苏鲁配角信息卡",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁配角信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:180",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-218",
+    "title": "克苏鲁主角及主角团核心成员信息卡",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁主角及主角团核心成员信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:181",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-217",
+    "title": "克苏鲁正文",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:182",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-216",
+    "title": "克苏鲁章纲",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁章纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:183",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-215",
+    "title": "克苏鲁细纲",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁细纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:184",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-214",
+    "title": "克苏鲁大纲",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:185",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-213",
+    "title": "克苏鲁世界观",
+    "stage": "polish",
+    "goal": "付费资产 克苏鲁世界观 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:186",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-212",
+    "title": "宝可梦简介",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦简介 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:187",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-211",
+    "title": "宝可梦书名与简介",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦书名与简介 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:188",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-210",
+    "title": "宝可梦配角信息卡",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦配角信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:189",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-209",
+    "title": "宝可梦正文",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:190",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-208",
+    "title": "宝可梦细纲",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦细纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:191",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-207",
+    "title": "宝可梦章纲",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦章纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:192",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-206",
+    "title": "宝可梦系统信息卡",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦系统信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:193",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-205",
+    "title": "宝可梦信息卡",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:194",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-204",
+    "title": "宝可梦主角信息卡",
+    "stage": "polish",
+    "goal": "付费资产 宝可梦主角信息卡 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:195",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-203",
+    "title": "提示词",
+    "stage": "polish",
+    "goal": "付费资产 提示词 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:196",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-202",
+    "title": "细纲",
+    "stage": "polish",
+    "goal": "付费资产 细纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:197",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-201",
+    "title": "大纲",
+    "stage": "polish",
+    "goal": "付费资产 大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:198",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-200",
+    "title": "章纲",
+    "stage": "polish",
+    "goal": "付费资产 章纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:199",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-199",
+    "title": "正文提示词",
+    "stage": "polish",
+    "goal": "付费资产 正文提示词 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:200",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-198",
+    "title": "测试审稿",
+    "stage": "polish",
+    "goal": "付费资产 测试审稿 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 64,
+    "grade": "D",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:201",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-197",
+    "title": "测试黄金一章",
+    "stage": "polish",
+    "goal": "付费资产 测试黄金一章 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 56,
+    "grade": "F",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:202",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-195",
+    "title": "测试",
+    "stage": "polish",
+    "goal": "付费资产 测试 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 56,
+    "grade": "F",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:203",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-192",
+    "title": "正文",
+    "stage": "polish",
+    "goal": "付费资产 正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:204",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-191",
+    "title": "章纲",
+    "stage": "polish",
+    "goal": "付费资产 章纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:205",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-190",
+    "title": "细纲",
+    "stage": "polish",
+    "goal": "付费资产 细纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:206",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-189",
+    "title": "书名+简介",
+    "stage": "polish",
+    "goal": "付费资产 书名+简介 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:207",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-188",
+    "title": "世界观",
+    "stage": "polish",
+    "goal": "付费资产 世界观 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:208",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-187",
+    "title": "脑洞",
+    "stage": "polish",
+    "goal": "付费资产 脑洞 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:209",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-186",
+    "title": "",
+    "stage": "polish",
+    "goal": "付费资产  全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 63,
+    "grade": "D",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:210",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-185",
+    "title": "大纲",
+    "stage": "polish",
+    "goal": "付费资产 大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 67,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:211",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "id": "private-170",
+    "title": "番茄正文过保底2",
+    "stage": "polish",
+    "goal": "付费资产 番茄正文过保底2 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "platform-criteria",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:212",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-169",
+    "title": "番茄正文过保底",
+    "stage": "polish",
+    "goal": "付费资产 番茄正文过保底 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:213",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-168",
+    "title": "章纲自适应续写",
+    "stage": "polish",
+    "goal": "付费资产 章纲自适应续写 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:214",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-167",
+    "title": "名家长篇大纲测试",
+    "stage": "polish",
+    "goal": "付费资产 名家长篇大纲测试 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 65,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:215",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-163",
+    "title": "短篇拆文仿写",
+    "stage": "polish",
+    "goal": "付费资产 短篇拆文仿写 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:216",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-162",
+    "title": "老福特编辑审稿",
+    "stage": "polish",
+    "goal": "付费资产 老福特编辑审稿 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:217",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-161",
+    "title": "新版过朱雀",
+    "stage": "polish",
+    "goal": "付费资产 新版过朱雀 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 56,
+    "grade": "F",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:218",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-158",
+    "title": "短篇直出",
+    "stage": "polish",
+    "goal": "付费资产 短篇直出 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:219",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-144",
+    "title": "私有化流程6",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程6 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:220",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-143",
+    "title": "私有化流程5",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程5 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:221",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-142",
+    "title": "私有化流程4",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程4 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:222",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-141",
+    "title": "私有化流程3",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程3 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:223",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-140",
+    "title": "私有化流程2",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程2 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:224",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-139",
+    "title": "私有化流程1",
+    "stage": "polish",
+    "goal": "付费资产 私有化流程1 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:225",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-132",
+    "title": "女频过七猫保底",
+    "stage": "polish",
+    "goal": "付费资产 女频过七猫保底 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:226",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-131",
+    "title": "自用长篇正文",
+    "stage": "polish",
+    "goal": "付费资产 自用长篇正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:227",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-130",
+    "title": "黄金手术刀",
+    "stage": "polish",
+    "goal": "付费资产 黄金手术刀 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:228",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-129",
+    "title": "老福特通用正文",
+    "stage": "polish",
+    "goal": "付费资产 老福特通用正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:229",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-128",
+    "title": "老福特乙女大纲",
+    "stage": "polish",
+    "goal": "付费资产 老福特乙女大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:230",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-127",
+    "title": "老福特观影大纲",
+    "stage": "polish",
+    "goal": "付费资产 老福特观影大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:231",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-126",
+    "title": "老福特耽美大纲",
+    "stage": "polish",
+    "goal": "付费资产 老福特耽美大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:232",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-125",
+    "title": "老福特爽文大纲",
+    "stage": "polish",
+    "goal": "付费资产 老福特爽文大纲 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:233",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-124",
+    "title": "老福特脑洞生成器",
+    "stage": "polish",
+    "goal": "付费资产 老福特脑洞生成器 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:234",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-123",
+    "title": "融梗换心候选生成",
+    "stage": "polish",
+    "goal": "付费资产 融梗换心候选生成 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:235",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "private-106",
+    "title": "私密内测",
+    "stage": "polish",
+    "goal": "付费资产 私密内测 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 56,
+    "grade": "F",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:236",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-101",
+    "title": "金牌主编改稿",
+    "stage": "polish",
+    "goal": "付费资产 金牌主编改稿 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:237",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-100",
+    "title": "金牌主编审稿",
+    "stage": "polish",
+    "goal": "付费资产 金牌主编审稿 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:238",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-92",
+    "title": "导语仿写",
+    "stage": "polish",
+    "goal": "付费资产 导语仿写 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:239",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-91",
+    "title": "导语生成",
+    "stage": "polish",
+    "goal": "付费资产 导语生成 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:240",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "suspect-duplicate",
+    "id": "private-90",
+    "title": "正文",
+    "stage": "polish",
+    "goal": "付费资产 正文 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗，含作者署名或私有协议，禁止直接加载"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "needs-sanitization",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 68,
+    "grade": "D",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:241",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "sanitize",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "standard",
+    "id": "private-89",
+    "title": "大纲生成",
+    "stage": "polish",
+    "goal": "付费资产 大纲生成 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:242",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-86",
+    "title": "降 AI 润色 2.0",
+    "stage": "polish",
+    "goal": "付费资产 降 AI 润色 2.0 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:243",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-85",
+    "title": "对话情绪拉扯增幅器",
+    "stage": "polish",
+    "goal": "付费资产 对话情绪拉扯增幅器 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:244",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "curationTier": "featured",
+    "id": "private-84",
+    "title": "超强文风自适应续写",
+    "stage": "polish",
+    "goal": "付费资产 超强文风自适应续写 全链路推进长篇正文或提供题材适配。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "定制清洗就绪"
+    ],
+    "successSignal": "长篇节奏感和对白质量有大幅上升。",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 73,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "prompt-asset-scorecard.md:245",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "creative-1",
+    "curationTier": "standard",
+    "title": "玄幻题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供玄幻题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:251",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "fantasy"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-2",
+    "curationTier": "standard",
+    "title": "修真题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供修真题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:252",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "cultivation",
+      "fantasy"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-3",
+    "curationTier": "standard",
+    "title": "都市异能题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供都市异能题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:253",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "urban"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-4",
+    "curationTier": "standard",
+    "title": "重生题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供重生题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:254",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "rebirth",
+      "urban",
+      "fantasy"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-5",
+    "curationTier": "standard",
+    "title": "穿越题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供穿越题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:255",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "transmigration"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-6",
+    "curationTier": "standard",
+    "title": "快穿题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供快穿题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:256",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "quick-transmigration"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-7",
+    "curationTier": "standard",
+    "title": "末世题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供末世题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:257",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "apocalypse",
+      "sci-fi"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-8",
+    "curationTier": "standard",
+    "title": "科幻题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供科幻题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:258",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "sci-fi"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-9",
+    "curationTier": "standard",
+    "title": "悬疑推理题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供悬疑推理题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:259",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "mystery"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-10",
+    "curationTier": "standard",
+    "title": "言情题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供言情题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:260",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "romance"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-11",
+    "curationTier": "standard",
+    "title": "宫斗宅斗题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供宫斗宅斗题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:261",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "palace",
+      "romance"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-12",
+    "curationTier": "standard",
+    "title": "群像剧题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供群像剧题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:262",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "ensemble"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-13",
+    "curationTier": "standard",
+    "title": "权谋历史题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供权谋历史题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:263",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "history"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-14",
+    "curationTier": "standard",
+    "title": "电竞游戏题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供电竞游戏题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:264",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "gaming",
+      "sci-fi"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-15",
+    "curationTier": "standard",
+    "title": "轻小说风格题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供轻小说风格题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:265",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "light-novel"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "creative-16",
+    "curationTier": "standard",
+    "title": "追妻火葬场题材大类配置模板",
+    "stage": "polish",
+    "goal": "题材风格包提供追妻火葬场题材大类配置模板题材的背景支撑与配置基线。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "题材大类免费共享，已完成安全合规校验"
+    ],
+    "successSignal": "题材特色感增强。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-asset-scorecard.md:266",
+    "sourceGroup": "tool",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "genreTags": [
+      "romance",
+      "drama"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "tomato-scorecard",
+    "title": "番茄评分卡",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 番茄评分卡 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 92,
+    "grade": "A",
+    "primaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:28",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "platformTags": [
+      "tomato"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "hook-system",
+    "title": "章末钩子 13 式 + 章首 7 式",
+    "stage": "polish",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 章末钩子 13 式 + 章首 7 式 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 90,
+    "grade": "A",
+    "primaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:29",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "platformTags": [
+      "tomato"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "deconstruct-sop-6",
+    "title": "拆书 6 阶段 SOP",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 拆书 6 阶段 SOP 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 90,
+    "grade": "A",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:30",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "tomato-opening-validator",
+    "title": "黄金三章诊断",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 黄金三章诊断 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:31",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "platformTags": [
+      "tomato"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "snowflake-6-steps",
+    "title": "雪花六步法",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 雪花六步法 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 87,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:32",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "chapter-blueprint-prompt",
+    "title": "章节正文写作 prompt",
+    "stage": "drafting",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 章节正文写作 prompt 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 84,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:33",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "character-state-doc",
+    "title": "角色状态文档",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 角色状态文档 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:34",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "slop-shield-guide",
+    "title": "去 AI 味指南",
+    "stage": "polish",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 去 AI 味指南 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:35",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "standard",
+    "id": "opening-templates-library",
+    "title": "开头模板库",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 开头模板库 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:36",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "eight-nodes-structure",
+    "title": "八节点结构",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 八节点结构 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:37",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "emotion-tension-curve",
+    "title": "情绪拉扯五折线",
+    "stage": "polish",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 情绪拉扯五折线 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 83,
+    "grade": "B",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:38",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "curationTier": "featured",
+    "id": "tomato-sweet-formula",
+    "title": "爽点核心公式",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 爽点核心公式 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 85,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:39",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "platformTags": [
+      "tomato"
+    ],
+    "isShellBody": true
+  },
+  {
+    "id": "context-brief-agent",
+    "title": " 写前 Brief Agent",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用  写前 Brief Agent 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "premium-enhancement",
+    "score": 94,
+    "grade": "A",
+    "primaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:40",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "review-schema-v2",
+    "title": " +  审稿 schema v2",
+    "stage": "review",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用  +  审稿 schema v2 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 94,
+    "grade": "A",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:41",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "isShellBody": true
+  },
+  {
+    "id": "deconstruct-card-pacing",
+    "title": "节奏拆书卡",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 节奏拆书卡 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 88,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:42",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "deconstructionCardType": "pacing-card",
+    "isShellBody": true
+  },
+  {
+    "id": "deconstruct-card-hook",
+    "title": "钩子拆书卡",
+    "stage": "planning",
+    "goal": "结合番茄与 Webnovel 的特色能力，应用 钩子拆书卡 提高完读率和开篇爽点。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "番茄补充，用于平台题材特化"
+    ],
+    "successSignal": "平台指标完读及钩子拉扯显著拉升。",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 86,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "prompt-supplement-fanqie-webnovel.md:43",
+    "sourceGroup": "fanqie-supplement",
+    "evidenceLevel": "summarized-source",
+    "processDecision": "adopt",
+    "deconstructionCardType": "hook-card",
+    "isShellBody": true
+  },
+  {
+    "id": "core-slop-shield",
+    "title": "去 AI 腔与废话净化器",
+    "stage": "polish",
+    "goal": "剔除翻译腔与机械套话，加入肢体动作与环境张力",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "内置护栏，确保高频执行性能"
+    ],
+    "successSignal": "AI 腔度评分显著下降，文字画面感提升",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 98,
+    "grade": "A",
+    "primaryCategory": "quality-guardrail",
+    "secondaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "core-dialogue-enhancer",
+    "title": "深度对白与肢体动作增强器",
+    "stage": "polish",
+    "goal": "在对白中融入下意识肢体反应，打破站桩说话",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "官方核心组件，动态分析高频词频"
+    ],
+    "successSignal": "肢体描写与对白交织自然，画面感大幅增强",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "core-default",
+    "score": 92,
+    "grade": "A",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "licensed-cthulhu-style",
+    "title": "克苏鲁诡秘题材风格氛围增色包",
+    "stage": "polish",
+    "goal": "引入不可名状的压迫感，润色惊悚描写词汇",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "购买授权资产，版权链合规完整"
+    ],
+    "successSignal": "悬念与诡秘气息显著提升",
+    "licenseStatus": "user-authorized",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 1,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 85,
+    "grade": "B",
+    "primaryCategory": "constellation-pack",
+    "secondaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "licensed",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "private",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "plaza-golden-three",
+    "title": "黄金三章核心冲突大纲展开器",
+    "stage": "planning",
+    "goal": "规划开局爽点、建立第一冲突悬念",
+    "inputs": [
+      "outline"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "广场贡献资产，已去水印清洗"
+    ],
+    "successSignal": "开局剧情节奏紧凑，番茄平台适配度高",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 2,
+      "authors": 1,
+      "brands": 1,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 72,
+    "grade": "C",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "ancient-gorgeous-reference",
+    "title": "古言华美辞藻风格参考板",
+    "stage": "polish",
+    "goal": "引入唯美工整的古风句式，增强国风典雅氛围",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "民间优秀作者提炼，已做全面水印清洗"
+    ],
+    "successSignal": "句式节奏悠长，古风意境自然契合",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 81,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "raw-comp-brand-detector",
+    "curationTier": "featured",
+    "title": "竞品检测模板",
+    "stage": "review",
+    "goal": "检测生成的敏感段落",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "未清洗、带有竞品推广与私人联系方式，禁止运行时动态直接加载！"
+    ],
+    "successSignal": "物理白标抹除",
+    "licenseStatus": "unknown",
+    "sanitizationStatus": "needs-sanitization",
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 45,
+    "grade": "F",
+    "primaryCategory": "quality-guardrail",
+    "secondaryCategory": "utility-tool",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "plaza",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "square",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "de-ai-tells-guard",
+    "title": "去AI味痕迹规则卡",
+    "stage": "polish",
+    "goal": "按公开语料实测出的高频 AI 痕迹清单约束正文句式：翻案腔、破折号揭晓、段首零主语评论、相邻句同构、提示性冒号与复述式总结。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "内置护栏，规则提炼自公开语料实测结论，检测逻辑由 InkFlow 自行实现"
+    ],
+    "successSignal": "高频 AI 痕迹句式在正文中显著减少，且信息量与画面感不下降。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 95,
+    "grade": "A",
+    "primaryCategory": "quality-guardrail",
+    "secondaryCategory": "utility-tool",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "knowledge-extract",
+    "title": "知识谱系抽取器",
+    "stage": "planning",
+    "goal": "把已确认资料包的逐章细纲、遗物体系与公理解析入库：伏笔台账、设定实体与图谱边，并回报覆盖率数值。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "工具卡：不注入写作规则文本",
+      "幂等：台账按 title+plantedChapterId 去重，边按 source+target+type 去重"
+    ],
+    "successSignal": "覆盖率数值可读，重复运行新增计数归零",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "foreshadow-settle",
+    "title": "伏笔回收核对器",
+    "stage": "review",
+    "goal": "对照伏笔台账给出未回收伏笔核对清单（含欠账与计划回收章），供作者逐条裁决回收安排。",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "工具卡：不注入写作规则文本",
+      "只读诊断：不写库、不改伏笔状态"
+    ],
+    "successSignal": "未回收伏笔逐条可核，欠账条数明确",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 76,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "tomato-opening-diagnostic",
+    "title": "番茄开篇诊断器",
+    "stage": "review",
+    "goal": "对番茄平台开篇（第 1-3 章）做可复核诊断：钩子强度、信息差、爽点兑现、断章位置、主角能动性与完读风险",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只作为声明阶段（review/critic）的核对清单，不注入写作规则文本",
+      "输出为结构化 JSON，供推进质量门与作者裁决读取，不直接改写正文"
+    ],
+    "successSignal": "开篇诊断有可复核证据与修改方向，且不产生直接改写正文的副作用。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "tianma-three-act-planner",
+    "title": "三幕式高潮规划器",
+    "stage": "planning",
+    "goal": "把设定与节奏大纲转成三幕式高潮规划：幕目标、阻力升级、转折点、情绪峰值与幕间钩子，供后续分章",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "规划卡：输出为结构规划与大纳，不生成章节正文",
+      "新设定一律标为「待作者确认」，避免模型自行扩展世界观"
+    ],
+    "successSignal": "三幕递进有明确转折点与情绪峰值，高潮由主角选择解决，可直接拆成分章大纲。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "deconstruction-pacing-dissect",
+    "title": "爽感节奏拆解器",
+    "stage": "planning",
+    "goal": "把目标作品拆成可复用的节奏卡片：情绪值曲线、爽点类型、信息差、断章手法与回收周期",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "拆解卡：只输出结构卡片，不复制原作正文（引用限短语证据）",
+      "拆解结论用于后续作品，不得直接拼入正文"
+    ],
+    "successSignal": "产出可复核的节奏卡片与跨章曲线，且结论以结构而非情节复述呈现。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "style-reference",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "character-arc-dossier",
+    "title": "人物弧光档案",
+    "stage": "planning",
+    "goal": "把主角、反派与关键配角写成可复用的弧光档案：欲望、缺陷、代价、转折点与关系张力，供后续大纲与正文调用",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出人物档案，供大纲与正文引用，不直接改写正文",
+      "缺陷与代价必须落到具体事件，避免形容词堆砌"
+    ],
+    "successSignal": "每个主要角色都有可执行的目标/缺陷/转变节点，且关系张力能直接支撑冲突设计。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 84,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "relic-system-designer",
+    "title": "道具与遗物体系设计器",
+    "stage": "planning",
+    "goal": "为长篇铺设可回收的道具、遗物与装备清单：来源、限制、代价、首次出现与回收位置，避免后期设定断档",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出道具与遗物清单，供大纲/细纲/正文引用",
+      "每件物品必须带代价与回收位置，防止万能道具"
+    ],
+    "successSignal": "道具清单可直接落到章节（有首次出现与回收位置），且限制与代价自洽。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "arc-instance-designer",
+    "title": "副本（事件单元）设计器",
+    "stage": "planning",
+    "goal": "把大纲拆成若干事件单元：进入条件、升级阶梯、退出条件与遗留物，保证每个单元都能独立成章又推动主线",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出事件单元表，供分章大纲与正文使用",
+      "退出条件必须落在主角的主动选择上，否则标注待改"
+    ],
+    "successSignal": "每个单元都有可验证的进入/退出条件与遗留物，且能说明主线推进。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "test-fixture-unsafe",
+    "title": "Unsafe Test Fixture",
+    "stage": "polish",
+    "goal": "Test physical isolation",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "Test fixture"
+    ],
+    "successSignal": "Failed recommendation",
+    "licenseStatus": "unknown",
+    "sanitizationStatus": "needs-sanitization",
+    "runtimeStatus": "candidate",
+    "placementTier": "sanitize-required",
+    "score": 45,
+    "grade": "F",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": false,
+    "isRuntimeReady": false,
+    "sourceType": "plaza",
+    "sourceRef": "tests:fixture",
+    "sourceGroup": "test-fixture",
+    "evidenceLevel": "test-fixture",
+    "isShellBody": false
+  },
+  {
+    "id": "test-fixture-lowscore",
+    "title": "Lowscore Test Fixture",
+    "stage": "polish",
+    "goal": "Test low score physical filter",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "Test fixture"
+    ],
+    "successSignal": "Failed recommendation",
+    "licenseStatus": "public",
+    "sanitizationStatus": "runtime-ready",
+    "runtimeStatus": "active",
+    "placementTier": "optional-style",
+    "score": 30,
+    "grade": "F",
+    "primaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "plaza",
+    "sourceRef": "tests:fixture",
+    "sourceGroup": "test-fixture",
+    "evidenceLevel": "test-fixture",
+    "isShellBody": false
+  }
+];
+
 export const ENHANCEMENT_PACKAGES: EnhancementPackage[] = [
   {
     "id": "free-basic-audit",

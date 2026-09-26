@@ -16,7 +16,7 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
 **渲染投影只允许两条路径，候选原貌禁止直达渲染。**
 
 1. **文风可选集**：`getOptionalStyleAssets()`（`src/lib/capability-governance.ts`）——
-   消费 `RUNTIME_STYLE_CATALOG = [...PROMPT_GOVERNANCE_CATALOG, ...SANITIZED_SKILL_COPIES]`，
+   消费 `RUNTIME_STYLE_CATALOG = [...PUBLIC_SHELL_CATALOG, ...SANITIZED_SKILL_COPIES]`，
    且过滤条件强制 `runtimeStatus === 'active' && isRuntimeReady && sanitizationStatus ===
    'runtime-ready'`，即只有消毒完成且运行就绪的条目才会出现在货架。
 2. **需解锁白名单**：`getSanitizeRequiredAssets()`——投影待消毒候选卡（卡片壳信息：标题 /
@@ -25,6 +25,13 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
 
 除此之外，任何新面板 / 新投影 / 新导出不得把 `sanitize-required` 或未消毒候选的正文渲染给用户，
 也不得绕过 `sanitizationStatus` 过滤直接把治理目录条目当可用能力供出。
+
+3. **渲染层目录边界（Plan 262 B1，2026-09-28）**：渲染层**只能**消费生成产物
+   `shared/lib/public-skill-catalog.ts`（公开池 `PUBLIC_SKILL_GOVERNANCE_CATALOG`、全量壳目录
+   `PUBLIC_SHELL_CATALOG`、消毒副本 `SANITIZED_SKILL_COPIES`），**禁止** import 源治理目录
+   `shared/lib/prompt-governance-catalog.ts`——它携带 `template` 全文，会让未消毒正文进渲染包。
+   壳目录 = 全量源资产（`template` 物理清空）的投影；`template` 的派生语义（壳判定）在生成期
+   固化为 `isShellBody`，供护栏审计等消费方复用。
 
 ## 实现锚点
 
@@ -35,6 +42,11 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
   （`onSanitize` 仅在 `isSanitizeRequiredAsset` 为真时展示）。
 - 消毒数据源：`SANITIZED_SKILL_COPIES`（`shared/lib/public-skill-catalog.ts`，生成产物；
   其模板与生成逻辑在 `scripts/generate-public-catalog.ts`）。
+- **渲染层目录来源**：`PUBLIC_SHELL_CATALOG`（同文件，生成产物；全量源资产、`template` 物理清空、
+  固化 `isShellBody`）。生成逻辑：`scripts/lib/public-catalog-pipeline.ts` 的 `buildPublicCatalogModel()`
+  → `model.shellCatalog`（去重顺序 = 源目录优先、注册表补缺）。
+- **壳判定单源**：`shared/lib/prompt-shell.ts`（`isShellTemplatePrompt`）。`shared/lib/guardrail-scope.ts`
+  的 `isShellGuardrail` 优先读 `isShellBody`，源目录侧仍走模板判定，两侧结论一致（有守卫测试）。
 - **判据单源**：`shared/lib/capability-runtime-readiness.ts`（`isRuntimeReadyAsset` /
   `hasRuntimeReadySanitization`，M5② 收口）。「这张卡能不能用」的三元判定只此一处，禁止再手抄
   比较；守卫 `tests/capability-runtime-readiness.test.ts` 会扫描仓内源码。
@@ -45,6 +57,9 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
   不再进"需解锁"分组，其副本作为正式文风卡可选用）。
 - `tests/public-catalog-freshness.test.ts`：生成产物与源注册表一致性。
 - `tests/de-ai-tells-guard.test.ts`：消毒正文不得命中署名 / 联系方式 / 竞品 / 水印词模式。
+- `tests/renderer-catalog-shell.test.ts`（Plan 262 B1）：① 静态边界（`src/**` 非测试文件不得 import
+  源治理目录）；② 壳目录无正文；③ id 覆盖源目录 / 公开池；④ 治理字段逐条零漂移；⑤ 壳标记固化与
+  「引用壳」分类两侧一致；⑥ 渲染层治理函数在壳目录上仍可用。
 
 ## 已知缺口
 
@@ -55,7 +70,10 @@ licensed），原貌正文可能携带原作者署名、联系方式、竞品品
   仍散在各投影函数内，属下一步结构收口。
 - 消毒运行时端点（`/sanitize` 类）无自动化 E2E 覆盖（plan 213 执行记录：010 用例随单源化删除，
   端点保留）。
-- `PROMPT_GOVERNANCE_CATALOG`（`prompt-governance-catalog.ts`，治理注册表源）与
-  `PUBLIC_SKILL_GOVERNANCE_CATALOG`（`public-skill-catalog.ts`，生成产物）现为**双库**：
-  导出名已区分（Plan 221），内容合并或消费侧单源化留待"消毒缺口收口"后评估（见 plans/README
-  backlog「白标清洗单源化」「governance 契约测试」）。
+- `PROMPT_GOVERNANCE_CATALOG`（源）与 `PUBLIC_SKILL_GOVERNANCE_CATALOG` / `PUBLIC_SHELL_CATALOG`
+  （生成产物）现为**双库**：导出名已区分（Plan 221）。**渲染侧已单源**（Plan 262 B1：渲染层只消费
+  生成产物，源目录仅作生成输入）；服务端仍读源目录（要正文），合并评估留给 plans/README backlog
+  「白标清洗单源化」「governance 契约测试」。
+- **新发现（2026-09-28，待处置）**：`getSanitizeRequiredAssets()` 实测返回 **0 条**——「需解锁」
+  白名单当前为空（源目录口径同样为 0：13 张候选或已有副本、或标题判为垃圾/重复）。该投影面目前是
+  死面，需决定是修准入谓词还是下线该区块。

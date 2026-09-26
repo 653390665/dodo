@@ -155,10 +155,41 @@
 - 读数：34 步 / 可运行 21（61.8%）/ 仅引导 13；gate kinds advisory 32 + mechanical 1 + critic 1；byStage planner 21 / writer 9 / critic 4；串台对照 34×33=1122；引用资产 26/182。
 - 残余：只支持作品级同步动作（服务端 run 路由仅两张卡，`_NO_KERNEL` 为硬边界）；运行结果不落库；`capabilityRef` 尚无生产回执 / 审计消费方。
 
+### 消毒缺口收口：渲染层目录边界 — 2026-09-28
+
+规格：`docs/specs/capability-sanitize.md` 不变式 3「渲染层目录边界」。
+
+**缺口**：`src/lib/capability-governance.ts:1` 直接 import 源治理目录 `prompt-governance-catalog.ts`
+（携带 182 条 `template` 全文），该模块被 15+ 渲染层文件间接消费、`RUNTIME_STYLE_CATALOG` 亦源此，
+未消毒正文进渲染包的通道一直开着。
+
+**处置**：
+
+1. 生成管线新增全量壳目录：`scripts/lib/public-catalog-pipeline.ts` 的 `shellCatalog`
+   = `cloneAndSanitize(dedupeById([...PROMPT_GOVERNANCE_CATALOG, ...GOVERNED_ASSETS_V2_REGISTRY]))`，
+   出参 `PUBLIC_SHELL_CATALOG`（`shared/lib/public-skill-catalog.ts`，生成物，`template` 物理清空）。
+   去重顺序 = **源目录优先**；注册表优先会让 `tomato-opening-validator` 的 placementTier / licenseStatus /
+   sourceType / inputs 四项漂移。
+2. 渲染层切生成物：`capability-governance.ts` 删源目录 import，8 处引用改 `PUBLIC_SHELL_CATALOG`，
+   `RUNTIME_STYLE_CATALOG = [...PUBLIC_SHELL_CATALOG, ...SANITIZED_SKILL_COPIES]`。
+3. **模板派生语义固化**：`GovernedPromptAsset` 新增 `isShellBody?: boolean`（生成期写入
+   `isShellTemplatePrompt(asset.template)`）；`shared/lib/guardrail-scope.ts` 的 `isShellGuardrail`
+   优先读该标记、缺省回退模板判定。不固化则 `template` 清空令「引用壳」分类全体反转，
+   前端 `src/tests/guardrail-policy-panel.test.tsx` 立即红（实测发生过）。
+4. 守护测试 `tests/renderer-catalog-shell.test.ts`（7 例）：静态边界（`src/**` 非测试不得 import
+   源治理目录）、壳目录无正文、id 覆盖、治理字段零漂移、壳标记与「引用壳」分类两侧一致、
+   渲染层治理函数可用。
+
+**验证**：生成物重跑 `node --import tsx scripts/generate-public-catalog.ts`（GEN_EXIT=0，+6527 行）；
+守卫组 24/24（含 freshness / governance）；前端定向 `guardrail-policy-panel` + `style-shelf-decks` 12/12。
+
+**附带发现（待拍板）**：`getSanitizeRequiredAssets()` 实测 0 条——「需解锁」白名单当前为空
+（源目录口径同为 0：13 张候选或已有副本、或标题判为垃圾/重复），该投影面为死面。
+
 ### 登记
 
-- B1 附带发现（待拍板）：`src/lib/capability-governance.ts:1` 直接 import 源目录 `PROMPT_GOVERNANCE_CATALOG`
-  （含模板全文）进渲染层，可能绕过公开目录的模板剥离面；当前无测试钉住，需决定是否纳入批次 C。
+- 消毒缺口（原「B1 附带发现」，待拍板）→ **已处置（2026-09-28）**：见下「消毒缺口收口：渲染层目录边界」。
+  附带发现 `getSanitizeRequiredAssets()` 实测 0 条（「需解锁」投影是死面）仍待拍板处置。
 
 
 - 根账本：`plans/README.md` Round 46（2026-09-28）

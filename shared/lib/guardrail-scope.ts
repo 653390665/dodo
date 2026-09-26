@@ -22,6 +22,8 @@ export interface GuardrailScopeAsset extends RuntimeReadinessFields {
   readonly placementTier?: string | null;
   readonly sourceGroup?: string | null;
   readonly template?: string | null;
+  /** 壳目录投影派生标记：template 被清空后由它承载壳判定（见 public-catalog-pipeline）。 */
+  readonly isShellBody?: boolean;
 }
 
 export const GUARDRAIL_DEFAULT_ON_LABEL = '已自动生效';
@@ -33,7 +35,11 @@ export const GUARDRAIL_SHELL_NOTE =
 
 /** 引用壳护栏：能通过校验、但注入阶段会被丢弃（buildGuardrails 的壳卡过滤），故无净增。 */
 export function isShellGuardrail(asset: GuardrailScopeAsset | null | undefined): boolean {
-  return Boolean(asset && isSelectableGuardrail(asset) && isShellTemplatePrompt(asset.template ?? ''));
+  if (!asset || !isSelectableGuardrail(asset)) return false;
+  // 公开壳目录的 template 恒为空串，故优先读生成期固化的派生标记；
+  // 源目录（template 完整）仍走模板判定，两侧结论一致。
+  if (typeof asset.isShellBody === 'boolean') return asset.isShellBody;
+  return isShellTemplatePrompt(asset.template ?? '');
 }
 
 export interface GuardrailSelectionEntry {

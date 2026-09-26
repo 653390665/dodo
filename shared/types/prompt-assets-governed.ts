@@ -106,6 +106,12 @@ export interface GovernedPromptAsset extends Omit<PromptAsset, 'id'> {
   /** 清洗命中统计 */
   sanitizationHits?: SanitizationHits;
 
+  /**
+   * 壳目录投影派生标记（Plan 262 B1）：公开壳目录会物理清空 `template`，
+   * 故把「源正文是否为引用壳」的判定在生成期固化下来，供渲染层治理/审计复用。
+   */
+  isShellBody?: boolean;
+
   /** 资产大类分流判定: 审稿、去 AI 腔为内置(built-in); 流派题材包等为可选(optional) */
   promptCategory?: 'built-in' | 'optional';
 
