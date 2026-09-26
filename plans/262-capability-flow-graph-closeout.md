@@ -26,7 +26,7 @@
 
 | # | 项 | 现状证据 | 完成判据 |
 |---|---|---|---|
-| C1 | `cardRef` 挂真实步骤 | 槽位代码已实现（`shared/lib/flow-step-card-slot.ts`、`server/helpers/writing-style-service.ts`），目录中 cardRef 实例 **0**、cardId **0** | 至少番茄/天马/拆书/风华/小飞鸡各 1 步挂 `cardRef`，断言对应阶段 prompt 含卡面特征串；未声明步骤快照逐项不变 |
+| C1 | `cardRef` 挂真实步骤 ✅ 已完成 | 槽位代码已实现（`shared/lib/flow-step-card-slot.ts`、`server/helpers/writing-style-service.ts`），目录中 cardRef 实例 **0**、cardId **0** | 至少番茄/天马/拆书/风华/小飞鸡各 1 步挂 `cardRef`，断言对应阶段 prompt 含卡面特征串；未声明步骤快照逐项不变 |
 | C2 | 旧 `qualityGate` 收敛 | 旧字段 30 处仍进提示词（`writing-style-service.ts:1159/1202` + `SkillsStudioView.tsx:3361/3369`、`PlanningTab.tsx:340`），新 `gate{kind}` 仅 generic step5/step6 | 双门合一（迁移或删除旧字段），提示词与 UI 同源；快照差异记录 |
 | C3 | 维度补卡 | 链路仅引用 22/179 张；人物 1 步、道具 0、副本 0、创意构思 1/4、审稿 1/3、其他 0/4 | 人物/道具/副本各 ≥1 可运行步骤；`capB-chain.ts` 缺口表更新 |
 | C4 | 死字段/半接线清理 | `foreshadowingTasks` 构建无消费（`server/helpers/knowledge-lineage-enrich.ts:90/128`）；`payoffNote` 部分消费（`:446`）；`ExecutionSnapshot.skillStack`/`techniques` 写入无读方，`overlays`/`sessionCards` 只进回执（`server/lib/db/product-events.ts:536-593`） | 逐项接线或删除，处置登记规格 |
@@ -98,6 +98,18 @@
 - 证据：`tests/catalog-disposition.test.ts` 6/6、`scratch/capD-sanitize.ts` 复跑数字一致、
   tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变（规格 §5.14）。
 - 残余：明确不公开的理由由生成侧规则复算，无人工拍板通道；副本源卡仍在 runtime 目录且 UI 未标注「仅副本公开」。
+
+### C1 cardRef 挂真实步骤 — 2026-09-28
+
+- 交付：5 条平台链路各 ≥1 步挂 `cardRef`，共 6 步（planner 4 / writer 1 / critic 1）——
+  小飞鸡 step1←`private-181`、天马 step4←`private-168`、风华 step1←`private-89`、
+  拆书 step2←`deconstruction-pacing-dissect`、番茄 step2←`de-ai-tells-guard`、番茄 step3←`tomato-opening-diagnostic`。
+- 语义：卡片正文以 `【步骤卡：<id>（role）】` + 模板原文进声明阶段 prompt；assetId 回退保留。
+- 证据：`tests/flow-step-card-mounts.test.ts` 8/8（声明覆盖 + 六条集成命中 + 未挂卡回归）；
+  快照**仅** `flow-square` planner `5dde5c7b(68)` → `47eae3c5(240)`，其余五场景逐项不变；
+  flow-audit 新增 `card=` 列；生成物 +42 行；tsc 0 / eslint 0 / 后端全量 1421/1421（+8）（规格 §5.15）。
+- 残余：`guidanceOnly` 与挂卡并存（可用性语义待批次 D）；其余 14 步「仅引导」未挂卡（D1）；
+  选卡为人工拍板，无自动选卡机制（C3）。
 
 ### 登记
 

@@ -743,6 +743,43 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 残余：`declared-internal` 理由由生成侧规则复算（垃圾标题 / 渲染空标题 / 夹具），尚无「人工拍板」登记通道；
 33 张副本的源卡仍留在 runtime 目录（用于追溯），UI 未标注「仅副本公开」。
 
+#### 5.15 cardRef 挂真实步骤（Plan 262 C1）
+
+问题（批次 B 遗留）：卡槽能力（`shared/lib/flow-step-card-slot.ts` + `server/helpers/writing-style-service.ts`
+的 `buildFlowStep`）已完整，但目录里 `cardRef` 实例 0 —— 能力空转；平台链路中 5 条各有 ≥1 步的资产是引用壳
+（`hook-system` / `deconstruct-card-hook` / `square-42` / `square-88` / `square-182`），这些步骤此前实际注入的
+是「无正文的空壳」。
+
+落地（每条平台链路 ≥1 步挂卡，共 6 步，覆盖 planner / writer / critic 三阶段）：
+
+| 链路 | 步骤（声明阶段） | 挂卡 | role | 卡面长度 |
+|---|---|---|---|---|
+| 小飞鸡 | `xiaofeiji-novel-flow-step1` 脑洞灵感闪耀（planner） | `private-181` 五个长篇脑洞 | rule | 147 |
+| 天马 | `tianma-outline-flow-step4` 天马通用分章大纲（planner） | `private-168` 章纲自适应续写 | rule | 148 |
+| 风华 | `fenghua-short-flow-step1` 风华短篇脑洞爆款分析（planner） | `private-89` 短篇专用大纲生成 | rule | 134 |
+| 拆书 | `book-deconstruction-flow-step2` 黄金开篇钩子拆解（planner） | `deconstruction-pacing-dissect` 爽感节奏拆解器 | rule | 860 |
+| 番茄 | `tomato-platform-flow-step2` 黄金三章钩子强化（writer） | `de-ai-tells-guard` 去AI味痕迹规则卡 | rule | 380 |
+| 番茄 | `tomato-platform-flow-step3` 核心爽点黄金排布（critic） | `tomato-opening-diagnostic` 番茄开篇诊断器 | diagnostic | 854 |
+
+语义：`cardRef.stages = [步骤声明阶段]`，卡片正文以 `【步骤卡：<id>（<role>）】` + 模板原文进入该阶段 prompt；
+`assetId` 路径保留为回退（`flowStep.prompt` 不变，六步 availability 仍为「仅引导」，因为它们的 assetId 是壳）。
+
+证据（2026-09-28）：
+- `tests/flow-step-card-mounts.test.ts` **8/8**：目录声明 6 步 / 5 条链路全覆盖且全部可解析（角色投影一致、
+  无诊断、阶段=声明阶段）；六条集成用例逐条断言「声明阶段 prompt 命中标记 + 卡面特征串，另两阶段不命中」，
+  且 `flowStep.cardId/cardRole/cardStages` 正确、`cardWarning` 缺省。
+- 回归：未挂卡步骤 `generic-novel-flow-step5` 仍 `stagePrompts` 缺省、三阶段无 `【步骤卡：`。
+- 快照六场景：**仅 `flow-square`（xiaofeiji step1）planner 变化 `5dde5c7b(68)` → `47eae3c5(240)`**（+172 = 卡片块）；
+  其余五场景（bare / technique / deck / flow-shield / flow-outline）逐项哈希不变；`flow-square` 的步骤 prompt 仍
+  `square-182@planner(59)!FLOW_STEP_ASSET_SHELL`（assetId 回退未被破坏）。
+- `scratch/flow-audit.ts` 新增 `card=<id>@<stage>` 列，六步逐一可见；其余口径不变
+  （30 步 / 可运行 16 / 仅引导 14 / 53.3% / 静默壳 0）。
+- 生成物 `shared/lib/public-skill-catalog.ts` 重生成 +42 行（仅 cardRef 声明）；新鲜度 / 唯一性 / 治理守卫全绿。
+- tsc 0、eslint 0、后端全量 1421/1421（+8）。
+
+残余：`guidanceOnly` 与挂卡并存（步骤仍标「仅引导」，因 assetId 是壳）——「有卡即可运行」的可用性语义留待批次 D；
+其余 14 步「仅引导」未挂卡（D1）；选卡为人工拍板，无「按维度自动选卡」机制（C3）。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）
