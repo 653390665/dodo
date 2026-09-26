@@ -637,6 +637,9 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
   生成管线 `scripts/lib/public-catalog-pipeline.ts` 增 `shellCatalog`（去重顺序源目录优先）。守护 `tests/renderer-catalog-shell.test.ts` 7/7
   （静态边界 / 无正文 / id 覆盖 / 字段零漂移 / 壳标记与「引用壳」分类两侧一致），守卫组 24/24、前端定向 12/12；
   规格 `docs/specs/capability-sanitize.md` 新增不变式 3。附带发现：「需解锁」白名单实测 0 条，投影面为死面（待处置）。
+- D2 已交付（2026-09-28）：伏笔面板图谱维护入口 —— `ForeshadowingPanel` 折叠条「图谱维护：资料包知识谱系」，
+  展开按需挂载 `KnowledgeMaintenancePanel`（未展开零请求）、`onCompleted` 重跑后刷新伏笔列表；
+  `src/tests/foreshadowing-graph-entry.test.tsx` 4/4、受影响面 3 文件 9/9。
 - 效果矩阵实测：只有「卡组主卡 / 作品技法 / 切换链路」真正改变三阶段 prompt；`projectCards`/`chapterCards`/`singleRunCard` only 场景 Δ 全 0（接线前）；`guardrailIds` 配 core-default 卡 Δ0（假控制）。
 - 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
 - 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处（诊断时读数；C1–C5 后：34 步 / 可运行 21（61.8%）/ 仅引导 13、引用资产 26/182、cardRef 6 步、能力引用 2 步、`qualityGate` 已删；见各 C 行）

@@ -37,7 +37,7 @@
 | # | 项 | 现状 |
 |---|---|---|
 | D1 | 13 步「仅引导」补正文 | 按链（C3 后实测 `scratch/c4-perchain.ts`）：番茄 4（step2/3/4/5，其中 step2/3 已挂 cardRef 但 assetId 仍为壳）/ 风华 4（step1/2/3/5）/ 天马 3（step1/2/4）/ 小飞鸡 1（step1）/ 拆书 1（step2）/ 通用 0；当前 19/32 可运行（59.4%），到 80% 需再补 7 步（32×0.8=25.6→ 26 可运行） |
-| D2 | 伏笔面板加图谱维护入口 | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
+| D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | 只覆盖删除路径；回退需先定义「回到哪个来源版本」 |
 | D4 | 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` |
 | D5 | 长篇记忆基线补完 | 样本为确定性合成长书；回声口径为「token 是否进请求」；planner/critic 未纳入；未接 CI |
@@ -185,6 +185,18 @@
 
 **附带发现（待拍板）**：`getSanitizeRequiredAssets()` 实测 0 条——「需解锁」白名单当前为空
 （源目录口径同为 0：13 张候选或已有副本、或标题判为垃圾/重复），该投影面为死面。
+
+### D2 伏笔面板图谱维护入口 — 2026-09-28
+
+**现状**：图谱维护只有 World Bible 图谱页一个入口（`WorldBibleView.tsx` 的 `activeTab === 'graph'` 容器），
+用户在伏笔管理现场（`ForeshadowingPanel`，挂 `AgentWorkspace`）看不到维护入口。
+
+**处置**：`ForeshadowingPanel` 新增折叠条「图谱维护：资料包知识谱系」（`aria-expanded` / `aria-controls`），
+展开后按需挂载 `KnowledgeMaintenancePanel`（未展开不挂载 → 零请求），`onCompleted={refresh}` 让重跑成功后
+伏笔列表立即刷新。**不做跨视图跳转**：World Bible 图谱页路由面（`AppShell` launchState）本轮不动，
+且内嵌保持维护逻辑单源（不复制重跑实现）。
+
+**证据**：`src/tests/foreshadowing-graph-entry.test.tsx` 4/4；受影响面回归 3 文件 9/9；tsc 0 / eslint 0。
 
 ### 登记
 

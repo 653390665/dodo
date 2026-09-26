@@ -540,7 +540,8 @@ extract 幂等、settle 清单、错误码、路由端到端含 stale 409）；`
 `scratch/card-role-coverage.ts` 176 张 **0 未映射**（transform 30→32）；全量 `npm test` **1358/1358**（+7）。
 
 **残余（登记不静默）**：步骤引用这两张卡（批次 C 第 4 条）未做；UI 入口已由 §5.6 交付（World Bible 图谱页一键重跑 + 九项数值），
-驾驶舱/伏笔面板内入口仍未加；工具卡不进写作提示是设计语义而非缺口；`unknown-card` 兜底分支仓内 0 触发。
+驾驶舱内入口仍未加（**伏笔面板入口 2026-09-28 已加**，见 §5.6 末「D2 补记」）；工具卡不进写作提示是设计语义而非缺口；
+`unknown-card` 兜底分支仓内 0 触发。
 
 #### 5.6 图谱维护入口（批次 C 小类「图谱维护入口」）
 
@@ -582,8 +583,14 @@ extract 幂等、settle 清单、错误码、路由端到端含 stale 409）；`
   world-bible-assistant-accessibility / knowledge-maintenance-panel）**14/14**；
   `scratch/stageprompts-snapshot.ts` 与门槛前**逐项哈希一致**（本轮零提示改动）。
 
-**残余（登记不静默）**：伏笔面板（`ForeshadowingPanel`）内未加入口（当前只挂 World Bible 图谱页）；重跑为同步动作、
-无长任务进度；coverage 只展示"最近一次"，未落库历史快照。
+**残余（登记不静默）**：重跑为同步动作、无长任务进度；coverage 只展示"最近一次"，未落库历史快照。
+
+**D2 补记（2026-09-28）**：`ForeshadowingPanel` 增加图谱维护入口 —— 折叠条「图谱维护：资料包知识谱系」
+（默认收起、`aria-expanded` 可读），展开后**按需挂载** `KnowledgeMaintenancePanel`（未展开不挂载、零请求），
+`onCompleted={refresh}` 让重跑成功后伏笔列表立即刷新。选择内嵌而非跳转 World Bible 图谱页：跨视图路由面
+（`AppShell` 的 launchState 机制）本轮不动，且维护面板保持单源实现（不复制重跑逻辑）。
+证据：`src/tests/foreshadowing-graph-entry.test.tsx` **4/4**（默认收起零调用 / 展开不触发重跑 / 重跑带 novelId 且
+成功刷新列表 / 再次点击收起）；受影响面回归 `story-memory-graph` + `destructive-delete-confirm` 共 3 文件 **9/9**。
 
 #### 5.7 图谱失效语义（批次 C 小类「图谱失效语义」）
 

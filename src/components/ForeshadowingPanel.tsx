@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
+import { DatabaseZap, Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 
 import { Foreshadowing, ChapterMetadata } from '../../shared/types';
 import { listChaptersMetadata, getChapter } from '../lib/chapter-client';
@@ -14,6 +14,7 @@ import { startWorldJob } from '../lib/world-job-client';
 import { toast } from '../lib/toast';
 import { generateClientId } from '../lib/id';
 import { appConfirm } from './ui/app-confirm';
+import { KnowledgeMaintenancePanel } from './KnowledgeMaintenancePanel';
 
 const STATUS_CONFIG = {
   planted: { label: '已埋设', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -43,6 +44,8 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
   const [pendingDetection, setPendingDetection] = useState<PendingDetection | null>(null);
   const [confirmingDetection, setConfirmingDetection] = useState(false);
   const detectControllerRef = useRef<AbortController | null>(null);
+  // Plan 262 D2：图谱维护入口（资料包知识谱系重跑）按需展开，未展开不挂载面板。
+  const [showGraphMaintenance, setShowGraphMaintenance] = useState(false);
 
   const refresh = useCallback(async () => {
     setItems(await listForeshadowings(novelId));
@@ -252,6 +255,28 @@ export function ForeshadowingPanel({ novelId, currentChapterId }: Props) {
           )}
         </div>
       </details>
+
+      {/* 图谱维护入口（Plan 262 D2）：伏笔管理现场直达资料包知识谱系重跑，避免再去 World Bible 图谱页。 */}
+      <div className="rounded-xl border border-theme-border/40 bg-theme-sidebar/20">
+        <button
+          type="button"
+          onClick={() => setShowGraphMaintenance((value) => !value)}
+          aria-expanded={showGraphMaintenance}
+          aria-controls="foreshadowing-graph-maintenance"
+          className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-bold text-theme-muted"
+        >
+          <span className="flex items-center gap-1.5">
+            <DatabaseZap size={13} className="text-theme-accent" />
+            图谱维护：资料包知识谱系
+          </span>
+          <span>{showGraphMaintenance ? '收起' : '展开'}</span>
+        </button>
+        {showGraphMaintenance && (
+          <div id="foreshadowing-graph-maintenance" className="px-3 pb-3">
+            <KnowledgeMaintenancePanel novelId={novelId} onCompleted={refresh} />
+          </div>
+        )}
+      </div>
 
       {/* Add button */}
       {!showAdd && (
