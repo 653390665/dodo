@@ -871,6 +871,29 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - 未闭合的维度缺口：创意构思 1/4、审稿精修 1/3、「其他」0/4（属批次 D 长尾，未承诺）；
 - 新步骤的输出未进 `chapter_versions`/审计口径，仅作为规划阶段产物文本。
 
+### 5.18 死字段与半接线清理（Plan 262 C4）
+
+| 项 | 取证事实 | 处置 |
+|---|---|---|
+| `ChapterContract.foreshadowingTasks` | `server/helpers/knowledge-lineage-enrich.ts:90` 构建、`:128` 赋值；全仓 grep 无读方 | **接线**：进 critic checklist 逐条编号（未兑现须在 `fatalIssues` 指出） |
+| `ChapterContract.payoffNote` | 同上 `:91` / `:129`；语义 = 细纲「回收章」原文（`server/helpers/knowledge-lineage.ts:158-181`） | **接线**：checklist 增「回收安排（本条伏笔的回收章与方式）」 |
+| `ExecutionSnapshot.sessionCards` | `shared/types/capability-execution.ts:181` 声明；`server/helpers/writing-style-service.ts:2079` 写 `valueCopy(overlays)`（同值拷贝）、`:1107` 再拷一次；唯一读方是 `tests/execution-contract.test.ts:29` key 列表 | **删除**：类型 + 2 处写入 + 测试 key |
+| `ExecutionSnapshot.techniques` / `skillStack` | 快照字段无非测试读方；同名局部变量真实生效（`buildTechniquePrompt(...)` `server/helpers/writing-style-service.ts:2032/2061/2090`；`skillStack.effectiveCards` 派生 overlays `:2036`） | **接线**：进运行回执 + 阶段收据计数（证据面） |
+
+- 回执：`ProductionExecutionReceipt`（`shared/types/novel.ts:210-222`）增可选 `skillStack { mainCard, projectSupportCards, chapterCards }` 与 `techniques { planner, writer, critic }`；
+  id 由 `buildProductionExecutionReceipt`（`shared/lib/chapter-production.ts:29`）从快照带出（`snapshot.skillStack.mainCard?.id ?? null` 等），旧调用方不变形（Pick 追加 `Partial<Pick<ExecutionSnapshot,'skillStack'|'techniques'>>`）。
+- UI：`src/components/ProductionRunReview.tsx` 派生 `skillStackSummary`（`主卡：…；作品卡：…；章节卡：…`）/ `techniqueSummary`（`规划：…；正文：…；审稿：…`），
+  新增 `data-testid="skill-stack-receipt"`（「卡组装配（…）」）与 `data-testid="technique-receipt"`（「技法（…）」）两行，区块条件放宽为「回执非空或两行有内容」。
+- 阶段收据计数：`server/routes/production.ts:1004-1019` 的 `itemCount = roleSkillCount + overlayCount + guardrailCount + flowStepCount` **补 `techniqueCount`**；
+  技法正文此前已在 `stagePrompts` 里，收据却少报（仍展开进 `:1070` 的 `finalizeContextReceipt` sources）。
+- 证据：`tests/plan262-c4-deadwiring.test.ts` **4/4**（逐条伏笔任务 + 回收安排进 critic 清单 / 快照无 `sessionCards` / 回执带 skillStack+techniques 且旧调用方不变形 / 计数含技法）；
+  `src/tests/production-run-review.test.tsx` **17/17**（+1 卡组与技法回执渲染）；后端定向 16 文件 **158/158**；tsc 0 / eslint 0；后端全量 **1430/1430**（+4）、前端全量 **158 files / 1009 tests**（+1）、快照六场景逐项不变。
+
+**残余（已登记，不得当既有能力）**
+- `techniques` / `skillStack` 快照字段本身仍无运行时读方——真正生效的是 `writing-style-service.ts` 内部局部变量；本次只补了**证据面**（回执 + 计数），未把消费改成读快照。
+- 伏笔任务/回收安排进的是 critic 文本清单，不含结构化判定；`payoffNote` 取台账首行，多条伏笔时仍是拼接文本。
+- `foreshadowingTasks` 为描述句拆分结果，无去重与优先级。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）

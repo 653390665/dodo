@@ -29,14 +29,14 @@
 | C1 | `cardRef` 挂真实步骤 ✅ 已完成 | 槽位代码已实现（`shared/lib/flow-step-card-slot.ts`、`server/helpers/writing-style-service.ts`），目录中 cardRef 实例 **0**、cardId **0** | 至少番茄/天马/拆书/风华/小飞鸡各 1 步挂 `cardRef`，断言对应阶段 prompt 含卡面特征串；未声明步骤快照逐项不变 |
 | C2 | 旧 `qualityGate` 收敛 ✅ 已完成 | 旧字段 30 处仍进提示词（`writing-style-service.ts:1159/1202` + `SkillsStudioView.tsx:3361/3369`、`PlanningTab.tsx:340`），新 `gate{kind}` 仅 generic step5/step6 | 双门合一（迁移或删除旧字段），提示词与 UI 同源；快照差异记录 |
 | C3 | 维度补卡 ✅ 已完成 | 链路仅引用 22/179 张；人物 1 步、道具 0、副本 0、创意构思 1/4、审稿 1/3、其他 0/4 | 人物/道具/副本各 ≥1 可运行步骤；`capB-chain.ts` 缺口表更新 |
-| C4 | 死字段/半接线清理 | `foreshadowingTasks` 构建无消费（`server/helpers/knowledge-lineage-enrich.ts:90/128`）；`payoffNote` 部分消费（`:446`）；`ExecutionSnapshot.skillStack`/`techniques` 写入无读方，`overlays`/`sessionCards` 只进回执（`server/lib/db/product-events.ts:536-593`） | 逐项接线或删除，处置登记规格 |
+| C4 | 死字段/半接线清理 ✅ 已完成（2026-09-28） | `foreshadowingTasks` 构建无消费（`server/helpers/knowledge-lineage-enrich.ts:90/128`）；`payoffNote` 部分消费（`:446`）；`ExecutionSnapshot.skillStack`/`techniques` 写入无读方，`overlays`/`sessionCards` 只进回执（`server/lib/db/product-events.ts:536-593`） | 逐项接线或删除，处置登记规格 |
 | C5 | 步骤引用图谱能力卡 | `knowledge-extract`/`foreshadow-settle` 未被任何链路步骤引用（批次 C 第 4 条） | ≥1 步引用并断言执行面 |
 
 ## 批次 D：长尾（已登记残余）
 
 | # | 项 | 现状 |
 |---|---|---|
-| D1 | 14 步「仅引导」补正文 | 番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2；当前 16/30 可运行（53.3%），到 80% 需再补 8 步 |
+| D1 | 13 步「仅引导」补正文 | 按链（C3 后实测 `scratch/c4-perchain.ts`）：番茄 4（step2/3/4/5，其中 step2/3 已挂 cardRef 但 assetId 仍为壳）/ 风华 4（step1/2/3/5）/ 天马 3（step1/2/4）/ 小飞鸡 1（step1）/ 拆书 1（step2）/ 通用 0；当前 19/32 可运行（59.4%），到 80% 需再补 7 步（32×0.8=25.6→ 26 可运行） |
 | D2 | 伏笔面板加图谱维护入口 | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | 只覆盖删除路径；回退需先定义「回到哪个来源版本」 |
 | D4 | 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` |
@@ -108,7 +108,7 @@
 - 证据：`tests/flow-step-card-mounts.test.ts` 8/8（声明覆盖 + 六条集成命中 + 未挂卡回归）；
   快照**仅** `flow-square` planner `5dde5c7b(68)` → `47eae3c5(240)`，其余五场景逐项不变；
   flow-audit 新增 `card=` 列；生成物 +42 行；tsc 0 / eslint 0 / 后端全量 1421/1421（+8）（规格 §5.15）。
-- 残余：`guidanceOnly` 与挂卡并存（可用性语义待批次 D）；其余 14 步「仅引导」未挂卡（D1）；
+- 残余：`guidanceOnly` 与挂卡并存（可用性语义待批次 D）；其余 13 步「仅引导」未挂卡（D1）；
   选卡为人工拍板，无自动选卡机制（C3）。
 
 ### C2 双门合一（旧 `qualityGate` 收敛）— 2026-09-28
@@ -131,6 +131,17 @@
 - 证据：后端定向 7 文件 **92/92**；前端定向 4 文件（guidance/gate/progression/plan158）**71/71**；
   生成物 135 资产（+246/−3）；快照六场景不变；tsc 0 / eslint 0（规格 §5.17）。
 - 残余：三卡无外部来源（score 人工给定）；道具/副本仅天马一条链；未闭合维度 创意构思 1/4、审稿 1/3、其他 0/4（批次 D）。
+
+### C4 死字段与半接线清理 — 2026-09-28
+
+- 交付：① `foreshadowingTasks` / `payoffNote` 接线进 critic `checklistText`（逐条编号伏笔任务 + 回收安排）；
+  ② 删 `ExecutionSnapshot.sessionCards`（类型 + `writing-style-service.ts:1107/2079` 两处写入 + 测试 key）；
+  ③ `techniques` / `skillStack` 接线：`ProductionExecutionReceipt` 增可选两字段，`ProductionRunReview` 新增「卡组装配」「技法」两行，
+  `production.ts` 阶段收据 `itemCount` 补 `techniqueCount`（此前少报技法）。
+- 证据：`tests/plan262-c4-deadwiring.test.ts` 4/4；`src/tests/production-run-review.test.tsx` 17/17（+1）；
+  后端定向 16 文件 158/158；tsc 0 / eslint 0；后端全量 **1430/1430**（+4）、前端全量 **158 files / 1009 tests**（+1）、快照六场景逐项不变（规格 §5.18）。
+- 残余：快照 `techniques`/`skillStack` 字段仍无运行时读方（消费的是局部变量，本次只补证据面）；伏笔任务为文本清单、无结构化判定；
+  `payoffNote` 取台账首行（多条伏笔时拼接文本）。
 
 ### 登记
 
