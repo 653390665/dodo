@@ -711,6 +711,38 @@ tsc 0、eslint 0、后端定向 58/58、前端定向 43/43、快照六场景逐�
 
 残余：审稿分 80/60 分档是另一概念（章节审计分），未并入本模块；`shared/lib/curated-product-skills.ts` 的 S/A/B 字母评级为独立模型（登记，未并轨）；`grade` 仍存于资产对象（供展示与 F 拒绝路径），未在类型层分离「分数 / 门槛」。
 
+#### 5.14 目录滞留清账（Plan 262 B3）
+
+问题（2026-09-28 实测 `scratch/capD-sanitize.ts`）：179 张 runtime 目录 → 132 张上架公开目录；
+`admitPublicAsset` 拒 6 张；41 张「通过准入但不在公开目录」；`needs-sanitization` 46 张中
+33 张产副本、13 张永不产副本。此前只有汇总数字，逐张去向未登记，无法区分「漏做」与「有意为之」。
+
+去向单源 `scripts/lib/catalog-disposition.ts`（纯函数；判定顺序 public → sanitized-copy →
+duplicate-absorbed → declared-internal → unclassified），逐张给出一个去向与可读理由：
+
+| 去向 | 张数 | 语义 |
+|---|---|---|
+| public | 132 | 已上架公开目录（runtime-ready + 白标） |
+| sanitized-copy | 33 | 公开以 `sanitized-<id>` 副本形态存在；源卡按设计不上架（保留用于追溯） |
+| duplicate-absorbed | 6 | 换皮重投（同 `normalizedTitleKey`）被吸收，保留得分更高/标题更短者，并记录 `coveredBy` 指向保留卡 |
+| declared-internal | 8 | 明确不公开：垃圾标题 6（private-198/197/195/167/106 等）+ 渲染剥空标题 1（private-186「fire角色定制」）+ 测试夹具 1（test-fixture-unsafe） |
+| unclassified | **0** | 无去向（滞留）——必须为 0 |
+
+41 张「通过准入但不在公开目录」由此拆分清楚：33 张副本 + 6 张重复吸收 + 2 张测试夹具
+（`test-fixture-lowscore` 是 runtime-ready 夹具，`test-fixture-unsafe` 是 needs-sanitization 夹具）。
+13 张「needs-sanitization 且无副本」的去向：6 张换皮被吸收 + 7 张明确不公开（垃圾标题 6 + 夹具 1）。
+
+可复跑报告 `scripts/report-catalog-hygiene.ts`（`npx tsx scripts/report-catalog-hygiene.ts`）：
+打印去向分布 + `declared-internal` / `unclassified` 逐张清单；存在滞留即退出码 1。
+
+证据：`tests/catalog-disposition.test.ts` 6/6（分布钉住 179=132+33+6+8、id 全覆盖无重复、
+副本与副本表一一对应、6 张重复的 `coveredBy` 均可查且已上架/有副本、8 张明确不公开 id 清单、
+13 张无副本卡全部非滞留）；`scratch/capD-sanitize.ts` 复跑数字与上表一致（179/132/6/46/33/13）；
+tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变（本批次未触运行时与提示词）。
+
+残余：`declared-internal` 理由由生成侧规则复算（垃圾标题 / 渲染空标题 / 夹具），尚无「人工拍板」登记通道；
+33 张副本的源卡仍留在 runtime 目录（用于追溯），UI 未标注「仅副本公开」。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）

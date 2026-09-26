@@ -20,7 +20,7 @@
 |---|---|---|---|
 | B1 | 护栏语义（假控制） ✅ 已完成 | 12 张 core-default 护栏无条件注入；`guardrailIds=[core-slop-shield]` Δ0（加/删皆无变化），`[private-162]` 才 writer +169；唯一 `stage=review` 护栏是壳卡被过滤 → critic 永无护栏。判定 `isConfigurableGuardrailAsset` = `isRuntimeReadyAsset && primaryCategory==='quality-guardrail'`（`server/helpers/writing-style-service.ts:1151-1155`），`buildGuardrails:1260-1290` 先并全部 core-default 再并配置项 | 配置任一 core-default id 有可解释行为（去重/显式覆盖/UI 标明「已默认启用」）；新增用例钉住；`scratch/g2-guard-probe.ts` Δ 数值写入规格 §5.7 |
 | B2 | 评分口径显性化 ✅ 已完成 | score 同时是质量分与准入门槛（≥70 采用、<60 不可用、60–69 必 candidate）；UI 仅 `src/components/book-factory/QualityTab.tsx:536` 一行「{grade}级 ({score}分)」 | 卡面/详情解释评分与门槛口径，文案与分档逻辑单源（shared/lib），有测试钉住 |
-| B3 | 清洗滞留清账 | 179→132 公开；`admitPublicAsset` 拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本；`sanitizationHits` 仅 2 张非零 | 每张滞留资产有明确去向（补副本 / 标注不可公开 / 移出候选），`capD-sanitize.ts` 报告数字回写规格 |
+| B3 | 清洗滞留清账 ✅ 已完成 | 179→132 公开；`admitPublicAsset` 拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本；`sanitizationHits` 仅 2 张非零 | 每张滞留资产有明确去向（补副本 / 标注不可公开 / 移出候选），`capD-sanitize.ts` 报告数字回写规格 |
 
 ## 批次 C：链路真实化
 
@@ -87,6 +87,17 @@
 - 证据：`tests/prompt-score-policy.test.ts` 6/6、`src/tests/quality-tab-score-policy.test.tsx` 1/1、
   探针 0 mismatch、tsc 0、eslint 0、快照六场景逐项不变（规格 §5.13）。
 - 残余：审稿分档与 curated S/A/B 评级未并轨（登记）。
+
+### B3 目录滞留清账 — 2026-09-28
+
+- 单源：`scripts/lib/catalog-disposition.ts`（去向判定 public / sanitized-copy / duplicate-absorbed /
+  declared-internal / unclassified，后者必须为 0），可复跑报告 `scripts/report-catalog-hygiene.ts`。
+- 清账结果：179 张 = public 132 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8 + unclassified 0；
+  41 张「通过准入但不在公开目录」= 33 副本 + 6 换皮 + 2 测试夹具；13 张「needs-sanitization 且无副本」
+  = 6 换皮被吸收 + 7 明确不公开（垃圾标题 6 + 夹具 1）。
+- 证据：`tests/catalog-disposition.test.ts` 6/6、`scratch/capD-sanitize.ts` 复跑数字一致、
+  tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变（规格 §5.14）。
+- 残余：明确不公开的理由由生成侧规则复算，无人工拍板通道；副本源卡仍在 runtime 目录且 UI 未标注「仅副本公开」。
 
 ### 登记
 
