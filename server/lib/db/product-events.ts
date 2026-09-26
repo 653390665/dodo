@@ -211,6 +211,18 @@ export function getProductEventMetrics(days = 30): ProductEventMetrics {
       .prepare('SELECT * FROM product_events WHERE created_at >= ? ORDER BY created_at ASC')
       .all(cutoff) as ProductEventRow[]
   ).map(toEvent);
+  return buildProductEventMetrics(events, rangeDays);
+}
+
+/**
+ * 纯函数口径（Plan 262 E6）：与 `getProductEventMetrics` 同一套定义，入参为事件数组。
+ * 供离线复测（导出 JSON → `scripts/report-activation-funnel.ts`）复用，避免口径二次实现。
+ */
+export function buildProductEventMetrics(
+  events: ProductEvent[],
+  days = 30
+): ProductEventMetrics {
+  const rangeDays = Math.max(1, Math.min(365, Math.floor(days)));
   const unique = (name: ProductEventName, result?: string) =>
     new Set(
       events
