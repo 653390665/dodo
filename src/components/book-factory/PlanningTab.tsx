@@ -27,6 +27,7 @@ import {
 import {
   buildFlowStepAdvanceTags,
   evaluateFlowStepGate,
+  flowStepGateDisplay,
   getNovelSkippedSteps,
 } from '../../../shared/lib/flow-step-gate.js';
 import {
@@ -337,7 +338,7 @@ export function PlanningTab({
                   质量检查门栏 (Quality Gate)
                 </span>
                 <span className="text-xs text-theme-muted leading-relaxed block">
-                  {currentStep.qualityGate}
+                  {flowStepGateDisplay(currentStep.gate).text}
                 </span>
               </div>
             </div>
@@ -354,10 +355,12 @@ export function PlanningTab({
                 )}
               >
                 <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block">
-                  可判定质量门：{currentStep.gate.kind}
-                  {typeof currentStep.gate.threshold === 'number'
+                  {flowStepGateDisplay(currentStep.gate).kindLabel}
+                  {typeof currentStep.gate.threshold === 'number' &&
+                  !flowStepGateDisplay(currentStep.gate).advisory
                     ? `（阈值 ${currentStep.gate.threshold}）`
                     : ''}
+                  {flowStepGateDisplay(currentStep.gate).advisory ? '：仅展示，不拦截推进' : ''}
                 </span>
                 <span
                   className={cn(

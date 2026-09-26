@@ -27,6 +27,7 @@ import {
   resolveFlowStepCard,
 } from '../../shared/lib/flow-step-card-slot.js';
 import { resolveFlowStepStage } from '../../shared/lib/flow-step-stage.js';
+import { flowStepGatePromptText } from '../../shared/lib/flow-step-gate.js';
 import { resolveFlowStepAvailability } from '../../shared/lib/flow-step-guidance.js';
 import { PROMPT_GOVERNANCE_CATALOG } from '../../shared/lib/prompt-governance-catalog.js';
 import { isRunnableToolManifest } from '../../shared/lib/knowledge-capabilities.js';
@@ -1183,7 +1184,7 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
     `【流程步骤：${step.name}】`,
     `【步骤输入】${step.input}`,
     `【预期输出】${step.output}`,
-    `【质量门】${step.qualityGate}`,
+    `【质量门】${flowStepGatePromptText(step.gate)}`,
   ].join('\n');
   const assetPrompt = assetUsable
     ? `${stepContract}\n【可运行资产 Prompt】\n${asset?.template || ''}`
@@ -1226,7 +1227,7 @@ function buildFlowStep(novel: Novel): ExecutionSnapshot['flowStep'] {
       ? { stageWarning: stageResolution.warnings.join(',') }
       : {}),
     assetId: step.assetId,
-    qualityGate: step.qualityGate,
+    gate: step.gate ?? null,
     // prompt 语义保持「步骤资产注入文本」（未挂卡时的旧行为逐字节不变）；
     // 挂卡后的卡片正文按声明阶段落在 stagePrompts，未声明阶段回退本字段。
     prompt: assetPrompt,

@@ -447,7 +447,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-181' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '脑洞概念成型且具备初始爽点',
+        gate: { kind: 'advisory', note: '脑洞概念成型且具备初始爽点' },
         nextStepId: 'xiaofeiji-novel-flow-step2',
         switchAllowed: true,
       },
@@ -460,7 +460,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'world-setting',
         stage: 'planner',
         assetId: 'private-175', // 小飞鸡长篇通用大纲规划
-        qualityGate: '战力等级与世界观基本设定完备',
+        gate: { kind: 'advisory', note: '战力等级与世界观基本设定完备' },
         nextStepId: 'xiaofeiji-novel-flow-step3',
         switchAllowed: true,
         navigateTo: 'bible',
@@ -476,7 +476,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-183', // 【小飞鸡】长篇拆书器
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '主角性格、成长动机与金手指明确',
+        gate: { kind: 'advisory', note: '主角性格、成长动机与金手指明确' },
         nextStepId: 'xiaofeiji-novel-flow-step4',
         switchAllowed: true,
         navigateTo: 'bible',
@@ -490,7 +490,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapters-outline',
         stage: 'planner',
         assetId: 'private-175', // 万字大纲定制资产
-        qualityGate: '万字主线大纲评级达到 B 级以上',
+        gate: { kind: 'advisory', note: '万字主线大纲评级达到 B 级以上' },
         nextStepId: 'xiaofeiji-novel-flow-step5',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -504,7 +504,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'detailed-outline',
         stage: 'planner',
         assetId: 'private-179', // 章纲定制资产
-        qualityGate: '细纲爽点和冲突闭环',
+        gate: { kind: 'advisory', note: '细纲爽点和冲突闭环' },
         nextStepId: 'xiaofeiji-novel-flow-step6',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -518,7 +518,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapter-content',
         stage: 'writer',
         assetId: 'private-179', // 章纲定制资产
-        qualityGate: '前 3 章章纲精细度符合要求',
+        gate: { kind: 'advisory', note: '前 3 章章纲精细度符合要求' },
         nextStepId: 'xiaofeiji-novel-flow-step7',
         switchAllowed: true,
         navigateTo: 'planning',
@@ -532,7 +532,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapter-draft',
         stage: 'writer',
         assetId: 'private-180', // 真实的正文定制资产
-        qualityGate: '正文第一章写作完成',
+        gate: { kind: 'advisory', note: '正文第一章写作完成' },
         nextStepId: 'xiaofeiji-novel-flow-step8',
         switchAllowed: true,
         navigateTo: 'production',
@@ -546,7 +546,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapter-polished',
         stage: 'writer',
         assetId: 'private-193', // 真实的去AI高频词润色资产
-        qualityGate: 'AI腔去化度评测及格 (slop score > 85)',
+        gate: { kind: 'advisory', note: 'AI腔去化度评测及格 (slop score > 85)' },
         nextStepId: null,
         switchAllowed: true,
         navigateTo: 'quality',
@@ -567,7 +567,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'idea',
         stage: 'planner',
         assetId: 'generateOutline',
-        qualityGate: '有一个可以展开的核心灵感',
+        gate: { kind: 'advisory', note: '有一个可以展开的核心灵感' },
         nextStepId: 'generic-novel-flow-step2',
         switchAllowed: true,
       },
@@ -580,7 +580,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'setting',
         stage: 'planner',
         assetId: 'generateOutline',
-        qualityGate: '基本人设与背景搭建完成',
+        gate: { kind: 'advisory', note: '基本人设与背景搭建完成' },
         nextStepId: 'generic-novel-flow-step3',
         switchAllowed: true,
         navigateTo: 'bible',
@@ -594,7 +594,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'outline',
         stage: 'planner',
         assetId: 'generateOutline',
-        qualityGate: '小说大纲具备明确的起承转合',
+        gate: { kind: 'advisory', note: '小说大纲具备明确的起承转合' },
         nextStepId: 'generic-novel-flow-step4',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -608,7 +608,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'scene-outline',
         stage: 'planner',
         assetId: 'generateOutline',
-        qualityGate: '核心情节具备明确的情感起伏',
+        gate: { kind: 'advisory', note: '核心情节具备明确的情感起伏' },
         nextStepId: 'generic-novel-flow-step5',
         switchAllowed: true,
         navigateTo: 'planning',
@@ -622,9 +622,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'draft',
         stage: 'writer',
         assetId: 'core-slop-shield',
-        qualityGate: '第一章正文初稿撰写完成',
         // 批次 B「质量门判定与推进拦截」：草稿须过 shared 整章交付质量门才允许推进。
-        gate: { kind: 'mechanical' },
+        gate: { kind: 'mechanical', note: '第一章正文初稿撰写完成' },
         nextStepId: 'generic-novel-flow-step6',
         switchAllowed: true,
         navigateTo: 'production',
@@ -638,9 +637,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'polished-draft',
         stage: 'writer', // 输出是成稿（polished-draft）→ writer；质检由 gate.critic 负责，注入阶段与质量门是两件事
         assetId: 'core-slop-shield',
-        qualityGate: '基础文本去AI腔完成，语流顺畅',
         // 批次 B：审稿分类须 pass 且分数 ≥ 80（与服务端 SCORE_THRESHOLD 同口径）。
-        gate: { kind: 'critic', threshold: 80 },
+        gate: { kind: 'critic', threshold: 80, note: '基础文本去AI腔完成，语流顺畅' },
         nextStepId: null,
         switchAllowed: true,
       },
@@ -661,7 +659,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         stage: 'critic',
         // 批次 B 追补（2026-09-28）：原 tomato-scorecard 是广场转投壳，改指自撰内置诊断卡（正文可运行）。
         assetId: 'tomato-opening-diagnostic',
-        qualityGate: '开篇大纲契合番茄爆款模型',
+        gate: { kind: 'advisory', note: '开篇大纲契合番茄爆款模型' },
         nextStepId: 'tomato-platform-flow-step2',
         switchAllowed: true,
       },
@@ -678,7 +676,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'rule', stages: ['writer'], cardId: 'de-ai-tells-guard' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '前三章完读率预测指标及格',
+        gate: { kind: 'advisory', note: '前三章完读率预测指标及格' },
         nextStepId: 'tomato-platform-flow-step3',
         switchAllowed: true,
         navigateTo: 'planning',
@@ -696,7 +694,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'diagnostic', stages: ['critic'], cardId: 'tomato-opening-diagnostic' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '金手指爽点在前三章显露节奏合理',
+        gate: { kind: 'advisory', note: '金手指爽点在前三章显露节奏合理' },
         nextStepId: 'tomato-platform-flow-step4',
         switchAllowed: true,
         navigateTo: 'planning',
@@ -712,7 +710,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'hook-system', // 真实的钩子体系资产
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '完读悬念与读者期待达成闭环',
+        gate: { kind: 'advisory', note: '完读悬念与读者期待达成闭环' },
         nextStepId: 'tomato-platform-flow-step5',
         switchAllowed: true,
         navigateTo: 'planning',
@@ -728,7 +726,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '全文爽感突出、文字干净利落',
+        gate: { kind: 'advisory', note: '全文爽感突出、文字干净利落' },
         nextStepId: null,
         switchAllowed: true,
         navigateTo: 'quality',
@@ -751,7 +749,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         stage: 'planner',
         // 批次 B 追补（2026-09-28）：原 deconstruct-card-pacing 是广场转投壳，改指自撰内置拆解卡（正文可运行）。
         assetId: 'deconstruction-pacing-dissect',
-        qualityGate: '拆解出黄金起伏节奏点',
+        gate: { kind: 'advisory', note: '拆解出黄金起伏节奏点' },
         nextStepId: 'book-deconstruction-flow-step2',
         switchAllowed: true,
       },
@@ -768,7 +766,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'rule', stages: ['planner'], cardId: 'deconstruction-pacing-dissect' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '前 3 章核心悬念钩子提炼完毕',
+        gate: { kind: 'advisory', note: '前 3 章核心悬念钩子提炼完毕' },
         nextStepId: null,
         switchAllowed: true,
         navigateTo: 'planning',
@@ -793,7 +791,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-89' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '脑洞内核分析清晰，爽点明确',
+        gate: { kind: 'advisory', note: '脑洞内核分析清晰，爽点明确' },
         nextStepId: 'fenghua-short-flow-step2',
         switchAllowed: true,
       },
@@ -808,7 +806,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-93', // 【风华出品】短篇破解爆款备用版
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '故事主线大纲具备高情感反转弧度',
+        gate: { kind: 'advisory', note: '故事主线大纲具备高情感反转弧度' },
         nextStepId: 'fenghua-short-flow-step3',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -824,7 +822,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-114', // 【风华出品】小说起名器（短篇为主）
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '标题意境饱满，具备高吸引力',
+        gate: { kind: 'advisory', note: '标题意境饱满，具备高吸引力' },
         nextStepId: 'fenghua-short-flow-step4',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -838,7 +836,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapter-draft',
         stage: 'writer',
         assetId: 'private-163', // 【风华出品】短篇拆文仿写
-        qualityGate: '前文冲突极速铺开，文风华美',
+        gate: { kind: 'advisory', note: '前文冲突极速铺开，文风华美' },
         nextStepId: 'fenghua-short-flow-step5',
         switchAllowed: true,
         navigateTo: 'production',
@@ -854,7 +852,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-122', // 【风华出品】短篇文章逻辑检测分析器
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '故事逻辑闭环，情感张力达标',
+        gate: { kind: 'advisory', note: '故事逻辑闭环，情感张力达标' },
         nextStepId: null,
         switchAllowed: true,
         navigateTo: 'quality',
@@ -877,7 +875,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-76', // 天马-脑洞生成-番茄爆款
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '核心创意脑洞契合番茄爆款结构',
+        gate: { kind: 'advisory', note: '核心创意脑洞契合番茄爆款结构' },
         nextStepId: 'tianma-outline-flow-step2',
         switchAllowed: true,
       },
@@ -892,7 +890,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         assetId: 'square-41', // 天马-大纲生成-设定强化+节奏
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '设定机制独特，故事节奏主线清晰',
+        gate: { kind: 'advisory', note: '设定机制独特，故事节奏主线清晰' },
         nextStepId: 'tianma-outline-flow-step3',
         switchAllowed: true,
         navigateTo: 'bible',
@@ -907,7 +905,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         stage: 'planner',
         // 批次 B 追补（2026-09-28）：原 square-39 是广场转投壳，改指自撰内置三幕规划卡（正文可运行）。
         assetId: 'tianma-three-act-planner',
-        qualityGate: '核心冲突具备明确的三幕式递进节奏',
+        gate: { kind: 'advisory', note: '核心冲突具备明确的三幕式递进节奏' },
         nextStepId: 'tianma-outline-flow-step4',
         switchAllowed: true,
         navigateTo: 'outline',
@@ -925,7 +923,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-168' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
-        qualityGate: '分章结构完备，钩子排布合理',
+        gate: { kind: 'advisory', note: '分章结构完备，钩子排布合理' },
         nextStepId: null,
         switchAllowed: true,
       },

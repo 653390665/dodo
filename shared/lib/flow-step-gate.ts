@@ -2,12 +2,13 @@
  * 步骤质量门判定与推进拦截（批次 B「质量门判定与推进拦截」，规格
  * docs/specs/capability-flow-graph-consolidation.md §5.2）。
  *
- * 步骤此前只有人类可读的 `qualityGate: string` 文案（只渲染、不判定）。本模块把
- * `SkillSeriesFlowStep.gate = { kind, threshold? }` 声明落到可判定的推进决策上，判定源
+ * `SkillSeriesFlowStep.gate = { kind, threshold?, note? }` 是步骤质量的唯一门槛字段
+ * （批次 C「双门合一」：旧 `qualityGate: string` 已删除，文案迁入 `gate.note`）。判定源
  * 全部复用既有事实源，不新造标准：
  * - `mechanical` → shared 整章交付门 `validateCompleteChapterDraftQuality`（阈值可作为最小有效字符数覆盖）；
  * - `critic`     → 服务端 `classifyCriticFeedback` 的分类结果（调用方注入 `{ status, score? }`）；
- * - `manual`     → 显式人工确认。
+ * - `manual`     → 显式人工确认；
+ * - `advisory`   → 仅渲染 `note` 文本，**不拦截推进**（迁移前的文本门行为）。
  *
  * 不变量：
  * - **未声明 gate 的步骤不产生拦截**（`status:'pass'` + `FLOW_STEP_GATE_UNDECLARED` 警告），旧链路行为不变；
@@ -23,21 +24,19 @@ import {
   validateCompleteChapterDraftQuality,
 } from './draft-quality.js';
 import type { Novel, ChapterAuditStatus } from '../types.js';
+import type { FlowStepGate, FlowStepGateKind } from '../types/prompt-assets-governed.js';
 
-export const FLOW_STEP_GATE_KINDS = ['mechanical', 'critic', 'manual'] as const;
-export type FlowStepGateKind = (typeof FLOW_STEP_GATE_KINDS)[number];
+export type { FlowStepGate, FlowStepGateKind };
 
-export interface FlowStepGate {
-  readonly kind: FlowStepGateKind;
-  /**
-   * 阈值语义随 kind 变化：
-   * - `critic`：0-100 分门槛（复用服务端 `SCORE_THRESHOLD` 口径）；缺省只校验 status；
-   * - `mechanical`：最小有效字符数**覆盖**，实际生效值会被夹取到
-   *   `[MIN_COMPLETE_SCENE_CHARS, MIN_COMPLETE_CHAPTER_CHARS]`（当前 800–4000，与整章交付门同源）；
-   * - `manual`：不使用。
-   */
-  readonly threshold?: number;
-}
+export const FLOW_STEP_GATE_KINDS = ['mechanical', 'critic', 'manual', 'advisory'] as const;
+
+/** 各门类型的中文标签（UI 与回执同源）。 */
+export const FLOW_STEP_GATE_KIND_LABELS: Record<FlowStepGateKind, string> = {
+  mechanical: '机械门（草稿质量）',
+  critic: '审稿门（critic 分数）',
+  manual: '人工确认门',
+  advisory: '文本验收（不拦截）',
+};
 
 export const FLOW_STEP_GATE_WARNINGS = [
   'FLOW_STEP_GATE_UNDECLARED',
@@ -48,6 +47,10 @@ export const FLOW_STEP_GATE_WARNINGS = [
   'FLOW_STEP_GATE_CRITIC_SCORE_MISSING',
   'FLOW_STEP_GATE_SKIP_RECORDED',
   'FLOW_STEP_GATE_SKIP_WITHOUT_BLOCK',
+  /** `advisory` 门：只渲染文本、不拦截推进（迁移自旧 `qualityGate`）。 */
+  'FLOW_STEP_GATE_ADVISORY',
+  /** 声明了 `advisory` 门却带 threshold（阈值不参与判定，仅记录）。 */
+  'FLOW_STEP_GATE_THRESHOLD_IGNORED',
 ] as const;
 export type FlowStepGateWarning = (typeof FLOW_STEP_GATE_WARNINGS)[number];
 
@@ -123,6 +126,50 @@ function isKnownGateKind(kind: string): kind is FlowStepGateKind {
 
 function hasUsableThreshold(value: number | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * 提示词 `【质量门】` 行的唯一文案出口：优先 `gate.note`（旧 qualityGate 文案），
+ * 缺省时回退到门类型标签 + 阈值。未声明 gate → 显式说明「不判定」。
+ */
+export function flowStepGatePromptText(gate?: FlowStepGate | null): string {
+  if (!gate) return '未声明质量门（不判定）';
+  const note = typeof gate.note === 'string' ? gate.note.trim() : '';
+  if (note) return note;
+  const kind = isKnownGateKind(String(gate.kind)) ? gate.kind : null;
+  const label = kind ? FLOW_STEP_GATE_KIND_LABELS[kind] : String(gate.kind);
+  const threshold = typeof gate.threshold === 'number' ? `（阈值 ${gate.threshold}）` : '';
+  return `${label}${threshold}`;
+}
+
+export interface FlowStepGateDisplay {
+  readonly kind: FlowStepGateKind | null;
+  readonly kindLabel: string;
+  /** true = 文本验收门：只展示，不拦截推进。 */
+  readonly advisory: boolean;
+  /** true = 该门会拦截推进（mechanical / critic / manual）。 */
+  readonly intercepting: boolean;
+  readonly text: string;
+}
+
+/** 界面展示口径（与提示词共用 flowStepGatePromptText）。 */
+export function flowStepGateDisplay(gate?: FlowStepGate | null): FlowStepGateDisplay {
+  if (!gate || !isKnownGateKind(String(gate.kind))) {
+    return {
+      kind: null,
+      kindLabel: '未声明',
+      advisory: false,
+      intercepting: false,
+      text: flowStepGatePromptText(null),
+    };
+  }
+  return {
+    kind: gate.kind,
+    kindLabel: FLOW_STEP_GATE_KIND_LABELS[gate.kind],
+    advisory: gate.kind === 'advisory',
+    intercepting: gate.kind !== 'advisory',
+    text: flowStepGatePromptText(gate),
+  };
 }
 
 function compactChars(text: string): number {
@@ -252,6 +299,10 @@ export function evaluateFlowStepGate(input: FlowStepGateInput): FlowStepGateEval
       evidence: {},
       warnings,
     };
+  } else if (gate.kind === 'advisory') {
+    if (gate.threshold !== undefined) warnings.push('FLOW_STEP_GATE_THRESHOLD_IGNORED');
+    warnings.push('FLOW_STEP_GATE_ADVISORY');
+    base = { status: 'pass', kind: 'advisory', reasons: [], evidence: {}, warnings };
   } else {
     const threshold = gate.threshold;
     const outcome =

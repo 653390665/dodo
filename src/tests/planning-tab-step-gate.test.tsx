@@ -92,7 +92,7 @@ describe('PlanningTab 步骤质量门判定与推进拦截', () => {
       />
     );
 
-    expect(screen.getByText(/可判定质量门：mechanical/)).toBeTruthy();
+    expect(screen.getByText(/机械门（草稿质量）/)).toBeTruthy();
     await clickAdvance();
 
     expect(onPreferenceProfileChange).not.toHaveBeenCalled();
@@ -125,7 +125,7 @@ describe('PlanningTab 步骤质量门判定与推进拦截', () => {
       />
     );
 
-    expect(screen.getByText(/可判定质量门：critic（阈值 80）/)).toBeTruthy();
+    expect(screen.getByText(/审稿门（critic 分数）（阈值 80）/)).toBeTruthy();
     await clickAdvance();
 
     expect(onPreferenceProfileChange).not.toHaveBeenCalled();
@@ -197,7 +197,7 @@ describe('PlanningTab 步骤质量门判定与推进拦截', () => {
     ]);
   });
 
-  test('未声明 gate 的步骤：无判定 UI，推进行为不变', async () => {
+  test('文本验收门（advisory）：只展示不拦截，推进行为与旧字段一致', async () => {
     const onPreferenceProfileChange = vi.fn().mockResolvedValue(undefined);
     render(
       <PlanningTab
@@ -209,7 +209,12 @@ describe('PlanningTab 步骤质量门判定与推进拦截', () => {
       />
     );
 
-    expect(screen.queryByText(/可判定质量门/)).toBeNull();
+    // 旧 qualityGate 文案（现 gate.note）在门栏可见，文本门标注只展示不拦截
+    expect(screen.getByText('脑洞概念成型且具备初始爽点')).toBeTruthy();
+    expect(screen.getByText(/文本验收（不拦截）：仅展示，不拦截推进/)).toBeTruthy();
+    expect(screen.getByText(/当前已满足判定条件，可推进。/)).toBeTruthy();
+    expect(screen.queryByText(/(未通过：)/)).toBeNull();
+
     await clickAdvance();
 
     expect(onPreferenceProfileChange).toHaveBeenCalledTimes(1);

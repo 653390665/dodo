@@ -231,17 +231,25 @@ export interface FlowStepCardRef {
 }
 
 /**
- * 步骤质量门声明（批次 B「质量门判定与推进拦截」）。
+ * 步骤质量门声明（批次 B「质量门判定与推进拦截」；批次 C「双门合一」收敛为唯一门槛字段）。
  *
- * 语义：`kind` 决定判定源（mechanical → shared 整章交付门 `validateCompleteChapterDraftQuality`；
- * critic → 服务端 `classifyCriticFeedback` 的分类结果；manual → 显式人工确认）；
- * `threshold` 当 mechanical 时为最小有效字符数覆盖，当 critic 时为 0-100 分阈值。
- * **未声明本字段的步骤不做判定**（旧链路行为不变，见 shared/lib/flow-step-gate.ts）。
- * 人类可读的 `qualityGate` 文案保留，用于提示词与界面展示。
+ * 语义：`kind` 决定判定源 ——
+ * - `mechanical` → shared 整章交付门 `validateCompleteChapterDraftQuality`
+ *   （`threshold` 为最小有效字符数覆盖，按 [800, 4000] 夹取）；
+ * - `critic`     → 服务端 critic 分类结果（`threshold` 为 0-100 分门槛，与服务端 `SCORE_THRESHOLD` 同口径）；
+ * - `manual`     → 显式人工确认；
+ * - `advisory`   → 只有人类可读的文本验收（`note`），**不拦截推进**（旧 `qualityGate` 文案的迁移落点）。
+ *
+ * `note` 是提示词 `【质量门】` 行与界面展示的唯一文案源（见 shared/lib/flow-step-gate.ts）；
+ * **未声明本字段的步骤不做判定**（旧链路行为不变）。
  */
+export type FlowStepGateKind = FlowStepGate['kind'];
+
 export interface FlowStepGate {
-  readonly kind: 'mechanical' | 'critic' | 'manual';
+  readonly kind: 'mechanical' | 'critic' | 'manual' | 'advisory';
   readonly threshold?: number;
+  /** 人类可读验收文案（提示词与界面同源）。 */
+  readonly note?: string;
 }
 
 export interface SkillSeriesFlowStep {
@@ -262,8 +270,10 @@ export interface SkillSeriesFlowStep {
   assetId: string; // 关联的真实治理资产 ID
   /** 步骤卡片槽位：优先于 assetId 解析（缺省 → 回退 assetId 旧路径，行为不变）。 */
   cardRef?: FlowStepCardRef;
-  qualityGate: string; // 本步质量门栏标准（人类可读文案）
-  /** 可判定的质量门声明（缺省 → 不判定，仅渲染 qualityGate 文案）。 */
+  /**
+   * 质量门声明（批次 C「双门合一」唯一门槛字段）：`advisory` = 文本验收不拦截，
+   * `mechanical`/`critic`/`manual` = 可判定门。旧 `qualityGate: string` 字段已删除，文案迁入 `gate.note`。
+   */
   gate?: FlowStepGate;
   /**
    * 「仅引导」声明（批次 B「空壳链路清账」）。关联资产的治理面标 `isRuntimeReady=true`，

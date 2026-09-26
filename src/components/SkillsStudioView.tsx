@@ -57,6 +57,7 @@ import {
   SKILL_SERIES_FLOWS,
 } from '../../shared/lib/public-skill-catalog';
 import { GUIDANCE_ONLY_HINT, GUIDANCE_ONLY_LABEL } from '../../shared/lib/flow-step-guidance';
+import { flowStepGateDisplay } from '../../shared/lib/flow-step-gate';
 import type {
   CuratedProductSkill,
   EnhancementPackage,
@@ -3369,15 +3370,17 @@ export function SkillsStudioView({
                       </p>
 
                       {/* Quality Gate with amber-themed badge */}
-                      {step.qualityGate && (
+                      {step.gate && (
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/5 text-amber-500 border border-amber-500/10 text-[10px]">
                           <ShieldAlert
                             size={11}
                             className="shrink-0 text-amber-500/80 animate-pulse"
                           />
-                          <span className="font-bold shrink-0">质量门栏:</span>
+                          <span className="font-bold shrink-0">
+                            {flowStepGateDisplay(step.gate).advisory ? '质量门栏(文本):' : '质量门栏:'}
+                          </span>
                           <span className="font-sans line-clamp-1 text-amber-500/90">
-                            {step.qualityGate}
+                            {flowStepGateDisplay(step.gate).text}
                           </span>
                         </div>
                       )}

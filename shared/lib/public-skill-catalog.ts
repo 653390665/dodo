@@ -424,7 +424,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "private-181"
         },
         "guidanceOnly": true,
-        "qualityGate": "脑洞概念成型且具备初始爽点",
+        "gate": {
+          "kind": "advisory",
+          "note": "脑洞概念成型且具备初始爽点"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step2",
         "switchAllowed": true
       },
@@ -437,7 +440,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "world-setting",
         "stage": "planner",
         "assetId": "private-175",
-        "qualityGate": "战力等级与世界观基本设定完备",
+        "gate": {
+          "kind": "advisory",
+          "note": "战力等级与世界观基本设定完备"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step3",
         "switchAllowed": true,
         "navigateTo": "bible"
@@ -452,7 +458,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "planner",
         "assetId": "square-183",
         "guidanceOnly": true,
-        "qualityGate": "主角性格、成长动机与金手指明确",
+        "gate": {
+          "kind": "advisory",
+          "note": "主角性格、成长动机与金手指明确"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step4",
         "switchAllowed": true,
         "navigateTo": "bible"
@@ -466,7 +475,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapters-outline",
         "stage": "planner",
         "assetId": "private-175",
-        "qualityGate": "万字主线大纲评级达到 B 级以上",
+        "gate": {
+          "kind": "advisory",
+          "note": "万字主线大纲评级达到 B 级以上"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step5",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -480,7 +492,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "detailed-outline",
         "stage": "planner",
         "assetId": "private-179",
-        "qualityGate": "细纲爽点和冲突闭环",
+        "gate": {
+          "kind": "advisory",
+          "note": "细纲爽点和冲突闭环"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step6",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -494,7 +509,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapter-content",
         "stage": "writer",
         "assetId": "private-179",
-        "qualityGate": "前 3 章章纲精细度符合要求",
+        "gate": {
+          "kind": "advisory",
+          "note": "前 3 章章纲精细度符合要求"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step7",
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -508,7 +526,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapter-draft",
         "stage": "writer",
         "assetId": "private-180",
-        "qualityGate": "正文第一章写作完成",
+        "gate": {
+          "kind": "advisory",
+          "note": "正文第一章写作完成"
+        },
         "nextStepId": "xiaofeiji-novel-flow-step8",
         "switchAllowed": true,
         "navigateTo": "production"
@@ -522,7 +543,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapter-polished",
         "stage": "writer",
         "assetId": "private-193",
-        "qualityGate": "AI腔去化度评测及格 (slop score > 85)",
+        "gate": {
+          "kind": "advisory",
+          "note": "AI腔去化度评测及格 (slop score > 85)"
+        },
         "nextStepId": null,
         "switchAllowed": true,
         "navigateTo": "quality"
@@ -543,7 +567,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "idea",
         "stage": "planner",
         "assetId": "generateOutline",
-        "qualityGate": "有一个可以展开的核心灵感",
+        "gate": {
+          "kind": "advisory",
+          "note": "有一个可以展开的核心灵感"
+        },
         "nextStepId": "generic-novel-flow-step2",
         "switchAllowed": true
       },
@@ -556,7 +583,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "setting",
         "stage": "planner",
         "assetId": "generateOutline",
-        "qualityGate": "基本人设与背景搭建完成",
+        "gate": {
+          "kind": "advisory",
+          "note": "基本人设与背景搭建完成"
+        },
         "nextStepId": "generic-novel-flow-step3",
         "switchAllowed": true,
         "navigateTo": "bible"
@@ -570,7 +600,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "outline",
         "stage": "planner",
         "assetId": "generateOutline",
-        "qualityGate": "小说大纲具备明确的起承转合",
+        "gate": {
+          "kind": "advisory",
+          "note": "小说大纲具备明确的起承转合"
+        },
         "nextStepId": "generic-novel-flow-step4",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -584,7 +617,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "scene-outline",
         "stage": "planner",
         "assetId": "generateOutline",
-        "qualityGate": "核心情节具备明确的情感起伏",
+        "gate": {
+          "kind": "advisory",
+          "note": "核心情节具备明确的情感起伏"
+        },
         "nextStepId": "generic-novel-flow-step5",
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -598,9 +634,9 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "draft",
         "stage": "writer",
         "assetId": "core-slop-shield",
-        "qualityGate": "第一章正文初稿撰写完成",
         "gate": {
-          "kind": "mechanical"
+          "kind": "mechanical",
+          "note": "第一章正文初稿撰写完成"
         },
         "nextStepId": "generic-novel-flow-step6",
         "switchAllowed": true,
@@ -615,10 +651,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "polished-draft",
         "stage": "writer",
         "assetId": "core-slop-shield",
-        "qualityGate": "基础文本去AI腔完成，语流顺畅",
         "gate": {
           "kind": "critic",
-          "threshold": 80
+          "threshold": 80,
+          "note": "基础文本去AI腔完成，语流顺畅"
         },
         "nextStepId": null,
         "switchAllowed": true
@@ -639,7 +675,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "diagnostic-report",
         "stage": "critic",
         "assetId": "tomato-opening-diagnostic",
-        "qualityGate": "开篇大纲契合番茄爆款模型",
+        "gate": {
+          "kind": "advisory",
+          "note": "开篇大纲契合番茄爆款模型"
+        },
         "nextStepId": "tomato-platform-flow-step2",
         "switchAllowed": true
       },
@@ -660,7 +699,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "de-ai-tells-guard"
         },
         "guidanceOnly": true,
-        "qualityGate": "前三章完读率预测指标及格",
+        "gate": {
+          "kind": "advisory",
+          "note": "前三章完读率预测指标及格"
+        },
         "nextStepId": "tomato-platform-flow-step3",
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -682,7 +724,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "tomato-opening-diagnostic"
         },
         "guidanceOnly": true,
-        "qualityGate": "金手指爽点在前三章显露节奏合理",
+        "gate": {
+          "kind": "advisory",
+          "note": "金手指爽点在前三章显露节奏合理"
+        },
         "nextStepId": "tomato-platform-flow-step4",
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -697,7 +742,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "critic",
         "assetId": "hook-system",
         "guidanceOnly": true,
-        "qualityGate": "完读悬念与读者期待达成闭环",
+        "gate": {
+          "kind": "advisory",
+          "note": "完读悬念与读者期待达成闭环"
+        },
         "nextStepId": "tomato-platform-flow-step5",
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -712,7 +760,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "writer",
         "assetId": "tomato-opening-validator",
         "guidanceOnly": true,
-        "qualityGate": "全文爽感突出、文字干净利落",
+        "gate": {
+          "kind": "advisory",
+          "note": "全文爽感突出、文字干净利落"
+        },
         "nextStepId": null,
         "switchAllowed": true,
         "navigateTo": "quality"
@@ -733,7 +784,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "deconstruction-cards",
         "stage": "planner",
         "assetId": "deconstruction-pacing-dissect",
-        "qualityGate": "拆解出黄金起伏节奏点",
+        "gate": {
+          "kind": "advisory",
+          "note": "拆解出黄金起伏节奏点"
+        },
         "nextStepId": "book-deconstruction-flow-step2",
         "switchAllowed": true
       },
@@ -754,7 +808,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "deconstruction-pacing-dissect"
         },
         "guidanceOnly": true,
-        "qualityGate": "前 3 章核心悬念钩子提炼完毕",
+        "gate": {
+          "kind": "advisory",
+          "note": "前 3 章核心悬念钩子提炼完毕"
+        },
         "nextStepId": null,
         "switchAllowed": true,
         "navigateTo": "planning"
@@ -783,7 +840,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "private-89"
         },
         "guidanceOnly": true,
-        "qualityGate": "脑洞内核分析清晰，爽点明确",
+        "gate": {
+          "kind": "advisory",
+          "note": "脑洞内核分析清晰，爽点明确"
+        },
         "nextStepId": "fenghua-short-flow-step2",
         "switchAllowed": true
       },
@@ -797,7 +857,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "planner",
         "assetId": "square-93",
         "guidanceOnly": true,
-        "qualityGate": "故事主线大纲具备高情感反转弧度",
+        "gate": {
+          "kind": "advisory",
+          "note": "故事主线大纲具备高情感反转弧度"
+        },
         "nextStepId": "fenghua-short-flow-step3",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -812,7 +875,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "planner",
         "assetId": "square-114",
         "guidanceOnly": true,
-        "qualityGate": "标题意境饱满，具备高吸引力",
+        "gate": {
+          "kind": "advisory",
+          "note": "标题意境饱满，具备高吸引力"
+        },
         "nextStepId": "fenghua-short-flow-step4",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -826,7 +892,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapter-draft",
         "stage": "writer",
         "assetId": "private-163",
-        "qualityGate": "前文冲突极速铺开，文名家美",
+        "gate": {
+          "kind": "advisory",
+          "note": "前文冲突极速铺开，文风华美"
+        },
         "nextStepId": "fenghua-short-flow-step5",
         "switchAllowed": true,
         "navigateTo": "production"
@@ -841,7 +910,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "writer",
         "assetId": "square-122",
         "guidanceOnly": true,
-        "qualityGate": "故事逻辑闭环，情感张力达标",
+        "gate": {
+          "kind": "advisory",
+          "note": "故事逻辑闭环，情感张力达标"
+        },
         "nextStepId": null,
         "switchAllowed": true,
         "navigateTo": "quality"
@@ -863,7 +935,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "planner",
         "assetId": "square-76",
         "guidanceOnly": true,
-        "qualityGate": "核心创意脑洞契合番茄爆款结构",
+        "gate": {
+          "kind": "advisory",
+          "note": "核心创意脑洞契合番茄爆款结构"
+        },
         "nextStepId": "tianma-outline-flow-step2",
         "switchAllowed": true
       },
@@ -877,7 +952,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "stage": "planner",
         "assetId": "square-41",
         "guidanceOnly": true,
-        "qualityGate": "设定机制独特，故事节奏主线清晰",
+        "gate": {
+          "kind": "advisory",
+          "note": "设定机制独特，故事节奏主线清晰"
+        },
         "nextStepId": "tianma-outline-flow-step3",
         "switchAllowed": true,
         "navigateTo": "bible"
@@ -891,7 +969,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "climax-outline",
         "stage": "planner",
         "assetId": "tianma-three-act-planner",
-        "qualityGate": "核心冲突具备明确的三幕式递进节奏",
+        "gate": {
+          "kind": "advisory",
+          "note": "核心冲突具备明确的三幕式递进节奏"
+        },
         "nextStepId": "tianma-outline-flow-step4",
         "switchAllowed": true,
         "navigateTo": "outline"
@@ -913,7 +994,10 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "cardId": "private-168"
         },
         "guidanceOnly": true,
-        "qualityGate": "分章结构完备，钩子排布合理",
+        "gate": {
+          "kind": "advisory",
+          "note": "分章结构完备，钩子排布合理"
+        },
         "nextStepId": null,
         "switchAllowed": true
       }

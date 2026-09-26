@@ -33,20 +33,34 @@ test('未声明 gate 的步骤不做判定（解析为 null）', () => {
   assert.equal(resolveFlowStepGate({ gate: { kind: 'nope' as never } }), null);
 });
 
-test('目录中的门声明只落在 generic-novel-flow 的 step5/step6', () => {
+test('目录 30 步都有 gate；可判定门仍只落在 generic-novel-flow 的 step5/step6', () => {
   const flow = SKILL_SERIES_FLOWS.find((entry) => entry.id === 'generic-novel-flow');
   assert.ok(flow, 'generic-novel-flow 必须存在');
   const step5 = flow.steps.find((step) => step.id === 'generic-novel-flow-step5');
   const step6 = flow.steps.find((step) => step.id === 'generic-novel-flow-step6');
-  assert.deepEqual(step5?.gate, { kind: 'mechanical' });
-  assert.deepEqual(step6?.gate, { kind: 'critic', threshold: 80 });
+  // 批次 C「双门合一」：旧 qualityGate 文案成为 gate.note，判定语义不变。
+  assert.deepEqual(step5?.gate, { kind: 'mechanical', note: '第一章正文初稿撰写完成' });
+  assert.deepEqual(step6?.gate, {
+    kind: 'critic',
+    threshold: 80,
+    note: '基础文本去AI腔完成，语流顺畅',
+  });
 
   const xiaofeiji = SKILL_SERIES_FLOWS.find((entry) => entry.id === 'xiaofeiji-novel-flow');
   assert.ok(xiaofeiji, 'xiaofeiji-novel-flow 必须存在');
   assert.equal(
-    xiaofeiji.steps.every((step) => step.gate === undefined),
+    xiaofeiji.steps.every((step) => step.gate?.kind === 'advisory' && !!step.gate?.note),
     true,
-    '未声明门的链路必须保持无门（旧行为不变）'
+    '文本门链路必须是 advisory + note（只展示不拦截）'
+  );
+
+  const enforced = SKILL_SERIES_FLOWS.flatMap((entry) => entry.steps).filter(
+    (step) => step.gate && step.gate.kind !== 'advisory'
+  );
+  assert.deepEqual(
+    enforced.map((step) => step.id),
+    ['generic-novel-flow-step5', 'generic-novel-flow-step6'],
+    '会拦截推进的门目前只允许声明在这两步'
   );
 });
 
@@ -333,6 +347,6 @@ test('推进标签：跳过记录原因、仍计入完成；不带原因重新�
   );
 });
 
-test('门类型枚举是外露契约（三值）', () => {
-  assert.deepEqual([...FLOW_STEP_GATE_KINDS], ['mechanical', 'critic', 'manual']);
+test('门类型枚举是外露契约（四值，含 advisory 文本门）', () => {
+  assert.deepEqual([...FLOW_STEP_GATE_KINDS], ['mechanical', 'critic', 'manual', 'advisory']);
 });

@@ -674,7 +674,9 @@ test('Skill Series Flow sequence progression, steps fields and pointer calculato
   assert.equal(xiaofeiji.steps.length, 8);
   for (const s of xiaofeiji.steps) {
     assert.ok(s.id);
-    assert.ok(s.qualityGate);
+    // 批次 C「双门合一」：旧 qualityGate 文案迁入 gate.note，字段本身已删除。
+    assert.ok(s.gate?.note, `${s.id} 缺 gate.note`);
+    assert.ok(!('qualityGate' in s), `${s.id} 仍带旧 qualityGate 字段`);
     assert.ok('nextStepId' in s);
     assert.equal(typeof s.switchAllowed, 'boolean');
   }

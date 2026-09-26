@@ -47,9 +47,12 @@ const TEXT_KEYS_TO_SANITIZE = new Set([
   'name',
   'whyUpgrade',
   'riskNotes',
-  'qualityGate',
   'recommendationReason',
 ]);
+
+// 嵌套路径的文本键（步骤质量门文案迁入 gate.note，见 Plan 262 C2「双门合一」）：
+// 按「父键.子键」精确匹配，避免把任意对象的 note 都当可脱敏文本。
+const PATH_TEXT_KEYS_TO_SANITIZE = new Set(['gate.note']);
 
 /**
  * Deep-cleans and sanitizes strings, converting specific brand-related terminology
@@ -86,9 +89,13 @@ export function cleanText(text: string): string {
  * Deep clones and sanitizes objects, clearing "template" attributes and sanitizing text keys
  */
 export function cloneAndSanitize<T>(obj: T): T {
+  return cloneAndSanitizeAt(obj, '');
+}
+
+function cloneAndSanitizeAt<T>(obj: T, path: string): T {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) {
-    return obj.map((item) => cloneAndSanitize(item)) as unknown as T;
+    return obj.map((item) => cloneAndSanitizeAt(item, path)) as unknown as T;
   }
   if (typeof obj === 'object') {
     const copy: Record<string, unknown> = {};
@@ -96,12 +103,16 @@ export function cloneAndSanitize<T>(obj: T): T {
     for (const key in record) {
       if (Object.prototype.hasOwnProperty.call(record, key)) {
         const val = record[key];
+        const childPath = path ? `${path}.${key}` : key;
         if (key === 'template') {
           copy[key] = ''; // 物理强制清空提示词模板 / Force set template to empty string physically
-        } else if (TEXT_KEYS_TO_SANITIZE.has(key) && typeof val === 'string') {
+        } else if (
+          (TEXT_KEYS_TO_SANITIZE.has(key) || PATH_TEXT_KEYS_TO_SANITIZE.has(childPath)) &&
+          typeof val === 'string'
+        ) {
           copy[key] = cleanText(val);
         } else if (typeof val === 'object') {
-          copy[key] = cloneAndSanitize(val);
+          copy[key] = cloneAndSanitizeAt(val, childPath);
         } else {
           copy[key] = val;
         }

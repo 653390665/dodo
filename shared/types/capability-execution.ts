@@ -1,6 +1,6 @@
 import type { ContextReceipt } from './continuation.js';
 import type { ProjectCapabilityProfile } from './preferences.js';
-import type { EnhancementPackageStep } from './prompt-assets-governed.js';
+import type { EnhancementPackageStep, FlowStepGate } from './prompt-assets-governed.js';
 
 export type CapabilityStage = 'planner' | 'writer' | 'critic';
 
@@ -89,7 +89,8 @@ export interface ExecutionFlowStep {
   /** 可用性诊断（FLOW_STEP_GUIDANCE_UNDECLARED_SHELL / FLOW_STEP_GUIDANCE_WITH_RUNNABLE_ASSET）。 */
   readonly guidanceWarning?: string;
   readonly assetId: string;
-  readonly qualityGate: string;
+  /** 步骤质量门声明（null = 未声明）：提示词与界面展示同源，见 shared/lib/flow-step-gate.ts。 */
+  readonly gate: FlowStepGate | null;
   readonly prompt: string;
   readonly warning?: string;
   /**

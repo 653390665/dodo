@@ -11,7 +11,7 @@ test('Plan 158 freezes the active flow identity and reproducible card metadata',
       output: 'draft',
       stage: 'writer',
       assetId: 'prose-action-booster',
-      qualityGate: '可读',
+      gate: { kind: 'advisory', note: '可读' },
       prompt: 'rules',
     };
     const card: ExecutionOverlay = {
