@@ -28,7 +28,7 @@
 |---|---|---|---|
 | C1 | `cardRef` 挂真实步骤 ✅ 已完成 | 槽位代码已实现（`shared/lib/flow-step-card-slot.ts`、`server/helpers/writing-style-service.ts`），目录中 cardRef 实例 **0**、cardId **0** | 至少番茄/天马/拆书/风华/小飞鸡各 1 步挂 `cardRef`，断言对应阶段 prompt 含卡面特征串；未声明步骤快照逐项不变 |
 | C2 | 旧 `qualityGate` 收敛 ✅ 已完成 | 旧字段 30 处仍进提示词（`writing-style-service.ts:1159/1202` + `SkillsStudioView.tsx:3361/3369`、`PlanningTab.tsx:340`），新 `gate{kind}` 仅 generic step5/step6 | 双门合一（迁移或删除旧字段），提示词与 UI 同源；快照差异记录 |
-| C3 | 维度补卡 | 链路仅引用 22/179 张；人物 1 步、道具 0、副本 0、创意构思 1/4、审稿 1/3、其他 0/4 | 人物/道具/副本各 ≥1 可运行步骤；`capB-chain.ts` 缺口表更新 |
+| C3 | 维度补卡 ✅ 已完成 | 链路仅引用 22/179 张；人物 1 步、道具 0、副本 0、创意构思 1/4、审稿 1/3、其他 0/4 | 人物/道具/副本各 ≥1 可运行步骤；`capB-chain.ts` 缺口表更新 |
 | C4 | 死字段/半接线清理 | `foreshadowingTasks` 构建无消费（`server/helpers/knowledge-lineage-enrich.ts:90/128`）；`payoffNote` 部分消费（`:446`）；`ExecutionSnapshot.skillStack`/`techniques` 写入无读方，`overlays`/`sessionCards` 只进回执（`server/lib/db/product-events.ts:536-593`） | 逐项接线或删除，处置登记规格 |
 | C5 | 步骤引用图谱能力卡 | `knowledge-extract`/`foreshadow-settle` 未被任何链路步骤引用（批次 C 第 4 条） | ≥1 步引用并断言执行面 |
 
@@ -120,6 +120,17 @@
 - 证据：`tests/flow-step-gate-migration.test.ts` 5/5；既有门测试与前端 7/7 迁移；生成物 diff 116/32 全为 gate 行；
   快照六场景逐项不变（迁移后提示词零变化）；tsc 0 / eslint 0 / 后端定向 72/72 / 后端全量 1426/1426（+5）（规格 §5.16）。
 - 残余：advisory 无强制语义（设计如此）；`gate.note` 无长度约束；30 步文案未进回执行。
+
+### C3 维度补卡（人物 / 道具 / 副本）— 2026-09-28
+
+- 交付：三张自撰内置卡 —— `character-arc-dossier`（人物弧光档案，84）、`relic-system-designer`（道具与遗物体系设计器，82）、
+  `arc-instance-designer`（副本（事件单元）设计器，80）；人物维度改用小飞鸡 step3 换资产（`square-183` → `character-arc-dossier`，
+  同时删 `guidanceOnly`）；道具/副本维度以**追加**步骤落在天马链 step5/step6（不改既有编号与 id）。
+- 读数（`scratch/capB-chain.ts`）：步骤 32 · 可运行 19（59.4%）· 仅引导 13；人物/道具/副本各 1 步且均可运行；
+  被引用资产 24 / 目录 182；新输出 `artifact-list` / `arc-units` 登记为 planning 类。
+- 证据：后端定向 7 文件 **92/92**；前端定向 4 文件（guidance/gate/progression/plan158）**71/71**；
+  生成物 135 资产（+246/−3）；快照六场景不变；tsc 0 / eslint 0（规格 §5.17）。
+- 残余：三卡无外部来源（score 人工给定）；道具/副本仅天马一条链；未闭合维度 创意构思 1/4、审稿 1/3、其他 0/4（批次 D）。
 
 ### 登记
 
