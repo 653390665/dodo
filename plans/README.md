@@ -619,6 +619,7 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 | 编号 | 标题 | 状态 | 依赖 |
 |---|---|---|---|
 | 262 | 能力卡 / 链路 / 图谱收口（plans/262-capability-flow-graph-closeout.md）：批次 A 在制品收口（提交 P0-① 单元 + creation-entry 规格状态回填）；批次 B P0 剩余（B1 护栏假控制语义、B2 评分口径显性化、B3 清洗滞留清账）；批次 C 链路真实化（C1 cardRef 挂真实步骤、C2 旧 qualityGate 收敛、C3 人物/道具/副本维度补卡、C4 死字段与半接线清理、C5 步骤引用图谱能力卡）；批次 D 长尾（14 步仅引导、伏笔面板入口、章节回滚 stale、记忆健康度补完、长篇基线补完、三字段 UI 写入口）；批次 E 需拍板（push 凭证、M6 打包模型路径、M7 Node/npm 版本、M2 会话隔离、双账本 DOCS-3、真实数据缺口、架构图集漂移） | IN PROGRESS | 261、7e0efc7 |
+| 263 | 收口与真实化（plans/263-closeout-and-truth-up.md）：P0 E6 门禁+提交 / E1 push（需用户）；P1 账本对账（262 批次 A 行回填、「需解锁」死面处置、诊断文档时效标注）；P2 批 D 长尾 D1+D3–D6；P3 批 E 拍板 E2–E5+E7 | TODO | E1 需用户 `gh auth login`；D3/D4/E2/E3/E4/E5 需拍板 |
 
 ### Round 46 关键事实（防重复审计）
 
@@ -640,6 +641,11 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - D2 已交付（2026-09-28）：伏笔面板图谱维护入口 —— `ForeshadowingPanel` 折叠条「图谱维护：资料包知识谱系」，
   展开按需挂载 `KnowledgeMaintenancePanel`（未展开零请求）、`onCompleted` 重跑后刷新伏笔列表；
   `src/tests/foreshadowing-graph-entry.test.tsx` 4/4、受影响面 3 文件 9/9。
+- E6 复测工具已就绪（2026-09-28）：激活漏斗离线报告 —— `server/lib/db/product-events.ts` 抽纯函数
+  `buildProductEventMetrics`（与 `/api/product-events/metrics` 同源）、CLI `scripts/report-activation-funnel.ts`
+  （读导出 JSON，不碰数据库）、runbook `docs/research/activation-funnel-runbook.md`；`tests/activation-funnel-report.test.ts` 4/4。
+  E6 仍未关闭：样本是操作者狗粮，待真实用户数据。
+- 263 立项（2026-09-28）：Plan 262 剩余批次 + 遗留拍板的收口计划。P0 在飞 = E6 门禁+提交（工作区 6 项未提交：`server/lib/db/product-events.ts` / `scripts/report-activation-funnel.ts` / `tests/activation-funnel-report.test.ts` / `docs/research/activation-funnel-runbook.md` / `plans/262-capability-flow-graph-closeout.md` / `plans/README.md`）；P1 账本对账 = 262 批次 A1/A2 行仍显示 IN PROGRESS/TODO（实为已交付 `9a2c234`，规格 `docs/specs/creation-entry-convergence.md:4` 已标已交付）+ 「需解锁」白名单实测 0 条（死面，待处置）+ `docs/architecture/remediation-plan.md` M1/M5-1 与 `architecture-review.md` 时效标注。
 - 效果矩阵实测：只有「卡组主卡 / 作品技法 / 切换链路」真正改变三阶段 prompt；`projectCards`/`chapterCards`/`singleRunCard` only 场景 Δ 全 0（接线前）；`guardrailIds` 配 core-default 卡 Δ0（假控制）。
 - 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
 - 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处（诊断时读数；C1–C5 后：34 步 / 可运行 21（61.8%）/ 仅引导 13、引用资产 26/182、cardRef 6 步、能力引用 2 步、`qualityGate` 已删；见各 C 行）

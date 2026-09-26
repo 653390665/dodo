@@ -52,7 +52,7 @@
 | E3 | M7 ◐ npm/Node 版本告警 | npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26） |
 | E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 |
 | E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 |
-| E6 | 真实数据缺口 | 现有漏斗（1016 事件/8 作品）是操作者狗粮，不足以定 P0；埋点口径三处已修，待真实用户数据复测 |
+| E6 | 真实数据缺口 ◐ 复测工具已就绪（2026-09-28），样本待真实用户 | 现有漏斗（1016 事件/8 作品）是操作者狗粮，不足以定 P0；埋点口径三处已修，离线复测脚本 + runbook 已落盘（见下「E6 复测工具」） |
 | E7 | 架构图集漂移 | 取证停 2026-09-18（`84fb175`），未覆盖 Plan 261 + 四批次新链路（`docs/architecture-map.md` 只刷新计数） |
 
 ## 执行顺序
@@ -197,6 +197,30 @@
 且内嵌保持维护逻辑单源（不复制重跑实现）。
 
 **证据**：`src/tests/foreshadowing-graph-entry.test.tsx` 4/4；受影响面回归 3 文件 9/9；tsc 0 / eslint 0。
+
+### E6 复测工具：激活漏斗离线报告 — 2026-09-28
+
+**问题**：2026-09-22 复测暴露的读数（1016 事件 / 442 会话 / 8 作品；旧账本 152→0→1 与事实不符）来自一次性
+scratch 脚本 + 一个临时起的 dev server：口径无法复核、动作无法复跑（scratch/ 被 .gitignore）。这正是「账实分离」
+在度量面的一个实例。
+
+**处置**：
+
+1. **口径单源**：`server/lib/db/product-events.ts` 抽出纯函数
+   `buildProductEventMetrics(events: ProductEvent[], days = 30): ProductEventMetrics`，
+   `getProductEventMetrics(days)` 转调它 → 离线报告与 `/api/product-events/metrics` 不可能漂移。
+2. **离线 CLI**：`scripts/report-activation-funnel.ts` —— 读导出 JSON（`-` 支持 stdin），输出采样 / 北星 /
+   激活漏斗（作品口径 + 会话口径）/ 能力链路 / 逐事件（事件·作品·会话）/ 判读纪律；标注「修复前口径事件」条数
+   （断点 `2026-09-24`）。不连数据库：只消费 `GET /api/product-events/export` 的产物。
+3. **runbook**：`docs/research/activation-funnel-runbook.md` —— 取令牌 / 导出 / 出报告三步命令、六项口径陷阱表、
+   历史读数（标注修复前口径 + 狗粮样本）、重跑触发条件与「何时才能关闭 E6」。
+
+**证据**：`tests/activation-funnel-report.test.ts` 4/4（纯函数与 DB 路径 `deepEqual` 零漂移 / 去重口径 /
+报告读数行 / CLI 参数解析）；CLI 冒烟 `npx tsx scripts/report-activation-funnel.ts /tmp/e6-fixture.json` EXIT=0，
+读数与手算一致（作品 2 / 会话 2、首次输入 1/1、转化 50.0%、`distinctObjectIds`=1）。
+
+**未关闭原因（诚实登记）**：样本仍是操作者狗粮，无真实用户数据 → E6 只能标「工具就绪、待真实数据」，
+不得据狗粮数据下产品 P0 结论。
 
 ### 登记
 
