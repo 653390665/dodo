@@ -201,13 +201,15 @@ describe('SkillsStudioView 链路详情仅引导标注', () => {
     expect(screen.queryByText(GUIDANCE_ONLY_LABEL)).toBeNull();
   });
 
-  test('小飞鸡链路详情：2 个壳步骤带「仅引导」徽标', async () => {
+  test('小飞鸡链路详情：1 个壳步骤带「仅引导」徽标（step3 已补正文）', async () => {
     render(<SkillsStudioView selectedNovel={buildNovel([], 'novel-1') as any} />);
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
     await openFlowDetail('xiaofeiji-novel-flow');
-    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(2);
+    const xiaofeijiSteps = flowById('xiaofeiji-novel-flow').steps;
+    expect(xiaofeijiSteps.filter((step) => step.guidanceOnly === true).length).toBe(1);
+    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(1);
   });
 });

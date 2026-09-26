@@ -93,7 +93,8 @@ describe('groupStyleShelf', () => {
 
   test('getFlowStepAssetIds 含已知流程步骤资产', () => {
     const ids = getFlowStepAssetIds();
-    expect(ids.has('square-183')).toBe(true);
+    // Plan 262 C3：小飞鸡 step3 由引用壳 square-183 改指自撰内置人物弧光档案卡。
+    expect(ids.has('character-arc-dossier')).toBe(true);
     expect(ids.has('generateOutline')).toBe(true);
   });
 });

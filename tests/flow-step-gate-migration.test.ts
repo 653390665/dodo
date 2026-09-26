@@ -23,8 +23,8 @@ const STEPS = SKILL_SERIES_FLOWS.flatMap((flow) =>
   flow.steps.map((step) => ({ flowId: flow.id, step }))
 );
 
-test('目录 30 步全部带 gate（含 note），旧 qualityGate 字段清零', () => {
-  assert.equal(STEPS.length, 30);
+test('目录 32 步全部带 gate（含 note），旧 qualityGate 字段清零', () => {
+  assert.equal(STEPS.length, 32);
   const kinds: Record<string, number> = {};
   for (const { step } of STEPS) {
     assert.ok(step.gate, `${step.id} 缺 gate`);
@@ -36,7 +36,7 @@ test('目录 30 步全部带 gate（含 note），旧 qualityGate 字段清零',
     assert.ok(!('qualityGate' in step), `${step.id} 仍带旧 qualityGate 字段`);
     kinds[String(step.gate?.kind)] = (kinds[String(step.gate?.kind)] || 0) + 1;
   }
-  assert.deepEqual(kinds, { advisory: 28, mechanical: 1, critic: 1 });
+  assert.deepEqual(kinds, { advisory: 30, mechanical: 1, critic: 1 });
 });
 
 test('提示词与界面文案同源（gate.note 是唯一文案）', () => {

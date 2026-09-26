@@ -36,7 +36,7 @@ export const FLOW_STEP_STAGE_CLASSES = ['planning', 'drafting', 'review'] as con
 export type FlowStepStageClass = (typeof FLOW_STEP_STAGE_CLASSES)[number];
 
 /**
- * 输出特征 → 语义类。键 = 链路目录里出现的全部 `step.output` 取值（六条链路 30 步）。
+ * 输出特征 → 语义类。键 = 链路目录里出现的全部 `step.output` 取值（六条链路 32 步）。
  * 例外说明：`chapters-final`（番茄第 5 步「正文精修与美学润色」）虽叫 final，动作是**改稿** → drafting；
  * `chapters-final-checked`（完读与节奏自检）是**校验** → review；`chapters-with-highlights`
  * （核心爽点黄金排布，动作是评估显露节奏）→ review；`polished-draft`（基础去 AI 腔的成稿动作）→ drafting。
@@ -57,6 +57,9 @@ export const FLOW_OUTPUT_STAGE_CLASS: Readonly<Record<string, FlowStepStageClass
   title: 'planning',
   'deconstruction-cards': 'planning',
   'deconstruction-cards-hook': 'planning',
+  // 批次 C「维度补卡」：道具与遗物清单、副本（事件单元）表均为规划类产物。
+  'artifact-list': 'planning',
+  'arc-units': 'planning',
   // 正文类
   draft: 'drafting',
   'polished-draft': 'drafting',

@@ -81,22 +81,22 @@ test('output→stage semantic table covers every catalog output with no drift', 
   assert.equal(stageClassForFlowOutput('未登记输出'), null);
 });
 
-test('stage distribution of the six flows is 18 planner / 9 writer / 3 critic with zero undeclared', () => {
+test('stage distribution of the six flows is 20 planner / 9 writer / 3 critic with zero undeclared', () => {
   const dist = stageDistributionOfFlows(SKILL_SERIES_FLOWS);
   assert.equal(dist.flows, 6);
-  assert.equal(dist.steps, 30);
-  assert.equal(dist.declared, 30);
+  assert.equal(dist.steps, 32);
+  assert.equal(dist.declared, 32);
   assert.equal(dist.fallback, 0);
   assert.equal(dist.invalid, 0);
   assert.equal(dist.undeclared, 0);
-  assert.deepEqual(dist.byStage, { planner: 18, writer: 9, critic: 3 });
-  assert.deepEqual(dist.byClass, { planning: 18, drafting: 9, review: 3 });
+  assert.deepEqual(dist.byStage, { planner: 20, writer: 9, critic: 3 });
+  assert.deepEqual(dist.byClass, { planning: 20, drafting: 9, review: 3 });
   assert.deepEqual(dist.undeclaredSteps, []);
   assert.deepEqual(dist.unknownOutputs, []);
   assert.deepEqual(dist.semanticMismatches, []);
 });
 
-test('every catalog step routes its prompt to the declared stage and to no other (30/30)', () => {
+test('every catalog step routes its prompt to the declared stage and to no other (32/32)', () => {
   closeDb();
   initDb(':memory:');
   let checked = 0;
@@ -145,7 +145,7 @@ test('every catalog step routes its prompt to the declared stage and to no other
         checked += 1;
       }
     }
-    assert.equal(checked, 30);
+    assert.equal(checked, 32);
   } finally {
     closeDb();
   }

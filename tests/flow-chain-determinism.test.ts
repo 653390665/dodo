@@ -2,7 +2,7 @@
  * 链路稳定性 / 确定性守卫（跨链路）。
  *
  * 钉住四件事：
- * ① 确定性：同输入重复解析 30 步执行契约，指纹逐字节一致（与解析顺序、时钟无关）；
+ * ① 确定性：同输入重复解析 32 步执行契约，指纹逐字节一致（与解析顺序、时钟无关）；
  * ② 跨链路隔离：一条链路的步骤契约（`【流程步骤：…】` marker）不泄漏进另一条链路，
  *    多作品同库互不影响；
  * ③ 状态隔离：跳过记录（`skipped-step:`）按 seriesId 过滤，往返稳定、推进不重复膨胀；
@@ -77,7 +77,7 @@ function contractFingerprint(snapshot: ExecutionSnapshot): string {
   });
 }
 
-test('六条链路 30 步：重复解析的契约指纹逐字节一致（确定性）', () => {
+test('六条链路 32 步：重复解析的契约指纹逐字节一致（确定性）', () => {
   closeDb();
   initDb(':memory:');
   try {
@@ -100,13 +100,13 @@ test('六条链路 30 步：重复解析的契约指纹逐字节一致（确定�
       );
       checked += 1;
     }
-    assert.equal(checked, 30);
+    assert.equal(checked, 32);
   } finally {
     closeDb();
   }
 });
 
-test('链路之间不串台：任一链路的步骤契约只出现在自己的三层提示词里（30×29 对照）', () => {
+test('链路之间不串台：任一链路的步骤契约只出现在自己的三层提示词里（32×31 对照）', () => {
   closeDb();
   initDb(':memory:');
   try {
@@ -136,13 +136,13 @@ test('链路之间不串台：任一链路的步骤契约只出现在自己的�
         comparisons += 1;
       }
     }
-    assert.equal(comparisons, 30 * 29);
+    assert.equal(comparisons, 32 * 31);
   } finally {
     closeDb();
   }
 });
 
-test('解析顺序无关：解析其它 29 条链路不改变本链路契约（无共享可变状态）', () => {
+test('解析顺序无关：解析其它 31 条步骤不改变本链路契约（无共享可变状态）', () => {
   closeDb();
   initDb(':memory:');
   try {

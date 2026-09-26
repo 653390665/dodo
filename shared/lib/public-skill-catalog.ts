@@ -398,6 +398,105 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in"
+  },
+  {
+    "id": "character-arc-dossier",
+    "title": "人物弧光档案",
+    "stage": "planning",
+    "goal": "把主角、反派与关键配角写成可复用的弧光档案：欲望、缺陷、代价、转折点与关系张力，供后续大纲与正文调用",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出人物档案，供大纲与正文引用，不直接改写正文",
+      "缺陷与代价必须落到具体事件，避免形容词堆砌"
+    ],
+    "successSignal": "每个主要角色都有可执行的目标/缺陷/转变节点，且关系张力能直接支撑冲突设计。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 84,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "relic-system-designer",
+    "title": "道具与遗物体系设计器",
+    "stage": "planning",
+    "goal": "为长篇铺设可回收的道具、遗物与装备清单：来源、限制、代价、首次出现与回收位置，避免后期设定断档",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出道具与遗物清单，供大纲/细纲/正文引用",
+      "每件物品必须带代价与回收位置，防止万能道具"
+    ],
+    "successSignal": "道具清单可直接落到章节（有首次出现与回收位置），且限制与代价自洽。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "arc-instance-designer",
+    "title": "副本（事件单元）设计器",
+    "stage": "planning",
+    "goal": "把大纲拆成若干事件单元：进入条件、升级阶梯、退出条件与遗留物，保证每个单元都能独立成章又推动主线",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出事件单元表，供分章大纲与正文使用",
+      "退出条件必须落在主角的主动选择上，否则标注待改"
+    ],
+    "successSignal": "每个单元都有可验证的进入/退出条件与遗留物，且能说明主线推进。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
   }
 ];
 
@@ -456,8 +555,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "world-setting",
         "output": "characters",
         "stage": "planner",
-        "assetId": "square-183",
-        "guidanceOnly": true,
+        "assetId": "character-arc-dossier",
         "gate": {
           "kind": "advisory",
           "note": "主角性格、成长动机与金手指明确"
@@ -998,8 +1096,42 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
           "kind": "advisory",
           "note": "分章结构完备，钩子排布合理"
         },
-        "nextStepId": null,
+        "nextStepId": "tianma-outline-flow-step5",
         "switchAllowed": true
+      },
+      {
+        "id": "tianma-outline-flow-step5",
+        "stepNumber": 5,
+        "name": "道具与遗物体系补完",
+        "description": "在大纲基础上补齐可回收的道具、遗物与装备清单，标注首次出现与回收位置。",
+        "input": "chapters-outline",
+        "output": "artifact-list",
+        "stage": "planner",
+        "assetId": "relic-system-designer",
+        "gate": {
+          "kind": "advisory",
+          "note": "每件道具都有代价与回收位置"
+        },
+        "nextStepId": "tianma-outline-flow-step6",
+        "switchAllowed": true,
+        "navigateTo": "bible"
+      },
+      {
+        "id": "tianma-outline-flow-step6",
+        "stepNumber": 6,
+        "name": "副本（事件单元）设计",
+        "description": "把大纲拆成若干事件单元，标注进入条件、升级阶梯、退出条件与遗留物。",
+        "input": "artifact-list",
+        "output": "arc-units",
+        "stage": "planner",
+        "assetId": "arc-instance-designer",
+        "gate": {
+          "kind": "advisory",
+          "note": "每个单元都有主动退出条件与遗留物"
+        },
+        "nextStepId": null,
+        "switchAllowed": true,
+        "navigateTo": "outline"
       }
     ]
   }
@@ -6043,6 +6175,117 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "grade": "B",
     "primaryCategory": "style-reference",
     "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "character-arc-dossier",
+    "title": "人物弧光档案",
+    "stage": "planning",
+    "goal": "把主角、反派与关键配角写成可复用的弧光档案：欲望、缺陷、代价、转折点与关系张力，供后续大纲与正文调用",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出人物档案，供大纲与正文引用，不直接改写正文",
+      "缺陷与代价必须落到具体事件，避免形容词堆砌"
+    ],
+    "successSignal": "每个主要角色都有可执行的目标/缺陷/转变节点，且关系张力能直接支撑冲突设计。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 84,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "relic-system-designer",
+    "title": "道具与遗物体系设计器",
+    "stage": "planning",
+    "goal": "为长篇铺设可回收的道具、遗物与装备清单：来源、限制、代价、首次出现与回收位置，避免后期设定断档",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出道具与遗物清单，供大纲/细纲/正文引用",
+      "每件物品必须带代价与回收位置，防止万能道具"
+    ],
+    "successSignal": "道具清单可直接落到章节（有首次出现与回收位置），且限制与代价自洽。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "arc-instance-designer",
+    "title": "副本（事件单元）设计器",
+    "stage": "planning",
+    "goal": "把大纲拆成若干事件单元：进入条件、升级阶梯、退出条件与遗留物，保证每个单元都能独立成章又推动主线",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "设定卡：产出事件单元表，供分章大纲与正文使用",
+      "退出条件必须落在主角的主动选择上，否则标注待改"
+    ],
+    "successSignal": "每个单元都有可验证的进入/退出条件与遗留物，且能说明主线推进。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "style-reference",
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in",

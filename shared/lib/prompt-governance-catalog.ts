@@ -424,6 +424,144 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     isRuntimeReady: true,
     sourceType: 'built-in',
   },
+  // 批次 C「维度补卡」（2026-09-28）· 人物 / 道具 / 副本三个维度原无可运行步骤：
+  // 小飞鸡 step3 原指引用壳 square-183（人物维度停留「仅引导」），道具与副本维度
+  // 在 30 步中完全没有步骤。以下三张为自撰内置卡（正文即可运行内容），
+  // 分别接小飞鸡 step3（人物）与天马 step5/step6（道具、副本）。
+  {
+    id: 'character-arc-dossier',
+    title: '人物弧光档案',
+    stage: 'planning',
+    goal: '把主角、反派与关键配角写成可复用的弧光档案：欲望、缺陷、代价、转折点与关系张力，供后续大纲与正文调用',
+    inputs: ['content'],
+    template: `【人物弧光档案 · 只出档案不做正文】
+
+按「主角 → 反派 → 关键配角（最多 3 人）」的顺序，为每人输出一张档案卡。
+
+每张卡必须包含以下六项，缺一项就标注「待补」，不要编造：
+
+1) 外在目标：本阶段主角/角色想要什么（可被验证的可见结果）。
+2) 内在需求：他自己不承认、但故事必须让他面对的东西。
+3) 缺陷与代价：缺陷如何在关键节点制造失败或损失（写具体事件，不写形容词）。
+4) 关系张力：与主角（或彼此）的关系是什么，冲突点在哪里（一句话说清对立面）。
+5) 转变节点：全书至少 2 个「他做出不同选择」的位置，标注大致章节区间。
+6) 语言指纹：口头禅、说话长度、回避话题各一条，供对白复用。
+
+输出格式（纯文本，逐人一节）：
+
+## <角色名>（主角/反派/配角）
+- 外在目标：
+- 内在需求：
+- 缺陷与代价：
+- 关系张力：
+- 转变节点：
+- 语言指纹：
+
+约束：只产出档案，不写正文对白；档案之间不得互相矛盾；信息不足时保留「待补」而不是填满。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '设定卡：产出人物档案，供大纲与正文引用，不直接改写正文',
+      '缺陷与代价必须落到具体事件，避免形容词堆砌',
+    ],
+    successSignal: '每个主要角色都有可执行的目标/缺陷/转变节点，且关系张力能直接支撑冲突设计。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 84,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'relic-system-designer',
+    title: '道具与遗物体系设计器',
+    stage: 'planning',
+    goal: '为长篇铺设可回收的道具、遗物与装备清单：来源、限制、代价、首次出现与回收位置，避免后期设定断档',
+    inputs: ['content'],
+    template: `【道具与遗物体系设计器 · 只出清单不做正文】
+
+输入：已定稿的世界背景与大纲（缺大纲时只输出「来源分类 + 示例」，并标注「待大纲确认」）。
+
+输出三部分：
+
+一、体系骨架（先写规则，再写物品）
+- 来源分类：力量源头有哪些类型（先天 / 传承 / 造物 / 禁忌），各自一句话定义。
+- 使用限制：每类至少一条硬限制（次数、代价、持有条件）。
+- 代价设计：使用后不可逆的损失是什么（身体 / 关系 / 时间 / 立场）。
+
+二、道具清单（6-12 件，按出现顺序）
+每件一行，字段固定：
+| 名称 | 类别 | 获得方式 | 能力（≤ 20 字） | 代价 | 首次出现（章节区间） | 回收/升级位置 |
+
+三、禁忌与伏笔接口
+- 明确写出 2-3 件「看起来是道具、实际是伏笔」的物品，说明它指向的真相。
+- 标注哪些物品不允许在前期提前揭示（防设定泄露）。
+
+约束：不写剧情段落；每件物品必须有代价；清单数量不足时宁可少写也不编造；与既有世界观规则冲突的条目必须弃用并说明原因。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '设定卡：产出道具与遗物清单，供大纲/细纲/正文引用',
+      '每件物品必须带代价与回收位置，防止万能道具',
+    ],
+    successSignal: '道具清单可直接落到章节（有首次出现与回收位置），且限制与代价自洽。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'arc-instance-designer',
+    title: '副本（事件单元）设计器',
+    stage: 'planning',
+    goal: '把大纲拆成若干事件单元：进入条件、升级阶梯、退出条件与遗留物，保证每个单元都能独立成章又推动主线',
+    inputs: ['content'],
+    template: `【副本（事件单元）设计器 · 只出单元表不做正文】
+
+把输入大纲拆成 3-6 个事件单元（案件 / 悬疑 / 冲突单元皆可），每个单元输出一张表：
+
+| 单元名 | 进入条件 | 内部规则（限制/禁制） | 升级阶梯（3 档） | 退出条件 | 遗留物 | 主线推进 |
+
+字段要求：
+- 进入条件：主角为什么必须进入（利益 / 胁迫 / 误入），写一句话。
+- 内部规则：该单元里「什么做不到」（信息封锁、能力压制、时间限制），至少一条。
+- 升级阶梯：三档压力递增，每档写「谁在施压 + 主角付出什么」，不允许只写「更危险」。
+- 退出条件：以主角的主动选择收尾（不是外力结束）；若靠外力，标注「被动收尾（需改）」。
+- 遗留物：本单元结束后留下的人、物、关系或把柄，说明它如何进入下一单元。
+- 主线推进：本单元让主线前进了什么（一句话，不能是「主角变强了」）。
+
+约束：不写正文与对白；单元之间必须用「遗留物」链接，不允许彼此独立；超出 6 个单元时合并而不是继续罗列。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '设定卡：产出事件单元表，供分章大纲与正文使用',
+      '退出条件必须落在主角的主动选择上，否则标注待改',
+    ],
+    successSignal: '每个单元都有可验证的进入/退出条件与遗留物，且能说明主线推进。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'style-reference',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
 ];
 
 // ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
@@ -473,9 +611,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'world-setting',
         output: 'characters',
         stage: 'planner',
-        assetId: 'square-183', // 【小飞鸡】长篇拆书器
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // 批次 C「维度补卡」：原 square-183 是引用壳（无可用正文），改指自撰内置人物弧光档案卡。
+        assetId: 'character-arc-dossier',
         gate: { kind: 'advisory', note: '主角性格、成长动机与金手指明确' },
         nextStepId: 'xiaofeiji-novel-flow-step4',
         switchAllowed: true,
@@ -924,8 +1061,39 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         gate: { kind: 'advisory', note: '分章结构完备，钩子排布合理' },
+        // 批次 C「维度补卡」：后续新增道具与副本两步（设定补完）。
+        nextStepId: 'tianma-outline-flow-step5',
+        switchAllowed: true,
+      },
+      {
+        id: 'tianma-outline-flow-step5',
+        stepNumber: 5,
+        name: '道具与遗物体系补完',
+        description: '在大纲基础上补齐可回收的道具、遗物与装备清单，标注首次出现与回收位置。',
+        input: 'chapters-outline',
+        output: 'artifact-list',
+        stage: 'planner',
+        // 批次 C「维度补卡」：自撰内置道具与遗物体系设计器（正文可运行）。
+        assetId: 'relic-system-designer',
+        gate: { kind: 'advisory', note: '每件道具都有代价与回收位置' },
+        nextStepId: 'tianma-outline-flow-step6',
+        switchAllowed: true,
+        navigateTo: 'bible',
+      },
+      {
+        id: 'tianma-outline-flow-step6',
+        stepNumber: 6,
+        name: '副本（事件单元）设计',
+        description: '把大纲拆成若干事件单元，标注进入条件、升级阶梯、退出条件与遗留物。',
+        input: 'artifact-list',
+        output: 'arc-units',
+        stage: 'planner',
+        // 批次 C「维度补卡」：自撰内置副本（事件单元）设计器（正文可运行）。
+        assetId: 'arc-instance-designer',
+        gate: { kind: 'advisory', note: '每个单元都有主动退出条件与遗留物' },
         nextStepId: null,
         switchAllowed: true,
+        navigateTo: 'outline',
       },
     ],
   },
