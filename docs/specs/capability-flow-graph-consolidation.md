@@ -780,6 +780,54 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 残余：`guidanceOnly` 与挂卡并存（步骤仍标「仅引导」，因 assetId 是壳）——「有卡即可运行」的可用性语义留待批次 D；
 其余 14 步「仅引导」未挂卡（D1）；选卡为人工拍板，无「按维度自动选卡」机制（C3）。
 
+### 5.16 双门合一：旧 `qualityGate` 收敛（Plan 262 C2）
+
+问题：`SkillSeriesFlowStep.qualityGate`（30 步）同时承担「展示文案」与提示词 `【质量门】` 行，
+而判定用的 `gate{kind}` 只有 generic step5/step6 两处 → 文案、判定、UI 三处不同源；且 30 条文案互不重复，
+无法机械归并为 kind。方案：新增 `advisory`（文本验收门，只展示不拦截），旧文案整体迁入 `gate.note`，
+旧字段删除。
+
+模型（单源 `shared/types/prompt-assets-governed.ts`）：
+- `export type FlowStepGateKind = FlowStepGate['kind'];`；
+  `FlowStepGate.kind: 'mechanical' | 'critic' | 'manual' | 'advisory'`，新增 `note?: string`
+  （提示词行与 UI 的唯一文案源）；`SkillSeriesFlowStep.qualityGate` **已删除**，`gate?: FlowStepGate` 成唯一门槛字段。
+- `shared/types/capability-execution.ts` 的 `ExecutionOverlay` 同步为 `readonly gate: FlowStepGate | null;`。
+
+判定与展示（单源 `shared/lib/flow-step-gate.ts`）：
+- `FLOW_STEP_GATE_KINDS` 四值；`FLOW_STEP_GATE_KIND_LABELS`（机械门（草稿质量）/ 审稿门（critic 分数）/
+  人工确认门 / 文本验收（不拦截））。
+- `evaluateFlowStepGate`：advisory → `status:'pass'` + warning `FLOW_STEP_GATE_ADVISORY`；
+  若同时声明 `threshold` 再记 `FLOW_STEP_GATE_THRESHOLD_IGNORED`（文本门不参与判定）。
+- `flowStepGatePromptText(gate)`：`note` 优先 → 缺省回退 kindLabel+阈值 → null 为「未声明质量门（不判定）」；
+  服务端 `writing-style-service.ts` 的 `【质量门】${flowStepGatePromptText(step.gate)}` 与快照字段 `gate: step.gate ?? null`。
+- `flowStepGateDisplay(gate)`：`{kind,kindLabel,advisory,intercepting,text}`；PlanningTab / SkillsStudioView 共用，
+  advisory 追加「：仅展示，不拦截推进」。
+
+目录迁移：30 步 = **advisory 28**（`note` = 原文案，如 xiaofeiji step1「脑洞概念成型且具备初始爽点」）
++ generic step5 `{kind:'mechanical',note:'第一章正文初稿撰写完成'}` + step6 `{kind:'critic',threshold:80,note:'基础文本去AI腔完成，语流顺畅'}`；
+源目录 `qualityGate` 残留 0。
+
+脱敏管线（`scripts/lib/public-catalog-pipeline.ts`）：`TEXT_KEYS_TO_SANITIZE` 去掉 `'qualityGate'`，
+新增 `PATH_TEXT_KEYS_TO_SANITIZE = new Set(['gate.note'])` 与 `cloneAndSanitizeAt(obj, path)`
+（`cloneAndSanitize` 委托之）——按路径脱敏，避免把任意对象的 `note` 都当可脱敏文本；`gate.note` 仍走 `cleanText`。
+
+证据（2026-09-28）：
+- `tests/flow-step-gate-migration.test.ts` **5/5**：30 步全带 `gate.note`、kinds `{advisory:28, mechanical:1, critic:1}`、
+  提示词/展示同源、advisory pass+ADVISORY+阈值忽略、kind 常量与标签表一一对应、源码+生成物零旧字段
+  （`stripComments()` 剥注释后扫描 8 个文件）。
+- 既有测试迁移：`tests/flow-step-gate.test.ts`「目录 30 步都有 gate；可判定门仍只落在 generic-novel-flow 的 step5/step6」
+  （step5/step6 deepEqual 含 note；xiaofeiji 全 advisory；会拦截的门 = 仅这两步）、枚举契约改四值；
+  前端 `src/tests/planning-tab-step-gate.test.tsx` **7/7**（新增 advisory 用例：文案可见 + 「仅展示，不拦截推进」+ 推进不被拦）。
+- 生成物 `shared/lib/public-skill-catalog.ts` 重生成 diff **116 插入 / 32 删除**，逐行核对全为 `qualityGate` → `gate` 相关行
+  （另 3 行为 step5/step6 gate 对象重塑）。
+- 快照六场景与 C1 基线**逐项一致**（bare `e3b0c442(0)/a911161f(541)/af2071af(104)`；technique `4ee5c756(634)/9a6bf48b(197)`；
+  deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`；flow-shield writer `0e7ffd52(655)`；flow-outline planner `697f7556(101)`；
+  flow-square planner `47eae3c5(240)`）⇒ 迁移后提示词**零变化**。
+- tsc 0 / eslint 0 / 后端定向 72/72 / 后端全量 **1426/1426（+5）** / 前端定向 71/71。
+
+残余：advisory 门无强制语义（设计如此，仅文本验收）；`gate.note` 为自由文本无长度约束；
+30 步文案仅在「质量检查门栏」区展示，未进回执行。
+
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）
