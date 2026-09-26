@@ -416,6 +416,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "hook-idea",
         "stage": "planner",
         "assetId": "square-182",
+        "cardRef": {
+          "role": "rule",
+          "stages": [
+            "planner"
+          ],
+          "cardId": "private-181"
+        },
         "guidanceOnly": true,
         "qualityGate": "脑洞概念成型且具备初始爽点",
         "nextStepId": "xiaofeiji-novel-flow-step2",
@@ -645,6 +652,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapters-with-hooks",
         "stage": "writer",
         "assetId": "hook-system",
+        "cardRef": {
+          "role": "rule",
+          "stages": [
+            "writer"
+          ],
+          "cardId": "de-ai-tells-guard"
+        },
         "guidanceOnly": true,
         "qualityGate": "前三章完读率预测指标及格",
         "nextStepId": "tomato-platform-flow-step3",
@@ -660,6 +674,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapters-with-highlights",
         "stage": "critic",
         "assetId": "tomato-opening-validator",
+        "cardRef": {
+          "role": "diagnostic",
+          "stages": [
+            "critic"
+          ],
+          "cardId": "tomato-opening-diagnostic"
+        },
         "guidanceOnly": true,
         "qualityGate": "金手指爽点在前三章显露节奏合理",
         "nextStepId": "tomato-platform-flow-step4",
@@ -725,6 +746,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "deconstruction-cards-hook",
         "stage": "planner",
         "assetId": "deconstruct-card-hook",
+        "cardRef": {
+          "role": "rule",
+          "stages": [
+            "planner"
+          ],
+          "cardId": "deconstruction-pacing-dissect"
+        },
         "guidanceOnly": true,
         "qualityGate": "前 3 章核心悬念钩子提炼完毕",
         "nextStepId": null,
@@ -747,6 +775,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "hook-idea",
         "stage": "planner",
         "assetId": "square-88",
+        "cardRef": {
+          "role": "rule",
+          "stages": [
+            "planner"
+          ],
+          "cardId": "private-89"
+        },
         "guidanceOnly": true,
         "qualityGate": "脑洞内核分析清晰，爽点明确",
         "nextStepId": "fenghua-short-flow-step2",
@@ -870,6 +905,13 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "output": "chapters-outline",
         "stage": "planner",
         "assetId": "square-42",
+        "cardRef": {
+          "role": "rule",
+          "stages": [
+            "planner"
+          ],
+          "cardId": "private-168"
+        },
         "guidanceOnly": true,
         "qualityGate": "分章结构完备，钩子排布合理",
         "nextStepId": null,

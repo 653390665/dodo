@@ -443,6 +443,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'hook-idea',
         stage: 'planner',
         assetId: 'square-182', // 【小飞鸡】爆款书名简介策划引擎！
+        // 批次 C「cardRef 挂真实步骤」：小飞鸡五个长篇脑洞（脑洞 → hook 概念）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-181' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '脑洞概念成型且具备初始爽点',
@@ -672,6 +674,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapters-with-hooks',
         stage: 'writer',
         assetId: 'hook-system', // 真实的钩子体系资产
+        // 批次 C「cardRef 挂真实步骤」：去AI味痕迹规则卡（钩子强化时的文风底线）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'rule', stages: ['writer'], cardId: 'de-ai-tells-guard' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '前三章完读率预测指标及格',
@@ -688,6 +692,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapters-with-highlights',
         stage: 'critic', // 动作是评估爽点显露节奏 → critic
         assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
+        // 批次 C「cardRef 挂真实步骤」：番茄开篇诊断器（爽点显露节奏评估）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'diagnostic', stages: ['critic'], cardId: 'tomato-opening-diagnostic' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '金手指爽点在前三章显露节奏合理',
@@ -758,6 +764,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'deconstruction-cards-hook',
         stage: 'planner',
         assetId: 'deconstruct-card-hook', // 真实的钩子拆书卡
+        // 批次 C「cardRef 挂真实步骤」：爽感节奏拆解器（钩子拆解方法）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'rule', stages: ['planner'], cardId: 'deconstruction-pacing-dissect' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '前 3 章核心悬念钩子提炼完毕',
@@ -781,6 +789,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'hook-idea',
         stage: 'planner',
         assetId: 'square-88', // 【风华出品】短篇破解爆款第一步
+        // 批次 C「cardRef 挂真实步骤」：风华短篇专用大纲生成（短篇脑洞 → 大纲）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-89' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '脑洞内核分析清晰，爽点明确',
@@ -911,6 +921,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         output: 'chapters-outline',
         stage: 'planner',
         assetId: 'square-42', // 天马-通用章节大纲
+        // 批次 C「cardRef 挂真实步骤」：章纲自适应续写（分章大纲方法）；卡片正文进声明阶段 prompt（assetId 路径保留为回退）。
+        cardRef: { role: 'rule', stages: ['planner'], cardId: 'private-168' },
         // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
         guidanceOnly: true,
         qualityGate: '分章结构完备，钩子排布合理',
