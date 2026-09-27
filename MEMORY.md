@@ -11,10 +11,11 @@ InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在根
 
 ## 环境事实
 
-- 2026-09-20：npm 已恢复可用（v12.0.2，对 Node 22.22.0 有版本支持告警，功能正常）；vitest 链 3 条 moderate dev 漏洞待操作者批准 --force 升级。
+- 2026-09-20：npm 已恢复可用（v12.0.2，对 Node 22.22.0 有版本支持告警，功能正常）；vitest 链 3 条 moderate dev 漏洞待操作者批准 --force 升级。2026-09-28 复核：本机无网，无法跑 `npm audit` 取证；`plans/README.md:576`（Plan 255 行）自相矛盾（同句既写「收尾 commit `0fb8561` 完成 vitest --force 升级，npm audit 归零」又写「仅剩 vitest 链 3 moderate，--force 升级待操作者批准」）→ 降级为「有网时复核销账」；**不阻断任何门禁**（`.github/workflows/build.yml:25-60` 的 audit 门只审生产口径 `npm audit --omit=dev --json`）。
 - 2026-09-08:验证门复跑(无源码改动,node 直调):`tsc --noEmit` 0 错误;vitest frontend 841/841 全绿(121 文件,约 618s),与 010 口径一致。
 
 ## 待决
 
 - ~~2026-09-08:011 状态同步 + mountedSkillLoadout 措辞修正暂存未提交~~ 已解决:实际已随 `8b6a0e6` 提交,暂存区为空;工作区仅剩未跟踪记忆文件(MEMORY.md/TOOLS.md/memory/),暂不入库(pre-commit 因 npm 缺失不可用,且 agent 记忆不混项目历史)。
 - 2026-09-20:memory/ 两文件已入库 vs 声明不入库的矛盾待操作者拍板(MEMORY.md 本身在 1160fc6 已入库,同属此矛盾)。
+  - 2026-09-28 复核：`git ls-files memory MEMORY.md TOOLS.md` = `MEMORY.md` / `TOOLS.md` / `memory/2026-09-08.md` / `memory/user-working-rules.md`，四个均已被追踪（与声明矛盾属实）。两项选择：(A) **承认入库并改本文件声明**（推荐：历史已含，untrack 也删不掉历史；且 `memory/user-working-rules.md` 是跨项目工作规则来源）；(B) `git rm --cached` 后保留「不入库」声明。两者都是 1 个提交，无代码影响。
