@@ -347,7 +347,7 @@ describe('Library metadata refresh', () => {
 
     render(<Library userId="local" onSelectNovel={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText('能力卡 3/3')).toBeDefined());
-    expect(screen.queryByText('能力卡 0/3')).toBeNull();
+    await waitFor(() => expect(screen.getByText('能力卡 3')).toBeDefined());
+    expect(screen.queryByText('能力卡 0')).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ / D3 ✅ / D4 ✅；余 D5/D6 登记、E2、E7、E1（需用户））
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记）/ D6 ✅；余 E2、E7、E1（需用户））
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A `9a2c234`、B1 `c839f32`、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -30,8 +30,8 @@
 | 5 | D1 仅引导步骤补正文 | 34 步 / 可运行 21（61.8%）/ 仅引导 13：番茄 4（step2/3 已挂 cardRef 但 assetId 仍是壳、step4/5）、风华 4（step1/2/3/5）、天马 3（step1/2/4）、小飞鸡 1（step1）、拆书 1（step2） | 补正文步骤的 assetId 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；✅ 已完成（2026-09-28）：7 个「无 cardRef 的仅引导步骤」自撰内置卡并改指（番茄 step4/5、风华 step2/3/5、天马 step1/2）→ **可运行 28/34（82.4%）/ 仅引导 6**；余 6 步为已挂 cardRef 的步骤（卡正文经卡片通道注入，assetId 仍为壳，登记为残余）；`scratch/capB-chain.ts` 已复跑；目录 189 / built-in 27 |
 | 6 | D3 章节回滚 stale 打标 | 只覆盖删除路径；回退未定义「回到哪个来源版本」 | ✅ 已完成（2026-09-28）：按拍板不引入 source 枚举 —— `chapter_versions.content_hash`（迁移 `ensureColumn`）+ 两条写入路径补指纹 + `listChapterVersionMetas.matchesCurrentContent`（hash 不等判 stale；存量 NULL → 「来源未知」）+ 时光机卡片徽标；后端 `tests/chapter-version-content-hash.test.ts` 5/5、前端 `src/tests/agent-workspace-versions-panel.test.tsx` 3/3 |
 | 7 | D4 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` | ✅ 已完成（2026-09-28）：按拍板只设一条硬阈值 —— 阈值单源 `MAX_ARREARS_IN_PROMPT`（`shared/lib/knowledge-capabilities.ts`，原为 `server/helpers/knowledge-lineage-enrich.ts:175` 本地常量）+ 新增「伏笔欠账」指标 + 越线 `severity:'warn'`／面板琥珀（`text-amber-700`，与未知 `text-amber-800` 可区分）+ 阈值说明；其余指标只显示数值 + 未知降级；RAG 缓存与孤立节点并入口径未做（挂 E6 真实数据）；后端 6/6、前端 5/5 + 2/2 |
-| 8 | D5 长篇记忆基线补完 | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI | 建议**降级为技术债**登记（不做或并入其它项）——拍板 |
-| 9 | D6 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） | 建议**标记为内部并从 UI 概念移除**（承接 262 建议②）——拍板 |
+| 8 | D5 长篇记忆基线补完 | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI ✅ 已完成（2026-09-28）：按拍板**降级为技术债**，只登记、不补完（真实样本 / planner·critic 口径 / CI 接线均不做）；触发条件 = 真实长篇样本到手后重跑 `scripts/long-memory-baseline.ts` 并复核口径（规格 §5.22 + §5.10 拍板行） |
+| 9 | D6 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） ✅ 已完成（2026-09-28）：三字段**标为内部**（只经 profile 写入，不做 UI 写入口）；移除 UI 固定额度文案 —— `src/components/Library.tsx:265` `能力卡 N/3` → `能力卡 N`（规格 §4.2.4 + §5.22）；`src/tests/library-refresh.test.tsx` 同步改断言 |
 
 ## P3 批次 E 拍板（跨会话遗留）
 
@@ -86,4 +86,5 @@
 | D3 章节版本指纹 | 本次提交 | `chapter_versions.content_hash`（建表 + `ensureColumn` 迁移）、`hashChapterContent`（sha256 原文，不归一化）、两条写入路径（CRUD `insertColumns` + accept 前置快照 raw INSERT）补列、`listChapterVersionMetas` 增 `contentHash`/`matchesCurrentContent`、时光机卡片徽标（＝ 当前正文 / ≠ 不同 / 来源未知）；后端 5/5、前端 3/3、既有夹具补字段；tsc 0 / eslint 0 |
 | D1 仅引导步骤补正文 | 本次提交 | 新增 7 张自撰内置卡（`tomato-readthrough-audit` / `tomato-prose-polisher` / `lofter-aesthetic-outliner` / `viral-shortform-titler` / `emotional-logic-auditor` / `viral-idea-refiner` / `setting-rhythm-outliner`），步骤改指 + 删 `guidanceOnly`（不改壳）；读数 34 步 / **可运行 28（82.4%）** / 仅引导 6；目录 189（built-in 20→27）、引用资产 28/189、公开目录 142 + 33；计数断言刷新（flow-step-guidance / catalog-disposition / prompt-assets-governed / planning-tab-step-guidance / capability-shelf）；后端全量 1456/1456、前端全量 161 files·1022 tests、快照六场景不变；tsc 0 / eslint 0 |
 | D4 记忆健康度告警阈值 | 本次提交 | 阈值单源 `MAX_ARREARS_IN_PROMPT = 12`（迁到 `shared/lib/knowledge-capabilities.ts`）；五项指标（新增 `foreshadowArrears`「伏笔欠账」，与 `buildForeshadowSettlementChecklist().arrears` 同源）；`severity:'warn'` + `thresholdNote`，面板 `text-amber-700` + 阈值说明；未摄入仍未知不按 0 计；后端 6/6、前端 5/5 + 2/2、命名对齐「四项→五项」14 处；tsc 0 / eslint 0 |
+| D5/D6 长尾登记 | 本次提交 | D5 长篇记忆基线降级为技术债（只登记，触发条件 = 真实长篇样本到手重跑）；D6 三字段标为内部 + 移除 UI 固定额度文案（`src/components/Library.tsx:265` `能力卡 N/3` → `能力卡 N`）；规格 §4.2.4/§5.22 + §5.10 拍板行；`plans/262` D5/D6 行与交付节；`src/tests/library-refresh.test.tsx` 断言同步 |
 | 纪律修正 | 本次提交 | `AGENTS.md:26` 定向测试命令补 `NODE_ENV=test` + `--import ./tests/helpers/test-db-preload.ts`（漏掉会关掉配额门禁路径 → 假失败，见 D3 收尾取证） |

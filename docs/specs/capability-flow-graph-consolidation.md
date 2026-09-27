@@ -207,9 +207,25 @@ deprecated 源码断言）；`src/tests/capability-card-count.test.ts` 5/5；`no
   定向 4 文件 61/61；`npx tsc --noEmit` 0；`npx eslint … --max-warnings=0` 0；六场景 stagePrompts 快照
   **逐项哈希不变**（`bare e3b0c442/a911161f/af2071af`、`technique 4ee5c756/9a6bf48b`、`deck ad15f102/35a46c6f/f73b1f25`、
   `flow-shield 0e7ffd52`、`flow-outline 697f7556/92`、`flow-square 5dde5c7b/59`）——未声明即零行为变化。
-- 残余：三字段仍**无界面写入口**（只能经 profile 写入，UI 计数可读）；`chapterCards` 声明项不写回
+- 残余：三字段**已标为内部装配字段**（只能经 profile 写入；Plan 263 D6 拍板：不做 UI 写入口，固定额度文案已从 UI 移除，见 §4.2.4 与 §5.22）；`chapterCards` 声明项不写回
   `chapter.workflowMeta.capabilityState`（作用域不放大）；护栏通道的「假控制」问题（core-default 护栏无条件
   注入，配置既有护栏 id 无净增）属 P0-②，未在本轮处理。
+
+#### 4.2.4 装配三字段标为内部（Plan 263 D6，2026-09-28）
+
+拍板（`plans/263-closeout-and-truth-up.md:71`，操作者「做吧」批准）：三字段（`projectCards` / `chapterCards` /
+`singleRunCard`）**标为内部装配字段** —— 只由作品偏好 profile（治理货架 / 迁移 / CLI）写入，**不提供 UI 写入口**；
+相应地移除 UI 上「固定额度」的暗示。
+
+- 代码改动：`src/components/Library.tsx:265` 的就绪度条目由 `能力卡 ${capabilityCardCount}/3` 改为
+  `能力卡 ${capabilityCardCount}`（去掉 `/3`；就绪判定仍看 `count > 0`，文案主体「能力卡 N」不变）。该 `/3`
+  不对应任何强制上限（`resolveProjectCards` 不做截断，见 `shared/lib/capability-assembly.ts:162-169`），
+  也没有 UI 写入口 —— 留着会把内部声明误示成「用户可配置的三个卡位」。
+- 为何不做写入口：三字段写入需按 channel 分流（`assemblyChannelForCard`）+ scope 校验 + 卡组面落库版本对照
+  （§4.2.3），UI 侧等于新增一套装配编辑器；当前无使用诉求，且 `chapterCards` 本就不写回章节状态，做面会造出
+  更大的「假控制」。
+- 测试：`src/tests/library-refresh.test.tsx`（就绪度文案 `能力卡 3/3` → `能力卡 3`）；编辑器侧 `能力卡 3`
+  （`src/tests/components.test.tsx:652`）与货架/装配面文案不受影响。
 
 #### 4.2.1 目录生成单源与新鲜度（批次 A 小类「目录生成与新鲜度」）
 
@@ -1059,6 +1075,8 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 
 **残余（已登记）**：样本是确定性合成长书，非真实作品；回声口径是「token 是否进入 writer 请求」而非「模型是否实际使用」；planner/critic 两阶段未纳入命中率口径；未接 CI（需手动跑脚本）。
 
+**拍板（2026-09-28，Plan 263 D5）**：本项**降级为技术债**，不排期、不补完（真实样本、planner/critic 口径、CI 接线都不做）；触发条件 = 真实长篇样本到手后重跑 `scripts/long-memory-baseline.ts` 并复核口径（见 §5.22）。
+
 #### 5.11 链路稳定性与确定性（跨链路守卫，2026-09-27）
 
 **目的**：部件级测试（单步各自正确）≠ 链路之间稳定。本节把跨链路不变式钉成测试。
@@ -1109,6 +1127,19 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 **残余（诚实登记）**：剩余 6 个「仅引导」步骤**恰为已挂 `cardRef` 的 6 步**（小飞鸡 `step1`、番茄 `step2/3`、拆书 `step2`、风华 `step1`、天马 `step4`）—— 它们的卡片正文已通过卡片通道进入提示词，但 `assetId` 仍指向平台转投壳（`availability` 读作 `guidance`）。若要让「可运行」读数也反映这一步，需把辅助卡（`de-ai-tells-guard` 等）改标为主资产 —— 属于「冒充主资产」，本批不擅自做；登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
 
 **证据（2026-09-28）**：`tests/flow-step-guidance.test.ts` **76/76**（目录守门改为 34 步 / 壳集合 6 / 可运行 28 / 82.4% / 逐链，含新增「D1 七张自撰内置卡 → asset + 声明阶段 prompt 含卡正文、无壳转投语」集成用例）、`tests/catalog-disposition.test.ts`（189 = public 142 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8）、`tests/prompt-assets-governed.test.ts`（source 189 / built-in 27）、`src/tests/planning-tab-step-guidance.test.tsx`、`src/tests/capability-shelf.test.ts`；公开目录 `node --import tsx scripts/generate-public-catalog.ts` 再生；快照六场景逐项不变；tsc 0 / eslint 0；后端全量 **1456/1456**、前端全量 **161 files / 1022 tests**。
+
+### 5.22 长尾登记：长篇记忆基线技术债 + 装配三字段内部化（Plan 263 D5/D6）
+
+**D5 长篇记忆基线 → 技术债（不排期）**：§5.10 的四项残余（确定性合成长书样本 / 回声口径为「token 是否进请求」/
+planner·critic 未纳入 / 未接 CI）**不改**。按拍板（`plans/263-closeout-and-truth-up.md:70`）只登记、不补完：
+既不补真实作品样本，也不把脚本接进 CI。**触发条件** = 真实长篇样本到手后重跑
+`node --import tsx scripts/long-memory-baseline.ts`（脚本自建 `/tmp/inkflow-lb-config` 隔离配置）并复核口径。
+
+**D6 装配三字段标为内部 → 已结案**：见 §4.2.4。读数面（`plans/262` 批 D 的 D6 行）：三字段不再有 UI 写入口、
+也不再以固定额度文案出现在界面；`能力卡 N` 计数保留（卡组面的既有命名）。
+
+**残余**：货架/治理面仍可经 profile 声明三字段（这是有意保留的唯一写入路径，未加 UI 编辑面）；若未来要做写入口，
+需同时补 channel 分流 UI 与 scope 校验提示（见 §4.2.3 的 `chapterCards` 宽松语义）。
 
 ### 批次 D：长期记忆与可见性
 

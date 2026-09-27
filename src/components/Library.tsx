@@ -262,7 +262,7 @@ export function Library({ onSelectNovel, onNavigate, userId }: LibraryProps) {
       { label: '简介', ready: Boolean(novel.summary?.trim()), icon: FileText },
       { label: '大纲', ready: Boolean(novel.globalOutline?.trim()), icon: CheckCircle2 },
       { label: '世界观', ready: Boolean(novel.worldRules?.trim()), icon: Globe2 },
-      { label: `能力卡 ${capabilityCardCount}/3`, ready: capabilityCardCount > 0, icon: Wand2 },
+      { label: `能力卡 ${capabilityCardCount}`, ready: capabilityCardCount > 0, icon: Wand2 },
     ];
   };
 

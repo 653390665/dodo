@@ -40,8 +40,8 @@
 | D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | ✅ 已交付（2026-09-28，Plan 263）：`chapter_versions.content_hash` + stale 判定 + 时光机徽标 |
 | D4 | 记忆健康度补完 | ✅ 已交付（2026-09-28，Plan 263）：新增「伏笔欠账」指标 + 一条硬阈值告警（阈值单源 `MAX_ARREARS_IN_PROMPT`，越线琥珀 + 阈值说明）；其余指标仍只显示数值 + 未知降级；整体阈值口径挂 E6 真实数据（RAG 缓存 / 孤立节点并入口径未做） |
-| D5 | 长篇记忆基线补完 | 样本为确定性合成长书；回声口径为「token 是否进请求」；planner/critic 未纳入；未接 CI |
-| D6 | 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） |
+| D5 | 长篇记忆基线补完 ◐ 技术债（2026-09-28 登记） | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI —— 按 Plan 263 D5 拍板**降级为技术债**（不排期；触发条件 = 真实长篇样本到手后重跑） |
+| D6 | 三字段 UI 写入口 ✅ 已结案（2026-09-28，Plan 263） | 三字段**标为内部**（只经 profile 写入，不做 UI 写入口）；UI 的固定额度文案移除：`src/components/Library.tsx:265` `能力卡 ${capabilityCardCount}/3` → `能力卡 ${capabilityCardCount}` |
 
 ## 批次 E：需拍板 / 跨会话遗留
 
@@ -221,6 +221,12 @@
 - 读数（`scratch/capB-chain.ts` 复跑）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**（番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0）；目录 189（built-in 27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本。
 - 残余：剩余 6 个「仅引导」步骤恰为已挂 `cardRef` 的 6 步 —— 卡正文已由卡片通道进入提示词，但 `assetId` 仍是平台壳（`availability` 读作 `guidance`）；把辅助卡改标为主资产属于「冒充主资产」，本批不做，登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
 - 证据：`tests/flow-step-guidance.test.ts` **76/76**（含新增「D1 七张自撰内置卡 → asset + 声明阶段 prompt 含卡正文」集成用例）、`tests/catalog-disposition.test.ts`、`tests/prompt-assets-governed.test.ts`、`src/tests/planning-tab-step-guidance.test.tsx`、`src/tests/capability-shelf.test.ts`；快照六场景逐项不变；tsc 0 / eslint 0；后端全量 **1456/1456**、前端全量 **161 files / 1022 tests**；规格 §5.21。
+
+### D5/D6 长尾登记：记忆基线技术债 + 三字段内部化 — 2026-09-28（Plan 263 执行）
+
+- **D5**：按拍板降级为技术债（只登记，不补完）。登记内容 = §5.10 的四项残余（确定性合成长书样本 / 回声口径「token 是否进请求」/ planner·critic 未纳入 / 未接 CI）；触发条件 = 真实长篇样本到手后重跑 `node --import tsx scripts/long-memory-baseline.ts` 并复核口径。
+- **D6**：三字段标为内部（`projectCards` / `chapterCards` / `singleRunCard`，只经 profile 写入），移除 UI 的固定额度暗示 —— `src/components/Library.tsx:265` 的 `能力卡 N/3` → `能力卡 N`（该 `/3` 不对应任何强制上限：`resolveProjectCards` 不截断，`shared/lib/capability-assembly.ts:162-169`）。为何不做写入口：写入需 channel 分流 + scope 校验 + 卡组面版本对照，等于新增一套装配编辑器；且 `chapterCards` 本就不写回章节状态（§4.2.3），做面会造出更大的「假控制」。
+- 证据：`src/tests/library-refresh.test.tsx`（文案 `能力卡 3/3` → `能力卡 3`）；编辑器侧 `能力卡 3`（`src/tests/components.test.tsx:652`）未受影响；`npx tsc --noEmit` 0 / `npx eslint server src shared tests scripts --max-warnings=0` 0；前端定向 `library-refresh` + `components` 全绿；规格 §4.2.4 + §5.10 拍板行 + §5.22。
 
 ### E6 复测工具：激活漏斗离线报告 — 2026-09-28
 
