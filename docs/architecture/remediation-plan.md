@@ -9,14 +9,14 @@
 > | 项 | 状态 | 证据（2026-09-28） |
 > |---|---|---|
 > | M1 静态门 | ✅ | `eslint.config.mjs` ignores 含 `.tdai`；`package.json:26` lint 作用域 = `server src shared tests scripts`；`npm run lint` exit 0 |
-> | M2 会话隔离 | ◐ | 未采用 worktree；实践=每单元提交 + 提交前清点工作区（worktree clean）。无竞争的性能基线已可取得（全量后端 86–120s） |
+> | M2 会话隔离 | ✅ | 按 Plan 263 E4（`86ebb62`）收口：不采用 worktree，改为两条硬规则入 `docs/specs/multi-agent-workflow.md`（同一 checkout 串行写入 / 每单元提交）；**仍为约定而非技术强制**。无竞争基线已取得（全量后端 1465 用例 275.8s；全量前端读数见 Round 46） |
 > | M3 仓库卫生 | ✅ | `.gitignore` 含 `gui-test-screenshots/`；`git ls-files '*.png'` = 0（85 张截图从未入库）；`plans/round4*`、`plans/246-249-round42.md` 已入库 |
 > | M4 降级诚实性 | ✅ | 降级溯源单源 `deriveRunDegradation`（`src/components/ProductionRunReview.tsx`，DB degradation → `auditMeta.source === 'fallback'` → 直播 prop），详情面板与生产历史列表共用；两条历史用例已补（存量纯保底 run 亮「含降级」／记录字段优先不误报），`src/tests/production-run-review.test.tsx` 16/16 |
 > | M5① 竞品词 | ✅ | `shared/lib/prompt-sanitizer.ts:152` 竞品正则并入 + 断言用例 |
 > | M5② 判据单源 | ✅ | 新模块 `shared/lib/capability-runtime-readiness.ts`；手抄判据调用点 14 → 0；守卫 `tests/capability-runtime-readiness.test.ts` |
 > | M5③ 规格诚实描述 | ✅ | `docs/specs/capability-sanitize.md` 已知缺口段 2026-09-28 改写（含剩余面） |
 > | M6 打包态模型路径 | ✅ | 拍板①随包附权重：`scripts/fetch-embedding-model.mjs` 取 `Xenova/bge-small-zh-v1.5` 4 文件（23.3 MB）→ gitignored `build/embedding-model/`，`build.extraResources` → `resources/embedding-model/`；`server/embedding.ts` 的 `resolveEmbeddingAssetPaths` 齐备时设 `env.localModelPath` 并关远程；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` 与 `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache）；`scripts/check-package-artifacts.mjs` 增权重断言；`tests/embedding-model-assets.test.ts` 9/9。残余：打包态真机验证未做（需联网拉 Electron 头，本机无网） |
-> | M7 版本声明 | ◐ | `package.json` engines 已有（`>=22.0.0`）；本轮补 `.nvmrc`/`.node-version`（22）与 esbuild target 注释；npm v12.0.2 vs node 22.22.0 的处置仍需操作者决定 |
+> | M7 版本声明 | ✅ | Plan 263 E3（`86ebb62`）落地：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫 `tests/node-version-declaration.test.ts` 2/2。**本机仍未满足自声明**：`node -v` = v22.22.0（npm v12.0.2 每条命令告警）→ 需将本机升到 ≥ 22.22.3 |
 > | M8 台账指针 | ✅ | 本条 ARCH-01 终态已回填根 `plans/README.md`；`MEMORY.md` 权威指针更正；`TOOLS.md` npm 与权威指针条目更正 |
 > | M9 死枚举 | ✅ | `shared/types/novel.ts` `'rejected'` 加 JSDoc 声明未接线；`docs/architecture/lifecycle-states.dot` ③ 区补条目（处置③） |
 

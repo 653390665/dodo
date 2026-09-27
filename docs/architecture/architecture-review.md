@@ -9,8 +9,8 @@
 
 > **复核于 2026-09-28（HEAD `8a8afb7`，Plan 262/263 对账）**：本文取证时点为 2026-09-18（`84fb175`），此后风险已分批处置；
 > 逐条状态与代码证据见 `remediation-plan.md` 头部的 2026-09-28 复核表。要点：R1 静态门已恢复（`npm run lint` exit 0，作用域 = `server src shared tests scripts`，`.tdai` 已 ignored）；
-> R3 仓库卫生已清（`git ls-files '*.png'` = 0）；M4 降级诚实性、M5①/②/③ 判据单源已落；M2 会话隔离仍为 ◐（实践 = 每单元提交 + 提交前清点工作区）；
-> M6 打包态模型路径 ❌（已拍板「随包附权重」，见 Plan 263 E2）；M7 版本声明 ◐（`package.json` engines `>=22.0.0`、`.nvmrc`/`.node-version` = `22`，收紧动作见 Plan 263 E3）。
+> R3 仓库卫生已清（`git ls-files '*.png'` = 0）；M4 降级诚实性、M5①/②/③ 判据单源已落；M2 会话隔离已按 Plan 263 E4 收口（不采用 worktree，两条硬规则入 `docs/specs/multi-agent-workflow.md`；仍为约定非强制）；
+> M6 打包态模型路径 ✅（Plan 263 E2 `24b14f6`：随包附权重 → `extraResources`；三项残余见 M6 状态块）；M7 版本声明 ✅（Plan 263 E3 `86ebb62`：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`）。
 >
 > 本文以下计数（上一轮基线：后端 1213 / 前端 840 / lint 945 problems）为**历史读数**，不代表当前状态；当前基线见 `docs/architecture-map.md` 与 `plans/README.md`。
 

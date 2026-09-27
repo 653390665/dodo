@@ -42,6 +42,9 @@
 | 29 | `dff4445 + local changes` | 2026-08-10 | improve + 产品经理 + 八刀法：能力商店连续配置、技法与拆书卡生命周期复核 | 1 | 158 |
 | 30 | `0dfbbcf` | 2026-09-10 | improve deep 全仓审计（7 只读子代理：前端正确性/后端正确性+安全/性能/测试覆盖/架构+依赖/UX 交互+按钮+链路/文档+DX+方向；发现全部经主控亲读复核） | 84 条发现 → 23 计划 | 173–195 |
 
+> **审计基准的可解析性（2026-09-28 复核）**：本表第 1–29 轮的基准 hash 全部属于 **2026-08-29 存档重根**之前的历史线——本分支 HEAD 的根提交是 `68c9004`（“salvage: full working-tree snapshot of InkFlow (2026-08-29)”），事件与恢复材料见 `docs/recovery/RECOVERY.md` 与 `origin/salvage/checkpoint-20260829`。
+> 其中 `fcb3b9b`（1）/`ca53899`（2–10）/`a90ff4bb`（17–18）/`1a56ccad`（20–21）/`f7473224`（22）仍可从 `origin/*` 旧分支解析（`git branch -a --contains <hash>`）；`dff4445`（26–29）、`f4eac24`（计划 160/162/163/164/166/167/169 的 “Planned at”）、`32a6b40`（计划 170/171 的 “Planned at” 与 Drift check）、`93b9b01`（计划 167 隔离提交）、`11c870d`（计划 171 隔离分支最终提交）在本 clone **不可解析**（`git cat-file -t` = 缺失，来自当时的隔离工作区/其他机器）——这些计划内嵌的 `git diff --stat <hash>..HEAD` 在本 clone 会报 `unknown revision`；引用时请以文件路径 + 符号名为锚，或到 `origin/salvage/*` 与 `docs/recovery/` 查证。
+
 ## 执行顺序 & 依赖图
 
 ```
