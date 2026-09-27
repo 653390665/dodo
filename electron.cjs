@@ -399,6 +399,12 @@ function startServer(preferredPort) {
       ? path.join(__dirname, 'dist')
       : path.join(process.resourcesPath, 'app.asar', 'dist');
 
+    // 随包嵌入权重（Plan 263 E2）：extraResources → Resources/embedding-model/Xenova/bge-small-zh-v1.5
+    const embeddingModelDir = isDev ? '' : path.join(process.resourcesPath, 'embedding-model');
+    const embeddingModelReady =
+      embeddingModelDir !== '' &&
+      fs.existsSync(path.join(embeddingModelDir, 'Xenova', 'bge-small-zh-v1.5'));
+
     const cmd = isDev ? getDevSpawnCommand(process.platform) : process.execPath;
     const args = isDev
       ? ['tsx', serverPath]
@@ -417,6 +423,9 @@ function startServer(preferredPort) {
         INKFLOW_STATIC_DIR: staticDir,
         INKFLOW_ELECTRON_MODE: 'true',
         INKFLOW_SECURE_API_KEY: activeApiKey,
+        ...(embeddingModelReady ? { INKFLOW_EMBEDDING_MODEL_DIR: embeddingModelDir } : {}),
+        // 权重缓存必须落在可写目录：app 包体不可写，且自动更新会重建 .app
+        ...(isDev ? {} : { INKFLOW_MODEL_CACHE_DIR: path.join(app.getPath('userData'), 'models-cache') }),
         ...(preferredPort ? { PORT: String(preferredPort), INKFLOW_FIXED_PORT: 'true' } : {}),
         ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
       },

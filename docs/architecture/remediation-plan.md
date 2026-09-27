@@ -15,7 +15,7 @@
 > | M5① 竞品词 | ✅ | `shared/lib/prompt-sanitizer.ts:152` 竞品正则并入 + 断言用例 |
 > | M5② 判据单源 | ✅ | 新模块 `shared/lib/capability-runtime-readiness.ts`；手抄判据调用点 14 → 0；守卫 `tests/capability-runtime-readiness.test.ts` |
 > | M5③ 规格诚实描述 | ✅ | `docs/specs/capability-sanitize.md` 已知缺口段 2026-09-28 改写（含剩余面） |
-> | M6 打包态模型路径 | ❌ | `server/embedding.ts` 仍用 transformers.js 默认缓存；需先决定随包附权重或首启联网（产品决策） |
+> | M6 打包态模型路径 | ✅ | 拍板①随包附权重：`scripts/fetch-embedding-model.mjs` 取 `Xenova/bge-small-zh-v1.5` 4 文件（23.3 MB）→ gitignored `build/embedding-model/`，`build.extraResources` → `resources/embedding-model/`；`server/embedding.ts` 的 `resolveEmbeddingAssetPaths` 齐备时设 `env.localModelPath` 并关远程；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` 与 `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache）；`scripts/check-package-artifacts.mjs` 增权重断言；`tests/embedding-model-assets.test.ts` 9/9。残余：打包态真机验证未做（需联网拉 Electron 头，本机无网） |
 > | M7 版本声明 | ◐ | `package.json` engines 已有（`>=22.0.0`）；本轮补 `.nvmrc`/`.node-version`（22）与 esbuild target 注释；npm v12.0.2 vs node 22.22.0 的处置仍需操作者决定 |
 > | M8 台账指针 | ✅ | 本条 ARCH-01 终态已回填根 `plans/README.md`；`MEMORY.md` 权威指针更正；`TOOLS.md` npm 与权威指针条目更正 |
 > | M9 死枚举 | ✅ | `shared/types/novel.ts` `'rejected'` 加 JSDoc 声明未接线；`docs/architecture/lifecycle-states.dot` ③ 区补条目（处置③） |
@@ -108,6 +108,17 @@
 - `npm run smoke:package-artifacts` 通过，且打包件里 `.cache`/`models` 不再出现在 `app.asar.unpacked` 下。
 - 打包态跑一次 embedding：日志打印实际 `env.cacheDir` 落在用户数据目录；更新 app 后缓存仍在（重跑 `smoke:packaged-editor` 验证）。
 - 断网首启：状态显示 `unavailable` 并给出指引，不伪装可用（按 `llm-status-honesty` 不变式）。
+
+**状态（2026-09-28，Plan 263 E2 执行）**
+
+- 已落地（拍板①随包附权重）：新增 `scripts/lib/embedding-weights.mjs`（模型 id / 4 文件清单 / `MIN_QUANTIZED_MODEL_BYTES = 20 MB` / `isCompleteModelDir` / `embeddingWeightsVerdict` 单源）与 `scripts/fetch-embedding-model.mjs`（来源顺序 `INKFLOW_MODEL_SOURCE_DIR` → `node_modules/@huggingface/transformers/.cache` → `huggingface.co`；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过；缺文件 exit 1）。
+- `package.json`：`model:fetch` 脚本；`package` 链在 electron-builder 之前插入取权重；`build.extraResources = [{ from: 'build/embedding-model', to: 'embedding-model' }]`。
+- `server/embedding.ts`：`LOCAL_EMBEDDING_MODEL_FILES`（4 文件）+ `resolveEmbeddingAssetPaths`（齐备 → `localModelPath` + `disableRemoteModels`；不全 → 只设 `cacheDir`，保留远程下载）；就绪日志打印 `{ localModelPath, cacheDir, allowRemoteModels }`。
+- `electron.cjs`：打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR=resources/embedding-model`（仅在权重齐全时）与 `INKFLOW_MODEL_CACHE_DIR=userData/models-cache`；dev 不注入（避免把 dev 的默认缓存改到 userData）。
+- `scripts/check-package-artifacts.mjs`：发布件断言含 `embedding-model/Xenova/bge-small-zh-v1.5/onnx/model_quantized.onnx`（≥ 20 MB）。
+- 读数：取权重 `FETCH_EXIT=0`（4 文件 23.3 MB，全部来自本地缓存）；`npx tsc --noEmit` 0 / `npx eslint server src shared tests scripts --max-warnings=0` 0；`tests/embedding-model-assets.test.ts` 9/9；受影响面 4 文件 23/23。
+- 残余（未关闭）：打包态真机验证 —— 验收中的「打包件内 `.cache`/`models` 不再出现」「打包态日志打印实际 `cacheDir`」「断网首启 `unavailable` + 指引」三条需联网拉 Electron 头（本机 `huggingface.co` 与 registry 均不可达）→ 本轮只到配置层 / 纯函数层 / 产物层证据；`release/` 缺失时冒烟脚本先于权重断言退出（既有保护，非缺陷）。
+
 
 ---
 

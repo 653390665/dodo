@@ -620,8 +620,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 
 | 编号 | 标题 | 状态 | 依赖 |
 |---|---|---|---|
-| 262 | 能力卡 / 链路 / 图谱收口（plans/262-capability-flow-graph-closeout.md）：批次 A 在制品收口（提交 P0-① 单元 + creation-entry 规格状态回填）；批次 B P0 剩余（B1 护栏假控制语义、B2 评分口径显性化、B3 清洗滞留清账）；批次 C 链路真实化（C1 cardRef 挂真实步骤、C2 旧 qualityGate 收敛、C3 人物/道具/副本维度补卡、C4 死字段与半接线清理、C5 步骤引用图谱能力卡）；批次 D 长尾（14 步仅引导、伏笔面板入口、章节回滚 stale、记忆健康度补完、长篇基线补完、三字段 UI 写入口）；批次 E 需拍板（push 凭证、M6 打包模型路径、M7 Node/npm 版本、M2 会话隔离、双账本 DOCS-3、真实数据缺口、架构图集漂移） | IN PROGRESS | 261、7e0efc7 |
-| 263 | 收口与真实化（plans/263-closeout-and-truth-up.md）：P0 E6 门禁+提交 / E1 push（需用户）；P1 账本对账（262 批次 A 行回填、「需解锁」契约面结案、诊断文档时效标注）；P2 批 D 长尾 D1+D3–D6；P3 批 E 拍板 E2–E5+E7 | ◐ 执行中（P0 E6 ✅ / P1 对账 ✅ #2#3#4；E3/E4/E5 ✅ / D1 ✅ / D3 ✅ / D4 ✅ / D5 技术债 ✅ / D6 ✅ / E7 ✅） | E1 需用户 `gh auth login`；余 E2 |
+| 262 | 能力卡 / 链路 / 图谱收口（plans/262-capability-flow-graph-closeout.md）：批次 A 在制品收口（提交 P0-① 单元 + creation-entry 规格状态回填）；批次 B P0 剩余（B1 护栏假控制语义、B2 评分口径显性化、B3 清洗滞留清账）；批次 C 链路真实化（C1 cardRef 挂真实步骤、C2 旧 qualityGate 收敛、C3 人物/道具/副本维度补卡、C4 死字段与半接线清理、C5 步骤引用图谱能力卡）；批次 D 长尾（14 步仅引导、伏笔面板入口、章节回滚 stale、记忆健康度补完、长篇基线补完、三字段 UI 写入口）；批次 E 需拍板（push 凭证、M6 打包模型路径、M7 Node/npm 版本、M2 会话隔离、双账本 DOCS-3、真实数据缺口、架构图集漂移） | ✅ 已完成（2026-09-28；E1 push 需用户、E6 复测待真实样本） | 261、7e0efc7 |
+| 263 | 收口与真实化（plans/263-closeout-and-truth-up.md）：P0 E6 门禁+提交 / E1 push（需用户）；P1 账本对账（262 批次 A 行回填、「需解锁」契约面结案、诊断文档时效标注）；P2 批 D 长尾 D1+D3–D6；P3 批 E 拍板 E2–E5+E7 | ◐ 待收尾（P0 E6 ✅ / P1 对账 ✅ #2#3#4；E2 ✅ / E3–E5 ✅ / D1+D3–D6 ✅ / E7 ✅） | E1 需用户 `gh auth login` 后 push（唯一残留） |
 
 ### Round 46 关键事实（防重复审计）
 
@@ -658,3 +658,4 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
 - 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处（诊断时读数；C1–C5 后：34 步 / 可运行 21（61.8%）/ 仅引导 13、引用资产 26/182、cardRef 6 步、能力引用 2 步、`qualityGate` 已删；见各 C 行）
 - 清洗面：179→132 公开；拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本。
+- E2 已交付（2026-09-28，Plan 263）：打包态嵌入模型路径 —— 拍板①随包附权重。单源 `scripts/lib/embedding-weights.mjs`（模型 id / 4 文件清单 / ≥20 MB 判据）+ `scripts/fetch-embedding-model.mjs`（来源：本地 `INKFLOW_MODEL_SOURCE_DIR` → `node_modules/@huggingface/transformers/.cache` → HF Hub；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过）；`package.json` `model:fetch` + `package` 链插取权重 + `build.extraResources` → `resources/embedding-model/`；`server/embedding.ts` `resolveEmbeddingAssetPaths`（齐备 → `localModelPath` + 关远程；不全 → 只设 `cacheDir`）+ 就绪日志打印 `{ localModelPath, cacheDir, allowRemoteModels }`；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` 与 `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache，dev 不注入）；`scripts/check-package-artifacts.mjs` 增权重断言。读数：取权重 4 文件 23.3 MB 全部来自本地缓存、tsc/lint 0、`tests/embedding-model-assets.test.ts` 9/9、受影响面 23/23。残余：打包态真机验证需联网（`npm run package` 拉 Electron 头）。

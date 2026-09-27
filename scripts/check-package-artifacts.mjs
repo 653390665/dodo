@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { embeddingWeightsVerdict } from './lib/embedding-weights.mjs';
 
 const root = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -67,6 +68,13 @@ if (!fs.existsSync(releaseDir)) {
 }
 
 const releaseFiles = walk(releaseDir);
+
+// 离线语义检索权重（Plan 263 E2）：随包附权重，打包件里必须能查到量化权重
+const weightsVerdict = embeddingWeightsVerdict(releaseFiles, {
+  skip: process.env.SKIP_EMBEDDING_MODEL_FETCH === 'true',
+});
+if (weightsVerdict.ok) ok(weightsVerdict.message);
+else fail(weightsVerdict.message);
 
 if (process.platform === 'darwin') {
   const dmgName = `InkFlow-${version}-mac-${process.arch}.dmg`;

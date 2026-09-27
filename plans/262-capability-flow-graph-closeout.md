@@ -1,6 +1,6 @@
 # Plan 262：能力卡 / 链路 / 图谱收口（P0 剩余 + 链路真实化 + 长尾）
 
-- 状态：IN PROGRESS
+- 状态：✅ 已完成（2026-09-28；E1 push 需用户、E6 复测待真实样本）
 - 立项：2026-09-28（Round 46）
 - 前置：Plan 261 知识谱系；四批次收敛（commit `7e0efc7`）；P0-① 装配三字段运行时接线（本轮首提交）
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（§4.2.3 已落地；§5.4.1/§5.5/§5.6/§5.9/§5.10/§5.11 的「残余」为各批次验收回写点）
@@ -48,7 +48,7 @@
 | # | 项 | 现状 |
 |---|---|---|
 | E1 | push 被 gh 凭证阻塞 | 本地领先 `origin/codex/plan169-checkpoint` 115 提交；需用户在终端 `gh auth login -h github.com` |
-| E2 | M6 ❌ 打包态嵌入模型路径 | `server/embedding.ts` 仍用 transformers.js 默认缓存 → 决定随包附权重或首启联网 |
+| E2 | ✅ 已交付（2026-09-28，Plan 263 E2） | 拍板①**随包附权重**：取权重脚本 → `build/embedding-model/`（4 文件 23.3 MB，gitignored）→ `extraResources` 落 `resources/embedding-model/`；`server/embedding.ts` `resolveEmbeddingAssetPaths` 齐备时本地解析并关远程；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` + `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache）；`check-package-artifacts.mjs` 增 ≥20 MB 权重断言；`tests/embedding-model-assets.test.ts` 9/9、tsc/lint 0（详见「### E2 打包态嵌入模型路径」） |
 | E3 | M7 ◐ npm/Node 版本告警 | npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26） | **✅ 已交付（2026-09-28，Plan 263 E3）**：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫 `tests/node-version-declaration.test.ts` 2/2。
 | E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 | **✅ 已交付（2026-09-28，Plan 263 E4）**：两条硬规则并入 `docs/specs/multi-agent-workflow.md`（单 checkout 串行写入 / 工作单元边界），不新增规范文件。
 | E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 | **✅ 已结案（2026-09-28，Plan 263 E5）**：`docs/plans/README.md` 冻结为只读存档，根 `plans/README.md` 为唯一权威账本。
@@ -63,6 +63,15 @@
 - 复核日期：两节明标「取证日期 2026-09-28（HEAD `4b68c24`）」，文件顶部加复核行；`docs/architecture/README.md` 顶部加复核声明（2026-09-28 / `4b68c24`）。
 - 顺手修正：文件末尾「本仓库未安装 Graphviz，故未产出 SVG」与实际不符（本机已装、6 张 `.dot` 已验证可渲染，`candidate-store-model.dot`/`flow-chapter-candidate.dot` 依赖 `newrank=true`）。
 - 残余（未纳入本节）：`docs/architecture/architecture-review.md` 的 R1–R11 仍是 2026-09-18 基线（已有 2026-09-28 复核块声明，见 P1 对账）；`inkflow.evidence.md` 未逐条刷新；`docs/architecture-map.md` 只刷了计数（复核 2026-09-23 / `51954f2`）。
+
+### E2 打包态嵌入模型路径：随包附权重 — 2026-09-28（Plan 263 执行）
+
+- 拍板（`plans/263-closeout-and-truth-up.md:72`）：① 随包附权重；打包态缓存目录指向 app resources；模型 id `Xenova/bge-small-zh-v1.5` 与 `dtype: 'q8'` 不得改（`vector_chunks` 按 modelId 匹配）。
+- 问题（R6 / M6）：全仓无任何 `cacheDir` / `localModelPath` 设置 → transformers.js 默认把缓存指向 `dirname(dirname(import.meta.url))/.cache`，而 `scripts/build-server.mjs` 的 banner 把 `import.meta.url` 钉成 `dist-electron/server.cjs`（`asarUnpack` 首位）→ 实际落 `…/Resources/app.asar.unpacked/.cache|models`：可写但不该写（签名包体 / Gatekeeper translocation / 自动更新重建 .app 会清空缓存）；且 `files`/`extraResources` 从未随包权重 → 打包首启必然联网拉 HF Hub。
+- 交付：`scripts/lib/embedding-weights.mjs`（`EMBEDDING_MODEL_ID` / `EMBEDDING_MODEL_FILES` / `MIN_QUANTIZED_MODEL_BYTES = 20 MB` / `PACKAGED_EMBEDDING_MODEL_REL` / `isCompleteModelDir` / `embeddingWeightsVerdict`）+ `scripts/fetch-embedding-model.mjs`（来源顺序 `INKFLOW_MODEL_SOURCE_DIR` → `node_modules/@huggingface/transformers/.cache` → `huggingface.co`；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过；缺文件 exit 1）；`package.json` `model:fetch` + `package` 链插取权重 + `build.extraResources`；`server/embedding.ts` `LOCAL_EMBEDDING_MODEL_FILES` / `resolveEmbeddingAssetPaths` / 模块级 env 应用 / 就绪日志带三个 env；`electron.cjs` 打包态两个 env（dev 不注入）；`scripts/check-package-artifacts.mjs` 权重断言。
+- 读数：取权重 exit 0 → `build/embedding-model/Xenova/bge-small-zh-v1.5/` 4 文件 23.3 MB（`onnx/model_quantized.onnx` = 24010842 B，全部来自本地缓存）；`npx tsc --noEmit` 0 / `npx eslint server src shared tests scripts --max-warnings=0` 0；`tests/embedding-model-assets.test.ts` 9/9；受影响面 4 文件 23/23。
+- 残余：打包态真机验证未做（`npm run package` 需联网拉 Electron 头，本机 `huggingface.co` 不可达）→ 验收的「打包件内无 `.cache`/`models`」「打包态打印 cacheDir」「断网首启 unavailable + 指引」三条仍待联网环境复跑。
+- 证据：`tests/embedding-model-assets.test.ts`（清单与模型 id 双源一致 / `resolveEmbeddingAssetPaths` 三态 / package.json 接线 / electron.cjs 注入 / 冒烟判定四态 / SKIP 模式 / 真实产物 ≥20 MB）。
 
 ## 执行顺序
 

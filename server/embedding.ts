@@ -7,6 +7,8 @@
  * bge-small-en-v1.5); vector_chunks compatibility relies on the model id and
  * dimension staying identical across runtime upgrades.
  */
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 import { generateEmbedding, getEmbeddingModelInfo } from './lib/server-llm';
 import { getConfig } from './lib/config';
@@ -23,6 +25,65 @@ type FeatureExtractionPipelineFactory = (
   modelId: string,
   options?: { dtype?: 'q8' | 'fp16' | 'fp32' | 'auto' }
 ) => Promise<FeatureExtractionPipeline>;
+
+/**
+ * 离线语义检索所需的权重清单（dtype q8 → onnx/model_quantized.onnx）。
+ * 必须与 scripts/lib/embedding-weights.mjs 的 EMBEDDING_MODEL_FILES 一致
+ * （tests/embedding-model-assets.test.ts 断言一致）。
+ */
+export const LOCAL_EMBEDDING_MODEL_FILES = [
+  'config.json',
+  'tokenizer.json',
+  'tokenizer_config.json',
+  'onnx/model_quantized.onnx',
+] as const;
+
+/** 权重模型 id：与 vector_chunks 的 modelId 匹配，不得改。 */
+const MODEL_ID = 'Xenova/bge-small-zh-v1.5';
+
+export interface EmbeddingAssetPaths {
+  /** 随包权重目录（electron-builder extraResources → Resources/embedding-model）。 */
+  localModelPath?: string;
+  /** 可写的权重缓存目录（userData/models-cache；app 包体在签名/更新/Gatekeeper 下不可写）。 */
+  cacheDir?: string;
+  /** 随包权重齐备 → 关闭远程拉取（离线优先，避免首启静默出网）。 */
+  disableRemoteModels: boolean;
+}
+
+/**
+ * 解析打包态权重/缓存落点（Plan 263 E2，对应 R6·M6）。
+ *
+ * - 权重齐备：`env.localModelPath` 指向随包目录且关闭远程（离线可用）。
+ * - 权重不全：只设缓存目录、保留远程 —— 宁可联网补齐，也不把本地能力静默打死。
+ * - 两个变量由 electron.cjs 在打包态注入；dev 下不注入，沿用 transformers 默认缓存。
+ */
+export function resolveEmbeddingAssetPaths(
+  input: { bundledModelDir?: string | null; modelCacheDir?: string | null } = {},
+  deps: { exists?: (target: string) => boolean; join?: (...parts: string[]) => string } = {}
+): EmbeddingAssetPaths {
+  const exists = deps.exists ?? existsSync;
+  const join = deps.join ?? path.join;
+  const bundled = input.bundledModelDir?.trim();
+  const cacheDir = input.modelCacheDir?.trim();
+  const modelDir = bundled ? join(bundled, ...MODEL_ID.split('/')) : '';
+  const complete =
+    modelDir !== '' && LOCAL_EMBEDDING_MODEL_FILES.every((file) => exists(join(modelDir, file)));
+
+  return {
+    ...(complete ? { localModelPath: bundled as string } : {}),
+    ...(cacheDir ? { cacheDir } : {}),
+    disableRemoteModels: complete,
+  };
+}
+
+// 打包态落点（Plan 263 E2）：由 electron.cjs 注入；dev 下不注入，走 transformers 默认缓存。
+const embeddingAssetPaths = resolveEmbeddingAssetPaths({
+  bundledModelDir: process.env.INKFLOW_EMBEDDING_MODEL_DIR,
+  modelCacheDir: process.env.INKFLOW_MODEL_CACHE_DIR,
+});
+if (embeddingAssetPaths.localModelPath) env.localModelPath = embeddingAssetPaths.localModelPath;
+if (embeddingAssetPaths.cacheDir) env.cacheDir = embeddingAssetPaths.cacheDir;
+if (embeddingAssetPaths.disableRemoteModels) env.allowRemoteModels = false;
 
 // Provider mocks must never be allowed to populate the real Transformers cache.
 // Tests exercise the LLM fallback path, so remote and local model reads are both
@@ -128,7 +189,11 @@ async function ensurePipeline(): Promise<void> {
       );
       embeddingStatus = 'ready';
       embeddingReason = undefined;
-      logger.info('Embedding pipeline ready (local WASM)');
+      logger.info('Embedding pipeline ready (local WASM)', {
+        localModelPath: env.localModelPath,
+        cacheDir: env.cacheDir,
+        allowRemoteModels: env.allowRemoteModels,
+      });
     } catch (e) {
       logger.warn('Local embedding pipeline failed, will use LLM fallback', e);
       embedPipeline = null as unknown as FeatureExtractionPipeline | null;

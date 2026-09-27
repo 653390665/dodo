@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记，`e8324d9`）/ D6 ✅（`e8324d9`）/ E7 ✅；余 E2、E1（需用户））
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记，`e8324d9`）/ D6 ✅（`e8324d9`）/ E7 ✅；E2 ✅（随包附权重）；余 E1（需用户））
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A `9a2c234`、B1 `c839f32`、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -37,7 +37,7 @@
 
 | # | 项 | 选项（需拍板） |
 |---|---|---|
-| 10 | E2 打包态嵌入模型路径 | ① 随包附权重（包体积 +）② 首启联网下载（离线首启失败）；现状 `server/embedding.ts` 用 transformers.js 默认缓存 |
+| 10 | E2 打包态嵌入模型路径 | ① 随包附权重（包体积 +）② 首启联网下载（离线首启失败）；现状 `server/embedding.ts` 用 transformers.js 默认缓存 | ✅ 已完成（2026-09-28，本次提交）：拍板①随包附权重落地 —— 取权重脚本 → `build/embedding-model/`（4 文件 23.3 MB）→ `extraResources`；`resolveEmbeddingAssetPaths` 齐备时本地解析并关远程；打包态 `INKFLOW_EMBEDDING_MODEL_DIR` + `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache）；冒烟增 ≥20 MB 权重断言；新测试 9/9、tsc/lint 0；残余 = 打包态真机验证（需联网） |
 | 11 | E3 Node/npm 版本 | 升 Node 至 `^22.22.2`（或降 npm 到 11）+ `engines` + `.nvmrc`；现状 npm v12.0.2 不支持 Node 22.22.0  | ✅ 已完成（2026-09-28：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫测试 `tests/node-version-declaration.test.ts` 2/2）
 | 12 | E4 会话隔离 | ① 立规范（worktree 多 Agent 并发）② 维持现状（每单元提交 + 提交前清点）  | ✅ 已完成（2026-09-28：两条硬规则并入 `docs/specs/multi-agent-workflow.md` 并发隔离节 —— 单 checkout 串行写入 / 工作单元边界）
 | 13 | E5 双账本 | 冻结 `docs/plans/README.md`（能力卡轮账本，只读）+ 根账本加指针；现状 `MEMORY.md` 指针已改根账本，从属关系未定  | ✅ 已完成（2026-09-28：`docs/plans/README.md` 顶部冻结横幅 + 根账本「唯一权威」指针 + 262 双账本项结案）
@@ -49,7 +49,7 @@
 2. D3 回滚语义：回到哪个来源版本？（#6）
 3. D4 阈值口径：低于多少算「记忆不健康」？（#7）
 4. D5 / D6：接受「降级为技术债 / 标为内部」？（#8、#9）
-5. E2 / E3 / E4 / E5 / E7 各自选项（#10–#14）
+5. ~~E2 / E3 / E4 / E5 / E7 各自选项（#10–#14）~~ → 均已拍板并落地（E2 ①随包附权重；E3 pin `22.22.3`；E4 两条硬规则入规格；E5 冻结旧账本；E7 架构图集补两节）
 6. E1：终端 `gh auth login -h github.com`（唯一阻塞在用户的操作动作）
 
 ## 验收门禁（统一）
@@ -69,7 +69,7 @@
 | D4 记忆健康阈值 | **只设 1 条硬阈值** | `arrears > MAX_ARREARS_IN_PROMPT (12)` ⇒ 琥珀；其余指标只显示数值 + `unknown` 降级；整体阈值口径挂 E6 真实数据 |
 | D5 长篇记忆基线 | **降级为技术债** | 只登记；触发条件 = 真实长篇样本到手后重跑 |
 | D6 三字段 UI 入口 | **标为内部** | 规格标 internal + 从 UI 概念移除（不做写入口） |
-| E2 嵌入模型 | **①随包附权重** | 打包态缓存目录指向 app resources；模型 id 与 `dtype: q8` 不得改（`vector_chunks` 按 modelId 匹配） |
+| E2 嵌入模型 | **①随包附权重** | **已落地（2026-09-28）**：打包态缓存目录指向 app resources（`INKFLOW_MODEL_CACHE_DIR` = userData/models-cache；权重随包落 `resources/embedding-model/`）；模型 id 与 `dtype: q8` 不得改（`vector_chunks` 按 modelId 匹配） |
 | E3 Node/npm 版本 | **升 22.22.x 支线 + 单源** | 已落地（细化：pin 与 floor 同取 22.22.x 支线最新补丁 **22.22.3** —— nodejs.org dist index 2026-09-28 实测 22.22.0/.1/.2/.3 均存在；`engines` = `>=22.22.3 <23`；CI 四处改 `node-version-file: .nvmrc`） |
 | E4 会话隔离 | **不新增规范文档** | 两条硬规则并入 `docs/specs/multi-agent-workflow.md`（同文件禁并发改 / 每单元必须提交） |
 | E5 双账本 | **冻结旧账本** | `docs/plans/README.md` 标只读存档 + 指向根 `plans/README.md` |
@@ -88,4 +88,5 @@
 | D4 记忆健康度告警阈值 | 本次提交 | 阈值单源 `MAX_ARREARS_IN_PROMPT = 12`（迁到 `shared/lib/knowledge-capabilities.ts`）；五项指标（新增 `foreshadowArrears`「伏笔欠账」，与 `buildForeshadowSettlementChecklist().arrears` 同源）；`severity:'warn'` + `thresholdNote`，面板 `text-amber-700` + 阈值说明；未摄入仍未知不按 0 计；后端 6/6、前端 5/5 + 2/2、命名对齐「四项→五项」14 处；tsc 0 / eslint 0 |
 | E7 架构图集补章 | 本次提交 | `docs/architecture/inkflow.architecture-understanding.md` 新增「十一、知识谱系」（资料包 → 伏笔台账/图谱边 → 两条消费路径 → 知识能力端点 → 记忆健康度）与「十二、能力链路」（6 链 34 步 → 三通道 → 装配注入 → 门三类 → 读数 28/34）；两节明标取证日 2026-09-28 / `4b68c24`；文件顶部与 `docs/architecture/README.md` 加复核行；修正「未安装 Graphviz」旧述（本机已装、6 张 `.dot` 已验证可渲染，两张需 `newrank=true`） |
 | D5/D6 长尾登记 | 本次提交 | D5 长篇记忆基线降级为技术债（只登记，触发条件 = 真实长篇样本到手重跑）；D6 三字段标为内部 + 移除 UI 固定额度文案（`src/components/Library.tsx:265` `能力卡 N/3` → `能力卡 N`）；规格 §4.2.4/§5.22 + §5.10 拍板行；`plans/262` D5/D6 行与交付节；`src/tests/library-refresh.test.tsx` 断言同步 |
+| E2 打包态嵌入模型路径 | 本次提交 | 随包附权重：`scripts/lib/embedding-weights.mjs`（模型 id / 4 文件清单 / ≥20 MB 判据 / 校验单源）+ `scripts/fetch-embedding-model.mjs`（来源顺序 `INKFLOW_MODEL_SOURCE_DIR` → 本地 HF 缓存 → Hub；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过）；`package.json`（`model:fetch` / `package` 链插取权重 / `build.extraResources`）；`server/embedding.ts` `LOCAL_EMBEDDING_MODEL_FILES` + `resolveEmbeddingAssetPaths` + 模块级 env 应用 + 就绪日志三 env；`electron.cjs` 打包态注入两个 env（dev 不注入）；`scripts/check-package-artifacts.mjs` 权重断言；`tests/embedding-model-assets.test.ts` 9/9；取权重 4 文件 23.3 MB（本地缓存）；tsc/lint 0；受影响面 23/23；残余 = 打包态真机验证（需联网） |
 | 纪律修正 | 本次提交 | `AGENTS.md:26` 定向测试命令补 `NODE_ENV=test` + `--import ./tests/helpers/test-db-preload.ts`（漏掉会关掉配额门禁路径 → 假失败，见 D3 收尾取证） |
