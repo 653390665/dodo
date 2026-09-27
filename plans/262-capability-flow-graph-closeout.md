@@ -11,8 +11,8 @@
 
 | # | 项 | 现状 | 完成判据 | 状态 |
 |---|---|---|---|---|
-| A1 | 提交 P0-① 单元 | 5 改 + 1 新；tsc/lint 0、后端 1396/1396、前端定向 20/20、快照逐项不变；工作区含 `nohup.out` 垃圾 | 提交且工作区 clean | IN PROGRESS |
-| A2 | 规格状态回填 | `docs/specs/creation-entry-convergence.md` Status 仍「待确认（test seams 需实现者复核）」，实现已随 `9a2c234` 交付 | Status 改为已交付并注明复核日期 | TODO |
+| A1 | 提交 P0-① 单元 ✅ 已完成 | 已提交 `645c572`（装配三字段接入运行时三通道）；台账提交 `4f2ffa2`；tsc/lint 0、后端 1396/1396、前端定向 20/20、快照逐项不变；工作区 clean | 提交且工作区 clean | ✅ 已完成（2026-09-28 对账回填） |
+| A2 | 规格状态回填 ✅ 已完成 | `docs/specs/creation-entry-convergence.md:4` Status = 「已交付（2026-09-28 复核：实现随 `9a2c234` 落库，定向测试 `creation-entry-convergence` 7/7 + `app-shell-capability-launch` 20/20 全绿）」 | Status 改为已交付并注明复核日期 | ✅ 已完成（2026-09-28 对账回填） |
 
 ## 批次 B：P0 剩余（用户已批准）
 
@@ -184,7 +184,7 @@
 守卫组 24/24（含 freshness / governance）；前端定向 `guardrail-policy-panel` + `style-shelf-decks` 12/12。
 
 **附带发现（待拍板）**：`getSanitizeRequiredAssets()` 实测 0 条——「需解锁」白名单当前为空
-（源目录口径同为 0：13 张候选或已有副本、或标题判为垃圾/重复），该投影面为死面。
+（源目录口径同为 0：13 张候选或已有副本、或标题判为垃圾/重复），该投影面恒为 0 = **非缺陷**（Plan 263 #3 结案：空分组不渲染/契约保留，见 `src/tests/skills-studio-plan158.test.tsx:1856`）。
 
 ### D2 伏笔面板图谱维护入口 — 2026-09-28
 
@@ -225,7 +225,7 @@ scratch 脚本 + 一个临时起的 dev server：口径无法复核、动作无�
 ### 登记
 
 - 消毒缺口（原「B1 附带发现」，待拍板）→ **已处置（2026-09-28）**：见下「消毒缺口收口：渲染层目录边界」。
-  附带发现 `getSanitizeRequiredAssets()` 实测 0 条（「需解锁」投影是死面）仍待拍板处置。
+  附带发现 `getSanitizeRequiredAssets()` 实测 0 条（「需解锁」投影恒为 0 = **已结案为非缺陷**，Plan 263 #3）。
 
 
 - 根账本：`plans/README.md` Round 46（2026-09-28）

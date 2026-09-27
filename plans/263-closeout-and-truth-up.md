@@ -12,16 +12,16 @@
 
 | # | 项 | 现状 | 完成判据 |
 |---|---|---|---|
-| 0 | E6 门禁 + 提交 | 工作区 6 项：M `server/lib/db/product-events.ts`、M `plans/262-capability-flow-graph-closeout.md`、M `plans/README.md`、?? `scripts/report-activation-funnel.ts`、?? `tests/activation-funnel-report.test.ts`、?? `docs/research/activation-funnel-runbook.md` | tsc/eslint 0 + `tests/activation-funnel-report.test.ts` 4/4 → 提交 → 工作区 clean |
+| 0 | E6 门禁 + 提交 | 工作区 6 项：M `server/lib/db/product-events.ts`、M `plans/262-capability-flow-graph-closeout.md`、M `plans/README.md`、?? `scripts/report-activation-funnel.ts`、?? `tests/activation-funnel-report.test.ts`、?? `docs/research/activation-funnel-runbook.md` | tsc/eslint 0 + `tests/activation-funnel-report.test.ts` 4/4 → 提交 → 工作区 clean | ✅ 已完成（提交 `78e77e5`，4 files / +360；tsc 0 / eslint 0 / 测试 4/4）
 | 1 | E1 push | 本地领先 `origin/codex/plan169-checkpoint` 134 提交；`gh auth status` = `X Failed to log in to github.com account 653390665 (default)` / token invalid | **需用户**终端执行 `gh auth login -h github.com` → 我方 `git push` → ahead=0 |
 
 ## P1 账本对账（「账实分离」直接处置）
 
 | # | 项 | 现状 | 完成判据 |
 |---|---|---|---|
-| 2 | 262 批次 A 行回填 | `plans/262-capability-flow-graph-closeout.md:14` A1 仍 `IN PROGRESS`、`:15` A2 仍 `TODO`；实际 A1 已提交 `9a2c234`、A2 规格 `docs/specs/creation-entry-convergence.md:4` 已改「已交付（2026-09-28 复核…）」 | 两行改 ✅ 并注明提交号/复核日期 |
-| 3 | 「需解锁」死面处置 | `getSanitizeRequiredAssets()` 实测 **0 条**（源目录口径同 0：13 张候选或已有副本、或标题判垃圾/重复）→ 货架「需解锁」投影面为死面 | 二选一（**需拍板**）：修准入谓词让候选可见 / 下线该投影面并在规格登记 |
-| 4 | 诊断文档时效标注 | `docs/architecture/remediation-plan.md` M1（lint 门）与 M5 第 1 步（竞品词表）描述的缺口已在代码里修掉（`package.json` lint 脚本 + `eslint.config.mjs:16` 忽略 `.tdai`；`shared/lib/prompt-sanitizer.ts:152` 已含词表替换）；`docs/architecture/architecture-review.md` 取证停 2026-09-18 / `84fb175` | 两份文档加复核日期，或把已完成项标 DONE |
+| 2 | 262 批次 A 行回填 | `plans/262-capability-flow-graph-closeout.md:14` A1 原为 `IN PROGRESS`、`:15` A2 原为 `TODO`（实际 A1 = `645c572`，A2 = 规格 `docs/specs/creation-entry-convergence.md:4` 已标已交付） | 两行改 ✅ 并注明提交号/复核日期 | ✅ 已完成（2026-09-28 对账回填） |
+| 3 | 「需解锁」契约面结案 | `getSanitizeRequiredAssets()` 实测 **0 条**，原判为「死面」 | 二选一（原需拍板） | ✅ 已结案非缺陷（2026-09-28）：空分组不渲染 `SkillsStudioView.tsx:3231`；契约保留 `src/tests/skills-studio-plan158.test.tsx:1856`；262/README/规格措辞已改为「恒为 0 的契约面」 |
+| 4 | 诊断文档时效标注 | `docs/architecture/remediation-plan.md` M1（lint 门）与 M5 第 1 步（竞品词表）描述的缺口已在代码里修掉（`package.json` lint 脚本 + `eslint.config.mjs:16` 忽略 `.tdai`；`shared/lib/prompt-sanitizer.ts:152` 已含词表替换）；`docs/architecture/architecture-review.md` 取证停 2026-09-18 / `84fb175` | 两份文档加复核日期，或把已完成项标 DONE | ✅ 已完成（`remediation-plan.md` 头部已有 2026-09-28 复核表；本次补 `architecture-review.md` 复核块）
 
 ## P2 批次 D 长尾
 
@@ -45,7 +45,7 @@
 
 ## 拍板清单（需要操作者）
 
-1. 「需解锁」死面：修谓词 or 下线投影？（#3）
+1. ~~「需解锁」死面~~ → 已结案为非缺陷（#3，2026-09-28）
 2. D3 回滚语义：回到哪个来源版本？（#6）
 3. D4 阈值口径：低于多少算「记忆不健康」？（#7）
 4. D5 / D6：接受「降级为技术债 / 标为内部」？（#8、#9）
@@ -59,3 +59,19 @@
 - 改 `shared/` 共享契约 → 两端都跑
 - 提交前：`npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0`
 - UI 主链路 → `npx playwright test`；快照 → `npx tsx scratch/stageprompts-snapshot.ts`（六场景）
+
+## 拍板结论（2026-09-28，操作者「做吧」批准）
+
+| 项 | 决定 | 落地动作 |
+|---|---|---|
+| #3 需解锁死面 | **非缺陷结案** | 代码零改动（`SkillsStudioView.tsx:3231` 空分组不渲染；`skills-studio-plan158.test.tsx:1856` 已声明契约保留）；把 262/README 的「死面」措辞改为「恒为 0 的契约面」 |
+| D3 章节回滚 stale | **不引入 source 枚举** | `chapter_versions` 加 `content_hash` 列；stale = 版本 hash ≠ 当前正文 hash；存量行 hash 空 → 显示「未知」 |
+| D4 记忆健康阈值 | **只设 1 条硬阈值** | `arrears > MAX_ARREARS_IN_PROMPT (12)` ⇒ 琥珀；其余指标只显示数值 + `unknown` 降级；整体阈值口径挂 E6 真实数据 |
+| D5 长篇记忆基线 | **降级为技术债** | 只登记；触发条件 = 真实长篇样本到手后重跑 |
+| D6 三字段 UI 入口 | **标为内部** | 规格标 internal + 从 UI 概念移除（不做写入口） |
+| E2 嵌入模型 | **①随包附权重** | 打包态缓存目录指向 app resources；模型 id 与 `dtype: q8` 不得改（`vector_chunks` 按 modelId 匹配） |
+| E3 Node/npm 版本 | **升 22.22.x 支线 + 单源** | `.nvmrc`/`.node-version` = `22.22.2`；`engines` 收紧 `>=22.22.2 <23`；CI 四处改 `node-version-file: .nvmrc` |
+| E4 会话隔离 | **不新增规范文档** | 两条硬规则并入 `docs/specs/multi-agent-workflow.md`（同文件禁并发改 / 每单元必须提交） |
+| E5 双账本 | **冻结旧账本** | `docs/plans/README.md` 标只读存档 + 指向根 `plans/README.md` |
+| E7 架构图集 | **补两节 + 复核日期** | `docs/architecture/` 补「知识谱系」「能力链路/能力引用」两节 |
+| E1 push | 阻塞在用户 | 终端 `gh auth login -h github.com` → 我方 `git push` |
