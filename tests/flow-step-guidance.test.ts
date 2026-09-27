@@ -2,7 +2,7 @@
  * 批次 B「空壳链路清账」测试（docs/specs/capability-flow-graph-consolidation.md §5.4）。
  *
  * ① 纯函数：声明/未声明 × 可运行/壳/缺失 的可用性判定与诊断；
- * ② 目录守门：34 步里「声明的仅引导集合 == 检测到的壳集合」，静默壳 0，可运行 21（61.8%）；
+ * ② 目录守门：34 步里「声明的仅引导集合 == 检测到的壳集合」，静默壳 0，可运行 28（82.4%）；
  * ③ 集成：真实链路步骤 → 快照 flowStep.availability / guidanceOnly 与目录一致。
  */
 import assert from 'node:assert/strict';
@@ -122,16 +122,16 @@ function auditSteps(): StepAudit[] {
   );
 }
 
-test('目录守门：34 步；声明的仅引导集合 == 检测到的壳集合（13），静默壳 0', () => {
+test('目录守门：34 步；声明的仅引导集合 == 检测到的壳集合（6），静默壳 0', () => {
   const audits = auditSteps();
   const declared = audits.filter((row) => row.step.guidanceOnly === true).map((row) => row.step.id).sort();
   const shells = audits.filter((row) => row.assetIsShell).map((row) => row.step.id).sort();
   assert.equal(audits.length, 34);
-  assert.equal(shells.length, 13);
+  assert.equal(shells.length, 6);
   assert.deepEqual(declared, shells, '壳步骤必须显式声明「仅引导」，且声明不得越界到真资产步骤');
 });
 
-test('目录守门：可运行 21 / 仅引导 13 / 不可用 0，可运行占比 61.8%', () => {
+test('目录守门：可运行 28 / 仅引导 6 / 不可用 0，可运行占比 82.4%', () => {
   const audits = auditSteps();
   const resolutions = audits.map((row) =>
     resolveFlowStepAvailability({
@@ -141,29 +141,29 @@ test('目录守门：可运行 21 / 仅引导 13 / 不可用 0，可运行占比
     })
   );
   assert.deepEqual(summarizeFlowStepAvailabilities(resolutions), {
-    asset: 21,
-    guidance: 13,
+    asset: 28,
+    guidance: 6,
     unavailable: 0,
     total: 34,
   });
-  assert.equal(runnableStepRatio(summarizeFlowStepAvailabilities(resolutions)), 61.8);
+  assert.equal(runnableStepRatio(summarizeFlowStepAvailabilities(resolutions)), 82.4);
   assert.ok(
     resolutions.every((resolution) => resolution.warnings.length === 0),
     '目录内不得存在静默壳或过度声明'
   );
 });
 
-test('目录守门：逐链路「仅引导」声明数（番茄 4 / 天马 3 / 风华 4 / 小飞鸡 1 / 拆书 1）', () => {
+test('目录守门：逐链路「仅引导」声明数（番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1）', () => {
   const counts: Record<string, number> = {};
   for (const row of auditSteps()) {
     if (row.step.guidanceOnly === true) counts[row.flowId] = (counts[row.flowId] ?? 0) + 1;
   }
   assert.deepEqual(counts, {
     'xiaofeiji-novel-flow': 1,
-    'tomato-platform-flow': 4,
+    'tomato-platform-flow': 2,
     'book-deconstruction-flow': 1,
-    'fenghua-short-flow': 4,
-    'tianma-outline-flow': 3,
+    'fenghua-short-flow': 1,
+    'tianma-outline-flow': 1,
   });
   assert.equal(SKILL_SERIES_FLOWS.find((flow) => flow.id === 'generic-novel-flow')?.steps.some((s) => s.guidanceOnly === true), false);
 });
@@ -237,7 +237,7 @@ test('集成：通用链 step5（真资产）→ 快照 asset + guidanceOnly=fal
 
 test('集成：未声明的壳步骤（临时声明撤销）→ unavailable + 静默壳诊断', () => {
   const step = SKILL_SERIES_FLOWS.find((flow) => flow.id === 'tianma-outline-flow')?.steps.find(
-    (item) => item.id === 'tianma-outline-flow-step1'
+    (item) => item.id === 'tianma-outline-flow-step4'
   );
   assert.ok(step);
   const original = step!.guidanceOnly;
@@ -245,7 +245,7 @@ test('集成：未声明的壳步骤（临时声明撤销）→ unavailable + �
   initDb(':memory:');
   try {
     (step as unknown as { guidanceOnly?: boolean }).guidanceOnly = undefined;
-    db.createNovel(baseNovel('guidance-silent-novel', 'tianma-outline-flow', 'tianma-outline-flow-step1'));
+    db.createNovel(baseNovel('guidance-silent-novel', 'tianma-outline-flow', 'tianma-outline-flow-step4'));
     const snapshot = resolveProjectExecutionContract('guidance-silent-novel');
     assert.equal(snapshot.flowStep?.availability, 'unavailable');
     assert.equal(snapshot.flowStep?.guidanceOnly, false);
@@ -312,5 +312,38 @@ test('集成：拆书 step1（补正文卡）→ asset，planner 阶段 prompt �
     assert.ok(!snapshot.stagePrompts.planner.includes('平台能力特化强化体'));
   } finally {
     closeDb();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// ⑤ 批次 D1（Plan 263，2026-09-28）：七个仅引导步骤补自撰内置卡正文
+// ---------------------------------------------------------------------------
+
+test('集成：D1 七张自撰内置卡 → asset，声明阶段 prompt 含卡正文、无壳转投语', () => {
+  const cases: Array<[string, string, string, 'planner' | 'writer' | 'critic', string]> = [
+    ['tianma-outline-flow', 'tianma-outline-flow-step1', 'viral-idea-refiner', 'planner', '【爆款脑洞提炼器 · 只出脑洞不做正文】'],
+    ['tianma-outline-flow', 'tianma-outline-flow-step2', 'setting-rhythm-outliner', 'planner', '【设定与节奏大纲器 · 只出设定与节奏表】'],
+    ['tomato-platform-flow', 'tomato-platform-flow-step4', 'tomato-readthrough-audit', 'critic', '【番茄完读节奏自检器 · 只诊断不改写】'],
+    ['tomato-platform-flow', 'tomato-platform-flow-step5', 'tomato-prose-polisher', 'writer', '【番茄正文精修器 · 只精修不改情节】'],
+    ['fenghua-short-flow', 'fenghua-short-flow-step2', 'lofter-aesthetic-outliner', 'planner', '【老福特高美感大纲器 · 只出大纲不写正文】'],
+    ['fenghua-short-flow', 'fenghua-short-flow-step3', 'viral-shortform-titler', 'planner', '【爆款短篇起名器 · 只出候选名与理由】'],
+    ['fenghua-short-flow', 'fenghua-short-flow-step5', 'emotional-logic-auditor', 'writer', '【高维情感逻辑分析器 · 只出审校报告】'],
+  ];
+  for (const [flowId, stepId, assetId, stage, signature] of cases) {
+    const novelId = `d1-card-${stepId}`;
+    closeDb();
+    initDb(':memory:');
+    try {
+      db.createNovel(baseNovel(novelId, flowId, stepId));
+      const snapshot = resolveProjectExecutionContract(novelId);
+      assert.equal(snapshot.flowStep?.assetId, assetId, `${stepId} 应改指 ${assetId}`);
+      assert.equal(snapshot.flowStep?.availability, 'asset', stepId);
+      assert.equal(snapshot.flowStep?.guidanceOnly, false, stepId);
+      assert.equal(snapshot.flowStep?.guidanceWarning, undefined, stepId);
+      assert.ok(snapshot.stagePrompts[stage].includes(signature), `${stepId} 的 ${stage} 阶段提示应含卡正文`);
+      assert.ok(!snapshot.stagePrompts[stage].includes('平台能力特化强化体'), `${stepId} 不得注入壳转投语`);
+    } finally {
+      closeDb();
+    }
   }
 });

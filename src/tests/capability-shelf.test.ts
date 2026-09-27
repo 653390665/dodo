@@ -82,13 +82,13 @@ describe('groupStyleShelf', () => {
   });
 
   test('与创作流程步骤同源的卡打 inFlow 标记', () => {
-    // square-76 天马-脑洞生成 同时是天马大纲流步骤
-    const shelf = groupStyleShelf([card('square-76', '天马-脑洞生成-番茄爆款')]);
+    // viral-idea-refiner（Plan 263 D1 自撰内置卡）为天马大纲流 step1 的步骤资产
+    const shelf = groupStyleShelf([card('viral-idea-refiner', '爆款脑洞提炼器')]);
     const all = [
       ...shelf.functional.flatMap((group) => group.assets),
       ...shelf.series.flatMap((group) => group.assets),
     ];
-    expect(all.find((a) => a.id === 'square-76')?.inFlow).toBe(true);
+    expect(all.find((a) => a.id === 'viral-idea-refiner')?.inFlow).toBe(true);
   });
 
   test('getFlowStepAssetIds 含已知流程步骤资产', () => {

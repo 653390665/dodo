@@ -497,6 +497,237 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in"
+  },
+  {
+    "id": "tomato-readthrough-audit",
+    "title": "番茄完读节奏自检器",
+    "stage": "review",
+    "goal": "对已排布钩子的章节做可复核的完读自检：章首式样命中、章末钩子强度、掉读风险定位，输出诊断而非改写",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只输出定位与风险，不产出改写稿",
+      "风险必须带原文位置，无定位的整体评价不算证据"
+    ],
+    "successSignal": "逐章能给出章首式样、章末钩子强度与带位置的掉读风险清单。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "tomato-prose-polisher",
+    "title": "番茄正文精修器",
+    "stage": "polish",
+    "goal": "在不改情节的前提下精修章节定稿：删冗、口语转书面爽感、补画面与节奏、把爽点结果显影到段末，并附改动清单",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "精修卡：只改表达不改情节，改动必须有清单可回溯",
+      "拿不准的改动一律保留原文，避免误删伏笔"
+    ],
+    "successSignal": "输出整章精修稿 + 改动清单，事件与人物零增删。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "lofter-aesthetic-outliner",
+    "title": "老福特高美感大纲器",
+    "stage": "planning",
+    "goal": "把短篇脑洞落成高美感大纲：情感主曲线、关系张力、场景清单与美感锚点，保证情感线闭环",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出结构与清单，不产出正文",
+      "情感线必须闭环，伏笔无回收位置时标注待补"
+    ],
+    "successSignal": "四部分齐备：情感五拍 + 2 反转点 + 场景清单 + 美感锚点，且情感线闭环。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "viral-shortform-titler",
+    "title": "爆款短篇起名器",
+    "stage": "planning",
+    "goal": "按四种结构式为短篇产出 12 个候选标题，附点击动机与风险，并给出推荐前三及理由",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "起名卡：只出候选与理由，不产出正文",
+      "候选之间必须结构不同，换词不视为新候选"
+    ],
+    "successSignal": "12 个候选覆盖四式、字段齐备，并给出带理由的推荐前三。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "emotional-logic-auditor",
+    "title": "高维情感逻辑分析器",
+    "stage": "review",
+    "goal": "审校短篇叙事逻辑与情感张力：动机链、情感强度曲线、硬事实闭环，逐条给出原文位置与建议",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "审校卡：只出报告不改写，结论须带原文位置",
+      "没把握的判断必须标注「需作者确认」"
+    ],
+    "successSignal": "三段报告齐备且逐条可定位，结论明确给出可交付 / 需修。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "viral-idea-refiner",
+    "title": "爆款脑洞提炼器",
+    "stage": "discovery",
+    "goal": "从一句话灵感提炼 5 个可写脑洞候选（卖点/冲突源/目标读者/风险），按三条标准打分筛选，并给出首选脑洞的种子设定",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "脑洞卡：只出候选与种子设定，不产出正文",
+      "候选之间必须题材或冲突源不同，换皮不算新脑洞"
+    ],
+    "successSignal": "5 个候选字段齐备、打分可复算，首选脑洞给出含硬限制的种子设定。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
+  },
+  {
+    "id": "setting-rhythm-outliner",
+    "title": "设定与节奏大纲器",
+    "stage": "planning",
+    "goal": "把选定的脑洞种子落成可运行的设定骨架与节奏表：硬限制、人物目标手段弱点、四段冲突递增与段末钩子",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出设定与节奏表，不产出正文",
+      "设定必须带可被违反的硬限制，否则视为无效条目"
+    ],
+    "successSignal": "设定 ≤ 8 条且每条含硬限制；四段节奏表冲突递增、钩子不同型。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in"
   }
 ];
 
@@ -858,8 +1089,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "chapters-with-highlights",
         "output": "chapters-final-checked",
         "stage": "critic",
-        "assetId": "hook-system",
-        "guidanceOnly": true,
+        "assetId": "tomato-readthrough-audit",
         "gate": {
           "kind": "advisory",
           "note": "完读悬念与读者期待达成闭环"
@@ -876,8 +1106,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "chapters-final-checked",
         "output": "chapters-final",
         "stage": "writer",
-        "assetId": "tomato-opening-validator",
-        "guidanceOnly": true,
+        "assetId": "tomato-prose-polisher",
         "gate": {
           "kind": "advisory",
           "note": "全文爽感突出、文字干净利落"
@@ -993,8 +1222,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "hook-idea",
         "output": "outline",
         "stage": "planner",
-        "assetId": "square-93",
-        "guidanceOnly": true,
+        "assetId": "lofter-aesthetic-outliner",
         "gate": {
           "kind": "advisory",
           "note": "故事主线大纲具备高情感反转弧度"
@@ -1011,8 +1239,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "outline",
         "output": "title",
         "stage": "planner",
-        "assetId": "square-114",
-        "guidanceOnly": true,
+        "assetId": "viral-shortform-titler",
         "gate": {
           "kind": "advisory",
           "note": "标题意境饱满，具备高吸引力"
@@ -1046,8 +1273,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "chapter-draft",
         "output": "chapter-polished",
         "stage": "writer",
-        "assetId": "square-122",
-        "guidanceOnly": true,
+        "assetId": "emotional-logic-auditor",
         "gate": {
           "kind": "advisory",
           "note": "故事逻辑闭环，情感张力达标"
@@ -1071,8 +1297,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "idea",
         "output": "hook-idea",
         "stage": "planner",
-        "assetId": "square-76",
-        "guidanceOnly": true,
+        "assetId": "viral-idea-refiner",
         "gate": {
           "kind": "advisory",
           "note": "核心创意脑洞契合番茄爆款结构"
@@ -1088,8 +1313,7 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         "input": "hook-idea",
         "output": "setting-outline",
         "stage": "planner",
-        "assetId": "square-41",
-        "guidanceOnly": true,
+        "assetId": "setting-rhythm-outliner",
         "gate": {
           "kind": "advisory",
           "note": "设定机制独特，故事节奏主线清晰"
@@ -6326,6 +6550,265 @@ export const PUBLIC_SKILL_GOVERNANCE_CATALOG: GovernedPromptAsset[] = [
     "grade": "B",
     "primaryCategory": "author-workflow",
     "secondaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "tomato-readthrough-audit",
+    "title": "番茄完读节奏自检器",
+    "stage": "review",
+    "goal": "对已排布钩子的章节做可复核的完读自检：章首式样命中、章末钩子强度、掉读风险定位，输出诊断而非改写",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只输出定位与风险，不产出改写稿",
+      "风险必须带原文位置，无定位的整体评价不算证据"
+    ],
+    "successSignal": "逐章能给出章首式样、章末钩子强度与带位置的掉读风险清单。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "tomato-prose-polisher",
+    "title": "番茄正文精修器",
+    "stage": "polish",
+    "goal": "在不改情节的前提下精修章节定稿：删冗、口语转书面爽感、补画面与节奏、把爽点结果显影到段末，并附改动清单",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "精修卡：只改表达不改情节，改动必须有清单可回溯",
+      "拿不准的改动一律保留原文，避免误删伏笔"
+    ],
+    "successSignal": "输出整章精修稿 + 改动清单，事件与人物零增删。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "lofter-aesthetic-outliner",
+    "title": "老福特高美感大纲器",
+    "stage": "planning",
+    "goal": "把短篇脑洞落成高美感大纲：情感主曲线、关系张力、场景清单与美感锚点，保证情感线闭环",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出结构与清单，不产出正文",
+      "情感线必须闭环，伏笔无回收位置时标注待补"
+    ],
+    "successSignal": "四部分齐备：情感五拍 + 2 反转点 + 场景清单 + 美感锚点，且情感线闭环。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "viral-shortform-titler",
+    "title": "爆款短篇起名器",
+    "stage": "planning",
+    "goal": "按四种结构式为短篇产出 12 个候选标题，附点击动机与风险，并给出推荐前三及理由",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "起名卡：只出候选与理由，不产出正文",
+      "候选之间必须结构不同，换词不视为新候选"
+    ],
+    "successSignal": "12 个候选覆盖四式、字段齐备，并给出带理由的推荐前三。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "emotional-logic-auditor",
+    "title": "高维情感逻辑分析器",
+    "stage": "review",
+    "goal": "审校短篇叙事逻辑与情感张力：动机链、情感强度曲线、硬事实闭环，逐条给出原文位置与建议",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "审校卡：只出报告不改写，结论须带原文位置",
+      "没把握的判断必须标注「需作者确认」"
+    ],
+    "successSignal": "三段报告齐备且逐条可定位，结论明确给出可交付 / 需修。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "viral-idea-refiner",
+    "title": "爆款脑洞提炼器",
+    "stage": "discovery",
+    "goal": "从一句话灵感提炼 5 个可写脑洞候选（卖点/冲突源/目标读者/风险），按三条标准打分筛选，并给出首选脑洞的种子设定",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "脑洞卡：只出候选与种子设定，不产出正文",
+      "候选之间必须题材或冲突源不同，换皮不算新脑洞"
+    ],
+    "successSignal": "5 个候选字段齐备、打分可复算，首选脑洞给出含硬限制的种子设定。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt"
+  },
+  {
+    "id": "setting-rhythm-outliner",
+    "title": "设定与节奏大纲器",
+    "stage": "planning",
+    "goal": "把选定的脑洞种子落成可运行的设定骨架与节奏表：硬限制、人物目标手段弱点、四段冲突递增与段末钩子",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出设定与节奏表，不产出正文",
+      "设定必须带可被违反的硬限制，否则视为无效条目"
+    ],
+    "successSignal": "设定 ≤ 8 条且每条含硬限制；四段节奏表冲突递增、钩子不同型。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in",
@@ -14140,6 +14623,272 @@ export const PUBLIC_SHELL_CATALOG: GovernedPromptAsset[] = [
     "grade": "B",
     "primaryCategory": "author-workflow",
     "secondaryCategory": "style-reference",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "tomato-readthrough-audit",
+    "title": "番茄完读节奏自检器",
+    "stage": "review",
+    "goal": "对已排布钩子的章节做可复核的完读自检：章首式样命中、章末钩子强度、掉读风险定位，输出诊断而非改写",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "诊断卡：只输出定位与风险，不产出改写稿",
+      "风险必须带原文位置，无定位的整体评价不算证据"
+    ],
+    "successSignal": "逐章能给出章首式样、章末钩子强度与带位置的掉读风险清单。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "platform-criteria",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "tomato-prose-polisher",
+    "title": "番茄正文精修器",
+    "stage": "polish",
+    "goal": "在不改情节的前提下精修章节定稿：删冗、口语转书面爽感、补画面与节奏、把爽点结果显影到段末，并附改动清单",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "精修卡：只改表达不改情节，改动必须有清单可回溯",
+      "拿不准的改动一律保留原文，避免误删伏笔"
+    ],
+    "successSignal": "输出整章精修稿 + 改动清单，事件与人物零增删。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "platform-criteria",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "lofter-aesthetic-outliner",
+    "title": "老福特高美感大纲器",
+    "stage": "planning",
+    "goal": "把短篇脑洞落成高美感大纲：情感主曲线、关系张力、场景清单与美感锚点，保证情感线闭环",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出结构与清单，不产出正文",
+      "情感线必须闭环，伏笔无回收位置时标注待补"
+    ],
+    "successSignal": "四部分齐备：情感五拍 + 2 反转点 + 场景清单 + 美感锚点，且情感线闭环。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "viral-shortform-titler",
+    "title": "爆款短篇起名器",
+    "stage": "planning",
+    "goal": "按四种结构式为短篇产出 12 个候选标题，附点击动机与风险，并给出推荐前三及理由",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "起名卡：只出候选与理由，不产出正文",
+      "候选之间必须结构不同，换词不视为新候选"
+    ],
+    "successSignal": "12 个候选覆盖四式、字段齐备，并给出带理由的推荐前三。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 78,
+    "grade": "C",
+    "primaryCategory": "utility-tool",
+    "secondaryCategory": "author-workflow",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "emotional-logic-auditor",
+    "title": "高维情感逻辑分析器",
+    "stage": "review",
+    "goal": "审校短篇叙事逻辑与情感张力：动机链、情感强度曲线、硬事实闭环，逐条给出原文位置与建议",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "审校卡：只出报告不改写，结论须带原文位置",
+      "没把握的判断必须标注「需作者确认」"
+    ],
+    "successSignal": "三段报告齐备且逐条可定位，结论明确给出可交付 / 需修。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "quality-guardrail",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "viral-idea-refiner",
+    "title": "爆款脑洞提炼器",
+    "stage": "discovery",
+    "goal": "从一句话灵感提炼 5 个可写脑洞候选（卖点/冲突源/目标读者/风险），按三条标准打分筛选，并给出首选脑洞的种子设定",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "脑洞卡：只出候选与种子设定，不产出正文",
+      "候选之间必须题材或冲突源不同，换皮不算新脑洞"
+    ],
+    "successSignal": "5 个候选字段齐备、打分可复算，首选脑洞给出含硬限制的种子设定。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 82,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
+    "isWhiteLabeled": true,
+    "isRuntimeReady": true,
+    "sourceType": "built-in",
+    "sourceRef": "shared/lib/prompt-assets-governed.ts:L265",
+    "sourceGroup": "built-in",
+    "evidenceLevel": "scored-from-source",
+    "processDecision": "adopt",
+    "isShellBody": false
+  },
+  {
+    "id": "setting-rhythm-outliner",
+    "title": "设定与节奏大纲器",
+    "stage": "planning",
+    "goal": "把选定的脑洞种子落成可运行的设定骨架与节奏表：硬限制、人物目标手段弱点、四段冲突递增与段末钩子",
+    "inputs": [
+      "content"
+    ],
+    "template": "",
+    "outputShape": "plain-text",
+    "riskNotes": [
+      "大纲卡：只出设定与节奏表，不产出正文",
+      "设定必须带可被违反的硬限制，否则视为无效条目"
+    ],
+    "successSignal": "设定 ≤ 8 条且每条含硬限制；四段节奏表冲突递增、钩子不同型。",
+    "licenseStatus": "built-in",
+    "sanitizationStatus": "runtime-ready",
+    "sanitizationHits": {
+      "contacts": 0,
+      "authors": 0,
+      "brands": 0,
+      "watermarks": 0
+    },
+    "runtimeStatus": "active",
+    "placementTier": "agent-guided",
+    "score": 80,
+    "grade": "B",
+    "primaryCategory": "author-workflow",
+    "secondaryCategory": "constellation-pack",
     "isWhiteLabeled": true,
     "isRuntimeReady": true,
     "sourceType": "built-in",

@@ -55,7 +55,7 @@ vi.mock('../lib/product-events-client', () => ({
   recordProductEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
-const TIANMA_STEP1 = 'current-step:tianma-outline-flow:tianma-outline-flow-step1';
+const TIANMA_STEP4 = 'current-step:tianma-outline-flow:tianma-outline-flow-step4';
 const GENERIC_STEP5 = 'current-step:generic-novel-flow:generic-novel-flow-step5';
 
 function flowById(id: string) {
@@ -149,10 +149,10 @@ describe('PlanningTab 仅引导步骤可见提示', () => {
   });
 
   test('仅引导步骤：显示「仅引导」标签与解释文案', () => {
-    render(<PlanningTab {...baseProps(buildNovel([TIANMA_STEP1]))} />);
+    render(<PlanningTab {...baseProps(buildNovel([TIANMA_STEP4]))} />);
 
     expect(
-      screen.getByText(flowStepName('tianma-outline-flow', 'tianma-outline-flow-step1'))
+      screen.getByText(flowStepName('tianma-outline-flow', 'tianma-outline-flow-step4'))
     ).toBeTruthy();
     expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBeGreaterThan(0);
     expect(screen.getAllByText(GUIDANCE_ONLY_HINT).length).toBeGreaterThan(0);
@@ -178,7 +178,7 @@ describe('SkillsStudioView 链路详情仅引导标注', () => {
     vi.mocked(applyCapabilityConfiguration).mockClear();
   });
 
-  test('天马链路详情：3 个壳步骤带「仅引导」徽标（step3 已补正文）', async () => {
+  test('天马链路详情：1 个壳步骤带「仅引导」徽标（step1/step2/step3 已补正文）', async () => {
     render(<SkillsStudioView selectedNovel={buildNovel([], 'novel-1') as any} />);
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -187,8 +187,8 @@ describe('SkillsStudioView 链路详情仅引导标注', () => {
     await openFlowDetail('tianma-outline-flow');
 
     const tianmaSteps = flowById('tianma-outline-flow').steps;
-    expect(tianmaSteps.filter((step) => step.guidanceOnly === true).length).toBe(3);
-    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(3);
+    expect(tianmaSteps.filter((step) => step.guidanceOnly === true).length).toBe(1);
+    expect(screen.getAllByText(GUIDANCE_ONLY_LABEL).length).toBe(1);
   });
 
   test('通用链路详情：无「仅引导」徽标', async () => {

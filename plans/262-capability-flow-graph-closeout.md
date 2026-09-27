@@ -36,7 +36,7 @@
 
 | # | 项 | 现状 |
 |---|---|---|
-| D1 | 13 步「仅引导」补正文 | 按链（C3 后实测 `scratch/c4-perchain.ts`）：番茄 4（step2/3/4/5，其中 step2/3 已挂 cardRef 但 assetId 仍为壳）/ 风华 4（step1/2/3/5）/ 天马 3（step1/2/4）/ 小飞鸡 1（step1）/ 拆书 1（step2）/ 通用 0；当前 19/32 可运行（59.4%），到 80% 需再补 7 步（32×0.8=25.6→ 26 可运行） |
+| D1 | 13 步「仅引导」补正文 ✅ 已交付（2026-09-28，Plan 263） | 7 步改指自撰内置卡（番茄 step4/step5、风华 step2/step3/step5、天马 step1/step2）→ 可运行 **28/34（82.4%）** / 仅引导 **6**；余 6 步 = 已挂 cardRef 的步骤（卡正文已由卡片通道注入，assetId 仍为壳——见「### D1 …」残余） |
 | D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | ✅ 已交付（2026-09-28，Plan 263）：`chapter_versions.content_hash` + stale 判定 + 时光机徽标 |
 | D4 | 记忆健康度补完 | ✅ 已交付（2026-09-28，Plan 263）：新增「伏笔欠账」指标 + 一条硬阈值告警（阈值单源 `MAX_ARREARS_IN_PROMPT`，越线琥珀 + 阈值说明）；其余指标仍只显示数值 + 未知降级；整体阈值口径挂 E6 真实数据（RAG 缓存 / 孤立节点并入口径未做） |
@@ -212,6 +212,16 @@
 - 告警形态：`MemoryHealthMetric` 增 `severity?: 'warn'` 与 `thresholdNote?: string`；`isForeshadowArrearsWarning(arrears)` = `arrears !== null && arrears > MAX_ARREARS_IN_PROMPT`；越线时 `severity:'warn'` + `thresholdNote: 超过核对清单注入预算（> 12 条）`；`src/components/MemoryHealthPanel.tsx` 新增 `WARNING_VALUE_CLASS = 'text-amber-700'`（与「未知」的 `text-amber-800` 区分：一个是数据缺失，一个是数据越线）并展示阈值说明。
 - 证据：`tests/memory-health.test.ts` **6/6**（五项同源 / 未摄入五项未知 / 越界 warn + thresholdNote / 边界 12 不告警）、`src/tests/memory-health-panel.test.tsx` **5/5**（越线琥珀 + 阈值说明，且未越线指标不出现阈值说明）、`src/tests/cockpit-memory-health-mount.test.tsx` **2/2**；tsc 0 / eslint 0。
 - 未做（诚实登记）：① 只定了一条阈值（伏笔欠账），RAG 命中 / 孤立节点 / 失效知识的阈值需真实数据才能定（不拍脑袋）；② 告警只在驾驶舱面板出现，未进状态栏 / 通知；③ 欠账口径依赖「当前章 order」，无章节时无法判定（沿用未知降级）。
+### D1 仅引导步骤补正文 — 2026-09-28（Plan 263 执行）
+
+- 判据：`plans/263-closeout-and-truth-up.md:30`「补正文步骤的 assetId 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；达 80%」（34 步下 80% = ≥28 可运行）。
+- 做法：沿用 §5.4.1 先例（自撰内置卡），为 7 个「无 cardRef 的仅引导步骤」新增 7 张内置卡并把步骤 `assetId` 改指新卡、删除 `guidanceOnly`：番茄 `step4`/`step5`、风华 `step2`/`step3`/`step5`、天马 `step1`/`step2`。不替换、不改写任何转投壳（§5.4 纪律），壳资产原样保留在目录中。
+- 卡清单：`tomato-readthrough-audit`（80·B）/ `tomato-prose-polisher`（82·B）/ `lofter-aesthetic-outliner`（82·B）/ `viral-shortform-titler`（78·C）/ `emotional-logic-auditor`（80·B）/ `viral-idea-refiner`（82·B）/ `setting-rhythm-outliner`（80·B）；均 `sourceType`/`licenseStatus: 'built-in'`、`sanitizationStatus: 'runtime-ready'`、`runtimeStatus: 'active'`、`placementTier: 'agent-guided'`，正文 = 方法论 + 输出契约。
+- 为何自撰：① 池内语义相近卡多为品牌私卡或系统/阶段模板（后者已被会话/阶段通道注入，复用会重复注入）；② 跨提示词替换违反 §5.4（= 伪造归属）；③ 新卡 `primaryCategory` 避开 `quality-guardrail`（否则会被 `shared/lib/guardrail-scope.ts:61-64` 并入系统护栏通道二次注入）。
+- 读数（`scratch/capB-chain.ts` 复跑）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**（番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0）；目录 189（built-in 27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本。
+- 残余：剩余 6 个「仅引导」步骤恰为已挂 `cardRef` 的 6 步 —— 卡正文已由卡片通道进入提示词，但 `assetId` 仍是平台壳（`availability` 读作 `guidance`）；把辅助卡改标为主资产属于「冒充主资产」，本批不做，登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
+- 证据：`tests/flow-step-guidance.test.ts` **76/76**（含新增「D1 七张自撰内置卡 → asset + 声明阶段 prompt 含卡正文」集成用例）、`tests/catalog-disposition.test.ts`、`tests/prompt-assets-governed.test.ts`、`src/tests/planning-tab-step-guidance.test.tsx`、`src/tests/capability-shelf.test.ts`；快照六场景逐项不变；tsc 0 / eslint 0；后端全量 **1456/1456**、前端全量 **161 files / 1022 tests**；规格 §5.21。
+
 ### E6 复测工具：激活漏斗离线报告 — 2026-09-28
 
 **问题**：2026-09-22 复测暴露的读数（1016 事件 / 442 会话 / 8 作品；旧账本 152→0→1 与事实不符）来自一次性

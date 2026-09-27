@@ -55,6 +55,7 @@ Source: 2026-09-24 会话诊断（能力商店审计 + 链路审计 + 知识图�
 初版按资产 `score` 推断，未按壳正文判定。
 订正（2026-09-28）：番茄 / 天马 / 拆书各补 1 张自撰内置卡并改指步骤（§5.4.1）→ 可运行 13→**16**，
 仅引导 17→**14**（番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2）。
+订正（2026-09-28，Plan 263 D1）：为 7 个「无 cardRef 的仅引导步骤」自撰内置卡并改指步骤（§5.21）→ **34 步 / 可运行 28（82.4%）/ 仅引导 6**；本表与上方代码块为 32 步时代的历史快照，当前口径见 §5.21。
 
 另三个结构问题：
 1. **阶段映射偏 writer**：`stageForGovernedAsset`（`writing-style-service.ts:980`）只看资产自身 `stage`，导致"世界观/大纲"步骤也注入 writer 阶段；**已修（§5.3）：步骤显式声明阶段，实测旧口径 25/30 落 writer → 新口径 planner 18 / writer 9 / critic 3**；
@@ -785,7 +786,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - tsc 0、eslint 0、后端全量 1421/1421（+8）。
 
 残余：`guidanceOnly` 与挂卡并存（步骤仍标「仅引导」，因 assetId 是壳）——「有卡即可运行」的可用性语义留待批次 D；
-其余 14 步「仅引导」未挂卡（D1）；选卡为人工拍板，无「按维度自动选卡」机制（C3）。
+其余 14 步「仅引导」未挂卡（D1 → 已交付：7 步改指自撰内置卡，见 §5.21）；选卡为人工拍板，无「按维度自动选卡」机制（C3）。
 
 ### 5.16 双门合一：旧 `qualityGate` 收敛（Plan 262 C2）
 
@@ -1081,6 +1082,34 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - 跨进程证据当前由 `scratch/` 工具复跑（未纳入自动化测试）。
 - 集成缝：`resolveProjectExecutionContract(novelId, input?)`（`server/helpers/writing-style-service.ts:2077` ＝ `resolveWritingStyleRequest(...).executionSnapshot`）。
 
+### 5.21 仅引导步骤补正文（Plan 263 D1）
+
+**判据**（`plans/263-closeout-and-truth-up.md:30`）：补正文步骤的 `assetId` 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；可运行占比达 80%（34×0.8 = 27.2 → ≥28 可运行）；`scratch/capB-chain.ts` 缺口表刷新。
+
+**做法**：沿用 §5.4.1 先例（自撰内置卡），为 7 个「无 cardRef 的仅引导步骤」新增 7 张内置卡，步骤 `assetId` 改指新卡并删除 `guidanceOnly`。**不替换、不改写任何转投壳**（§5.4 纪律），壳资产原样保留在目录中。
+
+| 卡片 id | 卡片标题 | 接的步骤（原壳） | 卡 stage | 分类（primary/secondary） | score·grade |
+|---|---|---|---|---|---|
+| `tomato-readthrough-audit` | 番茄完读节奏自检器 | 番茄 `step4`（`hook-system`） | review | platform-criteria / author-workflow | 80·B |
+| `tomato-prose-polisher` | 番茄正文精修器 | 番茄 `step5`（`tomato-opening-validator`） | polish | utility-tool / platform-criteria | 82·B |
+| `lofter-aesthetic-outliner` | 老福特高美感大纲器 | 风华 `step2`（`square-93`） | planning | author-workflow / constellation-pack | 82·B |
+| `viral-shortform-titler` | 爆款短篇起名器 | 风华 `step3`（`square-114`） | planning | utility-tool / author-workflow | 78·C |
+| `emotional-logic-auditor` | 高维情感逻辑分析器 | 风华 `step5`（`square-122`） | review | author-workflow / quality-guardrail | 80·B |
+| `viral-idea-refiner` | 爆款脑洞提炼器 | 天马 `step1`（`square-76`） | discovery | author-workflow / constellation-pack | 82·B |
+| `setting-rhythm-outliner` | 设定与节奏大纲器 | 天马 `step2`（`square-41`） | planning | author-workflow / constellation-pack | 80·B |
+
+每张卡正文 = 方法论 + 输出契约（形如 `【名称 · 只…不…】` + 编号要点 + 输出格式 + 约束），字段与目录内其他内置卡一致（`sourceType`/`licenseStatus: 'built-in'`、`sanitizationStatus: 'runtime-ready'`、`runtimeStatus: 'active'`、`placementTier: 'agent-guided'`、`primaryCategory`/`secondaryCategory`）。
+
+**为何自撰而不从可用池挑**：① 池内语义相近卡多为品牌私卡（`private-*`）或系统/阶段模板（`inspirationSystem`/`setupTaskRefine`/`manualAudit` —— 后者已被会话/阶段通道注入，复用会重复注入）；② 跨提示词替换违反 §5.4『不擅自替换』（把 A 提示词正文挂到 B 步骤 = 伪造归属）；③ 卡正文必须与步骤语义、声明阶段对齐。新卡 `primaryCategory` 一律避开 `quality-guardrail`（`shared/lib/guardrail-scope.ts:61-64` 会把 runtime-ready 的护栏类卡并入系统护栏通道，造成同阶段二次注入）。
+
+**注入效果（代码事实）**：`server/helpers/writing-style-service.ts:1173-1200` 的 `assetUsable = isRuntimeReadyAsset(asset) && !isShellTemplatePrompt(asset.template)`，命中后 `assetPrompt = 步骤合同 + 【可运行资产 Prompt】 + 卡正文`；快照 `availability` 由 `resolveFlowStepAvailability` 判为 `asset`；`flowStepPromptFor(stage)`（`:2026-2031`）按声明阶段注入 —— 7 步的卡正文因此真实进入对应阶段提示词（不再是「仅引导」空壳）。
+
+**读数（2026-09-28，`scratch/capB-chain.ts` 复跑）**：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**；逐链仅引导：番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0；目录 189（built-in 20→27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本 + 6 重复吸收 + 8 内部。
+
+**残余（诚实登记）**：剩余 6 个「仅引导」步骤**恰为已挂 `cardRef` 的 6 步**（小飞鸡 `step1`、番茄 `step2/3`、拆书 `step2`、风华 `step1`、天马 `step4`）—— 它们的卡片正文已通过卡片通道进入提示词，但 `assetId` 仍指向平台转投壳（`availability` 读作 `guidance`）。若要让「可运行」读数也反映这一步，需把辅助卡（`de-ai-tells-guard` 等）改标为主资产 —— 属于「冒充主资产」，本批不擅自做；登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
+
+**证据（2026-09-28）**：`tests/flow-step-guidance.test.ts` **76/76**（目录守门改为 34 步 / 壳集合 6 / 可运行 28 / 82.4% / 逐链，含新增「D1 七张自撰内置卡 → asset + 声明阶段 prompt 含卡正文、无壳转投语」集成用例）、`tests/catalog-disposition.test.ts`（189 = public 142 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8）、`tests/prompt-assets-governed.test.ts`（source 189 / built-in 27）、`src/tests/planning-tab-step-guidance.test.tsx`、`src/tests/capability-shelf.test.ts`；公开目录 `node --import tsx scripts/generate-public-catalog.ts` 再生；快照六场景逐项不变；tsc 0 / eslint 0；后端全量 **1456/1456**、前端全量 **161 files / 1022 tests**。
+
 ### 批次 D：长期记忆与可见性
 
 1. 生产管线接入语义检索层（按章取回相关片段）；✅ 2026-09-27（见 §5.8：单源 `buildSemanticRecallSection` + 三阶段末位注入 + 双层预算 + 两条降级零变化）
@@ -1162,6 +1191,14 @@ node --test --import tsx tests/flow-step-stage.test.ts      # 纯函数 + 30/30 
 node --import tsx scratch/flow-audit.ts                     # 19 可运行 / 13 仅引导 / 静默壳 0（应 PASS）
 node --test --import tsx tests/flow-step-guidance.test.ts   # 纯函数 + 目录守门 + 集成（15/15）
 npx vitest -c vitest.config.frontend.ts run src/tests/planning-tab-step-guidance.test.tsx
+```
+
+复跑（仅引导步骤补正文 D1）：
+
+```
+node --import tsx scratch/capB-chain.ts                     # 34 步 / 可运行 28（82.4%）/ 仅引导 6
+node --test --import tsx tests/flow-step-guidance.test.ts    # 目录守门 + D1 七卡集成
+node --import tsx scripts/generate-public-catalog.ts        # 公开目录再生（142 公开 + 33 副本）
 ```
 
 复跑（图谱维护入口）：

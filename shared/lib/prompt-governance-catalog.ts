@@ -562,6 +562,318 @@ export const GOVERNED_ASSETS_V2_REGISTRY: GovernedPromptAsset[] = [
     isRuntimeReady: true,
     sourceType: 'built-in',
   },
+  // Plan 263 D1「仅引导步骤补正文」（2026-09-28）· 七张自撰内置卡（正文即注入内容）：
+  // 番茄 step4/step5、风华 step2/step3/step5、天马 step1/step2 原先的 assetId 都是平台/作者转投壳
+  // （正文为「导入…」占位，不可运行）。本批为这七步补可运行正文（方法论 + 输出契约），步骤改指下列卡并删除 guidanceOnly。
+  // 纪律沿用规格 §5.4：不替换、不改写任何转投壳 —— 壳资产原样保留在目录中，供作者自行引用或后续裁决。
+  {
+    id: 'tomato-readthrough-audit',
+    title: '番茄完读节奏自检器',
+    stage: 'review',
+    goal: '对已排布钩子的章节做可复核的完读自检：章首式样命中、章末钩子强度、掉读风险定位，输出诊断而非改写',
+    inputs: ['content'],
+    template: `【番茄完读节奏自检器 · 只诊断不改写】
+
+输入：已排布爽点与钩子的章节（前三章必读，其余章节按需抽检）。
+
+逐章输出三段，禁止给出改写稿：
+
+一、章首命中
+- 判定本章开篇用的是哪一式：动作切入 / 对话悬念 / 疑问抛出 / 反差结论 / 场景异动 / 情绪爆发 / 时间跳跃；只写命中项，未命中写「无」。
+- 命中却无冲突的，追加标注「空转」。
+
+二、章末钩子
+- 引用最后一句原文（≤ 30 字），标注式样与强度：强（必须看下一章）/ 中 / 弱（可停可续）。
+- 连续两章「弱」时，直接标「掉读风险」。
+
+三、完读风险清单（编号）
+- 每条形如「位置 + 症状 + 后果」，例如：第 2 节中段连续三行心理描写 → 读者等待 → 掉读点。
+- 不允许出现无定位的整体评价（如「节奏偏慢」）。
+
+输出格式：## 第 N 章 / 章首 / 章末钩子 / 风险清单
+
+约束：只诊断与定位，不改写正文；样本不足时标注「样本不足」，不编造情节。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '诊断卡：只输出定位与风险，不产出改写稿',
+      '风险必须带原文位置，无定位的整体评价不算证据',
+    ],
+    successSignal: '逐章能给出章首式样、章末钩子强度与带位置的掉读风险清单。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'platform-criteria',
+    secondaryCategory: 'author-workflow',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'tomato-prose-polisher',
+    title: '番茄正文精修器',
+    stage: 'polish',
+    goal: '在不改情节的前提下精修章节定稿：删冗、口语转书面爽感、补画面与节奏、把爽点结果显影到段末，并附改动清单',
+    inputs: ['content'],
+    template: `【番茄正文精修器 · 只精修不改情节】
+
+输入：已通过完读自检的章节定稿。
+
+按顺序处理，每一步都要能指回原文位置：
+
+一、删冗
+- 删除重复交代、解释性旁白、读者已从动作看懂的心理总结；每处标注「原句 → 删除理由」。
+
+二、口语转书面爽感
+- 白话转折词（然而、于是、所以说）换成动作或短句；长句拆到 25 字以内。
+
+三、画面与节奏
+- 每章至少 3 处具体感官细节（声/光/触/味）替换抽象形容词。
+- 对峙与打斗段落用短句连击，情绪段落允许长句呼吸。
+
+四、爽点显影
+- 确认打脸/升级/获得的结果落在段末，而不是埋在段中；必要时调整句序，但不改事件。
+
+输出：修改后的整章正文（纯文本），末尾附「改动清单」：位置 + 类型 + 一句理由。
+
+约束：不改事件、不增删人物与设定；拿不准是否该改时保留原文并列入清单。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '精修卡：只改表达不改情节，改动必须有清单可回溯',
+      '拿不准的改动一律保留原文，避免误删伏笔',
+    ],
+    successSignal: '输出整章精修稿 + 改动清单，事件与人物零增删。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'utility-tool',
+    secondaryCategory: 'platform-criteria',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'lofter-aesthetic-outliner',
+    title: '老福特高美感大纲器',
+    stage: 'planning',
+    goal: '把短篇脑洞落成高美感大纲：情感主曲线、关系张力、场景清单与美感锚点，保证情感线闭环',
+    inputs: ['content'],
+    template: `【老福特高美感大纲器 · 只出大纲不写正文】
+
+输入：脑洞内核分析（缺则先补一句「内核 → 卖点」再开工）。
+
+输出四部分：
+
+一、情感主曲线
+- 用「相遇 → 试探 → 撕破 → 抉择 → 余韵」五拍定位，每拍标注读者情绪（甜/虐/酸/惊）与大致字数占比。
+- 标出 2 个反转点：位置 + 反转内容 + 反转后的关系变化。
+
+二、关系张力表
+- 两位主角各写「要什么 / 怕什么 / 不肯承认什么」，每格一句话。
+
+三、场景清单（8-12 场）
+- 每场一行：| 场次 | 地点 | 在场人物 | 冲突事件 | 情绪落点 | 字数占比 |
+
+四、美感锚点
+- 3-5 个可复用意象或道具（雨、旧信、车站、香水…），标注出现场次，避免临时起意。
+
+约束：只出大纲与清单，不写正文；不引入设定外人物；情感线必须闭环（每个伏笔写出回收位置）。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '大纲卡：只出结构与清单，不产出正文',
+      '情感线必须闭环，伏笔无回收位置时标注待补',
+    ],
+    successSignal: '四部分齐备：情感五拍 + 2 反转点 + 场景清单 + 美感锚点，且情感线闭环。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'viral-shortform-titler',
+    title: '爆款短篇起名器',
+    stage: 'planning',
+    goal: '按四种结构式为短篇产出 12 个候选标题，附点击动机与风险，并给出推荐前三及理由',
+    inputs: ['content'],
+    template: `【爆款短篇起名器 · 只出候选名与理由】
+
+输入：故事大纲（主线 + 反转 + 情感落点）。
+
+第一轮：结构式候选，每式 3 个（共 12 个）
+- 反差式：不起眼的人/物 + 剧烈身份或命运反转。
+- 悬念式：一个未被解释的动作或场面。
+- 关系式：两人关系张力 + 时间压力。
+- 数字式：具体数字或期限 + 代价。
+
+第二轮：每名一行字段
+| 候选标题 | 结构式样 | 点击动机（一句话） | 风险 |
+
+第三轮：推荐前三
+- 给出顺序与理由（读者能否一眼看懂冲突；是否与结局一致）。
+
+约束：标题 ≤ 14 字；不写正文；不复用输入中已有的作品名；候选之间不得只是换词。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '起名卡：只出候选与理由，不产出正文',
+      '候选之间必须结构不同，换词不视为新候选',
+    ],
+    successSignal: '12 个候选覆盖四式、字段齐备，并给出带理由的推荐前三。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 78,
+    grade: 'C',
+    primaryCategory: 'utility-tool',
+    secondaryCategory: 'author-workflow',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'emotional-logic-auditor',
+    title: '高维情感逻辑分析器',
+    stage: 'review',
+    goal: '审校短篇叙事逻辑与情感张力：动机链、情感强度曲线、硬事实闭环，逐条给出原文位置与建议',
+    inputs: ['content'],
+    template: `【高维情感逻辑分析器 · 只出审校报告】
+
+输入：短篇定稿正文。
+
+输出三段，每条必须带原文位置（章节/段落序号）：
+
+一、动机链
+- 关键选择的前因是否在前文交代；断裂处标「缺因」，并给出最小补因建议（一句话，不代写正文）。
+
+二、情感强度曲线
+- 列出情感峰值位置与高度（1-5）；标出「早峰」（峰值出现在前 1/3 且后段无更高峰）与「平段」（连续两段无变化）。
+- 判定结尾情绪落点是否与前文峰值同向。
+
+三、逻辑闭环
+- 检查时间线、物件、称呼、伤情等硬事实，逐条写「位置 + 冲突 + 建议统一为哪一版」。
+
+输出格式：## 一、动机链 / ## 二、情感强度曲线 / ## 三、逻辑闭环 / ## 结论（可交付 / 需修）
+
+约束：只审校不改写；没把握的条目标注「需作者确认」，不得替作者补情节。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '审校卡：只出报告不改写，结论须带原文位置',
+      '没把握的判断必须标注「需作者确认」',
+    ],
+    successSignal: '三段报告齐备且逐条可定位，结论明确给出可交付 / 需修。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'quality-guardrail',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'viral-idea-refiner',
+    title: '爆款脑洞提炼器',
+    stage: 'discovery',
+    goal: '从一句话灵感提炼 5 个可写脑洞候选（卖点/冲突源/目标读者/风险），按三条标准打分筛选，并给出首选脑洞的种子设定',
+    inputs: ['content'],
+    template: `【爆款脑洞提炼器 · 只出脑洞不做正文】
+
+输入：一句话灵感或题材方向；缺失时按平台热门题材给出 3 个候选方向。
+
+输出：
+
+一、脑洞候选（5 个）
+- 每行：| 一句话脑洞 | 卖点（读者为什么继续看）| 冲突源 | 目标读者 | 风险 |
+
+二、筛选打分
+- 三条各打 0/1 分：是否有可验证的目标、是否付出代价、冲突能否升级；总分 ≤ 1 的标「不建议」。
+
+三、首选脑洞的种子设定
+- 主角处境一句话；金手指或核心规则一条（含硬限制）；前三章可用的 3 个钩子。
+
+约束：脑洞必须一句话说清，不写设定集与正文；候选之间不得是同题材换皮；不得引用未给出的外部作品名。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '脑洞卡：只出候选与种子设定，不产出正文',
+      '候选之间必须题材或冲突源不同，换皮不算新脑洞',
+    ],
+    successSignal: '5 个候选字段齐备、打分可复算，首选脑洞给出含硬限制的种子设定。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 82,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
+  {
+    id: 'setting-rhythm-outliner',
+    title: '设定与节奏大纲器',
+    stage: 'planning',
+    goal: '把选定的脑洞种子落成可运行的设定骨架与节奏表：硬限制、人物目标手段弱点、四段冲突递增与段末钩子',
+    inputs: ['content'],
+    template: `【设定与节奏大纲器 · 只出设定与节奏表】
+
+输入：已选定的脑洞种子设定。
+
+输出三部分：
+
+一、设定骨架（≤ 8 条）
+- 每条：| 设定项 | 一句话定义 | 硬限制 | 首次暴露场次 |
+- 限制必须能被违反、且读者能识别（否则该设定无效）。
+
+二、人物与舞台
+- 主角与对手各写「目标 / 手段 / 弱点」；舞台写世界规则中最特殊的一处（一句话）。
+
+三、节奏表（全书四段）
+- 每段：| 段落 | 章节区间 | 该段主要冲突 | 段末钩子 | 读者此刻的疑问 |
+- 冲突强度逐段递增；段末钩子不得与上一段同型。
+
+约束：只出设定与节奏表，不写正文；设定不超过 8 条，避免规则堆砌。`,
+    outputShape: 'plain-text',
+    riskNotes: [
+      '大纲卡：只出设定与节奏表，不产出正文',
+      '设定必须带可被违反的硬限制，否则视为无效条目',
+    ],
+    successSignal: '设定 ≤ 8 条且每条含硬限制；四段节奏表冲突递增、钩子不同型。',
+    licenseStatus: 'built-in',
+    sanitizationStatus: 'runtime-ready',
+    sanitizationHits: { contacts: 0, authors: 0, brands: 0, watermarks: 0 },
+    runtimeStatus: 'active',
+    placementTier: 'agent-guided',
+    score: 80,
+    grade: 'B',
+    primaryCategory: 'author-workflow',
+    secondaryCategory: 'constellation-pack',
+    isWhiteLabeled: true,
+    isRuntimeReady: true,
+    sourceType: 'built-in',
+  },
 ];
 
 // ── V2 Skill Series Flow Registry (流程系列目录 V2) ──
@@ -861,9 +1173,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'chapters-with-highlights',
         output: 'chapters-final-checked',
         stage: 'critic', // 动作是完读/节奏自检 → critic
-        assetId: 'hook-system', // 真实的钩子体系资产
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 hook-system 保留在目录，供作者自行引用。
+        assetId: 'tomato-readthrough-audit',
         gate: { kind: 'advisory', note: '完读悬念与读者期待达成闭环' },
         nextStepId: 'tomato-platform-flow-step5',
         switchAllowed: true,
@@ -877,9 +1188,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'chapters-final-checked',
         output: 'chapters-final',
         stage: 'writer', // 动作是精修改稿（chapters-final）→ writer
-        assetId: 'tomato-opening-validator', // 真实的番茄质检仪资产
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 tomato-opening-validator 保留在目录，供作者自行引用。
+        assetId: 'tomato-prose-polisher',
         gate: { kind: 'advisory', note: '全文爽感突出、文字干净利落' },
         nextStepId: null,
         switchAllowed: true,
@@ -973,9 +1283,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'hook-idea',
         output: 'outline',
         stage: 'planner',
-        assetId: 'square-93', // 【风华出品】短篇破解爆款备用版
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 square-93 保留在目录，供作者自行引用。
+        assetId: 'lofter-aesthetic-outliner',
         gate: { kind: 'advisory', note: '故事主线大纲具备高情感反转弧度' },
         nextStepId: 'fenghua-short-flow-step3',
         switchAllowed: true,
@@ -989,9 +1298,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'outline',
         output: 'title',
         stage: 'planner',
-        assetId: 'square-114', // 【风华出品】小说起名器（短篇为主）
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 square-114 保留在目录，供作者自行引用。
+        assetId: 'viral-shortform-titler',
         gate: { kind: 'advisory', note: '标题意境饱满，具备高吸引力' },
         nextStepId: 'fenghua-short-flow-step4',
         switchAllowed: true,
@@ -1019,9 +1327,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'chapter-draft',
         output: 'chapter-polished',
         stage: 'writer',
-        assetId: 'square-122', // 【风华出品】短篇文章逻辑检测分析器
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 square-122 保留在目录，供作者自行引用。
+        assetId: 'emotional-logic-auditor',
         gate: { kind: 'advisory', note: '故事逻辑闭环，情感张力达标' },
         nextStepId: null,
         switchAllowed: true,
@@ -1042,9 +1349,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'idea',
         output: 'hook-idea',
         stage: 'planner',
-        assetId: 'square-76', // 天马-脑洞生成-番茄爆款
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 square-76 保留在目录，供作者自行引用。
+        assetId: 'viral-idea-refiner',
         gate: { kind: 'advisory', note: '核心创意脑洞契合番茄爆款结构' },
         nextStepId: 'tianma-outline-flow-step2',
         switchAllowed: true,
@@ -1057,9 +1363,8 @@ export const SKILL_SERIES_FLOWS: SkillSeriesFlow[] = [
         input: 'hook-idea',
         output: 'setting-outline',
         stage: 'planner',
-        assetId: 'square-41', // 天马-大纲生成-设定强化+节奏
-        // 批次 B「空壳链路清账」：资产是引用壳（无可用正文），本步显式声明为「仅引导」。
-        guidanceOnly: true,
+        // Plan 263 D1：自撰内置卡（正文可运行）；原壳 square-41 保留在目录，供作者自行引用。
+        assetId: 'setting-rhythm-outliner',
         gate: { kind: 'advisory', note: '设定机制独特，故事节奏主线清晰' },
         nextStepId: 'tianma-outline-flow-step3',
         switchAllowed: true,

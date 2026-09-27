@@ -13,11 +13,11 @@ import {
 
 const report = describeCatalogDispositions();
 
-test('去向分布钉住：182 = public 135 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8', () => {
+test('去向分布钉住：189 = public 142 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8', () => {
   assert.equal(report.entries.length, PROMPT_GOVERNANCE_CATALOG.length);
-  assert.equal(report.entries.length, 182);
+  assert.equal(report.entries.length, 189);
   assert.deepEqual(report.counts, {
-    public: 135,
+    public: 142,
     'sanitized-copy': 33,
     'duplicate-absorbed': 6,
     'declared-internal': 8,
