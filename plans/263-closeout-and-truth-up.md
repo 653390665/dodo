@@ -5,7 +5,7 @@
 - 前置：Plan 262 A/B/C 全部交付（A1 `645c572` / A2 `9a2c234`、B1 `acd8dfb`（附带 `c839f32` 消毒缺口收口）、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
 - 背景（为什么有这本）：会话诊断出的根因是「账实分离」——文档/账本被当权威却不对账。本计划把「每次交付必须回写账本」从纪律升级为可验收条目（P1 整段）。
-- 完成定义（每条统一，沿用 262）：实现落盘 → 定向测试 + `npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0` 全绿 → 快照六场景逐项不变（`scratch/stageprompts-snapshot.ts`；有意改提示词须记录前后值）→ 规格/账本回写 → 单独提交 → 本账本状态更新
+- 完成定义（每条统一，沿用 262）：实现落盘 → 定向测试 + `npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0` 全绿 → 快照六场景逐项不变（`scripts/report-stageprompt-snapshot.ts`；有意改提示词须记录前后值）→ 规格/账本回写 → 单独提交 → 本账本状态更新
 - 纪律（源自本轮实测教训）：后端全量与前端全量**不得并发**（并发必出 45s 超时假阳：7 文件 `testTimeoutFailure`，单独重跑 70/70）；dsh 只发单行命令，多行逻辑走 staging 工具
 
 ## P0 在飞（先收尾）
@@ -27,7 +27,7 @@
 
 | # | 项 | 现状 | 完成判据 |
 |---|---|---|---|
-| 5 | D1 仅引导步骤补正文 | 34 步 / 可运行 21（61.8%）/ 仅引导 13：番茄 4（step2/3 已挂 cardRef 但 assetId 仍是壳、step4/5）、风华 4（step1/2/3/5）、天马 3（step1/2/4）、小飞鸡 1（step1）、拆书 1（step2） | 补正文步骤的 assetId 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；✅ 已完成（2026-09-28）：7 个「无 cardRef 的仅引导步骤」自撰内置卡并改指（番茄 step4/5、风华 step2/3/5、天马 step1/2）→ **可运行 28/34（82.4%）/ 仅引导 6**；余 6 步为已挂 cardRef 的步骤（卡正文经卡片通道注入，assetId 仍为壳，登记为残余）；`scratch/capB-chain.ts` 已复跑；目录 189 / built-in 27 |
+| 5 | D1 仅引导步骤补正文 | 34 步 / 可运行 21（61.8%）/ 仅引导 13：番茄 4（step2/3 已挂 cardRef 但 assetId 仍是壳、step4/5）、风华 4（step1/2/3/5）、天马 3（step1/2/4）、小飞鸡 1（step1）、拆书 1（step2） | 补正文步骤的 assetId 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；✅ 已完成（2026-09-28）：7 个「无 cardRef 的仅引导步骤」自撰内置卡并改指（番茄 step4/5、风华 step2/3/5、天马 step1/2）→ **可运行 28/34（82.4%）/ 仅引导 6**；余 6 步为已挂 cardRef 的步骤（卡正文经卡片通道注入，assetId 仍为壳，登记为残余）；`scripts/report-flow-chain-coverage.ts` 已复跑；目录 189 / built-in 27 |
 | 6 | D3 章节回滚 stale 打标 | 只覆盖删除路径；回退未定义「回到哪个来源版本」 | ✅ 已完成（2026-09-28）：按拍板不引入 source 枚举 —— `chapter_versions.content_hash`（迁移 `ensureColumn`）+ 两条写入路径补指纹 + `listChapterVersionMetas.matchesCurrentContent`（hash 不等判 stale；存量 NULL → 「来源未知」）+ 时光机卡片徽标；后端 `tests/chapter-version-content-hash.test.ts` 5/5、前端 `src/tests/agent-workspace-versions-panel.test.tsx` 3/3 |
 | 7 | D4 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` | ✅ 已完成（2026-09-28）：按拍板只设一条硬阈值 —— 阈值单源 `MAX_ARREARS_IN_PROMPT`（`shared/lib/knowledge-capabilities.ts`，原为 `server/helpers/knowledge-lineage-enrich.ts:175` 本地常量）+ 新增「伏笔欠账」指标 + 越线 `severity:'warn'`／面板琥珀（`text-amber-700`，与未知 `text-amber-800` 可区分）+ 阈值说明；其余指标只显示数值 + 未知降级；RAG 缓存与孤立节点并入口径未做（挂 E6 真实数据）；后端 6/6、前端 5/5 + 2/2 |
 | 8 | D5 长篇记忆基线补完 | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI | ✅ 已完成（2026-09-28）：按拍板**降级为技术债**，只登记、不补完（真实样本 / planner·critic 口径 / CI 接线均不做）；触发条件 = 真实长篇样本到手后重跑 `scripts/long-memory-baseline.ts` 并复核口径（规格 §5.22 + §5.10 拍板行） |
@@ -58,7 +58,7 @@
 - 改 `src/` → `npm run test:frontend -- src/tests/<file>`（全量 `npm run test:frontend`）
 - 改 `shared/` 共享契约 → 两端都跑
 - 提交前：`npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0`
-- UI 主链路 → `npx playwright test`；快照 → `npx tsx scratch/stageprompts-snapshot.ts`（六场景）
+- UI 主链路 → `npx playwright test`；快照 → `npx tsx scripts/report-stageprompt-snapshot.ts`（六场景）
 
 ## 拍板结论（2026-09-28，操作者「做吧」批准）
 
@@ -96,4 +96,5 @@
 | 审计修正 | `a8e5956` | 账本计数 115/134→147、执行记录 8 行补 hash、表格列数修正、A1/A2 重复 ✅ 、E2 三项残余登记（发布链依赖 Hub / `SKIP_EMBEDDING_MODEL_FETCH` 静默跳过产物断言 / 判据仅尺寸 ≥20 MB 无 sha256）（4 files，+28/−23） |
 | 审计修正（二） | `d20093f` | `architecture-review.md` / `remediation-plan.md` 状态块刷新（M2/M6/M7）+ `plans/README.md` 新增「审计基准的可解析性」（第 1–29 轮基准属 2026-08-29 存档重根前历史线，根提交 `68c9004`，见 `docs/recovery/RECOVERY.md`）（3 files，+7/−4） |
 | 审计（回答用户「审查已完成/未完成任务清单」） | `695fddb` | 全量后端 `1465/1465` + 全量前端 `161 files / 1022 tests` 全绿；关闭 4 项（前端 2 失败用例 / 性能结论 / F5 三 handler 均为权威写入 / F7 `Scene` 死模型），F6 与 F9 维持开放（前者已定性读层无内容级消毒） |
+| 读数脚本入库 | （本次提交） | 5 个核心读数脚本从 `scratch/`（gitignored）移入 `scripts/`：链路引用面 / 步骤审计 / 角色投影 / 清洗层 / 六场景快照；规格 §7 表格与账本引用同步改名 |
 

@@ -261,9 +261,9 @@ FIFO 串行写队列
 
 **质量门**：每步一个 `gate{kind}`，已从旧 `qualityGate` 字段收敛为三类 —— `advisory`（文本门）/ `mechanical` / `critic`（34 步 = advisory 32 / mechanical 1 / critic 1）。
 
-**可用性读数**（2026-09-28，Plan 262/263 后，`scratch/capB-chain.ts`）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6** / `cardRef` 6 步 / 能力引用 2 步 / 被引用资产 28 / 目录 189。余下 6 个「仅引导」步骤**恰是已挂 `cardRef` 的 6 步** —— 它们的卡片正文已经由卡片通道进入提示词，但 `assetId` 仍是平台转投壳，所以可用性读数仍作「仅引导」（口径治理面未收口，已登记）。
+**可用性读数**（2026-09-28，Plan 262/263 后，`scripts/report-flow-chain-coverage.ts`）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6** / `cardRef` 6 步 / 能力引用 2 步 / 被引用资产 28 / 目录 189。余下 6 个「仅引导」步骤**恰是已挂 `cardRef` 的 6 步** —— 它们的卡片正文已经由卡片通道进入提示词，但 `assetId` 仍是平台转投壳，所以可用性读数仍作「仅引导」（口径治理面未收口，已登记）。
 
-**守门与证据**：`tests/flow-step-guidance.test.ts`（声明集合 == 检测到的壳集合、静默壳 0）、`tests/flow-step-stage.test.ts`（阶段分布）、`tests/flow-chain-determinism.test.ts`（串台对照 34×33）、`tests/flow-step-capability-ref.test.ts`（六诊断码 + 执行面）；读数脚本 `scratch/capB-chain.ts`，提示词哈希快照 `scratch/stageprompts-snapshot.ts`（六场景）。
+**守门与证据**：`tests/flow-step-guidance.test.ts`（声明集合 == 检测到的壳集合、静默壳 0）、`tests/flow-step-stage.test.ts`（阶段分布）、`tests/flow-chain-determinism.test.ts`（串台对照 34×33）、`tests/flow-step-capability-ref.test.ts`（六诊断码 + 执行面）；读数脚本 `scripts/report-flow-chain-coverage.ts`，提示词哈希快照 `scripts/report-stageprompt-snapshot.ts`（六场景）。
 
 **仍未证实**：卡正文对生成质量的因果影响只有「文本是否进提示词」层面的证据，没有质量测量；「assetId 与 cardRef 的可用性语义」仍是治理面口径债。
 

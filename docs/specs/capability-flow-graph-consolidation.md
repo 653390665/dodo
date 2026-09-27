@@ -140,7 +140,7 @@ interface FlowStep {
 `refine-outline-rebuild`、`opening-gold-three` 等 7 张）当前确实以**原文常驻注入** project 阶段，
 批次 A 不改变运行时行为，故投影为 `rule`；其真实产出语义（是否应转 `transform` 单次运行）留待批次 B 卡槽位落地后复审。
 
-实践证明：20 张非 flow manifest + 174 张治理资产 → **0 未映射**（`scratch/card-role-coverage.ts`，2026-09-24；
+实践证明：20 张非 flow manifest + 174 张治理资产 → **0 未映射**（`scripts/report-card-role-coverage.ts`，2026-09-24；
 2026-09-28 治理资产 179 张复测仍 0 未映射）。
 
 #### 4.2.2 装配字段收敛（批次 A 小类「装配字段收敛」）
@@ -304,7 +304,7 @@ SkillSeriesFlowStep.cardRef?: { role: CardRole; stages: readonly CapabilityStage
 非 runtime-ready/壳卡/归一化顺序/两种角色投影/不一致仍注入/自定义壳判定；6 集成：planner、writer、critic
 **各一条命中用例** + 三阶段全声明进快照元数据与 `capabilityRefs` + 未挂卡 `stagePrompts` 缺省 +
 挂壳卡 `square-182` 回退且三阶段 prompt 与挂卡前逐字节相等）；回归 `tests/execution-contract.test.ts` +
-`tests/de-ai-tells-guard.test.ts` 0 失败；快照回归 `scratch/stageprompts-snapshot.ts` 6 场景 JSON
+`tests/de-ai-tells-guard.test.ts` 0 失败；快照回归 `scripts/report-stageprompt-snapshot.ts` 6 场景 JSON
 **前后 identical**（bare/technique/deck + `flow-shield core-slop-shield@writer(103)` writer `0e7ffd52(655)`、
 `flow-outline generateOutline@writer(92)` writer `bc653778(644)`、
 `flow-square square-182@writer(59)!FLOW_STEP_ASSET_SHELL` writer `991dad8f(611)`）；`npx tsc --noEmit` 0、
@@ -363,7 +363,7 @@ critic 62<80 拦下、unknown 不放行、critic 88 推进成功、空原因不�
 未声明 gate 无 UI 且行为不变）；回归 `tests/public-catalog-freshness.test.ts` +
 `tests/public-catalog-governance.test.ts` + `tests/flow-step-gate.test.ts` 合计 **36/36**、
 `src/tests/planning-tab-step-gate + planning-tab-step-progression` **29/29**；公开目录重生成仅 **7 行插入**
-（两处 `gate`）；`scratch/stageprompts-snapshot.ts` 三基线场景哈希与门槛改动前逐项一致（bare
+（两处 `gate`）；`scripts/report-stageprompt-snapshot.ts` 三基线场景哈希与门槛改动前逐项一致（bare
 `e3b0c442(0)/a911161f(541)/af2071af(104)`、technique `4ee5c756(634)/9a6bf48b(197)`、
 deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`）；`npx tsc --noEmit` 0、
 `npx eslint server src shared tests scripts --max-warnings=0` 0。
@@ -372,7 +372,7 @@ deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`）；`npx tsc --noEmit` 0、
 
 问题（§2.2）：链路步骤此前**没有自己的阶段声明**，注入阶段由关联资产的 `stage` 推断
 （`polish`/`drafting` → writer、`planning` → planner、`review` → critic）。六条链路 32 步里
-**25 步落 writer、5 步落 planner、0 步落 critic**（`scratch/flow-audit.ts` 旧口径实测）——
+**25 步落 writer、5 步落 planner、0 步落 critic**（`scripts/report-flow-step-audit.ts` 旧口径实测）——
 「灵感/设定/大纲/分镜」类步骤的契约文本进了写手 prompt，而平台评分卡（动作=评估）也进了 writer。
 
 改法：步骤显式声明目标阶段，**声明优先、不再继承资产 stage**。
@@ -406,7 +406,7 @@ deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`）；`npx tsc --noEmit` 0、
 | --- | --- | --- |
 | 大纲→planner、正文→writer、审稿→critic | `tests/flow-step-stage.test.ts` 集成用例：六条链路 32/32 步逐一 `resolveProjectExecutionContract`，断言 `flowStep.stage === step.stage`、`stageSource === 'declared'`，且步骤标记 `【流程步骤：<name>】` 只出现在声明阶段（另两阶段必须不含） | 通过（32/32） |
 | 六条链路无一步因映射变更丢 prompt | 同测试 30/30 覆盖 + 快照：`flow-outline`(generic step1) 步骤 prompt 长度 92→92、`flow-square`(xiaofeiji step1) 59→59、`flow-shield`(generic step5) 103→103；仅**去向**从 writer 迁到声明阶段（flow-outline writer 644→planner 101；flow-square writer 611→planner 68），bare/technique/deck 与 flow-shield 哈希逐项不变 | 通过 |
-| flow-audit 分布与声明一致 | `node --import tsx scratch/flow-audit.ts`：32 步 / 6 链路，`declared=32`、`fallback=0`、`invalid=0`，分布 planner 20 / writer 9 / critic 3（与语义类 `{planning:20, drafting:9, review:3}` 一致），自校验「打印直方图 == `stageDistributionOfFlows`」PASS、语义不一致 0、未知输出 0、未声明 0 | 通过 |
+| flow-audit 分布与声明一致 | `node --import tsx scripts/report-flow-step-audit.ts`：32 步 / 6 链路，`declared=32`、`fallback=0`、`invalid=0`，分布 planner 20 / writer 9 / critic 3（与语义类 `{planning:20, drafting:9, review:3}` 一致），自校验「打印直方图 == `stageDistributionOfFlows`」PASS、语义不一致 0、未知输出 0、未声明 0 | 通过 |
 
 回归：`npx tsc --noEmit` **0**；`npx eslint server src shared tests scripts --max-warnings=0` **0**；
 定向后端 8 文件 **97/97**（flow-step-stage / execution-contract / flow-step-card-slot / flow-step-gate /
@@ -440,7 +440,7 @@ public-catalog-freshness / public-catalog-governance / prompt-assets-governed / 
   条件 `guidanceWarning`；原 `warning: 'FLOW_STEP_ASSET_SHELL'` 保留（向后兼容）。
 - UI：`PlanningTab` 当前步 `role="status"` 提示块（标签 + `GUIDANCE_ONLY_HINT`）；`SkillsStudioView`
   链路详情每步 `role="note"` 徽标（`title={GUIDANCE_ONLY_HINT}`）。文案单源来自 `flow-step-guidance`。
-- 审计：`scratch/flow-audit.ts` 改用 `isShellTemplatePrompt` 判定，输出 30 步 / 可运行 13 / 仅引导 17 /
+- 审计：`scripts/report-flow-step-audit.ts` 改用 `isShellTemplatePrompt` 判定，输出 30 步 / 可运行 13 / 仅引导 17 /
   不可用 0 / 占比 43.3%，并断言静默壳 0。
 
 证据（2026-09-25）：
@@ -482,7 +482,7 @@ B 步骤上，等于伪造归属）：
 `runtimeStatus: 'active'`、`placementTier: 'agent-guided'`（避开护栏通道 `core-default`，也不触发消毒副本生成）；
 对应三步删除 `guidanceOnly: true` 与壳注释，改指新卡后由 `availability` 判定为 `asset`。
 
-实测（2026-09-28）：`scratch/flow-audit.ts` → 30 步 / **可运行 16（53.3%）/ 仅引导 14（46.7%）/ 不可用 0 / 静默壳 0**；
+实测（2026-09-28）：`scripts/report-flow-step-audit.ts` → 30 步 / **可运行 16（53.3%）/ 仅引导 14（46.7%）/ 不可用 0 / 静默壳 0**；
 逐链路番茄 1/5、天马 1/4、拆书 1/2（三条原均为 0 可运行）；治理目录 176 → **179**（内置 14 → 17），消毒副本仍 33。
 三条集成断言（`tests/flow-step-guidance.test.ts`，共 15/15）：critic 阶段 prompt 含
 「【番茄开篇诊断器 · 只诊断不改写】」，planner 阶段 prompt 含「【三幕式高潮规划器 · 只出结构不做正文】」与
@@ -495,7 +495,7 @@ B 步骤上，等于伪造归属）：
 后端定向 7 文件（flow-step-guidance / execution-contract / flow-step-stage / flow-step-card-slot /
 flow-step-gate / public-catalog-freshness / public-catalog-governance）**EXIT=0**；
 前端定向 `planning-tab-step-guidance + planning-tab-step-gate + planning-tab-step-progression` **EXIT=0**；
-`scratch/stageprompts-snapshot.ts` 与门槛前逐项哈希一致（bare `e3b0c442/a911161f/af2071af`、
+`scripts/report-stageprompt-snapshot.ts` 与门槛前逐项哈希一致（bare `e3b0c442/a911161f/af2071af`、
 technique `4ee5c756/9a6bf48b`、deck `ad15f102/35a46c6f/f73b1f25`、flow-shield writer `0e7ffd52(655)`、
 flow-outline planner `697f7556(101)` 步骤 `generateOutline@planner(92)`、flow-square planner `5dde5c7b(68)`
 步骤 `square-182@planner(59)`）——本小类只加可用性标注，不改注入；
@@ -553,8 +553,8 @@ extract 幂等、settle 清单、错误码、路由端到端含 stale 409）；`
 源目录 174→**176**）EXIT=0；freshness + governance EXIT=0；`tests/capability-card-role.test.ts` EXIT=0；
 `node --import tsx scripts/generate-public-catalog.ts` → **+194 行**（副本仍 33）；`npx tsc --noEmit` **0**；
 `npx eslint server src shared tests scripts --max-warnings=0` **0**；后端定向 5 文件 **67/67**；
-`scratch/stageprompts-snapshot.ts` 与门槛前**逐项哈希一致**（工具卡不进提示）；
-`scratch/card-role-coverage.ts` 176 张 **0 未映射**（transform 30→32）；全量 `npm test` **1358/1358**（+7）。
+`scripts/report-stageprompt-snapshot.ts` 与门槛前**逐项哈希一致**（工具卡不进提示）；
+`scripts/report-card-role-coverage.ts` 176 张 **0 未映射**（transform 30→32）；全量 `npm test` **1358/1358**（+7）。
 
 **残余（登记不静默）**：步骤引用这两张卡（批次 C 第 4 条）→ **已交付（Plan 262 C5，`d532881`，2026-09-28）：拆书 `book-deconstruction-flow-step3` 引 `knowledge-extract`、小飞鸡 `xiaofeiji-novel-flow-step9` 引 `foreshadow-settle`，见 §5.19**；UI 入口已由 §5.6 交付（World Bible 图谱页一键重跑 + 九项数值），
 驾驶舱内入口仍未加（**伏笔面板入口 2026-09-28 已加**，见 §5.6 末「D2 补记」）；工具卡不进写作提示是设计语义而非缺口；
@@ -598,7 +598,7 @@ extract 幂等、settle 清单、错误码、路由端到端含 stale 409）；`
 - 门禁：`npx tsc --noEmit` **0**；`npx eslint server src shared tests scripts --max-warnings=0` **0**；
   `tests/knowledge-capabilities.test.ts` **9/9**；前端定向（world-bible-helper-drawer / world-bible-sync-return /
   world-bible-assistant-accessibility / knowledge-maintenance-panel）**14/14**；
-  `scratch/stageprompts-snapshot.ts` 与门槛前**逐项哈希一致**（本轮零提示改动）。
+  `scripts/report-stageprompt-snapshot.ts` 与门槛前**逐项哈希一致**（本轮零提示改动）。
 
 **残余（登记不静默）**：重跑为同步动作、无长任务进度；coverage 只展示"最近一次"，未落库历史快照。
 
@@ -643,7 +643,7 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 资料包来源边不受影响、重复补偿 0/0、重跑前后边集合与标记逐项一致且 enrich 源码无 `DELETE FROM`、接口 coverage 读回 1/1）；
 前端 `src/tests/knowledge-maintenance-panel.test.tsx` 7/7（`失效台账：2` / `失效边：1` / 「已有 3 行知识失效」说明 / 无失效行时无说明）；
 `npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0；后端定向 24/24；
-全量 `npm test` **1363/1363**（FULL_EXIT=0）；`scratch/stageprompts-snapshot.ts` 六场景哈希逐项不变。
+全量 `npm test` **1363/1363**（FULL_EXIT=0）；`scripts/report-stageprompt-snapshot.ts` 六场景哈希逐项不变。
 
 **残余（登记不静默）**：章节「回滚」（版本回退）未打标（**2026-09-28 部分销账，Plan 263 D3 `d342d4a`**：版本行新增 `content_hash`，改以「版本 hash ≠ 当前正文 hash ⇒ stale」判据，存量行显「未知」；**回退动作本身仍未实现**）——当前只覆盖删除路径，回退需先定义"回退到哪个来源版本"；
 `stale` 标记目前无「恢复/清除」入口（重跑 enrich 不清除，符合"只增不删"，但缺少人工确认恢复的动作）；
@@ -690,7 +690,7 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
   `CAPABILITY_GUARDRAIL_UNAVAILABLE`）。
 - 前端 `src/tests/guardrail-policy-panel.test.tsx` **4/4**（回执区块三条 / 无条目不渲染 / 审计与目录同源 /
   开关仍可切换）；前端定向 **75/75**；`npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0；
-  `scratch/stageprompts-snapshot.ts` 六场景逐项哈希不变。
+  `scripts/report-stageprompt-snapshot.ts` 六场景逐项哈希不变。
 - 既有用例修正：`src/tests/skills-studio-plan158.test.tsx` 的护栏用例原点击面板第一条（square-13 = 引用壳）
   并断言「已开启 1 条」，B1 后改为显式点选 de-ai-tells-guard（引用壳会被回执为无净增，不再计入开启数）。
 
@@ -737,7 +737,7 @@ tsc 0、eslint 0、后端定向 58/58、前端定向 43/43、快照六场景逐�
 
 #### 5.14 目录滞留清账（Plan 262 B3）
 
-问题（2026-09-28 实测 `scratch/capD-sanitize.ts`）：179 张 runtime 目录 → 132 张上架公开目录；
+问题（2026-09-28 实测 `scripts/report-catalog-sanitize.ts`）：179 张 runtime 目录 → 132 张上架公开目录；
 `admitPublicAsset` 拒 6 张；41 张「通过准入但不在公开目录」；`needs-sanitization` 46 张中
 33 张产副本、13 张永不产副本。此前只有汇总数字，逐张去向未登记，无法区分「漏做」与「有意为之」。
 
@@ -761,7 +761,7 @@ duplicate-absorbed → declared-internal → unclassified），逐张给出一�
 
 证据：`tests/catalog-disposition.test.ts` 6/6（分布钉住 179=132+33+6+8、id 全覆盖无重复、
 副本与副本表一一对应、6 张重复的 `coveredBy` 均可查且已上架/有副本、8 张明确不公开 id 清单、
-13 张无副本卡全部非滞留）；`scratch/capD-sanitize.ts` 复跑数字与上表一致（179/132/6/46/33/13）；
+13 张无副本卡全部非滞留）；`scripts/report-catalog-sanitize.ts` 复跑数字与上表一致（179/132/6/46/33/13）；
 tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变（本批次未触运行时与提示词）。
 
 残余：`declared-internal` 理由由生成侧规则复算（垃圾标题 / 渲染空标题 / 夹具），尚无「人工拍板」登记通道；
@@ -796,7 +796,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - 快照六场景：**仅 `flow-square`（xiaofeiji step1）planner 变化 `5dde5c7b(68)` → `47eae3c5(240)`**（+172 = 卡片块）；
   其余五场景（bare / technique / deck / flow-shield / flow-outline）逐项哈希不变；`flow-square` 的步骤 prompt 仍
   `square-182@planner(59)!FLOW_STEP_ASSET_SHELL`（assetId 回退未被破坏）。
-- `scratch/flow-audit.ts` 新增 `card=<id>@<stage>` 列，六步逐一可见；其余口径不变
+- `scripts/report-flow-step-audit.ts` 新增 `card=<id>@<stage>` 列，六步逐一可见；其余口径不变
   （30 步 / 可运行 16 / 仅引导 14 / 53.3% / 静默壳 0）。
 - 生成物 `shared/lib/public-skill-catalog.ts` 重生成 +42 行（仅 cardRef 声明）；新鲜度 / 唯一性 / 治理守卫全绿。
 - tsc 0、eslint 0、后端全量 1421/1421（+8）。
@@ -871,11 +871,11 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
   （不改既有 step 编号与 id，仅把 step4 `nextStepId` 从 `null` 改指 step5；step5 → step6 → null），
   两步均为 `gate: { kind: 'advisory', note: ... }`。
 - 新输出 `artifact-list`（道具遗物清单）/ `arc-units`（事件单元表）登记进 `FLOW_OUTPUT_STAGE_CLASS` → `planning`。
-- 维度判定口径：步骤文案命中 `scratch/capB-chain.ts` 的 DIMENSIONS 正则（创意构思/世界观/人物/道具/副本/大纲/细纲/正文/审稿精修，取首个命中）；
+- 维度判定口径：步骤文案命中 `scripts/report-flow-chain-coverage.ts` 的 DIMENSIONS 正则（创意构思/世界观/人物/道具/副本/大纲/细纲/正文/审稿精修，取首个命中）；
   可运行判定 = assetId 指向资产存在且 `isShellTemplatePrompt` 为假。
 
 **证据**
-- `scratch/capB-chain.ts` 复跑：步骤 **32** · 可运行 **19（59.4%）** · 仅引导 **13**；维度读数
+- `scripts/report-flow-chain-coverage.ts` 复跑：步骤 **32** · 可运行 **19（59.4%）** · 仅引导 **13**；维度读数
   人物 1（可运行 1）/ 道具 1（1）/ 副本 1（1）/ 正文 6（5）/ 大纲 6（4）/ 世界观 4（3）/ 创意构思 4（1）/ 审稿精修 3（1）/ 其余 4（0）；
   被引用资产 **24 / 目录 182**（目录 runtime-ready 136，其中 112 张仍未被任何步骤引用）。
 - 生成物：`Cleaned 135 total catalog assets` / 33 sanitized copies；`git diff --stat shared/lib/public-skill-catalog.ts` = **+246/−3**。
@@ -990,7 +990,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 - 新增 `tests/production-semantic-recall.test.ts` **6/6**：①marker/片段/`hitCount=2`/`\n---\n` 连接/`truncated=false`；②5 000 字命中 → `injectedChars === MAX_SEMANTIC_RECALL_CHARS`（1 200）、`truncated=true`；③七种降级全 `null`；④逐字节锁：无语义块时三阶段分别为 `'PACK_BASE\n\nPLANNER_BASE'` / `'WRITER_BASE\n\nPACK_BASE'` / `'CRITIC_BASE\n\nPACK_BASE'`，有语义块时三阶段 `endsWith(semanticContext)`；⑤预算：默认 24 000 内且 marker 在、`maxChars=40` 时三阶段 `length <= 40` 且片段哨兵不出现；⑥线层：真实 `runProductionPipeline` + 桩 fetch，planner/writer/critic 三个请求均含 marker 与片段哨兵，planner 请求不含 writer/critic 阶段哨兵。
 - 后端定向 6 文件 **27/27**（本类 + `production-prompt-sentinel` / `server-story-context` / `story-context-load-scope` / `chapter-production` / `production-stream-disconnect`）；
 - `npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0；
-- `scratch/stageprompts-snapshot.ts` 六场景逐项哈希不变（bare `e3b0c442(0)/a911161f(541)/af2071af(104)`；technique `4ee5c756(634)/9a6bf48b(197)`；deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`；flow-shield `0e7ffd52(655)` + `core-slop-shield@writer(103)`；flow-outline `697f7556(101)` + `generateOutline@planner(92)`；flow-square `5dde5c7b(68)` + `square-182@planner(59)!FLOW_STEP_ASSET_SHELL`）⇒ 未接线场景（无语义块）提示零漂移；
+- `scripts/report-stageprompt-snapshot.ts` 六场景逐项哈希不变（bare `e3b0c442(0)/a911161f(541)/af2071af(104)`；technique `4ee5c756(634)/9a6bf48b(197)`；deck `ad15f102(74)/35a46c6f(553)/f73b1f25(107)`；flow-shield `0e7ffd52(655)` + `core-slop-shield@writer(103)`；flow-outline `697f7556(101)` + `generateOutline@planner(92)`；flow-square `5dde5c7b(68)` + `square-182@planner(59)!FLOW_STEP_ASSET_SHELL`）⇒ 未接线场景（无语义块）提示零漂移；
 - 前端全量 `npm run test:frontend` **154 files / 995 tests 全绿**（`shared/` 契约改动两侧都跑）；
 - 全量 `npm test` **1369/1369**（35 suites，FULL_EXIT=0；基线 1 363 + 6 条新用例）。
 
@@ -1084,7 +1084,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 | 不变式 | 断言 | 位置 |
 |---|---|---|
 | 确定性（同进程） | 6 条链路 32 步各解析两次，`{flowStep, stagePrompts, skillStack}` 的 sha256 指纹逐字节一致；32/32 `stageSource==='declared'` | `tests/flow-chain-determinism.test.ts` 用例 1 |
-| 确定性（跨进程） | `scratch/stageprompts-snapshot.ts` 两次独立进程输出 6 场景哈希逐项一致（SNAP_CMP_EXIT=0） | `scratch/snap-compare.py` |
+| 确定性（跨进程） | `scripts/report-stageprompt-snapshot.ts` 两次独立进程输出 6 场景哈希逐项一致（SNAP_CMP_EXIT=0） | `scratch/snap-compare.py` |
 | 链路间零泄漏 | 32×31=992 组对照：任一步骤的 `【流程步骤：<name>】` marker 不出现在另一链路/另一步骤的 planner·writer·critic 提示词 | 用例 2 |
 | 顺序无关 | 倒序解析其余 29 条链路后，本链路契约指纹不变（无共享可变状态） | 用例 3 |
 | 时钟无关 | `mock.timers` 位移到 1.7e12 / 2e12 两个时刻，取样链路契约指纹不变 | 用例 4 |
@@ -1097,12 +1097,12 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 
 **口径与残余**：
 - 本守卫钉的是**契约层**确定性（图谱过滤、卡槽位、阶段声明、标签推进、目录定义）；**模型输出层**（温度/采样导致的文本差异）不在范围内。
-- 跨进程证据当前由 `scratch/` 工具复跑（未纳入自动化测试）。
+- 跨进程证据当前由 `scripts/report-stageprompt-snapshot.ts` 复跑（仍未纳入自动化测试）。
 - 集成缝：`resolveProjectExecutionContract(novelId, input?)`（`server/helpers/writing-style-service.ts:2077` ＝ `resolveWritingStyleRequest(...).executionSnapshot`）。
 
 ### 5.21 仅引导步骤补正文（Plan 263 D1）
 
-**判据**（`plans/263-closeout-and-truth-up.md:30`）：补正文步骤的 `assetId` 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；可运行占比达 80%（34×0.8 = 27.2 → ≥28 可运行）；`scratch/capB-chain.ts` 缺口表刷新。
+**判据**（`plans/263-closeout-and-truth-up.md:30`）：补正文步骤的 `assetId` 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；可运行占比达 80%（34×0.8 = 27.2 → ≥28 可运行）；`scripts/report-flow-chain-coverage.ts` 缺口表刷新。
 
 **做法**：沿用 §5.4.1 先例（自撰内置卡），为 7 个「无 cardRef 的仅引导步骤」新增 7 张内置卡，步骤 `assetId` 改指新卡并删除 `guidanceOnly`。**不替换、不改写任何转投壳**（§5.4 纪律），壳资产原样保留在目录中。
 
@@ -1122,7 +1122,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 
 **注入效果（代码事实）**：`server/helpers/writing-style-service.ts:1173-1200` 的 `assetUsable = isRuntimeReadyAsset(asset) && !isShellTemplatePrompt(asset.template)`，命中后 `assetPrompt = 步骤合同 + 【可运行资产 Prompt】 + 卡正文`；快照 `availability` 由 `resolveFlowStepAvailability` 判为 `asset`；`flowStepPromptFor(stage)`（`:2026-2031`）按声明阶段注入 —— 7 步的卡正文因此真实进入对应阶段提示词（不再是「仅引导」空壳）。
 
-**读数（2026-09-28，`scratch/capB-chain.ts` 复跑）**：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**；逐链仅引导：番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0；目录 189（built-in 20→27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本 + 6 重复吸收 + 8 内部。
+**读数（2026-09-28，`scripts/report-flow-chain-coverage.ts` 复跑）**：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**；逐链仅引导：番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0；目录 189（built-in 20→27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本 + 6 重复吸收 + 8 内部。
 
 **残余（诚实登记）**：剩余 6 个「仅引导」步骤**恰为已挂 `cardRef` 的 6 步**（小飞鸡 `step1`、番茄 `step2/3`、拆书 `step2`、风华 `step1`、天马 `step4`）—— 它们的卡片正文已通过卡片通道进入提示词，但 `assetId` 仍指向平台转投壳（`availability` 读作 `guidance`）。若要让「可运行」读数也反映这一步，需把辅助卡（`de-ai-tells-guard` 等）改标为主资产 —— 属于「冒充主资产」，本批不擅自做；登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
 
@@ -1161,16 +1161,16 @@ planner·critic 未纳入 / 未接 CI）**不改**。按拍板（`plans/263-clos
 
 | 脚本 | 用途 |
 |---|---|
-| `scratch/capability-audit.ts` | 目录/类型/作用域/来源统计 |
-| `scratch/card-role-coverage.ts` | 角色投影覆盖度（28 张 manifest〔26 非 flow〕+ 179 张治理资产，0 未映射） |
-| `scratch/deck-check2.ts` | 技法通道 vs 能力卡通道的注入实证 |
-| `scratch/flow-audit.ts` | 6 条链路 32 步的可运行/仅引导分布、**声明阶段**分布与语义一致性自校验（§5.3/§5.4 口径） |
-| `scratch/shell-audit.ts` | 壳卡步骤的资产元数据（引用壳形态/长度/治理标记）与可替代候选（2026-09-28 追补后 14 个） |
-| `scratch/shell-backfill-audit.ts` | 仓内可运行真实正文资产清单与关键词命中（补正文可行性取证） |
-| `scratch/real-run.ts`（`USE_CPA=1`） | 隔离库真实 provider 章节生产观测 |
-| `scratch/gemini-effort-ab.mjs` | thinking 档 A/B |
-| `scratch/model-sweep.log` / `critic-screen.log` | 模型可用性 / critic JSON 契约筛选 |
+| `scripts/report-flow-chain-coverage.ts`（**随仓库交付**） | 链路引用面读数：步骤 → 卡片 → 维度、可运行/仅引导、被引用资产（原 `scratch/capB-chain.ts`） |
+| `scripts/report-flow-step-audit.ts`（**随仓库交付**） | 6 条链路步骤的可运行/仅引导分布、**声明阶段**分布与语义一致性自校验（§5.3/§5.4 口径；原 `scratch/flow-audit.ts`） |
+| `scripts/report-card-role-coverage.ts`（**随仓库交付**） | 角色投影覆盖度（manifest + 治理资产，0 未映射；原 `scratch/card-role-coverage.ts`） |
+| `scripts/report-catalog-sanitize.ts`（**随仓库交付**） | 清洗层：公开目录准入、消毒候选、未进候选、就绪卡无消毒动作（原 `scratch/capD-sanitize.ts`） |
+| `scripts/report-stageprompt-snapshot.ts`（**随仓库交付**） | 六场景三阶段提示哈希快照（`SNAPSHOT_OUT` 可指定产物；原 `scratch/stageprompts-snapshot.ts`） |
 | `scripts/long-memory-baseline.ts`（**随仓库交付**） | 长篇记忆基线：48 章样本三态命中率对比（§5.10 口径）；任一项方向断言失败退出码 1 |
+| `scratch/capability-audit.ts` | 目录/类型/作用域/来源统计（本地一次性） |
+| `scratch/deck-check2.ts` | 技法通道 vs 能力卡通道的注入实证（本地一次性） |
+| `scratch/shell-audit.ts` / `scratch/shell-backfill-audit.ts` | 壳卡步骤元数据与可替代候选；仓内可运行真实正文资产清单（本地一次性） |
+| `scratch/real-run.ts`（`USE_CPA=1`） / `scratch/gemini-effort-ab.mjs` / `scratch/*.log` | 隔离库真实 provider 观测 / thinking 档 A/B / 模型可用性与 critic 契约筛选（本地产物） |
 
 复跑（生产管线检索注入，批次 D 小类）：
 
@@ -1178,7 +1178,7 @@ planner·critic 未纳入 / 未接 CI）**不改**。按拍板（`plans/263-clos
 node --test --import tsx --import ./tests/helpers/test-db-preload.ts tests/production-semantic-recall.test.ts   # 6/6
 NODE_ENV=test node --test --import tsx --import ./tests/helpers/test-db-preload.ts \
   tests/production-prompt-sentinel.test.ts tests/server-story-context.test.ts tests/story-context-load-scope.test.ts   # 回归
-node --import tsx scratch/stageprompts-snapshot.ts   # 六场景哈希应与上面基线逐项一致
+node --import tsx scripts/report-stageprompt-snapshot.ts   # 六场景哈希应与上面基线逐项一致
 ```
 
 复跑（记忆健康度看板，批次 D 小类）：
@@ -1189,7 +1189,7 @@ npx vitest -c vitest.config.frontend.ts run src/tests/memory-health-panel.test.t
 npx eslint server src shared tests scripts --max-warnings=0   # 0
 ```
 
-> 注：`scratch/` 已被 `.gitignore` 忽略；脚本仅本地复跑用，不随仓库交付。
+> 注（2026-09-28 更新）：5 个核心读数脚本（链路引用面 / 步骤审计 / 角色投影 / 清洗层 / 六场景快照）已从上表 `scratch/` 移入 `scripts/`，随仓库交付、可直接复跑；`scratch/`（`.gitignore:44`）仅保留一次性侦察脚本与本地产物。
 
 复跑（长篇记忆基线，批次 D 小类）：
 
@@ -1212,14 +1212,14 @@ node --test --import tsx tests/public-catalog-freshness.test.ts tests/public-cat
 复跑（步骤阶段语义化）：
 
 ```
-node --import tsx scratch/flow-audit.ts                     # 32 步声明分布 + 语义一致性（应 PASS）
+node --import tsx scripts/report-flow-step-audit.ts                     # 32 步声明分布 + 语义一致性（应 PASS）
 node --test --import tsx tests/flow-step-stage.test.ts      # 纯函数 + 30/30 集成
 ```
 
 复跑（空壳链路清账）：
 
 ```
-node --import tsx scratch/flow-audit.ts                     # 19 可运行 / 13 仅引导 / 静默壳 0（应 PASS）
+node --import tsx scripts/report-flow-step-audit.ts                     # 19 可运行 / 13 仅引导 / 静默壳 0（应 PASS）
 node --test --import tsx tests/flow-step-guidance.test.ts   # 纯函数 + 目录守门 + 集成（15/15）
 npx vitest -c vitest.config.frontend.ts run src/tests/planning-tab-step-guidance.test.tsx
 ```
@@ -1227,7 +1227,7 @@ npx vitest -c vitest.config.frontend.ts run src/tests/planning-tab-step-guidance
 复跑（仅引导步骤补正文 D1）：
 
 ```
-node --import tsx scratch/capB-chain.ts                     # 34 步 / 可运行 28（82.4%）/ 仅引导 6
+node --import tsx scripts/report-flow-chain-coverage.ts                     # 34 步 / 可运行 28（82.4%）/ 仅引导 6
 node --test --import tsx tests/flow-step-guidance.test.ts    # 目录守门 + D1 七卡集成
 node --import tsx scripts/generate-public-catalog.ts        # 公开目录再生（142 公开 + 33 副本）
 ```
@@ -1251,14 +1251,14 @@ npx vitest -c vitest.config.frontend.ts run src/tests/knowledge-maintenance-pane
 ```
 node --test --import tsx tests/knowledge-capabilities.test.ts   # 登记/解析/幂等/清单/错误码/路由（7/7）
 node --test --import tsx tests/prompt-assets-governed.test.ts   # 内置 20 / 源目录 182
-node --import tsx scratch/card-role-coverage.ts                 # 182 张 0 未映射（transform 32）
-node --import tsx scratch/stageprompts-snapshot.ts              # 工具卡不得进入三阶段提示（哈希逐项不变）
+node --import tsx scripts/report-card-role-coverage.ts                 # 182 张 0 未映射（transform 32）
+node --import tsx scripts/report-stageprompt-snapshot.ts              # 工具卡不得进入三阶段提示（哈希逐项不变）
 ```
 复跑（链路稳定性与确定性）：
 
 ```
 node --test --import tsx tests/flow-chain-determinism.test.ts   # 6/6：指纹一致 / 零泄漏 / 顺序 / 时钟 / 标签隔离 / 目录稳定
-node --import tsx scratch/stageprompts-snapshot.ts              # 两次独立进程比对（scratch/snap-compare.py）
+node --import tsx scripts/report-stageprompt-snapshot.ts              # 两次独立进程比对（scratch/snap-compare.py）
 ```
 
 ## 8. 风险与回滚

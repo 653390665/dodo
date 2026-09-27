@@ -4,8 +4,8 @@
 - 立项：2026-09-28（Round 46）
 - 前置：Plan 261 知识谱系；四批次收敛（commit `7e0efc7`）；P0-① 装配三字段运行时接线（本轮首提交）
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（§4.2.3 已落地；§5.4.1/§5.5/§5.6/§5.9/§5.10/§5.11 的「残余」为各批次验收回写点）
-- 复跑脚本（`scratch/`，gitignored）：`g2-guard-probe.ts`（护栏通道 Δ）、`capB-chain.ts`（链路引用面）、`capD-sanitize.ts`（清洗层）、`flow-audit.ts`（30 步可运行/仅引导）、`stageprompts-snapshot.ts`（六场景哈希）、`card-role-coverage.ts`（角色投影覆盖）
-- 完成定义（每条统一）：实现落盘 → 定向测试 + `npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0` 全绿 → `scratch/stageprompts-snapshot.ts` 六场景哈希逐项不变（若本项有意改提示词，记录变更前后数值）→ 规格文档回写证据与残余 → 单独提交 → 本账本状态更新
+- 复跑脚本：核心五个已随仓库交付 —— `scripts/report-flow-chain-coverage.ts`（链路引用面）、`scripts/report-catalog-sanitize.ts`（清洗层）、`scripts/report-flow-step-audit.ts`（步骤可运行/仅引导）、`scripts/report-stageprompt-snapshot.ts`（六场景哈希）、`scripts/report-card-role-coverage.ts`（角色投影覆盖）；`scratch/`（gitignored）仅存一次性侦察脚本（如 `g2-guard-probe.ts` 护栏通道 Δ）
+- 完成定义（每条统一）：实现落盘 → 定向测试 + `npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0` 全绿 → `scripts/report-stageprompt-snapshot.ts` 六场景哈希逐项不变（若本项有意改提示词，记录变更前后数值）→ 规格文档回写证据与残余 → 单独提交 → 本账本状态更新
 
 ## 批次 A：在制品收口（本轮先做）
 
@@ -114,7 +114,7 @@
 - 清账结果：179 张 = public 132 + sanitized-copy 33 + duplicate-absorbed 6 + declared-internal 8 + unclassified 0；
   41 张「通过准入但不在公开目录」= 33 副本 + 6 换皮 + 2 测试夹具；13 张「needs-sanitization 且无副本」
   = 6 换皮被吸收 + 7 明确不公开（垃圾标题 6 + 夹具 1）。
-- 证据：`tests/catalog-disposition.test.ts` 6/6、`scratch/capD-sanitize.ts` 复跑数字一致、
+- 证据：`tests/catalog-disposition.test.ts` 6/6、`scripts/report-catalog-sanitize.ts` 复跑数字一致、
   tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变（规格 §5.14）。
 - 残余：明确不公开的理由由生成侧规则复算，无人工拍板通道；副本源卡仍在 runtime 目录且 UI 未标注「仅副本公开」。
 
@@ -145,7 +145,7 @@
 - 交付：三张自撰内置卡 —— `character-arc-dossier`（人物弧光档案，84）、`relic-system-designer`（道具与遗物体系设计器，82）、
   `arc-instance-designer`（副本（事件单元）设计器，80）；人物维度改用小飞鸡 step3 换资产（`square-183` → `character-arc-dossier`，
   同时删 `guidanceOnly`）；道具/副本维度以**追加**步骤落在天马链 step5/step6（不改既有编号与 id）。
-- 读数（`scratch/capB-chain.ts`）：步骤 32 · 可运行 19（59.4%）· 仅引导 13；人物/道具/副本各 1 步且均可运行；
+- 读数（`scripts/report-flow-chain-coverage.ts`）：步骤 32 · 可运行 19（59.4%）· 仅引导 13；人物/道具/副本各 1 步且均可运行；
   被引用资产 24 / 目录 182；新输出 `artifact-list` / `arc-units` 登记为 planning 类。
 - 证据：后端定向 7 文件 **92/92**；前端定向 4 文件（guidance/gate/progression/plan158）**71/71**；
   生成物 135 资产（+246/−3）；快照六场景不变；tsc 0 / eslint 0（规格 §5.17）。
@@ -237,7 +237,7 @@
 - 做法：沿用 §5.4.1 先例（自撰内置卡），为 7 个「无 cardRef 的仅引导步骤」新增 7 张内置卡并把步骤 `assetId` 改指新卡、删除 `guidanceOnly`：番茄 `step4`/`step5`、风华 `step2`/`step3`/`step5`、天马 `step1`/`step2`。不替换、不改写任何转投壳（§5.4 纪律），壳资产原样保留在目录中。
 - 卡清单：`tomato-readthrough-audit`（80·B）/ `tomato-prose-polisher`（82·B）/ `lofter-aesthetic-outliner`（82·B）/ `viral-shortform-titler`（78·C）/ `emotional-logic-auditor`（80·B）/ `viral-idea-refiner`（82·B）/ `setting-rhythm-outliner`（80·B）；均 `sourceType`/`licenseStatus: 'built-in'`、`sanitizationStatus: 'runtime-ready'`、`runtimeStatus: 'active'`、`placementTier: 'agent-guided'`，正文 = 方法论 + 输出契约。
 - 为何自撰：① 池内语义相近卡多为品牌私卡或系统/阶段模板（后者已被会话/阶段通道注入，复用会重复注入）；② 跨提示词替换违反 §5.4（= 伪造归属）；③ 新卡 `primaryCategory` 避开 `quality-guardrail`（否则会被 `shared/lib/guardrail-scope.ts:61-64` 并入系统护栏通道二次注入）。
-- 读数（`scratch/capB-chain.ts` 复跑）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**（番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0）；目录 189（built-in 27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本。
+- 读数（`scripts/report-flow-chain-coverage.ts` 复跑）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6**（番茄 2 / 天马 1 / 风华 1 / 小飞鸡 1 / 拆书 1 / 通用 0）；目录 189（built-in 27）；引用资产 28/189；`cardRef` 6 步不变；公开目录再生 = 142 公开 + 33 副本。
 - 残余：剩余 6 个「仅引导」步骤恰为已挂 `cardRef` 的 6 步 —— 卡正文已由卡片通道进入提示词，但 `assetId` 仍是平台壳（`availability` 读作 `guidance`）；把辅助卡改标为主资产属于「冒充主资产」，本批不做，登记为「`assetId` 与 `cardRef` 的可用性语义未收口」。
 - 证据：`tests/flow-step-guidance.test.ts` **76/76**（含新增「D1 七张自撰内置卡 → asset + 声明阶段 prompt 含卡正文」集成用例）、`tests/catalog-disposition.test.ts`、`tests/prompt-assets-governed.test.ts`、`src/tests/planning-tab-step-guidance.test.tsx`、`src/tests/capability-shelf.test.ts`；快照六场景逐项不变；tsc 0 / eslint 0；后端全量 **1456/1456**、前端全量 **161 files / 1022 tests**；规格 §5.21。
 
@@ -251,7 +251,7 @@
 
 **问题**：2026-09-22 复测暴露的读数（1016 事件 / 442 会话 / 8 作品；旧账本 152→0→1 与事实不符）来自一次性
 scratch 脚本 + 一个临时起的 dev server：口径无法复核、动作无法复跑（scratch/ 被 .gitignore）。这正是「账实分离」
-在度量面的一个实例。
+在度量面的一个实例。（2026-09-28 后续：核心读数脚本已入库 `scripts/`，见规格 §7；E6 即按此范式交付）
 
 **处置**：
 
