@@ -49,9 +49,9 @@
 |---|---|---|
 | E1 | push 被 gh 凭证阻塞 | 本地领先 `origin/codex/plan169-checkpoint` 115 提交；需用户在终端 `gh auth login -h github.com` |
 | E2 | M6 ❌ 打包态嵌入模型路径 | `server/embedding.ts` 仍用 transformers.js 默认缓存 → 决定随包附权重或首启联网 |
-| E3 | M7 ◐ npm/Node 版本告警 | npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26） |
-| E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 |
-| E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 |
+| E3 | M7 ◐ npm/Node 版本告警 | npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26） | **✅ 已交付（2026-09-28，Plan 263 E3）**：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫 `tests/node-version-declaration.test.ts` 2/2。
+| E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 | **✅ 已交付（2026-09-28，Plan 263 E4）**：两条硬规则并入 `docs/specs/multi-agent-workflow.md`（单 checkout 串行写入 / 工作单元边界），不新增规范文件。
+| E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 | **✅ 已结案（2026-09-28，Plan 263 E5）**：`docs/plans/README.md` 冻结为只读存档，根 `plans/README.md` 为唯一权威账本。
 | E6 | 真实数据缺口 ◐ 复测工具已就绪（2026-09-28），样本待真实用户 | 现有漏斗（1016 事件/8 作品）是操作者狗粮，不足以定 P0；埋点口径三处已修，离线复测脚本 + runbook 已落盘（见下「E6 复测工具」） |
 | E7 | 架构图集漂移 | 取证停 2026-09-18（`84fb175`），未覆盖 Plan 261 + 四批次新链路（`docs/architecture-map.md` 只刷新计数） |
 

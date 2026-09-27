@@ -7,7 +7,7 @@
   "type": "module",
   "main": "dist-electron/main.cjs",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.22.3 <23"
   },
   "scripts": {
     "dev": "INKFLOW_ENABLE_DEV_AUTH_TOKEN=true tsx server.ts",

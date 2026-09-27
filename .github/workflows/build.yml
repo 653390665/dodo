@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci
       - run: npm run typecheck
@@ -133,7 +133,7 @@ jobs:
           python-version: '3.11'
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci
       - run: npm run package
@@ -177,7 +177,7 @@ jobs:
           python-version: '3.11'
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
       - name: Configure production toolchain
         shell: pwsh
@@ -270,7 +270,7 @@ jobs:
           python-version: '3.11'
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
       - name: Install desktop runtime dependencies
         run: |

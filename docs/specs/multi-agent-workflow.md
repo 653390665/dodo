@@ -42,3 +42,5 @@ graph TD
 - **SQLite 物理隔离测试**：并发运行的测试（Vitest 单元测试与 Playwright 仿真）禁止同时对运行中的 `data.db` 生产库物理写入；测试环境必须使用内存库（`:memory:`）或独立 `test.db`。
 - **凭证与 Secrets 安全**：子 Agent 一律通过 `inherit` 模式继承主会话凭证，命令行不得硬编码明文密钥。
 - **资源与耗尽防护**：自动化测试设置合理超时阈值（Playwright 单例超时 10s–15s，Vitest 启用并发池限额）。
+- **单 checkout 串行写入（2026-09-28，Plan 263 E4 硬化）**：同一工作 checkout 内**禁止两个会话并发修改同一源文件**——跨会话未提交的 WIP 会互相污染静态门（实测：并发会话的 WIP 曾把 `npm run lint` 打红），并可能在回滚操作中丢失。实践要求：① 每完成一个工作单元立即提交，不留跨会话未提交改动；② 提交前清点 `git status --short`，只允许本单元文件；③ 确需并行 → 各会话使用独立 `git worktree`（不同 checkout，不共享索引）。
+- **工作单元边界**：一个工作单元 = 一次提交（实现 + 定向测试 + `npx tsc --noEmit` + `npx eslint server src shared tests scripts --max-warnings=0` 全绿 + 账本回写）；长任务必须按此边界分段提交，禁止多单元堆在一棵工作区树上。

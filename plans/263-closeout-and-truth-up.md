@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：TODO（首项 E6 在飞）
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅；余 D1、D3/D4、E2、E7、E1（需用户））
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A `9a2c234`、B1 `c839f32`、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -38,9 +38,9 @@
 | # | 项 | 选项（需拍板） |
 |---|---|---|
 | 10 | E2 打包态嵌入模型路径 | ① 随包附权重（包体积 +）② 首启联网下载（离线首启失败）；现状 `server/embedding.ts` 用 transformers.js 默认缓存 |
-| 11 | E3 Node/npm 版本 | 升 Node 至 `^22.22.2`（或降 npm 到 11）+ `engines` + `.nvmrc`；现状 npm v12.0.2 不支持 Node 22.22.0 |
-| 12 | E4 会话隔离 | ① 立规范（worktree 多 Agent 并发）② 维持现状（每单元提交 + 提交前清点） |
-| 13 | E5 双账本 | 冻结 `docs/plans/README.md`（能力卡轮账本，只读）+ 根账本加指针；现状 `MEMORY.md` 指针已改根账本，从属关系未定 |
+| 11 | E3 Node/npm 版本 | 升 Node 至 `^22.22.2`（或降 npm 到 11）+ `engines` + `.nvmrc`；现状 npm v12.0.2 不支持 Node 22.22.0  | ✅ 已完成（2026-09-28：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫测试 `tests/node-version-declaration.test.ts` 2/2）
+| 12 | E4 会话隔离 | ① 立规范（worktree 多 Agent 并发）② 维持现状（每单元提交 + 提交前清点）  | ✅ 已完成（2026-09-28：两条硬规则并入 `docs/specs/multi-agent-workflow.md` 并发隔离节 —— 单 checkout 串行写入 / 工作单元边界）
+| 13 | E5 双账本 | 冻结 `docs/plans/README.md`（能力卡轮账本，只读）+ 根账本加指针；现状 `MEMORY.md` 指针已改根账本，从属关系未定  | ✅ 已完成（2026-09-28：`docs/plans/README.md` 顶部冻结横幅 + 根账本「唯一权威」指针 + 262 双账本项结案）
 | 14 | E7 架构图集漂移 | 补 `knowledge-lineage`（Plan 261）与能力链路（Plan 262）章节；图集取证停 2026-09-18 / `84fb175`，`docs/architecture-map.md` 已刷计数 |
 
 ## 拍板清单（需要操作者）
@@ -70,8 +70,16 @@
 | D5 长篇记忆基线 | **降级为技术债** | 只登记；触发条件 = 真实长篇样本到手后重跑 |
 | D6 三字段 UI 入口 | **标为内部** | 规格标 internal + 从 UI 概念移除（不做写入口） |
 | E2 嵌入模型 | **①随包附权重** | 打包态缓存目录指向 app resources；模型 id 与 `dtype: q8` 不得改（`vector_chunks` 按 modelId 匹配） |
-| E3 Node/npm 版本 | **升 22.22.x 支线 + 单源** | `.nvmrc`/`.node-version` = `22.22.2`；`engines` 收紧 `>=22.22.2 <23`；CI 四处改 `node-version-file: .nvmrc` |
+| E3 Node/npm 版本 | **升 22.22.x 支线 + 单源** | 已落地（细化：pin 与 floor 同取 22.22.x 支线最新补丁 **22.22.3** —— nodejs.org dist index 2026-09-28 实测 22.22.0/.1/.2/.3 均存在；`engines` = `>=22.22.3 <23`；CI 四处改 `node-version-file: .nvmrc`） |
 | E4 会话隔离 | **不新增规范文档** | 两条硬规则并入 `docs/specs/multi-agent-workflow.md`（同文件禁并发改 / 每单元必须提交） |
 | E5 双账本 | **冻结旧账本** | `docs/plans/README.md` 标只读存档 + 指向根 `plans/README.md` |
 | E7 架构图集 | **补两节 + 复核日期** | `docs/architecture/` 补「知识谱系」「能力链路/能力引用」两节 |
 | E1 push | 阻塞在用户 | 终端 `gh auth login -h github.com` → 我方 `git push` |
+
+## 执行记录（2026-09-28）
+
+| 单元 | 提交 | 内容 |
+|---|---|---|
+| E6 收尾 | `78e77e5` | 激活漏斗离线复测工具（4 files，+360）；tsc/eslint 0、测试 4/4 |
+| 对账 #2/#3/#4 | `836cf19` | 262 批次 A 行回填、需解锁契约面结案、`architecture-review.md` 复核块（5 files，+37/−14） |
+| E3/E4/E5 | 本次提交 | 版本声明单源（pin `22.22.3` / `engines >=22.22.3 <23` / CI 四处 `node-version-file` / 守卫测试 2 例）、同 checkout 串行写入规则入规格、`docs/plans/README.md` 冻结 + 根账本唯一权威指针 |
