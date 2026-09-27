@@ -158,12 +158,12 @@
 
 | 项 | 缺什么 | 最小获取动作 |
 |---|---|---|
-| **前端 2 个失败用例未定位** | 全量跑以 `tail` 收集，只留下汇总 `2 failed / 840 passed + 10 unhandled errors`；未重跑定位（会再加 40 分钟竞争） | **M2 落地后**一次无竞争全量跑，用 `--reporter=json --outputFile` 收全，交出两个用例名；同时判读那 10 个 unhandled error（定向复跑里满屏 `not wrapped in act(...)`，这类问题目前不判失败） |
-| F5 第五/六类裁决门 | `legacy-artifact-structuring/confirm`、`capability-migration/apply\|confirm` 三个 handler 的语义未读 | 读三个 handler，判定是否写权威存储 |
-| F6 get/list 未消毒 `style` | 白标残留面未追 | 定向追一次 `listSkills` 的消毒覆盖 |
-| F7 `Scene` 类型 | 未定性是否死模型 | 全仓引用检索 |
-| F9 `vector_chunks` 扫描 | 无真实分布数据，且本轮机器被并发占满 | 取 `vector-store.ts:116` 埋点的生产分布再决策 |
-| 性能结论 | 本轮所有耗时数字受 3 会话并发污染 | 在 M2 之后重跑 |
+| ~~**前端 2 个失败用例未定位**~~ **已关闭（2026-09-28）** | 全量跑以 `tail` 收集，只留下汇总 `2 failed / 840 passed + 10 unhandled errors`；未重跑定位（会再加 40 分钟竞争） | **M2 落地后**一次无竞争全量跑，用 `--reporter=json --outputFile` 收全，交出两个用例名；同时判读那 10 个 unhandled error（定向复跑里满屏 `not wrapped in act(...)`，这类问题目前不判失败）；**已完成（2026-09-28）**：无竞争全量前端 `161 files / 1022 tests` 全绿 0 failed（日志 `/tmp/audit-fe2.log`，Duration 2563.39s），2026-09-18 基线（2 failed / 840 passed）的 2 例已随 840→1022 用例迁移消失；`not wrapped in act(...)` 为环境级提示，不计失败、不影响退出码 |
+| ~~F5 第五/六类裁决门~~ **已关闭（2026-09-28）** | — | 三个 handler 已读：`legacy-artifact-structuring/confirm`（`server/routes/legacy-artifact-structuring.ts:149-188` → `server/helpers/legacy-artifact-structuring.ts:252-300`）—— outline 类走 `createCanonPatch`+`acceptCanonPatch`（机制 A）、其余走 `saveArtifactVersion({expectedVersion,…})`（机制 B），preview 有 TTL 15 min / 代际 / 源指纹三道校验；`capability-migration/apply|confirm`（`server/routes/capability-migration.ts:66-164`）在 `runInSerializedWriteForGeneration` 内重算指纹（不符 → `STALE_CANDIDATE`）→ `mergeMigratedProfile` + `validateCapabilityProfile` → `updateNovel`，幂等双通道（内存 `applied` Map + 持久化 `migrationReceipt{token,generation}`）。结论：**均为权威写入路径，无旁路** |
+| F6 get/list 未消毒 `style` | 2026-09-28 复核：`/api/db` 读路径 = `server/lib/db/skills.ts:171-177 listSkills()` → `skillCrud.list()` 直通，**无内容级消毒**（映射层只搬 `sanitization_status`，`server/lib/db-mappers.ts:138/284`）；白标保护仅存在于渲染投影两条路径 | 定向追一次「是否有 UI 直接从该读路径渲染 `style`」（本轮未做；若只有代理/内部消费者可结案） |
+| ~~F7 `Scene` 类型~~ **已定性（2026-09-28）** | — | **死模型**：声明于 `shared/types/novel.ts:309-322`，全仓零引用（正则 `(?<![A-Za-z_$])Scene(?![A-Za-z_$])` 命中 8 处：7 处为文案 “Scene Beats / Scene Contract”，1 处即声明本身）；无 `scenes` 表（`CREATE TABLE IF NOT EXISTS scenes` 0 命中）。处置待拍板：删除 / 标注为未接线声明 |
+| F9 `vector_chunks` 扫描 | 2026-09-28 复核：仍无真实分布数据（本机 8 部作品为狗粮数据） | 取 `vector-store.ts:116` 埋点的生产分布再决策 |
+| ~~性能结论~~ **已关闭（2026-09-28）** | — | 单写入者纪律下的基线：全量后端 `1465/1465`，Duration **275,783 ms**（`/tmp/audit-be.log`）；全量前端 `1022/1022`，Duration **2563.39 s**（与 pre-commit 全仓 tsc 并发，属上界，安静环境更快）。2026-09-18 的「受 3 会话并发污染」数字不再引用 |
 
 ---
 
