@@ -41,7 +41,7 @@
 - 226 的冷启动证据分定义 title 不动
 
 **Out of scope**：
-- 适合度权重重设计（反馈 20 分空转属缺口 E 反馈环，待拍板）
+- 适合度权重重设计（反馈 20 分空转属缺口 E 反馈环，待拍板） → **2026-09-28 复核：前置已变，遗留仍在**。Plan 241 已把反馈聚合与采集点接线（`skill_usage_records` → `syncSkillFeedbackScores` → `feedbackScore`），但适合度分仍未消费它：唯一生产调用点 `src/components/skills/StyleShelf.tsx:172` 只传 `{ novelGenreTokens, novelPlatform }`；`src/lib/capability-shelf.ts:263-271` 无样本时按重分配计分。接不接属产品决策（接入须同时满足 Plan 150「两通道分开展示」约束）——已登记至 `plans/README.md` Round 46，不排期。
 - 适合度理由（reasons）的展示增强
 
 ## Steps

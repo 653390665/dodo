@@ -49,7 +49,7 @@
 
 P0 先行（互相独立）：173 撤销栈 / 174 删除确认 / 175 驾驶舱入口 / 176 超时治理
 177 审稿链路正确性 → 178 编辑器数据流互斥（同文件 useDraftGeneration，先后执行）
-186 HTTP/持久层测试安全网 → 189 服务端架构收敛 → 190 依赖升级（xenova 豁免 2026-09-30 到期，190 内 Step 1 最优先）
+186 HTTP/持久层测试安全网 → 189 服务端架构收敛 → 190 依赖升级（**已解除**：Plan 190 Step 1 已把 `@xenova/transformers` 换成 `@huggingface/transformers`，`.github/workflows/build.yml:36-39` 的 `exemptions` 已清空并注明；2026-09-28 复核）
 187 E2E/CI 独立；182 全量加载 → 183 SSE 节流（建议顺序，非硬依赖）
 185 消毒边界独立；181 UX 一致性依赖 175（全屏文案若 175 已处理则跳过该子步）
 191 文档 DX 独立；192/193/194 方向 spike 待产品决策；195 SkillsStudio 分解独立
@@ -658,4 +658,5 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 护栏通道：12 张 core-default 无条件注入（基线 writer 已含 7 个护栏块）；唯一 `stage=review` 护栏 `review-schema-v2` 是壳卡被过滤 → critic 永无护栏。
 - 链路面：30 步可运行 16/仅引导 14；引用资产 22/179（runtime-ready 133 张中 111 张从未被引用）；cardRef 实例 0；旧 `qualityGate` 30 处仍进提示词 vs 新 `gate` 2 处（诊断时读数；C1–C5 后：34 步 / 可运行 21（61.8%）/ 仅引导 13、引用资产 26/182、cardRef 6 步、能力引用 2 步、`qualityGate` 已删；见各 C 行）
 - 清洗面：179→132 公开；拒 6 张；41 张通过准入却不在公开目录；46 张 needs-sanitization 中 33 张产副本、13 张永不产副本。
+- 新登记残余（2026-09-28 复核，非 262/263 范围）：适合度分的「使用反馈」通道仍未接线 —— Plan 241 已交付反馈聚合与采集点（`ChapterCapabilityFeedbackBar` → `skill_usage_records` → `syncSkillFeedbackScores` → `feedbackScore`），但唯一生产调用点 `src/components/skills/StyleShelf.tsx:172` 只传 `{ novelGenreTokens, novelPlatform }`，`src/lib/capability-shelf.ts:263-271` 在无样本时改走权重重分配（题材 +12 / 平台 +8）→ 公式里的 20 分反馈项在生产路径上永不生效；接不接属产品决策（若接入，须同时满足 Plan 150 的展示约束：冷启动分与使用反馈分两通道分开展示，不得显示成统一质量分）。证据：全仓 `computeCardFitness(` 调用点仅 1 处生产代码。
 - E2 已交付（2026-09-28，Plan 263）：打包态嵌入模型路径 —— 拍板①随包附权重。单源 `scripts/lib/embedding-weights.mjs`（模型 id / 4 文件清单 / ≥20 MB 判据）+ `scripts/fetch-embedding-model.mjs`（来源：本地 `INKFLOW_MODEL_SOURCE_DIR` → `node_modules/@huggingface/transformers/.cache` → HF Hub；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过）；`package.json` `model:fetch` + `package` 链插取权重 + `build.extraResources` → `resources/embedding-model/`；`server/embedding.ts` `resolveEmbeddingAssetPaths`（齐备 → `localModelPath` + 关远程；不全 → 只设 `cacheDir`）+ 就绪日志打印 `{ localModelPath, cacheDir, allowRemoteModels }`；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` 与 `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache，dev 不注入）；`scripts/check-package-artifacts.mjs` 增权重断言。读数：取权重 4 文件 23.3 MB 全部来自本地缓存、tsc/lint 0、`tests/embedding-model-assets.test.ts` 9/9、受影响面 23/23。残余：打包态真机验证需联网（`npm run package` 拉 Electron 头）。
