@@ -1,12 +1,12 @@
 /**
  * 批次 D · 记忆健康度看板（2026-09-27）：驾驶舱只读面板。
  *
- * 只渲染服务端 `/api/novels/:novelId/memory-health` 返回的四项指标（口径在
+ * 只渲染服务端 `/api/novels/:novelId/memory-health` 返回的五项指标（口径在
  * `shared/lib/memory-health.ts`，与后端同源）；本地不做任何再计算。
  *
  * 诚实性（沿用 llm-status-honesty 口径）：
  * - 指标为 null → 显示「未知」（琥珀降级），不显示 0；
- * - 读取失败 → 保留上一次成功值并给出可读错误；从未成功过则四项均显示「未知」。
+ * - 读取失败 → 保留上一次成功值并给出可读错误；从未成功过则五项均显示「未知」。
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
@@ -19,6 +19,8 @@ import {
 } from '../../shared/lib/memory-health';
 
 const UNKNOWN_VALUE_CLASS = 'text-amber-800';
+/** 越过阈值的告警值（与「未知」同为琥珀降级视觉，含义不同：不健康 ≠ 数据缺失）。 */
+const WARNING_VALUE_CLASS = 'text-amber-700';
 const KNOWN_VALUE_CLASS = 'text-theme-text';
 
 export function MemoryHealthPanel({ novelId }: { novelId: string }) {
@@ -76,12 +78,21 @@ export function MemoryHealthPanel({ novelId }: { novelId: string }) {
           <div key={metric.key} data-testid={`memory-health-metric-${metric.key}`}>
             <span className="block text-[10px] text-theme-muted">{metric.label}</span>
             <span
-              className={`font-bold ${metric.value === null ? UNKNOWN_VALUE_CLASS : KNOWN_VALUE_CLASS}`}
+              className={`font-bold ${
+                metric.value === null
+                  ? UNKNOWN_VALUE_CLASS
+                  : metric.severity === 'warn'
+                    ? WARNING_VALUE_CLASS
+                    : KNOWN_VALUE_CLASS
+              }`}
             >
               {memoryHealthValueLabel(metric)}
             </span>
             {metric.detail ? (
               <span className="block text-[10px] text-theme-muted">{metric.detail}</span>
+            ) : null}
+            {metric.thresholdNote ? (
+              <span className="block text-[10px] text-amber-800">{metric.thresholdNote}</span>
             ) : null}
             {metric.unknownReason ? (
               <span className="block text-[10px] text-theme-muted">{metric.unknownReason}</span>

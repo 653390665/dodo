@@ -39,7 +39,7 @@
 | D1 | 13 步「仅引导」补正文 | 按链（C3 后实测 `scratch/c4-perchain.ts`）：番茄 4（step2/3/4/5，其中 step2/3 已挂 cardRef 但 assetId 仍为壳）/ 风华 4（step1/2/3/5）/ 天马 3（step1/2/4）/ 小飞鸡 1（step1）/ 拆书 1（step2）/ 通用 0；当前 19/32 可运行（59.4%），到 80% 需再补 7 步（32×0.8=25.6→ 26 可运行） |
 | D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | ✅ 已交付（2026-09-28，Plan 263）：`chapter_versions.content_hash` + stale 判定 + 时光机徽标 |
-| D4 | 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` |
+| D4 | 记忆健康度补完 | ✅ 已交付（2026-09-28，Plan 263）：新增「伏笔欠账」指标 + 一条硬阈值告警（阈值单源 `MAX_ARREARS_IN_PROMPT`，越线琥珀 + 阈值说明）；其余指标仍只显示数值 + 未知降级；整体阈值口径挂 E6 真实数据（RAG 缓存 / 孤立节点并入口径未做） |
 | D5 | 长篇记忆基线补完 | 样本为确定性合成长书；回声口径为「token 是否进请求」；planner/critic 未纳入；未接 CI |
 | D6 | 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） |
 
@@ -204,6 +204,14 @@
 - 落地：`server/lib/db-init.ts:379-387` 建表加 `content_hash TEXT` + `ensureColumn('chapter_versions', 'content_hash', 'TEXT')` 迁移；`server/lib/db-mappers.ts` 新增 `hashChapterContent()`（sha256 原文 utf8，**不做空白归一化**）、`rowToChapterVersion` 读、`chapterVersionToRow` 写（`cv.contentHash ?? hashChapterContent(cv.content)`）；`server/lib/db/chapters.ts:139-149` `insertColumns` 与 `:242` accept 前置快照 raw INSERT 均补列（漏列会被静默丢弃）；`listChapterVersionMetas` 返回 `contentHash` + `matchesCurrentContent`（NULL → null = 旧快照）；`src/components/AgentWorkspaceVersionsPanel.tsx` 卡片徽标「＝ 当前正文 / ≠ 与当前正文不同 / 来源未知（旧快照）」。
 - 证据：`tests/chapter-version-content-hash.test.ts` 5/5（手动快照指纹 / 正文更新后不同 / 旧行 NULL → 未知 / accept 前置快照带指纹 / 不归一化）、`src/tests/agent-workspace-versions-panel.test.tsx` 3/3、`src/tests/chapter-versions.test.ts` 夹具补两字段 1/1；tsc 0 / eslint 0。
 - 取证副产品：`tests/db-import-serialization.test.ts` 的 1 例失败经 worktree 基线（HEAD `86ebb62`）复核为**调用方式缺陷**（漏 `NODE_ENV=test` → `isMonetizationEnabled()` 假 → `reserveQuota` 返回 `{allowed:true}` 无 `reservationId`），非回归；`AGENTS.md:26` 的定向命令已据此修正。
+### D4 记忆健康度告警阈值 — 2026-09-28（Plan 263 执行）
+
+- 拍板：**只设一条有代码依据的硬阈值**，其余指标维持「只显示数值 + 未知降级」；整体阈值口径挂 E6 的真实数据（`docs/research/activation-funnel-runbook.md`）。
+- 阈值单源：`shared/lib/knowledge-capabilities.ts` 新增 `export const MAX_ARREARS_IN_PROMPT = 12;`（注释点名两个消费者）；`server/helpers/knowledge-lineage-enrich.ts` 删除本地同名常量（原 `:175`）改 import —— 该值原本只是 critic 核对清单的注入预算（欠账截断），现在同时作为面板告警线（同一业务含义：超过预算就漏看）。
+- 指标扩为五项：`MEMORY_HEALTH_METRIC_KEYS` = `openForeshadowings` / **`foreshadowArrears`（新增，标签「伏笔欠账」）** / `orphanNodes` / `staleKnowledge` / `ragHits`；`foreshadowArrears` 值与 `buildForeshadowSettlementChecklist(...).arrears` 同源；取数侧 `hasLedger ? (checklist?.arrears ?? 0) : graphIngested ? 0 : null`（未摄入 → 未知，不按 0 计，沿用 §5.9 口径）。
+- 告警形态：`MemoryHealthMetric` 增 `severity?: 'warn'` 与 `thresholdNote?: string`；`isForeshadowArrearsWarning(arrears)` = `arrears !== null && arrears > MAX_ARREARS_IN_PROMPT`；越线时 `severity:'warn'` + `thresholdNote: 超过核对清单注入预算（> 12 条）`；`src/components/MemoryHealthPanel.tsx` 新增 `WARNING_VALUE_CLASS = 'text-amber-700'`（与「未知」的 `text-amber-800` 区分：一个是数据缺失，一个是数据越线）并展示阈值说明。
+- 证据：`tests/memory-health.test.ts` **6/6**（五项同源 / 未摄入五项未知 / 越界 warn + thresholdNote / 边界 12 不告警）、`src/tests/memory-health-panel.test.tsx` **5/5**（越线琥珀 + 阈值说明，且未越线指标不出现阈值说明）、`src/tests/cockpit-memory-health-mount.test.tsx` **2/2**；tsc 0 / eslint 0。
+- 未做（诚实登记）：① 只定了一条阈值（伏笔欠账），RAG 命中 / 孤立节点 / 失效知识的阈值需真实数据才能定（不拍脑袋）；② 告警只在驾驶舱面板出现，未进状态栏 / 通知；③ 欠账口径依赖「当前章 order」，无章节时无法判定（沿用未知降级）。
 ### E6 复测工具：激活漏斗离线报告 — 2026-09-28
 
 **问题**：2026-09-22 复测暴露的读数（1016 事件 / 442 会话 / 8 作品；旧账本 152→0→1 与事实不符）来自一次性

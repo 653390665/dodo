@@ -4,7 +4,7 @@
  * 与 `world-job-client` 不同，知识谱系抽取是同步的确定性动作（解析资料包 + 幂等入库），
  * 因此直接携带数据库代际调用作品级路由，不做轮询；代际冲突由服务端回 409。
  *
- * 批次 D（2026-09-27）追加只读 `fetchMemoryHealth`：记忆健康度看板四项指标的唯一取数口。
+ * 批次 D（2026-09-27）追加只读 `fetchMemoryHealth`：记忆健康度看板五项指标的唯一取数口。
  */
 import type {
   KnowledgeCapabilityRunResult,

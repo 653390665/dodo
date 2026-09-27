@@ -2,7 +2,7 @@
  * 批次 D · 记忆健康度看板（/api/novels/:novelId/memory-health）验收测试。
  *
  * 覆盖小类三条验收：
- * ① 四项指标可见（本文件覆盖接口面与数值；界面见 src/tests/memory-health-panel.test.tsx）；
+ * ① 五项指标可见（本文件覆盖接口面与数值；界面见 src/tests/memory-health-panel.test.tsx）；
  * ② 数据缺失显示未知——对应项返回 null + unknownReason，绝不折算 0；
  * ③ 口径与后端计算同源——响应逐项等于既有单源函数（checklist / stale 计数 / 孤立节点纯函数）结果。
  */
@@ -14,7 +14,10 @@ import { initDb } from '../server/lib/db-init.js';
 import * as db from '../server/lib/db.js';
 import { registerUtilityRoutes } from '../server/routes/utilities.js';
 import { MemoryHealthError, collectMemoryHealth } from '../server/helpers/memory-health.js';
-import { buildForeshadowSettlementChecklist } from '../shared/lib/knowledge-capabilities.js';
+import {
+  buildForeshadowSettlementChecklist,
+  MAX_ARREARS_IN_PROMPT,
+} from '../shared/lib/knowledge-capabilities.js';
 import {
   computeOrphanEntityIds,
   memoryHealthMetricByKey,
@@ -185,7 +188,7 @@ async function getMemoryHealth(novelId: string) {
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
 }
 
-test('四项指标逐项等于既有单源计算（同源）且顺序固定', async () => {
+test('五项指标逐项等于既有单源计算（同源）且顺序固定', async () => {
   freshDb();
   const novelId = 'mh-sync';
   db.createNovel(novel(novelId));
@@ -243,9 +246,13 @@ test('四项指标逐项等于既有单源计算（同源）且顺序固定', as
     '指标顺序固定'
   );
   const open = memoryHealthMetricByKey(snapshot.metrics, 'openForeshadowings');
+  const arrears = memoryHealthMetricByKey(snapshot.metrics, 'foreshadowArrears');
   const orphans = memoryHealthMetricByKey(snapshot.metrics, 'orphanNodes');
   const stale = memoryHealthMetricByKey(snapshot.metrics, 'staleKnowledge');
   assert.equal(open?.value, expected.openCount);
+  assert.equal(arrears?.value, expected.arrears, '欠账与 foreshadow-settle 清单同源');
+  assert.equal(arrears?.label, '伏笔欠账');
+  assert.equal(arrears?.severity, undefined, '未越阈值不告警');
   assert.equal(orphans?.value, expectedOrphans.length);
   assert.equal(stale?.value, expectedStale.staleLedger + expectedStale.staleEdges);
   assert.equal(stale?.detail, `台账 ${expectedStale.staleLedger} · 关系边 ${expectedStale.staleEdges}`);
@@ -273,13 +280,37 @@ test('四项指标逐项等于既有单源计算（同源）且顺序固定', as
   );
 });
 
+test('欠账越过 critic 注入预算：标 warn + 阈值说明（阈值单源 = MAX_ARREARS_IN_PROMPT）', async () => {
+  freshDb();
+  const novelId = 'mh-arrears';
+  db.createNovel(novel(novelId));
+  seedPack(novelId);
+  seedChapter(novelId, 'ch-1', 1, '开篇');
+  seedChapter(novelId, 'ch-2', 2, '发展');
+  for (let index = 0; index <= MAX_ARREARS_IN_PROMPT; index += 1) {
+    seedForeshadowing(novelId, 'f-arrears-' + index, '欠账 ' + index, 'planted', 'Ch001');
+  }
+
+  const overBudget = await collectMemoryHealth(novelId);
+  const warning = memoryHealthMetricByKey(overBudget.metrics, 'foreshadowArrears');
+  assert.equal(warning?.value, MAX_ARREARS_IN_PROMPT + 1);
+  assert.equal(warning?.severity, 'warn');
+  assert.match(String(warning?.thresholdNote), /注入预算/);
+
+  // 边界：恰好等于预算不告警（> 才算越界）。
+  db.deleteForeshadowing('f-arrears-0');
+  const atBudget = await collectMemoryHealth(novelId);
+  const boundary = memoryHealthMetricByKey(atBudget.metrics, 'foreshadowArrears');
+  assert.equal(boundary?.value, MAX_ARREARS_IN_PROMPT);
+  assert.equal(boundary?.severity, undefined);
+});
 test('从未摄入资料包：图谱三项返回未知而非 0，RAG 亦未知', async () => {
   freshDb();
   const novelId = 'mh-empty';
   db.createNovel(novel(novelId));
 
   const snapshot = await collectMemoryHealth(novelId);
-  for (const key of ['openForeshadowings', 'orphanNodes', 'staleKnowledge'] as const) {
+  for (const key of ['openForeshadowings', 'foreshadowArrears', 'orphanNodes', 'staleKnowledge'] as const) {
     const metric = memoryHealthMetricByKey(snapshot.metrics, key);
     assert.equal(metric?.value, null, `${key} 不得以 0 顶替`);
     assert.ok(metric?.unknownReason, `${key} 必须给出未知原因`);

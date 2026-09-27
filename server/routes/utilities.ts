@@ -86,7 +86,7 @@ export function registerUtilityRoutes(app: Express): void {
       });
     }
   });
-  // 批次 D：记忆健康度看板——四项指标只取数，语义与未知口径由 shared/lib/memory-health.ts 单源定义。
+  // 批次 D：记忆健康度看板——五项指标只取数，语义与未知口径由 shared/lib/memory-health.ts 单源定义。
   app.get('/api/novels/:novelId/memory-health', async (req, res) => {
     try {
       const snapshot = await collectMemoryHealth(req.params.novelId);

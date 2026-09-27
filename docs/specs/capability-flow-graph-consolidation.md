@@ -933,6 +933,19 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 
 **残余**：能力引用目前只支持「作品级同步动作」（服务端 run 路由仅两张卡，`_NO_KERNEL` 是硬边界，新增内核须同步白名单）；运行结果不落库（确定性动作本身幂等，回执只在界面）；`capabilityRef` 尚无其他消费方（生产回执 / 审计未带该元数据）。
 
+### 5.20 记忆健康度告警阈值（Plan 263 D4）
+
+**问题**：§5.9 的四个指标只展示数值，没有一条「记忆不健康」的判定口径 —— 面板看得见数字，看不出「该处理了」；而阈值若各处自定，又会变成第三份口径。
+
+**拍板口径（2026-09-28）**：只设**一条**有代码依据的硬阈值，其余指标维持「只显示数值 + 未知降级」；整体阈值口径挂 E6 的真实数据（`docs/research/activation-funnel-runbook.md`）。
+
+- **阈值单源**：`shared/lib/knowledge-capabilities.ts` 导出 `export const MAX_ARREARS_IN_PROMPT = 12;`（注释点名两个消费者）；`server/helpers/knowledge-lineage-enrich.ts` 删除本地同名常量（原 `:175`）改 import —— 该值原本只是 critic 核对清单的**注入预算**（欠账截断），现在同时作为面板告警线（同一业务含义：超过预算就漏看）。
+- **指标扩为五项**：`MEMORY_HEALTH_METRIC_KEYS = ['openForeshadowings', 'foreshadowArrears', 'orphanNodes', 'staleKnowledge', 'ragHits']`；新增 `foreshadowArrears`（标签「伏笔欠账」），值与 `buildForeshadowSettlementChecklist(...).arrears` 同源；`MemoryHealthInput` 增 `foreshadowArrears: number | null` + `foreshadowArrearsUnknownReason?`；取数侧 `hasLedger ? (checklist?.arrears ?? 0) : graphIngested ? 0 : null`（未摄入 → 未知，不按 0 计，沿用 §5.9 口径）。
+- **告警形态**：`MemoryHealthMetric` 增 `severity?: 'warn'` 与 `thresholdNote?: string`；`isForeshadowArrearsWarning(arrears)` = `arrears !== null && arrears > MAX_ARREARS_IN_PROMPT`；越线时 `severity:'warn'` + `thresholdNote: 超过核对清单注入预算（> 12 条）`；面板新增 `WARNING_VALUE_CLASS = 'text-amber-700'`（与「未知」的 `text-amber-800` 区分：一个是数据缺失，一个是数据越线）并在 `unknownReason` 之前展示 `thresholdNote`。
+
+**证据**：`tests/memory-health.test.ts` **6/6**（五项同源 / 未摄入五项未知 / 越界 warn + thresholdNote / 边界 12 不告警）、`src/tests/memory-health-panel.test.tsx` **5/5**（越线琥珀 + 阈值说明；未越线指标不出现阈值说明）、`src/tests/cockpit-memory-health-mount.test.tsx` **2/2**；tsc 0 / eslint 0。
+
+**未做（诚实登记）**：① 只定了一条阈值（伏笔欠账），RAG 命中 / 孤立节点 / 失效知识的阈值需真实数据才能定（不拍脑袋）；② 告警只在驾驶舱面板出现，未进状态栏 / 通知；③ 欠账口径依赖「当前章 order」，无章节时无法判定（沿用未知降级）。
 ### 批次 C：图谱可编排 + 维护闭环
 
 1. 新增 `knowledge-extract`（素材→图谱）与 `foreshadow-settle`（伏笔回收核对）能力；✅ 2026-09-25（见 §5.5，含卡/解析/执行 API）
@@ -974,6 +987,8 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 
 #### 5.9 记忆健康度看板（批次 D 小类「记忆健康度看板」）
 
+> 2026-09-28 更新（Plan 263 D4）：面板已扩为**五项**指标（新增「伏笔欠账」）并加一条硬阈值告警，见 §5.20；本节保留批次 D 交付时的四项原文。
+
 **目标**：驾驶舱暴露四项长期记忆指标，并在数据缺失时显示「未知」而不是 0（遵循 `docs/specs/llm-status-honesty.md` 的诚实性口径）。
 
 **单源（`shared/lib/memory-health.ts`，纯逻辑无 IO）**
@@ -1004,7 +1019,7 @@ tsc 0、eslint 0、后端全量 1413/1413（+6）、快照六场景逐项不变�
 **残余（已登记）**
 - RAG 命中为「按需现算」（打开驾驶舱触发一次检索），未缓存、无历史快照；
 - 孤立节点只看 `entity_relationships`，不看章节出场（世界实体无章节溯源列）；
-- 只做了驾驶舱形态，未做状态栏形态；四个指标只展示数值，无阈值/告警。
+- 只做了驾驶舱形态，未做状态栏形态。（2026-09-28 更新：阈值告警已由 §5.20 补上一条 —— 伏笔欠账越注入预算；其余指标仍只展示数值。）
 
 #### 5.10 长篇记忆基线（批次 D 小类「长篇记忆基线」）
 

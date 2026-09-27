@@ -101,6 +101,14 @@ function normalizeStatus(status: string): ForeshadowSettlementStatus {
 }
 
 /**
+ * 核对清单 / 提示块里最多牵引多少条「欠账」旧伏笔（上下文预算上限）。
+ *
+ * 单一事实源：server/helpers/knowledge-lineage-enrich.ts（注入截断）与
+ * shared/lib/memory-health.ts（记忆健康度告警阈值）都读这一个常量。
+ */
+export const MAX_ARREARS_IN_PROMPT = 12;
+
+/**
  * 未回收伏笔核对清单（foreshadow-settle 的核心产出）。
  *
  * 判定沿用 `loadForeshadowingContext` 的既有口径：status !== 'payoff' 即未回收；

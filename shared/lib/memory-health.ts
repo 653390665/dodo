@@ -1,5 +1,5 @@
 /**
- * 批次 D · 记忆健康度看板（2026-09-27）：四项指标的单一口径。
+ * 批次 D · 记忆健康度看板（2026-09-27）：五项指标的单一口径。
  *
  * 纯逻辑，不读库、不发请求：
  * - 服务端 `server/helpers/memory-health.ts` 负责取数（台账 / 伏笔 / 图边 / 向量索引 / 嵌入状态），
@@ -11,8 +11,11 @@
  * 界面渲染为「未知」，绝不以 0 代替；0 只在真实取到 0（查询成功且确为 0）时出现。
  */
 
+import { MAX_ARREARS_IN_PROMPT } from './knowledge-capabilities.js';
+
 export const MEMORY_HEALTH_METRIC_KEYS = [
   'openForeshadowings',
+  'foreshadowArrears',
   'orphanNodes',
   'staleKnowledge',
   'ragHits',
@@ -34,6 +37,7 @@ export const MEMORY_HEALTH_UNKNOWN_TEXT = '未知';
 
 export const MEMORY_HEALTH_METRIC_LABELS: Record<MemoryHealthMetricKey, string> = {
   openForeshadowings: '未回收伏笔',
+  foreshadowArrears: '伏笔欠账',
   orphanNodes: '孤立节点',
   staleKnowledge: '失效知识',
   ragHits: 'RAG 命中',
@@ -46,6 +50,10 @@ export interface MemoryHealthMetric {
   value: number | null;
   detail?: string;
   unknownReason?: string;
+  /** 越过有代码依据的阈值时出现（当前仅「伏笔欠账 > MAX_ARREARS_IN_PROMPT」）。 */
+  severity?: "warn";
+  /** 阈值说明（越阈值时展示，供界面标注告警依据）。 */
+  thresholdNote?: string;
 }
 
 export interface MemoryHealthEntityRef {
@@ -67,6 +75,9 @@ export interface MemoryHealthInput {
   /** 未回收伏笔（planted / hinted）条数；null = 台账不可用。 */
   openForeshadowings: number | null;
   openForeshadowingsUnknownReason?: string;
+  /** 伏笔欠账：埋设章序早于当前章且未回收；null = 台账不可用。 */
+  foreshadowArrears: number | null;
+  foreshadowArrearsUnknownReason?: string;
   /** 孤立节点（无任何关系边引用）个数；null = 图谱不可判定。 */
   orphanNodes: number | null;
   orphanNodesUnknownReason?: string;
@@ -110,12 +121,12 @@ export function memoryHealthUnknownMetric(
   return { key, label: MEMORY_HEALTH_METRIC_LABELS[key], value: null, unknownReason };
 }
 
-/** 全部四项指标均为缺失态（请求失败 / 尚无数据时的界面回退）。 */
+/** 全部五项指标均为缺失态（请求失败 / 尚无数据时的界面回退）。 */
 export function memoryHealthUnknownMetrics(unknownReason: string): MemoryHealthMetric[] {
   return MEMORY_HEALTH_METRIC_KEYS.map((key) => memoryHealthUnknownMetric(key, unknownReason));
 }
 
-/** 组装四项指标（顺序固定 = `MEMORY_HEALTH_METRIC_KEYS`）。 */
+/** 组装五项指标（顺序固定 = `MEMORY_HEALTH_METRIC_KEYS`）。 */
 export function buildMemoryHealthMetrics(input: MemoryHealthInput): MemoryHealthMetric[] {
   const openMetric: MemoryHealthMetric =
     input.openForeshadowings === null
@@ -124,6 +135,21 @@ export function buildMemoryHealthMetrics(input: MemoryHealthInput): MemoryHealth
           key: 'openForeshadowings',
           label: MEMORY_HEALTH_METRIC_LABELS.openForeshadowings,
           value: input.openForeshadowings,
+        };
+
+  const arrearsMetric: MemoryHealthMetric =
+    input.foreshadowArrears === null
+      ? memoryHealthUnknownMetric('foreshadowArrears', input.foreshadowArrearsUnknownReason ?? '暂无伏笔台账数据')
+      : {
+          key: 'foreshadowArrears',
+          label: MEMORY_HEALTH_METRIC_LABELS.foreshadowArrears,
+          value: input.foreshadowArrears,
+          ...(isForeshadowArrearsWarning(input.foreshadowArrears)
+            ? {
+                severity: 'warn' as const,
+                thresholdNote: '超过核对清单注入预算（> ' + MAX_ARREARS_IN_PROMPT + ' 条）',
+              }
+            : {}),
         };
 
   const orphanMetric: MemoryHealthMetric =
@@ -155,7 +181,12 @@ export function buildMemoryHealthMetrics(input: MemoryHealthInput): MemoryHealth
           ...(input.ragDetail ? { detail: input.ragDetail } : {}),
         };
 
-  return [openMetric, orphanMetric, staleMetric, ragMetric];
+  return [openMetric, arrearsMetric, orphanMetric, staleMetric, ragMetric];
+}
+
+/** 欠账告警：超过 critic 核对清单注入预算（单一阈值来源）。 */
+export function isForeshadowArrearsWarning(arrears: number | null): boolean {
+  return arrears !== null && arrears > MAX_ARREARS_IN_PROMPT;
 }
 
 /** 指标值展示文案：缺失 → 「未知」，否则数字的字符串形式。 */

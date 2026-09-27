@@ -86,12 +86,13 @@ afterEach(() => {
 });
 
 describe('驾驶舱记忆健康度挂载', () => {
-  test('驾驶舱渲染面板，并显示服务端返回的四项指标', async () => {
+  test('驾驶舱渲染面板，并显示服务端返回的五项指标', async () => {
     fetchMemoryHealthMock.mockResolvedValue({
       novelId: novel.id,
       computedAt: '2026-09-27T00:00:00.000Z',
       metrics: buildMemoryHealthMetrics({
         openForeshadowings: 3,
+        foreshadowArrears: 2,
         orphanNodes: 2,
         staleLedger: 1,
         staleEdges: 1,
@@ -122,12 +123,12 @@ describe('驾驶舱记忆健康度挂载', () => {
     expect(screen.getByTestId('memory-health-metric-ragHits').textContent).toContain('4');
   });
 
-  test('读取失败时面板仍可见且四项显示未知', async () => {
+  test('读取失败时面板仍可见且五项显示未知', async () => {
     fetchMemoryHealthMock.mockRejectedValue(new Error('记忆健康度读取失败，请稍后重试。'));
 
     render(<ProjectCockpitView novel={novel} onNavigate={vi.fn()} />);
 
     await screen.findByTestId('memory-health-panel');
-    await waitFor(() => expect(screen.getAllByText('未知').length).toBe(4));
+    await waitFor(() => expect(screen.getAllByText('未知').length).toBe(5));
   });
 });

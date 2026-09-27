@@ -1,5 +1,5 @@
 /**
- * 批次 D · 记忆健康度看板（2026-09-27）：四项指标的取数与可用性判定。
+ * 批次 D · 记忆健康度看板（2026-09-27）：五项指标的取数与可用性判定。
  *
  * 职责边界：
  * - 本文件只做「取数 + 可用性策略」，指标口径（含孤立节点定义、未知文案）全部来自
@@ -92,6 +92,8 @@ export async function collectMemoryHealth(novelId: string): Promise<MemoryHealth
       })
     : null;
   const openForeshadowings = hasLedger ? (checklist?.openCount ?? 0) : graphIngested ? 0 : null;
+  // 欠账与 foreshadow-settle 清单同源；无台账但已摄入图谱 ⇒ 真实 0。
+  const foreshadowArrears = hasLedger ? (checklist?.arrears ?? 0) : graphIngested ? 0 : null;
 
   // 孤立节点：有实体或有边即可判定（全无关系 ⇒ 全部实体都是孤立节点，0 也可为真值）。
   const orphanNodes = entities.length > 0 || hasEdges || graphIngested ? orphanRefs.length : null;
@@ -129,6 +131,8 @@ export async function collectMemoryHealth(novelId: string): Promise<MemoryHealth
     metrics: buildMemoryHealthMetrics({
       openForeshadowings,
       ...(openForeshadowings === null ? { openForeshadowingsUnknownReason: GRAPH_UNKNOWN_REASON } : {}),
+      foreshadowArrears,
+      ...(foreshadowArrears === null ? { foreshadowArrearsUnknownReason: GRAPH_UNKNOWN_REASON } : {}),
       orphanNodes,
       ...(orphanNodes === null ? { orphanNodesUnknownReason: GRAPH_UNKNOWN_REASON } : {}),
       staleLedger: staleCounts?.staleLedger ?? null,

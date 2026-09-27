@@ -13,6 +13,7 @@ import {
   RELATIONSHIP_TYPE_SYNONYMS,
 } from './knowledge-lineage.js';
 import { resolveCuratedTechniquePrompt } from './curated-skill-runtime.js';
+import { MAX_ARREARS_IN_PROMPT } from '../../shared/lib/knowledge-capabilities.js';
 import type { Foreshadowing } from '../../shared/types';
 
 /**
@@ -171,8 +172,7 @@ export interface ForeshadowingContext {
   checklistBlock: string;
 }
 
-/** 提示块内最多牵引多少条旧伏笔，避免长线作品把上下文灌爆。 */
-const MAX_ARREARS_IN_PROMPT = 12;
+// 提示块内最多牵引多少条旧伏笔（单一事实源：shared/lib/knowledge-capabilities.ts）。
 
 /** 解析 `Ch012` / `Ch012_1` 形式的章节序号；无法解析返回 null。 */
 function chapterIndexOf(chapterId: string | null | undefined): number | null {

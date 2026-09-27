@@ -596,7 +596,7 @@ export function ProjectCockpitView({
                 </div>
               </div>
 
-              {/* 批次 D：记忆健康度看板（四项指标；数据缺失显示「未知」，不按 0 计） */}
+              {/* 批次 D：记忆健康度看板（五项指标；数据缺失显示「未知」，不按 0 计） */}
               <MemoryHealthPanel novelId={novel.id} />
 
               {/* Continuation Packs Detail */}
