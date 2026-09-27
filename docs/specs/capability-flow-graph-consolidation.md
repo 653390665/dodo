@@ -1,7 +1,7 @@
 # 规格：卡片 / 链路 / 知识图谱的收敛与联动
 
 Labels: diagnosis, ready-for-planning
-Status: 待评审（目标态已定义，迁移分批待排期）
+Status: 已交付（2026-09-28 复核：迁移分批 A–E 已由 Plan 262 / Plan 263 落地；唯 E6「真实用户样本复测」待真实用户。目标态与残余登记仍以本规格为唯一载体）
 Source: 2026-09-24 会话诊断（能力商店审计 + 链路审计 + 知识图谱审计 + 真实 provider 复测）
 
 ## 0. 一句话
@@ -488,7 +488,7 @@ B 步骤上，等于伪造归属）：
 「【番茄开篇诊断器 · 只诊断不改写】」，planner 阶段 prompt 含「【三幕式高潮规划器 · 只出结构不做正文】」与
 「【爽感节奏拆解器 · 只拆结构不抄原文】」，且三者均不含壳转投语「平台能力特化强化体」。
 
-残余：其余 14 步仍显式「仅引导」（番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2）；壳资产本身保留在治理目录中
+残余：其余 14 步仍显式「仅引导」（番茄 4 / 天马 3 / 拆书 1 / 风华 4 / 小飞鸡 2）→ **已交付（Plan 263 D1，`4b68c24`，2026-09-28）：7 步改指自撰内置卡，全库仅引导降至 6 步，见 §5.21**；壳资产本身保留在治理目录中
 （未删除，供作者自行引用或后续裁决）；`hook-system` / `square-*` 等同品牌转投壳仍在公开目录按原样呈现。
 
 回归（2026-09-25）：`npx tsc --noEmit` **0**；`npx eslint server src shared tests scripts --max-warnings=0` **0**；
@@ -556,7 +556,7 @@ extract 幂等、settle 清单、错误码、路由端到端含 stale 409）；`
 `scratch/stageprompts-snapshot.ts` 与门槛前**逐项哈希一致**（工具卡不进提示）；
 `scratch/card-role-coverage.ts` 176 张 **0 未映射**（transform 30→32）；全量 `npm test` **1358/1358**（+7）。
 
-**残余（登记不静默）**：步骤引用这两张卡（批次 C 第 4 条）未做；UI 入口已由 §5.6 交付（World Bible 图谱页一键重跑 + 九项数值），
+**残余（登记不静默）**：步骤引用这两张卡（批次 C 第 4 条）→ **已交付（Plan 262 C5，`d532881`，2026-09-28）：拆书 `book-deconstruction-flow-step3` 引 `knowledge-extract`、小飞鸡 `xiaofeiji-novel-flow-step9` 引 `foreshadow-settle`，见 §5.19**；UI 入口已由 §5.6 交付（World Bible 图谱页一键重跑 + 九项数值），
 驾驶舱内入口仍未加（**伏笔面板入口 2026-09-28 已加**，见 §5.6 末「D2 补记」）；工具卡不进写作提示是设计语义而非缺口；
 `unknown-card` 兜底分支仓内 0 触发。
 
@@ -645,7 +645,7 @@ coverage 组装暴露 `staleLedger` / `staleEdges`（经 `POST /api/novels/:id/k
 `npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0；后端定向 24/24；
 全量 `npm test` **1363/1363**（FULL_EXIT=0）；`scratch/stageprompts-snapshot.ts` 六场景哈希逐项不变。
 
-**残余（登记不静默）**：章节「回滚」（版本回退）未打标——当前只覆盖删除路径，回退需先定义"回退到哪个来源版本"；
+**残余（登记不静默）**：章节「回滚」（版本回退）未打标（**2026-09-28 部分销账，Plan 263 D3 `d342d4a`**：版本行新增 `content_hash`，改以「版本 hash ≠ 当前正文 hash ⇒ stale」判据，存量行显「未知」；**回退动作本身仍未实现**）——当前只覆盖删除路径，回退需先定义"回退到哪个来源版本"；
 `stale` 标记目前无「恢复/清除」入口（重跑 enrich 不清除，符合"只增不删"，但缺少人工确认恢复的动作）；
 章节作用域边的生产写入方仅测试夹具（章节 apply 尚不写边），故边走的是预留的口径匹配路径。
 
