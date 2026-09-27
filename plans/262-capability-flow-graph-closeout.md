@@ -53,7 +53,16 @@
 | E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 | **✅ 已交付（2026-09-28，Plan 263 E4）**：两条硬规则并入 `docs/specs/multi-agent-workflow.md`（单 checkout 串行写入 / 工作单元边界），不新增规范文件。
 | E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 | **✅ 已结案（2026-09-28，Plan 263 E5）**：`docs/plans/README.md` 冻结为只读存档，根 `plans/README.md` 为唯一权威账本。
 | E6 | 真实数据缺口 ◐ 复测工具已就绪（2026-09-28），样本待真实用户 | 现有漏斗（1016 事件/8 作品）是操作者狗粮，不足以定 P0；埋点口径三处已修，离线复测脚本 + runbook 已落盘（见下「E6 复测工具」） |
-| E7 | 架构图集漂移 | 取证停 2026-09-18（`84fb175`），未覆盖 Plan 261 + 四批次新链路（`docs/architecture-map.md` 只刷新计数） |
+| E7 | 架构图集漂移 ✅ 已交付（2026-09-28，Plan 263 E7） | 取证停 2026-09-18（`84fb175`），未覆盖 Plan 261 + 四批次新链路 —— 已在 `docs/architecture/inkflow.architecture-understanding.md` 补「十一、知识谱系」「十二、能力链路」两节 + 顶部复核行（2026-09-28 / `4b68c24`），`docs/architecture/README.md` 加复核声明 |
+
+### E7 架构图集补章：知识谱系 + 能力链路 — 2026-09-28（Plan 263 执行）
+
+- 补写位置：`docs/architecture/inkflow.architecture-understanding.md`（业务语言优先的 as-is 模型）新增两节：
+  - **十一、知识谱系**：续写资料包 → `foreshadowings` / `entity_relationships`（幂等、提案制）→ 两条消费路径（`server/helpers/knowledge-lineage-enrich.ts:242 loadForeshadowingContext` 接 planner/writer/critic；`server/routes/production.ts:295` → `shared/lib/story-state-ledger.ts:110` 接章节合同）→ 可执行能力端点（`server/routes/utilities.ts:53`）→ 观察面（记忆健康度五项、欠账阈值 12）。
+  - **十二、能力链路**：6 条技能序列流 / 34 步 → 步骤三通道（资产正文 / `cardRef` 卡片引用 / `capabilityRef` 能力引用）→ 装配与注入（`server/helpers/writing-style-service.ts:1164`、`:2026-2031`）→ 质量门三类 → 读数 28/34（82.4%）/ 仅引导 6（= 已挂 cardRef 的 6 步）。
+- 复核日期：两节明标「取证日期 2026-09-28（HEAD `4b68c24`）」，文件顶部加复核行；`docs/architecture/README.md` 顶部加复核声明（2026-09-28 / `4b68c24`）。
+- 顺手修正：文件末尾「本仓库未安装 Graphviz，故未产出 SVG」与实际不符（本机已装、6 张 `.dot` 已验证可渲染，`candidate-store-model.dot`/`flow-chapter-candidate.dot` 依赖 `newrank=true`）。
+- 残余（未纳入本节）：`docs/architecture/architecture-review.md` 的 R1–R11 仍是 2026-09-18 基线（已有 2026-09-28 复核块声明，见 P1 对账）；`inkflow.evidence.md` 未逐条刷新；`docs/architecture-map.md` 只刷了计数（复核 2026-09-23 / `51954f2`）。
 
 ## 执行顺序
 

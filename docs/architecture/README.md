@@ -4,6 +4,9 @@
 风险诊断期间 HEAD 被另一会话移到 `20f914c`：结构类断言仍按 `84fb175` 读，
 凡涉及工作树状态的结论见 `architecture-review.md` 的 R4 / R10。
 
+复核于 **2026-09-28**（HEAD `4b68c24`，Plan 263 E7）：`inkflow.architecture-understanding.md` 补「十一、知识谱系」
+「十二、能力链路」两节（Plan 261 / 262 新增链路）；计数面复核见 `docs/architecture-map.md` 的复核行。
+
 ## 从哪开始
 
 - 想理解系统 → 先读 [`inkflow.architecture-understanding.md`](./inkflow.architecture-understanding.md)（业务语言优先，其余文件是它的图与证据）

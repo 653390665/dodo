@@ -3,6 +3,8 @@
 **这是什么**：一份当前状态（as-is）的架构模型，回答「这个系统是什么、边界在哪、作品数据怎么被改动、改哪里会牵连到什么」。
 **不是**：架构图集、评审打分、或改造建议。风险与技术债评估请走 `risk-quality-reviewer`，迁移路线走 `evolution-planner`。
 **取证日期**：2026-09-18（HEAD `84fb175`）。逐条证据与置信度见 `inkflow.evidence.md`。
+**复核于**：2026-09-28（HEAD `4b68c24`，Plan 263 E7）：补「十一、知识谱系」「十二、能力链路」两节（Plan 261 / Plan 262 新增链路，均不在 2026-09-18 取证范围内）；计数面复核见 `docs/architecture-map.md` 的复核行（2026-09-23 / `51954f2`，后端 212 / 前端 149 测试文件）。
+
 **生产方式**：`system-modeler` + `c4model`（结构与边界）叠加 `flow-visualizer` + `graphviz`（业务流与生命周期），并按 `business-application-fitness` 要求以业务语言优先。
 
 ---
@@ -222,6 +224,49 @@ FIFO 串行写队列
 
 ---
 
+## 十一、知识谱系：从资料包到可注入的图谱
+
+> 本节的取证日期是 **2026-09-28**（HEAD `4b68c24`，Plan 263 E7 补写）；2026-09-18 的取证未覆盖这条链路。
+
+作者导入的「续写资料包」里除了正文，还有**逐章细纲 / 遗物体系 / 公理**这类结构化素材。知识谱系就是把它们从文档变成两类可查询的权威行，再送进写作提示词：
+
+```
+续写资料包 ─► 解析（幂等）─┬─► foreshadowings（伏笔台账）─┬─► loadForeshadowingContext ─► planner/writer/critic 提示词
+                          └─► entity_relationships（图谱边）┴─► buildStoryStateLedger ──► chapter contract（开放伏笔）
+```
+
+- **解析与落库**（`server/helpers/knowledge-lineage.ts`）：`extractXigangEntries(markdown)` 解析 `### Ch001 · 标题` + 字段行得到 `XigangEntry[]`（含标题/目标/情节点等字段），`extractElementProposals` 产出叙事元素提案。写入是**幂等**的：伏笔台账按 `title + plantedChapterId` 去重、图谱边按 `source + target + type` 去重；只写确定性事实，**不自动删既有行**（提案制），文档更新后可重跑增量补齐。
+- **命令入口**（`server/cli/knowledge-lineage.ts`）：`npx tsx server/cli/knowledge-lineage.ts <novelId>`（入库 + 覆盖度报告）、`propose <novelId>`（叙事元素提案）、`confirm <novelId> [--all]`（确认提案入道具库）。向量索引初始化走 `server/cli/vector-init.ts`。
+- **消费路径 A：伏笔上下文**（`server/helpers/knowledge-lineage-enrich.ts:242 loadForeshadowingContext(novelId, chapterOrder)`）返回 `toPlant` / `toPayOff` / `arrears`（欠账，注入前按 `MAX_ARREARS_IN_PROMPT = 12` 截断）/ `relatedCharacterNames` / `promptBlock` / `checklistBlock`；由 `server/helpers/ai-production-pipeline.ts:412-417` 接入 —— planner（`:455`）、writer 整章与分场景（`:553`、`:601`）加 `promptBlock`，critic 加 `checklistBlock`（`:891`，逐条核对「应埋/应收」）。无台账时返回空块，不阻断生成。
+- **消费路径 B：故事状态账本**（`server/routes/production.ts:295` → `shared/lib/story-state-ledger.ts:110 buildStoryStateLedger`）：把开放伏笔等状态聚合成账本，再由 `shared/lib/chapter-production.ts` 渲染进 planner / writer 的章节合同；`shared/lib/story-memory-projection.ts` 负责投影面。
+- **可执行能力面**（与第十二节的能力引用同一入口）：`POST /api/novels/:novelId/knowledge-capabilities/:assetId/run`（`server/routes/utilities.ts:53`，内核 `server/helpers/knowledge-capabilities.ts:40 runKnowledgeCapability`）。两张工具卡：`knowledge-extract`（重跑摄入，返回覆盖度；二跑 `ledgerInserted=0` 即位级幂等）与 `foreshadow-settle`（返回核对清单：待收/欠账/未回收数）。错误码：`KNOWLEDGE_INVALID_INPUT` / `KNOWLEDGE_CAPABILITY_UNSUPPORTED` / `KNOWLEDGE_NOVEL_NOT_FOUND` / `DATABASE_GENERATION_STALE` / `KNOWLEDGE_INTERNAL_ERROR`。
+- **观察面**：记忆健康度五项指标（`shared/lib/memory-health.ts` + 驾驶舱 `src/components/MemoryHealthPanel.tsx`），其中「伏笔欠账」是唯一带硬阈值的指标（`arrears > 12` ⇒ 琥珀 + 阈值说明）；维护入口在「世界」图谱页（`src/components/KnowledgeMaintenancePanel.tsx`）与伏笔面板的折叠入口（`src/components/ForeshadowingPanel.tsx`）。
+- **仍未证实**：真实作品的资料包覆盖率（现有覆盖度报告只在开发样本上跑过）；图谱边除 `entity_relationships` 外是否还有隐藏写入点；提案制的「只增不删」在长期使用后是否会造成台账臃肿。
+
+## 十二、能力链路：技能序列流怎么把「卡」送进提示词
+
+> 本节的取证日期是 **2026-09-28**（HEAD `4b68c24`）；2026-09-18 的取证只有「候选/治理门」视角，没有链路编排与卡片引用面。
+
+「能力链路」（技能序列流）是一组**按步骤推进的写作流程**：链路 → 步骤 → 步骤声明的资产/卡 → 提示词。定义在 `shared/lib/prompt-governance-catalog.ts`（`SKILL_SERIES_FLOWS`，:881），共 6 条：`xiaofeiji-novel-flow`（:883）、`generic-novel-flow`（:1023）、`tomato-platform-flow`（:1114）、`book-deconstruction-flow`（:1201）、`fenghua-short-flow`（:1257）、`tianma-outline-flow`（:1340）；生成物是 `shared/lib/public-skill-catalog.ts`（禁止手改，用 `scripts/generate-public-catalog.ts` 再生）。
+
+每一步是一个 `SkillSeriesFlowStep`（`shared/types/prompt-assets-governed.ts:255`）：`stage`（planner/writer/critic，声明优先）、`assetId`、`cardRef?`、`capabilityRef?`、`gate?`、`guidanceOnly?`。三种引用是**三条互不替代的通道**：
+
+| 通道 | 解析器 | 结果去向 |
+|---|---|---|
+| 资产正文（`assetId`） | `isRuntimeReadyAsset` + `!isShellTemplatePrompt` | 注入步骤提示词：`步骤合同 + 【可运行资产 Prompt】 + 卡正文` |
+| 卡片引用（`cardRef`） | `shared/lib/flow-step-card-slot.ts:68 resolveFlowStepCard` | 按声明阶段进 `stagePrompts`，**同一阶段优先于资产正文**（只挂一份） |
+| 能力引用（`capabilityRef`） | `shared/lib/flow-step-capability-ref.ts:64 resolveFlowStepCapability` | **不注入提示词**；只产出可执行能力元数据（assetId/title/kind/action/stages/scope），执行走第十一节的知识能力端点 |
+
+**装配与注入**（`server/helpers/writing-style-service.ts:1164 buildFlowStep`）：取当前步骤 → 判定资产可用性 → 拼 `flowStep.prompt` 与 `stagePrompts`；真正读的地方是 `flowStepPromptFor(stage)`（`:2026-2031`）—— `stagePrompts[stage] ?? (step.stage === stage ? step.prompt : undefined)`，再过 `!isShellTemplatePrompt` 过滤。执行快照的 `stagePrompts` 是 planner / writer / critic **解析后**的读法，生产 / agents / audit / world 四条路由都从这里取。
+
+**质量门**：每步一个 `gate{kind}`，已从旧 `qualityGate` 字段收敛为三类 —— `advisory`（文本门）/ `mechanical` / `critic`（34 步 = advisory 32 / mechanical 1 / critic 1）。
+
+**可用性读数**（2026-09-28，Plan 262/263 后，`scratch/capB-chain.ts`）：34 步 / 可运行 **28（82.4%）** / 仅引导 **6** / `cardRef` 6 步 / 能力引用 2 步 / 被引用资产 28 / 目录 189。余下 6 个「仅引导」步骤**恰是已挂 `cardRef` 的 6 步** —— 它们的卡片正文已经由卡片通道进入提示词，但 `assetId` 仍是平台转投壳，所以可用性读数仍作「仅引导」（口径治理面未收口，已登记）。
+
+**守门与证据**：`tests/flow-step-guidance.test.ts`（声明集合 == 检测到的壳集合、静默壳 0）、`tests/flow-step-stage.test.ts`（阶段分布）、`tests/flow-chain-determinism.test.ts`（串台对照 34×33）、`tests/flow-step-capability-ref.test.ts`（六诊断码 + 执行面）；读数脚本 `scratch/capB-chain.ts`，提示词哈希快照 `scratch/stageprompts-snapshot.ts`（六场景）。
+
+**仍未证实**：卡正文对生成质量的因果影响只有「文本是否进提示词」层面的证据，没有质量测量；「assetId 与 cardRef 的可用性语义」仍是治理面口径债。
+
 ## 阅读顺序建议
 
 1. `inkflow.structurizr.dsl` 的 `01-system-context` —— 先确立边界
@@ -233,4 +278,4 @@ FIFO 串行写队列
 7. `runtime-topology.dot` —— 只有碰进程/打包/密钥时才需要
 
 用 Qoder 的 **Structurizr DSL 预览器**打开 `.dsl`，**DOT 预览器**打开 `.dot`。
-本仓库未安装 Graphviz，故未产出 SVG；`.dsl`/`.dot` 是事实源，渲染件是派生物。
+本机已安装 Graphviz，6 张 `.dot` 均已按 `README.md` 的命令验证可直接渲染 SVG（`candidate-store-model.dot` 与 `flow-chapter-candidate.dot` 依赖文件内的 `newrank=true`，缺失会 Abort trap 6）。仓库不提交 SVG 派生物：`.dsl`/`.dot` 是事实源，渲染件是派生物。

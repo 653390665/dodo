@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记）/ D6 ✅；余 E2、E7、E1（需用户））
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记，`e8324d9`）/ D6 ✅（`e8324d9`）/ E7 ✅；余 E2、E1（需用户））
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A `9a2c234`、B1 `c839f32`、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -41,7 +41,7 @@
 | 11 | E3 Node/npm 版本 | 升 Node 至 `^22.22.2`（或降 npm 到 11）+ `engines` + `.nvmrc`；现状 npm v12.0.2 不支持 Node 22.22.0  | ✅ 已完成（2026-09-28：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫测试 `tests/node-version-declaration.test.ts` 2/2）
 | 12 | E4 会话隔离 | ① 立规范（worktree 多 Agent 并发）② 维持现状（每单元提交 + 提交前清点）  | ✅ 已完成（2026-09-28：两条硬规则并入 `docs/specs/multi-agent-workflow.md` 并发隔离节 —— 单 checkout 串行写入 / 工作单元边界）
 | 13 | E5 双账本 | 冻结 `docs/plans/README.md`（能力卡轮账本，只读）+ 根账本加指针；现状 `MEMORY.md` 指针已改根账本，从属关系未定  | ✅ 已完成（2026-09-28：`docs/plans/README.md` 顶部冻结横幅 + 根账本「唯一权威」指针 + 262 双账本项结案）
-| 14 | E7 架构图集漂移 | 补 `knowledge-lineage`（Plan 261）与能力链路（Plan 262）章节；图集取证停 2026-09-18 / `84fb175`，`docs/architecture-map.md` 已刷计数 |
+| 14 | E7 架构图集漂移 | 补 `knowledge-lineage`（Plan 261）与能力链路（Plan 262）章节；✅ 已完成（2026-09-28）：`docs/architecture/inkflow.architecture-understanding.md` 补「十一、知识谱系」「十二、能力链路」两节 + 顶部复核行（2026-09-28 / `4b68c24`）；`docs/architecture/README.md` 加复核声明；顺手修正「未安装 Graphviz」旧述（实际已装、6 张 `.dot` 可渲染）；规格无新增（只动 `docs/architecture/`） |
 
 ## 拍板清单（需要操作者）
 
@@ -86,5 +86,6 @@
 | D3 章节版本指纹 | 本次提交 | `chapter_versions.content_hash`（建表 + `ensureColumn` 迁移）、`hashChapterContent`（sha256 原文，不归一化）、两条写入路径（CRUD `insertColumns` + accept 前置快照 raw INSERT）补列、`listChapterVersionMetas` 增 `contentHash`/`matchesCurrentContent`、时光机卡片徽标（＝ 当前正文 / ≠ 不同 / 来源未知）；后端 5/5、前端 3/3、既有夹具补字段；tsc 0 / eslint 0 |
 | D1 仅引导步骤补正文 | 本次提交 | 新增 7 张自撰内置卡（`tomato-readthrough-audit` / `tomato-prose-polisher` / `lofter-aesthetic-outliner` / `viral-shortform-titler` / `emotional-logic-auditor` / `viral-idea-refiner` / `setting-rhythm-outliner`），步骤改指 + 删 `guidanceOnly`（不改壳）；读数 34 步 / **可运行 28（82.4%）** / 仅引导 6；目录 189（built-in 20→27）、引用资产 28/189、公开目录 142 + 33；计数断言刷新（flow-step-guidance / catalog-disposition / prompt-assets-governed / planning-tab-step-guidance / capability-shelf）；后端全量 1456/1456、前端全量 161 files·1022 tests、快照六场景不变；tsc 0 / eslint 0 |
 | D4 记忆健康度告警阈值 | 本次提交 | 阈值单源 `MAX_ARREARS_IN_PROMPT = 12`（迁到 `shared/lib/knowledge-capabilities.ts`）；五项指标（新增 `foreshadowArrears`「伏笔欠账」，与 `buildForeshadowSettlementChecklist().arrears` 同源）；`severity:'warn'` + `thresholdNote`，面板 `text-amber-700` + 阈值说明；未摄入仍未知不按 0 计；后端 6/6、前端 5/5 + 2/2、命名对齐「四项→五项」14 处；tsc 0 / eslint 0 |
+| E7 架构图集补章 | 本次提交 | `docs/architecture/inkflow.architecture-understanding.md` 新增「十一、知识谱系」（资料包 → 伏笔台账/图谱边 → 两条消费路径 → 知识能力端点 → 记忆健康度）与「十二、能力链路」（6 链 34 步 → 三通道 → 装配注入 → 门三类 → 读数 28/34）；两节明标取证日 2026-09-28 / `4b68c24`；文件顶部与 `docs/architecture/README.md` 加复核行；修正「未安装 Graphviz」旧述（本机已装、6 张 `.dot` 已验证可渲染，两张需 `newrank=true`） |
 | D5/D6 长尾登记 | 本次提交 | D5 长篇记忆基线降级为技术债（只登记，触发条件 = 真实长篇样本到手重跑）；D6 三字段标为内部 + 移除 UI 固定额度文案（`src/components/Library.tsx:265` `能力卡 N/3` → `能力卡 N`）；规格 §4.2.4/§5.22 + §5.10 拍板行；`plans/262` D5/D6 行与交付节；`src/tests/library-refresh.test.tsx` 断言同步 |
 | 纪律修正 | 本次提交 | `AGENTS.md:26` 定向测试命令补 `NODE_ENV=test` + `--import ./tests/helpers/test-db-preload.ts`（漏掉会关掉配额门禁路径 → 假失败，见 D3 收尾取证） |
