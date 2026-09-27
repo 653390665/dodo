@@ -95,5 +95,5 @@
 | 纪律修正 | `d342d4a`（随 D3 提交） | `AGENTS.md:26` 定向测试命令补 `NODE_ENV=test` + `--import ./tests/helpers/test-db-preload.ts`（漏掉会关掉配额门禁路径 → 假失败，见 D3 收尾取证） |
 | 审计修正 | `a8e5956` | 账本计数 115/134→147、执行记录 8 行补 hash、表格列数修正、A1/A2 重复 ✅ 、E2 三项残余登记（发布链依赖 Hub / `SKIP_EMBEDDING_MODEL_FETCH` 静默跳过产物断言 / 判据仅尺寸 ≥20 MB 无 sha256）（4 files，+28/−23） |
 | 审计修正（二） | `d20093f` | `architecture-review.md` / `remediation-plan.md` 状态块刷新（M2/M6/M7）+ `plans/README.md` 新增「审计基准的可解析性」（第 1–29 轮基准属 2026-08-29 存档重根前历史线，根提交 `68c9004`，见 `docs/recovery/RECOVERY.md`）（3 files，+7/−4） |
-| 审计（回答用户「审查已完成/未完成任务清单」） | 本次提交 | 全量后端 `1465/1465` + 全量前端 `161 files / 1022 tests` 全绿；关闭 4 项（前端 2 失败用例 / 性能结论 / F5 三 handler 均为权威写入 / F7 `Scene` 死模型），F6 与 F9 维持开放（前者已定性读层无内容级消毒） |
+| 审计（回答用户「审查已完成/未完成任务清单」） | `695fddb` | 全量后端 `1465/1465` + 全量前端 `161 files / 1022 tests` 全绿；关闭 4 项（前端 2 失败用例 / 性能结论 / F5 三 handler 均为权威写入 / F7 `Scene` 死模型），F6 与 F9 维持开放（前者已定性读层无内容级消毒） |
 
