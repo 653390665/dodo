@@ -11,8 +11,8 @@
 
 | # | 项 | 现状 | 完成判据 | 状态 |
 |---|---|---|---|---|
-| A1 | 提交 P0-① 单元 ✅ 已完成 | 已提交 `645c572`（装配三字段接入运行时三通道）；台账提交 `4f2ffa2`；tsc/lint 0、后端 1396/1396、前端定向 20/20、快照逐项不变；工作区 clean | 提交且工作区 clean | ✅ 已完成（2026-09-28 对账回填） |
-| A2 | 规格状态回填 ✅ 已完成 | `docs/specs/creation-entry-convergence.md:4` Status = 「已交付（2026-09-28 复核：实现随 `9a2c234` 落库，定向测试 `creation-entry-convergence` 7/7 + `app-shell-capability-launch` 20/20 全绿）」 | Status 改为已交付并注明复核日期 | ✅ 已完成（2026-09-28 对账回填） |
+| A1 | 提交 P0-① 单元 | 已提交 `645c572`（装配三字段接入运行时三通道）；台账提交 `4f2ffa2`；tsc/lint 0、后端 1396/1396、前端定向 20/20、快照逐项不变；工作区 clean | 提交且工作区 clean | ✅ 已完成（2026-09-28 对账回填） |
+| A2 | 规格状态回填 | `docs/specs/creation-entry-convergence.md:4` Status = 「已交付（2026-09-28 复核：实现随 `9a2c234` 落库，定向测试 `creation-entry-convergence` 7/7 + `app-shell-capability-launch` 20/20 全绿）」 | Status 改为已交付并注明复核日期 | ✅ 已完成（2026-09-28 对账回填） |
 
 ## 批次 B：P0 剩余（用户已批准）
 
@@ -47,11 +47,11 @@
 
 | # | 项 | 现状 |
 |---|---|---|
-| E1 | push 被 gh 凭证阻塞 | 本地领先 `origin/codex/plan169-checkpoint` 115 提交；需用户在终端 `gh auth login -h github.com` |
+| E1 | push 被 gh 凭证阻塞 | 本地领先 `origin/codex/plan169-checkpoint` 147 提交（2026-09-28 核对）；需用户在终端 `gh auth login -h github.com` |
 | E2 | ✅ 已交付（2026-09-28，Plan 263 E2） | 拍板①**随包附权重**：取权重脚本 → `build/embedding-model/`（4 文件 23.3 MB，gitignored）→ `extraResources` 落 `resources/embedding-model/`；`server/embedding.ts` `resolveEmbeddingAssetPaths` 齐备时本地解析并关远程；`electron.cjs` 打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR` + `INKFLOW_MODEL_CACHE_DIR`（userData/models-cache）；`check-package-artifacts.mjs` 增 ≥20 MB 权重断言；`tests/embedding-model-assets.test.ts` 9/9、tsc/lint 0（详见「### E2 打包态嵌入模型路径」） |
-| E3 | M7 ◐ npm/Node 版本告警 | npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26） | **✅ 已交付（2026-09-28，Plan 263 E3）**：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫 `tests/node-version-declaration.test.ts` 2/2。
-| E4 | M2 ◐ 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 → 决定是否立规范 | **✅ 已交付（2026-09-28，Plan 263 E4）**：两条硬规则并入 `docs/specs/multi-agent-workflow.md`（单 checkout 串行写入 / 工作单元边界），不新增规范文件。
-| E5 | 双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本；`MEMORY.md` 指针已改根账本，从属关系未定 | **✅ 已结案（2026-09-28，Plan 263 E5）**：`docs/plans/README.md` 冻结为只读存档，根 `plans/README.md` 为唯一权威账本。
+| E3 | ✅ 已交付（2026-09-28，Plan 263 E3）：M7 npm/Node 版本告警 | 现状 npm v12.0.2 不支持 Node 22.22.0（需 ^22.22.2 / ^24 / ≥26）—— 已落地：`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`、CI 四处 `node-version-file: .nvmrc`、守卫 `tests/node-version-declaration.test.ts` 2/2 |
+| E4 | ✅ 已交付（2026-09-28，Plan 263 E4）：M2 会话隔离 | 未用 worktree，现以「每单元提交 + 提交前清点」替代 —— 决定：不新增规范文件，两条硬规则并入 `docs/specs/multi-agent-workflow.md`（单 checkout 串行写入 / 工作单元边界） |
+| E5 | ✅ 已结案（2026-09-28，Plan 263 E5）：双账本（plan 191 DOCS-3） | 根 `plans/README.md` 主账 vs `docs/plans/README.md` 能力卡轮账本 —— 处置：`docs/plans/README.md` 冻结为只读存档，根 `plans/README.md` 为唯一权威账本，`MEMORY.md` 指针已指向根账本 |
 | E6 | 真实数据缺口 ◐ 复测工具已就绪（2026-09-28），样本待真实用户 | 现有漏斗（1016 事件/8 作品）是操作者狗粮，不足以定 P0；埋点口径三处已修，离线复测脚本 + runbook 已落盘（见下「E6 复测工具」） |
 | E7 | 架构图集漂移 ✅ 已交付（2026-09-28，Plan 263 E7） | 取证停 2026-09-18（`84fb175`），未覆盖 Plan 261 + 四批次新链路 —— 已在 `docs/architecture/inkflow.architecture-understanding.md` 补「十一、知识谱系」「十二、能力链路」两节 + 顶部复核行（2026-09-28 / `4b68c24`），`docs/architecture/README.md` 加复核声明 |
 
@@ -71,6 +71,7 @@
 - 交付：`scripts/lib/embedding-weights.mjs`（`EMBEDDING_MODEL_ID` / `EMBEDDING_MODEL_FILES` / `MIN_QUANTIZED_MODEL_BYTES = 20 MB` / `PACKAGED_EMBEDDING_MODEL_REL` / `isCompleteModelDir` / `embeddingWeightsVerdict`）+ `scripts/fetch-embedding-model.mjs`（来源顺序 `INKFLOW_MODEL_SOURCE_DIR` → `node_modules/@huggingface/transformers/.cache` → `huggingface.co`；`SKIP_EMBEDDING_MODEL_FETCH=true` 跳过；缺文件 exit 1）；`package.json` `model:fetch` + `package` 链插取权重 + `build.extraResources`；`server/embedding.ts` `LOCAL_EMBEDDING_MODEL_FILES` / `resolveEmbeddingAssetPaths` / 模块级 env 应用 / 就绪日志带三个 env；`electron.cjs` 打包态两个 env（dev 不注入）；`scripts/check-package-artifacts.mjs` 权重断言。
 - 读数：取权重 exit 0 → `build/embedding-model/Xenova/bge-small-zh-v1.5/` 4 文件 23.3 MB（`onnx/model_quantized.onnx` = 24010842 B，全部来自本地缓存）；`npx tsc --noEmit` 0 / `npx eslint server src shared tests scripts --max-warnings=0` 0；`tests/embedding-model-assets.test.ts` 9/9；受影响面 4 文件 23/23。
 - 残余：打包态真机验证未做（`npm run package` 需联网拉 Electron 头，本机 `huggingface.co` 不可达）→ 验收的「打包件内无 `.cache`/`models`」「打包态打印 cacheDir」「断网首启 unavailable + 指引」三条仍待联网环境复跑。
+- 残余（审计 2026-09-28 追加，三项）：① **发布链依赖 `huggingface.co`** —— `@huggingface/transformers@3.8.1` 的 npm `files` = `[src, dist, types, README.md, LICENSE]`，权重目录不由包携带（本机 `.cache` mtime 2026-09-10 = 运行期下载）；CI 三个打包作业（`.github/workflows/build.yml:139/:200/:280`）均 `npm ci` 后 `npm run package` → 冷启动无缓存，只能走 Hub 下载，不可达即 `exit 1`（发布硬失败）；② **冒烟逃生舱**：`SKIP_EMBEDDING_MODEL_FETCH=true` 时 `embeddingWeightsVerdict` 返回 ok（`scripts/fetch-embedding-model.mjs:9` 已声明「冒烟检查同步跳过权重断言」）→ 该模式下可产出无权重发布件且通过 `smoke:package-artifacts`；③ **判据只有尺寸下限**（`MIN_QUANTIZED_MODEL_BYTES = 20 MB`），无 sha256 / revision pin → 上游文件漂移或损坏可通过。处置待拍板：① pin revision + 发布机预置权重或接受 Hub 依赖；② 产物断言不再随 SKIP 跳过（或仅允许显式 `--allow-missing-weights`）；③ 补 sha256 清单。
 - 证据：`tests/embedding-model-assets.test.ts`（清单与模型 id 双源一致 / `resolveEmbeddingAssetPaths` 三态 / package.json 接线 / electron.cjs 注入 / 冒烟判定四态 / SKIP 模式 / 真实产物 ≥20 MB）。
 
 ## 执行顺序

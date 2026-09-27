@@ -117,7 +117,7 @@
 - `electron.cjs`：打包态注入 `INKFLOW_EMBEDDING_MODEL_DIR=resources/embedding-model`（仅在权重齐全时）与 `INKFLOW_MODEL_CACHE_DIR=userData/models-cache`；dev 不注入（避免把 dev 的默认缓存改到 userData）。
 - `scripts/check-package-artifacts.mjs`：发布件断言含 `embedding-model/Xenova/bge-small-zh-v1.5/onnx/model_quantized.onnx`（≥ 20 MB）。
 - 读数：取权重 `FETCH_EXIT=0`（4 文件 23.3 MB，全部来自本地缓存）；`npx tsc --noEmit` 0 / `npx eslint server src shared tests scripts --max-warnings=0` 0；`tests/embedding-model-assets.test.ts` 9/9；受影响面 4 文件 23/23。
-- 残余（未关闭）：打包态真机验证 —— 验收中的「打包件内 `.cache`/`models` 不再出现」「打包态日志打印实际 `cacheDir`」「断网首启 `unavailable` + 指引」三条需联网拉 Electron 头（本机 `huggingface.co` 与 registry 均不可达）→ 本轮只到配置层 / 纯函数层 / 产物层证据；`release/` 缺失时冒烟脚本先于权重断言退出（既有保护，非缺陷）。
+- 残余（未关闭）：打包态真机验证 —— 验收中的「打包件内 `.cache`/`models` 不再出现」「打包态日志打印实际 `cacheDir`」「断网首启 `unavailable` + 指引」三条需联网拉 Electron 头（本机 `huggingface.co` 与 registry 均不可达）→ 本轮只到配置层 / 纯函数层 / 产物层证据；`release/` 缺失时冒烟脚本先于权重断言退出（既有保护，非缺陷）。 审计 2026-09-28 追加三项待拍板残余：① 发布链依赖 `huggingface.co`（npm 包不带权重，CI 冷启动只能走 Hub，不可达即 exit 1）；② `SKIP_EMBEDDING_MODEL_FETCH=true` 时产物断言同步跳过 → 可产出无权重发布件且通过冒烟；③ 判据仅尺寸下限（≥ 20 MB），无 sha256 / revision pin。
 
 
 ---
