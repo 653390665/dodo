@@ -30,7 +30,7 @@ export function AgentWorkspaceVersionsPanel({
             <Save size={10} /> 存为快照
           </button>
         </div>
-        <p className="text-[10px] text-theme-muted">记录每一次重大的 AI 扩写或用户保存。</p>
+        <p className="text-[10px] text-theme-muted">记录每一次重大的 AI 扩写或用户保存；卡片右侧标注该快照与当前正文是否一致。</p>
       </div>
 
       <div className="space-y-3 pb-8">
@@ -61,8 +61,24 @@ export function AgentWorkspaceVersionsPanel({
               <div className="text-[10px] text-theme-muted line-clamp-3 leading-relaxed bg-theme-sidebar/10 p-2 rounded italic">
                 {version.preview}
               </div>
-              <div className="mt-2 text-[9px] font-medium text-theme-muted/60">
-                字数: {version.wordCount}
+              <div className="mt-2 flex items-center justify-between gap-2 text-[9px] font-medium text-theme-muted/60">
+                <span>字数: {version.wordCount}</span>
+                {version.matchesCurrentContent === true ? (
+                  <span className="text-emerald-700" title="与当前正文逐字节一致：还原它不会改变正文">
+                    ＝ 当前正文
+                  </span>
+                ) : version.matchesCurrentContent === false ? (
+                  <span className="text-theme-muted" title="该快照与当前正文不同（历史存档）">
+                    ≠ 与当前正文不同
+                  </span>
+                ) : (
+                  <span
+                    className="text-amber-800"
+                    title="迁移前的旧快照没有正文指纹，无法判定是否为当前正文"
+                  >
+                    来源未知（旧快照）
+                  </span>
+                )}
               </div>
             </div>
           ))}

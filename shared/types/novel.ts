@@ -36,6 +36,8 @@ export interface ChapterVersion {
   wordCount: number;
   author: 'user' | 'writer-agent' | 'editor-agent' | 'auto';
   createdAt: number;
+  /** 正文指纹（sha256，服务端按 content 现算）；迁移前的旧行为 null = 来源未知。 */
+  contentHash?: string | null;
 }
 
 export interface Chapter {

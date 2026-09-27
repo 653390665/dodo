@@ -217,12 +217,21 @@ export function rowToChapter(row: DbRow): Chapter {
   };
 }
 
+/**
+ * 章节正文指纹（Plan 263 D3）：版本行 `content_hash` 的写入与「与当前正文是否一致」的判定共用这一实现。
+ * 口径 = sha256(正文原文, utf8)，逐字节比较；不做空白/换行归一化（保存链路本身不改写正文）。
+ */
+export function hashChapterContent(content: string): string {
+  return createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
 export function rowToChapterVersion(row: DbRow): ChapterVersion {
   return {
     ...row,
     chapterId: row.chapter_id,
     wordCount: row.word_count,
     createdAt: row.created_at,
+    contentHash: (row.content_hash as string | null | undefined) ?? null,
   };
 }
 
@@ -549,6 +558,8 @@ export function chapterVersionToRow(cv: ChapterVersion): DbRow {
     word_count: cv.wordCount,
     author: cv.author,
     created_at: cv.createdAt,
+    // 客户端不必传指纹：缺省即按正文现算，保证两条写入路径（手动快照 / accept 前置快照）同源。
+    content_hash: cv.contentHash ?? hashChapterContent(cv.content),
   };
 }
 

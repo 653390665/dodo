@@ -382,6 +382,7 @@ export function initDb(dbPath?: string): void {
       content TEXT DEFAULT '',
       word_count INTEGER DEFAULT 0,
       author TEXT DEFAULT 'user',
+      content_hash TEXT,
       created_at INTEGER NOT NULL,
       FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
     );
@@ -670,6 +671,8 @@ export function initDb(dbPath?: string): void {
   ensureCapabilityRecommendationSchema();
 
   ensureColumn('novels', 'mounted_skill_loadout', "TEXT DEFAULT '[]'");
+  // Plan 263 D3：版本行正文指纹（旧行为 NULL = 来源未知）。
+  ensureColumn('chapter_versions', 'content_hash', 'TEXT');
   ensureColumn('novels', 'project_preference_profile', "TEXT DEFAULT '{}'");
   ensureColumn('skills', 'parent_skill_id', 'TEXT');
   ensureColumn('skills', 'lineage_root_id', 'TEXT');

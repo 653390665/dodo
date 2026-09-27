@@ -23,7 +23,7 @@
 - If project metadata is incomplete, inspect the repository and infer the real commands before making changes.
 
 ### 测试命令地图（改哪里跑什么）
-- 改 `server/`、`shared/` 后端逻辑 → `npm test`（定向：`node --test --import tsx tests/<file>`；注意 `npm test` 只覆盖后端 node:test）
+- 改 `server/`、`shared/` 后端逻辑 → `npm test`（定向：`NODE_ENV=test node --test --test-timeout=45000 --import tsx --import ./tests/helpers/test-db-preload.ts tests/<file>`；漏 `NODE_ENV=test` 会关闭配额/商业化门禁路径 → 断言假失败（2026-09-28 实测：`tests/db-import-serialization.test.ts` 28/30 → 30/30）；注意 `npm test` 只覆盖后端 node:test）
 - 改 `src/` 前端 → `npm run test:frontend -- src/tests/<file>`（全量：`npm run test:frontend`，vitest）
 - 改 `shared/` 前后端共享契约 → 两者都跑
 - UI 主链路改动 → `npx playwright test`（webServer 已自动前置 `npm run build`，改源码后无需手动构建）

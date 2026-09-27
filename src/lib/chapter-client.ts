@@ -47,6 +47,10 @@ export interface ChapterVersionMeta {
   author: string;
   createdAt: number;
   preview: string;
+  /** 该版本正文的 sha256；旧行为 null = 来源未知（与服务端 ChapterVersionMeta 对齐）。 */
+  contentHash: string | null;
+  /** 与当前正文是否逐字节一致；null = 不可判定。 */
+  matchesCurrentContent: boolean | null;
 }
 
 export async function listChapterVersionMetas(chapterId: string): Promise<ChapterVersionMeta[]> {

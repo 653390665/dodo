@@ -38,7 +38,7 @@
 |---|---|---|
 | D1 | 13 步「仅引导」补正文 | 按链（C3 后实测 `scratch/c4-perchain.ts`）：番茄 4（step2/3/4/5，其中 step2/3 已挂 cardRef 但 assetId 仍为壳）/ 风华 4（step1/2/3/5）/ 天马 3（step1/2/4）/ 小飞鸡 1（step1）/ 拆书 1（step2）/ 通用 0；当前 19/32 可运行（59.4%），到 80% 需再补 7 步（32×0.8=25.6→ 26 可运行） |
 | D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
-| D3 | 章节回滚 stale 打标 | 只覆盖删除路径；回退需先定义「回到哪个来源版本」 |
+| D3 | 章节回滚 stale 打标 | ✅ 已交付（2026-09-28，Plan 263）：`chapter_versions.content_hash` + stale 判定 + 时光机徽标 |
 | D4 | 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` |
 | D5 | 长篇记忆基线补完 | 样本为确定性合成长书；回声口径为「token 是否进请求」；planner/critic 未纳入；未接 CI |
 | D6 | 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） |
@@ -198,6 +198,12 @@
 
 **证据**：`src/tests/foreshadowing-graph-entry.test.tsx` 4/4；受影响面回归 3 文件 9/9；tsc 0 / eslint 0。
 
+### D3 章节版本指纹（stale 打标）— 2026-09-28（Plan 263 执行）
+
+- 拍板：**不引入 source 枚举**（`chapter_versions` 无来源列，回退语义原为未定义）；改为回答「这份快照与当前正文是否一致」。
+- 落地：`server/lib/db-init.ts:379-387` 建表加 `content_hash TEXT` + `ensureColumn('chapter_versions', 'content_hash', 'TEXT')` 迁移；`server/lib/db-mappers.ts` 新增 `hashChapterContent()`（sha256 原文 utf8，**不做空白归一化**）、`rowToChapterVersion` 读、`chapterVersionToRow` 写（`cv.contentHash ?? hashChapterContent(cv.content)`）；`server/lib/db/chapters.ts:139-149` `insertColumns` 与 `:242` accept 前置快照 raw INSERT 均补列（漏列会被静默丢弃）；`listChapterVersionMetas` 返回 `contentHash` + `matchesCurrentContent`（NULL → null = 旧快照）；`src/components/AgentWorkspaceVersionsPanel.tsx` 卡片徽标「＝ 当前正文 / ≠ 与当前正文不同 / 来源未知（旧快照）」。
+- 证据：`tests/chapter-version-content-hash.test.ts` 5/5（手动快照指纹 / 正文更新后不同 / 旧行 NULL → 未知 / accept 前置快照带指纹 / 不归一化）、`src/tests/agent-workspace-versions-panel.test.tsx` 3/3、`src/tests/chapter-versions.test.ts` 夹具补两字段 1/1；tsc 0 / eslint 0。
+- 取证副产品：`tests/db-import-serialization.test.ts` 的 1 例失败经 worktree 基线（HEAD `86ebb62`）复核为**调用方式缺陷**（漏 `NODE_ENV=test` → `isMonetizationEnabled()` 假 → `reserveQuota` 返回 `{allowed:true}` 无 `reservationId`），非回归；`AGENTS.md:26` 的定向命令已据此修正。
 ### E6 复测工具：激活漏斗离线报告 — 2026-09-28
 
 **问题**：2026-09-22 复测暴露的读数（1016 事件 / 442 会话 / 8 作品；旧账本 152→0→1 与事实不符）来自一次性

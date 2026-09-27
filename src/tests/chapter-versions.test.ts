@@ -21,6 +21,8 @@ function versionMeta(chapterId: string): ChapterVersionMeta {
     author: 'user',
     createdAt: 1,
     preview: chapterId,
+    contentHash: null,
+    matchesCurrentContent: null,
   };
 }
 

@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅；余 D1、D3/D4、E2、E7、E1（需用户））
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D3 ✅；余 D1、D4、E2、E7、E1（需用户））
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A `9a2c234`、B1 `c839f32`、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -28,7 +28,7 @@
 | # | 项 | 现状 | 完成判据 |
 |---|---|---|---|
 | 5 | D1 仅引导步骤补正文 | 34 步 / 可运行 21（61.8%）/ 仅引导 13：番茄 4（step2/3 已挂 cardRef 但 assetId 仍是壳、step4/5）、风华 4（step1/2/3/5）、天马 3（step1/2/4）、小飞鸡 1（step1）、拆书 1（step2） | 补正文步骤的 assetId 指向 runtime-ready 资产（卡正文可进对应阶段 prompt）；达 80% 需再补 7 步 → 26/34 可运行；`scratch/capB-chain.ts` 缺口表刷新 |
-| 6 | D3 章节回滚 stale 打标 | 只覆盖删除路径；回退未定义「回到哪个来源版本」 | **需拍板语义**后实现：回退目标来源明确 + stale 打标 + 测试 |
+| 6 | D3 章节回滚 stale 打标 | 只覆盖删除路径；回退未定义「回到哪个来源版本」 | ✅ 已完成（2026-09-28）：按拍板不引入 source 枚举 —— `chapter_versions.content_hash`（迁移 `ensureColumn`）+ 两条写入路径补指纹 + `listChapterVersionMetas.matchesCurrentContent`（hash 不等判 stale；存量 NULL → 「来源未知」）+ 时光机卡片徽标；后端 `tests/chapter-version-content-hash.test.ts` 5/5、前端 `src/tests/agent-workspace-versions-panel.test.tsx` 3/3 |
 | 7 | D4 记忆健康度补完 | 只做驾驶舱（无状态栏形态）；无阈值/告警；RAG 命中现算不缓存；孤立节点只看 `entity_relationships` | **需拍板阈值口径**后：阈值单源 + 告警形态 + 缓存策略 + 孤立节点并入口径 |
 | 8 | D5 长篇记忆基线补完 | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI | 建议**降级为技术债**登记（不做或并入其它项）——拍板 |
 | 9 | D6 三字段 UI 写入口 | `projectCards`/`chapterCards`/`singleRunCard` 只能经 profile 写入（接线已生效，用户点不到） | 建议**标记为内部并从 UI 概念移除**（承接 262 建议②）——拍板 |
@@ -83,3 +83,5 @@
 | E6 收尾 | `78e77e5` | 激活漏斗离线复测工具（4 files，+360）；tsc/eslint 0、测试 4/4 |
 | 对账 #2/#3/#4 | `836cf19` | 262 批次 A 行回填、需解锁契约面结案、`architecture-review.md` 复核块（5 files，+37/−14） |
 | E3/E4/E5 | 本次提交 | 版本声明单源（pin `22.22.3` / `engines >=22.22.3 <23` / CI 四处 `node-version-file` / 守卫测试 2 例）、同 checkout 串行写入规则入规格、`docs/plans/README.md` 冻结 + 根账本唯一权威指针 |
+| D3 章节版本指纹 | 本次提交 | `chapter_versions.content_hash`（建表 + `ensureColumn` 迁移）、`hashChapterContent`（sha256 原文，不归一化）、两条写入路径（CRUD `insertColumns` + accept 前置快照 raw INSERT）补列、`listChapterVersionMetas` 增 `contentHash`/`matchesCurrentContent`、时光机卡片徽标（＝ 当前正文 / ≠ 不同 / 来源未知）；后端 5/5、前端 3/3、既有夹具补字段；tsc 0 / eslint 0 |
+| 纪律修正 | 本次提交 | `AGENTS.md:26` 定向测试命令补 `NODE_ENV=test` + `--import ./tests/helpers/test-db-preload.ts`（漏掉会关掉配额门禁路径 → 假失败，见 D3 收尾取证） |

@@ -9,6 +9,7 @@ import {
   chapterToRow,
   rowToChapterVersion,
   chapterVersionToRow,
+  hashChapterContent,
 } from '../db-mappers.js';
 import { createCrudHelpers } from '../db-crud.js';
 import { getDb, notify, runInTransaction } from '../db-instance.js';
@@ -141,7 +142,7 @@ const chapterVersionCrud = createCrudHelpers<
   tableName: 'chapter_versions',
   rowToEntity: rowToChapterVersion,
   entityToRow: chapterVersionToRow,
-  insertColumns: ['id', 'chapter_id', 'content', 'word_count', 'author', 'created_at'],
+  insertColumns: ['id', 'chapter_id', 'content', 'word_count', 'author', 'content_hash', 'created_at'],
   updateColumns: [],
   listFilterKey: 'chapter_id',
   listOrderBy: 'created_at DESC',
@@ -158,12 +159,17 @@ export interface ChapterVersionMeta {
   author: string;
   createdAt: number;
   preview: string;
+  /** 该版本正文的 sha256（服务端写入时计算）；迁移前的旧行为 null = 来源未知。 */
+  contentHash: string | null;
+  /** 与章节当前正文是否逐字节一致；null = 不可判定（旧行无指纹 / 章节已不存在）。 */
+  matchesCurrentContent: boolean | null;
 }
 
 export function listChapterVersionMetas(chapterId: string): ChapterVersionMeta[] {
-  const rows = getDb()
+  const db = getDb();
+  const rows = db
     .prepare(
-      `SELECT id, word_count, author, created_at, substr(content, 1, 150) AS preview
+      `SELECT id, word_count, author, created_at, content_hash, substr(content, 1, 150) AS preview
      FROM chapter_versions WHERE chapter_id = ? ORDER BY created_at DESC`
     )
     .all(chapterId) as Array<{
@@ -171,15 +177,26 @@ export function listChapterVersionMetas(chapterId: string): ChapterVersionMeta[]
     word_count: number;
     author: string;
     created_at: number;
+    content_hash: string | null;
     preview: string | null;
   }>;
-  return rows.map((r) => ({
-    id: r.id,
-    wordCount: r.word_count,
-    author: r.author,
-    createdAt: r.created_at,
-    preview: r.preview || '',
-  }));
+  const chapterRow = db.prepare('SELECT content FROM chapters WHERE id = ?').get(chapterId) as
+    | { content: string | null }
+    | undefined;
+  const currentHash = chapterRow ? hashChapterContent(chapterRow.content || '') : null;
+  return rows.map((r) => {
+    const contentHash = r.content_hash ?? null;
+    return {
+      id: r.id,
+      wordCount: r.word_count,
+      author: r.author,
+      createdAt: r.created_at,
+      preview: r.preview || '',
+      contentHash,
+      matchesCurrentContent:
+        contentHash === null || currentHash === null ? null : contentHash === currentHash,
+    };
+  });
 }
 
 export function getChapterVersion(id: string): ChapterVersion | undefined {
@@ -239,8 +256,8 @@ export function acceptChapterContentCandidate(input: ChapterContentCandidateAcce
     const db = getDb();
     db.prepare(
       `
-      INSERT INTO chapter_versions (id, chapter_id, content, word_count, author, created_at)
-      VALUES (@id, @chapter_id, @content, @word_count, @author, @created_at)
+      INSERT INTO chapter_versions (id, chapter_id, content, word_count, author, content_hash, created_at)
+      VALUES (@id, @chapter_id, @content, @word_count, @author, @content_hash, @created_at)
     `
     ).run(
       chapterVersionToRow({
