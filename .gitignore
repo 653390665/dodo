@@ -1,5 +1,7 @@
 node_modules/
-build/
+build/*
+!build/embedding-model
+!build/embedding-model/**
 dist/
 dist-electron/
 release/
