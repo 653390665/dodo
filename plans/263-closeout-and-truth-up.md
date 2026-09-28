@@ -103,6 +103,7 @@
 | R 轮 D4 适合度「使用反馈」通道接线 | `e8a7d38` | `observedUsageFeedback`（`shared/lib/skill-model.ts:258-273`，样本量 = `mountedCount`）接进文风货架：`src/lib/capability-shelf.ts` 反馈分支 + `feedbackSampleSize`、`src/components/skills/StyleShelf.tsx` 条件展开 `{ feedbackScore, feedbackSampleSize }`、`src/components/SkillsStudioView.tsx` `feedbackByAssetId`（键 `skill.parentSkillId || skill.id`）；有样本按反馈计分并标注样本量、无样本保持原静态重分配（Plan 150 两通道分开展示约束）；前端定向 3 文件 27 用例（新增 2 例）全绿、tsc 0 / eslint 0 |
 | R 轮 D5 离线权重「仓内随包」 | `ff23ab9` | `.gitignore:2` 由 `build/` 拆为 `build/*` + `!build/embedding-model` + `!build/embedding-model/**`；权重 4 文件（23.3 MB，sha256 与 R3 pin 全等）入库 → CI 冷启动取权重命中 cached、不再访问 `huggingface.co`（销账 E2 残余①）；entitlements plist 保持忽略；`rm -rf build/embedding-model` 后 `git checkout -- build/embedding-model` 离线恢复 + 4 文件 sha256 复核 + 取权重 4/4 cached EXIT=0 |
 | R 轮 D7 `Scene` 声明收口 | `1d69429` | 核对：全仓 175 条 `Scene` 命中均为文案 / 局部变量 / 邻接类型，无 `: Scene` / `Scene>` / `Scene[]` / import 用法；`scenes` 仅 2 条注释 + JSDoc 自身 → 无表；决策表 D7 行补标「**已拍板（留）**」+ 证据入账 |
+| R 轮 R2 读数脚本单源回归修复 | `b009bce` | 全量后端套件（独立复核）抓出 `scripts/report-flow-step-audit.ts:48` 手抄 `sanitizationStatus === 'runtime-ready'` 三元判据（R2 入库 `3214ddf` 后该脚本才进入 `tests/capability-runtime-readiness.test.ts` 的单源守卫扫描面，当时定向测试未覆盖）→ 改引 `isRuntimeReadyAsset(asset)`；守卫 3/3、tsc 0 / eslint 0、`npx tsx scripts/report-flow-step-audit.ts` EXIT=0（阶段分布 planner 21 / writer 9 / critic 4，声明 vs 直方图一致 PASS） |
 
 ## 需拍板（2026-09-28 R 轮，已逐项核实「是否真需要拍板」）
 
@@ -132,7 +133,8 @@
 
 ## 终态（2026-09-28 R 轮收尾）
 
-- HEAD = `1d69429`（分支 `codex/plan169-checkpoint`；本地领先 origin 161 提交，push 待用户 `gh auth login -h github.com`）。
+- HEAD = `b009bce`（分支 `codex/plan169-checkpoint`；`ef92434` 为新会话交付终态，`b009bce` 为随后的 R2 单源守卫回归修复；本地领先 origin 至少 162 提交——计数随每次提交递增，精确值查 `git rev-list --count origin/codex/plan169-checkpoint..HEAD`；push 待用户 `gh auth login -h github.com`）。
 - 门禁基线：后端全量 `1465/1465`、前端全量 `161 files / 1022 tests`、六场景快照逐项不变（沿用 D1/E7 读数；D6/D4/D5/D7 各单元另跑定向：D6 `tests/embedding-model-assets.test.ts` 11/11 + tsc 0 + eslint 0；D4 前端定向 3 文件 27 用例 + tsc 0 + eslint 0；D5 权重 4 文件 sha256 复核 + 取权重 4/4 cached EXIT=0；D7 零引用核对）。
-- 已关闭：R 轮 D3 拍板 A（`ea50b45`）、D4 接（`e8a7d38`）、D5 b-full（`ff23ab9`）、D6 b（`db474a1`）、D7 留（`1d69429`）、E2 残余①发布链 Hub 依赖（D5）、E2 残余②冒烟逃生舱（D6）。
+- 已关闭：R 轮 D3 拍板 A（`ea50b45`）、D4 接（`e8a7d38`）、D5 b-full（`ff23ab9`）、D6 b（`db474a1`）、D7 留（`1d69429`）、E2 残余①发布链 Hub 依赖（D5）、E2 残余②冒烟逃生舱（D6）、R2 读数脚本单源守卫回归（`b009bce`）。
 - 未关闭（非本会话可解）：E1 push（需用户 `gh auth login`）、E6 激活漏斗复测（待真实用户数据）、F9 `vector_chunks` 全表扫描（待真实分布）、D5 长篇记忆基线（技术债，触发 = 真实长篇样本）、D8 vitest 3 条 moderate dev 漏洞（需有网复核）、M6 打包态真机验证（需联网拉 Electron 头）。
+- 独立复核（2026-09-28，本会话）：后端全量 `1467/1467`（修复 R2 守卫回归 `b009bce` 后复跑）、前端全量 `161 files / 1025 tests`；仓内 4 个权重文件 sha256 与 `scripts/lib/embedding-weights.mjs` 的 `EMBEDDING_MODEL_SHA256` 全等，新 `git worktree` 复核 `onnx/model_quantized.onnx` = 24010842 B；`node scripts/fetch-embedding-model.mjs` 离线 `4 files cached`（EXIT=0）；守卫 `tests/capability-runtime-readiness.test.ts` 3/3。
