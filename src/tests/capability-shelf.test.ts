@@ -122,6 +122,20 @@ describe('computeCardFitness', () => {
     expect(good.score).toBeGreaterThan(noFeedback.score);
   });
 
+  test('有样本量时反馈原因带挂载次数；仅有分数时保持旧文案（分值不变）', () => {
+    const base = card('z', '某正文润色卡');
+    const withSample = computeCardFitness(base, {
+      novelGenreTokens: [],
+      feedbackScore: 80,
+      feedbackSampleSize: 7,
+    });
+    expect(withSample.reasons.join()).toContain('✓ 有真实使用反馈（7 次挂载）');
+    const withoutSample = computeCardFitness(base, { novelGenreTokens: [], feedbackScore: 80 });
+    expect(withoutSample.reasons.join()).toContain('✓ 有真实使用反馈');
+    expect(withoutSample.reasons.join()).not.toContain('次挂载');
+    expect(withoutSample.score).toBe(withSample.score);
+  });
+
   test('治理分贡献有上限（15）', () => {
     const high = computeCardFitness(card('hi', '高分卡', { score: 100 }), { novelGenreTokens: [] });
     const low = computeCardFitness(card('lo', '低分卡', { score: 30 }), { novelGenreTokens: [] });

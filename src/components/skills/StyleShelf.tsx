@@ -135,6 +135,12 @@ interface StyleShelfProps {
   isCardConfigured?: (asset: CuratedProductSkill) => boolean;
   /** Plan 238/226：症候或筛选激活时全部展开（用户带着意图来，不折叠）。 */
   filterActive?: boolean;
+  /**
+   * Plan 263 D4：资产 -> 真实使用反馈（0-100 分 + 样本量）。
+   * 入参是资产侧对齐键（asset.parentSkillId || asset.id，与 isAssetPersisted 同款）；无样本返回 null，
+   * 适合度仍走权重重分配。
+   */
+  feedbackForAsset?: (assetId: string) => { score: number; sampleSize: number } | null;
 }
 
 /**
@@ -154,6 +160,7 @@ export function StyleShelf({
   onApplyDeck,
   isCardConfigured,
   filterActive = false,
+  feedbackForAsset,
 }: StyleShelfProps) {
   const novelText = [selectedNovel?.title, selectedNovel?.summary].filter(Boolean).join('\n');
   const novelTags = selectedNovel?.projectPreferenceProfile?.tags || [];
@@ -162,16 +169,26 @@ export function StyleShelf({
   // Plan 226：有作品上下文时按适合度降序（无上下文保持目录序）。
   // Plan 237：无上下文时适合度是无含义的噪声分（题材/平台/反馈权重全空），不渲染。
   const hasFitnessContext = novelGenreTokens.length > 0 || Boolean(novelPlatform);
-  const decorated = assets.map((asset) => ({
-    ...asset,
-    isFavorited: isFavorited(asset),
-    isCloning: cloningAssetId === asset.id,
-    isImported: isImported(asset),
-    asset,
-    fitness: hasFitnessContext
-      ? computeCardFitness(asset, { novelGenreTokens, novelPlatform })
-      : null,
-  }));
+  const decorated = assets.map((asset) => {
+    // Plan 263 D4：真实使用反馈只走 observedUsageFeedback 通道（带样本量）；无样本保持权重重分配。
+    const feedback = feedbackForAsset?.(asset.parentSkillId || asset.id) ?? null;
+    return {
+      ...asset,
+      isFavorited: isFavorited(asset),
+      isCloning: cloningAssetId === asset.id,
+      isImported: isImported(asset),
+      asset,
+      fitness: hasFitnessContext
+        ? computeCardFitness(asset, {
+            novelGenreTokens,
+            novelPlatform,
+            ...(feedback
+              ? { feedbackScore: feedback.score, feedbackSampleSize: feedback.sampleSize }
+              : {}),
+          })
+        : null,
+    };
+  });
   const shelf = groupStyleShelf(
     hasFitnessContext
       ? decorated.sort((a, b) => (b.fitness?.score ?? 0) - (a.fitness?.score ?? 0))

@@ -203,6 +203,8 @@ export interface CardFitnessContext {
   stage?: string;
   /** 使用反馈分 0-100（skill_usage_records 聚合；无样本则不提供，权重重分配）。 */
   feedbackScore?: number;
+  /** 使用反馈样本量（挂载次数）；随 feedbackScore 一并传入，用于展示可信度。 */
+  feedbackSampleSize?: number;
 }
 
 export interface CardFitness {
@@ -264,7 +266,12 @@ export function computeCardFitness(
   if (hasFeedback) {
     activeMax += 20;
     score += Math.round(((ctx.feedbackScore as number) / 100) * 20);
-    reasons.push('✓ 有真实使用反馈');
+    const sampleSize = ctx.feedbackSampleSize;
+    reasons.push(
+      typeof sampleSize === 'number' && sampleSize > 0
+        ? `✓ 有真实使用反馈（${sampleSize} 次挂载）`
+        : '✓ 有真实使用反馈'
+    );
   } else {
     if (ctx.novelGenreTokens.length > 0) activeMax += 12;
     if (ctx.novelPlatform) activeMax += 8;

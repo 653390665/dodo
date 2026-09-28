@@ -6,6 +6,7 @@ import { getCraftSignature } from '../lib/capability-craft';
 import { groupStyleShelf } from '../lib/capability-shelf';
 import { StyleShelf } from '../components/skills/StyleShelf';
 import type { CuratedProductSkill } from '../../shared/types/prompt-assets-governed';
+import type { Novel } from '../../shared/types';
 
 const noop = vi.fn();
 const handlers = {
@@ -220,5 +221,51 @@ describe('StyleShelf 系列套牌（plan 229）', () => {
     ).length;
     expect(expectedSuspect).toBeGreaterThan(0);
     expect(text).toContain(`疑似重复 · 待裁决（${expectedSuspect}）`);
+  });
+});
+
+describe('StyleShelf 适合度反馈通道（plan 263 D4）', () => {
+  const novel = {
+    id: 'novel-d4-test',
+    title: '番茄短篇测试稿',
+    summary: '',
+    projectPreferenceProfile: { tags: [] },
+  } as unknown as Novel;
+  const assets = getOptionalStyleAssets();
+  const target = assets[0];
+  const feedbackKey = target.parentSkillId || target.id;
+
+  test('传入真实使用反馈时按反馈计分，并在原因里带样本量', () => {
+    render(
+      <StyleShelf
+        selectedNovel={novel}
+        assets={assets}
+        isFavorited={() => false}
+        isImported={() => false}
+        cloningAssetId={null}
+        isFreeNovel={false}
+        handlers={handlers}
+        feedbackForAsset={(assetId) =>
+          assetId === feedbackKey ? { score: 90, sampleSize: 12 } : null
+        }
+      />
+    );
+    expect(screen.getAllByTitle(/✓ 有真实使用反馈（12 次挂载）/).length).toBeGreaterThan(0);
+  });
+
+  test('无反馈时出现适合度分但没有使用反馈原因（读数与接入前一致）', () => {
+    render(
+      <StyleShelf
+        selectedNovel={novel}
+        assets={assets}
+        isFavorited={() => false}
+        isImported={() => false}
+        cloningAssetId={null}
+        isFreeNovel={false}
+        handlers={handlers}
+      />
+    );
+    expect(screen.queryByTitle(/有真实使用反馈/)).toBeNull();
+    expect(screen.getAllByText(/^适合度 \d+$/).length).toBeGreaterThan(0);
   });
 });

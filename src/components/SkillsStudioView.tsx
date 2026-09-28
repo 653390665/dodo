@@ -23,6 +23,7 @@ import { listNovels } from '../lib/novel-client';
 import { deleteSkill, syncSkillFeedbackScores, createSkill } from '../lib/skill-client';
 import { Skill, Novel, ViewType, ProjectCapabilityProfile, TechniquePriorityRole } from '../../shared/types';
 import { sanitizeWhiteLabelText } from '../../shared/lib/prompt-sanitizer';
+import { getSkillScoreChannels } from '../../shared/lib/skill-model';
 import { PROJECT_DECK_MAX_SUPPORT_CARDS } from '../../shared/lib/project-preference-profile';
 import { SkillCard } from './skills/SkillCard';
 import { SkillDetailDrawer } from './skills/SkillDetailDrawer';
@@ -410,6 +411,25 @@ export function SkillsStudioView({
       : null;
   // Plan 195 切片 C：货架数据获取迁 useSkillsShelfData（加载+订阅收口，setter 镜像 useState 语义）。
   const { savedSkills, setSavedSkills } = useSkillsShelfData();
+  // Plan 263 D4：把已保存能力卡的真实使用反馈按「资产对齐键」建索引（键与 isAssetPersisted 一致：
+  // parentSkillId || id），供文风货架读取 observedUsageFeedback（0-100 分 + 样本量）。
+  // 治理约束：这里只暴露在线表现通道，冷启动分（asset.score）仍走独立通道，两者不相加。
+  const feedbackByAssetId = useMemo(() => {
+    const map = new Map<string, { score: number; sampleSize: number }>();
+    for (const skill of savedSkills) {
+      const feedback = getSkillScoreChannels(skill).observedUsageFeedback;
+      if (!feedback) continue;
+      const key = skill.parentSkillId || skill.id;
+      if (!key) continue;
+      const existing = map.get(key);
+      if (!existing || feedback.sampleSize > existing.sampleSize) map.set(key, feedback);
+    }
+    return map;
+  }, [savedSkills]);
+  const feedbackForAsset = useMemo(
+    () => (assetId: string) => feedbackByAssetId.get(assetId) ?? null,
+    [feedbackByAssetId]
+  );
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [skillToDeleteId, setSkillToDeleteId] = useState<string | null>(null);
   const [userNovels, setUserNovels] = useState<Novel[]>([]);
@@ -3189,6 +3209,7 @@ export function SkillsStudioView({
                                 cloningAssetId={cloningAssetId}
                                 isFreeNovel={isFreeNovel}
                                 filterActive={Boolean(activeSymptomKey)}
+                                feedbackForAsset={feedbackForAsset}
                                 onApplyDeck={handleApplyDeck}
                                 isCardConfigured={isDeckCardConfigured}
                                 handlers={{
