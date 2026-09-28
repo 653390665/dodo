@@ -5,7 +5,7 @@
  * ② 打包接线：package.json 的 extraResources 带权重组、package 链先取权重、冒烟脚本断言权重存在；
  * ③ Electron 注入：打包态注入 INKFLOW_EMBEDDING_MODEL_DIR / INKFLOW_MODEL_CACHE_DIR（缓存落 userData）；
  * ④ 纯函数：resolveEmbeddingAssetPaths（齐备 → 本地优先 + 关远程；不全 → 只设缓存目录、保留远程）；
- * ⑤ 取权重脚本可跳过执行（SKIP_EMBEDDING_MODEL_FETCH=true，退出码 0）；
+ * ⑤ 取权重脚本可跳过执行（SKIP_EMBEDDING_MODEL_FETCH=true，退出码 0；冒烟退出舱只认显式 --allow-missing-weights）；
  * ⑥ sha256 pin：映射键 == 文件清单，取权重与打包冒烟均校验哈希（不同步即失败）。
  */
 import assert from 'node:assert/strict';
@@ -101,7 +101,8 @@ test('打包接线：extraResources 带权重组、package 链先取权重、冒
 
   const smoke = fs.readFileSync('scripts/check-package-artifacts.mjs', 'utf8');
   assert.match(smoke, /embeddingWeightsVerdict\(releaseFiles/);
-  assert.match(smoke, /SKIP_EMBEDDING_MODEL_FETCH/);
+  assert.match(smoke, /--allow-missing-weights/);
+  assert.doesNotMatch(smoke, /process\.env\.SKIP_EMBEDDING_MODEL_FETCH/);
 });
 
 test('Electron 打包态注入权重目录与可写缓存目录', () => {
@@ -143,7 +144,9 @@ test('冒烟判定：缺权重/权重过小/跳过三种口径', () => {
   assert.equal(tooSmall.ok, false);
   assert.match(tooSmall.message, /too small/);
 
-  assert.equal(embeddingWeightsVerdict([], { skip: true }).ok, true);
+  const skipped = embeddingWeightsVerdict([], { skip: true });
+  assert.equal(skipped.ok, true);
+  assert.match(skipped.message, /--allow-missing-weights/);
 });
 
 test('sha256 pin：映射键与文件清单一致且均为 64 位十六进制', () => {

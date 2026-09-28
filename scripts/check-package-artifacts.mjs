@@ -69,10 +69,15 @@ if (!fs.existsSync(releaseDir)) {
 
 const releaseFiles = walk(releaseDir);
 
-// 离线语义检索权重（Plan 263 E2）：随包附权重，打包件里必须能查到量化权重
-const weightsVerdict = embeddingWeightsVerdict(releaseFiles, {
-  skip: process.env.SKIP_EMBEDDING_MODEL_FETCH === 'true',
-});
+// 离线语义检索权重（Plan 263 E2 / D6）：随包附权重，打包件里必须能查到量化权重。
+// 退出舱只认显式命令行开关；SKIP_EMBEDDING_MODEL_FETCH 只影响「取权重」步骤，不再让冒烟静默放行。
+const allowMissingWeights = process.argv.includes('--allow-missing-weights');
+if (allowMissingWeights) {
+  process.stderr.write(
+    'warn package-artifacts: embedding weights check skipped (--allow-missing-weights)\n'
+  );
+}
+const weightsVerdict = embeddingWeightsVerdict(releaseFiles, { skip: allowMissingWeights });
 if (weightsVerdict.ok) ok(weightsVerdict.message);
 else fail(weightsVerdict.message);
 

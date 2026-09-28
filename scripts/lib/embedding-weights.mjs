@@ -94,7 +94,7 @@ export function embeddingWeightsVerdict(releaseFiles, options = {}) {
   if (options.skip) {
     return {
       ok: true,
-      message: 'offline embedding weights check skipped (SKIP_EMBEDDING_MODEL_FETCH=true)',
+      message: 'offline embedding weights check skipped (--allow-missing-weights)',
     };
   }
   const sizeOf = options.sizeOf ?? ((file) => fs.statSync(file).size);

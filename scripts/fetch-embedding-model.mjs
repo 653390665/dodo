@@ -6,7 +6,7 @@
  * 离线优先语义检索成立；运行期缓存另由 INKFLOW_MODEL_CACHE_DIR 指向 userData。
  *
  * 取权重顺序：INKFLOW_MODEL_SOURCE_DIR → node_modules 缓存 → huggingface.co。
- * 跳过：SKIP_EMBEDDING_MODEL_FETCH=true（打包脚本仍会跑，冒烟检查同步跳过权重断言）。
+ * 跳过：SKIP_EMBEDDING_MODEL_FETCH=true（只跳过本步骤；打包冒烟另有独立开关 --allow-missing-weights，不再随本变量放行）。
  *
  * 用法：node scripts/fetch-embedding-model.mjs
  */
