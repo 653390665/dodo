@@ -98,6 +98,11 @@
 | 审计（回答用户「审查已完成/未完成任务清单」） | `695fddb` | 全量后端 `1465/1465` + 全量前端 `161 files / 1022 tests` 全绿；关闭 4 项（前端 2 失败用例 / 性能结论 / F5 三 handler 均为权威写入 / F7 `Scene` 死模型），F6 与 F9 维持开放（前者已定性读层无内容级消毒） |
 | 读数脚本入库 | `3214ddf` | 5 个核心读数脚本从 `scratch/`（gitignored）移入 `scripts/`：链路引用面 / 步骤审计 / 角色投影 / 清洗层 / 六场景快照；规格 §7 表格与账本引用同步改名 |
 | F6 结案 + E2 加固（R3） | `afbc1ad` | F6 定向追证：`/api/db` 读路径唯一生产消费者 `src/components/AppShell.tsx:1085` 只取 `skillId`/`name`，`Skill.style` 3 处生产命中均为谓词/融合门控而非渲染 → 结案；E2 权重 sha256 pin（`EMBEDDING_MODEL_SHA256` + `hashFileSha256` + `verifyModelDirHashes` + 取权重脚本强校验 + 3 例测试，11/11） |
+| R 轮 D3-A `memory/` 入库声明改正 | `ea50b45` | 拍板 A 落地：承认入库并改 `MEMORY.md` 声明（B 案局限见验证节：blob 仍在历史里）；4 文件均被 git 追踪的证据入账 |
+| R 轮 D6 冒烟逃生舱改显式开关 | `db474a1` | `scripts/check-package-artifacts.mjs` 不再读 `SKIP_EMBEDDING_MODEL_FETCH`，逃生舱仅认显式 `--allow-missing-weights`（`package.json` 冒烟链路同步）；`tests/embedding-model-assets.test.ts` 11/11、tsc 0 / eslint 0 |
+| R 轮 D4 适合度「使用反馈」通道接线 | `e8a7d38` | `observedUsageFeedback`（`shared/lib/skill-model.ts:258-273`，样本量 = `mountedCount`）接进文风货架：`src/lib/capability-shelf.ts` 反馈分支 + `feedbackSampleSize`、`src/components/skills/StyleShelf.tsx` 条件展开 `{ feedbackScore, feedbackSampleSize }`、`src/components/SkillsStudioView.tsx` `feedbackByAssetId`（键 `skill.parentSkillId || skill.id`）；有样本按反馈计分并标注样本量、无样本保持原静态重分配（Plan 150 两通道分开展示约束）；前端定向 3 文件 27 用例（新增 2 例）全绿、tsc 0 / eslint 0 |
+| R 轮 D5 离线权重「仓内随包」 | `ff23ab9` | `.gitignore:2` 由 `build/` 拆为 `build/*` + `!build/embedding-model` + `!build/embedding-model/**`；权重 4 文件（23.3 MB，sha256 与 R3 pin 全等）入库 → CI 冷启动取权重命中 cached、不再访问 `huggingface.co`（销账 E2 残余①）；entitlements plist 保持忽略；`rm -rf build/embedding-model` 后 `git checkout -- build/embedding-model` 离线恢复 + 4 文件 sha256 复核 + 取权重 4/4 cached EXIT=0 |
+| R 轮 D7 `Scene` 声明收口 | `1d69429` | 核对：全仓 175 条 `Scene` 命中均为文案 / 局部变量 / 邻接类型，无 `: Scene` / `Scene>` / `Scene[]` / import 用法；`scenes` 仅 2 条注释 + JSDoc 自身 → 无表；决策表 D7 行补标「**已拍板（留）**」+ 证据入账 |
 
 ## 需拍板（2026-09-28 R 轮，已逐项核实「是否真需要拍板」）
 
@@ -106,9 +111,9 @@
 | D1 | E1 push | `gh auth status` = `X Failed to log in to github.com account 653390665 (default)`；本地领先 origin **154** 提交 | 需用户在终端 `gh auth login -h github.com` → 我 push 至 ahead=0。**真需拍板**（唯一阻塞项） |
 | D2 | 本机 Node 升到 22.22.3 | 本机 `node -v` = v22.22.0，低于自声明 floor `>=22.22.3`（`.nvmrc`/`.node-version`/`engines`）；npm v12.0.2 每条命令告警。实测 22.22.3 可用（`FNM_DIR=/tmp/fnm-home fnm install` 后：`TSC_EXIT=0`、`tests/node-version-declaration.test.ts` `TEST_EXIT=0`）；写 `~/.local/share/fnm` 被沙箱 EPERM 拦下 | 需用户在自己终端执行 `fnm install 22.22.3 && fnm default 22.22.3`。低风险，建议做 |
 | D3 | `memory/` 入库声明矛盾 | `git ls-files memory MEMORY.md TOOLS.md` = 4 个文件均被追踪，但 `MEMORY.md:19-20` 声明「不入库」+「待操作者拍板」；`plans/255-log-repo-hygiene.md:89` 写明「不动 git，属操作者决策」 | **已拍板 A（2026-09-28 R 轮落地）**：承认入库并改 `MEMORY.md` 声明；B 的局限见下方「验证」节（blob 仍在历史里） |
-| D4 | 适合度「使用反馈」通道接线 | 反馈侧已通（`server/lib/db/skills.ts:251 calculateFeedbackScore` + `src/components/ChapterCapabilityFeedbackBar.tsx:66`）；消费侧未接：唯一生产调用点 `src/components/skills/StyleShelf.tsx:172` 只传 `{ novelGenreTokens, novelPlatform }`，`src/lib/capability-shelf.ts:263-271` 在无样本时静态重分配 +12/+8 | 接（需满足 Plan 150 两通道分开展示约束）/ 不接（登记为残余）。建议接（工作量小、直接影响排序质量） |
-| D5 | E2 残余① 发布链依赖 `huggingface.co` | npm 包不带权重；CI 三个打包作业 `npm ci` 后只能走 Hub，不可达即 `exit 1`（发布硬失败） | a 接受 / b pin revision + 发布机或 CI 缓存预置权重 / c 权重作 release 资产托管。建议 b（最小改动：加 cache 步骤 + 文档；本机 `huggingface.co` 当前不可达，只能先改接线不能验证） |
-| D6 | E2 残余② `SKIP_EMBEDDING_MODEL_FETCH=true` 逃生舱 | 该模式下 `embeddingWeightsVerdict` 直接返回 ok（声明见 `scripts/fetch-embedding-model.mjs:9`）→ 可产无权重发布件且过 `smoke:package-artifacts` | a 保持（离线开发必需）/ b 冒烟不再随 SKIP 跳过，仅显式 `--allow-missing-weights` 放行。建议 b（默认严格 + 显式放行） |
+| D4 | 适合度「使用反馈」通道接线 | **已拍板（接）（2026-09-28 收尾落地 `e8a7d38`）**：反馈侧已通（`server/lib/db/skills.ts:251 calculateFeedbackScore` + `src/components/ChapterCapabilityFeedbackBar.tsx:66`）；消费侧未接：唯一生产调用点 `src/components/skills/StyleShelf.tsx:172` 只传 `{ novelGenreTokens, novelPlatform }`，`src/lib/capability-shelf.ts:263-271` 在无样本时静态重分配 +12/+8 | 接（需满足 Plan 150 两通道分开展示约束）/ 不接（登记为残余）。建议接（工作量小、直接影响排序质量） |
+| D5 | E2 残余① 发布链依赖 `huggingface.co` | **已拍板 b-full（权重入库随包）（2026-09-28 收尾落地 `ff23ab9`）**：npm 包不带权重；CI 三个打包作业 `npm ci` 后只能走 Hub，不可达即 `exit 1`（发布硬失败） | a 接受 / b pin revision + 发布机或 CI 缓存预置权重 / c 权重作 release 资产托管。建议 b（最小改动：加 cache 步骤 + 文档；本机 `huggingface.co` 当前不可达，只能先改接线不能验证） |
+| D6 | E2 残余② `SKIP_EMBEDDING_MODEL_FETCH=true` 逃生舱 | **已拍板 b（默认严格 + 显式放行）（2026-09-28 收尾落地 `db474a1`）**：该模式下 `embeddingWeightsVerdict` 直接返回 ok（声明见 `scripts/fetch-embedding-model.mjs:9`）→ 可产无权重发布件且过 `smoke:package-artifacts` | a 保持（离线开发必需）/ b 冒烟不再随 SKIP 跳过，仅显式 `--allow-missing-weights` 放行。建议 b（默认严格 + 显式放行） |
 | D7 | F7 `Scene` 删除还是保留 | **已拍板（留）（2026-09-28 D7 收口）**：已零引用（全仓 175 条 `Scene` 命中均为文案/局部变量/邻接类型；无 `: Scene` / `Scene>` / `Scene[]` / import 用法）+ 无 `scenes` 表（仅 2 条注释 + JSDoc 自身）；本轮已按选项③标「未接线声明」（`shared/types/novel.ts:308-311` JSDoc + 本表登记） | 保留（零成本，作历史契约快照）/ 删除（需单独拍板） |
 | D8 | vitest 3 条 moderate dev 漏洞 | `MEMORY.md:14` 记载待批准 `--force` 升级；CI audit 门只审 `--omit=dev`；`plans/README.md:576` 自相矛盾（同句写着 `0fb8561` 已升级归零 / 仅剩 3 moderate） | 有网时 `npm audit` 复核后决定 `--force`。本机当前无网，**暂无法复核** |
 
@@ -124,3 +129,10 @@
 - **D6**：`scripts/check-package-artifacts.mjs:73-75` 传 `skip: SKIP_EMBEDDING_MODEL_FETCH === 'true'`，而 skip 在 R3 的 sha256 校验**之前**短路 → 仍可产出「无权重且过冒烟」的发布件。全仓 grep：`SKIP_EMBEDDING_MODEL_FETCH` 仅出现在 `scripts/fetch-embedding-model.mjs`、`tests/embedding-model-assets.test.ts` 与计划/文档 —— **CI 未设、也无已记载的用户工作流依赖它** → 选项 b（显式 `--allow-missing-weights` 才放行）风险很低。
 - **D7**：`Scene`/`scenes` 全仓 23 命中，逐条看过：均为文案（「Scene Beats」/「Scene Contract」）或局部变量（`tests/scene-split.test.ts:16-21` 的 `const scenes = splitSceneBeats(beats)`）→ `shared/types/novel.ts:313` 的接口零引用，维持「未接线声明」。**（2026-09-28 D7 收口：已拍板「留」，见上表 D7 行）**
 - **D8**：`curl registry.npmjs.org` = 000、`huggingface.co` = 000 → 本机无法 `npm audit` 取证，维持「有网时复核」。
+
+## 终态（2026-09-28 R 轮收尾）
+
+- HEAD = `1d69429`（分支 `codex/plan169-checkpoint`；本地领先 origin 161 提交，push 待用户 `gh auth login -h github.com`）。
+- 门禁基线：后端全量 `1465/1465`、前端全量 `161 files / 1022 tests`、六场景快照逐项不变（沿用 D1/E7 读数；D6/D4/D5/D7 各单元另跑定向：D6 `tests/embedding-model-assets.test.ts` 11/11 + tsc 0 + eslint 0；D4 前端定向 3 文件 27 用例 + tsc 0 + eslint 0；D5 权重 4 文件 sha256 复核 + 取权重 4/4 cached EXIT=0；D7 零引用核对）。
+- 已关闭：R 轮 D3 拍板 A（`ea50b45`）、D4 接（`e8a7d38`）、D5 b-full（`ff23ab9`）、D6 b（`db474a1`）、D7 留（`1d69429`）、E2 残余①发布链 Hub 依赖（D5）、E2 残余②冒烟逃生舱（D6）。
+- 未关闭（非本会话可解）：E1 push（需用户 `gh auth login`）、E6 激活漏斗复测（待真实用户数据）、F9 `vector_chunks` 全表扫描（待真实分布）、D5 长篇记忆基线（技术债，触发 = 真实长篇样本）、D8 vitest 3 条 moderate dev 漏洞（需有网复核）、M6 打包态真机验证（需联网拉 Electron 头）。
