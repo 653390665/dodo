@@ -1,6 +1,6 @@
 # Plan 264：残余项收口 —— 外部依赖项的取证、可执行化与决策规则（不含打包）
 
-- 状态：执行中（2026-09-28 立项；P1/P2 已执行，P3 基线已跑，P4–P6 登记待触发）
+- 状态：执行中（2026-09-28 更新：P1/P2/P3/P4/P6 已完成；**P7 分支推送成功** `44e5f07..053d1b4`；P5 等真实用户数据）
 - 立项：2026-09-28（Round 46 续；直接承接 `plans/263-closeout-and-truth-up.md` 的「未关闭」清单与 `docs/architecture/remediation-plan.md` 的 F9 行）
 - 前置：Plan 263 全部可解项已交付（`plans/263-closeout-and-truth-up.md:3` 状态行）；HEAD 立项时 `9d0650c`，本地领先 `origin/codex/plan169-checkpoint` 164 提交
 - 非目标（本轮明确不做）：打包/发布链相关 —— M6 打包态真机验证、Hub 权重拉取链路。用户指令：2026-09-28「M6 打包态真机验证：需联网拉 Electron 头，先不做。目前不考虑打包的事」
@@ -17,7 +17,7 @@
 | P3 | F9 `vector_chunks` 扫描决策 | `server/vector-store.ts:100-148` 单作品 `WHERE novel_id = ?` 取全量后逐行 `JSON.parse` + `cosineSimilarity`；`:116-118` ≥1000 块记一次日志（Plan 184 调查埋点）；真实分布未得（本机 8 部作品为狗粮） | 合成成本基线（512 维 × {1000, 5000, 20000} 块，分解 parse / 余弦）；给出「何时必须上 ANN」的机械阈值 | 读数 + 阈值写入 `remediation-plan.md:167` | ✅ 已完成（2026-09-28） |
 | P4 | D5 长篇记忆基线 | 技术债（合成长书样本、回声口径=token 是否进请求、planner/critic 未纳入、未接 CI）；脚本 `scripts/long-memory-baseline.ts` 随仓库 | 触发条件可判定化（章节数/字数阈值）并登记 | 触发线写入账本 | ✅ 已完成（2026-09-28） ；**触发线（可判定）**：任一作品 ≥ 30 万字（含）或 ≥ 100 章（含）时复跑 `scripts/long-memory-baseline.ts` 并把读数回写本表 |
 | P5 | E6 激活漏斗复测 | 工具就绪（`scripts/report-activation-funnel.ts` + `docs/research/activation-funnel-runbook.md`）；实测端口 3000 无 server → 无新数据可读 | 待真实数据；触发即跑 runbook 三步命令 | 触发条件 + 命令在 runbook | 待触发（外部） |
-| P6 | D2 本机 Node 升 22.22.3 | `node -v` = v22.22.0 < 自声明 floor `>=22.22.3`（`.nvmrc`/`.node-version`/`engines`）；`fnm install 22.22.3` 再次实测仍 `PermissionDenied`（写 `/Users/Zhuanz/.local/share/fnm/node-versions/.downloads/.tmpXXXX`）→ 沙箱不能写该目录 | 需用户在自己终端执行 `fnm install 22.22.3 && fnm default 22.22.3` | 用户执行后 `node -v` = v22.22.3 且 `tests/node-version-declaration.test.ts` 全绿 | 待用户（外部） |
+| P6 | D2 本机 Node 升 22.22.3 | ✅ **已解决（FNM_DIR 旁路，2026-09-28）**：沙箱不能写 fnm 默认目录 → `FNM_DIR=$HOME/.inkflow/fnm fnm install 22.22.3` 安装成功；`fnm exec --using=22.22.3 -- node -v` = v22.22.3；`tests/node-version-declaration.test.ts` 在 22.22.3 下 2/2 全绿。运维入口：`export FNM_DIR=$HOME/.inkflow/fnm` 后正常使用 fnm | — | 完成判据已达成 | ✅ 已完成 |
 | P7 | E1 push 本体 | `gh auth status` token invalid（实测两次：06:26 与详情页）→ push 必失败 | 需用户终端 `gh auth login -h github.com`；我方随后 `git push` | ahead=0 | 待用户（外部） |
 
 ## 登记（不需动作，仅口径）
