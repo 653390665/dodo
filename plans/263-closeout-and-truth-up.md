@@ -97,5 +97,5 @@
 | 审计修正（二） | `d20093f` | `architecture-review.md` / `remediation-plan.md` 状态块刷新（M2/M6/M7）+ `plans/README.md` 新增「审计基准的可解析性」（第 1–29 轮基准属 2026-08-29 存档重根前历史线，根提交 `68c9004`，见 `docs/recovery/RECOVERY.md`）（3 files，+7/−4） |
 | 审计（回答用户「审查已完成/未完成任务清单」） | `695fddb` | 全量后端 `1465/1465` + 全量前端 `161 files / 1022 tests` 全绿；关闭 4 项（前端 2 失败用例 / 性能结论 / F5 三 handler 均为权威写入 / F7 `Scene` 死模型），F6 与 F9 维持开放（前者已定性读层无内容级消毒） |
 | 读数脚本入库 | `3214ddf` | 5 个核心读数脚本从 `scratch/`（gitignored）移入 `scripts/`：链路引用面 / 步骤审计 / 角色投影 / 清洗层 / 六场景快照；规格 §7 表格与账本引用同步改名 |
-| F6 结案 + E2 加固（R3） | （本次提交） | F6 定向追证：`/api/db` 读路径唯一生产消费者 `src/components/AppShell.tsx:1085` 只取 `skillId`/`name`，`Skill.style` 3 处生产命中均为谓词/融合门控而非渲染 → 结案；E2 权重 sha256 pin（`EMBEDDING_MODEL_SHA256` + `hashFileSha256` + `verifyModelDirHashes` + 取权重脚本强校验 + 3 例测试，11/11） |
+| F6 结案 + E2 加固（R3） | `afbc1ad` | F6 定向追证：`/api/db` 读路径唯一生产消费者 `src/components/AppShell.tsx:1085` 只取 `skillId`/`name`，`Skill.style` 3 处生产命中均为谓词/融合门控而非渲染 → 结案；E2 权重 sha256 pin（`EMBEDDING_MODEL_SHA256` + `hashFileSha256` + `verifyModelDirHashes` + 取权重脚本强校验 + 3 例测试，11/11） |
 

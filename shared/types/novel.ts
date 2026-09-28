@@ -306,6 +306,10 @@ export interface StoryIdeaCard {
   sourceBadge?: CardSourceKind;
 }
 
+/**
+ * 未接线声明（登记于 docs/architecture/remediation-plan.md）—— 全仓零引用，无 scenes 表；
+ * 保留仅为历史契约快照，删除需单独拍板。
+ */
 export interface Scene {
   id: string;
   novelId: string;
