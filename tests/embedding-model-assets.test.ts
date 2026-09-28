@@ -5,7 +5,8 @@
  * ② 打包接线：package.json 的 extraResources 带权重组、package 链先取权重、冒烟脚本断言权重存在；
  * ③ Electron 注入：打包态注入 INKFLOW_EMBEDDING_MODEL_DIR / INKFLOW_MODEL_CACHE_DIR（缓存落 userData）；
  * ④ 纯函数：resolveEmbeddingAssetPaths（齐备 → 本地优先 + 关远程；不全 → 只设缓存目录、保留远程）；
- * ⑤ 取权重脚本可跳过执行（SKIP_EMBEDDING_MODEL_FETCH=true，退出码 0）。
+ * ⑤ 取权重脚本可跳过执行（SKIP_EMBEDDING_MODEL_FETCH=true，退出码 0）；
+ * ⑥ sha256 pin：映射键 == 文件清单，取权重与打包冒烟均校验哈希（不同步即失败）。
  */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -19,20 +20,29 @@ const require = createRequire(import.meta.url);
 const {
   EMBEDDING_MODEL_FILES,
   EMBEDDING_MODEL_ID,
+  EMBEDDING_MODEL_SHA256,
   MIN_QUANTIZED_MODEL_BYTES,
   PACKAGED_EMBEDDING_MODEL_REL,
+  QUANTIZED_MODEL_FILE,
   embeddingWeightsVerdict,
   isCompleteModelDir,
+  verifyModelDirHashes,
 } = require('../scripts/lib/embedding-weights.mjs') as {
   EMBEDDING_MODEL_FILES: string[];
   EMBEDDING_MODEL_ID: string;
+  EMBEDDING_MODEL_SHA256: Record<string, string>;
   MIN_QUANTIZED_MODEL_BYTES: number;
   PACKAGED_EMBEDDING_MODEL_REL: string;
+  QUANTIZED_MODEL_FILE: string;
   embeddingWeightsVerdict: (
     files: string[],
-    options?: { skip?: boolean; sizeOf?: (file: string) => number }
+    options?: { skip?: boolean; sizeOf?: (file: string) => number; hashOf?: (file: string) => string }
   ) => { ok: boolean; message: string };
   isCompleteModelDir: (dir: string, deps?: { exists?: (target: string) => boolean }) => boolean;
+  verifyModelDirHashes: (
+    dir: string,
+    deps?: { hashOf?: (file: string) => string; join?: (...parts: string[]) => string }
+  ) => { ok: boolean; mismatches: Array<{ file: string; expected: string; actual: string }> };
 };
 
 test('权重清单与模型 id 在取权重脚本与运行时是同一份', () => {
@@ -116,15 +126,65 @@ test('冒烟判定：缺权重/权重过小/跳过三种口径', () => {
   assert.equal(missing.ok, false);
   assert.match(missing.message, /missing/);
 
-  const okVerdict = embeddingWeightsVerdict(['/release/mac/InkFlow.app/Contents/Resources/' + rel], { sizeOf });
+  const hashOf = () => EMBEDDING_MODEL_SHA256[QUANTIZED_MODEL_FILE];
+  const okVerdict = embeddingWeightsVerdict(['/release/mac/InkFlow.app/Contents/Resources/' + rel], {
+    sizeOf,
+    hashOf,
+  });
   assert.equal(okVerdict.ok, true);
   assert.match(okVerdict.message, /weights packaged/);
+
+  const badHash = embeddingWeightsVerdict(['/release/' + rel], { sizeOf, hashOf: () => 'deadbeef' });
+  assert.equal(badHash.ok, false);
+  assert.match(badHash.message, /hash mismatch/);
+  assert.match(badHash.message, /deadbeef/);
 
   const tooSmall = embeddingWeightsVerdict(['/release/' + rel], { sizeOf: () => 1024 });
   assert.equal(tooSmall.ok, false);
   assert.match(tooSmall.message, /too small/);
 
   assert.equal(embeddingWeightsVerdict([], { skip: true }).ok, true);
+});
+
+test('sha256 pin：映射键与文件清单一致且均为 64 位十六进制', () => {
+  assert.deepEqual(Object.keys(EMBEDDING_MODEL_SHA256).sort(), [...EMBEDDING_MODEL_FILES].sort());
+  assert.ok(EMBEDDING_MODEL_FILES.includes(QUANTIZED_MODEL_FILE));
+  for (const file of EMBEDDING_MODEL_FILES) {
+    assert.match(EMBEDDING_MODEL_SHA256[file], /^[0-9a-f]{64}$/, file);
+  }
+
+  // 跟 pin 不同步的第二个消费者：取权重脚本必须真的调用校验
+  const fetchSource = fs.readFileSync('scripts/fetch-embedding-model.mjs', 'utf8');
+  assert.match(fetchSource, /verifyModelDirHashes\(OUT_DIR\)/);
+  assert.match(fs.readFileSync('scripts/lib/embedding-weights.mjs', 'utf8'), /hash mismatch/);
+});
+
+test('verifyModelDirHashes：注入 hashOf 可检出篡改与不可读', () => {
+  const good = (file: string) => EMBEDDING_MODEL_SHA256[path.relative('/weights', file)] ?? '';
+  const intact = verifyModelDirHashes('/weights', { hashOf: good });
+  assert.equal(intact.ok, true);
+  assert.deepEqual(intact.mismatches, []);
+
+  const tampered = verifyModelDirHashes('/weights', {
+    hashOf: (file) => (path.basename(file) === 'config.json' ? 'deadbeef' : good(file)),
+  });
+  assert.equal(tampered.ok, false);
+  assert.equal(tampered.mismatches.length, 1);
+  assert.deepEqual(
+    { file: tampered.mismatches[0].file, actual: tampered.mismatches[0].actual },
+    { file: 'config.json', actual: 'deadbeef' }
+  );
+
+  const unreadable = verifyModelDirHashes('/weights', {
+    hashOf: (file) => {
+      if (file.endsWith('tokenizer.json')) throw new Error('EACCES: permission denied');
+      return good(file);
+    },
+  });
+  assert.equal(unreadable.ok, false);
+  assert.match(unreadable.mismatches[0].actual, /^unreadable: EACCES/);
+
+  assert.equal(verifyModelDirHashes('', { hashOf: good }).ok, false);
 });
 
 test('取权重脚本可跳过执行（SKIP_EMBEDDING_MODEL_FETCH=true）', () => {

@@ -18,6 +18,7 @@ import {
   EMBEDDING_MODEL_ID,
   MIN_QUANTIZED_MODEL_BYTES,
   isCompleteModelDir,
+  verifyModelDirHashes,
 } from './lib/embedding-weights.mjs';
 
 const OUT_DIR = path.join('build', 'embedding-model', ...EMBEDDING_MODEL_ID.split('/'));
@@ -90,6 +91,20 @@ async function main() {
   if (!isCompleteModelDir(OUT_DIR)) {
     throw new Error(
       '权重不完整（' + OUT_DIR + '）；离线环境请设 INKFLOW_MODEL_SOURCE_DIR 指向本地权重目录'
+    );
+  }
+
+  const hashes = verifyModelDirHashes(OUT_DIR);
+  if (!hashes.ok) {
+    throw new Error(
+      '权重 sha256 不匹配：' +
+        hashes.mismatches
+          .map(
+            (row) =>
+              row.file + '（期望 ' + row.expected + '，实得 ' + row.actual + '）'
+          )
+          .join('；') +
+        '；若上游更新了权重，请同步 scripts/lib/embedding-weights.mjs 的 EMBEDDING_MODEL_SHA256'
     );
   }
 
