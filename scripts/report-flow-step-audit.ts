@@ -13,6 +13,7 @@ import {
   stageForFlowOutput,
 } from '../shared/lib/flow-step-stage.js';
 import { isShellTemplatePrompt } from '../shared/lib/prompt-shell.js';
+import { isRuntimeReadyAsset } from '../shared/lib/capability-runtime-readiness.js';
 import {
   resolveFlowStepAvailability,
   runnableStepRatio,
@@ -44,9 +45,7 @@ for (const flow of SKILL_SERIES_FLOWS) {
   for (const step of flow.steps) {
     totalSteps += 1;
     const asset = PROMPT_GOVERNANCE_CATALOG.find((item) => item.id === step.assetId);
-    const runnable = Boolean(
-      asset?.isRuntimeReady && asset.runtimeStatus === 'active' && asset.sanitizationStatus === 'runtime-ready'
-    );
+    const runnable = isRuntimeReadyAsset(asset);
     const shell = isShellTemplatePrompt(asset?.template);
     const availability = resolveFlowStepAvailability({
       guidanceOnly: step.guidanceOnly,
