@@ -40,7 +40,7 @@
 | D2 | 伏笔面板加图谱维护入口 ✅ 已完成（2026-09-28） | 现只挂 World Bible 图谱页（`src/components/ForeshadowingPanel.tsx` 内无入口） |
 | D3 | 章节回滚 stale 打标 | ✅ 已交付（2026-09-28，Plan 263）：`chapter_versions.content_hash` + stale 判定 + 时光机徽标 |
 | D4 | 记忆健康度补完 | ✅ 已交付（2026-09-28，Plan 263）：新增「伏笔欠账」指标 + 一条硬阈值告警（阈值单源 `MAX_ARREARS_IN_PROMPT`，越线琥珀 + 阈值说明）；其余指标仍只显示数值 + 未知降级；整体阈值口径挂 E6 真实数据（RAG 缓存 / 孤立节点并入口径未做） |
-| D5 | 长篇记忆基线补完 ◐ 技术债（2026-09-28 登记） | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI —— 按 Plan 263 D5 拍板**降级为技术债**（不排期；触发条件 = 真实长篇样本到手后重跑） |
+| D5 | 长篇记忆基线补完 ◐ 技术债（2026-09-28 登记） | 样本为确定性合成长书；回声口径「token 是否进请求」；planner/critic 未纳入；未接 CI —— 按 Plan 263 D5 拍板**降级为技术债**（不排期；触发条件 = 真实长篇样本到手后重跑） | **触发线（2026-09-28 Plan 264 登记）**：任一作品 ≥ 30 万字或 ≥ 100 章时复跑 `scripts/long-memory-baseline.ts`（含 planner/critic 与「token 是否进请求」回声口径），读数回写 `plans/264-residual-closeout.md`。
 | D6 | 三字段 UI 写入口 ✅ 已结案（2026-09-28，Plan 263） | 三字段**标为内部**（只经 profile 写入，不做 UI 写入口）；UI 的固定额度文案移除：`src/components/Library.tsx:265` `能力卡 ${capabilityCardCount}/3` → `能力卡 ${capabilityCardCount}` |
 
 ## 批次 E：需拍板 / 跨会话遗留

@@ -11,7 +11,7 @@ InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在根
 
 ## 环境事实
 
-- 2026-09-20：npm 已恢复可用（v12.0.2，对 Node 22.22.0 有版本支持告警，功能正常）；vitest 链 3 条 moderate dev 漏洞待操作者批准 --force 升级。2026-09-28 复核：本机无网，无法跑 `npm audit` 取证；`plans/README.md:576`（Plan 255 行）自相矛盾（同句既写「收尾 commit `0fb8561` 完成 vitest --force 升级，npm audit 归零」又写「仅剩 vitest 链 3 moderate，--force 升级待操作者批准」）→ 降级为「有网时复核销账」；**不阻断任何门禁**（`.github/workflows/build.yml:25-60` 的 audit 门只审生产口径 `npm audit --omit=dev --json`）。
+- 2026-09-20 / **2026-09-28 销账**：npm 已恢复可用（v12.0.2，对 Node 22.22.0 有版本支持告警，功能正常）；**「vitest 链 3 条 moderate dev 漏洞待 --force 升级」已不存在** —— 2026-09-28 实测 `npm audit --json` = **0 漏洞**（info/low/moderate/high/critical 全 0；964 依赖：prod 366 / dev 463 / optional 166 / peer 23 / peerOptional 0），`AUDIT_EXIT=0`（日志 `/tmp/audit-full.json`、`/tmp/audit-exit.txt`）。CI 的 audit 门（`.github/workflows/build.yml:25-60`，只审 `npm audit --omit=dev --json`，exemptions 为空）不阻断。→ 本项无待办残留。
 - 2026-09-08:验证门复跑(无源码改动,node 直调):`tsc --noEmit` 0 错误;vitest frontend 841/841 全绿(121 文件,约 618s),与 010 口径一致。
 
 ## 待决

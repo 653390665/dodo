@@ -576,7 +576,7 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 |---|---|---|---|
 | 253 | 不可信内容通道注入围栏收口——续写包/技能卡过围栏 + book-extracted 卡落库内容扫描（plans/253-injection-channel-fencing.md） | DONE（5/5，2026-09-20 已全部合并入主干，收口 merge `9e4b72d`。Steps 1-4 见前述；**Step 5 执行中发现 `sanitizationHits` 持久化不透传**（db-mappers envelope 仅收 4 旗标键，落库即丢，门禁会打断核心写作读路径）——裁决扩权：db-mappers 对称透传 + 存量卡按 `createdAt<2026-09-20T00:00Z` 时间豁免（fail-open），fixture 12 处对齐。合并后主干后端 1222/1222。**部署注意**：豁免截止线硬编码，部署前确认无其他合法产卡路径绕过 finalize。遗留候选：~~Skill 接口正名 sanitizationHits~~ **已解决**（`4dd4705`：Skill 加可选字段、manifest 直读、撤 2 处 `as Skill`；typecheck 0 + 后端定向 35/35 + 前端 143 文件全绿）、预清洗先于扫描致微信/竞品词计不进 hits 的口径统一（维持暂缓，随消毒域下次改动搭车） | — |
 | 254 | 已知缺陷特征化测试守护——两处固化断言改正 + 五条 P1 盲区补特征测试（plans/254-p1-blindspot-characterization.md） | DONE（2026-09-20 已合并入主干，merge `1a731a6`。审查者独立复核后端 1215/1215 + 前端 143 文件全绿、范围合规 6 测试文件、特征化注释齐全。**机制修正**：原审计指认 production.ts:1087 早退分支不可达——:1083 已向 pipeline 传 abort signal，断连后走 `.catch` 终态化 failed；真实可达同族缺陷在 :1102/:1156 preModelWriteHook 窗口（run 停 running + 模型结果不落库 + 配额已 commit），测试已按可达路径登记。另：consumeCapabilityLaunch 消费即清 store，「二次消费回调」不可达，以「残留 launch 重投递 2 次」探针替代） | — |
-| 255 | 日志卫生与仓库账实对齐——logger.error 脱敏 + ID 字符集 + 启动日志 0600 + dev 漏洞清零 + 过时账目销账（plans/255-log-repo-hygiene.md） | DONE（2026-09-20 已合并入主干，merge `524cec6`；收尾 commit `0fb8561` 完成 vitest --force 升级，npm audit 归零。审查者复核 typecheck 0 + 后端 1213/1213 + 主仓 node_modules 完好。audit 5→3（仅剩 vitest 链 3 moderate，--force 升级待操作者批准）；85 截图 untrack 磁盘保留；electron 启动日志 0600 + 存量 chmod 修复。**MEMORY.md 销账由审查者直接应用于主仓**（该文件在基准分支实为已追踪，1160fc6 入库，与「不入库」声明矛盾已登记待决）。validation.ts:578 的 parseDocSchema.novelId 为独立 schema 有意不动） | — |
+| 255 | 日志卫生与仓库账实对齐——logger.error 脱敏 + ID 字符集 + 启动日志 0600 + dev 漏洞清零 + 过时账目销账（plans/255-log-repo-hygiene.md） | DONE（2026-09-20 已合并入主干，merge `524cec6`；收尾 commit `0fb8561` 完成 vitest --force 升级，npm audit 归零。审查者复核 typecheck 0 + 后端 1213/1213 + 主仓 node_modules 完好。audit 5→3（仅剩 vitest 链 3 moderate，--force 升级待操作者批准）；85 截图 untrack 磁盘保留；electron 启动日志 0600 + 存量 chmod 修复。**MEMORY.md 销账由审查者直接应用于主仓**（该文件在基准分支实为已追踪，1160fc6 入库，与「不入库」声明矛盾已登记待决）。validation.ts:578 的 parseDocSchema.novelId 为独立 schema 有意不动） | — | **2026-09-28 复核销账**：本行尾「audit 5→3（仅剩 vitest 链 3 moderate，--force 升级待操作者批准）」作废 —— `npm audit` 实测 `0` 漏洞（964 依赖），与行首「npm audit 归零」一致；`MEMORY.md:14` 已同步。
 
 三者无文件交集，可并行；建议顺序 253 → 254 → 255（安全优先）。
 
@@ -669,3 +669,22 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 可解决项收尾（2026-09-28，Plan 263 R1/R2/R3）：**R2** 5 个核心读数脚本 `scratch/*` → `scripts/report-*`（`3214ddf`，规格 §7 与全部引用同步改名）；**R1 F6 结案**：`/api/db` 读路径唯一生产消费者只取 `skillId`/`name`，`Skill.style` 生产命中 3 处均为谓词/融合门控（非渲染）→ 「读层不消毒 = 设计边界」写入 `docs/architecture/remediation-plan.md`；**R3 E2 加固**：权重 sha256 pin（`EMBEDDING_MODEL_SHA256` 4 文件 / `hashFileSha256` / `verifyModelDirHashes` / `embeddingWeightsVerdict` 增 hash 判据 / 取权重脚本强校验 exit 1 / 测试 11/11，销账审计残余第③项）；残余①②（发布链 `huggingface.co` 依赖、`SKIP_EMBEDDING_MODEL_FETCH=true` 逃生舱）仍待拍板；**F7 处置**：`shared/types/novel.ts:309` 的 `Scene` 标为「未接线声明」（JSDoc + `remediation-plan.md` 登记），删除仍需拍板。
 - R 轮收尾（2026-09-28，Plan 263 D3-A/D6/D4/D5/D7）：**D6** 冒烟逃生舱改显式开关 —— `scripts/check-package-artifacts.mjs` 不再读 `SKIP_EMBEDDING_MODEL_FETCH`，仅显式 `--allow-missing-weights` 放行（`db474a1`，`tests/embedding-model-assets.test.ts` 11/11）；**D4** 适合度「使用反馈」通道接线 —— `observedUsageFeedback`（`shared/lib/skill-model.ts` 通道，样本量 = `mountedCount`）经 `capability-shelf` / `StyleShelf` / `SkillsStudioView`（键 `skill.parentSkillId || skill.id`）进文风货架，有样本按反馈计分并标注样本量、无样本保持原静态重分配（Plan 150 两通道分开展示约束，`e8a7d38`，前端定向 3 文件 27 用例）；**D5** 离线权重「仓内随包」—— `.gitignore` 由 `build/` 拆为 `build/*` + `!build/embedding-model` + `!build/embedding-model/**`，权重 4 文件 23.3 MB（sha256 与 R3 pin 全等）入库 → CI 冷启动取权重命中 cached、不再访问 `huggingface.co`，销账 E2 残余①（`ff23ab9`）；**D3-A** `memory/` 入库声明改正（拍板 A，`ea50b45`）；**D7** `Scene` 未接线声明收口（决策表补标「已拍板（留）」，`1d69429`）。收尾后唯一残留 = E1 push（需用户 `gh auth login`）；E6 复测待真实数据、F9 待真实分布、M6 打包态真机验证待联网。
 - R2 单源守卫回归修复（2026-09-28 独立复核）：全量后端套件抓出 `scripts/report-flow-step-audit.ts:48` 手抄 `sanitizationStatus === 'runtime-ready'` 三元判据（R2 把脚本从 gitignored `scratch/` 移入 `scripts/` 后才进入 `tests/capability-runtime-readiness.test.ts` 的单源守卫扫描面）→ 改引 `isRuntimeReadyAsset`（`b009bce`）；复核读数：后端 `1467/1467`、前端 `161 files / 1025 tests`、权重 4 文件 sha256 与 `EMBEDDING_MODEL_SHA256` 全等、`node scripts/fetch-embedding-model.mjs` 离线 `4 files cached`。
+
+
+---
+
+## Round 47（2026-09-28）：残余项收口 —— 外部依赖项的取证、可执行化与决策规则（264）
+
+来源：会话指令「剩余未完成项，开始制定计划，然后开始执行」+「M6 打包态真机验证：需联网拉 Electron 头，先不做。目前不考虑打包的事」。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 264 | 残余项收口（plans/264-residual-closeout.md）：P1 D8 销账 / P2 E1 前置密钥体检 / P3 F9 机械阈值 / P4 D5 触发线 / P5 E6 待数据 / P6 D2 待用户 / P7 E1 push 待用户；非目标=打包与 M6（用户指令） | 执行中（P1–P4 已交付；P5–P7 待外部条件） | 263 残余清单、`docs/architecture/remediation-plan.md` F9 行 |
+
+### Round 47 关键事实
+
+- **D8 销账**：`npm audit --json` = 0 漏洞（964 依赖：prod 366 / dev 463 / optional 166 / peer 23），`AUDIT_EXIT=0`；Plan 255 行与 `MEMORY.md:14` 的「3 条 moderate dev 漏洞」声明作废。
+- **E1 前置密钥体检**：待推 164 提交 / 70916 diff 行；模式命中 26 条（sk-/ghp_/Bearer/apiKey/API_KEY/secret/token）逐条定性为文档用词、脱敏正则本身、测试夹具假值、`tokenizer.json` 词条、env 键名；文件名扫描（.env/.pem/.key/secure-key/credential/id_rsa/.p12）0 命中。
+- **F9 合成基线**（median of 3）：1000 块 = 冷 250 ms / 暖 30 ms；5000 = 冷 1325 / 暖 220 ms；20000 = 冷 7533 / 暖 1161 ms；瓶颈是 JSON 反序列化与行物化，不是余弦 → 机械阈值：≥5000 块先改 `embedding` 存储格式（JSON TEXT → BLOB/float32），≥20000 块必须动工；真实分布仍待 `vector-store.ts:116` 日志分位数。
+- **D5 触发线**：长篇记忆基线复跑条件 = 任一作品 ≥ 30 万字或 ≥ 100 章（脚本 `scripts/long-memory-baseline.ts`）。
+- **M6 排除**：用户指令本轮不做打包；`remediation-plan.md` M6 状态块保留不动。
