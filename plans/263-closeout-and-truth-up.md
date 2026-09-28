@@ -1,6 +1,6 @@
 # Plan 263：收口与真实化 —— 262 剩余批次 + 遗留拍板
 
-- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记，`e8324d9`）/ D6 ✅（`e8324d9`）/ E7 ✅；E2 ✅（随包附权重）；余 E1（需用户））
+- 状态：执行中（P0 E6 ✅ `78e77e5`；P1 对账 ✅ `836cf19`；E3/E4/E5 ✅ `86ebb62`；D1 ✅ `4b68c24` / D3 ✅ `d342d4a` / D4 ✅ `8a65c49` / D5 ✅（降级技术债，只登记，`e8324d9`）/ D6 ✅（`e8324d9`）/ E7 ✅；E2 ✅（随包附权重）；余 E1（需用户））；R 轮可解决项已收尾：R1 F6 结案 / R2 读数脚本入库 `3214ddf` / R3 权重 sha256 pin（`afbc1ad`）/ F7 `Scene` 标未接线（`e1845ce`）；余下均为需拍板或待真实数据项（见下「需拍板（2026-09-28 R 轮）「）
 - 立项：2026-09-28（Round 46 续；直接承接 Plan 262 批次 D/E 剩余）
 - 前置：Plan 262 A/B/C 全部交付（A1 `645c572` / A2 `9a2c234`、B1 `acd8dfb`（附带 `c839f32` 消毒缺口收口）、B2/B3、C1–C5 `d532881`、D2 `3f66f3f`）；E6 工具就绪、未提交
 - 规格承载：`docs/specs/capability-flow-graph-consolidation.md`（各节「残余」为验收回写点）、`docs/specs/capability-sanitize.md`、`docs/research/activation-funnel-runbook.md`
@@ -99,3 +99,17 @@
 | 读数脚本入库 | `3214ddf` | 5 个核心读数脚本从 `scratch/`（gitignored）移入 `scripts/`：链路引用面 / 步骤审计 / 角色投影 / 清洗层 / 六场景快照；规格 §7 表格与账本引用同步改名 |
 | F6 结案 + E2 加固（R3） | `afbc1ad` | F6 定向追证：`/api/db` 读路径唯一生产消费者 `src/components/AppShell.tsx:1085` 只取 `skillId`/`name`，`Skill.style` 3 处生产命中均为谓词/融合门控而非渲染 → 结案；E2 权重 sha256 pin（`EMBEDDING_MODEL_SHA256` + `hashFileSha256` + `verifyModelDirHashes` + 取权重脚本强校验 + 3 例测试，11/11） |
 
+## 需拍板（2026-09-28 R 轮，已逐项核实「是否真需要拍板」）
+
+| # | 项 | 现状（证据） | 选项 / 我的建议 |
+|---|---|---|---|
+| D1 | E1 push | `gh auth status` = `X Failed to log in to github.com account 653390665 (default)`；本地领先 origin **154** 提交 | 需用户在终端 `gh auth login -h github.com` → 我 push 至 ahead=0。**真需拍板**（唯一阻塞项） |
+| D2 | 本机 Node 升到 22.22.3 | 本机 `node -v` = v22.22.0，低于自声明 floor `>=22.22.3`（`.nvmrc`/`.node-version`/`engines`）；npm v12.0.2 每条命令告警。实测 22.22.3 可用（`FNM_DIR=/tmp/fnm-home fnm install` 后：`TSC_EXIT=0`、`tests/node-version-declaration.test.ts` `TEST_EXIT=0`）；写 `~/.local/share/fnm` 被沙箱 EPERM 拦下 | 需用户在自己终端执行 `fnm install 22.22.3 && fnm default 22.22.3`。低风险，建议做 |
+| D3 | `memory/` 入库声明矛盾 | `git ls-files memory MEMORY.md TOOLS.md` = 4 个文件均被追踪，但 `MEMORY.md:19-20` 声明「不入库」+「待操作者拍板」；`plans/255-log-repo-hygiene.md:89` 写明「不动 git，属操作者决策」 | A 承认入库（改声明）/ B `git rm --cached`。建议 A（历史价值 > 摩擦，且已公开） |
+| D4 | 适合度「使用反馈」通道接线 | 反馈侧已通（`server/lib/db/skills.ts:251 calculateFeedbackScore` + `src/components/ChapterCapabilityFeedbackBar.tsx:66`）；消费侧未接：唯一生产调用点 `src/components/skills/StyleShelf.tsx:172` 只传 `{ novelGenreTokens, novelPlatform }`，`src/lib/capability-shelf.ts:263-271` 在无样本时静态重分配 +12/+8 | 接（需满足 Plan 150 两通道分开展示约束）/ 不接（登记为残余）。建议接（工作量小、直接影响排序质量） |
+| D5 | E2 残余① 发布链依赖 `huggingface.co` | npm 包不带权重；CI 三个打包作业 `npm ci` 后只能走 Hub，不可达即 `exit 1`（发布硬失败） | a 接受 / b pin revision + 发布机或 CI 缓存预置权重 / c 权重作 release 资产托管。建议 b（最小改动：加 cache 步骤 + 文档；本机 `huggingface.co` 当前不可达，只能先改接线不能验证） |
+| D6 | E2 残余② `SKIP_EMBEDDING_MODEL_FETCH=true` 逃生舱 | 该模式下 `embeddingWeightsVerdict` 直接返回 ok（声明见 `scripts/fetch-embedding-model.mjs:9`）→ 可产无权重发布件且过 `smoke:package-artifacts` | a 保持（离线开发必需）/ b 冒烟不再随 SKIP 跳过，仅显式 `--allow-missing-weights` 放行。建议 b（默认严格 + 显式放行） |
+| D7 | F7 `Scene` 删除还是保留 | 已零引用 + 无 `scenes` 表；本轮已按选项③标「未接线声明」（`shared/types/novel.ts:309` JSDoc + 本表登记） | 保留（零成本，作历史契约快照）/ 删除。建议保留 |
+| D8 | vitest 3 条 moderate dev 漏洞 | `MEMORY.md:14` 记载待批准 `--force` 升级；CI audit 门只审 `--omit=dev`；`plans/README.md:576` 自相矛盾（同句写着 `0fb8561` 已升级归零 / 仅剩 3 moderate） | 有网时 `npm audit` 复核后决定 `--force`。本机当前无网，**暂无法复核** |
+
+登记（不需拍板、已如实入账）：D5 长篇记忆基线（技术债，触发=真实长篇样本）、F9 `vector_chunks` 扫描（待真实分布）、E6 复测（工具就绪，触发=真实用户数据）。
