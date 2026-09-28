@@ -16,6 +16,6 @@ InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在根
 
 ## 待决
 
-- ~~2026-09-08:011 状态同步 + mountedSkillLoadout 措辞修正暂存未提交~~ 已解决:实际已随 `8b6a0e6` 提交,暂存区为空;工作区仅剩未跟踪记忆文件(MEMORY.md/TOOLS.md/memory/),暂不入库(pre-commit 因 npm 缺失不可用,且 agent 记忆不混项目历史)。
-- 2026-09-20:memory/ 两文件已入库 vs 声明不入库的矛盾待操作者拍板(MEMORY.md 本身在 1160fc6 已入库,同属此矛盾)。
-  - 2026-09-28 复核：`git ls-files memory MEMORY.md TOOLS.md` = `MEMORY.md` / `TOOLS.md` / `memory/2026-09-08.md` / `memory/user-working-rules.md`，四个均已被追踪（与声明矛盾属实）。两项选择：(A) **承认入库并改本文件声明**（推荐：历史已含，untrack 也删不掉历史；且 `memory/user-working-rules.md` 是跨项目工作规则来源）；(B) `git rm --cached` 后保留「不入库」声明。两者都是 1 个提交，无代码影响。
+- ~~2026-09-08:011 状态同步 + mountedSkillLoadout 措辞修正暂存未提交~~ 已解决:实际已随 `8b6a0e6` 提交,暂存区为空;工作区仅剩未跟踪记忆文件(MEMORY.md/TOOLS.md/memory/),暂不入库(pre-commit 因 npm 缺失不可用,且 agent 记忆不混项目历史)。（2026-09-28 拍板 A 后：此处「暂不入库」立场作废——见下方已决项）
+- 2026-09-28 **已决（拍板 A：承认入库）**：`git ls-files memory MEMORY.md TOOLS.md` = `MEMORY.md` / `TOOLS.md` / `memory/2026-09-08.md` / `memory/user-working-rules.md`，四个均已被 git 追踪；本文件与 `TOOLS.md` 不再声明「不入库」——agent 记忆与工作规则（`memory/user-working-rules.md` 为跨项目来源）随仓库留存。
+  - 未采用 B（`git rm --cached`）：2026-09-28 复核发现 B 只能把文件从 HEAD 移出，blob 仍在历史里（4 个本地提交 `1160fc6` / `eff459d` / `99612e6` / `824981b` 携带）；要真正不公开须在首次 push 前重写历史（代价：156 个提交哈希全变），故不采用。
