@@ -1,8 +1,8 @@
 # Plan 264：残余项收口 —— 外部依赖项的取证、可执行化与决策规则（不含打包）
 
-- 状态：执行中（2026-09-28 更新：P1/P2/P3/P4/P6 已完成；**P7 分支推送成功** `44e5f07..053d1b4`；P5 等真实用户数据）
+- 状态：✅ 已完成（2026-09-28 终态：P1/P2/P3/P4/P6/P7 已交付并复核；**仅 P5（E6 激活漏斗复测）待真实用户数据**）。P7 远端复核：`git ls-remote origin` 返回 `f9b2065f8a1a0e1901738af8d3be85613b02f2cc` 同时命中 `refs/heads/main` 与 `refs/heads/codex/plan169-checkpoint`，与本地 tip 一致 → **推送已成功**，`origin/…..HEAD` = 0。
 - 立项：2026-09-28（Round 46 续；直接承接 `plans/263-closeout-and-truth-up.md` 的「未关闭」清单与 `docs/architecture/remediation-plan.md` 的 F9 行）
-- 前置：Plan 263 全部可解项已交付（`plans/263-closeout-and-truth-up.md:3` 状态行）；HEAD 立项时 `9d0650c`，本地领先 `origin/codex/plan169-checkpoint` 164 提交
+- 前置：Plan 263 全部可解项已交付（`plans/263-closeout-and-truth-up.md:3` 状态行）；HEAD 立项时 `9d0650c`，本地领先 `origin/codex/plan169-checkpoint` 164 提交（补：2026-09-28 仓库已迁移至 `~/workspace/dodo-inkflow`；旧路径 `~/Documents-local/dodo-inkflow` 留有 `REPO_MOVED_README.md` 路牌，为冷存档勿动）
 - 非目标（本轮明确不做）：打包/发布链相关 —— M6 打包态真机验证、Hub 权重拉取链路。用户指令：2026-09-28「M6 打包态真机验证：需联网拉 Electron 头，先不做。目前不考虑打包的事」
 - 背景（为什么有这本）：263 收尾后，剩余项全部是「外部依赖」或「待数据」——不是没人做，而是**没人能现在做**。本计划的职责是把它们从「待办一句话」变成**可机械判定的触发条件 + 可直接复跑的证据入口**，并把其中已可取证的两项（D8、E1 前置）当场做完。
 - 完成定义（每条统一）：证据可复跑（命令 + 读数落账本）→ `npx tsc --noEmit` 0 + `npx eslint server src shared tests scripts --max-warnings=0` 0 → 账本回写 → 单独提交
@@ -18,7 +18,7 @@
 | P4 | D5 长篇记忆基线 | 技术债（合成长书样本、回声口径=token 是否进请求、planner/critic 未纳入、未接 CI）；脚本 `scripts/long-memory-baseline.ts` 随仓库 | 触发条件可判定化（章节数/字数阈值）并登记 | 触发线写入账本 | ✅ 已完成（2026-09-28） ；**触发线（可判定）**：任一作品 ≥ 30 万字（含）或 ≥ 100 章（含）时复跑 `scripts/long-memory-baseline.ts` 并把读数回写本表 |
 | P5 | E6 激活漏斗复测 | 工具就绪（`scripts/report-activation-funnel.ts` + `docs/research/activation-funnel-runbook.md`）；实测端口 3000 无 server → 无新数据可读 | 待真实数据；触发即跑 runbook 三步命令 | 触发条件 + 命令在 runbook | 待触发（外部） |
 | P6 | D2 本机 Node 升 22.22.3 | ✅ **已解决（FNM_DIR 旁路，2026-09-28）**：沙箱不能写 fnm 默认目录 → `FNM_DIR=$HOME/.inkflow/fnm fnm install 22.22.3` 安装成功；`fnm exec --using=22.22.3 -- node -v` = v22.22.3；`tests/node-version-declaration.test.ts` 在 22.22.3 下 2/2 全绿。运维入口：`export FNM_DIR=$HOME/.inkflow/fnm` 后正常使用 fnm | — | 完成判据已达成 | ✅ 已完成 |
-| P7 | E1 push 本体 | `gh auth status` token invalid（实测两次：06:26 与详情页）→ push 必失败 | 需用户终端 `gh auth login -h github.com`；我方随后 `git push` | ahead=0 | 待用户（外部） |
+| P7 | E1 push 本体 | ✅ **已完成并远端复核（2026-09-28）**：分支推送 `44e5f07..053d1b4`（另一会话终端执行）；本轮 `GIT_TERMINAL_PROMPT=0 git ls-remote origin main codex/plan169-checkpoint` = `f9b2065f8a1a0e1901738af8d3be85613b02f2cc` 两 ref 均命中（`LSR_EXIT=0`），与本地 `HEAD`/`origin/main`/`origin/codex/plan169-checkpoint` 同为 `f9b2065` → `git rev-list --count origin/codex/plan169-checkpoint..HEAD` = **0** | 远端核验（ls-remote） | 完成判据已达成 | ✅ 已完成 |
 
 ## 登记（不需动作，仅口径）
 
@@ -26,6 +26,13 @@
 - 发布链 Hub 依赖（E2 残余①）：随打包一并搁置；权重已仓内随包（`ff23ab9`），但 CI 冷启动仍会命中 `huggingface.co` 之外的路径 —— 关闭条件=恢复打包工作时一并验证。
 - P3 的读数性质：**合成基线**（随机向量），只给量级与阈值，不替代真实分布；真实分布到手后用 `server/vector-store.ts:116` 日志（`chunks` 字段）统计分位数。
 
+
+### 路径与合并（2026-09-28）
+
+- **仓库迁移**：`~/Documents-local/dodo-inkflow` → `~/workspace/dodo-inkflow`（`~/Documents*` 被 macOS TCC 拦，`~/workspace` 可读可写）；旧路径仅留 `REPO_MOVED_README.md` 路牌 + 712 个 dataless 占位符，**冷存档勿动**。
+- **历史谱系合并**：`f9b2065`（merge：整合 `origin/main` 历史谱系 Plans 129-132）——`git diff --stat 32cfc9a..f9b2065` 为空，即 **零内容差异、仅并历史**（合并前分支 tip `32cfc9a` = `053d1b4` + P6/P7 文档行）。
+- **Node 22.22.3 旁路**：`FNM_DIR=$HOME/.inkflow/fnm fnm install 22.22.3` → `FNM_DIR=$HOME/.inkflow/fnm fnm exec --using=22.22.3 -- node -v` = `v22.22.3`（本轮独立复核）；`~/.inkflow/fnm/node-versions` 下可见 `v22.22.3`。
+- **凭据诊断**：`gh auth status` 在 Desktop 宿主内报 token invalid（宿主进程读不到登录钥匙串），但仓库可正常 `git ls-remote`；如需 DSH 侧主动 push，用 `gh auth login --insecure-storage -h github.com`（明文 `~/.config/gh/hosts.yml`）绕开钥匙串。
 ## 执行记录
 
 | 项 | 动作 | 证据 |
