@@ -39,10 +39,17 @@ const REQUIRED_CRITIC_EVIDENCE = [
   'foreshadowing',
 ] as const;
 
-function hasCompleteCriticEvidence(audit: ReturnType<typeof convertFiveDimToStructured>): boolean {
-  return REQUIRED_CRITIC_EVIDENCE.every((category) =>
-    audit.evidence?.some((item) => item.category === category)
+/** 缺失的证据类别（unknown 归因日志只报类别名，不落 Provider 原文）。 */
+function missingCriticEvidence(
+  audit: ReturnType<typeof convertFiveDimToStructured>
+): string[] {
+  return REQUIRED_CRITIC_EVIDENCE.filter(
+    (category) => !audit.evidence?.some((item) => item.category === category)
   );
+}
+
+function hasCompleteCriticEvidence(audit: ReturnType<typeof convertFiveDimToStructured>): boolean {
+  return missingCriticEvidence(audit).length === 0;
 }
 
 export function classifyCriticFeedback(
@@ -56,8 +63,14 @@ export function classifyCriticFeedback(
   if (parsed.fiveDim) {
     const score = Math.round((parsed.fiveDim.totalScore / 50) * 100);
     const structured = convertFiveDimToStructured(parsed.fiveDim);
-    if (parsed.fiveDim.pass && score >= SCORE_THRESHOLD && !hasCompleteCriticEvidence(structured))
+    if (parsed.fiveDim.pass && score >= SCORE_THRESHOLD && !hasCompleteCriticEvidence(structured)) {
+      logger.warn('Critic audit unknown: incomplete evidence (five-dim)', {
+        path: 'five-dim',
+        score,
+        missingEvidence: missingCriticEvidence(structured),
+      });
       return { status: 'unknown' };
+    }
     return { status: parsed.fiveDim.pass && score >= SCORE_THRESHOLD ? 'pass' : 'fail', score };
   }
 
@@ -67,6 +80,10 @@ export function classifyCriticFeedback(
     parsed.structured.score < 0 ||
     parsed.structured.score > 100
   ) {
+    logger.warn('Critic audit unknown: unusable structured score', {
+      path: 'structured',
+      hasStructured: Boolean(parsed.structured),
+    });
     return { status: 'unknown' };
   }
   const score = Math.round(parsed.structured.score);
@@ -77,8 +94,14 @@ export function classifyCriticFeedback(
     score >= SCORE_THRESHOLD &&
     !hasCriticalIssue &&
     !hasCompleteCriticEvidence(parsed.structured)
-  )
+  ) {
+    logger.warn('Critic audit unknown: incomplete evidence (structured)', {
+      path: 'structured',
+      score,
+      missingEvidence: missingCriticEvidence(parsed.structured),
+    });
     return { status: 'unknown' };
+  }
   return { status: score >= SCORE_THRESHOLD && !hasCriticalIssue ? 'pass' : 'fail', score };
 }
 

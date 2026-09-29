@@ -659,3 +659,74 @@ test('Google streaming stops token callbacks immediately after abort', async () 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('unknown OpenAI-compatible endpoints receive minimal reasoning_effort', () => {
+  const generic = buildOpenAICompatibleChatRequest(
+    { baseUrl: 'http://127.0.0.1:8317/v1', model: 'gemini-3.8-flash-high' },
+    { prompt: '输出 JSON', maxTokens: 6000, responseMimeType: 'application/json', disableThinking: true },
+  );
+  assert.equal(generic.reasoning_effort, 'minimal');
+  assert.deepEqual(generic.response_format, { type: 'json_object' });
+
+  const deepseek = buildOpenAICompatibleChatRequest(
+    { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    { prompt: '输出 JSON', maxTokens: 6000, responseMimeType: 'application/json', disableThinking: true },
+  );
+  assert.deepEqual(deepseek.thinking, { type: 'disabled' });
+  assert.equal('reasoning_effort' in deepseek, false);
+
+  const minimax = buildOpenAICompatibleChatRequest(
+    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M2' },
+    { prompt: '输出 JSON', maxTokens: 6000, disableThinking: true },
+  );
+  assert.equal('reasoning_effort' in minimax, false);
+
+  const siliconflow = buildOpenAICompatibleChatRequest(
+    { baseUrl: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen3-8B' },
+    { prompt: '输出 JSON', maxTokens: 6000, responseMimeType: 'application/json', disableThinking: true },
+  );
+  assert.equal('reasoning_effort' in siliconflow, false);
+  assert.equal('response_format' in siliconflow, false);
+});
+
+test('audit-json drops reasoning controls once when the endpoint rejects them', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let firstBody: Record<string, unknown> | undefined;
+  let secondBody: Record<string, unknown> | undefined;
+  let diagnostic: { compatibilityMode?: string } | undefined;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    if (calls === 1) {
+      firstBody = body;
+      return new Response(
+        JSON.stringify({
+          error: { param: 'reasoning_effort', message: 'Unknown parameter: reasoning_effort', code: 'invalid_parameter' },
+        }),
+        { status: 400 },
+      );
+    }
+    secondBody = body;
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }), { status: 200 });
+  };
+  try {
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'http://127.0.0.1:8317/v1', model: 'gemini-3.8-flash-high', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      {
+        prompt: '审稿 JSON',
+        outputMode: 'audit-json',
+        maxAttempts: 1,
+        disableThinking: true,
+        onComplete: (value) => { diagnostic = value.outputDiagnostic; },
+      },
+    );
+    assert.equal(result, '{"ok":true}');
+    assert.equal(calls, 2);
+    assert.equal(firstBody?.reasoning_effort, 'minimal');
+    assert.equal('reasoning_effort' in (secondBody || {}), false);
+    assert.equal(diagnostic?.compatibilityMode, 'omit_thinking');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -688,3 +688,20 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **F9 合成基线**（median of 3）：1000 块 = 冷 250 ms / 暖 30 ms；5000 = 冷 1325 / 暖 220 ms；20000 = 冷 7533 / 暖 1161 ms；瓶颈是 JSON 反序列化与行物化，不是余弦 → 机械阈值：≥5000 块先改 `embedding` 存储格式（JSON TEXT → BLOB/float32），≥20000 块必须动工；真实分布仍待 `vector-store.ts:116` 日志分位数。
 - **D5 触发线**：长篇记忆基线复跑条件 = 任一作品 ≥ 30 万字或 ≥ 100 章（脚本 `scripts/long-memory-baseline.ts`）。
 - **M6 排除**：用户指令本轮不做打包；`remediation-plan.md` M6 状态块保留不动。
+
+---
+
+## Round 48（2026-09-30）：provider 思考控制 —— 审稿结构化输出修复（265）
+
+来源：用户指令（「推送吧，然后用gemini3.8-flash模型接入，开始测试写作链路」→「开始」批准诊断报告的建议 a+c）。本机反代 CLIProxyAPI（`http://127.0.0.1:8317/v1`，上游 OAuth provider `antigravity`）提供 `gemini-3.8-flash-high`；测试跑在隔离配置目录（INKFLOW_CONFIG_DIR）与生产库副本（INKFLOW_DB_PATH）上，未动用户 `~/.inkflow/config.json` 与生产库。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 265 | OpenAI 兼容端点思考控制（plans/265-provider-thinking-control.md）：未知端点下发 `reasoning_effort:'minimal'` + 通用 omit-thinking 重试 + critic unknown 归因日志 | ✅ 已完成（2026-09-30） | Plan 263/264 残余；反代真机实测 |
+
+### Round 48 关键事实
+
+- 根因：`server/lib/server-llm.ts` 只对 DeepSeek（`thinking:{type:'disabled'}`）/MiniMax（`reasoning_split`）下发思考控制，未知 OpenAI 兼容端点什么也不发 → 反代走默认 `level=high` → 思考 token 挤爆结构化输出预算，审稿 JSON 在 1610 字符处截断 → `audit unknown` → `review_required`（诚实降级，非静默接受）。
+- 修复：未知端点 + `disableThinking` 时下发 `reasoning_effort:'minimal'`；`getParameterRejection` 字段族扩为 `/thinking|reasoning/i`；兼容重试新增通用 omit-thinking 分支（非 DeepSeek）；critic 三条静默 unknown 路径补 `logger.warn`（`missingCriticEvidence`）。
+- 读数：定向 38/38、后端全量 1469/1469（+2）、tsc 0、eslint 0；真机复跑（run `46109ca3-8d26-4430-8d1b-748b0a815b73`）反代日志全量转 `level=minimal`、审稿恢复结构化五维 JSON、`Critic audit unknown` 0 条。
+- 新残余（未处置，待另行立项）：Gemini 链路 writer 输出被本地正文质量门拦下（`literary-slop`「正文包含高置信 AI 套话或结构化叙述缺陷」）→ 回退保底稿（实测 4077 字，为 planner beats 字段拼贴）→ critic 12/100 → `review_required`；DeepSeek 同链路 score 70 且 apply 成功，故与 provider 修复无关。

@@ -396,11 +396,20 @@ export function buildOpenAICompatibleChatRequest(
     return request;
   }
 
+  const isSiliconFlow = config.baseUrl.includes('siliconflow');
   if (maxTokens) {
     request.max_tokens = maxTokens;
   }
   if (isDeepSeekProvider(config.baseUrl) && disableThinking) {
     request.thinking = { type: 'disabled' };
+  }
+  // 未知 OpenAI 兼容端点（自建反代/网关）没有「关闭思考」的通用表达，但多数接受标准
+  // reasoning_effort。实测 CLIProxyAPI(8317) + gemini-3.8-flash-high：默认 high 档下思考
+  // token 挤爆结构化输出预算，五维审稿 JSON 在 1610 字符处被截断，应用侧表现为
+  // audit unknown -> review_required（诚实降级）。上游若拒绝该字段，parameter_incompatible
+  // 分支会带 omitThinking 去字段重发。
+  if (disableThinking && !isDeepSeekProvider(config.baseUrl) && !isSiliconFlow) {
+    request.reasoning_effort = 'minimal';
   }
   if (request.stream && isDeepSeekProvider(config.baseUrl)) {
     // 缓存取证：要求 DeepSeek 在流式末帧返回 usage（含 prompt_cache_hit/miss）。
@@ -408,7 +417,6 @@ export function buildOpenAICompatibleChatRequest(
   }
   if (responseMimeType === 'application/json' && includeResponseFormat) {
     // Siliconflow's API gateway fails or drops connection when response_format is sent
-    const isSiliconFlow = config.baseUrl.includes('siliconflow');
     if (!isSiliconFlow) {
       request.response_format = { type: 'json_object' };
     }
@@ -546,7 +554,9 @@ function getParameterRejection(
   const signal = `${parameter} ${typeof parsedError.message === 'string' ? parsedError.message : ''} ${body}`;
   if (/response[_ -]?format|json[_ -]?object/i.test(signal))
     return { rejectedParameter: 'response_format', providerErrorCode };
-  if (/thinking/i.test(signal)) return { rejectedParameter: 'thinking', providerErrorCode };
+  // reasoning_effort 同属思考控制：未知 OpenAI 兼容端点只会拒绝这一类字段。
+  if (/thinking|reasoning/i.test(signal))
+    return { rejectedParameter: 'thinking', providerErrorCode };
   if (parameter) return { rejectedParameter: 'unknown', providerErrorCode };
   return undefined;
 }
@@ -1390,6 +1400,20 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         lastError = error;
       }
 
+      // 非 DeepSeek 的 OpenAI 兼容端点拒绝了思考控制（reasoning_effort / thinking）：
+      // 去掉该字段重发一次（DeepSeek 的等价分支见下方 json 块）。
+      if (
+        error instanceof ProviderError &&
+        error.code === 'parameter_incompatible' &&
+        disableThinking &&
+        !omitThinking &&
+        !isDeepSeekProvider(config.baseUrl) &&
+        error.rejectedParameter === 'thinking'
+      ) {
+        omitThinking = true;
+        compatibilityMode = 'omit_thinking';
+        continue;
+      }
       if (
         error instanceof ProviderError &&
         error.code === 'parameter_incompatible' &&
