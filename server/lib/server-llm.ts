@@ -406,10 +406,14 @@ export function buildOpenAICompatibleChatRequest(
   // 未知 OpenAI 兼容端点（自建反代/网关）没有「关闭思考」的通用表达，但多数接受标准
   // reasoning_effort。实测 CLIProxyAPI(8317) + gemini-3.8-flash-high：默认 high 档下思考
   // token 挤爆结构化输出预算，五维审稿 JSON 在 1610 字符处被截断，应用侧表现为
-  // audit unknown -> review_required（诚实降级）。上游若拒绝该字段，parameter_incompatible
-  // 分支会带 omitThinking 去字段重发。
+  // audit unknown -> review_required（诚实降级）。
+  // Plan 266：取值用 'low' 而不是 'minimal' —— 同一反代后面的 codex 系模型
+  // （gpt-5.6-terra）只接受 low/medium/high/xhigh/max，'minimal' 直接 400
+  //（level "minimal" not supported, valid levels: low, medium, high, xhigh, max）；
+  // antigravity 侧 minimal 也会被 clamp 到 low，故 low 同时覆盖两种后端。
+  // 上游若仍拒绝该字段，parameter_incompatible 分支会带 omitThinking 去字段重发。
   if (disableThinking && !isDeepSeekProvider(config.baseUrl) && !isSiliconFlow) {
-    request.reasoning_effort = 'minimal';
+    request.reasoning_effort = 'low';
   }
   if (request.stream && isDeepSeekProvider(config.baseUrl)) {
     // 缓存取证：要求 DeepSeek 在流式末帧返回 usage（含 prompt_cache_hit/miss）。
@@ -555,7 +559,10 @@ function getParameterRejection(
   if (/response[_ -]?format|json[_ -]?object/i.test(signal))
     return { rejectedParameter: 'response_format', providerErrorCode };
   // reasoning_effort 同属思考控制：未知 OpenAI 兼容端点只会拒绝这一类字段。
-  if (/thinking|reasoning/i.test(signal))
+  // Plan 266：反代把「档位不合法」也报成 400，但报文既没有 param 也不含 thinking/reasoning
+  // 字样（实测：level "minimal" not supported, valid levels: low, medium, high, xhigh, max），
+  // 因此把档位报错签名一并算作思考控制拒绝，才能走到 omit_thinking 重发。
+  if (/thinking|reasoning|valid levels/i.test(signal))
     return { rejectedParameter: 'thinking', providerErrorCode };
   if (parameter) return { rejectedParameter: 'unknown', providerErrorCode };
   return undefined;

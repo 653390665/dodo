@@ -660,12 +660,12 @@ test('Google streaming stops token callbacks immediately after abort', async () 
   }
 });
 
-test('unknown OpenAI-compatible endpoints receive minimal reasoning_effort', () => {
+test('unknown OpenAI-compatible endpoints receive low reasoning_effort', () => {
   const generic = buildOpenAICompatibleChatRequest(
     { baseUrl: 'http://127.0.0.1:8317/v1', model: 'gemini-3.8-flash-high' },
     { prompt: '输出 JSON', maxTokens: 6000, responseMimeType: 'application/json', disableThinking: true },
   );
-  assert.equal(generic.reasoning_effort, 'minimal');
+  assert.equal(generic.reasoning_effort, 'low');
   assert.deepEqual(generic.response_format, { type: 'json_object' });
 
   const deepseek = buildOpenAICompatibleChatRequest(
@@ -723,7 +723,60 @@ test('audit-json drops reasoning controls once when the endpoint rejects them', 
     );
     assert.equal(result, '{"ok":true}');
     assert.equal(calls, 2);
-    assert.equal(firstBody?.reasoning_effort, 'minimal');
+    assert.equal(firstBody?.reasoning_effort, 'low');
+    assert.equal('reasoning_effort' in (secondBody || {}), false);
+    assert.equal(diagnostic?.compatibilityMode, 'omit_thinking');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('level-only rejections are treated as thinking-control rejection and retried', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let firstBody: Record<string, unknown> | undefined;
+  let secondBody: Record<string, unknown> | undefined;
+  let diagnostic: { compatibilityMode?: string } | undefined;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    if (calls === 1) {
+      firstBody = body;
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: 'level "minimal" not supported, valid levels: low, medium, high, xhigh, max',
+            type: 'invalid_request_error',
+          },
+        }),
+        { status: 400 },
+      );
+    }
+    secondBody = body;
+    return new Response(
+      JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }),
+      { status: 200 },
+    );
+  };
+  try {
+    const result = await generateText(
+      {
+        apiKey: 'mock-key',
+        baseUrl: 'http://127.0.0.1:8317/v1',
+        model: 'gpt-5.6-terra',
+        promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+      },
+      {
+        prompt: '审稿 JSON',
+        outputMode: 'audit-json',
+        maxAttempts: 1,
+        disableThinking: true,
+        onComplete: (value) => { diagnostic = value.outputDiagnostic; },
+      },
+    );
+    assert.equal(result, '{"ok":true}');
+    assert.equal(calls, 2);
+    assert.equal(firstBody?.reasoning_effort, 'low');
     assert.equal('reasoning_effort' in (secondBody || {}), false);
     assert.equal(diagnostic?.compatibilityMode, 'omit_thinking');
   } finally {
