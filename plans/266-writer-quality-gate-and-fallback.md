@@ -47,6 +47,21 @@
 - 根因：Plan 265 给未知 OpenAI 兼容端点统一下发 `reasoning_effort: 'minimal'`（对 antigravity 有效，它会把 minimal clamp 到 low），但 codex 系后端只接受 low/medium/high/xhigh/max；且 `getParameterRejection` 只认 `thinking|reasoning` 字样，这种「档位不合法」报文（无 param、无 thinking 字样）识别不出 → 无 omit_thinking 重试 → 整章退化。
 - 修复：`server/lib/server-llm.ts` 取值改 `'low'`；`getParameterRejection` 的思考控制签名扩到 `/thinking|reasoning|valid levels/i`；新增用例「level-only rejections are treated as thinking-control rejection and retried」。修复后真机 `parameter_incompatible` = 0。
 
+## 修复④（审稿不可用不再丢弃过门模型稿）
+
+- 触发：2026-10-01 链路复测（run `8aaa7c29-e4cb-42ee-a9f7-912ff5934135`）：attempt 0 的模型稿 `len=4534` 已过本地质量门并逐 token 推流，但 critic 侧 provider 失败（`{code:'network', phase:'parse', retriable:true}`）→ `auditStatus === 'unknown'` → 按 Plan 247 进入整章重写；重写轮再次 provider 失败 → 走保底稿分支，`draftSource` 变 `'fallback'`，先前过门的 4534 字模型稿被丢弃 —— 最终入库与下发的是 4068 字确定性模板稿（版本行 `[fallback 4080, fallback 4068]`）。近 8 个复测 run 里只有 1 个产出 `source=model` 版本行。
+- 读码定位（`server/helpers/ai-production-pipeline.ts`）：
+  - `:1053-1057` `bestAttemptDraft` 只在 `auditStatus === 'fail'` 时记录 → unknown 稿永不进「最佳尝试」；
+  - `:1083-1093` Plan 261 营救的硬条件含 `auditStatus === 'fail'` → unknown 稿永不获救；
+  - `:888-924`（门失败）与 `:932-962`（provider 异常）都把 `currentDraft` 换成保底稿；过门稿只剩内存里的 `lastModelDraft`，且仅在保底稿构建失败时才由 `DraftQualityRejectionError` 带出。
+- 修复（过门稿营救位）：
+  - 新增 `gateSalvageDraft / gateSalvageAudit / gateSalvageAuditStatus / gateSalvageScore`；
+  - 每轮只要 `draftSource === 'model' && currentDraft.trim()`（等价于该轮模型稿过了本地质量门）就覆盖记录该稿与其审稿结果；
+  - 收尾时若最终产物仍是保底稿（`draftSource === 'fallback'`）且曾有过门稿 → 换回该稿，并把 `auditStatus / auditScore / criticFeedback` 如实还原（unknown 仍写 `UNKNOWN_CRITIC_FEEDBACK`），`draftSource` 置回 `'model'`。run 终态仍 `review_required`，不改动任何门禁结论或分值。
+- 测试：`tests/writer-quality-gate-retry.test.ts` 新增 `audit-unavailable retry does not discard a gate-passing model draft`（drafts `[...CLEAN_SCENES, WRITER_THROW]` + `criticThrows`）：断言 writer 请求 4 次（三场景各一次 + 一次重写）、`result.source === 'model'`、终稿含过门哨兵句 `序号900段记录中`、`result.auditStatus === 'unknown'`。
+- 读数：定向 `tests/writer-quality-gate-retry.test.ts` **3/3**；后端全量 **1472/1474（0 fail；并发负载下 2 个文件级 45 s 超时，单独复跑 4/4 通过）**；`npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0。
+- 真机复现受阻（2026-10-01）：隔离服 3301 重跑 run `904239a1-0d92-43c9-8d11-5f5a6603381e` **3.8 s 即终止**（planner 退化确定性 beats、writer 保底、critic「审计不可用」），反代日志 `conductor_selection.go:2330 auth unavailable: 1 of 5 candidate(s) for model "gpt-5.6-terra" (provider=codex) are in cooldown` + `503`；直连探针：`gpt-5.6-terra` / `gpt-5.6-luna` = 503 `auth_unavailable … last upstream error: usage_limit_reached: The usage limit has been reached`，`gemini-3.8-flash-high` = 400 `User location is not supported for the API use.`（仅 `gpt-oss-120b-medium` 返回 200）。⇒ 该交织（过门稿 + 审稿 unknown + 重写轮 provider 抖动）当前无法真机复现，由上述集成用例确定性覆盖。
+
 ## 残余 / 后续
 
 - critic 侧真机仍偶发 provider 失败（500 / parse）→ `审计不可用` → `review_required`（诚实降级）；与本次改动无关，属反代/上游稳定性，已在 `plans/263` 登记同类观察。

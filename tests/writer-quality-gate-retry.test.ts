@@ -84,6 +84,9 @@ const RESIDUE_DRAFT = [
   '关键动作链：左妄蹲下拨开碎发，小马在旁例行公事地试探盘问。',
 ].join('\n\n');
 
+// Plan 266 修复④ 用例：让重写轮的 writer 调用直接抛错（provider 抖动）。
+const WRITER_THROW = 'WRITER_THROW';
+
 const AUDIT_JSON = JSON.stringify({
   score: 80,
   fatalIssues: [],
@@ -97,7 +100,7 @@ const AUDIT_JSON = JSON.stringify({
   ],
 });
 
-async function runPipeline(options: { plannerBeats: string; drafts: string[] }) {
+async function runPipeline(options: { plannerBeats: string; drafts: string[]; criticThrows?: boolean }) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
     apiKey: process.env.API_KEY,
@@ -114,13 +117,23 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[] }) 
     const body = JSON.parse(String(init?.body || '{}')) as { messages?: Array<{ content?: string }> };
     const prompt = body.messages?.map((message) => message.content || '').join('\n') || '';
     requests.push(prompt);
-    const content = prompt.includes('SYSTEM CORRECTION GATE')
-      ? CLEAN_SCENES[0]
-      : prompt.includes('PLANNER_SENTINEL')
-        ? options.plannerBeats
-        : prompt.includes('WRITER_SENTINEL')
-          ? writerQueue.shift() || CLEAN_SCENES[0]
-          : AUDIT_JSON;
+    if (options.criticThrows && prompt.includes('CRITIC_SENTINEL')) {
+      throw new Error('critic provider unavailable (mock)');
+    }
+    let content: string;
+    if (prompt.includes('SYSTEM CORRECTION GATE')) {
+      content = CLEAN_SCENES[0];
+    } else if (prompt.includes('PLANNER_SENTINEL')) {
+      content = options.plannerBeats;
+    } else if (prompt.includes('WRITER_SENTINEL')) {
+      const writerDraft = writerQueue.shift() || CLEAN_SCENES[0];
+      if (writerDraft === WRITER_THROW) {
+        throw new Error('writer provider network error (mock)');
+      }
+      content = writerDraft;
+    } else {
+      content = AUDIT_JSON;
+    }
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(
@@ -187,4 +200,24 @@ test('hard metadata residue still falls back instead of burning a retry', async 
   assert.equal(result.source, 'fallback');
   assert.equal(writerRequestsOf(requests).length, 1, 'one writer attempt only, no rewrite pass');
   assert.ok(result.draft.length >= 4000);
+});
+
+test('audit-unavailable retry does not discard a gate-passing model draft', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES, WRITER_THROW],
+    criticThrows: true,
+  });
+
+  assert.equal(
+    writerRequestsOf(requests).length,
+    4,
+    'clean first pass (3 scene calls) then one failing rewrite scene call',
+  );
+  assert.equal(result.source, 'model', 'gate-passing model draft still ships');
+  assert.ok(
+    result.draft.includes('序号900段记录中'),
+    'the salvaged model draft is what gets delivered',
+  );
+  assert.equal(result.auditStatus, 'unknown', 'audit state stays honest');
 });

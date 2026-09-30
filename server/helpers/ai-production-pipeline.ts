@@ -590,6 +590,13 @@ export async function runProductionPipeline(params: {
   let bestAttemptDraft = '';
   let bestAttemptAudit = '';
   let bestAttemptScore = 0;
+  // Plan 266 修复④：审稿 unknown 会触发整章重写；若重写轮被 provider 抖动打回确定性
+  // 保底稿，先前「已过本地质量门」的模型稿会凭空消失（复测 run 8aaa7c29：4534 字
+  // 过门稿 → 交付 4068 字模板稿）。这里把最后一份过门模型稿留作营救候选。
+  let gateSalvageDraft = '';
+  let gateSalvageAudit = '';
+  let gateSalvageAuditStatus: PipelineResult['auditStatus'] = 'unknown';
+  let gateSalvageScore = 0;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     attempts = attempt + 1;
@@ -1056,6 +1063,15 @@ export async function runProductionPipeline(params: {
       bestAttemptAudit = criticFeedback;
     }
 
+    // Plan 266 修复④：draftSource === 'model' 等价于「本轮模型稿过了本地质量门」
+    // （门失败会把 draftSource 置为 'fallback'）；连同其审稿状态一起留作营救候选。
+    if (draftSource === 'model' && currentDraft.trim()) {
+      gateSalvageDraft = currentDraft;
+      gateSalvageAudit = criticFeedback;
+      gateSalvageAuditStatus = auditStatus;
+      gateSalvageScore = auditScore;
+    }
+
     const isValid = auditStatus === 'pass';
     progress.onCriticDone?.(criticFeedback, isValid, {
       status: auditStatus,
@@ -1090,6 +1106,18 @@ export async function runProductionPipeline(params: {
     currentDraft = bestAttemptDraft;
     criticFeedback = bestAttemptAudit;
     auditScore = bestAttemptScore;
+  }
+
+  // Plan 266 修复④：任一轮退化到确定性保底稿时，用先前已过本地质量门的模型稿交付
+  // （审稿状态如实保持 unknown / fail，终态仍是 review_required 交人审），
+  // 避免「好稿只留在内存里、落库和下发的是模板散文」。
+  if (draftSource === 'fallback' && gateSalvageDraft && gateSalvageDraft !== currentDraft) {
+    currentDraft = gateSalvageDraft;
+    criticFeedback =
+      gateSalvageAuditStatus === 'unknown' ? UNKNOWN_CRITIC_FEEDBACK : gateSalvageAudit;
+    auditStatus = gateSalvageAuditStatus;
+    auditScore = gateSalvageScore;
+    draftSource = 'model';
   }
 
   return {
