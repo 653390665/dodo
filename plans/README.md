@@ -705,3 +705,23 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 修复：未知端点 + `disableThinking` 时下发 `reasoning_effort:'minimal'`；`getParameterRejection` 字段族扩为 `/thinking|reasoning/i`；兼容重试新增通用 omit-thinking 分支（非 DeepSeek）；critic 三条静默 unknown 路径补 `logger.warn`（`missingCriticEvidence`）。
 - 读数：定向 38/38、后端全量 1469/1469（+2）、tsc 0、eslint 0；真机复跑（run `46109ca3-8d26-4430-8d1b-748b0a815b73`）反代日志全量转 `level=minimal`、审稿恢复结构化五维 JSON、`Critic audit unknown` 0 条。
 - 新残余（未处置，待另行立项）：Gemini 链路 writer 输出被本地正文质量门拦下（`literary-slop`「正文包含高置信 AI 套话或结构化叙述缺陷」）→ 回退保底稿（实测 4077 字，为 planner beats 字段拼贴）→ critic 12/100 → `review_required`；DeepSeek 同链路 score 70 且 apply 成功，故与 provider 修复无关。
+
+---
+
+## Round 49（2026-09-30）：正文质量门与保底稿 —— 「单个副词枪毙整章」+ 分镜字段混入（266）
+
+来源：Round 48 新残余（Gemini 链路 writer 输出被本地正文质量门拦下 → 回退保底稿 → critic 12/100）→ 用户指令「先做2」= 先诊断该问题（暂不推送）。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| 266 | 正文质量门与保底稿（plans/266-writer-quality-gate-and-fallback.md）：软命中比例化 + 定向重写 + 保底稿去分镜化 + 思考档位回归修复 | ✅ 已完成（2026-09-30） | Round 48 残余；反代真机（codex 系 gpt-5.6-terra） |
+
+### Round 49 关键事实
+
+- **根因①（门）**：`shared/lib/draft-quality.ts` 的 `literary-slop` 判定对三类软文风命中（`ai_cliche`/`style_slop`/`tell_dont_show`）不做计数 —— 1 条即 P1 阻断整章；真机门输入 5177 字、mechanicalScore 97.10，唯一命中是副词「极其」（`tell_dont_show`）。同 scorer 的其它检测器都是 ≥3/≥4/≥5 计数哲学，只有这条路径无条件。
+- **根因②（保底稿）**：`server/helpers/fallback-draft.ts` 把 planner 分镜字段值（title/核心冲突/关键动作链/退场钩子）`join('。')` 成 beats 嵌进模板；扩写提示句池又被 `sanitizeFallbackContext` 剥掉标签只留值 → 提纲进正文，而 `metadata-residue` 只认行首标签、行内形态漏检（真机保底稿 labels=[出场人物,入场钩子,核心冲突,关键动作链]）。
+- **修复**：Fix 1 `SOFT_LITERARY_BLOCKING_HITS = 3`（1–2 条软命中降为 `literary-polish` P2 不阻断；structural P1 与 ≥3 软命中仍阻断）；Fix 2 `isRetriableWriterSoftFailure` + `buildLiteraryRetryFeedback`（软命中为主时先定向重写，`attempt < MAX_RETRIES`；硬缺陷仍直接回退不烧重试；evidence 兼容字符串/对象两形态）；Fix 3/3c `BEATS_FIELD_RESIDUE` 提升为导出常量 + 新增 `BEATS_FIELD_RESIDUE_INLINE`，生成侧 beat 只取核心冲突前提句、提示句池按行内标签过滤。
+- **连带回归（Plan 265）**：通用思考档位 `'minimal'` 被 codex 系后端拒绝（`level "minimal" not supported, valid levels: low, medium, high, xhigh, max`），且 `getParameterRejection` 不认这种无 param 报文 → 每次调用 400、整章退化。修复：档位改 `'low'`、签名扩为 `/thinking|reasoning|valid levels/i`（`server/lib/server-llm.ts`）。
+- **读数**：定向 5 文件 88/88；`tsc --noEmit` 0；eslint 0；后端全量 **1475/1475**；真机三跑对照 `46109ca3`（3 次门拒 + 保底稿含分镜字段）→ `f99af891`（0 门拒，保底稿仍含字段）→ `81827b80`（门拒 1 次且为 `markdown-residue` 硬缺陷 → 直接回退；保底稿 labels=[] scene_headers=0 ✓；model 稿 5692 字落库）。
+- **残余**：critic 侧真机仍偶发 provider 失败（500/parse）→ 审计不可用 → `review_required`（诚实降级，属反代稳定性）；保底稿仍是确定性模板散文（兜底预览，critic 低分属预期）；反代 gemini 系受上游地区限制（`User location is not supported for the API use.`），真机改用 codex 系模型。
+- **push**：`c9bfd19`（Plan 265）与 Round 49 两个单元待用户批准后推送。

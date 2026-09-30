@@ -87,18 +87,42 @@ test('complete chapter quality blocks a mechanically repetitive candidate and re
   assert.ok(finding?.evidence?.[0]?.snippet);
 });
 
-test('complete chapter blocks a high-confidence AI cliche even when score density stays above threshold', () => {
+const SINGLE_AI_CLICHE = '他深吸一口气，眼神里闪过一丝迟疑，不是因为害怕，而是因为这意味着门后的代价更高。';
+
+function cleanChapterBody(from: number, count: number): string {
+  return Array.from({ length: count }, (_, index) => [
+    `雨水沿着第${from + index}级石阶退向城外，林舟用刀尖拨开泥里的铜片，确认上面的刻痕与导师留下的暗号不同。`,
+    `守门人没有催促，只把半截火把插进墙缝；火星落下时，巷口的脚步换了方向，逼得林舟必须在门和追兵之间作出选择。`,
+  ].join('')).join('\n\n');
+}
+
+test('complete chapter downshifts a single localized AI cliche to a non-blocking polish note', () => {
   const chapter = [
-    '他深吸一口气，抬手按住门闩，听见门后的水声停了一拍。',
-    ...Array.from({ length: 62 }, (_, index) => [
-      `第${index + 1}级石阶从雨里露出来，林舟用刀尖拨开积水，确认铜片上的刻痕没有被冲掉。`,
-      `守门人把火把移到墙角，火星落在湿泥上；巷口的脚步换了方向，逼得林舟把退路让给门后的回声。`,
-    ].join('')),
+    cleanChapterBody(0, 12),
+    SINGLE_AI_CLICHE,
+    cleanChapterBody(13, 48),
   ].join('\n\n');
 
   const result = validateCompleteChapterDraftQuality(chapter);
 
   assert.ok((result.mechanicalReview?.score || 0) >= MIN_COMPLETE_CHAPTER_SLOP_SCORE);
+  assert.equal(result.ok, true);
+  assert.ok(result.findings.some((finding) => finding.code === 'literary-polish' && finding.severity === 'P2'));
+  assert.ok(!result.findings.some((finding) => finding.code === 'literary-slop'));
+});
+
+test('complete chapter still blocks saturated soft literary hits while score density stays above threshold', () => {
+  const chapter = [
+    cleanChapterBody(0, 12),
+    SINGLE_AI_CLICHE,
+    cleanChapterBody(13, 48),
+    cleanChapterBody(61, 42),
+    '那是一个极其简陋的黄色外卖界面。没有骑手头像，没有实时移动的定位小车，最上方的状态栏没有显示信号格，只有一串暗红色的倒计时在以非人的频率飞速跳动。',
+  ].join('\n\n');
+
+  const result = validateCompleteChapterDraftQuality(chapter);
+
+  assert.equal(result.mechanicalReview?.status, 'pass');
   assert.equal(result.ok, false);
   assert.ok(result.findings.some((finding) => finding.code === 'literary-slop' && finding.severity === 'P1'));
 });
@@ -527,4 +551,40 @@ test('complete chapter quality allows prose that merely mentions scene-like word
   const result = validateCompleteChapterDraftQuality(prose);
 
   assert.ok(!result.findings.some((finding) => finding.code === 'metadata-residue'));
+});
+
+test('fallback draft keeps planner scene fields out of the prose (plan 266 fix 3)', () => {
+  const beats = [
+    '### 场景 1：雨夜的石阶',
+    '**出场人物**：左妄、小马',
+    '**核心冲突**：左妄必须确认尸体与桥墩下异象的同源性',
+    '**关键动作链**：左妄蹲下拨开碎发，小马在旁例行公事地试探盘问',
+    '**关键道具/信息**：桥墩下的青紫印',
+    '**退场钩子**：青紫印被雨水冲淡',
+  ].join('\n');
+  const draft = buildFallbackDraft(beats, '关键人物：\n- 左妄：仵作');
+
+  assert.ok(!draft.includes('试探盘问'), 'key action chain must not be spliced into prose');
+  assert.ok(!draft.includes('青紫印'), 'exit hook and prop values must not be spliced into prose');
+  assert.ok(!draft.includes('雨夜的石阶'), 'scene title must not be spliced into prose');
+  assert.ok(
+    draft.includes('左妄必须确认尸体与桥墩下异象的同源性'),
+    'the chapter premise sentence is kept'
+  );
+  const result = validateCompleteChapterDraftQuality(draft);
+  assert.equal(result.ok, true, result.violations.join('；'));
+  assert.equal(result.findings.length, 0);
+});
+
+test('fallback draft drops inline planner field lines from writer context (plan 266 fix 3)', () => {
+  const beats =
+    '### 场景 1：异动入场\n\n**入场钩子**：一个异常声音或突发消息打断原本平静的局面。\n\n**核心冲突**：信息并不完整，角色只能先试探。\n\n**关键动作链**：角色观察异常；对方给出含糊回应；一个细节暴露真正风险。\n\n**退场钩子**：新的脚步声、信物或消息把局势推向下一场。';
+  const context =
+    '第一章， 场景 1：桥墩下的淤痕 出场人物：左妄、小马、无名男尸 入场钩子：清晨桥墩阴影里 核心冲突：左妄对同源性本能发问 关键动作链：左妄用指背蹭死者眼眶淤痕';
+  const draft = buildFallbackDraft(beats, context, 4000);
+  assert.ok(draft.length >= 4000, '保底稿应补足最小长度');
+  for (const label of ['出场人物', '入场钩子', '核心冲突', '关键动作链', '场景 1']) {
+    assert.ok(!draft.includes(label), `保底稿不应含分镜字段文本：${label}`);
+  }
+  assert.equal(validateCompleteChapterDraftQuality(draft).ok, true);
 });

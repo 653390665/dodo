@@ -380,6 +380,42 @@ function truncateFeedback(message: string): string[] {
   return [message.slice(0, 200)];
 }
 
+// Plan 266 修复②：判定一次正文门失败是否只由局部软命中引起——这类失败应当带
+// 定向反馈重写整章，而不是立刻丢弃整章换确定性保底稿（保底稿无法承载正文）。
+function isRetriableWriterSoftFailure(quality: {
+  findings?: Array<{ code?: string; severity?: string }>;
+  mechanicalReview?: { status?: string };
+}): boolean {
+  if (quality.mechanicalReview?.status !== 'pass') return false;
+  const findings = quality.findings || [];
+  if (!findings.some((finding) => finding.code === 'literary-slop')) return false;
+  return findings.every(
+    (finding) => finding.severity === 'P2' || finding.code === 'literary-slop'
+  );
+}
+
+function buildLiteraryRetryFeedback(quality: {
+  violations?: string[];
+  findings?: Array<{ evidence?: Array<string | { snippet?: string }> }>;
+}): string {
+  const snippets: string[] = [];
+  for (const finding of quality.findings || []) {
+    for (const entry of finding.evidence || []) {
+      const snippet = typeof entry === 'string' ? entry : entry.snippet;
+      if (snippet) snippets.push(snippet);
+      if (snippets.length >= 6) break;
+    }
+    if (snippets.length >= 6) break;
+  }
+  const detail = snippets.length
+    ? `需要改写的具体语句：${snippets.join(' / ')}。`
+    : '';
+  const problems = quality.violations?.length
+    ? `具体问题：${quality.violations.join('；')}。`
+    : '';
+  return `【上一稿未通过正文质量门禁，请重写整章】${problems}${detail}${WRITER_RETRY_STYLE_RULE}`;
+}
+
 function buildValidatedFallbackDraft(
   sceneBeats: string,
   contextStr: string,
@@ -704,6 +740,9 @@ export async function runProductionPipeline(params: {
               respChars: trimmed.length,
               streamedTokens: streamedWriterText.length,
               ms: Date.now() - callT0,
+              ...(process.env.DEBUG_WRITER_TEXT === '1'
+                ? { prompt: sectionPrompt, resp: trimmed }
+                : {}),
             });
             if (trimmed) {
               parts.push(trimmed);
@@ -798,6 +837,14 @@ export async function runProductionPipeline(params: {
             ' head=' +
             JSON.stringify(String(currentDraft).slice(0, 150))
         );
+        try {
+          appendFileSync(
+            `/tmp/gate-in-${process.env.DEBUG_GATE_IN_TAG || 'default'}.txt`,
+            `\n\n===== attempt ${attempt} len=${String(currentDraft).length} =====\n${String(currentDraft)}\n`
+          );
+        } catch {
+          /* 诊断采集失败不影响主流程 */
+        }
       }
       const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
         minChars: minDraftChars,
@@ -811,10 +858,44 @@ export async function runProductionPipeline(params: {
             snippets: (finding.evidence || []).slice(0, 3).map((entry) => entry.snippet),
           })),
         });
+        if (process.env.DEBUG_GATE_IN === '1') {
+          try {
+            appendFileSync(
+              `/tmp/gate-fail-${process.env.DEBUG_GATE_IN_TAG || 'default'}.jsonl`,
+              JSON.stringify({
+                t: Date.now(),
+                attempt,
+                minDraftChars,
+                len: String(currentDraft).length,
+                violations: draftQuality.violations,
+                findings: (draftQuality.findings || []).map((finding) => ({
+                  code: finding.code,
+                  message: finding.message,
+                  severity: finding.severity,
+                  category: finding.category,
+                  evidence: (finding.evidence || []).map((entry) => entry.snippet),
+                })),
+                hits: (draftQuality.mechanicalReview?.hits || []).map((hit) => ({
+                  raw: JSON.stringify(hit),
+                })),
+                mechanicalScore: draftQuality.mechanicalReview?.score,
+              }) + '\n'
+            );
+          } catch {
+            /* 诊断采集失败不影响主流程 */
+          }
+        }
         if (currentDraft.trim()) {
           lastModelDraft = currentDraft;
           lastViolations = draftQuality.violations;
           lastMechanicalScore = draftQuality.mechanicalReview?.score;
+        }
+        // Plan 266 修复②：只由局部软命中引起的门失败，先带定向反馈重写整章；
+        // 只有重试耗尽或结构/元数据/长度/机械分等硬缺陷才退回确定性保底稿。
+        if (isRetriableWriterSoftFailure(draftQuality) && attempt < MAX_RETRIES) {
+          criticFeedback = buildLiteraryRetryFeedback(draftQuality);
+          progress.onPhase?.('retry');
+          continue;
         }
         let fallbackDraft: string;
         try {

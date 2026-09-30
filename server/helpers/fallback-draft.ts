@@ -1,4 +1,9 @@
-import { sanitizeFallbackContext, validateDraftQuality } from '../../shared/lib/draft-quality';
+import {
+  BEATS_FIELD_RESIDUE,
+  BEATS_FIELD_RESIDUE_INLINE,
+  sanitizeFallbackContext,
+  validateDraftQuality,
+} from '../../shared/lib/draft-quality';
 
 export const MIN_CHAPTER_DRAFT_CHARS = 4000;
 
@@ -70,7 +75,11 @@ export function expandDraftToMinimum(
 ) {
   const effectiveMin = minChars && minChars >= 200 ? minChars : MIN_CHAPTER_DRAFT_CHARS;
   const normalizedBeats = String(sceneBeats || '').trim();
-  const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, ''));
+  // Plan 266 修复③补：writer 上下文里的资料包细纲常把多个分镜字段挤在同一行，
+  // 行首锚定的 BEATS_FIELD_RESIDUE 抓不到，会在扩写段落里把字段文本写成提示句。
+  const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, '')).filter(
+    (line) => !BEATS_FIELD_RESIDUE_INLINE.test(line)
+  );
   // Plan 261：过滤世界规则/设定说明类 hint——这些是背景信息而非叙事线索，
   // 嵌入正文会导致设定文档泄漏（如"裂隙是超自然力量来源"直接出现在段落里）。
   const SETTING_RESIDUE = /裂隙是|锚点机制|公理|鬼市规则|机械化改造|世界规则|力量体系|设定[：:]/;
@@ -80,10 +89,15 @@ export function expandDraftToMinimum(
     ? sanitizeFallbackContext(
         normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1] || ''
       ).slice(0, 2)
-    : sanitizeFallbackContext(normalizedBeats.replace(/\*\*/g, '').replace(/^#+\s*/gm, ''))
-        // Plan 261 修复⑤：场景头行（"场景 1：案发现场"）是结构标签不是叙事线索，
-        // 吸收进提示句会把分镜元数据拼进保底正文。
-        .filter((line) => !/^场景\s*\d*/.test(line))
+    : normalizedBeats
+        .split(/\n+/)
+        // Plan 266 修复③：planner 分镜字段不是叙事素材——sanitizeFallbackContext 会剥掉
+        // 标签只留字段值，拼进提示句就成了「分镜提纲混入正文」。同时覆盖行首字段行
+        //（BEATS_FIELD_RESIDUE）与细纲式的行内字段、场景头行（2026-09-30 真机保底稿实测）。
+        .filter((line) => !BEATS_FIELD_RESIDUE.test(line))
+        .filter((line) => !BEATS_FIELD_RESIDUE_INLINE.test(line))
+        .flatMap((line) => sanitizeFallbackContext(line))
+        .filter(Boolean)
         .slice(0, 12);
   const hints = [...beatHints, ...filteredContext].filter(Boolean);
   const seed = hints[0] || '这场变故没有给任何人留下退路';
@@ -470,20 +484,13 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
     .map((block) => block.trim())
     .filter(Boolean)
     .slice(0, 4);
+  // Plan 266 修复③：只保留场景「核心冲突」作为本章前提句，
+  // 不再把 planner 的分镜字段（场景标题/关键动作链/退场钩子）拼进正文。
   const beats =
     sceneBlocks.length > 0
-      ? sceneBlocks.map((block, index) => {
-          const title =
-            block.match(/###\s*场景\s*\d+[：:]\s*([^\n（(]+)/)?.[1]?.trim() ||
-            `第 ${index + 1} 个转折`;
-          const conflict = block.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-          const actions = block.match(/\*\*关键动作链\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-          const exitHook = block.match(/\*\*退场钩子\*\*[：:]\s*([^\n]+)/)?.[1]?.trim();
-          return (
-            sanitizeFallbackContext(
-              [title, conflict, actions, exitHook].filter(Boolean).join('。')
-            )[0] || ''
-          );
+      ? sceneBlocks.map((block) => {
+          const conflict = block.match(/\*\*核心冲突\*\*[：:]\s*([^\n]+)/)?.[1]?.trim() || '';
+          return sanitizeFallbackContext(conflict)[0] || '';
         })
       : normalizedBeats
           .split(/\n+/)
@@ -499,15 +506,13 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
     );
   }
 
-  const firstBeat = beats[0] || intentHint;
-  const secondBeat = beats[1] || '试探被接住，旧线索浮出水面';
-  const thirdBeat = beats[2] || '危险逼近，角色必须做出选择';
+  const openingPremise = beats[0] || intentHint;
 
   return ensureMinimumDraftLength(
     [
-      `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。${firstBeat}没有被摊开讲明，它先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
-      `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。${secondBeat}，局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
-      `${thirdBeat}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
+      `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。有些话没有被摊开讲明，它们先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
+      `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
+      `${openingPremise}。远处传来的声音越来越近，像靴底踩过积水，也像刀鞘擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
     ].join('\n\n'),
     sceneBeats,
     contextStr,

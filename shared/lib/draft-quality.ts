@@ -244,6 +244,18 @@ export const MIN_COMPLETE_SCENE_CHARS = 800;
 export const MIN_COMPLETE_CHAPTER_CHARS = 4000;
 /** Initial mechanical-quality release gate; tune only against reviewed samples. */
 export const MIN_COMPLETE_CHAPTER_SLOP_SCORE = 85;
+
+/**
+ * How many localized soft literary hits (AI cliche / style slop / tell-dont-show)
+ * a complete chapter may carry before they count as a chapter-level defect.
+ *
+ * Plan 266 修复①：这三类软命中在 slop scorer 里逐条即 P1（词语级），整章门若照
+ * 单条否决，会因一个副词丢掉整章真稿（run 46109ca3：score 97.1/100 的 5178 字
+ * 正文仅因「极其」被弃，退回 beats 拼贴保底稿）。结构类检测器一律按计数分层
+ * （paragraph-opening ≥3/≥5、scene-template ≥3、subject-action-chain ≥4），
+ * 这里对齐同一计数哲学：≥ 本阈值才阻断，1–2 条降为 P2 精修提示。
+ */
+export const SOFT_LITERARY_BLOCKING_HITS = 3;
 /** Floor for intent-declared short chapters; aligns with the complete-scene minimum. */
 export const MIN_INTENT_DRAFT_CHARS = 800;
 
@@ -487,6 +499,18 @@ export function validateChapterDraftQuality(
  * Short editor fragments intentionally continue to use validateDraftQuality or
  * validateCandidateDraftQuality instead.
  */
+// Plan 266 修复③：分镜/资料字段行标签集（质量门据此判 metadata-residue）。
+// 保底稿生成侧（server/helpers/fallback-draft.ts）复用同一标签集，
+// 避免把 planner 字段值当作叙事素材拼进正文。
+export const BEATS_FIELD_RESIDUE =
+  /^\s*(?:#{0,4}\s*)?(?:\*\*)?\s*(?:出场人物|入场钩子|核心冲突|关键动作链|关键道具\/?信息|情绪转折|退场钩子|连接上一场景)\s*(?:\*\*)?\s*[：:]/;
+
+// Plan 266 修复③补：资料包细纲常把多个分镜字段挤在同一行
+//（"场景 1：桥墩下的淤痕 出场人物：… 核心冲突：…"），行首锚定的 BEATS_FIELD_RESIDUE 抓不到；
+// 保底稿提示句过滤用这个行内版本，避免分镜字段文本被拼进正文。
+export const BEATS_FIELD_RESIDUE_INLINE =
+  /(?:出场人物|入场钩子|核心冲突|关键动作链|关键道具\/?信息|情绪转折|退场钩子|连接上一场景)\s*[：:]|场景\s*\d+\s*[：:]/;
+
 export function validateCompleteChapterDraftQuality(
   text: string,
   semanticReview = DEFAULT_SEMANTIC_REVIEW,
@@ -514,8 +538,6 @@ export function validateCompleteChapterDraftQuality(
   // Plan 261 修复⑫：分镜/资料字段回声检测——writer 偶发把 beats 字段行
   //（出场人物/关键动作链…）与场景头整段抄进正文（run S：3 连发 5 分汤稿）。
   // 在稿级校验就地打回触发重写，而不是烧完一轮 critic 才由审稿发现。
-  const BEATS_FIELD_RESIDUE =
-    /^\s*(?:#{0,4}\s*)?(?:\*\*)?\s*(?:出场人物|入场钩子|核心冲突|关键动作链|关键道具\/?信息|情绪转折|退场钩子|连接上一场景)\s*(?:\*\*)?\s*[：:]/;
   const residueLines = text
     .split('\n')
     .filter(
@@ -541,29 +563,45 @@ export function validateCompleteChapterDraftQuality(
     summary: slopSummary(mechanical),
     hits: mechanical.hits,
   };
-  const hardLiteraryHits = mechanical.hits.filter(
-    (hit) =>
-      hit.category === 'ai_cliche' ||
-      hit.category === 'style_slop' ||
-      hit.category === 'tell_dont_show' ||
-      (hit.category === 'structural' &&
-        hit.priority === 'P1' &&
-        ['paragraph-opening', 'scene-template'].includes(hit.signal || ''))
+  // Plan 266 修复①：软命中比例化（阈值语义见 SOFT_LITERARY_BLOCKING_HITS）。
+  const SOFT_LITERARY_CATEGORIES: string[] = ['ai_cliche', 'style_slop', 'tell_dont_show'];
+  const softLiteraryHits = mechanical.hits.filter((hit) =>
+    SOFT_LITERARY_CATEGORIES.includes(hit.category)
   );
-  if (
-    hardLiteraryHits.length > 0 &&
-    !findings.some((finding) => finding.code === 'literary-slop')
-  ) {
+  const structuralLiteraryHits = mechanical.hits.filter(
+    (hit) =>
+      hit.category === 'structural' &&
+      hit.priority === 'P1' &&
+      ['paragraph-opening', 'scene-template'].includes(hit.signal || '')
+  );
+  const literaryEvidence = [...structuralLiteraryHits, ...softLiteraryHits]
+    .slice(0, 5)
+    .map((hit) => ({
+      line: hit.line,
+      snippet: hit.snippet,
+      ...(hit.suggestion ? { suggestion: hit.suggestion } : {}),
+    }));
+  const literaryBlocks =
+    structuralLiteraryHits.length > 0 || softLiteraryHits.length >= SOFT_LITERARY_BLOCKING_HITS;
+  if (literaryBlocks && !findings.some((finding) => finding.code === 'literary-slop')) {
     findings.push({
       code: 'literary-slop',
       message: '正文包含高置信 AI 套话或结构化叙述缺陷，需要精修后才能进入整章交付',
       severity: 'P1',
       category: 'template',
-      evidence: hardLiteraryHits.slice(0, 5).map((hit) => ({
-        line: hit.line,
-        snippet: hit.snippet,
-        ...(hit.suggestion ? { suggestion: hit.suggestion } : {}),
-      })),
+      evidence: literaryEvidence,
+    });
+  } else if (
+    !literaryBlocks &&
+    softLiteraryHits.length > 0 &&
+    !findings.some((finding) => finding.code === 'literary-polish')
+  ) {
+    findings.push({
+      code: 'literary-polish',
+      message: `正文有 ${softLiteraryHits.length} 处局部风格瑕疵（套话或副词弱化），建议精修；未达整章阻断阈值 ${SOFT_LITERARY_BLOCKING_HITS} 处`,
+      severity: 'P2',
+      category: 'template',
+      evidence: literaryEvidence,
     });
   }
   if (
