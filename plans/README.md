@@ -745,3 +745,18 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **能力卡**（n=8/臂；试跑台同源 `POST /api/orchestrate`，作品 `novel-a` / 章节 `chapter-a`，卡组与技法护栏全空 → 唯一变量=本章使用卡）：24/24 运行 200；自家门禁三臂 **8/8 全过**、字数/段数/句长/套话无实质差异（~4134–4145 字）；32 场盲评挂卡臂胜 **21**（pacing 11:5、style 10:6；两位评委各自同向、先手/后手均有胜 → 非位置偏误），但**未达统计显著**（两尾 p≈0.21 / 0.45，合并 21/32 p≈0.11）。n=3 时同对比 3:3 平 → 小样本欠功效。
 - **摩擦登记（四条，均已取证）**：①写法确认按章节单槽 —— 换「本章使用卡」后旧确认失效，交替测试必然 409 `STYLE_CONFIRMATION_REQUIRED`（实测 no-card 臂 3/3 全 409）；②`hook-card` 只映射 planner（`shared/types/capability-execution.ts:168-176` 的 `CARD_STAGE_MAP`）→ 挂 `deconstruct-suspense-hook-clone-1789708517018` 得到的 fingerprint 与完全不挂卡**完全相同**（`00eb29cc11b97b77…`）、sources 里无 `writer-session`；③6 卡总闸（卡组 + 本章卡 ≤6，`server/helpers/writing-style-service.ts:1855-1896`）是提示词预算语义（非缺陷），超限只弹 toast；④`assetId` 与 `cardRef` 的可用性语义仍未收口（`docs/architecture/inkflow.architecture-understanding.md:268`）。
 - **push**：`2ccde9e`（修复④）、`385dd84`（修复⑤）及本轮研究记录提交待用户批准后推送。
+
+## Round 51（2026-10-01）：写作档位与卡片阶段范围（267）
+
+| 计划 | 状态 | 说明 |
+| --- | --- | --- |
+| 267 | ✅ 已完成 | 三项后续：③ 卡片生效阶段标注 + 推理档位环境覆盖；① 应用内 high/low 对照；② 多场景卡 A/B |
+
+### Round 51 关键事实
+
+- ③：`src/lib/capability-stage-cards.ts` + 两处 UI 徽标（`data-testid="card-stage-scope"`，非 writer 生效标「不进入写作提示」）；`INKFLOW_REASONING_EFFORT` 环境覆盖（默认仍 `low`，未设时行为不变）；后端 30/30、前端 19/19 全绿；tsc/eslint 0。
+- ①：应用内 `high` 不可用——跑得更慢（425/377 s vs 63/71 s）、稿更短（5055 vs 6002 字均值）、critic 70s 超时导致**审计不可用**；`low`（现状）逐项更优 → 默认不改，升级 high 需先改 critic 超时与 reasoning-only 流处理。
+- ②：多场景（三场面）n=4/臂：结构读数 no-card 覆盖 1.0/场序 4-4，pacing-card 0.9/3-4；盲评有效 5 场 no-card 4:1 → 仍未观察到 pacing 卡正向效果。
+- 新残余 R-267-1：草稿尾部有两臂共有的无关「年代戏」片段（同臂跳 rep 逐字相同，且全库检索只在草稿里命中）→ 待定位。
+- 工具：`scripts/report-card-ab-metrics.ts` 改为从目录推导臂/重复次数（沿用同一读数口径）。
+- push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。

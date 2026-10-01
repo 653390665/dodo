@@ -136,3 +136,24 @@ node --import tsx scripts/report-card-ab-metrics.ts /tmp/cardab3   # → /tmp/ca
 - 评委是 LLM，存在噪声与自相矛盾（n=3 时 r1/r3 两评委结论相反，理由还出现事实性倒置）。
 - 模型实验用的是**一份**真实 writer 提示词、n=3/档；换题材/章型结论可能不同。
 - 对照臂带 continuation-pack（资料包），不是「纯白纸」对照。
+
+## 7. 后续（2026-10-01，Plan 267）
+
+### 7.1 应用内档位对照（与第 2 节的外部对照结论不同）
+
+外部 API 盲评（第 2 节，n=3）显示 `high` 文风更好；但把档位搬进应用链路（隔离 3301，`INKFLOW_REASONING_EFFORT`，代理日志实证 `level=high|low`）后：
+
+| 档位 | 耗时（2 跑） | model 稿字数 | critic |
+| --- | --- | --- | --- |
+| high | 425.3 / 376.9 s | 5235 / 4875 | **审计不可用**（请求失败） |
+| low | 62.8 / 70.6 s | 5950 / 6053 | 结构化 audit JSON（scores/totalScore） |
+
+机制：high 档下 writer 返回 `empty_response / reasoning_only`（不可重试），critic 撞 70s 超时。结论：外部对照的「high 更好」在当前应用链路里不成立，瓶颈是应用侧超时与推理流处理，不是模型。
+
+### 7.2 多场景（三场面）卡 A/B，n=4/臂
+
+结构读数：no-card 锚点覆盖 1.0、场序 4/4；pacing-card 覆盖 0.9、场序 3/4；两臂门禁 4/4。盲评有效 5 场：no-card 4 : pacing-card 1。仍未观察到 pacing 卡的正向因果效果。
+
+### 7.3 新残余
+
+- R-267-1：两臂草稿尾部均出现与主线无关的「年代戏」片段（同臂跳 rep 逐字相同，全库检索仅命中草稿文本）→ 待定位来源。
