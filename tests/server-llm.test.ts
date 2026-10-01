@@ -229,29 +229,60 @@ test('empty response diagnostics distinguish transient, reasoning-only, and leng
     assert.equal(calls, 2);
 
     calls = 0;
-    globalThis.fetch = async () => {
+    const reasoningBudgets: number[] = [];
+    globalThis.fetch = async (_url: any, init: any) => {
       calls += 1;
+      reasoningBudgets.push(JSON.parse(String(init?.body)).max_tokens);
       return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '', reasoning_content: 'private mock reasoning' } }] }), { status: 200 });
     };
-    await assert.rejects(generateText(config, { prompt: '输出一句灵感', maxAttempts: 3 }), (error: any) => {
+    await assert.rejects(generateText(config, { prompt: '输出一句灵感', maxAttempts: 3, maxTokens: 2000 }), (error: any) => {
       assert.equal(error.reason, 'reasoning_only');
+      // Plan 268：预算类失败不再一次即终局，而是放大输出预算重试（envelope 的 retriable 语义不变）
       assert.equal(error.retriable, false);
       assert.doesNotMatch(JSON.stringify(error), /private mock reasoning/);
       return true;
     });
-    assert.equal(calls, 1);
+    assert.equal(calls, 3);
+    assert.deepEqual(reasoningBudgets, [2000, 4000, 8000]);
 
     calls = 0;
-    globalThis.fetch = async () => {
+    const lengthBudgets: number[] = [];
+    globalThis.fetch = async (_url: any, init: any) => {
       calls += 1;
+      lengthBudgets.push(JSON.parse(String(init?.body)).max_tokens);
       return new Response(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '', reasoning_content: 'private mock reasoning' } }] }), { status: 200 });
     };
-    await assert.rejects(generateText(config, { prompt: '输出一句灵感', maxAttempts: 3 }), (error: any) => {
+    await assert.rejects(generateText(config, { prompt: '输出一句灵感', maxAttempts: 3, maxTokens: 2000 }), (error: any) => {
       assert.equal(error.reason, 'length_exhausted');
       assert.equal(error.retriable, false);
       return true;
     });
-    assert.equal(calls, 1);
+    assert.equal(calls, 3);
+    assert.deepEqual(lengthBudgets, [2000, 4000, 8000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('budget-exhausted output retries with a larger token budget and can recover (Plan 268)', async () => {
+  const originalFetch = globalThis.fetch;
+  const config = {
+    apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', promptTemplates: DEFAULT_PROMPT_TEMPLATES,
+  };
+  try {
+    let calls = 0;
+    const budgets: number[] = [];
+    globalThis.fetch = async (_url: any, init: any) => {
+      calls += 1;
+      budgets.push(JSON.parse(String(init?.body)).max_tokens);
+      if (calls === 1) {
+        return new Response(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '', reasoning_content: 'private mock reasoning' } }] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '门外的雨停了一寸。' } }] }), { status: 200 });
+    };
+    const text = await generateText(config, { prompt: '输出一句灵感', maxAttempts: 3, maxTokens: 2000 });
+    assert.equal(text, '门外的雨停了一寸。');
+    assert.deepEqual(budgets, [2000, 4000]);
   } finally {
     globalThis.fetch = originalFetch;
   }

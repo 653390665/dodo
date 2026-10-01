@@ -394,6 +394,35 @@ export function resolveReasoningEffortOverride(
   return /^[a-z]{3,10}$/.test(value) ? value : null;
 }
 
+/**
+ * Plan 268：思考档位的超时缩放。
+ * high 档的真实调用比 low 慢得多（真机对照：writer 慢 5.7×），固定超时会把「选了高
+ * 档位」误判成「上游超时故障」：critic 在 70s 被掐断 → auditStatus=unknown →
+ * review_required。调用方用**自己的基线**乘以本系数，显式 env 覆盖（如
+ * INKFLOW_CRITIC_TIMEOUT_MS）仍然优先。
+ */
+const REASONING_EFFORT_TIMEOUT_SCALES: Record<string, number> = {
+  minimal: 1,
+  low: 1,
+  medium: 1.5,
+  high: 3,
+  xhigh: 4,
+  max: 4,
+};
+
+export function reasoningEffortTimeoutScale(env: NodeJS.ProcessEnv = process.env): number {
+  const effort = resolveReasoningEffortOverride(env);
+  if (!effort) return 1;
+  return REASONING_EFFORT_TIMEOUT_SCALES[effort] ?? 1;
+}
+
+export function scaleTimeoutForReasoningEffort(
+  baseMs: number,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  return Math.round(baseMs * reasoningEffortTimeoutScale(env));
+}
+
 export function buildOpenAICompatibleChatRequest(
   config: Pick<AppConfig, 'baseUrl' | 'model'>,
   options: Pick<
@@ -642,6 +671,23 @@ function isRetryableModelOutputError(error: unknown) {
     message.includes('LLM returned empty response') ||
     message.includes('LLM response contained only thinking/reasoning content')
   );
+}
+
+/**
+ * Plan 268：输出预算类失败（reasoning_only / length_exhausted）——模型把输出预算花在
+ * 推理上，或者撞到 max_tokens。原样重发只会复现同一个失败（同 Plan 266 修复⑤ 的教训），
+ * 因此本层在重试时放大输出预算（×2，上限 32k）。ProviderError.retriable 仍保持 false：
+ * 它描述的是「同参数重发是否安全」，而这里的重试带预算升级。
+ */
+const BUDGET_RETRY_TOKEN_CEILING = 32_768;
+
+function isBudgetExhaustedReason(reason?: string): boolean {
+  return reason === 'reasoning_only' || reason === 'length_exhausted';
+}
+
+function escalateBudgetRetryTokens(current?: number): number | undefined {
+  if (typeof current !== 'number' || current <= 0) return current;
+  return Math.min(current * 2, Math.max(current, BUDGET_RETRY_TOKEN_CEILING));
 }
 
 function classifyStreamFailure(error: unknown): ProviderErrorCode | undefined {
@@ -936,12 +982,15 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     systemInstruction,
     timeoutMs = OPENAI_TIMEOUT_MS,
     maxAttempts = OPENAI_MAX_ATTEMPTS,
-    maxTokens,
+    maxTokens: requestedMaxTokens,
     responseMimeType,
     responseSchema,
     disableThinking,
     onToken,
   } = options;
+
+  // Plan 268：预算类失败（reasoning_only / length_exhausted）重试时放大输出预算。
+  let maxTokens = requestedMaxTokens;
   const traceId = options.traceId || `llm_${randomUUID()}`;
   const usageLogStart = Date.now();
   // Plan 261 缓存取证：跨 attempt/分支共享的 usage 捕获（流式末帧或非流式 body）。
@@ -1098,13 +1147,24 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
 
         const externallyAborted = options.signal?.aborted === true;
         const isTimeout = lastError instanceof Error && lastError.message.includes('timed out');
+        const budgetReason =
+          lastError instanceof ProviderError && isBudgetExhaustedReason(lastError.reason)
+            ? lastError.reason
+            : undefined;
         if (
           !externallyAborted &&
           attempt < maxAttempts &&
           (isTimeout ||
+            budgetReason !== undefined ||
             isRetryableNetworkError(lastError) ||
             isRetryableModelOutputError(lastError))
         ) {
+          if (budgetReason) {
+            maxTokens = escalateBudgetRetryTokens(maxTokens);
+            console.warn(
+              `[llm] budget-exhausted retry (${budgetReason}) with maxTokens=${maxTokens ?? "default"}`
+            );
+          }
           await sleep(400 * attempt);
           continue;
         }
@@ -1532,7 +1592,9 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
           ? error.code === 'rate_limit' ||
             error.code === 'service_unavailable' ||
             (error.code === 'empty_response' &&
-              (error.reason === undefined || error.reason === 'no_content'))
+              (error.reason === undefined ||
+                error.reason === 'no_content' ||
+                isBudgetExhaustedReason(error.reason)))
           : false) ||
           isRetryableStatus(
             error instanceof ProviderError
@@ -1555,6 +1617,12 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         ) {
           omitThinking = true;
           compatibilityMode = 'omit_thinking';
+        }
+        if (error instanceof ProviderError && isBudgetExhaustedReason(error.reason)) {
+          maxTokens = escalateBudgetRetryTokens(maxTokens);
+          console.warn(
+            `[llm] budget-exhausted retry (${error.reason}) with maxTokens=${maxTokens ?? "default"}`
+          );
         }
         const retryDelay = 400 * attempt;
         attempt += 1;

@@ -31,6 +31,7 @@ import {
   loadOutlineUnit,
   loadWorldviewHints,
 } from './knowledge-lineage-enrich.js';
+import { scaleTimeoutForReasoningEffort } from '../lib/server-llm';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -198,11 +199,13 @@ export class DraftQualityRejectionError extends Error {
 
 // Stronger writer models (e.g. reasoning-heavy pro tiers) may need longer
 // windows; tune via INKFLOW_WRITER_TIMEOUT_MS without a code change.
+export function resolveWriterTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(env.INKFLOW_WRITER_TIMEOUT_MS);
+  return override > 0 ? override : scaleTimeoutForReasoningEffort(180_000, env);
+}
+
 const WRITER_LLM_OPTIONS = {
-  timeoutMs:
-    Number(process.env.INKFLOW_WRITER_TIMEOUT_MS) > 0
-      ? Number(process.env.INKFLOW_WRITER_TIMEOUT_MS)
-      : 180_000,
+  timeoutMs: resolveWriterTimeoutMs(),
   maxAttempts: 2,
   maxTokens: 8_192,
 } as const;
@@ -347,14 +350,21 @@ function resolveWriterConfig(base: AppConfig): AppConfig {
   return writerModel && writerModel !== base.model ? { ...base, model: writerModel } : base;
 }
 
+export function resolveCriticTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(env.INKFLOW_CRITIC_TIMEOUT_MS);
+  return override > 0 ? override : scaleTimeoutForReasoningEffort(35_000, env);
+}
+
+export function resolveCriticMaxTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+  return scaleTimeoutForReasoningEffort(120_000, env);
+}
+
 const CRITIC_LLM_OPTIONS = {
   // 2026-09-24：与 writer 对称，支持 INKFLOW_CRITIC_TIMEOUT_MS 覆盖。
   // 起因：走 CLIProxyAPI 的 Claude 在富上下文下 critique 需 35s+，被硬编码 35s
   // 掐断成 500 → auditStatus=unknown，这不是模型质量结论而是超时口径问题。
-  timeoutMs:
-    Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS) > 0
-      ? Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS)
-      : 35_000,
+  // Plan 268：默认值随思考档位缩放（high 档 105s），显式 env 覆盖仍优先。
+  timeoutMs: resolveCriticTimeoutMs(),
   maxAttempts: 2,
   // Structured audit JSON (scores, fatalIssues, surgerySuggestions) needs
   // headroom; reasoning-heavy models also burn tokens on chain-of-thought, so
@@ -369,7 +379,7 @@ const CRITIC_LLM_OPTIONS = {
 // 在同一 run 里把 critic 打成两次 unknown：一次客户端 35s 超时（network/phase=request），
 // 一次五维 JSON 未闭合（诊断 truncated，maxTokens 6000 仍不够）。原样重发只会复现同样的失败。
 const CRITIC_RETRY_TOKEN_BOOST = 4000;
-const CRITIC_MAX_TIMEOUT_MS = 120_000;
+const CRITIC_MAX_TIMEOUT_MS = resolveCriticMaxTimeoutMs();
 const CRITIC_RETRIABLE_CODES = new Set(['network', 'timeout', 'service_unavailable', 'rate_limit']);
 
 /** 截断重试的压缩指令：契约字段一个都不能少，只压篇幅。 */

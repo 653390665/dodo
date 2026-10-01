@@ -760,3 +760,18 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 新残余 R-267-1：草稿尾部有两臂共有的无关「年代戏」片段（同臂跳 rep 逐字相同，且全库检索只在草稿里命中）→ 待定位。
 - 工具：`scripts/report-card-ab-metrics.ts` 改为从目录推导臂/重复次数（沿用同一读数口径）。
 - push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
+
+## Round 52（2026-10-01）：high 档超时与预算截断（268）
+
+| 计划 | 状态 | 说明 |
+| --- | --- | --- |
+| 268 | ✅ 已完成 | 档位超时缩放 + 预算类失败重试（max_tokens ×2）→ high 档 critic 超时归零、审计恢复结构化 |
+
+### Round 52 关键事实
+
+- 根因（Plan 267 遗留）：high 档两处故障都在超时/预算层 —— ① critic `timeoutMs 35 000` + 重试 ×2 = 70 s 被掐断（上限 `CRITIC_MAX_TIMEOUT_MS 120 000`）→ `Critic fell back — accepting draft { code: 'timeout' }`；② writer 空稿 `reasoning_only` / `length_exhausted` 在 `server/lib/server-llm.ts:153-159` 被排除在可重试之外 → 直接回退保底稿。
+- 修复：`server/lib/server-llm.ts:404-423` 新增 `REASONING_EFFORT_TIMEOUT_SCALES`（high 3×、xhigh/max 4×、medium 1.5×）+ `reasoningEffortTimeoutScale` / `scaleTimeoutForReasoningEffort`；`:682-690` 新增 `BUDGET_RETRY_TOKEN_CEILING = 32_768` / `isBudgetExhaustedReason` / `escalateBudgetRetryTokens`（×2 且封顶），Gemini 与 OpenAI 两条重试路径（`:1151-1165` / `:1597-1624`）重试前放大预算并记 `[llm] budget-exhausted retry (<reason>) with maxTokens=…`；`server/helpers/ai-production-pipeline.ts:202-208` / `:353-382` 用 `resolveWriterTimeoutMs` / `resolveCriticTimeoutMs` / `resolveCriticMaxTimeoutMs` 替换写死的 180 000 / 35 000 / 120 000（`INKFLOW_WRITER_TIMEOUT_MS` / `INKFLOW_CRITIC_TIMEOUT_MS` 仍优先且不参与缩放）。
+- 真机（隔离 3301、`INKFLOW_REASONING_EFFORT=high`、n=2）：`1bcac272` 617.6 s（model 4740 字 / fallback 4186）、`3521c72b` 491.6 s（model 5894 字 / fallback 4186）；两跑统计 `criticFellBack 0 / criticRetry 0 / criticUnknown 0 / reasoningOnly 0`，critic 均返回结构化五维 JSON（可读性 6 / 5）；反代日志 `level=high` 实证档位生效。
+- 残余（质量口径、非超时）：`/tmp/gate-fail-effort-high.jsonl` 两行均 `duplicate-paragraph + literary-slop`（mech 97.1 / 96.8）→ high 档正文更易触硬门；R-267-1（草稿尾部无关年代戏片段）仍待定位；`budgetRetry` 本次 0 次触发，属防御性分支（单测覆盖）。
+- 门禁：tsc 0 / eslint 0；定向 34/34；后端全量 1488/1488。
+- push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
