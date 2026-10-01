@@ -6,6 +6,7 @@ import { generateId } from '../id';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
 import {
   AUDIT_OUTPUT_CONTRACT,
+  AUDIT_RESPONSE_SCHEMA,
   auditCoversResidueSnippets,
   buildAuditResidueContract,
   buildAuditWindow,
@@ -381,7 +382,7 @@ ${platformSpecificChecklist}
 ### 结构化证据契约
 在 JSON 顶层返回 evidence 数组；每项必须包含 category（仅 hard_canon、character_state、scene_execution、pacing、foreshadowing）、severity（low/medium/high）、quote（正文原文，无法引用则不要输出该项）、explanation、suggestedFix，可选 location。缺字段或未知 category 的证据会被丢弃。`;
     const auditTraceId = `audit_${jobId}`;
-    let transportMode: 'json_object' | 'plain_fallback' | 'none' = 'json_object';
+    let transportMode: 'json_schema' | 'json_object' | 'plain_fallback' | 'none' = 'json_object';
     const rawFeedback = await generateText(
       getConfig(),
       {
@@ -398,6 +399,7 @@ ${platformSpecificChecklist}
         disableThinking: true,
         outputMode: 'audit-json',
         responseMimeType: 'application/json',
+        responseSchema: AUDIT_RESPONSE_SCHEMA,
         traceId: auditTraceId,
         onComplete: (metadata) => {
           transportMode = metadata.outputDiagnostic.responseFormatMode;

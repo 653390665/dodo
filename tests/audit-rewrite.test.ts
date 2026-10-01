@@ -471,7 +471,12 @@ describe('audit / rewrite route integration', () => {
     assert.match(capturedPrompt, /【阶段技法：de-ai-slop-shield】/);
     assert.match(capturedPrompt, /开头定位标记/);
     assert.match(capturedPrompt, /章末伏笔与钩子定位标记/);
-    assert.deepEqual((JSON.parse(capturedPrompt) as { response_format?: unknown }).response_format, { type: 'json_object' });
+    const capturedBody = JSON.parse(capturedPrompt) as {
+      response_format?: { type?: string; json_schema?: { name?: string; strict?: boolean } };
+    };
+    assert.equal(capturedBody.response_format?.type, 'json_schema');
+    assert.equal(capturedBody.response_format?.json_schema?.name, 'audit_response');
+    assert.equal(capturedBody.response_format?.json_schema?.strict, true);
   });
 
   test('audit job failure refunds quota exactly once', async () => {

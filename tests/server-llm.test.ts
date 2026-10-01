@@ -783,3 +783,112 @@ test('level-only rejections are treated as thinking-control rejection and retrie
     globalThis.fetch = originalFetch;
   }
 });
+
+const AUDIT_SCHEMA_FIXTURE = {
+  name: 'audit_response',
+  strict: true,
+  schema: {
+    type: 'object',
+    required: ['evidence'],
+    properties: { evidence: { type: 'array', minItems: 4 } },
+  },
+};
+
+test('audit-json sends a strict json_schema when a response schema is provided', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> | undefined;
+  let diagnostic: any;
+  globalThis.fetch = async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }), { status: 200 });
+  };
+  try {
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      {
+        prompt: '审稿 JSON 并给出四类证据',
+        outputMode: 'audit-json',
+        maxAttempts: 1,
+        responseSchema: AUDIT_SCHEMA_FIXTURE,
+        onComplete: (value) => { diagnostic = value.outputDiagnostic; },
+      },
+    );
+    assert.equal(result, '{"ok":true}');
+    assert.deepEqual(requestBody?.response_format, {
+      type: 'json_schema',
+      json_schema: { name: 'audit_response', strict: true, schema: AUDIT_SCHEMA_FIXTURE.schema },
+    });
+    assert.equal(diagnostic.responseFormatMode, 'json_schema');
+    assert.equal(diagnostic.compatibilityMode, 'none');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('json_schema degrades to json_object before response_format is dropped', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  const bodies: Array<Record<string, unknown>> = [];
+  let diagnostic: any;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    if (calls === 1) {
+      return new Response(JSON.stringify({ error: { param: 'response_format', code: 'unsupported_json_schema' } }), { status: 400 });
+    }
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }), { status: 200 });
+  };
+  try {
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      {
+        prompt: '审稿 JSON',
+        outputMode: 'audit-json',
+        maxAttempts: 1,
+        responseSchema: AUDIT_SCHEMA_FIXTURE,
+        onComplete: (value) => { diagnostic = value.outputDiagnostic; },
+      },
+    );
+    assert.equal(result, '{"ok":true}');
+    assert.equal(calls, 2);
+    assert.deepEqual(bodies[1]?.response_format, { type: 'json_object' });
+    assert.equal(diagnostic.compatibilityMode, 'omit_response_schema');
+    assert.equal(diagnostic.responseFormatMode, 'json_object');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('response_format is dropped entirely when json_object is rejected as well', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  const bodies: Array<Record<string, unknown>> = [];
+  let diagnostic: any;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    if (calls <= 2) {
+      return new Response(JSON.stringify({ error: { param: 'response_format', code: 'unsupported' } }), { status: 400 });
+    }
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }] }), { status: 200 });
+  };
+  try {
+    const result = await generateText(
+      { apiKey: 'mock-key', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', promptTemplates: DEFAULT_PROMPT_TEMPLATES },
+      {
+        prompt: '审稿 JSON',
+        outputMode: 'audit-json',
+        maxAttempts: 1,
+        responseSchema: AUDIT_SCHEMA_FIXTURE,
+        onComplete: (value) => { diagnostic = value.outputDiagnostic; },
+      },
+    );
+    assert.equal(result, '{"ok":true}');
+    assert.equal(calls, 3);
+    assert.equal('response_format' in (bodies[2] || {}), false);
+    assert.equal(diagnostic.compatibilityMode, 'plain_fallback');
+    assert.equal(diagnostic.responseFormatMode, 'plain_fallback');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -42,7 +42,7 @@ function logLlmUsage(
 
 export type OutputDiagnostic = {
   provider: 'deepseek' | 'minimax' | 'google' | 'openai-compatible';
-  responseFormatMode: 'json_object' | 'plain_fallback' | 'none';
+  responseFormatMode: 'json_schema' | 'json_object' | 'plain_fallback' | 'none';
   thinkingMode: 'disabled' | 'provider_default';
   finishReason?: string;
   contentLength: number;
@@ -58,7 +58,7 @@ export type OutputDiagnostic = {
   providerHttpStatus?: number;
   rejectedParameter?: 'response_format' | 'thinking' | 'unknown';
   providerErrorCode?: string;
-  compatibilityMode: 'none' | 'omit_thinking' | 'plain_fallback';
+  compatibilityMode: 'none' | 'omit_thinking' | 'omit_response_schema' | 'plain_fallback';
   providerRequestCount: number;
 };
 
@@ -74,6 +74,11 @@ export interface GenerateTextOptions {
   maxAttempts?: number;
   maxTokens?: number;
   responseMimeType?: string;
+  /**
+   * 结构化输出 schema：OpenAI 兼容端点会以 response_format:{type:'json_schema'} 下发。
+   * 仅 OpenAI 兼容路径使用；Google 原生路径不下发（@google/genai 的 Schema 类型与裸 JSON Schema 不兼容）。
+   */
+  responseSchema?: { name: string; strict?: boolean; schema: Record<string, unknown> };
   disableThinking?: boolean;
   signal?: AbortSignal;
   onToken?: (token: string) => void;
@@ -333,6 +338,23 @@ function buildOutputDiagnostic(
   };
 }
 
+/**
+ * Plan 266 修复⑤c：把「实际下发的 response_format 形态」收成单一表达式，供两处诊断共用。
+ * 必须与 buildOpenAICompatibleChatRequest 的决策保持一致（SiliconFlow 从不下发 response_format）。
+ */
+function resolveResponseFormatMode(
+  baseUrl: string,
+  responseMimeType: string | undefined,
+  includeResponseFormat: boolean,
+  responseSchema: GenerateTextOptions['responseSchema'],
+  omitResponseSchema: boolean
+): OutputDiagnostic['responseFormatMode'] {
+  if (responseMimeType !== 'application/json') return 'none';
+  if (!includeResponseFormat) return 'plain_fallback';
+  if (responseSchema && !omitResponseSchema && !baseUrl.includes('siliconflow')) return 'json_schema';
+  return 'json_object';
+}
+
 export function buildGoogleGenerateContentRequest(
   options: Pick<
     GenerateTextOptions,
@@ -364,6 +386,7 @@ export function buildOpenAICompatibleChatRequest(
     | 'systemInstruction'
     | 'maxTokens'
     | 'responseMimeType'
+    | 'responseSchema'
     | 'disableThinking'
     | 'onToken'
   > & { includeResponseFormat?: boolean }
@@ -373,6 +396,7 @@ export function buildOpenAICompatibleChatRequest(
     systemInstruction,
     maxTokens,
     responseMimeType,
+    responseSchema,
     disableThinking,
     onToken,
     includeResponseFormat = true,
@@ -422,7 +446,18 @@ export function buildOpenAICompatibleChatRequest(
   if (responseMimeType === 'application/json' && includeResponseFormat) {
     // Siliconflow's API gateway fails or drops connection when response_format is sent
     if (!isSiliconFlow) {
-      request.response_format = { type: 'json_object' };
+      // Plan 266 修复⑤c：带 schema 时下发 json_schema 强制结构——实测 antigravity/gemini-3.8-flash-high
+      // 在只有文本契约时会系统性省略 evidence 数组（分类静默判 unknown），而 json_schema 下四类证据齐全。
+      request.response_format = responseSchema
+        ? {
+            type: 'json_schema',
+            json_schema: {
+              name: responseSchema.name,
+              strict: responseSchema.strict ?? true,
+              schema: responseSchema.schema,
+            },
+          }
+        : { type: 'json_object' };
     }
   }
 
@@ -556,7 +591,7 @@ function getParameterRejection(
       ? parsedError.code
       : undefined;
   const signal = `${parameter} ${typeof parsedError.message === 'string' ? parsedError.message : ''} ${body}`;
-  if (/response[_ -]?format|json[_ -]?object/i.test(signal))
+  if (/response[_ -]?format|json[_ -]?object|json[_ -]?schema/i.test(signal))
     return { rejectedParameter: 'response_format', providerErrorCode };
   // reasoning_effort 同属思考控制：未知 OpenAI 兼容端点只会拒绝这一类字段。
   // Plan 266：反代把「档位不合法」也报成 400，但报文既没有 param 也不含 thinking/reasoning
@@ -887,6 +922,7 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
     maxAttempts = OPENAI_MAX_ATTEMPTS,
     maxTokens,
     responseMimeType,
+    responseSchema,
     disableThinking,
     onToken,
   } = options;
@@ -1082,6 +1118,7 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
   let lastError: unknown;
   let includeResponseFormat = true;
   let omitThinking = false;
+  let omitResponseSchema = false;
   let compatibilityMode: CompatibilityMode = 'none';
   let providerRequestCount = 0;
   let attempt = 1;
@@ -1135,6 +1172,7 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
                   systemInstruction,
                   maxTokens,
                   responseMimeType,
+                  responseSchema: omitResponseSchema ? undefined : responseSchema,
                   disableThinking: disableThinking && !omitThinking,
                   onToken,
                   includeResponseFormat,
@@ -1297,11 +1335,13 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
               outputDiagnostic: {
                 ...buildOutputDiagnostic(
                   config.baseUrl,
-                  responseMimeType === 'application/json'
-                    ? includeResponseFormat
-                      ? 'json_object'
-                      : 'plain_fallback'
-                    : 'none',
+                  resolveResponseFormatMode(
+                    config.baseUrl,
+                    responseMimeType,
+                    includeResponseFormat,
+                    responseSchema,
+                    omitResponseSchema
+                  ),
                   disableThinking && !omitThinking,
                   fullText,
                   finishReason,
@@ -1331,11 +1371,13 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
             const text = extractOpenAIMessageText(message);
             const diagnostic = buildOutputDiagnostic(
               config.baseUrl,
-              responseMimeType === 'application/json'
-                ? includeResponseFormat
-                  ? 'json_object'
-                  : 'plain_fallback'
-                : 'none',
+              resolveResponseFormatMode(
+                config.baseUrl,
+                responseMimeType,
+                includeResponseFormat,
+                responseSchema,
+                omitResponseSchema
+              ),
               disableThinking && !omitThinking,
               text,
               finishReason || undefined,
@@ -1441,6 +1483,18 @@ async function generateTextRaw(config: AppConfig, options: GenerateTextOptions):
         // Prompts such as the Chinese-only outline template never contain it,
         // so DeepSeek must also be allowed to drop response_format and retry
         // as plain text instead of failing the request outright.
+        if (
+          includeResponseFormat &&
+          error.rejectedParameter === 'response_format' &&
+          responseSchema &&
+          !omitResponseSchema
+        ) {
+          // Plan 266 修复⑤c：先只降 schema（json_schema -> json_object）保住结构约束；
+          // 只有 json_object 也被拒时才整个去掉 response_format。
+          omitResponseSchema = true;
+          compatibilityMode = 'omit_response_schema';
+          continue;
+        }
         if (includeResponseFormat && error.rejectedParameter === 'response_format') {
           includeResponseFormat = false;
           compatibilityMode = 'plain_fallback';

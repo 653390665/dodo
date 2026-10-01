@@ -3,7 +3,13 @@ import { governedGenerateText as generateText } from './governed-llm';
 import { getConfig, type AppConfig } from '../lib/config';
 import { logger } from '../logger';
 import { resolvePromptAssetForSurface } from '../../shared/lib/prompt-runtime';
-import { AUDIT_OUTPUT_CONTRACT, getPromptTemplate, renderPromptTemplate, wrapUserInput } from './prompt-helpers';
+import {
+  AUDIT_OUTPUT_CONTRACT,
+  AUDIT_RESPONSE_SCHEMA,
+  getPromptTemplate,
+  renderPromptTemplate,
+  wrapUserInput,
+} from './prompt-helpers';
 import {
   convertFiveDimToStructured,
   parseAuditResponseWithDiagnostics,
@@ -349,7 +355,7 @@ const CRITIC_LLM_OPTIONS = {
     Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS) > 0
       ? Number(process.env.INKFLOW_CRITIC_TIMEOUT_MS)
       : 35_000,
-  maxAttempts: 1,
+  maxAttempts: 2,
   // Structured audit JSON (scores, fatalIssues, surgerySuggestions) needs
   // headroom; reasoning-heavy models also burn tokens on chain-of-thought, so
   // a tight budget truncates the JSON mid-field (diagnosed 'truncated').
@@ -358,6 +364,44 @@ const CRITIC_LLM_OPTIONS = {
   maxTokens: 6000,
   disableThinking: true,
 } as const;
+
+// Plan 266 修复⑤：审稿重试必须升级参数。真机（gemini-3.8-flash-high 经 CLIProxyAPI）
+// 在同一 run 里把 critic 打成两次 unknown：一次客户端 35s 超时（network/phase=request），
+// 一次五维 JSON 未闭合（诊断 truncated，maxTokens 6000 仍不够）。原样重发只会复现同样的失败。
+const CRITIC_RETRY_TOKEN_BOOST = 4000;
+const CRITIC_MAX_TIMEOUT_MS = 120_000;
+const CRITIC_RETRIABLE_CODES = new Set(['network', 'timeout', 'service_unavailable', 'rate_limit']);
+
+/** 截断重试的压缩指令：契约字段一个都不能少，只压篇幅。 */
+const CRITIC_RETRY_COMPACT_SUFFIX = [
+  '',
+  '### 重试输出要求（上一轮 JSON 超长/未闭合）',
+  '在不省略任何契约字段的前提下压缩篇幅：五个维度的 reason 每条不超过 40 字；fatalIssues 最多 3 条，explanation 与 patchHint 各不超过 60 字；surgerySuggestions 最多 3 条、每条不超过 40 字；evidence 每个类别只保留 1 条，quote 不超过 60 字，explanation 与 suggestedFix 各不超过 40 字。',
+].join('\n');
+
+/** 证据补齐重试的指令：真机（run 334e123b）模型两次给出五维高分 PASS 却省略 evidence 数组，
+ * classifyCriticFeedback 依约判 unknown（证据契约见 tests/critic-status-contract.test.ts）。
+ * 放宽契约等于允许模型免证据盖章，因此这里只补要求、不降标准。 */
+const CRITIC_RETRY_EVIDENCE_SUFFIX = [
+  '',
+  '### 重试输出要求（上一轮缺少 evidence 语义证据）',
+  '本轮必须补齐 evidence 数组，并确保以下四个类别各至少一条：scene_execution、character_state、hard_canon、foreshadowing。',
+  '每条 evidence 必须带 category、severity、quote（正文原文片段）、explanation、suggestedFix 五个字段；不得用空数组、null 或省略字段替代。',
+  '五维 scores、totalScore、pass、failReason、fatalIssues、surgerySuggestions 仍须完整；在补齐证据的前提下尽量精简篇幅。',
+].join('\n');
+
+function isRetriableCriticError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && CRITIC_RETRIABLE_CODES.has(code)) return true;
+  if ((err as { retriable?: unknown } | null)?.retriable === true) return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /timed out|fetch failed|ECONNRESET|ETIMEDOUT|UND_ERR_SOCKET|other side closed/i.test(message);
+}
+
+function criticErrorCode(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' ? code : 'unknown';
+}
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
   if (!signal?.aborted) return;
@@ -1002,26 +1046,36 @@ export async function runProductionPipeline(params: {
       foreshadowingChecklistSuffix;
 
     // A provider can answer 200 yet return an unparseable audit payload
-    // (invalid_json — the five-dim contract did not pass). That is a transient
-    // formatting failure: retry the critic once with the same params before
-    // honestly reporting the audit as unknown.
+    // (truncated / invalid_json — the five-dim contract did not pass), or the
+    // request can fail on a transient network/timeout error. Both are transient:
+    // retry the critic once with escalated params before honestly reporting the
+    // audit as unknown. Plan 266 修复⑤：原样重发只会复现同样的失败。
     const CRITIC_PARSE_RETRIES = 1;
+    let criticMaxTokens = CRITIC_LLM_OPTIONS.maxTokens;
+    let criticTimeoutMs = CRITIC_LLM_OPTIONS.timeoutMs;
+    let criticRetrySuffix = '';
+    let criticClassification: ReturnType<typeof classifyCriticFeedback> | null = null;
     for (let criticAttempt = 0; ; criticAttempt += 1) {
       try {
         criticFeedback = await generateText(
           getConfig(),
           {
-            prompt: criticPrompt + AUDIT_OUTPUT_CONTRACT,
+            prompt:
+              criticPrompt +
+              AUDIT_OUTPUT_CONTRACT +
+              criticRetrySuffix,
             ...CRITIC_LLM_OPTIONS,
+            maxTokens: criticMaxTokens,
             signal: progress.signal,
             novelId,
             outputMode: 'audit-json',
             responseMimeType: 'application/json',
+            responseSchema: AUDIT_RESPONSE_SCHEMA,
           },
           {
             operation: 'production-pipeline-critic',
             novelId,
-            timeoutMs: CRITIC_LLM_OPTIONS.timeoutMs,
+            timeoutMs: criticTimeoutMs,
             concurrency: 2,
             signal: progress.signal,
           }
@@ -1029,6 +1083,13 @@ export async function runProductionPipeline(params: {
         criticAvailable = true;
       } catch (err) {
         throwIfAborted(progress.signal);
+        if (isRetriableCriticError(err) && criticAttempt < CRITIC_PARSE_RETRIES) {
+          criticTimeoutMs = Math.min(criticTimeoutMs * 2, CRITIC_MAX_TIMEOUT_MS);
+          logger.warn(
+            `Critic request failed (${criticErrorCode(err)}) — retrying once with ${criticTimeoutMs}ms timeout`
+          );
+          continue;
+        }
         logger.warn('Critic fell back — accepting draft', err);
         criticFeedback = '审计不可用：模型审计请求失败，保留草稿预览。';
         auditStatus = 'unknown';
@@ -1039,8 +1100,24 @@ export async function runProductionPipeline(params: {
       if (parseDiagnostic && criticAttempt < CRITIC_PARSE_RETRIES) {
         throwIfAborted(progress.signal);
         criticAvailable = false;
+        if (parseDiagnostic.code === 'truncated') {
+          criticRetrySuffix = CRITIC_RETRY_COMPACT_SUFFIX;
+          criticMaxTokens = CRITIC_LLM_OPTIONS.maxTokens + CRITIC_RETRY_TOKEN_BOOST;
+        }
         logger.warn(
-          `Critic audit failed the structured contract (${parseDiagnostic.code}) — retrying once`
+          `Critic audit failed the structured contract (${parseDiagnostic.code}) — retrying once with ${criticMaxTokens} tokens`
+        );
+        continue;
+      }
+      // Plan 266 修复⑤（证据契约）：分数可解析但 evidence 四类不全时 classifyCriticFeedback 会判
+      // unknown —— 此时重试必须补要求（不得放宽契约），否则 run 必然停在「审计不可用」。
+      criticClassification = classifyCriticFeedback(criticFeedback);
+      if (criticClassification.status === 'unknown' && criticAttempt < CRITIC_PARSE_RETRIES) {
+        throwIfAborted(progress.signal);
+        criticRetrySuffix = CRITIC_RETRY_EVIDENCE_SUFFIX;
+        criticMaxTokens = CRITIC_LLM_OPTIONS.maxTokens + CRITIC_RETRY_TOKEN_BOOST;
+        logger.warn(
+          'Critic audit unknown (evidence contract unmet) — retrying once with reinforced evidence requirements'
         );
         continue;
       }
@@ -1049,7 +1126,7 @@ export async function runProductionPipeline(params: {
 
     // Only structured audits are trusted; unavailable or unparseable audits stay UNKNOWN.
     if (criticAvailable) {
-      const classification = classifyCriticFeedback(criticFeedback);
+      const classification = criticClassification ?? classifyCriticFeedback(criticFeedback);
       auditScore = classification.score ?? 0;
       auditStatus = classification.status;
       if (auditStatus === 'unknown') criticFeedback = UNKNOWN_CRITIC_FEEDBACK;

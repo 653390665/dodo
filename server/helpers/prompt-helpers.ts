@@ -166,6 +166,81 @@ fatalIssues 条目骨架（每一条都必须填满六个字段）：[{"issueTyp
 JSON 顶层骨架（请严格按此结构填值，不要改字段名）：
 {"scores":{"可读性":{"score":0,"reason":""},"分镜执行度":{"score":0,"reason":""},"冲突推进度":{"score":0,"reason":""},"风格契合度":{"score":0,"reason":""},"网文章节感":{"score":0,"reason":""}},"totalScore":0,"pass":false,"failReason":"","fatalIssues":[],"surgerySuggestions":[],"evidence":[]}`;
 
+/**
+ * Plan 266 修复⑤c：审稿结构化输出的 JSON Schema。
+ * 与 AUDIT_OUTPUT_CONTRACT 同构（五维 + totalScore + pass + failReason + fatalIssues + surgerySuggestions + evidence）。
+ * 下游网关支持 response_format:{type:'json_schema'} 时，把「四类证据各至少一条」变成硬约束；
+ * 不支持时 server-llm 逐级降级（json_schema -> json_object -> plain）。
+ */
+const AUDIT_DIMENSION_SCHEMA = {
+  type: 'object',
+  properties: { score: { type: 'integer' }, reason: { type: 'string' } },
+  required: ['score', 'reason'],
+};
+
+export const AUDIT_RESPONSE_SCHEMA: {
+  name: string;
+  strict: boolean;
+  schema: Record<string, unknown>;
+} = {
+  name: 'audit_response',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      scores: {
+        type: 'object',
+        properties: {
+          可读性: AUDIT_DIMENSION_SCHEMA,
+          分镜执行度: AUDIT_DIMENSION_SCHEMA,
+          冲突推进度: AUDIT_DIMENSION_SCHEMA,
+          风格契合度: AUDIT_DIMENSION_SCHEMA,
+          网文章节感: AUDIT_DIMENSION_SCHEMA,
+        },
+        required: ['可读性', '分镜执行度', '冲突推进度', '风格契合度', '网文章节感'],
+      },
+      totalScore: { type: 'integer' },
+      pass: { type: 'boolean' },
+      failReason: { type: 'string' },
+      fatalIssues: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            issueType: { type: 'string' },
+            issueSubtype: { type: 'string' },
+            severity: { type: 'string', enum: ['minor', 'major', 'critical'] },
+            snippet: { type: 'string' },
+            explanation: { type: 'string' },
+            patchHint: { type: 'string' },
+          },
+          required: ['issueType', 'issueSubtype', 'severity', 'snippet', 'explanation', 'patchHint'],
+        },
+      },
+      surgerySuggestions: { type: 'array', items: { type: 'string' } },
+      evidence: {
+        type: 'array',
+        minItems: 4,
+        items: {
+          type: 'object',
+          properties: {
+            category: {
+              type: 'string',
+              enum: ['scene_execution', 'character_state', 'hard_canon', 'foreshadowing'],
+            },
+            severity: { type: 'string', enum: ['low', 'medium', 'high'] },
+            quote: { type: 'string' },
+            explanation: { type: 'string' },
+            suggestedFix: { type: 'string' },
+          },
+          required: ['category', 'severity', 'quote', 'explanation', 'suggestedFix'],
+        },
+      },
+    },
+    required: ['scores', 'totalScore', 'pass', 'failReason', 'fatalIssues', 'surgerySuggestions', 'evidence'],
+  },
+};
+
 /** Build a bounded audit input that preserves source offsets for evidence snippets. */
 export function buildAuditWindow(text: string | undefined, maxChars = 7800): string {
   const normalized = String(text || '').trim();

@@ -62,6 +62,32 @@
 - 读数：定向 `tests/writer-quality-gate-retry.test.ts` **3/3**；后端全量 **1472/1474（0 fail；并发负载下 2 个文件级 45 s 超时，单独复跑 4/4 通过）**；`npx tsc --noEmit` 0；`npx eslint server src shared tests scripts --max-warnings=0` 0。
 - 真机复现受阻（2026-10-01）：隔离服 3301 重跑 run `904239a1-0d92-43c9-8d11-5f5a6603381e` **3.8 s 即终止**（planner 退化确定性 beats、writer 保底、critic「审计不可用」），反代日志 `conductor_selection.go:2330 auth unavailable: 1 of 5 candidate(s) for model "gpt-5.6-terra" (provider=codex) are in cooldown` + `503`；直连探针：`gpt-5.6-terra` / `gpt-5.6-luna` = 503 `auth_unavailable … last upstream error: usage_limit_reached: The usage limit has been reached`，`gemini-3.8-flash-high` = 400 `User location is not supported for the API use.`（仅 `gpt-oss-120b-medium` 返回 200）。⇒ 该交织（过门稿 + 审稿 unknown + 重写轮 provider 抖动）当前无法真机复现，由上述集成用例确定性覆盖。
 
+## 修复⑤（审稿不可用：从「提示词请求」升级为「请求侧强制」）
+
+真机基线（run `5500f14a`）：反代 gemini-3.8-flash-high 的四次审稿里两次 `Critic fell back — accepting draft`（provider 网络失败）与一次 `structured contract (truncated)`，最终审计不可用 → `review_required`。
+
+- **⑤a 传输层升级重试**：审计失败重试链给出可归因日志（`Critic request failed (code) — retrying once with 70000ms timeout`、截断后 `retrying once with 10000 tokens`）；超时按轮次倍增并有上限 `CRITIC_MAX_TIMEOUT_MS`。
+- **⑤b 证据指令 + 归类日志**：`classifyCriticFeedback` 三处静默 unknown 路径补 `missingCriticEvidence(audit)` 与 `logger.warn`（上一单元已落，本单元保持）；unknown 且仍可重试时附 `CRITIC_RETRY_EVIDENCE_SUFFIX`（点名四类证据与必填字段）并升 max_tokens 重试一次。
+- **⑤c 请求侧强制（本单元核心）**：探针证明仅靠提示词无法约束反代模型 —— 同网关 `{type:'json_object'}` 会返回 markdown 围栏 + 错键名（`evidences`/`analysis`）；完整审稿 schema 的 `json_schema` 请求返回七键齐全、五维齐全、evidence 4 条、四类分类齐全。于是：
+  - `server/helpers/prompt-helpers.ts` 新增 `AUDIT_DIMENSION_SCHEMA` / `AUDIT_RESPONSE_SCHEMA`（`name:'audit_response'`、`strict:true`，与 `AUDIT_OUTPUT_CONTRACT` 同构：五维 + totalScore + pass + failReason + fatalIssues + surgerySuggestions + evidence 四类 `minItems:4`）；
+  - `server/lib/server-llm.ts` 新增 `resolveResponseFormatMode()`：有 schema → `json_schema`，否则 `json_object`；被拒时按 `json_schema → json_object → 去掉 response_format` 逐级降级（`compatibilityMode` 新增 `omit_response_schema`，`OutputDiagnostic.responseFormatMode` 联合类型扩为 `'none' | 'json_schema' | 'json_object' | 'plain_fallback'`）；
+  - 两处调用点带上 schema：`server/helpers/ai-production-pipeline.ts`（critic）与 `server/routes/audit.ts`（手工审稿，`transportMode` 局部联合类型同步加 `'json_schema'`）。
+
+### 读数
+
+- `tsc --noEmit` 0；`eslint server src shared tests scripts --max-warnings=0` 0；后端全量 **1483/1483（35 suites）**。
+- 定向：`tests/server-llm.test.ts` **29/29**（含 3 例新用例：下发 strict `json_schema` / 被拒后降 `json_object` / 再被拒后去掉 `response_format`）、`tests/writer-quality-gate-retry.test.ts` **7/7**、`tests/audit-rewrite.test.ts` **15/15**（失败断言改为断言 `json_schema` 契约）。
+- 真机复验（隔离 3301 + 反代 gemini-3.8-flash-high，run `ed32928c`，173.5 s）：
+  - **审稿恢复**：三次 attempt 后返回结构化五维 JSON（可读性 9 / 分镜执行度 9 / 冲突推进度 8 …），`model_score {"score":88,"attempts":3,"status":"pass"}`；服务端日志 `Critic audit unknown` **0 条**、无 `fell back`、无 `structured contract` 重试。
+  - **正文门 + 重试联通**：attempt 0 因 3 条 `tell_dont_show`（副词「极其」）P1 阻断（mechanicalScore 89.6）→ 定向重写反馈重试 → 第 3 轮模型稿 6254 字过门并落 `source='model'` 版本行（Fix 2 定向重写与 Fix ④ 营救同轮生效）。
+  - **保底稿**：4080 字，`labels [] / md_heads 0 / inline_scene_hdr 0`（Fix 3/3c 保持）。
+  - 近 6 个 run 中 4 个有 `source='model'` 版本行（缺的 2 个在 Fix ④ 之前）。
+
+### 残余
+
+- 保底稿仍是确定性模板散文，且会把 `userIntent` 原样带进正文（真机回退稿首段出现「链路复测，依据资料包细纲与知识谱系生成本章正文」）。
+- 反代 gemini 系仍受上游地区限制、codex 系受配额限制；本轮未遇 critic provider 500/网络失败。
+
 ## 残余 / 后续
 
 - critic 侧真机仍偶发 provider 失败（500 / parse）→ `审计不可用` → `review_required`（诚实降级）；与本次改动无关，属反代/上游稳定性，已在 `plans/263` 登记同类观察。

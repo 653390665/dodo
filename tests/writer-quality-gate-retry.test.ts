@@ -87,6 +87,23 @@ const RESIDUE_DRAFT = [
 // Plan 266 修复④ 用例：让重写轮的 writer 调用直接抛错（provider 抖动）。
 const WRITER_THROW = 'WRITER_THROW';
 
+// Plan 266 修复⑤（证据契约）用例夹：五维高分 PASS 但省略 evidence —— 真机 run 334e123b 的
+// 失败形态（classifyCriticFeedback 依约判 unknown，契约见 tests/critic-status-contract.test.ts）。
+const FIVE_DIM_NO_EVIDENCE = JSON.stringify({
+  scores: {
+    可读性: { score: 9, reason: '清晰' },
+    分镜执行度: { score: 9, reason: '完整' },
+    冲突推进度: { score: 9, reason: '推进' },
+    风格契合度: { score: 9, reason: '契合' },
+    网文章节感: { score: 9, reason: '有钩子' },
+  },
+  totalScore: 45,
+  pass: true,
+  failReason: '',
+  fatalIssues: [],
+  surgerySuggestions: [],
+});
+
 const AUDIT_JSON = JSON.stringify({
   score: 80,
   fatalIssues: [],
@@ -100,7 +117,12 @@ const AUDIT_JSON = JSON.stringify({
   ],
 });
 
-async function runPipeline(options: { plannerBeats: string; drafts: string[]; criticThrows?: boolean }) {
+async function runPipeline(options: {
+  plannerBeats: string;
+  drafts: string[];
+  criticThrows?: boolean;
+  criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'ok'>;
+}) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
     apiKey: process.env.API_KEY,
@@ -111,14 +133,47 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[]; cr
   process.env.API_BASE_URL = 'http://writer-gate-retry.local/v1';
 
   const requests: string[] = [];
+  const bodies: Array<Record<string, unknown>> = [];
   const writerQueue = [...options.drafts];
+  const criticQueue = options.criticScript ? [...options.criticScript] : [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input, init) => {
-    const body = JSON.parse(String(init?.body || '{}')) as { messages?: Array<{ content?: string }> };
+    const body = JSON.parse(String(init?.body || '{}')) as {
+      messages?: Array<{ content?: string }>;
+      max_tokens?: number;
+    };
     const prompt = body.messages?.map((message) => message.content || '').join('\n') || '';
     requests.push(prompt);
+    bodies.push(body);
     if (options.criticThrows && prompt.includes('CRITIC_SENTINEL')) {
       throw new Error('critic provider unavailable (mock)');
+    }
+    let criticMode: 'throw' | 'truncated' | 'no-evidence' | 'ok' | null = null;
+    if (prompt.includes('CRITIC_SENTINEL') && criticQueue.length) {
+      criticMode = criticQueue.shift() ?? null;
+      if (criticMode === 'throw') {
+        throw new Error('fetch failed (mock critic transport)');
+      }
+      if (criticMode === 'truncated') {
+        const truncated = '{"scores":{"可读性":{"score":5,"reason":"节奏尚可"}';
+        const truncatedStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { content: truncated }, finish_reason: 'length' }] })}\n\n`
+              )
+            );
+            controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+            controller.close();
+          },
+        });
+        return {
+          ok: true,
+          status: 200,
+          body: truncatedStream,
+          json: async () => ({ choices: [{ message: { content: truncated } }] }),
+        } as Response;
+      }
     }
     let content: string;
     if (prompt.includes('SYSTEM CORRECTION GATE')) {
@@ -131,6 +186,8 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[]; cr
         throw new Error('writer provider network error (mock)');
       }
       content = writerDraft;
+    } else if (criticMode === 'no-evidence') {
+      content = FIVE_DIM_NO_EVIDENCE;
     } else {
       content = AUDIT_JSON;
     }
@@ -158,7 +215,7 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[]; cr
       contextStr: '普通故事上下文',
       stagePrompts: { planner: 'PLANNER_SENTINEL', writer: 'WRITER_SENTINEL', critic: 'CRITIC_SENTINEL' },
     });
-    return { result, requests };
+    return { result, requests, bodies };
   } finally {
     globalThis.fetch = originalFetch;
     if (previousEnv.nodeEnv === undefined) delete process.env.NODE_ENV;
@@ -220,4 +277,88 @@ test('audit-unavailable retry does not discard a gate-passing model draft', asyn
     'the salvaged model draft is what gets delivered',
   );
   assert.equal(result.auditStatus, 'unknown', 'audit state stays honest');
+});
+
+// Plan 266 修复⑤：审稿重试必须升级参数 —— 截断（truncated）扩 max_tokens 并附压缩指令；
+// 传输类失败（network）由（a）generateText 层 maxAttempts=2 与（b）管线层升级超时重试共同兜住。
+test('truncated critic JSON is retried with an escalated token budget', async () => {
+  const { result, requests, bodies } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES],
+    criticScript: ['truncated', 'ok'],
+  });
+
+  const criticIndexes = requests
+    .map((request, index) => (request.includes('CRITIC_SENTINEL') ? index : -1))
+    .filter((index) => index >= 0);
+  assert.equal(criticIndexes.length, 2, 'critic retried exactly once');
+  assert.ok(
+    !requests[criticIndexes[0]].includes('重试输出要求'),
+    'first attempt uses the plain contract'
+  );
+  assert.ok(
+    requests[criticIndexes[1]].includes('重试输出要求'),
+    'retry carries the compactness directive'
+  );
+  assert.equal(bodies[criticIndexes[0]].max_tokens, 6000, 'first attempt keeps the base budget');
+  assert.equal(bodies[criticIndexes[1]].max_tokens, 10000, 'retry raises the output budget');
+  assert.notEqual(result.auditStatus, 'unknown', 'escalated retry recovers the audit');
+});
+
+test('transient critic transport failures are retried before reporting unknown', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES],
+    criticScript: ['throw', 'throw', 'ok'],
+  });
+
+  const criticRequests = requests.filter((request) => request.includes('CRITIC_SENTINEL'));
+  assert.equal(criticRequests.length, 3, 'two in-layer attempts then the escalated pipeline retry');
+  assert.notEqual(result.auditStatus, 'unknown', 'the escalated retry keeps the audit usable');
+});
+
+// Plan 266 修复⑤（证据契约）：分数可解析但 evidence 四类不全 → classifyCriticFeedback 判 unknown
+// （既有契约，不得放宽）；重试必须附「补齐四类证据」指令，补上了 audit 就恢复可用。
+test('five-dim PASS without semantic evidence is retried with the evidence directive', async () => {
+  const { result, requests, bodies } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES],
+    criticScript: ['no-evidence', 'ok'],
+  });
+
+  const criticIndexes = requests
+    .map((request, index) => (request.includes('CRITIC_SENTINEL') ? index : -1))
+    .filter((index) => index >= 0);
+  assert.equal(criticIndexes.length, 2, 'critic retried exactly once');
+  assert.ok(
+    !requests[criticIndexes[0]].includes('上一轮缺少 evidence'),
+    'first attempt uses the plain contract'
+  );
+  assert.ok(
+    requests[criticIndexes[1]].includes('上一轮缺少 evidence'),
+    'retry carries the evidence directive'
+  );
+  assert.match(requests[criticIndexes[1]], /foreshadowing/, 'retry names every required category');
+  assert.equal(bodies[criticIndexes[1]].max_tokens, 10000, 'retry raises the output budget');
+  const criticFormat = (bodies[criticIndexes[0]].response_format || {}) as {
+    type?: string;
+    json_schema?: { name?: string; strict?: boolean };
+  };
+  assert.equal(criticFormat.type, 'json_schema', '审稿请求下发 json_schema 强制结构（Plan 266 修复⑤c）');
+  assert.equal(criticFormat.json_schema?.name, 'audit_response');
+  assert.equal(criticFormat.json_schema?.strict, true);
+  assert.notEqual(result.auditStatus, 'unknown', 'evidence retry recovers the audit');
+});
+
+// 重试有界：每次审稿调用最多升级一次；证据始终补不上时诚实地停在 unknown（不放宽契约）。
+test('an unmet evidence contract still reports unknown instead of rubber-stamping', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES],
+    criticScript: ['no-evidence', 'no-evidence', 'no-evidence', 'no-evidence'],
+  });
+
+  const criticRequests = requests.filter((request) => request.includes('CRITIC_SENTINEL'));
+  assert.equal(criticRequests.length, 4, 'two chapter attempts, one escalated retry each');
+  assert.equal(result.auditStatus, 'unknown', 'no evidence means no pass');
 });
