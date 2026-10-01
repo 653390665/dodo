@@ -790,6 +790,6 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 交付：新增 `shared/lib/local-repair.ts`（314 行；`selectLocalRepairTargets` / `applyLocalRepairs` / `compactTextLength` + 常量 `LOCAL_REPAIR_ALLOWED_FINDING_CODES`、`MAX_LOCAL_REPAIR_TARGETS=6`、`MAX_LOCAL_REPAIR_GROWTH_CHARS=320`、`MAX_LOCAL_REPAIR_SENTENCE_CHARS=240`）；机械命中的 snippet 实测被截断到 8 字符 → `expandToSentence` 把区间扩回整句再送修；硬缺陷（非 P2 且不在白名单）/ 篇幅不足一律拒修。
 - 管线接线（`server/helpers/ai-production-pipeline.ts`）：门失败分支内 `repairGateHitsLocally`（:509；逐目标一次 `generateText`，`maxTokens 2048 / maxAttempts 1`，不占整章重试额度）→ `localRepairPassed` 时按 24 字符回放修好的正文并直接收稿（控制流修复 :1141-1148）；修不动才回落 Plan 266 ② 重写 / 保底稿。
 - 真机（隔离 3301、gemini-3.8-flash-high、同一作品/章节 6 跑 + 1 负对照）：3 次软命中 → **3/3 就地修复成功**（日志 `local gate repair passed` 计数 3；`c6ef02ba` 69.2 s / targets 3 / applied 3 / 交付 5699 = model / critic 88 pass），**零整章重写、零保底稿覆盖**；6/6 交付稿与 model 版本行逐字相同、命中串归零；负对照 `5d68cf24`（provider 全 500）仍走保底稿（4186）——降级语义未受影响。
-- 读数：定向 4 文件 60/60；tsc 0；eslint 0；后端全量 **1500/1500 / 35 suites**。
+- 读数：定向 4 文件 60/60；tsc 0；eslint 0；后端全量 **1500/1500 / 35 suites**；前端全量 162 files/1030 tests 全绿。
 - 残余：R-269-1 修复调用 = 目标数（未批量）；R-269-2 P2 残留仍原样交付；R-269-3 点修失败后仍回落昂贵整章重写（保留为后手）；重复段类硬缺陷不进点修（有意）。
 - push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。

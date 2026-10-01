@@ -88,6 +88,7 @@ Plan 266 修复② 之后，**只由软命中**（`literary-slop` 的 `tell_dont
 
 - 单元/集成：`NODE_ENV=test node --test --test-timeout=45000 --import tsx --import ./tests/helpers/test-db-preload.ts tests/local-repair.test.ts tests/writer-local-repair.test.ts tests/writer-quality-gate-retry.test.ts tests/draft-quality.test.ts` → 60/60
 - 静态门禁：`npx tsc --noEmit`（0）、`npx eslint server src shared tests scripts --max-warnings=0`（0）
+- 前端全量：`npx vitest -c vitest.config.frontend.ts run` → 162 files / 1030 tests 全绿（1904.9 s；机器并发负载下 environment/setup 占大头，属环境而非产品问题）
 - 后端全量：`1500 tests / 1500 pass / 35 suites`
 - 真机：`bash /tmp/launch-3301-gatedbg.sh`（隔离库 `/tmp/inkflow-writetest/data.db` + 独立 config，`PORT=3301`）+ `python3 /tmp/chain-drive-3301.py`
 
