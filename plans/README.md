@@ -793,3 +793,19 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 读数：定向 4 文件 60/60；tsc 0；eslint 0；后端全量 **1500/1500 / 35 suites**；前端全量 162 files/1030 tests 全绿。
 - 残余：R-269-1 修复调用 = 目标数（未批量）；R-269-2 P2 残留仍原样交付；R-269-3 点修失败后仍回落昂贵整章重写（保留为后手）；重复段类硬缺陷不进点修（有意）。
 - push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
+
+## Round 54（2026-10-01）：链路/配置/模型调优（270）
+
+| 计划 | 状态 | 说明 |
+| --- | --- | --- |
+| 270 | ✅ 已完成 | 链路端到端跑通 + 配置面逐面盘点 + 4 格矩阵（n=3）→ 推荐 gemini-3.8-flash-high @ low |
+
+### Round 54 关键事实
+
+- ① 链路通顺（隔离实例 3302，库为生产副本）：`start-stream → planner → writer → critic → apply → fact-candidate → /complete` 逐段 200；run `a9985131` 版本 `26d56908` 落库（4620 字）、`apply` 回 `factCandidateId`、`fact-candidate/preview` 本章 `facts: []`（无新事实提案）、`/complete` 成章门 `completionGate=ready`（`retryUnavailable:true` 触发 AI 审稿，`reviewState.gate=pass`）；向量索引 1/1 章（chunk 与正文同长）、`server/cli/vector-init.ts` 幂等回填。
+- ② 配置完整度：provider（反代 `http://127.0.0.1:8317/v1`、`gemini-3.8-flash-high`、liveness connected）、嵌入（`status=ready` / `local:Xenova/bge-small-zh-v1.5`，权重齐备）、向量索引、写法确认（fingerprint `489b42a4…`）、能力画像 v3 + `activeFlowId=xiaofeiji-novel-flow`、流程 34 步/可运行 28（82.4%）、护栏 `strict`、配额门——8 面逐面核对无阻塞缺口；已登记缺口（hook-card 仅 planner、6 卡总闸、适合度反馈消费侧、`Scene` 死模型）不阻塞本链路。
+- ③ 模型矩阵（隔离 3301，n=3/格，控制变量 `INKFLOW_REASONING_EFFORT`）：`gemini38-low` **70.5 s / 88-88-90 分 / 5876 字 / 0 硬缺陷**；`gemini38-high` 266.4 s / 82-82-84 / 5126 字（更慢更差）；`sonnet46-low` 3/3 回退保底稿（6 次 gate dump 全含 `markdown-residue/P1`——每场景首段带独立 `---` 分隔线）；`sonnet46-high` 首跑 `ece13b2f` 同因 + critic 重试挂起 >18 min → 矩阵终止。→ **保持默认 `gemini-3.8-flash-high` + `reasoning_effort=low`**。
+- ④ 过门禁与 AI 味：推荐配置下产品门禁 3/3 ok（仅 `literary-polish/P2`，机械分 95.31/97.62/93.90）；套话词表命中 0.45/千字（low）vs 0.91（high）；P1 硬缺陷本轮仅出现在 sonnet 的 Markdown 分隔线（格式兼容问题，非纯模型质量结论）。
+- 残余：R-270-1 `/complete/risk` 未演练；R-270-2 `/complete` 重试 4.9 ms 返回 pass（疑似反代缓存，待复核）；R-270-3 sonnet 的 `---` 兼容可修（剥除独立分隔线或强化提示约束）；R-270-4 high 档默认前需先解决 writer reasoning-only/超时（Plan 267/268 已记）。
+- 交付：`plans/270-link-config-model-tuning.md`（四条工作线 + 执行结果节）；harness/读数脚本均在 /tmp（`p270-matrix.py` / `p270-recollect.py` / `p270-census4.py` / `p270-tail2.py` / `p270-doc.py`）。
+- push：新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`；GitHub 直连超时，需经 `http://127.0.0.1:7897`）。
