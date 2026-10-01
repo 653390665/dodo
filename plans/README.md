@@ -727,3 +727,21 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **修复④（复测暴露：审稿不可用丢过门稿）**：run `8aaa7c29` 的 4534 字过门模型稿因重写轮 provider 抖动被 4068 字保底稿替代（近 8 run 仅 1 个 model 版本行）。`server/helpers/ai-production-pipeline.ts` 新增过门稿营救位（每轮记录过门稿，收尾若仍是保底稿则换回并如实还原审稿状态）；用例 `audit-unavailable retry does not discard a gate-passing model draft`；读数 定向 3/3、后端全量 1472/1474（0 fail；并发负载下 2 个文件级 45 s 超时，单独复跑 4/4 通过）、tsc/eslint 0。真机复现受阻：反代 codex 配额耗尽（`usage_limit_reached` → 503）与 gemini 系地区限制（400），run `904239a1` 3.8 s 全退化。
 - **修复⑤（审稿结构化强制）**：新增 strict `AUDIT_RESPONSE_SCHEMA`（五维 + totalScore + fatalIssues + evidence 四类）与 `resolveResponseFormatMode()`（逐级降级 `json_schema → json_object → plain`，新增 `compatibilityMode: omit_response_schema`），critic 与手工审稿两处调用点带 schema。真机 run `ed32928c`：审稿恢复结构化五维、`model_score 88 pass`、`Critic audit unknown` 0 条；正文门 1 次软命中（3 条「极其」）→ 定向重写后 6254 字模型稿过门落库。读数：后端 1483/1483、`tsc`/`eslint` 0、定向 29/29 + 7/7 + 15/15。
 - **push**：`c9bfd19`（Plan 265）与 Round 49 单元待用户批准后推送。
+
+---
+
+## Round 50（2026-10-01）：生成质量 A/B —— writer 档位与能力卡（研究记录）
+
+来源：用户 (m19330)「按你的推荐来做」= 把「卡的因果效果」与模型档位的证据固化成可复核记录（此前仓库只有「文本是否进提示词」层面的证据，没有成品质量的因果测量）。
+
+| 编号 | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| —（研究记录，无计划号） | 生成质量 A/B（`docs/research/generation-quality-ab.md`） | ✅ 已完成（2026-10-01） | Plan 262 C5 / 263 D1 卡链路 + 反代真机 |
+
+### Round 50 关键事实
+
+- 新增研究记录 `docs/research/generation-quality-ab.md`（方法 / 模型档位 A/B / 能力卡 A/B / 摩擦 / 复现 / 局限）与读数脚本 `scripts/report-card-ab-metrics.ts`（纯函数：门禁 + 文体统计；`node --import tsx scripts/report-card-ab-metrics.ts <草稿目录>` → metrics JSON）。
+- **模型档位**（n=3/档；同一份真实整章 writer 提示词 21,804 字符直连反代）：`gemini-3.8-flash-high@high` 与 `@low` 在 9 个有效盲评轮中包揽前二（平均名次 1.44 / 1.67），`gemini-3.1-pro-low` 两档全垫底（3.33 / 3.56）且 **6/6 低于 4000 字整章合同**；档位 low→high 增益明确（套话命中 6.0→2.0、门禁通过 0/3→2/3），代价 +32% 延迟 / +45% token。App 当前正文实际跑在 flash-low（`server/lib/server-llm.ts:439` 对未知端点下发 `reasoning_effort: 'low'`）。
+- **能力卡**（n=8/臂；试跑台同源 `POST /api/orchestrate`，作品 `novel-a` / 章节 `chapter-a`，卡组与技法护栏全空 → 唯一变量=本章使用卡）：24/24 运行 200；自家门禁三臂 **8/8 全过**、字数/段数/句长/套话无实质差异（~4134–4145 字）；32 场盲评挂卡臂胜 **21**（pacing 11:5、style 10:6；两位评委各自同向、先手/后手均有胜 → 非位置偏误），但**未达统计显著**（两尾 p≈0.21 / 0.45，合并 21/32 p≈0.11）。n=3 时同对比 3:3 平 → 小样本欠功效。
+- **摩擦登记（四条，均已取证）**：①写法确认按章节单槽 —— 换「本章使用卡」后旧确认失效，交替测试必然 409 `STYLE_CONFIRMATION_REQUIRED`（实测 no-card 臂 3/3 全 409）；②`hook-card` 只映射 planner（`shared/types/capability-execution.ts:168-176` 的 `CARD_STAGE_MAP`）→ 挂 `deconstruct-suspense-hook-clone-1789708517018` 得到的 fingerprint 与完全不挂卡**完全相同**（`00eb29cc11b97b77…`）、sources 里无 `writer-session`；③6 卡总闸（卡组 + 本章卡 ≤6，`server/helpers/writing-style-service.ts:1855-1896`）是提示词预算语义（非缺陷），超限只弹 toast；④`assetId` 与 `cardRef` 的可用性语义仍未收口（`docs/architecture/inkflow.architecture-understanding.md:268`）。
+- **push**：`2ccde9e`（修复④）、`385dd84`（修复⑤）及本轮研究记录提交待用户批准后推送。
