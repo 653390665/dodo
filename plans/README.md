@@ -776,3 +776,20 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0；定向 34/34；后端全量 1488/1488。
 - 修复后 low/high 真机对照（n=2/档，隔离 3301）：high 335.2 / 164.1 s（model 5034 / 5296 字），low 65.0 / 63.1 s（5720 / 4958 字）；四跑均 `auditMeta.pass`、`degradation` 无降级、critic 均结构化五维 JSON，high 超时/降级 0（修复前必然出现）；审计总分 low 46/44 > high 42/42；盲评 8 个名次 low 均 2.0 vs high 均 3.0；两臂本轮均未触正文质量门硬门（R-268-1 修正为运行方差）→ 默认仍保持 `low`。
 - push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
+
+
+## Round 53（2026-10-01）：门禁命中 → 段落级定点修复（269）
+
+| 计划 | 状态 | 说明 |
+| --- | --- | --- |
+| 269 | ✅ 已完成 | 软命中不再整章重写：逐句定点修复 + 同门禁复检 + 控制流修复（修好的稿直接收稿） |
+
+### Round 53 关键事实
+
+- 根因（Plan 266 修复② 的直系后续）：只由软命中（`literary-slop` 的 `tell_dont_show` 副词弱化）触发的门失败，代价是一整轮 writer 重写（≈3000 token / 数十秒）；第一版点修接线还暴露控制流缺陷 —— 修复成功的数据通路已通，但代码继续落到整章重写/保底稿构造，把修好的稿覆盖成 `fallback`。
+- 交付：新增 `shared/lib/local-repair.ts`（314 行；`selectLocalRepairTargets` / `applyLocalRepairs` / `compactTextLength` + 常量 `LOCAL_REPAIR_ALLOWED_FINDING_CODES`、`MAX_LOCAL_REPAIR_TARGETS=6`、`MAX_LOCAL_REPAIR_GROWTH_CHARS=320`、`MAX_LOCAL_REPAIR_SENTENCE_CHARS=240`）；机械命中的 snippet 实测被截断到 8 字符 → `expandToSentence` 把区间扩回整句再送修；硬缺陷（非 P2 且不在白名单）/ 篇幅不足一律拒修。
+- 管线接线（`server/helpers/ai-production-pipeline.ts`）：门失败分支内 `repairGateHitsLocally`（:509；逐目标一次 `generateText`，`maxTokens 2048 / maxAttempts 1`，不占整章重试额度）→ `localRepairPassed` 时按 24 字符回放修好的正文并直接收稿（控制流修复 :1141-1148）；修不动才回落 Plan 266 ② 重写 / 保底稿。
+- 真机（隔离 3301、gemini-3.8-flash-high、同一作品/章节 6 跑 + 1 负对照）：3 次软命中 → **3/3 就地修复成功**（日志 `local gate repair passed` 计数 3；`c6ef02ba` 69.2 s / targets 3 / applied 3 / 交付 5699 = model / critic 88 pass），**零整章重写、零保底稿覆盖**；6/6 交付稿与 model 版本行逐字相同、命中串归零；负对照 `5d68cf24`（provider 全 500）仍走保底稿（4186）——降级语义未受影响。
+- 读数：定向 4 文件 60/60；tsc 0；eslint 0；后端全量 **1500/1500 / 35 suites**。
+- 残余：R-269-1 修复调用 = 目标数（未批量）；R-269-2 P2 残留仍原样交付；R-269-3 点修失败后仍回落昂贵整章重写（保留为后手）；重复段类硬缺陷不进点修（有意）。
+- push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
