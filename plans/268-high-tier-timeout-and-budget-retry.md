@@ -51,7 +51,7 @@ Plan 267 实测结论是「应用内 high 档不可用」（更慢、稿更短�
 
 ## 4. 残余 / 后续
 
-- **R-268-1**：high 档模型稿更易触发正文质量门硬门 —— `/tmp/gate-fail-effort-high.jsonl` 两行均为 `duplicate-paragraph` + `literary-slop`（`len 15577 / mech 97.1`、`len 14282 / mech 96.8`）。与 Plan 267「high 档稿更短、更套话」是同一现象的两面；要把 high 设为默认，需先复核长稿上的套话/重复口径。
+- **R-268-1**：high 档模型稿**在本轮验证跑**触发过正文质量门硬门（`duplicate-paragraph` + `literary-slop`）——★ 见 §7 修正：同日 A/B 复跑（n=2）未复现，属运行方差，需更多样本定性。
 - **R-268-2**：`budgetRetry` 本次为 0（未触发该分支）——两条新用例与既有单测覆盖了该路径，但真机尚未复现 reasoning_only 场景，属「防御性修复」。
 - **R-267-1（未定位）**：草稿尾部混入无关「年代戏」片段（同臂跨 rep 逐字相同，全库检索只命中 run/version 草稿）仍开。
 
@@ -64,3 +64,20 @@ Plan 267 实测结论是「应用内 high 档不可用」（更慢、稿更短�
 ## 6. 证据文件
 
 `/tmp/p268-patch.py`、`/tmp/p268-tsc1.log`、`/tmp/p268-test1.log`、`/tmp/p268-gates.log`、`/tmp/p268-high-driver.log`、`/tmp/p268-high-server.log`、`/tmp/p268-high-result.json`、`/tmp/gate-fail-effort-high.jsonl`。
+
+## 7. 补记：修复后 low/high 真机对照（2026-10-01，n=2/档）
+
+同一隔离实例（3301）、同一作品/章节，`INKFLOW_REASONING_EFFORT` 控制档位（反代日志 `level=high|low` 实证）。驱动 `/tmp/effort-ab-run.py`，读数 `/tmp/effort-ab/result.json`/`/tmp/effort268-analysis.json`。
+
+| arm | rep | elapsed | model 稿 | 本轮门禁 | 审计总分 | 审计维度（可读/分镜/冲突/风格/网文感） | auditMeta |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| high | r1 | 335.2 s | 5034 字 | pass（无拒稿） | 42 | 8/9/8/9/8 | pass / score 84 |
+| high | r2 | 164.1 s | 5296 字 | pass | 42 | 8/9/8/9/8 | pass / 84 |
+| low | r1 | 65.0 s | 5720 字 | pass | 46 | 9/10/9/9/9 | pass / 92 |
+| low | r2 | 63.1 s | 4958 字 | pass | 44 | 9/9/8/9/9 | pass / 88 |
+
+- 管线层：四跑均 `auditMeta.status='pass'`、`degradation={beatsSource:'model', draftSource:'model'}`（无降级），critic 全部产出结构化五维 JSON（high 3267 / 2155 B，low 1912 / 1698 B）；high 档本轮 `Critic fell back` / `Critic audit unknown` 均为 0（修复前必然出现）。
+- 文体读数（`scripts/report-card-ab-metrics.ts /tmp/effort-drafts268`）：high 5165 字均 / 89 段 / 套话 1.5 / 均句 32.2；low 5339 字均 / 112.5 段 / 套话 1.5 / 均句 29.14；两档门禁 2/2，唯一 finding 均为 `literary-polish`（P2）。
+- 盲评（4 稿匿名 X1..X4；claude-sonnet-4-6 strict `json_schema` + gpt-oss-120b-medium；映射 X1=`low-r2` / X2=`high-r2` / X3=`high-r1` / X4=`low-r1`）：claude `X1 > X4 > X3 > X2`（低档占 1、2 名），gpt-oss `X1 > X2 > X3 > X4`；合并 8 个名次 **low 均 2.0 vs high 均 3.0** → 低档不劣，且产品审计（46/44 vs 42/42）与盲评方向一致。
+- **R-268-1 修正**：本 A/B 中 high 档两跑均**未触发**正文质量门硬门（`/tmp/gate-fail-effort-high.jsonl` 未新增行，mtime 仍 19:34）；「high 更易触硬门」来自修复前那次验证跑（即该 dump 文件的两行 `duplicate-paragraph + literary-slop`），属**运行方差**而非档位必然，需更多样本才能定性。
+- 结论：修复后 high 档**可用**（超时/降级归零、审计结构化、模型稿落库），但代价仍是 2.5–5× 延迟（335/164 s vs 65/63 s），且审计总分与盲评都不优于 low → **默认仍保持 `low`**。

@@ -774,4 +774,5 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 真机（隔离 3301、`INKFLOW_REASONING_EFFORT=high`、n=2）：`1bcac272` 617.6 s（model 4740 字 / fallback 4186）、`3521c72b` 491.6 s（model 5894 字 / fallback 4186）；两跑统计 `criticFellBack 0 / criticRetry 0 / criticUnknown 0 / reasoningOnly 0`，critic 均返回结构化五维 JSON（可读性 6 / 5）；反代日志 `level=high` 实证档位生效。
 - 残余（质量口径、非超时）：`/tmp/gate-fail-effort-high.jsonl` 两行均 `duplicate-paragraph + literary-slop`（mech 97.1 / 96.8）→ high 档正文更易触硬门；R-267-1（草稿尾部无关年代戏片段）仍待定位；`budgetRetry` 本次 0 次触发，属防御性分支（单测覆盖）。
 - 门禁：tsc 0 / eslint 0；定向 34/34；后端全量 1488/1488。
+- 修复后 low/high 真机对照（n=2/档，隔离 3301）：high 335.2 / 164.1 s（model 5034 / 5296 字），low 65.0 / 63.1 s（5720 / 4958 字）；四跑均 `auditMeta.pass`、`degradation` 无降级、critic 均结构化五维 JSON，high 超时/降级 0（修复前必然出现）；审计总分 low 46/44 > high 42/42；盲评 8 个名次 low 均 2.0 vs high 均 3.0；两臂本轮均未触正文质量门硬门（R-268-1 修正为运行方差）→ 默认仍保持 `low`。
 - push：`c9bfd19` 之后新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`）。
