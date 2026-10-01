@@ -16,6 +16,7 @@ import {
 import type { Skill, AggregatedSkillDeck, BookEvidenceStage } from '../../../shared/types';
 import { evaluateDeconstructionCard } from '../../../shared/lib/deconstruction-scoring';
 import { evaluateSkillGovernance, getSkillScoreChannels } from '../../../shared/lib/skill-model';
+import { summarizeCardStageScope } from '../../lib/capability-stage-cards';
 
 const EVIDENCE_COVERAGE_LABELS = {
   'full-book-stable': '全书稳定',
@@ -197,6 +198,9 @@ export function SkillCardDetails({
   const IconComponent = selectedSkill.deconstructionCardType
     ? CARD_TYPE_ICONS[selectedSkill.deconstructionCardType]
     : null;
+  const cardStageScope = selectedSkill.deconstructionCardType
+    ? summarizeCardStageScope(selectedSkill.deconstructionCardType)
+    : null;
 
   return (
     <div className="space-y-6 mt-6">
@@ -206,6 +210,20 @@ export function SkillCardDetails({
           <p className="text-[10px] text-theme-muted mt-1 uppercase tracking-widest font-bold">
             拆书卡 {selectedSkillIndex + 1} / {totalCards} · 版本 {selectedSkill.version || 1}
           </p>
+          {cardStageScope && (
+            <p
+              data-testid="card-stage-scope"
+              className={`mt-1 inline-block rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                cardStageScope.writerEffective
+                  ? 'border-theme-border bg-theme-sidebar/40 text-theme-muted'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700'
+              }`}
+              title={cardStageScope.hint}
+            >
+              生效阶段：{cardStageScope.label}
+              {cardStageScope.writerEffective ? '' : '（不进入写作提示）'}
+            </p>
+          )}
         </div>
         <div className="px-4 py-2 bg-theme-accent/10 border border-theme-accent/20 rounded-2xl text-center">
           <div className="text-xl font-bold text-theme-accent">

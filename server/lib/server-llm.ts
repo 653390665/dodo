@@ -378,6 +378,22 @@ export function buildGoogleGenerateContentRequest(
   };
 }
 
+export const REASONING_EFFORT_OVERRIDE_ENV = 'INKFLOW_REASONING_EFFORT';
+
+/**
+ * Plan 267：思考档位覆盖（实验/运维开关）。
+ * 未知 OpenAI 兼容端点默认下发 'low'（见下方 Plan 266 注释）；本开关允许不改编码就
+ * 在同一实例上对照其它档位（如 high）。取值必须是 3-10 个小写字母，否则忽略并回默认。
+ */
+export function resolveReasoningEffortOverride(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const raw = env[REASONING_EFFORT_OVERRIDE_ENV];
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim().toLowerCase();
+  return /^[a-z]{3,10}$/.test(value) ? value : null;
+}
+
 export function buildOpenAICompatibleChatRequest(
   config: Pick<AppConfig, 'baseUrl' | 'model'>,
   options: Pick<
@@ -437,7 +453,7 @@ export function buildOpenAICompatibleChatRequest(
   // antigravity 侧 minimal 也会被 clamp 到 low，故 low 同时覆盖两种后端。
   // 上游若仍拒绝该字段，parameter_incompatible 分支会带 omitThinking 去字段重发。
   if (disableThinking && !isDeepSeekProvider(config.baseUrl) && !isSiliconFlow) {
-    request.reasoning_effort = 'low';
+    request.reasoning_effort = resolveReasoningEffortOverride() ?? 'low';
   }
   if (request.stream && isDeepSeekProvider(config.baseUrl)) {
     // 缓存取证：要求 DeepSeek 在流式末帧返回 usage（含 prompt_cache_hit/miss）。

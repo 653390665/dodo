@@ -316,3 +316,34 @@ export function buildEffectiveCapabilitySummary(input: {
     summaryText: `作品默认 ${projectCardIds.length} · 本章 ${chapterCardIds.length} · 作品技法 ${projectTechniqueIds.length} · 本章技法 ${chapterTechniqueIds.length} · 系统护栏 ${guardrailIds.length}`,
   };
 }
+
+const CARD_STAGE_LABELS: Record<CapabilityStage, string> = {
+  planner: '分镜',
+  writer: '写作',
+  critic: '审校',
+};
+
+export interface CardStageScopeSummary {
+  readonly stages: readonly CapabilityStage[];
+  readonly label: string;
+  readonly writerEffective: boolean;
+  readonly hint: string;
+}
+
+/**
+ * Plan 267：卡片生效阶段对作者可见。
+ * CARD_STAGE_MAP 是唯一事实源：只映射 planner 的卡（如钩子卡）不会进入写作提示词，
+ * 作者选卡时必须能看出「挂了但不生效」的差别（真机实测：挂钩子卡的写作指纹与不挂完全相同）。
+ */
+export function summarizeCardStageScope(cardType: DeconstructionCardType): CardStageScopeSummary {
+  const stages = CARD_STAGE_MAP[cardType] as readonly CapabilityStage[];
+  const writerEffective = stages.includes('writer');
+  return {
+    stages,
+    label: stages.map((stage) => CARD_STAGE_LABELS[stage] ?? stage).join(' + '),
+    writerEffective,
+    hint: writerEffective
+      ? '该卡的规则会进入写作阶段提示词。'
+      : '该卡只在分镜规划阶段生效，不进入写作阶段提示词。',
+  };
+}

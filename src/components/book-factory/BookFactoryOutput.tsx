@@ -20,6 +20,7 @@ import { EquipPanel } from './EquipPanel';
 import { normalizeSkillConfig, type ProjectSkillDeckSelection } from './useBookFactory';
 import { evaluateDeconstructionCard } from '../../../shared/lib/deconstruction-scoring';
 import { getSkillScoreChannels } from '../../../shared/lib/skill-model';
+import { summarizeCardStageScope } from '../../lib/capability-stage-cards';
 import type {
   WritingStyleCandidate,
   WritingStyleMode,
@@ -474,6 +475,9 @@ export function BookFactoryOutput({
                     ? DECONSTRUCTION_CARD_TYPES[skill.deconstructionCardType]
                     : null;
                   const CardIcon = typeConfig ? typeConfig.icon : null;
+                  const stageScope = skill.deconstructionCardType
+                    ? summarizeCardStageScope(skill.deconstructionCardType)
+                    : null;
                   return (
                     <div
                       key={skill.id || `${skill.name}-${index}`}
@@ -516,6 +520,18 @@ export function BookFactoryOutput({
                                     ? `辅卡 · ${rec.cardType}`
                                     : '待选择'}
                             </span>
+                            {stageScope && (
+                              <span
+                                data-testid="card-stage-scope"
+                                className={
+                                  stageScope.writerEffective ? 'text-theme-muted' : 'text-amber-600'
+                                }
+                                title={stageScope.hint}
+                              >
+                                {stageScope.label}
+                                {stageScope.writerEffective ? '' : '（不进入写作提示）'}
+                              </span>
+                            )}
                           </div>
                         </div>
 

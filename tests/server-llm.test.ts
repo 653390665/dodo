@@ -892,3 +892,36 @@ test('response_format is dropped entirely when json_object is rejected as well',
     globalThis.fetch = originalFetch;
   }
 });
+
+test('INKFLOW_REASONING_EFFORT overrides the thinking level for unknown endpoints only', () => {
+  const previous = process.env.INKFLOW_REASONING_EFFORT;
+  try {
+    process.env.INKFLOW_REASONING_EFFORT = 'high';
+    const high = buildOpenAICompatibleChatRequest(
+      { baseUrl: 'http://127.0.0.1:8317/v1', model: 'gemini-3.8-flash-high' },
+      {
+        prompt: '输出 JSON',
+        maxTokens: 6000,
+        responseMimeType: 'application/json',
+        disableThinking: true,
+      },
+    );
+    assert.equal(high.reasoning_effort, 'high');
+
+    const deepseek = buildOpenAICompatibleChatRequest(
+      { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+      { prompt: '输出 JSON', maxTokens: 6000, disableThinking: true },
+    );
+    assert.equal('reasoning_effort' in deepseek, false);
+
+    process.env.INKFLOW_REASONING_EFFORT = 'HIGH!!';
+    const invalid = buildOpenAICompatibleChatRequest(
+      { baseUrl: 'http://127.0.0.1:8317/v1', model: 'gemini-3.8-flash-high' },
+      { prompt: '输出 JSON', maxTokens: 6000, disableThinking: true },
+    );
+    assert.equal(invalid.reasoning_effort, 'low');
+  } finally {
+    if (previous === undefined) delete process.env.INKFLOW_REASONING_EFFORT;
+    else process.env.INKFLOW_REASONING_EFFORT = previous;
+  }
+});
