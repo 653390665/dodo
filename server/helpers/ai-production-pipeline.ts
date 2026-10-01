@@ -32,6 +32,12 @@ import {
   loadWorldviewHints,
 } from './knowledge-lineage-enrich.js';
 import { scaleTimeoutForReasoningEffort } from '../lib/server-llm';
+import {
+  applyLocalRepairs,
+  selectLocalRepairTargets,
+  type LocalRepairHitLike,
+} from '../../shared/lib/local-repair';
+import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
@@ -168,6 +174,8 @@ export interface PipelineResult {
   /** Whether the planner produced real beats or the deterministic template. */
   beatsSource: 'model' | 'fallback';
   attempts: number;
+  /** Plan 269：门禁命中的段落级定点修复读数（未触发时缺省）。 */
+  localRepair?: LocalRepairSummary;
 }
 
 /**
@@ -470,6 +478,142 @@ function buildLiteraryRetryFeedback(quality: {
   return `【上一稿未通过正文质量门禁，请重写整章】${problems}${detail}${WRITER_RETRY_STYLE_RULE}`;
 }
 
+/**
+ * Plan 269：门禁命中 → 段落级定点修复的读数（进 PipelineResult，供落库与测试对照）。
+ */
+export interface LocalRepairSummary {
+  /** false = 本稿不满足定点修复前提（硬缺陷/未达篇幅/定位不到），已交回整章重写。 */
+  attempted: boolean;
+  targets: number;
+  applied: number;
+  skipped: number;
+  passed: boolean;
+  reason?: string;
+}
+
+/** 只改被点名的一段：删套话与副词弱化，不新增信息、不扩写、篇幅相当。 */
+const LOCAL_REPAIR_INSTRUCTION =
+  '只修复被点名的这一小段：删掉 AI 套话与副词弱化（tell-dont-show），改成具体动作、感官细节或停顿；不要扩写剧情、不要新增人物或信息；保持与前后的衔接，篇幅与原文相当。';
+
+/** 定点修复单句用短预算与小重试：它不该重新生成一章，也不该烧掉整章重试额度。 */
+const LOCAL_REPAIR_LLM_OPTIONS = {
+  maxTokens: 2048,
+  maxAttempts: 1,
+  timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+} as const;
+
+/**
+ * 门禁命中 → 段落级定点修复：只重写被点名的句子，修完用同一套质量门复检。
+ * 修过的稿仍不过门时返回 null（交回整章重写/保底稿），但读数会如实带上原因。
+ */
+async function repairGateHitsLocally(params: {
+  novelId: string;
+  writerConfig: ReturnType<typeof resolveWriterConfig>;
+  text: string;
+  findings: readonly { code?: string; severity?: string }[];
+  hits: readonly LocalRepairHitLike[];
+  contextStr: string;
+  minDraftChars?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  text: string | null;
+  report: ReturnType<typeof validateCompleteChapterDraftQuality> | null;
+  summary: LocalRepairSummary;
+}> {
+  const selection = selectLocalRepairTargets({
+    text: params.text,
+    findings: params.findings,
+    hits: params.hits,
+    minChars: params.minDraftChars,
+  });
+  if (!selection.repair) {
+    return {
+      text: null,
+      report: null,
+      summary: {
+        attempted: false,
+        targets: 0,
+        applied: 0,
+        skipped: selection.skipped,
+        passed: false,
+        reason: selection.reason,
+      },
+    };
+  }
+  const repairs: Array<{ start: number; end: number; text: string }> = [];
+  for (const target of selection.targets) {
+    throwIfAborted(params.signal);
+    const prompt = buildRewritePrompt({
+      text: target.snippet,
+      instruction: LOCAL_REPAIR_INSTRUCTION,
+      contextStr: params.contextStr,
+      auditIssue: target.suggestion
+        ? `正文质量门命中（${target.category}）：${target.suggestion}`
+        : `正文质量门命中类别：${target.category}`,
+      beforeContext: target.before,
+      afterContext: target.after,
+      mode: 'surgical-patch',
+    });
+    try {
+      const repaired = await generateText(
+        params.writerConfig,
+        {
+          prompt,
+          ...LOCAL_REPAIR_LLM_OPTIONS,
+          disableThinking: true,
+          signal: params.signal,
+        },
+        {
+          operation: 'production-pipeline-local-repair',
+          novelId: params.novelId,
+          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+          concurrency: 2,
+          signal: params.signal,
+        }
+      );
+      const replacement = String(repaired || '').trim();
+      if (replacement) {
+        repairs.push({ start: target.start, end: target.end, text: replacement });
+      }
+    } catch (error) {
+      logger.warn('Local gate repair call failed', error);
+    }
+  }
+  if (!repairs.length) {
+    return {
+      text: null,
+      report: null,
+      summary: {
+        attempted: true,
+        targets: selection.targets.length,
+        applied: 0,
+        skipped: selection.skipped,
+        passed: false,
+        reason: 'no-repair-returned',
+      },
+    };
+  }
+  const application = applyLocalRepairs(params.text, repairs);
+  const report = validateCompleteChapterDraftQuality(application.text, undefined, {
+    minChars: params.minDraftChars,
+  });
+  const failedCodes = (report.findings || []).map((finding) => finding.code).filter(Boolean);
+  return {
+    text: application.text,
+    report,
+    summary: {
+      attempted: true,
+      targets: selection.targets.length,
+      applied: application.applied,
+      skipped: selection.skipped + application.skipped,
+      passed: report.ok,
+      reason: report.ok
+        ? undefined
+        : `still-failing:${failedCodes.length ? failedCodes.join(',') : 'unknown'}`,
+    },
+  };
+}
+
 function buildValidatedFallbackDraft(
   sceneBeats: string,
   contextStr: string,
@@ -651,6 +795,10 @@ export async function runProductionPipeline(params: {
   let gateSalvageAudit = '';
   let gateSalvageAuditStatus: PipelineResult['auditStatus'] = 'unknown';
   let gateSalvageScore = 0;
+  // Plan 269：门禁命中先试一次段落级定点修复（每 run 一次）。
+  let localRepairAttempted = false;
+  let localRepairPassed = false;
+  let localRepair: LocalRepairSummary | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     attempts = attempt + 1;
@@ -907,7 +1055,7 @@ export async function runProductionPipeline(params: {
           /* 诊断采集失败不影响主流程 */
         }
       }
-      const draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
+      let draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
         minChars: minDraftChars,
       });
       if (!draftQuality.ok) {
@@ -951,40 +1099,90 @@ export async function runProductionPipeline(params: {
           lastViolations = draftQuality.violations;
           lastMechanicalScore = draftQuality.mechanicalReview?.score;
         }
-        // Plan 266 修复②：只由局部软命中引起的门失败，先带定向反馈重写整章；
-        // 只有重试耗尽或结构/元数据/长度/机械分等硬缺陷才退回确定性保底稿。
-        if (isRetriableWriterSoftFailure(draftQuality) && attempt < MAX_RETRIES) {
-          criticFeedback = buildLiteraryRetryFeedback(draftQuality);
-          progress.onPhase?.('retry');
-          continue;
+        // Plan 269：先试一次段落级定点修复——只改被点名的句子，不重写整章、不放宽阈值。
+        // 修完仍不过门就照旧走整章重写 / 保底稿；每次 run 最多一次，避免把改稿轮
+        // 变成第二篇长文。定点修复成功即收稿，不再烧掉整章重写重试。
+        if (!localRepairAttempted) {
+          localRepairAttempted = true;
+          const outcome = await repairGateHitsLocally({
+            novelId,
+            writerConfig: resolveWriterConfig(getConfig()),
+            text: currentDraft,
+            findings: draftQuality.findings || [],
+            hits: draftQuality.mechanicalReview?.hits || [],
+            contextStr: augmentedContexts.writer,
+            minDraftChars,
+            signal: progress.signal,
+          });
+          localRepair = outcome.summary;
+          if (outcome.text && outcome.report) {
+            if (outcome.report.ok) {
+              currentDraft = outcome.text;
+              draftQuality = outcome.report;
+              localRepairPassed = true;
+              logger.info('[pipeline] local gate repair passed the prose quality gate', {
+                novelId,
+                targets: outcome.summary.targets,
+                applied: outcome.summary.applied,
+                skipped: outcome.summary.skipped,
+              });
+            } else if (
+              outcome.text.trim() &&
+              (lastMechanicalScore === undefined ||
+                (outcome.report.mechanicalReview?.score ?? 0) >= lastMechanicalScore)
+            ) {
+              // 修过但仍有残留命中：分数不降就留作营救候选（仍是模型稿，口径不变）。
+              lastModelDraft = outcome.text;
+              lastViolations = outcome.report.violations;
+              lastMechanicalScore = outcome.report.mechanicalReview?.score;
+            }
+          }
         }
-        let fallbackDraft: string;
-        try {
-          fallbackDraft = buildValidatedFallbackDraft(
-            sceneBeats,
-            augmentedContexts.writer,
-            minDraftChars
-          );
-        } catch (fallbackErr) {
-          if (attempt < MAX_RETRIES) {
-            criticFeedback = buildWriterRetryFeedback(draftQuality.violations);
+        if (localRepairPassed) {
+          // Plan 269：定点修复过了门 → 与「一次过门」同一条收稿路径：回放修好的正文，不落保底稿。
+          const repairedChunks = currentDraft.match(/.{1,24}/gs) || [];
+          for (const chunk of repairedChunks) {
+            throwIfAborted(progress.signal);
+            progress.onWriterToken?.(chunk);
+          }
+        } else {
+          // Plan 266 修复②：只由局部软命中引起的门失败，先带定向反馈重写整章；
+          // 只有重试耗尽或结构/元数据/长度/机械分等硬缺陷才退回确定性保底稿。
+          if (isRetriableWriterSoftFailure(draftQuality) && attempt < MAX_RETRIES) {
+            criticFeedback = buildLiteraryRetryFeedback(draftQuality);
             progress.onPhase?.('retry');
             continue;
           }
-          if (lastModelDraft.trim()) {
-            throw new DraftQualityRejectionError(
-              lastModelDraft,
-              lastViolations.length ? lastViolations : draftQuality.violations,
-              lastMechanicalScore,
-              beatsSource
+          let fallbackDraft: string;
+          try {
+            fallbackDraft = buildValidatedFallbackDraft(
+              sceneBeats,
+              augmentedContexts.writer,
+              minDraftChars
             );
+          } catch (fallbackErr) {
+            if (attempt < MAX_RETRIES) {
+              criticFeedback = buildWriterRetryFeedback(draftQuality.violations);
+              progress.onPhase?.('retry');
+              continue;
+            }
+            if (lastModelDraft.trim()) {
+              throw new DraftQualityRejectionError(
+                lastModelDraft,
+                lastViolations.length ? lastViolations : draftQuality.violations,
+                lastMechanicalScore,
+                beatsSource
+              );
+            }
+            throw fallbackErr;
           }
-          throw fallbackErr;
+          currentDraft = fallbackDraft;
+          draftSource = 'fallback';
         }
-        currentDraft = fallbackDraft;
-        draftSource = 'fallback';
       } else {
-        const chunks = (streamedWriterText || currentDraft).match(/.{1,24}/gs) || [];
+        // Plan 269：定点修复成功后回放的是修好的正文，而不是模型原始流。
+        const chunkSource = localRepairPassed ? currentDraft : streamedWriterText || currentDraft;
+        const chunks = chunkSource.match(/.{1,24}/gs) || [];
         for (const chunk of chunks) {
           throwIfAborted(progress.signal);
           progress.onWriterToken?.(chunk);
@@ -1216,5 +1414,6 @@ export async function runProductionPipeline(params: {
     source: draftSource,
     beatsSource,
     attempts,
+    ...(localRepair ? { localRepair } : {}),
   };
 }
