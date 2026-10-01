@@ -3,8 +3,15 @@ import fs from 'node:fs';
 import { validateCompleteChapterDraftQuality } from '../shared/lib/draft-quality';
 
 const DIR = process.argv[2] ?? '/tmp/cardab3';
-const ARMS = ['no-card', 'pacing-card', 'style-card'];
-const REPS = 8;
+
+type DraftRef = { arm: string; rep: number; file: string };
+const drafts: DraftRef[] = fs
+  .readdirSync(DIR)
+  .map((file) => /^(.*)-r(\d+)\.txt$/.exec(file))
+  .filter((m): m is RegExpExecArray => Boolean(m))
+  .map((m) => ({ arm: m[1], rep: Number(m[2]), file: `${DIR}/${m[0]}` }))
+  .sort((a, b) => (a.arm === b.arm ? a.rep - b.rep : a.arm.localeCompare(b.arm)));
+const ARMS = [...new Set(drafts.map((d) => d.arm))];
 
 interface Row {
   arm: string;
@@ -21,10 +28,8 @@ interface Row {
 }
 
 const rows: Row[] = [];
-for (const arm of ARMS) {
-  for (let rep = 1; rep <= REPS; rep += 1) {
-    const file = `${DIR}/${arm}-r${rep}.txt`;
-    if (!fs.existsSync(file)) continue;
+for (const { arm, rep, file } of drafts) {
+  {
     const text = fs.readFileSync(file, 'utf8');
     const sents = text.split(/[。！？!?…]+/).map((s) => s.trim()).filter(Boolean);
     const lens = sents.map((s) => s.length);
@@ -75,4 +80,4 @@ for (const r of rows) {
   console.log([r.arm.padEnd(12), `r${r.rep}`, `chars=${r.chars}`, `paras=${r.paragraphs}`, `sd=${r.sdSentence}`, `dlg=${r.dialogueRatio}`, `slop=${r.slopHits}`, `gate=${r.gateOk}`, `codes=${r.gateCodes.join(',') || '-'}`].join('  '));
 }
 for (const a of agg) console.log(JSON.stringify(a));
-console.log('CARDAB3_METRICS_DONE');
+console.log('CARD_AB_METRICS_DONE');
