@@ -872,6 +872,22 @@ const deferredTokenSink = () => undefined;
 export const STREAM_HOLDBACK_CHARS = 64;
 /** 上界：防止调用方给出病态大窗口把流式退化回整段回发。 */
 export const STREAM_HOLDBACK_MAX_CHARS = 2_048;
+/**
+ * Plan 275（R-273-1）：窗口下限。上游块大小相差两个数量级 —— Sonnet 类 1–3 字/块、
+ * Gemini 类 28–35 字/块 —— 固定 64 字窗口对前者意味着首块前后约 2 s 静默。
+ */
+export const STREAM_HOLDBACK_MIN_CHARS = 16;
+
+/**
+ * Plan 275（R-273-1）：窗口随上游块大小自适应 —— 装得下两倍当前块即可，
+ * clamp 到 [min(下限, 调用方窗口), 调用方窗口]。块细则收窄（少静默），
+ * 块粗则撑到调用方给的上限（不回归 Plan 273 的粗粒度行为）。
+ */
+export function holdbackWindowForChunk(chunkChars: number, configuredChars: number): number {
+  const ceiling = Math.max(1, configuredChars);
+  const floor = Math.min(STREAM_HOLDBACK_MIN_CHARS, ceiling);
+  return Math.max(floor, Math.min(ceiling, chunkChars * 2));
+}
 
 export interface HoldbackSink {
   push(token: string): void;
@@ -883,19 +899,23 @@ export interface HoldbackSink {
  * Plan 273：strict 守门下的 holdback 透传。生成期间只回发除末尾
  * holdbackChars 之外的内容，过门后再 flush 尾部；被判定不合格时 discard 尾部即可，
  * 客户端最多已经看到「尾部窗口之外」的内容（由调用方的 reset 兜住）。
+ * Plan 275（R-273-1）：窗口不再是固定值，而是按上游块大小在 [下限, holdbackChars] 间自适应。
  */
 export function createHoldbackSink(
   onToken: (token: string) => void,
   holdbackChars: number
 ): HoldbackSink {
   let pending = '';
+  let window = Math.max(1, holdbackChars);
   return {
     push(token: string): void {
       if (!token) return;
       pending += token;
-      if (pending.length <= holdbackChars) return;
-      const flushable = pending.slice(0, pending.length - holdbackChars);
-      pending = pending.slice(pending.length - holdbackChars);
+      // Plan 275（R-273-1）：窗口按上游块大小自适应，只回发超出窗口的部分。
+      window = holdbackWindowForChunk(token.length, holdbackChars);
+      if (pending.length <= window) return;
+      const flushable = pending.slice(0, pending.length - window);
+      pending = pending.slice(pending.length - window);
       onToken(flushable);
     },
     flush(): void {

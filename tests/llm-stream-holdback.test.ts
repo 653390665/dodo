@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import {
   createHoldbackSink,
   generateText,
+  holdbackWindowForChunk,
   STREAM_HOLDBACK_CHARS,
   STREAM_HOLDBACK_MAX_CHARS,
+  STREAM_HOLDBACK_MIN_CHARS,
 } from '../server/lib/server-llm.js';
 import type { AppConfig } from '../server/lib/config';
 
@@ -161,4 +163,27 @@ test('without a holdback window the draft is emitted once, after the gate', asyn
 
   assert.equal(result, CLEAN_TEXT);
   assert.deepEqual(emitted, [CLEAN_TEXT]);
+});
+
+test('holdback window tracks the upstream chunk size inside the configured clamp', () => {
+  // Plan 275（R-273-1）：窗口 = 2×块长，clamp 到 [min(下限, 配置窗口), 配置窗口]。
+  assert.equal(holdbackWindowForChunk(2, STREAM_HOLDBACK_CHARS), STREAM_HOLDBACK_MIN_CHARS);
+  assert.equal(holdbackWindowForChunk(8, STREAM_HOLDBACK_CHARS), STREAM_HOLDBACK_MIN_CHARS);
+  assert.equal(holdbackWindowForChunk(35, STREAM_HOLDBACK_CHARS), STREAM_HOLDBACK_CHARS);
+  assert.equal(holdbackWindowForChunk(1_000, STREAM_HOLDBACK_CHARS), STREAM_HOLDBACK_CHARS);
+  // 调用方给出的窗口小于下限时不得越界（既有用例用窗口 4 / 8）。
+  assert.equal(holdbackWindowForChunk(1, 4), 4);
+  assert.equal(holdbackWindowForChunk(9, 8), 8);
+});
+
+test('narrows the window for fine-grained upstreams so the first batch lands sooner', () => {
+  const emitted: string[] = [];
+  const sink = createHoldbackSink((token) => emitted.push(token), STREAM_HOLDBACK_CHARS);
+
+  // Sonnet 类上游 2 字/块：固定 64 字窗口要等 32 块才回发，自适应窗口是 16 字。
+  for (let i = 0; i < 9; i += 1) sink.push('ab');
+  assert.deepEqual(emitted, ['ab']);
+
+  sink.flush();
+  assert.equal(emitted.join(''), 'ab'.repeat(9));
 });
