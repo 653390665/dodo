@@ -2,6 +2,7 @@ import type { ChapterProductionRun } from '../../shared/types';
 import type { PromptSurface } from '../../shared/lib/prompt-stage-routing';
 import { readSseEvents, SseParseError } from './sse-client';
 import type { WritingStyleResolution, WritingStyleCandidate } from './writing-style-client';
+import { ensureWritingStyleConfirmed, StyleConfirmationRequiredError } from './writing-style-client';
 
 export class ProductionStyleConfirmationRequiredError extends Error {
   readonly code = 'STYLE_CONFIRMATION_REQUIRED';
@@ -43,18 +44,41 @@ function requireProductionContext(payload: ScopedProductionPayload): void {
   }
 }
 
+/**
+ * Plan 271 W3 · 写法确认默认化：缺指纹时先用推荐写法自动确认，再带着指纹发起生成。
+ * 不同意确认在此转成调用方熟悉的 ProductionStyleConfirmationRequiredError（面板逻辑不变）；
+ * 其余失败不阻断，退回无指纹路径（服务端 409 → 写法确认面板）。
+ */
+async function ensureStyleFingerprint(payload: ScopedProductionPayload): Promise<string | undefined> {
+  try {
+    const ensured = await ensureWritingStyleConfirmed(payload.novelId, {
+      chapterId: payload.chapterId,
+      databaseGeneration: payload.databaseGeneration,
+      ...(payload.continuationPackId ? { continuationPackId: payload.continuationPackId } : {}),
+      ...(payload.sessionCardIds?.length ? { sessionCardIds: payload.sessionCardIds } : {}),
+    });
+    return ensured.fingerprint;
+  } catch (error) {
+    if (error instanceof StyleConfirmationRequiredError) {
+      throw new ProductionStyleConfirmationRequiredError(error.resolution, error.candidates);
+    }
+    return undefined;
+  }
+}
+
 export async function startChapterProductionRun(
   payload: ScopedProductionPayload,
   signal?: AbortSignal
 ): Promise<ChapterProductionRun> {
   requireProductionContext(payload);
   const { writingStyleFingerprint, ...requestPayload } = payload;
+  const styleFingerprint = writingStyleFingerprint ?? (await ensureStyleFingerprint(payload));
   const res = await fetch('/api/chapter-production-runs/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...requestPayload,
-      styleConfirmationFingerprint: writingStyleFingerprint,
+      styleConfirmationFingerprint: styleFingerprint,
     }),
     signal,
   });
@@ -165,12 +189,13 @@ export async function startChapterProductionRunStream(
 ): Promise<void> {
   requireProductionContext(payload);
   const { writingStyleFingerprint, ...requestPayload } = payload;
+  const styleFingerprint = writingStyleFingerprint ?? (await ensureStyleFingerprint(payload));
   const res = await fetch('/api/chapter-production-runs/start-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...requestPayload,
-      styleConfirmationFingerprint: writingStyleFingerprint,
+      styleConfirmationFingerprint: styleFingerprint,
     }),
     signal,
   });

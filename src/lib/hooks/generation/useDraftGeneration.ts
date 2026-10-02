@@ -12,6 +12,7 @@ import { updateChapter } from '../../chapter-client';
 import { readDraftStream } from '../../draft-stream';
 import { SseError } from '../../sse-client';
 import { recordProductEvent } from '../../product-events-client';
+import { ensureWritingStyleConfirmed } from '../../writing-style-client';
 import {
   getDatabaseGenerationSnapshot,
   requireResponseDatabaseGeneration,
@@ -283,6 +284,22 @@ export function useDraftGeneration({
       const baseContent = latestContent ? `${latestContent}\n\n` : '';
       const contextStr = buildContextPrompt(buildAgentContext());
       setGenerationStatus('Writer Agent 正在生成 4000 字以上正文…');
+      // Plan 271 W3 · 写法确认默认化：没有指纹时先用推荐写法自动确认，拆掉「写法确认墙」。
+      let ensuredStyleFingerprint: string | undefined;
+      if (!fingerprintOverride && !writingStyleFingerprint) {
+        try {
+          const ensured = await ensureWritingStyleConfirmed(novel.id, {
+            chapterId: currentChapter.id,
+            databaseGeneration: requestDatabaseGeneration,
+            continuationPackId: selectedContinuationPackId || undefined,
+            sessionCardIds: sessionCardIds?.length ? sessionCardIds : undefined,
+          });
+          ensuredStyleFingerprint = ensured.fingerprint;
+        } catch {
+          // 自动确认失败不阻断：退回旧路径（服务端 409 → 写法确认面板）。
+          ensuredStyleFingerprint = undefined;
+        }
+      }
       const response = await fetch('/api/orchestrate-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -296,7 +313,8 @@ export function useDraftGeneration({
           databaseGeneration: requestDatabaseGeneration,
           chapterOrder: currentChapter ? currentChapter.order : 1,
           continuationPackId: selectedContinuationPackId || undefined,
-          styleConfirmationFingerprint: fingerprintOverride || writingStyleFingerprint || undefined,
+          styleConfirmationFingerprint:
+            fingerprintOverride || writingStyleFingerprint || ensuredStyleFingerprint || undefined,
           sessionCardIds: sessionCardIds?.length ? sessionCardIds : undefined,
         }),
         signal: controller.signal,

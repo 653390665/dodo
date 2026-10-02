@@ -84,10 +84,24 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
   const doneRun = makeProductionRun('run-1', 'novel-1', 'review_required');
 
   globalThis.fetch = async (input, init) => {
+    const url = String(input);
     requests.push({
-      url: String(input),
+      url,
       body: typeof init?.body === 'string' ? init.body : null,
     });
+
+    // Plan 271 W3: a payload without a fingerprint is enriched by the style
+    // resolver before the run is created, so the resolve call is expected here.
+    if (url.includes('/writing-style/resolve')) {
+      return {
+        ok: true,
+        json: async () => ({
+          fingerprint: 'fp-auto',
+          resolution: { fingerprint: 'fp-auto', mode: 'default', summary: '默认写法', sources: [], allowedModes: [], warnings: [], confirmed: true },
+        }),
+      } as Response;
+    }
+
     const encoder = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -113,14 +127,17 @@ test('startChapterProductionRunStream parses streamed SSE events', async () => {
       (event) => events.push(event),
     );
 
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].url, '/api/chapter-production-runs/start-stream');
-    assert.deepEqual(JSON.parse(requests[0].body || '{}'), {
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].url, '/api/novels/novel-1/writing-style/resolve');
+    assert.equal(requests[1].url, '/api/chapter-production-runs/start-stream');
+    assert.equal(JSON.parse(requests[0].body || '{}').chapterId, 'novel-1-chapter');
+    assert.deepEqual(JSON.parse(requests[1].body || '{}'), {
       novelId: 'novel-1',
       chapterId: 'novel-1-chapter',
       databaseGeneration: 7,
       userIntent: '继续写下一章',
       continuationPackId: 'pack-9',
+      styleConfirmationFingerprint: 'fp-auto',
     });
     assert.equal(events.length, 2);
     assert.deepEqual(events[0], { type: 'status', message: '正在生成' });
