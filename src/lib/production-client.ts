@@ -101,6 +101,7 @@ export type ProductionRunSSEEvent =
   | { type: 'fallback_continuity'; report: ChapterProductionRun['continuityReport'] }
   | { type: 'model_beats'; content: string }
   | { type: 'model_draft_start' }
+  | { type: 'model_draft_reset' }
   | { type: 'model_draft_token'; content: string }
   | { type: 'model_draft_done' }
   | {
@@ -219,6 +220,7 @@ export async function startChapterProductionRunStream(
     'fallback_continuity',
     'model_beats',
     'model_draft_start',
+    'model_draft_reset',
     'model_draft_token',
     'model_draft_done',
     'model_audit',

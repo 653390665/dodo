@@ -153,7 +153,11 @@ export function buildCriticRetryFeedback(rawFeedback: string): string {
 
 export interface PipelineProgress {
   onPhase?: (phase: 'planner' | 'writer' | 'critic' | 'retry') => void;
+  /** Plan 272: beats are pushed as soon as the planner returns. */
+  onBeats?: (beats: string) => void;
   onWriterToken?: (chunk: string) => void;
+  /** Plan 272: the caller must drop the provisional streamed draft before a replay. */
+  onWriterReset?: () => void;
   onWriterDone?: () => void;
   onCriticDone?: (
     feedback: string,
@@ -752,6 +756,10 @@ export async function runProductionPipeline(params: {
     beatsSource = 'fallback';
   }
 
+  // Plan 272: push the beats as soon as the planner returns, instead of waiting
+  // for writer/critic to settle (old behaviour: ~49 s to first prose, ~55 s to beats).
+  progress.onBeats?.(sceneBeats);
+
   const beatCastFilter = extractBeatCast(sceneBeats);
   // Plan 261 Phase4：伏笔台账的关联角色并入图谱过滤面——让"应该回收的伏笔"牵出的角色
   // 即使没被本章分镜点名，也能带出关系边与实体上下文。只在本就有分镜点名实体时扩展，
@@ -821,6 +829,24 @@ export async function runProductionPipeline(params: {
     }) + worldviewHintsSuffix + foreshadowingSuffix + WRITER_OUTPUT_DISCIPLINE;
 
     draftSource = 'model';
+    // Plan 272: writer tokens are forwarded live; the final draft is only replayed
+    // when it differs from what was already streamed (gate replacement, deterministic
+    // fallback, minimum-length padding). Declared outside the try/catch so the
+    // fallback path inside catch can replay through the same helper.
+    let streamedWriterText = '';
+    let liveStreamed = false;
+    const compactForCompare = (value: string): string => String(value).replace(/\s+/g, '');
+    const emitFinalDraft = (finalText: string): void => {
+      if (liveStreamed && compactForCompare(finalText) === compactForCompare(streamedWriterText)) {
+        return;
+      }
+      progress.onWriterReset?.();
+      const chunks = finalText.match(/.{1,24}/gs) || [];
+      for (const chunk of chunks) {
+        throwIfAborted(progress.signal);
+        progress.onWriterToken?.(chunk);
+      }
+    };
     try {
       // 诊断工具（env 门控）：采集实际发出的 writer prompt 与每次调用的收发
       // 元数据（prompt 长度 / 响应长度 / 耗时），用于离线复现实验与容量取证。
@@ -833,7 +859,6 @@ export async function runProductionPipeline(params: {
         } catch { /* 诊断采集失败不影响主流程 */ }
       };
       debugLogWriter({ kind: 'whole-chapter-prompt', promptLen: writerPrompt.length, prompt: writerPrompt });
-      let streamedWriterText = '';
       const writerConfig = resolveWriterConfig(getConfig());
       const sceneSections = splitSceneBeats(sceneBeats);
 
@@ -887,6 +912,8 @@ export async function runProductionPipeline(params: {
                 signal: progress.signal,
                 onToken: (token) => {
                   streamedWriterText += token;
+                  liveStreamed = true;
+                  progress.onWriterToken?.(token);
                 },
                 onComplete: (info) => {
                   sceneTruncated = Boolean(info?.truncated);
@@ -920,6 +947,13 @@ export async function runProductionPipeline(params: {
                   maxTokens: Math.round(WRITER_SCENE_MAX_TOKENS * 0.5),
                   disableThinking: true,
                   signal: progress.signal,
+                  // Plan 272: stream the continuation too, so a token-capped scene
+                  // does not leave a hole in the provisional prose.
+                  onToken: (token) => {
+                    streamedWriterText += token;
+                    liveStreamed = true;
+                    progress.onWriterToken?.(token);
+                  },
                   contextEntityFilter,
                   novelId,
                 },
@@ -1001,6 +1035,8 @@ export async function runProductionPipeline(params: {
             signal: progress.signal,
             onToken: (token) => {
               streamedWriterText += token;
+              liveStreamed = true;
+              progress.onWriterToken?.(token);
             },
             contextEntityFilter,
             novelId,
@@ -1139,12 +1175,9 @@ export async function runProductionPipeline(params: {
           }
         }
         if (localRepairPassed) {
-          // Plan 269：定点修复过了门 → 与「一次过门」同一条收稿路径：回放修好的正文，不落保底稿。
-          const repairedChunks = currentDraft.match(/.{1,24}/gs) || [];
-          for (const chunk of repairedChunks) {
-            throwIfAborted(progress.signal);
-            progress.onWriterToken?.(chunk);
-          }
+          // Plan 269: local repair passed the gate -> same delivery path as a clean
+          // pass. Plan 272: the prose was replaced, so reset and replay the final draft.
+          emitFinalDraft(currentDraft);
         } else {
           // Plan 266 修复②：只由局部软命中引起的门失败，先带定向反馈重写整章；
           // 只有重试耗尽或结构/元数据/长度/机械分等硬缺陷才退回确定性保底稿。
@@ -1180,13 +1213,9 @@ export async function runProductionPipeline(params: {
           draftSource = 'fallback';
         }
       } else {
-        // Plan 269：定点修复成功后回放的是修好的正文，而不是模型原始流。
-        const chunkSource = localRepairPassed ? currentDraft : streamedWriterText || currentDraft;
-        const chunks = chunkSource.match(/.{1,24}/gs) || [];
-        for (const chunk of chunks) {
-          throwIfAborted(progress.signal);
-          progress.onWriterToken?.(chunk);
-        }
+        // Plan 272: clean pass - no duplicate replay when the delivered text equals
+        // the streamed text; padding/rewrites are handled by emitFinalDraft.
+        emitFinalDraft(currentDraft);
       }
     } catch (err) {
       throwIfAborted(progress.signal);
@@ -1223,12 +1252,8 @@ export async function runProductionPipeline(params: {
       }
       currentDraft = fallbackDraft;
       draftSource = 'fallback';
-      // Emit tokens for fallback draft
-      const chunks = currentDraft.match(/.{1,24}/gs) || [];
-      for (const chunk of chunks) {
-        throwIfAborted(progress.signal);
-        progress.onWriterToken?.(chunk);
-      }
+      // Plan 272: the fallback replaces the model prose -> reset then replay.
+      emitFinalDraft(currentDraft);
     }
 
     progress.onWriterDone?.();

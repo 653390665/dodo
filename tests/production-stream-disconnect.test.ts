@@ -445,7 +445,17 @@ test('start-stream pipeline settling after disconnect leaves the run without a t
       resolveDisconnectObserved = resolve;
     });
     __productionTestHooks.disconnectObservedHook = resolveDisconnectObserved;
-    __productionTestHooks.preModelWriteHook = () => modelWriteGate;
+    // Plan 272: model_beats is now pushed as soon as the planner returns, so it can
+    // no longer serve as the "pipeline settled, blocked in the model-write queue"
+    // synchronisation point; use the preModelWriteHook entry signal instead.
+    let markModelWriteReached!: () => void;
+    const modelWriteReached = new Promise<void>((resolve) => {
+      markModelWriteReached = resolve;
+    });
+    __productionTestHooks.preModelWriteHook = () => {
+      markModelWriteReached();
+      return modelWriteGate;
+    };
     const controller = new AbortController();
     const response = await httpFetch(`${baseUrl}/api/chapter-production-runs/start-stream`, {
       method: 'POST',
@@ -461,17 +471,19 @@ test('start-stream pipeline settling after disconnect leaves the run without a t
     });
     assert.equal(response.status, 200);
 
-    // 读到 model_beats 事件：证明 pipeline 已 resolve 并进入 model-write 排队阻塞。
+    // Plan 272: drain the SSE stream in the background while waiting for the
+    // pipeline to reach the (hook-blocked) model-write queue.
     const reader = response.body?.getReader();
     assert.ok(reader);
     const decoder = new TextDecoder();
-    let received = '';
-    while (!received.includes('"type":"model_beats"')) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      received += decoder.decode(chunk.value, { stream: true });
-    }
-    assert.ok(received.includes('"type":"model_beats"'), 'pipeline should settle before abort');
+    void (async () => {
+      for (;;) {
+        const chunk = await reader.read().catch(() => ({ done: true as const, value: undefined }));
+        if (chunk.done) break;
+        if (chunk.value) decoder.decode(chunk.value, { stream: true });
+      }
+    })();
+    await modelWriteReached;
 
     // pipeline 已 resolve、写入被 hook 阻塞：此刻断开客户端再放行写入。
     controller.abort();

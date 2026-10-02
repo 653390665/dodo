@@ -275,6 +275,14 @@ export function useChapterProductionFlow({
               );
               setProductionBeatsSource('model');
               break;
+            case 'model_draft_reset':
+              // Plan 272: the server is about to replace the prose (gate repair /
+              // fallback draft) - drop the provisional streamed text.
+              modelDraftRef.current = '';
+              setProductionDraftSource('model');
+              productionDraftSourceRef.current = 'model';
+              setActiveProductionRun((prev) => (prev ? { ...prev, draftContent: '' } : prev));
+              break;
             case 'model_draft_start':
               modelDraftRef.current = '';
               setProductionDraftSource('model');

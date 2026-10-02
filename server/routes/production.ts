@@ -1090,6 +1090,8 @@ export function registerProductionRoutes(app: Express) {
           },
         ]);
         const pipelineDatabaseGeneration = streamDatabaseGeneration;
+        // Plan 272: beats are pushed once; do not repeat them after settle.
+        let beatsSent = false;
 
         runProductionPipeline({
           novelId,
@@ -1107,6 +1109,14 @@ export function registerProductionRoutes(app: Express) {
                 if (phase === 'writer') sseWrite(res, { type: 'model_draft_start' });
                 sseWrite(res, { type: 'status', message: `AI ${phase} 进行中...` });
               }
+            },
+            onBeats: (beats) => {
+              if (beatsSent || !isResponseWritable(res)) return;
+              beatsSent = true;
+              sseWrite(res, { type: 'model_beats', content: beats });
+            },
+            onWriterReset: () => {
+              if (isResponseWritable(res)) sseWrite(res, { type: 'model_draft_reset' });
             },
             onWriterToken: (chunk) => {
               if (isResponseWritable(res))
@@ -1130,7 +1140,10 @@ export function registerProductionRoutes(app: Express) {
         })
           .then(async (result) => {
             if (clientAbortController.signal.aborted || !isResponseWritable(res)) return;
+            if (!beatsSent) {
+            beatsSent = true;
             sseWrite(res, { type: 'model_beats', content: result.sceneBeats });
+          }
             if (
               (result.auditStatus === 'pass' || result.auditStatus === 'fail') &&
               typeof result.score === 'number' &&
