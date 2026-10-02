@@ -67,8 +67,11 @@ type CompatibilityMode = OutputDiagnostic['compatibilityMode'];
 
 export interface GenerateTextOptions {
   prompt: string;
-  /** Selects the output contract. Structured audit responses bypass prose-only guards. */
-  outputMode?: 'prose' | 'audit-json';
+  /**
+   * Selects the output contract. Structured audit responses bypass prose-only guards.
+   * Plan 277：`patch` 用于定点修复的补丁回执（@@FIX n@@ 文本），同样绕过散文输出门。
+   */
+  outputMode?: 'prose' | 'audit-json' | 'patch';
   systemInstruction?: string;
   timeoutMs?: number;
   maxAttempts?: number;
@@ -942,6 +945,13 @@ export async function generateText(
       ...options,
       responseMimeType: options.responseMimeType || 'application/json',
     });
+  }
+  if (outputMode === 'patch') {
+    // Plan 277（R-276-1）真机取证：定点修复的回执是结构化补丁载荷（@@FIX n@@），不是正文。
+    // 修过的句子若仍带副词/套话，散文输出门会把整批判负并改写成一幕干净场景，@@FIX 标记随之
+    // 丢失（真机实测 2 处/批：filled 0/2，全部回落单句调用）。这里只保留传输层；
+    // 质量把关交给写回后的整章门：repairGateHitsLocally 会用同一套门复检，不过门即回落。
+    return generateTextRaw(config, options);
   }
   const guardLevel = config.promptGuardLevel || 'strict';
 

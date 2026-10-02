@@ -34,6 +34,7 @@ import {
 import { STREAM_HOLDBACK_CHARS, scaleTimeoutForReasoningEffort } from '../lib/server-llm';
 import {
   LOCAL_REPAIR_BATCH_MARKER,
+  MAX_LOCAL_REPAIR_BATCH_TARGETS,
   MAX_LOCAL_REPAIR_ROUNDS,
   applyLocalRepairs,
   parseLocalRepairBatchResponse,
@@ -174,6 +175,19 @@ export interface PipelineProgress {
     stage: 'start' | 'retry' | 'parsed' | 'unknown';
     reason?: string;
     score?: number;
+  }) => void;
+  /**
+   * Plan 277（R-276-3）：定点修复此前只写服务器日志——作者侧看不到「刚在补哪几句、
+   * 补完是过了门、还剩 P2 残留，还是彻底没修成」。每轮修完发一次。
+   */
+  onWriterRepair?: (update: {
+    round: number;
+    targets: number;
+    applied: number;
+    batchCalls: number;
+    singleCalls: number;
+    status: 'passed' | 'residual' | 'failed';
+    residualCodes?: string[];
   }) => void;
   onCriticDone?: (
     feedback: string,
@@ -516,6 +530,9 @@ export interface LocalRepairSummary {
   rounds?: number;
   /** Plan 276：修复通过门禁后仍留在稿里的 P2 软残留 code（P2 不阻断交付，但不再静默）。 */
   residualCodes?: string[];
+  /** Plan 277（R-276-1）：本轮实际发了几次批量调用与几次单句补齐调用（0 缺席 = 未走该路径）。 */
+  batchCalls?: number;
+  singleCalls?: number;
 }
 
 /** 只改被点名的一段：删套话与副词弱化，不新增信息、不扩写、篇幅相当。 */
@@ -527,6 +544,8 @@ const LOCAL_REPAIR_LLM_OPTIONS = {
   maxTokens: 2048,
   maxAttempts: 1,
   timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+  // Plan 277（R-276-1）：补丁回执不是正文，必须原样返回（见 server/lib/server-llm.ts 的 patch 分支）。
+  outputMode: 'patch' as const,
 } as const;
 
 /** Plan 276：批量调用要一次产出全部替换句，token 预算比单句路高。 */
@@ -591,37 +610,66 @@ function buildLocalRepairBatchPrompt(
   ].join('\n');
 }
 
+/** Plan 277（R-276-1）：批量修复的实测读数（发了几次、抢回几槽）。 */
+interface BatchRepairStats {
+  calls: number;
+  filled: number;
+}
+
 /**
- * 批量定点修复：一次请求修好全部目标。调用失败或解析不到目标时返回空串数组，
- * 由调用方按索引对缺口单独补一次调用（保留 Plan 269 的单句路径作为退化）。
+ * 批量定点修复：按 MAX_LOCAL_REPAIR_BATCH_TARGETS 分块请求。调用失败或解析不到目标时
+ * 对应槽位留空串，由调用方按索引对缺口单独补一次调用（保留 Plan 269 的单句路径作为退化）。
+ *
+ * Plan 277（R-276-1）：真机实测「一次 3 处」时批量回执可用 0 槽——修过的句子仍带软命中，
+ * 整批被散文守卫判负（守卫容忍 violations ≤ 2）。切成每批 2 处让容错额度覆盖整批，
+ * 每块独立解析、独立降级，缺口交单句补齐。
  */
 async function requestBatchLocalRepairs(
   params: LocalRepairCallContext,
-  targets: readonly LocalRepairTarget[]
+  targets: readonly LocalRepairTarget[],
+  stats: BatchRepairStats
 ): Promise<string[]> {
   if (!targets.length) return [];
-  const prompt = buildLocalRepairBatchPrompt(targets, params.contextStr);
-  try {
-    const batched = await generateText(
-      params.writerConfig,
-      {
-        prompt,
-        ...LOCAL_REPAIR_BATCH_LLM_OPTIONS,
-        disableThinking: true,
-        signal: params.signal,
-      },
-      {
-        operation: 'production-pipeline-local-repair-batch',
-        novelId: params.novelId,
-        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-        signal: params.signal,
-      }
-    );
-    return parseLocalRepairBatchResponse(String(batched || ''), targets.length);
-  } catch (error) {
-    logger.warn('Local gate repair batch call failed; falling back to per-sentence calls', error);
-    return new Array<string>(targets.length).fill('');
+  const results = new Array<string>(targets.length).fill('');
+  for (let offset = 0; offset < targets.length; offset += MAX_LOCAL_REPAIR_BATCH_TARGETS) {
+    const chunk = targets.slice(offset, offset + MAX_LOCAL_REPAIR_BATCH_TARGETS);
+    let parsed: string[] = [];
+    try {
+      const prompt = buildLocalRepairBatchPrompt(chunk, params.contextStr);
+      stats.calls += 1;
+      const batched = await generateText(
+        params.writerConfig,
+        {
+          prompt,
+          ...LOCAL_REPAIR_BATCH_LLM_OPTIONS,
+          disableThinking: true,
+          signal: params.signal,
+        },
+        {
+          operation: 'production-pipeline-local-repair-batch',
+          novelId: params.novelId,
+          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+          signal: params.signal,
+        }
+      );
+      parsed = parseLocalRepairBatchResponse(String(batched || ''), chunk.length);
+    } catch (error) {
+      logger.warn('Local gate repair batch call failed; falling back to per-sentence calls', error);
+    }
+    const filled = parsed.filter(Boolean).length;
+    stats.filled += filled;
+    parsed.forEach((value, index) => {
+      results[offset + index] = value || '';
+    });
+    // Plan 277（R-276-3）：把每块的真实产出写进日志，真机上不再靠呼叫计数反推。
+    logger.info('[pipeline] local gate repair batch chunk', {
+      novelId: params.novelId,
+      offset,
+      size: chunk.length,
+      filled,
+    });
   }
+  return results;
 }
 
 /** 单句定点修复：批量的补齐路径，也是 Plan 269 的原路径。 */
@@ -709,13 +757,22 @@ async function repairGateHitsLocally(params: {
     contextStr: params.contextStr,
     signal: params.signal,
   };
-  const batchReplacements = await requestBatchLocalRepairs(callContext, selection.targets);
+  const batchStats: BatchRepairStats = { calls: 0, filled: 0 };
+  const batchReplacements = await requestBatchLocalRepairs(
+    callContext,
+    selection.targets,
+    batchStats
+  );
   const repairs: Array<{ start: number; end: number; text: string }> = [];
+  let singleCalls = 0;
   for (let index = 0; index < selection.targets.length; index += 1) {
     throwIfAborted(params.signal);
     const target = selection.targets[index];
-    const replacement =
-      batchReplacements[index] || (await requestSingleLocalRepair(callContext, target));
+    let replacement = batchReplacements[index];
+    if (!replacement) {
+      singleCalls += 1;
+      replacement = await requestSingleLocalRepair(callContext, target);
+    }
     if (replacement) {
       repairs.push({ start: target.start, end: target.end, text: replacement });
     }
@@ -731,6 +788,8 @@ async function repairGateHitsLocally(params: {
         skipped: selection.skipped,
         passed: false,
         reason: 'no-repair-returned',
+        batchCalls: batchStats.calls,
+        singleCalls,
       },
     };
   }
@@ -751,8 +810,29 @@ async function repairGateHitsLocally(params: {
       reason: report.ok
         ? undefined
         : `still-failing:${failedCodes.length ? failedCodes.join(',') : 'unknown'}`,
+      batchCalls: batchStats.calls,
+      singleCalls,
     },
   };
+}
+
+/**
+ * Plan 277（R-276-2）：过门之后还剩多少个「下一轮真能修」的软命中。
+ * 直接复用挑目标的同一套门槛（硬缺陷 / 未达篇幅 / 无可定位命中都不算残留），
+ * 避免用「原始命中数」误开一轮注定被拒的修复。
+ */
+function countLocalizableResidue(
+  text: string,
+  report: ReturnType<typeof validateCompleteChapterDraftQuality>,
+  minDraftChars?: number
+): number {
+  const selection = selectLocalRepairTargets({
+    text,
+    findings: report.findings || [],
+    hits: report.mechanicalReview?.hits || [],
+    minChars: minDraftChars,
+  });
+  return selection.repair ? selection.targets.length : 0;
 }
 
 /**
@@ -785,6 +865,12 @@ async function attemptLocalRepairs(params: {
   let attempted = false;
   let reason: string | undefined;
   let rounds = 0;
+  let batchCalls = 0;
+  let singleCalls = 0;
+  // Plan 277（R-276-2）：过门的那一轮留底——后续轮次若反而不过门，回收它交付。
+  let bestPassingText: string | null = null;
+  let bestPassingReport: ReturnType<typeof validateCompleteChapterDraftQuality> | null = null;
+  let bestResidualCodes: string[] | undefined;
   for (let round = 0; round < MAX_LOCAL_REPAIR_ROUNDS; round += 1) {
     const outcome = await repairGateHitsLocally({
       novelId: params.novelId,
@@ -802,18 +888,61 @@ async function attemptLocalRepairs(params: {
     skipped += outcome.summary.skipped;
     attempted = attempted || outcome.summary.attempted;
     if (outcome.summary.reason) reason = outcome.summary.reason;
+    batchCalls += outcome.summary.batchCalls ?? 0;
+    singleCalls += outcome.summary.singleCalls ?? 0;
     if (!outcome.text || !outcome.report) {
       // 这一轮没有可用的修复结果：没有新文本可供重新定位，不再挑下一轮。
+      // Plan 277（R-276-2）：若之前已有过门的正文，回收它——后续轮次失败不该丢已过门的稿。
+      if (bestPassingText && bestPassingReport) {
+        return {
+          text: bestPassingText,
+          report: bestPassingReport,
+          summary: {
+            attempted,
+            targets,
+            applied,
+            skipped,
+            passed: true,
+            rounds,
+            batchCalls,
+            singleCalls,
+            ...(bestResidualCodes ? { residualCodes: bestResidualCodes } : {}),
+          },
+        };
+      }
       return {
         text: lastText,
         report: lastReport,
-        summary: { attempted, targets, applied, skipped, passed: false, rounds, reason },
+        summary: {
+          attempted,
+          targets,
+          applied,
+          skipped,
+          passed: false,
+          rounds,
+          reason,
+          batchCalls,
+          singleCalls,
+        },
       };
     }
     lastText = outcome.text;
     lastReport = outcome.report;
     if (outcome.report.ok) {
       const residualCodes = residualP2Codes(outcome.report.findings);
+      // Plan 277（R-276-2）：过门 ≠ 没残留。复检里若还有下一轮真能修的软命中，
+      // 就再用一轮把它们清掉（P2 只是「不阻断交付」，不是「不该修」）；
+      // 第二轮若反而不过门，上面的兜底会把这一轮已过门的正文回收交付。
+      const residue = countLocalizableResidue(outcome.text, outcome.report, params.minDraftChars);
+      bestPassingText = outcome.text;
+      bestPassingReport = outcome.report;
+      bestResidualCodes = residualCodes.length ? residualCodes : undefined;
+      if (round + 1 < MAX_LOCAL_REPAIR_ROUNDS && residue > 0) {
+        text = outcome.text;
+        findings = outcome.report.findings || [];
+        hits = outcome.report.mechanicalReview?.hits || [];
+        continue;
+      }
       return {
         text: outcome.text,
         report: outcome.report,
@@ -824,6 +953,8 @@ async function attemptLocalRepairs(params: {
           skipped,
           passed: true,
           rounds,
+          batchCalls,
+          singleCalls,
           ...(residualCodes.length ? { residualCodes } : {}),
         },
       };
@@ -835,10 +966,38 @@ async function attemptLocalRepairs(params: {
     findings = outcome.report.findings || [];
     hits = outcome.report.mechanicalReview?.hits || [];
   }
+  // Plan 277（R-276-2）：轮次用完或后半程不过门时，有过门的正文就交付它（残留照实登记）。
+  if (bestPassingText && bestPassingReport) {
+    return {
+      text: bestPassingText,
+      report: bestPassingReport,
+      summary: {
+        attempted,
+        targets,
+        applied,
+        skipped,
+        passed: true,
+        rounds,
+        batchCalls,
+        singleCalls,
+        ...(bestResidualCodes ? { residualCodes: bestResidualCodes } : {}),
+      },
+    };
+  }
   return {
     text: lastText,
     report: lastReport,
-    summary: { attempted, targets, applied, skipped, passed: false, rounds, reason },
+    summary: {
+      attempted,
+      targets,
+      applied,
+      skipped,
+      passed: false,
+      rounds,
+      reason,
+      batchCalls,
+      singleCalls,
+    },
   };
 }
 
@@ -1399,6 +1558,22 @@ export async function runProductionPipeline(params: {
             signal: progress.signal,
           });
           localRepair = outcome.summary;
+          // Plan 277（R-276-3）：修复结果不再只写服务器日志——每轮修完向作者侧发一次进度。
+          progress.onWriterRepair?.({
+            round: outcome.summary.rounds ?? 0,
+            targets: outcome.summary.targets,
+            applied: outcome.summary.applied,
+            batchCalls: outcome.summary.batchCalls ?? 0,
+            singleCalls: outcome.summary.singleCalls ?? 0,
+            status: outcome.summary.passed
+              ? outcome.summary.residualCodes?.length
+                ? 'residual'
+                : 'passed'
+              : 'failed',
+            ...(outcome.summary.residualCodes?.length
+              ? { residualCodes: outcome.summary.residualCodes }
+              : {}),
+          });
           if (outcome.text && outcome.report) {
             if (outcome.report.ok) {
               currentDraft = outcome.text;
@@ -1410,6 +1585,8 @@ export async function runProductionPipeline(params: {
                 targets: outcome.summary.targets,
                 applied: outcome.summary.applied,
                 skipped: outcome.summary.skipped,
+                batchCalls: outcome.summary.batchCalls ?? 0,
+                singleCalls: outcome.summary.singleCalls ?? 0,
                 ...(outcome.summary.residualCodes?.length
                   ? { residualCodes: outcome.summary.residualCodes }
                   : {}),

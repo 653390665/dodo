@@ -38,6 +38,13 @@ export const MAX_LOCAL_REPAIR_SENTENCE_CHARS = 240;
  */
 export const MAX_LOCAL_REPAIR_ROUNDS = 2;
 
+/**
+ * Plan 277（R-276-1）：一次批量调用最多带几处目标。批量响应同样要过散文守卫，
+ * 目标越多越可能因为「修过的句子仍带软命中」整批被判负（violations > 2 即重写）；
+ * 2 处一组让守卫的容错额度覆盖整批，剩下的再按单句补齐。
+ */
+export const MAX_LOCAL_REPAIR_BATCH_TARGETS = 2;
+
 /** Plan 276：批量定点修复的响应标记；模型被要求每处输出一行 `@@FIX n@@` 再接那一处修好的整句。 */
 export const LOCAL_REPAIR_BATCH_MARKER = '@@FIX';
 
@@ -347,6 +354,46 @@ function stripReplacementDecorations(segment: string): string {
  * 解析批量定点修复的响应：按 `@@FIX n@@` 标记把第 n 处的替换文本取出来。
  * 返回长度恒为 count 的数组（缺失处为空串，由调用方决定补齐还是放弃）。
  */
+/** Plan 277（R-276-1）：模型不写 @@FIX 标记、改用【第 n 处】或编号列表时的退化解析。 */
+function parseLooseSlotResponse(text: string, total: number, results: string[]): boolean {
+  const headers: Array<{ slot: number; start: number; body: number }> = [];
+  const headerPattern = /【\s*第\s*(\d+)\s*处\s*】/g;
+  let header = headerPattern.exec(text);
+  while (header) {
+    const at = header.index || 0;
+    headers.push({ slot: Number(header[1]) - 1, start: at, body: at + header[0].length });
+    header = headerPattern.exec(text);
+  }
+  let filled = false;
+  if (headers.length) {
+    headers.forEach((entry, index) => {
+      const next = headers[index + 1];
+      const segment = text.slice(entry.body, next ? next.start : text.length);
+      if (entry.slot < 0 || entry.slot >= total || results[entry.slot]) return;
+      const value = stripReplacementDecorations(segment);
+      if (value) {
+        results[entry.slot] = value;
+        filled = true;
+      }
+    });
+    return filled;
+  }
+  const linePattern = /^[ \t]*(?:第\s*)?(\d+)\s*[.、）)]\s*(.+?)[ \t]*$/gm;
+  let line = linePattern.exec(text);
+  while (line) {
+    const slot = Number(line[1]) - 1;
+    if (slot >= 0 && slot < total && !results[slot]) {
+      const value = stripReplacementDecorations(line[2]);
+      if (value) {
+        results[slot] = value;
+        filled = true;
+      }
+    }
+    line = linePattern.exec(text);
+  }
+  return filled;
+}
+
 export function parseLocalRepairBatchResponse(raw: string, count: number): string[] {
   const total = Math.max(0, Math.floor(Number(count) || 0));
   const results = new Array<string>(total).fill('');
@@ -365,8 +412,9 @@ export function parseLocalRepairBatchResponse(raw: string, count: number): strin
     match = pattern.exec(text);
   }
   if (!matches.length) {
-    // 退化形态：只有一处时模型常直接给整句，不带标记。
-    if (total === 1) results[0] = stripReplacementDecorations(text);
+    // Plan 277（R-276-1）：先试【第 n 处】/编号列表，再回退「只有一处时给整句」的形态。
+    const loose = parseLooseSlotResponse(text, total, results);
+    if (!loose && total === 1) results[0] = stripReplacementDecorations(text);
     return results;
   }
   matches.forEach((entry, index) => {
