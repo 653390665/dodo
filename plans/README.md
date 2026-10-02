@@ -876,3 +876,16 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向后端 17/17 / 后端全量 1506（1504 pass / 0 fail / 2 cancelled，两配额文件独立重跑 19/19）；未触及前端。
 - 文档：`plans/276-local-repair-batch-and-rounds.md`。
 - 残余：R-276-1（弱模型批量 0 槽可用，批量不省调用）/ R-276-2（第二轮真机未观测）/ R-276-3（P2 残留只进日志）；沿用 R-269-3 / R-272-1 / R-273-3 / R-275-1..3。
+
+## Round 61（2026-10-02）：定点修复批量回执可用性 · patch 输出模式 · 修复进度可见（277）
+
+- 残余来源：R-276-1（弱模型批量 0 槽可用，批量不省调用）、R-276-2（残句驱动第二轮真机未观测）、R-276-3（P2 残留与修复过程对作者不可见）。
+- W1 批量可用：`shared/lib/local-repair.ts` 增 `MAX_LOCAL_REPAIR_BATCH_TARGETS = 2`（每块 2 处，回到散文守卫容忍带）与 `parseLooseSlotResponse`（容错 `【第 n 处】` 块与编号行）；`requestBatchLocalRepairs` 逐块调用 + `BatchRepairStats { calls, filled }` + 逐块日志 `[pipeline] local gate repair batch chunk { offset, size, filled }`。
+- **patch 输出模式**：`server/lib/server-llm.ts` 的 `outputMode` 扩为 `'prose' | 'audit-json' | 'patch'`（audit-json 分支后 `return generateTextRaw(config, options)`）→ 修复回执不再被散文输出门改写成干净场景（`@@FIX` 标记不再丢）；`LOCAL_REPAIR_LLM_OPTIONS` 增 `outputMode: 'patch' as const`。
+- W2 残句驱动第二轮：`countLocalizableResidue(text, report, minDraftChars)`（复用 `selectLocalRepairTargets` 门槛）——过门但仍有可定位残句时进第二轮；`attemptLocalRepairs` 留底 best-passing，第二轮变差不丢已过门正文；两轮计数 `batchCalls`/`singleCalls` 进 summary 与日志。
+- W3 进度可见：`PipelineProgress.onWriterRepair` → SSE `model_writer_repair` → `src/lib/production-repair-progress.ts` 文案（修复中 / 残留 code / 未通过）→ 状态条。
+- 关键洞察：模型本身能守 `@@FIX n@@` 格式（探针 `/tmp/p277-guard-probe.ts`：strict 4.9 s、disabled 3.4 s 均两槽正确）——0 槽的真因是回执被当成正文过了散文守卫 → `[SYSTEM CORRECTION GATE]` 整份改写。
+- 真机（隔离 3301，作品 d23eef68 / 章节 99b28a6e）：修复前 run `d106cbee`（flash-lite，151.1 s，4 目标，两块 `filled: 0`，4 次单句补齐，修复通过，`SCORE 80 pass`，`model_writer_repair` 帧可见）＝ R-276-3 关闭；修复后 12 跑未再遇到可定位软命中（`REPAIR_COUNT 0`；`aa7eae37` 是拒修帧 `targets 0`），阈值强制触发（临时 92 / 99）只得到拒修 → `filled > 0` 真机未复证（登记 R-277-1）。
+- 门禁：tsc 0 / eslint 0 / 定向 22/22（`/tmp/p277b-gates.log`）；前端定向 2 files / 8 tests（`/tmp/p277-fe.log`）；后端全量 1525/1525（修复前，`/tmp/p277-be.log`）→ **修复后复跑 1527/1527**（`/tmp/p277-be2.log`）；前端全量仅 `src/tests/continuation-import-view.test.tsx` 2 例超时（并发负载，单文件重跑 12/12 pass）。
+- 文档：`plans/277-local-repair-batch-yield-and-progress.md`。
+- 残余：R-277-1（真机 `filled > 0` 与残句第二轮未复证）/ R-277-2（拒修时 SSE 仍报 failed、文案口径不准）；沿用 R-269-3 / R-272-1 / R-273-3 / R-275-1..3。
