@@ -388,6 +388,7 @@ export function useEditorGenerationFlow({
         novelId: novel.id,
         chapterId: chapter.id,
         action: candidate.operation,
+        durationMs: Math.max(0, Date.now() - candidate.createdAt),
       });
       if (!candidate.baselineContent.trim()) {
         void recordProductEvent({
@@ -579,7 +580,22 @@ export function useEditorGenerationFlow({
     aiContentCandidate,
     isAcceptingAiCandidate,
     acceptAiContentCandidate,
-    discardAiContentCandidate: () => setAiContentCandidate(null),
+    discardAiContentCandidate: () => {
+      const discarded = aiContentCandidateRef.current;
+      if (discarded) {
+        void recordProductEvent({
+          eventName: 'draft_reject',
+          stage: 'drafting',
+          result: 'success',
+          novelId: discarded.novelId,
+          chapterId: discarded.chapterId,
+          objectId: discarded.id,
+          action: 'discard',
+          durationMs: Math.max(0, Date.now() - discarded.createdAt),
+        }).catch(() => undefined);
+      }
+      setAiContentCandidate(null);
+    },
     retryLastAiAction,
     handleRunAudit,
     handleGenerateBeats,

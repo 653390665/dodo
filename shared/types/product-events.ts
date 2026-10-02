@@ -7,6 +7,8 @@ export const PRODUCT_EVENT_NAMES = [
   'draft_preview',
   'critic_review',
   'draft_accept',
+  'draft_reject',
+  'draft_abandon',
   'audit',
   'polish',
   'next_chapter',
@@ -27,6 +29,7 @@ export const PRODUCT_EVENT_NAMES = [
   'writing_style_required',
   'writing_style_confirmed',
   'writing_style_stale',
+  'writing_style_defaulted',
   'writing_style_panel_opened',
   'writing_style_panel_recovered',
   'writing_style_panel_error',
@@ -124,6 +127,7 @@ export interface ProductEventMetrics {
   }>;
   assistant: AssistantMetrics;
   writingActivation: WritingActivationMetrics;
+  decisions: DecisionMetrics;
   writingStyle: WritingStyleMetrics;
   capabilities: CapabilityLifecycleMetrics;
 }
@@ -153,6 +157,24 @@ export interface WritingActivationMetrics {
   skipToFirstInput: RateMetric;
   firstAiAssistCompletion: RateMetric;
 }
+export interface DecisionMetrics {
+  /** 预览过的候选对象数（分母）。 */
+  previews: number;
+  /** 接受新草稿的对象数。 */
+  accepts: number;
+  /** 接受改写/润色候选的对象数。 */
+  reviseAccepts: number;
+  rejects: number;
+  abandonments: number;
+  /** 至少有一次裁决事件的对象数。 */
+  decided: number;
+  acceptanceRate: RateMetric;
+  rejectionRate: RateMetric;
+  abandonmentRate: RateMetric;
+  /** 候选创建→裁决的耗时（p50/p95，毫秒）。 */
+  decisionLatencyMs: { p50: number | null; p95: number | null };
+}
+
 export interface AssistantMetrics {
   requests: number;
   successes: number;

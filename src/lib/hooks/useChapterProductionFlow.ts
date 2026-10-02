@@ -126,12 +126,23 @@ export function useChapterProductionFlow({
     setIsProductionRunning(false);
     setProductionStatusMessage(null);
     setProductionError(message);
-    setActiveProductionRun((current) =>
-      current?.status === 'running'
-        ? { ...current, status: 'failed', errorMessage: message }
-        : current
-    );
+    setActiveProductionRun((current) => {
+      if (current?.status === 'running') {
+        void recordProductEvent({
+          eventName: 'draft_abandon',
+          stage: 'drafting',
+          result: 'success',
+          novelId,
+          objectId: current.id,
+          action: 'stop-run',
+          ...(current.targetChapterId ? { chapterId: current.targetChapterId } : {}),
+        }).catch(() => undefined);
+        return { ...current, status: 'failed', errorMessage: message };
+      }
+      return current;
+    });
   }, [
+    novelId,
     setActiveProductionRun,
     setIsProductionRunning,
     setProductionError,

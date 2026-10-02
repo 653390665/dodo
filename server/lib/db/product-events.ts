@@ -606,9 +606,72 @@ export function buildProductEventMetrics(
     oneShotPreviewApplication,
     diagnosticPreviewApplication: oneShotPreviewApplication,
   };
+  // Plan 271 W1：裁决口径（预览→接受/改后接受/拒绝/放弃 + 裁决耗时）。
+  const decisionEvents = events.filter((event) => event.objectId);
+  const decisionObjectIds = (name: ProductEventName) =>
+    new Set(
+      decisionEvents
+        .filter((event) => event.eventName === name && event.result === 'success')
+        .map((event) => event.objectId as string)
+    );
+  const acceptEvents = decisionEvents.filter(
+    (event) => event.eventName === 'draft_accept' && event.result === 'success'
+  );
+  // 只统计「先预览过」的对象，与 rates.previewAcceptance 口径一致。
+  const scoped = (ids: Set<string>) => new Set([...ids].filter((id) => previewIds.has(id)));
+  const plainAcceptIds = scoped(
+    new Set(
+      acceptEvents
+        .filter((event) => event.action !== 'polish' && event.action !== 'rewrite')
+        .map((event) => event.objectId as string)
+    )
+  );
+  const reviseAcceptIds = scoped(
+    new Set(
+      acceptEvents
+        .filter((event) => event.action === 'polish' || event.action === 'rewrite')
+        .map((event) => event.objectId as string)
+    )
+  );
+  const rejectIds = scoped(decisionObjectIds('draft_reject'));
+  const abandonIds = scoped(decisionObjectIds('draft_abandon'));
+  const decisionLatency = decisionEvents
+    .filter(
+      (event) =>
+        event.result === 'success' &&
+        typeof event.objectId === 'string' &&
+        previewIds.has(event.objectId) &&
+        (event.eventName === 'draft_accept' ||
+          event.eventName === 'draft_reject' ||
+          event.eventName === 'draft_abandon') &&
+        typeof event.durationMs === 'number'
+    )
+    .map((event) => event.durationMs as number);
+  const decidedIds = new Set([
+    ...plainAcceptIds,
+    ...reviseAcceptIds,
+    ...rejectIds,
+    ...abandonIds,
+  ]);
+  const decisions = {
+    previews: previewIds.size,
+    accepts: plainAcceptIds.size,
+    reviseAccepts: reviseAcceptIds.size,
+    rejects: rejectIds.size,
+    abandonments: abandonIds.size,
+    decided: decidedIds.size,
+    acceptanceRate: metric(plainAcceptIds.size + reviseAcceptIds.size, previewIds.size),
+    rejectionRate: metric(rejectIds.size, previewIds.size),
+    abandonmentRate: metric(abandonIds.size, previewIds.size),
+    decisionLatencyMs: {
+      p50: percentile(decisionLatency, 0.5),
+      p95: percentile(decisionLatency, 0.95),
+    },
+  };
   return {
     rangeDays,
     distinctObjectIds,
+    decisions,
     northStar: { acceptedChapters: chapterIds.size, activeNovels: activeNovels.size },
     rates: {
       previewAcceptance: metric(accepted, preview),
