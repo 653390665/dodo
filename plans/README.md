@@ -844,3 +844,13 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向 7 文件 72/72（新增 `tests/llm-stream-holdback.test.ts`）。
 - 文档：`plans/273-incremental-draft-streaming.md`。
 - 残余：R-273-1（窗口固定 64 字）/ R-273-2（critic 无实时反馈，沿用 R-272-2）/ R-273-3（reset 仅在非前缀差异时触发）。
+
+## Round 58（2026-10-01）：待决项收口 —— Node / Scene / proxy / memory（274）
+
+- 拍板（用户原话 m22340）：「仓库 http.proxy不入库，本机 Node 升 22.22.3、memory/ 入库 A/B、Scene 死模型删。」
+- **D1 仓库 `http.proxy` 不入库**：不写任何 git 配置；推送继续用一次性 `git -c http.proxy=http://127.0.0.1:7897 push`（Plan 269 实测：直连 `curl: (28) Operation timed out`、经本机代理 200 且推送成功）。
+- **D2 本机 Node 升 22.22.3 ✅**：宿主侧 `fnm install 22.22.3 && fnm default 22.22.3`（默认目录 `~/.local/share/fnm`）→ `fnm list` = `* v22.22.3 default`、`fnm exec --using=default node -v` = v22.22.3、`npm -v` = 10.9.8、`aliases/default` 已建立。本机默认 node 首次满足自声明（`.nvmrc`/`.node-version` = `22.22.3`、`engines` = `>=22.22.3 <23`），npm 版本告警消失。Plan 263 D2 / Plan 264 P6 记的「写 `~/.local/share/fnm` 被 EPERM」只在沙箱会话成立，宿主侧不存在；`FNM_DIR=$HOME/.inkflow/fnm` 旁路保留但不再必需。
+- **D3 `Scene` 死模型删 ✅**：`shared/types/novel.ts` 的 `Scene` 接口 + 「未接线声明」JSDoc（原 :309-326）一并移除；删除后全仓 word-boundary 正则只剩 7 处文案（`server/lib/config.ts:140`、`server/helpers/prompt-guard.ts:39`、`shared/config/souls.ts:13`、`src/lib/agents.ts:205`、`tests/user-flows-integration.test.ts:191`、`tests/orchestrate-writer-contract.test.ts:21,74`）。账本同步：`docs/architecture/remediation-plan.md`（F7 行 → 已删除）、`architecture-review.md`（F7 行 + 九项账：F6 / F9 仍开放）、`inkflow.evidence.md`（F7 行）、`plans/263-closeout-and-truth-up.md:118`（D7：原「已拍板（留）」→「已拍板（删）」）、`plans/270-link-config-model-tuning.md`（已知缺口去掉该条）。
+- **D4 `memory/` 入库 A 已生效**（复核，无仓内改动）：`plans/README.md:670` D3-A 行已记「拍板 A，`ea50b45`」；`MEMORY.md:20-22` 记 A（承认入库 + 改正声明）+ B 被否（blob 已在历史，彻底移除需重写 156 个提交哈希）。
+- 门禁读数：tsc 0（`TSC_EXIT=0`）/ eslint 0（`LINT_EXIT=0`）/ 定向 3 文件 **48 tests / 48 pass / 0 fail**（`TEST_EXIT=0`，1177 ms）——`tests/node-version-declaration.test.ts` + `tests/llm-stream-holdback.test.ts` + `tests/draft-quality.test.ts`（含 Plan 266 fix 3 回归与 Plan 273 holdback 5 例）
+- 计划书：`plans/274-pending-decisions-closeout.md`；脚本 `/tmp/p274-node-upgrade.py`、`/tmp/p274-patch1.py`、`/tmp/p274-patch2.py`、`/tmp/p274-patch3.py`，门禁 `/tmp/p274-gates.sh`。

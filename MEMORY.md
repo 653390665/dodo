@@ -11,9 +11,9 @@ InkFlow(dodo-inkflow)项目记忆。**执行状态与账目的唯一权威在根
 
 ## 环境事实
 
-- 2026-09-20 / **2026-09-28 销账**：npm 已恢复可用（v12.0.2，对 Node 22.22.0 有版本支持告警，功能正常）；**「vitest 链 3 条 moderate dev 漏洞待 --force 升级」已不存在** —— 2026-09-28 实测 `npm audit --json` = **0 漏洞**（info/low/moderate/high/critical 全 0；964 依赖：prod 366 / dev 463 / optional 166 / peer 23 / peerOptional 0），`AUDIT_EXIT=0`（日志 `/tmp/audit-full.json`、`/tmp/audit-exit.txt`）。CI 的 audit 门（`.github/workflows/build.yml:25-60`，只审 `npm audit --omit=dev --json`，exemptions 为空）不阻断。→ 本项无待办残留。
+- 2026-09-20 / **2026-09-28 销账**：npm 已恢复可用（v12.0.2，原对 Node ≤22.22.1 有版本支持告警；2026-10-01 本机升 22.22.3 后消失，功能正常）；**「vitest 链 3 条 moderate dev 漏洞待 --force 升级」已不存在** —— 2026-09-28 实测 `npm audit --json` = **0 漏洞**（info/low/moderate/high/critical 全 0；964 依赖：prod 366 / dev 463 / optional 166 / peer 23 / peerOptional 0），`AUDIT_EXIT=0`（日志 `/tmp/audit-full.json`、`/tmp/audit-exit.txt`）。CI 的 audit 门（`.github/workflows/build.yml:25-60`，只审 `npm audit --omit=dev --json`，exemptions 为空）不阻断。→ 本项无待办残留。
 - 2026-09-08:验证门复跑(无源码改动,node 直调):`tsc --noEmit` 0 错误;vitest frontend 841/841 全绿(121 文件,约 618s),与 010 口径一致。
-- 2026-09-28 环境变更：**仓库路径 = `/Users/Zhuanz/workspace/dodo-inkflow`**（旧 `~/Documents-local/dodo-inkflow` 因 macOS TCC 无法读，已迁走；旧路径留 `REPO_MOVED_README.md` 路牌，冷存档勿动）；**本机 Node**：默认 fnm 目录写不进去，改 `FNM_DIR=$HOME/.inkflow/fnm` 后 `fnm install 22.22.3` 成功（`fnm exec --using=22.22.3 -- node -v` = v22.22.3）；**gh 凭据**：Desktop 宿主读不到登录钥匙串 → `gh auth status` 报 invalid，但 `git ls-remote` 可用；如需宿主侧 push，用 `gh auth login --insecure-storage -h github.com`。
+- 2026-09-28 环境变更：**仓库路径 = `/Users/Zhuanz/workspace/dodo-inkflow`**（旧 `~/Documents-local/dodo-inkflow` 因 macOS TCC 无法读，已迁走；旧路径留 `REPO_MOVED_README.md` 路牌，冷存档勿动）；**本机 Node**：2026-09-28 沙箱内默认 fnm 目录 EPERM，改 `FNM_DIR=$HOME/.inkflow/fnm` 装成 22.22.3；**2026-10-01 收口（Plan 274）**：宿主侧 `fnm install 22.22.3 && fnm default 22.22.3`（默认目录 `~/.local/share/fnm`）成功，`fnm list` 显示 `v22.22.3 default`、`fnm exec --using=default node -v` = v22.22.3、`fnm exec --using=default npm -v` = 10.9.8；**gh 凭据**：Desktop 宿主读不到登录钥匙串 → `gh auth status` 报 invalid，但 `git ls-remote` 可用；如需宿主侧 push，用 `gh auth login --insecure-storage -h github.com`。
 
 ## 待决
 

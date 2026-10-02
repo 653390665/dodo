@@ -69,7 +69,7 @@
 | 护栏档位 | `promptGuardLevel=strict` | 完整 | — |
 | 配额/商业化 | 默认关闭，门禁放行 | 完整 | — |
 
-登记在册、不阻塞本链路的已知缺口：hook-card 只映射 planner（`CARD_STAGE_MAP`）、6 卡总闸语义、适合度「使用反馈」消费侧未接线（Plan 237）、`Scene` 死模型。
+登记在册、不阻塞本链路的已知缺口：hook-card 只映射 planner（`CARD_STAGE_MAP`）、6 卡总闸语义、适合度「使用反馈」消费侧未接线（Plan 237）。
 
 ### ③ 模型最优配置（矩阵 n=3/格）
 

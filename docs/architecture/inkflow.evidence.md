@@ -240,7 +240,7 @@
 | F4 | `/api/audit`·world 作业存进程内 `Map`，重启即失 | 与 continuation 作业 durability 不一致，可能是长任务丢进度源 | 确认是否有意；否则迁表或加恢复路径 |
 | F5 | `legacy-artifact-structuring/confirm`、`capability-migration/apply\|confirm` 是否构成第五/六类裁决门 | 影响「候选→确认」路径清单的完备性 | 读三个 handler，判定其是否写权威存储 |
 | F6 | `/api/db` 的 get/list 是否对克隆行返回未消毒 `style` | 白标泄露的残留面 | 定向追一次 `listSkills` 的消毒覆盖 |
-| F7 | `Scene` 类型无表无 CRUD | 判断是否为可清理的死模型 | 全仓引用检索后定性 |
+| F7 | `Scene` 类型无表无 CRUD | **已删除**（2026-10-01，Plan 274）：全仓零引用，操作者拍板删除 | 声明与 JSDoc 已移除 |
 | F8 | `chapter_production_runs` 的 `'rejected'` 死字面量；`'converted'`/`'confirmed'` 无写入方 | 读代码者易把它们当既有业务环节 | 要么接线，要么删除并在类型注释说明 |
 | F9 | `vector_chunks` 无 FK、按 novel 全表线性扫描 | 章节规模增长后的检索延迟天花板 | 已有 ≥1000 块日志埋点（`vector-store.ts:116`），取真实分布再决策 |
 

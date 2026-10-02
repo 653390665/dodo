@@ -210,8 +210,8 @@ package.json         无 engines 字段
 仓库根               无 .nvmrc
 .github/workflows/build.yml:18,136,180,273   node-version: 22（4 个 job 一致）
 scripts/build-server.mjs:21                  target: 'node20'
-本机实际             node v22.22.0（fnm 管理），npm 12.0.2
-npm 自己报           "npm v12.0.2 does not support Node.js v22.22.0"（每条命令第一行）
+本机实际             node v22.22.3（fnm default，2026-10-01 由 v22.22.0 升级）
+npm 自己报           原告警「npm v12.0.2 does not support Node.js v22.22.0」已随升级消失
 本会话工具环境       Node v24.18.0
 ```
 
@@ -274,11 +274,11 @@ npm run typecheck  × 3   父进程分别来自
 | F4 | audit·world 作业进程内 Map | **成立并细化**：audit + continuation-parse 两处 Map，均有 prune（无泄漏）；不一致发生在同文件内。归入 R7 |
 | F5 | 是否还有第五、六类裁决门 | **半销**：三个端点**确认存在**（`server/routes/index.ts:19,23` 注册 `capability-migration` / `legacy-artifact-structuring`；`server/routes/production.ts:1357` `POST /api/chapter-production-runs/:runId/fact-candidate/apply`），因此 `candidate-store-model.dot` 的 `gap2`「路由存在、语义未读」为真，无需改图。**是否写权威存储仍未判定**，语义未读 |
 | F6 | get/list 是否返回未消毒 `style` | 本轮未判定，仍为未知 |
-| F7 | `Scene` 无表无 CRUD | 本轮未判定，仍为未知 |
+| F7 | `Scene` 无表无 CRUD | **已删除**（2026-10-01，Plan 274）：与「未接线声明」JSDoc 一并移除 | 操作者拍板 |
 | F8 | `'rejected'` 死字面量 | **成立**，并界定作用域。归入 R11 |
 | F9 | `vector_chunks` 线性扫描 | 本轮未测性能（机器被并发占满，测了也不可信），仍为未知 |
 
-九项账：F1 **推翻**、F2/F3/F4 **定性并调整严重度**、F5 **半销（存在性确认，语义未读）**、F8 **成立**；F6 / F7 / F9 **仍开放**。
+九项账：F1 **推翻**、F2/F3/F4 **定性并调整严重度**、F5 **半销（存在性确认，语义未读）**、F8 **成立**；F6 / F9 **仍开放**（F7 `Scene` 已于 2026-10-01 随拍板删除，见 Plan 274）。
 **上一轮 ⌁ 级证据的错误率不低**——F1 完全错、F2 机制错、F3 夸大。这三条都是子代理上报、未经主控读源的方向。取证方法一节（§四b）已把这段过程记进台账，作为「⌁ 不可直接采信」的实例。
 
 ---
