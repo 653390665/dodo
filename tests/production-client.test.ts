@@ -391,3 +391,67 @@ test('startChapterProductionRunStream surfaces server error payload', async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test('startChapterProductionRunStream accepts model_critic_progress frames', async () => {
+  const originalFetch = globalThis.fetch;
+  const events: Array<{ type: string; [key: string]: unknown }> = [];
+  const doneRun = makeProductionRun('run-critic-progress', 'novel-1', 'review_required');
+
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    // Plan 271 W3: the style resolver runs before the run is created.
+    if (url.includes('/writing-style/resolve')) {
+      return {
+        ok: true,
+        json: async () => ({
+          fingerprint: 'fp-auto',
+          resolution: {
+            fingerprint: 'fp-auto',
+            mode: 'default',
+            summary: '默认写法',
+            sources: [],
+            allowedModes: [],
+            warnings: [],
+            confirmed: true,
+          },
+        }),
+      } as Response;
+    }
+
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: 'model_critic_progress',
+              attempt: 2,
+              stage: 'retry',
+              reason: '证据四类不全',
+            })}\n\n`
+          )
+        );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', run: doneRun })}\n\n`));
+        controller.close();
+      },
+    });
+    return { ok: true, body } as Response;
+  };
+
+  try {
+    await startChapterProductionRunStream(
+      scopedPayload({ novelId: 'novel-1', userIntent: '继续写下一章' }),
+      (event) => events.push(event)
+    );
+
+    assert.deepEqual(events[0], {
+      type: 'model_critic_progress',
+      attempt: 2,
+      stage: 'retry',
+      reason: '证据四类不全',
+    });
+    assert.equal(events[1].type, 'done');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

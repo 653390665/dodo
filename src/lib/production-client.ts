@@ -105,6 +105,13 @@ export type ProductionRunSSEEvent =
   | { type: 'model_draft_token'; content: string }
   | { type: 'model_draft_done' }
   | {
+      type: 'model_critic_progress';
+      attempt: number;
+      stage: 'start' | 'retry' | 'parsed' | 'unknown';
+      reason?: string;
+      score?: number;
+    }
+  | {
       type: 'model_audit';
       content: string;
       isValid?: boolean;
@@ -223,6 +230,7 @@ export async function startChapterProductionRunStream(
     'model_draft_reset',
     'model_draft_token',
     'model_draft_done',
+    'model_critic_progress',
     'model_audit',
     'model_continuity',
     'model_score',

@@ -66,6 +66,7 @@ async function runPipelineWithCriticScript(criticScript: string[]) {
   process.env.API_BASE_URL = 'http://critic-retry.test/v1';
 
   const criticQueue = [...criticScript];
+  const criticProgress: Array<{ attempt: number; stage: string; reason?: string; score?: number }> = [];
   let criticCalls = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input, init) => {
@@ -97,9 +98,14 @@ async function runPipelineWithCriticScript(criticScript: string[]) {
       userIntent: '推进本章冲突',
       contextStr: '普通故事上下文',
       stagePrompts: { planner: '', writer: '', critic: '' },
+      progress: {
+        // Plan 275（R-273-2）：审稿阶段实时进度上报。
+        onCriticProgress: (update: { attempt: number; stage: string; reason?: string; score?: number }) =>
+          criticProgress.push(update),
+      },
     });
     config.promptGuardLevel = originalGuardLevel;
-    return { result, criticCalls };
+    return { result, criticCalls, criticProgress };
   } finally {
     globalThis.fetch = originalFetch;
     if (previousEnv.nodeEnv === undefined) delete process.env.NODE_ENV;
@@ -134,4 +140,21 @@ test('critic retry stays bounded — persistent unknown still ends the pipeline 
   // 但仍有上限（MAX_RETRIES=2 → 最多 3 轮）。persistent unknown 最终仍以 unknown 交付。
   assert.equal(result.auditStatus, 'unknown');
   assert.ok(result.attempts >= 1, 'unknown 应触发至少一次 writer 重试');
+});
+
+test('critic progress is reported per round while the audit runs (plan 275)', async () => {
+  const { criticProgress } = await runPipelineWithCriticScript([
+    '{"scores": 可读性八分', // broken JSON — five-dim contract fails
+    validPassJson,
+  ]);
+
+  assert.equal(criticProgress.length >= 3, true, `expected progress events, got ${criticProgress.length}`);
+  assert.equal(criticProgress[0].attempt, 1);
+  assert.equal(criticProgress[0].stage, 'start');
+  assert.equal(criticProgress[1].attempt, 2);
+  assert.equal(criticProgress[1].stage, 'retry');
+  assert.match(String(criticProgress[1].reason), /结构化契约/);
+  const final = criticProgress[criticProgress.length - 1];
+  assert.equal(final.stage, 'parsed');
+  assert.equal(typeof final.score, 'number');
 });

@@ -159,6 +159,17 @@ export interface PipelineProgress {
   /** Plan 272: the caller must drop the provisional streamed draft before a replay. */
   onWriterReset?: () => void;
   onWriterDone?: () => void;
+  /**
+   * Plan 275（R-273-2）：critic 阶段实时进度。此前作者只能看到一条静态
+   * 「AI critic 进行中...」，而这一阶段从 6 s（low 档）到 200 s+（high 档或解析重试）
+   * 都可能，作者无从判断是在推进还是已经卡住。
+   */
+  onCriticProgress?: (update: {
+    attempt: number;
+    stage: 'start' | 'retry' | 'parsed' | 'unknown';
+    reason?: string;
+    score?: number;
+  }) => void;
   onCriticDone?: (
     feedback: string,
     isValid: boolean,
@@ -1314,8 +1325,17 @@ export async function runProductionPipeline(params: {
     let criticMaxTokens = CRITIC_LLM_OPTIONS.maxTokens;
     let criticTimeoutMs = CRITIC_LLM_OPTIONS.timeoutMs;
     let criticRetrySuffix = '';
+    // Plan 275（R-273-2）：critic 轮次与最近一次重试原因，供实时进度上报。
+    let criticRetryReason: string | undefined;
+    let criticRound = 0;
     let criticClassification: ReturnType<typeof classifyCriticFeedback> | null = null;
     for (let criticAttempt = 0; ; criticAttempt += 1) {
+      criticRound += 1;
+      progress.onCriticProgress?.({
+        attempt: criticRound,
+        stage: criticAttempt === 0 ? 'start' : 'retry',
+        reason: criticAttempt === 0 ? undefined : criticRetryReason,
+      });
       try {
         criticFeedback = await generateText(
           getConfig(),
@@ -1344,6 +1364,7 @@ export async function runProductionPipeline(params: {
       } catch (err) {
         throwIfAborted(progress.signal);
         if (isRetriableCriticError(err) && criticAttempt < CRITIC_PARSE_RETRIES) {
+          criticRetryReason = `审计请求失败（${criticErrorCode(err)}），超时加倍重试`;
           criticTimeoutMs = Math.min(criticTimeoutMs * 2, CRITIC_MAX_TIMEOUT_MS);
           logger.warn(
             `Critic request failed (${criticErrorCode(err)}) — retrying once with ${criticTimeoutMs}ms timeout`
@@ -1354,6 +1375,7 @@ export async function runProductionPipeline(params: {
         criticFeedback = '审计不可用：模型审计请求失败，保留草稿预览。';
         auditStatus = 'unknown';
         auditScore = 0;
+        criticRetryReason = `审计请求失败（${criticErrorCode(err)}），保留草稿预览`;
         break;
       }
       const parseDiagnostic = parseAuditResponseWithDiagnostics(criticFeedback).diagnostic;
@@ -1364,6 +1386,7 @@ export async function runProductionPipeline(params: {
           criticRetrySuffix = CRITIC_RETRY_COMPACT_SUFFIX;
           criticMaxTokens = CRITIC_LLM_OPTIONS.maxTokens + CRITIC_RETRY_TOKEN_BOOST;
         }
+        criticRetryReason = `审计未按结构化契约返回（${parseDiagnostic.code}），收紧格式重试`;
         logger.warn(
           `Critic audit failed the structured contract (${parseDiagnostic.code}) — retrying once with ${criticMaxTokens} tokens`
         );
@@ -1372,6 +1395,9 @@ export async function runProductionPipeline(params: {
       // Plan 266 修复⑤（证据契约）：分数可解析但 evidence 四类不全时 classifyCriticFeedback 会判
       // unknown —— 此时重试必须补要求（不得放宽契约），否则 run 必然停在「审计不可用」。
       criticClassification = classifyCriticFeedback(criticFeedback);
+      if (criticClassification.status === 'unknown') {
+        criticRetryReason = '审计结论不可验证（证据四类不全），补强证据要求重试';
+      }
       if (criticClassification.status === 'unknown' && criticAttempt < CRITIC_PARSE_RETRIES) {
         throwIfAborted(progress.signal);
         criticRetrySuffix = CRITIC_RETRY_EVIDENCE_SUFFIX;
@@ -1391,6 +1417,13 @@ export async function runProductionPipeline(params: {
       auditStatus = classification.status;
       if (auditStatus === 'unknown') criticFeedback = UNKNOWN_CRITIC_FEEDBACK;
     }
+    progress.onCriticProgress?.({
+      attempt: criticRound,
+      stage: auditStatus === 'unknown' ? 'unknown' : 'parsed',
+      score: auditStatus === 'unknown' ? undefined : auditScore,
+      reason:
+        auditStatus === 'unknown' ? criticRetryReason ?? '审计结论不可验证' : undefined,
+    });
     // Plan 261 修复③：重写轮只消费蒸馏后的指令，原始 JSON 审计仅用于展示/落库。
     writerRetryFeedback = auditStatus === 'pass' ? '' : buildCriticRetryFeedback(criticFeedback);
 
