@@ -223,3 +223,32 @@ test('lists the P2 residual codes left after a passing repair', () => {
   );
   assert.deepEqual(residualP2Codes(undefined), []);
 });
+
+// Plan 277（R-276-1）：真机批量回执经常不带 @@FIX 标记——这里兼容两种退化版式。
+const NEWLINE = String.fromCharCode(10);
+
+test('accepts a slot response written as header blocks instead of @@FIX markers', () => {
+  assert.deepEqual(
+    parseLocalRepairBatchResponse(
+      '【第 1 处】' + NEWLINE + '甲句。' + NEWLINE + NEWLINE + '【第 2 处】' + NEWLINE + '乙句。',
+      2
+    ),
+    ['甲句。', '乙句。']
+  );
+  assert.deepEqual(
+    parseLocalRepairBatchResponse(
+      '【第 2 处】' + NEWLINE + '乙句。' + NEWLINE + '【第 1 处】' + NEWLINE + '甲句。',
+      2
+    ),
+    ['甲句。', '乙句。']
+  );
+});
+
+test('accepts a numbered-list slot response', () => {
+  assert.deepEqual(
+    parseLocalRepairBatchResponse('1. 甲句。' + NEWLINE + '2. 乙句。', 2),
+    ['甲句。', '乙句。']
+  );
+  // 只回了一处时，另一个槽位仍留空串交给单句补齐。
+  assert.deepEqual(parseLocalRepairBatchResponse('1. 甲句。', 2), ['甲句。', '']);
+});

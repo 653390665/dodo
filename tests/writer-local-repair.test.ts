@@ -284,8 +284,11 @@ test('a soft-only gate failure is repaired sentence-by-sentence instead of rewri
     assert.ok(result.draft.includes(replacement), `replacement ships: ${replacement}`);
   }
 
+  assert.equal(result.localRepair?.batchCalls, 2, 'three targets are split into batches of two');
+  assert.equal(result.localRepair?.singleCalls, 0, 'every slot came back from a batch reply');
+
   const repairRequests = repairRequestsOf(requests);
-  assert.equal(repairRequests.length, 1, 'all targets repaired in one batch call');
+  assert.equal(repairRequests.length, 2, 'three targets = two batch calls, no single top-up');
   for (const [marker] of REPAIR_MAP) {
     assert.ok(
       repairRequests.some((request) => request.includes(marker)),
@@ -322,9 +325,12 @@ test('tops up a slot the batch response missed with a single-sentence call', asy
   assert.equal(result.localRepair?.applied, 3, 'the missed slot is still repaired');
   assert.equal(result.localRepair?.rounds, 1);
 
+  assert.equal(result.localRepair?.batchCalls, 2, 'two batch chunks were sent');
+  assert.equal(result.localRepair?.singleCalls, 1, 'exactly one slot needed a single top-up');
+
   const repairRequests = repairRequestsOf(requests);
-  assert.equal(repairRequests.length, 2, 'one batch call plus one top-up for the missing slot');
-  assert.ok(repairRequests[1].includes('临街铺面'), 'the top-up names the missed sentence');
+  assert.equal(repairRequests.length, 3, 'two batch chunks plus one top-up for the missing slot');
+  assert.ok(repairRequests[2].includes('临街铺面'), 'the top-up names the missed sentence');
   for (const [, replacement] of REPAIR_MAP) {
     assert.ok(result.draft.includes(replacement), `replacement ships: ${replacement}`);
   }
@@ -335,25 +341,51 @@ test('runs a second local round on the residue before burning a whole-chapter re
     plannerBeats: PLANNER_BEATS,
     drafts: SOFT_SCENES,
     residualFirstBatch: true,
-    omitBatchSlots: ['2', '3'],
+    omitBatchSlots: ['2'],
   });
 
   assert.equal(result.source, 'model', 'the twice-repaired draft still ships as a model draft');
   assert.equal(result.localRepair?.passed, true);
   assert.equal(result.localRepair?.rounds, 2, 'the second local round closed the residue');
-  assert.equal(result.localRepair?.targets, 6, 'three targets picked per round');
-  assert.equal(result.localRepair?.applied, 6);
+  assert.equal(result.localRepair?.targets, 5, 'three targets in round one, two re-picked in round two');
+  assert.equal(result.localRepair?.applied, 5);
+  assert.equal(result.localRepair?.batchCalls, 3, 'two chunks in round one, one chunk in round two');
+  assert.equal(result.localRepair?.singleCalls, 1, 'the omitted slot needed one top-up');
 
   assert.equal(writerRequestsOf(requests).length, 3, 'no whole-chapter rewrite was burned');
   const repairRequests = repairRequestsOf(requests);
   assert.equal(
     repairRequests.filter((request) => request.includes(BATCH_PROMPT_MARKER)).length,
-    2,
-    'one batch call per round'
+    3,
+    'two chunked batch calls in round one plus one in round two'
   );
-  assert.equal(repairRequests.length, 4, 'round one also topped up the two missed slots');
+  assert.equal(repairRequests.length, 4, 'round one also topped up the missed slot');
   assert.ok(!result.draft.includes('简陋'), 'no slop from either round ships');
   for (const replacement of SECOND_ROUND_REPLACEMENTS) {
     assert.ok(result.draft.includes(replacement), `clean replacement ships: ${replacement}`);
+  }
+});
+
+// Plan 277（R-276-2）：过门也可能留下可定点修复的软残留——不再等门禁失败才开第二轮。
+test('runs a second local round when the gate passes but localizable residue stays', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: SOFT_SCENES,
+    residualFirstBatch: true,
+  });
+
+  assert.equal(result.source, 'model');
+  assert.equal(result.localRepair?.passed, true);
+  assert.equal(result.localRepair?.rounds, 2, 'the residue alone justified a second round');
+  assert.equal(result.localRepair?.targets, 5, 'three targets in round one, two picked up in round two');
+  assert.equal(result.localRepair?.applied, 5);
+  assert.equal(result.localRepair?.batchCalls, 3, 'two chunks in round one, one chunk in round two');
+  // Plan 277（R-276-1）：补丁回执走 patch 输出模式，不再被散文守卫改写，两处槽位都由批量回执补上。
+  assert.equal(result.localRepair?.singleCalls, 0, 'the batch payload is returned verbatim, so nothing fell back');
+  assert.equal(writerRequestsOf(requests).length, 3, 'the gate never failed, so no rewrite was burned');
+  assert.equal(repairRequestsOf(requests).length, 3, 'three chunked batch calls, no single top-up');
+  assert.ok(!result.draft.includes('简陋'), 'residual slop is gone from the shipped draft');
+  for (const replacement of SECOND_ROUND_REPLACEMENTS) {
+    assert.ok(result.draft.includes(replacement), `second-round replacement ships: ${replacement}`);
   }
 });
