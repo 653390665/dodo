@@ -818,6 +818,8 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - W3 写法确认默认化：`ensureWritingStyleConfirmed`（resolve → 未确认则 confirm → 记一次 `writing_style_defaulted`），接线 `production-client.ts` 两个入口与 `useDraftGeneration.ts`；测试 5/5。
 - 真机门级取证（隔离 3301）：未确认态 → confirm → 带指纹 `start-stream` **200**；缺/错指纹 → **409**（不变量保住）；稳态不重复 confirm，整链跑到 `done`（run `a1d581de`）。
 - 阻塞：本机 7897 代理客户端 `connection refused`（`proxyconnect tcp: dial tcp 127.0.0.1:7897`）→ 8317 全模型 500，本轮无模型稿真机读数。
+- 上游恢复后补测（2026-10-01 14:08）：run `1511fb40` 88.5 s，门禁命中 → 定点修复过门 → 交付 model 稿 6343 字，critic 90/pass；同日 `/api/product-truth/metrics` 真机读数：首章 0/7、model 版本占比 32.7%、run 采纳率 4.6%、裁决中位 186 s。
+
 - 门禁：`tsc` 0 / `eslint` 0（首轮一条 `react-hooks/exhaustive-deps` 已修）。
 - 全量套件：后端 1506 通过 / 0 失败（68 秒）；前端 164 files / 1038 tests 全绿（初跑两例旧断言已改为新契约：缺指纹时多一次写法 resolve 请求）。
 - 残余：R-271-1（接受后再编辑的编辑量需正文 diff埋点）/R-271-2（预览被切章丢弃无 `draft_abandon`）/R-271-3（首章 60 秒只去掉确认墙）。

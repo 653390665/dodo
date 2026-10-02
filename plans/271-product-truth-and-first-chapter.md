@@ -71,6 +71,19 @@ Status: ✅ 已完成（2026-10-01；W1/W2/W3 + 全量门禁）
 - 稳态（已确认）：resolve 直接 `confirmed=true`（不重复 confirm）；驱动整链跑到 `done`（run `a1d581de-b0ad-4afc-921a-5ebccf824ed0`，`review_required`，交付 4183 字）。
 - 上游阻塞（非 W3 问题）：本机代理客户端不可用 → 8317 全模型返 500（`proxyconnect tcp: dial tcp 127.0.0.1:7897: connect: connection refused`），planner/writer/critic 均 `ProviderError service_unavailable`；故本轮无「模型稿」真机读数（模型稿链路由 Plan 269/270 历史读数覆盖）。
 
+- 上游恢复后补测（2026-10-01 14:08，隔离 3301，gemini-3.8-flash-high）：整链 88.5 s 跑到 `done`，run `1511fb40-f447-41c9-9f34-c7990167521d`；writer 首稿未过文章质量门 → `[INFO] [pipeline] local gate repair passed the prose quality gate`（Plan 269 定点修复仍生效）→ 交付 model 稿 6343 字（版本表 model 6343 / fallback 4183 两行；章节正文 6565 字）；critic `model_score {score:90, attempts:1, status:pass}`。
+
+
+### W2 真机读数（GET /api/product-truth/metrics，隔离库）
+
+
+- 全局：首章完成率 **0/7**；版本 199（model 65 / fallback 134，**32.7%** model 占比）；run 104（65 有 model 版本，**62.5%**）；裁决 108（review_required 99 / applied 5 / failed 4，采纳率 **4.6%**，裁决中位耗时 **186 s**）。
+
+- 单作品口径（`?novelId=`）同样返回；`?days=0` → 400 `Invalid days`（输入校验生效）。
+
+- W1 裁决指标真机读数（`/api/product-events/metrics` 的 `decisions`）：previews 11 / accepts 3 / reviseAccepts 0 / rejects 0 / abandonments 0 / decided 3（27.3%）；`decisionLatencyMs.p50/p95` = null（历史接受事件无 `durationMs`，新记录从本版本起才有）。
+
+
 ### 门禁
 
 - `tsc --noEmit` 0；`eslint server src shared tests scripts --max-warnings=0` 0（首轮 1 error：`src/lib/hooks/useChapterProductionFlow.ts:144` `react-hooks/exhaustive-deps` 缺 `novelId` → 已补入依赖数组）。
