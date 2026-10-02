@@ -31,7 +31,7 @@ import {
   loadOutlineUnit,
   loadWorldviewHints,
 } from './knowledge-lineage-enrich.js';
-import { scaleTimeoutForReasoningEffort } from '../lib/server-llm';
+import { STREAM_HOLDBACK_CHARS, scaleTimeoutForReasoningEffort } from '../lib/server-llm';
 import {
   applyLocalRepairs,
   selectLocalRepairTargets,
@@ -220,6 +220,9 @@ const WRITER_LLM_OPTIONS = {
   timeoutMs: resolveWriterTimeoutMs(),
   maxAttempts: 2,
   maxTokens: 8_192,
+  // Plan 273：strict 守门下也边写边透传（末尾窗口留到过门后 flush），
+  // 首章正文字符随生成递增，而不是等整个场景写完后一次性出现。
+  streamHoldback: STREAM_HOLDBACK_CHARS,
 } as const;
 
 // Per-scene budget for split-scene generation (scheme C): one scene is a few
@@ -836,16 +839,39 @@ export async function runProductionPipeline(params: {
     let streamedWriterText = '';
     let liveStreamed = false;
     const compactForCompare = (value: string): string => String(value).replace(/\s+/g, '');
-    const emitFinalDraft = (finalText: string): void => {
-      if (liveStreamed && compactForCompare(finalText) === compactForCompare(streamedWriterText)) {
-        return;
+    // Plan 273：已送出的正文按「去空白后」映射回原文下标，用于只补发后缀。
+    const compactIndexAfterPrefix = (text: string, compactPrefixLen: number): number => {
+      let seen = 0;
+      let index = 0;
+      while (index < text.length && seen < compactPrefixLen) {
+        if (!/\s/.test(text[index])) seen += 1;
+        index += 1;
       }
-      progress.onWriterReset?.();
-      const chunks = finalText.match(/.{1,24}/gs) || [];
+      return index;
+    };
+    const emitChunks = (text: string): void => {
+      const chunks = text.match(/.{1,24}/gs) || [];
       for (const chunk of chunks) {
         throwIfAborted(progress.signal);
         progress.onWriterToken?.(chunk);
       }
+    };
+    const emitFinalDraft = (finalText: string): void => {
+      if (liveStreamed) {
+        const compactFinal = compactForCompare(finalText);
+        const compactStreamed = compactForCompare(streamedWriterText);
+        if (compactFinal === compactStreamed) return;
+        // 收口清洗/holdback 尾部常常只让最终稿多出一个后缀：只补发差异部分，
+        // 避免整段 reset + 回放造成的正文闪烁与重复渲染。
+        if (compactStreamed && compactFinal.startsWith(compactStreamed)) {
+          emitChunks(finalText.slice(compactIndexAfterPrefix(finalText, compactStreamed.length)));
+          streamedWriterText = finalText;
+          return;
+        }
+      }
+      progress.onWriterReset?.();
+      emitChunks(finalText);
+      streamedWriterText = finalText;
     };
     try {
       // 诊断工具（env 门控）：采集实际发出的 writer prompt 与每次调用的收发
@@ -946,6 +972,7 @@ export async function runProductionPipeline(params: {
                     `\n\n【你已写出的部分（在末尾被截断）】\n…${trimmed.slice(-400)}\n\n从中断处无缝续写，写完本场景剩余内容并按退场钩子收束。禁止重复已写内容，禁止重新开场。`,
                   maxTokens: Math.round(WRITER_SCENE_MAX_TOKENS * 0.5),
                   disableThinking: true,
+                  streamHoldback: STREAM_HOLDBACK_CHARS,
                   signal: progress.signal,
                   // Plan 272: stream the continuation too, so a token-capped scene
                   // does not leave a hole in the provisional prose.

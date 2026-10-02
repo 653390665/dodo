@@ -82,6 +82,13 @@ export interface GenerateTextOptions {
   disableThinking?: boolean;
   signal?: AbortSignal;
   onToken?: (token: string) => void;
+  /**
+   * Plan 273：strict 守门下的分段透传窗口（字符数）。>0 时生成期间就按窗口回发增量正文，
+   * 只保留末尾窗口到过门之后再 flush；调用方必须能处理「已送出的正文与最终正文
+   * 不一致」（典型做法是 reset + 回放，见 ai-production-pipeline 的 emitFinalDraft）。
+   * 缺省 0 = 维持旧的「整段回发」行为。
+   */
+  streamHoldback?: number;
   novelId?: string;
   /**
    * 知识图谱选择性调用：只注入与这些实体名相关的角色节点与关系边。
@@ -861,6 +868,48 @@ export function buildCharacterRelationshipContext(novelId: string, entityFilter?
 // mode so generateTextRaw can tell it apart from a client-bound onToken.
 const deferredTokenSink = () => undefined;
 
+/** Plan 273：holdback 透传的默认窗口（字符）。 */
+export const STREAM_HOLDBACK_CHARS = 64;
+/** 上界：防止调用方给出病态大窗口把流式退化回整段回发。 */
+export const STREAM_HOLDBACK_MAX_CHARS = 2_048;
+
+export interface HoldbackSink {
+  push(token: string): void;
+  flush(): void;
+  discard(): void;
+}
+
+/**
+ * Plan 273：strict 守门下的 holdback 透传。生成期间只回发除末尾
+ * holdbackChars 之外的内容，过门后再 flush 尾部；被判定不合格时 discard 尾部即可，
+ * 客户端最多已经看到「尾部窗口之外」的内容（由调用方的 reset 兜住）。
+ */
+export function createHoldbackSink(
+  onToken: (token: string) => void,
+  holdbackChars: number
+): HoldbackSink {
+  let pending = '';
+  return {
+    push(token: string): void {
+      if (!token) return;
+      pending += token;
+      if (pending.length <= holdbackChars) return;
+      const flushable = pending.slice(0, pending.length - holdbackChars);
+      pending = pending.slice(pending.length - holdbackChars);
+      onToken(flushable);
+    },
+    flush(): void {
+      if (!pending) return;
+      const tail = pending;
+      pending = '';
+      onToken(tail);
+    },
+    discard(): void {
+      pending = '';
+    },
+  };
+}
+
 export async function generateText(
   config: AppConfig,
   options: GenerateTextOptions
@@ -898,13 +947,25 @@ export async function generateText(
     guardLevel === 'strict' &&
     isCreativeWritingRequest(options.prompt, updatedSystemInstruction) &&
     typeof options.onToken === 'function';
+  // Plan 273：strict 守门下不再一律吞掉上游增量——给了 streamHoldback 窗口就边写边透传，
+  // 让首章正文在写作过程中就可见（末尾窗口留到过门后 flush）。
+  const holdbackWindow = deferQualityGuardedTokens
+    ? Math.max(0, Math.min(STREAM_HOLDBACK_MAX_CHARS, options.streamHoldback ?? 0))
+    : 0;
+  const holdbackSink =
+    holdbackWindow > 0 && options.onToken
+      ? createHoldbackSink(options.onToken, holdbackWindow)
+      : null;
   const effectiveOptions = {
     ...options,
     prompt: guarded.prompt,
     systemInstruction: guarded.systemInstruction,
-    // Keep the provider in streaming mode for latency/backpressure semantics,
-    // but swallow raw chunks until the complete draft passes the output gate.
-    ...(deferQualityGuardedTokens ? { onToken: deferredTokenSink } : {}),
+    // Keep the provider in streaming mode for latency/backpressure semantics.
+    ...(deferQualityGuardedTokens
+      ? holdbackSink
+        ? { onToken: (chunk: string) => holdbackSink.push(chunk) }
+        : { onToken: deferredTokenSink }
+      : {}),
   };
 
   // 2. Execute raw generation
@@ -926,7 +987,8 @@ export async function generateText(
   // 3. Output Gate: Check for AI slop and cliches
   const guardResult = checkOutputGuard(rawProse);
   if (guardResult.pass) {
-    if (deferQualityGuardedTokens) options.onToken?.(rawProse);
+    if (holdbackSink) holdbackSink.flush();
+    else if (deferQualityGuardedTokens) options.onToken?.(rawProse);
     return rawProse;
   }
 
@@ -947,10 +1009,14 @@ export async function generateText(
     const correctedProse = stripIfProse(correctedResult);
     const secondGuardResult = checkOutputGuard(correctedProse);
     if (secondGuardResult.pass) {
+      // Plan 273：被纠正的那一稿的尾部还留在 holdback 窗口里，先丢弃再整段回发纠正稿；
+      // 已透传出去的前缀与纠正稿不一致，由调用方 reset 兜住。
+      holdbackSink?.discard();
       if (deferQualityGuardedTokens) options.onToken?.(correctedProse);
       return correctedProse;
     }
 
+    holdbackSink?.discard();
     // A failed correction is not a valid writing result. Returning the raw draft
     // here made low-quality output look successful to every caller.
     throw providerError({
