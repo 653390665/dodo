@@ -8,6 +8,7 @@ import {
   listProductEvents,
   pruneProductEvents,
 } from '../lib/db/product-events.js';
+import { getProductTruthMetrics } from '../lib/db/product-truth.js';
 import { isDbInitialized } from '../lib/db-instance.js';
 import { logger } from '../logger';
 import { PRODUCT_EVENT_NAMES, PRODUCT_EVENT_STAGES } from '../../shared/types/product-events.js';
@@ -74,6 +75,23 @@ export function registerProductEventRoutes(app: Express) {
       return res.json(getProductEventMetrics(parsed.data ?? 30));
     } catch {
       return res.status(500).json({ error: 'Failed to load product event metrics' });
+    }
+  });
+  app.get('/api/product-truth/metrics', (req, res) => {
+    const parsed = z.coerce.number().int().min(1).max(365).optional().safeParse(req.query.days);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid days' });
+    const novelId =
+      typeof req.query.novelId === 'string' && req.query.novelId.trim()
+        ? req.query.novelId.trim()
+        : undefined;
+    try {
+      const days = parsed.data ?? 30;
+      return res.json({
+        global: getProductTruthMetrics({ days }),
+        novel: novelId ? getProductTruthMetrics({ days, novelId }) : null,
+      });
+    } catch {
+      return res.status(500).json({ error: 'Failed to load product truth metrics' });
     }
   });
   app.get('/api/product-events/export', (req, res) => {

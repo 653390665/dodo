@@ -2,7 +2,7 @@
  * 批次 D · 记忆健康度看板挂载验收：驾驶舱右栏渲染面板，且数值来自客户端取数（服务端快照）。
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Chapter, Novel } from '../../shared/types';
 
@@ -26,6 +26,9 @@ vi.mock('../lib/api', () => api);
 vi.mock('../lib/product-events-client', () => productEvents);
 vi.mock('../lib/download-client', () => ({ downloadDbBackup: vi.fn() }));
 vi.mock('../lib/knowledge-client', () => ({ fetchMemoryHealth: fetchMemoryHealthMock }));
+vi.mock('../lib/product-truth-client', () => ({
+  fetchProductTruthMetrics: vi.fn().mockResolvedValue(null),
+}));
 
 import { ProjectCockpitView } from '../components/ProjectCockpitView';
 import { buildMemoryHealthMetrics } from '../../shared/lib/memory-health';
@@ -128,7 +131,7 @@ describe('驾驶舱记忆健康度挂载', () => {
 
     render(<ProjectCockpitView novel={novel} onNavigate={vi.fn()} />);
 
-    await screen.findByTestId('memory-health-panel');
-    await waitFor(() => expect(screen.getAllByText('未知').length).toBe(5));
+    const panel = await screen.findByTestId('memory-health-panel');
+    await waitFor(() => expect(within(panel).getAllByText('未知').length).toBe(5));
   });
 });

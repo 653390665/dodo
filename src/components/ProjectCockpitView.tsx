@@ -47,6 +47,7 @@ import type { CuratedProductSkill } from '../../shared/types/prompt-assets-gover
 import { LLM_AVAILABILITY_COPY, type LlmAvailabilityState } from '../lib/llm-availability';
 import { fetchLlmConfig } from '../lib/config-client';
 import { MemoryHealthPanel } from './MemoryHealthPanel';
+import { ProductTruthPanel } from './ProductTruthPanel';
 
 
 interface ProjectCockpitViewProps {
@@ -598,6 +599,7 @@ export function ProjectCockpitView({
 
               {/* 批次 D：记忆健康度看板（五项指标；数据缺失显示「未知」，不按 0 计） */}
               <MemoryHealthPanel novelId={novel.id} />
+              <ProductTruthPanel novelId={novel.id} />
 
               {/* Continuation Packs Detail */}
               <div className="border border-theme-border/40 bg-theme-sidebar/10 rounded-xl p-4 space-y-3">
