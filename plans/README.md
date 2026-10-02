@@ -854,3 +854,13 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **D4 `memory/` 入库 A 已生效**（复核，无仓内改动）：`plans/README.md:670` D3-A 行已记「拍板 A，`ea50b45`」；`MEMORY.md:20-22` 记 A（承认入库 + 改正声明）+ B 被否（blob 已在历史，彻底移除需重写 156 个提交哈希）。
 - 门禁读数：tsc 0（`TSC_EXIT=0`）/ eslint 0（`LINT_EXIT=0`）/ 定向 3 文件 **48 tests / 48 pass / 0 fail**（`TEST_EXIT=0`，1177 ms）——`tests/node-version-declaration.test.ts` + `tests/llm-stream-holdback.test.ts` + `tests/draft-quality.test.ts`（含 Plan 266 fix 3 回归与 Plan 273 holdback 5 例）
 - 计划书：`plans/274-pending-decisions-closeout.md`；脚本 `/tmp/p274-node-upgrade.py`、`/tmp/p274-patch1.py`、`/tmp/p274-patch2.py`、`/tmp/p274-patch3.py`，门禁 `/tmp/p274-gates.sh`。
+
+## Round 59（2026-10-01）：自适应 holdback 窗口 + critic 实时进度（275）
+
+- 残余来源：R-273-1（窗口固定 64 字，sonnet 类 1–3 字/块的上游≈2 s 静默）、R-273-2（critic 阶段无实时反馈）。
+- W1 自适应窗口：`server/lib/server-llm.ts` 新增 `STREAM_HOLDBACK_MIN_CHARS = 16` 与 `holdbackWindowForChunk(chunkChars, configuredChars)`（`clamp(chunkChars*2, min(16, configured), configured)`）；`createHoldbackSink` 逐 push 重算窗口，`flush`/`discard` 语义不变；粗粒度上游仍是 64 字窗口，细粒度上游降到 16 字。
+- W2 critic 进度：`PipelineProgress` 增 `onCriticProgress`（`attempt` / `stage: 'start'|'retry'|'parsed'|'unknown'` / `reason?` / `score?`）；SSE 新增 `model_critic_progress`（路由 + `production-client` 白名单/联合类型）；新增 `src/lib/production-critic-progress.ts` 文案（`AI 正在审稿（第 N 轮）…` / 重试带原因 / 出分带 score / unknown 带原因）→ `useChapterProductionFlow` 写入状态条。
+- 真机（隔离 3301，gemini-3.8-flash-high）：run `2b479c85` 85.5 s —— beats 12.7 s / 首正文 16.2 s / reset 1 次 @77.4 s / **critic 进度 77,414 ms `start` → 85,511 ms `parsed` score 90**（覆盖原先 8.1 s 静默）/ `model_score {90,1,pass}`；块大小 18–36 字（不再整齐 64）＝ W1 生效指纹；落库版本行 `fallback` 4179 + **`model` 5,466**，run `review_required`。
+- 门禁：tsc 0 / eslint 0 / 定向后端 28/28 + 7/7 / 定向前端 21/21（新增 `src/tests/production-critic-progress.test.ts`，扩展 `tests/llm-stream-holdback.test.ts`、`tests/critic-parse-retry.test.ts`）。
+- 文档：`plans/275-adaptive-holdback-and-critic-progress.md`。
+- 残余：R-275-1（只到轮次/阶段/原因，未透传五维结论）/ R-275-2（真机仍触发 1 次整段重放，R-273-3 未消除）/ R-275-3（窗口未与重放路径联动）；沿用未动工 R-269-1..3 / R-272-1。
