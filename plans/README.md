@@ -824,3 +824,14 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 全量套件：后端 1506 通过 / 0 失败（68 秒）；前端 164 files / 1038 tests 全绿（初跑两例旧断言已改为新契约：缺指纹时多一次写法 resolve 请求）。
 - 残余：R-271-1（接受后再编辑的编辑量需正文 diff埋点）/R-271-2（预览被切章丢弃无 `draft_abandon`）/R-271-3（首章 60 秒只去掉确认墙）。
 - 交付：`plans/271-product-truth-and-first-chapter.md`（含执行结果节）。
+
+## Round 56（2026-10-01）：首章即时可见（272）
+
+- 症状（真机 timeline，run `2c615260`，55.3 s）：保底稿 1.1 s 可见，但首个正文 token 在 **49.0 s**（全部 210 个 token 在 3 ms 内回放），分镜 `model_beats` 更晚（pipeline resolve 后 ~55 s）。
+- W1 writer 真流式透传：`PipelineProgress` 新增 `onBeats` / `onWriterReset`；writer `onToken` 累加同时透传（含场景截断续写调用）；三处回放点统一走 `emitFinalDraft`（压缩空白后相同则不重放，否则先 reset 再按 24 字符回放）。
+- W2 分镜即达：planner 完成即 `progress.onBeats?.(sceneBeats)`；路由 `beatsSent` 幂等，`.then()` 内只在未发过时补发；SSE 新增 `model_draft_reset`（`production-client.ts` 白名单 + `useChapterProductionFlow.ts` 清缓冲）。
+- 测试：新增 `tests/writer-live-stream.test.ts`（beats 早于首个 token / 干净过门 resets=0 且透传稿==交付稿 / 保底替换 resets=1）；`tests/production-stream-disconnect.test.ts` 因 `model_beats` 提前失去同步点 → 改 `preModelWriteHook` + `markModelWriteReached` 同步。
+- 门禁：`tsc` 0 / `eslint` 0 / 定向 5 文件 **34/34**（首跑一条 `TS2304: Cannot find name 'emitFinalDraft'`（catch 独立作用域）→ helper 提到 `try` 之外）。
+- 真机复测（隔离 3301，gemini-3.8-flash-high）：`05541c0c` 57.6 s（beats 9.0 s / 首正文 **19.0 s**，4 块，score 88 pass）；`83bff6c8` 76.4 s（beats 17.9 s / 首正文 **26.7 s**，4 块 @26.7/36.2/52.9/69.7 s，**resets 0**，score 88 pass）；落库 model 版本 5231 字 + fallback 4141 字（透传 5225 + 3 个场景分隔符 = 差值 6）。
+- 残余：R-272-1 split-scene 场景衔接段仍突兀；R-272-2 critic 阶段（~6 s）无实时反馈；R-272-3 reset 只在文本真被替换时发；R-272-4 透传粒度受上游限制（每场景一个大块，4 块/章）。
+- 交付：`plans/272-first-chapter-live-draft.md`（含执行结果与两跑对照表）。
