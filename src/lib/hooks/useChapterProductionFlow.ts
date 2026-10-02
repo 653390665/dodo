@@ -10,6 +10,7 @@ import {
 import { getChapter } from '../chapter-client';
 import { getDatabaseGenerationSnapshot } from '../db-transport';
 import { criticProgressMessage } from '../production-critic-progress';
+import { writerRepairMessage } from '../production-repair-progress';
 import { recordProductEvent } from '../product-events-client';
 import { useProductionStore } from '../../stores/production-store';
 
@@ -299,6 +300,9 @@ export function useChapterProductionFlow({
               );
               break;
             case 'model_draft_done':
+              break;
+            case 'model_writer_repair':
+              setProductionStatusMessage(writerRepairMessage(event));
               break;
             case 'model_critic_progress':
               // Plan 275（R-273-2）：审稿阶段实时进度（轮次 / 重试原因 / 出分）。
