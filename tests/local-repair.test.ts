@@ -4,6 +4,8 @@ import {
   MAX_LOCAL_REPAIR_TARGETS,
   applyLocalRepairs,
   compactTextLength,
+  parseLocalRepairBatchResponse,
+  residualP2Codes,
   selectLocalRepairTargets,
 } from '../shared/lib/local-repair';
 
@@ -178,4 +180,46 @@ test('skips invalid, empty and runaway replacements', () => {
 
 test('compactTextLength matches the gate char-count convention', () => {
   assert.equal(compactTextLength(' 一 二\n三 '), 3);
+});
+test('parses a marked batch repair response by slot and cleans decorations', () => {
+  const raw = [
+    '@@FIX 1@@',
+    '他推开门，油烟味先撞上来。',
+    '@@FIX 2@@',
+    '```',
+    '卷帘门半开着，灯泡忽明忽暗。',
+    '```',
+    '@@FIX 3@@',
+    '替换后：站台上的钟停在某个凌晨。',
+  ].join('\n');
+
+  assert.deepEqual(parseLocalRepairBatchResponse(raw, 3), [
+    '他推开门，油烟味先撞上来。',
+    '卷帘门半开着，灯泡忽明忽暗。',
+    '站台上的钟停在某个凌晨。',
+  ]);
+});
+
+test('keeps slots empty when the batch response misses or misnumbers them', () => {
+  assert.deepEqual(parseLocalRepairBatchResponse('', 2), ['', '']);
+  assert.deepEqual(
+    parseLocalRepairBatchResponse('@@FIX 1@@\n甲句。\n@@FIX 4@@\n丁句。', 2),
+    ['甲句。', '']
+  );
+  // 只有一处时容忍模型漏掉标记（单句调用与批量调用的退化形态）。
+  assert.deepEqual(parseLocalRepairBatchResponse('他停了一下。', 1), ['他停了一下。']);
+  assert.deepEqual(parseLocalRepairBatchResponse('他停了一下。', 2), ['', '']);
+});
+
+test('lists the P2 residual codes left after a passing repair', () => {
+  assert.deepEqual(
+    residualP2Codes([
+      { code: 'literary-polish', severity: 'P2' },
+      { code: 'repeated-opening', severity: 'P2' },
+      { code: 'repeated-opening', severity: 'P2' },
+      { code: 'literary-slop', severity: 'P1' },
+    ]),
+    ['literary-polish', 'repeated-opening']
+  );
+  assert.deepEqual(residualP2Codes(undefined), []);
 });

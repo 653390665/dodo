@@ -81,6 +81,53 @@ const REPAIR_MAP: Array<[string, string]> = [
   ['极其简陋的废弃车站', '站台上的钟停在某个凌晨。'],
 ];
 
+// Plan 276：批量定点修复走一次调用；第一轮若仍有残留，用扩展的干净表再修一轮。
+const BATCH_PROMPT_MARKER = '【输出格式'
+
+// 第一轮故意回一批「仍然有软命中」的句子，用来验证第二轮定点修复。
+const RESIDUAL_REPAIR_MAP: Array<[string, string]> = [
+  ['极其简陋的黄色外卖界面', '那是一间极其简陋的临街铺面。'],
+  ['非常简陋的临街铺面', '那是一间非常简陋的黄色外卖界面。'],
+  ['极其简陋的废弃车站', '那是一座极其简陋的废弃车站。'],
+];
+
+const CLEAN_REPAIR_MAP: Array<[string, string]> = [
+  ...REPAIR_MAP,
+  ['极其简陋的临街铺面', '棚顶的塑料布被风揀起一角。'],
+  ['非常简陋的黄色外卖界面', '窗台上的水痕还没干。'],
+];
+
+// 第二轮真正落地的干净句子（第一轮的替换句是故意留下的软命中）。
+const SECOND_ROUND_REPLACEMENTS = [
+  '棚顶的塑料布被风揀起一角。',
+  '窗台上的水痕还没干。',
+  '站台上的钟停在某个凌晨。',
+];
+
+function slotBlocks(prompt: string): Array<{ slot: string; body: string }> {
+  const parts = prompt.split(/【第\s*(\d+)\s*处】/);
+  const blocks: Array<{ slot: string; body: string }> = [];
+  for (let index = 1; index < parts.length; index += 2) {
+    blocks.push({ slot: parts[index], body: parts[index + 1] || '' });
+  }
+  return blocks;
+}
+
+function batchRepairFor(
+  prompt: string,
+  map: Array<[string, string]>,
+  omitSlot?: string
+): string {
+  return slotBlocks(prompt)
+    .filter(({ slot }) => slot !== omitSlot)
+    .map(({ slot, body }) => {
+      const matched = map.find(([marker]) => body.includes(marker));
+      return `@@FIX ${slot}@@\n${matched ? matched[1] : '他停了一下，把话咽了回去。'}`;
+    })
+    .join('\n\n');
+}
+
+
 const REPAIR_INSTRUCTION_MARKER = '只修复被点名的这一小段';
 
 const AUDIT_JSON = JSON.stringify({
@@ -101,7 +148,13 @@ function repairFor(prompt: string): string {
   return matched ? matched[1] : '他停了一下，把话咽了回去。';
 }
 
-async function runPipeline(options: { plannerBeats: string; drafts: string[] }) {
+async function runPipeline(options: {
+  plannerBeats: string;
+  drafts: string[];
+  // Plan 276：模拟模型漏了某一处编号，以及第一轮批量回一批仍有软命中的句子。
+  omitBatchSlots?: string[];
+  residualFirstBatch?: boolean;
+}) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
     apiKey: process.env.API_KEY,
@@ -113,6 +166,8 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[] }) 
 
   const requests: string[] = [];
   const writerQueue = [...options.drafts];
+  let batchCalls = 0;
+  let singleCalls = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input, init) => {
     const payload = JSON.parse(String(init?.body || '{}')) as {
@@ -128,8 +183,25 @@ async function runPipeline(options: { plannerBeats: string; drafts: string[] }) 
       content = options.plannerBeats;
     } else if (prompt.includes('WRITER_SENTINEL')) {
       content = writerQueue.shift() || body('D', 1, 20);
+    } else if (prompt.includes(BATCH_PROMPT_MARKER)) {
+      // Plan 276：批量定点修复一次修全部目标。
+      batchCalls += 1;
+      const useResidual = Boolean(options.residualFirstBatch) && batchCalls === 1;
+      const omitSlots = batchCalls === 1 ? options.omitBatchSlots || [] : [];
+      const full = batchRepairFor(prompt, useResidual ? RESIDUAL_REPAIR_MAP : CLEAN_REPAIR_MAP);
+      content = omitSlots.length
+        ? full
+            .split('\n\n')
+            .filter((block) => !omitSlots.some((slot) => block.startsWith('@@FIX ' + slot + '@@')))
+            .join('\n\n')
+        : full;
     } else if (prompt.includes(REPAIR_INSTRUCTION_MARKER) || REPAIR_MAP.some(([marker]) => prompt.includes(marker))) {
-      content = repairFor(prompt);
+      singleCalls += 1;
+      const singleResidual = Boolean(options.residualFirstBatch) && singleCalls <= 2;
+      const singleMatch = singleResidual
+        ? RESIDUAL_REPAIR_MAP.find(([marker]) => prompt.includes(marker))
+        : undefined;
+      content = singleMatch ? singleMatch[1] : repairFor(prompt);
     } else {
       content = AUDIT_JSON;
     }
@@ -194,6 +266,7 @@ test('a soft-only gate failure is repaired sentence-by-sentence instead of rewri
   assert.equal(result.localRepair?.targets, 3, 'one target per soft sentence');
   assert.equal(result.localRepair?.applied, 3);
   assert.equal(result.localRepair?.skipped, 0);
+  assert.equal(result.localRepair?.rounds, 1, 'a single local round was enough');
 
   const writerRequests = writerRequestsOf(requests);
   assert.equal(writerRequests.length, 3, 'three scenes written once \u2014 no whole-chapter rewrite burned');
@@ -212,7 +285,7 @@ test('a soft-only gate failure is repaired sentence-by-sentence instead of rewri
   }
 
   const repairRequests = repairRequestsOf(requests);
-  assert.equal(repairRequests.length, 3, 'one surgical-patch call per target');
+  assert.equal(repairRequests.length, 1, 'all targets repaired in one batch call');
   for (const [marker] of REPAIR_MAP) {
     assert.ok(
       repairRequests.some((request) => request.includes(marker)),
@@ -234,4 +307,53 @@ test('structural hard defects still skip local repair and fall back', async () =
   );
   assert.equal(writerRequestsOf(requests).length, 1, 'one writer attempt only, no rewrite pass');
   assert.equal(repairRequestsOf(requests).length, 0, 'no repair call at all');
+});
+
+test('tops up a slot the batch response missed with a single-sentence call', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: SOFT_SCENES,
+    omitBatchSlots: ['2'],
+  });
+
+  assert.equal(result.source, 'model');
+  assert.equal(result.localRepair?.passed, true);
+  assert.equal(result.localRepair?.targets, 3);
+  assert.equal(result.localRepair?.applied, 3, 'the missed slot is still repaired');
+  assert.equal(result.localRepair?.rounds, 1);
+
+  const repairRequests = repairRequestsOf(requests);
+  assert.equal(repairRequests.length, 2, 'one batch call plus one top-up for the missing slot');
+  assert.ok(repairRequests[1].includes('临街铺面'), 'the top-up names the missed sentence');
+  for (const [, replacement] of REPAIR_MAP) {
+    assert.ok(result.draft.includes(replacement), `replacement ships: ${replacement}`);
+  }
+});
+
+test('runs a second local round on the residue before burning a whole-chapter rewrite', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: SOFT_SCENES,
+    residualFirstBatch: true,
+    omitBatchSlots: ['2', '3'],
+  });
+
+  assert.equal(result.source, 'model', 'the twice-repaired draft still ships as a model draft');
+  assert.equal(result.localRepair?.passed, true);
+  assert.equal(result.localRepair?.rounds, 2, 'the second local round closed the residue');
+  assert.equal(result.localRepair?.targets, 6, 'three targets picked per round');
+  assert.equal(result.localRepair?.applied, 6);
+
+  assert.equal(writerRequestsOf(requests).length, 3, 'no whole-chapter rewrite was burned');
+  const repairRequests = repairRequestsOf(requests);
+  assert.equal(
+    repairRequests.filter((request) => request.includes(BATCH_PROMPT_MARKER)).length,
+    2,
+    'one batch call per round'
+  );
+  assert.equal(repairRequests.length, 4, 'round one also topped up the two missed slots');
+  assert.ok(!result.draft.includes('简陋'), 'no slop from either round ships');
+  for (const replacement of SECOND_ROUND_REPLACEMENTS) {
+    assert.ok(result.draft.includes(replacement), `clean replacement ships: ${replacement}`);
+  }
 });

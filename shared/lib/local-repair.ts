@@ -32,6 +32,15 @@ export const LOCAL_REPAIR_CONTEXT_CHARS = 240;
 /** 命中片段扩到整句的长度上限；超过就退回原片段（整段长句交给模型容易扩写）。 */
 export const MAX_LOCAL_REPAIR_SENTENCE_CHARS = 240;
 
+/**
+ * Plan 276：定点修复最多跑两轮。第一轮修不全时，用「修过但仍有残留」的正文重新挑目标再修一轮，
+ * 而不是立刻回落到整章重写（实测一处残留就换掉整篇模型稿太贵）。
+ */
+export const MAX_LOCAL_REPAIR_ROUNDS = 2;
+
+/** Plan 276：批量定点修复的响应标记；模型被要求每处输出一行 `@@FIX n@@` 再接那一处修好的整句。 */
+export const LOCAL_REPAIR_BATCH_MARKER = '@@FIX';
+
 /** 句末标点（含换行）：门禁的机械命中片段是截断的（实测 8 字符、无 range/scope），扩回整句靠它定位句首/句末。 */
 const SENTENCE_END_CHARS = '。！？!?…；;';
 
@@ -310,4 +319,76 @@ export function applyLocalRepairs(
     output = output.slice(0, repair.start) + repair.text + output.slice(repair.end);
   }
   return { text: output, applied: accepted.length, skipped };
+}
+
+/** 去掉模型多写的代码块围栏、标签行与包裹引号——替换文本要能直接写回正文。 */
+function stripReplacementDecorations(segment: string): string {
+  let text = String(segment || '')
+    .replace(/^\s*```[A-Za-z0-9_-]*\s*/, '')
+    .replace(/```\s*$/, '');
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length > 1) {
+    // 契约只要求一句；模型若多写了说明行，取最长的一行（说明行通常最短）。
+    text = lines.reduce((longest, line) => (line.length > longest.length ? line : longest), '');
+  } else {
+    text = lines[0] || '';
+  }
+  return text
+    .replace(/^\s*(?:替换(?:后)?|修好(?:后)?|修复(?:后)?|改写(?:后)?|第\s*\d+\s*处)\s*[:：]\s*/, '')
+    .replace(/^[「『“"']+/, '')
+    .replace(/[」』”"']+$/, '')
+    .trim();
+}
+
+/**
+ * 解析批量定点修复的响应：按 `@@FIX n@@` 标记把第 n 处的替换文本取出来。
+ * 返回长度恒为 count 的数组（缺失处为空串，由调用方决定补齐还是放弃）。
+ */
+export function parseLocalRepairBatchResponse(raw: string, count: number): string[] {
+  const total = Math.max(0, Math.floor(Number(count) || 0));
+  const results = new Array<string>(total).fill('');
+  if (total === 0) return results;
+  const text = String(raw || '');
+  const matches: Array<{ slot: number; start: number; markerAt: number; end: number }> = [];
+  const pattern = /^[ \t]*@@FIX[ \t]*(\d+)[ \t]*@@[ \t]*$/gm;
+  let match = pattern.exec(text);
+  while (match) {
+    matches.push({
+      slot: Number(match[1]) - 1,
+      start: (match.index || 0) + match[0].length,
+      markerAt: match.index || 0,
+      end: text.length,
+    });
+    match = pattern.exec(text);
+  }
+  if (!matches.length) {
+    // 退化形态：只有一处时模型常直接给整句，不带标记。
+    if (total === 1) results[0] = stripReplacementDecorations(text);
+    return results;
+  }
+  matches.forEach((entry, index) => {
+    const next = matches[index + 1];
+    const segment = text.slice(entry.start, next ? next.markerAt : entry.end);
+    if (Number.isInteger(entry.slot) && entry.slot >= 0 && entry.slot < total) {
+      results[entry.slot] = stripReplacementDecorations(segment);
+    }
+  });
+  return results;
+}
+
+/**
+ * 通过门禁后仍留在稿里的 P2 软残留 code。产品口径是 P2 不阻断交付，
+ * 但它必须可见（读数与日志），不能静默交付。
+ */
+export function residualP2Codes(findings?: readonly LocalRepairFindingLike[]): string[] {
+  const codes = new Set<string>();
+  for (const finding of findings || []) {
+    if (finding.severity !== 'P2') continue;
+    const code = String(finding.code || '').trim();
+    if (code) codes.add(code);
+  }
+  return [...codes];
 }

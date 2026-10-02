@@ -33,9 +33,14 @@ import {
 } from './knowledge-lineage-enrich.js';
 import { STREAM_HOLDBACK_CHARS, scaleTimeoutForReasoningEffort } from '../lib/server-llm';
 import {
+  LOCAL_REPAIR_BATCH_MARKER,
+  MAX_LOCAL_REPAIR_ROUNDS,
   applyLocalRepairs,
+  parseLocalRepairBatchResponse,
+  residualP2Codes,
   selectLocalRepairTargets,
   type LocalRepairHitLike,
+  type LocalRepairTarget,
 } from '../../shared/lib/local-repair';
 import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 
@@ -507,6 +512,10 @@ export interface LocalRepairSummary {
   skipped: number;
   passed: boolean;
   reason?: string;
+  /** Plan 276：实际跑了几轮定点修复（上限 MAX_LOCAL_REPAIR_ROUNDS；第二轮只针对第一轮的残留命中）。 */
+  rounds?: number;
+  /** Plan 276：修复通过门禁后仍留在稿里的 P2 软残留 code（P2 不阻断交付，但不再静默）。 */
+  residualCodes?: string[];
 }
 
 /** 只改被点名的一段：删套话与副词弱化，不新增信息、不扩写、篇幅相当。 */
@@ -519,6 +528,139 @@ const LOCAL_REPAIR_LLM_OPTIONS = {
   maxAttempts: 1,
   timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
 } as const;
+
+/** Plan 276：批量调用要一次产出全部替换句，token 预算比单句路高。 */
+const LOCAL_REPAIR_BATCH_LLM_OPTIONS = {
+  ...LOCAL_REPAIR_LLM_OPTIONS,
+  maxTokens: Math.max(LOCAL_REPAIR_LLM_OPTIONS.maxTokens, 3_072),
+} as const;
+
+/** 定点修复调用共享的上下文（批量与单句补齐路径共用）。 */
+type LocalRepairCallContext = {
+  novelId: string;
+  writerConfig: ReturnType<typeof resolveWriterConfig>;
+  contextStr: string;
+  signal?: AbortSignal;
+};
+
+function localRepairIssue(target: LocalRepairTarget): string {
+  return target.suggestion
+    ? `正文质量门命中（${target.category}）：${target.suggestion}`
+    : `正文质量门命中类别：${target.category}`;
+}
+
+/** Plan 276（R-269-1）：把 N 处目标合成一次请求，输出按 @@FIX n@@ 标记解析。 */
+function buildLocalRepairBatchPrompt(
+  targets: readonly LocalRepairTarget[],
+  contextStr: string
+): string {
+  const blocks = targets.map((target, index) =>
+    [
+      `【第 ${index + 1} 处】`,
+      `原句：${target.snippet}`,
+      `前文衔接：${target.before}`,
+      `后文衔接：${target.after}`,
+      `本处问题：${localRepairIssue(target)}`,
+    ].join('\n')
+  );
+  const slots = targets
+    .map(
+      (_target, index) =>
+        `${LOCAL_REPAIR_BATCH_MARKER} ${index + 1}${LOCAL_REPAIR_BATCH_MARKER}
+<第 ${index + 1} 处修好后的整句>`
+    )
+    .join('\n');
+  return [
+    `你是一个顶级的网文主编及文学润色大师。下面一章正文里有 ${targets.length} 处需要分别定点修好。`,
+    '',
+    '【整体世界观与上下文背景】',
+    contextStr,
+    '',
+    '【修补原则——必须严格遵守】',
+    `1. ${LOCAL_REPAIR_INSTRUCTION}`,
+    '2. 每一处只重写被点名的那一句整句，结合前文/后文衔接，绝对不要重复它们的内容。',
+    '3. 不要解释、不要前言后语、不要 markdown 代码块；除标记行外只输出修好后的句子。',
+    '',
+    `【输出格式（共 ${targets.length} 段，顺序与下面给出的编号一致）】`,
+    slots,
+    '',
+    '【需要定点修复的段落】',
+    blocks.join('\n\n'),
+    '',
+    `请直接按上述格式输出 ${targets.length} 段修复后的句子。`,
+  ].join('\n');
+}
+
+/**
+ * 批量定点修复：一次请求修好全部目标。调用失败或解析不到目标时返回空串数组，
+ * 由调用方按索引对缺口单独补一次调用（保留 Plan 269 的单句路径作为退化）。
+ */
+async function requestBatchLocalRepairs(
+  params: LocalRepairCallContext,
+  targets: readonly LocalRepairTarget[]
+): Promise<string[]> {
+  if (!targets.length) return [];
+  const prompt = buildLocalRepairBatchPrompt(targets, params.contextStr);
+  try {
+    const batched = await generateText(
+      params.writerConfig,
+      {
+        prompt,
+        ...LOCAL_REPAIR_BATCH_LLM_OPTIONS,
+        disableThinking: true,
+        signal: params.signal,
+      },
+      {
+        operation: 'production-pipeline-local-repair-batch',
+        novelId: params.novelId,
+        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+        signal: params.signal,
+      }
+    );
+    return parseLocalRepairBatchResponse(String(batched || ''), targets.length);
+  } catch (error) {
+    logger.warn('Local gate repair batch call failed; falling back to per-sentence calls', error);
+    return new Array<string>(targets.length).fill('');
+  }
+}
+
+/** 单句定点修复：批量的补齐路径，也是 Plan 269 的原路径。 */
+async function requestSingleLocalRepair(
+  params: LocalRepairCallContext,
+  target: LocalRepairTarget
+): Promise<string> {
+  const prompt = buildRewritePrompt({
+    text: target.snippet,
+    instruction: LOCAL_REPAIR_INSTRUCTION,
+    contextStr: params.contextStr,
+    auditIssue: localRepairIssue(target),
+    beforeContext: target.before,
+    afterContext: target.after,
+    mode: 'surgical-patch',
+  });
+  try {
+    const repaired = await generateText(
+      params.writerConfig,
+      {
+        prompt,
+        ...LOCAL_REPAIR_LLM_OPTIONS,
+        disableThinking: true,
+        signal: params.signal,
+      },
+      {
+        operation: 'production-pipeline-local-repair',
+        novelId: params.novelId,
+        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+        concurrency: 2,
+        signal: params.signal,
+      }
+    );
+    return String(repaired || '').trim();
+  } catch (error) {
+    logger.warn('Local gate repair call failed', error);
+    return '';
+  }
+}
 
 /**
  * 门禁命中 → 段落级定点修复：只重写被点名的句子，修完用同一套质量门复检。
@@ -558,43 +700,24 @@ async function repairGateHitsLocally(params: {
       },
     };
   }
+  // Plan 276（R-269-1）：先合成一次批量调用。原来的「一句一次」会把同一段上下文、前后衔接
+  // 重复发送 N 次（实测 3 处软命中 = 3 次往返）；批量的响应按 @@FIX n@@ 解析，
+  // 缺哪一处再对那一处单独补一次调用（批量的退化路径，保留 Plan 269 的原行为）。
+  const callContext: LocalRepairCallContext = {
+    novelId: params.novelId,
+    writerConfig: params.writerConfig,
+    contextStr: params.contextStr,
+    signal: params.signal,
+  };
+  const batchReplacements = await requestBatchLocalRepairs(callContext, selection.targets);
   const repairs: Array<{ start: number; end: number; text: string }> = [];
-  for (const target of selection.targets) {
+  for (let index = 0; index < selection.targets.length; index += 1) {
     throwIfAborted(params.signal);
-    const prompt = buildRewritePrompt({
-      text: target.snippet,
-      instruction: LOCAL_REPAIR_INSTRUCTION,
-      contextStr: params.contextStr,
-      auditIssue: target.suggestion
-        ? `正文质量门命中（${target.category}）：${target.suggestion}`
-        : `正文质量门命中类别：${target.category}`,
-      beforeContext: target.before,
-      afterContext: target.after,
-      mode: 'surgical-patch',
-    });
-    try {
-      const repaired = await generateText(
-        params.writerConfig,
-        {
-          prompt,
-          ...LOCAL_REPAIR_LLM_OPTIONS,
-          disableThinking: true,
-          signal: params.signal,
-        },
-        {
-          operation: 'production-pipeline-local-repair',
-          novelId: params.novelId,
-          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-          concurrency: 2,
-          signal: params.signal,
-        }
-      );
-      const replacement = String(repaired || '').trim();
-      if (replacement) {
-        repairs.push({ start: target.start, end: target.end, text: replacement });
-      }
-    } catch (error) {
-      logger.warn('Local gate repair call failed', error);
+    const target = selection.targets[index];
+    const replacement =
+      batchReplacements[index] || (await requestSingleLocalRepair(callContext, target));
+    if (replacement) {
+      repairs.push({ start: target.start, end: target.end, text: replacement });
     }
   }
   if (!repairs.length) {
@@ -629,6 +752,93 @@ async function repairGateHitsLocally(params: {
         ? undefined
         : `still-failing:${failedCodes.length ? failedCodes.join(',') : 'unknown'}`,
     },
+  };
+}
+
+/**
+ * Plan 276（R-269-3）：定点修复的完整生命周期——一轮修不全就用「修过但仍有残留」的正文
+ * 与它自己的复检报告重新挑目标再修一轮（上限 MAX_LOCAL_REPAIR_ROUNDS），
+ * 只有全部轮次都不行才把结果与原因交回整章重写/保底稿。
+ */
+async function attemptLocalRepairs(params: {
+  novelId: string;
+  writerConfig: ReturnType<typeof resolveWriterConfig>;
+  text: string;
+  findings: readonly { code?: string; severity?: string }[];
+  hits: readonly LocalRepairHitLike[];
+  contextStr: string;
+  minDraftChars?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  text: string | null;
+  report: ReturnType<typeof validateCompleteChapterDraftQuality> | null;
+  summary: LocalRepairSummary;
+}> {
+  let text = params.text;
+  let findings = params.findings;
+  let hits = params.hits;
+  let lastText: string | null = null;
+  let lastReport: ReturnType<typeof validateCompleteChapterDraftQuality> | null = null;
+  let targets = 0;
+  let applied = 0;
+  let skipped = 0;
+  let attempted = false;
+  let reason: string | undefined;
+  let rounds = 0;
+  for (let round = 0; round < MAX_LOCAL_REPAIR_ROUNDS; round += 1) {
+    const outcome = await repairGateHitsLocally({
+      novelId: params.novelId,
+      writerConfig: params.writerConfig,
+      text,
+      findings,
+      hits,
+      contextStr: params.contextStr,
+      minDraftChars: params.minDraftChars,
+      signal: params.signal,
+    });
+    rounds += 1;
+    targets += outcome.summary.targets;
+    applied += outcome.summary.applied;
+    skipped += outcome.summary.skipped;
+    attempted = attempted || outcome.summary.attempted;
+    if (outcome.summary.reason) reason = outcome.summary.reason;
+    if (!outcome.text || !outcome.report) {
+      // 这一轮没有可用的修复结果：没有新文本可供重新定位，不再挑下一轮。
+      return {
+        text: lastText,
+        report: lastReport,
+        summary: { attempted, targets, applied, skipped, passed: false, rounds, reason },
+      };
+    }
+    lastText = outcome.text;
+    lastReport = outcome.report;
+    if (outcome.report.ok) {
+      const residualCodes = residualP2Codes(outcome.report.findings);
+      return {
+        text: outcome.text,
+        report: outcome.report,
+        summary: {
+          attempted,
+          targets,
+          applied,
+          skipped,
+          passed: true,
+          rounds,
+          ...(residualCodes.length ? { residualCodes } : {}),
+        },
+      };
+    }
+    // 硬缺陷/未达篇幅/没有可定位命中：再挑也是同一批拒绝原因，不再烧第二轮调用。
+    if (!outcome.summary.attempted) break;
+    // 第二轮改用修过但仍有残留的正文与它的复检命重，而不是原稿重复同一批句子。
+    text = outcome.text;
+    findings = outcome.report.findings || [];
+    hits = outcome.report.mechanicalReview?.hits || [];
+  }
+  return {
+    text: lastText,
+    report: lastReport,
+    summary: { attempted, targets, applied, skipped, passed: false, rounds, reason },
   };
 }
 
@@ -1178,7 +1388,7 @@ export async function runProductionPipeline(params: {
         // 变成第二篇长文。定点修复成功即收稿，不再烧掉整章重写重试。
         if (!localRepairAttempted) {
           localRepairAttempted = true;
-          const outcome = await repairGateHitsLocally({
+          const outcome = await attemptLocalRepairs({
             novelId,
             writerConfig: resolveWriterConfig(getConfig()),
             text: currentDraft,
@@ -1196,9 +1406,13 @@ export async function runProductionPipeline(params: {
               localRepairPassed = true;
               logger.info('[pipeline] local gate repair passed the prose quality gate', {
                 novelId,
+                rounds: outcome.summary.rounds,
                 targets: outcome.summary.targets,
                 applied: outcome.summary.applied,
                 skipped: outcome.summary.skipped,
+                ...(outcome.summary.residualCodes?.length
+                  ? { residualCodes: outcome.summary.residualCodes }
+                  : {}),
               });
             } else if (
               outcome.text.trim() &&
