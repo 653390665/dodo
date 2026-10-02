@@ -835,3 +835,12 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 真机复测（隔离 3301，gemini-3.8-flash-high）：`05541c0c` 57.6 s（beats 9.0 s / 首正文 **19.0 s**，4 块，score 88 pass）；`83bff6c8` 76.4 s（beats 17.9 s / 首正文 **26.7 s**，4 块 @26.7/36.2/52.9/69.7 s，**resets 0**，score 88 pass）；落库 model 版本 5231 字 + fallback 4141 字（透传 5225 + 3 个场景分隔符 = 差值 6）。
 - 残余：R-272-1 split-scene 场景衔接段仍突兀；R-272-2 critic 阶段（~6 s）无实时反馈；R-272-3 reset 只在文本真被替换时发；R-272-4 透传粒度受上游限制（每场景一个大块，4 块/章）。
 - 交付：`plans/272-first-chapter-live-draft.md`（含执行结果与两跑对照表）。
+
+## Round 57（2026-10-01）：strict 守门下的分段透传（273）
+
+- 问题（R-272-4）：Plan 272 后一次交付仍是 4 块/章、首正文 19.0–26.7 s；上游探针证明瓶颈不在上游（直连 8317：gemini 21 块 / 首块 11.3 s，sonnet 373 块 / 首块 2.5 s），而在 `server/lib/server-llm.ts` 的 strict 守门把 `onToken` 换成 `deferredTokenSink`（整段生成完才回发）。
+- 方案：holdback 分段透传 —— `STREAM_HOLDBACK_CHARS = 64`、`STREAM_HOLDBACK_MAX_CHARS = 2_048`、`createHoldbackSink`（`push` 只回发窗口外内容 / `flush` 补尾 / `discard` 丢尾）、`GenerateTextOptions.streamHoldback`；过门 flush、判负 discard 后再整段回发；管线 writer（含场景截断续写调用）带窗口，`emitFinalDraft` 增前缀续传（只补后缀）。
+- 读数：真机两跑 run `20e31880`（beats 15.3 s / 首正文 18.5 s / 173 块 / score 82 pass）、run `cb0f9a39`（9.8 s / 13.2 s / 166 块 / 88 pass）；两跑 `RESETS 0`，末块均为 64 字 = holdback 窗口指纹。
+- 门禁：tsc 0 / eslint 0 / 定向 7 文件 72/72（新增 `tests/llm-stream-holdback.test.ts`）。
+- 文档：`plans/273-incremental-draft-streaming.md`。
+- 残余：R-273-1（窗口固定 64 字）/ R-273-2（critic 无实时反馈，沿用 R-272-2）/ R-273-3（reset 仅在非前缀差异时触发）。
