@@ -864,3 +864,15 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向后端 28/28 + 7/7 / 定向前端 21/21（新增 `src/tests/production-critic-progress.test.ts`，扩展 `tests/llm-stream-holdback.test.ts`、`tests/critic-parse-retry.test.ts`）。
 - 文档：`plans/275-adaptive-holdback-and-critic-progress.md`。
 - 残余：R-275-1（只到轮次/阶段/原因，未透传五维结论）/ R-275-2（真机仍触发 1 次整段重放，R-273-3 未消除）/ R-275-3（窗口未与重放路径联动）；沿用未动工 R-269-1..3 / R-272-1。
+
+## Round 60（2026-10-02）：定点修复批量调用 · 两轮收敛 · P2 残留可见（276）
+
+- 残余来源：R-269-1（每处一次 LLM 调用）、R-269-2（P2 残留不可见）、R-269-3（失败即整章重写的最贵退路）。
+- R-269-1 批量：`shared/lib/local-repair.ts` 增 `MAX_LOCAL_REPAIR_ROUNDS = 2`、`LOCAL_REPAIR_BATCH_MARKER = '@@FIX'`、`parseLocalRepairBatchResponse(raw, count)`（容错代码块围栏与 `替换后：` 装饰、缺号保空串）；`server/helpers/ai-production-pipeline.ts` 增 `buildLocalRepairBatchPrompt`（`【第 n 处】` 槽）与 `requestBatchLocalRepairs`（operation `production-pipeline-local-repair-batch`），逐槽补漏 `batchReplacements[index] || await requestSingleLocalRepair(...)`。
+- R-269-3 两轮：`attemptLocalRepairs` 循环 `MAX_LOCAL_REPAIR_ROUNDS`（:788）——首轮通过即返回（附 `residualCodes`），否则按新报告的 findings/hits 再挑目标修一轮。
+- R-269-2 可见：`residualP2Codes(findings)` 随交付日志输出 `[INFO] [pipeline] local gate repair passed the prose quality gate {rounds, targets, applied, skipped, residualCodes?}`（空则不带键）。
+- 关键洞察：批量回执自己也要过散文守卫——回执含 ≥3 条高置信软命中即判负 → 纠错重写 → 不再有 `@@FIX` 标记 → 解析全空 → 逐处回落单句。真机（gemini-3.1-flash-lite）实测 `batch repair response {"targets":3,"filled":0,"empty":3}` → 3 次单句补齐，修复仍过门（正确性保持，批量当前不省调用）。
+- 真机（隔离 3301，作品 d23eef68 / 章节 99b28a6e）：`ccb01433`（flash-high，256.9 s，84 pass，未触发修复）、`3990d755`（flash-high，69.0 s，92 pass）、`01a68994`（flash-lite，221.4 s，70 fail；失败 #1 4 目标修复通过、失败 #2 含 `duplicate-paragraph` 拒绝本地修复 → 整章重写）、`c837e318`（flash-lite 仪表化，256.5 s，48 fail：批量 1 次 0/3 槽 → 3 次单句 → 修复通过）。
+- 门禁：tsc 0 / eslint 0 / 定向后端 17/17 / 后端全量 1506（1504 pass / 0 fail / 2 cancelled，两配额文件独立重跑 19/19）；未触及前端。
+- 文档：`plans/276-local-repair-batch-and-rounds.md`。
+- 残余：R-276-1（弱模型批量 0 槽可用，批量不省调用）/ R-276-2（第二轮真机未观测）/ R-276-3（P2 残留只进日志）；沿用 R-269-3 / R-272-1 / R-273-3 / R-275-1..3。
