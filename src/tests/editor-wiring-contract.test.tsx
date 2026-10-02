@@ -146,21 +146,39 @@ describe('editor wiring contract (real hooks, mocked transport)', () => {
 
   test('draft generation forwards numeric databaseGeneration and the right chapter/novel to the transport', async () => {
     const draftResponse = { ok: true, status: 200, body: {} };
-    fetchMock.mockResolvedValueOnce(draftResponse);
+    // Plan 271 W3: 缺指纹时先向写法 resolver 取默认指纹，再发起写作请求。
+    fetchMock.mockImplementation(async (input: unknown) => {
+      const requestUrl = String(input);
+      if (requestUrl.includes('/writing-style/resolve')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            fingerprint: 'fp-auto',
+            resolution: { fingerprint: 'fp-auto', mode: 'default', summary: '默认写法', sources: [], allowedModes: [], warnings: [], confirmed: true },
+          }),
+        };
+      }
+      return draftResponse;
+    });
     const { result } = renderFlow();
 
     await act(async () => {
       await result.current.handleGenerateContent();
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/api/orchestrate-draft');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls[0]).toBe('/api/novels/novel-1/writing-style/resolve');
+    const draftIndex = urls.indexOf('/api/orchestrate-draft');
+    expect(draftIndex).toBeGreaterThan(-1);
+    const init = fetchMock.mock.calls[draftIndex][1] as RequestInit;
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(typeof body.databaseGeneration).toBe('number');
     expect(body.databaseGeneration).toBe(7);
     expect(body.novelId).toBe('novel-1');
     expect(body.chapterId).toBe('chapter-1');
+    expect(body.styleConfirmationFingerprint).toBe('fp-auto');
 
     // 响应对象原样交给流读取层（transport → stream reader 接线）。
     expect(draftStreamMocks.readDraftStream).toHaveBeenCalledTimes(1);
