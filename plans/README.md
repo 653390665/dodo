@@ -809,3 +809,16 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 残余：R-270-1 `/complete/risk` 未演练；R-270-2 `/complete` 重试 4.9 ms 返回 pass（疑似反代缓存，待复核）；R-270-3 sonnet 的 `---` 兼容可修（剥除独立分隔线或强化提示约束）；R-270-4 high 档默认前需先解决 writer reasoning-only/超时（Plan 267/268 已记）。
 - 交付：`plans/270-link-config-model-tuning.md`（四条工作线 + 执行结果节）；harness/读数脚本均在 /tmp（`p270-matrix.py` / `p270-recollect.py` / `p270-census4.py` / `p270-tail2.py` / `p270-doc.py`）。
 - push：新增提交仍待用户批准（`git push origin codex/plan169-checkpoint`；GitHub 直连超时，需经 `http://127.0.0.1:7897`）。
+
+## Round 55（2026-10-01）：产品读数与首章漏斗（271）
+
+- 来源：PM 视角诊断（m21272 / 答复 m21301）→ 用户 m21302 批准落地三项；明确排除上游 provider 分发 / 多人可安装。
+- W1 裁决行为埋点：新增 `draft_reject` / `draft_abandon` / `writing_style_defaulted`；`ProductEventMetrics.decisions`（预览范围口径：accepts/reviseAccepts/rejects/abandonments + 三个 rate + 裁决耗时 p50/p95）；记录点 `useEditorGenerationFlow.ts` / `useChapterProductionFlow.ts`；`tests/product-event-decisions.test.ts` 3 例（同跑 7/7）。
+- W2 cockpit 三读数：`server/lib/db/product-truth.ts` + `GET /api/product-truth/metrics` + `ProductTruthPanel`（首章完成率 / 模型稿占比 / run 采纳率 / 裁决耗时中位数），挂在 `ProjectCockpitView`；测试 3+3+2 全绿。
+- W3 写法确认默认化：`ensureWritingStyleConfirmed`（resolve → 未确认则 confirm → 记一次 `writing_style_defaulted`），接线 `production-client.ts` 两个入口与 `useDraftGeneration.ts`；测试 5/5。
+- 真机门级取证（隔离 3301）：未确认态 → confirm → 带指纹 `start-stream` **200**；缺/错指纹 → **409**（不变量保住）；稳态不重复 confirm，整链跑到 `done`（run `a1d581de`）。
+- 阻塞：本机 7897 代理客户端 `connection refused`（`proxyconnect tcp: dial tcp 127.0.0.1:7897`）→ 8317 全模型 500，本轮无模型稿真机读数。
+- 门禁：`tsc` 0 / `eslint` 0（首轮一条 `react-hooks/exhaustive-deps` 已修）。
+- 全量套件：后端 1506 通过 / 0 失败（68 秒）；前端 164 files / 1038 tests 全绿（初跑两例旧断言已改为新契约：缺指纹时多一次写法 resolve 请求）。
+- 残余：R-271-1（接受后再编辑的编辑量需正文 diff埋点）/R-271-2（预览被切章丢弃无 `draft_abandon`）/R-271-3（首章 60 秒只去掉确认墙）。
+- 交付：`plans/271-product-truth-and-first-chapter.md`（含执行结果节）。
