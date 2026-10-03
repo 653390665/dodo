@@ -511,10 +511,183 @@ export const BEATS_FIELD_RESIDUE =
 export const BEATS_FIELD_RESIDUE_INLINE =
   /(?:出场人物|入场钩子|核心冲突|关键动作链|关键道具\/?信息|情绪转折|退场钩子|连接上一场景)\s*[：:]|场景\s*\d+\s*[：:]/;
 
+
+
+/**
+ * Plan 278①：设定卡泄漏检测——writer 偶发把「关键人物/关键道具」档案当正文复述
+ * （例如「左妄，觉醒但未自知的裂隙携带者，能感知事物同源性。」）。这类尾部泄漏语义上
+ * 整章报废，但机械门禁看不见：它不是套话，也不带「关键人物：」这类标记前缀。
+ * 同时提供确定性剥离，让管线先删掉泄漏句再复检，而不是直接烧一轮整章重写。
+ */
+export interface SettingCardSource {
+  name: string;
+  sketch: string;
+}
+
+/** 泄漏判据：名字之后紧接着的文本与档案描述（规范化后）连续重合 ≥ 该长度。 */
+export const SETTING_CARD_LEAK_MIN_MATCH_CHARS = 6;
+const SETTING_CARD_LEAK_WINDOW_CHARS = 80;
+const SETTING_CARD_BLOCK_HEADER = /^\s*(?:关键人物|关键道具)\s*[:：]\s*$/;
+const SETTING_CARD_ENTRY = /^\s*[-·]\s*([^:：\n]{1,24})\s*[:：]\s*(\S.*)$/;
+
+export interface SettingCardLeakHit {
+  name: string;
+  /** 1 起的行号。 */
+  line: number;
+  snippet: string;
+  /** 命中的句子在正文里的原始区间（剥离用）。 */
+  start: number;
+  end: number;
+}
+
+export interface SettingCardLeakStrip {
+  text: string;
+  removed: SettingCardLeakHit[];
+}
+
+/** 从 writer 上下文里抽出「关键人物/关键道具」块的人物与道具档案条目。 */
+export function extractSettingCardSources(context?: string | null): SettingCardSource[] {
+  if (!context) return [];
+  const sources: SettingCardSource[] = [];
+  let inBlock = false;
+  for (const raw of String(context).split('\n')) {
+    const line = raw.trim();
+    if (SETTING_CARD_BLOCK_HEADER.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (!inBlock) continue;
+    if (!line.startsWith('-') && !line.startsWith('·')) {
+      inBlock = false;
+      continue;
+    }
+    const match = line.match(SETTING_CARD_ENTRY);
+    if (!match) continue;
+    const name = match[1].trim();
+    const sketch = match[2].trim();
+    if (name && sketch.length >= SETTING_CARD_LEAK_MIN_MATCH_CHARS) sources.push({ name, sketch });
+  }
+  return sources;
+}
+
+function normalizeSettingCardText(value: string): string {
+  return value.replace(/[\s，,。；;：:、！!？?…—－\-·"'“”‘’()（）《》〈〉【】\]]/g, '');
+}
+
+function sentenceRangeAt(text: string, index: number): { start: number; end: number } {
+  const boundary = '。！？…\n';
+  let start = index;
+  while (start > 0 && !boundary.includes(text[start - 1])) start -= 1;
+  let end = index;
+  while (end < text.length && !boundary.includes(text[end])) end += 1;
+  if (end < text.length) end += 1;
+  return { start, end };
+}
+
+/** 逐条档案找「名字 + 紧接着的档案原文」：命中即视为设定集泄漏。 */
+export function detectSettingCardLeaks(text: string, sources: readonly SettingCardSource[]): SettingCardLeakHit[] {
+  const draft = String(text || '');
+  if (!draft || sources.length === 0) return [];
+  const hits: SettingCardLeakHit[] = [];
+  const seen = new Set<number>();
+  for (const source of sources) {
+    const sketch = normalizeSettingCardText(source.sketch);
+    if (sketch.length < SETTING_CARD_LEAK_MIN_MATCH_CHARS) continue;
+    let from = draft.indexOf(source.name);
+    while (from >= 0) {
+      const tail = normalizeSettingCardText(
+        draft.slice(from + source.name.length, from + source.name.length + SETTING_CARD_LEAK_WINDOW_CHARS)
+      );
+      let matched = false;
+      for (let offset = 0; offset + SETTING_CARD_LEAK_MIN_MATCH_CHARS <= sketch.length && !matched; offset += 1) {
+        matched = tail.includes(sketch.slice(offset, offset + SETTING_CARD_LEAK_MIN_MATCH_CHARS));
+      }
+      if (matched) {
+        const range = sentenceRangeAt(draft, from);
+        if (!seen.has(range.start)) {
+          seen.add(range.start);
+          hits.push({
+            name: source.name,
+            line: draft.slice(0, range.start).split('\n').length,
+            snippet: draft.slice(range.start, Math.min(range.end, range.start + 60)).trim(),
+            start: range.start,
+            end: range.end,
+          });
+        }
+        break;
+      }
+      from = draft.indexOf(source.name, from + 1);
+    }
+  }
+  return hits;
+}
+
+/** 删掉泄漏句本身（保留其余正文），供管线先做确定性修复再复检。 */
+/** Plan 278(2)：写作提示词指令回声——模型把「档案纪律」等指令句抄进正文。 */
+export const PROMPT_INSTRUCTION_RESIDUE =
+  /(档案纪律|必须遵守|严禁|设定档案|字段名|不要扩写|不要新增|输出格式|【第\s*\d+\s*处】|@@FIX)/;
+
+export function detectPromptInstructionResidue(text: string): SettingCardLeakHit[] {
+  const draft = String(text || '');
+  const hits: SettingCardLeakHit[] = [];
+  const seen = new Set<number>();
+  let cursor = 0;
+  for (const line of draft.split('\n')) {
+    const offset = line.search(PROMPT_INSTRUCTION_RESIDUE);
+    if (offset >= 0) {
+      const range = sentenceRangeAt(draft, cursor + offset);
+      if (!seen.has(range.start)) {
+        seen.add(range.start);
+        hits.push({
+          name: '提示词指令',
+          line: draft.slice(0, range.start).split('\n').length,
+          snippet: draft.slice(range.start, range.end).trim().slice(0, 60),
+          start: range.start,
+          end: range.end,
+        });
+      }
+    }
+    cursor += line.length + 1;
+  }
+  return hits;
+}
+
+export function stripPromptInstructionResidue(text: string): SettingCardLeakStrip {
+  const draft = String(text || '');
+  return stripHitRanges(draft, detectPromptInstructionResidue(draft));
+}
+
+export function stripSettingCardLeaks(text: string, sources: readonly SettingCardSource[]): SettingCardLeakStrip {
+  const draft = String(text || '');
+  return stripHitRanges(draft, detectSettingCardLeaks(draft, sources));
+}
+
+function stripHitRanges(draft: string, hits: readonly SettingCardLeakHit[]): SettingCardLeakStrip {
+  if (hits.length === 0) return { text: draft, removed: [] };
+  const ranges = hits
+    .map((hit) => ({ start: hit.start, end: hit.end }))
+    .sort((a, b) => a.start - b.start);
+  const merged: Array<{ start: number; end: number }> = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
+    else merged.push({ ...range });
+  }
+  let out = '';
+  let cursor = 0;
+  for (const range of merged) {
+    out += draft.slice(cursor, range.start);
+    cursor = range.end;
+  }
+  out += draft.slice(cursor);
+  out = out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { text: out, removed: [...hits] };
+}
+
 export function validateCompleteChapterDraftQuality(
   text: string,
   semanticReview = DEFAULT_SEMANTIC_REVIEW,
-  options?: { minChars?: number }
+  options?: { minChars?: number; context?: string }
 ): DraftQualityResult {
   const result = validateChapterDraftQuality(text, semanticReview);
   const findings = [...result.findings];
@@ -554,6 +727,29 @@ export function validateCompleteChapterDraftQuality(
         line: index + 1,
         snippet: line.trim().slice(0, 60),
       })),
+    });
+  }
+  const settingCards = extractSettingCardSources(options?.context);
+  if (settingCards.length) {
+    const leaks = detectSettingCardLeaks(text, settingCards);
+    if (leaks.length >= 2 && !findings.some((finding) => finding.code === 'setting-card-leak')) {
+      findings.push({
+        code: 'setting-card-leak',
+        message: `正文复述了 ${leaks.length} 处人物/道具设定卡文本（如「${leaks[0].snippet.slice(0, 30)}」），属于设定集泄漏，需要改写为纯场景叙事`,
+        severity: 'P1',
+        category: 'template',
+        evidence: leaks.slice(0, 3).map((leak) => ({ line: leak.line, snippet: leak.snippet.slice(0, 60) })),
+      });
+    }
+  }
+  const residueEchoes = detectPromptInstructionResidue(text);
+  if (residueEchoes.length >= 2 && !findings.some((finding) => finding.code === 'prompt-residue-echo')) {
+    findings.push({
+      code: 'prompt-residue-echo',
+      message: `正文混入 ${residueEchoes.length} 处写作提示词指令（如「${residueEchoes[0].snippet.slice(0, 30)}」），属于提示词泄漏，需要改写为纯场景叙事`,
+      severity: 'P1',
+      category: 'template',
+      evidence: residueEchoes.slice(0, 3).map((hit) => ({ line: hit.line, snippet: hit.snippet.slice(0, 60) })),
     });
   }
   const mechanicalReview: DraftQualityMechanicalReview = {

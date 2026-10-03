@@ -196,18 +196,19 @@ export function buildProductionWriterContext(ledger: StoryStateLedger): string {
         (chapter) => `- ${chapter.title}: ${compact(chapter.summary || chapter.sceneBeats, 220)}`
       )
       .join('\n') || '- 无';
+  // Plan 278①：writer 侧只给名字（不再附档150字摘要）——pro 模型会把档案摘要当结尾续写。
   const characters =
     ledger.entityStates.characters
       .slice(0, 6)
       .map(
         (entry) =>
-          `- ${entry.name}: ${compact(entry.summary, 140)}${entry.statusNote ? ` (${compact(entry.statusNote, 80)})` : ''}`
+          `- ${entry.name}${entry.statusNote ? ` (${compact(entry.statusNote, 80)})` : ''}`
       )
       .join('\n') || '- 无';
   const items =
     ledger.entityStates.items
       .slice(0, 4)
-      .map((entry) => `- ${entry.name}: ${compact(entry.summary, 120)}`)
+      .map((entry) => `- ${entry.name}`)
       .join('\n') || '- 无';
   const foreshadowings =
     ledger.openForeshadowings
