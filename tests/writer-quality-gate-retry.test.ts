@@ -117,11 +117,24 @@ const AUDIT_JSON = JSON.stringify({
   ],
 });
 
+const AUDIT_JSON_LOW = JSON.stringify({
+  score: 30,
+  fatalIssues: [],
+  sceneChecks: [],
+  surgerySuggestions: [],
+  evidence: [
+    { category: 'scene_execution', severity: 'high', quote: '场景证据', explanation: '场景执行不足', suggestedFix: '重写场景' },
+    { category: 'character_state', severity: 'high', quote: '角色证据', explanation: '人物选择不稳', suggestedFix: '重写人物动机' },
+    { category: 'hard_canon', severity: 'low', quote: '设定证据', explanation: '设定约束一致', suggestedFix: '保持规则约束' },
+    { category: 'foreshadowing', severity: 'low', quote: '伏笔证据', explanation: '章末信息可追踪', suggestedFix: '后续回收线索' },
+  ],
+});
+
 async function runPipeline(options: {
   plannerBeats: string;
   drafts: string[];
   criticThrows?: boolean;
-  criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'ok'>;
+  criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'low-score' | 'ok'>;
 }) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
@@ -148,7 +161,7 @@ async function runPipeline(options: {
     if (options.criticThrows && prompt.includes('CRITIC_SENTINEL')) {
       throw new Error('critic provider unavailable (mock)');
     }
-    let criticMode: 'throw' | 'truncated' | 'no-evidence' | 'ok' | null = null;
+    let criticMode: 'throw' | 'truncated' | 'no-evidence' | 'low-score' | 'ok' | null = null;
     if (prompt.includes('CRITIC_SENTINEL') && criticQueue.length) {
       criticMode = criticQueue.shift() ?? null;
       if (criticMode === 'throw') {
@@ -188,6 +201,8 @@ async function runPipeline(options: {
       content = writerDraft;
     } else if (criticMode === 'no-evidence') {
       content = FIVE_DIM_NO_EVIDENCE;
+    } else if (criticMode === 'low-score') {
+      content = AUDIT_JSON_LOW;
     } else {
       content = AUDIT_JSON;
     }
@@ -361,4 +376,65 @@ test('an unmet evidence contract still reports unknown instead of rubber-stampin
   const criticRequests = requests.filter((request) => request.includes('CRITIC_SENTINEL'));
   assert.equal(criticRequests.length, 4, 'two chapter attempts, one escalated retry each');
   assert.equal(result.auditStatus, 'unknown', 'no evidence means no pass');
+});
+
+// Plan 278(3)(4)：模型短稿不再用模板句填充（R-267-1 真因：ensureMinimumDraftLength 的
+// 通用「年代戏」句式池会污染稿尾），改为带篇幅反馈重写整章。
+const SHORT_SCENES = [body('A', 1, 8), body('B', 1, 8), body('C', 1, 8)];
+
+test('a short model draft is continued to full length instead of being padded with template sentences', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...SHORT_SCENES, ...CLEAN_SCENES],
+  });
+
+  const writerRequests = requests.filter((request) => request.includes('WRITER_SENTINEL'));
+  assert.equal(writerRequests.length, 4, 'three scenes then one length continuation');
+  const continuationRequest = writerRequests[3];
+  assert.ok(continuationRequest.includes('无缝续写'), 'the short chapter is continued, not rewritten');
+  assert.ok(continuationRequest.includes('还差约'), 'the continuation carries the measured shortfall');
+  assert.ok(
+    continuationRequest.includes('【已写出的正文末尾'),
+    'the continuation starts from the existing prose',
+  );
+  assert.ok(
+    !continuationRequest.includes('上一稿未通过正文质量门禁'),
+    'no whole-chapter rewrite for a short draft',
+  );
+  for (const filler of ['更漏', '银票', '马厩', '算命摊', '梆子']) {
+    assert.ok(
+      !result.draft.includes(filler),
+      `no template filler (${filler}) in the delivered draft`,
+    );
+  }
+
+  assert.ok(result.draft.includes('序号1段记录中'), 'the original short scenes stay in place');
+  assert.ok(result.draft.includes('晒场'), 'the continuation prose is appended to the chapter');
+  assert.equal(result.source, 'model', 'the model draft wins once it is long enough');
+});
+
+// Plan 278(5)：修复/续写标志必须逐 attempt 重置——否则审稿回路重写出的短稿会
+// 沿用它上一轮的「已过门」状态被当成模型稿直接交付（真机 pro-low8 rep3：2846 字交付）。
+test('a below-contract rewrite cannot ride a stale repair pass', async () => {
+  const { result } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [
+      ...SHORT_SCENES,
+      CLEAN_SCENES[0],
+      ...SHORT_SCENES,
+      '短。',
+      '短。',
+      '短。',
+      '短。',
+      '短。',
+    ],
+    criticScript: ['low-score', 'low-score', 'low-score', 'low-score', 'low-score', 'low-score'],
+  });
+
+  // 不变式：模型稿一旦交付就必须达篇幅合同；短的重写稿不得沿上一轮的状态被放行。
+  assert.ok(
+    result.source !== 'model' || result.draft.length >= 4000,
+    'a model draft is never delivered below the length contract',
+  );
+  assert.ok(!result.draft.includes('短。'), 'a below-contract rewrite body is never shipped');
 });

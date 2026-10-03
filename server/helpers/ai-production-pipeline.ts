@@ -17,12 +17,15 @@ import {
 import {
   buildFallbackDraft,
   buildFallbackSceneBeats,
-  ensureMinimumDraftLength,
 } from './fallback-draft';
 import type { LearnedPreference } from '../../shared/lib/preference-flywheel';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
+
 import {
+  extractSettingCardSources,
   resolveEffectiveMinDraftChars,
+  stripPromptInstructionResidue,
+  stripSettingCardLeaks,
   validateCompleteChapterDraftQuality,
 } from '../../shared/lib/draft-quality';
 import {
@@ -37,6 +40,7 @@ import {
   MAX_LOCAL_REPAIR_BATCH_TARGETS,
   MAX_LOCAL_REPAIR_ROUNDS,
   applyLocalRepairs,
+  compactTextLength,
   parseLocalRepairBatchResponse,
   residualP2Codes,
   selectLocalRepairTargets,
@@ -481,21 +485,23 @@ function truncateFeedback(message: string): string[] {
 
 // Plan 266 修复②：判定一次正文门失败是否只由局部软命中引起——这类失败应当带
 // 定向反馈重写整章，而不是立刻丢弃整章换确定性保底稿（保底稿无法承载正文）。
+const WRITER_RETRIABLE_FINDING_CODES = ['literary-slop', 'setting-card-leak', 'prompt-residue-echo', 'chapter-below-contract'];
+
 function isRetriableWriterSoftFailure(quality: {
   findings?: Array<{ code?: string; severity?: string }>;
   mechanicalReview?: { status?: string };
 }): boolean {
   if (quality.mechanicalReview?.status !== 'pass') return false;
   const findings = quality.findings || [];
-  if (!findings.some((finding) => finding.code === 'literary-slop')) return false;
+  if (!findings.some((finding) => WRITER_RETRIABLE_FINDING_CODES.includes(finding.code || ''))) return false;
   return findings.every(
-    (finding) => finding.severity === 'P2' || finding.code === 'literary-slop'
+    (finding) => finding.severity === 'P2' || WRITER_RETRIABLE_FINDING_CODES.includes(finding.code || '')
   );
 }
 
 function buildLiteraryRetryFeedback(quality: {
   violations?: string[];
-  findings?: Array<{ evidence?: Array<string | { snippet?: string }> }>;
+  findings?: Array<{ code?: string; evidence?: Array<string | { snippet?: string }> }>;
 }): string {
   const snippets: string[] = [];
   for (const finding of quality.findings || []) {
@@ -509,10 +515,20 @@ function buildLiteraryRetryFeedback(quality: {
   const detail = snippets.length
     ? `需要改写的具体语句：${snippets.join(' / ')}。`
     : '';
+
+  const settingCardLeak = (quality.findings || []).some((finding) => finding.code === 'setting-card-leak');
+  const promptResidue = (quality.findings || []).some((finding) => finding.code === 'prompt-residue-echo');
   const problems = quality.violations?.length
     ? `具体问题：${quality.violations.join('；')}。`
     : '';
-  return `【上一稿未通过正文质量门禁，请重写整章】${problems}${detail}${WRITER_RETRY_STYLE_RULE}`;
+
+  const leakFeedback = settingCardLeak
+    ? '正文结尾复述了人物/道具设定卡原文：只写场景与动作，不要罗列设定、名单或背景说明。'
+    : '';
+  const residueFeedback = promptResidue
+    ? '正文混入了写作提示词指令（如「档案纪律」「必须遵守」等说明句）：只写小说正文，不要抄写任何指令、格式说明或字段名。'
+    : '';
+  return `【上一稿未通过正文质量门禁，请重写整章】${problems}${detail}${leakFeedback}${residueFeedback}${WRITER_RETRY_STYLE_RULE}`;
 }
 
 /**
@@ -794,8 +810,10 @@ async function repairGateHitsLocally(params: {
     };
   }
   const application = applyLocalRepairs(params.text, repairs);
+
   const report = validateCompleteChapterDraftQuality(application.text, undefined, {
     minChars: params.minDraftChars,
+    context: params.contextStr,
   });
   const failedCodes = (report.findings || []).map((finding) => finding.code).filter(Boolean);
   return {
@@ -1186,12 +1204,15 @@ export async function runProductionPipeline(params: {
   let gateSalvageAudit = '';
   let gateSalvageAuditStatus: PipelineResult['auditStatus'] = 'unknown';
   let gateSalvageScore = 0;
-  // Plan 269：门禁命中先试一次段落级定点修复（每 run 一次）。
-  let localRepairAttempted = false;
-  let localRepairPassed = false;
   let localRepair: LocalRepairSummary | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // Plan 278(5)：修复/续写标志必须逐 attempt 重置——critic 低分会回路重写，
+    // 陈旧标志会把新产生的短稿当成「已修好」直接交付（真机 pro-low8 rep3 复现：交付 2846 字未达 4000 合同）。
+    let localRepairAttempted = false;
+    let localRepairPassed = false;
+    let lengthContinuationAttempted = false;
+    let lengthContinuationPassed = false;
     attempts = attempt + 1;
     criticAvailable = false;
     progress.onPhase?.('writer');
@@ -1476,12 +1497,10 @@ export async function runProductionPipeline(params: {
         }
         throw new Error('empty_model_draft');
       }
-      currentDraft = ensureMinimumDraftLength(
-        currentDraft,
-        sceneBeats,
-        augmentedContexts.writer,
-        minDraftChars
-      );
+      // Plan 278(3)：不再用 ensureMinimumDraftLength 给模型稿填充模板句。
+      // 填充池是通用「年代戏」句式（马厩/银票/更漏/算命摊…），与本文风无关，
+      // 会在稿尾制造莫名其妙的段落（真机 gemini-3.1-pro-low 三连低分的稿尾崩坏，
+      // 即 R-267-1 的真因）；短稿改由门禁的 chapter-below-contract 触发定向重写。
       if (process.env.DEBUG_GATE_IN === '1') {
         console.error(
           '[DEBUG-gatein] len=' +
@@ -1498,9 +1517,40 @@ export async function runProductionPipeline(params: {
           /* 诊断采集失败不影响主流程 */
         }
       }
+
+      const gateContext = augmentedContexts.writer;
       let draftQuality = validateCompleteChapterDraftQuality(currentDraft, undefined, {
         minChars: minDraftChars,
+        context: gateContext,
       });
+      // Plan 278①：设定卡泄漏几乎只出现在结尾；先做确定性剥离，剥掉后整章达标就直接采用。
+      const gateSettingCards = extractSettingCardSources(gateContext);
+      const strippedCards = gateSettingCards.length
+        ? stripSettingCardLeaks(currentDraft, gateSettingCards)
+        : null;
+      const strippedEcho = stripPromptInstructionResidue(strippedCards ? strippedCards.text : currentDraft);
+      const removedCount = (strippedCards?.removed.length || 0) + strippedEcho.removed.length;
+      if (removedCount) {
+        const strippedQuality = validateCompleteChapterDraftQuality(strippedEcho.text, undefined, {
+          minChars: minDraftChars,
+          context: gateContext,
+        });
+        if (strippedQuality.ok) {
+          currentDraft = strippedEcho.text;
+          draftQuality = strippedQuality;
+          logger.info('[pipeline] stripped leaked archive/instruction text from the draft', {
+            novelId,
+            removed: removedCount,
+            chars: strippedEcho.text.length,
+          });
+        } else {
+          logger.warn('[pipeline] archive/instruction residue detected; deterministic strip did not clear the gate', {
+            novelId,
+            removed: removedCount,
+            remaining: strippedQuality.violations.slice(0, 4),
+          });
+        }
+      }
       if (!draftQuality.ok) {
         logger.warn('Writer output failed the prose quality gate; using fallback draft', {
           novelId,
@@ -1545,7 +1595,93 @@ export async function runProductionPipeline(params: {
         // Plan 269：先试一次段落级定点修复——只改被点名的句子，不重写整章、不放宽阈值。
         // 修完仍不过门就照旧走整章重写 / 保底稿；每次 run 最多一次，避免把改稿轮
         // 变成第二篇长文。定点修复成功即收稿，不再烧掉整章重写重试。
-        if (!localRepairAttempted) {
+        // Plan 278(4)：模型稿篇幅不足（chapter-below-contract）时不再整章重写、更不用模板句凑数：
+        // 用同一个 writer 提示词从断点续写补齐篇幅，再重新过门（真机 pro 档位实测单章 2.8-3.9K 字）。
+        if (
+          !localRepairPassed &&
+          !lengthContinuationAttempted &&
+          (draftQuality.findings || []).some(
+            (finding) => finding.code === 'chapter-below-contract'
+          ) &&
+          currentDraft.trim().length >= 800
+        ) {
+          lengthContinuationAttempted = true;
+          try {
+            const draftChars = compactTextLength(currentDraft);
+            const shortfall = Math.max(400, minDraftChars - draftChars);
+            const continuationPrompt =
+              renderPromptTemplate(writerAsset.template, {
+                WRITER_SOUL,
+                contextStr:
+                  augmentedContexts.writer +
+                  `\n【已写出的正文末尾——从这里无缝续写，禁止复述】\n${currentDraft.trim().slice(-1200)}`,
+                skillsInfo: writerSkillsInfo,
+                sceneBeats:
+                  sceneSections.map((section) => section.trim()).join('\n\n') +
+                  '\n\n（本章剩余场景：把尚未写完的场景全部写完，并收束本章悬念。）',
+                criticFeedback: `全章目前约 ${draftChars} 字，还差约 ${shortfall} 字才到 ${minDraftChars} 字下限：请无缝续写补足篇幅，禁止重复已写内容，禁止重新开场。`,
+              }) + worldviewHintsSuffix + foreshadowingSuffix + WRITER_OUTPUT_DISCIPLINE;
+            const continuation = await generateText(
+              writerConfig,
+              {
+                prompt: continuationPrompt,
+                maxTokens: Math.min(4096, Math.max(2048, shortfall)),
+                disableThinking: true,
+                streamHoldback: STREAM_HOLDBACK_CHARS,
+                signal: progress.signal,
+                onToken: (token) => {
+                  streamedWriterText += token;
+                  liveStreamed = true;
+                  progress.onWriterToken?.(token);
+                },
+                contextEntityFilter,
+                novelId,
+              },
+              {
+                operation: 'production-pipeline-writer-continue-length',
+                novelId,
+                timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+                signal: progress.signal,
+              }
+            );
+            const appended = String(continuation || '').trim();
+            if (appended) {
+              const merged = `${currentDraft.trim()}\n\n${appended}`;
+              const mergedQuality = validateCompleteChapterDraftQuality(merged, undefined, {
+                minChars: minDraftChars,
+                context: gateContext,
+              });
+              currentDraft = merged;
+              draftQuality = mergedQuality;
+              if (mergedQuality.ok) {
+                lengthContinuationPassed = true;
+                logger.info('[pipeline] length continuation passed the prose quality gate', {
+                  novelId,
+                  chars: merged.length,
+                });
+              } else {
+                logger.warn('[pipeline] length continuation did not clear the gate', {
+                  novelId,
+                  chars: merged.length,
+                  remaining: mergedQuality.violations.slice(0, 3),
+                });
+                if (
+                  mergedQuality.mechanicalReview?.score !== undefined &&
+                  (lastMechanicalScore === undefined ||
+                    mergedQuality.mechanicalReview.score >= lastMechanicalScore)
+                ) {
+                  lastModelDraft = merged;
+                  lastViolations = mergedQuality.violations;
+                  lastMechanicalScore = mergedQuality.mechanicalReview?.score;
+                }
+              }
+            }
+          } catch (continuationErr) {
+            logger.warn('[pipeline] length continuation failed', continuationErr);
+          }
+        }
+
+        if (!localRepairAttempted && !lengthContinuationPassed) {
           localRepairAttempted = true;
           const outcome = await attemptLocalRepairs({
             novelId,
@@ -1603,7 +1739,7 @@ export async function runProductionPipeline(params: {
             }
           }
         }
-        if (localRepairPassed) {
+        if ((localRepairPassed || lengthContinuationPassed) && draftQuality.ok) {
           // Plan 269: local repair passed the gate -> same delivery path as a clean
           // pass. Plan 272: the prose was replaced, so reset and replay the final draft.
           emitFinalDraft(currentDraft);
