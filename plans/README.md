@@ -889,3 +889,18 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向 22/22（`/tmp/p277b-gates.log`）；前端定向 2 files / 8 tests（`/tmp/p277-fe.log`）；后端全量 1525/1525（修复前，`/tmp/p277-be.log`）→ **修复后复跑 1527/1527**（`/tmp/p277-be2.log`）；前端全量仅 `src/tests/continuation-import-view.test.tsx` 2 例超时（并发负载，单文件重跑 12/12 pass）。
 - 文档：`plans/277-local-repair-batch-yield-and-progress.md`。
 - 残余：R-277-1（真机 `filled > 0` 与残句第二轮未复证）/ R-277-2（拒修时 SSE 仍报 failed、文案口径不准）；沿用 R-269-3 / R-272-1 / R-273-3 / R-275-1..3。
+
+## Round 62（2026-10-03）：设定卡泄漏与长度合同（278）
+
+**任务**：用户 m24363「直接做」——修设定卡泄漏（含此前未定位的 R-267-1 稿尾崩坏）并保证模型稿达篇幅合同。
+
+**收口**：
+- 设定卡泄漏门禁：`shared/lib/draft-quality.ts` 新增 `detectSettingCardLeaks`/`stripSettingCardLeaks`（名字后 80 字窗口匹配 sketch 的 6-gram，hit 取名字所在整句）+ 门禁 `setting-card-leak` / `prompt-residue-echo`（≥2 命中 → P1/template）；管线统一剥离块 + 两种重试反馈（`leakFeedback`/`residueFeedback`）；`tests/setting-card-leak.test.ts` 11 例。
+- 根治泄漏：`buildProductionWriterContext` 的「关键人物」只给名字（泄漏检测 9 → 0）；首版「档案纪律」guard 行反而被模型照拄到稿尾 → 删除。
+- **R-267-1 真因**：`ai-production-pipeline.ts` 对模型稿调 `ensureMinimumDraftLength`（`fallback-draft.ts` 通用年代戏填充池：马厩/银票/更漏/算命摊…）→ 删除；短稿改走 `chapter-below-contract` 定向重写（已入 `WRITER_RETRIABLE_FINDING_CODES`）。
+- 长度续写：门禁命中 below-contract 时用 writer 阶段模板续写补齐（`renderPromptTemplate` 复用、禁止复述），合并后同一套质量门复检；排序为**续写先于定点修复**。
+- 陈旧标志 bug：四个修复/续写标志曾声明在 attempt 循环外 → critic 低分回路重写出的新短稿沿用上一轮「已过门」状态被交付（pro-low8 rep3 交付 2846 字）→ 标志移入循环体 + 交付条件加 `draftQuality.ok` + 回归测试 `a below-contract rewrite cannot ride a stale repair pass`（mock 新增 `low-score` 审稿模式）。
+- 真机：pro-low9 三跑均交付达合同模型稿（5462 / 4623 / 5070 字，耗时 618.9 / 205.8 / 199.5 s，rep1 内定点修复 3/3 通过）；flash 回归 90 / 88 / 90（65.5 / 65.5 / 59.3 s，与基线一致）；pro-low 审计 54/76/72 全部 < 80 ⇒ **pro-low 不适合本链路**（登记 R-278-2）。
+- 门禁：tsc 0 / eslint 0 / 定向 8 文件 109/109；后端全量 1540/1540。
+- 计划书：`plans/278-setting-card-leak-and-length-continuation.md`。
+- 残余：R-278-1（保底稿仍用年代戏填充池）、R-278-3（dev 未注册路由 500；空风险确认改写 pass/ready）、R-278-4（单条命中不阻断）；沿用 R-269-3 / R-272-1 / R-273-3 / R-276-1..3 / R-277-1..2。
