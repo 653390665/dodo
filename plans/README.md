@@ -918,3 +918,14 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 计划书：`plans/279-residual-closeout.md`。
 - 残余：R-279-1（保底稿仍为通用散文）、R-279-2（续写轮数写死 2）、R-279-3（批量回执仍可能整块落空，靠单句补齐兜住）、R-279-4（穷尽扫描后同一名字 ≥2 处即 P1，真机未走完整闭环）；沿用 R-278-2 / R-278-3 / R-278-4。
 
+
+## Round 64（2026-10-04）：未注册 API 路径 404 · 空风险确认不再降级（280）
+
+**任务**：User said (m25847)「下一步 你按推荐来」—— 收 Plan 279 残余清单里的两条产品面观察。
+
+**收口**：
+- dev 未注册 /api 路径 500 → 404：删除 vite.config.ts 里写死的 server.proxy /api → http://localhost:3000（Express 未匹配的路径会被代理到 3000 → ECONNREFUSED → 500；生产态则伪装成 200 index.html；若 3000 上恰有另一个实例，还会静默转发过去）；同时在 `server.ts` 的 `registerChapterCompletionRoutes(app)` 之后、vite/static 之前注册 `/api` 404（`API_ROUTE_NOT_FOUND`）。
+- 空风险确认不再降级：`server/helpers/chapter-completion.ts` 的 `acceptChapterRisk` 增加 `nothingToWaive` 守卫（`unresolvedIssueIds` 与 `unknownChecks` 均为空 → 直接回放当前 `completionResult` 并标 `riskAccepted: false`，不写库、不改 `workflowMeta`）——此前一次空调用会把 `pass/ready` 改写成 `unknown/accepted-risk`。
+- 验证：tsc 0 / eslint 0；定向 2 文件 20/20（新增两条回归）；后端全量 **1547/1547**（36 suites，219.8 s）；`vite build` EXIT=0（15.6 s）；真机（隔离 3302 dev）`GET/POST /api/nope`、`GET /api/config/nope` → 404 JSON，未鉴权 → 401，真实路由 200，服务器日志无 `[vite] http proxy error`，`GET /` 仍 200。
+- 计划书：`plans/280-api-404-and-empty-risk.md`。
+- 残余：R-280-1（空风险确认无日志）、R-280-2（风险端点 HTTP 级真机复现未做）、R-280-3（未知路径未鉴权仍 401，有意）；沿用 R-279-1..4。
