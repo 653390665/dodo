@@ -541,3 +541,49 @@ test('split-scene prompts force every scene after the first to bridge the previo
   assert.ok(writerRequests[2].includes('承接上一场景末尾'), 'the closing scene still bridges');
   assert.equal(result.source, 'model');
 });
+
+
+// Plan 282（R-281-1）：split 模式下重试反馈必须收窄到本场景。整章级反馈（「请重写整章」
+// + 全章证据片段）会被送进每个场景调用，模型于是在每场重写一章 —— 真机 ac754320 的
+// attempt 1/2 单场 4.9–6.4k 字、跨场景约 480 字逐字重复，门禁判 duplicate-paragraph
+// + repeated-opening。
+test('scene-scoped retry feedback keeps only the snippets found in that scene', async () => {
+  const { scopeRetryFeedbackToScene } = await import('../server/helpers/ai-production-pipeline');
+  const chapterFeedback =
+    '【上一稿未通过正文质量门禁，请重写整章】具体问题：正文有 3 处局部风格瑕疵。' +
+    '需要改写的具体语句：极其简陋的黄色外 / 非常简陋的临街铺 / 极其简陋的废弃车。' +
+    '重写要求：段首句式必须多样化。';
+
+  const scoped = scopeRetryFeedbackToScene(chapterFeedback, '那是一间非常简陋的临街铺面，屋里的人却都没有抬头。');
+
+  assert.ok(scoped.includes('请重写本场景'), 'chapter-level rewrite wording is rewritten');
+  assert.ok(!scoped.includes('请重写整章'), 'no chapter-level rewrite wording reaches a scene call');
+  assert.ok(scoped.includes('非常简陋的临街铺'), 'the snippet owned by this scene survives');
+  assert.ok(!scoped.includes('极其简陋的黄色外'), 'snippets owned by other scenes are dropped');
+  assert.ok(!scoped.includes('极其简陋的废弃车'), 'snippets owned by other scenes are dropped');
+  assert.ok(scoped.includes('具体问题：'), 'chapter-level problem list survives');
+  assert.ok(scoped.includes('【本场景范围】'), 'scope note is appended');
+});
+
+test('split-scene rewrite prompts carry scene-scoped feedback instead of chapter-level feedback', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...SOFT_SCENES, ...CLEAN_SCENES],
+  });
+
+  const retryRequests = writerRequestsOf(requests).slice(3);
+  assert.equal(retryRequests.length, 3, 'three scenes rewritten once');
+  assert.ok(
+    retryRequests.every((request) => request.includes('【本场景范围】')),
+    'every scene rewrite carries the scene scope note',
+  );
+  assert.ok(
+    retryRequests.every((request) => !request.includes('请重写整章')),
+    'chapter-level rewrite wording never reaches a scene call',
+  );
+  assert.ok(
+    retryRequests.every((request) => request.includes('上一稿未通过正文质量门禁')),
+    'rewrite pass still carries the targeted feedback',
+  );
+  assert.equal(result.source, 'model');
+});

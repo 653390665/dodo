@@ -534,6 +534,52 @@ function buildLiteraryRetryFeedback(quality: {
   return `【上一稿未通过正文质量门禁，请重写整章】${problems}${detail}${leakFeedback}${residueFeedback}${WRITER_RETRY_STYLE_RULE}`;
 }
 
+// Plan 282（R-281-1）：整章级重试反馈会被原样送进按场景的 writer 调用，模型于是在每一个
+// 场景里重写整章：真机 ac754320 的 attempt 1/2 单场 4.9–6.4k 字、第 2/3 场约 480 字
+// 逐字重复，门禁判 duplicate-paragraph + repeated-opening。split 模式必须把反馈收窄到
+// 本场景：措辞改「重写本场景」，逐条证据只保留能在本场景上一轮正文里定位到的片段，
+// 最后附上范围说明。
+const SCENE_SCOPE_NOTE =
+  '【本场景范围】上面的意见只针对本场景：只重写本场景这一段，按本场景分镜把内容写足，' +
+  '不要复述其它场景已经写过的内容，也不要把其它场景的情节搬进来；' +
+  '篇幅以本场景为单位，不要扩写成一章的长度。';
+
+const RETRY_SNIPPET_LABEL = '需要改写的具体语句：';
+const MAX_SCENE_RETRY_SNIPPETS = 3;
+
+/**
+ * Plan 282（R-281-1）：把一条整章级重试反馈收窄成场景级口径。
+ *
+ * - 措辞：「请重写整章」→「请重写本场景」；
+ * - 证据：逐条片段只保留 previousSceneText 里出现过的（最多 MAX_SCENE_RETRY_SNIPPETS 条），
+ *   其它场景的片段丢掉——它们会让本场模型去写别的场景的情节（逐字重复的真因）；
+ * - 末尾附 SCENE_SCOPE_NOTE，明确篇幅以本场景为单位。
+ *
+ * previousSceneText 为空（上一轮不是 split pass，或拿不到对应场次）时不保留任何片段，
+ * 只保留问题描述与范围说明。
+ */
+export function scopeRetryFeedbackToScene(feedback: string, previousSceneText: string): string {
+  let scoped = feedback;
+  const at = feedback.indexOf(RETRY_SNIPPET_LABEL);
+  if (at >= 0) {
+    const ruleAt = feedback.indexOf('重写要求：', at + RETRY_SNIPPET_LABEL.length);
+    const end = feedback.lastIndexOf('。', ruleAt > at ? ruleAt : feedback.length);
+    if (end > at) {
+      const kept = feedback
+        .slice(at + RETRY_SNIPPET_LABEL.length, end)
+        .split(' / ')
+        .map((snippet) => snippet.trim())
+        .filter((snippet) => snippet.length > 0 && previousSceneText.includes(snippet))
+        .slice(0, MAX_SCENE_RETRY_SNIPPETS);
+      const replacement = kept.length ? RETRY_SNIPPET_LABEL + kept.join(' / ') + '。' : '';
+      scoped = feedback.slice(0, at) + replacement + feedback.slice(end + 1);
+    }
+  }
+  scoped = scoped.split('请重写整章').join('请重写本场景');
+  return scoped + String.fromCharCode(10, 10) + SCENE_SCOPE_NOTE;
+}
+
+
 /**
  * Plan 269：门禁命中 → 段落级定点修复的读数（进 PipelineResult，供落库与测试对照）。
  */
@@ -1184,6 +1230,11 @@ export async function runProductionPipeline(params: {
   const criticSkillsInfo = stagePrompts.critic;
   let currentDraft = '';
   let criticFeedback = '';
+  // Plan 282（R-281-1）：上一轮 split pass 的逐场正文与它当时的拼接稿。
+  // 重试轮的证据片段要按场归属，只能靠这份快照（片段是从拼接稿里取出来的）。
+  let previousSceneParts: string[] = [];
+  let previousSceneDraft = '';
+
   // Plan 261 修复③：writer 重试实际消费的反馈——critic JSON 蒸馏后的纯文本指令。
   let writerRetryFeedback = '';
   let auditScore = 0;
@@ -1332,7 +1383,10 @@ export async function runProductionPipeline(params: {
                     '（本场景不是本章开头：第一句必须承接上一场景末尾正在发生的动作或对话，' +
                     '禁止用天色、时辰、地点、环境或旁白重新起头，也不要让人物重新到场；写完本场景即停，不要越到下一场景。）'),
             criticFeedback: criticFeedback
-              ? writerRetryFeedback || criticFeedback
+              ? scopeRetryFeedbackToScene(
+                  writerRetryFeedback || criticFeedback,
+                  previousSceneDraft === currentDraft ? previousSceneParts[i] || '' : ''
+                )
               : i === 0
                 ? '初稿阶段，请全力输出。'
                 : '继续本章的下一场景，保持人物与节奏连贯。',
@@ -1465,6 +1519,8 @@ export async function runProductionPipeline(params: {
         }
         if (parts.length === 0) throw new Error('empty_response');
         currentDraft = parts.join('\n\n');
+        previousSceneParts = parts;
+        previousSceneDraft = currentDraft;
         if (rejectedScenes > 0) {
           criticFeedback = `${criticFeedback ? criticFeedback + '\n' : ''}【生成器提示】${rejectedScenes} 个场景因套话守卫被跳过，请检查成稿的场景覆盖与连贯性。`;
         }
