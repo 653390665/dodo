@@ -904,3 +904,17 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向 8 文件 109/109；后端全量 1540/1540。
 - 计划书：`plans/278-setting-card-leak-and-length-continuation.md`。
 - 残余：R-278-1（保底稿仍用年代戏填充池）、R-278-3（dev 未注册路由 500；空风险确认改写 pass/ready）、R-278-4（单条命中不阻断）；沿用 R-269-3 / R-272-1 / R-273-3 / R-276-1..3 / R-277-1..2。
+
+## Round 63（2026-10-04）：保底稿去年代化 · 续写两轮 · 剥离采用（279）
+
+**任务**：User said (m25317)「解决残留」——结清 Plan 278 登记的残余与真机观测到的三处实现缺陷。
+
+**收口**：
+- 保底稿去年代化（R-278-1）：`server/helpers/fallback-draft.ts` 的八个填充池提升到模块作用域并导出（`FALLBACK_*`），85 条时代道具/场景替换为中性描写，53 词时代词表全仓扫描零命中；新增 `tests/fallback-draft-tone.test.ts`。
+- 长度续写改最多两轮：`MAX_LENGTH_CONTINUATION_ROUNDS = 2` + `for` 循环（每轮重判 below-contract / ≥800 字），循环后 `length continuation rounds finished` 汇总。
+- 确定性剥离三处修正：采用判据只看非 P2 缺陷（P2 不阻交付）；`detectSettingCardLeaks` 删掉命中后 `break`（同一名字多次泄漏必须全部剥离）；新增 `let stripAdopted` 并把它接进交付条件 `(stripAdopted || localRepairPassed || lengthContinuationPassed) && draftQuality.ok`——此前剥离采用后无任何达标标志，清过门的脱敏稿会被丢弃、回落到保底稿（保底稿又把档案句拼回正文）。
+- 真机 flash 回归（隔离 3301，gemini-3.8-flash-high @ low）：73.0 / 51.7 / 58.3 s，审计 88 / 88 / 90 全 pass，交付 6285 / 5088 / 4978 字（均 model 版本行）；rep1 触发 literary-slop 门禁 → 批量分块（chunk1 size2 filled0、chunk2 size1 filled1）+ 2 次单句补齐 → 定点修复过门（rounds 1 / targets 3 / applied 3）；对照基线 60.7 / 57.4 / 58.2 s 与 88 / 90 / 86 分 ⇒ 无回归。
+- 门禁：tsc 0 / eslint 0 / 定向 8 文件 109/109；后端全量 1545/1545（36 suites）。
+- 计划书：`plans/279-residual-closeout.md`。
+- 残余：R-279-1（保底稿仍为通用散文）、R-279-2（续写轮数写死 2）、R-279-3（批量回执仍可能整块落空，靠单句补齐兜住）、R-279-4（穷尽扫描后同一名字 ≥2 处即 P1，真机未走完整闭环）；沿用 R-278-2 / R-278-3 / R-278-4。
+
