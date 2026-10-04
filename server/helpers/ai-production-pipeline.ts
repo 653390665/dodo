@@ -1319,9 +1319,18 @@ export async function runProductionPipeline(params: {
             skillsInfo: writerSkillsInfo,
             sceneBeats:
               sceneSections[i] +
+              // Plan 281（R-272-1）：split 模式下每个场景都是独立调用，模型习惯
+              // 用天色/环境/到场描写重新起头，接起来就是一串“新场景”而不是本章的
+              // 连续推进。除第一场外，强制要求首句承接上一场末尾的动作或对话。
               (isFinalScene
-                ? '\n\n（本章最终场景：按分镜收束本章悬念，给出章节结尾。）'
-                : '\n\n（写完本场景即停，不要越到下一场景。）'),
+                ? String.fromCharCode(10, 10) +
+                  '（本章最终场景：第一句同样要承接上一场景末尾正在发生的动作或对话，' +
+                  '不要用天色、时辰、地点、环境或旁白重新起头；在承接的基础上按分镜收束本章悬念，给出章节结尾。）'
+                : i === 0
+                  ? '\n\n（本章第一个场景：先把在场的人与当下处境交代清楚，写完本场景即停，不要越到下一场景。）'
+                  : String.fromCharCode(10, 10) +
+                    '（本场景不是本章开头：第一句必须承接上一场景末尾正在发生的动作或对话，' +
+                    '禁止用天色、时辰、地点、环境或旁白重新起头，也不要让人物重新到场；写完本场景即停，不要越到下一场景。）'),
             criticFeedback: criticFeedback
               ? writerRetryFeedback || criticFeedback
               : i === 0

@@ -13,6 +13,7 @@ import {
   buildFallbackDraft,
   buildFallbackSceneBeats,
   countDraftChars,
+  extractFallbackCast,
 } from '../server/helpers/fallback-draft';
 
 // Plan 279（R-278-1）：确定性保底稿是作者真的会看到的正文（模型路径彻底失败时交付），
@@ -105,4 +106,61 @@ test('a deterministic fallback draft stays prop-free end to end', () => {
     assert.ok(!draft.includes(prop), `fallback draft leaks the period prop ${prop}`);
   }
   assert.ok(countDraftChars(draft) >= 6000, 'the fallback draft still fills the length contract');
+});
+
+// Plan 281（R-279-1）：保底稿也要有人在场。花名册（Plan 278 起只写「- 名字」）是唯一
+// 允许的取名来源，档案摘要一律不取——那正是 setting-card 泄漏门禁堵住的路径。
+test('extractFallbackCast reads the roster block and nothing else', () => {
+  const NL = String.fromCharCode(10);
+  const context = [
+    '作品：夜航',
+    '关键人物：',
+    '- 林舟（港务署旧值班室）：负责核对每一条船期。',
+    '- 苏晚',
+    '- 第三个名字',
+    '关键道具：',
+    '- 黄铜钥匙：开了三号仓。',
+  ].join(NL);
+
+  assert.deepEqual(extractFallbackCast(context), ['林舟', '苏晚']);
+  assert.deepEqual(extractFallbackCast(context, 1), ['林舟']);
+  assert.deepEqual(extractFallbackCast(['关键人物：', '- 无'].join(NL)), []);
+  assert.deepEqual(extractFallbackCast('作品：夜航'), []);
+});
+
+test('a deterministic fallback draft puts the roster cast on stage and keeps the archive out', () => {
+  const NL = String.fromCharCode(10);
+  const beats = buildFallbackSceneBeats('林舟必须在追兵合围之前把证据交出去');
+  const context = ['关键人物：', '- 林舟（港务署旧值班室）：负责核对每一条船期。', '- 苏晚'].join(NL);
+  const draft = buildFallbackDraft(beats, context, 6000);
+
+  assert.ok(draft.includes('林舟停在门边'), 'the lead from the roster is on stage');
+  assert.ok(draft.includes('苏晚挪开杯盏'), 'the second roster name is on stage');
+  assert.ok(!draft.includes('负责核对每一条船期'), 'the archive sketch never becomes prose');
+  for (const prop of PERIOD_PROPS) {
+    assert.ok(!draft.includes(prop), 'fallback draft leaks the period prop ' + prop);
+  }
+  assert.ok(countDraftChars(draft) >= 6000, 'the grounded fallback still fills the length contract');
+});
+
+test('evidence-label sentinels never become fallback cast members', () => {
+  const NL = String.fromCharCode(10);
+  const context = [
+    '关键人物：',
+    '- 角色证据-林舟：只用左手解读导师暗号',
+    '- 世界证据-潮汐城',
+    '- 伏笔证据-青铜铃',
+  ].join(NL);
+
+  assert.deepEqual(extractFallbackCast(context), []);
+
+  const beats = buildFallbackSceneBeats('写一个雨夜场景');
+  const draft = buildFallbackDraft(beats, context, 6000);
+  for (const sentinel of ['角色证据', '世界证据', '伏笔证据']) {
+    assert.ok(!draft.includes(sentinel), 'fallback draft leaks the sentinel ' + sentinel);
+  }
+  assert.ok(
+    countDraftChars(draft) >= 6000,
+    'the ungrounded fallback still fills the length contract'
+  );
 });

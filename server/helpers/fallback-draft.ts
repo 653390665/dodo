@@ -372,7 +372,19 @@ export function expandDraftToMinimum(
   const normalizedBeats = String(sceneBeats || '').trim();
   // Plan 266 修复③补：writer 上下文里的资料包细纲常把多个分镜字段挤在同一行，
   // 行首锚定的 BEATS_FIELD_RESIDUE 抓不到，会在扩写段落里把字段文本写成提示句。
-  const contextLines = sanitizeFallbackContext(String(contextStr || '').replace(/[【】<>]/g, '')).filter(
+  // Plan 281（R-279-1）：结构化区块的列表条目（花名册/道具/伏笔）是档案，不是叙事素材。
+  // sanitizeFallbackContext 会把「- 林舟（旧值班室）：负责核对船期」剥成一句档案话，
+  // 混进扩写段落就成保底稿版的设定卡泄漏（真机探针实测），所以在 sanitize 之前按行剔除。
+  // 只剔列表条目：连区块标签行一起剔会让「世界规则：」的值行单独存活，绕过下面
+  // Plan 261 的 SETTING_RESIDUE 过滤（tests/production-stream-disconnect.test.ts
+  // 的控制字符夹具实测：保底稿因此带上 worldRules 的不可见字符，被门禁拒收）。
+  const STRUCTURED_CONTEXT_LINE = /^(?:[-*·•]\s?)/;
+  const rawContext = String(contextStr || '')
+    .replace(/[【】<>]/g, '')
+    .split(String.fromCharCode(10))
+    .filter((line) => !STRUCTURED_CONTEXT_LINE.test(line.trim()))
+    .join(String.fromCharCode(10));
+  const contextLines = sanitizeFallbackContext(rawContext).filter(
     (line) => !BEATS_FIELD_RESIDUE_INLINE.test(line)
   );
   // Plan 261：过滤世界规则/设定说明类 hint——这些是背景信息而非叙事线索，
@@ -462,12 +474,67 @@ export function ensureMinimumDraftLength(
   return expandDraftToMinimum(draft, sceneBeats, contextStr, effectiveMin);
 }
 
+const FALLBACK_CAST_NAME = /^[\u4e00-\u9fffA-Za-z·]{1,12}$/u;
+/**
+ * Plan 281（R-279-1）：保底稿也要让故事里的人在场。
+ * 只从 writer 上下文的「关键人物」区块取姓名（写入端已在 Plan 278 把花名册裁成
+ * “- 名字”），绝不取档案摘要或设定说明——那是 setting-card 泄漏门禁专门堵住的路径。
+ * 名字必须像人名（汉字/拉丁字母/·，1–12 字）：夹具与脏数据里的「角色证据-林舟」
+ * 这类证据标签哨兵值不许上台，否则保底稿会带出 EVIDENCE_LABEL_RESIDUE 命中。
+ * 无花名册时返回空数组，调用方退回无名兜底。
+ */
+export function extractFallbackCast(contextStr: string, limit = 2): string[] {
+  const names: string[] = [];
+  let inRoster = false;
+  const lines = String(contextStr || '').split(String.fromCharCode(10));
+  for (const raw of lines) {
+    const line = raw.split(String.fromCharCode(13)).join('').trim();
+    if (!line) continue;
+    if (
+      line === '关键人物：' ||
+      line === '关键人物:' ||
+      line === '出场人物：' ||
+      line === '出场人物:'
+    ) {
+      inRoster = true;
+      continue;
+    }
+    if (!inRoster) continue;
+    if (!line.startsWith('-') && !line.startsWith('·')) {
+      inRoster = false;
+      continue;
+    }
+    let name = line.slice(1).trim();
+    const cut: number[] = [];
+    const cjk = name.indexOf('（');
+    const ascii = name.indexOf('(');
+    if (cjk >= 0) cut.push(cjk);
+    if (ascii >= 0) cut.push(ascii);
+    if (cut.length > 0) name = name.slice(0, Math.min(...cut));
+    const fullColon = name.indexOf('：');
+    const asciiColon = name.indexOf(':');
+    if (fullColon >= 0) cut.push(fullColon);
+    if (asciiColon >= 0) cut.push(asciiColon);
+    const space = name.indexOf(' ');
+    if (space >= 0) cut.push(space);
+    name = name.slice(0, cut.length > 0 ? Math.min(...cut) : name.length);
+    name = name.trim();
+    if (!name || name === '无' || !FALLBACK_CAST_NAME.test(name)) continue;
+    if (!names.includes(name)) names.push(name);
+    if (names.length >= limit) break;
+  }
+  return names;
+}
+
 export function buildFallbackDraft(sceneBeats: string, contextStr: string, minChars?: number) {
   const normalizedBeats = String(sceneBeats || '').trim();
   const intentHint =
     sanitizeFallbackContext(
       normalizedBeats.match(/\*\*核心冲突\*\*[：:]\s*([^\n。]+)/)?.[1]?.trim() || ''
     )[0] || '一场试探正在逼近真正的危险';
+  const cast = extractFallbackCast(contextStr);
+  const lead = cast[0] || '他';
+  const foil = cast[1] || (cast[0] ? '另一个人' : '有人');
 
   // Detect fallback template markers — if the scene beats are AI-generated templates
   // rather than real content, use natural prose fallback instead
@@ -482,7 +549,7 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
       [
         `门轴轻轻一响，屋里的声音同时低了下去。`,
         ``,
-        `他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻${hintText}。`,
+        `${lead}停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里${foil}挪开杯盏，像是早就等着这一刻${hintText}。`,
         `空气里压着未说出口的消息，也压着即将逼近的危险。`,
       ].join('\n'),
       sceneBeats,
@@ -510,7 +577,11 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
           .slice(0, 4);
   if (beats.length === 0) {
     return ensureMinimumDraftLength(
-      '门轴轻轻一响，屋里的声音同时低了下去。\n\n他停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里有人挪开杯盏，像是早就等着这一刻。空气里压着未说出口的消息，也压着即将逼近的危险。',
+      '门轴轻轻一响，屋里的声音同时低了下去。' + String.fromCharCode(10, 10) +
+        lead +
+        '停在门边，没有急着往里走，只先看了一眼光线最暗的角落。那里' +
+        foil +
+        '挪开杯盏，像是早就等着这一刻。空气里压着未说出口的消息，也压着即将逼近的危险。',
       sceneBeats,
       contextStr,
       minChars
@@ -521,8 +592,8 @@ export function buildFallbackDraft(sceneBeats: string, contextStr: string, minCh
 
   return ensureMinimumDraftLength(
     [
-      `门外的风声先一步撞进来，灯火跟着晃了一下。屋里的人没有立刻说话，只在那一瞬间各自收住了动作。有些话没有被摊开讲明，它们先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
-      `试探从一句不重的话开始。有人故意把问题说得很轻，像只是随口问起；另一个人却在杯沿上停住了手指。局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
+      `门外的风声先一步撞进来，灯火跟着晃了一下。${lead}没有立刻说话，只在那一瞬间收住了动作。有些话没有被摊开讲明，它们先藏在桌边的一次停顿里，藏在对方避开的眼神里。`,
+      `试探从一句不重的话开始。${foil}故意把问题说得很轻，像只是随口问起；${lead}却在杯沿上停住了手指。局势因此往前挪了一寸。没人承认自己知道真相，可每个人都在用沉默承认，今晚的平静已经被撕开了口子。`,
       `${openingPremise}。远处传来的声音越来越近，像靴底踩过积水，也像硬物擦过门槛。最后一盏灯猛地暗下去时，所有人都停住了呼吸。真正的麻烦，还没有进门。`,
     ].join('\n\n'),
     sceneBeats,

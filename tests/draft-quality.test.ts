@@ -316,8 +316,10 @@ test('fallback context removes structured entity fields and workflow instruction
     '关键人物：\n- 林舟：只用左手解读导师暗号 (role=protagonist; traits=克制)\n开放伏笔：\n- 青铜铃：第三次响起会打开地下城门',
   );
   assert.doesNotMatch(draft, /role=|traits=|关键动作链|异动入场|场景\s*1/);
+  // Plan 281（R-279-1）：花名册/道具/伏笔的「档案值」不再当叙事素材嵌进保底稿，
+  // 只有实体名字（经 extractFallbackCast）以在场人物身份进入正文。
   assert.match(draft, /林舟/);
-  assert.match(draft, /青铜铃/);
+  assert.doesNotMatch(draft, /只用左手解读导师暗号|青铜铃|第三次响起会打开地下城门/);
 });
 
 test('fallback context removes evidence labels and empty chapter placeholders', () => {

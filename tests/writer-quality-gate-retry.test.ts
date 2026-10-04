@@ -522,3 +522,22 @@ test('a leak strip that only leaves a length shortfall is adopted and continued'
   assert.ok(writerRequests[4].includes('无缝续写'), 'the still-short draft is continued again');
   assert.ok(result.draft.includes('序号900段记录中'), 'the continuation prose ships in the delivered draft');
 });
+
+// Plan 281（R-272-1）：split 模式下每个场景是独立调用，模型会用新的天色/环境/到场描写
+// 重新起头，接起来像一串「新场景」而不是本章的连续推进（真机基线：9 个非首场，承接 0 次）。
+test('split-scene prompts force every scene after the first to bridge the previous ending', async () => {
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: CLEAN_SCENES,
+  });
+
+  const writerRequests = writerRequestsOf(requests);
+  assert.equal(writerRequests.length, 3, 'one writer call per scene');
+  assert.ok(writerRequests[0].includes('本章第一个场景'), 'the opening scene sets the stage');
+  assert.ok(!writerRequests[0].includes('本场景不是本章开头'), 'the opening scene is not asked to bridge');
+  assert.ok(writerRequests[1].includes('本场景不是本章开头'), 'scene 2 must bridge from the previous ending');
+  assert.ok(writerRequests[1].includes('承接上一场景末尾'), 'scene 2 carries the bridge rule');
+  assert.ok(writerRequests[2].includes('本章最终场景'), 'the last scene is told to close the chapter');
+  assert.ok(writerRequests[2].includes('承接上一场景末尾'), 'the closing scene still bridges');
+  assert.equal(result.source, 'model');
+});
