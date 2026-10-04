@@ -74,3 +74,16 @@ test('startup snapshot runs after schema and indexes and publishes through atomi
   assert.match(source, /renameSync\(tempBackupPath, backupPath\)/);
   assert.match(source, /unlinkSync\(candidate\)/);
 });
+
+test('unmatched api paths answer 404 instead of reaching the dev proxy', () => {
+  const source = fs.readFileSync(path.join(process.cwd(), 'server.ts'), 'utf8');
+  const routesPosition = source.indexOf('registerChapterCompletionRoutes(app);');
+  const apiFallbackPosition = source.indexOf("app.use('/api', (_req, res) => {");
+  const vitePosition = source.indexOf('app.use(vite.middlewares);');
+  assert.ok(routesPosition >= 0, 'chapter completion routes must be registered');
+  assert.ok(apiFallbackPosition > routesPosition, 'api 404 fallback must follow every api route');
+  assert.ok(vitePosition > apiFallbackPosition, 'api 404 fallback must precede the dev middleware');
+  assert.match(source, /API_ROUTE_NOT_FOUND/);
+  const viteSource = fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
+  assert.equal(viteSource.includes("'/api':"), false, 'the dev server must not proxy /api to a fixed port');
+});

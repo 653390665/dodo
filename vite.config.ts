@@ -20,9 +20,8 @@ export default defineConfig({
   },
   server: {
     hmr: isPlaywrightTest ? { port: 24679 } : true,
-    proxy: {
-      '/api': 'http://localhost:3000',
-    },
+    // 不再代理 /api：开发态 Vite 以 middlewareMode 跑在 Express 内部，
+    // 代理只会把未注册的 /api 路径转给写死的 3000 端口（ECONNREFUSED → 500）。
   },
   build: {
     rollupOptions: {

@@ -444,8 +444,15 @@ export async function acceptChapterRisk(
     ...hashes,
   });
   if (!attempt) throw new Error('COMPLETION_ATTEMPT_NOT_FOUND');
-  const result = deriveRisk(input);
   const state = readState(attempt.result);
+  const nothingToWaive =
+    input.unresolvedIssueIds.length === 0 && input.unknownChecks.length === 0;
+  if (nothingToWaive && state.completionResult) {
+    // Plan 280: 没有需要作者担责的条目时，风险确认不携带任何信息：不得把
+    // 已经得出的 pass/ready 结论降级成 unknown/accepted-risk。
+    return { ...state.completionResult, riskAccepted: false };
+  }
+  const result = deriveRisk(input);
   state.completionResult = {
     ...(state.completionResult || result),
     quality: result.quality,

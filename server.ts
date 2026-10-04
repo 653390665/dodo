@@ -115,6 +115,15 @@ async function startServer() {
   registerRoutes(app);
   registerChapterCompletionRoutes(app);
 
+  // Unmatched API paths answer 404 here. Without this fallback a typo or a
+  // removed endpoint falls through to the Vite dev middleware, whose /api
+  // proxy forwards it to the hardcoded stale target port (500 ECONNREFUSED),
+  // and to the SPA fallback in production (200 index.html). Both hide real
+  // routing mistakes.
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ code: 'API_ROUTE_NOT_FOUND', error: '未找到该接口' });
+  });
+
   const serveStaticApp = () => {
     const distPath = process.env.INKFLOW_STATIC_DIR || path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

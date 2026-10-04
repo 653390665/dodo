@@ -250,3 +250,23 @@ test('ownership and generation conflicts perform no writes', async () => {
   assert.equal(listChapterCompletionAttempts('n1', 'c1').length, 0);
   assert.equal(listChapterVersions('c1').length, 0);
 });
+
+test('an empty risk confirmation keeps the derived ready gate', async () => {
+  const generation = setup();
+  const passed = await completeChapter(input(generation), { review: async () => 'pass' });
+  assert.equal(passed.quality, 'pass');
+  assert.equal(passed.gate.completionGate, 'ready');
+  const accepted = await acceptChapterRisk({
+    ...input(generation),
+    unresolvedIssueIds: [],
+    unknownChecks: [],
+    contentHash: passed.gate.contentHash,
+    planHash: passed.gate.planHash,
+  });
+  assert.equal(accepted.riskAccepted, false);
+  assert.equal(accepted.quality, 'pass');
+  assert.equal(accepted.gate.completionGate, 'ready');
+  assert.equal(getChapter('c1')?.workflowMeta?.completionGate, 'ready');
+  const attempt = listChapterCompletionAttempts('n1', 'c1')[0] as { result?: { completionResult?: { quality?: string } } };
+  assert.equal(attempt.result?.completionResult?.quality, 'pass');
+});
