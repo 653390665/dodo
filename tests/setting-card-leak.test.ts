@@ -161,3 +161,22 @@ test('stripping instruction residue clears the prompt-residue-echo gate', () => 
   const after = validateCompleteChapterDraftQuality(stripped.text, undefined, { minChars: 800 });
   assert.ok(!after.findings.some((finding) => finding.code === 'prompt-residue-echo'));
 });
+// Plan 279 R-278-3：同一个名字可能在同一章里泄漏多次，剥离必须一次清完。
+test('every leak of the same name is reported and stripped', () => {
+  const sources = extractSettingCardSources(CONTEXT);
+  const leaked = [
+    cleanChapterBody(0, 3),
+    LEAK_LEFANG,
+    cleanChapterBody(4, 3),
+    LEAK_LEFANG,
+    cleanChapterBody(8, 3),
+  ].join(NEWLINE + NEWLINE);
+
+  const hits = detectSettingCardLeaks(leaked, sources);
+  assert.equal(hits.length, 2, 'every occurrence of the same name is reported');
+
+  const stripped = stripSettingCardLeaks(leaked, sources);
+  assert.equal(stripped.removed.length, 2, 'the strip removes all of them, not just the first');
+  assert.deepEqual(detectSettingCardLeaks(stripped.text, sources), []);
+});
+

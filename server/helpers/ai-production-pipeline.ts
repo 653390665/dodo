@@ -487,6 +487,9 @@ function truncateFeedback(message: string): string[] {
 // 定向反馈重写整章，而不是立刻丢弃整章换确定性保底稿（保底稿无法承载正文）。
 const WRITER_RETRIABLE_FINDING_CODES = ['literary-slop', 'setting-card-leak', 'prompt-residue-echo', 'chapter-below-contract'];
 
+// Plan 279（R-278-2）：续写一轮常常补不到下限，允许再续一轮（每轮都从最新断点续并重新过门）。
+const MAX_LENGTH_CONTINUATION_ROUNDS = 2;
+
 function isRetriableWriterSoftFailure(quality: {
   findings?: Array<{ code?: string; severity?: string }>;
   mechanicalReview?: { status?: string };
@@ -1212,7 +1215,13 @@ export async function runProductionPipeline(params: {
     let localRepairAttempted = false;
     let localRepairPassed = false;
     let lengthContinuationAttempted = false;
+    let lengthContinuationRounds = 0;
     let lengthContinuationPassed = false;
+    // Plan 279 R-278-3 second half: a deterministic strip that is adopted is already a
+    // passing draft, so it must authorize delivery exactly like local repair or length
+    // continuation; otherwise it falls through to the fallback branch, which pastes the
+    // archive sentences from the context back into the prose.
+    let stripAdopted = false;
     attempts = attempt + 1;
     criticAvailable = false;
     progress.onPhase?.('writer');
@@ -1535,13 +1544,24 @@ export async function runProductionPipeline(params: {
           minChars: minDraftChars,
           context: gateContext,
         });
-        if (strippedQuality.ok) {
+        // Plan 279（R-278-3）：剥离后只剩「篇幅不足」这类可续写缺陷也要采用——旧逻辑要求整章达标，
+        // 结果脱敏后的短稿被丢掉、泄漏正文照旧送审（真机 pro 档位实测：strip 命中但 0 次采用）。
+        // P2 只是提示级（与 validateCompleteChapterDraftQuality 的 ok 判定一致）：只有非 P2 缺陷才拦交付。
+        const strippedBlockers = (strippedQuality.findings || []).filter(
+          (finding) => finding.severity !== 'P2'
+        );
+        const stripClearsContentOnly =
+          strippedBlockers.length > 0 &&
+          strippedBlockers.every((finding) => finding.code === 'chapter-below-contract');
+        if (strippedQuality.ok || stripClearsContentOnly) {
           currentDraft = strippedEcho.text;
           draftQuality = strippedQuality;
+          stripAdopted = true;
           logger.info('[pipeline] stripped leaked archive/instruction text from the draft', {
             novelId,
             removed: removedCount,
             chars: strippedEcho.text.length,
+            adoption: strippedQuality.ok ? 'gate-cleared' : 'length-continuation',
           });
         } else {
           logger.warn('[pipeline] archive/instruction residue detected; deterministic strip did not clear the gate', {
@@ -1597,15 +1617,24 @@ export async function runProductionPipeline(params: {
         // 变成第二篇长文。定点修复成功即收稿，不再烧掉整章重写重试。
         // Plan 278(4)：模型稿篇幅不足（chapter-below-contract）时不再整章重写、更不用模板句凑数：
         // 用同一个 writer 提示词从断点续写补齐篇幅，再重新过门（真机 pro 档位实测单章 2.8-3.9K 字）。
-        if (
-          !localRepairPassed &&
-          !lengthContinuationAttempted &&
-          (draftQuality.findings || []).some(
-            (finding) => finding.code === 'chapter-below-contract'
-          ) &&
-          currentDraft.trim().length >= 800
+        // Plan 279（R-278-2）：一轮续写未必补到下限，最多续 MAX_LENGTH_CONTINUATION_ROUNDS 轮；
+        // 每轮都从最新断点续、重新过门，任一轮达标即停。
+        for (
+          let continuationRound = 1;
+          continuationRound <= MAX_LENGTH_CONTINUATION_ROUNDS;
+          continuationRound += 1
         ) {
+          if (localRepairPassed || lengthContinuationPassed) break;
+          if (
+            !(draftQuality.findings || []).some(
+              (finding) => finding.code === 'chapter-below-contract'
+            ) ||
+            currentDraft.trim().length < 800
+          ) {
+            break;
+          }
           lengthContinuationAttempted = true;
+          lengthContinuationRounds += 1;
           try {
             const draftChars = compactTextLength(currentDraft);
             const shortfall = Math.max(400, minDraftChars - draftChars);
@@ -1657,11 +1686,13 @@ export async function runProductionPipeline(params: {
                 lengthContinuationPassed = true;
                 logger.info('[pipeline] length continuation passed the prose quality gate', {
                   novelId,
+                  round: continuationRound,
                   chars: merged.length,
                 });
               } else {
                 logger.warn('[pipeline] length continuation did not clear the gate', {
                   novelId,
+                  round: continuationRound,
                   chars: merged.length,
                   remaining: mergedQuality.violations.slice(0, 3),
                 });
@@ -1681,6 +1712,17 @@ export async function runProductionPipeline(params: {
           }
         }
 
+        if (lengthContinuationAttempted) {
+          logger.info('[pipeline] length continuation rounds finished', {
+            novelId,
+            rounds: lengthContinuationRounds,
+            passed: lengthContinuationPassed,
+            chars: currentDraft.length,
+          });
+        }
+
+        // Plan 279（R-278-4）：这两个标志在每次 attempt 开始时重置（见 attempt 循环顶部），
+        // 所以一个 run 的每轮重写都各自拥有一次定点修复名额，不会被上一轮用掉。
         if (!localRepairAttempted && !lengthContinuationPassed) {
           localRepairAttempted = true;
           const outcome = await attemptLocalRepairs({
@@ -1739,7 +1781,7 @@ export async function runProductionPipeline(params: {
             }
           }
         }
-        if ((localRepairPassed || lengthContinuationPassed) && draftQuality.ok) {
+        if ((stripAdopted || localRepairPassed || lengthContinuationPassed) && draftQuality.ok) {
           // Plan 269: local repair passed the gate -> same delivery path as a clean
           // pass. Plan 272: the prose was replaced, so reset and replay the final draft.
           emitFinalDraft(currentDraft);

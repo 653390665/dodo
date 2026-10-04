@@ -614,7 +614,9 @@ export function detectSettingCardLeaks(text: string, sources: readonly SettingCa
             end: range.end,
           });
         }
-        break;
+        // Plan 279 R-278-3: one name can leak several times in the same chapter. Breaking
+        // out here used to hide every occurrence after the first, so the deterministic strip
+        // only removed the first one and the rest were delivered below the >=2 hit gate.
       }
       from = draft.indexOf(source.name, from + 1);
     }

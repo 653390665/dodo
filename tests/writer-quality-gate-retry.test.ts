@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { compactTextLength } from '../shared/lib/local-repair';
+
 // Plan 266 修复②：正文质量门失败若只由局部软命中（套话/副词弱化）引起，管线应带定向反馈
 // 重写整章，而不是立刻丢弃整章退回确定性保底稿；硬缺陷（结构/元数据/长度/机械分）仍直接回退。
 //
@@ -135,6 +137,7 @@ async function runPipeline(options: {
   drafts: string[];
   criticThrows?: boolean;
   criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'low-score' | 'ok'>;
+  contextStr?: string;
 }) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
@@ -227,7 +230,7 @@ async function runPipeline(options: {
     const result = await runProductionPipeline({
       novelId: 'writer-quality-gate-retry-novel',
       userIntent: '推进本章冲突',
-      contextStr: '普通故事上下文',
+      contextStr: options.contextStr ?? '普通故事上下文',
       stagePrompts: { planner: 'PLANNER_SENTINEL', writer: 'WRITER_SENTINEL', critic: 'CRITIC_SENTINEL' },
     });
     return { result, requests, bodies };
@@ -437,4 +440,85 @@ test('a below-contract rewrite cannot ride a stale repair pass', async () => {
     'a model draft is never delivered below the length contract',
   );
   assert.ok(!result.draft.includes('短。'), 'a below-contract rewrite body is never shipped');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Plan 279（R-278-1..3）：保底稿去年代道具（见 tests/fallback-draft-tone.test.ts）、续写可多轮、
+// 脱敏后只剩篇幅缺陷也要采用。
+// ---------------------------------------------------------------------------------------------
+
+const BLANK = String.fromCharCode(10, 10);
+
+const shortfallOf = (request: string) => {
+  const marker = '还差约 ';
+  const at = request.indexOf(marker);
+  assert.ok(at >= 0, 'the continuation prompt states the shortfall');
+  const tail = request.slice(at + marker.length);
+  return Number(tail.slice(0, tail.indexOf(' 字')));
+};
+
+const padTo = (base: string, target: number) => {
+  let out = base;
+  let page = 901;
+  while (compactTextLength(out) < target) {
+    out += BLANK + body('E', page, 2);
+    // body(..., 2) 产出 page/page+1 两段，下一次必须跳两页，否则第二段会重复。
+    page += 2;
+  }
+  return out;
+};
+
+// R-278-2：一轮续写补不到下限时必须继续续，而不是把短稿交给下一道关卡。
+test('a still-short continuation is continued again up to the round cap', async () => {
+  const TINY_SCENES = [body('A', 1, 4), body('B', 1, 4), body('C', 1, 4)];
+  const SHORT_CONTINUATION = body('A', 300, 2);
+  const LONG_CONTINUATION = `${body('D', 1, 20)}${BLANK}${body('E', 1, 20)}`;
+
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...TINY_SCENES, SHORT_CONTINUATION, LONG_CONTINUATION],
+  });
+
+  const writerRequests = writerRequestsOf(requests);
+  assert.equal(writerRequests.length, 5, 'three scenes then two length continuations');
+  assert.ok(writerRequests[3].includes('无缝续写'), 'the first continuation starts from the breakpoint');
+  assert.ok(writerRequests[4].includes('无缝续写'), 'the still-short draft is continued again');
+  const firstShortfall = shortfallOf(writerRequests[3]);
+  const secondShortfall = shortfallOf(writerRequests[4]);
+  assert.ok(secondShortfall > 0, 'the second continuation still measures a shortfall');
+  assert.ok(secondShortfall < firstShortfall, 'the shortfall shrinks after the first continuation');
+  assert.equal(result.source, 'model');
+  assert.ok(result.draft.length >= 4000, 'the delivered draft meets the length contract');
+  assert.ok(result.draft.includes('晒场'), 'the second continuation prose is appended');
+});
+
+// R-278-3：剥离后只剩篇幅缺陷时也要采用脱敏稿，否则泄漏正文会照旧送审。
+test('a leak strip that only leaves a length shortfall is adopted and continued', async () => {
+  const LEAK_CONTEXT = '关键人物：' + String.fromCharCode(10) + '- 林舟：潜伏在港务署的旧账房，负责核对每一条船期。';
+  const LEAK_LINES = [
+    '林舟是潜伏在港务署的旧账房，负责核对每一条船期。',
+    '林舟潜伏在港务署的旧账房，负责核对每一条船期。',
+    '林舟，潜伏在港务署的旧账房，负责核对每一条船期。',
+  ];
+  const leaking = `${padTo(body('C', 1, 20), 3000)}${BLANK}${LEAK_LINES.join(BLANK)}`;
+  // R-278-2 与 R-278-3 叠加：采用后的脱敏稿仍不足合同，必须连补两轮才能交付。
+  const SHORT_CONTINUATION = body('A', 300, 2);
+  const LONG_CONTINUATION = body('A', 900, 20);
+
+  const { result, requests } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [leaking, body('A', 1, 2), body('B', 1, 2), SHORT_CONTINUATION, LONG_CONTINUATION],
+    contextStr: LEAK_CONTEXT,
+  });
+
+
+  assert.ok(!result.draft.includes('负责核对每一条船期'), 'the leaked archive sentence never ships');
+  assert.ok(!result.draft.includes('林舟是潜伏'), 'the leaked sentence is stripped before delivery');
+  assert.equal(result.source, 'model');
+  assert.ok(result.draft.length >= 4000, `delivered ${result.draft.length} chars`);
+  const writerRequests = writerRequestsOf(requests);
+  assert.equal(writerRequests.length, 5, 'the adopted strip is continued until the contract is met');
+  assert.ok(writerRequests[3].includes('无缝续写'), 'the short stripped draft is continued');
+  assert.ok(writerRequests[4].includes('无缝续写'), 'the still-short draft is continued again');
+  assert.ok(result.draft.includes('序号900段记录中'), 'the continuation prose ships in the delivered draft');
 });
