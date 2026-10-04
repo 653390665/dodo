@@ -943,3 +943,17 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向 7 文件 **101/101**；后端全量 **1551/1551**（36 suites，173.9 s）。
 - 计划书：`plans/281-fallback-grounding-and-scene-bridging.md`。
 - 残余：R-281-1（重试路径膨胀）；沿用 R-279-2/3/4、R-272-2、R-273-3、R-275-1..3、R-269-1/3、R-276-1、R-277-2、R-278-2/4、R-280-1..3。
+
+
+## Round 66（2026-10-04）：场景级重试反馈 —— 「重写整章」不再灌进单场景（282）
+
+**任务**：User said (m26469)「推送，然后按 R-281-1 走」——修 Plan 281 真机失败例暴露的 R-281-1。
+
+**收口**：
+- 根因：门禁软失败后的重试反馈（`buildLiteraryRetryFeedback`）正文写着「请重写整章」，却被原样塞进 split 分支的**逐场景** writer 调用（`server/helpers/ai-production-pipeline.ts:1386` 的 `criticFeedback` 槽）⇒ 每个场景按章级篇幅作答 → 跨场景复述 → `duplicate-paragraph` / `repeated-opening`（真机 `ac754320`：attempt 1 = 13.9k、attempt 2 = 18.1k，第 2、3 场约 480 字逐字重复，40 字 shingle 命中 440）。
+- 修复：新增 `scopeRetryFeedbackToScene(feedback, previousSceneText)`（`:561`）——只保留本场出现过的片段（最多 3 条）；全被滤掉就删掉片段段；`请重写整章` → `请重写本场景`；末尾追加 `SCENE_SCOPE_NOTE`（「篇幅以本场景为单位，不要扩写成一章的长度」）。片段归属靠上一轮 split pass 留底（`previousSceneParts` / `previousSceneDraft`，`:1235-1236` / `:1522-1523`）；两轮之间稿子被改写过（字符串不等）就传空串，保守丢弃片段。
+- 测试：`tests/writer-quality-gate-retry.test.ts` 新增两例——单元（三条片段只留本场那条、`请重写整章` 消失、出现 `【本场景范围】`）与集成（门禁软失败后 3 条重试请求均带范围说明、无一条含 `请重写整章`、`result.source === "model"`）。
+- 门禁：tsc 0 / eslint 0 / 定向 8 文件 **97/97**；单文件 `tests/writer-quality-gate-retry.test.ts` **14/14**；后端全量 **1553/1553**（36 suites，40.5 s）。
+- 真机复测：**待上游恢复**（8317 全模型 503 `auth_unavailable`：本机代理客户端 `127.0.0.1:7897` 未监听 → antigravity OAuth 无法刷新）；脚本 `/tmp/p282-flash.py`（tag `flash-p282`，3 reps）已备，验收口径=重试轮单场景字数保持首稿量级、不出现结构类硬命中。
+- 计划书：`plans/282-scene-scoped-retry-feedback.md`。
+- 残余：R-282-1（片段归属靠字符串相等，改写过就丢片段）、R-282-2（范围说明是提示词级约束，无硬校验）；R-281-1 待真机闭环；沿用 R-279-2/3/4、R-272-2、R-273-3、R-275-1..3、R-269-1/3、R-276-1、R-277-2、R-278-2/4、R-280-1..3。
