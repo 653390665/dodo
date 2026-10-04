@@ -1,12 +1,12 @@
 # Plan 282：场景级重试反馈 —— 「重写整章」不再灌进单场景（R-281-1）
 
-**Status**：代码 / 测试 / 门禁 ✅（2026-10-04）；真机 A/B 待上游恢复后补测（已登记）
+**Status**：代码 / 测试 / 门禁 ✅；真机验证 ✅（2026-10-05，flash-high 3 跑无回归 + flash-lite 3 跑逼出重试路径，膨胀消失）
 **前置**：[`plans/281-fallback-grounding-and-scene-bridging.md`](281-fallback-grounding-and-scene-bridging.md)
 **触发**：Plan 281 真机次臂 `flash-p281b` 的失败例 run `ac754320`
 
 ## 1 问题：章级重试反馈被送进「按场景」的 writer 调用
 
-同代码、同模型（gemini-3.8-flash-high @ low）连跑 3 次：6 跑 5 过（90/88/88/88/84）+ 1 失（46 fail，281.6 s）。失败例逐 attempt 的单场景字数：
+同代码、同模型（gemini-3.8-flash-high @ low）连跑 3 次：6 跑 5 过（90 / 88 / 88 / 88 / 84）+ 1 失（46 fail，281.6 s）。失败例逐 attempt 的单场景字数：
 
 | attempt | 场景 1 | 场景 2 | 场景 3 | 场景 4 | 合计 |
 | --- | --- | --- | --- | --- | --- |
@@ -56,20 +56,61 @@ criticFeedback: criticFeedback
 - 定向：`tests/writer-quality-gate-retry.test.ts` 14/14；`/tmp/p282-gates.sh` → `/tmp/p282-gates.log` = `TSC_EXIT=0` / `LINT_EXIT=0` / `TEST_EXIT=0`，`/tmp/p282-tests.log` = **97 tests / 97 pass**（8 文件）。
 - 后端全量：`/tmp/p282-be.log` = **1553 tests / 1553 pass / 0 fail**（36 suites，40.5 s）。
 
-## 4 真机复测（受阻，登记待补）
+## 4 真机验证（隔离 3301，gemini 系 @ low，各 3 reps）
 
-- 阻断原因：上游代理 8317 对全部模型返回 HTTP 503 `auth_unavailable: no auth available (providers=antigravity, … last upstream error: Post "https://oauth2.googleapis.com/token": [REDACTED])`——本机代理客户端 `127.0.0.1:7897` 未在监听，CLIProxyAPI 无法刷新 antigravity 的 Google OAuth，三 rep 各 ~5 s 瞬时降级（`/tmp/p278-server-flash-p282.log` 21 条 `service_unavailable`）。
-- 恢复后执行：`/tmp/p282-flash.py`（tag `flash-p282`，gemini-3.8-flash-high @ low，3 reps，结果写 `/tmp/p282-flash.json`）。验收口径：重试轮单场景字数保持首稿量级（不出现 6 357 / 5 631 这类章级块）、不出现 `duplicate-paragraph` / `repeated-opening`、失败率不高于修前（修前 6 跑 1 失）。
+### 4.1 回归臂：`gemini-3.8-flash-high`（tag `flash-p282`，本轮未触发重试）
+
+| rep | run | 耗时 | 审计 | 交付稿 | 首 token | resets |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `11260144` | 54.0 s | 90 pass（attempts 1） | model 4 984（fallback 4 119） | 18.4 s | 0 |
+| 2 | `d2eb9833` | 59.0 s | 86 pass（1） | model 5 618 | 15.6 s | 1 |
+| 3 | `eeab81b2` | 68.9 s | 82 pass（1） | model 6 833 | 12.8 s | 1 |
+
+三跑均一次过门、无重试；rep3 走了一轮定点修复并通过（`targets 3 / applied 3 / batchCalls 2 / singleCalls 2`）⇒ 对既有链路无回归（对照 Plan 281 `flash-p281c`：73.4 / 71.0 / 76.6 s，88 / 88 / 84）。
+
+### 4.2 重试臂：`gemini-3.1-flash-lite`（tag `lite-p282`，逼出两轮重试）
+
+flash-high 三跑都没触发重试（写作门与审稿都一次过），故换弱模型把重试路径逼出来：
+
+| rep | run | 耗时 | 审计 | 交付稿 | resets |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `defaafb6` | 198.8 s | 68 fail（attempts 3） | model 5 974 | 1 |
+| 2 | `63f6018e` | 158.2 s | 80 pass（2） | model 4 681 | 2 |
+| 3 | `71188cef` | **1 991.2 s**（审稿超时挂死） | 58 fail（2，audit unknown） | model 4 545 | 1 |
+
+逐场景实际送修字数（rep2，dump `writer-prompts-lite-p282-rep2.jsonl`）：
+
+| attempt | 场景 1 | 场景 2 | 场景 3 | 场景 4 | 合计 |
+| --- | --- | --- | --- | --- | --- |
+| 0（首稿） | 1 530 | 1 432 | 1 576 | 1 330 | 5 868 |
+| 1（第一次重试） | 1 578 | 851 | 1 540 | 1 245 | 5 214 |
+| 2（第二次重试） | 1 671 | 1 671 | 1 992 | 634 | 5 968 |
+
+提示词级对照（逐条解析 dump）：
+
+| 指标 | 修前（`writer-prompts-flash-p281b-rep3.jsonl`） | 修后（`writer-prompts-lite-p282-rep2.jsonl`） |
+| --- | --- | --- |
+| 场景调用条数 | 12 | 12 |
+| 含 `请重写整章` 的场景调用 | 8（attempt 1 / 2 各 4 条） | **0** |
+| 含 `【本场景范围】` 的场景调用 | 0 | **8** |
+| 逐场景字数区间 | 788 – 6 357 | 634 – 1 992 |
+| 场景字数合计 | **38 748** | **17 050** |
+
+（同一次重试里 `whole-chapter-prompt` 记录仍带 `请重写整章`——那是章级模板，场景调用由它派生；模板记录 `respChars: null`，不直接发往模型。）
+
+结论：重试轮不再让每个场景重写整章，单场景字数稳定在首稿量级（634–1 992，修前重试轮 4 800–6 400），跨场景复述造成的 `duplicate-paragraph` / `repeated-opening` 不再出现 ⇒ **R-281-1 闭环**。
 
 ## 5 残余（登记）
 
 - R-282-1：片段归属依赖 `previousSceneDraft === currentDraft` 字符串相等；上一轮稿被确定性剥离改写过时片段全丢（保守取舍）。
 - R-282-2：`SCENE_SCOPE_NOTE` 是提示词级约束，没有硬校验（未给单场景篇幅加上限门禁）。
-- 沿用：R-281-1 本方案未闭环（真机待测）、R-279-2（续写写死 2 轮）、R-279-3（批量回执整块落空）、R-272-1（场景衔接，已由 281 大幅缓解）、R-269-3（点修失败回落整章重写）。
+- R-282-3：弱模型 + 审稿超时会把单次 run 拖到 33 分钟（`lite-p282` rep3 = 1 991.2 s）；上游恢复期的重试/超时上限未见兜住。
+- 沿用：R-279-2（续写写死 2 轮）、R-279-3（批量回执整块落空）、R-272-1（场景衔接，已由 281 大幅缓解）、R-269-3（点修失败回落整章重写）。
 
 ## 6 证据与复现
 
 - 真机（修前）：`/tmp/p281-flashb.json`、`/tmp/p278-server-flash-p281b.log`、`/tmp/writer-prompts-flash-p281b*.jsonl`（归档 off-by-one：`-rep2.jsonl` = rep1、`-rep3.jsonl` = rep2、无后缀 = rep3）；场景字数/shingle 脚本 `/tmp/p281-dup2.py`。
-- 真机（修后）：`/tmp/p282-flash.py`、`/tmp/p282-flash.json`、`/tmp/p282-flash.log`、`/tmp/p278-server-flash-p282.log`。
-- 门禁：`/tmp/p282-gates.sh`、`/tmp/p282-gates.log`、`/tmp/p282-tests.log`。
+- 真机（修后）：`/tmp/p282-flash.py`（tag `flash-p282`）、`/tmp/p282-lite.py`（tag `lite-p282`）；结果 `/tmp/p282-flash.json`、`/tmp/p282-lite.json`；日志 `/tmp/p278-server-flash-p282.log`、`/tmp/p278-server-lite-p282.log`；dump `/tmp/writer-prompts-flash-p282*.jsonl`、`/tmp/writer-prompts-lite-p282*.jsonl`；解析脚本 `/tmp/p282-sum2.py`、`/tmp/p282-kinds.py`、`/tmp/p282-scenes.py`、`/tmp/p282-dumpcheck.py`。
+- 上游：8317 需本机代理客户端 7897 在线（本轮 01:51:46 antigravity token 刷新成功后恢复；此前 503 `auth_unavailable` 导致三跑 17 s 作废）。
+- 门禁：`/tmp/p282-gates.sh`、`/tmp/p282-gates.log`、`/tmp/p282-tests.log`、`/tmp/p282-be.log`。
 - 补丁脚本：`/tmp/p282-patchA.py`、`/tmp/p282-patchB.py`、`/tmp/p282-patchC.py`。
