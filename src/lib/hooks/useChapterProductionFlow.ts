@@ -11,6 +11,7 @@ import { getChapter } from '../chapter-client';
 import { getDatabaseGenerationSnapshot } from '../db-transport';
 import { criticProgressMessage } from '../production-critic-progress';
 import { writerRepairMessage } from '../production-repair-progress';
+import { runBudgetMessage } from '../production-budget-progress';
 import { recordProductEvent } from '../product-events-client';
 import { useProductionStore } from '../../stores/production-store';
 
@@ -303,6 +304,10 @@ export function useChapterProductionFlow({
               break;
             case 'model_writer_repair':
               setProductionStatusMessage(writerRepairMessage(event));
+              break;
+            case 'model_run_budget':
+              // Plan 283（R-282-3）：到时间上限，停重试并交付当前最优稿。
+              setProductionStatusMessage(runBudgetMessage(event));
               break;
             case 'model_critic_progress':
               // Plan 275（R-273-2）：审稿阶段实时进度（轮次 / 重试原因 / 出分）。

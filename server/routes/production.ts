@@ -1129,6 +1129,9 @@ export function registerProductionRoutes(app: Express) {
               if (isResponseWritable(res))
                 sseWrite(res, { type: 'model_writer_repair', ...update });
             },
+            onRunBudget: (update) => {
+              if (isResponseWritable(res)) sseWrite(res, { type: 'model_run_budget', ...update });
+            },
             onCriticProgress: (update) => {
               if (isResponseWritable(res))
                 sseWrite(res, { type: 'model_critic_progress', ...update });

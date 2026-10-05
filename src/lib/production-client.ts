@@ -114,6 +114,7 @@ export type ProductionRunSSEEvent =
       status: 'passed' | 'residual' | 'failed';
       residualCodes?: string[];
     }
+  | { type: 'model_run_budget'; stage: string; elapsedMs: number; budgetMs: number }
   | {
       type: 'model_critic_progress';
       attempt: number;
@@ -241,6 +242,7 @@ export async function startChapterProductionRunStream(
     'model_draft_token',
     'model_draft_done',
     'model_writer_repair',
+    'model_run_budget',
     'model_critic_progress',
     'model_audit',
     'model_continuity',

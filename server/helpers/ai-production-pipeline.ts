@@ -51,6 +51,20 @@ import { buildRewritePrompt } from '../../shared/lib/rewrite-prompt';
 
 /** Maximum retries when critic rejects the draft */
 const MAX_RETRIES = 2;
+
+// Plan 283（R-282-3）：一次成章 run 的墙钟预算。弱模型 + 传输超时叠加时，单次 run 曾被拖到 33 分钟
+// （真机 lite-p282 rep3 = 1991 s，其中一次场景调用被报 934 s）；作者看不到重试链还要走多久。
+// 预算到点后不再开新一轮重写/修复/审稿，把手上的最优稿交人审——终态仍是 review_required，
+// 不假装成品。
+const DEFAULT_RUN_BUDGET_MS = 900_000;
+
+export function resolveRunBudgetMs(env: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(env.INKFLOW_RUN_BUDGET_MS);
+  return override > 0 ? override : DEFAULT_RUN_BUDGET_MS;
+}
+
+/** 预算尾部：剩余时间少于它就别再开新调用（开了也只会立刻超时）。 */
+const RUN_BUDGET_TAIL_MS = 20_000;
 /** Score threshold (0-100) below which the critic triggers a retry */
 const SCORE_THRESHOLD = 80;
 export const UNKNOWN_CRITIC_FEEDBACK = '审稿结果不可验证，未完成结构化审阅，请重试。';
@@ -193,6 +207,11 @@ export interface PipelineProgress {
     status: 'passed' | 'residual' | 'failed';
     residualCodes?: string[];
   }) => void;
+  /**
+   * Plan 283（R-282-3）：run 墙钟预算耗尽，已停止重试/修复并把手上最优稿交人审。
+   * 作者侧据此显示「已到时间上限，正在交付当前最好的一稿」。
+   */
+  onRunBudget?: (update: { stage: string; elapsedMs: number; budgetMs: number }) => void;
   onCriticDone?: (
     feedback: string,
     isValid: boolean,
@@ -212,6 +231,8 @@ export interface PipelineResult {
   /** Whether the planner produced real beats or the deterministic template. */
   beatsSource: 'model' | 'fallback';
   attempts: number;
+  /** Plan 283：预算耗尽发生在哪一步（未触发时缺省）。 */
+  budgetExhaustedAt?: string;
   /** Plan 269：门禁命中的段落级定点修复读数（未触发时缺省）。 */
   localRepair?: LocalRepairSummary;
 }
@@ -625,7 +646,16 @@ type LocalRepairCallContext = {
   writerConfig: ReturnType<typeof resolveWriterConfig>;
   contextStr: string;
   signal?: AbortSignal;
+  /** Plan 283：run 墙钟截止时刻（ms epoch）；定点修复也吃 run 预算。 */
+  deadlineMs?: number;
 };
+
+/** Plan 283：剩余预算不足时收窄定点修复自己的超时窗口，别给满 180s。 */
+function clampRepairTimeoutMs(params: LocalRepairCallContext): number {
+  const base = WRITER_LLM_OPTIONS.timeoutMs;
+  if (!params.deadlineMs) return base;
+  return Math.max(5_000, Math.min(base, params.deadlineMs - Date.now()));
+}
 
 function localRepairIssue(target: LocalRepairTarget): string {
   return target.suggestion
@@ -713,7 +743,7 @@ async function requestBatchLocalRepairs(
         {
           operation: 'production-pipeline-local-repair-batch',
           novelId: params.novelId,
-          timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+          timeoutMs: clampRepairTimeoutMs(params),
           signal: params.signal,
         }
       );
@@ -763,7 +793,7 @@ async function requestSingleLocalRepair(
       {
         operation: 'production-pipeline-local-repair',
         novelId: params.novelId,
-        timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+        timeoutMs: clampRepairTimeoutMs(params),
         concurrency: 2,
         signal: params.signal,
       }
@@ -788,6 +818,7 @@ async function repairGateHitsLocally(params: {
   contextStr: string;
   minDraftChars?: number;
   signal?: AbortSignal;
+  deadlineMs?: number;
 }): Promise<{
   text: string | null;
   report: ReturnType<typeof validateCompleteChapterDraftQuality> | null;
@@ -821,6 +852,7 @@ async function repairGateHitsLocally(params: {
     writerConfig: params.writerConfig,
     contextStr: params.contextStr,
     signal: params.signal,
+    deadlineMs: params.deadlineMs,
   };
   const batchStats: BatchRepairStats = { calls: 0, filled: 0 };
   const batchReplacements = await requestBatchLocalRepairs(
@@ -916,6 +948,7 @@ async function attemptLocalRepairs(params: {
   contextStr: string;
   minDraftChars?: number;
   signal?: AbortSignal;
+  deadlineMs?: number;
 }): Promise<{
   text: string | null;
   report: ReturnType<typeof validateCompleteChapterDraftQuality> | null;
@@ -1097,6 +1130,10 @@ export async function runProductionPipeline(params: {
   stagePrompts: { planner: string; writer: string; critic: string };
   learnedPreferences?: LearnedPreference[];
   progress?: PipelineProgress;
+  /** Plan 283：测试注入——run 墙钟预算（0 = 立即耗尽）。 */
+  runBudgetMs?: number;
+  /** Plan 283：测试注入的时钟。 */
+  now?: () => number;
 }): Promise<PipelineResult> {
   const {
     novelId,
@@ -1150,6 +1187,53 @@ export async function runProductionPipeline(params: {
   // ================================================================
   // Phase 1: Planner — generate scene beats from user intent
   // ================================================================
+
+  // Plan 283（R-282-3）：run 级墙钟预算。每次进入新阶段前用它判断「还值不值得再开一轮」。
+  const runBudgetMs = params.runBudgetMs === undefined ? resolveRunBudgetMs() : Math.max(0, params.runBudgetMs);
+  const now = params.now ?? Date.now;
+  const runStartedAt = now();
+  const runDeadline = runStartedAt + runBudgetMs;
+  let budgetExhaustedStage: string | undefined;
+  const remainingBudgetMs = () => runDeadline - now();
+  const budgetGone = () => remainingBudgetMs() <= RUN_BUDGET_TAIL_MS;
+  const clampToBudget = (ms: number) => Math.max(5_000, Math.min(ms, remainingBudgetMs()));
+  const noteBudgetExhausted = (stage: string) => {
+    if (budgetExhaustedStage) return;
+    budgetExhaustedStage = stage;
+    const elapsedMs = now() - runStartedAt;
+    logger.warn('[pipeline] run wall-clock budget exhausted; stopping retries', {
+      novelId,
+      stage,
+      elapsedMs,
+      runBudgetMs,
+    });
+    progress.onRunBudget?.({ stage, elapsedMs, budgetMs: runBudgetMs });
+  };
+
+  // Plan 283（R-282-3）第二层：run 级看门狗。真机曾出现「单次场景调用报 934 s 才返回」
+  // （lite-p282 rep3），说明 per-call 治理超时不是硬上界（并发信号量排队或流读取卡住都可能）。
+  // 到点直接 abort 这条 run 上的全部调用，再由兜底分支交付手上的稿子。
+  const runAbort = new AbortController();
+  const runSignal = runAbort.signal;
+  const bridgeClientAbort = () => runAbort.abort(progress.signal?.reason);
+  if (progress.signal) {
+    if (progress.signal.aborted) bridgeClientAbort();
+    else progress.signal.addEventListener('abort', bridgeClientAbort, { once: true });
+  }
+  // runBudgetMs = 0（测试）时不武装看门狗，让预算分支本身成为唯一变量。
+  const budgetWatchdog: ReturnType<typeof setTimeout> | null =
+    runBudgetMs > 0
+      ? setTimeout(() => {
+          logger.warn('[pipeline] run wall-clock budget ran out; aborting in-flight LLM calls', {
+            novelId,
+            runBudgetMs,
+          });
+          runAbort.abort(new Error('RUN_BUDGET_EXHAUSTED'));
+        }, runBudgetMs)
+      : null;
+  const watchdogWithUnref = budgetWatchdog as { unref?: () => void } | null;
+  if (watchdogWithUnref && typeof watchdogWithUnref.unref === 'function') watchdogWithUnref.unref();
+
   progress.onPhase?.('planner');
 
   const plannerAsset = resolvePromptAssetForSurface({
@@ -1186,7 +1270,7 @@ export async function runProductionPipeline(params: {
         // chain-of-thought and truncate the scene breakdown.
         maxTokens: 2400,
         disableThinking: true,
-        signal: progress.signal,
+        signal: runSignal,
         novelId,
       },
       {
@@ -1194,7 +1278,7 @@ export async function runProductionPipeline(params: {
         novelId,
         timeoutMs: 45_000,
         concurrency: 2,
-        signal: progress.signal,
+        signal: runSignal,
       }
     );
     beatsSource = 'model';
@@ -1261,6 +1345,11 @@ export async function runProductionPipeline(params: {
   let localRepair: LocalRepairSummary | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // Plan 283（R-282-3）：预算到点就不再开新一轮重写/审稿，交手上的稿子给人审。
+    if (attempt > 0 && budgetGone()) {
+      noteBudgetExhausted('before-retry');
+      break;
+    }
     // Plan 278(5)：修复/续写标志必须逐 attempt 重置——critic 低分会回路重写，
     // 陈旧标志会把新产生的短稿当成「已修好」直接交付（真机 pro-low8 rep3 复现：交付 2846 字未达 4000 合同）。
     let localRepairAttempted = false;
@@ -1333,6 +1422,21 @@ export async function runProductionPipeline(params: {
       progress.onWriterReset?.();
       emitChunks(finalText);
       streamedWriterText = finalText;
+    };
+    // Plan 283（R-282-3）：预算到点（含看门狗 abort）后交付手上的最好一稿，而不是模板保底稿。
+    // 优先级：本轮整章稿 > 作者已经看到的流式正文（≥800 有效字符才够一屏） > 上一轮整章稿。
+    const salvageOnBudget = (stage: string): boolean => {
+      const candidate = currentDraft.trim()
+        ? currentDraft
+        : compactForCompare(streamedWriterText).length >= 800
+          ? streamedWriterText
+          : lastModelDraft;
+      if (!candidate.trim()) return false;
+      noteBudgetExhausted(stage);
+      currentDraft = candidate;
+      draftSource = 'model';
+      emitFinalDraft(currentDraft);
+      return true;
     };
     try {
       // 诊断工具（env 门控）：采集实际发出的 writer prompt 与每次调用的收发
@@ -1408,7 +1512,7 @@ export async function runProductionPipeline(params: {
                 // Reasoning chains would eat the per-scene token budget and leave
                 // the prose truncated empty (finish_reason=length).
                 disableThinking: true,
-                signal: progress.signal,
+                signal: runSignal,
                 onToken: (token) => {
                   streamedWriterText += token;
                   liveStreamed = true;
@@ -1423,9 +1527,9 @@ export async function runProductionPipeline(params: {
               {
                 operation: 'production-pipeline-writer',
                 novelId,
-                timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+                timeoutMs: clampToBudget(WRITER_LLM_OPTIONS.timeoutMs),
                 concurrency: 2,
-                signal: progress.signal,
+                signal: runSignal,
               }
             );
             let trimmed = String(sectionText).trim();
@@ -1446,7 +1550,7 @@ export async function runProductionPipeline(params: {
                   maxTokens: Math.round(WRITER_SCENE_MAX_TOKENS * 0.5),
                   disableThinking: true,
                   streamHoldback: STREAM_HOLDBACK_CHARS,
-                  signal: progress.signal,
+                  signal: runSignal,
                   // Plan 272: stream the continuation too, so a token-capped scene
                   // does not leave a hole in the provisional prose.
                   onToken: (token) => {
@@ -1460,9 +1564,9 @@ export async function runProductionPipeline(params: {
                 {
                   operation: 'production-pipeline-writer-continue',
                   novelId,
-                  timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+                  timeoutMs: clampToBudget(WRITER_LLM_OPTIONS.timeoutMs),
                   concurrency: 2,
-                  signal: progress.signal,
+                  signal: runSignal,
                 }
               );
               const continuationText = String(continuation).trim();
@@ -1534,7 +1638,7 @@ export async function runProductionPipeline(params: {
             // models can burn the token budget on chain-of-thought and return a
             // truncated/empty draft (length_exhausted) instead of prose.
             disableThinking: true,
-            signal: progress.signal,
+            signal: runSignal,
             onToken: (token) => {
               streamedWriterText += token;
               liveStreamed = true;
@@ -1546,9 +1650,9 @@ export async function runProductionPipeline(params: {
           {
             operation: 'production-pipeline-writer',
             novelId,
-            timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
+            timeoutMs: clampToBudget(WRITER_LLM_OPTIONS.timeoutMs),
             concurrency: 2,
-            signal: progress.signal,
+            signal: runSignal,
           }
         );
       }
@@ -1677,6 +1781,12 @@ export async function runProductionPipeline(params: {
           lastViolations = draftQuality.violations;
           lastMechanicalScore = draftQuality.mechanicalReview?.score;
         }
+        // Plan 283（R-282-3）：预算已尽——不再定点修复、不再续写、不再整章重写，也不构造保底稿
+        // 覆盖；把手上的这一稿交人审（审计状态保持 unknown，不假装审过）。
+        if (currentDraft.trim() && budgetGone()) {
+          noteBudgetExhausted('gate-fail');
+          break;
+        }
         // Plan 269：先试一次段落级定点修复——只改被点名的句子，不重写整章、不放宽阈值。
         // 修完仍不过门就照旧走整章重写 / 保底稿；每次 run 最多一次，避免把改稿轮
         // 变成第二篇长文。定点修复成功即收稿，不再烧掉整章重写重试。
@@ -1722,7 +1832,7 @@ export async function runProductionPipeline(params: {
                 maxTokens: Math.min(4096, Math.max(2048, shortfall)),
                 disableThinking: true,
                 streamHoldback: STREAM_HOLDBACK_CHARS,
-                signal: progress.signal,
+                signal: runSignal,
                 onToken: (token) => {
                   streamedWriterText += token;
                   liveStreamed = true;
@@ -1734,8 +1844,8 @@ export async function runProductionPipeline(params: {
               {
                 operation: 'production-pipeline-writer-continue-length',
                 novelId,
-                timeoutMs: WRITER_LLM_OPTIONS.timeoutMs,
-                signal: progress.signal,
+                timeoutMs: clampToBudget(WRITER_LLM_OPTIONS.timeoutMs),
+                signal: runSignal,
               }
             );
             const appended = String(continuation || '').trim();
@@ -1788,7 +1898,7 @@ export async function runProductionPipeline(params: {
 
         // Plan 279（R-278-4）：这两个标志在每次 attempt 开始时重置（见 attempt 循环顶部），
         // 所以一个 run 的每轮重写都各自拥有一次定点修复名额，不会被上一轮用掉。
-        if (!localRepairAttempted && !lengthContinuationPassed) {
+        if (!localRepairAttempted && !lengthContinuationPassed && !budgetGone()) {
           localRepairAttempted = true;
           const outcome = await attemptLocalRepairs({
             novelId,
@@ -1798,7 +1908,8 @@ export async function runProductionPipeline(params: {
             hits: draftQuality.mechanicalReview?.hits || [],
             contextStr: augmentedContexts.writer,
             minDraftChars,
-            signal: progress.signal,
+            signal: runSignal,
+            deadlineMs: runDeadline,
           });
           localRepair = outcome.summary;
           // Plan 277（R-276-3）：修复结果不再只写服务器日志——每轮修完向作者侧发一次进度。
@@ -1891,6 +2002,10 @@ export async function runProductionPipeline(params: {
       }
     } catch (err) {
       throwIfAborted(progress.signal);
+      // Plan 283（R-282-3）：预算到点（含看门狗 abort 掉正在进行的调用）时不再降级成模板保底稿。
+      if (budgetGone() && salvageOnBudget('writer-error')) {
+        break;
+      }
       if (err instanceof Error && err.message.startsWith('DRAFT_QUALITY_GATE_FAILED:')) {
         throw err;
       }
@@ -1931,6 +2046,12 @@ export async function runProductionPipeline(params: {
     progress.onWriterDone?.();
 
     // --- Critic ---
+    // Plan 283（R-282-3）：预算已尽就不必再等审稿（35–70 s 起），直接交手上的稿让人审。
+    if (budgetGone() && currentDraft.trim()) {
+      noteBudgetExhausted('before-critic');
+      emitFinalDraft(currentDraft);
+      break;
+    }
     progress.onPhase?.('critic');
 
     const criticAsset = resolvePromptAssetForSurface({
@@ -1980,7 +2101,7 @@ export async function runProductionPipeline(params: {
               criticRetrySuffix,
             ...CRITIC_LLM_OPTIONS,
             maxTokens: criticMaxTokens,
-            signal: progress.signal,
+            signal: runSignal,
             novelId,
             outputMode: 'audit-json',
             responseMimeType: 'application/json',
@@ -1989,21 +2110,24 @@ export async function runProductionPipeline(params: {
           {
             operation: 'production-pipeline-critic',
             novelId,
-            timeoutMs: criticTimeoutMs,
+            timeoutMs: clampToBudget(criticTimeoutMs),
             concurrency: 2,
-            signal: progress.signal,
+            signal: runSignal,
           }
         );
         criticAvailable = true;
       } catch (err) {
         throwIfAborted(progress.signal);
-        if (isRetriableCriticError(err) && criticAttempt < CRITIC_PARSE_RETRIES) {
+        if (isRetriableCriticError(err) && criticAttempt < CRITIC_PARSE_RETRIES && !budgetGone()) {
           criticRetryReason = `审计请求失败（${criticErrorCode(err)}），超时加倍重试`;
-          criticTimeoutMs = Math.min(criticTimeoutMs * 2, CRITIC_MAX_TIMEOUT_MS);
+          criticTimeoutMs = clampToBudget(Math.min(criticTimeoutMs * 2, CRITIC_MAX_TIMEOUT_MS));
           logger.warn(
             `Critic request failed (${criticErrorCode(err)}) — retrying once with ${criticTimeoutMs}ms timeout`
           );
           continue;
+        }
+        if (isRetriableCriticError(err) && budgetGone()) {
+          noteBudgetExhausted('critic-retry');
         }
         logger.warn('Critic fell back — accepting draft', err);
         criticFeedback = '审计不可用：模型审计请求失败，保留草稿预览。';
@@ -2124,6 +2248,9 @@ export async function runProductionPipeline(params: {
     draftSource = 'model';
   }
 
+  if (budgetWatchdog) clearTimeout(budgetWatchdog);
+  progress.signal?.removeEventListener('abort', bridgeClientAbort);
+
   return {
     sceneBeats,
     draft: currentDraft,
@@ -2134,5 +2261,6 @@ export async function runProductionPipeline(params: {
     beatsSource,
     attempts,
     ...(localRepair ? { localRepair } : {}),
+    ...(budgetExhaustedStage ? { budgetExhaustedAt: budgetExhaustedStage } : {}),
   };
 }
