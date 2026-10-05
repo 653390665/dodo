@@ -138,6 +138,7 @@ async function runPipeline(options: {
   criticThrows?: boolean;
   criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'low-score' | 'ok'>;
   contextStr?: string;
+  runBudgetMs?: number;
 }) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
@@ -149,6 +150,7 @@ async function runPipeline(options: {
   process.env.API_BASE_URL = 'http://writer-gate-retry.local/v1';
 
   const requests: string[] = [];
+  const budgetEvents: Array<{ stage: string; elapsedMs: number; budgetMs: number }> = [];
   const bodies: Array<Record<string, unknown>> = [];
   const writerQueue = [...options.drafts];
   const criticQueue = options.criticScript ? [...options.criticScript] : [];
@@ -232,8 +234,12 @@ async function runPipeline(options: {
       userIntent: '推进本章冲突',
       contextStr: options.contextStr ?? '普通故事上下文',
       stagePrompts: { planner: 'PLANNER_SENTINEL', writer: 'WRITER_SENTINEL', critic: 'CRITIC_SENTINEL' },
+      runBudgetMs: options.runBudgetMs,
+      progress: {
+        onRunBudget: (update) => budgetEvents.push(update),
+      },
     });
-    return { result, requests, bodies };
+    return { result, requests, bodies, budgetEvents };
   } finally {
     globalThis.fetch = originalFetch;
     if (previousEnv.nodeEnv === undefined) delete process.env.NODE_ENV;
@@ -586,4 +592,51 @@ test('split-scene rewrite prompts carry scene-scoped feedback instead of chapter
     'rewrite pass still carries the targeted feedback',
   );
   assert.equal(result.source, 'model');
+});
+
+
+// Plan 283（R-282-3）：run 墙钟预算——到点停止重试，把手上的最优稿交人审。
+const BUDGET_TEST_SCENES = [...SOFT_SCENES];
+
+test('a run that has spent its budget stops retrying and ships the model draft for review', async () => {
+  const { result, requests, budgetEvents } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...BUDGET_TEST_SCENES, ...CLEAN_SCENES],
+    runBudgetMs: 0,
+  });
+
+  assert.equal(
+    writerRequestsOf(requests).length,
+    3,
+    'the scene pass is not replayed once the budget is gone',
+  );
+  assert.equal(result.budgetExhaustedAt, 'gate-fail');
+  assert.equal(result.source, 'model', 'the model draft is delivered, not the deterministic fallback');
+  assert.equal(result.auditStatus, 'unknown', 'no audit happened, and the result says so');
+  assert.equal(result.score, undefined);
+  assert.ok(
+    result.draft.includes('极其简陋'),
+    'the delivered draft is the prose the model actually wrote',
+  );
+  assert.equal(budgetEvents.length, 1, 'the author side is told once');
+  assert.equal(budgetEvents[0].stage, 'gate-fail');
+  assert.equal(budgetEvents[0].budgetMs, 0);
+});
+
+test('a run that has spent its budget does not wait for the critic either', async () => {
+  const { result, requests, budgetEvents } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [...CLEAN_SCENES],
+    runBudgetMs: 0,
+  });
+
+  assert.ok(
+    requests.every((request) => !request.includes('CRITIC_SENTINEL')),
+    'the critic call is skipped instead of being allowed to hang for another minute',
+  );
+  assert.equal(result.budgetExhaustedAt, 'before-critic');
+  assert.equal(result.source, 'model');
+  assert.equal(result.auditStatus, 'unknown');
+  assert.equal(budgetEvents.length, 1);
+  assert.equal(budgetEvents[0].stage, 'before-critic');
 });
