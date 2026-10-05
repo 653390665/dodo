@@ -959,4 +959,18 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
   - 重试臂 `lite-p282`（gemini-3.1-flash-lite，逼出两轮重试）：重试场景调用的提示词 8/8 含 `【本场景范围】`、含 `请重写整章` 归零（修前 8/12 条）；逐场景字数 634–1 992（修前重试轮 4 800–6 357），场景字数合计 17 050 vs 修前 38 748 ⇒ 跨场景复述型 `duplicate-paragraph` / `repeated-opening` 消失，**R-281-1 闭环**。
   - 新登记 R-282-3：弱模型 + 审稿超时会把单次 run 拖到 33 分钟（`lite-p282` rep3 = 1 991.2 s，audit unknown）。
 - 计划书：`plans/282-scene-scoped-retry-feedback.md`。
-- 残余：R-282-1（片段归属靠字符串相等，改写过就丢片段）、R-282-2（范围说明是提示词级约束，无硬校验）、R-282-3（弱模型 + 审稿超时拖长单次 run）；R-281-1 已闭环；沿用 R-279-2/3/4、R-272-2、R-273-3、R-275-1..3、R-269-1/3、R-276-1、R-277-2、R-278-2/4、R-280-1..3。
+- 残余：R-282-1（片段归属靠字符串相等，改写过就丢片段）、R-282-2（范围说明是提示词级约束，无硬校验）、R-282-3（弱模型 + 审稿超时拖长单次 run；**已由 Plan 283 关闭**）；R-281-1 已闭环；沿用 R-279-2/3/4、R-272-2、R-273-3、R-275-1..3、R-269-1/3、R-276-1、R-277-2、R-278-2/4、R-280-1..3。
+
+## Round 67（2026-10-05）：run 墙钟预算与看门狗 —— 一次成章不再被拖到 33 分钟（283）
+
+**任务**：User said (m26743)「按 1 继续」——修 Plan 282 登记的 R-282-3。
+
+**收口**：
+- 读数：失败 run `71188cef-aa75-469a-be56-01e2c209ce63` 墙钟 **1 991.1 s**（`[ACCESS] … start-stream ms=1991138`）；dump 记录 `scene-call-error scene 4 ms 934774 error 'LLM operation production-pipeline-writer timed out' streamedTokens 4907`，而该调用治理超时只有 180 s ⇒ **`llm-execution-gate` 的 per-call 超时不是硬上界**；llm-usage 44 条 `ms` 合计 2 603 s（含上面那条 1 991 s），真实调用约 612 s。
+- 复现：`lite-p283`（4 reps）与 `lite-p284`（6 reps）均未复现（只见到一次正常的 planner 45 s `gate-timeout-fire`）⇒ 低频事件，不能靠复现验证，只能给 run 加与单次调用无关的墙钟上界。
+- 修复：`DEFAULT_RUN_BUDGET_MS = 900_000`（`INKFLOW_RUN_BUDGET_MS` 可覆盖）+ `RUN_BUDGET_TAIL_MS = 20_000` + `budgetGone()` / `clampToBudget()` / `noteBudgetExhausted(stage)`；writer 三个调用点（场景 / 续写 / 篇幅续写）与 critic、定点修复全部超时夹紧到剩余预算；四个停止点 `before-retry` / `gate-fail` / `before-critic` / `critic-retry`；看门狗 `runAbort`（run 内 13 处 `signal` 改指 `runSignal`，客户端取消桥接）+ `salvageOnBudget(stage)` 兜底交付（候选：`currentDraft` > 已流出 ≥800 字正文 > `lastModelDraft`，落库 model 版本行）。
+- 可见性：`PipelineResult.budgetExhaustedAt` + `PipelineProgress.onRunBudget` → SSE `model_run_budget` → `src/lib/production-budget-progress.ts` 状态条文案（如「已到本次生成的时间上限（15.1 分钟 / 上限 15 分钟）：停止再次重写，交付当前最好的一稿供你审阅。」）。
+- 真机（隔离 3301，gemini-3.1-flash-lite @ low）：预算 45 s ×2 触发（一次 **46.8 s** 收口，比预算晚 1.8 s；`model_run_budget: writer-error@45008/45000`；交付 model 2 834 / 4 133 字 + fallback 4 119；终态 `review_required`；无审稿轮）；预算 300 s ×2 控制不触发（130.6 / 267.1 s，审计 74 / 58，`budgets: []`，服务日志 0 条 budget 标记）⇒ 既兜住挂死，也不干涉正常运行。
+- 门禁：tsc 0 / eslint 0 / 定向 6 文件 **61/61** / 后端全量 **1 555/1 555**（36 suites）/ 前端定向 3 文件 **12/12**；诊断插桩（`debugPhase` 相位点 + 事件循环滞后监视 + gate 三处日志）已在提交前移除（`server/helpers/llm-execution-gate.ts` 回到零差异）。
+- 计划书：`plans/283-run-budget-and-watchdog.md`。
+- 残余：**R-283-1**（预算到点可能交短稿，触发格 2 834 / 4 133 字低于 4 000 字合同，属刻意取舍）、**R-283-2**（934.8 s 挂死机制未定性，看门狗是兜底非根因修复）、**R-283-3**（budget 事件只在生成中状态条可见，无历史回看）；R-282-3 已闭环；沿用 R-282-1/2、R-279-1..4、R-280-1..3、R-277-2、R-276-1、R-275-1..3、R-273-3、R-272-1、R-269-1/3。
