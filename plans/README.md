@@ -974,3 +974,16 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - 门禁：tsc 0 / eslint 0 / 定向 6 文件 **61/61** / 后端全量 **1 555/1 555**（36 suites）/ 前端定向 3 文件 **12/12**；诊断插桩（`debugPhase` 相位点 + 事件循环滞后监视 + gate 三处日志）已在提交前移除（`server/helpers/llm-execution-gate.ts` 回到零差异）。
 - 计划书：`plans/283-run-budget-and-watchdog.md`。
 - 残余：**R-283-1**（预算到点可能交短稿，触发格 2 834 / 4 133 字低于 4 000 字合同，属刻意取舍）、**R-283-2**（934.8 s 挂死机制未定性，看门狗是兜底非根因修复）、**R-283-3**（budget 事件只在生成中状态条可见，无历史回看）；R-282-3 已闭环；沿用 R-282-1/2、R-279-1..4、R-280-1..3、R-277-2、R-276-1、R-275-1..3、R-273-3、R-272-1、R-269-1/3。
+
+## Round 68（2026-10-06）：预算兜底稿收口 —— 裁到完整句 · 反挂死回归 · 停止阶段可回看（284）
+
+**任务**：User said (m27164)「修复残余问题」—— 收 Plan 283 登记的三条残余。
+
+**收口**：
+- **R-283-1**：`shared/lib/draft-quality.ts` 新增 `DRAFT_TAIL_TRIM_MIN_RETAINED_RATIO = 0.6` + `trimDanglingTail()`（只把结尾回退到最后一个完整句的句末、不补写；保留量不足六成则原样返回）；`salvageOnBudget` 改用裁剪稿，并补两条日志：裁剪生效 `trimmed the salvaged draft back to its last complete sentence`、仍低于章级合同时 `salvaged draft is below the chapter contract after the run budget ran out`（如实标注、不退回模板保底稿）。
+- **R-283-2**：`tests/writer-quality-gate-retry.test.ts` harness 增 `writerHangs`（只随 abort 拒绝的挂起 promise）与 `writerPartialThenHangs` + `partialDraft`（流一半挂住）两个开关 → 两条回归：整跑 **< 4 000 ms**（`runBudgetMs: 1500`，实测 1 506–1 509 ms，严于 `clampToBudget` 的 5 s 下限 ⇒ 只有看门狗 abort 经 `runSignal` 传到治理门 `Promise.race` 才可能通过）、兜底稿裁到「。」结尾且半句尾巴被丢（实测 `chars: 1386, dropped: 23`）。
+- **R-283-3**：`server/lib/db-init.ts:720` `ensureColumn('chapter_production_runs','budget_exhausted_at','TEXT')` + `shared/types/novel.ts:259` 类型 + `server/lib/db-mappers.ts:344/:684` 双向映射 + `server/lib/db/production.ts:24/:37` 列清单 + `server/routes/production.ts:1192-1196` 守卫式写入 + `budgetStageLabel()` 阶段文案 + `ProductionRunReview` 的 `role="status"` 横幅（「本次生成到时间上限（<阶段>）：交付的是当时最好的一稿，可能不完整，请审阅后再决定是否接受。」）。
+- **真机**：隔离 3301（`INKFLOW_RUN_BUDGET_MS=45000`）SSE `model_run_budget {stage:'before-critic', elapsedMs:741254, budgetMs:45000}`、库读回 `budget_exhausted_at = 'before-critic'`（run `33caed9f` / `7738e1b1`）⇒ 落库端到端成立；上游 7897 拒连（8317 全 `503 auth_unavailable`）⇒「上游真流式 + 预算」臂无法复跑；假 provider 试验（`/tmp/p284-fake-provider.py` + `/tmp/p284-trim.py`）证明 abort 对「已建连但不再返回数据」的流不即时（约 700 s、两次 300 s 挂住）→ 该路线放弃，改确定性集成测试取证。
+- **门禁**：tsc 0 / eslint 0；后端定向 5 文件 **83/83**（8.0 s）、前端定向 2 文件 **24/24**；后端全量 **1 530 pass / 0 fail**（3 个 `tests/continuation-pack*.test.ts` 文件包装在负载下 cancelled，单跑 28/28）、前端全量 **166 files / 1 049 tests 全过**（1 条 vitest worker 启动超时 unhandled error，该文件单跑 4/4）。
+- 计划书：`plans/284-budget-salvage-and-stop-stage.md`。
+- 残余：**R-284-1**（挂死流无返回时 abort 不即时，机制未定性）、**R-284-2**（`--test-concurrency=1` 下 `tests/production-stream-disconnect.test.ts` 挂起不退出，干净树同样复现 ⇒ 预存在）；R-283-1/R-283-3 已闭环、R-283-2 已加回归保护；沿用 R-282-1/2、R-279-1..4、R-280-1..3、R-277-2、R-276-1、R-275-1..3、R-273-3、R-272-1、R-269-1/3。
