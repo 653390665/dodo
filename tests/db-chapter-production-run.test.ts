@@ -90,6 +90,7 @@ test('chapter production run persists JSON report and status updates', () => {
     assert.ok(read);
     assert.equal(read!.status, 'review_required');
     assert.equal(read!.continuityReport.score, 88);
+    assert.equal(read!.budgetExhaustedAt, undefined);
     assert.equal(read!.continuityReport.proposedPatch.timelineEventsToCreate[0].title, '林砚入旧巷');
 
     updateChapterProductionRun('run-1', {
@@ -101,6 +102,11 @@ test('chapter production run persists JSON report and status updates', () => {
     assert.ok(updated);
     assert.equal(updated!.status, 'applied');
     assert.equal(updated!.styleAudit, 'PASS：已接受。');
+
+    updateChapterProductionRun('run-1', { budgetExhaustedAt: 'gate-fail' });
+    const exhausted = getChapterProductionRun('run-1');
+    assert.ok(exhausted);
+    assert.equal(exhausted!.budgetExhaustedAt, 'gate-fail');
 
     const runs = listChapterProductionRuns('novel-prod-1');
     assert.equal(runs.length, 1);

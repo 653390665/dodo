@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  budgetStageLabel,
   runBudgetMessage,
   type ProductionRunBudgetEvent,
 } from '../lib/production-budget-progress';
@@ -28,5 +29,15 @@ describe('runBudgetMessage', () => {
   test('never renders a zero-minute budget', () => {
     const message = runBudgetMessage({ ...base, elapsedMs: 1_000, budgetMs: 0 });
     expect(message).toContain('0.1 分钟 / 上限 0.1 分钟');
+  });
+});
+
+describe('budgetStageLabel', () => {
+  test('names the stop stages the persisted run can carry', () => {
+    expect(budgetStageLabel('gate-fail')).toBe('正文质量门失败后');
+    expect(budgetStageLabel('before-critic')).toBe('审稿前');
+  });
+  test('echoes an unknown stage instead of hiding it', () => {
+    expect(budgetStageLabel('something-new')).toBe('something-new');
   });
 });

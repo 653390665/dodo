@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MIN_COMPLETE_CHAPTER_CHARS, MIN_COMPLETE_CHAPTER_SLOP_SCORE, evaluateDraftAcceptance, sanitizeFallbackContext, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCandidateDraftQuality, validateChapterDraftQuality, validateCompleteChapterDraftQuality, validateDraftQuality } from '../shared/lib/draft-quality';
+import { trimDanglingTail, MIN_COMPLETE_CHAPTER_CHARS, MIN_COMPLETE_CHAPTER_SLOP_SCORE, evaluateDraftAcceptance, sanitizeFallbackContext, semanticReviewFromContinuityReport, semanticReviewFromStructuredAudit, validateCandidateDraftQuality, validateChapterDraftQuality, validateCompleteChapterDraftQuality, validateDraftQuality } from '../shared/lib/draft-quality';
 import type { StructuredAudit } from '../shared/lib/audit-structured';
 import { buildFallbackDraft, buildFallbackSceneBeats } from '../server/helpers/fallback-draft';
 
@@ -589,4 +589,22 @@ test('fallback draft drops inline planner field lines from writer context (plan 
     assert.ok(!draft.includes(label), `保底稿不应含分镜字段文本：${label}`);
   }
   assert.equal(validateCompleteChapterDraftQuality(draft).ok, true);
+});
+
+test('trimDanglingTail keeps only the last complete sentence (plan 284 R-283-1)', () => {
+  assert.equal(
+    trimDanglingTail('他推开门，雨水顺着屋檐落下。屋里的灯'),
+    '他推开门，雨水顺着屋檐落下。'
+  );
+  assert.equal(trimDanglingTail('他推开门。'), '他推开门。');
+  assert.equal(
+    trimDanglingTail('他推开门，雨水顺着屋檐落下'),
+    '他推开门，雨水顺着屋檐落下'
+  );
+  assert.equal(
+    trimDanglingTail('他停在门口，听见屋里有动静…'),
+    '他停在门口，听见屋里有动静…'
+  );
+  const lopsided = '门外雨声不断。' + '雨'.repeat(50);
+  assert.equal(trimDanglingTail(lopsided), lopsided, 'keeps the text when trimming would drop over forty percent');
 });

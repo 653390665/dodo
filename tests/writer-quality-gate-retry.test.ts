@@ -139,6 +139,9 @@ async function runPipeline(options: {
   criticScript?: Array<'throw' | 'truncated' | 'no-evidence' | 'low-score' | 'ok'>;
   contextStr?: string;
   runBudgetMs?: number;
+  writerHangs?: boolean;
+  writerPartialThenHangs?: boolean;
+  partialDraft?: string;
 }) {
   const previousEnv = {
     nodeEnv: process.env.NODE_ENV,
@@ -198,7 +201,42 @@ async function runPipeline(options: {
       content = CLEAN_SCENES[0];
     } else if (prompt.includes('PLANNER_SENTINEL')) {
       content = options.plannerBeats;
+    } else if (options.writerPartialThenHangs) {
+      // Plan 284（R-283-1）：模拟「流到一半就挂住」的上游（不发送结束帧）；预算看门狗 abort 后
+      // 将流置为错误，好让管线走预算兜底分支（裁到完整句）。
+      const partial = options.partialDraft ?? '';
+      const signal = (init as RequestInit | undefined)?.signal ?? undefined;
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          for (let i = 0; i < partial.length; i += 40) {
+            const piece = partial.slice(i, i + 40);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { content: piece }, finish_reason: null }] })}\n\n`
+              )
+            );
+          }
+          const onAbort = () => controller.error(new Error('writer stream aborted'));
+          if (signal) {
+            if (signal.aborted) onAbort();
+            else signal.addEventListener('abort', onAbort, { once: true });
+          }
+        },
+      });
+      return { ok: true, status: 200, body: stream, json: async () => ({ choices: [{ message: { content: partial } }] }) } as Response;
     } else if (prompt.includes('WRITER_SENTINEL')) {
+      if (options.writerHangs) {
+        // Plan 284（R-283-2）：模拟一个不会自己返回的挂死调用（除非被 abort），
+        // 用于验证 run 预算看门狗能把 abort 传进治理门。
+        const signal = (init as RequestInit | undefined)?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          if (!signal) return;
+          const onAbort = () => reject(signal.reason ?? new Error('writer call aborted'));
+          if (signal.aborted) onAbort();
+          else signal.addEventListener('abort', onAbort, { once: true });
+        });
+      }
       const writerDraft = writerQueue.shift() || CLEAN_SCENES[0];
       if (writerDraft === WRITER_THROW) {
         throw new Error('writer provider network error (mock)');
@@ -639,4 +677,36 @@ test('a run that has spent its budget does not wait for the critic either', asyn
   assert.equal(result.auditStatus, 'unknown');
   assert.equal(budgetEvents.length, 1);
   assert.equal(budgetEvents[0].stage, 'before-critic');
+});
+
+test('a hung writer call cannot outlive the run budget (plan 284 R-283-2)', async () => {
+  const started = Date.now();
+  const { result, budgetEvents } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [body('A', 1, 4)],
+    writerHangs: true,
+    runBudgetMs: 1500,
+  });
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 4000, `budget watchdog must end the run, took ${elapsed}ms`);
+  assert.ok(result.budgetExhaustedAt, 'the stop stage is reported');
+  assert.ok(budgetEvents.length >= 1, 'the author side is told');
+});
+
+test('a budget-salvaged draft is trimmed back to its last complete sentence (plan 284 R-283-1)', async () => {
+  const complete = body('A', 1, 6) + body('B', 1, 6);
+  const dangling = '他抬手想把灯重新点亮，可指尖刚碰到灯罩，里面的火就熄了下去，他又把手收了回来，想等一等再说';
+  const { result, budgetEvents } = await runPipeline({
+    plannerBeats: PLANNER_BEATS,
+    drafts: [],
+    writerPartialThenHangs: true,
+    partialDraft: complete + dangling,
+    runBudgetMs: 1500,
+  });
+  assert.equal(result.source, 'model', 'the salvaged model draft ships');
+  assert.equal(result.budgetExhaustedAt, 'writer-error');
+  assert.ok(result.draft.endsWith('。'), 'the draft ends on a complete sentence');
+  assert.ok(!result.draft.includes('可指尖刚碰到灯罩'), 'the dangling half-sentence is dropped');
+  assert.ok(result.draft.includes(body('A', 1, 1).slice(0, 8)), 'the streamed prose is kept');
+  assert.ok(budgetEvents.length >= 1);
 });

@@ -431,3 +431,13 @@ test('omits the capability receipt section for legacy runs without a receipt', a
   await waitFor(() => expect(screen.getByRole('button', { name: /接受并写入/ })).toBeTruthy());
   expect(screen.queryByTestId('capability-receipt')).toBeNull();
 });
+
+test('warns the author when the run stopped at the wall-clock budget', async () => {
+  listChapterProductionRunsMock.mockResolvedValue([]);
+  const run = createRun('budget-run', 'review_required', completeDraft('预算停止样本'));
+  run.budgetExhaustedAt = 'gate-fail';
+  renderReview(run, false);
+  const banner = await screen.findByText(/本次生成到时间上限/);
+  expect(banner.textContent).toContain('正文质量门失败后');
+  expect(banner.textContent).toContain('请审阅后再决定是否接受');
+});
