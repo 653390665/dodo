@@ -716,6 +716,8 @@ export function initDb(dbPath?: string): void {
   ensureColumn('entity_relationships', 'source_version', 'TEXT');
   ensureColumn('entity_relationships', 'stale', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('entity_relationships', 'stale_reason', 'TEXT');
+  // Plan 284（R-283-3）：run 到时间上限时的停止阶段（'gate-fail' / 'before-critic' 等），供历史回看与面板提示；正常跑完的 run 为 NULL。
+  ensureColumn('chapter_production_runs', 'budget_exhausted_at', 'TEXT');
   repairImportedContinuationPackNovelLinks();
 
   // Indexes for foreign-key columns to avoid full table scans

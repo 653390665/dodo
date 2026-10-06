@@ -341,6 +341,7 @@ export function rowToChapterProductionRun(row: DbRow): ChapterProductionRun {
       {} as ContinuityReport
     ),
     errorMessage: row.error_message || undefined,
+    budgetExhaustedAt: row.budget_exhausted_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -680,6 +681,7 @@ export function chapterProductionRunToRow(run: ChapterProductionRun): DbRow {
     style_audit: run.styleAudit,
     continuity_report: JSON.stringify(run.continuityReport),
     error_message: run.errorMessage || null,
+    budget_exhausted_at: run.budgetExhaustedAt || null,
     created_at: run.createdAt,
     updated_at: run.updatedAt,
   };

@@ -255,6 +255,8 @@ export interface ChapterProductionRun {
   styleAudit: string;
   continuityReport: ContinuityReport;
   errorMessage?: string;
+  /** Plan 284（R-283-3）：到时间上限时的停止阶段；正常跑完为 undefined。 */
+  budgetExhaustedAt?: string;
   reviewVersionId?: string;
   reviewVersionHash?: string;
   reviewVersionSource?: ChapterProductionRunVersionSource;

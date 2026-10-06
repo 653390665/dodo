@@ -8,6 +8,7 @@ import { ChapterFactCandidateReview } from './ChapterFactCandidateReview';
 import { applyChapterFactCandidate, previewChapterFactCandidate } from '../lib/chapter-fact-client';
 import type { ChapterFactCandidate } from '../../shared/types/chapter-facts';
 import { validateCompleteChapterDraftQuality } from '../../shared/lib/draft-quality';
+import { budgetStageLabel } from '../lib/production-budget-progress';
 
 interface ProductionRunReviewProps {
   run: ChapterProductionRun | null;
@@ -280,6 +281,12 @@ export function ProductionRunReview({
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
             <CheckCircle2 size={14} />
             章节已成功写入，状态账本已更新。可在章节列表中查看新章节。
+          </div>
+        ) : null}
+        {displayRun?.budgetExhaustedAt ? (
+          <div role="status" className="mt-3 flex items-center gap-2 rounded-xl alert-warning px-3 py-2 text-xs">
+            <AlertTriangle size={14} />
+            {`本次生成到时间上限（${budgetStageLabel(displayRun.budgetExhaustedAt)}）：交付的是当时最好的一稿，可能不完整，请审阅后再决定是否接受。`}
           </div>
         ) : null}
         {showStartAction ? (

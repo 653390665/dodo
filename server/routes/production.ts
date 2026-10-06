@@ -1189,6 +1189,9 @@ export function registerProductionRoutes(app: Express) {
                     sceneBeats: result.sceneBeats,
                     draftContent: result.draft,
                     styleAudit: result.audit,
+                    ...(result.budgetExhaustedAt
+                      ? { budgetExhaustedAt: result.budgetExhaustedAt }
+                      : {}),
                     continuityReport: {
                       ...db.getChapterProductionRun(runId!)!.continuityReport,
                       contextReceipt: finalContextReceipt,

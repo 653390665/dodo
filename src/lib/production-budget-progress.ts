@@ -21,3 +21,17 @@ export function runBudgetMessage(update: ProductionRunBudgetEvent): string {
   const hint = STAGE_HINTS[update.stage] || '停止继续重试';
   return `已到本次生成的时间上限（${minutesOf(update.elapsedMs)} 分钟 / 上限 ${minutesOf(update.budgetMs)} 分钟）：${hint}，交付当前最好的一稿供你审阅。`;
 }
+
+const STAGE_LABELS: Record<string, string> = {
+  'before-retry': '重写前',
+  'gate-fail': '正文质量门失败后',
+  'local-repair': '局部修复',
+  'critic-retry': '审稿重试',
+  'before-critic': '审稿前',
+  'writer-error': '写作调用异常后',
+};
+
+/** Plan 284（R-283-3）：预算停止阶段的人类可读文案（未知值原样回显）。 */
+export function budgetStageLabel(stage: string): string {
+  return STAGE_LABELS[stage] || stage;
+}

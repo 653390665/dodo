@@ -22,6 +22,7 @@ import type { LearnedPreference } from '../../shared/lib/preference-flywheel';
 import { PLANNER_SOUL, WRITER_SOUL, CRITIC_SOUL } from '../../shared/config/souls';
 
 import {
+  trimDanglingTail,
   extractSettingCardSources,
   resolveEffectiveMinDraftChars,
   stripPromptInstructionResidue,
@@ -1432,9 +1433,28 @@ export async function runProductionPipeline(params: {
           ? streamedWriterText
           : lastModelDraft;
       if (!candidate.trim()) return false;
+      // Plan 284（R-283-1）：到点中断的流式正文往往停在半句中间，直接把半句
+      // 交给作者既难看又误导。这里只把结尾回退到最后一个完整句的句末
+      // （不补写任何内容），篇幅不足时如实标注、仍交由作者审阅。
+      const salvaged = trimDanglingTail(candidate);
+      const salvagedChars = compactForCompare(salvaged).length;
       noteBudgetExhausted(stage);
-      currentDraft = candidate;
+      currentDraft = salvaged;
       draftSource = 'model';
+      if (salvaged !== candidate) {
+        logger.info('[pipeline] trimmed the salvaged draft back to its last complete sentence', {
+          novelId,
+          stage,
+          chars: salvagedChars,
+          dropped: compactForCompare(candidate).length - salvagedChars,
+        });
+      }
+      if (salvagedChars < minDraftChars) {
+        logger.warn(
+          '[pipeline] salvaged draft is below the chapter contract after the run budget ran out',
+          { novelId, stage, chars: salvagedChars, minDraftChars }
+        );
+      }
       emitFinalDraft(currentDraft);
       return true;
     };

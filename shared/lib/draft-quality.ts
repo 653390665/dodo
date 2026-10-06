@@ -686,6 +686,32 @@ function stripHitRanges(draft: string, hits: readonly SettingCardLeakHit[]): Set
   return { text: out, removed: [...hits] };
 }
 
+/**
+ * Plan 284（R-283-1）：run 预算到点兜底交付时，流式正文往往停在半句中间。
+ * 这里只把尾部回退到最后一个完整句子的句末（不新增任何内容）；如果回退会
+ * 丢掉超过四成正文（说明句末标点罕见或文本本身异常），就原样返回，宁可
+ * 交付半句也不把正文掏空。
+ */
+export const DRAFT_TAIL_TRIM_MIN_RETAINED_RATIO = 0.6;
+const DRAFT_SENTENCE_END = '。！？!?…；;';
+export function trimDanglingTail(text: string): string {
+  const stripped = text.replace(/\s+$/, '');
+  if (!stripped) return text;
+  const last = stripped[stripped.length - 1];
+  if (DRAFT_SENTENCE_END.includes(last)) return text;
+  let cut = -1;
+  for (let i = stripped.length - 1; i >= 0; i -= 1) {
+    if (DRAFT_SENTENCE_END.includes(stripped[i])) {
+      cut = i;
+      break;
+    }
+  }
+  if (cut < 0) return text;
+  const kept = stripped.slice(0, cut + 1).replace(/\s+$/, '');
+  if (kept.length < stripped.length * DRAFT_TAIL_TRIM_MIN_RETAINED_RATIO) return text;
+  return kept;
+}
+
 export function validateCompleteChapterDraftQuality(
   text: string,
   semanticReview = DEFAULT_SEMANTIC_REVIEW,
