@@ -987,3 +987,28 @@ Plan 168 已补齐能力工具响应类型和编辑器消费：`contextRewrite.r
 - **门禁**：tsc 0 / eslint 0；后端定向 5 文件 **83/83**（8.0 s）、前端定向 2 文件 **24/24**；后端全量 **1 530 pass / 0 fail**（3 个 `tests/continuation-pack*.test.ts` 文件包装在负载下 cancelled，单跑 28/28）、前端全量 **166 files / 1 049 tests 全过**（1 条 vitest worker 启动超时 unhandled error，该文件单跑 4/4）。
 - 计划书：`plans/284-budget-salvage-and-stop-stage.md`。
 - 残余：**R-284-1**（挂死流无返回时 abort 不即时，机制未定性）、**R-284-2**（`--test-concurrency=1` 下 `tests/production-stream-disconnect.test.ts` 挂起不退出，干净树同样复现 ⇒ 预存在）；R-283-1/R-283-3 已闭环、R-283-2 已加回归保护；沿用 R-282-1/2、R-279-1..4、R-280-1..3、R-277-2、R-276-1、R-275-1..3、R-273-3、R-272-1、R-269-1/3。
+
+## Round 69（2026-10-06）：模型 × 思考档位写作效果矩阵 —— 3.8 / 3.7 / 3.6 flash × low/high（285）
+
+**任务**：User said (m27712)「检查上游，测试Gemini3。8和3.7以及3.6flash不同思考程度，的写作效果」。
+
+**上游先修**：8317 `/v1/models` 200 但任意 `POST /v1/chat/completions` 全 `503 auth_unavailable (providers=antigravity … oauth2.googleapis.com/token)`；`~/.cli-proxy-api/logs/main.log` 显示 antigravity OAuth auto-refresh 自 08:34 起每 ~90 分钟失败一次（`dial tcp 127.0.0.1:7897: connect: connection refused` —— CLIProxyAPI 出网经本机代理客户端）⇒ **`brew services restart cliproxyapi`** 后 `refreshed antigravity, … <nil>`，三模型探针 200（4045 / 2736 / 1685 ms）。教训：`/v1/models` 健康不代表上游可用，必须真实调用一次才能判定。
+
+**矩阵读数**（隔离 3301 + 生产库副本，同作品 `d23eef68` / 章节 `99b28a6e` / 同 intent，n=3/格，均值）：
+
+| 模型 | 档位 | 耗时 | critic 总分 | 过评审 | 字数 | 首字 | 套话/千字 |
+|---|---|---|---|---|---|---|---|
+| gemini-3.7-flash-high | low | **61.1 s** | **45.3/50（90.7）** | **3/3** | 5116 | 15.2 s | 0.9 |
+| gemini-3.7-flash-high | high | 111.1 s | 45.0/50（90.0） | 3/3 | 4796 | 30.3 s | 0.8 |
+| gemini-3.6-flash-high | high | 195.7 s | 43.7/50（87.3） | 3/3 | 5484 | 48.2 s | 1.1 |
+| gemini-3.8-flash-high | low | 178.8 s | 42.0/50（84.0） | 3/3 | 5997 | 25.5 s | 0.9 |
+| gemini-3.6-flash-high | low | 352.8 s | 30.5/50（61.0） | **0/3** | 5066 | 36.4 s | **1.7** |
+| gemini-3.8-flash-high | high | **902.3 s（撞 900 s 预算）** | 29.3/50（58.7） | **0/3** | 6899 | 99.5 s | 0.9 |
+
+**机制**：38-high 三跑全部跑满 3 次重写后撞 run 预算（`budget_exhausted_at='writer-error'`，交付裁剪后的兜底稿 54/56/66）；36-low 首稿撞「重复段落（短转场句）+ Markdown 残留 + 套话」，三次整章重写仍不过门，同模型换 high 后首稿只是篇幅不足、一次续写就过（多思考在 3.6 上同时降耗时、提分）；37 两档都一次过门，low/high 分差 <1 分、耗时差 1.8 倍。18 篇交付稿的档案泄漏全为 0，人物接地 2.7–4.0 个/跑。
+
+**结论**：默认取 `gemini-3.7-flash-high` + low；3.8 只保留 low（high 在 900 s 预算下不可用，要用须放宽 `INKFLOW_RUN_BUDGET_MS`）；3.6 不要用 low。已按用户批准把 `~/.inkflow/config.json` 指到本机反代 + `gemini-3.7-flash-high`（备份 `~/.inkflow/config.json.bak-20261006-193520`）。
+
+**残余**：**R-285-1**（n=3、单章单 intent，仅方向性结论）、**R-285-2**（critic 与被测模型同族，分数不宜跨族比较）、**R-285-3**（36-low rep2 critic 未定分，该格按 2 跑计）、**R-285-4**（只有 38-high 触发预算，挤压效应尚无第二组样本）；沿用 R-284-1/2、R-283 系列、R-280-1..3、R-279-1..4、R-277-2、R-276-1、R-275-1..3、R-273-3、R-272-1、R-269-1/3。
+
+**计划书**：`plans/285-model-effort-matrix.md`。
